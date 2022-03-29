@@ -22,8 +22,6 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
-type errorSessionConfigsChanged null
-
 type ErrResponseCode struct {
 	Code           int
 	Message        string
