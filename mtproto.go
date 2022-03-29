@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -284,6 +285,10 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				return
 			default:
 				err := m.readMsg()
+				if err != nil {
+					fmt.Println("readMsg error:", err)
+					os.Exit(1)
+				}
 				switch err {
 				case nil: // skip
 				case context.Canceled:
@@ -321,7 +326,6 @@ func (m *MTProto) readMsg() error {
 
 	if m.serviceModeActivated {
 		var obj tl.Object
-		// сервисные сообщения ГАРАНТИРОВАННО в теле содержат TL.
 		obj, err = tl.DecodeUnknownObject(response.GetMsg())
 		if err != nil {
 			return errors.Wrap(err, "parsing object")
