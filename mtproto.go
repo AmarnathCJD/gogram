@@ -314,7 +314,6 @@ func (m *MTProto) readMsg() error {
 
 	if m.serviceModeActivated {
 		var obj tl.Object
-		// сервисные сообщения ГАРАНТИРОВАННО в теле содержат TL.
 		obj, err = tl.DecodeUnknownObject(response.GetMsg())
 		if err != nil {
 			return errors.Wrap(err, "parsing object")
