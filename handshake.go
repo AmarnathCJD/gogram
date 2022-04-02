@@ -22,9 +22,7 @@ import (
 	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
 )
 
-// https://tlgrm.ru/docs/mtproto/auth_key
-// https://core.telegram.org/mtproto/auth_key
-func (m *MTProto) makeAuthKey() error { // nolint don't know how to make method smaller
+func (m *MTProto) makeAuthKey() error {
 	m.serviceModeActivated = true
 	nonceFirst := tl.RandomInt128()
 	res, err := m.reqPQ(nonceFirst)
@@ -46,7 +44,6 @@ func (m *MTProto) makeAuthKey() error { // nolint don't know how to make method 
 		return errors.New("handshake: Can't find fingerprint")
 	}
 
-	// (encoding) p_q_inner_data
 	pq := big.NewInt(0).SetBytes(res.Pq)
 	p, q := math.SplitPQ(pq)
 	nonceSecond := tl.RandomInt256()
@@ -60,7 +57,7 @@ func (m *MTProto) makeAuthKey() error { // nolint don't know how to make method 
 		ServerNonce: nonceServer,
 		NewNonce:    nonceSecond,
 	})
-	check(err) // well, I don’t know what will happen in the universe so that there will panic
+	check(err)
 
 	hashAndMsg := make([]byte, 255)
 	copy(hashAndMsg, append(dry.Sha1(string(message)), message...))
