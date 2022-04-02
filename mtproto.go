@@ -325,7 +325,6 @@ func (m *MTProto) readMsg() error {
 	err = m.processResponse(response)
 	if err != nil {
 		fmt.Println("processResponse failed:", err)
-		return errors.Wrap(err, "processing response")
 	}
 	return nil
 }
