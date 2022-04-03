@@ -230,19 +230,19 @@ func TestDecodeUnknown(t *testing.T) {
 				Quiz:           false,
 				Question:       "Достаточно?",
 				Answers: []*PollAnswer{
-					&PollAnswer{ // don't mind on these texts, i'm too lazy to edit them
+					{ // don't mind on these texts, i'm too lazy to edit them
 						Text: "достаточно только расписки",
 						Option: []uint8{
 							0x30,
 						},
 					},
-					&PollAnswer{ // don't mind on these texts, i'm too lazy to edit them
+					{ // don't mind on these texts, i'm too lazy to edit them
 						Text: "помимо расписки нужны свидетельские показания",
 						Option: []uint8{
 							0x31,
 						},
 					},
-					&PollAnswer{ // don't mind on these texts, i'm too lazy to edit them
+					{ // don't mind on these texts, i'm too lazy to edit them
 						Text: "кроме расписки кредитору нужно доказать наличие такой суммы на момент заключения договора",
 						Option: []uint8{
 							0x32,

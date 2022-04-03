@@ -26,7 +26,7 @@ type InitConnectionParams struct {
 }
 
 func (*InitConnectionParams) CRC() uint32 {
-	return 0xc1cd5ea9 
+	return 0xc1cd5ea9
 }
 
 func (*InitConnectionParams) FlagIndex() int {
