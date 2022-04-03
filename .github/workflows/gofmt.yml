@@ -1,0 +1,28 @@
+name: Lint Go
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  goLint:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          stable: 'false'
+          go-version: '1.17.6'
+
+      - name: Lint
+        run: |
+          gofmt -l -s -w .
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: 'RoseLoverX: auto Linting'
+          commit_options: '--no-verify'
+          repository: .
+          commit_user_name: AmarnathCjd
+          commit_user_email: 72609355+AmarnathCjd@users.noreply.github.com
+          commit_author: AmarnathCjd <72609355+AmarnathCjd+@users.noreply.github.com>
