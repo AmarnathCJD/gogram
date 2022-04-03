@@ -1,7 +1,7 @@
 package telegram
 
 import (
-"fmt"
+	"fmt"
 	"github.com/amarnathcjd/gogram/telegram/internal/srp"
 )
 
