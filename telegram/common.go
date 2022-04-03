@@ -1,8 +1,3 @@
-// Copyright (c) 2020-2021 KHS Films
-//
-// This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogramblob/master/LICENSE for details
-
 package telegram
 
 import (
@@ -41,17 +36,10 @@ const (
 	warnChannelDefaultCapacity = 100
 )
 
-func NewClient(c ClientConfig) (*Client, error) { //nolint: gocritic arg is not ptr cause we call
-	//                                                               it only once, don't care
-	//                                                               about copying big args.
-	if !dry.FileExists(c.PublicKeysFile) {
-		return nil, errs.NotFound("file", c.PublicKeysFile)
+func NewClient(c ClientConfig) (*Client, error) {                                                          about copying big args.
+	if _, err := os.Stat(c.PublicKeysFile) ; err != nil {
+		return nil, fmt.Errorf("publickeysfile not found")
 	}
-
-	if !dry.PathIsWritable(c.SessionFile) {
-		return nil, errs.Permission(c.SessionFile).Scope("write")
-	}
-
 	if c.DeviceModel == "" {
 		c.DeviceModel = "Unknown"
 	}
@@ -105,12 +93,12 @@ func NewClient(c ClientConfig) (*Client, error) { //nolint: gocritic arg is not 
 	})
 
 	if err != nil {
-		return nil, errors.Wrap(err, "getting server configs")
+		return nil, err
 	}
 
 	config, ok := resp.(*Config)
 	if !ok {
-		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
+		return nil, fmt.Errorf("got wrong response")
 	}
 
 	client.serverConfig = config
