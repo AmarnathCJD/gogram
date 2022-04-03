@@ -5,12 +5,7 @@
 
 package telegram
 
-// "особенные" методы, поскольку являются обертками над другими запросами. генерировать нельзя,т.к.
-// генератор не понимает что такое !X (и не должен понимать 100%)
-
 import (
-	"github.com/pkg/errors"
-
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
@@ -31,7 +26,7 @@ type InitConnectionParams struct {
 }
 
 func (*InitConnectionParams) CRC() uint32 {
-	return 0xc1cd5ea9 //nolint:gomnd not magic
+	return 0xc1cd5ea9 
 }
 
 func (*InitConnectionParams) FlagIndex() int {
@@ -41,7 +36,7 @@ func (*InitConnectionParams) FlagIndex() int {
 func (c *Client) InitConnection(params *InitConnectionParams) (tl.Object, error) {
 	data, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending InitConnection")
+		return nil, err
 	}
 
 	return data.(tl.Object), nil
@@ -53,7 +48,7 @@ type InvokeWithLayerParams struct {
 }
 
 func (*InvokeWithLayerParams) CRC() uint32 {
-	return 0xda9b0d0d //nolint:gomnd not magic
+	return 0xda9b0d0d
 }
 
 func (m *Client) InvokeWithLayer(layer int, query tl.Object) (tl.Object, error) {
@@ -62,7 +57,7 @@ func (m *Client) InvokeWithLayer(layer int, query tl.Object) (tl.Object, error) 
 		Query: query,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending InvokeWithLayer")
+		return nil, err
 	}
 
 	return data.(tl.Object), nil
@@ -86,7 +81,7 @@ func (m *Client) InvokeWithTakeout(takeoutID int, query tl.Object) (tl.Object, e
 		Query:     query,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending InvokeWithLayer")
+		return nil, err
 	}
 
 	return data.(tl.Object), nil
