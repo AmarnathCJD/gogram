@@ -3,7 +3,6 @@ package mtproto
 import (
 	"context"
 	"crypto/rsa"
-	"fmt"
 	"io"
 	"reflect"
 	"sync"
@@ -72,22 +71,6 @@ type MTProto struct {
 	Warnings chan error
 
 	serverRequestHandlers []customHandlerFunc
-}
-
-func (m *MTProto) reqPQ(nonce *tl.Int128) (*objects.ResPQ, error) {
-	return objects.ReqPQ(m, nonce)
-}
-
-func (m *MTProto) reqDHParams(nonce, serverNonce *tl.Int128, p, q []byte, publicKeyFingerprint int64, encryptedData []byte) (objects.ServerDHParams, error) {
-	return objects.ReqDHParams(m, nonce, serverNonce, p, q, publicKeyFingerprint, encryptedData)
-}
-
-func (m *MTProto) setClientDHParams(nonce, serverNonce *tl.Int128, encryptedData []byte) (objects.SetClientDHParamsAnswer, error) {
-	return objects.SetClientDHParams(m, nonce, serverNonce, encryptedData)
-}
-
-func (m *MTProto) ping(pingID int64) (*objects.Pong, error) {
-	return objects.Ping(m, pingID)
 }
 
 type customHandlerFunc = func(i any) bool
@@ -204,19 +187,18 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 
 	switch r := response.(type) {
 	case *objects.RpcError:
-		realErr := ErrResponseCode{
-			Code:           int(r.ErrorCode),
-			Message:        r.ErrorMessage,
-			Description:    "",
-			AdditionalInfo: nil,
-		}
+		realErr := RpcErrorToNative(r)
 
-		err = m.tryToProcessErr(&realErr)
+		err = m.tryToProcessErr(realErr.(*ErrResponseCode))
 		if err != nil {
 			return nil, err
 		}
 
 		return m.makeRequest(data, expectedTypes...)
+
+	case *errorSessionConfigsChanged:
+		return m.makeRequest(data, expectedTypes...)
+
 	}
 
 	return tl.UnwrapNativeTypes(response), nil
@@ -284,7 +266,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				case io.EOF:
 					err = m.Reconnect()
 					if err != nil {
-						fmt.Println("reconnecting failed:", err)
+						m.warnError(errors.Wrap(err, "can't reconnect"))
 					}
 				default:
 					check(err)
@@ -314,6 +296,7 @@ func (m *MTProto) readMsg() error {
 
 	if m.serviceModeActivated {
 		var obj tl.Object
+		// сервисные сообщения ГАРАНТИРОВАННО в теле содержат TL.
 		obj, err = tl.DecodeUnknownObject(response.GetMsg())
 		if err != nil {
 			return errors.Wrap(err, "parsing object")
@@ -324,7 +307,7 @@ func (m *MTProto) readMsg() error {
 
 	err = m.processResponse(response)
 	if err != nil {
-		fmt.Println("processResponse failed:", err)
+		return errors.Wrap(err, "processing response")
 	}
 	return nil
 }
@@ -359,10 +342,7 @@ messageTypeSwitching:
 		m.mutex.Lock()
 		for _, k := range m.responseChannels.Keys() {
 			v, _ := m.responseChannels.Get(k)
-			v <- &objects.RpcError{
-				ErrorCode:    0,
-				ErrorMessage: "Bad server salt",
-			}
+			v <- &errorSessionConfigsChanged{}
 		}
 		m.mutex.Unlock()
 
@@ -378,7 +358,7 @@ messageTypeSwitching:
 
 	case *objects.BadMsgNotification:
 		pp.Println(message)
-		return fmt.Errorf("bad msg notification: %v", message)
+		return BadMsgErrorFromNative(message)
 
 	case *objects.RpcResult:
 		obj := message.Obj
@@ -430,7 +410,7 @@ func (m *MTProto) tryToProcessErr(e *ErrResponseCode) error {
 	case "PHONE_MIGRATE_X":
 		newIP, found := m.dclist[e.AdditionalInfo.(int)]
 		if !found {
-			return fmt.Errorf("phone migrate: unknown DC %d", e.AdditionalInfo.(int))
+			return errors.Wrapf(e, "DC with id %v not found", e.AdditionalInfo)
 		}
 
 		m.addr = newIP
@@ -438,6 +418,6 @@ func (m *MTProto) tryToProcessErr(e *ErrResponseCode) error {
 		return err
 
 	default:
-		return fmt.Errorf("unhandled error: %v", e)
+		return e
 	}
 }
