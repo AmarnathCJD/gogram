@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/xelaj/errs"
-	dry "github.com/xelaj/go-dry"
+	"fmt"
 
 	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/amarnathcjd/gogram/internal/keys"
