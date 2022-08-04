@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/gen"
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
@@ -28,7 +27,7 @@ func main() {
 	root("schemes/api_latest.tl")
 }
 
-func root(tlfile) error {
+func root(tlfile string) error {
         outdir := "."
 	b, err := ioutil.ReadFile(tlfile)
 	if err != nil {
