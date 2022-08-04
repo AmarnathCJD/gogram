@@ -10,8 +10,8 @@ package mtproto
 // are in internal/mtproto/objects). The idea is taken from github.com/xelaj/vk
 
 import (
-	"github.com/xelaj/mtproto/internal/encoding/tl"
-	"github.com/xelaj/mtproto/internal/mtproto/objects"
+	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
 )
 
 func (m *MTProto) reqPQ(nonce *tl.Int128) (*objects.ResPQ, error) {

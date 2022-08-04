@@ -3,8 +3,8 @@ package deeplinks_test
 import (
 	"testing"
 
+	"github.com/amarnathcjd/gogram/telegram/deeplinks"
 	"github.com/stretchr/testify/assert"
-	"github.com/xelaj/mtproto/telegram/deeplinks"
 )
 
 func TestResolveLink(t *testing.T) {

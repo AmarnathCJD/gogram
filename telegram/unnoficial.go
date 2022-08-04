@@ -20,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/xelaj/errs"
 
-	"github.com/xelaj/mtproto/telegram/internal/calls"
+	"github.com/amarnathcjd/gogram/telegram/internal/calls"
 )
 
 func (c *Client) GetChannelInfoByInviteLink(hashOrLink string) (*ChannelFull, error) {

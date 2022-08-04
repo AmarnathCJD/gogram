@@ -8,7 +8,7 @@ package telegram
 import (
 	"github.com/pkg/errors"
 
-	"github.com/xelaj/mtproto/telegram/internal/srp"
+	"github.com/amarnathcjd/gogram/telegram/internal/srp"
 )
 
 func GetInputCheckPassword(password string, accountPassword *AccountPassword) (InputCheckPasswordSRP, error) {

@@ -16,9 +16,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/xelaj/go-dry"
 
-	ige "github.com/xelaj/mtproto/internal/aes_ige"
-	"github.com/xelaj/mtproto/internal/encoding/tl"
-	"github.com/xelaj/mtproto/internal/utils"
+	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
+	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
 // Common это сообщение (зашифрованое либо открытое) которыми общаются между собой клиент и сервер

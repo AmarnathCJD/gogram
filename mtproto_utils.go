@@ -8,10 +8,10 @@ package mtproto
 import (
 	"reflect"
 
+	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"github.com/amarnathcjd/gogram/internal/session"
+	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/pkg/errors"
-	"github.com/xelaj/mtproto/internal/encoding/tl"
-	"github.com/xelaj/mtproto/internal/session"
-	"github.com/xelaj/mtproto/internal/utils"
 )
 
 // helper methods
