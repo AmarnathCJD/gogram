@@ -25,18 +25,11 @@ See https://github.com/amarnathcjd/gogram/blob/master/LICENSE for details
 `
 
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Println(helpMsg)
-		return
-	}
-
-	if err := root(os.Args[1], os.Args[2]); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
-	}
+	root("schemes/api_latest.tl")
 }
 
-func root(tlfile, outdir string) error {
+func root(tlfile) error {
+        outdir := "."
 	b, err := ioutil.ReadFile(tlfile)
 	if err != nil {
 		return fmt.Errorf("read schema file: %w", err)
