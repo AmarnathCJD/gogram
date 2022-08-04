@@ -8,6 +8,7 @@ package mtproto
 import (
 	"context"
 	"crypto/rsa"
+	"fmt"
 	"io"
 	"reflect"
 	"sync"
@@ -254,29 +255,34 @@ func (m *MTProto) startPinging(ctx context.Context) {
 }
 
 func (m *MTProto) startReadingResponses(ctx context.Context) {
-	m.routineswg.Add(1)
+	m.routineswg.Add(10)
 	go func() {
 		defer m.routineswg.Done()
-
 		for {
 			select {
 			case <-ctx.Done():
+				fmt.Println("bot die mkc")
 				return
 			default:
 				err := m.readMsg()
 				switch err {
 				case nil: // skip
 				case context.Canceled:
+					fmt.Println("ctx cancelled")
 					return
 				case io.EOF:
 					err = m.Reconnect()
+					fmt.Println("read error:", err)
 					if err != nil {
 						m.warnError(errors.Wrap(err, "can't reconnect"))
 					}
 				default:
+					fmt.Println("read error:", err)
 					check(err)
+
 				}
 			}
+			fmt.Println("readed", time.Now())
 		}
 	}()
 }
@@ -363,7 +369,6 @@ messageTypeSwitching:
 
 	case *objects.BadMsgNotification:
 		pp.Println(message)
-		panic(message) // for debug, looks like this message is important
 		return BadMsgErrorFromNative(message)
 
 	case *objects.RpcResult:
