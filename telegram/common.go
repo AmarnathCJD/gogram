@@ -13,7 +13,6 @@ import (
 
 	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/pkg/errors"
-	"github.com/xelaj/errs"
 
 	"github.com/amarnathcjd/gogram/internal/keys"
 )
@@ -41,13 +40,6 @@ const (
 )
 
 func NewClient(c ClientConfig) (*Client, error) {
-	if !FileExists(c.PublicKeysFile) {
-		return nil, errs.NotFound("file", c.PublicKeysFile)
-	}
-
-	if !PathIsWritable(c.SessionFile) {
-		return nil, errs.Permission(c.SessionFile).Scope("write")
-	}
 
 	if c.DeviceModel == "" {
 		c.DeviceModel = "Unknown"
@@ -61,7 +53,7 @@ func NewClient(c ClientConfig) (*Client, error) {
 		c.AppVersion = "v0.0.0"
 	}
 
-	publicKeys, err := keys.ReadFromFile(c.PublicKeysFile)
+	publicKeys, err := keys.ReadFromFile("tg_public_keys.pem")
 	if err != nil {
 		return nil, errors.Wrap(err, "reading public keys")
 	}
