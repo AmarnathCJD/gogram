@@ -1,6 +1,9 @@
 package telegram
 
-import "os"
+import (
+	"math/rand"
+	"os"
+)
 
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
@@ -14,4 +17,8 @@ func PathIsWritable(path string) bool {
 	}
 	defer file.Close()
 	return true
+}
+
+func GenRandInt() int64 {
+	return int64(rand.Int31())
 }
