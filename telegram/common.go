@@ -1,7 +1,7 @@
 // Copyright (c) 2020-2021 KHS Films
 //
 // This file is a part of mtproto package.
-// See https://github.com/xelaj/mtproto/blob/master/LICENSE for details
+// See https://github.com/amarnathcjd/gogram/blob/master/LICENSE for details
 
 package telegram
 
@@ -11,9 +11,9 @@ import (
 	"runtime"
 	"strconv"
 
+	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/pkg/errors"
 	"github.com/xelaj/errs"
-	"github.com/xelaj/mtproto"
 
 	"github.com/amarnathcjd/gogram/internal/keys"
 )

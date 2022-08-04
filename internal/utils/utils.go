@@ -1,7 +1,7 @@
 // Copyright (c) 2020-2021 KHS Films
 //
 // This file is a part of mtproto package.
-// See https://github.com/xelaj/mtproto/blob/master/LICENSE for details
+// See https://github.com/amarnathcjd/gogram/blob/master/LICENSE for details
 
 // утилитарные функии, которые не сильно зависят от объявленых структур, но при этом много где используются
 
