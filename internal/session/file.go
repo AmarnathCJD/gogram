@@ -1,7 +1,7 @@
 // Copyright (c) 2020-2021 KHS Films
 //
 // This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogramblob/master/LICENSE for details
+// See https://github.com/xelaj/mtproto/blob/master/LICENSE for details
 
 package session
 
@@ -16,10 +16,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/pkg/errors"
 	"github.com/xelaj/errs"
 	"github.com/xelaj/go-dry"
+	"github.com/xelaj/mtproto/internal/encoding/tl"
 )
 
 type genericFileSessionLoader struct {

@@ -1,7 +1,7 @@
 // Copyright (c) 2020-2021 KHS Films
 //
 // This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogramblob/master/LICENSE for details
+// See https://github.com/xelaj/mtproto/blob/master/LICENSE for details
 
 package mtproto
 
@@ -15,14 +15,16 @@ import (
 	"github.com/pkg/errors"
 	"github.com/xelaj/go-dry"
 
-	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
-	"github.com/amarnathcjd/gogram/internal/encoding/tl"
-	"github.com/amarnathcjd/gogram/internal/keys"
-	"github.com/amarnathcjd/gogram/internal/math"
-	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
+	ige "github.com/xelaj/mtproto/internal/aes_ige"
+	"github.com/xelaj/mtproto/internal/encoding/tl"
+	"github.com/xelaj/mtproto/internal/keys"
+	"github.com/xelaj/mtproto/internal/math"
+	"github.com/xelaj/mtproto/internal/mtproto/objects"
 )
 
-func (m *MTProto) makeAuthKey() error {
+// https://tlgrm.ru/docs/mtproto/auth_key
+// https://core.telegram.org/mtproto/auth_key
+func (m *MTProto) makeAuthKey() error { // nolint don't know how to make method smaller
 	m.serviceModeActivated = true
 	nonceFirst := tl.RandomInt128()
 	res, err := m.reqPQ(nonceFirst)
@@ -44,6 +46,7 @@ func (m *MTProto) makeAuthKey() error {
 		return errors.New("handshake: Can't find fingerprint")
 	}
 
+	// (encoding) p_q_inner_data
 	pq := big.NewInt(0).SetBytes(res.Pq)
 	p, q := math.SplitPQ(pq)
 	nonceSecond := tl.RandomInt256()
@@ -57,7 +60,7 @@ func (m *MTProto) makeAuthKey() error {
 		ServerNonce: nonceServer,
 		NewNonce:    nonceSecond,
 	})
-	check(err)
+	check(err) // well, I don’t know what will happen in the universe so that there will panic
 
 	hashAndMsg := make([]byte, 255)
 	copy(hashAndMsg, append(dry.Sha1(string(message)), message...))

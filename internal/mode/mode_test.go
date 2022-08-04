@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"testing"
 
-	mode "github.com/amarnathcjd/gogram/internal/mode"
 	"github.com/stretchr/testify/require"
+	mode "github.com/xelaj/mtproto/internal/mode"
 )
 
 func TestModeEncode(t *testing.T) {

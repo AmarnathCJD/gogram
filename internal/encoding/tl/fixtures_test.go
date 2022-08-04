@@ -1,7 +1,7 @@
 // Copyright (c) 2020-2021 KHS Films
 //
 // This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogramblob/master/LICENSE for details
+// See https://github.com/xelaj/mtproto/blob/master/LICENSE for details
 
 package tl_test
 
@@ -9,7 +9,7 @@ package tl_test
 // фикстуры являются полноценно сгенерированными объектами из пакета telegram
 
 import (
-	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"github.com/xelaj/mtproto/internal/encoding/tl"
 )
 
 type MultipleChats struct {

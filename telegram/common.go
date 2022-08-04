@@ -1,17 +1,22 @@
+// Copyright (c) 2020-2021 KHS Films
+//
+// This file is a part of mtproto package.
+// See https://github.com/xelaj/mtproto/blob/master/LICENSE for details
+
 package telegram
 
 import (
 	"net"
-	"os"
+	"reflect"
 	"runtime"
 	"strconv"
 
-	"fmt"
-
 	"github.com/pkg/errors"
+	"github.com/xelaj/errs"
+	dry "github.com/xelaj/go-dry"
 
-	mtproto "github.com/amarnathcjd/gogram"
-	"github.com/amarnathcjd/gogram/internal/keys"
+	"github.com/xelaj/mtproto"
+	"github.com/xelaj/mtproto/internal/keys"
 )
 
 type Client struct {
@@ -36,10 +41,17 @@ const (
 	warnChannelDefaultCapacity = 100
 )
 
-func NewClient(c ClientConfig) (*Client, error) {
-	if _, err := os.Stat(c.PublicKeysFile); err != nil {
-		return nil, fmt.Errorf("publickeysfile not found")
+func NewClient(c ClientConfig) (*Client, error) { //nolint: gocritic arg is not ptr cause we call
+	//                                                               it only once, don't care
+	//                                                               about copying big args.
+	if !dry.FileExists(c.PublicKeysFile) {
+		return nil, errs.NotFound("file", c.PublicKeysFile)
 	}
+
+	if !dry.PathIsWritable(c.SessionFile) {
+		return nil, errs.Permission(c.SessionFile).Scope("write")
+	}
+
 	if c.DeviceModel == "" {
 		c.DeviceModel = "Unknown"
 	}
@@ -82,23 +94,23 @@ func NewClient(c ClientConfig) (*Client, error) {
 
 	//client.AddCustomServerRequestHandler(client.handleSpecialRequests())
 
-	resp, err := client.InvokeWithLayer(139, &InitConnectionParams{
+	resp, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
 		ApiID:          int32(c.AppID),
 		DeviceModel:    c.DeviceModel,
 		SystemVersion:  c.SystemVersion,
 		AppVersion:     c.AppVersion,
-		SystemLangCode: "en",
+		SystemLangCode: "en", // can't be edited, cause docs says that a single possible parameter
 		LangCode:       "en",
 		Query:          &HelpGetConfigParams{},
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "getting server configs")
 	}
 
 	config, ok := resp.(*Config)
 	if !ok {
-		return nil, fmt.Errorf("got wrong response")
+		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
 	}
 
 	client.serverConfig = config
