@@ -1,7 +1,7 @@
 // Copyright (c) 2020-2021 KHS Films
 //
 // This file is a part of mtproto package.
-// See https://github.com/xelaj/mtproto/blob/master/LICENSE for details
+// See https://github.com/amarnathcjd/gogram/blob/master/LICENSE for details
 
 package tl
 
@@ -280,7 +280,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 	var _typ reflect.Type
 
 	// firstly, we are checking specific crc situations.
-	// See https://github.com/xelaj/mtproto/issues/51
+	// See https://github.com/amarnathcjd/gogram/issues/51
 	switch crc {
 	case CrcVector:
 		if len(d.expectedTypes) == 0 {

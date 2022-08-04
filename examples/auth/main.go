@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
+	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/amarnathcjd/gogram/telegram"
 	"github.com/k0kubun/pp"
 	"github.com/pkg/errors"
 	"github.com/xelaj/go-dry"
-	"github.com/xelaj/mtproto"
 
 	utils "github.com/amarnathcjd/gogram/examples/example_utils"
 )

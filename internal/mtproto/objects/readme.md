@@ -8,4 +8,4 @@ Instead, we are using this lib as gold standard of generating objects from TL sc
 
 Current **official** TL schema of this package is located [here](https://core.telegram.org/schema/mtproto).
 
-This package currently fully implements [this](https://github.com/xelaj/mtproto/blob/master/schemes/mtproto.tl) TL schema of MTProto protocol.
+This package currently fully implements [this](https://github.com/amarnathcjd/gogram/blob/master/schemes/mtproto.tl) TL schema of MTProto protocol.
