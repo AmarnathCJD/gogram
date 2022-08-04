@@ -28,7 +28,7 @@ func main() {
 }
 
 func root(tlfile string) error {
-        outdir := "."
+	outdir := "."
 	b, err := ioutil.ReadFile(tlfile)
 	if err != nil {
 		return fmt.Errorf("read schema file: %w", err)
