@@ -6,7 +6,7 @@ import (
 
 	"github.com/dave/jennifer/jen"
 	"github.com/k0kubun/pp"
-	
+
 	"github.com/xelaj/mtproto/internal/cmd/tlgen/tlparser"
 )
 
