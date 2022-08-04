@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/xelaj/go-dry"
 
-	"github.com/xelaj/mtproto/internal/encoding/tl"
+	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
 var (

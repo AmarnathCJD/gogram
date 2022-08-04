@@ -13,9 +13,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/xelaj/errs"
-
 	"github.com/xelaj/mtproto"
-	"github.com/xelaj/mtproto/internal/keys"
+
+	"github.com/amarnathcjd/gogram/internal/keys"
 )
 
 type Client struct {

@@ -16,10 +16,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/pkg/errors"
 	"github.com/xelaj/errs"
 	"github.com/xelaj/go-dry"
-	"github.com/xelaj/mtproto/internal/encoding/tl"
 )
 
 type genericFileSessionLoader struct {

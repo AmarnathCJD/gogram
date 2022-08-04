@@ -10,7 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/xelaj/mtproto/internal/mtproto/objects"
+	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
 )
 
 type ErrResponseCode struct {

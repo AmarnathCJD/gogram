@@ -9,8 +9,8 @@ import (
 	"context"
 	"io"
 
-	"github.com/xelaj/mtproto/internal/encoding/tl"
-	"github.com/xelaj/mtproto/internal/mtproto/objects"
+	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
 )
 
 type any = interface{}

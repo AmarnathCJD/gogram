@@ -17,7 +17,7 @@ import (
 	"github.com/xelaj/errs"
 	"github.com/xelaj/go-dry"
 
-	"github.com/xelaj/mtproto/internal/encoding/tl"
+	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
 // RSAFingerprint вычисляет отпечаток ключа

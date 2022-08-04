@@ -2,7 +2,7 @@
 
 package telegram
 
-import tl "github.com/xelaj/mtproto/internal/encoding/tl"
+import tl "github.com/amarnathcjd/gogram/internal/encoding/tl"
 
 type BotInlineMessage interface {
 	tl.Object

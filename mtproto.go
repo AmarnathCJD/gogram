@@ -17,13 +17,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/xelaj/errs"
 
-	"github.com/xelaj/mtproto/internal/encoding/tl"
-	"github.com/xelaj/mtproto/internal/mode"
-	"github.com/xelaj/mtproto/internal/mtproto/messages"
-	"github.com/xelaj/mtproto/internal/mtproto/objects"
-	"github.com/xelaj/mtproto/internal/session"
-	"github.com/xelaj/mtproto/internal/transport"
-	"github.com/xelaj/mtproto/internal/utils"
+	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"github.com/amarnathcjd/gogram/internal/mode"
+	"github.com/amarnathcjd/gogram/internal/mtproto/messages"
+	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
+	"github.com/amarnathcjd/gogram/internal/session"
+	"github.com/amarnathcjd/gogram/internal/transport"
+	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
 type MTProto struct {
