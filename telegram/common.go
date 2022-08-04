@@ -13,7 +13,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/xelaj/errs"
-	dry "github.com/xelaj/go-dry"
 
 	"github.com/xelaj/mtproto"
 	"github.com/xelaj/mtproto/internal/keys"
@@ -41,14 +40,12 @@ const (
 	warnChannelDefaultCapacity = 100
 )
 
-func NewClient(c ClientConfig) (*Client, error) { //nolint: gocritic arg is not ptr cause we call
-	//                                                               it only once, don't care
-	//                                                               about copying big args.
-	if !dry.FileExists(c.PublicKeysFile) {
+func NewClient(c ClientConfig) (*Client, error) {
+	if !FileExists(c.PublicKeysFile) {
 		return nil, errs.NotFound("file", c.PublicKeysFile)
 	}
 
-	if !dry.PathIsWritable(c.SessionFile) {
+	if !PathIsWritable(c.SessionFile) {
 		return nil, errs.Permission(c.SessionFile).Scope("write")
 	}
 
@@ -99,7 +96,7 @@ func NewClient(c ClientConfig) (*Client, error) { //nolint: gocritic arg is not 
 		DeviceModel:    c.DeviceModel,
 		SystemVersion:  c.SystemVersion,
 		AppVersion:     c.AppVersion,
-		SystemLangCode: "en", // can't be edited, cause docs says that a single possible parameter
+		SystemLangCode: "en",
 		LangCode:       "en",
 		Query:          &HelpGetConfigParams{},
 	})
