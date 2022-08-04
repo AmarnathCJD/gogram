@@ -18,7 +18,7 @@ jobs:
       - name: Lint
         run: |
           gofmt -l -s -w .
-          go run ../internal/cmd/tlgen ../schemes/api_latest.tl .
+          cd ../internal/cmd/tlgen && go run . ../schemes/api_latest.tl .
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: 'RoseLoverX: auto Linting'
