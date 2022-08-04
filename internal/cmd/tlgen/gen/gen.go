@@ -8,7 +8,7 @@ import (
 
 	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
-	
+
 	"github.com/xelaj/mtproto/internal/cmd/tlgen/tlparser"
 )
 

@@ -71,8 +71,6 @@ type ResolvePassportParameters struct {
 	// Scope       string `schema:"scope"`
 }
 
-
-
 // https://t.me/joinchat/abcdefg
 // tg://join?invite=abcdefg
 type JoinParameters struct {
