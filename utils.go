@@ -1,17 +1,16 @@
 // Copyright (c) 2020-2021 KHS Films
 //
 // This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogramblob/master/LICENSE for details
+// See https://github.com/xelaj/mtproto/blob/master/LICENSE for details
 
 package mtproto
 
 import (
 	"context"
 	"io"
-	"log"
 
-	"github.com/amarnathcjd/gogram/internal/encoding/tl"
-	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
+	"github.com/xelaj/mtproto/internal/encoding/tl"
+	"github.com/xelaj/mtproto/internal/mtproto/objects"
 )
 
 type any = interface{}
@@ -48,6 +47,6 @@ func CloseOnCancel(ctx context.Context, c io.Closer) {
 
 func check(err error) {
 	if err != nil {
-		log.Println(err.Error())
+		panic(err)
 	}
 }

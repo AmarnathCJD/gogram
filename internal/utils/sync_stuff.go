@@ -1,7 +1,7 @@
 // Copyright (c) 2020-2021 KHS Films
 //
 // This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogramblob/master/LICENSE for details
+// See https://github.com/xelaj/mtproto/blob/master/LICENSE for details
 
 package utils
 
@@ -9,16 +9,16 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"github.com/xelaj/mtproto/internal/encoding/tl"
 )
 
 type SyncSetInt struct {
 	mutex sync.RWMutex
-	m     map[int]interface{}
+	m     map[int]null
 }
 
 func NewSyncSetInt() *SyncSetInt {
-	return &SyncSetInt{m: make(map[int]interface{})}
+	return &SyncSetInt{m: make(map[int]null)}
 }
 
 func (s *SyncSetInt) Has(key int) bool {
@@ -47,7 +47,7 @@ func (s *SyncSetInt) Delete(key int) bool {
 func (s *SyncSetInt) Reset() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.m = make(map[int]interface{})
+	s.m = make(map[int]null)
 }
 
 type SyncIntObjectChan struct {

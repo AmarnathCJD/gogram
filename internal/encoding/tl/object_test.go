@@ -1,15 +1,15 @@
 // Copyright (c) 2020-2021 KHS Films
 //
 // This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogramblob/master/LICENSE for details
+// See https://github.com/xelaj/mtproto/blob/master/LICENSE for details
 
 package tl_test
 
 import (
 	"testing"
 
-	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/stretchr/testify/assert"
+	"github.com/xelaj/mtproto/internal/encoding/tl"
 )
 
 func TestUnwrapNativeTypes(t *testing.T) {

@@ -1,3 +1,5 @@
+// also why gocritic detects false positive, but if i write explanation, golangci-lint throws error that description expected as lintrer??? //TODO
+//nolint: lll
 package mtproto
 
 import (
@@ -8,7 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
+	"github.com/xelaj/mtproto/internal/mtproto/objects"
 )
 
 type ErrResponseCode struct {

@@ -1,7 +1,7 @@
 // Copyright (c) 2020-2021 KHS Films
 //
 // This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogramblob/master/LICENSE for details
+// See https://github.com/xelaj/mtproto/blob/master/LICENSE for details
 
 package math_test
 
@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/amarnathcjd/gogram/internal/math"
+	"github.com/xelaj/mtproto/internal/math"
 )
 
 func TestSplitPQ(t *testing.T) {

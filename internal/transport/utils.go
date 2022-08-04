@@ -2,8 +2,7 @@ package transport
 
 import (
 	"fmt"
-
-	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"github.com/xelaj/mtproto/internal/encoding/tl"
 )
 
 type ErrNotMultiple struct {
