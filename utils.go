@@ -8,6 +8,7 @@ package mtproto
 import (
 	"context"
 	"io"
+	"log"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
@@ -47,6 +48,6 @@ func CloseOnCancel(ctx context.Context, c io.Closer) {
 
 func check(err error) {
 	if err != nil {
-		panic(err)
+		log.Print(err)
 	}
 }

@@ -21,6 +21,7 @@ type Client struct {
 	*mtproto.MTProto
 	config       *ClientConfig
 	serverConfig *Config
+	stop         chan struct{}
 }
 
 type ClientConfig struct {
@@ -113,6 +114,8 @@ func NewClient(c ClientConfig) (*Client, error) {
 		dcList[int(dc.ID)] = net.JoinHostPort(dc.IpAddress, strconv.Itoa(int(dc.Port)))
 	}
 	client.SetDCList(dcList)
+	stop := make(chan struct{})
+	client.stop = stop
 	return client, nil
 }
 

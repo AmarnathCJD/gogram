@@ -143,19 +143,37 @@ func (c *Client) Respond(Peer any, Message string, ReplyTo ...int32) (Updates, e
 	}
 }
 
+type Handle struct {
+	Pattern string
+	Handler func(c *Client, m *MessageObj) error
+	Client  *Client
+}
+
 var (
-	HANDLERS = []string{}
+	HANDLERS = []Handle{}
 )
 
-func (c *Client) AddEventHandler(pattern string) {
-	HANDLERS = append(HANDLERS, pattern)
+func (c *Client) AddEventHandler(pattern string, handler func(c *Client, m *MessageObj) error) {
+	MessageHandles = append(MessageHandles, Handle{pattern, handler, c})
 }
 
 func (c *Client) RemoveEventHandler(pattern string) {
 	for i, p := range HANDLERS {
-		if p == pattern {
+		if p.Pattern == pattern {
 			HANDLERS = append(HANDLERS[:i], HANDLERS[i+1:]...)
 			return
 		}
 	}
+}
+
+func HandleUpdate(u interface{}) bool {
+	fmt.Println("ups-2")
+	upd := u.(*UpdatesObj).Updates
+	for _, update := range upd {
+		switch update := update.(type) {
+		case *UpdateNewMessage:
+			go func() { HandleMessageUpdate(update.Message) }()
+		}
+	}
+	return true
 }
