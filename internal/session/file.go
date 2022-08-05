@@ -1,7 +1,4 @@
-// Copyright (c) 2020-2021 KHS Films
-//
-// This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogram/blob/master/LICENSE for details
+// Copyright (c) 2022 RoseLoverX
 
 package session
 
@@ -18,8 +15,6 @@ import (
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/pkg/errors"
-	"github.com/xelaj/errs"
-	"github.com/xelaj/go-dry"
 )
 
 type genericFileSessionLoader struct {
@@ -39,7 +34,7 @@ func (l *genericFileSessionLoader) Load() (*Session, error) {
 	switch {
 	case err == nil:
 	case errors.Is(err, syscall.ENOENT):
-		return nil, errs.NotFound("file", l.path)
+		return nil, errors.Wrap(err, "file not found")
 	default:
 		return nil, err
 	}
@@ -72,13 +67,11 @@ func (l *genericFileSessionLoader) Load() (*Session, error) {
 
 func (l *genericFileSessionLoader) Store(s *Session) error {
 	dir, _ := filepath.Split(l.path)
-	if !dry.FileExists(dir) {
+	if stat, err := os.Stat(dir); err != nil {
 		return fmt.Errorf("%v: directory not found", dir)
-	}
-	if !dry.FileIsDir(dir) {
+	} else if !stat.IsDir() {
 		return fmt.Errorf("%v: not a directory", dir)
 	}
-
 	file := new(tokenStorageFormat)
 	file.writeSession(s)
 	data, _ := json.Marshal(file)

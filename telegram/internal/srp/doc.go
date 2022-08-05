@@ -1,7 +1,4 @@
-// Copyright (c) 2020-2021 KHS Films
-//
-// This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogram/blob/master/LICENSE for details
+// Copyright (c) 2022 RoseLoverX
 
 //Пакет srp реализует Secure Random Password protocol, который
 //телеграм использует для реализации 2FA.

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/gen"
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
@@ -10,25 +11,29 @@ import (
 
 const helpMsg = `tlgen
 usage: tlgen input_file.tl output_dir/
-
 THIS TOOL IS USING ONLY FOR AUTOMATIC CODE
 GENERATION, DO NOT GENERATE FILES BY HAND!
-
 No, seriously. Don't. go generate is amazing. You
 are amazing too, but lesser 😏
 `
 const license = `Copyright (c) 2020-2021 KHS Films
-
 This file is a part of mtproto package.
-See https://github.com/amarnathcjd/gogram/blob/master/LICENSE for details
+See https://github.com/xelaj/mtproto/blob/master/LICENSE for details
 `
 
 func main() {
-	root("schemes/api_latest.tl")
+	if len(os.Args) != 3 {
+		fmt.Println(helpMsg)
+		return
+	}
+
+	if err := root(os.Args[1], os.Args[2]); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
 }
 
-func root(tlfile string) error {
-	outdir := "."
+func root(tlfile, outdir string) error {
 	b, err := ioutil.ReadFile(tlfile)
 	if err != nil {
 		return fmt.Errorf("read schema file: %w", err)
