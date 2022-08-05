@@ -25,40 +25,30 @@ type Client struct {
 }
 
 type ClientConfig struct {
-	SessionFile     string
-	ServerHost      string
-	PublicKeysFile  string
-	DeviceModel     string
-	SystemVersion   string
-	AppVersion      string
-	AppID           int
-	AppHash         string
-	InitWarnChannel bool
+	SessionFile    string
+	ServerHost     string
+	PublicKeysFile string
+	DeviceModel    string
+	SystemVersion  string
+	AppVersion     string
+	AppID          int
+	AppHash        string
 }
 
-const (
-	warnChannelDefaultCapacity = 100
-)
-
 func NewClient(c ClientConfig) (*Client, error) {
-
 	if c.DeviceModel == "" {
 		c.DeviceModel = "Unknown"
 	}
-
 	if c.SystemVersion == "" {
 		c.SystemVersion = runtime.GOOS + "/" + runtime.GOARCH
 	}
-
 	if c.AppVersion == "" {
 		c.AppVersion = "v0.0.0"
 	}
-
 	publicKeys, err := keys.ReadFromFile("tg_public_keys.pem")
 	if err != nil {
 		return nil, errors.Wrap(err, "reading public keys")
 	}
-
 	m, err := mtproto.NewMTProto(mtproto.Config{
 		AuthKeyFile: c.SessionFile,
 		ServerHost:  c.ServerHost,
@@ -66,10 +56,6 @@ func NewClient(c ClientConfig) (*Client, error) {
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "setup common MTProto client")
-	}
-
-	if c.InitWarnChannel {
-		m.Warnings = make(chan error, warnChannelDefaultCapacity)
 	}
 
 	err = m.CreateConnection()

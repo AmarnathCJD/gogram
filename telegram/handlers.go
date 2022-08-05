@@ -74,7 +74,6 @@ func (m *MessageObj) Edit(c *Client, Message string) (*MessageObj, error) {
 	var err error
 	switch peer := peer.(type) {
 	case *PeerUser:
-		fmt.Println("replying to user", peer)
 		u, err = c.MessagesEditMessage(&MessagesEditMessageParams{
 			NoWebpage:    false,
 			Peer:         &InputPeerUser{UserID: peer.UserID},
@@ -99,7 +98,6 @@ func (m *MessageObj) Edit(c *Client, Message string) (*MessageObj, error) {
 		})
 		update = u.(*UpdatesObj).Updates[0].(*UpdateEditMessage).Message.(*MessageObj)
 	case *PeerChannel:
-		fmt.Println("channel msg", peer)
 		u, err = c.MessagesEditMessage(&MessagesEditMessageParams{
 			NoWebpage:    false,
 			Peer:         &InputPeerChannel{ChannelID: peer.ChannelID},

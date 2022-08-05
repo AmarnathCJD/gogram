@@ -56,12 +56,6 @@ func (m *MTProto) AddCustomServerRequestHandler(handler customHandlerFunc) {
 	m.serverRequestHandlers = append(m.serverRequestHandlers, handler)
 }
 
-func (m *MTProto) warnError(err error) {
-	if m.Warnings != nil && err != nil {
-		m.Warnings <- err
-	}
-}
-
 func (m *MTProto) SaveSession() (err error) {
 	return m.tokensStorage.Store(&session.Session{
 		Key:      m.authKey,

@@ -167,7 +167,6 @@ func (c *Client) RemoveEventHandler(pattern string) {
 }
 
 func HandleUpdate(u interface{}) bool {
-	fmt.Println("ups-2")
 	upd := u.(*UpdatesObj).Updates
 	for _, update := range upd {
 		switch update := update.(type) {
