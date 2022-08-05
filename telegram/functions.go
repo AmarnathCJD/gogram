@@ -177,6 +177,9 @@ func HandleUpdate(u interface{}) bool {
 		case *UpdateNewChannelMessage:
 			go func() { HandleMessageUpdate(upd.Message) }()
 		}
+	default:
+		fmt.Println("unknown update type")
 	}
+
 	return true
 }

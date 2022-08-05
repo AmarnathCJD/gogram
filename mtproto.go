@@ -23,7 +23,7 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
-const defaultTimeout = 650 * time.Second
+const defaultTimeout = 650 * time.Hour
 
 type MTProto struct {
 	addr         string
