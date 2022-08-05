@@ -43,8 +43,15 @@ func (c *Client) GetChat(peer any) (*ChatObj, error, string) {
 			return nil, fmt.Errorf("no chat has username %s", peer), ""
 		}
 	case int64:
-		return nil, fmt.Errorf("soon to be implemented"), ""
-
+		resp, err := c.GetChatByID(int(peer))
+		if err != nil {
+			return nil, err, ""
+		}
+		if resp != nil {
+			return resp.(*ChatObj), nil, ""
+		} else {
+			return nil, fmt.Errorf("no chat has id %d", peer), ""
+		}
 	}
 	return nil, fmt.Errorf("unknown peer type"), ""
 }
@@ -160,11 +167,23 @@ func (c *Client) RemoveEventHandler(pattern string) {
 }
 
 func HandleUpdate(u interface{}) bool {
-	upd := u.(*UpdatesObj).Updates
-	for _, update := range upd {
-		switch update := update.(type) {
+	switch upd := u.(type) {
+	case *UpdatesObj:
+		cache.UpdatePeersToCache(upd.Users, upd.Chats)
+		for _, update := range upd.Updates {
+			switch update := update.(type) {
+			case *UpdateNewMessage:
+				go func() { HandleMessageUpdate(update.Message) }()
+			case *UpdateNewChannelMessage:
+				go func() { HandleMessageUpdate(update.Message) }()
+			}
+		}
+	case *UpdateShort:
+		switch upd := upd.Update.(type) {
 		case *UpdateNewMessage:
-			go func() { HandleMessageUpdate(update.Message) }()
+			go func() { HandleMessageUpdate(upd.Message) }()
+		case *UpdateNewChannelMessage:
+			go func() { HandleMessageUpdate(upd.Message) }()
 		}
 	}
 	return true
