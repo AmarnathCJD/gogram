@@ -110,21 +110,21 @@ func (cache *CACHE) GetPeersFromCache(u []int32, c []int32) ([]User, []Chat) {
 }
 
 func (client *Client) SaveToCache(u []User, c []Chat) {
-	client.cache.UpdatePeersToCache(u, c)
+	client.Cache.UpdatePeersToCache(u, c)
 }
 
 func (client *Client) GetPeerChat(chat_id int32) (*ChatObj, error) {
-	return client.cache.GetChat(chat_id)
+	return client.Cache.GetChat(chat_id)
 }
 
 func (client *Client) GetPeerUser(user_id int32) (*UserObj, error) {
-	return client.cache.GetUser(user_id)
+	return client.Cache.GetUser(user_id)
 }
 
 func (client *Client) GetPeerChannel(channel_id int32) (*Channel, error) {
-	return client.cache.GetChannel(channel_id)
+	return client.Cache.GetChannel(channel_id)
 }
 
 func (client *Client) GetAllPeers() (int, int) {
-	return len(client.cache.users), len(client.cache.chats)
+	return len(client.Cache.users), len(client.Cache.chats)
 }

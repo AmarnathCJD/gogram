@@ -22,7 +22,8 @@ type Client struct {
 	config       *ClientConfig
 	serverConfig *Config
 	stop         chan struct{}
-	cache        *CACHE
+	Cache        *CACHE
+	ParseMode    string
 }
 
 type ClientConfig struct {
@@ -34,6 +35,7 @@ type ClientConfig struct {
 	AppVersion     string
 	AppID          int
 	AppHash        string
+	ParseMode      string
 }
 
 func NewClient(c ClientConfig) (*Client, error) {
@@ -63,14 +65,17 @@ func NewClient(c ClientConfig) (*Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "creating connection")
 	}
-
-	client := &Client{
-		MTProto: m,
-		config:  &c,
-		cache:   cache,
+	var ParseMode = c.ParseMode
+	if ParseMode == "" {
+		ParseMode = "Markdown"
 	}
 
-	//client.AddCustomServerRequestHandler(client.handleSpecialRequests())
+	client := &Client{
+		MTProto:   m,
+		config:    &c,
+		Cache:     cache,
+		ParseMode: ParseMode,
+	}
 
 	resp, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
 		ApiID:          int32(c.AppID),
@@ -123,20 +128,19 @@ func (m *Client) IsSessionRegistred() (bool, error) {
 	}
 }
 
-/*
-func (c *Client) handleSpecialRequests() func(any) bool {
-	return func(i any) bool {
-		switch msg := i.(type) {
-		case *UpdatesObj:
-			pp.Println(msg, "UPDATE")
-			return true
-		case *UpdateShort:
-			pp.Println(msg, "SHORT UPDATE")
-			return true
-		}
+func (m *Client) Close() {
+	close(m.stop)
+	m.MTProto.Disconnect()
+}
 
-		return false
+func (m *Client) SetParseMode(mode string) {
+	if mode == "" {
+		mode = "Markdown"
+	}
+	for _, c := range []string{"Markdown", "HTML"} {
+		if c == mode {
+			m.ParseMode = mode
+			return
+		}
 	}
 }
-*/
-//----------------------------------------------------------------------------
