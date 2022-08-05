@@ -43,15 +43,7 @@ func (c *Client) GetChat(peer any) (*ChatObj, error, string) {
 			return nil, fmt.Errorf("no chat has username %s", peer), ""
 		}
 	case int64:
-		resp, err := c.GetChatByID(int(peer))
-		if err != nil {
-			return nil, err, ""
-		}
-		if resp != nil {
-			return resp.(*ChatObj), nil, ""
-		} else {
-			return nil, fmt.Errorf("no chat has id %d", peer), ""
-		}
+		return nil, fmt.Errorf("not implemented"), ""
 	}
 	return nil, fmt.Errorf("unknown peer type"), ""
 }
