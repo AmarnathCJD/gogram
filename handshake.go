@@ -1,19 +1,14 @@
-// Copyright (c) 2020-2021 KHS Films
-//
-// This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogram/blob/master/LICENSE for details
+// Copyright (c) 2022 RoseLoverX
 
 package mtproto
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math/big"
-
-	"github.com/pkg/errors"
-	"github.com/xelaj/go-dry"
 
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
@@ -22,18 +17,21 @@ import (
 	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
 )
 
-// https://tlgrm.ru/docs/mtproto/auth_key
+var (
+	hsLog = NewLogger("MTProto-HS - ")
+)
+
 // https://core.telegram.org/mtproto/auth_key
-func (m *MTProto) makeAuthKey() error { // nolint don't know how to make method smaller
+func (m *MTProto) makeAuthKey() error {
 	m.serviceModeActivated = true
 	nonceFirst := tl.RandomInt128()
 	res, err := m.reqPQ(nonceFirst)
 	if err != nil {
-		return errors.Wrap(err, "requesting first pq")
+		return fmt.Errorf("reqPQ: %w", err)
 	}
 
 	if nonceFirst.Cmp(res.Nonce.Int) != 0 {
-		return errors.New("handshake: Wrong nonce")
+		return fmt.Errorf("reqPQ: nonce mismatch")
 	}
 	found := false
 	for _, b := range res.Fingerprints {
@@ -43,7 +41,7 @@ func (m *MTProto) makeAuthKey() error { // nolint don't know how to make method 
 		}
 	}
 	if !found {
-		return errors.New("handshake: Can't find fingerprint")
+		return fmt.Errorf("reqPQ: no matching fingerprint")
 	}
 
 	// (encoding) p_q_inner_data
@@ -60,46 +58,49 @@ func (m *MTProto) makeAuthKey() error { // nolint don't know how to make method 
 		ServerNonce: nonceServer,
 		NewNonce:    nonceSecond,
 	})
-	check(err) // well, I don’t know what will happen in the universe so that there will panic
+	if err != nil {
+		hsLog.Printf("makeAuthKey: %s", err)
+		return err
+	}
 
 	hashAndMsg := make([]byte, 255)
-	copy(hashAndMsg, append(dry.Sha1(string(message)), message...))
+	copy(hashAndMsg, append(Sha1(string(message)), message...))
 
 	encryptedMessage := math.DoRSAencrypt(hashAndMsg, m.publicKey)
 
 	keyFingerprint := int64(binary.LittleEndian.Uint64(keys.RSAFingerprint(m.publicKey)))
 	dhResponse, err := m.reqDHParams(nonceFirst, nonceServer, p.Bytes(), q.Bytes(), keyFingerprint, encryptedMessage)
 	if err != nil {
-		return errors.Wrap(err, "sending ReqDHParams")
+		return fmt.Errorf("reqDHParams: %w", err)
 	}
 	dhParams, ok := dhResponse.(*objects.ServerDHParamsOk)
 	if !ok {
-		return errors.New("handshake: Need ServerDHParamsOk")
+		return fmt.Errorf("reqDHParams: invalid response")
 	}
 
 	if nonceFirst.Cmp(dhParams.Nonce.Int) != 0 {
-		return errors.New("handshake: Wrong nonce")
+		return fmt.Errorf("reqDHParams: nonce mismatch")
 	}
 	if nonceServer.Cmp(dhParams.ServerNonce.Int) != 0 {
-		return errors.New("handshake: Wrong server_nonce")
+		return fmt.Errorf("reqDHParams: server nonce mismatch")
 	}
 
 	// check of hash, trandom bytes trail removing occurs in this func already
 	decodedMessage := ige.DecryptMessageWithTempKeys(dhParams.EncryptedAnswer, nonceSecond.Int, nonceServer.Int)
 	data, err := tl.DecodeUnknownObject(decodedMessage)
 	if err != nil {
-		return errors.Wrap(err, "decoding response from server")
+		return fmt.Errorf("decode: %w", err)
 	}
 
 	dhi, ok := data.(*objects.ServerDHInnerData)
 	if !ok {
-		return errors.New("handshake: Need server_DH_inner_data")
+		return fmt.Errorf("decode: invalid response")
 	}
 	if nonceFirst.Cmp(dhi.Nonce.Int) != 0 {
-		return errors.New("handshake: Wrong nonce")
+		return fmt.Errorf("decode: nonce mismatch")
 	}
 	if nonceServer.Cmp(dhi.ServerNonce.Int) != 0 {
-		return errors.New("handshake: Wrong server_nonce")
+		return fmt.Errorf("decode: server nonce mismatch")
 	}
 
 	// this apparently is just part of diffie hellman, so just leave it as it is, hope that it will just work
@@ -112,12 +113,11 @@ func (m *MTProto) makeAuthKey() error { // nolint don't know how to make method 
 
 	m.SetAuthKey(authKey)
 
-	// I don't know what it is, apparently some very specific way to generate keys
-	t4 := make([]byte, 32+1+8) // nolint:gomnd ALL PROTOCOL IS A MAGIC
+	t4 := make([]byte, 32+1+8)
 	copy(t4[0:], nonceSecond.Bytes())
 	t4[32] = 1
-	copy(t4[33:], dry.Sha1Byte(m.GetAuthKey())[0:8])
-	nonceHash1 := dry.Sha1Byte(t4)[4:20]
+	copy(t4[33:], Sha1Byte(m.GetAuthKey())[0:8])
+	nonceHash1 := Sha1Byte(t4)[4:20]
 	salt := make([]byte, tl.LongLen)
 	copy(salt, nonceSecond.Bytes()[:8])
 	math.Xor(salt, nonceServer.Bytes()[:8])
@@ -130,18 +130,21 @@ func (m *MTProto) makeAuthKey() error { // nolint don't know how to make method 
 		Retry:       0,
 		GB:          gB.Bytes(),
 	})
-	check(err) // well, I don’t know what will happen in the universe so that there will panic
+	if err != nil {
+		hsLog.Printf("ClientDHInnerData: %s", err)
+		return err
+	}
 
 	encryptedMessage = ige.EncryptMessageWithTempKeys(clientDHData, nonceSecond.Int, nonceServer.Int)
 
 	dhGenStatus, err := m.setClientDHParams(nonceFirst, nonceServer, encryptedMessage)
 	if err != nil {
-		return errors.Wrap(err, "sending clientDHParams")
+		return fmt.Errorf("dhgenStatus: %w", err)
 	}
 
 	dhg, ok := dhGenStatus.(*objects.DHGenOk)
 	if !ok {
-		return errors.New("handshake: Need DHGenOk")
+		return fmt.Errorf("invalid response")
 	}
 	if nonceFirst.Cmp(dhg.Nonce.Int) != 0 {
 		return fmt.Errorf("handshake: Wrong nonce: %v, %v", nonceFirst, dhg.Nonce)
@@ -161,5 +164,18 @@ func (m *MTProto) makeAuthKey() error { // nolint don't know how to make method 
 	m.serviceModeActivated = false
 	m.encrypted = true
 	err = m.SaveSession()
-	return errors.Wrap(err, "saving session")
+	if err != nil {
+		hsLog.Printf("SaveSession: %s", err)
+	}
+	return err
+}
+
+func Sha1(input string) []byte {
+	r := sha1.Sum([]byte(input))
+	return r[:]
+}
+
+func Sha1Byte(input []byte) []byte {
+	r := sha1.Sum(input)
+	return r[:]
 }

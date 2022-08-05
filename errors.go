@@ -1,14 +1,13 @@
-// also why gocritic detects false positive, but if i write explanation, golangci-lint throws error that description expected as lintrer??? //TODO
-//nolint: lll
+// Copyright (c) 2022 RoseLoverX
+
 package mtproto
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
 )
@@ -85,7 +84,9 @@ func TryExpandError(errStr string) (nativeErrorName string, additionalData any) 
 	case reflect.Int:
 		var err error
 		additionalData, err = strconv.Atoi(trimmedData)
-		check(errors.Wrap(err, "error of parsing expected int value"))
+		if err != nil {
+			log.Printf("failed to parse %s as int: %s", trimmedData, err.Error())
+		}
 
 	case reflect.String:
 		additionalData = trimmedData
