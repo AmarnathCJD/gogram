@@ -1,7 +1,4 @@
-// Copyright (c) 2020-2021 KHS Films
-//
-// This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogram/blob/master/LICENSE for details
+// Copyright (c) 2022 RoseLoverX
 
 package keys
 
@@ -10,11 +7,11 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"io/ioutil"
 	"math/big"
+	"os"
 
-	"github.com/pkg/errors"
-	"github.com/xelaj/errs"
 	"github.com/xelaj/go-dry"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
@@ -36,13 +33,18 @@ func RSAFingerprint(key *rsa.PublicKey) []byte {
 	return []byte(fingerprint)[12:] // последние 8 байт это и есть отпечаток
 }
 
+func FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 func ReadFromFile(path string) ([]*rsa.PublicKey, error) {
-	if !dry.FileExists(path) {
-		return nil, errs.NotFound("file", path)
+	if FileExists(path) {
+		return nil, fmt.Errorf("file %s not found", path)
 	}
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading file  keys")
+		return nil, err
 	}
 	keys := make([]*rsa.PublicKey, 0)
 	for {
@@ -54,7 +56,7 @@ func ReadFromFile(path string) ([]*rsa.PublicKey, error) {
 		key, err := pemBytesToRsa(block.Bytes)
 		if err != nil {
 			const offset = 1 // +1 потому что считаем с 0
-			return nil, errors.Wrapf(err, "decoding key №%d", len(keys)+offset)
+			return nil, fmt.Errorf("failed to parse key at offset %d: %s", len(data)-len(rest)+offset, err)
 		}
 
 		keys = append(keys, key)
