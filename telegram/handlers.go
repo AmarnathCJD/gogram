@@ -49,7 +49,7 @@ func (m *NewMessage) GetReplyMessage() (*MessageObj, error) {
 	return ReplyMsg.(*MessagesMessagesObj).Messages[0].(*MessageObj), nil
 }
 
-func (m *NewMessage) ChatID() int32 {
+func (m *NewMessage) ChatID() int64 {
 	switch Peer := m.OriginalUpdate.PeerID.(type) {
 	case *PeerUser:
 		return Peer.UserID
@@ -61,7 +61,7 @@ func (m *NewMessage) ChatID() int32 {
 	return 0
 }
 
-func (m *NewMessage) SenderID() int32 {
+func (m *NewMessage) SenderID() int64 {
 	switch Peer := m.OriginalUpdate.FromID.(type) {
 	case *PeerUser:
 		return Peer.UserID

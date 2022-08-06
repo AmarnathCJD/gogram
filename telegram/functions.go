@@ -17,7 +17,7 @@ func (c *Client) GetUser(peer any) (*UserObj, error) {
 			return nil, fmt.Errorf("no user has username %s", peer)
 		}
 	case int64:
-		resp, err := c.UsersGetUsers([]InputUser{&InputUserObj{UserID: int32(peer)}})
+		resp, err := c.UsersGetUsers([]InputUser{&InputUserObj{UserID: peer}})
 		if err != nil {
 			return nil, err
 		}
@@ -68,11 +68,11 @@ func (c *Client) ResolvePeer(peer any) (*UserObj, *ChatObj, *Channel, error) {
 		} else {
 			return nil, nil, nil, fmt.Errorf("no user or chat has username %s", peer)
 		}
-	case int:
+	case int64:
 		if peer < 0 {
 			return nil, nil, nil, fmt.Errorf("soon to be implemented")
 		} else {
-			resp, err := c.UsersGetUsers([]InputUser{&InputUserObj{UserID: int32(peer)}})
+			resp, err := c.UsersGetUsers([]InputUser{&InputUserObj{UserID: peer}})
 			if err != nil {
 				return nil, nil, nil, err
 			}
