@@ -4,6 +4,30 @@ package telegram
 
 import tl "github.com/amarnathcjd/gogram/internal/encoding/tl"
 
+type AttachMenuBots interface {
+	tl.Object
+	ImplementsAttachMenuBots()
+}
+type AttachMenuBotsObj struct {
+	Hash  int64
+	Bots  []*AttachMenuBot
+	Users []User
+}
+
+func (*AttachMenuBotsObj) CRC() uint32 {
+	return 0x3c4301c0
+}
+
+func (*AttachMenuBotsObj) ImplementsAttachMenuBots() {}
+
+type AttachMenuBotsNotModified struct{}
+
+func (*AttachMenuBotsNotModified) CRC() uint32 {
+	return 0xf1d88a5c
+}
+
+func (*AttachMenuBotsNotModified) ImplementsAttachMenuBots() {}
+
 type BotCommandScope interface {
 	tl.Object
 	ImplementsBotCommandScope()
@@ -78,7 +102,7 @@ type BotInlineMessage interface {
 type BotInlineMessageMediaAuto struct {
 	Message     string
 	Entities    []MessageEntity `tl:"flag:1"`
-	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
+	ReplyMarkup ReplyMarkup     `tl:"flag:0"`
 }
 
 func (*BotInlineMessageMediaAuto) CRC() uint32 {
@@ -96,7 +120,7 @@ type BotInlineMessageMediaContact struct {
 	FirstName   string
 	LastName    string
 	Vcard       string
-	ReplyMarkup ReplyMarkup `tl:"flag:2"`
+	ReplyMarkup ReplyMarkup `tl:"flag:0"`
 }
 
 func (*BotInlineMessageMediaContact) CRC() uint32 {
@@ -114,7 +138,7 @@ type BotInlineMessageMediaGeo struct {
 	Heading                     int32       `tl:"flag:0"`
 	Period                      int32       `tl:"flag:1"`
 	ProximityNotificationRadius int32       `tl:"flag:3"`
-	ReplyMarkup                 ReplyMarkup `tl:"flag:2"`
+	ReplyMarkup                 ReplyMarkup `tl:"flag:0"`
 }
 
 func (*BotInlineMessageMediaGeo) CRC() uint32 {
@@ -135,7 +159,7 @@ type BotInlineMessageMediaInvoice struct {
 	Photo                    WebDocument `tl:"flag:0"`
 	Currency                 string
 	TotalAmount              int64
-	ReplyMarkup              ReplyMarkup `tl:"flag:2"`
+	ReplyMarkup              ReplyMarkup `tl:"flag:0"`
 }
 
 func (*BotInlineMessageMediaInvoice) CRC() uint32 {
@@ -155,7 +179,7 @@ type BotInlineMessageMediaVenue struct {
 	Provider    string
 	VenueID     string
 	VenueType   string
-	ReplyMarkup ReplyMarkup `tl:"flag:2"`
+	ReplyMarkup ReplyMarkup `tl:"flag:0"`
 }
 
 func (*BotInlineMessageMediaVenue) CRC() uint32 {
@@ -172,7 +196,7 @@ type BotInlineMessageText struct {
 	NoWebpage   bool `tl:"flag:0,encoded_in_bitflags"`
 	Message     string
 	Entities    []MessageEntity `tl:"flag:1"`
-	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
+	ReplyMarkup ReplyMarkup     `tl:"flag:0"`
 }
 
 func (*BotInlineMessageText) CRC() uint32 {
@@ -194,7 +218,7 @@ type BotInlineMediaResult struct {
 	Type        string
 	Photo       Photo    `tl:"flag:0"`
 	Document    Document `tl:"flag:1"`
-	Title       string   `tl:"flag:2"`
+	Title       string   `tl:"flag:0"`
 	Description string   `tl:"flag:3"`
 	SendMessage BotInlineMessage
 }
@@ -213,7 +237,7 @@ type BotInlineResultObj struct {
 	ID          string
 	Type        string
 	Title       string      `tl:"flag:1"`
-	Description string      `tl:"flag:2"`
+	Description string      `tl:"flag:0"`
 	URL         string      `tl:"flag:3"`
 	Thumb       WebDocument `tl:"flag:4"`
 	Content     WebDocument `tl:"flag:5"`
@@ -229,6 +253,37 @@ func (*BotInlineResultObj) FlagIndex() int {
 }
 
 func (*BotInlineResultObj) ImplementsBotInlineResult() {}
+
+type BotMenuButton interface {
+	tl.Object
+	ImplementsBotMenuButton()
+}
+type BotMenuButtonObj struct {
+	Text string
+	URL  string
+}
+
+func (*BotMenuButtonObj) CRC() uint32 {
+	return 0xc7b57ce6
+}
+
+func (*BotMenuButtonObj) ImplementsBotMenuButton() {}
+
+type BotMenuButtonCommands struct{}
+
+func (*BotMenuButtonCommands) CRC() uint32 {
+	return 0x4258c205
+}
+
+func (*BotMenuButtonCommands) ImplementsBotMenuButton() {}
+
+type BotMenuButtonDefault struct{}
+
+func (*BotMenuButtonDefault) CRC() uint32 {
+	return 0x7533a588
+}
+
+func (*BotMenuButtonDefault) ImplementsBotMenuButton() {}
 
 type ChannelAdminLogEventAction interface {
 	tl.Object
@@ -376,7 +431,7 @@ func (*ChannelAdminLogEventActionEditMessage) CRC() uint32 {
 func (*ChannelAdminLogEventActionEditMessage) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionExportedInviteDelete struct {
-	Invite *ChatInviteExported
+	Invite ExportedChatInvite
 }
 
 func (*ChannelAdminLogEventActionExportedInviteDelete) CRC() uint32 {
@@ -386,8 +441,8 @@ func (*ChannelAdminLogEventActionExportedInviteDelete) CRC() uint32 {
 func (*ChannelAdminLogEventActionExportedInviteDelete) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionExportedInviteEdit struct {
-	PrevInvite *ChatInviteExported
-	NewInvite  *ChatInviteExported
+	PrevInvite ExportedChatInvite
+	NewInvite  ExportedChatInvite
 }
 
 func (*ChannelAdminLogEventActionExportedInviteEdit) CRC() uint32 {
@@ -397,7 +452,7 @@ func (*ChannelAdminLogEventActionExportedInviteEdit) CRC() uint32 {
 func (*ChannelAdminLogEventActionExportedInviteEdit) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionExportedInviteRevoke struct {
-	Invite *ChatInviteExported
+	Invite ExportedChatInvite
 }
 
 func (*ChannelAdminLogEventActionExportedInviteRevoke) CRC() uint32 {
@@ -425,7 +480,7 @@ func (*ChannelAdminLogEventActionParticipantJoin) CRC() uint32 {
 func (*ChannelAdminLogEventActionParticipantJoin) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionParticipantJoinByInvite struct {
-	Invite *ChatInviteExported
+	Invite ExportedChatInvite
 }
 
 func (*ChannelAdminLogEventActionParticipantJoinByInvite) CRC() uint32 {
@@ -435,7 +490,7 @@ func (*ChannelAdminLogEventActionParticipantJoinByInvite) CRC() uint32 {
 func (*ChannelAdminLogEventActionParticipantJoinByInvite) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionParticipantJoinByRequest struct {
-	Invite     *ChatInviteExported
+	Invite     ExportedChatInvite
 	ApprovedBy int64
 }
 
@@ -679,7 +734,7 @@ type ChannelParticipantAdmin struct {
 	PromotedBy  int64
 	Date        int32
 	AdminRights *ChatAdminRights
-	Rank        string `tl:"flag:2"`
+	Rank        string `tl:"flag:0"`
 }
 
 func (*ChannelParticipantAdmin) CRC() uint32 {
@@ -842,7 +897,7 @@ type Chat interface {
 }
 type Channel struct {
 	Creator             bool `tl:"flag:0,encoded_in_bitflags"`
-	Left                bool `tl:"flag:2,encoded_in_bitflags"`
+	Left                bool `tl:"flag:0,encoded_in_bitflags"`
 	Broadcast           bool `tl:"flag:5,encoded_in_bitflags"`
 	Verified            bool `tl:"flag:7,encoded_in_bitflags"`
 	Megagroup           bool `tl:"flag:8,encoded_in_bitflags"`
@@ -850,16 +905,16 @@ type Channel struct {
 	Signatures          bool `tl:"flag:11,encoded_in_bitflags"`
 	Min                 bool `tl:"flag:12,encoded_in_bitflags"`
 	Scam                bool `tl:"flag:19,encoded_in_bitflags"`
-	HasLink             bool `tl:"flag:20,encoded_in_bitflags"`
-	HasGeo              bool `tl:"flag:21,encoded_in_bitflags"`
-	SlowmodeEnabled     bool `tl:"flag:22,encoded_in_bitflags"`
-	CallActive          bool `tl:"flag:23,encoded_in_bitflags"`
-	CallNotEmpty        bool `tl:"flag:24,encoded_in_bitflags"`
-	Fake                bool `tl:"flag:25,encoded_in_bitflags"`
-	Gigagroup           bool `tl:"flag:26,encoded_in_bitflags"`
-	Noforwards          bool `tl:"flag:27,encoded_in_bitflags"`
-	JoinToSend          bool `tl:"flag:28,encoded_in_bitflags"`
-	JoinRequest         bool `tl:"flag:29,encoded_in_bitflags"`
+	HasLink             bool `tl:"flag:0,encoded_in_bitflags"`
+	HasGeo              bool `tl:"flag:1,encoded_in_bitflags"`
+	SlowmodeEnabled     bool `tl:"flag:2,encoded_in_bitflags"`
+	CallActive          bool `tl:"flag:3,encoded_in_bitflags"`
+	CallNotEmpty        bool `tl:"flag:4,encoded_in_bitflags"`
+	Fake                bool `tl:"flag:5,encoded_in_bitflags"`
+	Gigagroup           bool `tl:"flag:6,encoded_in_bitflags"`
+	Noforwards          bool `tl:"flag:7,encoded_in_bitflags"`
+	JoinToSend          bool `tl:"flag:8,encoded_in_bitflags"`
+	JoinRequest         bool `tl:"flag:9,encoded_in_bitflags"`
 	ID                  int64
 	AccessHash          int64 `tl:"flag:13"`
 	Title               string
@@ -904,11 +959,11 @@ func (*ChannelForbidden) ImplementsChat() {}
 
 type ChatObj struct {
 	Creator             bool `tl:"flag:0,encoded_in_bitflags"`
-	Left                bool `tl:"flag:2,encoded_in_bitflags"`
+	Left                bool `tl:"flag:0,encoded_in_bitflags"`
 	Deactivated         bool `tl:"flag:5,encoded_in_bitflags"`
-	CallActive          bool `tl:"flag:23,encoded_in_bitflags"`
-	CallNotEmpty        bool `tl:"flag:24,encoded_in_bitflags"`
-	Noforwards          bool `tl:"flag:25,encoded_in_bitflags"`
+	CallActive          bool `tl:"flag:3,encoded_in_bitflags"`
+	CallNotEmpty        bool `tl:"flag:4,encoded_in_bitflags"`
+	Noforwards          bool `tl:"flag:5,encoded_in_bitflags"`
 	ID                  int64
 	Title               string
 	Photo               ChatPhoto
@@ -976,7 +1031,7 @@ type ChannelFull struct {
 	UnreadCount            int32
 	ChatPhoto              Photo
 	NotifySettings         *PeerNotifySettings
-	ExportedInvite         *ChatInviteExported `tl:"flag:23"`
+	ExportedInvite         ExportedChatInvite `tl:"flag:23"`
 	BotInfo                []*BotInfo
 	MigratedFromChatID     int64           `tl:"flag:4"`
 	MigratedFromMaxID      int32           `tl:"flag:4"`
@@ -1017,19 +1072,19 @@ type ChatFullObj struct {
 	ID                     int64
 	About                  string
 	Participants           ChatParticipants
-	ChatPhoto              Photo `tl:"flag:2"`
+	ChatPhoto              Photo `tl:"flag:0"`
 	NotifySettings         *PeerNotifySettings
-	ExportedInvite         *ChatInviteExported `tl:"flag:13"`
-	BotInfo                []*BotInfo          `tl:"flag:3"`
-	PinnedMsgID            int32               `tl:"flag:6"`
-	FolderID               int32               `tl:"flag:11"`
-	Call                   *InputGroupCall     `tl:"flag:12"`
-	TtlPeriod              int32               `tl:"flag:14"`
-	GroupcallDefaultJoinAs Peer                `tl:"flag:15"`
-	ThemeEmoticon          string              `tl:"flag:16"`
-	RequestsPending        int32               `tl:"flag:17"`
-	RecentRequesters       []int64             `tl:"flag:17"`
-	AvailableReactions     []string            `tl:"flag:18"`
+	ExportedInvite         ExportedChatInvite `tl:"flag:13"`
+	BotInfo                []*BotInfo         `tl:"flag:3"`
+	PinnedMsgID            int32              `tl:"flag:6"`
+	FolderID               int32              `tl:"flag:11"`
+	Call                   *InputGroupCall    `tl:"flag:12"`
+	TtlPeriod              int32              `tl:"flag:14"`
+	GroupcallDefaultJoinAs Peer               `tl:"flag:15"`
+	ThemeEmoticon          string             `tl:"flag:16"`
+	RequestsPending        int32              `tl:"flag:17"`
+	RecentRequesters       []int64            `tl:"flag:17"`
+	AvailableReactions     []string           `tl:"flag:18"`
 }
 
 func (*ChatFullObj) CRC() uint32 {
@@ -1049,7 +1104,7 @@ type ChatInvite interface {
 type ChatInviteObj struct {
 	Channel           bool `tl:"flag:0,encoded_in_bitflags"`
 	Broadcast         bool `tl:"flag:1,encoded_in_bitflags"`
-	Public            bool `tl:"flag:2,encoded_in_bitflags"`
+	Public            bool `tl:"flag:0,encoded_in_bitflags"`
 	Megagroup         bool `tl:"flag:3,encoded_in_bitflags"`
 	RequestNeeded     bool `tl:"flag:6,encoded_in_bitflags"`
 	Title             string
@@ -1193,7 +1248,7 @@ type Dialog interface {
 	ImplementsDialog()
 }
 type DialogObj struct {
-	Pinned               bool `tl:"flag:2,encoded_in_bitflags"`
+	Pinned               bool `tl:"flag:0,encoded_in_bitflags"`
 	UnreadMark           bool `tl:"flag:3,encoded_in_bitflags"`
 	Peer                 Peer
 	TopMessage           int32
@@ -1219,7 +1274,7 @@ func (*DialogObj) FlagIndex() int {
 func (*DialogObj) ImplementsDialog() {}
 
 type DialogFolder struct {
-	Pinned                     bool `tl:"flag:2,encoded_in_bitflags"`
+	Pinned                     bool `tl:"flag:0,encoded_in_bitflags"`
 	Folder                     *Folder
 	Peer                       Peer
 	TopMessage                 int32
@@ -1238,6 +1293,45 @@ func (*DialogFolder) FlagIndex() int {
 }
 
 func (*DialogFolder) ImplementsDialog() {}
+
+type DialogFilter interface {
+	tl.Object
+	ImplementsDialogFilter()
+}
+type DialogFilterObj struct {
+	Contacts        bool `tl:"flag:0,encoded_in_bitflags"`
+	NonContacts     bool `tl:"flag:1,encoded_in_bitflags"`
+	Groups          bool `tl:"flag:0,encoded_in_bitflags"`
+	Broadcasts      bool `tl:"flag:3,encoded_in_bitflags"`
+	Bots            bool `tl:"flag:4,encoded_in_bitflags"`
+	ExcludeMuted    bool `tl:"flag:11,encoded_in_bitflags"`
+	ExcludeRead     bool `tl:"flag:12,encoded_in_bitflags"`
+	ExcludeArchived bool `tl:"flag:13,encoded_in_bitflags"`
+	ID              int32
+	Title           string
+	Emoticon        string `tl:"flag:5"`
+	PinnedPeers     []InputPeer
+	IncludePeers    []InputPeer
+	ExcludePeers    []InputPeer
+}
+
+func (*DialogFilterObj) CRC() uint32 {
+	return 0x7438f7e8
+}
+
+func (*DialogFilterObj) FlagIndex() int {
+	return 0
+}
+
+func (*DialogFilterObj) ImplementsDialogFilter() {}
+
+type DialogFilterDefault struct{}
+
+func (*DialogFilterDefault) CRC() uint32 {
+	return 0x363293ae
+}
+
+func (*DialogFilterDefault) ImplementsDialogFilter() {}
 
 type DialogPeer interface {
 	tl.Object
@@ -1273,7 +1367,7 @@ type DocumentObj struct {
 	FileReference []byte
 	Date          int32
 	MimeType      string
-	Size          int32
+	Size          int64
 	Thumbs        []PhotoSize  `tl:"flag:0"`
 	VideoThumbs   []*VideoSize `tl:"flag:1"`
 	DcID          int32
@@ -1281,7 +1375,7 @@ type DocumentObj struct {
 }
 
 func (*DocumentObj) CRC() uint32 {
-	return 0x1e87342b
+	return 0x8fd4c4d8
 }
 
 func (*DocumentObj) FlagIndex() int {
@@ -1317,7 +1411,7 @@ type DocumentAttributeAudio struct {
 	Duration  int32
 	Title     string `tl:"flag:0"`
 	Performer string `tl:"flag:1"`
-	Waveform  []byte `tl:"flag:2"`
+	Waveform  []byte `tl:"flag:0"`
 }
 
 func (*DocumentAttributeAudio) CRC() uint32 {
@@ -1329,6 +1423,22 @@ func (*DocumentAttributeAudio) FlagIndex() int {
 }
 
 func (*DocumentAttributeAudio) ImplementsDocumentAttribute() {}
+
+type DocumentAttributeCustomEmoji struct {
+	Free       bool `tl:"flag:0,encoded_in_bitflags"`
+	Alt        string
+	Stickerset InputStickerSet
+}
+
+func (*DocumentAttributeCustomEmoji) CRC() uint32 {
+	return 0xfd149899
+}
+
+func (*DocumentAttributeCustomEmoji) FlagIndex() int {
+	return 0
+}
+
+func (*DocumentAttributeCustomEmoji) ImplementsDocumentAttribute() {}
 
 type DocumentAttributeFilename struct {
 	FileName string
@@ -1542,13 +1652,13 @@ type EncryptedFile interface {
 type EncryptedFileObj struct {
 	ID             int64
 	AccessHash     int64
-	Size           int32
+	Size           int64
 	DcID           int32
 	KeyFingerprint int32
 }
 
 func (*EncryptedFileObj) CRC() uint32 {
-	return 0x4a70994c
+	return 0xa8008cd8
 }
 
 func (*EncryptedFileObj) ImplementsEncryptedFile() {}
@@ -1592,6 +1702,43 @@ func (*EncryptedMessageService) CRC() uint32 {
 
 func (*EncryptedMessageService) ImplementsEncryptedMessage() {}
 
+type ExportedChatInvite interface {
+	tl.Object
+	ImplementsExportedChatInvite()
+}
+type ChatInviteExported struct {
+	Revoked       bool `tl:"flag:0,encoded_in_bitflags"`
+	Permanent     bool `tl:"flag:5,encoded_in_bitflags"`
+	RequestNeeded bool `tl:"flag:6,encoded_in_bitflags"`
+	Link          string
+	AdminID       int64
+	Date          int32
+	StartDate     int32  `tl:"flag:4"`
+	ExpireDate    int32  `tl:"flag:1"`
+	UsageLimit    int32  `tl:"flag:0"`
+	Usage         int32  `tl:"flag:3"`
+	Requested     int32  `tl:"flag:7"`
+	Title         string `tl:"flag:8"`
+}
+
+func (*ChatInviteExported) CRC() uint32 {
+	return 0xab4a819
+}
+
+func (*ChatInviteExported) FlagIndex() int {
+	return 0
+}
+
+func (*ChatInviteExported) ImplementsExportedChatInvite() {}
+
+type ChatInvitePublicJoinRequests struct{}
+
+func (*ChatInvitePublicJoinRequests) CRC() uint32 {
+	return 0xed107ab7
+}
+
+func (*ChatInvitePublicJoinRequests) ImplementsExportedChatInvite() {}
+
 type GeoPoint interface {
 	tl.Object
 	ImplementsGeoPoint()
@@ -1627,7 +1774,7 @@ type GroupCall interface {
 }
 type GroupCallObj struct {
 	JoinMuted               bool `tl:"flag:1,encoded_in_bitflags"`
-	CanChangeJoinMuted      bool `tl:"flag:2,encoded_in_bitflags"`
+	CanChangeJoinMuted      bool `tl:"flag:0,encoded_in_bitflags"`
 	JoinDateAsc             bool `tl:"flag:6,encoded_in_bitflags"`
 	ScheduleStartSubscribed bool `tl:"flag:8,encoded_in_bitflags"`
 	CanStartVideo           bool `tl:"flag:9,encoded_in_bitflags"`
@@ -1673,7 +1820,7 @@ type InputBotInlineMessage interface {
 	ImplementsInputBotInlineMessage()
 }
 type InputBotInlineMessageGame struct {
-	ReplyMarkup ReplyMarkup `tl:"flag:2"`
+	ReplyMarkup ReplyMarkup `tl:"flag:0"`
 }
 
 func (*InputBotInlineMessageGame) CRC() uint32 {
@@ -1689,7 +1836,7 @@ func (*InputBotInlineMessageGame) ImplementsInputBotInlineMessage() {}
 type InputBotInlineMessageMediaAuto struct {
 	Message     string
 	Entities    []MessageEntity `tl:"flag:1"`
-	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
+	ReplyMarkup ReplyMarkup     `tl:"flag:0"`
 }
 
 func (*InputBotInlineMessageMediaAuto) CRC() uint32 {
@@ -1707,7 +1854,7 @@ type InputBotInlineMessageMediaContact struct {
 	FirstName   string
 	LastName    string
 	Vcard       string
-	ReplyMarkup ReplyMarkup `tl:"flag:2"`
+	ReplyMarkup ReplyMarkup `tl:"flag:0"`
 }
 
 func (*InputBotInlineMessageMediaContact) CRC() uint32 {
@@ -1725,7 +1872,7 @@ type InputBotInlineMessageMediaGeo struct {
 	Heading                     int32       `tl:"flag:0"`
 	Period                      int32       `tl:"flag:1"`
 	ProximityNotificationRadius int32       `tl:"flag:3"`
-	ReplyMarkup                 ReplyMarkup `tl:"flag:2"`
+	ReplyMarkup                 ReplyMarkup `tl:"flag:0"`
 }
 
 func (*InputBotInlineMessageMediaGeo) CRC() uint32 {
@@ -1746,7 +1893,7 @@ type InputBotInlineMessageMediaInvoice struct {
 	Payload      []byte
 	Provider     string
 	ProviderData *DataJson
-	ReplyMarkup  ReplyMarkup `tl:"flag:2"`
+	ReplyMarkup  ReplyMarkup `tl:"flag:0"`
 }
 
 func (*InputBotInlineMessageMediaInvoice) CRC() uint32 {
@@ -1766,7 +1913,7 @@ type InputBotInlineMessageMediaVenue struct {
 	Provider    string
 	VenueID     string
 	VenueType   string
-	ReplyMarkup ReplyMarkup `tl:"flag:2"`
+	ReplyMarkup ReplyMarkup `tl:"flag:0"`
 }
 
 func (*InputBotInlineMessageMediaVenue) CRC() uint32 {
@@ -1783,7 +1930,7 @@ type InputBotInlineMessageText struct {
 	NoWebpage   bool `tl:"flag:0,encoded_in_bitflags"`
 	Message     string
 	Entities    []MessageEntity `tl:"flag:1"`
-	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
+	ReplyMarkup ReplyMarkup     `tl:"flag:0"`
 }
 
 func (*InputBotInlineMessageText) CRC() uint32 {
@@ -1833,7 +1980,7 @@ type InputBotInlineResultObj struct {
 	ID          string
 	Type        string
 	Title       string            `tl:"flag:1"`
-	Description string            `tl:"flag:2"`
+	Description string            `tl:"flag:0"`
 	URL         string            `tl:"flag:3"`
 	Thumb       *InputWebDocument `tl:"flag:4"`
 	Content     *InputWebDocument `tl:"flag:5"`
@@ -1854,7 +2001,7 @@ type InputBotInlineResultDocument struct {
 	ID          string
 	Type        string
 	Title       string `tl:"flag:1"`
-	Description string `tl:"flag:2"`
+	Description string `tl:"flag:0"`
 	Document    InputDocument
 	SendMessage InputBotInlineMessage
 }
@@ -1954,7 +2101,7 @@ func (*InputChatPhotoEmpty) ImplementsInputChatPhoto() {}
 type InputChatUploadedPhoto struct {
 	File         InputFile `tl:"flag:0"`
 	Video        InputFile `tl:"flag:1"`
-	VideoStartTs float64   `tl:"flag:2"`
+	VideoStartTs float64   `tl:"flag:0"`
 }
 
 func (*InputChatUploadedPhoto) CRC() uint32 {
@@ -2303,6 +2450,31 @@ func (*InputGeoPointEmpty) CRC() uint32 {
 
 func (*InputGeoPointEmpty) ImplementsInputGeoPoint() {}
 
+type InputInvoice interface {
+	tl.Object
+	ImplementsInputInvoice()
+}
+type InputInvoiceMessage struct {
+	Peer  InputPeer
+	MsgID int32
+}
+
+func (*InputInvoiceMessage) CRC() uint32 {
+	return 0xc5b56859
+}
+
+func (*InputInvoiceMessage) ImplementsInputInvoice() {}
+
+type InputInvoiceSlug struct {
+	Slug string
+}
+
+func (*InputInvoiceSlug) CRC() uint32 {
+	return 0xc326caef
+}
+
+func (*InputInvoiceSlug) ImplementsInputInvoice() {}
+
 type InputMedia interface {
 	tl.Object
 	ImplementsInputMedia()
@@ -2382,7 +2554,7 @@ func (*InputMediaGame) ImplementsInputMedia() {}
 type InputMediaGeoLive struct {
 	Stopped                     bool `tl:"flag:0,encoded_in_bitflags"`
 	GeoPoint                    InputGeoPoint
-	Heading                     int32 `tl:"flag:2"`
+	Heading                     int32 `tl:"flag:0"`
 	Period                      int32 `tl:"flag:1"`
 	ProximityNotificationRadius int32 `tl:"flag:3"`
 }
@@ -2479,7 +2651,7 @@ type InputMediaUploadedDocument struct {
 	NosoundVideo bool `tl:"flag:3,encoded_in_bitflags"`
 	ForceFile    bool `tl:"flag:4,encoded_in_bitflags"`
 	File         InputFile
-	Thumb        InputFile `tl:"flag:2"`
+	Thumb        InputFile `tl:"flag:0"`
 	MimeType     string
 	Attributes   []DocumentAttribute
 	Stickers     []InputDocument `tl:"flag:0"`
@@ -2912,6 +3084,14 @@ func (*InputStickerSetID) CRC() uint32 {
 
 func (*InputStickerSetID) ImplementsInputStickerSet() {}
 
+type InputStickerSetPremiumGifts struct{}
+
+func (*InputStickerSetPremiumGifts) CRC() uint32 {
+	return 0xc88b3b02
+}
+
+func (*InputStickerSetPremiumGifts) ImplementsInputStickerSet() {}
+
 type InputStickerSetShortName struct {
 	ShortName string
 }
@@ -2945,6 +3125,36 @@ func (*InputStickeredMediaPhoto) CRC() uint32 {
 }
 
 func (*InputStickeredMediaPhoto) ImplementsInputStickeredMedia() {}
+
+type InputStorePaymentPurpose interface {
+	tl.Object
+	ImplementsInputStorePaymentPurpose()
+}
+type InputStorePaymentGiftPremium struct {
+	UserID   InputUser
+	Currency string
+	Amount   int64
+}
+
+func (*InputStorePaymentGiftPremium) CRC() uint32 {
+	return 0x616f7fe8
+}
+
+func (*InputStorePaymentGiftPremium) ImplementsInputStorePaymentPurpose() {}
+
+type InputStorePaymentPremiumSubscription struct {
+	Restore bool `tl:"flag:0,encoded_in_bitflags"`
+}
+
+func (*InputStorePaymentPremiumSubscription) CRC() uint32 {
+	return 0xa6751e66
+}
+
+func (*InputStorePaymentPremiumSubscription) FlagIndex() int {
+	return 0
+}
+
+func (*InputStorePaymentPremiumSubscription) ImplementsInputStorePaymentPurpose() {}
 
 type InputTheme interface {
 	tl.Object
@@ -3053,6 +3263,23 @@ type InputWebFileLocation interface {
 	tl.Object
 	ImplementsInputWebFileLocation()
 }
+type InputWebFileAudioAlbumThumbLocation struct {
+	Small     bool          `tl:"flag:0,encoded_in_bitflags"`
+	Document  InputDocument `tl:"flag:0"`
+	Title     string        `tl:"flag:1"`
+	Performer string        `tl:"flag:1"`
+}
+
+func (*InputWebFileAudioAlbumThumbLocation) CRC() uint32 {
+	return 0xf46fe924
+}
+
+func (*InputWebFileAudioAlbumThumbLocation) FlagIndex() int {
+	return 0
+}
+
+func (*InputWebFileAudioAlbumThumbLocation) ImplementsInputWebFileLocation() {}
+
 type InputWebFileGeoPointLocation struct {
 	GeoPoint   InputGeoPoint
 	AccessHash int64
@@ -3255,6 +3482,17 @@ func (*KeyboardButtonRequestPoll) FlagIndex() int {
 
 func (*KeyboardButtonRequestPoll) ImplementsKeyboardButton() {}
 
+type KeyboardButtonSimpleWebView struct {
+	Text string
+	URL  string
+}
+
+func (*KeyboardButtonSimpleWebView) CRC() uint32 {
+	return 0xa0c0505c
+}
+
+func (*KeyboardButtonSimpleWebView) ImplementsKeyboardButton() {}
+
 type KeyboardButtonSwitchInline struct {
 	SamePeer bool `tl:"flag:0,encoded_in_bitflags"`
 	Text     string
@@ -3310,6 +3548,17 @@ func (*KeyboardButtonUserProfile) CRC() uint32 {
 
 func (*KeyboardButtonUserProfile) ImplementsKeyboardButton() {}
 
+type KeyboardButtonWebView struct {
+	Text string
+	URL  string
+}
+
+func (*KeyboardButtonWebView) CRC() uint32 {
+	return 0x13767230
+}
+
+func (*KeyboardButtonWebView) ImplementsKeyboardButton() {}
+
 type LangPackString interface {
 	tl.Object
 	ImplementsLangPackString()
@@ -3339,7 +3588,7 @@ type LangPackStringPluralized struct {
 	Key        string
 	ZeroValue  string `tl:"flag:0"`
 	OneValue   string `tl:"flag:1"`
-	TwoValue   string `tl:"flag:2"`
+	TwoValue   string `tl:"flag:0"`
 	FewValue   string `tl:"flag:3"`
 	ManyValue  string `tl:"flag:4"`
 	OtherValue string
@@ -3367,13 +3616,13 @@ type MessageObj struct {
 	Post              bool `tl:"flag:14,encoded_in_bitflags"`
 	FromScheduled     bool `tl:"flag:18,encoded_in_bitflags"`
 	Legacy            bool `tl:"flag:19,encoded_in_bitflags"`
-	EditHide          bool `tl:"flag:21,encoded_in_bitflags"`
-	Pinned            bool `tl:"flag:24,encoded_in_bitflags"`
-	Noforwards        bool `tl:"flag:26,encoded_in_bitflags"`
+	EditHide          bool `tl:"flag:1,encoded_in_bitflags"`
+	Pinned            bool `tl:"flag:4,encoded_in_bitflags"`
+	Noforwards        bool `tl:"flag:6,encoded_in_bitflags"`
 	ID                int32
 	FromID            Peer `tl:"flag:8"`
 	PeerID            Peer
-	FwdFrom           *MessageFwdHeader   `tl:"flag:2"`
+	FwdFrom           *MessageFwdHeader   `tl:"flag:0"`
 	ViaBotID          int64               `tl:"flag:11"`
 	ReplyTo           *MessageReplyHeader `tl:"flag:3"`
 	Date              int32
@@ -3383,13 +3632,13 @@ type MessageObj struct {
 	Entities          []MessageEntity      `tl:"flag:7"`
 	Views             int32                `tl:"flag:10"`
 	Forwards          int32                `tl:"flag:10"`
-	Replies           *MessageReplies      `tl:"flag:23"`
+	Replies           *MessageReplies      `tl:"flag:3"`
 	EditDate          int32                `tl:"flag:15"`
 	PostAuthor        string               `tl:"flag:16"`
 	GroupedID         int64                `tl:"flag:17"`
-	Reactions         *MessageReactions    `tl:"flag:20"`
-	RestrictionReason []*RestrictionReason `tl:"flag:22"`
-	TtlPeriod         int32                `tl:"flag:25"`
+	Reactions         *MessageReactions    `tl:"flag:0"`
+	RestrictionReason []*RestrictionReason `tl:"flag:2"`
+	TtlPeriod         int32                `tl:"flag:5"`
 }
 
 func (*MessageObj) CRC() uint32 {
@@ -3430,7 +3679,7 @@ type MessageService struct {
 	ReplyTo     *MessageReplyHeader `tl:"flag:3"`
 	Date        int32
 	Action      MessageAction
-	TtlPeriod   int32 `tl:"flag:25"`
+	TtlPeriod   int32 `tl:"flag:5"`
 }
 
 func (*MessageService) CRC() uint32 {
@@ -3614,6 +3863,18 @@ func (*MessageActionGeoProximityReached) CRC() uint32 {
 
 func (*MessageActionGeoProximityReached) ImplementsMessageAction() {}
 
+type MessageActionGiftPremium struct {
+	Currency string
+	Amount   int64
+	Months   int32
+}
+
+func (*MessageActionGiftPremium) CRC() uint32 {
+	return 0xaba0f5c6
+}
+
+func (*MessageActionGiftPremium) ImplementsMessageAction() {}
+
 type MessageActionGroupCall struct {
 	Call     *InputGroupCall
 	Duration int32 `tl:"flag:0"`
@@ -3660,17 +3921,26 @@ func (*MessageActionInviteToGroupCall) CRC() uint32 {
 func (*MessageActionInviteToGroupCall) ImplementsMessageAction() {}
 
 type MessageActionPaymentSent struct {
-	Currency    string
-	TotalAmount int64
+	RecurringInit bool `tl:"flag:0,encoded_in_bitflags"`
+	RecurringUsed bool `tl:"flag:3,encoded_in_bitflags"`
+	Currency      string
+	TotalAmount   int64
+	InvoiceSlug   string `tl:"flag:0"`
 }
 
 func (*MessageActionPaymentSent) CRC() uint32 {
-	return 0x40699cd0
+	return 0x96163f56
+}
+
+func (*MessageActionPaymentSent) FlagIndex() int {
+	return 0
 }
 
 func (*MessageActionPaymentSent) ImplementsMessageAction() {}
 
 type MessageActionPaymentSentMe struct {
+	RecurringInit    bool `tl:"flag:0,encoded_in_bitflags"`
+	RecurringUsed    bool `tl:"flag:3,encoded_in_bitflags"`
 	Currency         string
 	TotalAmount      int64
 	Payload          []byte
@@ -3690,7 +3960,7 @@ func (*MessageActionPaymentSentMe) FlagIndex() int {
 func (*MessageActionPaymentSentMe) ImplementsMessageAction() {}
 
 type MessageActionPhoneCall struct {
-	Video    bool `tl:"flag:2,encoded_in_bitflags"`
+	Video    bool `tl:"flag:0,encoded_in_bitflags"`
 	CallID   int64
 	Reason   PhoneCallDiscardReason `tl:"flag:0"`
 	Duration int32                  `tl:"flag:1"`
@@ -3762,6 +4032,27 @@ func (*MessageActionSetMessagesTtl) CRC() uint32 {
 }
 
 func (*MessageActionSetMessagesTtl) ImplementsMessageAction() {}
+
+type MessageActionWebViewDataSent struct {
+	Text string
+}
+
+func (*MessageActionWebViewDataSent) CRC() uint32 {
+	return 0xb4c38cb5
+}
+
+func (*MessageActionWebViewDataSent) ImplementsMessageAction() {}
+
+type MessageActionWebViewDataSentMe struct {
+	Text string
+	Data string
+}
+
+func (*MessageActionWebViewDataSentMe) CRC() uint32 {
+	return 0x47dd8079
+}
+
+func (*MessageActionWebViewDataSentMe) ImplementsMessageAction() {}
 
 type MessageEntity interface {
 	tl.Object
@@ -3844,6 +4135,18 @@ func (*MessageEntityCode) CRC() uint32 {
 }
 
 func (*MessageEntityCode) ImplementsMessageEntity() {}
+
+type MessageEntityCustomEmoji struct {
+	Offset     int32
+	Length     int32
+	DocumentID int64
+}
+
+func (*MessageEntityCustomEmoji) CRC() uint32 {
+	return 0xc8cf05f8
+}
+
+func (*MessageEntityCustomEmoji) ImplementsMessageEntity() {}
 
 type MessageEntityEmail struct {
 	Offset int32
@@ -4021,8 +4324,9 @@ func (*MessageMediaDice) CRC() uint32 {
 func (*MessageMediaDice) ImplementsMessageMedia() {}
 
 type MessageMediaDocument struct {
+	Nopremium  bool     `tl:"flag:3,encoded_in_bitflags"`
 	Document   Document `tl:"flag:0"`
-	TtlSeconds int32    `tl:"flag:2"`
+	TtlSeconds int32    `tl:"flag:0"`
 }
 
 func (*MessageMediaDocument) CRC() uint32 {
@@ -4086,7 +4390,7 @@ type MessageMediaInvoice struct {
 	Title                    string
 	Description              string
 	Photo                    WebDocument `tl:"flag:0"`
-	ReceiptMsgID             int32       `tl:"flag:2"`
+	ReceiptMsgID             int32       `tl:"flag:0"`
 	Currency                 string
 	TotalAmount              int64
 	StartParam               string
@@ -4104,7 +4408,7 @@ func (*MessageMediaInvoice) ImplementsMessageMedia() {}
 
 type MessageMediaPhoto struct {
 	Photo      Photo `tl:"flag:0"`
-	TtlSeconds int32 `tl:"flag:2"`
+	TtlSeconds int32 `tl:"flag:0"`
 }
 
 func (*MessageMediaPhoto) CRC() uint32 {
@@ -4346,6 +4650,47 @@ func (*InputMessagesFilterVoice) CRC() uint32 {
 
 func (*InputMessagesFilterVoice) ImplementsMessagesFilter() {}
 
+type NotificationSound interface {
+	tl.Object
+	ImplementsNotificationSound()
+}
+type NotificationSoundDefault struct{}
+
+func (*NotificationSoundDefault) CRC() uint32 {
+	return 0x97e8bebe
+}
+
+func (*NotificationSoundDefault) ImplementsNotificationSound() {}
+
+type NotificationSoundLocal struct {
+	Title string
+	Data  string
+}
+
+func (*NotificationSoundLocal) CRC() uint32 {
+	return 0x830b9ae4
+}
+
+func (*NotificationSoundLocal) ImplementsNotificationSound() {}
+
+type NotificationSoundNone struct{}
+
+func (*NotificationSoundNone) CRC() uint32 {
+	return 0x6f0c34df
+}
+
+func (*NotificationSoundNone) ImplementsNotificationSound() {}
+
+type NotificationSoundRingtone struct {
+	ID int64
+}
+
+func (*NotificationSoundRingtone) CRC() uint32 {
+	return 0xff6c8049
+}
+
+func (*NotificationSoundRingtone) ImplementsNotificationSound() {}
+
 type NotifyPeer interface {
 	tl.Object
 	ImplementsNotifyPeer()
@@ -4490,7 +4835,7 @@ type PageBlockEmbed struct {
 	FullWidth      bool   `tl:"flag:0,encoded_in_bitflags"`
 	AllowScrolling bool   `tl:"flag:3,encoded_in_bitflags"`
 	URL            string `tl:"flag:1"`
-	Html           string `tl:"flag:2"`
+	Html           string `tl:"flag:0"`
 	PosterPhotoID  int64  `tl:"flag:4"`
 	W              int32  `tl:"flag:5"`
 	H              int32  `tl:"flag:5"`
@@ -4917,7 +5262,7 @@ func (*PhoneCallAccepted) FlagIndex() int {
 func (*PhoneCallAccepted) ImplementsPhoneCall() {}
 
 type PhoneCallDiscarded struct {
-	NeedRating bool `tl:"flag:2,encoded_in_bitflags"`
+	NeedRating bool `tl:"flag:0,encoded_in_bitflags"`
 	NeedDebug  bool `tl:"flag:3,encoded_in_bitflags"`
 	Video      bool `tl:"flag:6,encoded_in_bitflags"`
 	ID         int64
@@ -4992,6 +5337,7 @@ type PhoneConnection interface {
 	ImplementsPhoneConnection()
 }
 type PhoneConnectionObj struct {
+	Tcp     bool `tl:"flag:0,encoded_in_bitflags"`
 	ID      int64
 	Ip      string
 	Ipv6    string
@@ -5000,7 +5346,11 @@ type PhoneConnectionObj struct {
 }
 
 func (*PhoneConnectionObj) CRC() uint32 {
-	return 0x9d4c17c0
+	return 0x9cc123c7
+}
+
+func (*PhoneConnectionObj) FlagIndex() int {
+	return 0
 }
 
 func (*PhoneConnectionObj) ImplementsPhoneConnection() {}
@@ -5286,7 +5636,7 @@ func (*ReplyInlineMarkup) ImplementsReplyMarkup() {}
 
 type ReplyKeyboardForceReply struct {
 	SingleUse   bool   `tl:"flag:1,encoded_in_bitflags"`
-	Selective   bool   `tl:"flag:2,encoded_in_bitflags"`
+	Selective   bool   `tl:"flag:0,encoded_in_bitflags"`
 	Placeholder string `tl:"flag:3"`
 }
 
@@ -5301,7 +5651,7 @@ func (*ReplyKeyboardForceReply) FlagIndex() int {
 func (*ReplyKeyboardForceReply) ImplementsReplyMarkup() {}
 
 type ReplyKeyboardHide struct {
-	Selective bool `tl:"flag:2,encoded_in_bitflags"`
+	Selective bool `tl:"flag:0,encoded_in_bitflags"`
 }
 
 func (*ReplyKeyboardHide) CRC() uint32 {
@@ -5317,7 +5667,7 @@ func (*ReplyKeyboardHide) ImplementsReplyMarkup() {}
 type ReplyKeyboardMarkup struct {
 	Resize      bool `tl:"flag:0,encoded_in_bitflags"`
 	SingleUse   bool `tl:"flag:1,encoded_in_bitflags"`
-	Selective   bool `tl:"flag:2,encoded_in_bitflags"`
+	Selective   bool `tl:"flag:0,encoded_in_bitflags"`
 	Rows        []*KeyboardButtonRow
 	Placeholder string `tl:"flag:3"`
 }
@@ -5508,7 +5858,7 @@ type SecureFile interface {
 type SecureFileObj struct {
 	ID         int64
 	AccessHash int64
-	Size       int32
+	Size       int64
 	DcID       int32
 	Date       int32
 	FileHash   []byte
@@ -5516,7 +5866,7 @@ type SecureFileObj struct {
 }
 
 func (*SecureFileObj) CRC() uint32 {
-	return 0xe0277a62
+	return 0x7d09c27e
 }
 
 func (*SecureFileObj) ImplementsSecureFile() {}
@@ -5592,7 +5942,7 @@ type SecureRequiredType interface {
 type SecureRequiredTypeObj struct {
 	NativeNames         bool `tl:"flag:0,encoded_in_bitflags"`
 	SelfieRequired      bool `tl:"flag:1,encoded_in_bitflags"`
-	TranslationRequired bool `tl:"flag:2,encoded_in_bitflags"`
+	TranslationRequired bool `tl:"flag:0,encoded_in_bitflags"`
 	Type                SecureValueType
 }
 
@@ -5949,6 +6299,18 @@ func (*StickerSetCoveredObj) CRC() uint32 {
 
 func (*StickerSetCoveredObj) ImplementsStickerSetCovered() {}
 
+type StickerSetFullCovered struct {
+	Set       *StickerSet
+	Packs     []*StickerPack
+	Documents []Document
+}
+
+func (*StickerSetFullCovered) CRC() uint32 {
+	return 0x1aed5ee5
+}
+
+func (*StickerSetFullCovered) ImplementsStickerSetCovered() {}
+
 type StickerSetMultiCovered struct {
 	Set    *StickerSet
 	Covers []Document
@@ -5964,6 +6326,14 @@ type Update interface {
 	tl.Object
 	ImplementsUpdate()
 }
+type UpdateAttachMenuBots struct{}
+
+func (*UpdateAttachMenuBots) CRC() uint32 {
+	return 0x17b7a20b
+}
+
+func (*UpdateAttachMenuBots) ImplementsUpdate() {}
+
 type UpdateBotCallbackQuery struct {
 	QueryID       int64
 	UserID        int64
@@ -5989,7 +6359,7 @@ type UpdateBotChatInviteRequester struct {
 	Date   int32
 	UserID int64
 	About  string
-	Invite *ChatInviteExported
+	Invite ExportedChatInvite
 	Qts    int32
 }
 
@@ -6047,6 +6417,17 @@ func (*UpdateBotInlineSend) FlagIndex() int {
 }
 
 func (*UpdateBotInlineSend) ImplementsUpdate() {}
+
+type UpdateBotMenuButton struct {
+	BotID  int64
+	Button BotMenuButton
+}
+
+func (*UpdateBotMenuButton) CRC() uint32 {
+	return 0x14b85813
+}
+
+func (*UpdateBotMenuButton) ImplementsUpdate() {}
 
 type UpdateBotPrecheckoutQuery struct {
 	QueryID          int64
@@ -6166,9 +6547,9 @@ type UpdateChannelParticipant struct {
 	Date            int32
 	ActorID         int64
 	UserID          int64
-	PrevParticipant ChannelParticipant  `tl:"flag:0"`
-	NewParticipant  ChannelParticipant  `tl:"flag:1"`
-	Invite          *ChatInviteExported `tl:"flag:2"`
+	PrevParticipant ChannelParticipant `tl:"flag:0"`
+	NewParticipant  ChannelParticipant `tl:"flag:1"`
+	Invite          ExportedChatInvite `tl:"flag:0"`
 	Qts             int32
 }
 
@@ -6265,9 +6646,9 @@ type UpdateChatParticipant struct {
 	Date            int32
 	ActorID         int64
 	UserID          int64
-	PrevParticipant ChatParticipant     `tl:"flag:0"`
-	NewParticipant  ChatParticipant     `tl:"flag:1"`
-	Invite          *ChatInviteExported `tl:"flag:2"`
+	PrevParticipant ChatParticipant    `tl:"flag:0"`
+	NewParticipant  ChatParticipant    `tl:"flag:1"`
+	Invite          ExportedChatInvite `tl:"flag:0"`
 	Qts             int32
 }
 
@@ -6406,7 +6787,7 @@ func (*UpdateDeleteScheduledMessages) ImplementsUpdate() {}
 
 type UpdateDialogFilter struct {
 	ID     int32
-	Filter *DialogFilter `tl:"flag:0"`
+	Filter DialogFilter `tl:"flag:0"`
 }
 
 func (*UpdateDialogFilter) CRC() uint32 {
@@ -6979,6 +7360,14 @@ func (*UpdateReadChannelOutbox) CRC() uint32 {
 
 func (*UpdateReadChannelOutbox) ImplementsUpdate() {}
 
+type UpdateReadFeaturedEmojiStickers struct{}
+
+func (*UpdateReadFeaturedEmojiStickers) CRC() uint32 {
+	return 0xfb4c496c
+}
+
+func (*UpdateReadFeaturedEmojiStickers) ImplementsUpdate() {}
+
 type UpdateReadFeaturedStickers struct{}
 
 func (*UpdateReadFeaturedStickers) CRC() uint32 {
@@ -7047,6 +7436,14 @@ func (*UpdateSavedGifs) CRC() uint32 {
 
 func (*UpdateSavedGifs) ImplementsUpdate() {}
 
+type UpdateSavedRingtones struct{}
+
+func (*UpdateSavedRingtones) CRC() uint32 {
+	return 0x74d8be99
+}
+
+func (*UpdateSavedRingtones) ImplementsUpdate() {}
+
 type UpdateServiceNotification struct {
 	Popup     bool  `tl:"flag:0,encoded_in_bitflags"`
 	InboxDate int32 `tl:"flag:1"`
@@ -7099,6 +7496,24 @@ func (*UpdateTheme) CRC() uint32 {
 }
 
 func (*UpdateTheme) ImplementsUpdate() {}
+
+type UpdateTranscribedAudio struct {
+	Pending         bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer            Peer
+	MsgID           int32
+	TranscriptionID int64
+	Text            string
+}
+
+func (*UpdateTranscribedAudio) CRC() uint32 {
+	return 0x84cd5a
+}
+
+func (*UpdateTranscribedAudio) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateTranscribedAudio) ImplementsUpdate() {}
 
 type UpdateUserName struct {
 	UserID    int64
@@ -7171,6 +7586,16 @@ func (*UpdateWebPage) CRC() uint32 {
 
 func (*UpdateWebPage) ImplementsUpdate() {}
 
+type UpdateWebViewResultSent struct {
+	QueryID int64
+}
+
+func (*UpdateWebViewResultSent) CRC() uint32 {
+	return 0x1592b79d
+}
+
+func (*UpdateWebViewResultSent) ImplementsUpdate() {}
+
 type Updates interface {
 	tl.Object
 	ImplementsUpdates()
@@ -7198,11 +7623,11 @@ type UpdateShortChatMessage struct {
 	Pts         int32
 	PtsCount    int32
 	Date        int32
-	FwdFrom     *MessageFwdHeader   `tl:"flag:2"`
+	FwdFrom     *MessageFwdHeader   `tl:"flag:0"`
 	ViaBotID    int64               `tl:"flag:11"`
 	ReplyTo     *MessageReplyHeader `tl:"flag:3"`
 	Entities    []MessageEntity     `tl:"flag:7"`
-	TtlPeriod   int32               `tl:"flag:25"`
+	TtlPeriod   int32               `tl:"flag:5"`
 }
 
 func (*UpdateShortChatMessage) CRC() uint32 {
@@ -7226,11 +7651,11 @@ type UpdateShortMessage struct {
 	Pts         int32
 	PtsCount    int32
 	Date        int32
-	FwdFrom     *MessageFwdHeader   `tl:"flag:2"`
+	FwdFrom     *MessageFwdHeader   `tl:"flag:0"`
 	ViaBotID    int64               `tl:"flag:11"`
 	ReplyTo     *MessageReplyHeader `tl:"flag:3"`
 	Entities    []MessageEntity     `tl:"flag:7"`
-	TtlPeriod   int32               `tl:"flag:25"`
+	TtlPeriod   int32               `tl:"flag:5"`
 }
 
 func (*UpdateShortMessage) CRC() uint32 {
@@ -7251,7 +7676,7 @@ type UpdateShortSentMessage struct {
 	Date      int32
 	Media     MessageMedia    `tl:"flag:9"`
 	Entities  []MessageEntity `tl:"flag:7"`
-	TtlPeriod int32           `tl:"flag:25"`
+	TtlPeriod int32           `tl:"flag:5"`
 }
 
 func (*UpdateShortSentMessage) CRC() uint32 {
@@ -7353,16 +7778,19 @@ type UserObj struct {
 	BotNochats           bool `tl:"flag:16,encoded_in_bitflags"`
 	Verified             bool `tl:"flag:17,encoded_in_bitflags"`
 	Restricted           bool `tl:"flag:18,encoded_in_bitflags"`
-	Min                  bool `tl:"flag:20,encoded_in_bitflags"`
-	BotInlineGeo         bool `tl:"flag:21,encoded_in_bitflags"`
-	Support              bool `tl:"flag:23,encoded_in_bitflags"`
-	Scam                 bool `tl:"flag:24,encoded_in_bitflags"`
-	ApplyMinPhoto        bool `tl:"flag:25,encoded_in_bitflags"`
-	Fake                 bool `tl:"flag:26,encoded_in_bitflags"`
+	Min                  bool `tl:"flag:0,encoded_in_bitflags"`
+	BotInlineGeo         bool `tl:"flag:1,encoded_in_bitflags"`
+	Support              bool `tl:"flag:3,encoded_in_bitflags"`
+	Scam                 bool `tl:"flag:4,encoded_in_bitflags"`
+	ApplyMinPhoto        bool `tl:"flag:5,encoded_in_bitflags"`
+	Fake                 bool `tl:"flag:6,encoded_in_bitflags"`
+	BotAttachMenu        bool `tl:"flag:7,encoded_in_bitflags"`
+	Premium              bool `tl:"flag:8,encoded_in_bitflags"`
+	AttachMenuEnabled    bool `tl:"flag:9,encoded_in_bitflags"`
 	ID                   int64
 	AccessHash           int64                `tl:"flag:0"`
 	FirstName            string               `tl:"flag:1"`
-	LastName             string               `tl:"flag:2"`
+	LastName             string               `tl:"flag:0"`
 	Username             string               `tl:"flag:3"`
 	Phone                string               `tl:"flag:4"`
 	Photo                UserProfilePhoto     `tl:"flag:5"`
@@ -7370,7 +7798,7 @@ type UserObj struct {
 	BotInfoVersion       int32                `tl:"flag:14"`
 	RestrictionReason    []*RestrictionReason `tl:"flag:18"`
 	BotInlinePlaceholder string               `tl:"flag:19"`
-	LangCode             string               `tl:"flag:22"`
+	LangCode             string               `tl:"flag:2"`
 }
 
 func (*UserObj) CRC() uint32 {
@@ -7491,7 +7919,7 @@ type WallPaperObj struct {
 	AccessHash int64
 	Slug       string
 	Document   Document
-	Settings   *WallPaperSettings `tl:"flag:2"`
+	Settings   *WallPaperSettings `tl:"flag:0"`
 }
 
 func (*WallPaperObj) CRC() uint32 {
@@ -7508,7 +7936,7 @@ type WallPaperNoFile struct {
 	ID       int64
 	Default  bool               `tl:"flag:1,encoded_in_bitflags"`
 	Dark     bool               `tl:"flag:4,encoded_in_bitflags"`
-	Settings *WallPaperSettings `tl:"flag:2"`
+	Settings *WallPaperSettings `tl:"flag:0"`
 }
 
 func (*WallPaperNoFile) CRC() uint32 {
@@ -7563,7 +7991,7 @@ type WebPageObj struct {
 	Hash        int32
 	Type        string                   `tl:"flag:0"`
 	SiteName    string                   `tl:"flag:1"`
-	Title       string                   `tl:"flag:2"`
+	Title       string                   `tl:"flag:0"`
 	Description string                   `tl:"flag:3"`
 	Photo       Photo                    `tl:"flag:4"`
 	EmbedURL    string                   `tl:"flag:5"`
@@ -7653,6 +8081,51 @@ func (*AccountResetPasswordRequestedWait) CRC() uint32 {
 }
 
 func (*AccountResetPasswordRequestedWait) ImplementsAccountResetPasswordResult() {}
+
+type AccountSavedRingtone interface {
+	tl.Object
+	ImplementsAccountSavedRingtone()
+}
+type AccountSavedRingtoneObj struct{}
+
+func (*AccountSavedRingtoneObj) CRC() uint32 {
+	return 0xb7263f6d
+}
+
+func (*AccountSavedRingtoneObj) ImplementsAccountSavedRingtone() {}
+
+type AccountSavedRingtoneConverted struct {
+	Document Document
+}
+
+func (*AccountSavedRingtoneConverted) CRC() uint32 {
+	return 0x1f307eb7
+}
+
+func (*AccountSavedRingtoneConverted) ImplementsAccountSavedRingtone() {}
+
+type AccountSavedRingtones interface {
+	tl.Object
+	ImplementsAccountSavedRingtones()
+}
+type AccountSavedRingtonesObj struct {
+	Hash      int64
+	Ringtones []Document
+}
+
+func (*AccountSavedRingtonesObj) CRC() uint32 {
+	return 0xc1e92cc5
+}
+
+func (*AccountSavedRingtonesObj) ImplementsAccountSavedRingtones() {}
+
+type AccountSavedRingtonesNotModified struct{}
+
+func (*AccountSavedRingtonesNotModified) CRC() uint32 {
+	return 0xfbf6e8b1
+}
+
+func (*AccountSavedRingtonesNotModified) ImplementsAccountSavedRingtones() {}
 
 type AccountThemes interface {
 	tl.Object
@@ -7947,7 +8420,7 @@ type HelpAppUpdateObj struct {
 	Text       string
 	Entities   []MessageEntity
 	Document   Document `tl:"flag:1"`
-	URL        string   `tl:"flag:2"`
+	URL        string   `tl:"flag:0"`
 	Sticker    Document `tl:"flag:3"`
 }
 
@@ -8054,7 +8527,7 @@ type HelpPromoDataObj struct {
 	Chats      []Chat
 	Users      []User
 	PsaType    string `tl:"flag:1"`
-	PsaMessage string `tl:"flag:2"`
+	PsaMessage string `tl:"flag:0"`
 }
 
 func (*HelpPromoDataObj) CRC() uint32 {
@@ -8271,7 +8744,7 @@ type MessagesExportedChatInvite interface {
 	ImplementsMessagesExportedChatInvite()
 }
 type MessagesExportedChatInviteObj struct {
-	Invite *ChatInviteExported
+	Invite ExportedChatInvite
 	Users  []User
 }
 
@@ -8282,8 +8755,8 @@ func (*MessagesExportedChatInviteObj) CRC() uint32 {
 func (*MessagesExportedChatInviteObj) ImplementsMessagesExportedChatInvite() {}
 
 type MessagesExportedChatInviteReplaced struct {
-	Invite    *ChatInviteExported
-	NewInvite *ChatInviteExported
+	Invite    ExportedChatInvite
+	NewInvite ExportedChatInvite
 	Users     []User
 }
 
@@ -8322,14 +8795,19 @@ type MessagesFeaturedStickers interface {
 	ImplementsMessagesFeaturedStickers()
 }
 type MessagesFeaturedStickersObj struct {
-	Hash   int64
-	Count  int32
-	Sets   []StickerSetCovered
-	Unread []int64
+	Premium bool `tl:"flag:0,encoded_in_bitflags"`
+	Hash    int64
+	Count   int32
+	Sets    []StickerSetCovered
+	Unread  []int64
 }
 
 func (*MessagesFeaturedStickersObj) CRC() uint32 {
-	return 0x84c02310
+	return 0xbe382906
+}
+
+func (*MessagesFeaturedStickersObj) FlagIndex() int {
+	return 0
 }
 
 func (*MessagesFeaturedStickersObj) ImplementsMessagesFeaturedStickers() {}
@@ -8375,7 +8853,7 @@ type MessagesChannelMessages struct {
 	Inexact        bool `tl:"flag:1,encoded_in_bitflags"`
 	Pts            int32
 	Count          int32
-	OffsetIDOffset int32 `tl:"flag:2"`
+	OffsetIDOffset int32 `tl:"flag:0"`
 	Messages       []Message
 	Chats          []Chat
 	Users          []User
@@ -8417,7 +8895,7 @@ type MessagesMessagesSlice struct {
 	Inexact        bool `tl:"flag:1,encoded_in_bitflags"`
 	Count          int32
 	NextRate       int32 `tl:"flag:0"`
-	OffsetIDOffset int32 `tl:"flag:2"`
+	OffsetIDOffset int32 `tl:"flag:0"`
 	Messages       []Message
 	Chats          []Chat
 	Users          []User
