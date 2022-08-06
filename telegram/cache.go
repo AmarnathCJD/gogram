@@ -7,9 +7,9 @@ import (
 
 type CACHE struct {
 	sync.Mutex
-	chats    map[int32]*ChatObj
-	users    map[int32]*UserObj
-	channels map[int32]*Channel
+	chats    map[int64]*ChatObj
+	users    map[int64]*UserObj
+	channels map[int64]*Channel
 }
 
 var (
@@ -18,13 +18,13 @@ var (
 
 func NewCache() *CACHE {
 	return &CACHE{
-		chats:    make(map[int32]*ChatObj),
-		users:    make(map[int32]*UserObj),
-		channels: make(map[int32]*Channel),
+		chats:    make(map[int64]*ChatObj),
+		users:    make(map[int64]*UserObj),
+		channels: make(map[int64]*Channel),
 	}
 }
 
-func (c *CACHE) GetChat(chat_id int32) (*ChatObj, error) {
+func (c *CACHE) GetChat(chat_id int64) (*ChatObj, error) {
 	c.Lock()
 	defer c.Unlock()
 	if chat, ok := c.chats[chat_id]; ok {
@@ -33,7 +33,7 @@ func (c *CACHE) GetChat(chat_id int32) (*ChatObj, error) {
 	return nil, fmt.Errorf("no chat with id %d", chat_id)
 }
 
-func (c *CACHE) GetUser(user_id int32) (*UserObj, error) {
+func (c *CACHE) GetUser(user_id int64) (*UserObj, error) {
 	c.Lock()
 	defer c.Unlock()
 	if user, ok := c.users[user_id]; ok {
@@ -42,7 +42,7 @@ func (c *CACHE) GetUser(user_id int32) (*UserObj, error) {
 	return nil, fmt.Errorf("no user with id %d", user_id)
 }
 
-func (c *CACHE) GetChannel(channel_id int32) (*Channel, error) {
+func (c *CACHE) GetChannel(channel_id int64) (*Channel, error) {
 	c.Lock()
 	defer c.Unlock()
 	if channel, ok := c.channels[channel_id]; ok {
@@ -91,7 +91,7 @@ func (cache *CACHE) UpdatePeersToCache(u []User, c []Chat) {
 	}
 }
 
-func (cache *CACHE) GetPeersFromCache(u []int32, c []int32) ([]User, []Chat) {
+func (cache *CACHE) GetPeersFromCache(u []int64, c []int64) ([]User, []Chat) {
 	cache.Lock()
 	defer cache.Unlock()
 	var users []User
@@ -113,15 +113,15 @@ func (client *Client) SaveToCache(u []User, c []Chat) {
 	client.Cache.UpdatePeersToCache(u, c)
 }
 
-func (client *Client) GetPeerChat(chat_id int32) (*ChatObj, error) {
+func (client *Client) GetPeerChat(chat_id int64) (*ChatObj, error) {
 	return client.Cache.GetChat(chat_id)
 }
 
-func (client *Client) GetPeerUser(user_id int32) (*UserObj, error) {
+func (client *Client) GetPeerUser(user_id int64) (*UserObj, error) {
 	return client.Cache.GetUser(user_id)
 }
 
-func (client *Client) GetPeerChannel(channel_id int32) (*Channel, error) {
+func (client *Client) GetPeerChannel(channel_id int64) (*Channel, error) {
 	return client.Cache.GetChannel(channel_id)
 }
 

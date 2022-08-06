@@ -56,7 +56,7 @@ func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 	// трабла только в том, что нельзя просто так взять, и получить bool из MakeRequest. так что
 	// возвращаем tl.Bool
 	if obj.Response.Type == "Bool" {
-		resp = jen.Op("*").Qual(tlPackagePath, "PseudoBool")
+		resp = jen.Op("*").Qual(tlPackagePath, "bool")
 	}
 
 	responses := []jen.Code{resp, jen.Error()}

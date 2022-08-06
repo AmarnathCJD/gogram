@@ -3,5 +3,5 @@
 package telegram
 
 const (
-	ApiVersion = 121
+	ApiVersion = 139
 )
