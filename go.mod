@@ -9,15 +9,6 @@ require (
 )
 
 require (
-	github.com/amarnathcjd/gogram/internal/cmd/tlgen v0.0.0-20220805175149-96788325fc72 // indirect
-	github.com/dave/jennifer v1.4.1 // indirect
-	github.com/iancoleman/strcase v0.1.2 // indirect
-	github.com/k0kubun/pp v3.0.1+incompatible // indirect
-	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.14 // indirect
-)
-
-require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/structtag v1.2.0
 	github.com/pmezard/go-difflib v1.0.0 // indirect

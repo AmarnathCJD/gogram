@@ -2,6 +2,35 @@
 
 package telegram
 
+type AttachMenuPeerType uint32
+
+const (
+	AttachMenuPeerTypeBotPm     AttachMenuPeerType = 0xc32bfa1a
+	AttachMenuPeerTypeBroadcast AttachMenuPeerType = 0x7bfbdefc
+	AttachMenuPeerTypeChat      AttachMenuPeerType = 0x509113f
+	AttachMenuPeerTypePm        AttachMenuPeerType = 0xf146d31f
+	AttachMenuPeerTypeSameBotPm AttachMenuPeerType = 0x7d6be90e
+)
+
+func (e AttachMenuPeerType) String() string {
+	switch e {
+	case AttachMenuPeerType(0xc32bfa1a):
+		return "attachMenuPeerTypeBotPM"
+	case AttachMenuPeerType(0x7bfbdefc):
+		return "attachMenuPeerTypeBroadcast"
+	case AttachMenuPeerType(0x509113f):
+		return "attachMenuPeerTypeChat"
+	case AttachMenuPeerType(0xf146d31f):
+		return "attachMenuPeerTypePM"
+	case AttachMenuPeerType(0x7d6be90e):
+		return "attachMenuPeerTypeSameBotPM"
+	default:
+		return "<UNKNOWN AttachMenuPeerType>"
+	}
+}
+
+func (e AttachMenuPeerType) CRC() uint32 { return uint32(e) }
+
 type BaseTheme uint32
 
 const (
@@ -71,6 +100,7 @@ const (
 	InputPrivacyKeyPhoneP2P        InputPrivacyKey = 0xdb9e70d2
 	InputPrivacyKeyProfilePhoto    InputPrivacyKey = 0x5719bacc
 	InputPrivacyKeyStatusTimestamp InputPrivacyKey = 0x4f96cb18
+	InputPrivacyKeyVoiceMessages   InputPrivacyKey = 0xaee69d68
 )
 
 func (e InputPrivacyKey) String() string {
@@ -91,6 +121,8 @@ func (e InputPrivacyKey) String() string {
 		return "inputPrivacyKeyProfilePhoto"
 	case InputPrivacyKey(0x4f96cb18):
 		return "inputPrivacyKeyStatusTimestamp"
+	case InputPrivacyKey(0xaee69d68):
+		return "inputPrivacyKeyVoiceMessages"
 	default:
 		return "<UNKNOWN InputPrivacyKey>"
 	}
@@ -148,6 +180,7 @@ const (
 	PrivacyKeyPhoneP2P        PrivacyKey = 0x39491cc8
 	PrivacyKeyProfilePhoto    PrivacyKey = 0x96151fed
 	PrivacyKeyStatusTimestamp PrivacyKey = 0xbc2eab30
+	PrivacyKeyVoiceMessages   PrivacyKey = 0x697f414
 )
 
 func (e PrivacyKey) String() string {
@@ -168,6 +201,8 @@ func (e PrivacyKey) String() string {
 		return "privacyKeyProfilePhoto"
 	case PrivacyKey(0xbc2eab30):
 		return "privacyKeyStatusTimestamp"
+	case PrivacyKey(0x697f414):
+		return "privacyKeyVoiceMessages"
 	default:
 		return "<UNKNOWN PrivacyKey>"
 	}
