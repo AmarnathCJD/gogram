@@ -186,7 +186,7 @@ func (c *Client) AccountConfirmPhone(phoneCodeHash, phoneCode string) (bool, err
 type AccountCreateThemeParams struct {
 	Slug     string
 	Title    string
-	Document InputDocument         `tl:"flag:0"`
+	Document InputDocument         `tl:"flag:2"`
 	Settings []*InputThemeSettings `tl:"flag:3"`
 }
 
@@ -806,7 +806,7 @@ func (c *Client) AccountGetWebAuthorizations() (*AccountWebAuthorizations, error
 type AccountInitTakeoutSessionParams struct {
 	Contacts          bool  `tl:"flag:0,encoded_in_bitflags"`
 	MessageUsers      bool  `tl:"flag:1,encoded_in_bitflags"`
-	MessageChats      bool  `tl:"flag:0,encoded_in_bitflags"`
+	MessageChats      bool  `tl:"flag:2,encoded_in_bitflags"`
 	MessageMegagroups bool  `tl:"flag:3,encoded_in_bitflags"`
 	MessageChannels   bool  `tl:"flag:4,encoded_in_bitflags"`
 	Files             bool  `tl:"flag:5,encoded_in_bitflags"`
@@ -837,7 +837,7 @@ func (c *Client) AccountInitTakeoutSession(params *AccountInitTakeoutSessionPara
 type AccountInstallThemeParams struct {
 	Dark      bool       `tl:"flag:0,encoded_in_bitflags"`
 	Theme     InputTheme `tl:"flag:1"`
-	Format    string     `tl:"flag:0"`
+	Format    string     `tl:"flag:2"`
 	BaseTheme BaseTheme  `tl:"flag:3"`
 }
 
@@ -1579,7 +1579,7 @@ func (c *Client) AccountUpdatePasswordSettings(password InputCheckPasswordSRP, n
 type AccountUpdateProfileParams struct {
 	FirstName string `tl:"flag:0"`
 	LastName  string `tl:"flag:1"`
-	About     string `tl:"flag:0"`
+	About     string `tl:"flag:2"`
 }
 
 func (*AccountUpdateProfileParams) CRC() uint32 {
@@ -1633,7 +1633,7 @@ type AccountUpdateThemeParams struct {
 	Theme    InputTheme
 	Slug     string                `tl:"flag:0"`
 	Title    string                `tl:"flag:1"`
-	Document InputDocument         `tl:"flag:0"`
+	Document InputDocument         `tl:"flag:2"`
 	Settings []*InputThemeSettings `tl:"flag:3"`
 }
 
@@ -2542,8 +2542,8 @@ type ChannelsCreateChannelParams struct {
 	ForImport bool `tl:"flag:3,encoded_in_bitflags"`
 	Title     string
 	About     string
-	GeoPoint  InputGeoPoint `tl:"flag:0"`
-	Address   string        `tl:"flag:0"`
+	GeoPoint  InputGeoPoint `tl:"flag:2"`
+	Address   string        `tl:"flag:2"`
 }
 
 func (*ChannelsCreateChannelParams) CRC() uint32 {
@@ -3589,7 +3589,7 @@ func (c *Client) ContactsBlock(id InputPeer) (bool, error) {
 type ContactsBlockFromRepliesParams struct {
 	DeleteMessage bool `tl:"flag:0,encoded_in_bitflags"`
 	DeleteHistory bool `tl:"flag:1,encoded_in_bitflags"`
-	ReportSpam    bool `tl:"flag:0,encoded_in_bitflags"`
+	ReportSpam    bool `tl:"flag:2,encoded_in_bitflags"`
 	MsgID         int32
 }
 
@@ -3800,7 +3800,7 @@ func (c *Client) ContactsGetStatuses() ([]*ContactStatus, error) {
 type ContactsGetTopPeersParams struct {
 	Correspondents bool `tl:"flag:0,encoded_in_bitflags"`
 	BotsPm         bool `tl:"flag:1,encoded_in_bitflags"`
-	BotsInline     bool `tl:"flag:0,encoded_in_bitflags"`
+	BotsInline     bool `tl:"flag:2,encoded_in_bitflags"`
 	PhoneCalls     bool `tl:"flag:3,encoded_in_bitflags"`
 	ForwardUsers   bool `tl:"flag:4,encoded_in_bitflags"`
 	ForwardChats   bool `tl:"flag:5,encoded_in_bitflags"`
@@ -4686,7 +4686,7 @@ type MessagesAcceptURLAuthParams struct {
 	Peer         InputPeer `tl:"flag:1"`
 	MsgID        int32     `tl:"flag:1"`
 	ButtonID     int32     `tl:"flag:1"`
-	URL          string    `tl:"flag:0"`
+	URL          string    `tl:"flag:2"`
 }
 
 func (*MessagesAcceptURLAuthParams) CRC() uint32 {
@@ -4951,7 +4951,7 @@ type MessagesDeleteHistoryParams struct {
 	Revoke    bool `tl:"flag:1,encoded_in_bitflags"`
 	Peer      InputPeer
 	MaxID     int32
-	MinDate   int32 `tl:"flag:0"`
+	MinDate   int32 `tl:"flag:2"`
 	MaxDate   int32 `tl:"flag:3"`
 }
 
@@ -5237,7 +5237,7 @@ func (c *Client) MessagesEditChatTitle(chatID int64, title string) (Updates, err
 }
 
 type MessagesEditExportedChatInviteParams struct {
-	Revoked       bool `tl:"flag:0,encoded_in_bitflags"`
+	Revoked       bool `tl:"flag:2,encoded_in_bitflags"`
 	Peer          InputPeer
 	Link          string
 	ExpireDate    int32  `tl:"flag:0"`
@@ -5272,7 +5272,7 @@ type MessagesEditInlineBotMessageParams struct {
 	ID          InputBotInlineMessageID
 	Message     string          `tl:"flag:11"`
 	Media       InputMedia      `tl:"flag:14"`
-	ReplyMarkup ReplyMarkup     `tl:"flag:0"`
+	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
 	Entities    []MessageEntity `tl:"flag:3"`
 }
 
@@ -5303,7 +5303,7 @@ type MessagesEditMessageParams struct {
 	ID           int32
 	Message      string          `tl:"flag:11"`
 	Media        InputMedia      `tl:"flag:14"`
-	ReplyMarkup  ReplyMarkup     `tl:"flag:0"`
+	ReplyMarkup  ReplyMarkup     `tl:"flag:2"`
 	Entities     []MessageEntity `tl:"flag:3"`
 	ScheduleDate int32           `tl:"flag:15"`
 }
@@ -5330,7 +5330,7 @@ func (c *Client) MessagesEditMessage(params *MessagesEditMessageParams) (Updates
 }
 
 type MessagesExportChatInviteParams struct {
-	LegacyRevokePermanent bool `tl:"flag:0,encoded_in_bitflags"`
+	LegacyRevokePermanent bool `tl:"flag:2,encoded_in_bitflags"`
 	RequestNeeded         bool `tl:"flag:3,encoded_in_bitflags"`
 	Peer                  InputPeer
 	ExpireDate            int32  `tl:"flag:0"`
@@ -5624,7 +5624,7 @@ type MessagesGetBotCallbackAnswerParams struct {
 	Peer     InputPeer
 	MsgID    int32
 	Data     []byte                `tl:"flag:0"`
-	Password InputCheckPasswordSRP `tl:"flag:0"`
+	Password InputCheckPasswordSRP `tl:"flag:2"`
 }
 
 func (*MessagesGetBotCallbackAnswerParams) CRC() uint32 {
@@ -5652,7 +5652,7 @@ type MessagesGetChatInviteImportersParams struct {
 	Requested  bool `tl:"flag:0,encoded_in_bitflags"`
 	Peer       InputPeer
 	Link       string `tl:"flag:1"`
-	Q          string `tl:"flag:0"`
+	Q          string `tl:"flag:2"`
 	OffsetDate int32
 	OffsetUser InputUser
 	Limit      int32
@@ -6032,8 +6032,8 @@ type MessagesGetExportedChatInvitesParams struct {
 	Revoked    bool `tl:"flag:3,encoded_in_bitflags"`
 	Peer       InputPeer
 	AdminID    InputUser
-	OffsetDate int32  `tl:"flag:0"`
-	OffsetLink string `tl:"flag:0"`
+	OffsetDate int32  `tl:"flag:2"`
+	OffsetLink string `tl:"flag:2"`
 	Limit      int32
 }
 
@@ -7685,7 +7685,7 @@ type MessagesRequestURLAuthParams struct {
 	Peer     InputPeer `tl:"flag:1"`
 	MsgID    int32     `tl:"flag:1"`
 	ButtonID int32     `tl:"flag:1"`
-	URL      string    `tl:"flag:0"`
+	URL      string    `tl:"flag:2"`
 }
 
 func (*MessagesRequestURLAuthParams) CRC() uint32 {
@@ -7721,7 +7721,7 @@ type MessagesRequestWebViewParams struct {
 	Bot          InputUser
 	URL          string    `tl:"flag:1"`
 	StartParam   string    `tl:"flag:3"`
-	ThemeParams  *DataJson `tl:"flag:0"`
+	ThemeParams  *DataJson `tl:"flag:2"`
 	ReplyToMsgID int32     `tl:"flag:0"`
 	SendAs       InputPeer `tl:"flag:13"`
 }
@@ -8119,7 +8119,7 @@ type MessagesSendMediaParams struct {
 	Media        InputMedia
 	Message      string
 	RandomID     int64
-	ReplyMarkup  ReplyMarkup     `tl:"flag:0"`
+	ReplyMarkup  ReplyMarkup     `tl:"flag:2"`
 	Entities     []MessageEntity `tl:"flag:3"`
 	ScheduleDate int32           `tl:"flag:10"`
 	SendAs       InputPeer       `tl:"flag:13"`
@@ -8156,7 +8156,7 @@ type MessagesSendMessageParams struct {
 	ReplyToMsgID int32 `tl:"flag:0"`
 	Message      string
 	RandomID     int64
-	ReplyMarkup  ReplyMarkup     `tl:"flag:0"`
+	ReplyMarkup  ReplyMarkup     `tl:"flag:2"`
 	Entities     []MessageEntity `tl:"flag:3"`
 	ScheduleDate int32           `tl:"flag:10"`
 	SendAs       InputPeer       `tl:"flag:13"`
@@ -8386,7 +8386,7 @@ type MessagesSetBotCallbackAnswerParams struct {
 	Alert     bool `tl:"flag:1,encoded_in_bitflags"`
 	QueryID   int64
 	Message   string `tl:"flag:0"`
-	URL       string `tl:"flag:0"`
+	URL       string `tl:"flag:2"`
 	CacheTime int32
 }
 
@@ -8630,7 +8630,7 @@ type MessagesSetInlineBotResultsParams struct {
 	QueryID    int64
 	Results    []InputBotInlineResult
 	CacheTime  int32
-	NextOffset string             `tl:"flag:0"`
+	NextOffset string             `tl:"flag:2"`
 	SwitchPm   *InlineBotSwitchPm `tl:"flag:3"`
 }
 
@@ -8851,7 +8851,7 @@ func (c *Client) MessagesToggleNoForwards(peer InputPeer, enabled bool) (Updates
 type MessagesToggleStickerSetsParams struct {
 	Uninstall   bool `tl:"flag:0,encoded_in_bitflags"`
 	Archive     bool `tl:"flag:1,encoded_in_bitflags"`
-	Unarchive   bool `tl:"flag:0,encoded_in_bitflags"`
+	Unarchive   bool `tl:"flag:2,encoded_in_bitflags"`
 	Stickersets []InputStickerSet
 }
 
@@ -8910,7 +8910,7 @@ type MessagesTranslateTextParams struct {
 	Peer     InputPeer `tl:"flag:0"`
 	MsgID    int32     `tl:"flag:0"`
 	Text     string    `tl:"flag:1"`
-	FromLang string    `tl:"flag:0"`
+	FromLang string    `tl:"flag:2"`
 	ToLang   string
 }
 
@@ -9030,7 +9030,7 @@ func (c *Client) MessagesUpdateDialogFiltersOrder(order []int32) (bool, error) {
 type MessagesUpdatePinnedMessageParams struct {
 	Silent    bool `tl:"flag:0,encoded_in_bitflags"`
 	Unpin     bool `tl:"flag:1,encoded_in_bitflags"`
-	PmOneside bool `tl:"flag:0,encoded_in_bitflags"`
+	PmOneside bool `tl:"flag:2,encoded_in_bitflags"`
 	Peer      InputPeer
 	ID        int32
 }
@@ -9383,7 +9383,7 @@ type PaymentsSendPaymentFormParams struct {
 	RequestedInfoID  string `tl:"flag:0"`
 	ShippingOptionID string `tl:"flag:1"`
 	Credentials      InputPaymentCredentials
-	TipAmount        int64 `tl:"flag:0"`
+	TipAmount        int64 `tl:"flag:2"`
 }
 
 func (*PaymentsSendPaymentFormParams) CRC() uint32 {
@@ -9520,7 +9520,7 @@ func (c *Client) PhoneConfirmCall(peer *InputPhoneCall, gA []byte, keyFingerprin
 }
 
 type PhoneCreateGroupCallParams struct {
-	RtmpStream   bool `tl:"flag:0,encoded_in_bitflags"`
+	RtmpStream   bool `tl:"flag:2,encoded_in_bitflags"`
 	Peer         InputPeer
 	RandomID     int32
 	Title        string `tl:"flag:0"`
@@ -9603,7 +9603,7 @@ type PhoneEditGroupCallParticipantParams struct {
 	Participant        InputPeer
 	Muted              bool  `tl:"flag:0"`
 	Volume             int32 `tl:"flag:1"`
-	RaiseHand          bool  `tl:"flag:0"`
+	RaiseHand          bool  `tl:"flag:2"`
 	VideoStopped       bool  `tl:"flag:3"`
 	VideoPaused        bool  `tl:"flag:4"`
 	PresentationPaused bool  `tl:"flag:5"`
@@ -9853,7 +9853,7 @@ func (c *Client) PhoneInviteToGroupCall(call *InputGroupCall, users []InputUser)
 
 type PhoneJoinGroupCallParams struct {
 	Muted        bool `tl:"flag:0,encoded_in_bitflags"`
-	VideoStopped bool `tl:"flag:0,encoded_in_bitflags"`
+	VideoStopped bool `tl:"flag:2,encoded_in_bitflags"`
 	Call         *InputGroupCall
 	JoinAs       InputPeer
 	InviteHash   string `tl:"flag:1"`
@@ -10158,10 +10158,10 @@ func (c *Client) PhoneStartScheduledGroupCall(call *InputGroupCall) (Updates, er
 
 type PhoneToggleGroupCallRecordParams struct {
 	Start         bool `tl:"flag:0,encoded_in_bitflags"`
-	Video         bool `tl:"flag:0,encoded_in_bitflags"`
+	Video         bool `tl:"flag:2,encoded_in_bitflags"`
 	Call          *InputGroupCall
 	Title         string `tl:"flag:1"`
-	VideoPortrait bool   `tl:"flag:0"`
+	VideoPortrait bool   `tl:"flag:2"`
 }
 
 func (*PhoneToggleGroupCallRecordParams) CRC() uint32 {
@@ -10315,7 +10315,7 @@ func (c *Client) PhotosUpdateProfilePhoto(id InputPhoto) (*PhotosPhoto, error) {
 type PhotosUploadProfilePhotoParams struct {
 	File         InputFile `tl:"flag:0"`
 	Video        InputFile `tl:"flag:1"`
-	VideoStartTs float64   `tl:"flag:0"`
+	VideoStartTs float64   `tl:"flag:2"`
 }
 
 func (*PhotosUploadProfilePhotoParams) CRC() uint32 {
@@ -10565,7 +10565,7 @@ type StickersCreateStickerSetParams struct {
 	UserID    InputUser
 	Title     string
 	ShortName string
-	Thumb     InputDocument `tl:"flag:0"`
+	Thumb     InputDocument `tl:"flag:2"`
 	Stickers  []*InputStickerSetItem
 	Software  string `tl:"flag:3"`
 }
