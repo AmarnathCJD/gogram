@@ -113,7 +113,7 @@ func (m *NewMessage) GetChat() (*ChatObj, error) {
 
 func (m *NewMessage) GetPeer() (int64, int64) {
 	if m.IsPrivate() {
-		User, _ := m.Client.GetPeerUser(m.SenderID())
+		User, _ := m.Client.GetPeerUser(m.ChatID())
 		return User.ID, User.AccessHash
 	} else if m.IsGroup() {
 		Chat, _ := m.Client.GetPeerChat(m.ChatID())
