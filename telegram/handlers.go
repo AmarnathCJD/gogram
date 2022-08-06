@@ -119,7 +119,11 @@ func (m *NewMessage) GetSenderChat() string {
 	return "soon will be implemented"
 }
 
-func PackMessage(client *Client, message *MessageObj) *NewMessage {
+func (m *NewMessage) Reply(text string) error {
+	return nil
+}
+
+func packMessage(client *Client, message *MessageObj) *NewMessage {
 	var Chat *ChatObj
 	var Sender *UserObj
 	var SenderChat *ChatObj

@@ -12,11 +12,13 @@ var (
 	EntityItalicRegex        = regexp.MustCompile(`__([\s\S]*)__`)
 	EntityStrikeRegex        = regexp.MustCompile(`\~\~([\s\S]*)\~\~`)
 	EntityUnderlineRegex     = regexp.MustCompile(`\--([\s\S]*)\--`)
+	EntitySpoilerRegex       = regexp.MustCompile(`||([\s\S]*)||`)
 	EntityCodeHTMLRegex      = regexp.MustCompile(`<code>([\s\S]*)</code>`)
 	EntityBoldHTMLRegex      = regexp.MustCompile(`<b>([\s\S]*)</b>`)
 	EntityItalicHTMLRegex    = regexp.MustCompile(`<i>([\s\S]*)</i>`)
 	EntityStrikeHTMLRegex    = regexp.MustCompile(`<s>([\s\S]*)</s>`)
 	EntityUnderlineHTMLRegex = regexp.MustCompile(`<u>([\s\S]*)</u>`)
+	EntitySpoilerHTMLRegex   = regexp.MustCompile(`<tgspoiler>([\s\S]*)</tgspoiler>`)
 )
 
 func (c *Client) ParseEntity(text string) (string, []MessageEntity) {
@@ -58,6 +60,13 @@ func (c *Client) ParseEntity(text string) (string, []MessageEntity) {
 				Length: int32(len(m[1])),
 			})
 		}
+		for _, m := range EntitySpoilerRegex.FindAllStringSubmatch(text, -1) {
+			text = strings.Replace(text, "||", "", 2)
+			e = append(e, &MessageEntitySpoiler{
+				Offset: GetOffSet(text, m[1]),
+				Length: int32(len(m[1])),
+			})
+		}
 	} else {
 		for _, m := range EntityCodeHTMLRegex.FindAllStringSubmatch(text, -1) {
 			text = strings.Replace(text, "<code>", "", 1)
@@ -95,6 +104,14 @@ func (c *Client) ParseEntity(text string) (string, []MessageEntity) {
 			text = strings.Replace(text, "<u>", "", 1)
 			text = strings.Replace(text, "</u>", "", 1)
 			e = append(e, &MessageEntityUnderline{
+				Offset: GetOffSet(text, m[1]),
+				Length: int32(len(m[1])),
+			})
+		}
+		for _, m := range EntitySpoilerHTMLRegex.FindAllStringSubmatch(text, -1) {
+			text = strings.Replace(text, "<tgspoiler>", "", 1)
+			text = strings.Replace(text, "</tgspoiler>", "", 1)
+			e = append(e, &MessageEntitySpoiler{
 				Offset: GetOffSet(text, m[1]),
 				Length: int32(len(m[1])),
 			})
