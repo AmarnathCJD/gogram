@@ -111,6 +111,20 @@ func (m *NewMessage) GetChat() (*ChatObj, error) {
 	return m.Client.GetPeerChat(m.ChatID())
 }
 
+func (m *NewMessage) GetPeer() (int64, int64) {
+	if m.IsPrivate() {
+		User, _ := m.Client.GetPeerUser(m.SenderID())
+		return User.ID, User.AccessHash
+	} else if m.IsGroup() {
+		Chat, _ := m.Client.GetPeerChat(m.ChatID())
+		return Chat.ID, 0
+	} else if m.IsChannel() {
+		Channel, _ := m.Client.GetPeerChannel(m.ChatID())
+		return Channel.ID, Channel.AccessHash
+	}
+	return 0, 0
+}
+
 func (m *NewMessage) GetSender() (*UserObj, error) {
 	return m.Client.GetPeerUser(m.SenderID())
 }
@@ -120,7 +134,12 @@ func (m *NewMessage) GetSenderChat() string {
 }
 
 func (m *NewMessage) Reply(text string) error {
-	return nil
+	if m.IsPrivate() {
+		ID, AcessHash := m.GetPeer()
+		fmt.Println(ID, AcessHash)
+		return nil
+	}
+	return fmt.Errorf("soon will be implemented")
 }
 
 func packMessage(client *Client, message *MessageObj) *NewMessage {
