@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
+	"sync"
 
 	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/pkg/errors"
@@ -143,4 +144,10 @@ func (m *Client) SetParseMode(mode string) {
 			return
 		}
 	}
+}
+
+func (c *Client) Idle() {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	wg.Wait()
 }

@@ -5,14 +5,14 @@ package keys
 import (
 	"bytes"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/big"
 	"os"
-
-	"github.com/xelaj/go-dry"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
@@ -21,7 +21,9 @@ import (
 // т.к. rsa ключ в понятиях MTProto это TL объект, то используется буффер
 // подробнее https://core.telegram.org/mtproto/auth_key
 func RSAFingerprint(key *rsa.PublicKey) []byte {
-	dry.PanicIf(key == nil, "key can't be nil")
+	if key == nil {
+		log.Fatal("key is nil")
+	}
 	exponentAsBigInt := (big.NewInt(0)).SetInt64(int64(key.E))
 
 	buf := bytes.NewBuffer(nil)
@@ -29,7 +31,7 @@ func RSAFingerprint(key *rsa.PublicKey) []byte {
 	e.PutMessage(key.N.Bytes())
 	e.PutMessage(exponentAsBigInt.Bytes())
 
-	fingerprint := dry.Sha1(buf.String())
+	fingerprint := Sha1(buf.String())
 	return []byte(fingerprint)[12:] // последние 8 байт это и есть отпечаток
 }
 
@@ -39,7 +41,7 @@ func FileExists(path string) bool {
 }
 
 func ReadFromFile(path string) ([]*rsa.PublicKey, error) {
-	if FileExists(path) {
+	if !FileExists(path) {
 		return nil, fmt.Errorf("file %s not found", path)
 	}
 	data, err := ioutil.ReadFile(path)
@@ -90,7 +92,14 @@ func SaveRsaKey(key *rsa.PublicKey) string {
 		Type:  "RSA PUBLIC KEY",
 		Bytes: data,
 	})
-	dry.PanicIfErr(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return buf.String()
+}
+
+func Sha1(input string) []byte {
+	r := sha1.Sum([]byte(input))
+	return r[:]
 }
