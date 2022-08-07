@@ -6,8 +6,8 @@
 package telegram
 
 import (
-	"fmt"
 	"net"
+	"os"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -21,11 +21,12 @@ import (
 
 type Client struct {
 	*mtproto.MTProto
-	config       *ClientConfig
-	serverConfig *Config
-	stop         chan struct{}
-	Cache        *CACHE
-	ParseMode    string
+	config    *ClientConfig
+	stop      chan struct{}
+	Cache     *CACHE
+	ParseMode string
+	AppID     int32
+	ApiHash   string
 }
 
 type ClientConfig struct {
@@ -38,19 +39,24 @@ type ClientConfig struct {
 	AppID          int
 	AppHash        string
 	ParseMode      string
+	DataCenter     int
 }
 
 func NewClient(c ClientConfig) (*Client, error) {
+	if c.SessionFile == "" {
+		workDir, _ := os.Getwd()
+		c.SessionFile = workDir + "/tg_session.json"
+	}
 	if c.DeviceModel == "" {
-		c.DeviceModel = "Unknown"
+		c.DeviceModel = "iPhone X"
 	}
 	if c.SystemVersion == "" {
 		c.SystemVersion = runtime.GOOS + "/" + runtime.GOARCH
 	}
 	if c.AppVersion == "" {
-		c.AppVersion = "v0.0.0"
+		c.AppVersion = "v1.0.0"
 	}
-	publicKeys, err := keys.ReadFromFile("tg_public_keys.pem")
+	publicKeys, err := keys.ReadFromNetwork()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading public keys")
 	}
@@ -58,9 +64,10 @@ func NewClient(c ClientConfig) (*Client, error) {
 		AuthKeyFile: c.SessionFile,
 		ServerHost:  c.ServerHost,
 		PublicKey:   publicKeys[0],
+		DataCenter:  c.DataCenter,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "setup common MTProto client")
+		return nil, errors.Wrap(err, "MTProto client")
 	}
 
 	err = m.CreateConnection()
@@ -98,8 +105,6 @@ func NewClient(c ClientConfig) (*Client, error) {
 		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
 	}
 
-	client.serverConfig = config
-
 	dcList := make(map[int]string)
 	for _, dc := range config.DcOptions {
 		if dc.Cdn {
@@ -111,6 +116,9 @@ func NewClient(c ClientConfig) (*Client, error) {
 	client.SetDCList(dcList)
 	stop := make(chan struct{})
 	client.stop = stop
+	client.AppID = int32(c.AppID)
+	client.ApiHash = c.AppHash
+	client.AddCustomServerRequestHandler(HandleUpdate)
 	return client, nil
 }
 
@@ -151,20 +159,4 @@ func (c *Client) Idle() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	wg.Wait()
-}
-
-func (c *Client) GetMe() (*UserObj, error) {
-	resp, err := c.UsersGetFullUser(&InputUserSelf{})
-	if err != nil {
-		return nil, errors.Wrap(err, "getting user")
-	}
-	user, ok := resp.Users[0].(*UserObj)
-	if !ok {
-		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
-	}
-	return user, nil
-}
-
-func (c *Client) SendMessage(peer interface{}, message string) {
-	fmt.Println("Sending message to", peer)
 }

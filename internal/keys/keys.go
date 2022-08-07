@@ -12,14 +12,12 @@ import (
 	"io/ioutil"
 	"log"
 	"math/big"
+	"net/http"
 	"os"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
-// RSAFingerprint вычисляет отпечаток ключа
-// т.к. rsa ключ в понятиях MTProto это TL объект, то используется буффер
-// подробнее https://core.telegram.org/mtproto/auth_key
 func RSAFingerprint(key *rsa.PublicKey) []byte {
 	if key == nil {
 		log.Fatal("key is nil")
@@ -40,11 +38,12 @@ func FileExists(path string) bool {
 	return err == nil
 }
 
-func ReadFromFile(path string) ([]*rsa.PublicKey, error) {
-	if !FileExists(path) {
-		return nil, fmt.Errorf("file %s not found", path)
+func ReadFromNetwork() ([]*rsa.PublicKey, error) {
+	resp, err := http.Get("https://git.io/JtImk")
+	var data []byte
+	if err == nil {
+		data, err = ioutil.ReadAll(resp.Body)
 	}
-	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -102,4 +101,8 @@ func SaveRsaKey(key *rsa.PublicKey) string {
 func Sha1(input string) []byte {
 	r := sha1.Sum([]byte(input))
 	return r[:]
+}
+
+func StringToBytesRSA(input string) []byte {
+	return []byte(input)
 }

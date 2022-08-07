@@ -18,6 +18,7 @@ type NewMessage struct {
 	Sender         *UserObj
 	SenderChat     *ChatObj
 	Channel        *Channel
+	ID             int32
 }
 
 func (m *NewMessage) PeerChat() (*ChatObj, error) {
@@ -133,46 +134,80 @@ func (m *NewMessage) GetSenderChat() string {
 	return "soon will be implemented"
 }
 
-func (m *NewMessage) Reply(text string) error {
-	if m.IsPrivate() {
-		ID, AcessHash := m.GetPeer()
-		fmt.Println(ID, AcessHash)
-		return nil
+func (m *NewMessage) Reply(Text string, Opts ...SendOptions) (*NewMessage, error) {
+	if len(Opts) == 0 {
+		Opts = append(Opts, SendOptions{ReplyID: m.ID})
+	} else {
+		Opts[0].ReplyID = m.ID
 	}
-	return fmt.Errorf("soon will be implemented")
+	resp, err := m.Client.SendMessage(m.ChatID(), Text, &Opts[0])
+	if resp == nil {
+		return nil, err
+	}
+	return &NewMessage{Client: m.Client, OriginalUpdate: resp, ID: resp.ID}, err
 }
 
-func packMessage(client *Client, message *MessageObj) *NewMessage {
+func (m *NewMessage) Respond(Text string, Opts ...SendOptions) (*NewMessage, error) {
+	if len(Opts) == 0 {
+		Opts = append(Opts, SendOptions{})
+	}
+	resp, err := m.Client.SendMessage(m.ChatID(), Text, &Opts[0])
+	if resp == nil {
+		return nil, err
+	}
+	r := *resp
+	r.PeerID = m.OriginalUpdate.PeerID
+	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: m.ID}, err
+}
+
+func (m *NewMessage) Edit(Text string, Opts ...SendOptions) (*NewMessage, error) {
+	if len(Opts) == 0 {
+		Opts = append(Opts, SendOptions{})
+	}
+	resp, err := m.Client.EditMessage(m.ChatID(), m.ID, Text, &Opts[0])
+	if resp == nil {
+		return nil, err
+	}
+	r := *resp
+	r.PeerID = m.OriginalUpdate.PeerID
+	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: m.ID}, err
+}
+
+func PackMessage(client *Client, message *MessageObj) *NewMessage {
 	var Chat *ChatObj
 	var Sender *UserObj
 	var SenderChat *ChatObj
 	var Channel *Channel
-	switch Peer := message.PeerID.(type) {
-	case *PeerUser:
-		Chat = &ChatObj{
-			ID: Peer.UserID,
-		}
-	case *PeerChat:
-		Chat, _ = client.GetPeerChat(Peer.ChatID)
-	case *PeerChannel:
-		Channel, _ = client.GetPeerChannel(Peer.ChannelID)
-		Chat = &ChatObj{
-			ID:    Channel.ID,
-			Title: Channel.Title,
+	if message.PeerID != nil {
+		switch Peer := message.PeerID.(type) {
+		case *PeerUser:
+			Chat = &ChatObj{
+				ID: Peer.UserID,
+			}
+		case *PeerChat:
+			Chat, _ = client.GetPeerChat(Peer.ChatID)
+		case *PeerChannel:
+			Channel, _ = client.GetPeerChannel(Peer.ChannelID)
+			Chat = &ChatObj{
+				ID:    Channel.ID,
+				Title: Channel.Title,
+			}
 		}
 	}
-	switch From := message.FromID.(type) {
-	case *PeerUser:
-		Sender, _ = client.GetPeerUser(From.UserID)
-	case *PeerChat:
-		SenderChat, _ = client.GetPeerChat(From.ChatID)
-		Sender = &UserObj{
-			ID: SenderChat.ID,
-		}
-	case *PeerChannel:
-		Channel, _ = client.GetPeerChannel(From.ChannelID)
-		Sender = &UserObj{
-			ID: Channel.ID,
+	if message.FromID != nil {
+		switch From := message.FromID.(type) {
+		case *PeerUser:
+			Sender, _ = client.GetPeerUser(From.UserID)
+		case *PeerChat:
+			SenderChat, _ = client.GetPeerChat(From.ChatID)
+			Sender = &UserObj{
+				ID: SenderChat.ID,
+			}
+		case *PeerChannel:
+			Channel, _ = client.GetPeerChannel(From.ChannelID)
+			Sender = &UserObj{
+				ID: Channel.ID,
+			}
 		}
 	}
 	return &NewMessage{
@@ -182,157 +217,8 @@ func packMessage(client *Client, message *MessageObj) *NewMessage {
 		Sender:         Sender,
 		SenderChat:     SenderChat,
 		Channel:        Channel,
+		ID:             message.ID,
 	}
-}
-
-func (m *MessageObj) Reply(c *Client, Message string) (*MessageObj, error) {
-	peer := m.PeerID
-	var update *UpdateShortSentMessage
-	var u Updates
-	var message *MessageObj
-	var err error
-	var Entity []MessageEntity
-	Message, Entity = c.ParseEntity(Message)
-	switch peer := peer.(type) {
-	case *PeerUser:
-		fmt.Println("replying to user", peer)
-		u, err = c.MessagesSendMessage(
-			&MessagesSendMessageParams{
-				Peer:         &InputPeerUser{UserID: peer.UserID},
-				ReplyToMsgID: m.ID,
-				Message:      Message,
-				RandomID:     GenRandInt(),
-				ReplyMarkup:  nil,
-				Entities:     Entity,
-				ScheduleDate: 0,
-			},
-		)
-		update = u.(*UpdateShortSentMessage)
-		message = &MessageObj{
-			ID:     update.ID,
-			PeerID: m.PeerID,
-		}
-	case *PeerChat:
-		u, err = c.MessagesSendMessage(
-			&MessagesSendMessageParams{
-				Peer:         &InputPeerUser{UserID: peer.ChatID},
-				ReplyToMsgID: m.ID,
-				Message:      Message,
-				RandomID:     GenRandInt(),
-				ReplyMarkup:  nil,
-				Entities:     Entity,
-				ScheduleDate: 0,
-			},
-		)
-		switch u := u.(type) {
-		case *UpdateShortSentMessage:
-			message = &MessageObj{
-				ID:     u.ID,
-				PeerID: m.PeerID,
-			}
-		case *UpdatesObj:
-			message = u.Updates[0].(*UpdateNewChannelMessage).Message.(*MessageObj)
-		}
-	case *PeerChannel:
-		var Peer, _ = c.GetPeerChannel(peer.ChannelID)
-		u, err = c.MessagesSendMessage(
-			&MessagesSendMessageParams{
-				Peer:         &InputPeerChannel{ChannelID: Peer.ID, AccessHash: Peer.AccessHash},
-				ReplyToMsgID: m.ID,
-				Message:      Message,
-				RandomID:     GenRandInt(),
-				ReplyMarkup:  nil,
-				Entities:     Entity,
-				ScheduleDate: 0,
-			},
-		)
-		if err != nil {
-			fmt.Println("error", err)
-			return nil, err
-		}
-		switch u := u.(type) {
-		case *UpdateShortSentMessage:
-			message = &MessageObj{
-				ID:     u.ID,
-				PeerID: m.PeerID,
-			}
-		case *UpdatesObj:
-			upd := u.Updates[0]
-			switch upd := upd.(type) {
-			case *UpdateNewChannelMessage:
-				message = upd.Message.(*MessageObj)
-			case *UpdateMessageID:
-				message = &MessageObj{
-					ID:     upd.ID,
-					PeerID: m.PeerID,
-				}
-			}
-		}
-	default:
-		return nil, fmt.Errorf("failed to resolve peer")
-	}
-	return message, err
-}
-
-func (m *MessageObj) Edit(c *Client, Message string) (*MessageObj, error) {
-	peer := m.PeerID
-	var update *MessageObj
-	var u Updates
-	var err error
-	var Entity []MessageEntity
-	Message, Entity = c.ParseEntity(Message)
-	switch peer := peer.(type) {
-	case *PeerUser:
-		u, err = c.MessagesEditMessage(&MessagesEditMessageParams{
-			NoWebpage:    false,
-			Peer:         &InputPeerUser{UserID: peer.UserID},
-			ID:           m.ID,
-			Message:      Message,
-			Media:        nil,
-			ReplyMarkup:  nil,
-			Entities:     Entity,
-			ScheduleDate: 0,
-		})
-		update = u.(*UpdatesObj).Updates[0].(*UpdateEditMessage).Message.(*MessageObj)
-	case *PeerChat:
-		u, err = c.MessagesEditMessage(&MessagesEditMessageParams{
-			NoWebpage:    false,
-			Peer:         &InputPeerChat{ChatID: peer.ChatID},
-			ID:           m.ID,
-			Message:      Message,
-			Media:        nil,
-			ReplyMarkup:  nil,
-			Entities:     Entity,
-			ScheduleDate: 0,
-		})
-		update = u.(*UpdatesObj).Updates[0].(*UpdateEditMessage).Message.(*MessageObj)
-	case *PeerChannel:
-		var Peer, _ = c.GetPeerChannel(peer.ChannelID)
-		u, err = c.MessagesEditMessage(&MessagesEditMessageParams{
-			NoWebpage:    false,
-			Peer:         &InputPeerChannel{ChannelID: Peer.ID, AccessHash: Peer.AccessHash},
-			ID:           m.ID,
-			Message:      Message,
-			Media:        nil,
-			ReplyMarkup:  nil,
-			Entities:     Entity,
-			ScheduleDate: 0,
-		})
-		switch upd := u.(type) {
-		case *UpdatesObj:
-			upda := upd.Updates[0]
-			switch upd := upda.(type) {
-			case *UpdateEditMessage:
-				update = upd.Message.(*MessageObj)
-			case *UpdateEditChannelMessage:
-				update = upd.Message.(*MessageObj)
-			}
-		}
-	default:
-		return nil, fmt.Errorf("failed to resolve peer")
-	}
-	return update, err
-
 }
 
 func HandleMessageUpdate(update Message) {
@@ -342,8 +228,7 @@ func HandleMessageUpdate(update Message) {
 	var msg = update.(*MessageObj)
 	for _, handle := range MessageHandles {
 		if handle.IsMatch(msg.Message) {
-			fmt.Println("HandleMessageUpdate:", msg.Message)
-			handle.Handler(handle.Client, msg)
+			handle.Handler(handle.Client, PackMessage(handle.Client, msg))
 		}
 	}
 }

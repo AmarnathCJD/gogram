@@ -1,7 +1,6 @@
 package telegram
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 )
@@ -21,10 +20,9 @@ var (
 	EntitySpoilerHTMLRegex   = regexp.MustCompile(`<tgspoiler>([\s\S]*)</tgspoiler>`)
 )
 
-func (c *Client) ParseEntity(text string) (string, []MessageEntity) {
+func (c *Client) ParseEntity(text string, ParseMode string) (string, []MessageEntity) {
 	var e []MessageEntity
-	fmt.Println("text: ", text)
-	if c.ParseMode == "Markdown" {
+	if ParseMode == "Markdown" {
 		for _, m := range EntityCodeRegex.FindAllStringSubmatch(text, -1) {
 			text = strings.Replace(text, "`", "", 2)
 			e = append(e, &MessageEntityCode{
@@ -124,10 +122,10 @@ func GetOffSet(str string, substr string) int32 {
 	return int32(strings.Index(str, substr))
 }
 
-func (m *MessageObj) Text() string {
-	text := m.Message
+func (m *NewMessage) Text() string {
+	text := m.Message()
 	var correction int32
-	for _, e := range m.Entities {
+	for _, e := range m.OriginalUpdate.Entities {
 		switch e := e.(type) {
 		case *MessageEntityBold:
 			offset := e.Offset + correction
@@ -159,11 +157,11 @@ func (m *MessageObj) Text() string {
 	return text
 }
 
-func (m *MessageObj) RawText() string {
-	return m.Message
+func (m *NewMessage) RawText() string {
+	return m.Message()
 }
 
-func (m *MessageObj) Args() string {
+func (m *NewMessage) Args() string {
 	Messages := strings.Split(m.Text(), " ")
 	if len(Messages) < 2 {
 		return ""
