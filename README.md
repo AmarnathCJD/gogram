@@ -19,6 +19,7 @@ Pure Go implementation of [Telegram Mtproto protocol](https://core.telegram.org/
          AppHash: "",
          DataCenter: 2,
          SessionFile: "", // optional
+         ParseMode: "Markdown", //optional 
          AppVersion: "", // optional 
          DeviceModel: "", // optional 
     })
