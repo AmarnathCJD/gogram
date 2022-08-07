@@ -23,7 +23,7 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
-const defaultTimeout = 0 * time.Second
+const defaultTimeout = 65 * time.Second
 
 type MTProto struct {
 	addr         string
@@ -248,15 +248,11 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					if err != nil {
 						m.Logger.Printf("can't reconnect: %v", err)
 					}
+					return
 				default:
-					if strings.Contains(err.Error(), "required to reconnect") {
-						err = m.Reconnect()
-						if err != nil {
-							m.Logger.Printf("can't reconnect: %v", err)
-						}
-					} else {
-						m.Logger.Print(err)
-					}
+					m.Logger.Printf("reading response: %v", err)
+					m.Reconnect()
+					return
 				}
 			}
 		}
