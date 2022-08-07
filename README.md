@@ -82,6 +82,10 @@ Pure Go implementation of [Telegram Mtproto protocol](https://core.telegram.org/
     m.Respond() --> Message, error
     m.Reply() --> Message, error
     m.Edit() --> Message, error
+
+    m.Marshal() --> string
+    m.OriginalUpdate --> MessageObj
+    m.ID --> int32
     
 
 ## 2022 (RoseLoverX)
