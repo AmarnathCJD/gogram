@@ -96,7 +96,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		expectedTypes:         utils.NewSyncIntReflectTypes(),
 		serverRequestHandlers: make([]customHandlerFunc, 0),
 		dclist:                defaultDCList(),
-		Logger:                NewLogger("mtproto - "),
+		Logger:                NewLogger("MTProto - "),
 	}
 
 	if s != nil {
