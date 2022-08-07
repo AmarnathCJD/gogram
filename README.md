@@ -12,6 +12,6 @@ Under Development.
 
     ## Installation
 
-    ```go get -u github.com/amarnathcjd/gogram```
+    <b>go get -u github.com/amarnathcjd/gogram</b>
 
     
