@@ -49,4 +49,31 @@ Pure Go implementation of [Telegram Mtproto protocol](https://core.telegram.org/
     
     client.ResolvePeer(Peer (any)) --> (User/Chat/Channel)
     
-    <-------- soon ------->
+    <-------- SOON ------->
+
+## NewMessage
+    m.ChatID() --> int64
+    m.SenderID() --> int64
+    m.PeerChat() --> PeerChat
+    m.PeerUser() --> PeerUser
+    m.PeerChannel() --> PeerChannel
+    m.Message() --> string
+    m.ChatType() --> string
+    
+    m.IsPrivate() --> bool
+    m.IsGroup() --> bool
+    m.IsChannel() --> bool
+    m.IsReply() --> bool
+
+    m.GetPeer() --> InputPeer
+    m.GetSender() --> User/SenderChat
+    m.GetChat() --> Chat
+    m.GetSenderChat() --> Chat/Channel
+    m.GetReplyMessage() --> Message
+    m.ReplyID --> int64
+    m.Respond() --> Message
+    m.Reply() --> Message
+    m.Edit() --> Message
+    
+
+## 2022 (RoseLoverX)
