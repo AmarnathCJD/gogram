@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -23,7 +22,7 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
-const defaultTimeout = 65 * time.Second
+const defaultTimeout = 95 * time.Second
 
 type MTProto struct {
 	addr         string
@@ -67,6 +66,7 @@ type Config struct {
 
 	ServerHost string
 	PublicKey  *rsa.PublicKey
+	DataCenter int
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -79,15 +79,15 @@ func NewMTProto(c Config) (*MTProto, error) {
 	}
 
 	s, err := c.SessionStorage.Load()
-	switch {
-	case err == nil, os.IsNotExist(err):
-	default:
-		return nil, fmt.Errorf("loading session: %w", err)
+	if err != nil {
+		if !strings.Contains(err.Error(), "no such file or directory") {
+			return nil, fmt.Errorf("loading session: %w", err)
+		}
 	}
 
 	m := &MTProto{
 		tokensStorage:         c.SessionStorage,
-		addr:                  c.ServerHost,
+		addr:                  defaultDCList()[c.DataCenter],
 		encrypted:             s != nil,
 		sessionId:             utils.GenerateSessionID(),
 		serviceChannel:        make(chan tl.Object),
@@ -96,7 +96,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		expectedTypes:         utils.NewSyncIntReflectTypes(),
 		serverRequestHandlers: make([]customHandlerFunc, 0),
 		dclist:                defaultDCList(),
-		Logger:                NewLogger("MTProto - "),
+		Logger:                NewLogger("mtproto - "),
 	}
 
 	if s != nil {
@@ -186,7 +186,6 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 
 func (m *MTProto) Disconnect() error {
 	m.stopRoutines()
-	m.Logger.Print("Disconnected!")
 	return nil
 }
 
@@ -197,13 +196,10 @@ func (m *MTProto) Reconnect() error {
 		return fmt.Errorf("disconnecting: %w", err)
 	}
 	m.Logger.Printf("Disconnection from %s:443/TcpFull complete!", m.addr)
-	m.Logger.Printf("Connecting to %s:443/TcpFull...", m.addr)
-
 	err = m.CreateConnection()
 	if err != nil {
 		return fmt.Errorf("connecting: %w", err)
 	}
-	m.Logger.Printf("Connection to %s:443/TcpFull complete!", m.addr)
 	return err
 }
 
@@ -383,7 +379,11 @@ messageTypeSwitching:
 func (m *MTProto) tryToProcessErr(e *ErrResponseCode) error {
 	if e.Code == 303 && strings.Contains(e.Message, "PHONE_MIGRATE_") {
 		newDc := e.AdditionalInfo.(int)
-		m.Logger.Printf("phone migration to DC %d", newDc)
+		m.Logger.Printf("Phone migrated to %v", newDc)
+		return m.SwitchDC(newDc)
+	} else if e.Code == 303 && strings.Contains(e.Message, "USER_MIGRATE_") {
+		newDc := e.AdditionalInfo.(int)
+		m.Logger.Printf("User migrated to %v", newDc)
 		return m.SwitchDC(newDc)
 	} else {
 		return e
@@ -397,10 +397,10 @@ func (m *MTProto) SwitchDC(dc int) error {
 	}
 
 	m.addr = newIP
-	m.Logger.Print("connecting to ", m.addr, " Tcp/Ip")
+	m.Logger.Printf("Reconnecting to new data center %v", dc)
 	err := m.Reconnect()
-	if err == nil {
-		m.Logger.Print("connected to dc", dc)
+	if err != nil {
+		m.Logger.Printf("switching dc: %s", err.Error())
 	}
 	return err
 }
@@ -435,5 +435,5 @@ func CloseOnCancel(ctx context.Context, c io.Closer) {
 }
 
 func NewLogger(prefix string) *log.Logger {
-	return log.New(log.Writer(), prefix, log.Ltime)
+	return log.New(log.Writer(), prefix, log.LstdFlags)
 }
