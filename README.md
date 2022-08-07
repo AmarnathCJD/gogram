@@ -1,4 +1,4 @@
-# <b>Go-Gram</b>
+# <b>GO-GRAM</b>
 
 Under Development.
 
@@ -13,6 +13,7 @@ Pure Go implementation of [Telegram Mtproto protocol](https://core.telegram.org/
 
     
 ## SettingUp Client
+
     client, _ := telegram.NewClient(telegram.ClientConfig{
          AppID: 6,
          AppHash: "",
@@ -21,14 +22,20 @@ Pure Go implementation of [Telegram Mtproto protocol](https://core.telegram.org/
          AppVersion: "", // optional 
          DeviceModel: "", // optional 
     })
+
     client.Idle() // start infinity polling
 
 ## EventHandlers
+
     func Echo(c *telegram.Client, m *telegram.NewMessage) error {
          _, err := m.Respond(m.Args())
          return err
     }
+
     client.AddEventHandler("^(?i)[?!/.]echo", Echo)
+
+## EntityCache
+   Entities are cached on memory for now.
 
 ## Common Methods
     client.GetMe() --> User
@@ -69,11 +76,11 @@ Pure Go implementation of [Telegram Mtproto protocol](https://core.telegram.org/
     m.GetSender() --> User/SenderChat
     m.GetChat() --> Chat
     m.GetSenderChat() --> Chat/Channel
-    m.GetReplyMessage() --> Message
+    m.GetReplyMessage() --> Message, error
     m.ReplyID --> int64
-    m.Respond() --> Message
-    m.Reply() --> Message
-    m.Edit() --> Message
+    m.Respond() --> Message, error
+    m.Reply() --> Message, error
+    m.Edit() --> Message, error
     
 
 ## 2022 (RoseLoverX)
