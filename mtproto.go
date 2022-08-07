@@ -23,7 +23,7 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
-const defaultTimeout = 650 * time.Hour
+const defaultTimeout = 0 * time.Second
 
 type MTProto struct {
 	addr         string
@@ -54,7 +54,7 @@ type MTProto struct {
 	serviceChannel       chan tl.Object
 	serviceModeActivated bool
 
-	Logger *log.Logger // nolint:golint // its a field name, makes no sense
+	Logger *log.Logger
 
 	serverRequestHandlers []customHandlerFunc
 }
@@ -118,13 +118,12 @@ func (m *MTProto) SetDCList(in map[int]string) {
 func (m *MTProto) CreateConnection() error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
-	m.Logger.Print("Creating connection to ", m.addr)
+	m.Logger.Printf("Connecting to %s:443/TcpFull...", m.addr)
 	err := m.connect(ctx)
 	if err != nil {
 		return err
 	}
-	m.Logger.Print("Connected!")
-
+	m.Logger.Printf("Connection to %s:443/TcpFull complete!", m.addr)
 	m.startReadingResponses(ctx)
 
 	if !m.encrypted {
@@ -192,17 +191,19 @@ func (m *MTProto) Disconnect() error {
 }
 
 func (m *MTProto) Reconnect() error {
+	m.Logger.Printf("Disconnecting from %s:443/TcpFull...", m.addr)
 	err := m.Disconnect()
 	if err != nil {
 		return fmt.Errorf("disconnecting: %w", err)
 	}
-	m.Logger.Print("Reconnecting...")
+	m.Logger.Printf("Disconnection from %s:443/TcpFull complete!", m.addr)
+	m.Logger.Printf("Connecting to %s:443/TcpFull...", m.addr)
 
 	err = m.CreateConnection()
 	if err != nil {
 		return fmt.Errorf("connecting: %w", err)
 	}
-	m.Logger.Print("Reconnected!")
+	m.Logger.Printf("Connection to %s:443/TcpFull complete!", m.addr)
 	return err
 }
 
@@ -240,6 +241,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				switch err {
 				case nil:
 				case context.Canceled:
+					m.Logger.Println("Reading responses canceled")
 					return
 				case io.EOF:
 					err = m.Reconnect()

@@ -6,6 +6,7 @@
 package telegram
 
 import (
+	"fmt"
 	"net"
 	"reflect"
 	"runtime"
@@ -150,4 +151,20 @@ func (c *Client) Idle() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	wg.Wait()
+}
+
+func (c *Client) GetMe() (*UserObj, error) {
+	resp, err := c.UsersGetFullUser(&InputUserSelf{})
+	if err != nil {
+		return nil, errors.Wrap(err, "getting user")
+	}
+	user, ok := resp.Users[0].(*UserObj)
+	if !ok {
+		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
+	}
+	return user, nil
+}
+
+func (c *Client) SendMessage(peer interface{}, message string) {
+	fmt.Println("Sending message to", peer)
 }
