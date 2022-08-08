@@ -50,15 +50,15 @@ Event handlers
          if !m.IsPrivate() {
              return nil
          }
-         if m.Args() == nil {
-             _, err := m.Reply("No echo text provided.")
+         if m.Text() == nil {
+             _, err := m.Reply("Nothing to echo.")
              return err
          }
-         _, err := m.Respond(m.Args())
+         _, err := m.Respond(m.Text())
          return err
     }
 
-    client.AddEventHandler("(?i)[?!/.]echo", Echo)
+    client.AddEventHandler(telegram.OnNewMessage, Echo)
 
 Entity Cache
 ------------
@@ -68,16 +68,14 @@ Doing stuff
 -----------
 
 .. code-block:: golang
+
     var b = telegram.Button{}
 
     fmt.Println(client.GetMe())
 
     message, _ := client.SendMessage("username", "Hello I'm talking to you from gogram!")
     client.EditMessage("username", message.ID, "Yep.")
-    client.SendMedia("username", "https://m.media-amazon.com/images/M/MV5BYTRiNDQwYzAtMzVlZS00NTI5LWJjYjUtMzkwNTUzMWMxZTllXkEyXkFqcGdeQXVyNDIzMzcwNjc@._V1_FMjpg_UX1000_.jpg", &telegram.SendOptions{
-        Caption: "Game of Thrones",
-        ReplyMarkup: b.Keyboard(b.Row(b.URL("Imdb", "http://imdb.com/title/tt0944947/"))),
-    })
+    client.SendMedia("username", "https://m.media-amazon.com/images/M/MV5BYTRiNDQwYzAtMzVlZS00NTI5LWJjYjUtMzkwNTUzMWMxZTllXkEyXkFqcGdeQXVyNDIzMzcwNjc@._V1_FMjpg_UX1000_.jpg", opts)
     client.DeleteMessage("username", message.ID)
 
     peer := client.ResolvePeer("username")
