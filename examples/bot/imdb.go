@@ -1,9 +1,11 @@
-package examples
+package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 
-	"github.com/StalkR/imdb"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -11,33 +13,35 @@ var (
 	btn = telegram.Button{}
 )
 
+type (
+	Title struct {
+		Title  string `json:"title"`
+		ID     string `json:"id"`
+		Poster string `json:"poster"`
+		Actors string `json:"actors"`
+		Rank   string `json:"rank"`
+		Link   string `json:"link"`
+	}
+)
+
 // Examples of sending button & media messages:
 
 func Imdb(c *telegram.Client, m *telegram.NewMessage) error {
 	Args := m.Args()
-	results, err := imdb.SearchTitle(http.DefaultClient, Args)
-	if err != nil {
-		m.Reply("Error: " + err.Error())
-		return nil
+	resp, _ := http.Get("https://watch-series-go.vercel.app/api/imdb?query=" + url.QueryEscape(Args))
+	var t []Title
+	defer resp.Body.Close()
+	json.NewDecoder(resp.Body).Decode(&t)
+	if len(t) == 0 {
+		_, err := m.Reply("No results found")
+		return err
 	}
-	if len(results) == 0 {
-		m.Reply("No results found")
-		return nil
-	}
-	Title, err := imdb.NewTitle(http.DefaultClient, results[0].ID)
-	if err != nil {
-		m.Reply("Error: " + err.Error())
-	}
-	var Movie string
-	if Title.Name != "" {
-		Movie = "<b>" + Title.Name + "</b>\n"
-	} else {
-		Movie = "No title found\n"
-	}
-	if Title.Poster.URL != "" {
-		_, SendErr := m.Client.SendMedia(m.ChatID(), "https://m.media-amazon.com/images/M/MV5BYTRiNDQwYzAtMzVlZS00NTI5LWJjYjUtMzkwNTUzMWMxZTllXkEyXkFqcGdeQXVyNDIzMzcwNjc@._V1_FMjpg_UX1000_.jpg", &telegram.SendOptions{Caption: Movie, ReplyMarkup: btn.Keyboard(btn.Row(btn.URL("View on IMDb", Title.URL))), LinkPreview: false})
+	title := t[0]
+	MsgTitle := fmt.Sprintf("Title: %s\nActors: %s\nRank: %s", title.Title, title.Actors, title.Rank)
+	if title.Poster != "" {
+		_, SendErr := m.Client.SendMedia(m.ChatID(), title.Poster, &telegram.SendOptions{Caption: MsgTitle, ReplyMarkup: btn.Keyboard(btn.Row(btn.URL("View on IMDb", title.Link))), LinkPreview: false})
 		return SendErr
 	}
-	_, Senderr := m.Respond(Movie)
+	_, Senderr := m.Respond(MsgTitle)
 	return Senderr
 }
