@@ -70,6 +70,10 @@ Doing stuff
 .. code-block:: golang
 
     var b = telegram.Button{}
+    opts := &telegram.SendOptions{
+        Caption: "Game of Thrones",
+        ReplyMarkup: b.Keyboard(b.Row(b.URL("Imdb", "http://imdb.com/title/tt0944947/"))),
+    })
 
     fmt.Println(client.GetMe())
 
