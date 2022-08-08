@@ -21,6 +21,10 @@ type NewMessage struct {
 	ID             int32
 }
 
+var (
+	OnNewMessage = "OnNewMessage"
+)
+
 func (m *NewMessage) PeerChat() (*ChatObj, error) {
 	switch Peer := m.OriginalUpdate.PeerID.(type) {
 	case *PeerUser:
@@ -234,6 +238,14 @@ func HandleMessageUpdate(update Message) {
 }
 
 func (h *Handle) IsMatch(text string) bool {
-	pattern := regexp.MustCompile("^" + h.Pattern)
-	return pattern.MatchString(text) || strings.HasPrefix(text, h.Pattern)
+	switch Pattern := h.Pattern.(type) {
+	case string:
+		if Pattern == OnNewMessage {
+			return true
+		}
+		pattern := regexp.MustCompile("^" + Pattern)
+		return pattern.MatchString(text) || strings.HasPrefix(text, Pattern)
+	default:
+		panic("unknown handler type")
+	}
 }

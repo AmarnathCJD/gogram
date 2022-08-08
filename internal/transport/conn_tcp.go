@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"time"
@@ -20,6 +21,17 @@ type TCPConnConfig struct {
 	Ctx     context.Context
 	Host    string
 	Timeout time.Duration
+}
+
+func (t *tcpConn) Reconnect() *net.TCPConn {
+	tcpAddr, _ := net.ResolveTCPAddr("tcp", t.conn.RemoteAddr().String())
+	newConn, err := net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil {
+		fmt.Println("Failed to reconnect:", err.Error())
+		time.Sleep(time.Millisecond * time.Duration(2000))
+		newConn = t.Reconnect()
+	}
+	return newConn
 }
 
 func NewTCP(cfg TCPConnConfig) (Conn, error) {
@@ -57,7 +69,6 @@ func (t *tcpConn) Read(b []byte) (int, error) {
 	if err != nil {
 		if e, ok := err.(*net.OpError); ok {
 			if e.Err.Error() == "i/o timeout" {
-				// timeout? no worries, but we must reconnect tcp connection
 				return 0, errors.Wrap(err, "required to reconnect!")
 			}
 		}
