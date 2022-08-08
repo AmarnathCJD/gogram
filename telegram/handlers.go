@@ -148,7 +148,9 @@ func (m *NewMessage) Reply(Text string, Opts ...SendOptions) (*NewMessage, error
 	if resp == nil {
 		return nil, err
 	}
-	return &NewMessage{Client: m.Client, OriginalUpdate: resp, ID: resp.ID}, err
+	r := *resp
+	r.PeerID = m.OriginalUpdate.PeerID
+	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: resp.ID}, err
 }
 
 func (m *NewMessage) Respond(Text string, Opts ...SendOptions) (*NewMessage, error) {

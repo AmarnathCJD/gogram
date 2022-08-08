@@ -1,6 +1,6 @@
-package examples
-
 // Example of using gogram for bot.
+
+package main
 
 import (
 	"fmt"
@@ -10,13 +10,12 @@ import (
 )
 
 const (
-	appID    = 6
-	appHash  = ""
-	botToken = ""
+	appID    = 3138242
+	appHash  = "9ff85074c961b349e6dad943e9b20f54"
+	botToken = "5240997485:AAFI2yoHILM0VVlxXwc3RIkiCIq63QMBY9A"
 )
 
 func main() {
-	// Create a new client
 	client, err := telegram.NewClient(telegram.ClientConfig{
 		AppID:      appID,
 		AppHash:    appHash,
@@ -26,17 +25,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// login with bot token
-	client.AuthImportBotAuthorization(1, appID, appHash, botToken)
 	me, _ := client.GetMe()
-	fmt.Printf("Logged in as @%s\n", me.Username)
-	// add handlers
+	fmt.Println("Logged in as @", me.Username)
 	client.AddEventHandler("/start", Start)
 	client.AddEventHandler("/ping", Ping)
 	client.AddEventHandler("[/!?]js|json", Jsonify)
 	client.AddEventHandler("/echo", Echo)
 	client.AddEventHandler("/imdb", Imdb)
-	// infinite loop
 	client.Idle()
 }
 
@@ -47,8 +42,10 @@ func Start(c *telegram.Client, m *telegram.NewMessage) error {
 
 func Ping(c *telegram.Client, m *telegram.NewMessage) error {
 	CurrentTime := time.Now()
-	m, _ = m.Reply("Pinging...")
-	_, err := m.Edit(fmt.Sprintf("Pong! %s", time.Since(CurrentTime)))
+	msg, _ := m.Reply("Pinging...")
+	fmt.Println(msg.ChatID())
+	_, err := msg.Edit(fmt.Sprintf("Pong! %s", time.Since(CurrentTime)))
+	fmt.Println(err)
 	return err
 }
 
@@ -63,5 +60,6 @@ func Echo(c *telegram.Client, m *telegram.NewMessage) error {
 		return nil
 	}
 	_, err := m.Reply(m.Args())
+
 	return err
 }
