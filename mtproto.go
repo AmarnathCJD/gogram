@@ -20,9 +20,10 @@ import (
 	"github.com/amarnathcjd/gogram/internal/session"
 	"github.com/amarnathcjd/gogram/internal/transport"
 	"github.com/amarnathcjd/gogram/internal/utils"
+	"github.com/pkg/errors"
 )
 
-const defaultTimeout = 95 * time.Second
+const defaultTimeout = 65 * time.Second
 
 type MTProto struct {
 	addr         string
@@ -190,23 +191,14 @@ func (m *MTProto) Disconnect() error {
 }
 
 func (m *MTProto) Reconnect() error {
-	m.Logger.Printf("Disconnecting from %s:443/TcpFull...", m.addr)
-	err := m.Disconnect()
-	if err != nil {
-		return fmt.Errorf("disconnecting: %w", err)
-	}
-	m.Logger.Printf("Disconnection from %s:443/TcpFull complete!", m.addr)
-	err = m.CreateConnection()
-	if err != nil {
-		return fmt.Errorf("connecting: %w", err)
-	}
-	return err
+	m.transport = nil
+	return m.CreateConnection()
 }
 
 func (m *MTProto) startPinging(ctx context.Context) {
 	m.routineswg.Add(1)
 	go func() {
-		ticker := time.NewTicker(time.Minute)
+		ticker := time.NewTicker(time.Second * 10)
 		defer ticker.Stop()
 		defer m.routineswg.Done()
 
@@ -215,7 +207,8 @@ func (m *MTProto) startPinging(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				_, err := m.ping(0xCADACADA)
+				x, err := m.ping(0xCADACADA)
+				fmt.Println("ping:", x, err)
 				if err != nil {
 					m.Logger.Printf("ping unsuccessfull: %v", err)
 				}
@@ -228,6 +221,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 	m.routineswg.Add(1)
 	go func() {
 		defer m.routineswg.Done()
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -235,18 +229,15 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			default:
 				err := m.readMsg()
 				switch err {
-				case nil:
+				case nil: // skip
 				case context.Canceled:
-					m.Logger.Println("Reading responses canceled")
 					return
 				case io.EOF:
 					err = m.Reconnect()
 					if err != nil {
-						m.Logger.Printf("can't reconnect: %v", err)
+						m.Logger.Println(errors.Wrap(err, "can't reconnect"))
 					}
-					return
 				default:
-					m.Logger.Printf("reading response: %v", err)
 					m.Reconnect()
 					return
 				}
@@ -257,8 +248,9 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 
 func (m *MTProto) readMsg() error {
 	if m.transport == nil {
-		return fmt.Errorf("no connection to server")
+		return errors.New("must setup connection before reading messages")
 	}
+
 	response, err := m.transport.ReadMsg()
 	if err != nil {
 		if e, ok := err.(transport.ErrCode); ok {
@@ -268,25 +260,27 @@ func (m *MTProto) readMsg() error {
 		case io.EOF, context.Canceled:
 			return err
 		default:
-			return fmt.Errorf("reading msg: %w", err)
+			return errors.Wrap(err, "reading message")
 		}
 	}
+
 	if m.serviceModeActivated {
 		var obj tl.Object
+		// сервисные сообщения ГАРАНТИРОВАННО в теле содержат TL.
 		obj, err = tl.DecodeUnknownObject(response.GetMsg())
 		if err != nil {
-			return fmt.Errorf("decoding msg: %w", err)
+			return errors.Wrap(err, "parsing object")
 		}
 		m.serviceChannel <- obj
 		return nil
 	}
+
 	err = m.processResponse(response)
 	if err != nil {
-		return fmt.Errorf("processing response: %w", err)
+		return errors.Wrap(err, "processing response")
 	}
 	return nil
 }
-
 func (m *MTProto) processResponse(msg messages.Common) error {
 	var data tl.Object
 	var err error
@@ -305,23 +299,19 @@ messageTypeSwitching:
 		for _, v := range *message {
 			err := m.processResponse(v)
 			if err != nil {
-				return fmt.Errorf("processing response: %w", err)
+				return errors.Wrap(err, "processing item in container")
 			}
 		}
 
 	case *objects.BadServerSalt:
 		m.serverSalt = message.NewSalt
 		err := m.SaveSession()
-		if err != nil {
-			m.Logger.Print(err)
-		}
+		m.Logger.Print(err)
 
 		m.mutex.Lock()
 		for _, k := range m.responseChannels.Keys() {
 			v, _ := m.responseChannels.Get(k)
 			v <- &errorSessionConfigsChanged{}
-			m.responseChannels.Delete(msg.GetMsgID())
-			m.expectedTypes.Delete(msg.GetMsgID())
 		}
 		m.mutex.Unlock()
 
@@ -329,11 +319,10 @@ messageTypeSwitching:
 		m.serverSalt = message.ServerSalt
 		err := m.SaveSession()
 		if err != nil {
-			m.Logger.Printf("can't save session: %v", err)
+			m.Logger.Println(errors.Wrap(err, "saving session"))
 		}
 
 	case *objects.Pong, *objects.MsgsAck:
-		// do nothing
 
 	case *objects.BadMsgNotification:
 		return BadMsgErrorFromNative(message)
@@ -346,10 +335,12 @@ messageTypeSwitching:
 
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
-			return fmt.Errorf("writing rpc response: %w", err)
+			return errors.Wrap(err, "writing RPC response")
 		}
 
 	case *objects.GzipPacked:
+		// sometimes telegram server returns gzip for unknown reason. so, we are extracting data from gzip and
+		// reprocess it again
 		data = message.Obj
 		goto messageTypeSwitching
 
@@ -362,14 +353,14 @@ messageTypeSwitching:
 			}
 		}
 		if !processed {
-			m.Logger.Printf("unhandled message type: %s", reflect.TypeOf(message).String())
+			m.Logger.Println(errors.New("got nonsystem message from server: " + reflect.TypeOf(message).String()))
 		}
 	}
 
 	if (msg.GetSeqNo() & 1) != 0 {
 		_, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: []int64{int64(msg.GetMsgID())}})
 		if err != nil {
-			return fmt.Errorf("making msgsack: %w", err)
+			return errors.Wrap(err, "sending ack")
 		}
 	}
 

@@ -35,6 +35,7 @@ func main() {
 	client.AddEventHandler("/ping", Ping)
 	client.AddEventHandler("[/!?]js|json", Jsonify)
 	client.AddEventHandler("/echo", Echo)
+	client.AddEventHandler("/imdb", Imdb)
 	// infinite loop
 	client.Idle()
 }
