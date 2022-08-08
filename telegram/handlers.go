@@ -157,7 +157,7 @@ func (m *NewMessage) Respond(Text string, Opts ...SendOptions) (*NewMessage, err
 	}
 	r := *resp
 	r.PeerID = m.OriginalUpdate.PeerID
-	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: m.ID}, err
+	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: resp.ID}, err
 }
 
 func (m *NewMessage) Edit(Text string, Opts ...SendOptions) (*NewMessage, error) {
@@ -170,7 +170,7 @@ func (m *NewMessage) Edit(Text string, Opts ...SendOptions) (*NewMessage, error)
 	}
 	r := *resp
 	r.PeerID = m.OriginalUpdate.PeerID
-	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: m.ID}, err
+	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: resp.ID}, err
 }
 
 func PackMessage(client *Client, message *MessageObj) *NewMessage {
