@@ -1,18 +1,33 @@
-# <b>Go-gram</b>
+GoGram
+========
+.. epigraph::
 
-Under Development.
+  ⚒️ Under Development.
 
-Pure Go implementation of [Telegram Mtproto protocol](https://core.telegram.org/mtproto/description).
+**gogram** is a **Pure Golang**
+MTProto_ library to interact with Telegram's API
+as a user or through a bot account (bot API alternative).
 
+What is this?
+-------------
 
+Telegram is a popular messaging application. This library is meant
+to make it easy for you to write Golang programs that can interact
+with Telegram. Think of it as a wrapper that has already done the
+heavy job for you, so you can focus on developing an application.
 
-## Installation
-    []: # Language: markdown
+Installing
+----------
 
-    go get -u github.com/amarnathcjd/gogram
+.. code-block:: sh
+
+  go get -u github.com/amarnathcjd/gogram
 
     
-## SettingUp Client
+Creating a client
+-----------------
+
+.. code-block:: golang
 
     client, _ := telegram.NewClient(telegram.ClientConfig{
          AppID: 6,
@@ -26,66 +41,47 @@ Pure Go implementation of [Telegram Mtproto protocol](https://core.telegram.org/
 
     client.Idle() // start infinity polling
 
-## EventHandlers
+Event handlers
+--------------
+
+.. code-block:: golang
 
     func Echo(c *telegram.Client, m *telegram.NewMessage) error {
+         if !m.IsPrivate() {
+             return nil
+         }
+         if m.Args() == nil {
+             _, err := m.Reply("No echo text provided.")
+             return err
+         }
          _, err := m.Respond(m.Args())
          return err
     }
 
-    client.AddEventHandler("^(?i)[?!/.]echo", Echo)
+    client.AddEventHandler("(?i)[?!/.]echo", Echo)
 
-## EntityCache
+Entity Cache
+------------
    Entities are cached on memory for now.
 
-## Common Methods
-    client.GetMe() --> User
+Doing stuff
+-----------
 
-    client.SendMessage(Peer(int64/string), Text, &SendOptions{
-           ReplyID: 0,
-           Silent: true,
-           NoWebPage: true,
-           Entities: (autoset),
-    }) --> MessageObj, error
+.. code-block:: golang
 
-    client.EditMessage(Peer(int64/string), MsgID, Text, &SendOptions{
-           ReplyID: 0,
-           Silent: true,
-           NoWebPage: true,
-           Entities: (autoset),
-    }) --> MessageObj, error
-    
-    client.ResolvePeer(Peer (any)) --> (User/Chat/Channel)
-    
-    <-------- SOON ------->
+    fmt.Println(client.GetMe())
 
-## NewMessage
-    m.ChatID() --> int64
-    m.SenderID() --> int64
-    m.PeerChat() --> PeerChat
-    m.PeerUser() --> PeerUser
-    m.PeerChannel() --> PeerChannel
-    m.Message() --> string
-    m.ChatType() --> string
-    
-    m.IsPrivate() --> bool
-    m.IsGroup() --> bool
-    m.IsChannel() --> bool
-    m.IsReply() --> bool
+    message, _ := client.SendMessage("username", "Hello I'm talking to you from gogram!")
+    client.EditMessage("username", message.ID, "Yep.")
 
-    m.GetPeer() --> InputPeer
-    m.GetSender() --> User/SenderChat
-    m.GetChat() --> Chat
-    m.GetSenderChat() --> Chat/Channel
-    m.GetReplyMessage() --> Message, error
-    m.ReplyID --> int64
-    m.Respond() --> Message, error
-    m.Reply() --> Message, error
-    m.Edit() --> Message, error
+    peer := client.ResolvePeer(777000)
 
-    m.Marshal() --> string
-    m.OriginalUpdate --> MessageObj
-    m.ID --> int32
-    
+Next steps
+----------
 
-## 2022 (RoseLoverX)
+Head on to support chat_ for more info!
+
+.. _MTProto: https://core.telegram.org/mtproto
+.. _chat: https://t.me/rosexchat
+
+© RoseLoverX 2022
