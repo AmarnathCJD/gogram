@@ -90,11 +90,4 @@ Contributing
     
 License
 -------
-|Image|_
- GNU General Public License v3
-
-
-.. |Image| image:: https://www.gnu.org/graphics/gplv3-127x51.png
-    :width: 115pt
-    :height: 45pt
-.. _Image: https://www.gnu.org/licenses/gpl-3.0.en.html
+    Mozilla 
