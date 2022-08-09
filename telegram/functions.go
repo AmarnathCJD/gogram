@@ -14,7 +14,7 @@ var (
 	HANDLERS = []Handle{}
 )
 
-func (c *Client) AddEventHandler(pattern string, handler func(c *Client, m *NewMessage) error) {
+func (c *Client) AddEventHandler(pattern interface{}, handler func(c *Client, m *NewMessage) error) {
 	MessageHandles = append(MessageHandles, Handle{pattern, handler, c})
 }
 

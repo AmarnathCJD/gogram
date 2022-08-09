@@ -5,26 +5,30 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 var (
 	MessageHandles = []Handle{}
 )
 
-type NewMessage struct {
-	Client         *Client
-	OriginalUpdate *MessageObj
-	Chat           *ChatObj
-	Sender         *UserObj
-	SenderChat     *ChatObj
-	Channel        *Channel
-	ID             int32
-}
-
 var (
 	OnNewMessage = "OnNewMessage"
+)
+
+type (
+	NewMessage struct {
+		Client         *Client
+		OriginalUpdate *MessageObj
+		Chat           *ChatObj
+		Sender         *UserObj
+		SenderChat     *ChatObj
+		Channel        *Channel
+		ID             int32
+	}
+	Command struct {
+		Cmd    string
+		Prefix string
+	}
 )
 
 func (m *NewMessage) PeerChat() (*ChatObj, error) {
@@ -43,7 +47,7 @@ func (m *NewMessage) Message() string {
 	return m.OriginalUpdate.Message
 }
 
-func (m *NewMessage) GetReplyMessage() (*MessageObj, error) {
+func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 	if m.OriginalUpdate.ReplyTo == nil || m.OriginalUpdate.ReplyTo.ReplyToMsgID == 0 {
 		return nil, nil
 	}
@@ -53,7 +57,7 @@ func (m *NewMessage) GetReplyMessage() (*MessageObj, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ReplyMsg.(*MessagesMessagesObj).Messages[0].(*MessageObj), nil
+	return PackMessage(m.Client, ReplyMsg.(*MessagesMessagesObj).Messages[0].(*MessageObj)), nil
 }
 
 func (m *NewMessage) ChatID() int64 {
@@ -140,7 +144,60 @@ func (m *NewMessage) GetSenderChat() string {
 	return "soon will be implemented"
 }
 
-func (m *NewMessage) Reply(Text string, Opts ...SendOptions) (*NewMessage, error) {
+func (m *NewMessage) Media() MessageMedia {
+	if m.OriginalUpdate.Media == nil {
+		return nil
+	}
+	return m.OriginalUpdate.Media
+}
+
+func (m *NewMessage) IsMedia() bool {
+	return m.Media() != nil
+}
+
+func (m *NewMessage) MediaType() string {
+	Media := m.Media()
+	if Media == nil {
+		return ""
+	}
+	switch Media.(type) {
+	case *MessageMediaPhoto:
+		return "photo"
+	case *MessageMediaDocument:
+		return "document"
+	case *MessageMediaVenue:
+		return "venue"
+	case *MessageMediaContact:
+		return "contact"
+	case *MessageMediaGeo:
+		return "geo"
+	case *MessageMediaGame:
+		return "game"
+	case *MessageMediaInvoice:
+		return "invoice"
+	case *MessageMediaGeoLive:
+		return "geo_live"
+	case *MessageMediaUnsupported:
+		return "unsupported"
+	case *MessageMediaWebPage:
+		return "web_page"
+	case *MessageMediaDice:
+		return "dice"
+	default:
+		return "unknown"
+	}
+}
+
+func (m *NewMessage) IsCommand() bool {
+	for _, p := range m.OriginalUpdate.Entities {
+		if _, ok := p.(*MessageEntityBotCommand); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *NewMessage) Reply(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, SendOptions{ReplyID: m.ID})
 	} else {
@@ -155,7 +212,7 @@ func (m *NewMessage) Reply(Text string, Opts ...SendOptions) (*NewMessage, error
 	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: resp.ID}, err
 }
 
-func (m *NewMessage) Respond(Text string, Opts ...SendOptions) (*NewMessage, error) {
+func (m *NewMessage) Respond(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, SendOptions{})
 	}
@@ -168,7 +225,7 @@ func (m *NewMessage) Respond(Text string, Opts ...SendOptions) (*NewMessage, err
 	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: resp.ID}, err
 }
 
-func (m *NewMessage) Edit(Text string, Opts ...SendOptions) (*NewMessage, error) {
+func (m *NewMessage) Edit(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, SendOptions{})
 	}
@@ -179,6 +236,10 @@ func (m *NewMessage) Edit(Text string, Opts ...SendOptions) (*NewMessage, error)
 	r := *resp
 	r.PeerID = m.OriginalUpdate.PeerID
 	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: resp.ID}, err
+}
+
+func (m *NewMessage) Delete() error {
+	return m.Client.DeleteMessage(m.ChatID(), m.ID)
 }
 
 func PackMessage(client *Client, message *MessageObj) *NewMessage {
@@ -236,9 +297,7 @@ func HandleMessageUpdate(update Message) {
 	var msg = update.(*MessageObj)
 	for _, handle := range MessageHandles {
 		if handle.IsMatch(msg.Message) {
-			if err := handle.Handler(handle.Client, PackMessage(handle.Client, msg)); err != nil {
-				handle.Client.Logger.Print(errors.Wrap(err, "message handle"))
-			}
+			handle.Handler(handle.Client, PackMessage(handle.Client, msg))
 		}
 	}
 }
@@ -251,6 +310,13 @@ func (h *Handle) IsMatch(text string) bool {
 		}
 		pattern := regexp.MustCompile("^" + Pattern)
 		return pattern.MatchString(text) || strings.HasPrefix(text, Pattern)
+	case Command:
+		Patt := fmt.Sprintf("^[%s]%s", Pattern.Prefix, Pattern.Cmd)
+		pattern, err := regexp.Compile(Patt)
+		if err != nil {
+			return false
+		}
+		return pattern.MatchString(text)
 	default:
 		panic("unknown handler type")
 	}
