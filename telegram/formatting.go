@@ -168,3 +168,107 @@ func (m *NewMessage) Args() string {
 	}
 	return strings.Join(Messages[1:], " ")
 }
+
+type Entity struct {
+	Offset int32
+	Length int32
+	Text   string
+	E      []MessageEntity
+}
+
+func (e *Entity) Code(Text string) *Entity {
+	e.Length += int32(len(Text))
+	e.Text += Text
+	e.E = append(e.E, &MessageEntityCode{
+		Offset: e.Offset,
+		Length: int32(len(Text)),
+	})
+	e.Offset += int32(len(Text))
+	return e
+}
+
+func (e *Entity) Bold(Text string) *Entity {
+	e.Length += int32(len(Text))
+	e.Text += Text
+	e.E = append(e.E, &MessageEntityBold{
+		Offset: e.Offset,
+		Length: int32(len(Text)),
+	})
+	e.Offset += int32(len(Text))
+	return e
+}
+
+func (e *Entity) Italic(Text string) *Entity {
+	e.Offset += int32(len(Text))
+	e.Length += int32(len(Text))
+	e.Text += Text
+	e.E = append(e.E, &MessageEntityItalic{
+		Offset: e.Offset,
+		Length: int32(len(Text)),
+	})
+	return e
+}
+
+func (e *Entity) Strike(Text string) *Entity {
+	e.Offset += int32(len(Text))
+	e.Length += int32(len(Text))
+	e.Text += Text
+	e.E = append(e.E, &MessageEntityStrike{
+		Offset: e.Offset,
+		Length: int32(len(Text)),
+	})
+	return e
+}
+
+func (e *Entity) Underline(Text string) *Entity {
+	e.Offset += int32(len(Text))
+	e.Length += int32(len(Text))
+	e.Text += Text
+	e.E = append(e.E, &MessageEntityUnderline{
+		Offset: e.Offset,
+		Length: int32(len(Text)),
+	})
+	return e
+}
+
+func (e *Entity) TextURL(Text string, URL string) *Entity {
+	e.Offset += int32(len(Text))
+	e.Length += int32(len(Text))
+	e.Text += Text
+	e.E = append(e.E, &MessageEntityTextURL{
+		Offset: e.Offset,
+		Length: int32(len(Text)),
+		URL:    URL,
+	})
+	return e
+}
+
+func (e *Entity) Spoiler(Text string) *Entity {
+	e.Length += int32(len(Text))
+	e.Text += Text
+	e.E = append(e.E, &MessageEntitySpoiler{
+		Offset: e.Offset,
+		Length: int32(len(Text)),
+	})
+	e.Offset += int32(len(Text))
+	return e
+}
+
+func (e *Entity) Entities() []MessageEntity {
+	return e.E
+}
+
+func (e *Entity) GetText() string {
+	return e.Text
+}
+
+func (e *Entity) Plain(Text string) *Entity {
+	e.Offset += int32(len(Text))
+	e.Length += int32(len(Text))
+	e.Text += Text
+	return e
+}
+
+func Ent() *Entity {
+	return &Entity{}
+}

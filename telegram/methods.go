@@ -2,7 +2,9 @@ package telegram
 
 import (
 	"fmt"
+	"net/url"
 	"reflect"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -63,7 +65,7 @@ func (c *Client) GetPeerID(peer interface{}) (int64, error) {
 
 type SendOptions struct {
 	ReplyID     int32
-	Caption     string
+	Caption     interface{}
 	ParseMode   string
 	Silent      bool
 	LinkPreview bool
@@ -135,7 +137,17 @@ func (c *Client) GetSendablePeer(Peer interface{}) (InputPeer, error) {
 func (c *Client) GetSendableMedia(media interface{}) (InputMedia, error) {
 	switch media := media.(type) {
 	case string:
-		return &InputMediaPhotoExternal{URL: media}, nil
+		if _, err := url.ParseRequestURI(media); err != nil {
+			for _, ext := range []string{".jpg", ".jpeg", ".png", ".webp"} {
+				if strings.HasSuffix(media, ext) {
+					return &InputMediaPhotoExternal{URL: media}, nil
+				}
+			}
+			return &InputMediaDocumentExternal{URL: media}, nil
+		} else {
+			// local file, soon
+			return nil, err
+		}
 	case InputMedia:
 		return media, nil
 	case MessageMedia:
@@ -145,6 +157,14 @@ func (c *Client) GetSendableMedia(media interface{}) (InputMedia, error) {
 			return &InputMediaPhoto{ID: &InputPhotoObj{ID: Photo.ID, AccessHash: Photo.AccessHash, FileReference: Photo.FileReference}}, nil
 		case *MessageMediaDocument:
 			return &InputMediaDocument{ID: &InputDocumentObj{ID: media.Document.(*DocumentObj).ID, AccessHash: media.Document.(*DocumentObj).AccessHash, FileReference: media.Document.(*DocumentObj).FileReference}}, nil
+		case *MessageMediaGeo:
+			return &InputMediaGeoPoint{GeoPoint: &InputGeoPointObj{Lat: media.Geo.(*GeoPointObj).Lat, Long: media.Geo.(*GeoPointObj).Long}}, nil
+		case *MessageMediaGame:
+			return &InputMediaGame{ID: &InputGameID{ID: media.Game.ID, AccessHash: media.Game.AccessHash}}, nil
+		case *MessageMediaContact:
+			return &InputMediaContact{FirstName: media.FirstName, LastName: media.LastName, PhoneNumber: media.PhoneNumber, Vcard: media.Vcard}, nil
+		case *MessageMediaDice:
+			return &InputMediaDice{Emoticon: media.Emoticon}, nil
 		default:
 			return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(media).String()))
 		}
@@ -153,7 +173,7 @@ func (c *Client) GetSendableMedia(media interface{}) (InputMedia, error) {
 	}
 }
 
-func (c *Client) SendMessage(peerID interface{}, Text string, Opts ...*SendOptions) (*MessageObj, error) {
+func (c *Client) SendMessage(peerID interface{}, TextObj interface{}, Opts ...*SendOptions) (*MessageObj, error) {
 	var options SendOptions
 	if len(Opts) > 0 {
 		options = *Opts[0]
@@ -162,7 +182,18 @@ func (c *Client) SendMessage(peerID interface{}, Text string, Opts ...*SendOptio
 		options.ParseMode = c.ParseMode
 	}
 	var e []MessageEntity
-	Text, e = c.ParseEntity(Text, options.ParseMode)
+	var Text string
+	switch TextObj := TextObj.(type) {
+	case string:
+		Text, e = c.ParseEntity(TextObj, options.ParseMode)
+	case *Entity:
+		Text = TextObj.GetText()
+		e = TextObj.Entities()
+	case MessageMedia:
+		return c.SendMedia(peerID, TextObj, Opts[0])
+	case InputMedia:
+		return c.SendMedia(peerID, TextObj, Opts[0])
+	}
 	PeerToSend, err := c.GetSendablePeer(peerID)
 	if err != nil {
 		return nil, err
@@ -184,7 +215,7 @@ func (c *Client) SendMessage(peerID interface{}, Text string, Opts ...*SendOptio
 	return ProcessMessageUpdate(Update), err
 }
 
-func (c *Client) EditMessage(peerID interface{}, MsgID int32, Text string, Opts ...*SendOptions) (*MessageObj, error) {
+func (c *Client) EditMessage(peerID interface{}, MsgID int32, TextObj interface{}, Opts ...*SendOptions) (*MessageObj, error) {
 	var options SendOptions
 	if len(Opts) > 0 {
 		options = *Opts[0]
@@ -194,7 +225,14 @@ func (c *Client) EditMessage(peerID interface{}, MsgID int32, Text string, Opts 
 	}
 	var err error
 	var e []MessageEntity
-	Text, e = c.ParseEntity(Text, options.ParseMode)
+	var Text string
+	switch TextObj := TextObj.(type) {
+	case string:
+		Text, e = c.ParseEntity(TextObj, options.ParseMode)
+	case *Entity:
+		Text = TextObj.GetText()
+		e = TextObj.Entities()
+	}
 	PeerToSend, err := c.GetSendablePeer(peerID)
 	if err != nil {
 		return nil, err
@@ -236,7 +274,15 @@ func (c *Client) SendMedia(peerID interface{}, Media interface{}, Opts ...*SendO
 	if options.ParseMode == "" {
 		options.ParseMode = c.ParseMode
 	}
-	Caption, e := c.ParseEntity(options.Caption, options.ParseMode)
+	var Caption string
+	var e []MessageEntity
+	switch Capt := options.Caption.(type) {
+	case string:
+		Caption, e = c.ParseEntity(Capt, options.ParseMode)
+	case *Entity:
+		Caption = Capt.GetText()
+		e = Capt.Entities()
+	}
 	PeerToSend, err := c.GetSendablePeer(peerID)
 	if err != nil {
 		return nil, err
