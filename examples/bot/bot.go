@@ -25,7 +25,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-        client.AuthImportBotAuthorization(1, appID, appHash, botToken)
+	client.AuthImportBotAuthorization(1, appID, appHash, botToken)
 	me, _ := client.GetMe()
 	fmt.Println("Logged in as @", me.Username)
 	client.AddEventHandler(telegram.Command{Cmd: "start", Prefix: "/?."}, Start)
