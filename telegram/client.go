@@ -6,6 +6,7 @@
 package telegram
 
 import (
+	"log"
 	"net"
 	"os"
 	"reflect"
@@ -27,6 +28,7 @@ type Client struct {
 	ParseMode string
 	AppID     int32
 	ApiHash   string
+	Logger    *log.Logger
 }
 
 type ClientConfig struct {
@@ -84,6 +86,7 @@ func NewClient(c ClientConfig) (*Client, error) {
 		config:    &c,
 		Cache:     cache,
 		ParseMode: ParseMode,
+		Logger:    log.New(os.Stderr, "Client - ", log.LstdFlags),
 	}
 
 	resp, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
