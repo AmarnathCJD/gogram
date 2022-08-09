@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 var (
@@ -234,7 +236,9 @@ func HandleMessageUpdate(update Message) {
 	var msg = update.(*MessageObj)
 	for _, handle := range MessageHandles {
 		if handle.IsMatch(msg.Message) {
-			handle.Handler(handle.Client, PackMessage(handle.Client, msg))
+			if err := handle.Handler(handle.Client, PackMessage(handle.Client, msg)); err != nil {
+				handle.Client.Logger.Print(errors.Wrap(err, "message handle"))
+			}
 		}
 	}
 }
