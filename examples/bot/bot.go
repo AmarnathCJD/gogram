@@ -27,7 +27,7 @@ func main() {
 	}
 	me, _ := client.GetMe()
 	fmt.Println("Logged in as @", me.Username)
-	client.AddEventHandler(telegram.Command("start", "/?."), Start)
+	client.AddEventHandler(telegram.Command{Cmd: "start", Prefix: "/?."}, Start)
 	client.AddEventHandler("/ping", Ping)
 	client.AddEventHandler("[/!?]js|json", Jsonify)
 	client.AddEventHandler(telegram.OnNewMessage, Echo)
