@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 
@@ -37,11 +36,11 @@ func Imdb(c *telegram.Client, m *telegram.NewMessage) error {
 		return err
 	}
 	title := t[0]
-	MsgTitle := fmt.Sprintf("Title: %s\nActors: %s\nRank: %s", title.Title, title.Actors, title.Rank)
+	TitleInfo := telegram.Ent().Bold("Title: ").Plain(title.Title + "\n").Bold("ID: ").Code(title.ID + "\n").Bold("Actors: ").Code(title.Actors + "\n").Bold("Rank: ").Code(title.Rank + "\n")
 	if title.Poster != "" {
-		_, SendErr := m.Client.SendMedia(m.ChatID(), title.Poster, &telegram.SendOptions{Caption: MsgTitle, ReplyMarkup: btn.Keyboard(btn.Row(btn.URL("View on IMDb", title.Link))), LinkPreview: false})
+		_, SendErr := m.Client.SendMedia(m.ChatID(), title.Poster, &telegram.SendOptions{Caption: TitleInfo, ReplyMarkup: btn.Keyboard(btn.Row(btn.URL("View on IMDb", title.Link))), LinkPreview: false})
 		return SendErr
 	}
-	_, Senderr := m.Respond(MsgTitle)
+	_, Senderr := m.Respond(TitleInfo)
 	return Senderr
 }
