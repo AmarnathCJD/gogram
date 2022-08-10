@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	appID    = 3
+	appID    = 36
 	appHash  = ""
 	botToken = ""
 )
