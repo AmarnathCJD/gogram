@@ -46,7 +46,7 @@ Event handlers
 
 .. code-block:: golang
 
-    func Echo(c *telegram.Client, m *telegram.NewMessage) error {
+    func Echo(m *telegram.NewMessage) error {
          if !m.IsPrivate() {
              return nil
          }

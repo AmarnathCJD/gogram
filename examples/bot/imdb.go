@@ -1,7 +1,8 @@
-package main
+package examples
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -25,7 +26,7 @@ type (
 
 // Examples of sending button & media messages:
 
-func Imdb(c *telegram.Client, m *telegram.NewMessage) error {
+func Imdb(m *telegram.NewMessage) error {
 	Args := m.Args()
 	resp, _ := http.Get("https://watch-series-go.vercel.app/api/imdb?query=" + url.QueryEscape(Args))
 	var t []Title
@@ -36,10 +37,12 @@ func Imdb(c *telegram.Client, m *telegram.NewMessage) error {
 		return err
 	}
 	title := t[0]
-	TitleInfo := telegram.Ent().Bold("Title: ").Plain(title.Title + "\n").Bold("ID: ").Code(title.ID + "\n").Bold("Actors: ").Code(title.Actors + "\n").Bold("Rank: ").Code(title.Rank + "\n")
+	TitleInfo := telegram.Ent().Bold("Title: ").Plain(title.Title + "\n").Bold("Actors: ").Code(title.Actors + "\n").Bold("Rank: ").Code(title.Rank + "\n")
+	fmt.Println(TitleInfo.GetText())
 	if title.Poster != "" {
-		_, SendErr := m.Client.SendMedia(m.ChatID(), title.Poster, &telegram.SendOptions{Caption: TitleInfo, ReplyMarkup: btn.Keyboard(btn.Row(btn.URL("View on IMDb", title.Link))), LinkPreview: false})
-		return SendErr
+		_, err := m.Reply(title.Poster, telegram.SendOptions{Caption: TitleInfo, ReplyMarkup: btn.Keyboard(btn.Row(btn.URL("View on IMDb", title.Link))), LinkPreview: false})
+		fmt.Println(err)
+		return err
 	}
 	_, Senderr := m.Respond(TitleInfo)
 	return Senderr

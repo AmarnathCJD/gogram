@@ -6,7 +6,6 @@
 package telegram
 
 import (
-	"log"
 	"net"
 	"os"
 	"reflect"
@@ -28,7 +27,6 @@ type Client struct {
 	ParseMode string
 	AppID     int32
 	ApiHash   string
-	Logger    *log.Logger
 }
 
 type ClientConfig struct {
@@ -86,7 +84,6 @@ func NewClient(c ClientConfig) (*Client, error) {
 		config:    &c,
 		Cache:     cache,
 		ParseMode: ParseMode,
-		Logger:    log.New(os.Stderr, "Client - ", log.LstdFlags),
 	}
 
 	resp, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
@@ -162,4 +159,10 @@ func (c *Client) Idle() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	wg.Wait()
+}
+
+// Authorize client with bot token
+func (c *Client) LoginBot(botToken string) error {
+	_, err := c.AuthImportBotAuthorization(1, c.AppID, c.ApiHash, botToken)
+	return err
 }
