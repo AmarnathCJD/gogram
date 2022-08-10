@@ -6,7 +6,7 @@ import (
 
 type Handle struct {
 	Pattern interface{}
-	Handler func(c *Client, m *NewMessage) error
+	Handler func(m *NewMessage) error
 	Client  *Client
 }
 
@@ -14,7 +14,7 @@ var (
 	HANDLERS = []Handle{}
 )
 
-func (c *Client) AddEventHandler(pattern interface{}, handler func(c *Client, m *NewMessage) error) {
+func (c *Client) AddEventHandler(pattern interface{}, handler func(m *NewMessage) error) {
 	MessageHandles = append(MessageHandles, Handle{pattern, handler, c})
 }
 

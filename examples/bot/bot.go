@@ -1,8 +1,9 @@
 // Example of using gogram for bot.
 
-package main
+package examples
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 )
 
 const (
-	appID    = 6
+	appID    = 3
 	appHash  = ""
 	botToken = ""
 )
@@ -25,6 +26,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	client.LoginBot(botToken)
 	me, _ := client.GetMe()
 	fmt.Println("Logged in as @", me.Username)
 	client.AddEventHandler(telegram.Command{Cmd: "start", Prefix: "/?."}, Start)
@@ -32,27 +34,36 @@ func main() {
 	client.AddEventHandler("[/!?]js|json", Jsonify)
 	client.AddEventHandler(telegram.OnNewMessage, Echo)
 	client.AddEventHandler("/imdb", Imdb)
+	client.AddEventHandler("/info", Info)
 	client.Idle()
 }
 
-func Start(c *telegram.Client, m *telegram.NewMessage) error {
-	_, err := c.SendMessage(m.ChatID(), "Hello, I'm a bot!")
+func Start(m *telegram.NewMessage) error {
+	_, err := m.Client.SendMessage(m.ChatID(), "Hello, I'm a bot!")
 	return err
 }
 
-func Ping(c *telegram.Client, m *telegram.NewMessage) error {
+func Ping(m *telegram.NewMessage) error {
 	CurrentTime := time.Now()
 	msg, _ := m.Reply("Pinging...")
 	_, err := msg.Edit(telegram.Ent().Bold("Pong!! ").Code(time.Since(CurrentTime).String()))
 	return err
 }
 
-func Jsonify(c *telegram.Client, m *telegram.NewMessage) error {
+func Jsonify(m *telegram.NewMessage) error {
+	if m.IsReply() {
+		r, errr := m.GetReplyMessage()
+		if errr != nil {
+			return errr
+		}
+		_, err := m.Reply(telegram.Ent().Code(r.Marshal()))
+		return err
+	}
 	_, err := m.Reply(telegram.Ent().Code(m.Marshal()))
 	return err
 }
 
-func Echo(c *telegram.Client, m *telegram.NewMessage) error {
+func Echo(m *telegram.NewMessage) error {
 	if (m.Text() == "" && !m.IsMedia()) || !m.IsPrivate() || m.IsCommand() {
 		return nil
 	}
@@ -62,4 +73,42 @@ func Echo(c *telegram.Client, m *telegram.NewMessage) error {
 	}
 	_, err := m.Respond(m.Text())
 	return err
+}
+
+func Info(m *telegram.NewMessage) error {
+	var peer telegram.InputPeer
+	if m.IsReply() {
+		r, err := m.GetReplyMessage()
+		if err != nil {
+			return err
+		}
+		peer, err = m.Client.GetSendablePeer(r.SenderID())
+		if err != nil {
+			return err
+		}
+	} else {
+		if m.Args() == "" {
+			peer, _ = m.Client.GetSendablePeer(m.SenderID())
+		} else {
+			peer, _ = m.Client.GetSendablePeer(m.Args())
+		}
+	}
+	switch peer := peer.(type) {
+	case *telegram.InputPeerUser:
+		user, err := m.Client.Cache.GetUser(peer.UserID)
+		if err != nil {
+			_, err := m.Reply("User not found")
+			return err
+		}
+		b, err := json.MarshalIndent(user, "", "    ")
+		if err != nil {
+			_, err := m.Reply("Error")
+			return err
+		}
+		_, err = m.Reply(string(b))
+		return err
+	default:
+		_, err := m.Reply(fmt.Sprintf("Peer not found, peer type: %T", peer))
+		return err
+	}
 }

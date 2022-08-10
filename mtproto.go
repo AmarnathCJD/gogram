@@ -198,7 +198,7 @@ func (m *MTProto) Reconnect() error {
 func (m *MTProto) startPinging(ctx context.Context) {
 	m.routineswg.Add(1)
 	go func() {
-		ticker := time.NewTicker(time.Second * 10)
+		ticker := time.NewTicker(time.Minute)
 		defer ticker.Stop()
 		defer m.routineswg.Done()
 
@@ -207,8 +207,7 @@ func (m *MTProto) startPinging(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				x, err := m.ping(0xCADACADA)
-				fmt.Println("ping:", x, err)
+				_, err := m.ping(0xCADACADA)
 				if err != nil {
 					m.Logger.Printf("ping unsuccessfull: %v", err)
 				}

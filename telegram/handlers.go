@@ -48,16 +48,53 @@ func (m *NewMessage) Message() string {
 }
 
 func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
-	if m.OriginalUpdate.ReplyTo == nil || m.OriginalUpdate.ReplyTo.ReplyToMsgID == 0 {
-		return nil, nil
+	if !m.IsReply() {
+		return nil, fmt.Errorf("message is not a reply")
 	}
-	IDs := []InputMessage{}
-	IDs = append(IDs, &InputMessageID{ID: m.OriginalUpdate.ReplyTo.ReplyToMsgID})
-	ReplyMsg, err := m.Client.MessagesGetMessages(IDs)
-	if err != nil {
-		return nil, err
+	if m.IsPrivate() {
+		if m.OriginalUpdate.ReplyTo == nil || m.OriginalUpdate.ReplyTo.ReplyToMsgID == 0 {
+			return nil, nil
+		}
+		IDs := []InputMessage{}
+		IDs = append(IDs, &InputMessageID{ID: m.OriginalUpdate.ReplyTo.ReplyToMsgID})
+		ReplyMsg, err := m.Client.MessagesGetMessages(IDs)
+		if err != nil {
+			return nil, err
+		}
+		Message := ReplyMsg.(*MessagesMessagesObj)
+		go func() { m.Client.Cache.UpdatePeersToCache(Message.Users, Message.Chats) }()
+		switch Msg := Message.Messages[0].(type) {
+		case *MessageObj:
+			return PackMessage(m.Client, Msg), nil
+		case *MessageEmpty:
+			return nil, nil
+		default:
+			return nil, fmt.Errorf("unknown message type")
+		}
+	} else if m.IsChannel() {
+		IDs := []InputMessage{}
+		IDs = append(IDs, &InputMessageID{ID: m.OriginalUpdate.ReplyTo.ReplyToMsgID})
+		InputPeer, err := m.Client.GetSendablePeer(m.ChatID())
+		if err != nil {
+			return nil, err
+		}
+		PeerChannelObject, ok := InputPeer.(*InputPeerChannel)
+		if !ok {
+			return nil, fmt.Errorf("failed to convert peer to channel")
+		}
+		ReplyMsg, err := m.Client.ChannelsGetMessages(&InputChannelObj{ChannelID: PeerChannelObject.ChannelID, AccessHash: PeerChannelObject.AccessHash}, IDs)
+		if err != nil {
+			return nil, err
+		}
+		Msg := ReplyMsg.(*MessagesChannelMessages)
+		switch Msg := Msg.Messages[0].(type) {
+		case *MessageObj:
+			return PackMessage(m.Client, Msg), nil
+		case *MessageEmpty:
+			return nil, nil
+		}
 	}
-	return PackMessage(m.Client, ReplyMsg.(*MessagesMessagesObj).Messages[0].(*MessageObj)), nil
+	return nil, fmt.Errorf("message is not a reply")
 }
 
 func (m *NewMessage) ChatID() int64 {
@@ -73,6 +110,9 @@ func (m *NewMessage) ChatID() int64 {
 }
 
 func (m *NewMessage) SenderID() int64 {
+	if m.IsPrivate() {
+		return m.ChatID()
+	}
 	switch Peer := m.OriginalUpdate.FromID.(type) {
 	case *PeerUser:
 		return Peer.UserID
@@ -122,6 +162,7 @@ func (m *NewMessage) GetChat() (*ChatObj, error) {
 	return m.Client.GetPeerChat(m.ChatID())
 }
 
+// GetPeer returns the peer of the message
 func (m *NewMessage) GetPeer() (int64, int64) {
 	if m.IsPrivate() {
 		User, _ := m.Client.GetPeerUser(m.ChatID())
@@ -136,6 +177,7 @@ func (m *NewMessage) GetPeer() (int64, int64) {
 	return 0, 0
 }
 
+// GetSender returns the sender of the message
 func (m *NewMessage) GetSender() (*UserObj, error) {
 	return m.Client.GetPeerUser(m.SenderID())
 }
@@ -144,6 +186,7 @@ func (m *NewMessage) GetSenderChat() string {
 	return "soon will be implemented"
 }
 
+// Media is a media object in a message
 func (m *NewMessage) Media() MessageMedia {
 	if m.OriginalUpdate.Media == nil {
 		return nil
@@ -151,10 +194,12 @@ func (m *NewMessage) Media() MessageMedia {
 	return m.OriginalUpdate.Media
 }
 
+// IsMedia returns true if message contains media
 func (m *NewMessage) IsMedia() bool {
 	return m.Media() != nil
 }
 
+// MediaType returns the type of the media in the message.
 func (m *NewMessage) MediaType() string {
 	Media := m.Media()
 	if Media == nil {
@@ -188,6 +233,7 @@ func (m *NewMessage) MediaType() string {
 	}
 }
 
+// IsCommand returns true if the message is a command
 func (m *NewMessage) IsCommand() bool {
 	for _, p := range m.OriginalUpdate.Entities {
 		if _, ok := p.(*MessageEntityBotCommand); ok {
@@ -197,6 +243,20 @@ func (m *NewMessage) IsCommand() bool {
 	return false
 }
 
+// GetCommand returns the command from the message.
+// If the message is not a command, it returns an empty string.
+func (m *NewMessage) GetCommand() string {
+	for _, p := range m.OriginalUpdate.Entities {
+		if _, ok := p.(*MessageEntityBotCommand); ok && m.Text() != "" {
+			Text := m.Text()
+			p := p.(*MessageEntityBotCommand)
+			return Text[p.Offset : p.Offset+p.Length]
+		}
+	}
+	return ""
+}
+
+// Client.SendMessage ReplyID set to messageID
 func (m *NewMessage) Reply(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, SendOptions{ReplyID: m.ID})
@@ -242,63 +302,25 @@ func (m *NewMessage) Delete() error {
 	return m.Client.DeleteMessage(m.ChatID(), m.ID)
 }
 
-func PackMessage(client *Client, message *MessageObj) *NewMessage {
-	var Chat *ChatObj
-	var Sender *UserObj
-	var SenderChat *ChatObj
-	var Channel *Channel
-	if message.PeerID != nil {
-		switch Peer := message.PeerID.(type) {
-		case *PeerUser:
-			Chat = &ChatObj{
-				ID: Peer.UserID,
-			}
-		case *PeerChat:
-			Chat, _ = client.GetPeerChat(Peer.ChatID)
-		case *PeerChannel:
-			Channel, _ = client.GetPeerChannel(Peer.ChannelID)
-			Chat = &ChatObj{
-				ID:    Channel.ID,
-				Title: Channel.Title,
-			}
-		}
-	}
-	if message.FromID != nil {
-		switch From := message.FromID.(type) {
-		case *PeerUser:
-			Sender, _ = client.GetPeerUser(From.UserID)
-		case *PeerChat:
-			SenderChat, _ = client.GetPeerChat(From.ChatID)
-			Sender = &UserObj{
-				ID: SenderChat.ID,
-			}
-		case *PeerChannel:
-			Channel, _ = client.GetPeerChannel(From.ChannelID)
-			Sender = &UserObj{
-				ID: Channel.ID,
-			}
-		}
-	}
-	return &NewMessage{
-		Client:         client,
-		OriginalUpdate: message,
-		Chat:           Chat,
-		Sender:         Sender,
-		SenderChat:     SenderChat,
-		Channel:        Channel,
-		ID:             message.ID,
-	}
+func (m *NewMessage) React(Reaction string) error {
+	return m.Client.SendReaction(m.ChatID(), m.ID, Reaction)
 }
 
 func HandleMessageUpdate(update Message) {
 	if len(MessageHandles) == 0 {
 		return
 	}
-	var msg = update.(*MessageObj)
-	for _, handle := range MessageHandles {
-		if handle.IsMatch(msg.Message) {
-			handle.Handler(handle.Client, PackMessage(handle.Client, msg))
+	switch msg := update.(type) {
+	case *MessageObj:
+		for _, handle := range MessageHandles {
+			if handle.IsMatch(msg.Message) {
+				if err := handle.Handler(PackMessage(handle.Client, msg)); err != nil {
+					handle.Client.Logger.Println("Error in message handle:", err)
+				}
+			}
 		}
+	case *MessageService:
+		fmt.Println("MessageService")
 	}
 }
 
