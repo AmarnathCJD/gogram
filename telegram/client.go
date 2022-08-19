@@ -143,7 +143,7 @@ func (c *Client) PingInfinity() {
 	}
 }
 
-// Check if auth is successful 
+// Check if auth is successful
 func (m *Client) IsSessionRegistred() (bool, error) {
 	_, err := m.UsersGetFullUser(&InputUserSelf{})
 	if err == nil {
