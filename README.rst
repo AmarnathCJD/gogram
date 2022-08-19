@@ -65,7 +65,8 @@ Entity Cache
 ------------
 
 .. code-block:: golang
-   Entities are cached on memory for now.
+
+    Entities are cached on memory for now.
 
 Doing stuff
 -----------
