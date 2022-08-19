@@ -11,6 +11,14 @@ type (
 		ClearDraft  bool
 		NoForwards  bool
 	}
+
+	ForwardOptions struct {
+		HideCaption bool
+		HideAuthor  bool
+		Silent      bool
+		Protected   bool
+	}
+
 	Participant struct {
 		User        *UserObj
 		Admin       bool

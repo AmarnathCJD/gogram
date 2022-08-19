@@ -2,8 +2,6 @@ package transport
 
 import (
 	"fmt"
-
-	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
 type ErrNotMultiple struct {
@@ -16,11 +14,4 @@ func (e *ErrNotMultiple) Error() string {
 		return fmt.Sprintf(msg+" (got %v)", e.Len)
 	}
 	return msg
-}
-
-func checkMsgSize(msg []byte) error {
-	if len(msg)%tl.WordLen != 0 {
-		return &ErrNotMultiple{Len: len(msg)}
-	}
-	return nil
 }

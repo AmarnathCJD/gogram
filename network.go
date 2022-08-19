@@ -45,13 +45,12 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 			AuthKeyHash: m.authKeyHash,
 		}
 	} else {
-		data = &messages.Unencrypted{ //nolint: errcheck нешифрованое не отправляет ошибки
+		data = &messages.Unencrypted{
 			Msg:   msg,
 			MsgID: msgID,
 		}
 	}
 
-	// must write synchroniously, cuz seqno must be upper each request
 	m.seqNoMutex.Lock()
 	defer m.seqNoMutex.Unlock()
 

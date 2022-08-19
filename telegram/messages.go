@@ -3,16 +3,6 @@ package telegram
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
-	"strings"
-)
-
-var (
-	MessageHandles = []Handle{}
-)
-
-var (
-	OnNewMessage = "OnNewMessage"
 )
 
 type (
@@ -24,10 +14,6 @@ type (
 		SenderChat     *ChatObj
 		Channel        *Channel
 		ID             int32
-	}
-	Command struct {
-		Cmd    string
-		Prefix string
 	}
 )
 
@@ -98,13 +84,15 @@ func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 }
 
 func (m *NewMessage) ChatID() int64 {
-	switch Peer := m.OriginalUpdate.PeerID.(type) {
-	case *PeerUser:
-		return Peer.UserID
-	case *PeerChat:
-		return Peer.ChatID
-	case *PeerChannel:
-		return Peer.ChannelID
+	if m.OriginalUpdate.PeerID != nil {
+		switch Peer := m.OriginalUpdate.PeerID.(type) {
+		case *PeerUser:
+			return Peer.UserID
+		case *PeerChat:
+			return Peer.ChatID
+		case *PeerChannel:
+			return Peer.ChannelID
+		}
 	}
 	return 0
 }
@@ -298,48 +286,26 @@ func (m *NewMessage) Edit(Text interface{}, Opts ...SendOptions) (*NewMessage, e
 	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: resp.ID}, err
 }
 
+// Delete deletes the message
 func (m *NewMessage) Delete() error {
 	return m.Client.DeleteMessage(m.ChatID(), m.ID)
 }
 
+// React to a message
 func (m *NewMessage) React(Reaction string) error {
 	return m.Client.SendReaction(m.ChatID(), m.ID, Reaction)
 }
 
-func HandleMessageUpdate(update Message) {
-	if len(MessageHandles) == 0 {
-		return
+// Forward forwards the message to a chat
+func (m *NewMessage) ForwardTo(ChatID int64, Opts ...ForwardOptions) (*NewMessage, error) {
+	if len(Opts) == 0 {
+		Opts = append(Opts, ForwardOptions{})
 	}
-	switch msg := update.(type) {
-	case *MessageObj:
-		for _, handle := range MessageHandles {
-			if handle.IsMatch(msg.Message) {
-				if err := handle.Handler(PackMessage(handle.Client, msg)); err != nil {
-					handle.Client.Logger.Println("Error in message handle:", err)
-				}
-			}
-		}
-	case *MessageService:
-		fmt.Println("MessageService")
+	resp, err := m.Client.ForwardMessage(m.ChatID(), ChatID, []int32{m.ID}, &Opts[0])
+	if resp == nil {
+		return nil, err
 	}
-}
-
-func (h *Handle) IsMatch(text string) bool {
-	switch Pattern := h.Pattern.(type) {
-	case string:
-		if Pattern == OnNewMessage {
-			return true
-		}
-		pattern := regexp.MustCompile("^" + Pattern)
-		return pattern.MatchString(text) || strings.HasPrefix(text, Pattern)
-	case Command:
-		Patt := fmt.Sprintf("^[%s]%s", Pattern.Prefix, Pattern.Cmd)
-		pattern, err := regexp.Compile(Patt)
-		if err != nil {
-			return false
-		}
-		return pattern.MatchString(text)
-	default:
-		panic("unknown handler type")
-	}
+	r := *resp
+	r.PeerID = m.OriginalUpdate.PeerID
+	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: resp.ID}, err
 }

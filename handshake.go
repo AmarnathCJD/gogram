@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	hsLog = NewLogger("MTProto-HS - ")
+	hsLog = NewLogger("TGCrypto - ")
 )
 
 // https://core.telegram.org/mtproto/auth_key
@@ -160,7 +160,6 @@ func (m *MTProto) makeAuthKey() error {
 		)
 	}
 
-	// (all ok)
 	m.serviceModeActivated = false
 	m.encrypted = true
 	err = m.SaveSession()

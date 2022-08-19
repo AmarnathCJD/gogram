@@ -10,9 +10,33 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	DataCenters = map[int]string{
+		1: "149.154.175.58:443",
+		2: "149.154.167.50:443",
+		3: "149.154.175.100:443",
+		4: "149.154.167.91:443",
+		5: "91.108.56.151:443",
+	}
+)
+
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+func GetHostIp(dcID int) string {
+	if ip, ok := DataCenters[dcID]; ok {
+		return ip
+	}
+	panic("Invalid Data Center ID")
+}
+
+func Or(a string, b string) string {
+	if a == "" {
+		return b
+	}
+	return a
 }
 
 func PathIsWritable(path string) bool {

@@ -38,6 +38,10 @@ func (b Button) WebView(Text string, URL string) *KeyboardButtonSimpleWebView {
 	return &KeyboardButtonSimpleWebView{Text: Text, URL: URL}
 }
 
+func (b Button) Mention(Text string, UserID int64) *KeyboardButtonUserProfile {
+	return &KeyboardButtonUserProfile{Text: Text, UserID: UserID}
+}
+
 func (b Button) Row(Buttons ...KeyboardButton) *KeyboardButtonRow {
 	return &KeyboardButtonRow{Buttons: Buttons}
 }

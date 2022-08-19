@@ -6,12 +6,16 @@
 package telegram
 
 import (
+	"fmt"
+	"log"
 	"net"
 	"os"
 	"reflect"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/pkg/errors"
@@ -19,50 +23,48 @@ import (
 	"github.com/amarnathcjd/gogram/internal/keys"
 )
 
-type Client struct {
-	*mtproto.MTProto
-	config    *ClientConfig
-	stop      chan struct{}
-	Cache     *CACHE
-	ParseMode string
-	AppID     int32
-	ApiHash   string
-}
+var (
+	workDir, _ = os.Getwd()
+)
 
-type ClientConfig struct {
-	SessionFile    string
-	ServerHost     string
-	PublicKeysFile string
-	DeviceModel    string
-	SystemVersion  string
-	AppVersion     string
-	AppID          int
-	AppHash        string
-	ParseMode      string
-	DataCenter     int
-}
+type (
+	PingParams struct {
+		PingID int64
+	}
 
-func NewClient(c ClientConfig) (*Client, error) {
-	if c.SessionFile == "" {
-		workDir, _ := os.Getwd()
-		c.SessionFile = workDir + "/tg_session.json"
+	Client struct {
+		*mtproto.MTProto
+		config    *ClientConfig
+		stop      chan struct{}
+		Cache     *CACHE
+		ParseMode string
+		AppID     int32
+		ApiHash   string
+		Logger    *log.Logger
 	}
-	if c.DeviceModel == "" {
-		c.DeviceModel = "iPhone X"
+
+	ClientConfig struct {
+		SessionFile   string
+		DeviceModel   string
+		SystemVersion string
+		AppVersion    string
+		AppID         int
+		AppHash       string
+		ParseMode     string
+		DataCenter    int
+		AllowUpdates  bool
 	}
-	if c.SystemVersion == "" {
-		c.SystemVersion = runtime.GOOS + "/" + runtime.GOARCH
-	}
-	if c.AppVersion == "" {
-		c.AppVersion = "v1.0.0"
-	}
+)
+
+func TelegramClient(c ClientConfig) (*Client, error) {
+	c.SessionFile = Or(c.SessionFile, workDir+"/tg_session.json")
 	publicKeys, err := keys.ReadFromNetwork()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading public keys")
 	}
 	m, err := mtproto.NewMTProto(mtproto.Config{
 		AuthKeyFile: c.SessionFile,
-		ServerHost:  c.ServerHost,
+		ServerHost:  GetHostIp(c.DataCenter),
 		PublicKey:   publicKeys[0],
 		DataCenter:  c.DataCenter,
 	})
@@ -74,23 +76,20 @@ func NewClient(c ClientConfig) (*Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "creating connection")
 	}
-	var ParseMode = c.ParseMode
-	if ParseMode == "" {
-		ParseMode = "Markdown"
-	}
 
 	client := &Client{
 		MTProto:   m,
 		config:    &c,
 		Cache:     cache,
-		ParseMode: ParseMode,
+		ParseMode: Or(c.ParseMode, "Markdown"),
+		Logger:    log.New(os.Stderr, "Client - updates - ", log.LstdFlags),
 	}
 
 	resp, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
 		ApiID:          int32(c.AppID),
-		DeviceModel:    c.DeviceModel,
-		SystemVersion:  c.SystemVersion,
-		AppVersion:     c.AppVersion,
+		DeviceModel:    Or(c.DeviceModel, "iPhone X"),
+		SystemVersion:  Or(c.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
+		AppVersion:     Or(c.AppVersion, "v1.0.0"),
 		SystemLangCode: "en",
 		LangCode:       "en",
 		Query:          &HelpGetConfigParams{},
@@ -110,7 +109,6 @@ func NewClient(c ClientConfig) (*Client, error) {
 		if dc.Cdn {
 			continue
 		}
-
 		dcList[int(dc.ID)] = net.JoinHostPort(dc.IpAddress, strconv.Itoa(int(dc.Port)))
 	}
 	client.SetDCList(dcList)
@@ -118,8 +116,43 @@ func NewClient(c ClientConfig) (*Client, error) {
 	client.stop = stop
 	client.AppID = int32(c.AppID)
 	client.ApiHash = c.AppHash
-	client.AddCustomServerRequestHandler(HandleUpdate)
+	c.AllowUpdates = true
+	if c.AllowUpdates {
+		client.AddCustomServerRequestHandler(HandleUpdate)
+	}
+	go client.PingInfinity()
 	return client, nil
+}
+
+func (*PingParams) CRC() uint32 {
+	return 0x7abe77ec
+}
+
+func (c *Client) PingInfinity() {
+	for {
+		select {
+		case <-time.After(time.Second * 20):
+			err := c.MTProto.MakeRequestWithoutUpdates(&PingParams{
+				PingID: 123456789,
+			})
+			if err != nil {
+				c.Logger.Println(errors.Wrap(err, "pinging server"))
+			}
+		case <-c.stop:
+			return
+		}
+	}
+}
+
+func (c *Client) PingInfinityh() {
+	go func() {
+		for range time.Tick(time.Second * 2) {
+			fmt.Println("ping")
+			c.MakeRequest(&PingParams{
+				PingID: 123456789,
+			})
+		}
+	}()
 }
 
 func (m *Client) IsSessionRegistred() (bool, error) {
@@ -131,11 +164,13 @@ func (m *Client) IsSessionRegistred() (bool, error) {
 	if errors.As(err, &errCode) {
 		if errCode.Message == "AUTH_KEY_UNREGISTERED" {
 			return false, nil
+		} else if strings.Contains(errCode.Message, "USER_MIGRATE") {
+			return false, errors.New("user migrated")
 		}
-		return false, err
 	} else {
 		return false, err
 	}
+	return false, nil
 }
 
 func (m *Client) Close() {
@@ -159,6 +194,10 @@ func (c *Client) Idle() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	wg.Wait()
+}
+
+func (c *Client) Disconnect() {
+	c.MTProto.Disconnect()
 }
 
 // Authorize client with bot token
