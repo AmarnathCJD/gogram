@@ -1,7 +1,4 @@
-// Copyright (c) 2020-2021 KHS Films
-//
-// This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogram/blob/master/LICENSE for details
+// RoseLoverX 2022
 
 package telegram
 
@@ -56,6 +53,7 @@ type (
 	}
 )
 
+// New instance of Client
 func TelegramClient(c ClientConfig) (*Client, error) {
 	c.SessionFile = Or(c.SessionFile, workDir+"/tg_session.json")
 	publicKeys, err := keys.ReadFromNetwork()
@@ -128,6 +126,7 @@ func (*PingParams) CRC() uint32 {
 	return 0x7abe77ec
 }
 
+// Keep The TCP from Timing out
 func (c *Client) PingInfinity() {
 	for {
 		select {
@@ -144,17 +143,7 @@ func (c *Client) PingInfinity() {
 	}
 }
 
-func (c *Client) PingInfinityh() {
-	go func() {
-		for range time.Tick(time.Second * 2) {
-			fmt.Println("ping")
-			c.MakeRequest(&PingParams{
-				PingID: 123456789,
-			})
-		}
-	}()
-}
-
+// Check if auth is successful 
 func (m *Client) IsSessionRegistred() (bool, error) {
 	_, err := m.UsersGetFullUser(&InputUserSelf{})
 	if err == nil {
@@ -173,11 +162,12 @@ func (m *Client) IsSessionRegistred() (bool, error) {
 	return false, nil
 }
 
-func (m *Client) Close() {
+// Stop the client
+func (m *Client) Stop() {
 	close(m.stop)
-	m.MTProto.Disconnect()
 }
 
+// Set Entity parseMode (Markdown, HTML)
 func (m *Client) SetParseMode(mode string) {
 	if mode == "" {
 		mode = "Markdown"
@@ -190,12 +180,14 @@ func (m *Client) SetParseMode(mode string) {
 	}
 }
 
+// KEEP ALIVE THE PROCESS
 func (c *Client) Idle() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	wg.Wait()
 }
 
+// Disconnect the tcp connection to Telegram servers
 func (c *Client) Disconnect() {
 	c.MTProto.Disconnect()
 }
