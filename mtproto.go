@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -70,6 +71,16 @@ type Config struct {
 	DataCenter int
 }
 
+func (m *MTProto) GetDC() int {
+	addr := m.addr
+	for k, v := range m.dclist {
+		if v == addr {
+			return k
+		}
+	}
+	return 4
+}
+
 func NewMTProto(c Config) (*MTProto, error) {
 	if c.SessionStorage == nil {
 		if c.AuthKeyFile == "" {
@@ -88,7 +99,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 
 	m := &MTProto{
 		tokensStorage:         c.SessionStorage,
-		addr:                  defaultDCList()[c.DataCenter],
+		addr:                  c.ServerHost,
 		encrypted:             s != nil,
 		sessionId:             utils.GenerateSessionID(),
 		serviceChannel:        make(chan tl.Object),
@@ -96,7 +107,6 @@ func NewMTProto(c Config) (*MTProto, error) {
 		responseChannels:      utils.NewSyncIntObjectChan(),
 		expectedTypes:         utils.NewSyncIntReflectTypes(),
 		serverRequestHandlers: make([]customHandlerFunc, 0),
-		dclist:                defaultDCList(),
 		Logger:                NewLogger("MTProto - "),
 	}
 
@@ -179,20 +189,41 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 
 	case *errorSessionConfigsChanged:
 		return m.makeRequest(data, expectedTypes...)
-
 	}
 
 	return tl.UnwrapNativeTypes(response), nil
 }
 
+func (m *MTProto) MakeRequestWithoutUpdates(data tl.Object, expectedTypes ...reflect.Type) error {
+	_, err := m.sendPacket(data, expectedTypes...)
+	if err != nil {
+		return fmt.Errorf("sending packet: %w", err)
+	}
+	return err
+}
+
 func (m *MTProto) Disconnect() error {
+	// stop all routines
 	m.stopRoutines()
+
+	// TODO: close ALL CHANNELS
+	close(m.serviceChannel)
+
 	return nil
 }
 
 func (m *MTProto) Reconnect() error {
-	m.transport = nil
-	return m.CreateConnection()
+
+	err := m.transport.Close()
+	if err != nil {
+		return errors.Wrap(err, "disconnecting")
+	}
+	m.serviceChannel = make(chan tl.Object)
+	m.responseChannels = utils.NewSyncIntObjectChan()
+	m.expectedTypes = utils.NewSyncIntReflectTypes()
+
+	err = m.CreateConnection()
+	return errors.Wrap(err, "recreating connection")
 }
 
 func (m *MTProto) startPinging(ctx context.Context) {
@@ -220,7 +251,6 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 	m.routineswg.Add(1)
 	go func() {
 		defer m.routineswg.Done()
-
 		for {
 			select {
 			case <-ctx.Done():
@@ -232,10 +262,8 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				case context.Canceled:
 					return
 				case io.EOF:
-					err = m.Reconnect()
-					if err != nil {
-						m.Logger.Println(errors.Wrap(err, "can't reconnect"))
-					}
+					m.Reconnect()
+					return
 				default:
 					m.Reconnect()
 					return
@@ -249,7 +277,6 @@ func (m *MTProto) readMsg() error {
 	if m.transport == nil {
 		return errors.New("must setup connection before reading messages")
 	}
-
 	response, err := m.transport.ReadMsg()
 	if err != nil {
 		if e, ok := err.(transport.ErrCode); ok {
@@ -280,6 +307,7 @@ func (m *MTProto) readMsg() error {
 	}
 	return nil
 }
+
 func (m *MTProto) processResponse(msg messages.Common) error {
 	var data tl.Object
 	var err error
@@ -322,6 +350,7 @@ messageTypeSwitching:
 		}
 
 	case *objects.Pong, *objects.MsgsAck:
+		// skip
 
 	case *objects.BadMsgNotification:
 		return BadMsgErrorFromNative(message)
@@ -373,11 +402,12 @@ func (m *MTProto) tryToProcessErr(e *ErrResponseCode) error {
 		return m.SwitchDC(newDc)
 	} else if e.Code == 303 && strings.Contains(e.Message, "USER_MIGRATE_") {
 		newDc := e.AdditionalInfo.(int)
-		m.Logger.Printf("User migrated to %v", newDc)
-		return m.SwitchDC(newDc)
+		m.Logger.Printf("This user/bot is associated with another DC: %v\nPlease set correct value for DataCenter\nQuitting...", newDc)
+		os.Exit(0)
 	} else {
 		return e
 	}
+	return nil
 }
 
 func (m *MTProto) SwitchDC(dc int) error {
@@ -388,24 +418,8 @@ func (m *MTProto) SwitchDC(dc int) error {
 
 	m.addr = newIP
 	m.Logger.Printf("Reconnecting to new data center %v", dc)
-	err := m.Reconnect()
-	if err != nil {
-		m.Logger.Printf("switching dc: %s", err.Error())
-	}
-	return err
-}
-
-type any = interface{}
-type null = struct{}
-
-func defaultDCList() map[int]string {
-	return map[int]string{
-		1: "149.154.175.58:443",
-		2: "149.154.167.50:443",
-		3: "149.154.175.100:443",
-		4: "149.154.167.91:443",
-		5: "91.108.56.151:443",
-	}
+	m.Reconnect()
+	return nil
 }
 
 func MessageRequireToAck(msg tl.Object) bool {

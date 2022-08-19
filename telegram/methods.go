@@ -110,7 +110,31 @@ func (c *Client) DeleteMessage(peerID interface{}, MsgIDs ...int32) error {
 	return err
 }
 
-func (c *Client) ForwardMessage(peerID interface{}, MsgID int32) {}
+func (c *Client) ForwardMessage(fromID interface{}, toID interface{}, MsgIDs []int32, Opts ...*ForwardOptions) (*MessageObj, error) {
+	var options ForwardOptions
+	FromPeer, err := c.GetSendablePeer(fromID)
+	if err != nil {
+		return nil, err
+	}
+	ToPeer, err := c.GetSendablePeer(toID)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.MessagesForwardMessages(&MessagesForwardMessagesParams{
+		FromPeer:          FromPeer,
+		ToPeer:            ToPeer,
+		ID:                MsgIDs,
+		RandomID:          []int64{GenRandInt()},
+		DropMediaCaptions: options.HideCaption,
+		DropAuthor:        options.HideAuthor,
+		Noforwards:        options.Protected,
+		Silent:            options.Silent,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ProcessMessageUpdate(resp), nil
+}
 
 func (c *Client) SendMedia(peerID interface{}, Media interface{}, Opts ...*SendOptions) (*MessageObj, error) {
 	var options SendOptions

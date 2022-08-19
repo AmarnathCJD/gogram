@@ -5,19 +5,21 @@ package examples
 import (
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/amarnathcjd/gogram/telegram"
+	"github.com/showwin/speedtest-go/speedtest"
 )
 
 const (
-	appID    = 36
+	appID    = 3
 	appHash  = ""
 	botToken = ""
 )
 
 func main() {
-	client, err := telegram.NewClient(telegram.ClientConfig{
+	client, err := telegram.TelegramClient(telegram.ClientConfig{
 		AppID:      appID,
 		AppHash:    appHash,
 		DataCenter: 5, // Working on a fix for this
@@ -33,9 +35,12 @@ func main() {
 	client.AddEventHandler("/ping", Ping)
 	client.AddEventHandler("[/!?]js|json", Jsonify)
 	client.AddEventHandler(telegram.OnNewMessage, Echo)
-	client.AddEventHandler("/imdb", Imdb)
 	client.AddEventHandler("/info", Info)
+	client.AddEventHandler("/fwd", fwd)
+	client.AddEventHandler("/go", GoroutinesNum)
+	client.AddEventHandler("/id", ID)
 	client.Idle()
+
 }
 
 func Start(m *telegram.NewMessage) error {
@@ -111,4 +116,58 @@ func Info(m *telegram.NewMessage) error {
 		_, err := m.Reply(fmt.Sprintf("Peer not found, peer type: %T", peer))
 		return err
 	}
+}
+
+func fwd(m *telegram.NewMessage) error {
+	if !m.IsReply() {
+		_, err := m.Reply("Reply to a message to forward it")
+		return err
+	}
+	r, err := m.GetReplyMessage()
+	if err != nil {
+		return err
+	}
+	r.ForwardTo(m.ChatID())
+	return nil
+}
+
+func GoroutinesNum(m *telegram.NewMessage) error {
+	_, err := m.Reply(fmt.Sprintf("<b>Goroutines: %d\nGo Version: %s\nOS: %s\nArch: %s</b>", runtime.NumGoroutine(), runtime.Version(), runtime.GOOS, runtime.GOARCH))
+	return err
+}
+
+func ID(m *telegram.NewMessage) error {
+	if m.IsReply() {
+		r, err := m.GetReplyMessage()
+		if err != nil {
+			return err
+		}
+		_, err = m.Reply(fmt.Sprintf("Replied User ID: `%d`\nReplied Message ID: `%d`", r.SenderID(), r.ID))
+		return err
+	} else {
+		_, err := m.Reply(fmt.Sprintf("User ID: `%d`\nMessage ID: `%d`\nChat ID: `%d`", m.SenderID(), m.ID, m.ChatID()))
+		return err
+	}
+}
+
+func SpeedTest(m *telegram.NewMessage) error {
+	user, err := m.Client.Cache.GetUser(m.SenderID())
+	if err != nil {
+		return err
+	}
+	if user.Username != "amarnathcjd" {
+		return nil
+	}
+	msg, err := m.Reply("Running Speedtest...")
+	if err != nil {
+		return err
+	}
+	s := speedtest.Speedtest{}
+	s.Initialize()
+	s.GetServerList()
+	s.GetBestServer()
+	s.Download()
+	s.Upload()
+	msg.Edit(fmt.Sprintf("Download: %s\nUpload: %s\nPing: %s", s.DownloadSpeed, s.UploadSpeed, s.Ping))
+	return nil
 }
