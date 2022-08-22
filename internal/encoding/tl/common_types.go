@@ -4,8 +4,6 @@ package tl
 
 import (
 	"math/big"
-
-	"github.com/xelaj/go-dry"
 )
 
 // Int128 is alias-like type for fixed size of big int (1024 bit value). It using only for tl objects encoding
@@ -22,7 +20,7 @@ func NewInt128() *Int128 {
 // NewInt128 creates int128 with random value
 func RandomInt128() *Int128 {
 	i := &Int128{Int: big.NewInt(0)}
-	i.SetBytes(dry.RandomBytes(Int128Len))
+	i.SetBytes(RandomBytes(Int128Len))
 	return i
 }
 
@@ -34,7 +32,7 @@ func RandomInt128() *Int128 {
 // MarshalTL implements tl marshaler from this package. Just don't use it by your hands, tl.Encoder does all
 // what you need
 func (i *Int128) MarshalTL(e *Encoder) error {
-	e.PutRawBytes(dry.BigIntBytes(i.Int, Int128Len*bitsInByte))
+	e.PutRawBytes(BigIntBytes(i.Int, Int128Len*bitsInByte))
 	return nil
 }
 
@@ -63,7 +61,7 @@ func NewInt256() *Int256 {
 // NewInt256 creates int256 with random value
 func RandomInt256() *Int256 {
 	i := &Int256{big.NewInt(0)}
-	i.SetBytes(dry.RandomBytes(Int256Len))
+	i.SetBytes(RandomBytes(Int256Len))
 	return i
 }
 
@@ -75,7 +73,7 @@ func RandomInt256() *Int256 {
 // MarshalTL implements tl marshaler from this package. Just don't use it by your hands, tl.Encoder does all
 // what you need
 func (i *Int256) MarshalTL(e *Encoder) error {
-	e.PutRawBytes(dry.BigIntBytes(i.Int, Int256Len*bitsInByte))
+	e.PutRawBytes(BigIntBytes(i.Int, Int256Len*bitsInByte))
 	return nil
 }
 

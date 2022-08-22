@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/amarnathcjd/gogram/telegram"
-	"github.com/showwin/speedtest-go/speedtest"
 )
 
 const (
@@ -148,26 +147,4 @@ func ID(m *telegram.NewMessage) error {
 		_, err := m.Reply(fmt.Sprintf("User ID: `%d`\nMessage ID: `%d`\nChat ID: `%d`", m.SenderID(), m.ID, m.ChatID()))
 		return err
 	}
-}
-
-func SpeedTest(m *telegram.NewMessage) error {
-	user, err := m.Client.Cache.GetUser(m.SenderID())
-	if err != nil {
-		return err
-	}
-	if user.Username != "amarnathcjd" {
-		return nil
-	}
-	msg, err := m.Reply("Running Speedtest...")
-	if err != nil {
-		return err
-	}
-	s := speedtest.Speedtest{}
-	s.Initialize()
-	s.GetServerList()
-	s.GetBestServer()
-	s.Download()
-	s.Upload()
-	msg.Edit(fmt.Sprintf("Download: %s\nUpload: %s\nPing: %s", s.DownloadSpeed, s.UploadSpeed, s.Ping))
-	return nil
 }

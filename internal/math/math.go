@@ -9,8 +9,6 @@ import (
 	"math/big"
 	"math/rand"
 	"time"
-
-	"github.com/xelaj/go-dry"
 )
 
 var (
@@ -25,7 +23,9 @@ var (
 // Specific algorithm for mtproto, because the documentation does not indicate is
 // this encryption working by OAEP spec or any else
 func DoRSAencrypt(block []byte, key *rsa.PublicKey) []byte {
-	dry.PanicIf(len(block) != math.MaxUint8, "block size isn't equal 255 bytes")
+	if len(block) != math.MaxUint8 {
+		panic("block size isn't equal 255 bytes")
+	}
 	z := big.NewInt(0).SetBytes(block)
 	exponent := big.NewInt(int64(key.E))
 

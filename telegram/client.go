@@ -1,12 +1,8 @@
-// Copyright (c) 2020-2021 KHS Films
-//
-// This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogram/blob/master/LICENSE for details
+// Copyright (c) 2022 RoseLoverX
 
 package telegram
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -58,27 +54,28 @@ type (
 
 func TelegramClient(c ClientConfig) (*Client, error) {
 	c.SessionFile = Or(c.SessionFile, workDir+"/tg_session.json")
-	publicKeys, err := keys.ReadFromNetwork()
+	publicKeys, err := keys.GetRSAKeys()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading public keys")
 	}
-	m, err := mtproto.NewMTProto(mtproto.Config{
+	mtproto, err := mtproto.NewMTProto(mtproto.Config{
 		AuthKeyFile: c.SessionFile,
 		ServerHost:  GetHostIp(c.DataCenter),
 		PublicKey:   publicKeys[0],
 		DataCenter:  c.DataCenter,
+		AppID:       int32(c.AppID),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "MTProto client")
 	}
 
-	err = m.CreateConnection()
+	err = mtproto.CreateConnection(true)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating connection")
 	}
 
 	client := &Client{
-		MTProto:   m,
+		MTProto:   mtproto,
 		config:    &c,
 		Cache:     cache,
 		ParseMode: Or(c.ParseMode, "Markdown"),
@@ -120,39 +117,7 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 	if c.AllowUpdates {
 		client.AddCustomServerRequestHandler(HandleUpdate)
 	}
-	go client.PingInfinity()
 	return client, nil
-}
-
-func (*PingParams) CRC() uint32 {
-	return 0x7abe77ec
-}
-
-func (c *Client) PingInfinity() {
-	for {
-		select {
-		case <-time.After(time.Second * 20):
-			err := c.MTProto.MakeRequestWithoutUpdates(&PingParams{
-				PingID: 123456789,
-			})
-			if err != nil {
-				c.Logger.Println(errors.Wrap(err, "pinging server"))
-			}
-		case <-c.stop:
-			return
-		}
-	}
-}
-
-func (c *Client) PingInfinityh() {
-	go func() {
-		for range time.Tick(time.Second * 2) {
-			fmt.Println("ping")
-			c.MakeRequest(&PingParams{
-				PingID: 123456789,
-			})
-		}
-	}()
 }
 
 func (m *Client) IsSessionRegistred() (bool, error) {
@@ -165,7 +130,7 @@ func (m *Client) IsSessionRegistred() (bool, error) {
 		if errCode.Message == "AUTH_KEY_UNREGISTERED" {
 			return false, nil
 		} else if strings.Contains(errCode.Message, "USER_MIGRATE") {
-			return false, errors.New("user migrated")
+			return false, errors.Wrap(err, "user migrated")
 		}
 	} else {
 		return false, err
@@ -196,6 +161,7 @@ func (c *Client) Idle() {
 	wg.Wait()
 }
 
+// Disconnect client from telegram server
 func (c *Client) Disconnect() {
 	c.MTProto.Disconnect()
 }
@@ -204,4 +170,9 @@ func (c *Client) Disconnect() {
 func (c *Client) LoginBot(botToken string) error {
 	_, err := c.AuthImportBotAuthorization(1, c.AppID, c.ApiHash, botToken)
 	return err
+}
+
+// Ping telegram server TCP connection
+func (c *Client) Ping() time.Duration {
+	return c.MTProto.Ping()
 }

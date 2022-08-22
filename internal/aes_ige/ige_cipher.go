@@ -7,8 +7,8 @@ import (
 	"crypto/cipher"
 	"fmt"
 
+	utils "github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/pkg/errors"
-	"github.com/xelaj/go-dry"
 )
 
 type Cipher struct {
@@ -137,10 +137,10 @@ func generateAESIGEv2(msgKey, authKey []byte, decode bool) (aesKey, aesIv []byte
 	tD = append(tD, msgKey...)
 	tD = append(tD, authKey[tDOffStart:tDOffEnd]...)
 
-	sha1PartA := dry.Sha1Byte(tA)
-	sha1PartB := dry.Sha1Byte(tB)
-	sha1PartC := dry.Sha1Byte(tC)
-	sha1PartD := dry.Sha1Byte(tD)
+	sha1PartA := utils.Sha1Byte(tA)
+	sha1PartB := utils.Sha1Byte(tB)
+	sha1PartC := utils.Sha1Byte(tC)
+	sha1PartD := utils.Sha1Byte(tD)
 
 	aesKey = append(aesKey, sha1PartA[0:8]...)
 	aesKey = append(aesKey, sha1PartB[8:8+12]...)
@@ -188,10 +188,10 @@ func generateAESIGE(msg_key, auth_key []byte, decode bool) ([]byte, []byte) {
 	t_d = append(t_d, msg_key...)
 	t_d = append(t_d, auth_key[96+x:96+x+32]...)
 
-	sha1_a := dry.Sha1Byte(t_a)
-	sha1_b := dry.Sha1Byte(t_b)
-	sha1_c := dry.Sha1Byte(t_c)
-	sha1_d := dry.Sha1Byte(t_d)
+	sha1_a := utils.Sha1Byte(t_a)
+	sha1_b := utils.Sha1Byte(t_b)
+	sha1_c := utils.Sha1Byte(t_c)
+	sha1_d := utils.Sha1Byte(t_d)
 
 	aes_key = append(aes_key, sha1_a[0:8]...)
 	aes_key = append(aes_key, sha1_b[8:8+12]...)
