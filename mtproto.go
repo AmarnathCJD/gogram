@@ -23,7 +23,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const defaultTimeout = 20 * time.Second
+const defaultTimeout = 65 * time.Second
 
 type MTProto struct {
 	addr         string
@@ -215,7 +215,6 @@ func (m *MTProto) Disconnect() error {
 }
 
 func (m *MTProto) Reconnect(InvokeLayer bool) error {
-	fmt.Println("going to reconnect")
 	err := m.Disconnect()
 	if err != nil {
 		return errors.Wrap(err, "disconnecting")
