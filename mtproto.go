@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -24,10 +23,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-const defaultTimeout = 65 * time.Second
+const defaultTimeout = 20 * time.Second
 
 type MTProto struct {
 	addr         string
+	AppID        int32
 	transport    transport.Transport
 	stopRoutines context.CancelFunc
 	routineswg   sync.WaitGroup
@@ -69,6 +69,7 @@ type Config struct {
 	ServerHost string
 	PublicKey  *rsa.PublicKey
 	DataCenter int
+	AppID      int32
 }
 
 func (m *MTProto) GetDC() int {
@@ -108,6 +109,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		expectedTypes:         utils.NewSyncIntReflectTypes(),
 		serverRequestHandlers: make([]customHandlerFunc, 0),
 		Logger:                NewLogger("MTProto - "),
+		AppID:                 c.AppID,
 	}
 
 	if s != nil {
@@ -126,15 +128,19 @@ func (m *MTProto) SetDCList(in map[int]string) {
 	}
 }
 
-func (m *MTProto) CreateConnection() error {
+func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
-	m.Logger.Printf("Connecting to %s:443/TcpFull...", m.addr)
+	if withLog {
+		m.Logger.Printf("Connecting to %s:443/TcpFull...", m.addr)
+	}
 	err := m.connect(ctx)
 	if err != nil {
 		return err
 	}
-	m.Logger.Printf("Connection to %s:443/TcpFull complete!", m.addr)
+	if withLog {
+		m.Logger.Printf("Connection to %s:443/TcpFull complete!", m.addr)
+	}
 	m.startReadingResponses(ctx)
 
 	if !m.encrypted {
@@ -194,7 +200,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	return tl.UnwrapNativeTypes(response), nil
 }
 
-func (m *MTProto) MakeRequestWithoutUpdates(data tl.Object, expectedTypes ...reflect.Type) error {
+func (m *MTProto) InvokeRequestWithoutUpdate(data tl.Object, expectedTypes ...reflect.Type) error {
 	_, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
 		return fmt.Errorf("sending packet: %w", err)
@@ -203,27 +209,62 @@ func (m *MTProto) MakeRequestWithoutUpdates(data tl.Object, expectedTypes ...ref
 }
 
 func (m *MTProto) Disconnect() error {
-	// stop all routines
 	m.stopRoutines()
-
-	// TODO: close ALL CHANNELS
-	close(m.serviceChannel)
-
+	m.responseChannels.Close()
 	return nil
 }
 
-func (m *MTProto) Reconnect() error {
-
-	err := m.transport.Close()
+func (m *MTProto) Reconnect(InvokeLayer bool) error {
+	fmt.Println("going to reconnect")
+	err := m.Disconnect()
 	if err != nil {
 		return errors.Wrap(err, "disconnecting")
 	}
-	m.serviceChannel = make(chan tl.Object)
-	m.responseChannels = utils.NewSyncIntObjectChan()
-	m.expectedTypes = utils.NewSyncIntReflectTypes()
+	m.Logger.Printf("Reconnecting to %s:443/TcpFull...", m.addr)
 
-	err = m.CreateConnection()
+	err = m.CreateConnection(false)
+	if err == nil {
+		m.Logger.Printf("Connected to %s:443/TcpFull complete!", m.addr)
+	}
+	if InvokeLayer {
+		err = m.InvokeLayer()
+		if err != nil {
+			return errors.Wrap(err, "invoke layer")
+		}
+		err = m.makeAuthKey()
+		if err != nil {
+			return errors.Wrap(err, "make auth key")
+		}
+	} else {
+		m.InvokeRequestWithoutUpdate(&utils.PingParams{
+			PingID: 123456789,
+		})
+	}
 	return errors.Wrap(err, "recreating connection")
+}
+
+func (m *MTProto) Ping() time.Duration {
+	start := time.Now()
+	m.InvokeRequestWithoutUpdate(&utils.PingParams{
+		PingID: 123456789,
+	})
+	return time.Since(start)
+}
+
+func (m *MTProto) InvokeLayer() error {
+	_, err := m.makeRequest(&utils.InvokeWithLayerParams{
+		Layer: int32(utils.ApiVersion),
+		Query: &utils.InitConnectionParams{
+			ApiID:          int32(m.AppID),
+			DeviceModel:    "PC",
+			SystemVersion:  "Linux",
+			AppVersion:     "1.0",
+			SystemLangCode: "en",
+			LangCode:       "en",
+			Query:          &utils.HelpGetConfigParams{},
+		},
+	})
+	return err
 }
 
 func (m *MTProto) startPinging(ctx context.Context) {
@@ -251,6 +292,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 	m.routineswg.Add(1)
 	go func() {
 		defer m.routineswg.Done()
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -258,15 +300,23 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			default:
 				err := m.readMsg()
 				switch err {
-				case nil: // skip
+				case nil:
 				case context.Canceled:
 					return
 				case io.EOF:
-					m.Reconnect()
-					return
+					err = m.Reconnect(false)
+					if err != nil {
+						m.Logger.Println("reconnecting error:", err)
+					}
 				default:
-					m.Reconnect()
-					return
+					if strings.Contains(err.Error(), "required to reconnect!") {
+						err = m.Reconnect(false)
+						if err != nil {
+							m.Logger.Println("reconnecting error:", err)
+						}
+					} else {
+						m.Logger.Println("reading error:", err)
+					}
 				}
 			}
 		}
@@ -292,7 +342,6 @@ func (m *MTProto) readMsg() error {
 
 	if m.serviceModeActivated {
 		var obj tl.Object
-		// сервисные сообщения ГАРАНТИРОВАННО в теле содержат TL.
 		obj, err = tl.DecodeUnknownObject(response.GetMsg())
 		if err != nil {
 			return errors.Wrap(err, "parsing object")
@@ -333,8 +382,9 @@ messageTypeSwitching:
 	case *objects.BadServerSalt:
 		m.serverSalt = message.NewSalt
 		err := m.SaveSession()
-		m.Logger.Print(err)
-
+		if err != nil {
+			return errors.Wrap(err, "saving session")
+		}
 		m.mutex.Lock()
 		for _, k := range m.responseChannels.Keys() {
 			v, _ := m.responseChannels.Get(k)
@@ -402,12 +452,11 @@ func (m *MTProto) tryToProcessErr(e *ErrResponseCode) error {
 		return m.SwitchDC(newDc)
 	} else if e.Code == 303 && strings.Contains(e.Message, "USER_MIGRATE_") {
 		newDc := e.AdditionalInfo.(int)
-		m.Logger.Printf("This user/bot is associated with another DC: %v\nPlease set correct value for DataCenter\nQuitting...", newDc)
-		os.Exit(0)
+		m.Logger.Printf("User migrated to %v", newDc)
+		return m.SwitchDC(newDc)
 	} else {
 		return e
 	}
-	return nil
 }
 
 func (m *MTProto) SwitchDC(dc int) error {
@@ -418,7 +467,11 @@ func (m *MTProto) SwitchDC(dc int) error {
 
 	m.addr = newIP
 	m.Logger.Printf("Reconnecting to new data center %v", dc)
-	m.Reconnect()
+	m.encrypted = false
+	err := m.Reconnect(true)
+	if err != nil {
+		fmt.Println("Reconnect error:", err)
+	}
 	return nil
 }
 

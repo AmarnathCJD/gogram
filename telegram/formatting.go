@@ -5,6 +5,19 @@ import (
 	"strings"
 )
 
+// Will Rewrite this later
+// Full Messed up
+
+func ZeroOrValue(f int32) int32 {
+	if f > 0 {
+		return f
+	}
+	return 0
+
+}
+
+const regex = `<.*?>`
+
 var (
 	EntityCodeRegex          = regexp.MustCompile("`([\\s\\S]*)`")
 	EntityBoldRegex          = regexp.MustCompile(`\*\*([\s\S]*)\*\*`)
@@ -22,6 +35,9 @@ var (
 
 func (c *Client) ParseEntity(text string, ParseMode string) (string, []MessageEntity) {
 	var e []MessageEntity
+	var diffrence int
+	rgx := regexp.MustCompile(regex)
+	pT := rgx.ReplaceAllString(text, "")
 	if ParseMode == "Markdown" {
 		for _, m := range EntityCodeRegex.FindAllStringSubmatch(text, -1) {
 			text = strings.Replace(text, "`", "", 2)
@@ -70,15 +86,16 @@ func (c *Client) ParseEntity(text string, ParseMode string) (string, []MessageEn
 			text = strings.Replace(text, "<code>", "", 1)
 			text = strings.Replace(text, "</code>", "", 1)
 			e = append(e, &MessageEntityCode{
-				Offset: GetOffSet(text, m[1]),
+				Offset: ZeroOrValue(GetOffSet(pT, m[1])),
 				Length: int32(len(m[1])),
 			})
+			diffrence += 13
 		}
 		for _, m := range EntityBoldHTMLRegex.FindAllStringSubmatch(text, -1) {
 			text = strings.Replace(text, "<b>", "", 1)
 			text = strings.Replace(text, "</b>", "", 1)
 			e = append(e, &MessageEntityBold{
-				Offset: GetOffSet(text, m[1]),
+				Offset: ZeroOrValue(GetOffSet(pT, m[1])),
 				Length: int32(len(m[1])),
 			})
 		}
@@ -86,7 +103,7 @@ func (c *Client) ParseEntity(text string, ParseMode string) (string, []MessageEn
 			text = strings.Replace(text, "<i>", "", 1)
 			text = strings.Replace(text, "</i>", "", 1)
 			e = append(e, &MessageEntityItalic{
-				Offset: GetOffSet(text, m[1]),
+				Offset: GetOffSet(pT, m[1]),
 				Length: int32(len(m[1])),
 			})
 		}
@@ -94,7 +111,7 @@ func (c *Client) ParseEntity(text string, ParseMode string) (string, []MessageEn
 			text = strings.Replace(text, "<s>", "", 1)
 			text = strings.Replace(text, "</s>", "", 1)
 			e = append(e, &MessageEntityStrike{
-				Offset: GetOffSet(text, m[1]),
+				Offset: GetOffSet(pT, m[1]),
 				Length: int32(len(m[1])),
 			})
 		}
@@ -102,7 +119,7 @@ func (c *Client) ParseEntity(text string, ParseMode string) (string, []MessageEn
 			text = strings.Replace(text, "<u>", "", 1)
 			text = strings.Replace(text, "</u>", "", 1)
 			e = append(e, &MessageEntityUnderline{
-				Offset: GetOffSet(text, m[1]),
+				Offset: GetOffSet(pT, m[1]),
 				Length: int32(len(m[1])),
 			})
 		}
@@ -110,7 +127,7 @@ func (c *Client) ParseEntity(text string, ParseMode string) (string, []MessageEn
 			text = strings.Replace(text, "<tgspoiler>", "", 1)
 			text = strings.Replace(text, "</tgspoiler>", "", 1)
 			e = append(e, &MessageEntitySpoiler{
-				Offset: GetOffSet(text, m[1]),
+				Offset: GetOffSet(pT, m[1]),
 				Length: int32(len(m[1])),
 			})
 		}
@@ -272,3 +289,5 @@ func (e *Entity) Plain(Text string) *Entity {
 func Ent() *Entity {
 	return &Entity{}
 }
+
+// Make HTML Parser TODO: Add more tags

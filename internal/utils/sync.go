@@ -52,6 +52,12 @@ type SyncIntObjectChan struct {
 	m     map[int]chan tl.Object
 }
 
+func (s *SyncIntObjectChan) Reset() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.m = make(map[int]chan tl.Object)
+}
+
 func NewSyncIntObjectChan() *SyncIntObjectChan {
 	return &SyncIntObjectChan{m: make(map[int]chan tl.Object)}
 }
@@ -99,6 +105,12 @@ type SyncIntReflectTypes struct {
 	m     map[int][]reflect.Type
 }
 
+func (s *SyncIntReflectTypes) Reset() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.m = make(map[int][]reflect.Type)
+}
+
 func NewSyncIntReflectTypes() *SyncIntReflectTypes {
 	return &SyncIntReflectTypes{m: make(map[int][]reflect.Type)}
 }
@@ -139,4 +151,21 @@ func (s *SyncIntReflectTypes) Delete(key int) bool {
 	delete(s.m, key)
 	s.mutex.Unlock()
 	return ok
+}
+
+func (s *SyncIntObjectChan) Close() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	for k, v := range s.m {
+		CloseChannelWithoutPanic(v)
+		delete(s.m, k)
+	}
+}
+
+func CloseChannelWithoutPanic(c chan tl.Object) {
+	defer func() {
+		if r := recover(); r != nil {
+			close(c)
+		}
+	}()
 }

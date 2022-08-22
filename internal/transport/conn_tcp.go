@@ -7,11 +7,10 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/xelaj/go-dry/ioutil"
 )
 
 type tcpConn struct {
-	cancelReader *ioutil.CancelableReader
+	cancelReader *CancelableReader
 	conn         *net.TCPConn
 	timeout      time.Duration
 }
@@ -33,7 +32,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 	}
 
 	return &tcpConn{
-		cancelReader: ioutil.NewCancelableReader(cfg.Ctx, conn),
+		cancelReader: NewCancelableReader(cfg.Ctx, conn),
 		conn:         conn,
 		timeout:      cfg.Timeout,
 	}, nil

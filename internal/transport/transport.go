@@ -88,7 +88,6 @@ func (t *transport) ReadMsg() (messages.Common, error) {
 		}
 	}
 
-	// checking that response is not error code
 	if len(data) == tl.WordLen {
 		code := int(binary.LittleEndian.Uint32(data))
 		return nil, ErrCode(code)

@@ -7,7 +7,7 @@ import (
 	"crypto/aes"
 	"math/big"
 
-	"github.com/xelaj/go-dry"
+	utils "github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
 type AesBlock [aes.BlockSize]byte
@@ -15,7 +15,7 @@ type AesKV [32]byte
 type AesIgeBlock [48]byte
 
 func MessageKey(msg []byte) []byte {
-	return dry.Sha1(string(msg))[4:20]
+	return utils.Sha1(string(msg))[4:20]
 }
 
 func Encrypt(msg, key []byte) ([]byte, error) {
@@ -85,7 +85,7 @@ func DecryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) [
 
 	// режем последние 0-15 байт ориентируюясь по хешу
 	for i := len(decodedMessage) - 1; i > len(decodedMessage)-16; i-- {
-		if bytes.Equal(decodedHash, dry.Sha1Byte(decodedMessage[:i])) {
+		if bytes.Equal(decodedHash, utils.Sha1Byte(decodedMessage[:i])) {
 			return decodedMessage[:i]
 		}
 	}
@@ -95,14 +95,14 @@ func DecryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) [
 
 // EncryptMessageWithTempKeys шифрует сообщение паролем, которые получены в процессе обмена ключами диффи хеллмана
 func EncryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) []byte {
-	hash := dry.Sha1Byte(msg)
+	hash := utils.Sha1Byte(msg)
 
 	// добавляем остаток рандомных байт в сообщение, что бы суммарно оно делилось на 16
 	totalLen := len(hash) + len(msg)
 	overflowedLen := totalLen % 16
 	needToAdd := 16 - overflowedLen
 
-	msg = bytes.Join([][]byte{hash, msg, dry.RandomBytes(needToAdd)}, []byte{})
+	msg = bytes.Join([][]byte{hash, msg, utils.RandomBytes(needToAdd)}, []byte{})
 	return encryptMessageWithTempKeys(msg, nonceSecond, nonceServer)
 }
 
@@ -131,14 +131,14 @@ func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte) {
 	copy(t1[0:], nonceSecond.Bytes())
 	copy(t1[32:], nonceServer.Bytes())
 	// SHA1 of nonceSecond + nonceServer
-	hash1 := dry.Sha1Byte(t1)
+	hash1 := utils.Sha1Byte(t1)
 
 	// nonceServer + nonceSecond
 	t2 := make([]byte, 48)
 	copy(t2[0:], nonceServer.Bytes())
 	copy(t2[16:], nonceSecond.Bytes())
 	// SHA1 of nonceServer + nonceSecond
-	hash2 := dry.Sha1Byte(t2)
+	hash2 := utils.Sha1Byte(t2)
 
 	// SHA1(nonceSecond + nonceServer) + substr (SHA1(nonceServer + nonceSecond), 0, 12);
 	tmpAESKey := make([]byte, 32)
@@ -150,7 +150,7 @@ func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte) {
 	t3 := make([]byte, 64) // nonceSecond + nonceSecond
 	copy(t3[0:], nonceSecond.Bytes())
 	copy(t3[32:], nonceSecond.Bytes())
-	hash3 := dry.Sha1Byte(t3) // SHA1 of nonceSecond + nonceSecond
+	hash3 := utils.Sha1Byte(t3) // SHA1 of nonceSecond + nonceSecond
 
 	// substr (SHA1(server_nonce + new_nonce), 12, 8) + SHA1(new_nonce + new_nonce) + substr (new_nonce, 0, 4);
 	tmpAESIV := make([]byte, 32)

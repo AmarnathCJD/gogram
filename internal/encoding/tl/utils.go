@@ -3,6 +3,10 @@
 package tl
 
 import (
+	"crypto/rand"
+	"crypto/sha1"
+	"fmt"
+	"math/big"
 	"reflect"
 )
 
@@ -44,4 +48,53 @@ func sliceToInterfaceSlice(in any) []any {
 	}
 
 	return res
+}
+
+func Sha1Byte(input []byte) []byte {
+	r := sha1.Sum(input)
+	return r[:]
+}
+
+func Sha1(input string) []byte {
+	r := sha1.Sum([]byte(input))
+	return r[:]
+}
+
+func RandomBytes(size int) []byte {
+	b := make([]byte, size)
+	_, _ = rand.Read(b)
+	return b
+}
+
+var bitlen = []int{
+	1 << 3,  // 8
+	1 << 4,  // 16
+	1 << 5,  // 32
+	1 << 6,  // 64
+	1 << 7,  // 128
+	1 << 8,  // 256
+	1 << 9,  // 512
+	1 << 10, // 1024
+	1 << 11, // 2048
+}
+
+func BigIntBytes(v *big.Int, bitsize int) []byte {
+	vbytes := v.Bytes()
+	vbytesLen := len(vbytes)
+	for i, b := range bitlen {
+		if b == bitsize {
+			break
+		}
+
+		if i == len(bitlen)-1 {
+			panic(fmt.Errorf("bitsize not squaring by 2: bitsize %v", bitsize))
+		}
+	}
+
+	offset := bitsize/8 - vbytesLen
+	if offset < 0 {
+		panic(fmt.Errorf("bitsize too small: have %v, want at least %v", bitsize, vbytes))
+	}
+
+	return append(make([]byte, offset), vbytes...)
 }

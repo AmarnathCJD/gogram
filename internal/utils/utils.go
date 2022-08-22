@@ -47,3 +47,14 @@ func Sha1Byte(input []byte) []byte {
 	r := sha1.Sum(input)
 	return r[:]
 }
+
+func Sha1(input string) []byte {
+	r := sha1.Sum([]byte(input))
+	return r[:]
+}
+
+func RandomBytes(size int) []byte {
+	b := make([]byte, size)
+	_, _ = rand.Read(b)
+	return b
+}
