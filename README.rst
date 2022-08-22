@@ -1,4 +1,4 @@
-GoGRAM
+GoGram
 ========
 .. epigraph::
 
@@ -29,7 +29,7 @@ Creating a client
 
 .. code-block:: golang
 
-    client, _ := telegram.NewClient(telegram.ClientConfig{
+    client, _ := telegram.TelegramClient(telegram.ClientConfig{
          AppID: 6,
          AppHash: "",
          DataCenter: 2,
@@ -37,16 +37,17 @@ Creating a client
          ParseMode: "Markdown", //optional 
          AppVersion: "", // optional 
          DeviceModel: "", // optional 
+         AllowUpdates: true, // optional
     })
 
-    client.Idle() // start infinity polling
+    client.Idle() // start infinite polling
 
 Event handlers
 --------------
 
 .. code-block:: golang
 
-    func Echo(c *telegram.Client, m *telegram.NewMessage) error {
+    func Echo(m *telegram.NewMessage) error {
          if !m.IsPrivate() {
              return nil
          }
@@ -62,7 +63,10 @@ Event handlers
 
 Entity Cache
 ------------
-   Entities are cached on memory for now.
+
+.. code-block:: golang
+
+    Entities are cached on memory for now.
 
 Doing stuff
 -----------
@@ -81,7 +85,7 @@ Doing stuff
     client.EditMessage("username", message.ID, "Yep.")
     client.SendMedia("username", "https://m.media-amazon.com/images/M/MV5BYTRiNDQwYzAtMzVlZS00NTI5LWJjYjUtMzkwNTUzMWMxZTllXkEyXkFqcGdeQXVyNDIzMzcwNjc@._V1_FMjpg_UX1000_.jpg", opts)
     client.DeleteMessage("username", message.ID)
-
+    message.ForwardTo(message.ChatID())
     peer := client.ResolvePeer("username")
 
 Next steps
@@ -98,5 +102,5 @@ Contributing
     
 License
 -------
-    Mozilla Public License 2.0
+    Mozilla Public License 2.2
 
