@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
 	"strings"
@@ -43,7 +44,7 @@ func HandleMessageUpdate(update Message) {
 		for _, handle := range MessageHandles {
 			if handle.IsMatch(msg.Message) {
 				if err := handle.Handler(PackMessage(handle.Client, msg)); err != nil {
-					handle.Client.Logger.Println("Error in message handle:", err)
+					handle.Client.Logger.Println("RPC Error:", err)
 				}
 			}
 		}
@@ -85,7 +86,9 @@ func (c *Client) RemoveEventHandler(pattern string) {
 	}
 }
 
+// Sort and Handle all the Incoming Updates
 func HandleUpdate(u interface{}) bool {
+UpdateTypeSwitching:
 	switch upd := u.(type) {
 	case *UpdatesObj:
 		cache.UpdatePeersToCache(upd.Users, upd.Chats)
@@ -95,6 +98,17 @@ func HandleUpdate(u interface{}) bool {
 				go func() { HandleMessageUpdate(update.Message) }()
 			case *UpdateNewChannelMessage:
 				go func() { HandleMessageUpdate(update.Message) }()
+			case *UpdateBotInlineQuery:
+			case *UpdateBotInlineSend:
+			case *UpdateBotCallbackQuery:
+			case *UpdateBotShippingQuery:
+			case *UpdateBotPrecheckoutQuery:
+			case *UpdateBotStopped:
+			case *UpdateChannel:
+			case *UpdateChannelAvailableMessages:
+			case *UpdateChannelMessageForwards:
+			case *UpdateChannelMessageViews:
+			case *UpdateChannelParticipant:
 			}
 		}
 	case *UpdateShort:
@@ -104,9 +118,25 @@ func HandleUpdate(u interface{}) bool {
 		case *UpdateNewChannelMessage:
 			go func() { HandleMessageUpdate(upd.Message) }()
 		}
+	case *UpdateShortMessage:
+		go func() {
+			HandleMessageUpdate(&MessageObj{Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities})
+		}()
+	case *UpdateShortChatMessage:
+		go func() {
+			HandleMessageUpdate(&MessageObj{Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: getPeerUser(upd.ChatID), Date: upd.Date, Entities: upd.Entities})
+		}()
+	case *UpdateShortSentMessage:
+		go func() {
+			HandleMessageUpdate(&MessageObj{Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities})
+		}()
+	case *UpdatesCombined:
+		u = upd.Updates
+		cache.UpdatePeersToCache(upd.Users, upd.Chats)
+		goto UpdateTypeSwitching
+	case *UpdatesTooLong:
 	default:
-		fmt.Println("unknown update type")
+		log.Println("unknown update type", reflect.TypeOf(u).String())
 	}
-
 	return true
 }

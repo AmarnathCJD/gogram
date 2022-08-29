@@ -3,136 +3,77 @@ package telegram
 import (
 	"regexp"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
-// Will Rewrite this later
-// Full Messed up
-
-func ZeroOrValue(f int32) int32 {
-	if f > 0 {
-		return f
-	}
-	return 0
-
-}
-
-const regex = `<.*?>`
-
-var (
-	EntityCodeRegex          = regexp.MustCompile("`([\\s\\S]*)`")
-	EntityBoldRegex          = regexp.MustCompile(`\*\*([\s\S]*)\*\*`)
-	EntityItalicRegex        = regexp.MustCompile(`__([\s\S]*)__`)
-	EntityStrikeRegex        = regexp.MustCompile(`\~\~([\s\S]*)\~\~`)
-	EntityUnderlineRegex     = regexp.MustCompile(`\--([\s\S]*)\--`)
-	EntitySpoilerRegex       = regexp.MustCompile(`||([\s\S]*)||`)
-	EntityCodeHTMLRegex      = regexp.MustCompile(`<code>([\s\S]*)</code>`)
-	EntityBoldHTMLRegex      = regexp.MustCompile(`<b>([\s\S]*)</b>`)
-	EntityItalicHTMLRegex    = regexp.MustCompile(`<i>([\s\S]*)</i>`)
-	EntityStrikeHTMLRegex    = regexp.MustCompile(`<s>([\s\S]*)</s>`)
-	EntityUnderlineHTMLRegex = regexp.MustCompile(`<u>([\s\S]*)</u>`)
-	EntitySpoilerHTMLRegex   = regexp.MustCompile(`<tgspoiler>([\s\S]*)</tgspoiler>`)
-)
-
-func (c *Client) ParseEntity(text string, ParseMode string) (string, []MessageEntity) {
-	var e []MessageEntity
-	var diffrence int
-	rgx := regexp.MustCompile(regex)
-	pT := rgx.ReplaceAllString(text, "")
-	if ParseMode == "Markdown" {
-		for _, m := range EntityCodeRegex.FindAllStringSubmatch(text, -1) {
-			text = strings.Replace(text, "`", "", 2)
-			e = append(e, &MessageEntityCode{
-				Offset: GetOffSet(text, m[1]),
-				Length: int32(len(m[1])),
-			})
-		}
-		for _, m := range EntityBoldRegex.FindAllStringSubmatch(text, -1) {
-			text = strings.Replace(text, "**", "", 2)
-			e = append(e, &MessageEntityBold{
-				Offset: GetOffSet(text, m[1]),
-				Length: int32(len(m[1])),
-			})
-		}
-		for _, m := range EntityItalicRegex.FindAllStringSubmatch(text, -1) {
-			text = strings.Replace(text, "__", "", 2)
-			e = append(e, &MessageEntityItalic{
-				Offset: GetOffSet(text, m[1]),
-				Length: int32(len(m[1])),
-			})
-		}
-		for _, m := range EntityStrikeRegex.FindAllStringSubmatch(text, -1) {
-			text = strings.Replace(text, "~~", "", 2)
-			e = append(e, &MessageEntityStrike{
-				Offset: GetOffSet(text, m[1]),
-				Length: int32(len(m[1])),
-			})
-		}
-		for _, m := range EntityUnderlineRegex.FindAllStringSubmatch(text, -1) {
-			text = strings.Replace(text, "--", "", 2)
-			e = append(e, &MessageEntityUnderline{
-				Offset: GetOffSet(text, m[1]),
-				Length: int32(len(m[1])),
-			})
-		}
-		for _, m := range EntitySpoilerRegex.FindAllStringSubmatch(text, -1) {
-			text = strings.Replace(text, "||", "", 2)
-			e = append(e, &MessageEntitySpoiler{
-				Offset: GetOffSet(text, m[1]),
-				Length: int32(len(m[1])),
-			})
-		}
+func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, string) {
+	var entities []MessageEntity
+	if mode == HTML {
+		tok, _ := goquery.NewDocumentFromReader(strings.NewReader(message))
+		var htmlFreeRegex = regexp.MustCompile(`<.*?>`)
+		var Text = htmlFreeRegex.ReplaceAllString(message, "")
+		tok.Find("code").Each(func(i int, s *goquery.Selection) {
+			if text := s.Text(); text != "" {
+				entities = append(entities, &MessageEntityCode{
+					Offset: int32(GetOffSet(Text, text)),
+					Length: int32(len(text)),
+				})
+			}
+		})
+		tok.Find("b").Each(func(i int, s *goquery.Selection) {
+			if text := s.Text(); text != "" {
+				entities = append(entities, &MessageEntityBold{
+					Offset: int32(GetOffSet(Text, text)),
+					Length: int32(len(text)),
+				})
+			}
+		})
+		tok.Find("i").Each(func(i int, s *goquery.Selection) {
+			if text := s.Text(); text != "" {
+				entities = append(entities, &MessageEntityItalic{
+					Offset: int32(GetOffSet(Text, text)),
+					Length: int32(len(text)),
+				})
+			}
+		})
+		tok.Find("s").Each(func(i int, s *goquery.Selection) {
+			if text := s.Text(); text != "" {
+				entities = append(entities, &MessageEntityStrike{
+					Offset: int32(GetOffSet(Text, text)),
+					Length: int32(len(text)),
+				})
+			}
+		})
+		tok.Find("u").Each(func(i int, s *goquery.Selection) {
+			if text := s.Text(); text != "" {
+				entities = append(entities, &MessageEntityUnderline{
+					Offset: int32(GetOffSet(Text, text)),
+					Length: int32(len(text)),
+				})
+			}
+		})
+		tok.Find("tgspoiler").Each(func(i int, s *goquery.Selection) {
+			if text := s.Text(); text != "" {
+				entities = append(entities, &MessageEntitySpoiler{
+					Offset: int32(GetOffSet(Text, text)),
+					Length: int32(len(text)),
+				})
+			}
+		})
+		tok.Find("a").Each(func(i int, s *goquery.Selection) {
+			if text := s.Text(); text != "" {
+				entities = append(entities, &MessageEntityTextURL{
+					Offset: int32(GetOffSet(Text, text)),
+					Length: int32(len(text)),
+					URL:    s.AttrOr("href", ""),
+				})
+			}
+		})
+		return entities, Text
 	} else {
-		for _, m := range EntityCodeHTMLRegex.FindAllStringSubmatch(text, -1) {
-			text = strings.Replace(text, "<code>", "", 1)
-			text = strings.Replace(text, "</code>", "", 1)
-			e = append(e, &MessageEntityCode{
-				Offset: ZeroOrValue(GetOffSet(pT, m[1])),
-				Length: int32(len(m[1])),
-			})
-			diffrence += 13
-		}
-		for _, m := range EntityBoldHTMLRegex.FindAllStringSubmatch(text, -1) {
-			text = strings.Replace(text, "<b>", "", 1)
-			text = strings.Replace(text, "</b>", "", 1)
-			e = append(e, &MessageEntityBold{
-				Offset: ZeroOrValue(GetOffSet(pT, m[1])),
-				Length: int32(len(m[1])),
-			})
-		}
-		for _, m := range EntityItalicHTMLRegex.FindAllStringSubmatch(text, -1) {
-			text = strings.Replace(text, "<i>", "", 1)
-			text = strings.Replace(text, "</i>", "", 1)
-			e = append(e, &MessageEntityItalic{
-				Offset: GetOffSet(pT, m[1]),
-				Length: int32(len(m[1])),
-			})
-		}
-		for _, m := range EntityStrikeHTMLRegex.FindAllStringSubmatch(text, -1) {
-			text = strings.Replace(text, "<s>", "", 1)
-			text = strings.Replace(text, "</s>", "", 1)
-			e = append(e, &MessageEntityStrike{
-				Offset: GetOffSet(pT, m[1]),
-				Length: int32(len(m[1])),
-			})
-		}
-		for _, m := range EntityUnderlineHTMLRegex.FindAllStringSubmatch(text, -1) {
-			text = strings.Replace(text, "<u>", "", 1)
-			text = strings.Replace(text, "</u>", "", 1)
-			e = append(e, &MessageEntityUnderline{
-				Offset: GetOffSet(pT, m[1]),
-				Length: int32(len(m[1])),
-			})
-		}
-		for _, m := range EntitySpoilerHTMLRegex.FindAllStringSubmatch(text, -1) {
-			text = strings.Replace(text, "<tgspoiler>", "", 1)
-			text = strings.Replace(text, "</tgspoiler>", "", 1)
-			e = append(e, &MessageEntitySpoiler{
-				Offset: GetOffSet(pT, m[1]),
-				Length: int32(len(m[1])),
-			})
-		}
+		return entities, message
 	}
-	return text, e
 }
 
 func GetOffSet(str string, substr string) int32 {
@@ -183,111 +124,5 @@ func (m *NewMessage) Args() string {
 	if len(Messages) < 2 {
 		return ""
 	}
-	return strings.Join(Messages[1:], " ")
+	return strings.TrimSpace(strings.Join(Messages[1:], " "))
 }
-
-type Entity struct {
-	Offset int32
-	Length int32
-	Text   string
-	E      []MessageEntity
-}
-
-func (e *Entity) Code(Text string) *Entity {
-	e.Length += int32(len(Text))
-	e.Text += Text
-	e.E = append(e.E, &MessageEntityCode{
-		Offset: e.Offset,
-		Length: int32(len(Text)),
-	})
-	e.Offset += int32(len(Text))
-	return e
-}
-
-func (e *Entity) Bold(Text string) *Entity {
-	e.Length += int32(len(Text))
-	e.Text += Text
-	e.E = append(e.E, &MessageEntityBold{
-		Offset: e.Offset,
-		Length: int32(len(Text)),
-	})
-	e.Offset += int32(len(Text))
-	return e
-}
-
-func (e *Entity) Italic(Text string) *Entity {
-	e.Offset += int32(len(Text))
-	e.Length += int32(len(Text))
-	e.Text += Text
-	e.E = append(e.E, &MessageEntityItalic{
-		Offset: e.Offset,
-		Length: int32(len(Text)),
-	})
-	return e
-}
-
-func (e *Entity) Strike(Text string) *Entity {
-	e.Offset += int32(len(Text))
-	e.Length += int32(len(Text))
-	e.Text += Text
-	e.E = append(e.E, &MessageEntityStrike{
-		Offset: e.Offset,
-		Length: int32(len(Text)),
-	})
-	return e
-}
-
-func (e *Entity) Underline(Text string) *Entity {
-	e.Offset += int32(len(Text))
-	e.Length += int32(len(Text))
-	e.Text += Text
-	e.E = append(e.E, &MessageEntityUnderline{
-		Offset: e.Offset,
-		Length: int32(len(Text)),
-	})
-	return e
-}
-
-func (e *Entity) TextURL(Text string, URL string) *Entity {
-	e.Offset += int32(len(Text))
-	e.Length += int32(len(Text))
-	e.Text += Text
-	e.E = append(e.E, &MessageEntityTextURL{
-		Offset: e.Offset,
-		Length: int32(len(Text)),
-		URL:    URL,
-	})
-	return e
-}
-
-func (e *Entity) Spoiler(Text string) *Entity {
-	e.Length += int32(len(Text))
-	e.Text += Text
-	e.E = append(e.E, &MessageEntitySpoiler{
-		Offset: e.Offset,
-		Length: int32(len(Text)),
-	})
-	e.Offset += int32(len(Text))
-	return e
-}
-
-func (e *Entity) Entities() []MessageEntity {
-	return e.E
-}
-
-func (e *Entity) GetText() string {
-	return e.Text
-}
-
-func (e *Entity) Plain(Text string) *Entity {
-	e.Offset += int32(len(Text))
-	e.Length += int32(len(Text))
-	e.Text += Text
-	return e
-}
-
-func Ent() *Entity {
-	return &Entity{}
-}
-
-// Make HTML Parser TODO: Add more tags

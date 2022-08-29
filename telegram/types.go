@@ -12,6 +12,19 @@ type (
 		NoForwards  bool
 	}
 
+	MediaOptions struct {
+		Caption       interface{}
+		ParseMode     string
+		Silent        bool
+		LinkPreview   bool
+		ReplyMarkup   ReplyMarkup
+		ClearDraft    bool
+		NoForwards    bool
+		Thumb         InputFile
+		NoSoundVideo  bool
+		ForceDocument bool
+	}
+
 	ForwardOptions struct {
 		HideCaption bool
 		HideAuthor  bool

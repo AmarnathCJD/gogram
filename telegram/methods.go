@@ -31,10 +31,7 @@ func (c *Client) SendMessage(peerID interface{}, TextObj interface{}, Opts ...*S
 	var Text string
 	switch TextObj := TextObj.(type) {
 	case string:
-		Text, e = c.ParseEntity(TextObj, options.ParseMode)
-	case *Entity:
-		Text = TextObj.GetText()
-		e = TextObj.Entities()
+		e, Text = c.FormatMessage(TextObj, options.ParseMode)
 	case MessageMedia:
 		return c.SendMedia(peerID, TextObj, Opts[0])
 	case InputMedia:
@@ -74,10 +71,7 @@ func (c *Client) EditMessage(peerID interface{}, MsgID int32, TextObj interface{
 	var Text string
 	switch TextObj := TextObj.(type) {
 	case string:
-		Text, e = c.ParseEntity(TextObj, options.ParseMode)
-	case *Entity:
-		Text = TextObj.GetText()
-		e = TextObj.Entities()
+		e, Text = c.FormatMessage(TextObj, options.ParseMode)
 	}
 	PeerToSend, err := c.GetSendablePeer(peerID)
 	if err != nil {
@@ -104,7 +98,8 @@ func (c *Client) DeleteMessage(peerID interface{}, MsgIDs ...int32) error {
 	}
 	PeerChannel, ok := PeerToSend.(*InputPeerChannel)
 	if !ok {
-		return errors.New("peer is not a channel")
+		_, err = c.MessagesDeleteMessages(true, MsgIDs)
+		return err
 	}
 	_, err = c.ChannelsDeleteMessages(&InputChannelObj{ChannelID: PeerChannel.ChannelID, AccessHash: PeerChannel.AccessHash}, MsgIDs)
 	return err
@@ -148,10 +143,7 @@ func (c *Client) SendMedia(peerID interface{}, Media interface{}, Opts ...*SendO
 	var e []MessageEntity
 	switch Capt := options.Caption.(type) {
 	case string:
-		Caption, e = c.ParseEntity(Capt, options.ParseMode)
-	case *Entity:
-		Caption = Capt.GetText()
-		e = Capt.Entities()
+		e, Caption = c.FormatMessage(Capt, options.ParseMode)
 	}
 	PeerToSend, err := c.GetSendablePeer(peerID)
 	if err != nil {
