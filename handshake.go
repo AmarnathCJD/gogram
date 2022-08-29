@@ -35,7 +35,7 @@ func (m *MTProto) makeAuthKey() error {
 	}
 	found := false
 	for _, b := range res.Fingerprints {
-		if uint64(b) == binary.LittleEndian.Uint64(keys.RSAFingerprint(m.publicKey)) {
+		if uint64(b) == binary.LittleEndian.Uint64(keys.RSAFingerprint(m.PublicKey)) {
 			found = true
 			break
 		}
@@ -66,9 +66,9 @@ func (m *MTProto) makeAuthKey() error {
 	hashAndMsg := make([]byte, 255)
 	copy(hashAndMsg, append(Sha1(string(message)), message...))
 
-	encryptedMessage := math.DoRSAencrypt(hashAndMsg, m.publicKey)
+	encryptedMessage := math.DoRSAencrypt(hashAndMsg, m.PublicKey)
 
-	keyFingerprint := int64(binary.LittleEndian.Uint64(keys.RSAFingerprint(m.publicKey)))
+	keyFingerprint := int64(binary.LittleEndian.Uint64(keys.RSAFingerprint(m.PublicKey)))
 	dhResponse, err := m.reqDHParams(nonceFirst, nonceServer, p.Bytes(), q.Bytes(), keyFingerprint, encryptedMessage)
 	if err != nil {
 		return fmt.Errorf("reqDHParams: %w", err)

@@ -50,7 +50,7 @@ type MTProto struct {
 
 	tokensStorage session.SessionLoader
 
-	publicKey *rsa.PublicKey
+	PublicKey *rsa.PublicKey
 
 	serviceChannel       chan tl.Object
 	serviceModeActivated bool
@@ -104,7 +104,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		encrypted:             s != nil,
 		sessionId:             utils.GenerateSessionID(),
 		serviceChannel:        make(chan tl.Object),
-		publicKey:             c.PublicKey,
+		PublicKey:             c.PublicKey,
 		responseChannels:      utils.NewSyncIntObjectChan(),
 		expectedTypes:         utils.NewSyncIntReflectTypes(),
 		serverRequestHandlers: make([]customHandlerFunc, 0),
@@ -210,7 +210,7 @@ func (m *MTProto) InvokeRequestWithoutUpdate(data tl.Object, expectedTypes ...re
 
 func (m *MTProto) Disconnect() error {
 	m.stopRoutines()
-	m.responseChannels.Close()
+	// m.responseChannels.Close()
 	return nil
 }
 
@@ -234,11 +234,11 @@ func (m *MTProto) Reconnect(InvokeLayer bool) error {
 		if err != nil {
 			return errors.Wrap(err, "make auth key")
 		}
-	} else {
-		m.InvokeRequestWithoutUpdate(&utils.PingParams{
-			PingID: 123456789,
-		})
 	}
+	m.InvokeRequestWithoutUpdate(&utils.PingParams{
+		PingID: 123456789,
+	})
+	fmt.Println("Pong!")
 	return errors.Wrap(err, "recreating connection")
 }
 
@@ -307,12 +307,14 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					if err != nil {
 						m.Logger.Println("reconnecting error:", err)
 					}
+					return
 				default:
 					if strings.Contains(err.Error(), "required to reconnect!") {
 						err = m.Reconnect(false)
 						if err != nil {
 							m.Logger.Println("reconnecting error:", err)
 						}
+						return
 					} else {
 						m.Logger.Println("reading error:", err)
 					}
@@ -389,6 +391,7 @@ messageTypeSwitching:
 			v, _ := m.responseChannels.Get(k)
 			v <- &errorSessionConfigsChanged{}
 		}
+		m.Ping()
 		m.mutex.Unlock()
 
 	case *objects.NewSessionCreated:

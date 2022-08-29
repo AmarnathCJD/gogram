@@ -117,19 +117,19 @@ func (c *Client) GetSendablePeer(Peer interface{}) (InputPeer, error) {
 	case int64:
 		PeerEntity := c.GetInputPeer(Peer)
 		if PeerEntity == nil {
-			return nil, errors.New("unknown peer")
+			return nil, errors.New("unknown peer, type int64")
 		}
 		return PeerEntity, nil
 	case int32:
 		PeerEntity := c.GetInputPeer(int64(Peer))
 		if PeerEntity == nil {
-			return nil, errors.New("unknown peer")
+			return nil, errors.New("unknown peer, type int32")
 		}
 		return PeerEntity, nil
 	case int:
 		PeerEntity := c.GetInputPeer(int64(Peer))
 		if PeerEntity == nil {
-			return nil, errors.New("unknown peer")
+			return nil, errors.New("unknown peer, type int")
 		}
 		return PeerEntity, nil
 	case string:
@@ -145,7 +145,7 @@ func (c *Client) GetSendablePeer(Peer interface{}) (InputPeer, error) {
 		case *UserObj:
 			return &InputPeerUser{UserID: PeerEntity.ID, AccessHash: PeerEntity.AccessHash}, nil
 		default:
-			return nil, errors.New("unknown peer type")
+			return nil, errors.New(fmt.Sprintf("unknown peer type %s", reflect.TypeOf(PeerEntity).String()))
 		}
 	default:
 		return nil, errors.New("failed to get sendable peer")
@@ -174,7 +174,6 @@ func (c *Client) GetSendableMedia(media interface{}) (InputMedia, error) {
 			}
 		}
 		return &InputMediaDocumentExternal{URL: media}, nil
-
 	case InputMedia:
 		return media, nil
 	case MessageMedia:
@@ -195,9 +194,27 @@ func (c *Client) GetSendableMedia(media interface{}) (InputMedia, error) {
 		default:
 			return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(media).String()))
 		}
-	default:
-		return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(media).String()))
+	case InputFile:
+		var (
+			IsPhoto  bool
+			mimeType string
+			fileName string
+		)
+		switch media := media.(type) {
+		case *InputFileObj:
+			mimeType, IsPhoto = resolveMimeType(media.Name)
+			fileName = media.Name
+		case *InputFileBig:
+			mimeType, IsPhoto = resolveMimeType(media.Name)
+			fileName = media.Name
+		}
+		if IsPhoto {
+			return &InputMediaUploadedPhoto{File: media}, nil
+		} else {
+			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}}}, nil
+		}
 	}
+	return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(media).String()))
 }
 
 func (c *Client) ResolveUsername(username string) (interface{}, error) {

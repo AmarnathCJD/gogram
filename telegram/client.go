@@ -79,7 +79,7 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 		config:    &c,
 		Cache:     cache,
 		ParseMode: Or(c.ParseMode, "Markdown"),
-		Logger:    log.New(os.Stderr, "Client - updates - ", log.LstdFlags),
+		Logger:    log.New(os.Stderr, "Client - ", log.LstdFlags),
 	}
 
 	resp, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
