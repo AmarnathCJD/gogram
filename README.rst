@@ -7,7 +7,7 @@ GoGram
 
 
 **gogram** is a **Pure Golang**
-MTProto_ library to interact with Telegram's API
+MTProto_ (Layer 144) library to interact with Telegram's API
 as a user or through a bot account (bot API alternative).
 
 |image|
@@ -92,22 +92,26 @@ Doing stuff
     message.ForwardTo(message.ChatID())
     peer := client.ResolvePeer("username")
 
-Next steps
+TODO
 ----------
 
-Support Chat_
+- [x] Basic MTProto implementation
+- [x] Implement all Methods for latest layer (144)
+- [x] Entity Cache + Friendly Methods
+- [x] Add Update Handle System
+- [ ] Make a reliable HTML Parser
+- [ ] Friendly Methods to Handle CallbackQuery, VoiceCalls
+- [ ] Multiple tests
+- [ ] Support MTProxy
+
 
 .. _MTProto: https://core.telegram.org/mtproto
 .. _chat: https://t.me/rosexchat
 .. |image| image:: https://te.legra.ph/file/fe4dbc185ff2138cbdf45.jpg
   :width: 400
-  :alt: Alternative text
+  :alt: Logo
 
 Contributing
 ------------
     Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
     
-License
--------
-    Mozilla Public License 2.2
-
