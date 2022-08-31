@@ -238,7 +238,6 @@ func (m *MTProto) Reconnect(InvokeLayer bool) error {
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
 	})
-	fmt.Println("Pong!")
 	return errors.Wrap(err, "recreating connection")
 }
 
@@ -386,12 +385,15 @@ messageTypeSwitching:
 		if err != nil {
 			return errors.Wrap(err, "saving session")
 		}
+		m.Reconnect(false)
+		fmt.Println("Kollum")
 		m.mutex.Lock()
 		for _, k := range m.responseChannels.Keys() {
 			v, _ := m.responseChannels.Get(k)
 			v <- &errorSessionConfigsChanged{}
 		}
-		m.Ping()
+
+		// m.Ping()
 		m.mutex.Unlock()
 
 	case *objects.NewSessionCreated:

@@ -3,22 +3,27 @@ package telegram
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 type (
 	NewMessage struct {
 		Client         *Client
-		OriginalUpdate *MessageObj
+		OriginalUpdate Message
 		Chat           *ChatObj
 		Sender         *UserObj
-		SenderChat     *ChatObj
+		SenderChat     *Channel
 		Channel        *Channel
 		ID             int32
+		Action         MessageAction
+		Message        *MessageObj
+		Peer           InputPeer
 	}
 )
 
 func (m *NewMessage) PeerChat() (*ChatObj, error) {
-	switch Peer := m.OriginalUpdate.PeerID.(type) {
+	switch Peer := m.Message.PeerID.(type) {
 	case *PeerUser:
 		return m.Client.GetPeerChat(Peer.UserID)
 	case *PeerChat:
@@ -29,8 +34,8 @@ func (m *NewMessage) PeerChat() (*ChatObj, error) {
 	return nil, fmt.Errorf("failed to resolve peer")
 }
 
-func (m *NewMessage) Message() string {
-	return m.OriginalUpdate.Message
+func (m *NewMessage) MessageText() string {
+	return m.Message.Message
 }
 
 func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
@@ -38,20 +43,20 @@ func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 		return nil, fmt.Errorf("message is not a reply")
 	}
 	if m.IsPrivate() {
-		if m.OriginalUpdate.ReplyTo == nil || m.OriginalUpdate.ReplyTo.ReplyToMsgID == 0 {
+		if m.Message.ReplyTo == nil || m.Message.ReplyTo.ReplyToMsgID == 0 {
 			return nil, nil
 		}
 		IDs := []InputMessage{}
-		IDs = append(IDs, &InputMessageID{ID: m.OriginalUpdate.ReplyTo.ReplyToMsgID})
+		IDs = append(IDs, &InputMessageID{ID: m.Message.ReplyTo.ReplyToMsgID})
 		ReplyMsg, err := m.Client.MessagesGetMessages(IDs)
 		if err != nil {
 			return nil, err
 		}
 		Message := ReplyMsg.(*MessagesMessagesObj)
-		go func() { m.Client.Cache.UpdatePeersToCache(Message.Users, Message.Chats) }()
+		m.Client.Cache.UpdatePeersToCache(Message.Users, Message.Chats)
 		switch Msg := Message.Messages[0].(type) {
 		case *MessageObj:
-			return PackMessage(m.Client, Msg), nil
+			return packMessage(m.Client, Msg), nil
 		case *MessageEmpty:
 			return nil, nil
 		default:
@@ -59,7 +64,7 @@ func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 		}
 	} else if m.IsChannel() {
 		IDs := []InputMessage{}
-		IDs = append(IDs, &InputMessageID{ID: m.OriginalUpdate.ReplyTo.ReplyToMsgID})
+		IDs = append(IDs, &InputMessageID{ID: m.Message.ReplyTo.ReplyToMsgID})
 		InputPeer, err := m.Client.GetSendablePeer(m.ChatID())
 		if err != nil {
 			return nil, err
@@ -73,19 +78,25 @@ func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 			return nil, err
 		}
 		Msg := ReplyMsg.(*MessagesChannelMessages)
+		if len(Msg.Messages) == 0 {
+			return nil, errors.New("message not found")
+		}
+		m.Client.Cache.UpdatePeersToCache(Msg.Users, Msg.Chats)
 		switch Msg := Msg.Messages[0].(type) {
 		case *MessageObj:
-			return PackMessage(m.Client, Msg), nil
+			return packMessage(m.Client, Msg), nil
 		case *MessageEmpty:
-			return nil, nil
+			return nil, errors.Wrap(errors.New("message empty"), "ChannelsGetMessages")
+		case *MessageService:
+			return packMessage(m.Client, Msg), nil
 		}
 	}
 	return nil, fmt.Errorf("message is not a reply")
 }
 
 func (m *NewMessage) ChatID() int64 {
-	if m.OriginalUpdate.PeerID != nil {
-		switch Peer := m.OriginalUpdate.PeerID.(type) {
+	if m.Message.PeerID != nil {
+		switch Peer := m.Message.PeerID.(type) {
 		case *PeerUser:
 			return Peer.UserID
 		case *PeerChat:
@@ -101,7 +112,7 @@ func (m *NewMessage) SenderID() int64 {
 	if m.IsPrivate() {
 		return m.ChatID()
 	}
-	switch Peer := m.OriginalUpdate.FromID.(type) {
+	switch Peer := m.Message.FromID.(type) {
 	case *PeerUser:
 		return Peer.UserID
 	case *PeerChat:
@@ -114,35 +125,37 @@ func (m *NewMessage) SenderID() int64 {
 }
 
 func (m *NewMessage) ChatType() string {
-	switch m.OriginalUpdate.PeerID.(type) {
-	case *PeerUser:
-		return "user"
-	case *PeerChat:
-		return "chat"
-	case *PeerChannel:
-		return "channel"
+	if m.Message != nil && m.Message.PeerID != nil {
+		switch m.Message.PeerID.(type) {
+		case *PeerUser:
+			return EntityUser
+		case *PeerChat:
+			return EntityChat
+		case *PeerChannel:
+			return EntityChannel
+		}
 	}
-	return ""
+	return EntityUnknown
 }
 
 func (m *NewMessage) IsPrivate() bool {
-	return m.ChatType() == "user"
+	return m.ChatType() == EntityUser
 }
 
 func (m *NewMessage) IsGroup() bool {
-	return m.ChatType() == "chat"
+	return m.ChatType() == EntityChat || (m.ChatType() == EntityChannel && !m.Channel.Broadcast)
 }
 
 func (m *NewMessage) IsChannel() bool {
-	return m.ChatType() == "channel"
+	return m.ChatType() == EntityChannel
 }
 
 func (m *NewMessage) IsReply() bool {
-	return m.OriginalUpdate.ReplyTo != nil && m.OriginalUpdate.ReplyTo.ReplyToMsgID != 0
+	return m.Message.ReplyTo != nil && m.Message.ReplyTo.ReplyToMsgID != 0
 }
 
 func (m *NewMessage) Marshal() string {
-	b, _ := json.MarshalIndent(m.OriginalUpdate, "", "  ")
+	b, _ := json.MarshalIndent(m.Message, "", "  ")
 	return string(b)
 }
 
@@ -176,10 +189,10 @@ func (m *NewMessage) GetSenderChat() string {
 
 // Media is a media object in a message
 func (m *NewMessage) Media() MessageMedia {
-	if m.OriginalUpdate.Media == nil {
+	if m.Message.Media == nil {
 		return nil
 	}
-	return m.OriginalUpdate.Media
+	return m.Message.Media
 }
 
 // IsMedia returns true if message contains media
@@ -223,7 +236,7 @@ func (m *NewMessage) MediaType() string {
 
 // IsCommand returns true if the message is a command
 func (m *NewMessage) IsCommand() bool {
-	for _, p := range m.OriginalUpdate.Entities {
+	for _, p := range m.Message.Entities {
 		if _, ok := p.(*MessageEntityBotCommand); ok {
 			return true
 		}
@@ -234,7 +247,7 @@ func (m *NewMessage) IsCommand() bool {
 // GetCommand returns the command from the message.
 // If the message is not a command, it returns an empty string.
 func (m *NewMessage) GetCommand() string {
-	for _, p := range m.OriginalUpdate.Entities {
+	for _, p := range m.Message.Entities {
 		if _, ok := p.(*MessageEntityBotCommand); ok && m.Text() != "" {
 			Text := m.Text()
 			p := p.(*MessageEntityBotCommand)
@@ -255,9 +268,9 @@ func (m *NewMessage) Reply(Text interface{}, Opts ...SendOptions) (*NewMessage, 
 	if resp == nil {
 		return nil, err
 	}
-	r := *resp
-	r.PeerID = m.OriginalUpdate.PeerID
-	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: resp.ID}, err
+	response := *resp
+	response.Message.PeerID = m.Message.PeerID
+	return &response, err
 }
 
 func (m *NewMessage) Respond(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
@@ -268,9 +281,17 @@ func (m *NewMessage) Respond(Text interface{}, Opts ...SendOptions) (*NewMessage
 	if resp == nil {
 		return nil, err
 	}
-	r := *resp
-	r.PeerID = m.OriginalUpdate.PeerID
-	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: resp.ID}, err
+	response := *resp
+	response.Message.PeerID = m.Message.PeerID
+	return &response, err
+}
+
+func (m *NewMessage) SendDice(Emoticon string) (*NewMessage, error) {
+	return m.Client.SendDice(m.ChatID(), Emoticon)
+}
+
+func (m *NewMessage) SendAction(Action interface{}) (*ActionResult, error) {
+	return m.Client.SendAction(m.ChatID(), Action)
 }
 
 func (m *NewMessage) Edit(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
@@ -281,9 +302,37 @@ func (m *NewMessage) Edit(Text interface{}, Opts ...SendOptions) (*NewMessage, e
 	if resp == nil {
 		return nil, err
 	}
-	r := *resp
-	r.PeerID = m.OriginalUpdate.PeerID
-	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: resp.ID}, err
+	response := *resp
+	response.Message.PeerID = m.Message.PeerID
+	return &response, err
+}
+
+func (m *NewMessage) ReplyMedia(Media interface{}, Opts ...MediaOptions) (*NewMessage, error) {
+	if len(Opts) == 0 {
+		Opts = append(Opts, MediaOptions{ReplyID: m.ID})
+	} else {
+		Opts[0].ReplyID = m.ID
+	}
+	resp, err := m.Client.SendMedia(m.ChatID(), Media, &Opts[0])
+	if err != nil {
+		return nil, err
+	}
+	response := *resp
+	response.Message.PeerID = m.Message.PeerID
+	return &response, err
+}
+
+func (m *NewMessage) RespondMedia(Media interface{}, Opts ...MediaOptions) (*NewMessage, error) {
+	if len(Opts) == 0 {
+		Opts = append(Opts, MediaOptions{})
+	}
+	resp, err := m.Client.SendMedia(m.ChatID(), Media, &Opts[0])
+	if err != nil {
+		return nil, err
+	}
+	response := *resp
+	response.Message.PeerID = m.Message.PeerID
+	return &response, err
 }
 
 // Delete deletes the message
@@ -305,7 +354,17 @@ func (m *NewMessage) ForwardTo(ChatID int64, Opts ...ForwardOptions) (*NewMessag
 	if resp == nil {
 		return nil, err
 	}
-	r := *resp
-	r.PeerID = m.OriginalUpdate.PeerID
-	return &NewMessage{Client: m.Client, OriginalUpdate: &r, ID: resp.ID}, err
+	response := *resp
+	response.Message.PeerID = m.Message.PeerID
+	return &response, err
+}
+
+// Download Media to Disk,
+// if path is empty, it will be downloaded to the current directory,
+// returns the path to the downloaded file
+func (m *NewMessage) Download(fileName ...string) (string, error) {
+	if m.IsMedia() {
+		m.Client.DownloadMedia(m.Media(), fileName...)
+	}
+	return "", errors.New("message is not media")
 }

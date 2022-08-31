@@ -59,7 +59,7 @@ Event handlers
          return err
     }
 
-    client.AddEventHandler(telegram.OnNewMessage, Echo)
+    client.AddMessageHandler(telegram.OnNewMessage, Echo)
 
 Entity Cache
 ------------

@@ -551,5 +551,15 @@ func (*errorSessionConfigsChanged) Error() string {
 }
 
 func (*errorSessionConfigsChanged) CRC() uint32 {
-	panic("makes no sense")
+	return 0x00000000
+}
+
+type errorConnectionTimeOut struct{}
+
+func (*errorConnectionTimeOut) Error() string {
+	return "Timed out waiting for Updates"
+}
+
+func (*errorConnectionTimeOut) CRC() uint32 {
+	return 0x00000000
 }
