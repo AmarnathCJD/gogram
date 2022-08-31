@@ -4,9 +4,13 @@ GoGram
 
   ⚒️ Under Development.
 
+
+
 **gogram** is a **Pure Golang**
 MTProto_ library to interact with Telegram's API
 as a user or through a bot account (bot API alternative).
+
+|image|
 
 What is this?
 -------------
@@ -95,6 +99,9 @@ Support Chat_
 
 .. _MTProto: https://core.telegram.org/mtproto
 .. _chat: https://t.me/rosexchat
+.. |image| image:: https://te.legra.ph/file/fe4dbc185ff2138cbdf45.jpg
+  :width: 400
+  :alt: Alternative text
 
 Contributing
 ------------
