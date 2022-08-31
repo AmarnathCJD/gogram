@@ -393,3 +393,51 @@ func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult
 	}
 	return resp, nil
 }
+
+// Edit Admin rights of a user in a chat,
+// returns true if successfull
+func (c *Client) EditAdmin(PeerID interface{}, UserID interface{}, opts ...*AdminOptions) (bool, error) {
+	var (
+		IsAdmin     bool
+		Rank        string
+		AdminRights *ChatAdminRights
+		err         error
+	)
+	if len(opts) > 0 {
+		IsAdmin = opts[0].IsAdmin
+		AdminRights = opts[0].Rights
+		Rank = opts[0].Rank
+	} else {
+		IsAdmin = true
+		AdminRights = &ChatAdminRights{}
+	}
+	PeerToSend, err := c.GetSendablePeer(PeerID)
+	if err != nil {
+		return false, err
+	}
+	PeerPart, err := c.GetSendablePeer(UserID)
+	if err != nil {
+		return false, err
+	}
+	if user, ok := PeerPart.(*InputPeerUser); !ok {
+		return false, errors.New("peer is not a user")
+	} else {
+		switch p := PeerToSend.(type) {
+		case *InputPeerChannel:
+			_, err = c.ChannelsEditAdmin(
+				&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash},
+				&InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash},
+				AdminRights,
+				Rank,
+			)
+		case *InputPeerChat:
+			_, err = c.MessagesEditChatAdmin(p.ChatID, &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, IsAdmin)
+		default:
+			return false, errors.New("peer is not a chat or channel")
+		}
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}

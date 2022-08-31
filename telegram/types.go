@@ -13,76 +13,82 @@ type (
 	}
 
 	MediaOptions struct {
-		Caption       interface{}
-		ParseMode     string
-		Silent        bool
-		LinkPreview   bool
-		ReplyMarkup   ReplyMarkup
-		ClearDraft    bool
-		NoForwards    bool
-		Thumb         InputFile
-		NoSoundVideo  bool
-		ForceDocument bool
-		ReplyID       int32
-		FileName      string
-		TTL           int32
-		Attributes    []DocumentAttribute
+		Caption       interface{}         `json:"caption,omitempty"`
+		ParseMode     string              `json:"parse_mode,omitempty"`
+		Silent        bool                `json:"silent,omitempty"`
+		LinkPreview   bool                `json:"link_preview,omitempty"`
+		ReplyMarkup   ReplyMarkup         `json:"reply_markup,omitempty"`
+		ClearDraft    bool                `json:"clear_draft,omitempty"`
+		NoForwards    bool                `json:"no_forwards,omitempty"`
+		Thumb         InputFile           `json:"thumb,omitempty"`
+		NoSoundVideo  bool                `json:"no_sound_video,omitempty"`
+		ForceDocument bool                `json:"force_document,omitempty"`
+		ReplyID       int32               `json:"reply_id,omitempty"`
+		FileName      string              `json:"file_name,omitempty"`
+		TTL           int32               `json:"ttl,omitempty"`
+		Attributes    []DocumentAttribute `json:"attributes,omitempty"`
 	}
 
 	CustomAttrs struct {
-		FileName      string
-		Thumb         InputFile
-		Attributes    []DocumentAttribute
-		ForceDocument bool
-		TTL           int32
+		FileName      string              `json:"file_name,omitempty"`
+		Thumb         InputFile           `json:"thumb,omitempty"`
+		Attributes    []DocumentAttribute `json:"attributes,omitempty"`
+		ForceDocument bool                `json:"force_document,omitempty"`
+		TTL           int32               `json:"ttl,omitempty"`
 	}
 
 	ForwardOptions struct {
-		HideCaption bool
-		HideAuthor  bool
-		Silent      bool
-		Protected   bool
+		HideCaption bool `json:"hide_caption,omitempty"`
+		HideAuthor  bool `json:"hide_author,omitempty"`
+		Silent      bool `json:"silent,omitempty"`
+		Protected   bool `json:"protected,omitempty"`
 	}
 
 	Participant struct {
-		User        *UserObj
-		Admin       bool
-		Banned      bool
-		Creator     bool
-		Left        bool
-		Participant ChannelParticipant
-		Rights      *ChatAdminRights
+		User        *UserObj           `json:"user,omitempty"`
+		Admin       bool               `json:"admin,omitempty"`
+		Banned      bool               `json:"banned,omitempty"`
+		Creator     bool               `json:"creator,omitempty"`
+		Left        bool               `json:"left,omitempty"`
+		Participant ChannelParticipant `json:"participant,omitempty"`
+		Rights      *ChatAdminRights   `json:"rights,omitempty"`
 	}
 
 	ParticipantOptions struct {
-		Query  string
-		Filter ChannelParticipantsFilter
-		Offset int32
-		Limit  int32
+		Query  string                    `json:"query,omitempty"`
+		Filter ChannelParticipantsFilter `json:"filter,omitempty"`
+		Offset int32                     `json:"offset,omitempty"`
+		Limit  int32                     `json:"limit,omitempty"`
+	}
+
+	AdminOptions struct {
+		IsAdmin bool             `json:"is_admin,omitempty"`
+		Rights  *ChatAdminRights `json:"rights,omitempty"`
+		Rank    string           `json:"rank,omitempty"`
 	}
 
 	ActionResult struct {
-		Peer   InputPeer
-		Client *Client
+		Peer   InputPeer `json:"peer,omitempty"`
+		Client *Client   `json:"client,omitempty"`
 	}
 
 	InlineSendOptions struct {
-		Gallery      bool
-		NextOffset   string
-		CacheTime    int32
-		Private      bool
-		SwitchPm     string
-		SwitchPmText string
+		Gallery      bool   `json:"gallery,omitempty"`
+		NextOffset   string `json:"next_offset,omitempty"`
+		CacheTime    int32  `json:"cache_time,omitempty"`
+		Private      bool   `json:"private,omitempty"`
+		SwitchPm     string `json:"switch_pm,omitempty"`
+		SwitchPmText string `json:"switch_pm_text,omitempty"`
 	}
 
 	ArticleOptions struct {
-		Thumb       InputWebDocument
-		Content     InputWebDocument
-		LinkPreview bool
-		ReplyMarkup ReplyMarkup
-		Entities    []MessageEntity
-		ParseMode   string
-		Caption     string
+		Thumb       InputWebDocument `json:"thumb,omitempty"`
+		Content     InputWebDocument `json:"content,omitempty"`
+		LinkPreview bool             `json:"link_preview,omitempty"`
+		ReplyMarkup ReplyMarkup      `json:"reply_markup,omitempty"`
+		Entities    []MessageEntity  `json:"entities,omitempty"`
+		ParseMode   string           `json:"parse_mode,omitempty"`
+		Caption     string           `json:"caption,omitempty"`
 	}
 )
 
