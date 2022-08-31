@@ -1,16 +1,16 @@
 // Example of using gogram for bot.
 
-package examples
+package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/amarnathcjd/gogram/telegram"
 	"github.com/showwin/speedtest-go/speedtest"
 )
@@ -36,29 +36,68 @@ func main() {
 		panic(err)
 	}
 	me, _ := client.GetMe()
+
 	fmt.Printf("Logged in as %s\n", me.Username)
 
-	client.AddEventHandler(telegram.Command{Cmd: "start", Prefix: "/?."}, Start)
-	client.AddEventHandler("/ping", Ping)
-	client.AddEventHandler("[/!?]js|json", Jsonify)
-	client.AddEventHandler(telegram.OnNewMessage, Echo)
-	client.AddEventHandler("/info", Info)
-	client.AddEventHandler("/fwd", fwd)
-	client.AddEventHandler("/go", GoroutinesNum)
-	client.AddEventHandler("/id", ID)
-	client.AddEventHandler("/speed", SpeedTest)
-	client.AddEventHandler("/sh", Exec)
-	client.AddEventHandler("/ul", Upload)
+	client.AddMessageHandler(telegram.Command{Cmd: "start", Prefix: "/?."}, Start)
+	client.AddMessageHandler("/ping", Ping)
+	client.AddMessageHandler("[/!?]js|json", Jsonify)
+	client.AddMessageHandler(telegram.OnNewMessage, Echo)
+	client.AddMessageHandler("[-/]info", Info)
+	client.AddMessageHandler("/fwd", fwd)
+	client.AddMessageHandler("/go", GoroutinesNum)
+	client.AddMessageHandler("/id", ID)
+	client.AddMessageHandler("/speed", SpeedTest)
+	client.AddMessageHandler("/sh", Exec)
+	client.AddMessageHandler("/ul", Upload)
+	client.AddMessageHandler("/dice", Dice)
+	client.AddMessageHandler("/adminlist", AdminList)
+	client.AddMessageHandler("/qr", QR)
+
+	client.AddInlineHandler("test", Inline)
 	client.Idle()
-	goquery.NewDocument("https://www.google.com/")
+}
+
+func Inline(m *telegram.InlineQuery) error {
+	fmt.Println("new inline query", m.QueryID)
+	var b = m.Builder()
+	var btn = telegram.Button{}
+	for i := 0; i < 10; i++ {
+		b.Article(
+			fmt.Sprintf("Article Result %d", i),
+			fmt.Sprintf("<b>Hello %d</b>", i),
+			fmt.Sprintf("This is a test article %d", i),
+			&telegram.ArticleOptions{
+				ReplyMarkup: btn.Keyboard(btn.Row(btn.URL("Test 1", "https://t.me/amarnathcjd")), btn.Row(btn.SwitchInline("Try Again", true, "test"))),
+			},
+		)
+	}
+	_, err := m.Answer(b.Results())
+	return err
+}
+
+func QR(m *telegram.NewMessage) error {
+	if m.IsReply() {
+		r, err := m.GetReplyMessage()
+		if err != nil {
+			return err
+		}
+		fmt.Println(m.Client.DownloadMedia(r.Media(), "qr.png"))
+	}
+	_, err := m.Reply("Reply to a message to get its file location")
+	return err
 }
 
 func Start(m *telegram.NewMessage) error {
-	_, err := m.Client.SendMessage(m.ChatID(), "Hello, I'm a bot!")
+	var b = telegram.Button{}
+	_, err := m.Reply("Hello Im a Test bot For <b><a href='https://github.com/amarnathcjd/gogram'>GoGram</a></b>.",
+		telegram.SendOptions{LinkPreview: true, ReplyMarkup: b.Keyboard(b.Row(b.URL("Support Chat", "https://rosexchat.t.me")))})
 	return err
 }
 
 func Ping(m *telegram.NewMessage) error {
+	a, _ := m.SendAction("typing")
+	defer a.Cancel()
 	msg, _ := m.Reply("Pinging...")
 	_, err := msg.Edit(fmt.Sprintf("<b>Pong!!</b> %s", m.Client.Ping()))
 	return err
@@ -70,7 +109,7 @@ func Jsonify(m *telegram.NewMessage) error {
 		if errr != nil {
 			return errr
 		}
-		_, err := m.Reply(r.Marshal())
+		_, err := m.Reply(fmt.Sprint("<code>", r.Marshal(), "</code>"))
 		return err
 	}
 	_, err := m.Reply(fmt.Sprint("<code>", m.Marshal(), "</code>"))
@@ -89,10 +128,18 @@ func Echo(m *telegram.NewMessage) error {
 	return err
 }
 
+func Dice(m *telegram.NewMessage) error {
+	_, err := m.SendDice("🎲")
+	return err
+}
+
 func Info(m *telegram.NewMessage) error {
 	var peer telegram.InputPeer
+	var err error
 	if m.IsReply() {
 		r, err := m.GetReplyMessage()
+		b, _ := json.Marshal(r)
+		fmt.Println(string(b))
 		if err != nil {
 			return err
 		}
@@ -102,9 +149,13 @@ func Info(m *telegram.NewMessage) error {
 		}
 	} else {
 		if m.Args() == "" {
-			peer, _ = m.Client.GetSendablePeer(m.SenderID())
+			peer, err = m.Client.GetSendablePeer(m.SenderID())
 		} else {
-			peer, _ = m.Client.GetSendablePeer(m.Args())
+			peer, err = m.Client.GetSendablePeer(m.Args())
+		}
+		if err != nil {
+			_, err = m.Reply("User not found: " + err.Error())
+			return err
 		}
 	}
 	switch peer := peer.(type) {
@@ -120,8 +171,10 @@ func Info(m *telegram.NewMessage) error {
 			DC = fmt.Sprint(user.Photo.(*telegram.UserProfilePhotoObj).DcID)
 		}
 		x := fmt.Sprintf(INFO, user.FirstName, user.LastName, user.ID, DC, user.Username, user.Premium, user.Bot)
-		fmt.Println(x)
 		_, err = m.Reply(x)
+		if err != nil {
+			m.Reply("Error: " + err.Error())
+		}
 
 		return err
 	case *telegram.InputPeerChannel:
@@ -138,7 +191,7 @@ func Info(m *telegram.NewMessage) error {
 			}
 		}
 		x := fmt.Sprintf(INFO, channel.Title, channel.ID, DC, channel.Username, channel.Broadcast, channel.Verified)
-		fmt.Println(x)
+
 		_, err = m.Reply(x)
 		return err
 	default:
@@ -161,7 +214,7 @@ func fwd(m *telegram.NewMessage) error {
 }
 
 func GoroutinesNum(m *telegram.NewMessage) error {
-	_, err := m.Reply(fmt.Sprintf("<b>Goroutines: %d\nGo Version: %s\nOS: %s\nArch: %s</b>", runtime.NumGoroutine(), runtime.Version(), runtime.GOOS, runtime.GOARCH))
+	_, err := m.Reply(fmt.Sprintf("<b>Goroutines: %d\nGo Version: %s\nOS: %s\nArch: %s</b>\n<b>Ram Usage:</b> %s", runtime.NumGoroutine(), runtime.Version(), runtime.GOOS, runtime.GOARCH, MemUsage()))
 	return err
 }
 
@@ -174,7 +227,7 @@ func ID(m *telegram.NewMessage) error {
 		_, err = m.Reply(fmt.Sprintf("Replied User ID: `%d`\nReplied Message ID: `%d`", r.SenderID(), r.ID))
 		return err
 	} else {
-		_, err := m.Reply(fmt.Sprintf("User ID: `%d`\nMessage ID: `%d`\nChat ID: `%d`", m.SenderID(), m.ID, m.ChatID()))
+		_, err := m.Reply(fmt.Sprintf("<b>User ID: <code>%d</code>\nMessage ID: <code>%d</code>\nChat ID: <code>%d</code></b>", m.SenderID(), m.ID, m.ChatID()))
 		return err
 	}
 }
@@ -192,7 +245,7 @@ func SpeedTest(m *telegram.NewMessage) error {
 	server.PingTest()
 	server.DownloadTest(false)
 	server.UploadTest(false)
-	_, Editerr := msg.Edit(fmt.Sprintf("<b>SPEEDTEST RESULTS\n\nDownload: %v mbps\nUpload: %v mbps\nPing: %s\nDistance: %vkm\nHost: %s</b>", int(server.DLSpeed), int(server.ULSpeed), server.Latency.String(), server.Distance, server.Host))
+	_, Editerr := msg.Edit(fmt.Sprintf("<b>SpeedTest</b>\n\n<code>Download:</code> <b>%v Mbps</b>\n<code>Upload:</code> <b>%v Mbps</b>\n<code>Ping:</code> <b>%s</b>\n<code>Distance:</code> <b>%v KM</b>\n<code>Host:</code> <b><i>%s</i></b>", int(server.DLSpeed), int(server.ULSpeed), server.Latency.String(), server.Distance, server.Host))
 	return Editerr
 }
 
@@ -219,6 +272,7 @@ func Exec(m *telegram.NewMessage) error {
 		} else {
 			result = "No output"
 		}
+		fmt.Println(result)
 		if len(result) > 4096 {
 			fs, _ := os.OpenFile("sh.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 			defer fs.Close()
@@ -227,7 +281,7 @@ func Exec(m *telegram.NewMessage) error {
 			m.Client.SendMedia(m.ChatID(), f)
 			m.Delete()
 		}
-		_, err = msg.Edit(fmt.Sprintf("<b>BASH:</b> <code>%s</code>", result))
+		_, err = msg.Edit(fmt.Sprintf("<b>BASH:</b><code>- %s -</code>", result))
 	}
 	return err
 }
@@ -243,7 +297,7 @@ func Upload(m *telegram.NewMessage) error {
 	}
 	if _, err := os.Stat(m.Args()); os.IsNotExist(err) {
 		if strings.Contains(m.Args(), "http") {
-			_, err := m.Client.SendMedia(m.ChatID(), m.Args())
+			_, err := m.Client.SendMedia(m.ChatID(), m.Args(), &telegram.MediaOptions{FileName: "rosecustomfilename.apk"})
 			return err
 		} else {
 			_, err := message.Edit("File not found!")
@@ -257,4 +311,44 @@ func Upload(m *telegram.NewMessage) error {
 		m.Client.SendMedia(m.ChatID(), f)
 		return message.Delete()
 	}
+
+}
+func AdminList(m *telegram.NewMessage) error {
+	admins, count, err := m.Client.GetParticipants(m.ChatID(), telegram.ParticipantsAdmins)
+	if err != nil {
+		return err
+	}
+	var msg = fmt.Sprintf("<b>Admins in %s:</b>\n", "Group")
+	for _, admin := range admins {
+		if !(len(admin.User.FirstName) == 0) && !strings.Contains(admin.User.FirstName, "ㅤ") {
+			fmt.Println(admin.User.FirstName)
+			msg += fmt.Sprintf("<a href=\"tg://user?id=%d\">%s</a>\n", admin.User.ID, admin.User.FirstName)
+		}
+
+	}
+
+	msg += fmt.Sprintf("\nTotal: %d", count)
+	_, err = m.Reply(msg)
+	return err
+}
+
+func MemUsage() string {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return ByteCountSI(int64(m.Alloc))
+}
+
+func ByteCountSI(b int64) string {
+	const unit = 1000
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+
+	return fmt.Sprintf("%.1f %cB",
+		float64(b)/float64(div), "kMGTPE"[exp])
 }
