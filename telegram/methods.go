@@ -207,13 +207,17 @@ func (c *Client) SendMedia(peerID interface{}, Media interface{}, Opts ...*Media
 	return packMessage(c, processUpdate(Update)), err
 }
 
-func (c *Client) SendReaction(peerID interface{}, MsgID int32, Reaction string) error {
+func (c *Client) SendReaction(peerID interface{}, MsgID int32, Reaction string, Big ...bool) error {
+	var big bool
+	if len(Big) > 0 {
+		big = Big[0]
+	}
 	PeerToSend, err := c.GetSendablePeer(peerID)
 	if err != nil {
 		return err
 	}
 	_, err = c.MessagesSendReaction(
-		true,
+		big,
 		PeerToSend,
 		MsgID,
 		Reaction,
