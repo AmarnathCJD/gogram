@@ -37,11 +37,6 @@ Creating a client
          AppID: 6,
          AppHash: "",
          DataCenter: 2,
-         SessionFile: "", // optional
-         ParseMode: "Markdown", //optional 
-         AppVersion: "", // optional 
-         DeviceModel: "", // optional 
-         AllowUpdates: true, // optional
     })
 
     client.Idle() // start infinite polling
@@ -51,24 +46,15 @@ Event handlers
 
 .. code-block:: golang
 
-    func Echo(m *telegram.NewMessage) error {
-         if !m.IsPrivate() {
-             return nil
-         }
-         if m.Text() == nil {
-             _, err := m.Reply("Nothing to echo.")
-             return err
-         }
-         _, err := m.Respond(m.Text())
-         return err
+    func Start(m *telegram.NewMessage) error {
+        _, err := m.Reply("Hello World!")
+        return err
     }
 
-    client.AddMessageHandler(telegram.OnNewMessage, Echo)
+    client.AddMessageHandler("[/!]start$", Start)
 
 Entity Cache
 ------------
-
-.. code-block:: golang
 
     Entities are cached on memory for now.
 
@@ -91,18 +77,31 @@ Doing stuff
     client.DeleteMessage("username", message.ID)
     message.ForwardTo(message.ChatID())
     peer := client.ResolvePeer("username")
+    client.GetParticipant("chat", "user")
+    client.EditAdmin(chatID, userID, &telegram.AdminOptions{
+        AdminRights: &telegram.AdminRights{
+            ChangeInfo: true,
+            DeleteMessages: true,
+            BanUsers: true,
+            InviteUsers: true,
+            PinMessages: true,
+            AddAdmins: true,
+        },
+        Rank: "Admin",
+    })
+    client.SendDice("username", "🎲")
 
 TODO
 ----------
 
-- [x] Basic MTProto implementation
-- [x] Implement all Methods for latest layer (144)
-- [x] Entity Cache + Friendly Methods
-- [x] Add Update Handle System
-- [ ] Make a reliable HTML Parser
-- [ ] Friendly Methods to Handle CallbackQuery, VoiceCalls
-- [ ] Multiple tests
-- [ ] Support MTProxy
+- [ x ] Basic MTProto implementation
+- [ x ] Implement all Methods for latest layer (144)
+- [ x ] Entity Cache + Friendly Methods
+- [ x ] Add Update Handle System
+- [   ] Make a reliable HTML Parser
+- [   ] Friendly Methods to Handle CallbackQuery, VoiceCalls
+- [   ] Multiple tests
+- [   ] Add more examples
 
 
 .. _MTProto: https://core.telegram.org/mtproto
