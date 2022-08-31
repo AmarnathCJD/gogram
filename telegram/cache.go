@@ -129,13 +129,21 @@ func (client *Client) GetAllPeers() (int, int) {
 	return len(client.Cache.users), len(client.Cache.chats)
 }
 
-func (client *Client) GetInputPeer(peer_id int64) InputPeer {
-	if chat, ok := client.Cache.GetChat(peer_id); ok == nil {
-		return &InputPeerChat{chat.ID}
-	} else if user, ok := client.Cache.GetUser(peer_id); ok == nil {
-		return &InputPeerUser{user.ID, user.AccessHash}
-	} else if channel, ok := client.Cache.GetChannel(peer_id); ok == nil {
-		return &InputPeerChannel{channel.ID, channel.AccessHash}
+func (client *Client) GetInputPeer(peer_id int64) (InputPeer, error) {
+	if peer, err := client.GetPeerUser(peer_id); err == nil {
+		return &InputPeerUser{
+			UserID:     peer_id,
+			AccessHash: peer.AccessHash,
+		}, nil
+	} else if _, err := client.GetPeerChat(peer_id); err == nil {
+		return &InputPeerChat{
+			ChatID: peer_id,
+		}, nil
+	} else if peer, err := client.GetPeerChannel(peer_id); err == nil {
+		return &InputPeerChannel{
+			ChannelID:  peer_id,
+			AccessHash: peer.AccessHash,
+		}, nil
 	}
-	return nil
+	return nil, fmt.Errorf("Cannot cast %v to any kind of InputPeer", peer_id)
 }

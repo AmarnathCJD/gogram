@@ -23,6 +23,18 @@ type (
 		Thumb         InputFile
 		NoSoundVideo  bool
 		ForceDocument bool
+		ReplyID       int32
+		FileName      string
+		TTL           int32
+		Attributes    []DocumentAttribute
+	}
+
+	CustomAttrs struct {
+		FileName      string
+		Thumb         InputFile
+		Attributes    []DocumentAttribute
+		ForceDocument bool
+		TTL           int32
 	}
 
 	ForwardOptions struct {
@@ -39,8 +51,59 @@ type (
 		Creator     bool
 		Left        bool
 		Participant ChannelParticipant
+		Rights      *ChatAdminRights
+	}
+
+	ParticipantOptions struct {
+		Query  string
+		Filter ChannelParticipantsFilter
+		Offset int32
+		Limit  int32
+	}
+
+	ActionResult struct {
+		Peer   InputPeer
+		Client *Client
+	}
+
+	InlineSendOptions struct {
+		Gallery      bool
+		NextOffset   string
+		CacheTime    int32
+		Private      bool
+		SwitchPm     string
+		SwitchPmText string
+	}
+
+	ArticleOptions struct {
+		Thumb       InputWebDocument
+		Content     InputWebDocument
+		LinkPreview bool
+		ReplyMarkup ReplyMarkup
+		Entities    []MessageEntity
+		ParseMode   string
+		Caption     string
 	}
 )
+
+var (
+	ParticipantsAdmins = &ParticipantOptions{
+		Filter: &ChannelParticipantsAdmins{},
+		Query:  "",
+		Offset: 0,
+		Limit:  50,
+	}
+)
+
+// Cancel the pointed Action,
+// Returns true if the action was cancelled
+func (a *ActionResult) Cancel() bool {
+	b, err := a.Client.MessagesSetTyping(a.Peer, 0, &SendMessageCancelAction{})
+	if err != nil {
+		return false
+	}
+	return b
+}
 
 func (p Participant) IsCreator() bool {
 	return p.Creator
@@ -107,5 +170,10 @@ func (r ChatAdminRights) CanManageCall() bool {
 }
 
 func (p Participant) GetRank() string {
-	return "soon to be implemented"
+	if pp, ok := p.Participant.(*ChannelParticipantCreator); ok {
+		return pp.Rank
+	} else if pp, ok := p.Participant.(*ChannelParticipantAdmin); ok {
+		return pp.Rank
+	}
+	return ""
 }

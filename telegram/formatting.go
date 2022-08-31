@@ -3,18 +3,23 @@ package telegram
 import (
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, string) {
 	var entities []MessageEntity
+	message = strings.TrimSpace(message)
+	message = strings.TrimFunc(message, func(r rune) bool {
+		return !unicode.IsGraphic(r)
+	})
 	if mode == HTML {
 		tok, _ := goquery.NewDocumentFromReader(strings.NewReader(message))
 		var htmlFreeRegex = regexp.MustCompile(`<.*?>`)
-		var Text = htmlFreeRegex.ReplaceAllString(message, "")
+		var Text = strings.TrimSpace(htmlFreeRegex.ReplaceAllString(message, ""))
 		tok.Find("code").Each(func(i int, s *goquery.Selection) {
-			if text := s.Text(); text != "" {
+			if text := s.Text(); strings.TrimSpace(text) != "" {
 				entities = append(entities, &MessageEntityCode{
 					Offset: int32(GetOffSet(Text, text)),
 					Length: int32(len(text)),
@@ -22,50 +27,50 @@ func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, st
 			}
 		})
 		tok.Find("b").Each(func(i int, s *goquery.Selection) {
-			if text := s.Text(); text != "" {
+			if text := s.Text(); strings.TrimSpace(text) != "" {
 				entities = append(entities, &MessageEntityBold{
-					Offset: int32(GetOffSet(Text, text)),
-					Length: int32(len(text)),
+					Offset: int32(search([]rune(Text), text)),
+					Length: int32(len([]rune(text))),
 				})
 			}
 		})
 		tok.Find("i").Each(func(i int, s *goquery.Selection) {
-			if text := s.Text(); text != "" {
+			if text := s.Text(); strings.TrimSpace(text) != "" {
 				entities = append(entities, &MessageEntityItalic{
 					Offset: int32(GetOffSet(Text, text)),
-					Length: int32(len(text)),
+					Length: int32(len([]rune(text))),
 				})
 			}
 		})
 		tok.Find("s").Each(func(i int, s *goquery.Selection) {
-			if text := s.Text(); text != "" {
+			if text := s.Text(); strings.TrimSpace(text) != "" {
 				entities = append(entities, &MessageEntityStrike{
 					Offset: int32(GetOffSet(Text, text)),
-					Length: int32(len(text)),
+					Length: int32(len([]rune(text))),
 				})
 			}
 		})
 		tok.Find("u").Each(func(i int, s *goquery.Selection) {
-			if text := s.Text(); text != "" {
+			if text := s.Text(); strings.TrimSpace(text) != "" {
 				entities = append(entities, &MessageEntityUnderline{
 					Offset: int32(GetOffSet(Text, text)),
-					Length: int32(len(text)),
+					Length: int32(len([]rune(text))),
 				})
 			}
 		})
 		tok.Find("tgspoiler").Each(func(i int, s *goquery.Selection) {
-			if text := s.Text(); text != "" {
+			if text := s.Text(); strings.TrimSpace(text) != "" {
 				entities = append(entities, &MessageEntitySpoiler{
 					Offset: int32(GetOffSet(Text, text)),
-					Length: int32(len(text)),
+					Length: int32(len([]rune(text))),
 				})
 			}
 		})
 		tok.Find("a").Each(func(i int, s *goquery.Selection) {
-			if text := s.Text(); text != "" {
+			if text := s.Text(); strings.TrimSpace(text) != "" {
 				entities = append(entities, &MessageEntityTextURL{
-					Offset: int32(GetOffSet(Text, text)),
-					Length: int32(len(text)),
+					Offset: int32(search([]rune(Text), text)),
+					Length: int32(len([]rune(text))),
 					URL:    s.AttrOr("href", ""),
 				})
 			}
@@ -77,13 +82,31 @@ func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, st
 }
 
 func GetOffSet(str string, substr string) int32 {
-	return int32(strings.Index(str, substr))
+	return int32(strings.IndexRune(str, []rune(substr)[0]))
+}
+
+func search(text []rune, what string) int {
+	whatRunes := []rune(what)
+
+	for i := range text {
+		found := true
+		for j := range whatRunes {
+			if text[i+j] != whatRunes[j] {
+				found = false
+				break
+			}
+		}
+		if found {
+			return i
+		}
+	}
+	return -1
 }
 
 func (m *NewMessage) Text() string {
-	text := m.Message()
+	text := m.MessageText()
 	var correction int32
-	for _, e := range m.OriginalUpdate.Entities {
+	for _, e := range m.Message.Entities {
 		switch e := e.(type) {
 		case *MessageEntityBold:
 			offset := e.Offset + correction
@@ -116,7 +139,7 @@ func (m *NewMessage) Text() string {
 }
 
 func (m *NewMessage) RawText() string {
-	return m.Message()
+	return m.MessageText()
 }
 
 func (m *NewMessage) Args() string {

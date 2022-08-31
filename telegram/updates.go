@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	HANDLERS        = []Handle{}
-	MessageHandles  = []Handle{}
+	MessageHandles  = []MessageHandle{}
+	InlineHandles   = []InlineHandle{}
 	OnNewMessage    = "OnNewMessage"
 	OnChatAction    = "OnChatAction"
 	OnInlineQuery   = "OnInlineQuery"
@@ -18,15 +18,16 @@ var (
 )
 
 type (
-	Handle struct {
+	MessageHandle struct {
 		Pattern interface{}
 		Handler func(m *NewMessage) error
 		Client  *Client
 	}
 
-	ChatAction struct {
-		Client *Client
-		ID     int32
+	InlineHandle struct {
+		Pattern interface{}
+		Handler func(m *InlineQuery) error
+		Client  *Client
 	}
 
 	Command struct {
@@ -43,7 +44,7 @@ func HandleMessageUpdate(update Message) {
 	case *MessageObj:
 		for _, handle := range MessageHandles {
 			if handle.IsMatch(msg.Message) {
-				if err := handle.Handler(PackMessage(handle.Client, msg)); err != nil {
+				if err := handle.Handler(packMessage(handle.Client, msg)); err != nil {
 					handle.Client.Logger.Println("RPC Error:", err)
 				}
 			}
@@ -53,7 +54,32 @@ func HandleMessageUpdate(update Message) {
 	}
 }
 
-func (h *Handle) IsMatch(text string) bool {
+func HandleInlineUpdate(update *UpdateBotInlineQuery) {
+	if len(InlineHandles) == 0 {
+		return
+	}
+	for _, handle := range InlineHandles {
+		if handle.IsMatch(update.Query) {
+			if err := handle.Handler(packInlineQuery(handle.Client, update)); err != nil {
+				handle.Client.Logger.Println("Unhandled Error:", err)
+			}
+		}
+	}
+}
+
+func (h *InlineHandle) IsMatch(text string) bool {
+	switch pattern := h.Pattern.(type) {
+	case string:
+		p := regexp.MustCompile("^" + pattern)
+		return p.MatchString(text) || strings.HasPrefix(text, pattern)
+	case *regexp.Regexp:
+		return pattern.MatchString(text)
+	default:
+		return false
+	}
+}
+
+func (h *MessageHandle) IsMatch(text string) bool {
 	switch Pattern := h.Pattern.(type) {
 	case string:
 		if Pattern == OnNewMessage {
@@ -73,20 +99,25 @@ func (h *Handle) IsMatch(text string) bool {
 	}
 }
 
-func (c *Client) AddEventHandler(pattern interface{}, handler func(m *NewMessage) error) {
-	MessageHandles = append(MessageHandles, Handle{pattern, handler, c})
+func (c *Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessage) error) {
+	MessageHandles = append(MessageHandles, MessageHandle{pattern, handler, c})
+}
+
+func (c *Client) AddInlineHandler(pattern interface{}, handler func(m *InlineQuery) error) {
+	InlineHandles = append(InlineHandles, InlineHandle{pattern, handler, c})
 }
 
 func (c *Client) RemoveEventHandler(pattern string) {
-	for i, p := range HANDLERS {
+	for i, p := range MessageHandles {
 		if p.Pattern == pattern {
-			HANDLERS = append(HANDLERS[:i], HANDLERS[i+1:]...)
+			MessageHandles = append(MessageHandles[:i], MessageHandles[i+1:]...)
 			return
 		}
 	}
 }
 
 // Sort and Handle all the Incoming Updates
+// Many more types to be added
 func HandleUpdate(u interface{}) bool {
 UpdateTypeSwitching:
 	switch upd := u.(type) {
@@ -99,6 +130,7 @@ UpdateTypeSwitching:
 			case *UpdateNewChannelMessage:
 				go func() { HandleMessageUpdate(update.Message) }()
 			case *UpdateBotInlineQuery:
+				go func() { HandleInlineUpdate(update) }()
 			case *UpdateBotInlineSend:
 			case *UpdateBotCallbackQuery:
 			case *UpdateBotShippingQuery:

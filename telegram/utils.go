@@ -3,6 +3,7 @@ package telegram
 import (
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -75,6 +76,86 @@ func mimeIsPhoto(mime string) bool {
 	return strings.HasPrefix(mime, "image/") && !strings.Contains(mime, "image/webp")
 }
 
+func GetInputFileLocation(f interface{}) (InputFileLocation, int32, int64) {
+	var location interface{}
+	switch f := f.(type) {
+	case *MessageMediaDocument:
+		location = f.Document
+	case *MessageMediaPhoto:
+		location = f.Photo
+	}
+	switch l := location.(type) {
+	case *DocumentObj:
+		return &InputDocumentFileLocation{
+			ID:            l.ID,
+			AccessHash:    l.AccessHash,
+			FileReference: l.FileReference,
+			ThumbSize:     "",
+		}, l.DcID, l.Size
+	case *PhotoObj:
+		return &InputPhotoFileLocation{
+			ID:            l.ID,
+			AccessHash:    l.AccessHash,
+			FileReference: l.FileReference,
+			ThumbSize:     getPhotoSize(l.Sizes),
+		}, l.DcID, photoSizeByteCount(l.Sizes)
+	}
+	return nil, 0, 0
+}
+
+func getPhotoSize(sizes []PhotoSize) string {
+	for _, s := range sizes {
+		switch s.(type) {
+		case *PhotoSizeObj:
+			return s.(*PhotoSizeObj).Type
+		}
+	}
+	return ""
+}
+
+func photoSizeByteCount(sizes []PhotoSize) int64 {
+	if len(sizes) == 0 {
+		return 0
+	}
+	var size = sizes[len(sizes)-1]
+	switch s := size.(type) {
+	case *PhotoSizeObj:
+		return int64(s.Size)
+	case *PhotoCachedSize:
+		return int64(len(s.Bytes))
+	case *PhotoStrippedSize:
+		if len(s.Bytes) < 3 || s.Bytes[0] != 1 {
+			return int64(len(s.Bytes))
+		}
+		return int64(len(s.Bytes) + 622)
+	case *PhotoSizeEmpty:
+		return 0
+	case *PhotoSizeProgressive:
+		_, size := MinMax(s.Sizes)
+		return int64(size)
+	}
+	return 0
+}
+
+func isPathDirectoryLike(path string) bool {
+	return strings.HasSuffix(path, "/") || strings.HasSuffix(path, "\\")
+}
+
+func getFileName(f interface{}) string {
+	switch f := f.(type) {
+	case *MessageMediaDocument:
+		for _, attr := range f.Document.(*DocumentObj).Attributes {
+			switch attr := attr.(type) {
+			case *DocumentAttributeFilename:
+				return attr.FileName
+			}
+		}
+	case *MessageMediaPhoto:
+		return "photo.jpg"
+	}
+	return "download"
+}
+
 func genByteChunks(data []byte, chunkSize int, ch chan []byte) {
 	for i := 0; i < len(data); i += chunkSize {
 		end := i + chunkSize
@@ -115,4 +196,41 @@ func getPeerUser(userID int64) *PeerUser {
 	return &PeerUser{
 		UserID: userID,
 	}
+}
+
+func IsUrl(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+func getValue(val interface{}, def interface{}) interface{} {
+	switch v := val.(type) {
+	case string:
+		if v == "" {
+			return def
+		}
+	case int, int32, int64:
+		if v == 0 {
+			return def
+		}
+	default:
+		if v == nil {
+			return def
+		}
+	}
+	return val
+}
+
+func MinMax(array []int32) (int32, int32) {
+	var max int32 = array[0]
+	var min int32 = array[0]
+	for _, value := range array {
+		if max < value {
+			max = value
+		}
+		if min > value {
+			min = value
+		}
+	}
+	return min, max
 }
