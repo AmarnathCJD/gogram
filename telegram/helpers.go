@@ -250,10 +250,7 @@ mediaTypeSwitch:
 }
 
 func (c *Client) ResolveUsername(username string) (interface{}, error) {
-	if strings.HasPrefix(username, "@") {
-		username = username[1:]
-	}
-	resp, err := c.ContactsResolveUsername(username)
+	resp, err := c.ContactsResolveUsername(strings.TrimPrefix(username, "@"))
 	if err != nil {
 		return nil, errors.Wrap(err, "resolving username")
 	}

@@ -105,9 +105,9 @@ func GetInputFileLocation(f interface{}) (InputFileLocation, int32, int64) {
 
 func getPhotoSize(sizes []PhotoSize) string {
 	for _, s := range sizes {
-		switch s.(type) {
+		switch s := s.(type) {
 		case *PhotoSizeObj:
-			return s.(*PhotoSizeObj).Type
+			return s.Type
 		}
 	}
 	return ""
@@ -154,17 +154,6 @@ func getFileName(f interface{}) string {
 		return "photo.jpg"
 	}
 	return "download"
-}
-
-func genByteChunks(data []byte, chunkSize int, ch chan []byte) {
-	for i := 0; i < len(data); i += chunkSize {
-		end := i + chunkSize
-		if end > len(data) {
-			end = len(data)
-		}
-		ch <- data[i:end]
-	}
-	close(ch)
 }
 
 func GenerateRandomLong() int64 {
