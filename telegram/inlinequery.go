@@ -101,5 +101,33 @@ func (b *InlineBuilder) Photo(photo interface{}, options ...*ArticleOptions) Inp
 	return result
 }
 
-// Document is not implemented yet
-//
+func (b *InlineBuilder) Document(document interface{}, options ...*ArticleOptions) InputBotInlineResult {
+	var opts ArticleOptions
+	if len(options) > 0 {
+		opts = *options[0]
+	} else {
+		opts = ArticleOptions{}
+	}
+	Document, _ := b.Client.getSendableMedia(document, &CustomAttrs{})
+	var Doc InputDocument
+	switch p := Document.(type) {
+	case *InputMediaDocument:
+		Doc = p.ID
+	default:
+		b.Client.Logger.Println("InlineBuilder.Document: Document is not a InputMediaDocument")
+		return nil
+	}
+	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode).(string))
+	result := &InputBotInlineResultDocument{
+		ID:       fmt.Sprint(GenerateRandomLong()),
+		Type:     "document",
+		Document: Doc,
+		SendMessage: &InputBotInlineMessageText{
+			Message:     text,
+			Entities:    e,
+			ReplyMarkup: opts.ReplyMarkup,
+			NoWebpage:   !opts.LinkPreview,
+		},
+	}
+	return result
+}
