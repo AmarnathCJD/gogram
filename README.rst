@@ -98,10 +98,10 @@ TODO
 - [ x ] Implement all Methods for latest layer (144)
 - [ x ] Entity Cache + Friendly Methods
 - [ x ] Add Update Handle System
-- [   ] Make a reliable HTML Parser
-- [   ] Friendly Methods to Handle CallbackQuery, VoiceCalls
-- [   ] Multiple tests
-- [   ] Add more examples
+- [ - ] Make a reliable HTML Parser
+- [ - ] Friendly Methods to Handle CallbackQuery, VoiceCalls
+- [ - ] Multiple tests
+- [ - ] Add more examples
 
 
 .. _MTProto: https://core.telegram.org/mtproto
