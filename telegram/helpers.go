@@ -32,7 +32,7 @@ func GetHostIp(dcID int) string {
 	panic("Invalid Data Center ID")
 }
 
-func Or(a string, b string) string {
+func getStr(a string, b string) string {
 	if a == "" {
 		return b
 	}
@@ -390,4 +390,37 @@ func packInlineQuery(c *Client, query *UpdateBotInlineQuery) *InlineQuery {
 	iq.Sender, _ = c.Cache.GetUser(query.UserID)
 	iq.OriginalUpdate = query
 	return iq
+}
+
+func GetInputCheckPassword(password string, accountPassword *AccountPassword) (InputCheckPasswordSRP, error) {
+	// У CurrentAlgo должен быть этот самый тип, с длинным названием алгоритма
+	// https://github.com/tdlib/td/blob/f9009cbc01e9c4c77d31120a61feb9c639c6aeda/td/telegram/AuthManager.cpp#L537
+	alg := accountPassword.CurrentAlgo
+	current, ok := alg.(*PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow)
+
+	if !ok {
+		return nil, errors.New("invalid CurrentAlgo type")
+	}
+
+	mp := &ModPow{
+		Salt1: current.Salt1,
+		Salt2: current.Salt2,
+		G:     current.G,
+		P:     current.P,
+	}
+
+	res, err := GetInputCheckPasswordAlgo(password, accountPassword.SRPB, mp)
+	if err != nil {
+		return nil, errors.Wrap(err, "processing password")
+	}
+
+	if res == nil {
+		return &InputCheckPasswordEmpty{}, nil
+	}
+
+	return &InputCheckPasswordSRPObj{
+		SRPID: accountPassword.SRPID,
+		A:     res.GA,
+		M1:    res.M1,
+	}, nil
 }

@@ -3,6 +3,7 @@
 package telegram
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/amarnathcjd/gogram/internal/keys"
+	"github.com/amarnathcjd/gogram/internal/session"
 )
 
 var (
@@ -37,10 +39,12 @@ type (
 		AppID     int32
 		ApiHash   string
 		Logger    *log.Logger
+		Session   interface{}
 	}
 
 	ClientConfig struct {
 		SessionFile   string
+		StringSession string
 		DeviceModel   string
 		SystemVersion string
 		AppVersion    string
@@ -53,17 +57,18 @@ type (
 )
 
 func TelegramClient(c ClientConfig) (*Client, error) {
-	c.SessionFile = Or(c.SessionFile, workDir+"/tg_session.json")
+	c.SessionFile = getStr(c.SessionFile, workDir+"/tg_session.json")
 	publicKeys, err := keys.GetRSAKeys()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading public keys")
 	}
 	mtproto, err := mtproto.NewMTProto(mtproto.Config{
-		AuthKeyFile: c.SessionFile,
-		ServerHost:  GetHostIp(c.DataCenter),
-		PublicKey:   publicKeys[0],
-		DataCenter:  c.DataCenter,
-		AppID:       int32(c.AppID),
+		AuthKeyFile:   c.SessionFile,
+		ServerHost:    GetHostIp(c.DataCenter),
+		PublicKey:     publicKeys[0],
+		DataCenter:    c.DataCenter,
+		AppID:         int32(c.AppID),
+		StringSession: c.StringSession,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "MTProto client")
@@ -78,15 +83,15 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 		MTProto:   mtproto,
 		config:    &c,
 		Cache:     cache,
-		ParseMode: Or(c.ParseMode, "Markdown"),
+		ParseMode: getStr(c.ParseMode, "Markdown"),
 		Logger:    log.New(os.Stderr, "Client - ", log.LstdFlags),
 	}
 
 	resp, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
 		ApiID:          int32(c.AppID),
-		DeviceModel:    Or(c.DeviceModel, "iPhone X"),
-		SystemVersion:  Or(c.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
-		AppVersion:     Or(c.AppVersion, "v1.0.0"),
+		DeviceModel:    getStr(c.DeviceModel, "iPhone X"),
+		SystemVersion:  getStr(c.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
+		AppVersion:     getStr(c.AppVersion, "v1.0.0"),
 		SystemLangCode: "en",
 		LangCode:       "en",
 		Query:          &HelpGetConfigParams{},
@@ -118,6 +123,27 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 		client.AddCustomServerRequestHandler(HandleUpdate)
 	}
 	return client, nil
+}
+
+func (c *Client) ExportSender(dcID int) (*Client, error) {
+	sender, err := c.MTProto.ExportNewSender(dcID)
+	if err != nil {
+		return nil, err
+	}
+	senderClient := &Client{
+		MTProto:   sender,
+		config:    c.config,
+		ParseMode: c.ParseMode,
+	}
+	authExport, err := senderClient.AuthExportAuthorization(int32(dcID))
+	if err != nil {
+		return nil, err
+	}
+	_, err = senderClient.AuthImportAuthorization(authExport.ID, authExport.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return senderClient, nil
 }
 
 func (m *Client) IsSessionRegistred() (bool, error) {
@@ -172,7 +198,98 @@ func (c *Client) LoginBot(botToken string) error {
 	return err
 }
 
+func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
+	resp, err := c.AuthSendCode(phoneNumber, c.AppID, c.ApiHash, &CodeSettings{
+		AllowAppHash:  true,
+		CurrentNumber: true,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resp.PhoneCodeHash, nil
+}
+
+func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, error) {
+	var opts *LoginOptions
+	if len(options) > 0 {
+		opts = options[0]
+	}
+	if opts == nil {
+		opts = &LoginOptions{}
+	}
+	if opts.Code == "" {
+		hash, err := c.SendCode(phoneNumber)
+		for {
+			if err != nil {
+				return false, err
+			}
+			fmt.Printf("Enter code: ")
+			var codeInput string
+			fmt.Scanln(&codeInput)
+			if codeInput != "" {
+				opts.Code = codeInput
+				break
+			} else if codeInput == "cancel" {
+				return false, nil
+			} else {
+				fmt.Println("Invalid code, try again")
+			}
+		}
+		opts.CodeHash = hash
+	}
+	_, SignInerr := c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code)
+	if SignInerr != nil {
+		if strings.Contains(SignInerr.Error(), "Two-steps verification is enabled") {
+			var passwordInput string
+			fmt.Println("Two-step verification is enabled")
+			for {
+				fmt.Printf("Enter password: ")
+				fmt.Scanln(&passwordInput)
+				if passwordInput != "" {
+					opts.Password = passwordInput
+					break
+				} else if passwordInput == "cancel" {
+					return false, nil
+				} else {
+					fmt.Println("Invalid password, try again")
+				}
+			}
+			AccPassword, err := c.AccountGetPassword()
+			if err != nil {
+				return false, err
+			}
+			inputPassword, err := GetInputCheckPassword(passwordInput, AccPassword)
+			if err != nil {
+				return false, err
+			}
+			_, err = c.AuthCheckPassword(inputPassword)
+			if err != nil {
+				return false, err
+			}
+			return true, nil
+		} else {
+			return false, SignInerr
+		}
+	}
+	// SignUp not implemented
+	return true, nil
+}
+
 // Ping telegram server TCP connection
 func (c *Client) Ping() time.Duration {
 	return c.MTProto.Ping()
+}
+
+func (c *Client) ExportSession() (string, error) {
+	var session = session.StringSession{}
+	authKey, authKeyHash, IpAddr, DcID := c.MTProto.ExportAuth()
+	session.AuthKey = authKey
+	session.AuthKeyHash = authKeyHash
+	session.IpAddr = IpAddr
+	session.DCID = DcID
+	return session.EncodeToString(), nil
+}
+
+func (c *Client) ImportSession(sessionString string) (bool, error) {
+	return c.MTProto.ImportAuth(sessionString)
 }

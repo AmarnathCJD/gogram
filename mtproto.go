@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -64,22 +65,13 @@ type customHandlerFunc = func(i any) bool
 
 type Config struct {
 	AuthKeyFile    string
+	StringSession  string
 	SessionStorage session.SessionLoader
 
 	ServerHost string
 	PublicKey  *rsa.PublicKey
 	DataCenter int
 	AppID      int32
-}
-
-func (m *MTProto) GetDC() int {
-	addr := m.addr
-	for k, v := range m.dclist {
-		if v == addr {
-			return k
-		}
-	}
-	return 4
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -108,15 +100,76 @@ func NewMTProto(c Config) (*MTProto, error) {
 		responseChannels:      utils.NewSyncIntObjectChan(),
 		expectedTypes:         utils.NewSyncIntReflectTypes(),
 		serverRequestHandlers: make([]customHandlerFunc, 0),
-		Logger:                NewLogger("MTProto - "),
+		Logger:                log.New(os.Stderr, "MTProto - ", log.LstdFlags),
 		AppID:                 c.AppID,
 	}
-
-	if s != nil {
-		m.LoadSession(s)
+	if c.StringSession != "" {
+		m.ImportAuth(c.StringSession)
+	} else {
+		if s != nil {
+			m.LoadSession(s)
+		}
 	}
-
 	return m, nil
+}
+
+func (m *MTProto) ExportAuth() ([]byte, []byte, string, int) {
+	return m.authKey, m.authKeyHash, m.addr, m.getDC()
+}
+
+func (m *MTProto) ImportAuth(Session string) (bool, error) {
+	StringSession := &session.StringSession{
+		Encoded: Session,
+	}
+	AuthKey, AuthKeyHash, _, IpAddr, err := StringSession.Decode()
+	if err != nil {
+		return false, fmt.Errorf("decoding string session: %w", err)
+	}
+	m.authKey = AuthKey
+	m.authKeyHash = AuthKeyHash
+	m.addr = fmt.Sprint(IpAddr)
+	if err := m.SaveSession(); err != nil {
+		return false, fmt.Errorf("saving session: %w", err)
+	}
+	return true, nil
+}
+
+func (m *MTProto) getDC() int {
+	addr := m.addr
+	for k, v := range m.dclist {
+		if v == addr {
+			return k
+		}
+	}
+	return 4
+}
+
+func (m *MTProto) ExportNewSender(dcID int) (*MTProto, error) {
+	newAddr := utils.DcList[dcID]
+	sender := &MTProto{
+		responseChannels: utils.NewSyncIntObjectChan(),
+		expectedTypes:    utils.NewSyncIntReflectTypes(),
+	}
+	sender.addr = newAddr
+	sender.authKey = m.authKey
+	sender.authKeyHash = m.authKeyHash
+	sender.sessionId = utils.GenerateSessionID()
+	sender.encrypted = false
+	sender.tokensStorage = m.tokensStorage
+	sender.PublicKey = m.PublicKey
+	sender.Logger = m.Logger
+	sender.AppID = m.AppID
+
+	m.Logger.Println("Exporting new sender for DC", dcID)
+	err := sender.CreateConnection(true)
+	if err != nil {
+		return nil, fmt.Errorf("creating connection: %w", err)
+	}
+	err = sender.InvokeLayer()
+	if err != nil {
+		return nil, fmt.Errorf("invoking layer: %w", err)
+	}
+	return sender, nil
 }
 
 func (m *MTProto) SetDCList(in map[int]string) {
@@ -132,14 +185,14 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Printf("Connecting to %s:443/TcpFull...", m.addr)
+		m.Logger.Printf("Connecting to %s/TcpFull...", m.addr)
 	}
 	err := m.connect(ctx)
 	if err != nil {
 		return err
 	}
 	if withLog {
-		m.Logger.Printf("Connection to %s:443/TcpFull complete!", m.addr)
+		m.Logger.Printf("Connection to %s/TcpFull complete!", m.addr)
 	}
 	m.startReadingResponses(ctx)
 
@@ -219,11 +272,11 @@ func (m *MTProto) Reconnect(InvokeLayer bool) error {
 	if err != nil {
 		return errors.Wrap(err, "disconnecting")
 	}
-	m.Logger.Printf("Reconnecting to %s:443/TcpFull...", m.addr)
+	m.Logger.Printf("Reconnecting to %s/TcpFull...", m.addr)
 
 	err = m.CreateConnection(false)
 	if err == nil {
-		m.Logger.Printf("Connected to %s:443/TcpFull complete!", m.addr)
+		m.Logger.Printf("Connected to %s/TcpFull complete!", m.addr)
 	}
 	if InvokeLayer {
 		err = m.InvokeLayer()
@@ -254,7 +307,7 @@ func (m *MTProto) InvokeLayer() error {
 		Layer: int32(utils.ApiVersion),
 		Query: &utils.InitConnectionParams{
 			ApiID:          int32(m.AppID),
-			DeviceModel:    "PC",
+			DeviceModel:    "Desktop",
 			SystemVersion:  "Linux",
 			AppVersion:     "1.0",
 			SystemLangCode: "en",
@@ -386,7 +439,6 @@ messageTypeSwitching:
 			return errors.Wrap(err, "saving session")
 		}
 		m.Reconnect(false)
-		fmt.Println("Kollum")
 		m.mutex.Lock()
 		for _, k := range m.responseChannels.Keys() {
 			v, _ := m.responseChannels.Get(k)
@@ -493,8 +545,4 @@ func CloseOnCancel(ctx context.Context, c io.Closer) {
 		<-ctx.Done()
 		c.Close()
 	}()
-}
-
-func NewLogger(prefix string) *log.Logger {
-	return log.New(log.Writer(), prefix, log.LstdFlags)
 }

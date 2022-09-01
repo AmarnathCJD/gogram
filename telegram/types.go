@@ -1,15 +1,21 @@
 package telegram
 
 type (
+	LoginOptions struct {
+		Password string `json:"password,omitempty"`
+		Code     string `json:"code,omitempty"`
+		CodeHash string `json:"code_hash,omitempty"`
+	}
+
 	SendOptions struct {
-		ReplyID     int32
-		Caption     interface{}
-		ParseMode   string
-		Silent      bool
-		LinkPreview bool
-		ReplyMarkup ReplyMarkup
-		ClearDraft  bool
-		NoForwards  bool
+		ReplyID     int32       `json:"reply_id,omitempty"`
+		Caption     interface{} `json:"caption,omitempty"`
+		ParseMode   string      `json:"parse_mode,omitempty"`
+		Silent      bool        `json:"silent,omitempty"`
+		LinkPreview bool        `json:"link_preview,omitempty"`
+		ReplyMarkup ReplyMarkup `json:"reply_markup,omitempty"`
+		ClearDraft  bool        `json:"clear_draft,omitempty"`
+		NoForwards  bool        `json:"no_forwards,omitempty"`
 	}
 
 	MediaOptions struct {

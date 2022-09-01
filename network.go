@@ -4,6 +4,7 @@ package mtproto
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
@@ -13,8 +14,6 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/pkg/errors"
 )
-
-var NetworkLogger = NewLogger("Network - ")
 
 func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (chan tl.Object, error) {
 	msg, err := tl.Marshal(request)
@@ -58,7 +57,7 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 
 	err = m.transport.WriteMsg(data, MessageRequireToAck(request))
 	if err != nil {
-		NetworkLogger.Printf("error writing message: %s", err.Error())
+		log.Printf("Network - error writing message: %s", err.Error())
 		return nil, fmt.Errorf("writing message: %w", err)
 	}
 
@@ -72,7 +71,7 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 func (m *MTProto) writeRPCResponse(msgID int, data tl.Object) error {
 	v, ok := m.responseChannels.Get(msgID)
 	if !ok {
-		NetworkLogger.Printf("no response channel for message %d", msgID)
+		log.Printf("Network - no response channel for message %d", msgID)
 		return fmt.Errorf("no response channel for message %d", msgID)
 	}
 

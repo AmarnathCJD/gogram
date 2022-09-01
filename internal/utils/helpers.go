@@ -49,3 +49,7 @@ func (*HelpGetConfigParams) CRC() uint32 {
 func (*InitConnectionParams) FlagIndex() int {
 	return 0
 }
+
+func GetDCID(ip, port string) int {
+	return 0
+}
