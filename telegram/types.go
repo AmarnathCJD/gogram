@@ -2,9 +2,11 @@ package telegram
 
 type (
 	LoginOptions struct {
-		Password string `json:"password,omitempty"`
-		Code     string `json:"code,omitempty"`
-		CodeHash string `json:"code_hash,omitempty"`
+		Password  string `json:"password,omitempty"`
+		Code      string `json:"code,omitempty"`
+		CodeHash  string `json:"code_hash,omitempty"`
+		FirstName string `json:"first_name,omitempty"`
+		LastName  string `json:"last_name,omitempty"`
 	}
 
 	SendOptions struct {
@@ -73,6 +75,14 @@ type (
 		Rank    string           `json:"rank,omitempty"`
 	}
 
+	BannedOptions struct {
+		Ban    bool              `json:"ban,omitempty"`
+		Unban  bool              `json:"unban,omitempty"`
+		Mute   bool              `json:"mute,omitempty"`
+		Unmute bool              `json:"unmute,omitempty"`
+		Rights *ChatBannedRights `json:"rights,omitempty"`
+	}
+
 	ActionResult struct {
 		Peer   InputPeer `json:"peer,omitempty"`
 		Client *Client   `json:"client,omitempty"`
@@ -110,6 +120,9 @@ var (
 // Cancel the pointed Action,
 // Returns true if the action was cancelled
 func (a *ActionResult) Cancel() bool {
+	if a.Peer == nil || a.Client == nil {
+		return false // Avoid nil pointer dereference
+	}
 	b, err := a.Client.MessagesSetTyping(a.Peer, 0, &SendMessageCancelAction{})
 	if err != nil {
 		return false
