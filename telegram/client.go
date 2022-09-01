@@ -57,7 +57,7 @@ type (
 )
 
 func TelegramClient(c ClientConfig) (*Client, error) {
-	c.SessionFile = getStr(c.SessionFile, workDir+"/tg_session.json")
+	c.SessionFile = getStr(c.SessionFile, workDir+"/session.session")
 	publicKeys, err := keys.GetRSAKeys()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading public keys")
@@ -198,6 +198,7 @@ func (c *Client) LoginBot(botToken string) error {
 	return err
 }
 
+// sendCode and return phoneCodeHash
 func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
 	resp, err := c.AuthSendCode(phoneNumber, c.AppID, c.ApiHash, &CodeSettings{
 		AllowAppHash:  true,
@@ -209,6 +210,8 @@ func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
 	return resp.PhoneCodeHash, nil
 }
 
+// Authorize client with phone number, code and phone code hash,
+// If phone code hash is empty, it will be requested from telegram server
 func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, error) {
 	var opts *LoginOptions
 	if len(options) > 0 {
@@ -267,12 +270,23 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 				return false, err
 			}
 			return true, nil
+		} else if strings.Contains(SignInerr.Error(), "The code is valid but no user with the given number") {
+			_, err := c.AuthSignUp(phoneNumber, opts.CodeHash, opts.FirstName, opts.LastName)
+			if err != nil {
+				return false, err
+			}
+			return true, nil
 		} else {
 			return false, SignInerr
 		}
 	}
-	// SignUp not implemented
 	return true, nil
+}
+
+// Logs out from the current account
+func (c *Client) LogOut() error {
+	_, err := c.AuthLogOut()
+	return err
 }
 
 // Ping telegram server TCP connection

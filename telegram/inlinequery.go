@@ -131,3 +131,23 @@ func (b *InlineBuilder) Document(document interface{}, options ...*ArticleOption
 	}
 	return result
 }
+
+func (b *InlineBuilder) Game(ID, ShortName string, options ...*ArticleOptions) InputBotInlineResult {
+	var opts ArticleOptions
+	if len(options) > 0 {
+		opts = *options[0]
+	} else {
+		opts = ArticleOptions{}
+	}
+	result := &InputBotInlineResultGame{
+		ID:        fmt.Sprint(GenerateRandomLong()),
+		ShortName: ShortName,
+		SendMessage: &InputBotInlineMessageText{
+			Message:     "",
+			Entities:    nil,
+			ReplyMarkup: opts.ReplyMarkup,
+			NoWebpage:   !opts.LinkPreview,
+		},
+	}
+	return result
+}

@@ -345,6 +345,11 @@ func (c *Client) GetParticipant(PeerID interface{}, UserID interface{}) (Partici
 	return *Participant, nil
 }
 
+func (c *Client) GetMessages(peerID interface{}, IDs []int32) ([]Message, error) {
+	// TODO: implement message filters
+	return []Message{}, errors.New("not implemented, use raw method")
+}
+
 func (c *Client) SendAction(PeerID interface{}, Action interface{}) (*ActionResult, error) {
 	PeerToSend, err := c.GetSendablePeer(PeerID)
 	if err != nil {
@@ -436,6 +441,52 @@ func (c *Client) EditAdmin(PeerID interface{}, UserID interface{}, opts ...*Admi
 			return false, errors.New("peer is not a chat or channel")
 		}
 	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (c *Client) EditBanned(PeerID interface{}, UserID interface{}, opts ...*BannedOptions) (bool, error) {
+	var (
+		BannedOptions *BannedOptions
+		err           error
+	)
+	if len(opts) > 0 {
+		BannedOptions = opts[0]
+	} else {
+		BannedOptions.Rights = &ChatBannedRights{}
+	}
+	if BannedOptions.Ban {
+		BannedOptions.Rights.ViewMessages = true
+	} else if BannedOptions.Unban {
+		BannedOptions.Rights.ViewMessages = false
+	} else if BannedOptions.Mute {
+		BannedOptions.Rights.SendMessages = true
+	} else if BannedOptions.Unmute {
+		BannedOptions.Rights.SendMessages = false
+	}
+	PeerToSend, err := c.GetSendablePeer(PeerID)
+	if err != nil {
+		return false, err
+	}
+	PeerPart, err := c.GetSendablePeer(UserID)
+	if err != nil {
+		return false, err
+	}
+	switch p := PeerToSend.(type) {
+	case *InputPeerChannel:
+		_, err = c.ChannelsEditBanned(
+			&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash},
+			PeerPart,
+			BannedOptions.Rights,
+		)
+	case *InputPeerChat:
+		return false, errors.New("method not found")
+	default:
+		return false, errors.New("peer is not a chat or channel")
+	}
+
 	if err != nil {
 		return false, err
 	}
