@@ -4,7 +4,7 @@ import "regexp"
 
 const (
 	ApiVersion = 144
-	Version    = "v0.2.1beta"
+	Version    = "v0.2.2beta"
 
 	MarkDown   string = "Markdown"
 	HTML       string = "HTML"

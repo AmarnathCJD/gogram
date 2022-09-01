@@ -89,11 +89,17 @@ func NewMTProto(c Config) (*MTProto, error) {
 			return nil, fmt.Errorf("loading session: %w", err)
 		}
 	}
+	var encrypted bool
+	if s != nil {
+		encrypted = true
+	} else if c.StringSession != "" {
+		encrypted = true
+	}
 
 	m := &MTProto{
 		tokensStorage:         c.SessionStorage,
 		addr:                  c.ServerHost,
-		encrypted:             s != nil,
+		encrypted:             encrypted,
 		sessionId:             utils.GenerateSessionID(),
 		serviceChannel:        make(chan tl.Object),
 		PublicKey:             c.PublicKey,
