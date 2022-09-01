@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"math/big"
 
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
@@ -15,10 +16,6 @@ import (
 	"github.com/amarnathcjd/gogram/internal/keys"
 	"github.com/amarnathcjd/gogram/internal/math"
 	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
-)
-
-var (
-	hsLog = NewLogger("TGCrypto - ")
 )
 
 // https://core.telegram.org/mtproto/auth_key
@@ -59,7 +56,7 @@ func (m *MTProto) makeAuthKey() error {
 		NewNonce:    nonceSecond,
 	})
 	if err != nil {
-		hsLog.Printf("makeAuthKey: %s", err)
+		log.Printf("TgCrypto - makeAuthKey: %s", err)
 		return err
 	}
 
@@ -131,7 +128,7 @@ func (m *MTProto) makeAuthKey() error {
 		GB:          gB.Bytes(),
 	})
 	if err != nil {
-		hsLog.Printf("ClientDHInnerData: %s", err)
+		log.Printf("TgCrypto - dh: %s", err)
 		return err
 	}
 
@@ -164,7 +161,7 @@ func (m *MTProto) makeAuthKey() error {
 	m.encrypted = true
 	err = m.SaveSession()
 	if err != nil {
-		hsLog.Printf("SaveSession: %s", err)
+		log.Printf("TgCrypto - savesession: %s", err)
 	}
 	return err
 }
