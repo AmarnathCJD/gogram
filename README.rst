@@ -10,7 +10,6 @@ GoGram
 MTProto_ (Layer 144) library to interact with Telegram's API
 as a user or through a bot account (bot API alternative).
 
-|image|
 
 What is this?
 -------------
@@ -28,7 +27,7 @@ Installing
   go get -u github.com/amarnathcjd/gogram
 
     
-Creating a client
+SetUp Client
 -----------------
 
 .. code-block:: golang
@@ -38,25 +37,11 @@ Creating a client
          AppHash: "",
          DataCenter: 2,
     })
+    client.LoginBot(botToken)
+    // client.Login(phoneNumber)
 
     client.Idle() // start infinite polling
 
-Event handlers
---------------
-
-.. code-block:: golang
-
-    func Start(m *telegram.NewMessage) error {
-        _, err := m.Reply("Hello World!")
-        return err
-    }
-
-    client.AddMessageHandler("[/!]start$", Start)
-
-Entity Cache
-------------
-
-    Entities are cached on memory for now.
 
 Doing stuff
 -----------
@@ -72,36 +57,38 @@ Doing stuff
     fmt.Println(client.GetMe())
 
     message, _ := client.SendMessage("username", "Hello I'm talking to you from gogram!")
-    client.EditMessage("username", message.ID, "Yep.")
-    client.SendMedia("username", "https://m.media-amazon.com/images/M/MV5BYTRiNDQwYzAtMzVlZS00NTI5LWJjYjUtMzkwNTUzMWMxZTllXkEyXkFqcGdeQXVyNDIzMzcwNjc@._V1_FMjpg_UX1000_.jpg", opts)
+    message.Edit("Yep!")
+    message.ReplyMedia(url, opts)
     client.DeleteMessage("username", message.ID)
     message.ForwardTo(message.ChatID())
     peer := client.ResolvePeer("username")
     client.GetParticipant("chat", "user")
     client.EditAdmin(chatID, userID, &telegram.AdminOptions{
-        AdminRights: &telegram.AdminRights{
-            ChangeInfo: true,
-            DeleteMessages: true,
-            BanUsers: true,
-            InviteUsers: true,
-            PinMessages: true,
+        AdminRights: &telegram.ChatAdminRights{
             AddAdmins: true,
         },
         Rank: "Admin",
     })
+    client.GetMessages(chatID, &telegram.SearchOptions{Limit: 1})
+    action, _ := client.SendAction(chat, "typing")
+    defer action.Cancel()
+    client.KickParticipant(chatID, userID)
+    client.EditBanned(chatID, userID, &telegram.BannedOptions{Mute: true})
+    client.DownloadMedia(message, "download.jpg")
+    
     client.SendDice("username", "🎲")
 
 TODO
 ----------
 
-- [ x ] Basic MTProto implementation
-- [ x ] Implement all Methods for latest layer (144)
-- [ x ] Entity Cache + Friendly Methods
-- [ x ] Add Update Handle System
-- [ - ] Make a reliable HTML Parser
-- [ - ] Friendly Methods to Handle CallbackQuery, VoiceCalls
-- [ - ] Multiple tests
-- [ - ] Add more examples
+- ✔️ Basic MTProto implementation
+- ✔️ Implement all Methods for latest layer (144)
+- ✔️ Entity Cache + Friendly Methods
+- ✔️ Add Update Handle System
+- 📝 Make a reliable HTML Parser
+- ✔️ Friendly Methods to Handle CallbackQuery, VoiceCalls
+- 📝 Multiple tests
+- 📝 Add more examples
 
 
 .. _MTProto: https://core.telegram.org/mtproto
