@@ -169,18 +169,18 @@ DocTypeSwitch:
 		ID:       getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
 		Type:     "document",
 		Document: Doc,
-		SendMessage: &InputBotInlineMessageText{
+		SendMessage: &InputBotInlineMessageMediaAuto{
+			Message:     text,
+			Entities:    e,
+			ReplyMarkup: opts.ReplyMarkup,
+		},
+	}
+	if opts.ExcludeMedia {
+		result.SendMessage = &InputBotInlineMessageText{
 			Message:     text,
 			Entities:    e,
 			ReplyMarkup: opts.ReplyMarkup,
 			NoWebpage:   !opts.LinkPreview,
-		},
-	}
-	if opts.ExcludeMedia {
-		result.SendMessage = &InputBotInlineMessageMediaAuto{
-			Message:     text,
-			Entities:    e,
-			ReplyMarkup: opts.ReplyMarkup,
 		}
 	}
 	if opts.Venue != nil {
