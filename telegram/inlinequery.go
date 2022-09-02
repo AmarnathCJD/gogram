@@ -256,5 +256,5 @@ func (m *InlineQuery) Args() string {
 	if len(Messages) < 2 {
 		return ""
 	}
-	return strings.TrimSpace(strings.Join(Messages[1:], " "))
+	return strings.TrimSpace(strings.Join(Messages[1:], " ")) // Args()
 }
