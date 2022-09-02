@@ -19,6 +19,12 @@ to make it easy for you to write Golang programs that can interact
 with Telegram. Think of it as a wrapper that has already done the
 heavy job for you, so you can focus on developing an application.
 
+Features
+--------
+
+Light Weight compared to other go- mtproto clients. Fast compiling and execution
+Benchmarked average memory consumption during runtime 1.5-2MB.
+
 Installing
 ----------
 
