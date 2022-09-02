@@ -1,6 +1,9 @@
 package telegram
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type (
 	InlineQuery struct {
@@ -8,7 +11,9 @@ type (
 		Query          string
 		OriginalUpdate *UpdateBotInlineQuery
 		Sender         *UserObj
+		SenderID       int64
 		Offset         string
+		PeerType       InlineQueryPeerType
 		Client         *Client
 	}
 
@@ -48,7 +53,7 @@ func (b *InlineBuilder) Article(title, description, text string, options ...*Art
 	}
 	e, text := b.Client.FormatMessage(text, getValue(opts.ParseMode, b.Client.ParseMode).(string))
 	result := &InputBotInlineResultObj{
-		ID:          fmt.Sprint(GenerateRandomLong()),
+		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
 		Type:        "article",
 		Title:       title,
 		Description: description,
@@ -59,6 +64,15 @@ func (b *InlineBuilder) Article(title, description, text string, options ...*Art
 			ReplyMarkup: opts.ReplyMarkup,
 			NoWebpage:   !opts.LinkPreview,
 		},
+	}
+	if opts.Venue != nil {
+		result.SendMessage = opts.Venue
+	} else if opts.Location != nil {
+		result.SendMessage = opts.Location
+	} else if opts.Contact != nil {
+		result.SendMessage = opts.Contact
+	} else if opts.Invoice != nil {
+		result.SendMessage = opts.Invoice
 	}
 	if opts.Thumb.URL != "" {
 		result.Thumb = &opts.Thumb
@@ -79,25 +93,50 @@ func (b *InlineBuilder) Photo(photo interface{}, options ...*ArticleOptions) Inp
 	}
 	Photo, _ := b.Client.getSendableMedia(photo, &CustomAttrs{})
 	var Image InputPhoto
+PhotoTypeSwitch:
 	switch p := Photo.(type) {
 	case *InputMediaPhoto:
 		Image = p.ID
+	case *InputMediaUploadedPhoto:
+		media, err := b.Client.MessagesUploadMedia(&InputPeerSelf{}, p)
+		if err != nil {
+			Image = &InputPhotoEmpty{}
+		}
+		Photo, _ = b.Client.getSendableMedia(media, &CustomAttrs{})
+		goto PhotoTypeSwitch
 	default:
 		b.Client.Logger.Println("InlineBuilder.Photo: Photo is not a InputMediaPhoto")
-		return nil
+		Image = &InputPhotoEmpty{}
 	}
 	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode).(string))
 	result := &InputBotInlineResultPhoto{
-		ID:    fmt.Sprint(GenerateRandomLong()),
+		ID:    getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
 		Type:  "photo",
 		Photo: Image,
-		SendMessage: &InputBotInlineMessageText{
+		SendMessage: &InputBotInlineMessageMediaAuto{
+			Message:     text,
+			Entities:    e,
+			ReplyMarkup: opts.ReplyMarkup,
+		},
+	}
+	if opts.ExcludeMedia {
+		result.SendMessage = &InputBotInlineMessageText{
 			Message:     text,
 			Entities:    e,
 			ReplyMarkup: opts.ReplyMarkup,
 			NoWebpage:   !opts.LinkPreview,
-		},
+		}
 	}
+	if opts.Venue != nil {
+		result.SendMessage = opts.Venue
+	} else if opts.Location != nil {
+		result.SendMessage = opts.Location
+	} else if opts.Contact != nil {
+		result.SendMessage = opts.Contact
+	} else if opts.Invoice != nil {
+		result.SendMessage = opts.Invoice
+	}
+	b.InlineResults = append(b.InlineResults, result)
 	return result
 }
 
@@ -110,16 +149,24 @@ func (b *InlineBuilder) Document(document interface{}, options ...*ArticleOption
 	}
 	Document, _ := b.Client.getSendableMedia(document, &CustomAttrs{})
 	var Doc InputDocument
+DocTypeSwitch:
 	switch p := Document.(type) {
 	case *InputMediaDocument:
 		Doc = p.ID
+	case *InputMediaUploadedDocument:
+		media, err := b.Client.MessagesUploadMedia(&InputPeerSelf{}, p)
+		if err != nil {
+			Doc = &InputDocumentEmpty{}
+		}
+		Document, _ = b.Client.getSendableMedia(media, &CustomAttrs{})
+		goto DocTypeSwitch
 	default:
 		b.Client.Logger.Println("InlineBuilder.Document: Document is not a InputMediaDocument")
-		return nil
+		Doc = &InputDocumentEmpty{}
 	}
 	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode).(string))
 	result := &InputBotInlineResultDocument{
-		ID:       fmt.Sprint(GenerateRandomLong()),
+		ID:       getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
 		Type:     "document",
 		Document: Doc,
 		SendMessage: &InputBotInlineMessageText{
@@ -129,6 +176,23 @@ func (b *InlineBuilder) Document(document interface{}, options ...*ArticleOption
 			NoWebpage:   !opts.LinkPreview,
 		},
 	}
+	if opts.ExcludeMedia {
+		result.SendMessage = &InputBotInlineMessageMediaAuto{
+			Message:     text,
+			Entities:    e,
+			ReplyMarkup: opts.ReplyMarkup,
+		}
+	}
+	if opts.Venue != nil {
+		result.SendMessage = opts.Venue
+	} else if opts.Location != nil {
+		result.SendMessage = opts.Location
+	} else if opts.Contact != nil {
+		result.SendMessage = opts.Contact
+	} else if opts.Invoice != nil {
+		result.SendMessage = opts.Invoice
+	}
+	b.InlineResults = append(b.InlineResults, result)
 	return result
 }
 
@@ -139,15 +203,50 @@ func (b *InlineBuilder) Game(ID, ShortName string, options ...*ArticleOptions) I
 	} else {
 		opts = ArticleOptions{}
 	}
+	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode).(string))
 	result := &InputBotInlineResultGame{
-		ID:        fmt.Sprint(GenerateRandomLong()),
+		ID:        getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
 		ShortName: ShortName,
-		SendMessage: &InputBotInlineMessageText{
-			Message:     "",
-			Entities:    nil,
+		SendMessage: &InputBotInlineMessageMediaAuto{
+			Message:     text,
+			Entities:    e,
 			ReplyMarkup: opts.ReplyMarkup,
-			NoWebpage:   !opts.LinkPreview,
 		},
 	}
+	if opts.ExcludeMedia {
+		result.SendMessage = &InputBotInlineMessageText{
+			Message:     text,
+			Entities:    e,
+			ReplyMarkup: opts.ReplyMarkup,
+			NoWebpage:   !opts.LinkPreview,
+		}
+	}
+	if opts.Venue != nil {
+		result.SendMessage = opts.Venue
+	} else if opts.Location != nil {
+		result.SendMessage = opts.Location
+	} else if opts.Contact != nil {
+		result.SendMessage = opts.Contact
+	} else if opts.Invoice != nil {
+		result.SendMessage = opts.Invoice
+	}
+	b.InlineResults = append(b.InlineResults, result)
 	return result
+}
+
+func (b *InlineQuery) IsChannel() bool {
+	return b.PeerType == InlineQueryPeerTypeBroadcast
+}
+
+func (b *InlineQuery) IsGroup() bool {
+	return b.PeerType == InlineQueryPeerTypeChat || b.PeerType == InlineQueryPeerTypeMegagroup
+}
+
+func (b *InlineQuery) IsPrivate() bool {
+	return b.PeerType == InlineQueryPeerTypePm || b.PeerType == InlineQueryPeerTypeSameBotPm
+}
+
+func (b *InlineQuery) Marshal() string {
+	bytes, _ := json.MarshalIndent(b, "", "  ")
+	return string(bytes)
 }

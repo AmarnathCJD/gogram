@@ -104,6 +104,20 @@ updateTypeSwitch:
 
 func (c *Client) GetSendablePeer(Peer interface{}) (InputPeer, error) {
 	switch Peer := Peer.(type) {
+	case *PeerUser:
+		PeerEntity, err := c.GetPeerUser(Peer.UserID)
+		if err != nil {
+			return nil, err
+		}
+		return &InputPeerUser{UserID: Peer.UserID, AccessHash: PeerEntity.AccessHash}, nil
+	case *PeerChat:
+		return &InputPeerChat{ChatID: Peer.ChatID}, nil
+	case *PeerChannel:
+		PeerEntity, err := c.GetPeerChannel(Peer.ChannelID)
+		if err != nil {
+			return nil, err
+		}
+		return &InputPeerChannel{ChannelID: Peer.ChannelID, AccessHash: PeerEntity.AccessHash}, nil
 	case *InputPeerChat:
 		return Peer, nil
 	case *InputPeerChannel:
@@ -118,6 +132,11 @@ func (c *Client) GetSendablePeer(Peer interface{}) (InputPeer, error) {
 			return nil, err
 		}
 		return &InputPeerUser{UserID: PeerEntity.ID, AccessHash: PeerEntity.AccessHash}, nil
+	case *InputPeer:
+		return *Peer, nil
+		// TODO: Add more types
+	case *InputUserObj:
+		return &InputPeerUser{UserID: Peer.UserID, AccessHash: Peer.AccessHash}, nil
 	case *ChatObj:
 		return &InputPeerChat{ChatID: Peer.ID}, nil
 	case *Channel:
@@ -143,6 +162,9 @@ func (c *Client) GetSendablePeer(Peer interface{}) (InputPeer, error) {
 		}
 		return PeerEntity, nil
 	case string:
+		if Peer == "me" {
+			return &InputPeerSelf{}, nil
+		}
 		PeerEntity, err := c.ResolveUsername(Peer)
 		if err != nil {
 			return nil, err
@@ -388,13 +410,34 @@ func packInlineQuery(c *Client, query *UpdateBotInlineQuery) *InlineQuery {
 	iq.Offset = query.Offset
 	iq.Client = c
 	iq.Sender, _ = c.Cache.GetUser(query.UserID)
+	iq.SenderID = query.UserID
 	iq.OriginalUpdate = query
 	return iq
 }
 
+func packCallbackQuery(c *Client, query *UpdateBotCallbackQuery) *CallbackQuery {
+	var (
+		cq = &CallbackQuery{}
+	)
+	cq.QueryID = query.QueryID
+	cq.Data = query.Data
+	cq.Client = c
+	cq.Sender, _ = c.Cache.GetUser(query.UserID)
+	cq.Chat = c.getChat(query.Peer)
+	cq.Channel = c.getChannel(query.Peer)
+	cq.OriginalUpdate = query
+	cq.Peer = query.Peer
+	cq.MessageID = query.MsgID
+	cq.SenderID = query.UserID
+	if cq.Channel != nil {
+		cq.ChatID = cq.Channel.ID
+	} else {
+		cq.ChatID = cq.Chat.ID
+	}
+	return cq
+}
+
 func GetInputCheckPassword(password string, accountPassword *AccountPassword) (InputCheckPasswordSRP, error) {
-	// У CurrentAlgo должен быть этот самый тип, с длинным названием алгоритма
-	// https://github.com/tdlib/td/blob/f9009cbc01e9c4c77d31120a61feb9c639c6aeda/td/telegram/AuthManager.cpp#L537
 	alg := accountPassword.CurrentAlgo
 	current, ok := alg.(*PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow)
 

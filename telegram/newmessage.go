@@ -143,7 +143,14 @@ func (m *NewMessage) IsPrivate() bool {
 }
 
 func (m *NewMessage) IsGroup() bool {
-	return m.ChatType() == EntityChat || (m.ChatType() == EntityChannel && !m.Channel.Broadcast)
+	if m.Channel != nil {
+		return m.ChatType() == EntityChat || (m.ChatType() == EntityChannel && !m.Channel.Broadcast)
+	}
+	return m.ChatType() == EntityChat
+}
+
+func (m *NewMessage) ReplyMarkup() *ReplyMarkup {
+	return &m.Message.ReplyMarkup
 }
 
 func (m *NewMessage) IsChannel() bool {

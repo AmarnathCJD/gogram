@@ -11,7 +11,11 @@ import (
 var (
 	MessageHandles  = []MessageHandle{}
 	InlineHandles   = []InlineHandle{}
+	CallbackHandles = []CallbackHandle{}
+	MessageEdit     = []MessageEditHandle{}
+	RawHandles      = []RawHandle{}
 	OnNewMessage    = "OnNewMessage"
+	OnEditMessage   = "OnEditMessage"
 	OnChatAction    = "OnChatAction"
 	OnInlineQuery   = "OnInlineQuery"
 	OnCallbackQuery = "OnCallbackQuery"
@@ -27,6 +31,24 @@ type (
 	InlineHandle struct {
 		Pattern interface{}
 		Handler func(m *InlineQuery) error
+		Client  *Client
+	}
+
+	CallbackHandle struct {
+		Pattern interface{}
+		Handler func(m *CallbackQuery) error
+		Client  *Client
+	}
+
+	RawHandle struct {
+		updateType Update
+		Handler    func(m Update) error
+		Client     *Client
+	}
+
+	MessageEditHandle struct {
+		Pattern interface{}
+		Handler func(m *NewMessage) error
 		Client  *Client
 	}
 
@@ -54,6 +76,22 @@ func HandleMessageUpdate(update Message) {
 	}
 }
 
+func HandleEditUpdate(update Message) {
+	if len(MessageEdit) == 0 {
+		return
+	}
+	switch msg := update.(type) {
+	case *MessageObj:
+		for _, handle := range MessageEdit {
+			if handle.IsMatch(msg.Message) {
+				if err := handle.Handler(packMessage(handle.Client, msg)); err != nil {
+					handle.Client.Logger.Println("RPC Error:", err)
+				}
+			}
+		}
+	}
+}
+
 func HandleInlineUpdate(update *UpdateBotInlineQuery) {
 	if len(InlineHandles) == 0 {
 		return
@@ -67,6 +105,32 @@ func HandleInlineUpdate(update *UpdateBotInlineQuery) {
 	}
 }
 
+func HandleCallbackUpdate(update *UpdateBotCallbackQuery) {
+	if len(CallbackHandles) == 0 {
+		return
+	}
+	for _, handle := range CallbackHandles {
+		if handle.IsMatch(update.Data) {
+			if err := handle.Handler(packCallbackQuery(handle.Client, update)); err != nil {
+				handle.Client.Logger.Println("Unhandled Error:", err)
+			}
+		}
+	}
+}
+
+func HandleRawUpdate(update Update) {
+	if len(RawHandles) == 0 {
+		return
+	}
+	for _, handle := range RawHandles {
+		if reflect.TypeOf(handle.updateType) == reflect.TypeOf(update) {
+			if err := handle.Handler(update); err != nil {
+				handle.Client.Logger.Println("Unhandled Error:", err)
+			}
+		}
+	}
+}
+
 func (h *InlineHandle) IsMatch(text string) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
@@ -74,6 +138,33 @@ func (h *InlineHandle) IsMatch(text string) bool {
 		return p.MatchString(text) || strings.HasPrefix(text, pattern)
 	case *regexp.Regexp:
 		return pattern.MatchString(text)
+	default:
+		return false
+	}
+}
+
+func (e *MessageEditHandle) IsMatch(text string) bool {
+	switch pattern := e.Pattern.(type) {
+	case string:
+		if pattern == OnEditMessage {
+			return true
+		}
+		p := regexp.MustCompile("^" + pattern)
+		return p.MatchString(text) || strings.HasPrefix(text, pattern)
+	case *regexp.Regexp:
+		return pattern.MatchString(text)
+	default:
+		return false
+	}
+}
+
+func (h *CallbackHandle) IsMatch(data []byte) bool {
+	switch pattern := h.Pattern.(type) {
+	case string:
+		p := regexp.MustCompile("^" + pattern)
+		return p.Match(data) || strings.HasPrefix(string(data), pattern)
+	case *regexp.Regexp:
+		return pattern.Match(data)
 	default:
 		return false
 	}
@@ -103,8 +194,20 @@ func (c *Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessa
 	MessageHandles = append(MessageHandles, MessageHandle{pattern, handler, c})
 }
 
+func (c *Client) AddEditHandler(pattern interface{}, handler func(m *NewMessage) error) {
+	MessageEdit = append(MessageEdit, MessageEditHandle{pattern, handler, c})
+}
+
 func (c *Client) AddInlineHandler(pattern interface{}, handler func(m *InlineQuery) error) {
 	InlineHandles = append(InlineHandles, InlineHandle{pattern, handler, c})
+}
+
+func (c *Client) AddCallbackHandler(pattern interface{}, handler func(m *CallbackQuery) error) {
+	CallbackHandles = append(CallbackHandles, CallbackHandle{pattern, handler, c})
+}
+
+func (c *Client) AddRawHandler(updateType Update, handler func(m Update) error) {
+	RawHandles = append(RawHandles, RawHandle{updateType, handler, c})
 }
 
 func (c *Client) RemoveEventHandler(pattern string) {
@@ -129,18 +232,16 @@ UpdateTypeSwitching:
 				go func() { HandleMessageUpdate(update.Message) }()
 			case *UpdateNewChannelMessage:
 				go func() { HandleMessageUpdate(update.Message) }()
+			case *UpdateEditMessage:
+				go func() { HandleEditUpdate(update.Message) }()
+			case *UpdateEditChannelMessage:
+				go func() { HandleEditUpdate(update.Message) }()
 			case *UpdateBotInlineQuery:
 				go func() { HandleInlineUpdate(update) }()
-			case *UpdateBotInlineSend:
 			case *UpdateBotCallbackQuery:
-			case *UpdateBotShippingQuery:
-			case *UpdateBotPrecheckoutQuery:
-			case *UpdateBotStopped:
-			case *UpdateChannel:
-			case *UpdateChannelAvailableMessages:
-			case *UpdateChannelMessageForwards:
-			case *UpdateChannelMessageViews:
-			case *UpdateChannelParticipant:
+				go func() { HandleCallbackUpdate(update) }()
+			default:
+				go func() { HandleRawUpdate(update) }()
 			}
 		}
 	case *UpdateShort:

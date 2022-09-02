@@ -44,6 +44,22 @@ func (c *Client) SendMessage(peerID interface{}, TextObj interface{}, Opts ...*S
 			Silent:      options.Silent,
 			ClearDraft:  options.ClearDraft,
 		})
+	case *NewMessage:
+		if TextObj.Media() != nil {
+			return c.SendMedia(peerID, TextObj.Media(), &MediaOptions{
+				Caption:     getValue(options.Caption, TextObj.Text()).(string),
+				ParseMode:   options.ParseMode,
+				LinkPreview: options.LinkPreview,
+				ReplyID:     options.ReplyID,
+				ReplyMarkup: *getValue(&options.ReplyMarkup, TextObj.ReplyMarkup).(*ReplyMarkup),
+				NoForwards:  options.NoForwards,
+				Silent:      options.Silent,
+				ClearDraft:  options.ClearDraft,
+			})
+		}
+		Text = TextObj.Text()
+		e, Text = c.FormatMessage(Text, options.ParseMode)
+		options.ReplyMarkup = *getValue(&options.ReplyMarkup, TextObj.ReplyMarkup).(*ReplyMarkup)
 	}
 	PeerToSend, err := c.GetSendablePeer(peerID)
 	if err != nil {
@@ -162,7 +178,6 @@ func (c *Client) SendDice(peerID interface{}, Emoji string) (*NewMessage, error)
 }
 
 func (c *Client) SendMedia(peerID interface{}, Media interface{}, Opts ...*MediaOptions) (*NewMessage, error) {
-	fmt.Println(Opts)
 	var options MediaOptions
 	if len(Opts) > 0 {
 		options = *Opts[0]
@@ -172,7 +187,6 @@ func (c *Client) SendMedia(peerID interface{}, Media interface{}, Opts ...*Media
 	}
 	var Caption string
 	var e []MessageEntity
-	fmt.Println("name", options.FileName)
 	switch Capt := options.Caption.(type) {
 	case string:
 		e, Caption = c.FormatMessage(Capt, options.ParseMode)
@@ -345,11 +359,6 @@ func (c *Client) GetParticipant(PeerID interface{}, UserID interface{}) (Partici
 	return *Participant, nil
 }
 
-func (c *Client) GetMessages(peerID interface{}, IDs []int32) ([]Message, error) {
-	// TODO: implement message filters
-	return []Message{}, errors.New("not implemented, use raw method")
-}
-
 func (c *Client) SendAction(PeerID interface{}, Action interface{}) (*ActionResult, error) {
 	PeerToSend, err := c.GetSendablePeer(PeerID)
 	if err != nil {
@@ -393,6 +402,31 @@ func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult
 		}
 	}
 	resp, err := c.MessagesSetInlineBotResults(request)
+	if err != nil {
+		return false, err
+	}
+	return resp, nil
+}
+
+func (c *Client) AnswerCallbackQuery(QueryID int64, Text string, Opts ...*CallbackOptions) (bool, error) {
+	var options *CallbackOptions
+	if len(Opts) > 0 {
+		options = Opts[0]
+	} else {
+		options = &CallbackOptions{}
+	}
+	request := &MessagesSetBotCallbackAnswerParams{
+		QueryID: QueryID,
+		Message: Text,
+		Alert:   options.Alert,
+	}
+	if options.URL != "" {
+		request.URL = options.URL
+	}
+	if options.CacheTime != 0 {
+		request.CacheTime = options.CacheTime
+	}
+	resp, err := c.MessagesSetBotCallbackAnswer(request)
 	if err != nil {
 		return false, err
 	}
@@ -491,4 +525,206 @@ func (c *Client) EditBanned(PeerID interface{}, UserID interface{}, opts ...*Ban
 		return false, err
 	}
 	return true, nil
+}
+
+func (c *Client) KickParticipant(PeerID interface{}, UserID interface{}) (bool, error) {
+	PeerToSend, err := c.GetSendablePeer(PeerID)
+	if err != nil {
+		return false, err
+	}
+	PeerPart, err := c.GetSendablePeer(UserID)
+	if err != nil {
+		return false, err
+	}
+	switch p := PeerToSend.(type) {
+	case *InputPeerChannel:
+		_, err := c.EditBanned(p, PeerPart, &BannedOptions{Ban: true})
+		if err != nil {
+			return false, err
+		}
+		return c.EditBanned(p, PeerPart, &BannedOptions{Unban: true})
+	case *InputPeerChat:
+		u, ok := PeerPart.(*InputPeerUser)
+		if !ok {
+			return false, errors.New("peer is not a user")
+		}
+		_, err = c.MessagesDeleteChatUser(true, p.ChatID, &InputUserObj{UserID: u.UserID, AccessHash: u.AccessHash})
+	default:
+		return false, errors.New("peer is not a chat or channel")
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...TitleOptions) (bool, error) {
+	var options TitleOptions
+	if len(Opts) > 0 {
+		options = Opts[0]
+	}
+	PeerToSend, err := c.GetSendablePeer(PeerID)
+	if err != nil {
+		return false, err
+	}
+	switch p := PeerToSend.(type) {
+	case *InputPeerChannel:
+		_, err = c.ChannelsEditTitle(&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash}, Title)
+	case *InputPeerChat:
+		_, err = c.MessagesEditChatTitle(p.ChatID, Title)
+	case *InputPeerSelf:
+		_, err = c.AccountUpdateProfile(Title, options.LastName, options.About)
+		if err != nil {
+			return false, err
+		}
+	default:
+		return false, errors.New("peer is not a chat or channel")
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// GetMessages returns a slice of messages from a chat,
+// if IDs are not specifed - MessagesSearch is used.
+func (c *Client) GetMessages(PeerID interface{}, Options ...*SearchOption) ([]NewMessage, error) {
+	var (
+		Opts *SearchOption
+		err  error
+	)
+	if len(Options) > 0 {
+		Opts = Options[0]
+	} else {
+		Opts = &SearchOption{}
+	}
+	PeerToSend, err := c.GetSendablePeer(PeerID)
+	if err != nil {
+		return nil, err
+	}
+	var Messages []NewMessage
+	var MessagesSlice []Message
+	var MsgIDs []InputMessage
+	for _, ID := range Opts.IDs {
+		MsgIDs = append(MsgIDs, &InputMessageID{ID: ID})
+	}
+	if len(MsgIDs) == 0 && (Opts.Query == "" && Opts.Limit == 0) {
+		Opts.Limit = 1
+	}
+	if Opts.Filter == nil {
+		Opts.Filter = &InputMessagesFilterEmpty{}
+	}
+	switch p := PeerToSend.(type) {
+	case *InputPeerChannel:
+		if len(MsgIDs) > 0 {
+			resp, err := c.ChannelsGetMessages(&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash}, MsgIDs)
+			if err != nil {
+				return nil, err
+			}
+			Messages, ok := resp.(*MessagesChannelMessages)
+			if !ok {
+				return nil, errors.New("could not convert messages: " + reflect.TypeOf(resp).String())
+			}
+			MessagesSlice = Messages.Messages
+		} else {
+			resp, err := c.MessagesSearch(&MessagesSearchParams{
+				Peer: &InputPeerChannel{
+					ChannelID:  p.ChannelID,
+					AccessHash: p.AccessHash,
+				},
+				Q:        Opts.Query,
+				OffsetID: Opts.Offset,
+				Limit:    Opts.Limit,
+				Filter:   Opts.Filter,
+				MaxDate:  Opts.MaxDate,
+				MinDate:  Opts.MinDate,
+				MaxID:    Opts.MaxID,
+				MinID:    Opts.MinID,
+				TopMsgID: Opts.TopMsgID,
+			})
+			if err != nil {
+				return nil, err
+			}
+			Messages, ok := resp.(*MessagesChannelMessages)
+			if !ok {
+				return nil, errors.New("could not convert messages: " + reflect.TypeOf(resp).String())
+			}
+			MessagesSlice = Messages.Messages
+		}
+	case *InputPeerChat:
+		if len(MsgIDs) > 0 {
+			resp, err := c.MessagesGetMessages(MsgIDs)
+			if err != nil {
+				return nil, err
+			}
+			Messages, ok := resp.(*MessagesMessagesObj)
+			if !ok {
+				return nil, errors.New("could not convert messages: " + reflect.TypeOf(resp).String())
+			}
+			MessagesSlice = Messages.Messages
+		} else {
+			resp, err := c.MessagesSearch(&MessagesSearchParams{
+				Peer: &InputPeerChat{
+					ChatID: p.ChatID,
+				},
+				Q:        Opts.Query,
+				OffsetID: Opts.Offset,
+				Limit:    Opts.Limit,
+				Filter:   Opts.Filter,
+				MaxDate:  Opts.MaxDate,
+				MinDate:  Opts.MinDate,
+				MaxID:    Opts.MaxID,
+				MinID:    Opts.MinID,
+				TopMsgID: Opts.TopMsgID,
+			})
+			if err != nil {
+				return nil, err
+			}
+			Messages, ok := resp.(*MessagesChannelMessages)
+			if !ok {
+				return nil, errors.New("could not convert messages: " + reflect.TypeOf(resp).String())
+			}
+			MessagesSlice = Messages.Messages
+		}
+	case *InputPeerUser:
+		if len(MsgIDs) > 0 {
+			resp, err := c.MessagesGetMessages(MsgIDs)
+			if err != nil {
+				return nil, err
+			}
+			Messages, ok := resp.(*MessagesMessagesObj)
+			if !ok {
+				return nil, errors.New("could not convert messages: " + reflect.TypeOf(resp).String())
+			}
+			MessagesSlice = Messages.Messages
+		} else {
+			resp, err := c.MessagesSearch(&MessagesSearchParams{
+				Peer: &InputPeerUser{
+					UserID:     p.UserID,
+					AccessHash: p.AccessHash,
+				},
+				Q:        Opts.Query,
+				OffsetID: Opts.Offset,
+				Limit:    Opts.Limit,
+				Filter:   Opts.Filter,
+				MaxDate:  Opts.MaxDate,
+				MinDate:  Opts.MinDate,
+				MaxID:    Opts.MaxID,
+				MinID:    Opts.MinID,
+				TopMsgID: Opts.TopMsgID,
+			})
+			if err != nil {
+				return nil, err
+			}
+			Messages, ok := resp.(*MessagesMessagesObj)
+			if !ok {
+				return nil, errors.New("could not convert messages: " + reflect.TypeOf(resp).String())
+			}
+			MessagesSlice = Messages.Messages
+		}
+	}
+	for _, Message := range MessagesSlice {
+		Messages = append(Messages, *packMessage(c, Message))
+	}
+	return Messages, nil
 }
