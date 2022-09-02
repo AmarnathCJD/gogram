@@ -2,6 +2,14 @@ package telegram
 
 type Button struct{}
 
+func (b Button) Force(placeHolder string) *ReplyKeyboardForceReply {
+	return &ReplyKeyboardForceReply{Placeholder: placeHolder}
+}
+
+func (b Button) Auth(Text string, URL string, ForwardText string, ButtonID int32) *KeyboardButtonURLAuth {
+	return &KeyboardButtonURLAuth{Text: Text, URL: URL, FwdText: ForwardText, ButtonID: ButtonID}
+}
+
 func (b Button) URL(Text string, URL string) *KeyboardButtonURL {
 	return &KeyboardButtonURL{Text: Text, URL: URL}
 }
@@ -48,4 +56,8 @@ func (b Button) Row(Buttons ...KeyboardButton) *KeyboardButtonRow {
 
 func (b Button) Keyboard(Rows ...*KeyboardButtonRow) *ReplyInlineMarkup {
 	return &ReplyInlineMarkup{Rows: Rows}
+}
+
+func (b Button) Clear() *ReplyKeyboardHide {
+	return &ReplyKeyboardHide{}
 }

@@ -29,7 +29,7 @@ func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, st
 		tok.Find("b").Each(func(i int, s *goquery.Selection) {
 			if text := s.Text(); strings.TrimSpace(text) != "" {
 				entities = append(entities, &MessageEntityBold{
-					Offset: int32(search([]rune(Text), text)),
+					Offset: int32(GetOffSet(Text, text)),
 					Length: int32(len([]rune(text))),
 				})
 			}
@@ -69,7 +69,7 @@ func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, st
 		tok.Find("a").Each(func(i int, s *goquery.Selection) {
 			if text := s.Text(); strings.TrimSpace(text) != "" {
 				entities = append(entities, &MessageEntityTextURL{
-					Offset: int32(search([]rune(Text), text)),
+					Offset: int32(GetOffSet(Text, text)),
 					Length: int32(len([]rune(text))),
 					URL:    s.AttrOr("href", ""),
 				})
@@ -82,25 +82,7 @@ func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, st
 }
 
 func GetOffSet(str string, substr string) int32 {
-	return int32(strings.IndexRune(str, []rune(substr)[0]))
-}
-
-func search(text []rune, what string) int {
-	whatRunes := []rune(what)
-
-	for i := range text {
-		found := true
-		for j := range whatRunes {
-			if text[i+j] != whatRunes[j] {
-				found = false
-				break
-			}
-		}
-		if found {
-			return i
-		}
-	}
-	return -1
+	return int32(strings.Index(str, substr))
 }
 
 func (m *NewMessage) Text() string {

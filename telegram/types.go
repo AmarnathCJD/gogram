@@ -97,14 +97,44 @@ type (
 		SwitchPmText string `json:"switch_pm_text,omitempty"`
 	}
 
+	CallbackOptions struct {
+		Alert     bool   `json:"alert,omitempty"`
+		CacheTime int32  `json:"cache_time,omitempty"`
+		URL       string `json:"url,omitempty"`
+	}
+
 	ArticleOptions struct {
-		Thumb       InputWebDocument `json:"thumb,omitempty"`
-		Content     InputWebDocument `json:"content,omitempty"`
-		LinkPreview bool             `json:"link_preview,omitempty"`
-		ReplyMarkup ReplyMarkup      `json:"reply_markup,omitempty"`
-		Entities    []MessageEntity  `json:"entities,omitempty"`
-		ParseMode   string           `json:"parse_mode,omitempty"`
-		Caption     string           `json:"caption,omitempty"`
+		ID           string                             `json:"id,omitempty"`
+		ExcludeMedia bool                               `json:"exclude_media,omitempty"`
+		Thumb        InputWebDocument                   `json:"thumb,omitempty"`
+		Content      InputWebDocument                   `json:"content,omitempty"`
+		LinkPreview  bool                               `json:"link_preview,omitempty"`
+		ReplyMarkup  ReplyMarkup                        `json:"reply_markup,omitempty"`
+		Entities     []MessageEntity                    `json:"entities,omitempty"`
+		ParseMode    string                             `json:"parse_mode,omitempty"`
+		Caption      string                             `json:"caption,omitempty"`
+		Venue        *InputBotInlineMessageMediaVenue   `json:"venue,omitempty"`
+		Location     *InputBotInlineMessageMediaGeo     `json:"location,omitempty"`
+		Contact      *InputBotInlineMessageMediaContact `json:"contact,omitempty"`
+		Invoice      *InputBotInlineMessageMediaInvoice `json:"invoice,omitempty"`
+	}
+
+	SearchOption struct {
+		IDs      []int32        `json:"ids,omitempty"`
+		Query    string         `json:"query,omitempty"`
+		Offset   int32          `json:"offset,omitempty"`
+		Limit    int32          `json:"limit,omitempty"`
+		Filter   MessagesFilter `json:"filter,omitempty"`
+		TopMsgID int32          `json:"top_msg_id,omitempty"`
+		MaxID    int32          `json:"max_id,omitempty"`
+		MinID    int32          `json:"min_id,omitempty"`
+		MaxDate  int32          `json:"max_date,omitempty"`
+		MinDate  int32          `json:"min_date,omitempty"`
+	}
+
+	TitleOptions struct {
+		LastName string `json:"last_name,omitempty"`
+		About    string `json:"about,omitempty"`
 	}
 )
 

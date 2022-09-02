@@ -36,6 +36,13 @@ func main() {
 	me, _ := client.GetMe()
 	fmt.Printf("Logged in as %s\n", me.Username)
 
+	m, err := client.GetMessages("durov", &telegram.SearchOption{Limit: 1})
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(m[0].Marshal())
+	}
+
 	// Add handlers
 	client.AddMessageHandler("/start", Start)
 	client.Idle() // Blocks until client.Stop() is called
