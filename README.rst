@@ -23,7 +23,9 @@ Features
 --------
 
 Light Weight compared to other go- mtproto clients. Fast compiling and execution,
-Benchmarked average memory consumption during runtime **1.5-2MB**.
+Benchmarked average memory consumption during runtime **1.5-2MB**
+All commonly used methods are made more friendly,
+Reliable updates handling system
 
 Installing
 ----------
