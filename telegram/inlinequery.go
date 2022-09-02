@@ -250,3 +250,11 @@ func (b *InlineQuery) Marshal() string {
 	bytes, _ := json.MarshalIndent(b, "", "  ")
 	return string(bytes)
 }
+
+func (m *InlineQuery) Args() string {
+	Messages := strings.Split(m.Query, " ")
+	if len(Messages) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(strings.Join(Messages[1:], " "))
+}
