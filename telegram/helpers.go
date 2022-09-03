@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -50,6 +51,108 @@ func PathIsWritable(path string) bool {
 
 func GenRandInt() int64 {
 	return int64(rand.Int31())
+}
+
+func (c *Client) getMultiMedia(m interface{}, attrs *CustomAttrs) ([]*InputSingleMedia, error) {
+	var media []*InputSingleMedia
+	var inputMedia []InputMedia
+	switch m := m.(type) {
+	case *InputSingleMedia:
+		media = append(media, m)
+	case []*InputSingleMedia:
+		media = m
+	case []InputMedia:
+		for _, m := range m {
+			mediaObj, err := c.getSendableMedia(m, attrs)
+			if err != nil {
+				return nil, err
+			}
+			inputMedia = append(inputMedia, mediaObj)
+		}
+	case []InputFile:
+		for _, m := range m {
+			mediaObj, err := c.getSendableMedia(m, attrs)
+			if err != nil {
+				return nil, err
+			}
+			inputMedia = append(inputMedia, mediaObj)
+		}
+	case []MessageMedia:
+		for _, m := range m {
+			mediaObj, err := c.getSendableMedia(m, attrs)
+			if err != nil {
+				return nil, err
+			}
+			inputMedia = append(inputMedia, mediaObj)
+		}
+	case []string:
+		for _, m := range m {
+			mediaObj, err := c.getSendableMedia(m, attrs)
+			if err != nil {
+				return nil, err
+			}
+			inputMedia = append(inputMedia, mediaObj)
+		}
+	case [][]byte:
+		for _, m := range m {
+			mediaObj, err := c.getSendableMedia(m, attrs)
+			if err != nil {
+				return nil, err
+			}
+			inputMedia = append(inputMedia, mediaObj)
+		}
+	case string, InputFile, InputMedia, MessageMedia, []byte:
+		mediaObj, err := c.getSendableMedia(m, attrs)
+		if err != nil {
+			return nil, err
+		}
+		inputMedia = append(inputMedia, mediaObj)
+	case nil:
+		inputMedia = append(inputMedia, &InputMediaEmpty{})
+	}
+	for _, m := range inputMedia {
+		switch m := m.(type) {
+		case *InputMediaUploadedPhoto, *InputMediaUploadedDocument, *InputMediaPhotoExternal, *InputMediaDocumentExternal:
+			uploadedMedia, err := c.MessagesUploadMedia(&InputPeerSelf{}, m) // Have to Upload Media only if not Cached
+			if err != nil {
+				return nil, err
+			}
+			inputUploadedMedia, err := c.getSendableMedia(uploadedMedia, attrs)
+			if err != nil {
+				return nil, err
+			}
+			media = append(media, &InputSingleMedia{
+				Media:    inputUploadedMedia,
+				RandomID: GenRandInt(),
+			})
+		default:
+			media = append(media, &InputSingleMedia{
+				Media:    m,
+				RandomID: GenRandInt(),
+			})
+		}
+	}
+	return media, nil
+}
+
+func processUpdates(updates Updates) []*MessageObj {
+	var messages []*MessageObj
+	switch updates := updates.(type) {
+	case *UpdatesObj:
+		for _, update := range updates.Updates {
+			switch update := update.(type) {
+			case *UpdateNewMessage:
+				messages = append(messages, update.Message.(*MessageObj))
+			case *UpdateNewChannelMessage:
+				messages = append(messages, update.Message.(*MessageObj))
+			case *UpdateEditMessage:
+				messages = append(messages, update.Message.(*MessageObj))
+			case *UpdateEditChannelMessage:
+				messages = append(messages, update.Message.(*MessageObj))
+			}
+		}
+	}
+	return messages
 }
 
 func processUpdate(upd Updates) *MessageObj {
@@ -102,8 +205,9 @@ updateTypeSwitch:
 	return nil
 }
 
-func (c *Client) GetSendablePeer(Peer interface{}) (InputPeer, error) {
-	switch Peer := Peer.(type) {
+func (c *Client) GetSendablePeer(PeerID interface{}) (InputPeer, error) {
+PeerSwitch:
+	switch Peer := PeerID.(type) {
 	case *PeerUser:
 		PeerEntity, err := c.GetPeerUser(Peer.UserID)
 		if err != nil {
@@ -143,25 +247,17 @@ func (c *Client) GetSendablePeer(Peer interface{}) (InputPeer, error) {
 		return &InputPeerChannel{ChannelID: Peer.ID, AccessHash: Peer.AccessHash}, nil
 	case *UserObj:
 		return &InputPeerUser{UserID: Peer.ID, AccessHash: Peer.AccessHash}, nil
-	case int64:
-		PeerEntity, err := c.GetInputPeer(Peer)
-		if PeerEntity == nil {
-			return nil, err
-		}
-		return PeerEntity, nil
-	case int32:
-		PeerEntity, err := c.GetInputPeer(int64(Peer))
-		if PeerEntity == nil {
-			return nil, err
-		}
-		return PeerEntity, nil
-	case int:
-		PeerEntity, err := c.GetInputPeer(int64(Peer))
+	case int64, int32, int:
+		PeerEntity, err := c.GetInputPeer(Peer.(int64))
 		if PeerEntity == nil {
 			return nil, err
 		}
 		return PeerEntity, nil
 	case string:
+		if i, err := strconv.ParseInt(Peer, 10, 64); err == nil {
+			PeerID = i
+			goto PeerSwitch
+		}
 		if Peer == "me" {
 			return &InputPeerSelf{}, nil
 		}

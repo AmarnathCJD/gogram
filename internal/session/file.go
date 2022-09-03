@@ -44,6 +44,7 @@ func (l *genericFileSessionLoader) Load() (*Session, error) {
 	}
 
 	data, err := ioutil.ReadFile(l.path)
+	data = decodeBytes(data)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading file")
 	}
@@ -76,7 +77,7 @@ func (l *genericFileSessionLoader) Store(s *Session) error {
 	file.writeSession(s)
 	data, _ := json.Marshal(file)
 
-	return ioutil.WriteFile(l.path, data, 0600)
+	return ioutil.WriteFile(l.path, encodeBytes(data), 0600)
 }
 
 type tokenStorageFormat struct {
@@ -125,4 +126,14 @@ func decodeInt64ToBase64(i string) (int64, error) {
 		return 0, err
 	}
 	return int64(binary.LittleEndian.Uint64(buf)), nil
+}
+
+func encodeBytes(b []byte) []byte {
+	return []byte(base64.StdEncoding.EncodeToString(b))
+}
+
+func decodeBytes(b []byte) []byte {
+	bs := string(b)
+	bd, _ := base64.StdEncoding.DecodeString(bs)
+	return []byte(bd)
 }

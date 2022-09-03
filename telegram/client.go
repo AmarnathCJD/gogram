@@ -130,6 +130,7 @@ func (c *Client) ExportSender(dcID int) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("done Export")
 	senderClient := &Client{
 		MTProto:   sender,
 		config:    c.config,
@@ -139,6 +140,7 @@ func (c *Client) ExportSender(dcID int) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("done Export")
 	_, err = senderClient.AuthImportAuthorization(authExport.ID, authExport.Bytes)
 	if err != nil {
 		return nil, err
@@ -156,7 +158,9 @@ func (m *Client) IsSessionRegistred() (bool, error) {
 		if errCode.Message == "AUTH_KEY_UNREGISTERED" {
 			return false, nil
 		} else if strings.Contains(errCode.Message, "USER_MIGRATE") {
-			return false, errors.Wrap(err, "user migrated")
+			newDc := errCode.AdditionalInfo.(int)
+			m.Logger.Printf("User migrated to DC %d", newDc)
+			m.MTProto.SwitchDC(newDc)
 		}
 	} else {
 		return false, err
