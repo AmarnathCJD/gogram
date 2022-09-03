@@ -789,3 +789,82 @@ func (c *Client) GetMessages(PeerID interface{}, Options ...*SearchOption) ([]Ne
 	}
 	return Messages, nil
 }
+
+func (c *Client) PinMessage(PeerID interface{}, MsgID int32, Opts ...*PinOptions) (Updates, error) {
+	PeerToSend, err := c.GetSendablePeer(PeerID)
+	if err != nil {
+		return nil, err
+	}
+	var Options *PinOptions
+	if len(Opts) > 0 {
+		Options = Opts[0]
+	}
+	if Options == nil {
+		Options = &PinOptions{}
+	}
+	resp, err := c.MessagesUpdatePinnedMessage(&MessagesUpdatePinnedMessageParams{
+		Peer:      PeerToSend,
+		ID:        MsgID,
+		Unpin:     Options.Unpin,
+		PmOneside: Options.PmOneside,
+		Silent:    Options.Silent,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *Client) UnPinAll(PeerID interface{}) error {
+	PeerToSend, err := c.GetSendablePeer(PeerID)
+	if err != nil {
+		return err
+	}
+	_, err = c.MessagesUnpinAllMessages(PeerToSend)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Client) GetProfilePhotos(PeerID interface{}, Opts ...*PhotosOptions) ([]Photo, error) {
+	PeerToSend, err := c.GetSendablePeer(PeerID)
+	if err != nil {
+		return nil, err
+	}
+	var Options *PhotosOptions
+	if len(Opts) > 0 {
+		Options = Opts[0]
+	}
+	if Options == nil {
+		Options = &PhotosOptions{}
+	}
+	if Options.Limit > 80 {
+		Options.Limit = 80
+	} else if Options.Limit < 1 {
+		Options.Limit = 1
+	}
+	User, ok := PeerToSend.(*InputPeerUser)
+	if !ok {
+		return nil, errors.New("peer is not a user")
+	}
+	resp, err := c.PhotosGetUserPhotos(
+		&InputUserObj{UserID: User.UserID, AccessHash: User.AccessHash},
+		Options.Offset,
+		Options.MaxID,
+		Options.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	switch p := resp.(type) {
+	case *PhotosPhotosObj:
+		c.Cache.UpdatePeersToCache(p.Users, []Chat{})
+		return p.Photos, nil
+	case *PhotosPhotosSlice:
+		c.Cache.UpdatePeersToCache(p.Users, []Chat{})
+		return p.Photos, nil
+	default:
+		return nil, errors.New("could not convert photos: " + reflect.TypeOf(resp).String())
+	}
+}

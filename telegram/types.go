@@ -77,6 +77,18 @@ type (
 		Rank    string           `json:"rank,omitempty"`
 	}
 
+	PhotosOptions struct {
+		MaxID  int64 `json:"max_id,omitempty"`
+		Offset int32 `json:"offset,omitempty"`
+		Limit  int32 `json:"limit,omitempty"`
+	}
+
+	PinOptions struct {
+		Unpin     bool `json:"unpin,omitempty"`
+		PmOneside bool `json:"pm_oneside,omitempty"`
+		Silent    bool `json:"silent,omitempty"`
+	}
+
 	BannedOptions struct {
 		Ban    bool              `json:"ban,omitempty"`
 		Unban  bool              `json:"unban,omitempty"`

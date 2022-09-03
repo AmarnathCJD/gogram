@@ -185,6 +185,8 @@ func (h *MessageHandle) IsMatch(text string) bool {
 			return false
 		}
 		return pattern.MatchString(text)
+	case *regexp.Regexp:
+		return Pattern.MatchString(text)
 	default:
 		panic(fmt.Sprintf("unknown handler type %s", reflect.TypeOf(Pattern).String()))
 	}
