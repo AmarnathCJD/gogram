@@ -221,7 +221,7 @@ func (c *Client) SendMedia(peerID interface{}, Media interface{}, Opts ...*Media
 	return packMessage(c, processUpdate(Update)), err
 }
 
-func (c *Client) SendReaction(peerID interface{}, MsgID int32, Reaction string, Big ...bool) error {
+func (c *Client) SendReaction(peerID interface{}, MsgID int32, reactionEmoji interface{}, Big ...bool) error {
 	var big bool
 	if len(Big) > 0 {
 		big = Big[0]
@@ -230,12 +230,23 @@ func (c *Client) SendReaction(peerID interface{}, MsgID int32, Reaction string, 
 	if err != nil {
 		return err
 	}
-	_, err = c.MessagesSendReaction(
-		big,
-		PeerToSend,
-		MsgID,
-		Reaction,
-	)
+	var r []Reaction
+	switch reaction := reactionEmoji.(type) {
+	case string:
+		if reaction == "" {
+			r = append(r, &ReactionEmpty{})
+		}
+		r = append(r, &ReactionEmoji{reaction})
+	case ReactionCustomEmoji:
+		r = append(r, &reaction)
+	}
+	_, err = c.MessagesSendReaction(&MessagesSendReactionParams{
+		Peer:        PeerToSend,
+		Big:         big,
+		AddToRecent: true,
+		MsgID:       MsgID,
+		Reaction:    r,
+	})
 	return err
 }
 

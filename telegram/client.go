@@ -240,7 +240,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 		}
 		opts.CodeHash = hash
 	}
-	_, SignInerr := c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code)
+	_, SignInerr := c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, &EmailVerificationCode{})
 	if SignInerr != nil {
 		if strings.Contains(SignInerr.Error(), "Two-steps verification is enabled") {
 			var passwordInput string

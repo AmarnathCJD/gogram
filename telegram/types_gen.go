@@ -62,11 +62,12 @@ type AccountPassword struct {
 	NewAlgo                 PasswordKdfAlgo
 	NewSecureAlgo           SecurePasswordKdfAlgo
 	SecureRandom            []byte
-	PendingResetDate        int32 `tl:"flag:5"`
+	PendingResetDate        int32  `tl:"flag:5"`
+	LoginEmailPattern       string `tl:"flag:6"`
 }
 
 func (*AccountPassword) CRC() uint32 {
-	return 0x185b184f
+	return 0x957b50fb
 }
 
 func (*AccountPassword) FlagIndex() int {
@@ -429,13 +430,13 @@ func (*ChannelsChannelParticipant) CRC() uint32 {
 }
 
 type ChannelsSendAsPeers struct {
-	Peers []Peer
+	Peers []*SendAsPeer
 	Chats []Chat
 	Users []User
 }
 
 func (*ChannelsSendAsPeers) CRC() uint32 {
-	return 0x8356cda9
+	return 0xf496b0c6
 }
 
 type ChatAdminRights struct {
@@ -491,35 +492,6 @@ func (*ChatBannedRights) CRC() uint32 {
 }
 
 func (*ChatBannedRights) FlagIndex() int {
-	return 0
-}
-
-type ChatFull struct {
-	CanSetUsername         bool `tl:"flag:7,encoded_in_bitflags"`
-	HasScheduled           bool `tl:"flag:8,encoded_in_bitflags"`
-	ID                     int64
-	About                  string
-	Participants           ChatParticipants
-	ChatPhoto              Photo `tl:"flag:2"`
-	NotifySettings         *PeerNotifySettings
-	ExportedInvite         ExportedChatInvite `tl:"flag:13"`
-	BotInfo                []*BotInfo         `tl:"flag:3"`
-	PinnedMsgID            int32              `tl:"flag:6"`
-	FolderID               int32              `tl:"flag:11"`
-	Call                   *InputGroupCall    `tl:"flag:12"`
-	TtlPeriod              int32              `tl:"flag:14"`
-	GroupcallDefaultJoinAs Peer               `tl:"flag:15"`
-	ThemeEmoticon          string             `tl:"flag:16"`
-	RequestsPending        int32              `tl:"flag:17"`
-	RecentRequesters       []int64            `tl:"flag:17"`
-	AvailableReactions     []string           `tl:"flag:18"`
-}
-
-func (*ChatFull) CRC() uint32 {
-	return 0xd18ee226
-}
-
-func (*ChatFull) FlagIndex() int {
 	return 0
 }
 
@@ -613,13 +585,14 @@ type Config struct {
 	CaptionLengthMax        int32
 	MessageLengthMax        int32
 	WebfileDcID             int32
-	SuggestedLangCode       string `tl:"flag:2"`
-	LangPackVersion         int32  `tl:"flag:2"`
-	BaseLangPackVersion     int32  `tl:"flag:2"`
+	SuggestedLangCode       string   `tl:"flag:2"`
+	LangPackVersion         int32    `tl:"flag:2"`
+	BaseLangPackVersion     int32    `tl:"flag:2"`
+	ReactionsDefault        Reaction `tl:"flag:15"`
 }
 
 func (*Config) CRC() uint32 {
-	return 0x330b4067
+	return 0x232566ac
 }
 
 func (*Config) FlagIndex() int {
@@ -932,13 +905,12 @@ type HelpPremiumPromo struct {
 	StatusEntities []MessageEntity
 	VideoSections  []string
 	Videos         []Document
-	Currency       string
-	MonthlyAmount  int64
+	PeriodOptions  []*PremiumSubscriptionOption
 	Users          []User
 }
 
 func (*HelpPremiumPromo) CRC() uint32 {
-	return 0x8a4f3c29
+	return 0x5334759c
 }
 
 type HelpRecentMeUrls struct {
@@ -1300,11 +1272,11 @@ type MessagePeerReaction struct {
 	Big      bool `tl:"flag:0,encoded_in_bitflags"`
 	Unread   bool `tl:"flag:1,encoded_in_bitflags"`
 	PeerID   Peer
-	Reaction string
+	Reaction Reaction
 }
 
 func (*MessagePeerReaction) CRC() uint32 {
-	return 0x51b67eff
+	return 0xb156fe9c
 }
 
 func (*MessagePeerReaction) FlagIndex() int {
@@ -1466,7 +1438,7 @@ func (*MessagesChatAdminsWithInvites) CRC() uint32 {
 }
 
 type MessagesChatFull struct {
-	FullChat *ChatFull
+	FullChat ChatFull
 	Chats    []Chat
 	Users    []User
 }
@@ -2166,14 +2138,32 @@ func (*PremiumGiftOption) FlagIndex() int {
 	return 0
 }
 
+type PremiumSubscriptionOption struct {
+	Current            bool `tl:"flag:1,encoded_in_bitflags"`
+	CanPurchaseUpgrade bool `tl:"flag:2,encoded_in_bitflags"`
+	Months             int32
+	Currency           string
+	Amount             int64
+	BotURL             string
+	StoreProduct       string `tl:"flag:0"`
+}
+
+func (*PremiumSubscriptionOption) CRC() uint32 {
+	return 0xb6f11ebe
+}
+
+func (*PremiumSubscriptionOption) FlagIndex() int {
+	return 0
+}
+
 type ReactionCount struct {
-	Chosen   bool `tl:"flag:0,encoded_in_bitflags"`
-	Reaction string
-	Count    int32
+	ChosenOrder int32 `tl:"flag:0"`
+	Reaction    Reaction
+	Count       int32
 }
 
 func (*ReactionCount) CRC() uint32 {
-	return 0x6fb250d1
+	return 0xa3d1cb80
 }
 
 func (*ReactionCount) FlagIndex() int {
@@ -2288,6 +2278,19 @@ type SecureValueHash struct {
 
 func (*SecureValueHash) CRC() uint32 {
 	return 0xed1ecdb0
+}
+
+type SendAsPeer struct {
+	PremiumRequired bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer            Peer
+}
+
+func (*SendAsPeer) CRC() uint32 {
+	return 0xb81c7034
+}
+
+func (*SendAsPeer) FlagIndex() int {
+	return 0
 }
 
 type ShippingOption struct {

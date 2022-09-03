@@ -301,12 +301,12 @@ func (*ChannelAdminLogEventActionChangeAbout) CRC() uint32 {
 func (*ChannelAdminLogEventActionChangeAbout) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionChangeAvailableReactions struct {
-	PrevValue []string
-	NewValue  []string
+	PrevValue ChatReactions
+	NewValue  ChatReactions
 }
 
 func (*ChannelAdminLogEventActionChangeAvailableReactions) CRC() uint32 {
-	return 0x9cf7f76a
+	return 0xbe4e0ef8
 }
 
 func (*ChannelAdminLogEventActionChangeAvailableReactions) ImplementsChannelAdminLogEventAction() {}
@@ -1006,6 +1006,98 @@ func (*ChatForbidden) CRC() uint32 {
 
 func (*ChatForbidden) ImplementsChat() {}
 
+type ChatFull interface {
+	tl.Object
+	ImplementsChatFull()
+} 
+type ChannelFull struct {
+	CanDeleteChannel       bool `tl:"flag:2.0,encoded_in_bitflags"`
+	CanViewParticipants    bool `tl:"flag:3,encoded_in_bitflags"`
+	CanSetUsername         bool `tl:"flag:6,encoded_in_bitflags"`
+	CanSetStickers         bool `tl:"flag:7,encoded_in_bitflags"`
+	HiddenPrehistory       bool `tl:"flag:10,encoded_in_bitflags"`
+	CanSetLocation         bool `tl:"flag:16,encoded_in_bitflags"`
+	HasScheduled           bool `tl:"flag:19,encoded_in_bitflags"`
+	CanViewStats           bool `tl:"flag:20,encoded_in_bitflags"`
+	Blocked                bool `tl:"flag:22,encoded_in_bitflags"`
+	ID                     int64
+	About                  string
+	ParticipantsCount      int32 `tl:"flag:0"`
+	AdminsCount            int32 `tl:"flag:1"`
+	KickedCount            int32 `tl:"flag:2"`
+	BannedCount            int32 `tl:"flag:2"`
+	OnlineCount            int32 `tl:"flag:13"`
+	ReadInboxMaxID         int32
+	ReadOutboxMaxID        int32
+	UnreadCount            int32
+	ChatPhoto              Photo
+	NotifySettings         *PeerNotifySettings
+	ExportedInvite         ExportedChatInvite `tl:"flag:23"`
+	BotInfo                []*BotInfo
+	MigratedFromChatID     int64           `tl:"flag:4"`
+	MigratedFromMaxID      int32           `tl:"flag:4"`
+	PinnedMsgID            int32           `tl:"flag:5"`
+	Stickerset             *StickerSet     `tl:"flag:8"`
+	AvailableMinID         int32           `tl:"flag:9"`
+	FolderID               int32           `tl:"flag:11"`
+	LinkedChatID           int64           `tl:"flag:14"`
+	Location               ChannelLocation `tl:"flag:15"`
+	SlowmodeSeconds        int32           `tl:"flag:17"`
+	SlowmodeNextSendDate   int32           `tl:"flag:18"`
+	StatsDc                int32           `tl:"flag:12"`
+	Pts                    int32
+	Call                   *InputGroupCall `tl:"flag:21"`
+	TtlPeriod              int32           `tl:"flag:24"`
+	PendingSuggestions     []string        `tl:"flag:25"`
+	GroupcallDefaultJoinAs Peer            `tl:"flag:26"`
+	ThemeEmoticon          string          `tl:"flag:27"`
+	RequestsPending        int32           `tl:"flag:28"`
+	RecentRequesters       []int64         `tl:"flag:28"`
+	DefaultSendAs          Peer            `tl:"flag:29"`
+	AvailableReactions     ChatReactions   `tl:"flag:30"`
+}
+
+func (*ChannelFull) CRC() uint32 {
+	return 0xf2355507
+}
+
+func (*ChannelFull) FlagIndex() int {
+	return 0
+}
+
+func (*ChannelFull) ImplementsChatFull() {}
+
+type ChatFullObj struct {
+	CanSetUsername         bool `tl:"flag:7,encoded_in_bitflags"`
+	HasScheduled           bool `tl:"flag:8,encoded_in_bitflags"`
+	ID                     int64
+	About                  string
+	Participants           ChatParticipants
+	ChatPhoto              Photo `tl:"flag:2"`
+	NotifySettings         *PeerNotifySettings
+	ExportedInvite         ExportedChatInvite `tl:"flag:13"`
+	BotInfo                []*BotInfo         `tl:"flag:3"`
+	PinnedMsgID            int32              `tl:"flag:6"`
+	FolderID               int32              `tl:"flag:11"`
+	Call                   *InputGroupCall    `tl:"flag:12"`
+	TtlPeriod              int32              `tl:"flag:14"`
+	GroupcallDefaultJoinAs Peer               `tl:"flag:15"`
+	ThemeEmoticon          string             `tl:"flag:16"`
+	RequestsPending        int32              `tl:"flag:17"`
+	RecentRequesters       []int64            `tl:"flag:17"`
+	AvailableReactions     ChatReactions      `tl:"flag:18"`
+}
+
+func (*ChatFullObj) CRC() uint32 {
+	return 0xc9d31138
+}
+
+func (*ChatFullObj) FlagIndex() int {
+	return 0
+}
+
+func (*ChatFullObj) ImplementsChatFull() {}
+
 type ChatInvite interface {
 	tl.Object
 	ImplementsChatInvite()
@@ -1151,6 +1243,42 @@ func (*ChatPhotoEmpty) CRC() uint32 {
 }
 
 func (*ChatPhotoEmpty) ImplementsChatPhoto() {}
+
+type ChatReactions interface {
+	tl.Object
+	ImplementsChatReactions()
+}
+type ChatReactionsAll struct {
+	AllowCustom bool `tl:"flag:0,encoded_in_bitflags"`
+}
+
+func (*ChatReactionsAll) CRC() uint32 {
+	return 0x52928bca
+}
+
+func (*ChatReactionsAll) FlagIndex() int {
+	return 0
+}
+
+func (*ChatReactionsAll) ImplementsChatReactions() {}
+
+type ChatReactionsNone struct{}
+
+func (*ChatReactionsNone) CRC() uint32 {
+	return 0xeafc32bc
+}
+
+func (*ChatReactionsNone) ImplementsChatReactions() {}
+
+type ChatReactionsSome struct {
+	Reactions []Reaction
+}
+
+func (*ChatReactionsSome) CRC() uint32 {
+	return 0x661d4037
+}
+
+func (*ChatReactionsSome) ImplementsChatReactions() {}
 
 type Dialog interface {
 	tl.Object
@@ -1449,6 +1577,71 @@ func (*DraftMessageEmpty) FlagIndex() int {
 
 func (*DraftMessageEmpty) ImplementsDraftMessage() {}
 
+type EmailVerification interface {
+	tl.Object
+	ImplementsEmailVerification()
+}
+type EmailVerificationApple struct {
+	Token string
+}
+
+func (*EmailVerificationApple) CRC() uint32 {
+	return 0x96d074fd
+}
+
+func (*EmailVerificationApple) ImplementsEmailVerification() {}
+
+type EmailVerificationCode struct {
+	Code string
+}
+
+func (*EmailVerificationCode) CRC() uint32 {
+	return 0x922e55a9
+}
+
+func (*EmailVerificationCode) ImplementsEmailVerification() {}
+
+type EmailVerificationGoogle struct {
+	Token string
+}
+
+func (*EmailVerificationGoogle) CRC() uint32 {
+	return 0xdb909ec2
+}
+
+func (*EmailVerificationGoogle) ImplementsEmailVerification() {}
+
+type EmailVerifyPurpose interface {
+	tl.Object
+	ImplementsEmailVerifyPurpose()
+}
+type EmailVerifyPurposeLoginChange struct{}
+
+func (*EmailVerifyPurposeLoginChange) CRC() uint32 {
+	return 0x527d22eb
+}
+
+func (*EmailVerifyPurposeLoginChange) ImplementsEmailVerifyPurpose() {}
+
+type EmailVerifyPurposeLoginSetup struct {
+	PhoneNumber   string
+	PhoneCodeHash string
+}
+
+func (*EmailVerifyPurposeLoginSetup) CRC() uint32 {
+	return 0x4345be73
+}
+
+func (*EmailVerifyPurposeLoginSetup) ImplementsEmailVerifyPurpose() {}
+
+type EmailVerifyPurposePassport struct{}
+
+func (*EmailVerifyPurposePassport) CRC() uint32 {
+	return 0xbbf51685
+}
+
+func (*EmailVerifyPurposePassport) ImplementsEmailVerifyPurpose() {}
+
 type EmojiKeyword interface {
 	tl.Object
 	ImplementsEmojiKeyword()
@@ -1474,6 +1667,39 @@ func (*EmojiKeywordDeleted) CRC() uint32 {
 }
 
 func (*EmojiKeywordDeleted) ImplementsEmojiKeyword() {}
+
+type EmojiStatus interface {
+	tl.Object
+	ImplementsEmojiStatus()
+}
+type EmojiStatusObj struct {
+	DocumentID int64
+}
+
+func (*EmojiStatusObj) CRC() uint32 {
+	return 0x929b619d
+}
+
+func (*EmojiStatusObj) ImplementsEmojiStatus() {}
+
+type EmojiStatusEmpty struct{}
+
+func (*EmojiStatusEmpty) CRC() uint32 {
+	return 0x2de11aae
+}
+
+func (*EmojiStatusEmpty) ImplementsEmojiStatus() {}
+
+type EmojiStatusUntil struct {
+	DocumentID int64
+	Until      int32
+}
+
+func (*EmojiStatusUntil) CRC() uint32 {
+	return 0xfa30a8c7
+}
+
+func (*EmojiStatusUntil) ImplementsEmojiStatus() {}
 
 type EncryptedChat interface {
 	tl.Object
@@ -2973,6 +3199,22 @@ func (*InputStickerSetDice) CRC() uint32 {
 }
 
 func (*InputStickerSetDice) ImplementsInputStickerSet() {}
+
+type InputStickerSetEmojiDefaultStatuses struct{}
+
+func (*InputStickerSetEmojiDefaultStatuses) CRC() uint32 {
+	return 0x29d0f5ee
+}
+
+func (*InputStickerSetEmojiDefaultStatuses) ImplementsInputStickerSet() {}
+
+type InputStickerSetEmojiGenericAnimations struct{}
+
+func (*InputStickerSetEmojiGenericAnimations) CRC() uint32 {
+	return 0x4c4d4ce
+}
+
+func (*InputStickerSetEmojiGenericAnimations) ImplementsInputStickerSet() {}
 
 type InputStickerSetEmpty struct{}
 
@@ -5471,6 +5713,38 @@ func (*PrivacyValueDisallowUsers) CRC() uint32 {
 
 func (*PrivacyValueDisallowUsers) ImplementsPrivacyRule() {}
 
+type Reaction interface {
+	tl.Object
+	ImplementsReaction()
+}
+type ReactionCustomEmoji struct {
+	DocumentID int64
+}
+
+func (*ReactionCustomEmoji) CRC() uint32 {
+	return 0x8935fc73
+}
+
+func (*ReactionCustomEmoji) ImplementsReaction() {}
+
+type ReactionEmoji struct {
+	Emoticon string
+}
+
+func (*ReactionEmoji) CRC() uint32 {
+	return 0x1b2286b8
+}
+
+func (*ReactionEmoji) ImplementsReaction() {}
+
+type ReactionEmpty struct{}
+
+func (*ReactionEmpty) CRC() uint32 {
+	return 0x79f5d419
+}
+
+func (*ReactionEmpty) ImplementsReaction() {}
+
 type RecentMeURL interface {
 	tl.Object
 	ImplementsRecentMeURL()
@@ -6994,6 +7268,22 @@ func (*UpdateMessageReactions) CRC() uint32 {
 
 func (*UpdateMessageReactions) ImplementsUpdate() {}
 
+type UpdateMoveStickerSetToTop struct {
+	Masks      bool `tl:"flag:0,encoded_in_bitflags"`
+	Emojis     bool `tl:"flag:1,encoded_in_bitflags"`
+	Stickerset int64
+}
+
+func (*UpdateMoveStickerSetToTop) CRC() uint32 {
+	return 0x86fccf85
+}
+
+func (*UpdateMoveStickerSetToTop) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateMoveStickerSetToTop) ImplementsUpdate() {}
+
 type UpdateNewChannelMessage struct {
 	Message  Message
 	Pts      int32
@@ -7329,6 +7619,22 @@ func (*UpdateReadMessagesContents) CRC() uint32 {
 
 func (*UpdateReadMessagesContents) ImplementsUpdate() {}
 
+type UpdateRecentEmojiStatuses struct{}
+
+func (*UpdateRecentEmojiStatuses) CRC() uint32 {
+	return 0x30f443db
+}
+
+func (*UpdateRecentEmojiStatuses) ImplementsUpdate() {}
+
+type UpdateRecentReactions struct{}
+
+func (*UpdateRecentReactions) CRC() uint32 {
+	return 0x6f7863f4
+}
+
+func (*UpdateRecentReactions) ImplementsUpdate() {}
+
 type UpdateRecentStickers struct{}
 
 func (*UpdateRecentStickers) CRC() uint32 {
@@ -7372,10 +7678,17 @@ func (*UpdateServiceNotification) FlagIndex() int {
 
 func (*UpdateServiceNotification) ImplementsUpdate() {}
 
-type UpdateStickerSets struct{}
+type UpdateStickerSets struct {
+	Masks  bool `tl:"flag:0,encoded_in_bitflags"`
+	Emojis bool `tl:"flag:1,encoded_in_bitflags"`
+}
 
 func (*UpdateStickerSets) CRC() uint32 {
-	return 0x43ae3dec
+	return 0x31c24808
+}
+
+func (*UpdateStickerSets) FlagIndex() int {
+	return 0
 }
 
 func (*UpdateStickerSets) ImplementsUpdate() {}
@@ -7423,6 +7736,17 @@ func (*UpdateTranscribedAudio) FlagIndex() int {
 }
 
 func (*UpdateTranscribedAudio) ImplementsUpdate() {}
+
+type UpdateUserEmojiStatus struct {
+	UserID      int64
+	EmojiStatus EmojiStatus
+}
+
+func (*UpdateUserEmojiStatus) CRC() uint32 {
+	return 0x28373599
+}
+
+func (*UpdateUserEmojiStatus) ImplementsUpdate() {}
 
 type UpdateUserName struct {
 	UserID    int64
@@ -7708,10 +8032,11 @@ type UserObj struct {
 	RestrictionReason    []*RestrictionReason `tl:"flag:18"`
 	BotInlinePlaceholder string               `tl:"flag:19"`
 	LangCode             string               `tl:"flag:22"`
+	EmojiStatus          EmojiStatus          `tl:"flag:30"`
 }
 
 func (*UserObj) CRC() uint32 {
-	return 0x3ff6ecb0
+	return 0x5d99adee
 }
 
 func (*UserObj) FlagIndex() int {
@@ -7959,6 +8284,54 @@ func (*WebPagePending) CRC() uint32 {
 
 func (*WebPagePending) ImplementsWebPage() {}
 
+type AccountEmailVerified interface {
+	tl.Object
+	ImplementsAccountEmailVerified()
+}
+type AccountEmailVerifiedObj struct {
+	Email string
+}
+
+func (*AccountEmailVerifiedObj) CRC() uint32 {
+	return 0x2b96cd1b
+}
+
+func (*AccountEmailVerifiedObj) ImplementsAccountEmailVerified() {}
+
+type AccountEmailVerifiedLogin struct {
+	Email    string
+	SentCode *AuthSentCode
+}
+
+func (*AccountEmailVerifiedLogin) CRC() uint32 {
+	return 0xe1bb0d61
+}
+
+func (*AccountEmailVerifiedLogin) ImplementsAccountEmailVerified() {}
+
+type AccountEmojiStatuses interface {
+	tl.Object
+	ImplementsAccountEmojiStatuses()
+}
+type AccountEmojiStatusesObj struct {
+	Hash     int64
+	Statuses []EmojiStatus
+}
+
+func (*AccountEmojiStatusesObj) CRC() uint32 {
+	return 0x90c467d1
+}
+
+func (*AccountEmojiStatusesObj) ImplementsAccountEmojiStatuses() {}
+
+type AccountEmojiStatusesNotModified struct{}
+
+func (*AccountEmojiStatusesNotModified) CRC() uint32 {
+	return 0xd08ce645
+}
+
+func (*AccountEmojiStatusesNotModified) ImplementsAccountEmojiStatuses() {}
+
 type AccountResetPasswordResult interface {
 	tl.Object
 	ImplementsAccountResetPasswordResult()
@@ -8177,6 +8550,24 @@ func (*AuthSentCodeTypeCall) CRC() uint32 {
 
 func (*AuthSentCodeTypeCall) ImplementsAuthSentCodeType() {}
 
+type AuthSentCodeTypeEmailCode struct {
+	AppleSigninAllowed  bool `tl:"flag:0,encoded_in_bitflags"`
+	GoogleSigninAllowed bool `tl:"flag:1,encoded_in_bitflags"`
+	EmailPattern        string
+	Length              int32
+	NextPhoneLoginDate  int32 `tl:"flag:2"`
+}
+
+func (*AuthSentCodeTypeEmailCode) CRC() uint32 {
+	return 0x5a159841
+}
+
+func (*AuthSentCodeTypeEmailCode) FlagIndex() int {
+	return 0
+}
+
+func (*AuthSentCodeTypeEmailCode) ImplementsAuthSentCodeType() {}
+
 type AuthSentCodeTypeFlashCall struct {
 	Pattern string
 }
@@ -8197,6 +8588,21 @@ func (*AuthSentCodeTypeMissedCall) CRC() uint32 {
 }
 
 func (*AuthSentCodeTypeMissedCall) ImplementsAuthSentCodeType() {}
+
+type AuthSentCodeTypeSetUpEmailRequired struct {
+	AppleSigninAllowed  bool `tl:"flag:0,encoded_in_bitflags"`
+	GoogleSigninAllowed bool `tl:"flag:1,encoded_in_bitflags"`
+}
+
+func (*AuthSentCodeTypeSetUpEmailRequired) CRC() uint32 {
+	return 0xa5491dea
+}
+
+func (*AuthSentCodeTypeSetUpEmailRequired) FlagIndex() int {
+	return 0
+}
+
+func (*AuthSentCodeTypeSetUpEmailRequired) ImplementsAuthSentCodeType() {}
 
 type AuthSentCodeTypeSms struct {
 	Length int32
@@ -8819,6 +9225,29 @@ func (*MessagesMessagesSlice) FlagIndex() int {
 }
 
 func (*MessagesMessagesSlice) ImplementsMessagesMessages() {}
+
+type MessagesReactions interface {
+	tl.Object
+	ImplementsMessagesReactions()
+}
+type MessagesReactionsObj struct {
+	Hash      int64
+	Reactions []Reaction
+}
+
+func (*MessagesReactionsObj) CRC() uint32 {
+	return 0xeafdf716
+}
+
+func (*MessagesReactionsObj) ImplementsMessagesReactions() {}
+
+type MessagesReactionsNotModified struct{}
+
+func (*MessagesReactionsNotModified) CRC() uint32 {
+	return 0xb06fdbdf
+}
+
+func (*MessagesReactionsNotModified) ImplementsMessagesReactions() {}
 
 type MessagesRecentStickers interface {
 	tl.Object
