@@ -35,6 +35,8 @@ type (
 		FileName      string              `json:"file_name,omitempty"`
 		TTL           int32               `json:"ttl,omitempty"`
 		Attributes    []DocumentAttribute `json:"attributes,omitempty"`
+		ScheduleDate  int32               `json:"schedule_date,omitempty"`
+		SendAs        InputPeer           `json:"send_as,omitempty"`
 	}
 
 	CustomAttrs struct {

@@ -205,7 +205,6 @@ func (c *Client) SendMedia(peerID interface{}, Media interface{}, Opts ...*Media
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(MediaFile, Caption)
 	Update, err := c.MessagesSendMedia(&MessagesSendMediaParams{
 		Peer:         PeerToSend,
 		Media:        MediaFile,
@@ -219,6 +218,57 @@ func (c *Client) SendMedia(peerID interface{}, Media interface{}, Opts ...*Media
 		Noforwards:   options.NoForwards,
 	})
 	return packMessage(c, processUpdate(Update)), err
+}
+
+func (c *Client) SendAlbum(peerID interface{}, Media interface{}, Opts ...*MediaOptions) ([]*NewMessage, error) {
+	var options MediaOptions
+	if len(Opts) > 0 {
+		options = *Opts[0]
+	}
+	if options.ParseMode == "" {
+		options.ParseMode = c.ParseMode
+	}
+	var Caption string
+	var e []MessageEntity
+	switch Capt := options.Caption.(type) {
+	case string:
+		e, Caption = c.FormatMessage(Capt, options.ParseMode)
+	}
+	PeerToSend, err := c.GetSendablePeer(peerID)
+	if err != nil {
+		return nil, err
+	}
+	MediaFiles, multiErr := c.getMultiMedia(Media, &CustomAttrs{
+		FileName:      options.FileName,
+		Thumb:         options.Thumb,
+		ForceDocument: options.ForceDocument,
+		Attributes:    options.Attributes,
+		TTL:           options.TTL,
+	})
+	if err != nil {
+		return nil, multiErr
+	}
+	MediaFiles[len(MediaFiles)-1].Message = Caption
+	MediaFiles[len(MediaFiles)-1].Entities = e
+	Update, err := c.MessagesSendMultiMedia(&MessagesSendMultiMediaParams{
+		Peer:         PeerToSend,
+		Silent:       options.Silent,
+		ClearDraft:   options.ClearDraft,
+		Noforwards:   options.NoForwards,
+		ReplyToMsgID: options.ReplyID,
+		MultiMedia:   MediaFiles,
+		ScheduleDate: options.ScheduleDate,
+		SendAs:       options.SendAs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var m []*NewMessage
+	updates := processUpdates(Update)
+	for _, update := range updates {
+		m = append(m, packMessage(c, update))
+	}
+	return m, nil
 }
 
 func (c *Client) SendReaction(peerID interface{}, MsgID int32, reactionEmoji interface{}, Big ...bool) error {

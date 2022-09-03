@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	ApiVersion = 144
+	ApiVersion = 145
 )
 
 type PingParams struct {
@@ -22,7 +22,7 @@ type InvokeWithLayerParams struct {
 }
 
 func (*InvokeWithLayerParams) CRC() uint32 {
-	return 0xda9b0d0d //nolint:gomnd not magic
+	return 0xda9b0d0d
 }
 
 type InitConnectionParams struct {
@@ -48,6 +48,14 @@ func (*HelpGetConfigParams) CRC() uint32 {
 
 func (*InitConnectionParams) FlagIndex() int {
 	return 0
+}
+
+type AuthExportAuthorizationParams struct {
+	DcID int32
+}
+
+func (*AuthExportAuthorizationParams) CRC() uint32 {
+	return 0xe5bfffcd
 }
 
 func GetDCID(ip, port string) int {
