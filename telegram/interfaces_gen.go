@@ -1009,7 +1009,7 @@ func (*ChatForbidden) ImplementsChat() {}
 type ChatFull interface {
 	tl.Object
 	ImplementsChatFull()
-} 
+}
 type ChannelFull struct {
 	CanDeleteChannel       bool `tl:"flag:2.0,encoded_in_bitflags"`
 	CanViewParticipants    bool `tl:"flag:3,encoded_in_bitflags"`
