@@ -26,12 +26,15 @@ import (
 
 const defaultTimeout = 65 * time.Second
 
+var wd, _ = os.Getwd()
+
 type MTProto struct {
-	addr         string
-	AppID        int32
-	transport    transport.Transport
-	stopRoutines context.CancelFunc
-	routineswg   sync.WaitGroup
+	Addr          string
+	AppID         int32
+	transport     transport.Transport
+	stopRoutines  context.CancelFunc
+	routineswg    sync.WaitGroup
+	memorySession bool
 
 	authKey []byte
 
@@ -67,6 +70,7 @@ type Config struct {
 	AuthKeyFile    string
 	StringSession  string
 	SessionStorage session.SessionLoader
+	MemorySession  bool
 
 	ServerHost string
 	PublicKey  *rsa.PublicKey
@@ -98,7 +102,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 
 	m := &MTProto{
 		tokensStorage:         c.SessionStorage,
-		addr:                  c.ServerHost,
+		Addr:                  c.ServerHost,
 		encrypted:             encrypted,
 		sessionId:             utils.GenerateSessionID(),
 		serviceChannel:        make(chan tl.Object),
@@ -108,6 +112,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		serverRequestHandlers: make([]customHandlerFunc, 0),
 		Logger:                log.New(os.Stderr, "MTProto - ", log.LstdFlags),
 		AppID:                 c.AppID,
+		memorySession:         c.MemorySession,
 	}
 	if c.StringSession != "" {
 		m.ImportAuth(c.StringSession)
@@ -120,7 +125,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 }
 
 func (m *MTProto) ExportAuth() ([]byte, []byte, string, int) {
-	return m.authKey, m.authKeyHash, m.addr, m.getDC()
+	return m.authKey, m.authKeyHash, m.Addr, m.GetDC()
 }
 
 func (m *MTProto) ImportAuth(Session string) (bool, error) {
@@ -133,16 +138,18 @@ func (m *MTProto) ImportAuth(Session string) (bool, error) {
 	}
 	m.authKey = AuthKey
 	m.authKeyHash = AuthKeyHash
-	m.addr = fmt.Sprint(IpAddr)
-	if err := m.SaveSession(); err != nil {
-		return false, fmt.Errorf("saving session: %w", err)
+	m.Addr = fmt.Sprint(IpAddr)
+	if !m.memorySession {
+		if err := m.SaveSession(); err != nil {
+			return false, fmt.Errorf("saving session: %w", err)
+		}
 	}
 	return true, nil
 }
 
-func (m *MTProto) getDC() int {
-	addr := m.addr
-	for k, v := range m.dclist {
+func (m *MTProto) GetDC() int {
+	addr := m.Addr
+	for k, v := range utils.DcList {
 		if v == addr {
 			return k
 		}
@@ -152,29 +159,23 @@ func (m *MTProto) getDC() int {
 
 func (m *MTProto) ExportNewSender(dcID int) (*MTProto, error) {
 	newAddr := utils.DcList[dcID]
-	sender := &MTProto{
-		responseChannels: utils.NewSyncIntObjectChan(),
-		expectedTypes:    utils.NewSyncIntReflectTypes(),
-	}
-	sender.addr = newAddr
-	sender.authKey = m.authKey
-	sender.authKeyHash = m.authKeyHash
-	sender.sessionId = utils.GenerateSessionID()
-	sender.encrypted = false
-	sender.tokensStorage = m.tokensStorage
-	sender.PublicKey = m.PublicKey
-	sender.Logger = m.Logger
-	sender.AppID = m.AppID
-
+	sender, _ := NewMTProto(Config{
+		AppID:         m.AppID,
+		DataCenter:    dcID,
+		PublicKey:     m.PublicKey,
+		ServerHost:    newAddr,
+		AuthKeyFile:   wd + "/auth_key.session",
+		MemorySession: true,
+	})
 	m.Logger.Println("Exporting new sender for DC", dcID)
 	err := sender.CreateConnection(true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
 	}
-	err = sender.InvokeLayer()
 	if err != nil {
 		return nil, fmt.Errorf("invoking layer: %w", err)
 	}
+
 	return sender, nil
 }
 
@@ -191,14 +192,14 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Printf("Connecting to %s/TcpFull...", m.addr)
+		m.Logger.Printf("Connecting to %s/TcpFull...", m.Addr)
 	}
 	err := m.connect(ctx)
 	if err != nil {
 		return err
 	}
 	if withLog {
-		m.Logger.Printf("Connection to %s/TcpFull complete!", m.addr)
+		m.Logger.Printf("Connection to %s/TcpFull complete!", m.Addr)
 	}
 	m.startReadingResponses(ctx)
 
@@ -220,7 +221,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 		m,
 		transport.TCPConnConfig{
 			Ctx:     ctx,
-			Host:    m.addr,
+			Host:    m.Addr,
 			Timeout: defaultTimeout,
 		},
 		mode.Intermediate,
@@ -273,26 +274,23 @@ func (m *MTProto) Disconnect() error {
 	return nil
 }
 
-func (m *MTProto) Reconnect(InvokeLayer bool) error {
+func (m *MTProto) Terminate() error {
+	m.stopRoutines()
+	m.responseChannels.Close()
+	m.Logger.Printf("Disconnecting Borrowed Sender from %s/TcpFull...", m.Addr)
+	return nil
+}
+
+func (m *MTProto) Reconnect(WithLogs bool) error {
 	err := m.Disconnect()
 	if err != nil {
 		return errors.Wrap(err, "disconnecting")
 	}
-	m.Logger.Printf("Reconnecting to %s/TcpFull...", m.addr)
+	m.Logger.Printf("Reconnecting to %s/TcpFull...", m.Addr)
 
-	err = m.CreateConnection(false)
+	err = m.CreateConnection(WithLogs)
 	if err == nil {
-		m.Logger.Printf("Connected to %s/TcpFull complete!", m.addr)
-	}
-	if InvokeLayer {
-		err = m.InvokeLayer()
-		if err != nil {
-			return errors.Wrap(err, "invoke layer")
-		}
-		err = m.makeAuthKey()
-		if err != nil {
-			return errors.Wrap(err, "make auth key")
-		}
+		m.Logger.Printf("Connected to %s/TcpFull complete!", m.Addr)
 	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
@@ -308,26 +306,10 @@ func (m *MTProto) Ping() time.Duration {
 	return time.Since(start)
 }
 
-func (m *MTProto) InvokeLayer() error {
-	_, err := m.makeRequest(&utils.InvokeWithLayerParams{
-		Layer: int32(utils.ApiVersion),
-		Query: &utils.InitConnectionParams{
-			ApiID:          int32(m.AppID),
-			DeviceModel:    "Desktop",
-			SystemVersion:  "Linux",
-			AppVersion:     "1.0",
-			SystemLangCode: "en",
-			LangCode:       "en",
-			Query:          &utils.HelpGetConfigParams{},
-		},
-	})
-	return err
-}
-
 func (m *MTProto) startPinging(ctx context.Context) {
 	m.routineswg.Add(1)
 	go func() {
-		ticker := time.NewTicker(time.Minute)
+		ticker := time.NewTicker(time.Minute * 1)
 		defer ticker.Stop()
 		defer m.routineswg.Done()
 
@@ -440,9 +422,11 @@ messageTypeSwitching:
 
 	case *objects.BadServerSalt:
 		m.serverSalt = message.NewSalt
-		err := m.SaveSession()
-		if err != nil {
-			return errors.Wrap(err, "saving session")
+		if !m.memorySession {
+			err := m.SaveSession()
+			if err != nil {
+				return errors.Wrap(err, "saving session")
+			}
 		}
 		m.Reconnect(false)
 		m.mutex.Lock()
@@ -456,9 +440,11 @@ messageTypeSwitching:
 
 	case *objects.NewSessionCreated:
 		m.serverSalt = message.ServerSalt
-		err := m.SaveSession()
-		if err != nil {
-			m.Logger.Println(errors.Wrap(err, "saving session"))
+		if !m.memorySession {
+			err := m.SaveSession()
+			if err != nil {
+				m.Logger.Println(errors.Wrap(err, "saving session"))
+			}
 		}
 
 	case *objects.Pong, *objects.MsgsAck:
@@ -513,9 +499,10 @@ func (m *MTProto) tryToProcessErr(e *ErrResponseCode) error {
 		m.Logger.Printf("Phone migrated to %v", newDc)
 		return m.SwitchDC(newDc)
 	} else if e.Code == 303 && strings.Contains(e.Message, "USER_MIGRATE_") {
-		newDc := e.AdditionalInfo.(int)
-		m.Logger.Printf("User migrated to %v", newDc)
-		return m.SwitchDC(newDc)
+		// newDc := e.AdditionalInfo.(int)
+		// m.Logger.Printf("User migrated to %v", newDc)
+		// return m.SwitchDC(newDc)
+		return e
 	} else {
 		return e
 	}
@@ -527,7 +514,7 @@ func (m *MTProto) SwitchDC(dc int) error {
 		return fmt.Errorf("DC with id %v not found", dc)
 	}
 
-	m.addr = newIP
+	m.Addr = newIP
 	m.Logger.Printf("Reconnecting to new data center %v", dc)
 	m.encrypted = false
 	err := m.Reconnect(true)

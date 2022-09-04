@@ -10,14 +10,22 @@ type (
 	}
 
 	SendOptions struct {
-		ReplyID     int32       `json:"reply_id,omitempty"`
-		Caption     interface{} `json:"caption,omitempty"`
-		ParseMode   string      `json:"parse_mode,omitempty"`
-		Silent      bool        `json:"silent,omitempty"`
-		LinkPreview bool        `json:"link_preview,omitempty"`
-		ReplyMarkup ReplyMarkup `json:"reply_markup,omitempty"`
-		ClearDraft  bool        `json:"clear_draft,omitempty"`
-		NoForwards  bool        `json:"no_forwards,omitempty"`
+		ReplyID       int32               `json:"reply_id,omitempty"`
+		Caption       interface{}         `json:"caption,omitempty"`
+		ParseMode     string              `json:"parse_mode,omitempty"`
+		Silent        bool                `json:"silent,omitempty"`
+		LinkPreview   bool                `json:"link_preview,omitempty"`
+		ReplyMarkup   ReplyMarkup         `json:"reply_markup,omitempty"`
+		ClearDraft    bool                `json:"clear_draft,omitempty"`
+		NoForwards    bool                `json:"no_forwards,omitempty"`
+		ScheduleDate  int32               `json:"schedule_date,omitempty"`
+		SendAs        InputPeer           `json:"send_as,omitempty"`
+		Thumb         InputFile           `json:"thumb,omitempty"`
+		TTL           int32               `json:"ttl,omitempty"`
+		ForceDocument bool                `json:"force_document,omitempty"`
+		FileName      string              `json:"file_name,omitempty"`
+		Attributes    []DocumentAttribute `json:"attributes,omitempty"`
+		Media         interface{}
 	}
 
 	MediaOptions struct {

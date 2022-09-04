@@ -130,21 +130,35 @@ func (c *Client) ExportSender(dcID int) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("done Export")
 	senderClient := &Client{
 		MTProto:   sender,
 		config:    c.config,
 		ParseMode: c.ParseMode,
 	}
-	authExport, err := senderClient.AuthExportAuthorization(int32(dcID))
-	if err != nil {
-		return nil, err
+
+	_, InvokeErr := senderClient.InvokeWithLayer(ApiVersion, &InitConnectionParams{
+		ApiID:          int32(c.AppID),
+		DeviceModel:    "iPhone X",
+		SystemVersion:  getStr("", runtime.GOOS+" "+runtime.GOARCH),
+		AppVersion:     getStr("", "v1.0.0"),
+		SystemLangCode: "en",
+		LangCode:       "en",
+		Query:          &HelpGetConfigParams{},
+	})
+	if InvokeErr != nil {
+		return nil, InvokeErr
 	}
-	fmt.Println("done Export")
-	_, err = senderClient.AuthImportAuthorization(authExport.ID, authExport.Bytes)
-	if err != nil {
-		return nil, err
+	if c.MTProto.Addr != senderClient.MTProto.Addr {
+		authExport, err := c.AuthExportAuthorization(int32(dcID))
+		if err != nil {
+			return nil, err
+		}
+		_, err = senderClient.AuthImportAuthorization(authExport.ID, authExport.Bytes)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return senderClient, nil
 }
 
@@ -298,6 +312,10 @@ func (c *Client) Ping() time.Duration {
 	return c.MTProto.Ping()
 }
 
+func (c *Client) GetDC() int {
+	return c.MTProto.GetDC()
+}
+
 func (c *Client) ExportSession() (string, error) {
 	var session = session.StringSession{}
 	authKey, authKeyHash, IpAddr, DcID := c.MTProto.ExportAuth()
@@ -310,4 +328,8 @@ func (c *Client) ExportSession() (string, error) {
 
 func (c *Client) ImportSession(sessionString string) (bool, error) {
 	return c.MTProto.ImportAuth(sessionString)
+}
+
+func (c *Client) Terminate() {
+	c.MTProto.Terminate()
 }
