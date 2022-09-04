@@ -176,7 +176,7 @@ func getAppropriatedPartSize(fileSize int64) int {
 	} else if fileSize < 786432000 {
 		return 256 * 1024
 	} else if fileSize < 2097152000 {
-		return 256 * 1024
+		return 512 * 1024
 	}
 	return 0
 }

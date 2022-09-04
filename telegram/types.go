@@ -1,12 +1,25 @@
 package telegram
 
+import "sync"
+
 type (
+	Progress struct {
+		current int64
+		total   int64
+		rwlock  sync.RWMutex
+	}
+
 	LoginOptions struct {
 		Password  string `json:"password,omitempty"`
 		Code      string `json:"code,omitempty"`
 		CodeHash  string `json:"code_hash,omitempty"`
 		FirstName string `json:"first_name,omitempty"`
 		LastName  string `json:"last_name,omitempty"`
+	}
+
+	DownloadOptions struct {
+		Progress     *Progress
+		DownloadPath string
 	}
 
 	SendOptions struct {
@@ -168,6 +181,24 @@ var (
 		Limit:  50,
 	}
 )
+
+func (p *Progress) Set(value int64) {
+	p.rwlock.Lock()
+	defer p.rwlock.Unlock()
+	p.current = value
+}
+
+func (p *Progress) Get() int64 {
+	p.rwlock.RLock()
+	defer p.rwlock.RUnlock()
+	return p.current
+}
+
+func (p *Progress) Percentage() float64 {
+	p.rwlock.RLock()
+	defer p.rwlock.RUnlock()
+	return float64(p.current) / float64(p.total) * 100
+}
 
 // Cancel the pointed Action,
 // Returns true if the action was cancelled
