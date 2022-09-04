@@ -162,6 +162,8 @@ func (c *Client) EditMessage(peerID interface{}, MsgID int32, TextObj interface{
 			return nil, err
 		}
 		return &NewMessage{ID: 0}, nil
+	case nil:
+		return nil, errors.New("peerID cant be nil")
 	default:
 		PeerToSend, err := c.GetSendablePeer(peerID)
 		if err != nil {

@@ -84,25 +84,37 @@ func (c *Client) UploadFile(file interface{}) (InputFile, error) {
 // DownloadMedia is a function that downloads a media file from telegram,
 // and returns the file path,
 // FileDL can be MessageMedia, FileLocation
-func (c *Client) DownloadMedia(FileDL interface{}, DownloadPath ...string) (string, error) {
+func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions) (string, error) {
 	var (
 		fileLocation InputFileLocation
 		fileSize     int64
 		DcID         int32
+		Opts         *DownloadOptions
+		Prog         *Progress
 	)
+	if len(DLOptions) > 0 {
+		Opts = DLOptions[0]
+	} else {
+		Opts = &DownloadOptions{}
+	}
+
 	fileLocation, DcID, fileSize = GetInputFileLocation(FileDL) // TODO: Fix fileSize for Photos
 	if fileLocation == nil {
 		return "", errors.New("invalid file type")
 	}
 	chunkSize := getAppropriatedPartSize(fileSize)
 	totalParts := int32(math.Ceil(float64(fileSize) / float64(chunkSize)))
+	if Opts.Progress != nil {
+		Prog = Opts.Progress
+		Prog.total = int64(totalParts)
+	}
 	var (
 		fileName string
 		file     *os.File
 		err      error
 	)
-	if len(DownloadPath) > 0 {
-		fileName = DownloadPath[0]
+	if Opts.DownloadPath != "" {
+		fileName = Opts.DownloadPath
 	} else {
 		fileName = getValue(getFileName(FileDL), "download").(string)
 	}
@@ -115,17 +127,18 @@ func (c *Client) DownloadMedia(FileDL interface{}, DownloadPath ...string) (stri
 		return "", errors.Wrap(err, "creating file")
 	}
 	defer file.Close()
+
 	log.Println("Client - INFO - Downloading file", fileName, "with", totalParts, "parts of", chunkSize, "bytes")
 	if DcID != int32(c.GetDC()) {
 		c.Logger.Println("Client - INFO - File Lives on DC", DcID, ", Exporting Sender...")
 		s, _ := c.ExportSender(int(DcID))
-		_, err = getFile(s, fileLocation, file, int32(chunkSize), totalParts)
+		_, err = getFile(s, fileLocation, file, int32(chunkSize), totalParts, Prog)
 		s.Terminate()
 		if err != nil {
 			return "", errors.Wrap(err, "downloading file")
 		}
 	} else {
-		_, err = getFile(c, fileLocation, file, int32(chunkSize), totalParts)
+		_, err = getFile(c, fileLocation, file, int32(chunkSize), totalParts, Prog)
 		if err != nil {
 			return "", errors.Wrap(err, "downloading file")
 		}
@@ -133,7 +146,7 @@ func (c *Client) DownloadMedia(FileDL interface{}, DownloadPath ...string) (stri
 	return fileName, nil
 }
 
-func getFile(c *Client, location InputFileLocation, f *os.File, chunkSize int32, totalParts int32) (bool, error) {
+func getFile(c *Client, location InputFileLocation, f *os.File, chunkSize int32, totalParts int32, progress *Progress) (bool, error) {
 	for i := int32(0); i < totalParts; i++ {
 		fileData, err := c.UploadGetFile(&UploadGetFileParams{
 			Precise:      false,
@@ -142,6 +155,10 @@ func getFile(c *Client, location InputFileLocation, f *os.File, chunkSize int32,
 			Offset:       int64(i * int32(chunkSize)),
 			Limit:        chunkSize,
 		})
+		if progress != nil {
+			progress.Set(int64(i))
+		}
+
 		if err != nil {
 			if strings.Contains(err.Error(), "The file to be accessed is currently stored in DC") {
 				dcID := regexp.MustCompile(`\d+`).FindString(err.Error())
@@ -163,7 +180,7 @@ func getFile(c *Client, location InputFileLocation, f *os.File, chunkSize int32,
 	return true, nil
 }
 
-// TODO
+// TODO: Fix this
 func MultiThreadAllocation(chunkSize int32, totalParts int32, numGorotines int) map[int][]int32 {
 	partsForEachGoRoutine := int32(math.Ceil(float64(totalParts) / float64(numGorotines)))
 	remainingParts := totalParts

@@ -2,6 +2,7 @@ package examples
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -38,6 +39,7 @@ func main() {
 
 	// Add handlers
 	client.AddMessageHandler("/start", Start)
+	client.AddMessageHandler("/download", DownloadFile)
 	client.AddInlineHandler("test", InlineQuery)
 
 	client.Idle() // Blocks until client.Stop() is called
@@ -56,5 +58,20 @@ func InlineQuery(m *telegram.InlineQuery) error {
 		"Test Article Text",
 	)
 	_, err := m.Answer(b.Results())
+	return err
+}
+
+func DownloadFile(m *telegram.NewMessage) error {
+	if !m.IsMedia() {
+		m.Reply("Not Media!")
+	}
+	var p = telegram.Progress{}
+	e, _ := m.Reply("Downloading...")
+	go func() {
+		for range time.Tick(time.Second * 5) {
+			e.Edit(fmt.Sprintf("Download...\nProgress %v", p.Percentage()))
+		}
+	}()
+	_, err := m.Download(&telegram.DownloadOptions{Progress: &p})
 	return err
 }

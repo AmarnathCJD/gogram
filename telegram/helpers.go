@@ -363,6 +363,8 @@ mediaTypeSwitch:
 			return nil, err
 		}
 		goto mediaTypeSwitch
+	case nil:
+		return nil, errors.New("media is nil")
 	}
 	return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(mediaFile).String()))
 }
