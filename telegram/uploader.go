@@ -11,6 +11,8 @@ import (
 	"log"
 	"math"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -86,8 +88,9 @@ func (c *Client) DownloadMedia(FileDL interface{}, DownloadPath ...string) (stri
 	var (
 		fileLocation InputFileLocation
 		fileSize     int64
+		DcID         int32
 	)
-	fileLocation, _, fileSize = GetInputFileLocation(FileDL)
+	fileLocation, DcID, fileSize = GetInputFileLocation(FileDL) // TODO: Fix fileSize for Photos
 	if fileLocation == nil {
 		return "", errors.New("invalid file type")
 	}
@@ -113,26 +116,65 @@ func (c *Client) DownloadMedia(FileDL interface{}, DownloadPath ...string) (stri
 	}
 	defer file.Close()
 	log.Println("Client - INFO - Downloading file", fileName, "with", totalParts, "parts of", chunkSize, "bytes")
+	if DcID != int32(c.GetDC()) {
+		c.Logger.Println("Client - INFO - File Lives on DC", DcID, ", Exporting Sender...")
+		s, _ := c.ExportSender(int(DcID))
+		_, err = getFile(s, fileLocation, file, int32(chunkSize), totalParts)
+		s.Terminate()
+		if err != nil {
+			return "", errors.Wrap(err, "downloading file")
+		}
+	} else {
+		_, err = getFile(c, fileLocation, file, int32(chunkSize), totalParts)
+		if err != nil {
+			return "", errors.Wrap(err, "downloading file")
+		}
+	}
+	return fileName, nil
+}
+
+func getFile(c *Client, location InputFileLocation, f *os.File, chunkSize int32, totalParts int32) (bool, error) {
 	for i := int32(0); i < totalParts; i++ {
 		fileData, err := c.UploadGetFile(&UploadGetFileParams{
 			Precise:      false,
 			CdnSupported: false,
-			Location:     fileLocation,
+			Location:     location,
 			Offset:       int64(i * int32(chunkSize)),
-			Limit:        int32(chunkSize),
+			Limit:        chunkSize,
 		})
 		if err != nil {
-			return "", errors.Wrap(err, "downloading file")
+			if strings.Contains(err.Error(), "The file to be accessed is currently stored in DC") {
+				dcID := regexp.MustCompile(`\d+`).FindString(err.Error())
+				fmt.Println("wrong DC", dcID)
+				return false, errors.New("INVALID_DC_" + dcID)
+			}
+			return false, errors.Wrap(err, "downloading file")
 		}
-		switch f := fileData.(type) {
+		switch file := fileData.(type) {
 		case *UploadFileObj:
-			_, err = file.Write(f.Bytes)
+			_, err = f.Write(file.Bytes)
 			if err != nil {
-				return "", errors.Wrap(err, "writing file")
+				return false, errors.Wrap(err, "writing file")
 			}
 		case *UploadFileCdnRedirect:
-			return "", errors.New(fmt.Sprintf("File lives on another DC (%d), Not supported yet", f.DcID))
+			return false, errors.New("File lives on another DC (%d), Not supported yet")
 		}
 	}
-	return fileName, nil
+	return true, nil
+}
+
+// TODO
+func MultiThreadAllocation(chunkSize int32, totalParts int32, numGorotines int) map[int][]int32 {
+	partsForEachGoRoutine := int32(math.Ceil(float64(totalParts) / float64(numGorotines)))
+	remainingParts := totalParts
+	partsAllocation := make(map[int][]int32, numGorotines)
+	for i := 0; i < numGorotines; i++ {
+		if remainingParts > partsForEachGoRoutine {
+			partsAllocation[i] = []int32{int32(i) * partsForEachGoRoutine, (int32(i) + 1) * partsForEachGoRoutine}
+			remainingParts -= partsForEachGoRoutine
+		} else {
+			partsAllocation[i] = []int32{int32(i) * partsForEachGoRoutine, totalParts}
+		}
+	}
+	return partsAllocation
 }

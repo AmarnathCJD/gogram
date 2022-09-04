@@ -89,6 +89,8 @@ func (c *Client) SendMessage(peerID interface{}, TextObj interface{}, Opts ...*S
 				NoWebpage:    options.LinkPreview,
 				Silent:       options.Silent,
 				ClearDraft:   options.ClearDraft,
+				ScheduleDate: options.ScheduleDate,
+				SendAs:       options.SendAs,
 			})
 		} else {
 			return nil, err
@@ -108,26 +110,78 @@ func (c *Client) EditMessage(peerID interface{}, MsgID int32, TextObj interface{
 	var err error
 	var e []MessageEntity
 	var Text string
+	var Media InputMedia
+	if options.Media != nil {
+		m, err := c.getSendableMedia(options.Media, &CustomAttrs{
+			Attributes:    options.Attributes,
+			TTL:           options.TTL,
+			ForceDocument: options.ForceDocument,
+			Thumb:         options.Thumb,
+			FileName:      options.FileName,
+		})
+		if err == nil {
+			Media = m
+		} else {
+			Media = &InputMediaEmpty{}
+		}
+	}
 	switch TextObj := TextObj.(type) {
 	case string:
 		e, Text = c.FormatMessage(TextObj, options.ParseMode)
 	}
-	PeerToSend, err := c.GetSendablePeer(peerID)
-	if err != nil {
-		return nil, err
+	switch peerID := peerID.(type) {
+	case InputBotInlineMessageID:
+		sender := c
+		switch p := peerID.(type) {
+		case *InputBotInlineMessageIDObj:
+			if int(p.DcID) != sender.GetDC() {
+				sender, err = sender.ExportSender(int(p.DcID))
+				if err != nil {
+					return nil, err
+				}
+				defer sender.Terminate()
+			}
+		case *InputBotInlineMessageID64:
+			if int(p.DcID) != sender.GetDC() {
+				sender, err = sender.ExportSender(int(p.DcID))
+				if err != nil {
+					return nil, err
+				}
+				defer sender.Terminate()
+			}
+		}
+		_, err := sender.MessagesEditInlineBotMessage(&MessagesEditInlineBotMessageParams{
+			NoWebpage:   !options.LinkPreview,
+			ID:          peerID,
+			Message:     Text,
+			Media:       Media,
+			ReplyMarkup: options.ReplyMarkup,
+			Entities:    e,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &NewMessage{ID: 0}, nil
+	default:
+		PeerToSend, err := c.GetSendablePeer(peerID)
+		if err != nil {
+			return nil, err
+		}
+		Update, err := c.MessagesEditMessage(&MessagesEditMessageParams{
+			Peer:         PeerToSend,
+			Message:      Text,
+			ID:           MsgID,
+			Entities:     e,
+			NoWebpage:    options.LinkPreview,
+			Media:        Media,
+			ReplyMarkup:  options.ReplyMarkup,
+			ScheduleDate: options.ScheduleDate,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return packMessage(c, processUpdate(Update)), err
 	}
-	Update, err := c.MessagesEditMessage(&MessagesEditMessageParams{
-		Peer:        PeerToSend,
-		Message:     Text,
-		ID:          MsgID,
-		Entities:    e,
-		ReplyMarkup: nil,
-		NoWebpage:   options.LinkPreview,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return packMessage(c, processUpdate(Update)), err
 }
 
 func (c *Client) DeleteMessage(peerID interface{}, MsgIDs ...int32) error {

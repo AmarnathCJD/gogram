@@ -159,9 +159,11 @@ func (m *MTProto) makeAuthKey() error {
 
 	m.serviceModeActivated = false
 	m.encrypted = true
-	err = m.SaveSession()
-	if err != nil {
-		log.Printf("TgCrypto - savesession: %s", err)
+	if !m.memorySession {
+		err = m.SaveSession()
+		if err != nil {
+			log.Printf("TgCrypto - savesession: %s", err)
+		}
 	}
 	return err
 }

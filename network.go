@@ -142,7 +142,7 @@ func (m *MTProto) SaveSession() (err error) {
 		Key:      m.authKey,
 		Hash:     m.authKeyHash,
 		Salt:     m.serverSalt,
-		Hostname: m.addr,
+		Hostname: m.Addr,
 	})
 }
 
@@ -150,7 +150,7 @@ func (m *MTProto) LoadSession(s *session.Session) {
 	m.authKey = s.Key
 	m.authKeyHash = s.Hash
 	m.serverSalt = s.Salt
-	m.addr = s.Hostname
+	m.Addr = s.Hostname
 }
 
 func (m *MTProto) reqPQ(nonce *tl.Int128) (*objects.ResPQ, error) {
