@@ -99,7 +99,6 @@ func NewMTProto(c Config) (*MTProto, error) {
 	} else if c.StringSession != "" {
 		encrypted = true
 	}
-	fmt.Println(c.ServerHost)
 
 	m := &MTProto{
 		tokensStorage:         c.SessionStorage,
