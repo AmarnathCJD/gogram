@@ -131,3 +131,24 @@ func (m *NewMessage) Args() string {
 	}
 	return strings.TrimSpace(strings.Join(Messages[1:], " "))
 }
+
+type HTMLToTelegramParser struct {
+	Text             string
+	Entities         []MessageEntity
+	buildingEntities []MessageEntity
+	openTags         []string
+	openTagsMeta     []string
+}
+
+func (p *HTMLToTelegramParser) handleStartTag(tag string, attrs map[string]string) {
+
+	var Type MessageEntity
+	switch tag {
+	case "b":
+		Type = &MessageEntityBold{}
+	}
+	switch Type := Type.(type) {
+	case *MessageEntityBold:
+		Type.Offset = int32(len(p.Text))
+	} // Started Working on this
+}

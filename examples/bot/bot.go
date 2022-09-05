@@ -40,6 +40,7 @@ func main() {
 	// Add handlers
 	client.AddMessageHandler("/start", Start)
 	client.AddMessageHandler("/download", DownloadFile)
+	client.AddMessageHandler("/upload", UploadFile)
 	client.AddInlineHandler("test", InlineQuery)
 
 	client.Idle() // Blocks until client.Stop() is called
@@ -74,4 +75,24 @@ func DownloadFile(m *telegram.NewMessage) error {
 	}()
 	_, err := m.Download(&telegram.DownloadOptions{Progress: &p})
 	return err
+}
+
+func UploadFile(m *telegram.NewMessage) error {
+	if m.Args() == "" {
+		m.Reply("Please specify a file path!")
+	}
+	message, _ := m.Reply("Uploading...")
+	defer message.Delete()
+	startTime := time.Now()
+	file, err := message.Client.UploadFile(m.Args(), true) // MultiThread : bool
+	if err != nil {
+		return err
+	}
+	_, err = m.ReplyMedia(file, telegram.MediaOptions{Caption: fmt.Sprintf("Uploaded in %v", time.Since(startTime))})
+	if err != nil {
+		message.Edit(err.Error())
+		return err
+	}
+
+	return nil
 }

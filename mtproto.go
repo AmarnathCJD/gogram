@@ -99,6 +99,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 	} else if c.StringSession != "" {
 		encrypted = true
 	}
+	fmt.Println(c.ServerHost)
 
 	m := &MTProto{
 		tokensStorage:         c.SessionStorage,
@@ -115,9 +116,11 @@ func NewMTProto(c Config) (*MTProto, error) {
 		memorySession:         c.MemorySession,
 	}
 	if c.StringSession != "" {
+		fmt.Println("string session")
 		m.ImportAuth(c.StringSession)
 	} else {
 		if s != nil {
+			fmt.Println("session")
 			m.LoadSession(s)
 		}
 	}
@@ -159,14 +162,18 @@ func (m *MTProto) GetDC() int {
 
 func (m *MTProto) ExportNewSender(dcID int) (*MTProto, error) {
 	newAddr := utils.DcList[dcID]
-	sender, _ := NewMTProto(Config{
+	cfg := Config{
 		AppID:         m.AppID,
 		DataCenter:    dcID,
 		PublicKey:     m.PublicKey,
 		ServerHost:    newAddr,
 		AuthKeyFile:   wd + "/auth_key.session",
 		MemorySession: true,
-	})
+	}
+	if dcID == m.GetDC() {
+		cfg.SessionStorage = m.tokensStorage
+	}
+	sender, _ := NewMTProto(cfg)
 	m.Logger.Println("Exporting new sender for DC", dcID)
 	err := sender.CreateConnection(true)
 	if err != nil {
@@ -286,10 +293,12 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 	if err != nil {
 		return errors.Wrap(err, "disconnecting")
 	}
-	m.Logger.Printf("Reconnecting to %s/TcpFull...", m.Addr)
+	if WithLogs {
+		m.Logger.Printf("Reconnecting to %s/TcpFull...", m.Addr)
+	}
 
 	err = m.CreateConnection(WithLogs)
-	if err == nil {
+	if err == nil && WithLogs {
 		m.Logger.Printf("Connected to %s/TcpFull complete!", m.Addr)
 	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
@@ -348,10 +357,12 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						m.Logger.Println("reconnecting error:", err)
 					}
 					return
+
 				default:
 					if strings.Contains(err.Error(), "required to reconnect!") {
 						err = m.Reconnect(false)
 						if err != nil {
+
 							m.Logger.Println("reconnecting error:", err)
 						}
 						return
@@ -429,6 +440,7 @@ messageTypeSwitching:
 			}
 		}
 		m.Reconnect(false)
+
 		m.mutex.Lock()
 		for _, k := range m.responseChannels.Keys() {
 			v, _ := m.responseChannels.Get(k)
