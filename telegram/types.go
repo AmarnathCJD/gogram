@@ -18,8 +18,8 @@ type (
 	}
 
 	DownloadOptions struct {
-		Progress     *Progress
-		DownloadPath string
+		Progress *Progress `json:"progress,omitempty"`
+		FileName string    `json:"file_name,omitempty"`
 	}
 
 	SendOptions struct {

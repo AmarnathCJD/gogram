@@ -7,20 +7,58 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
-	"io"
 	"log"
 	"math"
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 )
 
+func (c *Client) uploadBigMultiThread(fileName string, fileSize int, fileID int64, fileBytes *os.File, chunkSize int32, totalParts int32) (*InputFileBig, error) {
+	numGorotines := 20
+	partsAllocation := MultiThreadAllocation(int32(chunkSize), totalParts, numGorotines)
+	senders := make([]*Client, numGorotines)
+	wg := sync.WaitGroup{}
+	for i := 0; i < numGorotines; i++ {
+		wg.Add(1)
+		go func(ix int) {
+			defer wg.Done()
+			senders[ix], _ = c.ExportSender(c.GetDC())
+		}(i)
+	}
+	wg.Wait()
+	for i := 0; i < numGorotines; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for j := partsAllocation[i][0]; j < partsAllocation[i][1]; j++ {
+				buffer := make([]byte, chunkSize)
+				_, _ = fileBytes.ReadAt(buffer, int64(j*int32(chunkSize)))
+				_, err := senders[i].UploadSaveBigFilePart(fileID, j, totalParts, buffer)
+				if err != nil {
+					log.Println("Error in uploading", err)
+				}
+			}
+		}(i)
+	}
+	wg.Wait()
+	for i := 0; i < numGorotines; i++ {
+		senders[i].Terminate()
+	}
+	return &InputFileBig{
+		ID:    fileID,
+		Name:  fileName,
+		Parts: totalParts,
+	}, nil
+}
+
 // UploadFile is a function that uploads a file to telegram as byte chunks
 // and returns the InputFile object
 // File can be Path to file, or a byte array
-func (c *Client) UploadFile(file interface{}) (InputFile, error) {
+func (c *Client) UploadFile(file interface{}, MultiThreaded ...bool) (InputFile, error) {
 	var (
 		fileName   string
 		fileSize   int64
@@ -31,6 +69,7 @@ func (c *Client) UploadFile(file interface{}) (InputFile, error) {
 		reader     *bufio.Reader
 		fileID     = GenerateRandomLong()
 		hasher     = md5.New()
+		fileBytes  *os.File
 	)
 	switch f := file.(type) {
 	case string:
@@ -40,22 +79,26 @@ func (c *Client) UploadFile(file interface{}) (InputFile, error) {
 		}
 		chunkSize = getAppropriatedPartSize(fileSize)
 		totalParts = int32(math.Ceil(float64(fileSize) / float64(chunkSize)))
-		bigFile = fileSize > 10*1024*1024
+		bigFile = fileSize > 10*1024*1024 // 10MB
 		fileBytes, err := os.Open(f)
 		if err != nil {
 			return nil, errors.Wrap(err, "opening file")
 		}
 		defer fileBytes.Close()
 		reader = bufio.NewReader(fileBytes)
-	case []byte:
+	case []byte: // TODO: Add support for goroutines for byte array
 		fileSize = int64(len(f))
 		chunkSize = getAppropriatedPartSize(fileSize)
 		totalParts = int32(math.Ceil(float64(fileSize) / float64(chunkSize)))
 		bigFile = fileSize > 10*1024*1024
 		reader = bufio.NewReaderSize(bytes.NewReader(f), chunkSize)
-	case io.Reader:
+	case InputFile:
+		return f, nil // already an Uploaded
 	default:
 		return nil, errors.New("invalid file type")
+	}
+	if len(MultiThreaded) > 0 && MultiThreaded[0] && bigFile {
+		return c.uploadBigMultiThread(fileName, int(fileSize), fileID, fileBytes, int32(chunkSize), totalParts)
 	}
 	buffer := make([]byte, chunkSize)
 	log.Println("Client - INFO - Uploading file", fileName, "with", totalParts, "parts of", chunkSize, "bytes")
@@ -83,7 +126,7 @@ func (c *Client) UploadFile(file interface{}) (InputFile, error) {
 
 // DownloadMedia is a function that downloads a media file from telegram,
 // and returns the file path,
-// FileDL can be MessageMedia, FileLocation
+// FileDL can be MessageMedia, FileLocation, NewMessage
 func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions) (string, error) {
 	var (
 		fileLocation InputFileLocation
@@ -97,10 +140,24 @@ func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions
 	} else {
 		Opts = &DownloadOptions{}
 	}
-
-	fileLocation, DcID, fileSize = GetInputFileLocation(FileDL) // TODO: Fix fileSize for Photos
+	switch f := FileDL.(type) {
+	case *MessageMediaContact:
+		file, err := os.Create(getValue(Opts.FileName, f.PhoneNumber+".contact").(string))
+		if err != nil {
+			return "", errors.Wrap(err, "creating file")
+		}
+		defer file.Close()
+		vcard_4 := fmt.Sprintf("BEGIN:VCARD\nVERSION:4.0\nN:%s;%s;;;\nFN:%s %s\nTEL;TYPE=CELL:%s\nEND:VCARD", f.LastName, f.FirstName, f.FirstName, f.LastName, f.PhoneNumber)
+		_, err = file.WriteString(vcard_4)
+		if err != nil {
+			return "", errors.Wrap(err, "writing to file")
+		}
+		return file.Name(), nil
+	default:
+		fileLocation, DcID, fileSize = GetInputFileLocation(FileDL)
+	}
 	if fileLocation == nil {
-		return "", errors.New("invalid file type")
+		return "", errors.New("could not get file location: " + fmt.Sprintf("%T", FileDL))
 	}
 	chunkSize := getAppropriatedPartSize(fileSize)
 	totalParts := int32(math.Ceil(float64(fileSize) / float64(chunkSize)))
@@ -113,8 +170,8 @@ func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions
 		file     *os.File
 		err      error
 	)
-	if Opts.DownloadPath != "" {
-		fileName = Opts.DownloadPath
+	if Opts.FileName != "" {
+		fileName = Opts.FileName
 	} else {
 		fileName = getValue(getFileName(FileDL), "download").(string)
 	}
@@ -132,11 +189,12 @@ func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions
 	if DcID != int32(c.GetDC()) {
 		c.Logger.Println("Client - INFO - File Lives on DC", DcID, ", Exporting Sender...")
 		s, _ := c.ExportSender(int(DcID))
+		defer s.Terminate()
 		_, err = getFile(s, fileLocation, file, int32(chunkSize), totalParts, Prog)
-		s.Terminate()
 		if err != nil {
 			return "", errors.Wrap(err, "downloading file")
 		}
+
 	} else {
 		_, err = getFile(c, fileLocation, file, int32(chunkSize), totalParts, Prog)
 		if err != nil {
@@ -158,6 +216,7 @@ func getFile(c *Client, location InputFileLocation, f *os.File, chunkSize int32,
 		if progress != nil {
 			progress.Set(int64(i))
 		}
+		fmt.Println("Client - INFO - Downloading part", i, "of", totalParts)
 
 		if err != nil {
 			if strings.Contains(err.Error(), "The file to be accessed is currently stored in DC") {

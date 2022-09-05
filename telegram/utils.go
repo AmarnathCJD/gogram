@@ -76,13 +76,38 @@ func mimeIsPhoto(mime string) bool {
 	return strings.HasPrefix(mime, "image/") && !strings.Contains(mime, "image/webp")
 }
 
-func GetInputFileLocation(f interface{}) (InputFileLocation, int32, int64) {
+func GetInputFileLocation(file interface{}) (InputFileLocation, int32, int64) {
 	var location interface{}
-	switch f := f.(type) {
+
+MediaMessageSwitch:
+	switch f := file.(type) {
 	case *MessageMediaDocument:
 		location = f.Document
 	case *MessageMediaPhoto:
 		location = f.Photo
+	case *NewMessage:
+		file = f.Media()
+		goto MediaMessageSwitch
+	case *MessageService:
+		if f.Action != nil {
+			switch f := f.Action.(type) {
+			case *MessageActionChatEditPhoto:
+				location = f.Photo
+			}
+		}
+	case *MessageMediaWebPage:
+		if f.Webpage != nil {
+			switch w := f.Webpage.(type) {
+			case *WebPageObj:
+				if w.Photo != nil {
+					location = w.Photo
+				} else if w.Document != nil {
+					location = w.Document
+				}
+			}
+		}
+	default:
+		return nil, 0, 0
 	}
 	switch l := location.(type) {
 	case *DocumentObj:
@@ -93,48 +118,49 @@ func GetInputFileLocation(f interface{}) (InputFileLocation, int32, int64) {
 			ThumbSize:     "",
 		}, l.DcID, l.Size
 	case *PhotoObj:
+		size, sizeType := photoSizeByteCount(l.Sizes[len(l.Sizes)-1])
 		return &InputPhotoFileLocation{
 			ID:            l.ID,
 			AccessHash:    l.AccessHash,
 			FileReference: l.FileReference,
-			ThumbSize:     getPhotoSize(l.Sizes),
-		}, l.DcID, photoSizeByteCount(l.Sizes)
+			ThumbSize:     sizeType,
+		}, l.DcID, size
+	default:
+		return nil, 0, 0
 	}
-	return nil, 0, 0
 }
 
-func getPhotoSize(sizes []PhotoSize) string {
-	for _, s := range sizes {
-		switch s := s.(type) {
-		case *PhotoSizeObj:
-			return s.Type
-		}
-	}
-	return ""
-}
-
-func photoSizeByteCount(sizes []PhotoSize) int64 {
-	if len(sizes) == 0 {
-		return 0
-	}
-	var size = sizes[len(sizes)-1]
-	switch s := size.(type) {
+func photoSizeByteCount(sizes PhotoSize) (int64, string) {
+	switch s := sizes.(type) {
 	case *PhotoSizeObj:
-		return int64(s.Size)
-	case *PhotoCachedSize:
-		return int64(len(s.Bytes))
+		return int64(s.Size), s.Type
 	case *PhotoStrippedSize:
 		if len(s.Bytes) < 3 || s.Bytes[0] != 1 {
-			return int64(len(s.Bytes))
+			return int64(len(s.Bytes)), s.Type
 		}
-		return int64(len(s.Bytes) + 622)
+		return int64(len(s.Bytes)) + 622, s.Type
+	case *PhotoCachedSize:
+		return int64(len(s.Bytes)), s.Type
 	case *PhotoSizeEmpty:
-		return 0
+		return 0, s.Type
 	case *PhotoSizeProgressive:
-		_, size := MinMax(s.Sizes)
-		return int64(size)
+		return int64(getMax(s.Sizes)), s.Type
+	default:
+		return 0, "w"
 	}
-	return 0
+}
+
+func getMax(a []int32) int32 {
+	if len(a) == 0 {
+		return 0
+	}
+	var max = a[0]
+	for _, v := range a {
+		if v > max {
+			max = v
+		}
+	}
+	return max
 }
 
 func isPathDirectoryLike(path string) bool {
@@ -176,7 +202,7 @@ func getAppropriatedPartSize(fileSize int64) int {
 	} else if fileSize < 786432000 {
 		return 256 * 1024
 	} else if fileSize < 2097152000 {
-		return 512 * 1024
+		return 256 * 1024
 	}
 	return 0
 }
@@ -208,18 +234,4 @@ func getValue(val interface{}, def interface{}) interface{} {
 		}
 	}
 	return val
-}
-
-func MinMax(array []int32) (int32, int32) {
-	var max int32 = array[0]
-	var min int32 = array[0]
-	for _, value := range array {
-		if max < value {
-			max = value
-		}
-		if min > value {
-			min = value
-		}
-	}
-	return min, max
 }

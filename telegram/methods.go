@@ -273,6 +273,9 @@ func (c *Client) SendMedia(peerID interface{}, Media interface{}, Opts ...*Media
 		ClearDraft:   options.ClearDraft,
 		Noforwards:   options.NoForwards,
 	})
+	if err != nil {
+		return nil, err
+	}
 	return packMessage(c, processUpdate(Update)), err
 }
 
