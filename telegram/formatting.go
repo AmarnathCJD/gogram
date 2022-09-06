@@ -3,7 +3,6 @@ package telegram
 import (
 	"regexp"
 	"strings"
-	"unicode"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -11,9 +10,7 @@ import (
 func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, string) {
 	var entities []MessageEntity
 	message = strings.TrimSpace(message)
-	message = strings.TrimFunc(message, func(r rune) bool {
-		return !unicode.IsGraphic(r)
-	})
+	message = AddSurrogate(message)
 	if mode == HTML {
 		tok, _ := goquery.NewDocumentFromReader(strings.NewReader(message))
 		var htmlFreeRegex = regexp.MustCompile(`<.*?>`)
@@ -132,23 +129,45 @@ func (m *NewMessage) Args() string {
 	return strings.TrimSpace(strings.Join(Messages[1:], " "))
 }
 
-type HTMLToTelegramParser struct {
-	Text             string
-	Entities         []MessageEntity
-	buildingEntities []MessageEntity
-	openTags         []string
-	openTagsMeta     []string
+func AddSurrogate(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= 0xD800 && r <= 0xDFFF {
+			b.WriteRune(0xFFFD)
+		} else if r >= 0x10000 {
+			b.WriteRune(0xD800 + (r-0x10000)>>10)
+			b.WriteRune(0xDC00 + (r-0x10000)&0x3FF)
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
-func (p *HTMLToTelegramParser) handleStartTag(tag string, attrs map[string]string) {
-
-	var Type MessageEntity
-	switch tag {
-	case "b":
-		Type = &MessageEntityBold{}
+func DeleteSurrogate(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r < 0xD800 || r > 0xDFFF {
+			b.WriteRune(r)
+		}
 	}
-	switch Type := Type.(type) {
-	case *MessageEntityBold:
-		Type.Offset = int32(len(p.Text))
-	} // Started Working on this
+	return b.String()
+}
+
+func StripText(text string, entities []MessageEntity) string {
+	if len(entities) == 0 {
+		return text
+	}
+	var b strings.Builder
+	b.Grow(len(text))
+	var last int32
+	for _, e := range entities {
+		switch e := e.(type) {
+		case *MessageEntityBold:
+			b.WriteString(text[last:e.Offset])
+			last = e.Offset + e.Length
+		}
+	}
+	b.WriteString(text[last:])
+	return b.String()
 }
