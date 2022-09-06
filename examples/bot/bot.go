@@ -70,6 +70,10 @@ func DownloadFile(m *telegram.NewMessage) error {
 	e, _ := m.Reply("Downloading...")
 	go func() {
 		for range time.Tick(time.Second * 5) {
+			if p.Percentage() == 100 {
+				e.Edit(fmt.Sprintf("Downloaded... %v%%", p.Percentage()))
+				break
+			}
 			e.Edit(fmt.Sprintf("Download...\nProgress %v", p.Percentage()))
 		}
 	}()
