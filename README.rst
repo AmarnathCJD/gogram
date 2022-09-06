@@ -82,6 +82,11 @@ Doing stuff
     client.EditBanned(chatID, userID, &telegram.BannedOptions{Mute: true})
     client.DownloadMedia(message, "download.jpg")
     client.EditTitle("me", "MyNewAmazingName")
+    client.UploadFile("file.txt", true) // Multithreaded upload
+    p := client.GetParticipant("chat", "user")
+    p.CanChangeInfo()
+    p.GetRank()
+
     
     client.SendDice("username", "🎲")
 
