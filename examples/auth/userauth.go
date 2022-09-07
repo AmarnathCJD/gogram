@@ -30,7 +30,7 @@ func main() {
 		panic(err)
 	}
 
-	stringSession, _ := client.ExportSession()
+	stringSession := client.ExportSession()
 	fmt.Println("String Session: ", stringSession)
 
 	me, _ := client.GetMe()
