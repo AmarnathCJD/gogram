@@ -437,7 +437,7 @@ func (c *Client) GetParticipants(PeerID interface{}, opts ...*ParticipantOptions
 	return Participants, ParticipantsResponse.Count, nil
 }
 
-func (c *Client) GetParticipant(PeerID interface{}, UserID interface{}) (Participant, error) {
+func (c *Client) GetChatMember(PeerID interface{}, UserID interface{}) (Participant, error) {
 	PeerToSend, err := c.GetSendablePeer(PeerID)
 	if err != nil {
 		return Participant{}, err
@@ -497,6 +497,14 @@ func (c *Client) SendAction(PeerID interface{}, Action interface{}) (*ActionResu
 		return nil, errors.New("unknown action type")
 	}
 	return &ActionResult{PeerToSend, c}, err
+}
+
+func (c *Client) SendReadAcknowledge(PeerID interface{}, MaxID ...int32) (*MessagesAffectedMessages, error) {
+	PeerToSend, err := c.GetSendablePeer(PeerID)
+	if err != nil {
+		return nil, err
+	}
+	return c.MessagesReadHistory(PeerToSend, MaxID[0])
 }
 
 func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult, Options ...*InlineSendOptions) (bool, error) {
@@ -608,7 +616,8 @@ func (c *Client) EditBanned(PeerID interface{}, UserID interface{}, opts ...*Ban
 	)
 	if len(opts) > 0 {
 		BannedOptions = opts[0]
-	} else {
+	}
+	if BannedOptions.Rights == nil {
 		BannedOptions.Rights = &ChatBannedRights{}
 	}
 	if BannedOptions.Ban {
@@ -698,7 +707,7 @@ func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...TitleOption
 			return false, err
 		}
 	default:
-		return false, errors.New("peer is not a chat or channel")
+		return false, errors.New("peer is not a chat or channel or self")
 	}
 	if err != nil {
 		return false, err
@@ -849,6 +858,42 @@ func (c *Client) GetMessages(PeerID interface{}, Options ...*SearchOption) ([]Ne
 	return Messages, nil
 }
 
+func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
+	var Options *DialogOptions
+	if len(Opts) > 0 {
+		Options = Opts[0]
+	}
+	if Options == nil {
+		Options = &DialogOptions{}
+	}
+	if Options.Limit > 1000 {
+		Options.Limit = 1000
+	} else if Options.Limit < 1 {
+		Options.Limit = 1
+	}
+	resp, err := c.MessagesGetDialogs(&MessagesGetDialogsParams{
+		OffsetDate:    Options.OffsetDate,
+		OffsetID:      Options.OffsetID,
+		OffsetPeer:    Options.OffsetPeer,
+		Limit:         Options.Limit,
+		FolderID:      Options.FolderID,
+		ExcludePinned: Options.ExcludePinned,
+	})
+	if err != nil {
+		return nil, err
+	}
+	switch p := resp.(type) {
+	case *MessagesDialogsObj:
+		go func() { c.Cache.UpdatePeersToCache(p.Users, p.Chats) }()
+		return p.Dialogs, nil
+	case *MessagesDialogsSlice:
+		go func() { c.Cache.UpdatePeersToCache(p.Users, p.Chats) }()
+		return p.Dialogs, nil
+	default:
+		return nil, errors.New("could not convert dialogs: " + reflect.TypeOf(resp).String())
+	}
+}
+
 func (c *Client) PinMessage(PeerID interface{}, MsgID int32, Opts ...*PinOptions) (Updates, error) {
 	PeerToSend, err := c.GetSendablePeer(PeerID)
 	if err != nil {
@@ -926,4 +971,76 @@ func (c *Client) GetProfilePhotos(PeerID interface{}, Opts ...*PhotosOptions) ([
 	default:
 		return nil, errors.New("could not convert photos: " + reflect.TypeOf(resp).String())
 	}
+}
+
+func (c *Client) GetChatPhotos(ChatID interface{}, limit ...int32) ([]Photo, error) {
+	if limit == nil {
+		limit = []int32{1}
+	}
+	messages, err := c.GetMessages(ChatID, &SearchOption{Limit: limit[0],
+		Filter: &InputMessagesFilterChatPhotos{}})
+	if err != nil {
+		return nil, err
+	}
+	var photos []Photo
+	for _, message := range messages {
+		if message.IsMedia() {
+			switch p := message.Media().(type) {
+			case *MessageMediaPhoto:
+				photos = append(photos, p.Photo)
+			}
+		}
+	}
+	return photos, nil
+}
+
+func (c *Client) GetChatPhoto(ChatID interface{}) (Photo, error) {
+	photos, err := c.GetChatPhotos(ChatID)
+	if err != nil {
+		return &PhotoObj{}, err
+	}
+	if len(photos) > 0 {
+		return photos[0], nil
+	}
+	return &PhotoObj{}, nil
+}
+
+func (c *Client) InlineQuery(PeerID interface{}, Options ...*InlineOptions) (*MessagesBotResults, error) {
+	var Opts *InlineOptions
+	if len(Options) > 0 {
+		Opts = Options[0]
+	}
+	if Opts == nil {
+		Opts = &InlineOptions{}
+	}
+	PeerBot, err := c.GetSendablePeer(PeerID)
+	var Peer InputPeer
+	if Opts.Dialog != nil {
+		Peer, err = c.GetSendablePeer(Opts.Dialog)
+
+	} else {
+		Peer = &InputPeerEmpty{}
+	}
+	if err != nil {
+		return nil, err
+	}
+	var m *MessagesBotResults
+	if u, ok := PeerBot.(*InputPeerUser); ok {
+		m, err = c.MessagesGetInlineBotResults(&MessagesGetInlineBotResultsParams{
+			Bot:      &InputUserObj{UserID: u.UserID, AccessHash: u.AccessHash},
+			Peer:     Peer,
+			Query:    Opts.Query,
+			Offset:   fmt.Sprint(Opts.Offset),
+			GeoPoint: Opts.GeoPoint,
+		})
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, errors.New("peer is not a bot")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
 }

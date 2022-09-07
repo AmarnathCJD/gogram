@@ -9,6 +9,22 @@ type (
 		rwlock  sync.RWMutex
 	}
 
+	DialogOptions struct {
+		OffsetID      int32     `json:"offset_id,omitempty"`
+		OffsetDate    int32     `json:"offset_date,omitempty"`
+		OffsetPeer    InputPeer `json:"offset_peer,omitempty"`
+		Limit         int32     `json:"limit,omitempty"`
+		ExcludePinned bool      `json:"exclude_pinned,omitempty"`
+		FolderID      int32     `json:"folder_id,omitempty"`
+	}
+
+	InlineOptions struct {
+		Dialog   interface{}
+		Offset   int32
+		Query    string
+		GeoPoint InputGeoPoint
+	}
+
 	LoginOptions struct {
 		Password  string `json:"password,omitempty"`
 		Code      string `json:"code,omitempty"`
@@ -192,6 +208,12 @@ func (p *Progress) Get() int64 {
 	p.rwlock.RLock()
 	defer p.rwlock.RUnlock()
 	return p.current
+}
+
+func (p *Progress) Data() (total int64, current int64) {
+	p.rwlock.RLock()
+	defer p.rwlock.RUnlock()
+	return p.total, p.current
 }
 
 func (p *Progress) Percentage() float64 {

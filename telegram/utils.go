@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -213,9 +214,22 @@ func getPeerUser(userID int64) *PeerUser {
 	}
 }
 
+// Fix this
+func GetOption(Type interface{}, options []interface{}) interface{} {
+	if len(options) == 0 {
+		return Type
+	}
+	return options[0]
+}
+
 func IsUrl(str string) bool {
 	u, err := url.Parse(str)
 	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+func IsPhone(phone string) bool {
+	phoneRe := regexp.MustCompile(`^\+?[0-9]{10,13}$`)
+	return phoneRe.MatchString(phone)
 }
 
 func getValue(val interface{}, def interface{}) interface{} {

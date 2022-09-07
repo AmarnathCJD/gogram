@@ -280,13 +280,19 @@ PeerSwitch:
 	}
 }
 
-func (c *Client) GetPeerID(Peer Peer) int64 {
+func (c *Client) GetPeerID(Peer interface{}) int64 {
 	switch Peer := Peer.(type) {
 	case *PeerChat:
 		return Peer.ChatID
 	case *PeerChannel:
 		return Peer.ChannelID
 	case *PeerUser:
+		return Peer.UserID
+	case *InputPeerChat:
+		return Peer.ChatID
+	case *InputPeerChannel:
+		return Peer.ChannelID
+	case *InputPeerUser:
 		return Peer.UserID
 	default:
 		return 0

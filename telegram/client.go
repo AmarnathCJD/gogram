@@ -3,14 +3,12 @@
 package telegram
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"os"
 	"reflect"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -34,12 +32,12 @@ type (
 		*mtproto.MTProto
 		config    *ClientConfig
 		stop      chan struct{}
+		bot       bool
 		Cache     *CACHE
 		ParseMode string
 		AppID     int32
 		ApiHash   string
 		Logger    *log.Logger
-		Session   interface{}
 	}
 
 	ClientConfig struct {
@@ -162,41 +160,14 @@ func (c *Client) ExportSender(dcID int) (*Client, error) {
 	return senderClient, nil
 }
 
-func (m *Client) IsSessionRegistred() (bool, error) {
-	_, err := m.UsersGetFullUser(&InputUserSelf{})
-	if err == nil {
-		return true, nil
-	}
-	var errCode *mtproto.ErrResponseCode
-	if errors.As(err, &errCode) {
-		if errCode.Message == "AUTH_KEY_UNREGISTERED" {
-			return false, nil
-		} else if strings.Contains(errCode.Message, "USER_MIGRATE") {
-			newDc := errCode.AdditionalInfo.(int)
-			m.Logger.Printf("User migrated to DC %d", newDc)
-			m.MTProto.SwitchDC(newDc)
-		}
-	} else {
-		return false, err
-	}
-	return false, nil
+func (c *Client) IsUserAuthorized() bool {
+	_, err := c.UpdatesGetState()
+	return err == nil
 }
 
-func (m *Client) Close() {
-	close(m.stop)
-	m.MTProto.Disconnect()
-}
-
-func (m *Client) SetParseMode(mode string) {
-	if mode == "" {
-		mode = "Markdown"
-	}
-	for _, c := range []string{"Markdown", "HTML"} {
-		if c == mode {
-			m.ParseMode = mode
-			return
-		}
-	}
+func (c *Client) Close() {
+	close(c.stop)
+	c.MTProto.Disconnect()
 }
 
 func (c *Client) Idle() {
@@ -210,120 +181,29 @@ func (c *Client) Disconnect() {
 	c.MTProto.Disconnect()
 }
 
-// Authorize client with bot token
-func (c *Client) LoginBot(botToken string) error {
-	_, err := c.AuthImportBotAuthorization(1, c.AppID, c.ApiHash, botToken)
-	return err
-}
-
-// sendCode and return phoneCodeHash
-func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
-	resp, err := c.AuthSendCode(phoneNumber, c.AppID, c.ApiHash, &CodeSettings{
-		AllowAppHash:  true,
-		CurrentNumber: true,
-	})
-	if err != nil {
-		return "", err
-	}
-	return resp.PhoneCodeHash, nil
-}
-
-// Authorize client with phone number, code and phone code hash,
-// If phone code hash is empty, it will be requested from telegram server
-func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, error) {
-	var opts *LoginOptions
-	if len(options) > 0 {
-		opts = options[0]
-	}
-	if opts == nil {
-		opts = &LoginOptions{}
-	}
-	if opts.Code == "" {
-		hash, err := c.SendCode(phoneNumber)
-		for {
-			if err != nil {
-				return false, err
-			}
-			fmt.Printf("Enter code: ")
-			var codeInput string
-			fmt.Scanln(&codeInput)
-			if codeInput != "" {
-				opts.Code = codeInput
-				break
-			} else if codeInput == "cancel" {
-				return false, nil
-			} else {
-				fmt.Println("Invalid code, try again")
-			}
-		}
-		opts.CodeHash = hash
-	}
-	_, SignInerr := c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, &EmailVerificationCode{})
-	if SignInerr != nil {
-		if strings.Contains(SignInerr.Error(), "Two-steps verification is enabled") {
-			var passwordInput string
-			fmt.Println("Two-step verification is enabled")
-			for {
-				fmt.Printf("Enter password: ")
-				fmt.Scanln(&passwordInput)
-				if passwordInput != "" {
-					opts.Password = passwordInput
-					break
-				} else if passwordInput == "cancel" {
-					return false, nil
-				} else {
-					fmt.Println("Invalid password, try again")
-				}
-			}
-			AccPassword, err := c.AccountGetPassword()
-			if err != nil {
-				return false, err
-			}
-			inputPassword, err := GetInputCheckPassword(passwordInput, AccPassword)
-			if err != nil {
-				return false, err
-			}
-			_, err = c.AuthCheckPassword(inputPassword)
-			if err != nil {
-				return false, err
-			}
-			return true, nil
-		} else if strings.Contains(SignInerr.Error(), "The code is valid but no user with the given number") {
-			_, err := c.AuthSignUp(phoneNumber, opts.CodeHash, opts.FirstName, opts.LastName)
-			if err != nil {
-				return false, err
-			}
-			return true, nil
-		} else {
-			return false, SignInerr
-		}
-	}
-	return true, nil
-}
-
-// Logs out from the current account
-func (c *Client) LogOut() error {
-	_, err := c.AuthLogOut()
-	return err
-}
-
 // Ping telegram server TCP connection
 func (c *Client) Ping() time.Duration {
 	return c.MTProto.Ping()
 }
 
+// Gets the connected DC-ID
 func (c *Client) GetDC() int {
 	return c.MTProto.GetDC()
 }
 
-func (c *Client) ExportSession() (string, error) {
-	var session = session.StringSession{}
+// IsBot returns true if client is logged in as bot
+func (c *Client) IsBot() bool {
+	return c.bot
+}
+
+func (c *Client) ExportSession() string {
 	authKey, authKeyHash, IpAddr, DcID := c.MTProto.ExportAuth()
-	session.AuthKey = authKey
-	session.AuthKeyHash = authKeyHash
-	session.IpAddr = IpAddr
-	session.DCID = DcID
-	return session.EncodeToString(), nil
+	return session.StringSession{
+		AuthKey:     authKey,
+		AuthKeyHash: authKeyHash,
+		IpAddr:      IpAddr,
+		DCID:        DcID,
+	}.EncodeToString()
 }
 
 func (c *Client) ImportSession(sessionString string) (bool, error) {
