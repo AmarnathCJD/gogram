@@ -115,11 +115,9 @@ func NewMTProto(c Config) (*MTProto, error) {
 		memorySession:         c.MemorySession,
 	}
 	if c.StringSession != "" {
-		fmt.Println("string session")
 		m.ImportAuth(c.StringSession)
 	} else {
 		if s != nil {
-			fmt.Println("session")
 			m.LoadSession(s)
 		}
 	}

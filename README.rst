@@ -86,6 +86,10 @@ Doing stuff
     p := client.GetParticipant("chat", "user")
     p.CanChangeInfo()
     p.GetRank()
+    client.InlineQuery("@pic", &telegram.InlineOptions{Query: "", Dialog: "@chat"})
+    client.GetChatPhotos(chatID)
+    client.GetDialogs()
+
 
     
     client.SendDice("username", "🎲")

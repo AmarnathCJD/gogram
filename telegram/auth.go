@@ -6,9 +6,11 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/sha512"
+	"fmt"
 	"hash"
 	"math/big"
 	"math/rand"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -16,6 +18,108 @@ import (
 const (
 	randombyteLen = 256 // 2048 bit
 )
+
+// Authorize client with bot token
+func (c *Client) LoginBot(botToken string) error {
+	_, err := c.AuthImportBotAuthorization(1, c.AppID, c.ApiHash, botToken)
+	if err == nil {
+		c.bot = true
+	}
+	return err
+}
+
+// sendCode and return phoneCodeHash
+func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
+	resp, err := c.AuthSendCode(phoneNumber, c.AppID, c.ApiHash, &CodeSettings{
+		AllowAppHash:  true,
+		CurrentNumber: true,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resp.PhoneCodeHash, nil
+}
+
+// Authorize client with phone number, code and phone code hash,
+// If phone code hash is empty, it will be requested from telegram server
+func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, error) {
+	var opts *LoginOptions
+	if len(options) > 0 {
+		opts = options[0]
+	}
+	if opts == nil {
+		opts = &LoginOptions{}
+	}
+	if opts.Code == "" {
+		hash, err := c.SendCode(phoneNumber)
+		for {
+			if err != nil {
+				return false, err
+			}
+			fmt.Printf("Enter code: ")
+			var codeInput string
+			fmt.Scanln(&codeInput)
+			if codeInput != "" {
+				opts.Code = codeInput
+				break
+			} else if codeInput == "cancel" {
+				return false, nil
+			} else {
+				fmt.Println("Invalid code, try again")
+			}
+		}
+		opts.CodeHash = hash
+	}
+	_, SignInerr := c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, &EmailVerificationCode{})
+	if SignInerr != nil {
+		if strings.Contains(SignInerr.Error(), "Two-steps verification is enabled") {
+			var passwordInput string
+			fmt.Println("Two-step verification is enabled")
+			for {
+				fmt.Printf("Enter password: ")
+				fmt.Scanln(&passwordInput)
+				if passwordInput != "" {
+					opts.Password = passwordInput
+					break
+				} else if passwordInput == "cancel" {
+					return false, nil
+				} else {
+					fmt.Println("Invalid password, try again")
+				}
+			}
+			AccPassword, err := c.AccountGetPassword()
+			if err != nil {
+				return false, err
+			}
+			inputPassword, err := GetInputCheckPassword(passwordInput, AccPassword)
+			if err != nil {
+				return false, err
+			}
+			_, err = c.AuthCheckPassword(inputPassword)
+			if err != nil {
+				return false, err
+			}
+			return true, nil
+		} else if strings.Contains(SignInerr.Error(), "The code is valid but no user with the given number") {
+			_, err := c.AuthSignUp(phoneNumber, opts.CodeHash, opts.FirstName, opts.LastName)
+			if err != nil {
+				return false, err
+			}
+			return true, nil
+		} else {
+			return false, SignInerr
+		}
+	}
+	return true, nil
+}
+
+// Logs out from the current account
+func (c *Client) LogOut() error {
+	_, err := c.AuthLogOut()
+	return err
+}
+
+// GetInputCheckPassword returns InputCheckPasswordSRP
 
 func RandomBytes(size int) []byte {
 	b := make([]byte, size)
@@ -182,9 +286,6 @@ func AlgoKey(password, salt []byte, iter, keyLen int, h func() hash.Hash) []byte
 	dk := make([]byte, 0, numBlocks*hashLen)
 	U := make([]byte, hashLen)
 	for block := 1; block <= numBlocks; block++ {
-		// N.B.: || means concatenation, ^ means XOR
-		// for each block T_i = U_1 ^ U_2 ^ ... ^ U_iter
-		// U_1 = PRF(password, salt || uint(i))
 		prf.Reset()
 		prf.Write(salt)
 		buf[0] = byte(block >> 24)
@@ -196,7 +297,6 @@ func AlgoKey(password, salt []byte, iter, keyLen int, h func() hash.Hash) []byte
 		T := dk[len(dk)-hashLen:]
 		copy(U, T)
 
-		// U_n = PRF(password, U_(n-1))
 		for n := 2; n <= iter; n++ {
 			prf.Reset()
 			prf.Write(U)

@@ -171,3 +171,15 @@ func StripText(text string, entities []MessageEntity) string {
 	b.WriteString(text[last:])
 	return b.String()
 }
+
+func (c *Client) SetParseMode(mode string) {
+	if mode == "" {
+		mode = "Markdown"
+	}
+	for _, m := range []string{"Markdown", "HTML"} {
+		if m == mode {
+			c.ParseMode = mode
+			return
+		}
+	}
+}

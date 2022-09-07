@@ -38,60 +38,25 @@ func (m *NewMessage) MessageText() string {
 	return m.Message.Message
 }
 
+func (m *NewMessage) ReplyToMsgID() int32 {
+	if m.Message.ReplyTo != nil {
+		return m.Message.ReplyTo.ReplyToMsgID
+	}
+	return 0
+}
+
 func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 	if !m.IsReply() {
-		return nil, fmt.Errorf("message is not a reply")
+		return nil, errors.New("message is not a reply")
 	}
-	if m.IsPrivate() {
-		if m.Message.ReplyTo == nil || m.Message.ReplyTo.ReplyToMsgID == 0 {
-			return nil, nil
-		}
-		IDs := []InputMessage{}
-		IDs = append(IDs, &InputMessageID{ID: m.Message.ReplyTo.ReplyToMsgID})
-		ReplyMsg, err := m.Client.MessagesGetMessages(IDs)
-		if err != nil {
-			return nil, err
-		}
-		Message := ReplyMsg.(*MessagesMessagesObj)
-		m.Client.Cache.UpdatePeersToCache(Message.Users, Message.Chats)
-		switch Msg := Message.Messages[0].(type) {
-		case *MessageObj:
-			return packMessage(m.Client, Msg), nil
-		case *MessageEmpty:
-			return nil, nil
-		default:
-			return nil, fmt.Errorf("unknown message type")
-		}
-	} else if m.IsChannel() {
-		IDs := []InputMessage{}
-		IDs = append(IDs, &InputMessageID{ID: m.Message.ReplyTo.ReplyToMsgID})
-		InputPeer, err := m.Client.GetSendablePeer(m.ChatID())
-		if err != nil {
-			return nil, err
-		}
-		PeerChannelObject, ok := InputPeer.(*InputPeerChannel)
-		if !ok {
-			return nil, fmt.Errorf("failed to convert peer to channel")
-		}
-		ReplyMsg, err := m.Client.ChannelsGetMessages(&InputChannelObj{ChannelID: PeerChannelObject.ChannelID, AccessHash: PeerChannelObject.AccessHash}, IDs)
-		if err != nil {
-			return nil, err
-		}
-		Msg := ReplyMsg.(*MessagesChannelMessages)
-		if len(Msg.Messages) == 0 {
-			return nil, errors.New("message not found")
-		}
-		m.Client.Cache.UpdatePeersToCache(Msg.Users, Msg.Chats)
-		switch Msg := Msg.Messages[0].(type) {
-		case *MessageObj:
-			return packMessage(m.Client, Msg), nil
-		case *MessageEmpty:
-			return nil, errors.Wrap(errors.New("message empty"), "ChannelsGetMessages")
-		case *MessageService:
-			return packMessage(m.Client, Msg), nil
-		}
+	messages, err := m.Client.GetMessages(m.ChatID(), &SearchOption{IDs: []int32{m.ReplyToMsgID()}})
+	if err != nil {
+		return nil, err
 	}
-	return nil, fmt.Errorf("message is not a reply")
+	if len(messages) == 0 {
+		return nil, errors.New("message not found")
+	}
+	return &messages[0], nil
 }
 
 func (m *NewMessage) ChatID() int64 {
@@ -369,12 +334,13 @@ func (m *NewMessage) ForwardTo(ChatID int64, Opts ...ForwardOptions) (*NewMessag
 // Download Media to Disk,
 // if path is empty, it will be downloaded to the current directory,
 // returns the path to the downloaded file
-func (m *NewMessage) Download(Options ...*DownloadOptions) (string, error) {
+func (m *NewMessage) Download(fileName ...string) (string, error) {
 	if m.IsMedia() {
-		if len(Options) == 0 {
-			Options = append(Options, &DownloadOptions{})
+		if len(fileName) != 0 {
+			return m.Client.DownloadMedia(m.Media(), &DownloadOptions{FileName: fileName[0]})
+		} else {
+			return m.Client.DownloadMedia(m.Media())
 		}
-		return m.Client.DownloadMedia(m.Media(), Options[0])
 	}
 	return "", errors.New("message is not media")
 }

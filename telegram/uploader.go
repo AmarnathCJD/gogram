@@ -17,8 +17,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// highly unstable
 func (c *Client) uploadBigMultiThread(fileName string, fileSize int, fileID int64, fileBytes *os.File, chunkSize int32, totalParts int32) (*InputFileBig, error) {
-	numGorotines := 20
+	numGorotines := 25
 	partsAllocation := MultiThreadAllocation(int32(chunkSize), totalParts, numGorotines)
 	senders := make([]*Client, numGorotines)
 	wg := sync.WaitGroup{}
@@ -30,6 +31,7 @@ func (c *Client) uploadBigMultiThread(fileName string, fileSize int, fileID int6
 		}(i)
 	}
 	wg.Wait()
+	log.Println("Client - INFO - MultiThreaded Upload - Allocated", numGorotines, "senders")
 	for i := 0; i < numGorotines; i++ {
 		wg.Add(1)
 		go func(i int) {
@@ -93,7 +95,7 @@ func (c *Client) UploadFile(file interface{}, MultiThreaded ...bool) (InputFile,
 		bigFile = fileSize > 10*1024*1024
 		reader = bufio.NewReaderSize(bytes.NewReader(f), chunkSize)
 	case InputFile:
-		return f, nil // already an Uploaded
+		return f, nil // already an Uploaded file
 	default:
 		return nil, errors.New("invalid file type")
 	}
@@ -253,4 +255,14 @@ func MultiThreadAllocation(chunkSize int32, totalParts int32, numGorotines int) 
 		}
 	}
 	return partsAllocation
+}
+
+func (c *Client) DownloadProfilePhoto(photo interface{}) (string, error) {
+	// var location InputFileLocation
+	switch photo.(type) {
+	case *UserProfilePhoto:
+		// location = &InputPeerPhotoFileLocation{}
+	}
+	// TODO: Implement
+	return "", nil
 }
