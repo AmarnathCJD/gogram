@@ -334,13 +334,6 @@ func (m *NewMessage) ForwardTo(ChatID int64, Opts ...ForwardOptions) (*NewMessag
 // Download Media to Disk,
 // if path is empty, it will be downloaded to the current directory,
 // returns the path to the downloaded file
-func (m *NewMessage) Download(fileName ...string) (string, error) {
-	if m.IsMedia() {
-		if len(fileName) != 0 {
-			return m.Client.DownloadMedia(m.Media(), &DownloadOptions{FileName: fileName[0]})
-		} else {
-			return m.Client.DownloadMedia(m.Media())
-		}
-	}
-	return "", errors.New("message is not media")
+func (m *NewMessage) Download(opts ...*DownloadOptions) (string, error) {
+	return m.Client.DownloadMedia(m.Media(), opts...)
 }
