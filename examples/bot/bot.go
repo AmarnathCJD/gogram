@@ -31,7 +31,7 @@ func main() {
 		panic(err)
 	}
 
-	stringSession, _ := client.ExportSession()
+	stringSession := client.ExportSession()
 	fmt.Println("String Session: ", stringSession)
 
 	me, _ := client.GetMe()
@@ -69,7 +69,7 @@ func DownloadFile(m *telegram.NewMessage) error {
 	var p = telegram.Progress{}
 	e, _ := m.Reply("Downloading...")
 	go func() {
-		for range time.Tick(time.Second * 5) {
+		for range time.NewTicker(time.Second * 3).C {
 			if p.Percentage() == 100 {
 				e.Edit(fmt.Sprintf("Downloaded... %v%%", p.Percentage()))
 				break
