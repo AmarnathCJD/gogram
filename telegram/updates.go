@@ -13,17 +13,34 @@ var (
 	InlineHandles   = []InlineHandle{}
 	CallbackHandles = []CallbackHandle{}
 	MessageEdit     = []MessageEditHandle{}
+	ActionHandles   = []ChatActionHandle{}
 	RawHandles      = []RawHandle{}
-	OnNewMessage    = "OnNewMessage"
-	OnEditMessage   = "OnEditMessage"
-	OnChatAction    = "OnChatAction"
-	OnInlineQuery   = "OnInlineQuery"
-	OnCallbackQuery = "OnCallbackQuery"
 )
 
 type (
+	Filters struct {
+		IsPrivate      bool
+		IsGroup        bool
+		IsChannel      bool
+		IsCommand      bool
+		IsText         bool
+		IsMedia        bool
+		Func           func(*NewMessage) bool
+		BlackListChats []int64
+		WhiteListChats []int64
+		Users          []int64
+		Outgoing       bool
+		Incoming       bool
+	}
+
 	MessageHandle struct {
 		Pattern interface{}
+		Handler func(m *NewMessage) error
+		Client  *Client
+		Filters *Filters
+	}
+
+	ChatActionHandle struct {
 		Handler func(m *NewMessage) error
 		Client  *Client
 	}
@@ -59,27 +76,32 @@ type (
 )
 
 func HandleMessageUpdate(update Message) {
-	if len(MessageHandles) == 0 {
-		return
-	}
 	switch msg := update.(type) {
 	case *MessageObj:
 		for _, handle := range MessageHandles {
 			if handle.IsMatch(msg.Message) {
-				if err := handle.Handler(packMessage(handle.Client, msg)); err != nil {
-					handle.Client.Logger.Println("RPC Error:", err)
+				m := packMessage(handle.Client, msg)
+				if handle.Filters != nil && handle.Filter(m) {
+					if err := handle.Handler(m); err != nil {
+						handle.Client.Logger.Println(err)
+					}
+				} else if handle.Filters == nil {
+					if err := handle.Handler(m); err != nil {
+						handle.Client.Logger.Println(err)
+					}
 				}
 			}
 		}
 	case *MessageService:
-		fmt.Println("MessageService")
+		for _, handle := range ActionHandles {
+			if err := handle.Handler(packMessage(handle.Client, msg)); err != nil {
+				handle.Client.Logger.Println(err)
+			}
+		}
 	}
 }
 
 func HandleEditUpdate(update Message) {
-	if len(MessageEdit) == 0 {
-		return
-	}
 	switch msg := update.(type) {
 	case *MessageObj:
 		for _, handle := range MessageEdit {
@@ -93,9 +115,6 @@ func HandleEditUpdate(update Message) {
 }
 
 func HandleInlineUpdate(update *UpdateBotInlineQuery) {
-	if len(InlineHandles) == 0 {
-		return
-	}
 	for _, handle := range InlineHandles {
 		if handle.IsMatch(update.Query) {
 			if err := handle.Handler(packInlineQuery(handle.Client, update)); err != nil {
@@ -106,9 +125,6 @@ func HandleInlineUpdate(update *UpdateBotInlineQuery) {
 }
 
 func HandleCallbackUpdate(update *UpdateBotCallbackQuery) {
-	if len(CallbackHandles) == 0 {
-		return
-	}
 	for _, handle := range CallbackHandles {
 		if handle.IsMatch(update.Data) {
 			if err := handle.Handler(packCallbackQuery(handle.Client, update)); err != nil {
@@ -119,9 +135,6 @@ func HandleCallbackUpdate(update *UpdateBotCallbackQuery) {
 }
 
 func HandleRawUpdate(update Update) {
-	if len(RawHandles) == 0 {
-		return
-	}
 	for _, handle := range RawHandles {
 		if reflect.TypeOf(handle.updateType) == reflect.TypeOf(update) {
 			if err := handle.Handler(update); err != nil {
@@ -192,8 +205,70 @@ func (h *MessageHandle) IsMatch(text string) bool {
 	}
 }
 
-func (c *Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessage) error) {
-	MessageHandles = append(MessageHandles, MessageHandle{pattern, handler, c})
+func (h *MessageHandle) Filter(msg *NewMessage) bool {
+	if h.Filters.IsPrivate && !msg.IsPrivate() {
+		return false
+	}
+	if h.Filters.IsGroup && !msg.IsGroup() {
+		return false
+	}
+	if h.Filters.IsChannel && !msg.IsChannel() {
+		return false
+	}
+	if h.Filters.IsCommand && !msg.IsCommand() {
+		return false
+	}
+	if h.Filters.Outgoing && !msg.Message.Out {
+		return false
+	}
+	if h.Filters.Func != nil {
+		if !h.Filters.Func(msg) {
+			return false
+		}
+	}
+	if len(h.Filters.BlackListChats) > 0 {
+		for _, chat := range h.Filters.BlackListChats {
+			if msg.ChatID() == chat {
+				return false
+			}
+		}
+	}
+	if len(h.Filters.WhiteListChats) > 0 {
+		for _, chat := range h.Filters.WhiteListChats {
+			if msg.ChatID() == chat {
+				return true
+			}
+		}
+		return false
+	}
+	if len(h.Filters.Users) > 0 {
+		for _, user := range h.Filters.Users {
+			if msg.SenderID() == user {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (c *Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessage) error, filters ...*Filters) {
+	var FILTER *Filters
+	if len(filters) > 0 {
+		FILTER = filters[0]
+	}
+	MessageHandles = append(MessageHandles, MessageHandle{
+		Pattern: pattern,
+		Handler: handler,
+		Filters: FILTER,
+		Client:  c,
+	})
+}
+
+func (c *Client) AddActionHandler(handler func(m *NewMessage) error) {
+	ActionHandles = append(ActionHandles, ChatActionHandle{
+		Handler: handler,
+		Client:  c,
+	})
 }
 
 func (c *Client) AddEditHandler(pattern interface{}, handler func(m *NewMessage) error) {
@@ -212,11 +287,10 @@ func (c *Client) AddRawHandler(updateType Update, handler func(m Update) error) 
 	RawHandles = append(RawHandles, RawHandle{updateType, handler, c})
 }
 
-func (c *Client) RemoveEventHandler(pattern string) {
-	for i, p := range MessageHandles {
-		if p.Pattern == pattern {
+func (c *Client) RemoveEventHandler(pattern interface{}) {
+	for i, handle := range MessageHandles {
+		if reflect.TypeOf(handle.Pattern) == reflect.TypeOf(pattern) {
 			MessageHandles = append(MessageHandles[:i], MessageHandles[i+1:]...)
-			return
 		}
 	}
 }

@@ -97,6 +97,5 @@ func UploadFile(m *telegram.NewMessage) error {
 		message.Edit(err.Error())
 		return err
 	}
-
 	return nil
 }

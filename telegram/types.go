@@ -36,6 +36,7 @@ type (
 	DownloadOptions struct {
 		Progress *Progress `json:"progress,omitempty"`
 		FileName string    `json:"file_name,omitempty"`
+		DcID     int32     `json:"dc_id,omitempty"`
 	}
 
 	SendOptions struct {

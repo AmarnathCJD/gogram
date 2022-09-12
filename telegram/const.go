@@ -4,7 +4,7 @@ import "regexp"
 
 const (
 	ApiVersion = 145
-	Version    = "v0.2.3beta"
+	Version    = "v0.2.9-beta"
 
 	MarkDown   string = "Markdown"
 	HTML       string = "HTML"
@@ -14,6 +14,12 @@ const (
 	EntityChat    string = "chat"
 	EntityChannel string = "channel"
 	EntityUnknown string = "unknown"
+
+	OnNewMessage    = "OnNewMessage"
+	OnEditMessage   = "OnEditMessage"
+	OnChatAction    = "OnChatAction"
+	OnInlineQuery   = "OnInlineQuery"
+	OnCallbackQuery = "OnCallbackQuery"
 )
 
 var (
