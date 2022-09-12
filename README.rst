@@ -7,7 +7,7 @@ GoGram
 
 
 **gogram** is a **Pure Golang**
-MTProto_ (Layer 144) library to interact with Telegram's API
+MTProto_ (Layer 145) library to interact with Telegram's API
 as a user or through a bot account (bot API alternative).
 
 
