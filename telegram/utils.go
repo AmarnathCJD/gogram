@@ -107,6 +107,8 @@ MediaMessageSwitch:
 				}
 			}
 		}
+	case *InputPeerPhotoFileLocation:
+		return f, 0, 0
 	default:
 		return nil, 0, 0
 	}
@@ -126,6 +128,7 @@ MediaMessageSwitch:
 			FileReference: l.FileReference,
 			ThumbSize:     sizeType,
 		}, l.DcID, size
+
 	default:
 		return nil, 0, 0
 	}

@@ -72,7 +72,7 @@ func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, st
 				})
 			}
 		})
-		return entities, Text
+		return entities, DeleteSurrogate(Text)
 	} else {
 		return entities, message
 	}

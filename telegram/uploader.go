@@ -161,6 +161,9 @@ func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions
 	if fileLocation == nil {
 		return "", errors.New("could not get file location: " + fmt.Sprintf("%T", FileDL))
 	}
+	if DcID == 0 {
+		DcID = Opts.DcID
+	}
 	chunkSize := getAppropriatedPartSize(fileSize)
 	totalParts := int32(math.Ceil(float64(fileSize) / float64(chunkSize)))
 	if Opts.Progress != nil {
@@ -218,7 +221,6 @@ func getFile(c *Client, location InputFileLocation, f *os.File, chunkSize int32,
 		if progress != nil {
 			progress.Set(int64(i))
 		}
-		fmt.Println("Client - INFO - Downloading part", i, "of", totalParts)
 
 		if err != nil {
 			if strings.Contains(err.Error(), "The file to be accessed is currently stored in DC") {
@@ -257,12 +259,77 @@ func MultiThreadAllocation(chunkSize int32, totalParts int32, numGorotines int) 
 	return partsAllocation
 }
 
-func (c *Client) DownloadProfilePhoto(photo interface{}) (string, error) {
-	// var location InputFileLocation
-	switch photo.(type) {
-	case *UserProfilePhoto:
-		// location = &InputPeerPhotoFileLocation{}
+// TODO: Fix this
+func (c *Client) DownloadProfilePhoto(PeerID interface{}, Pfp interface{}, DLOptions ...*DownloadOptions) (string, error) {
+	var (
+		Opts *DownloadOptions
+		Prog *Progress
+	)
+	if len(DLOptions) > 0 {
+		Opts = DLOptions[0]
+	} else {
+		Opts = &DownloadOptions{}
 	}
-	// TODO: Implement
-	return "", nil
+	location, dcID, err := c.getPeerPhotoLocation(PeerID, Pfp)
+	if err != nil {
+		return "", errors.Wrap(err, "getting photo location")
+	}
+	if location == nil {
+		return "", errors.New("could not get photo location")
+	}
+	return c.DownloadMedia(location, &DownloadOptions{DcID: dcID, Progress: Prog, FileName: Opts.FileName})
+}
+
+func (c *Client) getPeerPhotoLocation(PeerID interface{}, Photo interface{}) (*InputPeerPhotoFileLocation, int32, error) {
+	var (
+		peer InputPeer
+		err  error
+	)
+	peer, err = c.GetSendablePeer(PeerID)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "getting peer")
+	}
+	var location *InputPeerPhotoFileLocation
+	var dcID int32
+PfpTypeSwitch:
+	switch pfp := Photo.(type) {
+	case *UserProfilePhotoObj:
+		location = &InputPeerPhotoFileLocation{
+			PhotoID: pfp.PhotoID,
+			Peer:    peer,
+			Big:     true,
+		}
+		dcID = pfp.DcID
+	case *ChatPhotoObj:
+		location = &InputPeerPhotoFileLocation{
+			PhotoID: pfp.PhotoID,
+			Peer:    peer,
+			Big:     true,
+		}
+		dcID = pfp.DcID
+	case *UserObj:
+		switch pfp.Photo.(type) {
+		case *UserProfilePhotoObj:
+			goto PfpTypeSwitch
+		default:
+			return nil, 0, errors.New("user has no profile photo")
+		}
+	case *ChatObj:
+		switch pfp.Photo.(type) {
+		case *ChatPhotoObj:
+			goto PfpTypeSwitch
+		default:
+			return nil, 0, errors.New("chat has no profile photo")
+		}
+	case *Channel:
+		switch pfp.Photo.(type) {
+		case *ChatPhotoObj:
+			goto PfpTypeSwitch
+		default:
+			return nil, 0, errors.New("channel has no profile photo")
+		}
+	default:
+		return nil, 0, errors.New("invalid profile photo type")
+	}
+	return location, dcID, nil
 }
