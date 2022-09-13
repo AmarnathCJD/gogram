@@ -147,6 +147,9 @@ func HandleRawUpdate(update Update) {
 func (h *InlineHandle) IsMatch(text string) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
+		if pattern == OnInlineQuery {
+			return true
+		}
 		p := regexp.MustCompile("^" + pattern)
 		return p.MatchString(text) || strings.HasPrefix(text, pattern)
 	case *regexp.Regexp:

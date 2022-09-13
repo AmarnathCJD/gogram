@@ -37,6 +37,7 @@ type (
 		Progress *Progress `json:"progress,omitempty"`
 		FileName string    `json:"file_name,omitempty"`
 		DcID     int32     `json:"dc_id,omitempty"`
+		Size     int32     `json:"size,omitempty"`
 	}
 
 	SendOptions struct {
