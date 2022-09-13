@@ -161,6 +161,9 @@ func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions
 	if fileLocation == nil {
 		return "", errors.New("could not get file location: " + fmt.Sprintf("%T", FileDL))
 	}
+	if fileSize == 0 {
+		fileSize = 622
+	}
 	if DcID == 0 {
 		DcID = Opts.DcID
 	}
@@ -225,7 +228,6 @@ func getFile(c *Client, location InputFileLocation, f *os.File, chunkSize int32,
 		if err != nil {
 			if strings.Contains(err.Error(), "The file to be accessed is currently stored in DC") {
 				dcID := regexp.MustCompile(`\d+`).FindString(err.Error())
-				fmt.Println("wrong DC", dcID)
 				return false, errors.New("INVALID_DC_" + dcID)
 			}
 			return false, errors.Wrap(err, "downloading file")
@@ -237,13 +239,12 @@ func getFile(c *Client, location InputFileLocation, f *os.File, chunkSize int32,
 				return false, errors.Wrap(err, "writing file")
 			}
 		case *UploadFileCdnRedirect:
-			return false, errors.New("File lives on another DC (%d), Not supported yet")
+			return false, errors.New("CDN_REDIRECT: Not implemented yet")
 		}
 	}
 	return true, nil
 }
 
-// TODO: Fix this
 func MultiThreadAllocation(chunkSize int32, totalParts int32, numGorotines int) map[int][]int32 {
 	partsForEachGoRoutine := int32(math.Ceil(float64(totalParts) / float64(numGorotines)))
 	remainingParts := totalParts
@@ -259,7 +260,6 @@ func MultiThreadAllocation(chunkSize int32, totalParts int32, numGorotines int) 
 	return partsAllocation
 }
 
-// TODO: Fix this
 func (c *Client) DownloadProfilePhoto(PeerID interface{}, Pfp interface{}, DLOptions ...*DownloadOptions) (string, error) {
 	var (
 		Opts *DownloadOptions
@@ -270,7 +270,11 @@ func (c *Client) DownloadProfilePhoto(PeerID interface{}, Pfp interface{}, DLOpt
 	} else {
 		Opts = &DownloadOptions{}
 	}
-	location, dcID, err := c.getPeerPhotoLocation(PeerID, Pfp)
+	if Opts.FileName == "" {
+		Opts.FileName = "profile_photo.jpg"
+	}
+	location, dcID, fileSize, err := c.getPeerPhotoLocation(PeerID, Pfp)
+	Opts.Size = fileSize
 	if err != nil {
 		return "", errors.Wrap(err, "getting photo location")
 	}
@@ -280,17 +284,18 @@ func (c *Client) DownloadProfilePhoto(PeerID interface{}, Pfp interface{}, DLOpt
 	return c.DownloadMedia(location, &DownloadOptions{DcID: dcID, Progress: Prog, FileName: Opts.FileName})
 }
 
-func (c *Client) getPeerPhotoLocation(PeerID interface{}, Photo interface{}) (*InputPeerPhotoFileLocation, int32, error) {
+func (c *Client) getPeerPhotoLocation(PeerID interface{}, Photo interface{}) (*InputPeerPhotoFileLocation, int32, int32, error) {
 	var (
 		peer InputPeer
 		err  error
 	)
 	peer, err = c.GetSendablePeer(PeerID)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "getting peer")
+		return nil, 0, 0, errors.Wrap(err, "getting peer")
 	}
 	var location *InputPeerPhotoFileLocation
 	var dcID int32
+	var fileSize int32
 PfpTypeSwitch:
 	switch pfp := Photo.(type) {
 	case *UserProfilePhotoObj:
@@ -300,6 +305,7 @@ PfpTypeSwitch:
 			Big:     true,
 		}
 		dcID = pfp.DcID
+		fileSize = int32(len(pfp.StrippedThumb))
 	case *ChatPhotoObj:
 		location = &InputPeerPhotoFileLocation{
 			PhotoID: pfp.PhotoID,
@@ -307,29 +313,30 @@ PfpTypeSwitch:
 			Big:     true,
 		}
 		dcID = pfp.DcID
+		fileSize = int32(len(pfp.StrippedThumb))
 	case *UserObj:
 		switch pfp.Photo.(type) {
 		case *UserProfilePhotoObj:
 			goto PfpTypeSwitch
 		default:
-			return nil, 0, errors.New("user has no profile photo")
+			return nil, 0, 0, errors.New("user has no profile photo")
 		}
 	case *ChatObj:
 		switch pfp.Photo.(type) {
 		case *ChatPhotoObj:
 			goto PfpTypeSwitch
 		default:
-			return nil, 0, errors.New("chat has no profile photo")
+			return nil, 0, 0, errors.New("chat has no profile photo")
 		}
 	case *Channel:
 		switch pfp.Photo.(type) {
 		case *ChatPhotoObj:
 			goto PfpTypeSwitch
 		default:
-			return nil, 0, errors.New("channel has no profile photo")
+			return nil, 0, 0, errors.New("channel has no profile photo")
 		}
 	default:
-		return nil, 0, errors.New("invalid profile photo type")
+		return nil, 0, 0, errors.New("invalid profile photo type")
 	}
-	return location, dcID, nil
+	return location, dcID, fileSize, nil
 }
