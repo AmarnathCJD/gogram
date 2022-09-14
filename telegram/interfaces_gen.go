@@ -2715,18 +2715,19 @@ func (*InputMediaGeoPoint) CRC() uint32 {
 func (*InputMediaGeoPoint) ImplementsInputMedia() {}
 
 type InputMediaInvoice struct {
-	Title        string
-	Description  string
-	Photo        *InputWebDocument `tl:"flag:0"`
-	Invoice      *Invoice
-	Payload      []byte
-	Provider     string
-	ProviderData *DataJson
-	StartParam   string `tl:"flag:1"`
+	Title         string
+	Description   string
+	Photo         *InputWebDocument `tl:"flag:0"`
+	Invoice       *Invoice
+	Payload       []byte
+	Provider      string
+	ProviderData  *DataJson
+	StartParam    string     `tl:"flag:1"`
+	ExtendedMedia InputMedia `tl:"flag:2"`
 }
 
 func (*InputMediaInvoice) CRC() uint32 {
-	return 0xd9799874
+	return 0x8eb5a6d5
 }
 
 func (*InputMediaInvoice) FlagIndex() int {
@@ -4445,6 +4446,37 @@ func (*MessageEntityURL) CRC() uint32 {
 
 func (*MessageEntityURL) ImplementsMessageEntity() {}
 
+type MessageExtendedMedia interface {
+	tl.Object
+	ImplementsMessageExtendedMedia()
+}
+type MessageExtendedMediaObj struct {
+	Media MessageMedia
+}
+
+func (*MessageExtendedMediaObj) CRC() uint32 {
+	return 0xee479c64
+}
+
+func (*MessageExtendedMediaObj) ImplementsMessageExtendedMedia() {}
+
+type MessageExtendedMediaPreview struct {
+	W             int32     `tl:"flag:0"`
+	H             int32     `tl:"flag:0"`
+	Thumb         PhotoSize `tl:"flag:1"`
+	VideoDuration int32     `tl:"flag:2"`
+}
+
+func (*MessageExtendedMediaPreview) CRC() uint32 {
+	return 0xad628cc8
+}
+
+func (*MessageExtendedMediaPreview) FlagIndex() int {
+	return 0
+}
+
+func (*MessageExtendedMediaPreview) ImplementsMessageExtendedMedia() {}
+
 type MessageMedia interface {
 	tl.Object
 	ImplementsMessageMedia()
@@ -4545,10 +4577,11 @@ type MessageMediaInvoice struct {
 	Currency                 string
 	TotalAmount              int64
 	StartParam               string
+	ExtendedMedia            MessageExtendedMedia `tl:"flag:4"`
 }
 
 func (*MessageMediaInvoice) CRC() uint32 {
-	return 0x84551347
+	return 0xf6a548d3
 }
 
 func (*MessageMediaInvoice) FlagIndex() int {
@@ -7226,6 +7259,18 @@ func (*UpdateMessageID) CRC() uint32 {
 }
 
 func (*UpdateMessageID) ImplementsUpdate() {}
+
+type UpdateMessageExtendedMedia struct {
+	Peer          Peer
+	MsgID         int32
+	ExtendedMedia MessageExtendedMedia
+}
+
+func (*UpdateMessageExtendedMedia) CRC() uint32 {
+	return 0x5a73a98c
+}
+
+func (*UpdateMessageExtendedMedia) ImplementsUpdate() {}
 
 type UpdateMessagePoll struct {
 	PollID  int64

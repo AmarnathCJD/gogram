@@ -3,7 +3,7 @@ package telegram
 import "regexp"
 
 const (
-	ApiVersion = 145
+	ApiVersion = 146
 	Version    = "v0.2.9-beta"
 
 	MarkDown   string = "Markdown"
