@@ -6168,6 +6168,31 @@ func (c *Client) MessagesGetExportedChatInvites(params *MessagesGetExportedChatI
 	return resp, nil
 }
 
+type MessagesGetExtendedMediaParams struct {
+	Peer InputPeer
+	ID   []int32
+}
+
+func (*MessagesGetExtendedMediaParams) CRC() uint32 {
+	return 0x84f80814
+}
+
+func (c *Client) MessagesGetExtendedMedia(peer InputPeer, id []int32) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesGetExtendedMediaParams{
+		ID:   id,
+		Peer: peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetExtendedMedia")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesGetFavedStickersParams struct {
 	Hash int64
 }
