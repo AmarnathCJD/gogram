@@ -346,6 +346,13 @@ func (c *Client) SendReaction(peerID interface{}, MsgID int32, reactionEmoji int
 			r = append(r, &ReactionEmpty{})
 		}
 		r = append(r, &ReactionEmoji{reaction})
+	case []string:
+		for _, v := range reaction {
+			if v == "" {
+				r = append(r, &ReactionEmpty{})
+			}
+			r = append(r, &ReactionEmoji{v})
+		}
 	case ReactionCustomEmoji:
 		r = append(r, &reaction)
 	}
