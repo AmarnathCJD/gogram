@@ -17,64 +17,6 @@ var (
 	RawHandles      = []RawHandle{}
 )
 
-type (
-	Filters struct {
-		IsPrivate      bool
-		IsGroup        bool
-		IsChannel      bool
-		IsCommand      bool
-		IsText         bool
-		IsMedia        bool
-		Func           func(*NewMessage) bool
-		BlackListChats []int64
-		WhiteListChats []int64
-		Users          []int64
-		Outgoing       bool
-		Incoming       bool
-	}
-
-	MessageHandle struct {
-		Pattern interface{}
-		Handler func(m *NewMessage) error
-		Client  *Client
-		Filters *Filters
-	}
-
-	ChatActionHandle struct {
-		Handler func(m *NewMessage) error
-		Client  *Client
-	}
-
-	InlineHandle struct {
-		Pattern interface{}
-		Handler func(m *InlineQuery) error
-		Client  *Client
-	}
-
-	CallbackHandle struct {
-		Pattern interface{}
-		Handler func(m *CallbackQuery) error
-		Client  *Client
-	}
-
-	RawHandle struct {
-		updateType Update
-		Handler    func(m Update) error
-		Client     *Client
-	}
-
-	MessageEditHandle struct {
-		Pattern interface{}
-		Handler func(m *NewMessage) error
-		Client  *Client
-	}
-
-	Command struct {
-		Cmd    string
-		Prefix string
-	}
-)
-
 func HandleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
@@ -291,11 +233,7 @@ func (c *Client) AddRawHandler(updateType Update, handler func(m Update) error) 
 }
 
 func (c *Client) RemoveEventHandler(pattern interface{}) {
-	for i, handle := range MessageHandles {
-		if reflect.TypeOf(handle.Pattern) == reflect.TypeOf(pattern) {
-			MessageHandles = append(MessageHandles[:i], MessageHandles[i+1:]...)
-		}
-	}
+	// TODO: implement
 }
 
 // Sort and Handle all the Incoming Updates
@@ -308,19 +246,21 @@ UpdateTypeSwitching:
 		for _, update := range upd.Updates {
 			switch update := update.(type) {
 			case *UpdateNewMessage:
-				go func() { HandleMessageUpdate(update.Message) }()
+				go HandleMessageUpdate(update.Message)
 			case *UpdateNewChannelMessage:
-				go func() { HandleMessageUpdate(update.Message) }()
+				go HandleMessageUpdate(update.Message)
+			case *UpdateNewScheduledMessage:
+				go HandleMessageUpdate(update.Message)
 			case *UpdateEditMessage:
-				go func() { HandleEditUpdate(update.Message) }()
+				go HandleEditUpdate(update.Message)
 			case *UpdateEditChannelMessage:
-				go func() { HandleEditUpdate(update.Message) }()
+				go HandleEditUpdate(update.Message)
 			case *UpdateBotInlineQuery:
-				go func() { HandleInlineUpdate(update) }()
+				go HandleInlineUpdate(update)
 			case *UpdateBotCallbackQuery:
-				go func() { HandleCallbackUpdate(update) }()
+				go HandleCallbackUpdate(update)
 			default:
-				go func() { HandleRawUpdate(update) }()
+				go HandleRawUpdate(update)
 			}
 		}
 	case *UpdateShort:

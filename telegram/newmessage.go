@@ -3,6 +3,7 @@ package telegram
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -172,6 +173,175 @@ func (m *NewMessage) IsMedia() bool {
 	return m.Media() != nil
 }
 
+func (m *NewMessage) Sticker() *DocumentObj {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaDocument); ok {
+			if doc, ok := m.Document.(*DocumentObj); ok {
+				for _, attr := range doc.Attributes {
+					if _, ok := attr.(*DocumentAttributeSticker); ok {
+						return doc
+					}
+					if f, ok := attr.(*DocumentAttributeFilename); ok {
+						if strings.HasSuffix(f.FileName, ".tgs") || strings.HasSuffix(f.FileName, ".webp") {
+							return doc
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) Photo() *PhotoObj {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaPhoto); ok {
+			if photo, ok := m.Photo.(*PhotoObj); ok {
+				return photo
+			}
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) Document() *DocumentObj {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaDocument); ok {
+			if doc, ok := m.Document.(*DocumentObj); ok {
+				return doc
+			}
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) Video() *DocumentObj {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaDocument); ok {
+			if doc, ok := m.Document.(*DocumentObj); ok {
+				for _, attr := range doc.Attributes {
+					if _, ok := attr.(*DocumentAttributeVideo); ok {
+						return doc
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) Audio() *DocumentObj {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaDocument); ok {
+			if doc, ok := m.Document.(*DocumentObj); ok {
+				for _, attr := range doc.Attributes {
+					if _, ok := attr.(*DocumentAttributeAudio); ok {
+						return doc
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) Voice() *DocumentObj {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaDocument); ok {
+			if doc, ok := m.Document.(*DocumentObj); ok {
+				for _, attr := range doc.Attributes {
+					if _, ok := attr.(*DocumentAttributeAudio); ok {
+						return doc
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) Animation() *DocumentObj {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaDocument); ok {
+			if doc, ok := m.Document.(*DocumentObj); ok {
+				for _, attr := range doc.Attributes {
+					if _, ok := attr.(*DocumentAttributeAnimated); ok {
+						return doc
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) Geo() *GeoPointObj {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaGeo); ok {
+			if geo, ok := m.Geo.(*GeoPointObj); ok {
+				return geo
+			}
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) Contact() *MessageMediaContact {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaContact); ok {
+			return m
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) Game() *MessageMediaGame {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaGame); ok {
+			return m
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) Invoice() *MessageMediaInvoice {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaInvoice); ok {
+			return m
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) WebPage() *WebPageObj {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaWebPage); ok {
+			if page, ok := m.Webpage.(*WebPageObj); ok {
+				return page
+			}
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) Poll() *MessageMediaPoll {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaPoll); ok {
+			return m
+		}
+	}
+	return nil
+}
+
+func (m *NewMessage) Venue() *MessageMediaVenue {
+	if m.IsMedia() {
+		if m, ok := m.Media().(*MessageMediaVenue); ok {
+			return m
+		}
+	}
+	return nil
+}
+
 // MediaType returns the type of the media in the message.
 func (m *NewMessage) MediaType() string {
 	Media := m.Media()
@@ -313,8 +483,10 @@ func (m *NewMessage) Delete() error {
 }
 
 // React to a message
-func (m *NewMessage) React(Reaction string) error {
-	return m.Client.SendReaction(m.ChatID(), m.ID, Reaction)
+func (m *NewMessage) React(Reaction ...string) error {
+	var Reactions []string
+	Reactions = append(Reactions, Reaction...)
+	return m.Client.SendReaction(m.ChatID(), m.ID, Reactions, true)
 }
 
 // Forward forwards the message to a chat

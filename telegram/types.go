@@ -3,6 +3,64 @@ package telegram
 import "sync"
 
 type (
+	Filters struct {
+		IsPrivate      bool
+		IsGroup        bool
+		IsChannel      bool
+		IsCommand      bool
+		IsText         bool
+		IsMedia        bool
+		Func           func(*NewMessage) bool
+		BlackListChats []int64
+		WhiteListChats []int64
+		Users          []int64
+		Outgoing       bool
+		Incoming       bool
+	}
+
+	MessageHandle struct {
+		Pattern interface{}
+		Handler func(m *NewMessage) error
+		Client  *Client
+		Filters *Filters
+	}
+
+	ChatActionHandle struct {
+		Handler func(m *NewMessage) error
+		Client  *Client
+	}
+
+	InlineHandle struct {
+		Pattern interface{}
+		Handler func(m *InlineQuery) error
+		Client  *Client
+	}
+
+	CallbackHandle struct {
+		Pattern interface{}
+		Handler func(m *CallbackQuery) error
+		Client  *Client
+	}
+
+	RawHandle struct {
+		updateType Update
+		Handler    func(m Update) error
+		Client     *Client
+	}
+
+	MessageEditHandle struct {
+		Pattern interface{}
+		Handler func(m *NewMessage) error
+		Client  *Client
+	}
+
+	Command struct {
+		Cmd    string
+		Prefix string
+	}
+)
+
+type (
 	Progress struct {
 		current int64
 		total   int64
