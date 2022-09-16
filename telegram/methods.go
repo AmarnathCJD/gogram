@@ -1044,3 +1044,34 @@ func (c *Client) InlineQuery(PeerID interface{}, Options ...*InlineOptions) (*Me
 	}
 	return m, nil
 }
+
+func (c *Client) JoinChannel(Channel interface{}) error {
+	switch p := Channel.(type) {
+	case string:
+		if TG_JOIN_RE.MatchString(p) {
+			_, err := c.MessagesImportChatInvite(TG_JOIN_RE.FindStringSubmatch(p)[2])
+			if err != nil {
+				return err
+			}
+		}
+	default:
+		Channel, err := c.GetSendablePeer(Channel)
+		if err != nil {
+			return err
+		}
+		if channel, ok := Channel.(*InputPeerChannel); ok {
+			_, err = c.ChannelsJoinChannel(&InputChannelObj{ChannelID: channel.ChannelID, AccessHash: channel.AccessHash})
+			if err != nil {
+				return err
+			}
+		} else if channel, ok := Channel.(*InputPeerChat); ok {
+			_, err = c.MessagesAddChatUser(channel.ChatID, &InputUserEmpty{}, 0)
+			if err != nil {
+				return err
+			}
+		} else {
+			return errors.New("peer is not a channel or chat")
+		}
+	}
+	return nil
+}

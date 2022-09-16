@@ -1,98 +1,73 @@
 package telegram
 
 import (
-	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, string) {
 	var entities []MessageEntity
-	message = AddSurrogate(strings.TrimSpace(message))
 	if mode == HTML {
-		return c.FormatHTML(message)
+		return c.ParseHtml(message)
 	} else {
+		// TODO: Add markdown formatting
 		return entities, message
 	}
 }
 
-func ReplaceNonASCII(message string) string {
-	return regexp.MustCompile("[^[:ascii:]]").ReplaceAllString(message, "_")
-}
-
-func (c *Client) FormatHTML(t string) ([]MessageEntity, string) {
+func (c *Client) ParseHtml(t string) ([]MessageEntity, string) {
 	var entities []MessageEntity
-	text := ReplaceNonASCII(t)
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(text))
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(strings.TrimSpace(t)))
 	if err != nil {
-		return entities, text
+		return entities, t
 	}
-	text = doc.Text()
-	doc.Find("a").Each(func(i int, s *goquery.Selection) {
-		href, _ := s.Attr("href")
-		if href != "" {
-			entities = append(entities, &MessageEntityTextURL{
-				Offset: int32(strings.Index(text, s.Text())),
-				Length: int32(len(s.Text())),
-				URL:    href,
-			})
-		}
-	})
-	doc.Find("b").Each(func(i int, s *goquery.Selection) {
-		entities = append(entities, &MessageEntityBold{
-			Offset: int32(strings.Index(text, s.Text())),
-			Length: int32(len(s.Text())),
-		})
-	})
-	doc.Find("i").Each(func(i int, s *goquery.Selection) {
-		entities = append(entities, &MessageEntityItalic{
-			Offset: int32(strings.Index(text, s.Text())),
-			Length: int32(len(s.Text())),
-		})
-	})
-	doc.Find("code").Each(func(i int, s *goquery.Selection) {
-		entities = append(entities, &MessageEntityCode{
-			Offset: int32(strings.Index(text, s.Text())),
-			Length: int32(len(s.Text())),
-		})
-	})
-	doc.Find("s").Each(func(i int, s *goquery.Selection) {
-		entities = append(entities, &MessageEntityStrike{
-			Offset: int32(strings.Index(text, s.Text())),
-			Length: int32(len(s.Text())),
-		})
-	})
-	doc.Find("emoji").Each(func(i int, s *goquery.Selection) {
-		document_id := s.AttrOr("document_id", "")
-		document_id = s.AttrOr("id", document_id)
-		doc_id, err := strconv.ParseInt(document_id, 10, 64)
-		if err != nil {
+	finalText := doc.Text()
+	doc.Find("*").Each(func(i int, s *goquery.Selection) {
+		var entity MessageEntity
+		Offset := Index(finalText, s.Text())
+		Length := int32(len(utf16.Encode([]rune(s.Text()))))
+		switch s.Nodes[0].Data {
+		case "b", "strong":
+			entity = &MessageEntityBold{Offset, Length}
+		case "i", "em":
+			entity = &MessageEntityItalic{Offset, Length}
+		case "a":
+			entity = &MessageEntityTextURL{Offset, Length, s.AttrOr("href", "")}
+		case "code":
+			entity = &MessageEntityCode{Offset, Length}
+		case "pre":
+			entity = &MessageEntityPre{Offset, Length, s.AttrOr("language", "")}
+		case "tgspoiler", "spoiler":
+			entity = &MessageEntitySpoiler{Offset, Length}
+		case "u":
+			entity = &MessageEntityUnderline{Offset, Length}
+		case "s", "strike":
+			entity = &MessageEntityStrike{Offset, Length}
+		case "blockquote":
+			entity = &MessageEntityBlockquote{Offset, Length}
+		case "emoji", "document":
+			document_id, err := strconv.ParseInt(s.AttrOr("document_id", s.AttrOr("document-id", s.AttrOr("document_id", ""))), 10, 64)
+			if err != nil {
+				return
+			}
+			entity = &MessageEntityCustomEmoji{Offset, Length, document_id}
+		default:
 			return
 		}
-		entities = append(entities, &MessageEntityCustomEmoji{
-			Offset:     int32(strings.Index(text, s.Text())),
-			Length:     int32(len(s.Text())),
-			DocumentID: doc_id,
-		})
+		entities = append(entities, entity)
 	})
-	doc.Find("tgspoiler").Each(func(i int, s *goquery.Selection) {
-		entities = append(entities, &MessageEntitySpoiler{
-			Offset: int32(strings.Index(text, s.Text())),
-			Length: int32(len(s.Text())),
-		})
-	})
-	doc.Find("pre").Each(func(i int, s *goquery.Selection) {
-		lang := s.AttrOr("lang", "")
-		entities = append(entities, &MessageEntityPre{
-			Offset:   int32(strings.Index(text, s.Text())),
-			Length:   int32(len(s.Text())),
-			Language: lang,
-		})
-	})
-	tt, _ := goquery.NewDocumentFromReader(strings.NewReader(t))
-	return entities, DeleteSurrogate(tt.Text())
+
+	return entities, finalText
+}
+
+func Index(r string, s string) int32 {
+	if i := strings.Index(r, s); i >= 0 {
+		return int32(len(utf16.Encode([]rune(r[:i]))))
+	}
+	return -1
 }
 
 func (m *NewMessage) Text() string {
@@ -109,31 +84,6 @@ func (m *NewMessage) Args() string {
 		return ""
 	}
 	return strings.TrimSpace(strings.Join(Messages[1:], " "))
-}
-
-func AddSurrogate(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		if r >= 0xD800 && r <= 0xDFFF {
-			b.WriteRune(0xFFFD)
-		} else if r >= 0x10000 {
-			b.WriteRune(0xD800 + (r-0x10000)>>10)
-			b.WriteRune(0xDC00 + (r-0x10000)&0x3FF)
-		} else {
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
-}
-
-func DeleteSurrogate(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		if r < 0xD800 || r > 0xDFFF {
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
 }
 
 func (c *Client) SetParseMode(mode string) {
