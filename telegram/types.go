@@ -1,6 +1,9 @@
 package telegram
 
-import "sync"
+import (
+	"log"
+	"sync"
+)
 
 type (
 	Filters struct {
@@ -247,6 +250,10 @@ type (
 		LastName string `json:"last_name,omitempty"`
 		About    string `json:"about,omitempty"`
 	}
+
+	Log struct {
+		Logger *log.Logger
+	}
 )
 
 var (
@@ -295,6 +302,7 @@ func (a *ActionResult) Cancel() bool {
 	return b
 }
 
+// ChatMember Rights
 func (p Participant) IsCreator() bool {
 	return p.Creator
 }
@@ -366,4 +374,10 @@ func (p Participant) GetRank() string {
 		return pp.Rank
 	}
 	return ""
+}
+
+//Custom Logger
+
+func (l *Log) Error(e error) {
+	l.Logger.Println("Client - Error -", e)
 }

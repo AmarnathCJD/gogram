@@ -419,8 +419,10 @@ func packMessage(c *Client, message Message) *NewMessage {
 		m.ID = message.ID
 		m.OriginalUpdate = message
 		m.Client = c
-		m.Message = &MessageObj{ID: message.ID, PeerID: message.PeerID}
+		m.Message = &MessageObj{ID: message.ID, PeerID: message.PeerID, FromID: &PeerUser{}}
 		m.Action = &MessageActionEmpty{}
+	default:
+		return nil
 	}
 	if m.Message.FromID != nil {
 		m.Sender = c.getSender(m.Message.FromID)

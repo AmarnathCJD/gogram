@@ -37,7 +37,7 @@ type (
 		ParseMode string
 		AppID     int32
 		ApiHash   string
-		Logger    *log.Logger
+		L         Log
 	}
 
 	ClientConfig struct {
@@ -82,14 +82,16 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 		config:    &c,
 		Cache:     cache,
 		ParseMode: getStr(c.ParseMode, "Markdown"),
-		Logger:    log.New(os.Stderr, "Client - ", log.LstdFlags),
+		L: Log{
+			Logger: log.New(os.Stdout, "", log.LstdFlags),
+		},
 	}
 
 	resp, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
 		ApiID:          int32(c.AppID),
-		DeviceModel:    getStr(c.DeviceModel, "iPhone X"),
+		DeviceModel:    getStr(c.DeviceModel, "Gogram"),
 		SystemVersion:  getStr(c.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
-		AppVersion:     getStr(c.AppVersion, "v1.0.0"),
+		AppVersion:     getStr(c.AppVersion, "v2.3.8"),
 		SystemLangCode: "en",
 		LangCode:       "en",
 		Query:          &HelpGetConfigParams{},

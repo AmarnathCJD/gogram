@@ -355,6 +355,10 @@ func (c *Client) SendReaction(peerID interface{}, MsgID int32, reactionEmoji int
 		}
 	case ReactionCustomEmoji:
 		r = append(r, &reaction)
+	case []ReactionCustomEmoji:
+		for _, v := range reaction {
+			r = append(r, &v)
+		}
 	}
 	_, err = c.MessagesSendReaction(&MessagesSendReactionParams{
 		Peer:        PeerToSend,
