@@ -36,7 +36,7 @@ func (s StringSession) GetAuthKeyHash() string {
 }
 
 func (s StringSession) EncodeToString() string {
-	return Prefix + base64.StdEncoding.EncodeToString([]byte(s.AppendAllValues()))
+	return Prefix + base64.RawURLEncoding.EncodeToString([]byte(s.AppendAllValues()))
 }
 
 func (s StringSession) GetDCID() int {
@@ -44,7 +44,7 @@ func (s StringSession) GetDCID() int {
 }
 
 func (s StringSession) Decode() (AuthKey, AuthKeyHash []byte, DCID int, IpAddr string, err error) {
-	Decoded, err := base64.StdEncoding.DecodeString(s.Encoded[len(Prefix):])
+	Decoded, err := base64.RawURLEncoding.DecodeString(s.Encoded[len(Prefix):])
 	if err != nil {
 		return nil, nil, 0, "", err
 	}
