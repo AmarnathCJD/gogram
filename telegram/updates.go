@@ -19,19 +19,16 @@ var (
 )
 
 func HandleMessageUpdateWithDiffrence(update Message, Pts int32, Limit int32) {
-	if m, ok := update.(*MessageObj); ok {
-
+	if m, ok := update.(*MessageObj); ok && len(MessageHandles) > 0 {
+		msg, err := MessageHandles[0].Client.getDiffrence(Pts, Limit)
 		for _, handle := range MessageHandles {
 			if handle.IsMatch(m.Message) {
-				msg, err := handle.Client.getDiffrence(Pts, Limit)
-
 				if err != nil {
 					handle.Client.Logger.Println(err)
 					return
 				} else if msg == nil {
 					return
 				}
-
 				handleMessage(msg, handle)
 			}
 		}
