@@ -3,10 +3,10 @@
 package telegram
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/md5"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"os"
@@ -16,6 +16,26 @@ import (
 
 	"github.com/pkg/errors"
 )
+
+type Tracker struct {
+	io.Reader
+	current int64
+}
+
+func (r *Tracker) Read(p []byte) (n int, err error) {
+	n, err = r.Reader.Read(p)
+	r.current += int64(n)
+	fmt.Printf("Read %d bytes\n", r.current)
+	return
+}
+
+// Close the reader when it implements io.Closer
+func (r *Tracker) Close() (err error) {
+	if closer, ok := r.Reader.(io.Closer); ok {
+		return closer.Close()
+	}
+	return
+}
 
 // highly unstable
 func (c *Client) uploadBigMultiThread(fileName string, fileSize int, fileID int64, fileBytes *os.File, chunkSize int32, totalParts int32) (*InputFileBig, error) {
@@ -68,7 +88,7 @@ func (c *Client) UploadFile(file interface{}, MultiThreaded ...bool) (InputFile,
 		Index      int32
 		bigFile    bool
 		chunkSize  int
-		reader     *bufio.Reader
+		reader     *Tracker
 		fileID     = GenerateRandomLong()
 		hasher     = md5.New()
 		fileBytes  *os.File
@@ -87,13 +107,13 @@ func (c *Client) UploadFile(file interface{}, MultiThreaded ...bool) (InputFile,
 			return nil, errors.Wrap(err, "opening file")
 		}
 		defer fileBytes.Close()
-		reader = bufio.NewReader(fileBytes)
+		reader = &Tracker{fileBytes, 0}
 	case []byte: // TODO: Add support for goroutines for byte array
 		fileSize = int64(len(f))
 		chunkSize = getAppropriatedPartSize(fileSize)
 		totalParts = int32(math.Ceil(float64(fileSize) / float64(chunkSize)))
 		bigFile = fileSize > 10*1024*1024
-		reader = bufio.NewReaderSize(bytes.NewReader(f), chunkSize)
+		reader = &Tracker{bytes.NewReader(f), 0}
 	case InputFile:
 		return f, nil // already an Uploaded file
 	default:
