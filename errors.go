@@ -1,5 +1,5 @@
 // Copyright (c) 2022 RoseLoverX
-
+// Copyright (c) 2069 Macha
 package mtproto
 
 import (
