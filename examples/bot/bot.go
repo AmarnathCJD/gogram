@@ -88,14 +88,22 @@ func UploadFile(m *telegram.NewMessage) error {
 	message, _ := m.Reply("Uploading...")
 	defer message.Delete()
 	startTime := time.Now()
-	file, err := message.Client.UploadFile(m.Args(), true) // MultiThread : bool
+	p := telegram.Progress{}
+	p.Init()
+	go func() {
+		for range time.NewTicker(time.Second * 3).C {
+			if p.Percentage() == 100 {
+				message.Edit(fmt.Sprintf("Uploaded... %v%%", p.Percentage()))
+				break
+			}
+			message.Edit(fmt.Sprintf("Uploading...\nProgress %v", p.Percentage()))
+		}
+	}()
+	media, err := m.Client.UploadFile(m.Args(), &telegram.UploadOptions{Progress: &p, Threaded: true, Threads: 10})
 	if err != nil {
 		return err
 	}
-	_, err = m.ReplyMedia(file, telegram.MediaOptions{Caption: fmt.Sprintf("Uploaded in %v", time.Since(startTime))})
-	if err != nil {
-		message.Edit(err.Error())
-		return err
-	}
-	return nil
+	message.Edit(fmt.Sprintf("Uploaded in %v", time.Since(startTime)))
+	_, e := m.RespondMedia(media)
+	return e
 }

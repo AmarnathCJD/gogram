@@ -65,8 +65,8 @@ type (
 
 type (
 	Progress struct {
-		current int64
-		total   int64
+		Current int64
+		Total   int64
 		rwlock  sync.RWMutex
 	}
 
@@ -99,6 +99,15 @@ type (
 		FileName string    `json:"file_name,omitempty"`
 		DcID     int32     `json:"dc_id,omitempty"`
 		Size     int32     `json:"size,omitempty"`
+		Threaded bool      `json:"threaded,omitempty"`
+		Threads  int       `json:"threads,omitempty"`
+	}
+
+	UploadOptions struct {
+		Progress *Progress `json:"progress,omitempty"`
+		DcID     int32     `json:"dc_id,omitempty"`
+		Threaded bool      `json:"threaded,omitempty"`
+		Threads  int       `json:"threads,omitempty"`
 	}
 
 	SendOptions struct {
@@ -250,7 +259,6 @@ type (
 		LastName string `json:"last_name,omitempty"`
 		About    string `json:"about,omitempty"`
 	}
-
 	Log struct {
 		Logger *log.Logger
 	}
@@ -268,25 +276,44 @@ var (
 func (p *Progress) Set(value int64) {
 	p.rwlock.Lock()
 	defer p.rwlock.Unlock()
-	p.current = value
+	p.Current = value
 }
 
 func (p *Progress) Get() int64 {
 	p.rwlock.RLock()
 	defer p.rwlock.RUnlock()
-	return p.current
+	return p.Current
 }
 
 func (p *Progress) Data() (total int64, current int64) {
 	p.rwlock.RLock()
 	defer p.rwlock.RUnlock()
-	return p.total, p.current
+	return p.Total, p.Current
 }
 
 func (p *Progress) Percentage() float64 {
 	p.rwlock.RLock()
 	defer p.rwlock.RUnlock()
-	return float64(p.current) / float64(p.total) * 100
+	return float64(p.Current) / float64(p.Total) * 100
+}
+
+func (p *Progress) SetTotal(total int64) {
+	p.rwlock.Lock()
+	defer p.rwlock.Unlock()
+	p.Total = total
+}
+
+func (p *Progress) Init() {
+	p.rwlock.Lock()
+	defer p.rwlock.Unlock()
+	p.Total = 0
+	p.Current = 0
+}
+
+func (p *Progress) Add(value int64) {
+	p.rwlock.Lock()
+	defer p.rwlock.Unlock()
+	p.Current += value
 }
 
 // Cancel the pointed Action,
@@ -302,7 +329,6 @@ func (a *ActionResult) Cancel() bool {
 	return b
 }
 
-// ChatMember Rights
 func (p Participant) IsCreator() bool {
 	return p.Creator
 }
@@ -376,8 +402,22 @@ func (p Participant) GetRank() string {
 	return ""
 }
 
-//Custom Logger
+// Custom logger
 
-func (l *Log) Error(e error) {
-	l.Logger.Println("Client - Error -", e)
+func (l *Log) Error(err error) {
+	if l.Logger != nil {
+		l.Logger.Println("Client - Error: ", err)
+	}
+}
+
+func (l *Log) Info(msg string) {
+	if l.Logger != nil {
+		l.Logger.Println("Client - Info: ", msg)
+	}
+}
+
+func (l *Log) Debug(msg string) {
+	if l.Logger != nil {
+		l.Logger.Println("Client - Debug: ", msg)
+	}
 }

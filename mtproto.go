@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -157,15 +158,15 @@ func (m *MTProto) GetDC() int {
 	return 4
 }
 
-func (m *MTProto) ExportNewSender(dcID int) (*MTProto, error) {
+func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 	newAddr := utils.DcList[dcID]
 	cfg := Config{
 		AppID:         m.AppID,
 		DataCenter:    dcID,
 		PublicKey:     m.PublicKey,
 		ServerHost:    newAddr,
-		AuthKeyFile:   wd + "/auth_key.session",
-		MemorySession: true,
+		AuthKeyFile:   filepath.Join(wd, "sesion.session"),
+		MemorySession: mem,
 	}
 	if dcID == m.GetDC() {
 		cfg.SessionStorage = m.tokensStorage
@@ -175,9 +176,6 @@ func (m *MTProto) ExportNewSender(dcID int) (*MTProto, error) {
 	err := sender.CreateConnection(true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("invoking layer: %w", err)
 	}
 
 	return sender, nil
