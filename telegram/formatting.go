@@ -9,12 +9,10 @@ import (
 )
 
 func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, string) {
-	var entities []MessageEntity
 	if mode == HTML {
 		return c.ParseHtml(message)
 	} else {
-		// TODO: Add markdown formatting
-		return entities, message
+		return c.ParseHtml(MarkdownToHTML(message)) // temporary fix
 	}
 }
 
@@ -96,4 +94,114 @@ func (c *Client) SetParseMode(mode string) {
 			return
 		}
 	}
+}
+
+func MarkdownToHTML(text string) string {
+	var (
+		inCode      bool
+		inPre       bool
+		inSpoiler   bool
+		inBold      bool
+		inItalic    bool
+		inUnderline bool
+		inStrike    bool
+	)
+	var result string
+	for _, c := range text {
+		if inCode {
+			if c == '`' {
+				inCode = false
+				result += "</code>"
+			} else {
+				result += string(c)
+			}
+			continue
+		}
+		if inPre {
+			if c == '`' {
+				inPre = false
+				result += "</pre>"
+			} else {
+				result += string(c)
+			}
+			continue
+		}
+		if inSpoiler {
+			if c == '|' {
+				inSpoiler = false
+				result += "</span>"
+			} else {
+				result += string(c)
+			}
+			continue
+		}
+		if inBold {
+			if c == '*' {
+				inBold = false
+				result += "</b>"
+			} else {
+				result += string(c)
+			}
+			continue
+		}
+		if inItalic {
+			if c == '_' {
+				inItalic = false
+				result += "</i>"
+			} else {
+				result += string(c)
+			}
+			continue
+		}
+		if inUnderline {
+			if c == '_' {
+				inUnderline = false
+				result += "</u>"
+			} else {
+				result += string(c)
+			}
+			continue
+		}
+		if inStrike {
+			if c == '~' {
+				inStrike = false
+				result += "</s>"
+			} else {
+				result += string(c)
+			}
+			continue
+		}
+		if c == '`' {
+			inCode = true
+			result += "<code>"
+			continue
+		}
+		if c == '~' {
+			inStrike = true
+			result += "<s>"
+			continue
+		}
+		if c == '_' {
+			inUnderline = true
+			result += "<u>"
+			continue
+		}
+		if c == '*' {
+			inBold = true
+			result += "<b>"
+			continue
+		}
+		if c == '_' {
+			inItalic = true
+			result += "<i>"
+			continue
+		}
+		if c == '|' {
+			inSpoiler = true
+			result += "<span class=\"tg-spoiler\">"
+			continue
+		}
+		result += string(c)
+	}
+	return result
 }

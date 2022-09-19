@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -251,4 +252,12 @@ func getValue(val interface{}, def interface{}) interface{} {
 		}
 	}
 	return val
+}
+
+func workDirectory() string {
+	ex, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	return filepath.Dir(ex)
 }

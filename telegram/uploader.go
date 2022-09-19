@@ -10,6 +10,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -17,51 +18,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-// highly unstable
-func (c *Client) uploadBigMultiThread(fileName string, fileSize int, fileID int64, fileBytes *os.File, chunkSize int32, totalParts int32) (*InputFileBig, error) {
-	numGorotines := 25
-	partsAllocation := MultiThreadAllocation(int32(chunkSize), totalParts, numGorotines)
-	senders := make([]*Client, numGorotines)
-	wg := sync.WaitGroup{}
-	for i := 0; i < numGorotines; i++ {
-		wg.Add(1)
-		go func(ix int) {
-			defer wg.Done()
-			senders[ix], _ = c.ExportSender(c.GetDC())
-		}(i)
-	}
-	wg.Wait()
-	log.Println("Client - INFO - MultiThreaded Upload - Allocated", numGorotines, "senders")
-	for i := 0; i < numGorotines; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			for j := partsAllocation[i][0]; j < partsAllocation[i][1]; j++ {
-				buffer := make([]byte, chunkSize)
-				_, _ = fileBytes.ReadAt(buffer, int64(j*int32(chunkSize)))
-				_, err := senders[i].UploadSaveBigFilePart(fileID, j, totalParts, buffer)
-				if err != nil {
-					log.Println("Error in uploading", err)
-				}
-			}
-		}(i)
-	}
-	wg.Wait()
-	for i := 0; i < numGorotines; i++ {
-		senders[i].Terminate()
-	}
-	return &InputFileBig{
-		ID:    fileID,
-		Name:  fileName,
-		Parts: totalParts,
-	}, nil
-}
-
 // UploadFile is a function that uploads a file to telegram as byte chunks
 // and returns the InputFile object
 // File can be Path to file, or a byte array
-func (c *Client) UploadFile(file interface{}, MultiThreaded ...bool) (InputFile, error) {
+func (c *Client) UploadFile(file interface{}, UlOptions ...*UploadOptions) (InputFile, error) {
 	var (
+		opts       *UploadOptions
 		fileName   string
 		fileSize   int64
 		totalParts int32
@@ -72,7 +34,15 @@ func (c *Client) UploadFile(file interface{}, MultiThreaded ...bool) (InputFile,
 		fileID     = GenerateRandomLong()
 		hasher     = md5.New()
 		fileBytes  *os.File
+		Prog       *Progress
 	)
+	if len(UlOptions) > 0 {
+		opts = UlOptions[0]
+		Prog = opts.Progress
+	} else {
+		opts = &UploadOptions{}
+		Prog = &Progress{}
+	}
 	switch f := file.(type) {
 	case string:
 		fileSize, fileName = getFileStat(f)
@@ -99,11 +69,12 @@ func (c *Client) UploadFile(file interface{}, MultiThreaded ...bool) (InputFile,
 	default:
 		return nil, errors.New("invalid file type")
 	}
-	if len(MultiThreaded) > 0 && MultiThreaded[0] && bigFile {
-		return c.uploadBigMultiThread(fileName, int(fileSize), fileID, fileBytes, int32(chunkSize), totalParts)
+	Prog.Total = int64(totalParts)
+	log.Println("Client - INFO - Uploading file", fileName, "with", totalParts, "parts of", chunkSize, "bytes")
+	if opts.Threaded && bigFile {
+		return c.uploadBigMultiThread(fileName, int(fileSize), fileID, fileBytes, int32(chunkSize), totalParts, opts.Progress, opts.Threads)
 	}
 	buffer := make([]byte, chunkSize)
-	log.Println("Client - INFO - Uploading file", fileName, "with", totalParts, "parts of", chunkSize, "bytes")
 	for {
 		n, err := reader.Read(buffer)
 		if err != nil {
@@ -171,8 +142,8 @@ func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions
 	totalParts := int32(math.Ceil(float64(fileSize) / float64(chunkSize)))
 	if Opts.Progress != nil {
 		Prog = Opts.Progress
-		Prog.total = int64(totalParts)
 	}
+	Prog.Total = int64(totalParts)
 	var (
 		fileName string
 		file     *os.File
@@ -184,7 +155,7 @@ func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions
 		fileName = getValue(getFileName(FileDL), "download").(string)
 	}
 	if isPathDirectoryLike(fileName) {
-		fileName = fileName + "/" + getFileName(FileDL)
+		fileName = filepath.Join(fileName, getFileName(FileDL))
 		os.MkdirAll(fileName, os.ModePerm)
 	}
 	file, err = os.Create(fileName)
@@ -194,6 +165,9 @@ func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions
 	defer file.Close()
 
 	log.Println("Client - INFO - Downloading file", fileName, "with", totalParts, "parts of", chunkSize, "bytes")
+	if Opts.Threaded {
+		return fileName, c.downloadBigMultiThread(file, fileLocation, totalParts, int32(chunkSize), DcID, Prog, Opts.Threads)
+	}
 	if DcID != int32(c.GetDC()) {
 		c.Logger.Println("Client - INFO - File Lives on DC", DcID, ", Exporting Sender...")
 		s, _ := c.ExportSender(int(DcID))
@@ -202,7 +176,6 @@ func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions
 		if err != nil {
 			return "", errors.Wrap(err, "downloading file")
 		}
-
 	} else {
 		_, err = getFile(c, fileLocation, file, int32(chunkSize), totalParts, Prog)
 		if err != nil {
@@ -210,6 +183,144 @@ func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions
 		}
 	}
 	return fileName, nil
+}
+
+func (c *Client) DownloadProfilePhoto(PeerID interface{}, Pfp interface{}, DLOptions ...*DownloadOptions) (string, error) {
+	var (
+		Opts *DownloadOptions
+		Prog *Progress
+	)
+	if len(DLOptions) > 0 {
+		Opts = DLOptions[0]
+	} else {
+		Opts = &DownloadOptions{}
+	}
+	if Opts.FileName == "" {
+		Opts.FileName = "profile_photo.jpg"
+	}
+	location, dcID, fileSize, err := c.getPeerPhotoLocation(PeerID, Pfp)
+	Opts.Size = fileSize
+	if err != nil {
+		return "", errors.Wrap(err, "getting photo location")
+	}
+	if location == nil {
+		return "", errors.New("could not get photo location")
+	}
+	return c.DownloadMedia(location, &DownloadOptions{DcID: dcID, Progress: Prog, FileName: Opts.FileName})
+}
+
+func (c *Client) uploadBigMultiThread(fileName string, fileSize int, fileID int64, fileBytes *os.File, chunkSize int32, totalParts int32, prog *Progress, threadCount int) (*InputFileBig, error) {
+	if threadCount <= 0 {
+		threadCount = 20
+	}
+	if totalParts < int32(threadCount) {
+		threadCount = int(totalParts)
+	}
+	partsAllocation := MultiThreadAllocation(int32(chunkSize), totalParts, threadCount)
+	senders := make([]*Client, threadCount)
+	wg := sync.WaitGroup{}
+	for i := 0; i < threadCount; i++ {
+		wg.Add(1)
+		go func(ix int) {
+			defer wg.Done()
+			senders[ix], _ = c.ExportSender(c.GetDC())
+		}(i)
+	}
+	wg.Wait()
+	log.Println("Client - INFO - Uploading file", fileName, "with", totalParts, "parts of", chunkSize, "bytes")
+	for i := 0; i < threadCount; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for j := partsAllocation[i][0]; j < partsAllocation[i][1]; j++ {
+				buffer := make([]byte, chunkSize)
+				_, _ = fileBytes.ReadAt(buffer, int64(j*int32(chunkSize)))
+				_, err := senders[i].UploadSaveBigFilePart(fileID, j, totalParts, buffer)
+				if prog != nil {
+					prog.Add(1)
+				}
+				if err != nil {
+					log.Println("Error in uploading", err)
+				}
+			}
+		}(i)
+	}
+	wg.Wait()
+	for i := 0; i < threadCount; i++ {
+		senders[i].Terminate()
+	}
+	return &InputFileBig{
+		ID:    fileID,
+		Name:  fileName,
+		Parts: totalParts,
+	}, nil
+}
+
+func (c *Client) downloadBigMultiThread(file *os.File, fileLocation InputFileLocation, totalParts int32, chunkSize int32, dcID int32, prog *Progress, ThreadCount int) error {
+	if ThreadCount <= 0 {
+		ThreadCount = 20
+	}
+	if totalParts < int32(ThreadCount) {
+		ThreadCount = int(totalParts)
+	}
+	partsAllocation := MultiThreadAllocation(int32(chunkSize), totalParts, ThreadCount)
+	senders := make([]*Client, ThreadCount)
+	wg := sync.WaitGroup{}
+	for i := 0; i < ThreadCount; i++ {
+		wg.Add(1)
+		go func(ix int) {
+			defer wg.Done()
+			senders[ix], _ = c.ExportSender(int(dcID))
+		}(i)
+	}
+	wg.Wait()
+	for i := 0; i < ThreadCount; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for j := partsAllocation[i][0]; j < partsAllocation[i][1]; j++ {
+				b, err := senders[i].getFilePart(fileLocation, chunkSize, j)
+				if err != nil {
+					log.Println("Error in downloading", err)
+				}
+				prog.Add(1)
+				_, _ = file.WriteAt(b, int64(j*int32(chunkSize)))
+			}
+		}(i)
+	}
+	wg.Wait()
+	for i := 0; i < ThreadCount; i++ {
+		senders[i].Terminate()
+	}
+	return nil
+}
+
+func (c *Client) getFilePart(l InputFileLocation, chunkSize int32, Offset int32) ([]byte, error) {
+	var (
+		filePart []byte
+		err      error
+	)
+	request, err := c.UploadGetFile(&UploadGetFileParams{
+		Precise:      false,
+		CdnSupported: false,
+		Location:     l,
+		Offset:       int64(Offset * chunkSize),
+		Limit:        chunkSize,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "getting file part")
+	}
+	switch r := request.(type) {
+	case *UploadFileCdnRedirect:
+		// filePart, err = c.getFilePartCdnRedirect(r, chunkSize, Offset)
+		// if err != nil {
+		//	return nil, errors.Wrap(err, "getting file part")
+		// }
+		return nil, errors.New("cdn redirect not supported yet")
+	case *UploadFileObj:
+		filePart = r.Bytes
+	}
+	return filePart, nil
 }
 
 func getFile(c *Client, location InputFileLocation, f *os.File, chunkSize int32, totalParts int32, progress *Progress) (bool, error) {
@@ -258,30 +369,6 @@ func MultiThreadAllocation(chunkSize int32, totalParts int32, numGorotines int) 
 		}
 	}
 	return partsAllocation
-}
-
-func (c *Client) DownloadProfilePhoto(PeerID interface{}, Pfp interface{}, DLOptions ...*DownloadOptions) (string, error) {
-	var (
-		Opts *DownloadOptions
-		Prog *Progress
-	)
-	if len(DLOptions) > 0 {
-		Opts = DLOptions[0]
-	} else {
-		Opts = &DownloadOptions{}
-	}
-	if Opts.FileName == "" {
-		Opts.FileName = "profile_photo.jpg"
-	}
-	location, dcID, fileSize, err := c.getPeerPhotoLocation(PeerID, Pfp)
-	Opts.Size = fileSize
-	if err != nil {
-		return "", errors.Wrap(err, "getting photo location")
-	}
-	if location == nil {
-		return "", errors.New("could not get photo location")
-	}
-	return c.DownloadMedia(location, &DownloadOptions{DcID: dcID, Progress: Prog, FileName: Opts.FileName})
 }
 
 func (c *Client) getPeerPhotoLocation(PeerID interface{}, Photo interface{}) (*InputPeerPhotoFileLocation, int32, int32, error) {

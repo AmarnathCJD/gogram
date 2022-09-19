@@ -3,9 +3,11 @@
 package telegram
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -19,15 +21,7 @@ import (
 	"github.com/amarnathcjd/gogram/internal/session"
 )
 
-var (
-	workDir, _ = os.Getwd()
-)
-
 type (
-	PingParams struct {
-		PingID int64
-	}
-
 	Client struct {
 		*mtproto.MTProto
 		config    *ClientConfig
@@ -54,15 +48,31 @@ type (
 	}
 )
 
+// New instance of telegram client,
+// If session file is not provided, it will create a new session file
+// in the current working directory
+//  Params:
+//  - sessionFile: path to session file
+//  - stringSession: string session
+//  - deviceModel: device model
+//  - systemVersion: system version
+//  - appVersion: app version
+//  - appID: telegram app id
+//  - appHash: telegram app hash
+//  - parseMode: parse mode (Markdown, HTML)
+//  - dataCenter: data center id (default: 2)
+//  - allowUpdates: allow updates (default: true)
+//
 func TelegramClient(c ClientConfig) (*Client, error) {
-	c.SessionFile = getStr(c.SessionFile, workDir+"/session.session")
+	c.SessionFile = getStr(c.SessionFile, filepath.Join(workDirectory(), "session.session"))
+	dcID, _ := strconv.Atoi(getStr(fmt.Sprint(c.DataCenter), "4"))
 	publicKeys, err := keys.GetRSAKeys()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading public keys")
 	}
 	mtproto, err := mtproto.NewMTProto(mtproto.Config{
 		AuthKeyFile:   c.SessionFile,
-		ServerHost:    GetHostIp(c.DataCenter),
+		ServerHost:    GetHostIp(dcID),
 		PublicKey:     publicKeys[0],
 		DataCenter:    c.DataCenter,
 		AppID:         int32(c.AppID),
@@ -81,7 +91,7 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 		MTProto:   mtproto,
 		config:    &c,
 		Cache:     cache,
-		ParseMode: getStr(c.ParseMode, "Markdown"),
+		ParseMode: getStr(c.ParseMode, "HTML"),
 		L: Log{
 			Logger: log.New(os.Stdout, "", log.LstdFlags),
 		},
@@ -89,9 +99,9 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 
 	resp, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
 		ApiID:          int32(c.AppID),
-		DeviceModel:    getStr(c.DeviceModel, "Gogram"),
+		DeviceModel:    getStr(c.DeviceModel, "Android Device"),
 		SystemVersion:  getStr(c.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
-		AppVersion:     getStr(c.AppVersion, "v2.3.8"),
+		AppVersion:     getStr(c.AppVersion, "v2.3.6"),
 		SystemLangCode: "en",
 		LangCode:       "en",
 		Query:          &HelpGetConfigParams{},
@@ -125,8 +135,34 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 	return client, nil
 }
 
+func (c *Client) SwitchDC(dcID int) (*Client, error) {
+	sender, err := c.MTProto.ExportNewSender(dcID, false)
+	if err != nil {
+		return nil, err
+	}
+	senderClient := &Client{
+		MTProto:   sender,
+		config:    c.config,
+		ParseMode: c.ParseMode,
+	}
+
+	_, InvokeErr := senderClient.InvokeWithLayer(ApiVersion, &InitConnectionParams{
+		ApiID:          int32(c.AppID),
+		DeviceModel:    "iPhone X",
+		SystemVersion:  getStr("", runtime.GOOS+" "+runtime.GOARCH),
+		AppVersion:     getStr("", "v1.0.0"),
+		SystemLangCode: "en",
+		LangCode:       "en",
+		Query:          &HelpGetConfigParams{},
+	})
+	if InvokeErr != nil {
+		return nil, InvokeErr
+	}
+	return senderClient, nil
+}
+
 func (c *Client) ExportSender(dcID int) (*Client, error) {
-	sender, err := c.MTProto.ExportNewSender(dcID)
+	sender, err := c.MTProto.ExportNewSender(dcID, true)
 	if err != nil {
 		return nil, err
 	}
