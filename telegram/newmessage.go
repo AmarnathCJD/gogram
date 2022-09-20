@@ -490,17 +490,13 @@ func (m *NewMessage) React(Reaction ...string) error {
 }
 
 // Forward forwards the message to a chat
-func (m *NewMessage) ForwardTo(ChatID int64, Opts ...ForwardOptions) (*NewMessage, error) {
-	if len(Opts) == 0 {
-		Opts = append(Opts, ForwardOptions{})
-	}
-	resp, err := m.Client.ForwardMessage(m.ChatID(), ChatID, []int32{m.ID}, &Opts[0])
+func (m *NewMessage) ForwardTo(PeerID interface{}, Opts ...*ForwardOptions) (*NewMessage, error) {
+	resp, err := m.Client.ForwardMessage(m.ChatID(), PeerID, []int32{m.ID}, Opts...)
 	if resp == nil {
 		return nil, err
 	}
-	response := *resp
-	response.Message.PeerID = m.Message.PeerID
-	return &response, err
+	resp.Message.PeerID = m.Message.PeerID
+	return resp, err
 }
 
 // Download Media to Disk,

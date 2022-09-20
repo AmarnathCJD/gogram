@@ -1,5 +1,7 @@
 package session
 
+import "errors"
+
 // SessionLoader is the interface which allows you to access sessions from different storages (like
 // filesystem, database, s3 storage, etc.)
 type SessionLoader interface {
@@ -15,3 +17,9 @@ type Session struct {
 	Salt     int64
 	Hostname string
 }
+
+var (
+	ErrSessionNotFound = errors.New("session not found")
+	ErrPathNotFound    = "file not found"
+	ErrFileNotExists   = "no such file or directory"
+)

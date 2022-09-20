@@ -90,7 +90,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 
 	s, err := c.SessionStorage.Load()
 	if err != nil {
-		if !strings.Contains(err.Error(), "no such file or directory") {
+		if !(strings.Contains(err.Error(), session.ErrFileNotExists) || strings.Contains(err.Error(), session.ErrPathNotFound)) {
 			return nil, fmt.Errorf("loading session: %w", err)
 		}
 	}
