@@ -6,7 +6,7 @@ import (
 )
 
 type CACHE struct {
-	sync.Mutex
+	sync.RWMutex
 	chats    map[int64]*ChatObj
 	users    map[int64]*UserObj
 	channels map[int64]*Channel
@@ -25,8 +25,8 @@ func NewCache() *CACHE {
 }
 
 func (c *CACHE) GetChat(chat_id int64) (*ChatObj, error) {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 	if chat, ok := c.chats[chat_id]; ok {
 		return chat, nil
 	}
@@ -34,8 +34,8 @@ func (c *CACHE) GetChat(chat_id int64) (*ChatObj, error) {
 }
 
 func (c *CACHE) GetUser(user_id int64) (*UserObj, error) {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 	if user, ok := c.users[user_id]; ok {
 		return user, nil
 	}
@@ -43,8 +43,8 @@ func (c *CACHE) GetUser(user_id int64) (*UserObj, error) {
 }
 
 func (c *CACHE) GetChannel(channel_id int64) (*Channel, error) {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 	if channel, ok := c.channels[channel_id]; ok {
 		return channel, nil
 	}
@@ -52,26 +52,26 @@ func (c *CACHE) GetChannel(channel_id int64) (*Channel, error) {
 }
 
 func (c *CACHE) UpdateUser(user *UserObj) {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 	c.users[user.ID] = user
 }
 
 func (c *CACHE) UpdateChat(chat *ChatObj) {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 	c.chats[chat.ID] = chat
 }
 
 func (c *CACHE) GetSize() int {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 	return len(c.chats) + len(c.users)
 }
 
 func (cache *CACHE) UpdatePeersToCache(u []User, c []Chat) {
-	cache.Lock()
-	defer cache.Unlock()
+	cache.RLock()
+	defer cache.RUnlock()
 	for _, user := range u {
 		us, ok := user.(*UserObj)
 		if ok {
@@ -92,8 +92,8 @@ func (cache *CACHE) UpdatePeersToCache(u []User, c []Chat) {
 }
 
 func (cache *CACHE) GetPeersFromCache(u []int64, c []int64) ([]User, []Chat) {
-	cache.Lock()
-	defer cache.Unlock()
+	cache.RLock()
+	defer cache.RUnlock()
 	var users []User
 	var chats []Chat
 	for _, user := range u {
@@ -125,8 +125,8 @@ func (client *Client) GetPeerChannel(channel_id int64) (*Channel, error) {
 	return client.Cache.GetChannel(channel_id)
 }
 
-func (client *Client) GetAllPeers() (int, int) {
-	return len(client.Cache.users), len(client.Cache.chats)
+func (client *Client) GetCacheCount() int {
+	return client.Cache.GetSize()
 }
 
 func (client *Client) GetInputPeer(peer_id int64) (InputPeer, error) {
