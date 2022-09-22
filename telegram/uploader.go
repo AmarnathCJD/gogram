@@ -152,10 +152,10 @@ func (c *Client) DownloadMedia(FileDL interface{}, DLOptions ...*DownloadOptions
 	if Opts.FileName != "" {
 		fileName = Opts.FileName
 	} else {
-		fileName = getValue(getFileName(FileDL), "download").(string)
+		fileName = getValue(GetFileName(FileDL), "download").(string)
 	}
 	if isPathDirectoryLike(fileName) {
-		fileName = filepath.Join(fileName, getFileName(FileDL))
+		fileName = filepath.Join(fileName, GetFileName(FileDL))
 		os.MkdirAll(fileName, os.ModePerm)
 	}
 	file, err = os.Create(fileName)
