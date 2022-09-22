@@ -20,6 +20,14 @@ type (
 		Action         MessageAction
 		Message        *MessageObj
 		Peer           InputPeer
+		File           *CustomFile
+	}
+
+	CustomFile struct {
+		FileID string `json:"file_id,omitempty"`
+		Name   string `json:"name,omitempty"`
+		Size   int64  `json:"size,omitempty"`
+		Ext    string `json:"ext,omitempty"`
 	}
 )
 

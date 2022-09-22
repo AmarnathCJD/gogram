@@ -1,13 +1,18 @@
 package telegram
 
 import (
+	"encoding/base64"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type (
@@ -44,7 +49,7 @@ var (
 		{".webp", "image/webp"}, {".woff", "font/woff"}, {".woff2", "font/woff2"},
 		{".xhtml", "application/xhtml+xml"}, {".xls", "application/vnd.ms-excel"}, {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
 		{".xml", "application/xml"}, {".xul", "application/vnd.mozilla.xul+xml"}, {".zip", "application/zip"},
-		{".3gp", "video/3gpp"}, {".3g2", "video/3gpp2"}, {".7z", "application/x-7z-compressed"},
+		{".3gp", "video/3gpp"}, {".3g2", "video/3gpp2"}, {".7z", "application/x-7z-compressed"}, {".tgs", "application/x-tgsticker"},
 	}
 )
 
@@ -63,6 +68,15 @@ func resolveMimeType(filePath string) (string, bool) {
 	}
 	mime := http.DetectContentType(buffer)
 	return mime, mimeIsPhoto(mime)
+}
+
+func resolveExt(mime string) string {
+	for _, mt := range MimeTypes {
+		if mt.Mime == mime {
+			return mt.Extension
+		}
+	}
+	return ""
 }
 
 func matchMimeType(filePath string) string {
@@ -172,19 +186,126 @@ func isPathDirectoryLike(path string) bool {
 	return strings.HasSuffix(path, "/") || strings.HasSuffix(path, "\\")
 }
 
-func getFileName(f interface{}) string {
+// Func to get the file name of Media
+//  Accepted types:
+//   *MessageMedia
+//   *Document
+//   *Photo
+func GetFileName(f interface{}) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
 		for _, attr := range f.Document.(*DocumentObj).Attributes {
 			switch attr := attr.(type) {
 			case *DocumentAttributeFilename:
 				return attr.FileName
+			case *DocumentAttributeAudio:
+				return attr.Title + ".mp3"
+			case *DocumentAttributeVideo:
+				return "video.mp4"
+			case *DocumentAttributeAnimated:
+				return "animation.gif"
+			case *DocumentAttributeSticker:
+				return "sticker.webp"
+			}
+		}
+		return "file"
+	case *MessageMediaPhoto:
+		return "photo.jpg"
+	case *MessageMediaContact:
+		return "contact.vcf"
+	case *DocumentObj:
+		for _, attr := range f.Attributes {
+			switch attr := attr.(type) {
+			case *DocumentAttributeFilename:
+				return attr.FileName
+			case *DocumentAttributeAudio:
+				return attr.Title + ".mp3"
+			case *DocumentAttributeVideo:
+				return "video.mp4"
+			case *DocumentAttributeAnimated:
+				return "animation.gif"
+			case *DocumentAttributeSticker:
+				return "sticker.webp"
+			}
+		}
+		return "file"
+	case *PhotoObj:
+		return "photo.jpg"
+	case *InputPeerPhotoFileLocation:
+		return "peer_photo.jpg"
+	default:
+		return "download"
+	}
+}
+
+// Func to get the file size of Media
+//  Accepted types:
+//   *MessageMedia
+func GetFileSize(f interface{}) int64 {
+	switch f := f.(type) {
+	case *MessageMediaDocument:
+		return f.Document.(*DocumentObj).Size
+	case *MessageMediaPhoto:
+		if len(f.Photo.(*PhotoObj).Sizes) == 0 {
+			return 0
+		}
+		s, _ := photoSizeByteCount(f.Photo.(*PhotoObj).Sizes[len(f.Photo.(*PhotoObj).Sizes)-1])
+		return s
+	default:
+		return 0
+	}
+}
+
+// Func to get the file extension of Media
+//  Accepted types:
+//   *MessageMedia
+//   *Document
+//   *Photo
+func GetFileExt(f interface{}) string {
+	switch f := f.(type) {
+	case *MessageMediaDocument:
+		doc := f.Document.(*DocumentObj)
+		if e := resolveExt(doc.MimeType); e != "" {
+			return e
+		}
+		for _, attr := range doc.Attributes {
+			switch attr.(type) {
+			case *DocumentAttributeAudio:
+				return ".mp3"
+			case *DocumentAttributeVideo:
+				return ".mp4"
+			case *DocumentAttributeAnimated:
+				return ".gif"
+			case *DocumentAttributeSticker:
+				return ".webp"
 			}
 		}
 	case *MessageMediaPhoto:
-		return "photo.jpg"
+		return ".jpg"
+	case *MessageMediaContact:
+		return ".vcf"
+	case *DocumentObj:
+		for _, attr := range f.Attributes {
+			switch attr := attr.(type) {
+			case *DocumentAttributeFilename:
+				return filepath.Ext(attr.FileName)
+			case *DocumentAttributeAudio:
+				return ".mp3"
+			case *DocumentAttributeVideo:
+				return ".mp4"
+			case *DocumentAttributeAnimated:
+				return ".gif"
+			case *DocumentAttributeSticker:
+				return ".webp"
+			}
+		}
+		return ".file"
+	case *PhotoObj:
+		return ".jpg"
+	case *InputPeerPhotoFileLocation:
+		return ".jpg"
 	}
-	return "download"
+	return ""
 }
 
 func GenerateRandomLong() int64 {
@@ -254,10 +375,136 @@ func getValue(val interface{}, def interface{}) interface{} {
 	return val
 }
 
+// Internal Function to get the current Working Directory
 func workDirectory() string {
 	ex, err := os.Executable()
 	if err != nil {
 		return ""
 	}
 	return filepath.Dir(ex)
+}
+
+// Inverse operation of ResolveBotFileID
+// https://core.telegram.org/bots/api#file
+//  Accepted Types:
+//  	*MessageMedia
+//  	*Document
+//  	*Photo
+func PackBotFileID(file interface{}) string {
+	var fileID, accessHash, fileType, dcID string
+switchFileType:
+	switch f := file.(type) {
+	case *DocumentObj:
+		fileID = strconv.FormatInt(f.ID, 10)
+		accessHash = strconv.FormatInt(f.AccessHash, 10)
+		fileType = "5"
+		dcID = fmt.Sprintf("%d", f.DcID)
+		for _, attr := range f.Attributes {
+			switch attr := attr.(type) {
+			case *DocumentAttributeAudio:
+				if attr.Voice {
+					fileType = "3"
+					break switchFileType
+				}
+				fileType = "9"
+				break switchFileType
+			case *DocumentAttributeVideo:
+				if attr.RoundMessage {
+					fileType = "13"
+					break switchFileType
+				}
+				fileType = "4"
+				break switchFileType
+			case *DocumentAttributeSticker:
+				fileType = "8"
+				break switchFileType
+			case *DocumentAttributeAnimated:
+				fileType = "10"
+				break switchFileType
+			}
+		}
+	case *PhotoObj:
+		fileID = strconv.FormatInt(f.ID, 10)
+		accessHash = strconv.FormatInt(f.AccessHash, 10)
+		fileType = "2"
+		dcID = fmt.Sprintf("%d", f.DcID)
+	case *MessageMediaDocument:
+		file = f.Document
+		goto switchFileType
+	case *MessageMediaPhoto:
+		file = f.Photo
+		goto switchFileType
+	}
+	if fileID == "" || accessHash == "" || fileType == "" || dcID == "" {
+		return ""
+	}
+	return base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf("%s_%s_%s_%s", fileType, dcID, fileID, accessHash)))
+}
+
+func UnpackBotFileID(fileID string) (int64, int64, int32, int32) {
+	data, err := base64.RawURLEncoding.DecodeString(fileID)
+	if err != nil {
+		return 0, 0, 0, 0
+	}
+	parts := strings.Split(string(data), "_")
+	if len(parts) != 4 {
+		return 0, 0, 0, 0
+	}
+	fileType, _ := strconv.Atoi(parts[0])
+	dcID, _ := strconv.Atoi(parts[1])
+	fID, _ := strconv.ParseInt(parts[2], 10, 64)
+	accessHash, _ := strconv.ParseInt(parts[3], 10, 64)
+	return fID, accessHash, int32(fileType), int32(dcID)
+}
+
+// Inverse operation of PackBotFileID,
+// https://core.telegram.org/bots/api#file
+//  Accepted Types:
+//  	string
+func ResolveBotFileID(fileID string) (MessageMedia, error) {
+	fID, accessHash, fileType, dcID := UnpackBotFileID(fileID)
+	if fID == 0 || accessHash == 0 || fileType == 0 || dcID == 0 {
+		return nil, errors.New("invalid file id")
+	}
+	switch fileType {
+	case 2:
+		return &MessageMediaPhoto{
+			Photo: &PhotoObj{
+				ID:         fID,
+				AccessHash: accessHash,
+				DcID:       dcID,
+			},
+		}, nil
+	case 3, 4, 5, 8, 9, 10, 13:
+		var attributes = []DocumentAttribute{}
+		switch fileType {
+		case 3:
+			attributes = append(attributes, &DocumentAttributeAudio{
+				Voice: true,
+			})
+		case 4:
+			attributes = append(attributes, &DocumentAttributeVideo{
+				RoundMessage: false,
+			})
+		case 8:
+			attributes = append(attributes, &DocumentAttributeSticker{})
+		case 9:
+			attributes = append(attributes, &DocumentAttributeAudio{})
+		case 10:
+			attributes = append(attributes, &DocumentAttributeAnimated{})
+		case 13:
+			attributes = append(attributes, &DocumentAttributeVideo{
+				RoundMessage: true,
+			})
+		}
+		return &MessageMediaDocument{
+			Document: &DocumentObj{
+				ID:         fID,
+				AccessHash: accessHash,
+				DcID:       dcID,
+				Attributes: attributes,
+			},
+		}, nil
+	}
+	return nil, errors.New("invalid file type")
 }

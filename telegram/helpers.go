@@ -437,6 +437,15 @@ func packMessage(c *Client, message Message) *NewMessage {
 		m.SenderChat = &Channel{}
 	}
 	m.Peer = c.getPeer(m.Message.PeerID)
+	if m.IsMedia() {
+		FileID := PackBotFileID(m.Media())
+		m.File = &CustomFile{
+			FileID: FileID,
+			Name:   GetFileName(m.Media()),
+			Size:   GetFileSize(m.Media()),
+			Ext:    GetFileExt(m.Media()),
+		}
+	}
 	return m
 }
 
