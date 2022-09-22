@@ -81,7 +81,7 @@ func TryExpandError(errStr string) (nativeErrorName string, additionalData any) 
 	nativeErrorName = choosedPrefixSuffix.prefix + "X" + choosedPrefixSuffix.suffix
 	trimmedData := strings.TrimSuffix(strings.TrimPrefix(errStr, choosedPrefixSuffix.prefix), choosedPrefixSuffix.suffix)
 
-	switch v := choosedPrefixSuffix.kind; v { //nolint:exhaustive others will panic
+	switch v := choosedPrefixSuffix.kind; v {
 	case reflect.Int:
 		var err error
 		additionalData, err = strconv.Atoi(trimmedData)
