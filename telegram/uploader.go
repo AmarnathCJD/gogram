@@ -21,7 +21,7 @@ import (
 // UploadFile is a function that uploads a file to telegram as byte chunks
 // and returns the InputFile object
 // File can be Path to file, or a byte array
-func (c *Client) UploadFile(file interface{}, UlOptions ...*UploadOptions) (InputFile, error) {
+func (c *Client) UploadFile(file interface{}, Opts ...*UploadOptions) (InputFile, error) {
 	var (
 		opts       *UploadOptions
 		fileName   string
@@ -36,9 +36,12 @@ func (c *Client) UploadFile(file interface{}, UlOptions ...*UploadOptions) (Inpu
 		fileBytes  *os.File
 		Prog       *Progress
 	)
-	if len(UlOptions) > 0 {
-		opts = UlOptions[0]
+	if len(Opts) > 0 {
+		opts = Opts[0]
 		Prog = opts.Progress
+		if Prog == nil {
+			Prog = &Progress{}
+		}
 	} else {
 		opts = &UploadOptions{}
 		Prog = &Progress{}

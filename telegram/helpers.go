@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/exec"
 	"reflect"
 	"strconv"
 	"strings"
@@ -336,6 +337,10 @@ mediaTypeSwitch:
 			return &InputMediaContact{FirstName: media.FirstName, LastName: media.LastName, PhoneNumber: media.PhoneNumber, Vcard: media.Vcard}, nil
 		case *MessageMediaDice:
 			return &InputMediaDice{Emoticon: media.Emoticon}, nil
+		case *MessageMediaPoll:
+			return &InputMediaPoll{Poll: media.Poll}, nil
+		case *MessageMediaUnsupported:
+			return nil, errors.New("unsupported media type")
 		default:
 			return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(media).String()))
 		}
@@ -348,17 +353,48 @@ mediaTypeSwitch:
 		switch media := media.(type) {
 		case *InputFileObj:
 			mimeType, IsPhoto = resolveMimeType(getValue(attr.FileName, media.Name).(string))
+			attr.Attributes = mergeAttrs(attr.Attributes, getAttrs(mimeType))
 			fileName = getValue(attr.FileName, media.Name).(string)
 		case *InputFileBig:
 			mimeType, IsPhoto = resolveMimeType(getValue(attr.FileName, media.Name).(string))
+			attr.Attributes = mergeAttrs(attr.Attributes, getAttrs(mimeType))
 			fileName = getValue(attr.FileName, media.Name).(string)
 		}
 		if IsPhoto {
 			return &InputMediaUploadedPhoto{File: media}, nil
 		} else {
 			var Attributes = getValue(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}}).([]DocumentAttribute)
-			if len(Attributes) == 0 {
-				Attributes = []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}}
+			hasFileName := false
+			for _, at := range Attributes {
+				if _, ok := at.(*DocumentAttributeFilename); ok {
+					hasFileName = true
+					break
+				}
+				if a, ok := at.(*DocumentAttributeVideo); ok {
+					var duration = int64(getValue(a.Duration, 0).(int32))
+					if a.Duration == 0 {
+						duration = GetVideoDuration(fileName)
+						if duration > 0 {
+							a.Duration = int32(duration)
+						}
+					}
+					if a.W == 0 || a.H == 0 {
+						w, h := GetVideoDimensions(fileName)
+						if w > 0 && h > 0 {
+							a.W = int32(w)
+							a.H = int32(h)
+						}
+					}
+					if attr.Thumb == nil {
+						thumb, err := GetVideoThumbAsBytes(fileName, duration)
+						if err == nil && len(thumb) > 0 {
+							attr.Thumb, _ = c.UploadFile(thumb)
+						}
+					}
+				}
+			}
+			if !hasFileName {
+				Attributes = append(Attributes, &DocumentAttributeFilename{FileName: fileName})
 			}
 			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: Attributes, Thumb: getValue(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32)}, nil
 		}
@@ -373,6 +409,103 @@ mediaTypeSwitch:
 		return nil, errors.New("media is nil")
 	}
 	return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(mediaFile).String()))
+}
+
+func GetVideoDuration(path string) int64 {
+	cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path)
+	out, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+	duration, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
+	if err != nil {
+		return 0
+	}
+	return int64(duration)
+}
+
+func GetVideoDimensions(path string) (int, int) {
+	cmd := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", path)
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, 0
+	}
+	dimensions := strings.Split(strings.TrimSpace(string(out)), "x")
+	if len(dimensions) != 2 {
+		return 0, 0
+	}
+	width, err := strconv.Atoi(dimensions[0])
+	if err != nil {
+		return 0, 0
+	}
+	height, err := strconv.Atoi(dimensions[1])
+	if err != nil {
+		return 0, 0
+	}
+	return width, height
+}
+
+func GetVideoThumbAsBytes(path string, duration int64) ([]byte, error) {
+	if duration == 0 {
+		duration = GetVideoDuration(path)
+	}
+	if duration == 0 {
+		return nil, errors.New("failed to get video duration")
+	}
+	out, err := exec.Command("ffmpeg", "-ss", strconv.FormatInt(duration/2, 10), "-i", path, "-vframes", "1", "-f", "image2", "-").Output()
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// TODO: implement this
+func GetAudioMetadata(path string) (performer string, title string, duration int32) {
+	dur := GetVideoDuration(path)
+	metadata := make(map[string]string)
+	cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format_tags=artist,title", "-of", "default=noprint_wrappers=1:nokey=1", path)
+	out, err := cmd.Output()
+	if err == nil {
+		lines := strings.Split(strings.TrimSpace(string(out)), "")
+		for _, line := range lines {
+			parts := strings.Split(line, "=")
+			if len(parts) == 2 {
+				metadata[parts[0]] = parts[1]
+			}
+		}
+	}
+	return metadata["artist"], metadata["title"], int32(dur)
+}
+
+func getAttrs(mimeType string) []DocumentAttribute {
+	switch mimeType {
+	case "image/gif":
+		return []DocumentAttribute{&DocumentAttributeAnimated{}}
+	case "video/mp4", "video/webm", "video/mpeg", "video/matroska", "video/3gpp", "video/3gpp2", "video/x-matroska", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/x-m4v", "video/x-flv":
+		return []DocumentAttribute{&DocumentAttributeVideo{RoundMessage: false, SupportsStreaming: true}}
+	case "audio/mpeg", "audio/ogg", "audio/x-wav", "audio/x-flac", "audio/x-m4a", "audio/3gpp", "audio/3gpp2", "audio/amr", "audio/amr-wb", "audio/AMR-WB+", "audio/mp4", "audio/x-matroska":
+		return []DocumentAttribute{&DocumentAttributeAudio{Voice: false}}
+	default:
+		return []DocumentAttribute{}
+	}
+}
+
+func mergeAttrs(attrs1, attrs2 []DocumentAttribute) []DocumentAttribute {
+	var attrs = make([]DocumentAttribute, 0)
+	attrs = append(attrs, attrs1...)
+	for _, attr := range attrs2 {
+		var found bool
+		for _, attr1 := range attrs1 {
+			if reflect.TypeOf(attr) == reflect.TypeOf(attr1) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			attrs = append(attrs, attr)
+		}
+	}
+	return attrs
 }
 
 func (c *Client) ResolveUsername(username string) (interface{}, error) {
