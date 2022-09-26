@@ -10,7 +10,6 @@ import (
 	"hash"
 	"math/big"
 	"math/rand"
-	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -21,9 +20,21 @@ const (
 
 // Authorize client with bot token
 func (c *Client) LoginBot(botToken string) error {
+	if au, _ := c.IsUserAuthorized(); au {
+		return nil
+	}
 	_, err := c.AuthImportBotAuthorization(1, c.AppID, c.ApiHash, botToken)
 	if err == nil {
 		c.bot = true
+	}
+	if au, e := c.IsUserAuthorized(); !au {
+		if dc, code := getErrorCode(e); code == 303 {
+			err = c.SwitchDC(dc)
+			if err != nil {
+				return err
+			}
+			return c.LoginBot(botToken)
+		}
 	}
 	return err
 }
@@ -35,6 +46,13 @@ func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
 		CurrentNumber: true,
 	})
 	if err != nil {
+		if dc, code := getErrorCode(err); code == 303 {
+			err = c.SwitchDC(dc)
+			if err != nil {
+				return "", err
+			}
+			return c.SendCode(phoneNumber)
+		}
 		return "", err
 	}
 	return resp.PhoneCodeHash, nil
@@ -43,6 +61,9 @@ func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
 // Authorize client with phone number, code and phone code hash,
 // If phone code hash is empty, it will be requested from telegram server
 func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, error) {
+	if au, _ := c.IsUserAuthorized(); au {
+		return true, nil
+	}
 	var opts *LoginOptions
 	if len(options) > 0 {
 		opts = options[0]
@@ -50,67 +71,126 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 	if opts == nil {
 		opts = &LoginOptions{}
 	}
+	var Auth AuthAuthorization
+	var err error
 	if opts.Code == "" {
-		hash, err := c.SendCode(phoneNumber)
+		hash, e := c.SendCode(phoneNumber)
+		if e != nil {
+			return false, e
+		}
+		opts.CodeHash = hash
 		for {
-			if err != nil {
-				return false, err
-			}
 			fmt.Printf("Enter code: ")
 			var codeInput string
 			fmt.Scanln(&codeInput)
 			if codeInput != "" {
 				opts.Code = codeInput
-				break
+				Auth, err = c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
+				if err == nil {
+					break
+				}
+				if matchError(err, "The phone code entered was invalid") {
+					fmt.Println("The phone code entered was invalid, please try again")
+					continue
+				} else if matchError(err, "Two-steps verification is enabled") {
+					var passwordInput string
+					fmt.Println("Two-step verification is enabled")
+					for {
+						fmt.Printf("Enter password: ")
+						fmt.Scanln(&passwordInput)
+						if passwordInput != "" {
+							opts.Password = passwordInput
+							break
+						} else if passwordInput == "cancel" {
+							return false, nil
+						} else {
+							fmt.Println("Invalid password, try again")
+						}
+					}
+					AccPassword, err := c.AccountGetPassword()
+					if err != nil {
+						return false, err
+					}
+					inputPassword, err := GetInputCheckPassword(passwordInput, AccPassword)
+					if err != nil {
+						return false, err
+					}
+					_, err = c.AuthCheckPassword(inputPassword)
+					if err != nil {
+						return false, err
+					}
+				} else if matchError(err, "The code is valid but no user with the given number") {
+					_, err = c.AuthSignUp(phoneNumber, opts.CodeHash, opts.FirstName, opts.LastName)
+					if err != nil {
+						return false, err
+					}
+				} else {
+					return false, err
+				}
 			} else if codeInput == "cancel" {
 				return false, nil
 			} else {
-				fmt.Println("Invalid code, try again")
+				fmt.Println("Invalid response, try again")
 			}
 		}
-		opts.CodeHash = hash
 	}
-	_, SignInerr := c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
-	if SignInerr != nil {
-		if strings.Contains(SignInerr.Error(), "Two-steps verification is enabled") {
-			var passwordInput string
-			fmt.Println("Two-step verification is enabled")
-			for {
-				fmt.Printf("Enter password: ")
-				fmt.Scanln(&passwordInput)
-				if passwordInput != "" {
-					opts.Password = passwordInput
-					break
-				} else if passwordInput == "cancel" {
-					return false, nil
-				} else {
-					fmt.Println("Invalid password, try again")
-				}
-			}
-			AccPassword, err := c.AccountGetPassword()
-			if err != nil {
-				return false, err
-			}
-			inputPassword, err := GetInputCheckPassword(passwordInput, AccPassword)
-			if err != nil {
-				return false, err
-			}
-			_, err = c.AuthCheckPassword(inputPassword)
-			if err != nil {
-				return false, err
-			}
-			return true, nil
-		} else if strings.Contains(SignInerr.Error(), "The code is valid but no user with the given number") {
-			_, err := c.AuthSignUp(phoneNumber, opts.CodeHash, opts.FirstName, opts.LastName)
-			if err != nil {
-				return false, err
-			}
-			return true, nil
+AuthResultSwitch:
+	switch auth := Auth.(type) {
+	case *AuthAuthorizationSignUpRequired:
+		var firstName, lastName string
+		if opts.FirstName == "" {
+			fmt.Printf("Enter first name: ")
+			fmt.Scanln(&firstName)
 		} else {
-			return false, SignInerr
+			firstName = opts.FirstName
 		}
+		if opts.LastName == "" {
+			fmt.Printf("Enter last name: ")
+			fmt.Scanln(&lastName)
+		} else {
+			lastName = opts.LastName
+		}
+		Auth, err = c.AuthSignUp(phoneNumber, opts.CodeHash, firstName, lastName)
+		if err != nil {
+			return false, err
+		}
+		goto AuthResultSwitch
+	case *AuthAuthorizationObj:
+		switch u := auth.User.(type) {
+		case *UserObj:
+			c.bot = u.Bot
+			c.Cache.UpdateUser(u)
+		case *UserEmpty:
+			return false, errors.New("user is empty")
+		}
+	case nil:
 	}
 	return true, nil
+}
+
+func (c *Client) AcceptTOS() (bool, error) {
+	tos, err := c.HelpGetTermsOfServiceUpdate()
+	if err != nil {
+		return false, err
+	}
+	switch tos := tos.(type) {
+	case *HelpTermsOfServiceUpdateObj:
+		fmt.Println(tos.TermsOfService.Text)
+		// Accept TOS
+		fmt.Println("Do you accept the TOS? (y/n)")
+		var input string
+		fmt.Scanln(&input)
+		if input != "y" {
+			return false, nil
+		}
+		return c.HelpAcceptTermsOfService(tos.TermsOfService.ID)
+	default:
+		return false, nil
+	}
+}
+
+func (c *Client) Edit2FA() {
+	// TODO: Implement
 }
 
 // Logs out from the current account

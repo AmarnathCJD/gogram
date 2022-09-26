@@ -255,6 +255,14 @@ type (
 		MinDate  int32          `json:"min_date,omitempty"`
 	}
 
+	InviteLinkOptions struct {
+		LegacyRevokePermanent bool   `json:"legacy_revoke_permanent,omitempty"`
+		Expire                int32  `json:"expire,omitempty"`
+		Limit                 int32  `json:"limit,omitempty"`
+		Title                 string `json:"title,omitempty"`
+		RequestNeeded         bool   `json:"request_needed,omitempty"`
+	}
+
 	TitleOptions struct {
 		LastName string `json:"last_name,omitempty"`
 		About    string `json:"about,omitempty"`

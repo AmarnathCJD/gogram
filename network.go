@@ -138,7 +138,7 @@ func (m *MTProto) AddCustomServerRequestHandler(handler customHandlerFunc) {
 }
 
 func (m *MTProto) SaveSession() (err error) {
-	return m.tokensStorage.Store(&session.Session{
+	return m.sessionStorage.Store(&session.Session{
 		Key:      m.authKey,
 		Hash:     m.authKeyHash,
 		Salt:     m.serverSalt,

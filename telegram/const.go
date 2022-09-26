@@ -6,6 +6,8 @@ const (
 	ApiVersion = 146
 	Version    = "v0.2.9-beta"
 
+	DefaultDC = 4
+
 	MarkDown   string = "Markdown"
 	HTML       string = "HTML"
 	MarkDownV2 string = "MarkdownV2"

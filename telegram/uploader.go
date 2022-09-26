@@ -75,7 +75,7 @@ func (c *Client) UploadFile(file interface{}, Opts ...*UploadOptions) (InputFile
 	Prog.Total = int64(totalParts)
 	log.Println("Client - INFO - Uploading file", fileName, "with", totalParts, "parts of", chunkSize, "bytes")
 	if opts.Threaded && bigFile {
-		return c.uploadBigMultiThread(fileName, int(fileSize), fileID, fileBytes, int32(chunkSize), totalParts, opts.Progress, opts.Threads)
+		return c.uploadBigMultiThread(fileName, int(fileSize), fileID, fileBytes, int32(chunkSize), totalParts, Prog, opts.Threads)
 	}
 	buffer := make([]byte, chunkSize)
 	for {

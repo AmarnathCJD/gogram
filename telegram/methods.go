@@ -3,7 +3,6 @@ package telegram
 import (
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -77,24 +76,7 @@ func (c *Client) SendMessage(peerID interface{}, TextObj interface{}, Opts ...*S
 		ClearDraft:   options.ClearDraft,
 	})
 	if err != nil {
-		c.Logger.Println("Error sending message: ", err)
-		if strings.Contains(err.Error(), "ENTITY_BOUNDS_INVALID") {
-			Update, err = c.MessagesSendMessage(&MessagesSendMessageParams{
-				Peer:         PeerToSend,
-				Message:      Text,
-				RandomID:     GenRandInt(),
-				ReplyToMsgID: options.ReplyID,
-				Entities:     []MessageEntity{},
-				ReplyMarkup:  options.ReplyMarkup,
-				NoWebpage:    options.LinkPreview,
-				Silent:       options.Silent,
-				ClearDraft:   options.ClearDraft,
-				ScheduleDate: options.ScheduleDate,
-				SendAs:       options.SendAs,
-			})
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
 	return packMessage(c, processUpdate(Update)), err
 }
@@ -698,8 +680,8 @@ func (c *Client) KickParticipant(PeerID interface{}, UserID interface{}) (bool, 
 	return true, nil
 }
 
-func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...TitleOptions) (bool, error) {
-	var options TitleOptions
+func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...*TitleOptions) (bool, error) {
+	options := &TitleOptions{}
 	if len(Opts) > 0 {
 		options = Opts[0]
 	}
@@ -730,13 +712,11 @@ func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...TitleOption
 // if IDs are not specifed - MessagesSearch is used.
 func (c *Client) GetMessages(PeerID interface{}, Options ...*SearchOption) ([]NewMessage, error) {
 	var (
-		Opts *SearchOption
+		Opts = &SearchOption{}
 		err  error
 	)
 	if len(Options) > 0 {
 		Opts = Options[0]
-	} else {
-		Opts = &SearchOption{}
 	}
 	PeerToSend, err := c.GetSendablePeer(PeerID)
 	if err != nil {
@@ -870,12 +850,9 @@ func (c *Client) GetMessages(PeerID interface{}, Options ...*SearchOption) ([]Ne
 }
 
 func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
-	var Options *DialogOptions
+	Options := &DialogOptions{}
 	if len(Opts) > 0 {
 		Options = Opts[0]
-	}
-	if Options == nil {
-		Options = &DialogOptions{}
 	}
 	if Options.Limit > 1000 {
 		Options.Limit = 1000
@@ -905,17 +882,48 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 	}
 }
 
+// GetStats returns the stats of the channel or message
+//  Params:
+//   - channelID: the channel ID
+//   - messageID: the message ID
+func (c *Client) GetStats(channelID interface{}, messageID ...interface{}) (*StatsBroadcastStats, *StatsMessageStats, error) {
+	peerID, err := c.GetSendablePeer(channelID)
+	if err != nil {
+		return nil, nil, err
+	}
+	channelPeer, ok := peerID.(*InputPeerChannel)
+	if !ok {
+		return nil, nil, errors.New("could not convert peer to channel")
+	}
+	if len(messageID) > 0 {
+		msgID := messageID[0].(int32)
+		resp, err := c.StatsGetMessageStats(true, &InputChannelObj{
+			ChannelID:  channelPeer.ChannelID,
+			AccessHash: channelPeer.AccessHash,
+		}, msgID)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, resp, nil
+	}
+	resp, err := c.StatsGetBroadcastStats(true, &InputChannelObj{
+		ChannelID:  channelPeer.ChannelID,
+		AccessHash: channelPeer.AccessHash,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, nil, nil
+}
+
 func (c *Client) PinMessage(PeerID interface{}, MsgID int32, Opts ...*PinOptions) (Updates, error) {
 	PeerToSend, err := c.GetSendablePeer(PeerID)
 	if err != nil {
 		return nil, err
 	}
-	var Options *PinOptions
+	Options := &PinOptions{}
 	if len(Opts) > 0 {
 		Options = Opts[0]
-	}
-	if Options == nil {
-		Options = &PinOptions{}
 	}
 	resp, err := c.MessagesUpdatePinnedMessage(&MessagesUpdatePinnedMessageParams{
 		Peer:      PeerToSend,
@@ -942,17 +950,20 @@ func (c *Client) UnPinAll(PeerID interface{}) error {
 	return nil
 }
 
-func (c *Client) GetProfilePhotos(PeerID interface{}, Opts ...*PhotosOptions) ([]Photo, error) {
-	PeerToSend, err := c.GetSendablePeer(PeerID)
+// GetProfilePhotos returns the profile photos of a user
+//  Params:
+//   - userID: The user ID
+//   - Offset: The offset to start from
+//   - Limit: The number of photos to return
+//   - MaxID: The maximum ID of the photo to return
+func (c *Client) GetProfilePhotos(userID interface{}, Opts ...*PhotosOptions) ([]Photo, error) {
+	PeerToSend, err := c.GetSendablePeer(userID)
 	if err != nil {
 		return nil, err
 	}
-	var Options *PhotosOptions
+	Options := &PhotosOptions{}
 	if len(Opts) > 0 {
 		Options = Opts[0]
-	}
-	if Options == nil {
-		Options = &PhotosOptions{}
 	}
 	if Options.Limit > 80 {
 		Options.Limit = 80
@@ -984,11 +995,15 @@ func (c *Client) GetProfilePhotos(PeerID interface{}, Opts ...*PhotosOptions) ([
 	}
 }
 
-func (c *Client) GetChatPhotos(ChatID interface{}, limit ...int32) ([]Photo, error) {
+// GetChatPhotos returns the profile photos of a chat
+//  Params:
+//   - chatID: The ID of the chat
+//   - limit: The maximum number of photos to be returned
+func (c *Client) GetChatPhotos(chatID interface{}, limit ...int32) ([]Photo, error) {
 	if limit == nil {
 		limit = []int32{1}
 	}
-	messages, err := c.GetMessages(ChatID, &SearchOption{Limit: limit[0],
+	messages, err := c.GetMessages(chatID, &SearchOption{Limit: limit[0],
 		Filter: &InputMessagesFilterChatPhotos{}})
 	if err != nil {
 		return nil, err
@@ -1005,8 +1020,11 @@ func (c *Client) GetChatPhotos(ChatID interface{}, limit ...int32) ([]Photo, err
 	return photos, nil
 }
 
-func (c *Client) GetChatPhoto(ChatID interface{}) (Photo, error) {
-	photos, err := c.GetChatPhotos(ChatID)
+// GetChatPhoto returns the chat photo
+//  Params:
+//   - chatID: chat id
+func (c *Client) GetChatPhoto(chatID interface{}) (Photo, error) {
+	photos, err := c.GetChatPhotos(chatID)
 	if err != nil {
 		return &PhotoObj{}, err
 	}
@@ -1016,15 +1034,19 @@ func (c *Client) GetChatPhoto(ChatID interface{}) (Photo, error) {
 	return &PhotoObj{}, nil
 }
 
-func (c *Client) InlineQuery(PeerID interface{}, Options ...*InlineOptions) (*MessagesBotResults, error) {
-	var Opts *InlineOptions
+// InlineQuery performs an inline query and returns the results.
+//  Params:
+//    - peerID: The ID of the Inline Bot.
+//    - Query: The query to send.
+//    - Offset: The offset to send.
+//    - Dialog: The chat or channel to send the query to.
+//    - GeoPoint: The location to send.
+func (c *Client) InlineQuery(peerID interface{}, Options ...*InlineOptions) (*MessagesBotResults, error) {
+	Opts := &InlineOptions{}
 	if len(Options) > 0 {
 		Opts = Options[0]
 	}
-	if Opts == nil {
-		Opts = &InlineOptions{}
-	}
-	PeerBot, err := c.GetSendablePeer(PeerID)
+	PeerBot, err := c.GetSendablePeer(peerID)
 	var Peer InputPeer
 	if Opts.Dialog != nil {
 		Peer, err = c.GetSendablePeer(Opts.Dialog)
@@ -1056,6 +1078,9 @@ func (c *Client) InlineQuery(PeerID interface{}, Options ...*InlineOptions) (*Me
 	return m, nil
 }
 
+// JoinChannel joins a channel or chat by its username or id
+//  Params:
+//  - Channel: the username or id of the channel or chat
 func (c *Client) JoinChannel(Channel interface{}) error {
 	switch p := Channel.(type) {
 	case string:
@@ -1085,4 +1110,74 @@ func (c *Client) JoinChannel(Channel interface{}) error {
 		}
 	}
 	return nil
+}
+
+// LeaveChannel leaves a channel or chat
+//  Params:
+//   - Channel: Channel or chat to leave
+//   - Revoke: If true, the channel will be deleted
+func (c *Client) LeaveChannel(Channel interface{}, Revoke ...bool) error {
+	revokeChat := false
+	if len(Revoke) > 0 {
+		revokeChat = Revoke[0]
+	}
+	Channel, err := c.GetSendablePeer(Channel)
+	if err != nil {
+		return err
+	}
+	if channel, ok := Channel.(*InputPeerChannel); ok {
+		_, err = c.ChannelsLeaveChannel(&InputChannelObj{ChannelID: channel.ChannelID, AccessHash: channel.AccessHash})
+		if err != nil {
+			return err
+		}
+	} else if channel, ok := Channel.(*InputPeerChat); ok {
+		_, err = c.MessagesDeleteChatUser(revokeChat, channel.ChatID, &InputUserEmpty{})
+		if err != nil {
+			return err
+		}
+	} else {
+		return errors.New("peer is not a channel or chat")
+	}
+	return nil
+}
+
+// GetChatInviteLink returns the invite link of a chat
+//  Params:
+//   - peerID : The ID of the chat
+//   - LegacyRevoke : If true, the link will be revoked
+//   - Expire: The time in seconds after which the link will expire
+//   - Limit: The maximum number of users that can join the chat using the link
+//   - Title: The title of the link
+//   - RequestNeeded: If true, join requests will be needed to join the chat
+func (c *Client) GetChatInviteLink(peerID interface{}, LinkOpts ...*InviteLinkOptions) (ExportedChatInvite, error) {
+	LinkOptions := &InviteLinkOptions{}
+	if len(LinkOpts) > 0 {
+		LinkOptions = LinkOpts[0]
+	}
+	peer, err := c.GetSendablePeer(peerID)
+	if err != nil {
+		return nil, err
+	}
+	link, err := c.MessagesExportChatInvite(&MessagesExportChatInviteParams{
+		Peer:                  peer,
+		LegacyRevokePermanent: LinkOptions.LegacyRevokePermanent,
+		RequestNeeded:         LinkOptions.RequestNeeded,
+		UsageLimit:            LinkOptions.Limit,
+		Title:                 LinkOptions.Title,
+		ExpireDate:            LinkOptions.Expire,
+	})
+	return link, err
+}
+
+// GetCustomEmoji gets the document of a custom emoji
+//  Params:
+//   - docIDs: the document id of the emoji
+func (c *Client) GetCustomEmoji(docIDs ...int64) ([]Document, error) {
+	var em []int64
+	em = append(em, docIDs...)
+	emojis, err := c.MessagesGetCustomEmojiDocuments(em)
+	if err != nil {
+		return nil, err
+	}
+	return emojis, nil
 }

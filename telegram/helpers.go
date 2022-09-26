@@ -41,6 +41,13 @@ func getStr(a string, b string) string {
 	return a
 }
 
+func getInt(a int, b int) int {
+	if a == 0 {
+		return b
+	}
+	return a
+}
+
 func PathIsWritable(path string) bool {
 	file, err := os.OpenFile(path, os.O_WRONLY, 0666)
 	if err != nil {
