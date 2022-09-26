@@ -171,6 +171,8 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 		MemorySession: false,
 	}
 	sender, _ := NewMTProto(cfg)
+        sender.serverRequestHandlers = m.serverRequestHandlers
+        m.stopRoutines()
 	m.Logger.Println("User Migrated to DC", dc)
 	err := sender.CreateConnection(true)
 	if err != nil {
