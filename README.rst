@@ -41,7 +41,7 @@ SetUp Client
     client, _ := telegram.TelegramClient(telegram.ClientConfig{
          AppID: 6,
          AppHash: "",
-         DataCenter: 2,
+         ParseMode: "HTML",
     })
     client.LoginBot(botToken)
     // client.Login(phoneNumber)
@@ -89,6 +89,9 @@ Doing stuff
     client.InlineQuery("@pic", &telegram.InlineOptions{Query: "", Dialog: "@chat"})
     client.GetChatPhotos(chatID)
     client.GetDialogs()
+    client.GetStats("channel")
+    
+    client.GetCustomEmoji("documentID")
 
 
     
@@ -98,11 +101,13 @@ TODO
 ----------
 
 - ✔️ Basic MTProto implementation
-- ✔️ Implement all Methods for latest layer (144)
+- ✔️ Implement all Methods for latest layer (146)
 - ✔️ Entity Cache + Friendly Methods
 - ✔️ Add Update Handle System
-- 📝 Make a reliable HTML Parser
+- ✔️ Make a reliable HTML Parser
 - ✔️ Friendly Methods to Handle CallbackQuery, VoiceCalls
+- 📝 Fix File handling
+- 📝 Write beautiful Docs
 - 📝 Multiple tests
 - 📝 Add more examples
 
