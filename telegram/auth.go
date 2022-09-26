@@ -120,6 +120,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 						return false, err
 					}
 				} else if matchError(err, "The code is valid but no user with the given number") {
+					c.AcceptTOS()
 					_, err = c.AuthSignUp(phoneNumber, opts.CodeHash, opts.FirstName, opts.LastName)
 					if err != nil {
 						return false, err
