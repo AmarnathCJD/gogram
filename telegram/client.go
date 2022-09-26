@@ -3,7 +3,6 @@
 package telegram
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -65,16 +64,19 @@ type (
 //
 func TelegramClient(c ClientConfig) (*Client, error) {
 	c.SessionFile = getStr(c.SessionFile, filepath.Join(workDirectory(), "session.session"))
-	dcID, _ := strconv.Atoi(getStr(fmt.Sprint(c.DataCenter), "4"))
+	dcID := getInt(c.DataCenter, DefaultDC)
 	publicKeys, err := keys.GetRSAKeys()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading public keys")
+	}
+	if c.AppID == 0 || c.AppHash == "" {
+		return nil, errors.New("Your API ID or Hash cannot be empty or None. Please get your own API ID and Hash from https://my.telegram.org/apps")
 	}
 	mtproto, err := mtproto.NewMTProto(mtproto.Config{
 		AuthKeyFile:   c.SessionFile,
 		ServerHost:    GetHostIp(dcID),
 		PublicKey:     publicKeys[0],
-		DataCenter:    c.DataCenter,
+		DataCenter:    dcID,
 		AppID:         int32(c.AppID),
 		StringSession: c.StringSession,
 	})
@@ -135,30 +137,24 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 	return client, nil
 }
 
-func (c *Client) SwitchDC(dcID int) (*Client, error) {
-	sender, err := c.MTProto.ExportNewSender(dcID, false)
+func (c *Client) SwitchDC(dcID int) error {
+	sender, err := c.MTProto.ReconnectToNewDC(dcID)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	senderClient := &Client{
-		MTProto:   sender,
-		config:    c.config,
-		ParseMode: c.ParseMode,
-	}
-
-	_, InvokeErr := senderClient.InvokeWithLayer(ApiVersion, &InitConnectionParams{
-		ApiID:          int32(c.AppID),
-		DeviceModel:    "iPhone X",
-		SystemVersion:  getStr("", runtime.GOOS+" "+runtime.GOARCH),
-		AppVersion:     getStr("", "v1.0.0"),
+	c.MTProto = sender
+	if _, err = c.InvokeWithLayer(ApiVersion, &InitConnectionParams{
+		ApiID:          c.AppID,
+		DeviceModel:    "Gogram",
+		SystemVersion:  runtime.GOOS + " " + runtime.GOARCH,
+		AppVersion:     Version,
 		SystemLangCode: "en",
 		LangCode:       "en",
 		Query:          &HelpGetConfigParams{},
-	})
-	if InvokeErr != nil {
-		return nil, InvokeErr
+	}); err != nil {
+		return err
 	}
-	return senderClient, nil
+	return nil
 }
 
 func (c *Client) ExportSender(dcID int) (*Client, error) {
@@ -166,41 +162,44 @@ func (c *Client) ExportSender(dcID int) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	senderClient := &Client{
+	client := &Client{
 		MTProto:   sender,
 		config:    c.config,
 		ParseMode: c.ParseMode,
 	}
-
-	_, InvokeErr := senderClient.InvokeWithLayer(ApiVersion, &InitConnectionParams{
-		ApiID:          int32(c.AppID),
-		DeviceModel:    "iPhone X",
-		SystemVersion:  getStr("", runtime.GOOS+" "+runtime.GOARCH),
-		AppVersion:     getStr("", "v1.0.0"),
+	_, e := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
+		ApiID:          c.AppID,
+		DeviceModel:    "Gogram",
+		SystemVersion:  runtime.GOOS + " " + runtime.GOARCH,
+		AppVersion:     Version,
 		SystemLangCode: "en",
 		LangCode:       "en",
 		Query:          &HelpGetConfigParams{},
 	})
-	if InvokeErr != nil {
-		return nil, InvokeErr
+	if e != nil {
+		return nil, e
 	}
-	if c.MTProto.Addr != senderClient.MTProto.Addr {
+	if c.MTProto.Addr != client.MTProto.Addr {
 		authExport, err := c.AuthExportAuthorization(int32(dcID))
 		if err != nil {
 			return nil, err
 		}
-		_, err = senderClient.AuthImportAuthorization(authExport.ID, authExport.Bytes)
+		_, err = client.AuthImportAuthorization(authExport.ID, authExport.Bytes)
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	return senderClient, nil
+	return client, nil
 }
 
-func (c *Client) IsUserAuthorized() bool {
+func (c *Client) IsUserAuthorized() (bool, error) {
 	_, err := c.UpdatesGetState()
-	return err == nil
+	return err == nil, err
+}
+
+func (c *Client) IsConnected() bool {
+	// TODO: implement
+	return true
 }
 
 func (c *Client) Close() {

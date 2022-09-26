@@ -7,6 +7,7 @@ import "errors"
 type SessionLoader interface {
 	Load() (*Session, error)
 	Store(*Session) error
+	Path() string
 }
 
 // Sesion is a basic data of specific session. Typically, session stores default hostname of mtproto server

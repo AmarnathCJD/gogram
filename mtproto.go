@@ -53,7 +53,7 @@ type MTProto struct {
 	seqNo      int32
 	dclist     map[int]string
 
-	tokensStorage session.SessionLoader
+	sessionStorage session.SessionLoader
 
 	PublicKey *rsa.PublicKey
 
@@ -96,13 +96,14 @@ func NewMTProto(c Config) (*MTProto, error) {
 	}
 	var encrypted bool
 	if s != nil {
+		c.ServerHost = s.Hostname
 		encrypted = true
 	} else if c.StringSession != "" {
 		encrypted = true
 	}
 
 	m := &MTProto{
-		tokensStorage:         c.SessionStorage,
+		sessionStorage:        c.SessionStorage,
 		Addr:                  c.ServerHost,
 		encrypted:             encrypted,
 		sessionId:             utils.GenerateSessionID(),
@@ -158,6 +159,26 @@ func (m *MTProto) GetDC() int {
 	return 4
 }
 
+func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
+	newAddr := utils.DcList[dc]
+	os.Remove(m.sessionStorage.Path())
+	cfg := Config{
+		AppID:         m.AppID,
+		DataCenter:    dc,
+		PublicKey:     m.PublicKey,
+		ServerHost:    newAddr,
+		AuthKeyFile:   m.sessionStorage.Path(),
+		MemorySession: false,
+	}
+	sender, _ := NewMTProto(cfg)
+	m.Logger.Println("User Migrated to DC", dc)
+	err := sender.CreateConnection(true)
+	if err != nil {
+		return nil, fmt.Errorf("creating connection: %w", err)
+	}
+	return sender, nil
+}
+
 func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 	newAddr := utils.DcList[dcID]
 	cfg := Config{
@@ -169,7 +190,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		MemorySession: mem,
 	}
 	if dcID == m.GetDC() {
-		cfg.SessionStorage = m.tokensStorage
+		cfg.SessionStorage = m.sessionStorage
 	}
 	sender, _ := NewMTProto(cfg)
 	m.Logger.Println("Exporting new sender for DC", dcID)
@@ -243,17 +264,15 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	}
 
 	response := <-resp
-
 	switch r := response.(type) {
 	case *objects.RpcError:
-		realErr := RpcErrorToNative(r)
-
-		err = m.tryToProcessErr(realErr.(*ErrResponseCode))
-		if err != nil {
-			return nil, err
+		realErr := RpcErrorToNative(r).(*ErrResponseCode)
+		if strings.Contains(realErr.Message, "FLOOD_WAIT_") {
+			m.Logger.Printf("Flood wait detected on %s, retrying in %d seconds", strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", ""), realErr.AdditionalInfo.(int))
+			time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
+			return m.makeRequest(data, expectedTypes...)
 		}
-
-		return m.makeRequest(data, expectedTypes...)
+		return nil, realErr
 
 	case *errorSessionConfigsChanged:
 		return m.makeRequest(data, expectedTypes...)
@@ -335,7 +354,6 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 	m.routineswg.Add(1)
 	go func() {
 		defer m.routineswg.Done()
-
 		for {
 			select {
 			case <-ctx.Done():
@@ -498,21 +516,6 @@ messageTypeSwitching:
 	}
 
 	return nil
-}
-
-func (m *MTProto) tryToProcessErr(e *ErrResponseCode) error {
-	if e.Code == 303 && strings.Contains(e.Message, "PHONE_MIGRATE_") {
-		newDc := e.AdditionalInfo.(int)
-		m.Logger.Printf("Phone migrated to %v", newDc)
-		return m.SwitchDC(newDc)
-	} else if e.Code == 303 && strings.Contains(e.Message, "USER_MIGRATE_") {
-		// newDc := e.AdditionalInfo.(int)
-		// m.Logger.Printf("User migrated to %v", newDc)
-		// return m.SwitchDC(newDc)
-		return e
-	} else {
-		return e
-	}
 }
 
 func (m *MTProto) SwitchDC(dc int) error {

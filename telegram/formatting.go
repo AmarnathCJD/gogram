@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf16"
@@ -12,7 +13,7 @@ func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, st
 	if mode == HTML {
 		return c.ParseHtml(message)
 	} else {
-		return c.ParseHtml(MarkdownToHTML(message)) // temporary fix
+		return ParseMarkDown(message)
 	}
 }
 
@@ -204,4 +205,91 @@ func MarkdownToHTML(text string) string {
 		result += string(c)
 	}
 	return result
+}
+
+// In Beta
+func ParseMarkDown(message string) (entities []MessageEntity, finalText string) {
+	// regex of md
+	md := map[string]*regexp.Regexp{
+		"bold":          regexp.MustCompile(`\*([^\*]+)\*`),
+		"italic":        regexp.MustCompile(`_([^_]+)_`),
+		"underline":     regexp.MustCompile(`\+([^+]+)\+`),
+		"strikethrough": regexp.MustCompile(`~([^~]+)~`),
+		"code":          regexp.MustCompile("`([^`]+)`"),
+		"pre":           regexp.MustCompile("```([^`]+)```"),
+		"spoiler":       regexp.MustCompile(`\|([^|]+)\|`),
+		"link":          regexp.MustCompile(`\[([^\]]+)\]\(([^\)]+)\)`),
+	}
+
+	var e []MessageEntity
+	var text string
+	var offset int32
+	var length int32
+
+	// bold
+	for _, match := range md["bold"].FindAllStringSubmatch(message, -1) {
+		text = match[1]
+		message = strings.Replace(message, match[0], text, 1)
+		offset = Index(message, text)
+		length = int32(len(utf16.Encode([]rune(text))))
+		e = append(e, &MessageEntityBold{offset, length})
+
+	}
+	// italic
+	for _, match := range md["italic"].FindAllStringSubmatch(message, -1) {
+		text = match[1]
+		offset = Index(message, match[0])
+		length = int32(len(utf16.Encode([]rune(text))))
+		e = append(e, &MessageEntityItalic{offset, length})
+		message = strings.Replace(message, match[0], text, 1)
+	}
+	// underline
+	for _, match := range md["underline"].FindAllStringSubmatch(message, -1) {
+		text = match[1]
+		offset = Index(message, match[0])
+		length = int32(len(utf16.Encode([]rune(text))))
+		e = append(e, &MessageEntityUnderline{offset, length})
+		message = strings.Replace(message, match[0], text, 1)
+	}
+	// strikethrough
+	for _, match := range md["strikethrough"].FindAllStringSubmatch(message, -1) {
+		text = match[1]
+		offset = Index(message, match[0])
+		length = int32(len(utf16.Encode([]rune(text))))
+		e = append(e, &MessageEntityStrike{offset, length})
+		message = strings.Replace(message, match[0], text, 1)
+	}
+	// code
+	for _, match := range md["code"].FindAllStringSubmatch(message, -1) {
+		text = match[1]
+		offset = Index(message, match[0])
+		length = int32(len(utf16.Encode([]rune(text))))
+		e = append(e, &MessageEntityCode{offset, length})
+		message = strings.Replace(message, match[0], text, 1)
+	}
+	// pre
+	for _, match := range md["pre"].FindAllStringSubmatch(message, -1) {
+		text = match[1]
+		offset = Index(message, match[0])
+		length = int32(len(utf16.Encode([]rune(text))))
+		e = append(e, &MessageEntityPre{offset, length, "go"})
+		message = strings.Replace(message, match[0], text, 1)
+	}
+	// spoiler
+	for _, match := range md["spoiler"].FindAllStringSubmatch(message, -1) {
+		text = match[1]
+		offset = Index(message, match[0])
+		length = int32(len(utf16.Encode([]rune(text))))
+		e = append(e, &MessageEntitySpoiler{offset, length})
+		message = strings.Replace(message, match[0], text, 1)
+	}
+	// link
+	for _, match := range md["link"].FindAllStringSubmatch(message, -1) {
+		text = match[1]
+		message = strings.Replace(message, match[0], text, 1)
+		offset = Index(message, text)
+		length = int32(len(utf16.Encode([]rune(text))))
+		e = append(e, &MessageEntityTextURL{offset, length, match[2]})
+	}
+	return e, message
 }

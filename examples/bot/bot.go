@@ -17,7 +17,6 @@ func main() {
 	client, err := telegram.TelegramClient(telegram.ClientConfig{
 		AppID:         appID,
 		AppHash:       appHash,
-		DataCenter:    5,  // Working on a fix for this, (This should be acurate)
 		StringSession: "", // (if this value is specified, client.Login is not Necessary.)
 	})
 

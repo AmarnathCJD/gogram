@@ -24,7 +24,7 @@ type (
 
 var (
 	MimeTypes = []Mime{
-		{".3gp", "video/3gpp"}, {".7z", "application/x-7z-compressed"}, {".aac", "audio/x-aac"}, {".apk", "application/vnd.android.package-archive"},
+		{".3gp", "video/3gpp"}, {".7z", "application/x-7z-compressed"}, {".aac", "audio/x-aac"},
 		{".abw", "application/x-abiword"}, {".arc", "application/x-freearc"}, {".avi", "video/x-msvideo"},
 		{".azw", "application/vnd.amazon.ebook"}, {".bin", "application/octet-stream"}, {".bmp", "image/bmp"},
 		{".bz", "application/x-bzip"}, {".bz2", "application/x-bzip2"}, {".csh", "application/x-csh"},
@@ -49,9 +49,30 @@ var (
 		{".webp", "image/webp"}, {".woff", "font/woff"}, {".woff2", "font/woff2"},
 		{".xhtml", "application/xhtml+xml"}, {".xls", "application/vnd.ms-excel"}, {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
 		{".xml", "application/xml"}, {".xul", "application/vnd.mozilla.xul+xml"}, {".zip", "application/zip"},
-		{".3gp", "video/3gpp"}, {".3g2", "video/3gpp2"}, {".7z", "application/x-7z-compressed"}, {".tgs", "application/x-tgsticker"},
+		{".3gp", "video/3gpp"}, {".3g2", "video/3gpp2"}, {".7z", "application/x-7z-compressed"}, {".tgs", "application/x-tgsticker"}, {".apk", "application/vnd.android.package-archive"},
 	}
 )
+
+func getErrorCode(err error) (int, int) {
+	datacenter := 0
+	code := 0
+	if err != nil {
+		if re := regexp.MustCompile(`DC (\d+)`); re.MatchString(err.Error()) {
+			datacenter, _ = strconv.Atoi(re.FindStringSubmatch(err.Error())[1])
+		}
+		if re := regexp.MustCompile(`code (\d+)`); re.MatchString(err.Error()) {
+			code, _ = strconv.Atoi(re.FindStringSubmatch(err.Error())[1])
+		}
+	}
+	return datacenter, code
+}
+
+func matchError(err error, str string) bool {
+	if err != nil {
+		return strings.Contains(err.Error(), str)
+	}
+	return false
+}
 
 func resolveMimeType(filePath string) (string, bool) {
 	file, err := os.Open(filePath)

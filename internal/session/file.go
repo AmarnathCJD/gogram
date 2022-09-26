@@ -29,6 +29,10 @@ func NewFromFile(path string) SessionLoader {
 	return &genericFileSessionLoader{path: path}
 }
 
+func (l *genericFileSessionLoader) Path() string {
+	return l.path
+}
+
 func (l *genericFileSessionLoader) Load() (*Session, error) {
 	info, err := os.Stat(l.path)
 	switch {
