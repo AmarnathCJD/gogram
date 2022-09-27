@@ -161,7 +161,7 @@ func (m *MTProto) GetDC() int {
 
 func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	newAddr := utils.DcList[dc]
-	os.Remove(m.sessionStorage.Path())
+	m.sessionStorage.Delete()
 	cfg := Config{
 		AppID:         m.AppID,
 		DataCenter:    dc,

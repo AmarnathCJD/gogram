@@ -6,10 +6,12 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/base64"
 	"fmt"
 	"hash"
 	"math/big"
 	"math/rand"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -190,13 +192,175 @@ func (c *Client) AcceptTOS() (bool, error) {
 	}
 }
 
-func (c *Client) Edit2FA() {
-	// TODO: Implement
+func (c *Client) Edit2FA(currPwd string, newPwd string, opts ...*PasswordOptions) (bool, error) {
+	if currPwd == "" && newPwd == "" {
+		return false, errors.New("current password and new password both cannot be empty")
+	}
+	opt := &PasswordOptions{}
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
+	if opt.Email != "" && opt.EmailCodeCallback == nil {
+		return false, errors.New("email present without email_code_callback")
+	}
+	pwd, err := c.AccountGetPassword()
+	if err != nil {
+		return false, err
+	}
+	b := make([]byte, 32)
+	_, err = rand.Read(b)
+	if err != nil {
+		return false, err
+	}
+	// add random bytes to the end of the password
+	pwd.NewAlgo.(*PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow).Salt1 = append(pwd.NewAlgo.(*PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow).Salt1, b...)
+	if !pwd.HasPassword && currPwd != "" {
+		currPwd = ""
+	}
+	var password InputCheckPasswordSRP
+	var newPasswordHash []byte
+	if currPwd != "" {
+		password, err = GetInputCheckPassword(currPwd, pwd)
+		if err != nil {
+			return false, err
+		}
+	} else {
+		password = &InputCheckPasswordEmpty{}
+	}
+	if newPwd != "" {
+		newPasswordHash = computeDigest(pwd.NewAlgo.(*PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow), newPwd)
+	} else {
+		newPasswordHash = []byte{}
+	}
+	_, err = c.AccountUpdatePasswordSettings(password, &AccountPasswordInputSettings{
+		NewAlgo:           pwd.NewAlgo,
+		NewPasswordHash:   newPasswordHash,
+		Hint:              opt.Hint,
+		Email:             opt.Email,
+		NewSecureSettings: &SecureSecretSettings{},
+	})
+	if err != nil {
+		if matchError(err, "Email unconfirmed") {
+			if opt.EmailCodeCallback == nil {
+				return false, errors.New("email_code_callback is nil")
+			}
+			code := opt.EmailCodeCallback()
+			_, err = c.AccountConfirmPasswordEmail(code)
+			if err != nil {
+				return false, err
+			}
+		} else {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+type (
+	QrToken struct {
+		// Token is the token to be used for logging in
+		Token []byte
+		// URL is the URL to be used for logging in
+		Url string
+		// ExpiresIn is the time in seconds after which the token will expire
+		ExpiresIn int32
+		// IgnoredIDs are the IDs of the users that will be ignored
+		IgnoredIDs []int64
+		// client is the client to be used for logging in
+		client *Client
+	}
+)
+
+func (q *QrToken) URL() string {
+	return q.Url
+}
+
+func (q *QrToken) TOKEN() []byte {
+	return q.Token
+}
+
+func (q *QrToken) Expires() int32 {
+	return q.ExpiresIn
+}
+
+func (q *QrToken) Recreate() (*QrToken, error) {
+	q, err := q.client.QRLogin(q.IgnoredIDs...)
+	return q, err
+}
+
+func (q *QrToken) Wait(timeOut ...int32) {
+	var timeout int32
+	q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update) error {
+		q.client.RemoveRawHandler(&UpdateLoginToken{})
+		requ, err := q.client.AuthExportLoginToken(q.client.AppID, q.client.ApiHash, q.IgnoredIDs)
+	QrResponseSwitch:
+		switch req := requ.(type) {
+		case *AuthLoginTokenMigrateTo:
+			q.client.SwitchDC(int(req.DcID))
+			requ, err = q.client.AuthImportLoginToken(req.Token)
+			if err != nil {
+				return err
+			}
+			goto QrResponseSwitch
+		case *AuthLoginTokenSuccess:
+			switch u := req.Authorization.(type) {
+			case *AuthAuthorizationObj:
+				switch u := u.User.(type) {
+				case *UserObj:
+					q.client.bot = u.Bot
+					q.client.Cache.UpdateUser(u)
+				case *UserEmpty:
+					return errors.New("authorization user is empty")
+				}
+			}
+		}
+		return err
+	})
+	if len(timeOut) > 0 {
+		timeout = timeOut[0]
+	} else {
+		timeout = q.ExpiresIn
+	}
+	time.Sleep(time.Duration(timeout) * time.Second)
+	q.client.RemoveRawHandler(&UpdateLoginToken{})
+}
+
+func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
+	// Get QR code
+	var ignoreIDs []int64
+	ignoreIDs = append(ignoreIDs, IgnoreIDs...)
+	qr, err := c.AuthExportLoginToken(c.AppID, c.ApiHash, ignoreIDs)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		qrToken   []byte
+		expiresIn int32 = 60
+	)
+	switch qr := qr.(type) {
+	case *AuthLoginTokenMigrateTo:
+		c.SwitchDC(int(qr.DcID))
+		return c.QRLogin(IgnoreIDs...)
+	case *AuthLoginTokenObj:
+		qrToken = qr.Token
+		expiresIn = qr.Expires
+	}
+	// Get QR code URL
+	qrURL := base64.RawURLEncoding.EncodeToString(qrToken)
+	return &QrToken{
+		Token:      qrToken,
+		Url:        fmt.Sprintf("tg://login?token=%s", qrURL),
+		ExpiresIn:  expiresIn,
+		client:     c,
+		IgnoredIDs: ignoreIDs,
+	}, nil
 }
 
 // Logs out from the current account
 func (c *Client) LogOut() error {
 	_, err := c.AuthLogOut()
+	c.bot = false
+	c.MTProto.DeleteSession()
 	return err
 }
 
@@ -214,52 +378,25 @@ func GetInputCheckPasswordAlgo(password string, srpB []byte, mp *ModPow) (*SrpAn
 	return getInputCheckPassword(password, srpB, mp, RandomBytes(randombyteLen))
 }
 
-func getInputCheckPassword(
-	password string,
-	srpB []byte,
-	mp *ModPow,
-	random []byte,
-) (
-	*SrpAnswer, error,
-) {
+func getInputCheckPassword(password string, srpB []byte, mp *ModPow, random []byte) (*SrpAnswer, error) {
 	if password == "" {
 		return nil, nil
 	}
-
 	err := validateCurrentAlgo(srpB, mp)
 	if err != nil {
 		return nil, errors.Wrap(err, "validating CurrentAlgo")
 	}
-
 	p := bytesToBig(mp.P)
 	g := big.NewInt(int64(mp.G))
 	gBytes := pad256(g.Bytes())
-
-	// random 2048-bit number a
 	a := bytesToBig(random)
-
-	// g_a = pow(g, a) mod p
 	ga := pad256(bigExp(g, a, p).Bytes())
-
-	// g_b = srp_B
 	gb := pad256(srpB)
-
-	// u = H(g_a | g_b)
 	u := bytesToBig(calcSHA256(ga, gb))
-
-	// x = PH2(password, salt1, salt2)
 	x := bytesToBig(passwordHash2([]byte(password), mp.Salt1, mp.Salt2))
-
-	// v = pow(g, x) mod p
 	v := bigExp(g, x, p)
-
-	// k = (k * v) mod p
 	k := bytesToBig(calcSHA256(mp.P, gBytes))
-
-	// k_v = (k * v) % p
 	kv := k.Mul(k, v).Mod(k, p)
-
-	// t = (g_b - k_v) % p
 	t := bytesToBig(srpB)
 	if t.Sub(t, kv).Cmp(big.NewInt(0)) == -1 {
 		t.Add(t, p)
@@ -398,4 +535,10 @@ func BytesXor(a, b []byte) []byte {
 		res[i] ^= b[i]
 	}
 	return res
+}
+
+func computeDigest(algo *PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow, password string) []byte {
+	hash := passwordHash2([]byte(password), algo.Salt1, algo.Salt2)
+	value := bigExp(big.NewInt(int64(algo.G)), bytesToBig(hash), bytesToBig(algo.P))
+	return pad256(value.Bytes())
 }

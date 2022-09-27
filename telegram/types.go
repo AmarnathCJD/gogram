@@ -87,11 +87,12 @@ type (
 	}
 
 	LoginOptions struct {
-		Password  string `json:"password,omitempty"`
-		Code      string `json:"code,omitempty"`
-		CodeHash  string `json:"code_hash,omitempty"`
-		FirstName string `json:"first_name,omitempty"`
-		LastName  string `json:"last_name,omitempty"`
+		Password     string        `json:"password,omitempty"`
+		Code         string        `json:"code,omitempty"`
+		CodeHash     string        `json:"code_hash,omitempty"`
+		CodeCallback func() string `json:"-"`
+		FirstName    string        `json:"first_name,omitempty"`
+		LastName     string        `json:"last_name,omitempty"`
 	}
 
 	DownloadOptions struct {
@@ -267,6 +268,13 @@ type (
 		LastName string `json:"last_name,omitempty"`
 		About    string `json:"about,omitempty"`
 	}
+
+	PasswordOptions struct {
+		Hint              string        `json:"hint,omitempty"`
+		Email             string        `json:"email,omitempty"`
+		EmailCodeCallback func() string `json:"email_code_callback,omitempty"`
+	}
+
 	Log struct {
 		Logger *log.Logger
 	}
