@@ -292,7 +292,7 @@ func (q *QrToken) Wait(timeOut ...int32) {
 	var timeout int32
 	q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update) error {
 		q.client.RemoveRawHandler(&UpdateLoginToken{})
-		requ, err := q.client.AuthExportLoginToken(q.client.AppID, q.client.ApiHash, q.IgnoredIDs)
+		requ, err := q.client.AuthImportLoginToken(q.Token)
 	QrResponseSwitch:
 		switch req := requ.(type) {
 		case *AuthLoginTokenMigrateTo:
