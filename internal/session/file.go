@@ -84,6 +84,10 @@ func (l *genericFileSessionLoader) Store(s *Session) error {
 	return ioutil.WriteFile(l.path, encodeBytes(data), 0600)
 }
 
+func (l *genericFileSessionLoader) Delete() error {
+	return os.Remove(l.path)
+}
+
 type tokenStorageFormat struct {
 	Key      string `json:"key"`
 	Hash     string `json:"hash"`

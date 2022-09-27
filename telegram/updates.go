@@ -278,6 +278,14 @@ func (c *Client) AddRawHandler(updateType Update, handler func(m Update) error) 
 	RawHandles = append(RawHandles, RawHandle{updateType, handler, c})
 }
 
+func (c *Client) RemoveRawHandler(updateType Update) {
+	for i, handle := range RawHandles {
+		if reflect.TypeOf(handle.updateType) == reflect.TypeOf(updateType) {
+			RawHandles = append(RawHandles[:i], RawHandles[i+1:]...)
+		}
+	}
+}
+
 func (c *Client) RemoveEventHandler(pattern interface{}) {
 	// TODO: implement
 }

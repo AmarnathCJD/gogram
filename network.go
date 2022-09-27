@@ -146,6 +146,10 @@ func (m *MTProto) SaveSession() (err error) {
 	})
 }
 
+func (m *MTProto) DeleteSession() (err error) {
+	return m.sessionStorage.Delete()
+}
+
 func (m *MTProto) LoadSession(s *session.Session) {
 	m.authKey = s.Key
 	m.authKeyHash = s.Hash
