@@ -30,7 +30,8 @@ type (
 		ParseMode string
 		AppID     int32
 		ApiHash   string
-		L         Log
+		// Custom logger for client
+		L Log
 	}
 
 	ClientConfig struct {

@@ -145,5 +145,5 @@ func (client *Client) GetInputPeer(peer_id int64) (InputPeer, error) {
 			AccessHash: peer.AccessHash,
 		}, nil
 	}
-	return nil, fmt.Errorf("cannot cast %v to any kind of inputpeer", peer_id)
+	return nil, fmt.Errorf("cannot cast %v to any kind of InputPeer", peer_id)
 }
