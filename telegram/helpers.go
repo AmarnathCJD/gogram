@@ -247,6 +247,8 @@ PeerSwitch:
 	case *InputPeer:
 		return *Peer, nil
 		// TODO: Add more types
+	case *InputUserSelf:
+		return &InputPeerSelf{}, nil
 	case *InputUserObj:
 		return &InputPeerUser{UserID: Peer.UserID, AccessHash: Peer.AccessHash}, nil
 	case *ChatObj:
@@ -283,8 +285,16 @@ PeerSwitch:
 		default:
 			return nil, errors.New(fmt.Sprintf("unknown peer type %s", reflect.TypeOf(PeerEntity).String()))
 		}
+	case *ChannelForbidden:
+		return &InputPeerChannel{ChannelID: Peer.ID, AccessHash: Peer.AccessHash}, nil
+	case *ChatForbidden:
+		return &InputPeerChat{ChatID: Peer.ID}, nil
+	case *InputUserFromMessage:
+		return &InputPeerUserFromMessage{Peer: Peer.Peer, MsgID: Peer.MsgID, UserID: Peer.UserID}, nil
+	case *InputChannelFromMessage:
+		return &InputPeerChannelFromMessage{Peer: Peer.Peer, MsgID: Peer.MsgID, ChannelID: Peer.ChannelID}, nil
 	default:
-		return nil, errors.New("failed to get sendable peer")
+		return nil, errors.New("Failed to get sendable peer")
 	}
 }
 

@@ -30,7 +30,6 @@ func (b *CallbackQuery) Answer(Text string, options ...*CallbackOptions) (bool, 
 }
 
 func (b *CallbackQuery) GetMessage() (*NewMessage, error) {
-	fmt.Println("GetMessage:", b.MessageID, b.Peer)
 	m, err := b.Client.GetMessages(b.Peer, &SearchOption{IDs: []int32{b.MessageID}})
 	if err != nil {
 		return nil, err
