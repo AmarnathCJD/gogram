@@ -1,3 +1,5 @@
+// Copyright (c) 2022, amarnathcjd
+
 package telegram
 
 import (
@@ -24,7 +26,7 @@ func HandleMessageUpdateWithDiffrence(update Message, Pts int32, Limit int32) {
 		for _, handle := range MessageHandles {
 			if handle.IsMatch(m.Message) {
 				if err != nil {
-					handle.Client.Logger.Println(err)
+					handle.Client.Logger.Error(err)
 					return
 				} else if msg == nil {
 					return
@@ -36,6 +38,7 @@ func HandleMessageUpdateWithDiffrence(update Message, Pts int32, Limit int32) {
 }
 
 func (c *Client) getDiffrence(Pts int32, Limit int32) (Message, error) {
+	c.Logger.Debug(fmt.Sprintf("Getting diffrence for %d", Pts))
 	updates, err := c.UpdatesGetDifference(Pts-1, Limit, int32(time.Now().Unix()), 0)
 	if err != nil {
 		return nil, err
@@ -62,11 +65,11 @@ func handleMessage(message Message, h MessageHandle) error {
 	m := packMessage(h.Client, message)
 	if h.Filters != nil && h.Filter(m) {
 		if err := h.Handler(m); err != nil {
-			h.Client.L.Error(err)
+			h.Client.Log.Error(err)
 		}
 	} else if h.Filters == nil {
 		if err := h.Handler(m); err != nil {
-			h.Client.L.Error(err)
+			h.Client.Log.Error(err)
 		}
 	}
 	return nil
@@ -83,7 +86,7 @@ func HandleMessageUpdate(update Message) {
 	case *MessageService:
 		for _, handle := range ActionHandles {
 			if err := handle.Handler(packMessage(handle.Client, msg)); err != nil {
-				handle.Client.L.Error(err)
+				handle.Client.Log.Error(err)
 			}
 		}
 	}
@@ -95,7 +98,7 @@ func HandleEditUpdate(update Message) {
 		for _, handle := range MessageEdit {
 			if handle.IsMatch(msg.Message) {
 				if err := handle.Handler(packMessage(handle.Client, msg)); err != nil {
-					handle.Client.L.Error(err)
+					handle.Client.Log.Error(err)
 				}
 			}
 		}
@@ -106,7 +109,7 @@ func HandleInlineUpdate(update *UpdateBotInlineQuery) {
 	for _, handle := range InlineHandles {
 		if handle.IsMatch(update.Query) {
 			if err := handle.Handler(packInlineQuery(handle.Client, update)); err != nil {
-				handle.Client.L.Error(err)
+				handle.Client.Log.Error(err)
 			}
 		}
 	}
@@ -116,7 +119,7 @@ func HandleCallbackUpdate(update *UpdateBotCallbackQuery) {
 	for _, handle := range CallbackHandles {
 		if handle.IsMatch(update.Data) {
 			if err := handle.Handler(packCallbackQuery(handle.Client, update)); err != nil {
-				handle.Client.L.Error(err)
+				handle.Client.Log.Error(err)
 			}
 		}
 	}
@@ -126,7 +129,7 @@ func HandleRawUpdate(update Update) {
 	for _, handle := range RawHandles {
 		if reflect.TypeOf(handle.updateType) == reflect.TypeOf(update) {
 			if err := handle.Handler(update); err != nil {
-				handle.Client.L.Error(err)
+				handle.Client.Log.Error(err)
 			}
 		}
 	}

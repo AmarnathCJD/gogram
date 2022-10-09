@@ -92,7 +92,7 @@ func (b *InlineBuilder) Photo(photo interface{}, options ...*ArticleOptions) Inp
 	} else {
 		opts = ArticleOptions{}
 	}
-	Photo, _ := b.Client.getSendableMedia(photo, &CustomAttrs{})
+	Photo, _ := b.Client.getSendableMedia(photo, &MediaMetadata{})
 	var Image InputPhoto
 PhotoTypeSwitch:
 	switch p := Photo.(type) {
@@ -103,10 +103,10 @@ PhotoTypeSwitch:
 		if err != nil {
 			Image = &InputPhotoEmpty{}
 		}
-		Photo, _ = b.Client.getSendableMedia(media, &CustomAttrs{})
+		Photo, _ = b.Client.getSendableMedia(media, &MediaMetadata{})
 		goto PhotoTypeSwitch
 	default:
-		b.Client.Logger.Println("InlineBuilder.Photo: Photo is not a InputMediaPhoto")
+		b.Client.Logger.Warn("InlineBuilder.Photo: Photo is not a InputMediaPhoto")
 		Image = &InputPhotoEmpty{}
 	}
 	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode).(string))
@@ -148,7 +148,7 @@ func (b *InlineBuilder) Document(document interface{}, options ...*ArticleOption
 	} else {
 		opts = ArticleOptions{}
 	}
-	Document, _ := b.Client.getSendableMedia(document, &CustomAttrs{})
+	Document, _ := b.Client.getSendableMedia(document, &MediaMetadata{})
 	var Doc InputDocument
 DocTypeSwitch:
 	switch p := Document.(type) {
@@ -159,10 +159,10 @@ DocTypeSwitch:
 		if err != nil {
 			Doc = &InputDocumentEmpty{}
 		}
-		Document, _ = b.Client.getSendableMedia(media, &CustomAttrs{})
+		Document, _ = b.Client.getSendableMedia(media, &MediaMetadata{})
 		goto DocTypeSwitch
 	default:
-		b.Client.Logger.Println("InlineBuilder.Document: Document is not a InputMediaDocument")
+		b.Client.Logger.Warn("InlineBuilder.Document: Document is not a InputMediaDocument")
 		Doc = &InputDocumentEmpty{}
 	}
 	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode).(string))

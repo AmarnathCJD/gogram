@@ -27,12 +27,14 @@ func main() {
 		panic(err)
 	}
 
-	// Do something with the client
-	// ...
-	me, err := client.GetMe()
+	dialogs, err := client.GetDialogs()
 	if err != nil {
 		panic(err)
 	}
-	client.SendMessage("me", fmt.Sprintf("Hello, %s!", me.FirstName))
-	fmt.Println("Logged in as", me.Username)
+	for _, dialog := range dialogs {
+		switch d := dialog.(type) {
+		case *telegram.DialogObj:
+			fmt.Println(d.TopMessage)
+		}
+	}
 }

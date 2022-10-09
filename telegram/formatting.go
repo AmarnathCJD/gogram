@@ -9,15 +9,25 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+func parseEntities(text string, parseMode string) (entities []MessageEntity, newText string) {
+	switch parseMode {
+	case HTML:
+		return parseHTML(text)
+	case MarkDown:
+		return parseMarkdown(text)
+	}
+	return []MessageEntity{}, text
+}
+
 func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, string) {
 	if mode == HTML {
-		return c.ParseHtml(message)
+		return parseHTML(message)
 	} else {
-		return ParseMarkDown(message)
+		return parseMarkdown(message)
 	}
 }
 
-func (c *Client) ParseHtml(t string) ([]MessageEntity, string) {
+func parseHTML(t string) ([]MessageEntity, string) {
 	var entities []MessageEntity
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(strings.TrimSpace(t)))
 	if err != nil {
@@ -208,7 +218,7 @@ func MarkdownToHTML(text string) string {
 }
 
 // In Beta
-func ParseMarkDown(message string) (entities []MessageEntity, finalText string) {
+func parseMarkdown(message string) (entities []MessageEntity, finalText string) {
 	// regex of md
 	md := map[string]*regexp.Regexp{
 		"bold":          regexp.MustCompile(`\*([^\*]+)\*`),

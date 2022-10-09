@@ -113,18 +113,22 @@ func mimeIsPhoto(mime string) bool {
 	return strings.HasPrefix(mime, "image/") && !strings.Contains(mime, "image/webp")
 }
 
-func GetInputFileLocation(file interface{}) (InputFileLocation, int32, int64) {
+func getFileLocation(file interface{}) (InputFileLocation, int32, int64, string, error) {
 	var location interface{}
-
-MediaMessageSwitch:
+mediaMessageSwitch:
 	switch f := file.(type) {
+	case *Photo, *Document:
+		location = f
 	case *MessageMediaDocument:
 		location = f.Document
 	case *MessageMediaPhoto:
 		location = f.Photo
 	case *NewMessage:
+		if !f.IsMedia() {
+			return nil, 0, 0, "", errors.New("message is not media")
+		}
 		file = f.Media()
-		goto MediaMessageSwitch
+		goto mediaMessageSwitch
 	case *MessageService:
 		if f.Action != nil {
 			switch f := f.Action.(type) {
@@ -144,9 +148,9 @@ MediaMessageSwitch:
 			}
 		}
 	case *InputPeerPhotoFileLocation:
-		return f, 0, 0
+		return f, 0, 0, "profile_photo.jpg", nil
 	default:
-		return nil, 0, 0
+		return nil, 0, 0, "", errors.New("unsupported file type")
 	}
 	switch l := location.(type) {
 	case *DocumentObj:
@@ -155,22 +159,21 @@ MediaMessageSwitch:
 			AccessHash:    l.AccessHash,
 			FileReference: l.FileReference,
 			ThumbSize:     "",
-		}, l.DcID, l.Size
+		}, l.DcID, l.Size, getFileName(l), nil
 	case *PhotoObj:
-		size, sizeType := photoSizeByteCount(l.Sizes[len(l.Sizes)-1])
+		size, sizeType := getPhotoSize(l.Sizes[len(l.Sizes)-1])
 		return &InputPhotoFileLocation{
 			ID:            l.ID,
 			AccessHash:    l.AccessHash,
 			FileReference: l.FileReference,
 			ThumbSize:     sizeType,
-		}, l.DcID, size
-
+		}, l.DcID, size, getFileName(l), nil
 	default:
-		return nil, 0, 0
+		return nil, 0, 0, "", errors.New("unsupported file type")
 	}
 }
 
-func photoSizeByteCount(sizes PhotoSize) (int64, string) {
+func getPhotoSize(sizes PhotoSize) (int64, string) {
 	switch s := sizes.(type) {
 	case *PhotoSizeObj:
 		return int64(s.Size), s.Type
@@ -203,7 +206,7 @@ func getMax(a []int32) int32 {
 	return max
 }
 
-func isPathDirectoryLike(path string) bool {
+func pathIsDir(path string) bool {
 	return strings.HasSuffix(path, "/") || strings.HasSuffix(path, "\\")
 }
 
@@ -212,7 +215,7 @@ func isPathDirectoryLike(path string) bool {
 //   *MessageMedia
 //   *Document
 //   *Photo
-func GetFileName(f interface{}) string {
+func getFileName(f interface{}) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
 		for _, attr := range f.Document.(*DocumentObj).Attributes {
@@ -262,16 +265,20 @@ func GetFileName(f interface{}) string {
 // Func to get the file size of Media
 //  Accepted types:
 //   *MessageMedia
-func GetFileSize(f interface{}) int64 {
+func getFileSize(f interface{}) int64 {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
 		return f.Document.(*DocumentObj).Size
 	case *MessageMediaPhoto:
-		if len(f.Photo.(*PhotoObj).Sizes) == 0 {
+		if photo, p := f.Photo.(*PhotoObj); p {
+			if len(photo.Sizes) == 0 {
+				return 0
+			}
+			s, _ := getPhotoSize(photo.Sizes[len(photo.Sizes)-1])
+			return s
+		} else {
 			return 0
 		}
-		s, _ := photoSizeByteCount(f.Photo.(*PhotoObj).Sizes[len(f.Photo.(*PhotoObj).Sizes)-1])
-		return s
 	default:
 		return 0
 	}
@@ -282,7 +289,7 @@ func GetFileSize(f interface{}) int64 {
 //   *MessageMedia
 //   *Document
 //   *Photo
-func GetFileExt(f interface{}) string {
+func getFileExt(f interface{}) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
 		doc := f.Document.(*DocumentObj)
@@ -331,27 +338,6 @@ func GetFileExt(f interface{}) string {
 
 func GenerateRandomLong() int64 {
 	return int64(rand.Int31())<<32 | int64(rand.Int31())
-}
-
-func getFileStat(filePath string) (int64, string) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return 0, ""
-	}
-	defer file.Close()
-	fileInfo, _ := file.Stat()
-	return fileInfo.Size(), fileInfo.Name()
-}
-
-func getAppropriatedPartSize(fileSize int64) int {
-	if fileSize < 104857600 {
-		return 128 * 1024
-	} else if fileSize < 786432000 {
-		return 256 * 1024
-	} else if fileSize < 2097152000 {
-		return 256 * 1024
-	}
-	return 0
 }
 
 func getPeerUser(userID int64) *PeerUser {

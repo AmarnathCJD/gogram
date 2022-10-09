@@ -7,7 +7,6 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -31,7 +30,6 @@ var wd, _ = os.Getwd()
 
 type MTProto struct {
 	Addr          string
-	AppID         int32
 	transport     transport.Transport
 	stopRoutines  context.CancelFunc
 	routineswg    sync.WaitGroup
@@ -60,7 +58,7 @@ type MTProto struct {
 	serviceChannel       chan tl.Object
 	serviceModeActivated bool
 
-	Logger *log.Logger
+	Logger *utils.Logger
 
 	serverRequestHandlers []customHandlerFunc
 }
@@ -76,7 +74,7 @@ type Config struct {
 	ServerHost string
 	PublicKey  *rsa.PublicKey
 	DataCenter int
-	AppID      int32
+	LogLevel   string
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -112,8 +110,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		responseChannels:      utils.NewSyncIntObjectChan(),
 		expectedTypes:         utils.NewSyncIntReflectTypes(),
 		serverRequestHandlers: make([]customHandlerFunc, 0),
-		Logger:                log.New(os.Stderr, "MTProto - ", log.LstdFlags),
-		AppID:                 c.AppID,
+		Logger:                utils.NewLogger("MTProto").SetLevel(c.LogLevel),
 		memorySession:         c.MemorySession,
 	}
 	if c.StringSession != "" {
@@ -163,7 +160,6 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	newAddr := utils.DcList[dc]
 	m.sessionStorage.Delete()
 	cfg := Config{
-		AppID:         m.AppID,
 		DataCenter:    dc,
 		PublicKey:     m.PublicKey,
 		ServerHost:    newAddr,
@@ -173,7 +169,7 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	sender, _ := NewMTProto(cfg)
 	sender.serverRequestHandlers = m.serverRequestHandlers
 	m.stopRoutines()
-	m.Logger.Println("User Migrated to DC", dc)
+	m.Logger.Info(fmt.Sprintf("User Migrated to new DC: %d", dc))
 	err := sender.CreateConnection(true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
@@ -184,7 +180,6 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 	newAddr := utils.DcList[dcID]
 	cfg := Config{
-		AppID:         m.AppID,
 		DataCenter:    dcID,
 		PublicKey:     m.PublicKey,
 		ServerHost:    newAddr,
@@ -195,7 +190,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		cfg.SessionStorage = m.sessionStorage
 	}
 	sender, _ := NewMTProto(cfg)
-	m.Logger.Println("Exporting new sender for DC", dcID)
+	m.Logger.Info(fmt.Sprintf("Exporting new sender for DC %d", dcID))
 	err := sender.CreateConnection(true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
@@ -217,14 +212,14 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Printf("Connecting to %s/TcpFull...", m.Addr)
+		m.Logger.Info(fmt.Sprintf("Connecting to %s/TcpFull...", m.Addr))
 	}
 	err := m.connect(ctx)
 	if err != nil {
 		return err
 	}
 	if withLog {
-		m.Logger.Printf("Connection to %s/TcpFull complete!", m.Addr)
+		m.Logger.Info(fmt.Sprintf("Connection to %s/TcpFull complete!", m.Addr))
 	}
 	m.startReadingResponses(ctx)
 
@@ -270,7 +265,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	case *objects.RpcError:
 		realErr := RpcErrorToNative(r).(*ErrResponseCode)
 		if strings.Contains(realErr.Message, "FLOOD_WAIT_") {
-			m.Logger.Printf("Flood wait detected on %s, retrying in %d seconds", strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", ""), realErr.AdditionalInfo.(int))
+			m.Logger.Info(fmt.Sprintf("Flood wait detected on %s, retrying in %d seconds", strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", ""), realErr.AdditionalInfo.(int)))
 			time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
 			return m.makeRequest(data, expectedTypes...)
 		}
@@ -300,7 +295,7 @@ func (m *MTProto) Disconnect() error {
 func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
-	m.Logger.Printf("Disconnecting Borrowed Sender from %s/TcpFull...", m.Addr)
+	m.Logger.Info(fmt.Sprintf("Disconnecting Borrowed Sender from %s/TcpFull...", m.Addr))
 	return nil
 }
 
@@ -310,12 +305,12 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		return errors.Wrap(err, "disconnecting")
 	}
 	if WithLogs {
-		m.Logger.Printf("Reconnecting to %s/TcpFull...", m.Addr)
+		m.Logger.Info(fmt.Sprintf("Reconnecting to %s/TcpFull...", m.Addr))
 	}
 
 	err = m.CreateConnection(WithLogs)
 	if err == nil && WithLogs {
-		m.Logger.Printf("Connected to %s/TcpFull complete!", m.Addr)
+		m.Logger.Info(fmt.Sprintf("Connected to %s/TcpFull complete!", m.Addr))
 	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
@@ -345,7 +340,7 @@ func (m *MTProto) startPinging(ctx context.Context) {
 			case <-ticker.C:
 				_, err := m.ping(0xCADACADA)
 				if err != nil {
-					m.Logger.Printf("ping unsuccessfull: %v", err)
+					m.Logger.Info(fmt.Sprintf("ping unsuccessfull: %v", err))
 				}
 			}
 		}
@@ -369,7 +364,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				case io.EOF:
 					err = m.Reconnect(false)
 					if err != nil {
-						m.Logger.Println("reconnecting error:", err)
+						m.Logger.Error(errors.Wrap(err, "reconnecting"))
 					}
 					return
 
@@ -377,12 +372,11 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					if strings.Contains(err.Error(), "required to reconnect!") {
 						err = m.Reconnect(false)
 						if err != nil {
-
-							m.Logger.Println("reconnecting error:", err)
+							m.Logger.Error(errors.Wrap(err, "reconnecting error"))
 						}
 						return
 					} else {
-						m.Logger.Println("reading error:", err)
+						m.Logger.Error(errors.Wrap(err, "reading message"))
 					}
 				}
 			}
@@ -470,7 +464,7 @@ messageTypeSwitching:
 		if !m.memorySession {
 			err := m.SaveSession()
 			if err != nil {
-				m.Logger.Println(errors.Wrap(err, "saving session"))
+				m.Logger.Error(errors.Wrap(err, "saving session"))
 			}
 		}
 
@@ -506,7 +500,7 @@ messageTypeSwitching:
 			}
 		}
 		if !processed {
-			m.Logger.Println(errors.New("got nonsystem message from server: " + reflect.TypeOf(message).String()))
+			m.Logger.Error(errors.New("got nonsystem message from server: " + reflect.TypeOf(message).String()))
 		}
 	}
 
@@ -527,7 +521,7 @@ func (m *MTProto) SwitchDC(dc int) error {
 	}
 
 	m.Addr = newIP
-	m.Logger.Printf("Reconnecting to new data center %v", dc)
+	m.Logger.Info(fmt.Sprintf("Reconnecting to new data center %v", dc))
 	m.encrypted = false
 	err := m.Reconnect(true)
 	if err != nil {

@@ -486,8 +486,8 @@ func (m *NewMessage) RespondMedia(Media interface{}, Opts ...MediaOptions) (*New
 }
 
 // Delete deletes the message
-func (m *NewMessage) Delete() error {
-	return m.Client.DeleteMessage(m.ChatID(), m.ID)
+func (m *NewMessage) Delete() (*MessagesAffectedMessages, error) {
+	return m.Client.DeleteMessages(m.ChatID(), []int32{m.ID})
 }
 
 // React to a message
@@ -499,12 +499,12 @@ func (m *NewMessage) React(Reaction ...string) error {
 
 // Forward forwards the message to a chat
 func (m *NewMessage) ForwardTo(PeerID interface{}, Opts ...*ForwardOptions) (*NewMessage, error) {
-	resp, err := m.Client.ForwardMessage(m.ChatID(), PeerID, []int32{m.ID}, Opts...)
-	if resp == nil {
+	resps, err := m.Client.Forward(m.ChatID(), PeerID, []int32{m.ID}, Opts...)
+	if resps == nil {
 		return nil, err
 	}
-	resp.Message.PeerID = m.Message.PeerID
-	return resp, err
+	resps[0].Message.PeerID = m.Message.PeerID
+	return &resps[0], err
 }
 
 // Download Media to Disk,
