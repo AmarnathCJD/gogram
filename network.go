@@ -4,7 +4,6 @@ package mtproto
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
@@ -57,7 +56,7 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 
 	err = m.transport.WriteMsg(data, MessageRequireToAck(request))
 	if err != nil {
-		log.Printf("Network - error writing message: %s", err.Error())
+		m.Logger.Error("error writing message: %s", err.Error())
 		return nil, fmt.Errorf("writing message: %w", err)
 	}
 

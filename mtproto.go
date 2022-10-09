@@ -169,7 +169,7 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	sender, _ := NewMTProto(cfg)
 	sender.serverRequestHandlers = m.serverRequestHandlers
 	m.stopRoutines()
-	m.Logger.Info(fmt.Sprintf("User Migrated to new DC: %d", dc))
+	m.Logger.Info("User Migrated to DC: ", dc)
 	err := sender.CreateConnection(true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
@@ -190,7 +190,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		cfg.SessionStorage = m.sessionStorage
 	}
 	sender, _ := NewMTProto(cfg)
-	m.Logger.Info(fmt.Sprintf("Exporting new sender for DC %d", dcID))
+	m.Logger.Info("Exporting new sender for DC %d", dcID)
 	err := sender.CreateConnection(true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
@@ -212,14 +212,14 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Info(fmt.Sprintf("Connecting to %s/TcpFull...", m.Addr))
+		m.Logger.Info("Connecting to %s/TcpFull...", m.Addr)
 	}
 	err := m.connect(ctx)
 	if err != nil {
 		return err
 	}
 	if withLog {
-		m.Logger.Info(fmt.Sprintf("Connection to %s/TcpFull complete!", m.Addr))
+		m.Logger.Info("Connection to %s/TcpFull complete!", m.Addr)
 	}
 	m.startReadingResponses(ctx)
 
@@ -265,7 +265,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	case *objects.RpcError:
 		realErr := RpcErrorToNative(r).(*ErrResponseCode)
 		if strings.Contains(realErr.Message, "FLOOD_WAIT_") {
-			m.Logger.Info(fmt.Sprintf("Flood wait detected on %s, retrying in %d seconds", strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", ""), realErr.AdditionalInfo.(int)))
+			m.Logger.Info("Flood wait detected on %s, retrying in %d seconds", strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", ""), realErr.AdditionalInfo.(int))
 			time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
 			return m.makeRequest(data, expectedTypes...)
 		}
@@ -295,7 +295,7 @@ func (m *MTProto) Disconnect() error {
 func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
-	m.Logger.Info(fmt.Sprintf("Disconnecting Borrowed Sender from %s/TcpFull...", m.Addr))
+	m.Logger.Info("Disconnecting Borrowed Sender from %s/TcpFull...", m.Addr)
 	return nil
 }
 
@@ -305,12 +305,12 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		return errors.Wrap(err, "disconnecting")
 	}
 	if WithLogs {
-		m.Logger.Info(fmt.Sprintf("Reconnecting to %s/TcpFull...", m.Addr))
+		m.Logger.Info("Reconnecting to %s/TcpFull...", m.Addr)
 	}
 
 	err = m.CreateConnection(WithLogs)
 	if err == nil && WithLogs {
-		m.Logger.Info(fmt.Sprintf("Connected to %s/TcpFull complete!", m.Addr))
+		m.Logger.Info("Connected to %s/TcpFull complete!", m.Addr)
 	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
@@ -340,7 +340,7 @@ func (m *MTProto) startPinging(ctx context.Context) {
 			case <-ticker.C:
 				_, err := m.ping(0xCADACADA)
 				if err != nil {
-					m.Logger.Info(fmt.Sprintf("ping unsuccessfull: %v", err))
+					m.Logger.Info("ping unsuccessfull: %v", err)
 				}
 			}
 		}
@@ -511,22 +511,6 @@ messageTypeSwitching:
 		}
 	}
 
-	return nil
-}
-
-func (m *MTProto) SwitchDC(dc int) error {
-	newIP, found := m.dclist[dc]
-	if !found {
-		return fmt.Errorf("DC with id %v not found", dc)
-	}
-
-	m.Addr = newIP
-	m.Logger.Info(fmt.Sprintf("Reconnecting to new data center %v", dc))
-	m.encrypted = false
-	err := m.Reconnect(true)
-	if err != nil {
-		fmt.Println("Reconnect error:", err)
-	}
 	return nil
 }
 
