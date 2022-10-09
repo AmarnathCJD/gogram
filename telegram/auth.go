@@ -136,6 +136,9 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 				fmt.Println("Invalid response, try again")
 			}
 		}
+	} else {
+		return false, nil
+		// TODO: implement
 	}
 AuthResultSwitch:
 	switch auth := Auth.(type) {

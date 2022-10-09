@@ -71,12 +71,9 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 func (m *MTProto) writeRPCResponse(msgID int, data tl.Object) error {
 	v, ok := m.responseChannels.Get(msgID)
 	if !ok {
-		log.Printf("Network - no response channel for message %d", msgID)
 		return fmt.Errorf("no response channel for message %d", msgID)
 	}
-
 	v <- data
-
 	m.responseChannels.Delete(msgID)
 	m.expectedTypes.Delete(msgID)
 	return nil

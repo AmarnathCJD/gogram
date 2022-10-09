@@ -3,9 +3,7 @@
 package telegram
 
 import (
-	"log"
 	"net"
-	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -18,6 +16,7 @@ import (
 
 	"github.com/amarnathcjd/gogram/internal/keys"
 	"github.com/amarnathcjd/gogram/internal/session"
+	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
 type (
@@ -30,8 +29,7 @@ type (
 		ParseMode string
 		AppID     int32
 		ApiHash   string
-		// Custom logger for client
-		L Log
+		Log       *utils.Logger
 	}
 
 	ClientConfig struct {
@@ -44,7 +42,7 @@ type (
 		AppHash       string
 		ParseMode     string
 		DataCenter    int
-		AllowUpdates  bool
+		LogLevel      string
 	}
 )
 
@@ -78,8 +76,8 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 		ServerHost:    GetHostIp(dcID),
 		PublicKey:     publicKeys[0],
 		DataCenter:    dcID,
-		AppID:         int32(c.AppID),
 		StringSession: c.StringSession,
+		LogLevel:      getStr(c.LogLevel, LogInfo),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "MTProto client")
@@ -95,9 +93,7 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 		config:    &c,
 		Cache:     cache,
 		ParseMode: getStr(c.ParseMode, "HTML"),
-		L: Log{
-			Logger: log.New(os.Stdout, "", log.LstdFlags),
-		},
+		Log:       utils.NewLogger("Telegram").SetLevel("debug"),
 	}
 
 	resp, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
@@ -131,10 +127,7 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 	client.stop = stop
 	client.AppID = int32(c.AppID)
 	client.ApiHash = c.AppHash
-	c.AllowUpdates = true
-	if c.AllowUpdates {
-		client.AddCustomServerRequestHandler(HandleUpdate)
-	}
+	client.AddCustomServerRequestHandler(HandleUpdate)
 	return client, nil
 }
 

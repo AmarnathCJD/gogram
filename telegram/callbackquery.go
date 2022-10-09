@@ -123,8 +123,8 @@ func (b *CallbackQuery) Edit(Text interface{}, options ...*SendOptions) (*NewMes
 	return b.Client.EditMessage(b.Peer, b.MessageID, Text, &opts)
 }
 
-func (b *CallbackQuery) Delete() error {
-	return b.Client.DeleteMessage(b.Peer, b.MessageID)
+func (b *CallbackQuery) Delete() (*MessagesAffectedMessages, error) {
+	return b.Client.DeleteMessages(b.Peer, []int32{b.MessageID})
 }
 
 func (b *CallbackQuery) Reply(Text interface{}, options ...*SendOptions) (*NewMessage, error) {
@@ -166,7 +166,14 @@ func (b *CallbackQuery) ForwardTo(ChatID int64, options ...*ForwardOptions) (*Ne
 	if len(options) > 0 {
 		opts = *options[0]
 	}
-	return b.Client.ForwardMessage(b.Peer, ChatID, []int32{b.MessageID}, &opts)
+	m, err := b.Client.Forward(b.Peer, ChatID, []int32{b.MessageID}, &opts)
+	if err != nil {
+		return nil, err
+	}
+	if len(m) == 0 {
+		return nil, fmt.Errorf("message not found")
+	}
+	return &m[0], nil
 }
 
 func (b *CallbackQuery) Marshal() string {

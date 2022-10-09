@@ -61,7 +61,7 @@ func GenRandInt() int64 {
 	return int64(rand.Int31())
 }
 
-func (c *Client) getMultiMedia(m interface{}, attrs *CustomAttrs) ([]*InputSingleMedia, error) {
+func (c *Client) getMultiMedia(m interface{}, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
 	var media []*InputSingleMedia
 	var inputMedia []InputMedia
 	switch m := m.(type) {
@@ -317,7 +317,7 @@ func (c *Client) GetPeerID(Peer interface{}) int64 {
 	}
 }
 
-func (c *Client) getSendableMedia(mediaFile interface{}, attr *CustomAttrs) (InputMedia, error) {
+func (c *Client) getSendableMedia(mediaFile interface{}, attr *MediaMetadata) (InputMedia, error) {
 mediaTypeSwitch:
 	switch media := mediaFile.(type) {
 	case string:
@@ -339,6 +339,7 @@ mediaTypeSwitch:
 		}
 	case InputMedia:
 		return media, nil
+	//  case Photo:
 	case MessageMedia:
 		switch media := media.(type) {
 		case *MessageMediaPhoto:
@@ -591,9 +592,9 @@ func packMessage(c *Client, message Message) *NewMessage {
 		FileID := PackBotFileID(m.Media())
 		m.File = &CustomFile{
 			FileID: FileID,
-			Name:   GetFileName(m.Media()),
-			Size:   GetFileSize(m.Media()),
-			Ext:    GetFileExt(m.Media()),
+			Name:   getFileName(m.Media()),
+			Size:   getFileSize(m.Media()),
+			Ext:    getFileExt(m.Media()),
 		}
 	}
 	return m

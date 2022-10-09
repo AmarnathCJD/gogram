@@ -56,7 +56,7 @@ func (m *MTProto) makeAuthKey() error {
 		NewNonce:    nonceSecond,
 	})
 	if err != nil {
-		log.Printf("TgCrypto - makeAuthKey: %s", err)
+		m.Logger.Warn(fmt.Sprintf("TgCrypto - makeAuthKey: %s", err))
 		return err
 	}
 
@@ -82,7 +82,7 @@ func (m *MTProto) makeAuthKey() error {
 		return fmt.Errorf("reqDHParams: server nonce mismatch")
 	}
 
-	// check of hash, trandom bytes trail removing occurs in this func already
+	// check of hash, random bytes trail removing occurs in this func already
 	decodedMessage := ige.DecryptMessageWithTempKeys(dhParams.EncryptedAnswer, nonceSecond.Int, nonceServer.Int)
 	data, err := tl.DecodeUnknownObject(decodedMessage)
 	if err != nil {
@@ -162,7 +162,7 @@ func (m *MTProto) makeAuthKey() error {
 	if !m.memorySession {
 		err = m.SaveSession()
 		if err != nil {
-			log.Printf("TgCrypto - savesession: %s", err)
+			m.Logger.Error(fmt.Sprintf("TgCrypto - makeAuthKey: %s", err))
 		}
 	}
 	return err
