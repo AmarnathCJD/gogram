@@ -473,13 +473,13 @@ messageTypeSwitching:
 
 	case *objects.BadMsgNotification:
 		messg := BadMsgErrorFromNative(message)
-		m.writeRPCResponse(msg.GetMsgID(), messg)
 		switch messg.Code {
 		case 33:
 			m.seqNo -= 16
 		case 32:
 			m.seqNo += 2
 		}
+		return messg
 	case *objects.RpcResult:
 		obj := message.Obj
 		if v, ok := obj.(*objects.GzipPacked); ok {
