@@ -56,7 +56,7 @@ func (m *MTProto) makeAuthKey() error {
 		NewNonce:    nonceSecond,
 	})
 	if err != nil {
-		m.Logger.Warn(fmt.Sprintf("TgCrypto - makeAuthKey: %s", err))
+		m.Logger.Warn("TgCrypto - makeAuthKey: %s", err)
 		return err
 	}
 
@@ -162,7 +162,7 @@ func (m *MTProto) makeAuthKey() error {
 	if !m.memorySession {
 		err = m.SaveSession()
 		if err != nil {
-			m.Logger.Error(fmt.Sprintf("TgCrypto - makeAuthKey: %s", err))
+			m.Logger.Error("TgCrypto - makeAuthKey: %s", err)
 		}
 	}
 	return err

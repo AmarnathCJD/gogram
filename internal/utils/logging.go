@@ -6,11 +6,11 @@ const (
 	// DebugLevel is the lowest level of logging
 	DebugLevel = iota
 	// InfoLevel is the second lowest level of logging
-	InfoLevel = iota
+	InfoLevel
 	// WarnLevel is the third highest level of logging
-	WarnLevel = iota
+	WarnLevel
 	// ErrorLevel is the highest level of logging
-	ErrorLevel = iota
+	ErrorLevel
 )
 
 // Logger is the logging struct.
@@ -37,27 +37,27 @@ func (l *Logger) SetLevel(level string) *Logger {
 }
 
 // Log logs a message at the given level.
-func (l *Logger) Error(msg interface{}) {
+func (l *Logger) Error(v ...any) {
 	if l.Level <= ErrorLevel {
-		log.Printf("%s - ERROR - %s", l.Prefix, msg)
+		log.Printf("%s - ERROR - %s", l.Prefix, v)
 	}
 }
 
-func (l *Logger) Warn(msg interface{}) {
+func (l *Logger) Warn(v ...any) {
 	if l.Level <= WarnLevel {
-		log.Printf("%s - WARN - %s", l.Prefix, msg)
+		log.Printf("%s - WARN - %s", l.Prefix, v)
 	}
 }
 
-func (l *Logger) Info(msg interface{}) {
+func (l *Logger) Info(v ...any) {
 	if l.Level <= InfoLevel {
-		log.Printf("%s - INFO - %s", l.Prefix, msg)
+		log.Printf("%s - INFO - %s", l.Prefix, v)
 	}
 }
 
-func (l *Logger) Debug(msg interface{}) {
+func (l *Logger) Debug(v ...any) {
 	if l.Level <= DebugLevel {
-		log.Printf("%s - DEBUG - %s", l.Prefix, msg)
+		log.Printf("%s - DEBUG - %s", l.Prefix, v)
 	}
 }
 
