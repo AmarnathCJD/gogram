@@ -6518,11 +6518,12 @@ func (*StickerSetCoveredObj) ImplementsStickerSetCovered() {}
 type StickerSetFullCovered struct {
 	Set       *StickerSet
 	Packs     []*StickerPack
+	Keywords  []*StickerKeyword
 	Documents []Document
 }
 
 func (*StickerSetFullCovered) CRC() uint32 {
-	return 0x1aed5ee5
+	return 0x40d13c0e
 }
 
 func (*StickerSetFullCovered) ImplementsStickerSetCovered() {}
@@ -9374,11 +9375,12 @@ type MessagesStickerSet interface {
 type MessagesStickerSetObj struct {
 	Set       *StickerSet
 	Packs     []*StickerPack
+	Keywords  []*StickerKeyword
 	Documents []Document
 }
 
 func (*MessagesStickerSetObj) CRC() uint32 {
-	return 0xb60a24a6
+	return 0x6e153f16
 }
 
 func (*MessagesStickerSetObj) ImplementsMessagesStickerSet() {}
