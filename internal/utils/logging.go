@@ -24,6 +24,23 @@ type Logger struct {
 	Prefix string
 }
 
+func (l *Logger) Lev() string {
+	switch l.Level {
+	case DebugLevel:
+		return "debug"
+	case InfoLevel:
+		return "info"
+	case WarnLevel:
+		return "warn"
+	case ErrorLevel:
+		return "error"
+	case NoLevel:
+		return "disabled"
+	default:
+		return "info"
+	}
+}
+
 // SetLevelString sets the level string
 func (l *Logger) SetLevel(level string) *Logger {
 	switch level {

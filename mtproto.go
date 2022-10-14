@@ -165,6 +165,7 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 		ServerHost:    newAddr,
 		AuthKeyFile:   m.sessionStorage.Path(),
 		MemorySession: false,
+		LogLevel:      m.Logger.Lev(),
 	}
 	sender, _ := NewMTProto(cfg)
 	sender.serverRequestHandlers = m.serverRequestHandlers
@@ -185,6 +186,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		ServerHost:    newAddr,
 		AuthKeyFile:   filepath.Join(wd, "sesion.session"),
 		MemorySession: mem,
+		LogLevel:      m.Logger.Lev(),
 	}
 	if dcID == m.GetDC() {
 		cfg.SessionStorage = m.sessionStorage
