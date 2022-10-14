@@ -11,6 +11,8 @@ const (
 	WarnLevel
 	// ErrorLevel is the highest level of logging
 	ErrorLevel
+	// NoLevel disables all logging
+	NoLevel
 )
 
 // Logger is the logging struct.
@@ -30,6 +32,8 @@ func (l *Logger) SetLevel(level string) *Logger {
 		l.Level = WarnLevel
 	case "error":
 		l.Level = ErrorLevel
+	case "disabled":
+		l.Level = NoLevel
 	default:
 		l.Level = InfoLevel
 	}
@@ -39,25 +43,25 @@ func (l *Logger) SetLevel(level string) *Logger {
 // Log logs a message at the given level.
 func (l *Logger) Error(v ...any) {
 	if l.Level <= ErrorLevel {
-		log.Printf("%s - ERROR - %s", l.Prefix, v)
+		log.Println(l.Prefix, v)
 	}
 }
 
 func (l *Logger) Warn(v ...any) {
 	if l.Level <= WarnLevel {
-		log.Printf("%s - WARN - %s", l.Prefix, v)
+		log.Println(l.Prefix, v)
 	}
 }
 
 func (l *Logger) Info(v ...any) {
 	if l.Level <= InfoLevel {
-		log.Printf("%s - INFO - %s", l.Prefix, v)
+		log.Println(l.Prefix, v)
 	}
 }
 
 func (l *Logger) Debug(v ...any) {
 	if l.Level <= DebugLevel {
-		log.Printf("%s - DEBUG - %s", l.Prefix, v)
+		log.Println(l.Prefix, v)
 	}
 }
 
