@@ -1,6 +1,9 @@
 package utils
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 const (
 	// DebugLevel is the lowest level of logging
@@ -43,25 +46,25 @@ func (l *Logger) SetLevel(level string) *Logger {
 // Log logs a message at the given level.
 func (l *Logger) Error(v ...any) {
 	if l.Level <= ErrorLevel {
-		log.Println(l.Prefix, v)
+		log.Println(l.Prefix, "- ERROR -", getVariable(v...))
 	}
 }
 
 func (l *Logger) Warn(v ...any) {
 	if l.Level <= WarnLevel {
-		log.Println(l.Prefix, v)
+		log.Println(l.Prefix, "- WARN -", getVariable(v...))
 	}
 }
 
 func (l *Logger) Info(v ...any) {
 	if l.Level <= InfoLevel {
-		log.Println(l.Prefix, v)
+		log.Println(l.Prefix, "- INFO -", getVariable(v...))
 	}
 }
 
 func (l *Logger) Debug(v ...any) {
 	if l.Level <= DebugLevel {
-		log.Println(l.Prefix, v)
+		log.Println(l.Prefix, "- DEBUG -", getVariable(v...))
 	}
 }
 
@@ -70,4 +73,11 @@ func NewLogger(prefix string) *Logger {
 	return &Logger{
 		Prefix: prefix,
 	}
+}
+
+func getVariable(v ...any) string {
+	if len(v) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%v", v[0])
 }
