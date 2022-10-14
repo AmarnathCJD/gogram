@@ -2450,6 +2450,15 @@ func (*StatsURL) CRC() uint32 {
 	return 0x47a971e0
 }
 
+type StickerKeyword struct {
+	DocumentID int64
+	Keyword    []string
+}
+
+func (*StickerKeyword) CRC() uint32 {
+	return 0xfcfeb29c
+}
+
 type StickerPack struct {
 	Emoticon  string
 	Documents []int64
