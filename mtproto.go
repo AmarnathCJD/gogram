@@ -190,7 +190,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		cfg.SessionStorage = m.sessionStorage
 	}
 	sender, _ := NewMTProto(cfg)
-	m.Logger.Info("Exporting new sender for DC %d", dcID)
+	m.Logger.Info("Exporting new sender for DC", dcID)
 	err := sender.CreateConnection(true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
@@ -212,14 +212,14 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Info("Connecting to %s/TcpFull...", m.Addr)
+		m.Logger.Info("Connecting to " + m.Addr + "/TcpFull...")
 	}
 	err := m.connect(ctx)
 	if err != nil {
 		return err
 	}
 	if withLog {
-		m.Logger.Info("Connection to %s/TcpFull complete!", m.Addr)
+		m.Logger.Info("Connection to " + m.Addr + "/TcpFull complete!")
 	}
 	m.startReadingResponses(ctx)
 
@@ -265,7 +265,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	case *objects.RpcError:
 		realErr := RpcErrorToNative(r).(*ErrResponseCode)
 		if strings.Contains(realErr.Message, "FLOOD_WAIT_") {
-			m.Logger.Info("Flood wait detected on %s, retrying in %d seconds", strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", ""), realErr.AdditionalInfo.(int))
+			m.Logger.Info("Flood wait detected on " + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf(" retrying in %d", realErr.AdditionalInfo.(int)))
 			time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
 			return m.makeRequest(data, expectedTypes...)
 		}
@@ -295,7 +295,7 @@ func (m *MTProto) Disconnect() error {
 func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
-	m.Logger.Info("Disconnecting Borrowed Sender from %s/TcpFull...", m.Addr)
+	m.Logger.Info("Disconnecting Borrowed Sender from " + m.Addr + "/TcpFull...")
 	return nil
 }
 
@@ -305,12 +305,12 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		return errors.Wrap(err, "disconnecting")
 	}
 	if WithLogs {
-		m.Logger.Info("Reconnecting to %s/TcpFull...", m.Addr)
+		m.Logger.Info("Reconnecting to " + m.Addr + "/TcpFull...")
 	}
 
 	err = m.CreateConnection(WithLogs)
 	if err == nil && WithLogs {
-		m.Logger.Info("Connected to %s/TcpFull complete!", m.Addr)
+		m.Logger.Info("Connected to " + m.Addr + "/TcpFull complete!")
 	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
@@ -478,14 +478,13 @@ messageTypeSwitching:
 			m.seqNo -= 16
 		case 32:
 			m.seqNo += 2
-		}
+		} // Fix Asap
 		return messg
 	case *objects.RpcResult:
 		obj := message.Obj
 		if v, ok := obj.(*objects.GzipPacked); ok {
 			obj = v.Obj
 		}
-
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			return errors.Wrap(err, "writing RPC response")

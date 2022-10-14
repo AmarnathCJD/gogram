@@ -8,10 +8,11 @@ const (
 
 	DefaultDC = 4
 
-	LogDebug = "debug"
-	LogInfo  = "info"
-	LogWarn  = "warn"
-	LogError = "error"
+	LogDebug   = "debug"
+	LogInfo    = "info"
+	LogWarn    = "warn"
+	LogError   = "error"
+	LogDisable = "disabled"
 
 	MarkDown   string = "Markdown"
 	HTML       string = "HTML"
