@@ -50,20 +50,15 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 			MsgID: msgID,
 		}
 	}
-
-	m.seqNoMutex.Lock()
-	defer m.seqNoMutex.Unlock()
-
-	err = m.transport.WriteMsg(data, MessageRequireToAck(request))
+	seqNo := m.UpdateSeqNo()
+	if !m.encrypted {
+		seqNo = 0
+	}
+	err = m.transport.WriteMsg(data, MessageRequireToAck(request), seqNo)
 	if err != nil {
 		m.Logger.Error("error writing message: %s", err.Error())
 		return nil, fmt.Errorf("writing message: %w", err)
 	}
-
-	if m.encrypted {
-		m.seqNo += 2
-	}
-
 	return resp, nil
 }
 
@@ -100,6 +95,14 @@ func (m *MTProto) GetSessionID() int64 {
 
 // GetSeqNo returns seqno 🧐
 func (m *MTProto) GetSeqNo() int32 {
+	return m.seqNo
+}
+
+func (m *MTProto) UpdateSeqNo() int32 {
+	m.seqNoMutex.Lock()
+	defer m.seqNoMutex.Unlock()
+
+	m.seqNo += 2
 	return m.seqNo
 }
 
