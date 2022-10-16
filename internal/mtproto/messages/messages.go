@@ -35,8 +35,8 @@ type Encrypted struct {
 	MsgKey    []byte
 }
 
-func (msg *Encrypted) Serialize(client MessageInformator, requireToAck bool) ([]byte, error) {
-	obj := serializePacket(client, msg.Msg, msg.MsgID, requireToAck)
+func (msg *Encrypted) Serialize(client MessageInformator, requireToAck bool, seqNo int32) ([]byte, error) {
+	obj := serializePacket(client, msg.Msg, msg.MsgID, requireToAck, seqNo)
 	encryptedData, err := ige.Encrypt(obj, client.GetAuthKey())
 	if err != nil {
 		return nil, errors.Wrap(err, "encrypting")
@@ -179,7 +179,7 @@ type MessageInformator interface {
 	GetAuthKey() []byte
 }
 
-func serializePacket(client MessageInformator, msg []byte, messageID int64, requireToAck bool) []byte {
+func serializePacket(client MessageInformator, msg []byte, messageID int64, requireToAck bool, seqNo int32) []byte {
 	buf := bytes.NewBuffer(nil)
 	d := tl.NewEncoder(buf)
 
@@ -189,9 +189,9 @@ func serializePacket(client MessageInformator, msg []byte, messageID int64, requ
 	d.PutLong(client.GetSessionID())
 	d.PutLong(messageID)
 	if requireToAck { // не спрашивай, как это работает
-		d.PutInt(client.GetSeqNo() | 1) // почему тут добавляется бит не ебу
+		d.PutInt(seqNo | 1) // почему тут добавляется бит не ебу
 	} else {
-		d.PutInt(client.GetSeqNo())
+		d.PutInt(seqNo)
 	}
 	d.PutInt(int32(len(msg)))
 	d.PutRawBytes(msg)

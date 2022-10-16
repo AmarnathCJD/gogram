@@ -49,7 +49,9 @@ func (t *tcpConn) Write(b []byte) (int, error) {
 func (t *tcpConn) Read(b []byte) (int, error) {
 	if t.timeout > 0 {
 		err := t.conn.SetReadDeadline(time.Now().Add(t.timeout))
-		check(err)
+		if err != nil {
+			return 0, errors.Wrap(err, "setting read deadline")
+		}
 	}
 
 	n, err := t.cancelReader.Read(b)
