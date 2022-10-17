@@ -40,6 +40,11 @@ func main() {
 		return err
 	})
 
+	client.AddMessageHandler("/start", func(message *telegram.NewMessage) error {
+		message.Reply("Hello, I am a bot!")
+		return nil
+	})
+
 	// Start polling
 	client.Idle()
 }

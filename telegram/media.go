@@ -366,7 +366,7 @@ func (d *Downloader) allocateWorkers() {
 	for i := 0; i < d.Worker; i++ {
 		w, err := d.Client.ExportSender(int(d.DcID))
 		if err != nil {
-			panic(err)
+			d.onError()
 		}
 		d.Workers = append(d.Workers, w)
 	}

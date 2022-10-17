@@ -3,7 +3,6 @@
 package telegram
 
 import (
-	"fmt"
 	"log"
 	"reflect"
 	"regexp"
@@ -12,94 +11,31 @@ import (
 )
 
 var (
-	MessageHandles  = []messageHandle{}
-	InlineHandles   = []inlineHandle{}
-	CallbackHandles = []callbackHandle{}
-	MessageEdit     = []messageEditHandle{}
-	ActionHandles   = []chatActionHandle{}
-	RawHandles      = []rawHandle{}
+	UpdateHandleDispatcher = &UpdateDispatcher{}
 )
-
-func HandleMessageUpdateWithDiffrence(update Message, Pts int32, Limit int32) {
-	if m, ok := update.(*MessageObj); ok && len(MessageHandles) > 0 {
-		msg, err := MessageHandles[0].Client.getDiffrence(Pts, Limit)
-		for _, handle := range MessageHandles {
-			if handle.IsMatch(m.Message) {
-				if err != nil {
-					handle.Client.Logger.Error(err)
-					return
-				} else if msg == nil {
-					return
-				}
-				handleMessage(msg, handle)
-			}
-		}
-	}
-}
-
-func (c *Client) getDiffrence(Pts int32, Limit int32) (Message, error) {
-	c.Logger.Debug(fmt.Sprintf("Getting diffrence for %d", Pts))
-	updates, err := c.UpdatesGetDifference(Pts-1, Limit, int32(time.Now().Unix()), 0)
-	if err != nil {
-		return nil, err
-	}
-	switch u := updates.(type) {
-	case *UpdatesDifferenceObj:
-		c.Cache.UpdatePeersToCache(u.Users, u.Chats)
-		for _, update := range u.NewMessages {
-			switch update.(type) {
-			case *MessageObj:
-				return update, nil
-			}
-		}
-	case *UpdatesDifferenceSlice:
-		c.Cache.UpdatePeersToCache(u.Users, u.Chats)
-		return u.NewMessages[0], nil
-	default:
-		return nil, nil
-	}
-	return nil, nil
-}
 
 type messageHandle struct {
 	Pattern interface{}
 	Handler func(m *NewMessage) error
-	Client  *Client
 	Filters *Filters
+}
+
+func (h *messageHandle) Remove() {
+	for i, handle := range UpdateHandleDispatcher.messageHandles {
+		if reflect.DeepEqual(handle, h) {
+			UpdateHandleDispatcher.messageHandles = append(UpdateHandleDispatcher.messageHandles[:i], UpdateHandleDispatcher.messageHandles[i+1:]...)
+		}
+	}
 }
 
 type chatActionHandle struct {
 	Handler func(m *NewMessage) error
-	Client  *Client
 }
 
-func handleMessage(message Message, h messageHandle) error {
-	m := packMessage(h.Client, message)
-	if h.Filters != nil && h.Filter(m) {
-		if err := h.Handler(m); err != nil {
-			h.Client.Log.Error(err)
-		}
-	} else if h.Filters == nil {
-		if err := h.Handler(m); err != nil {
-			h.Client.Log.Error(err)
-		}
-	}
-	return nil
-}
-
-func HandleMessageUpdate(update Message) {
-	switch msg := update.(type) {
-	case *MessageObj:
-		for _, handle := range MessageHandles {
-			if handle.IsMatch(msg.Message) {
-				handleMessage(msg, handle)
-			}
-		}
-	case *MessageService:
-		for _, handle := range ActionHandles {
-			if err := handle.Handler(packMessage(handle.Client, msg)); err != nil {
-				handle.Client.Log.Error(err)
-			}
+func (h *chatActionHandle) Remove() {
+	for i, handle := range UpdateHandleDispatcher.actionHandles {
+		if reflect.DeepEqual(handle, h) {
+			UpdateHandleDispatcher.actionHandles = append(UpdateHandleDispatcher.actionHandles[:i], UpdateHandleDispatcher.actionHandles[i+1:]...)
 		}
 	}
 }
@@ -107,18 +43,25 @@ func HandleMessageUpdate(update Message) {
 type messageEditHandle struct {
 	Pattern interface{}
 	Handler func(m *NewMessage) error
-	Client  *Client
 }
 
-func HandleEditUpdate(update Message) {
-	switch msg := update.(type) {
-	case *MessageObj:
-		for _, handle := range MessageEdit {
-			if handle.IsMatch(msg.Message) {
-				if err := handle.Handler(packMessage(handle.Client, msg)); err != nil {
-					handle.Client.Log.Error(err)
-				}
-			}
+func (h *messageEditHandle) Remove() {
+	for i, handle := range UpdateHandleDispatcher.messageEditHandles {
+		if reflect.DeepEqual(handle, h) {
+			UpdateHandleDispatcher.messageEditHandles = append(UpdateHandleDispatcher.messageEditHandles[:i], UpdateHandleDispatcher.messageEditHandles[i+1:]...)
+		}
+	}
+}
+
+type messageDeleteHandle struct {
+	Pattern interface{}
+	Handler func(m *UpdateDeleteMessages) error
+}
+
+func (h *messageDeleteHandle) Remove() {
+	for i, handle := range UpdateHandleDispatcher.messageDeleteHandles {
+		if reflect.DeepEqual(handle, h) {
+			UpdateHandleDispatcher.messageDeleteHandles = append(UpdateHandleDispatcher.messageDeleteHandles[:i], UpdateHandleDispatcher.messageDeleteHandles[i+1:]...)
 		}
 	}
 }
@@ -126,15 +69,12 @@ func HandleEditUpdate(update Message) {
 type inlineHandle struct {
 	Pattern interface{}
 	Handler func(m *InlineQuery) error
-	Client  *Client
 }
 
-func HandleInlineUpdate(update *UpdateBotInlineQuery) {
-	for _, handle := range InlineHandles {
-		if handle.IsMatch(update.Query) {
-			if err := handle.Handler(packInlineQuery(handle.Client, update)); err != nil {
-				handle.Client.Log.Error(err)
-			}
+func (h *inlineHandle) Remove() {
+	for i, handle := range UpdateHandleDispatcher.inlineHandles {
+		if reflect.DeepEqual(handle, h) {
+			UpdateHandleDispatcher.inlineHandles = append(UpdateHandleDispatcher.inlineHandles[:i], UpdateHandleDispatcher.inlineHandles[i+1:]...)
 		}
 	}
 }
@@ -142,15 +82,12 @@ func HandleInlineUpdate(update *UpdateBotInlineQuery) {
 type callbackHandle struct {
 	Pattern interface{}
 	Handler func(m *CallbackQuery) error
-	Client  *Client
 }
 
-func HandleCallbackUpdate(update *UpdateBotCallbackQuery) {
-	for _, handle := range CallbackHandles {
-		if handle.IsMatch(update.Data) {
-			if err := handle.Handler(packCallbackQuery(handle.Client, update)); err != nil {
-				handle.Client.Log.Error(err)
-			}
+func (h *callbackHandle) Remove() {
+	for i, handle := range UpdateHandleDispatcher.callbackHandles {
+		if reflect.DeepEqual(handle, h) {
+			UpdateHandleDispatcher.callbackHandles = append(UpdateHandleDispatcher.callbackHandles[:i], UpdateHandleDispatcher.callbackHandles[i+1:]...)
 		}
 	}
 }
@@ -158,15 +95,155 @@ func HandleCallbackUpdate(update *UpdateBotCallbackQuery) {
 type rawHandle struct {
 	updateType Update
 	Handler    func(m Update) error
-	Client     *Client
 }
 
-func HandleRawUpdate(update Update) {
-	for _, handle := range RawHandles {
-		if reflect.TypeOf(handle.updateType) == reflect.TypeOf(update) {
-			if err := handle.Handler(update); err != nil {
-				handle.Client.Log.Error(err)
+func (h *rawHandle) Remove() {
+	for i, handle := range UpdateHandleDispatcher.rawHandles {
+		if reflect.DeepEqual(handle, h) {
+			UpdateHandleDispatcher.rawHandles = append(UpdateHandleDispatcher.rawHandles[:i], UpdateHandleDispatcher.rawHandles[i+1:]...)
+		}
+	}
+}
+
+type UpdateDispatcher struct {
+	client               *Client
+	messageHandles       []messageHandle
+	inlineHandles        []inlineHandle
+	callbackHandles      []callbackHandle
+	messageEditHandles   []messageEditHandle
+	actionHandles        []chatActionHandle
+	messageDeleteHandles []messageDeleteHandle
+	rawHandles           []rawHandle
+}
+
+func (u *UpdateDispatcher) AddM(m messageHandle) messageHandle {
+	u.messageHandles = append(u.messageHandles, m)
+	return m
+}
+
+func (u *UpdateDispatcher) AddI(i inlineHandle) inlineHandle {
+	u.inlineHandles = append(u.inlineHandles, i)
+	return i
+}
+
+func (u *UpdateDispatcher) AddC(c callbackHandle) callbackHandle {
+	u.callbackHandles = append(u.callbackHandles, c)
+	return c
+}
+
+func (u *UpdateDispatcher) AddA(a chatActionHandle) chatActionHandle {
+	u.actionHandles = append(u.actionHandles, a)
+	return a
+}
+
+func (u *UpdateDispatcher) AddME(m messageEditHandle) messageEditHandle {
+	u.messageEditHandles = append(u.messageEditHandles, m)
+	return m
+}
+
+func (u *UpdateDispatcher) AddMD(m messageDeleteHandle) messageDeleteHandle {
+	u.messageDeleteHandles = append(u.messageDeleteHandles, m)
+	return m
+}
+
+func (u *UpdateDispatcher) AddR(r rawHandle) rawHandle {
+	u.rawHandles = append(u.rawHandles, r)
+	return r
+}
+
+func (u *UpdateDispatcher) HandleMessageUpdate(update Message) {
+	switch msg := update.(type) {
+	case *MessageObj:
+		for _, handle := range u.messageHandles {
+			if handle.IsMatch(msg.Message) {
+				go func(h messageHandle) {
+					m := packMessage(u.client, msg)
+					if handle.runFilterChain(m) {
+						if err := h.Handler(m); err != nil {
+							u.client.Log.Error(err)
+						}
+					}
+				}(handle)
 			}
+		}
+	case *MessageService:
+		for _, handle := range u.actionHandles {
+			go func(h chatActionHandle) {
+				if err := h.Handler(packMessage(u.client, msg)); err != nil {
+					u.client.Log.Error(err)
+				}
+			}(handle)
+		}
+	}
+}
+
+func (u *UpdateDispatcher) HandleMessageUpdateW(message Message, pts int32) {
+	m, err := u.client.GetDiffrence(pts, 1)
+	if err != nil {
+		u.client.Log.Error(err)
+	}
+	if m != nil {
+		u.HandleMessageUpdate(m)
+	}
+}
+
+func (u *UpdateDispatcher) HandleEditUpdate(update Message) {
+	switch msg := update.(type) {
+	case *MessageObj:
+		for _, handle := range u.messageEditHandles {
+			if handle.IsMatch(msg.Message) {
+				go func(h messageEditHandle) {
+					if err := h.Handler(packMessage(u.client, msg)); err != nil {
+						u.client.Log.Error(err)
+					}
+				}(handle)
+			}
+		}
+	}
+}
+
+func (u *UpdateDispatcher) HandleCallbackUpdate(update *UpdateBotCallbackQuery) {
+	for _, handle := range u.callbackHandles {
+		if handle.IsMatch(update.Data) {
+			go func(h callbackHandle) {
+				if err := h.Handler(packCallbackQuery(u.client, update)); err != nil {
+					u.client.Log.Error(err)
+				}
+			}(handle)
+		}
+	}
+}
+
+func (u *UpdateDispatcher) HandleInlineUpdate(update *UpdateBotInlineQuery) {
+	for _, handle := range u.inlineHandles {
+		if handle.IsMatch(update.Query) {
+			go func(h inlineHandle) {
+				if err := h.Handler(packInlineQuery(u.client, update)); err != nil {
+					u.client.Log.Error(err)
+				}
+			}(handle)
+		}
+	}
+}
+
+func (u *UpdateDispatcher) HandleDeleteUpdate(update *UpdateDeleteMessages) {
+	for _, handle := range u.messageDeleteHandles {
+		go func(h messageDeleteHandle) {
+			if err := h.Handler(update); err != nil {
+				u.client.Log.Error(err)
+			}
+		}(handle)
+	}
+}
+
+func (u *UpdateDispatcher) HandleRawUpdate(update Update) {
+	for _, handle := range u.rawHandles {
+		if reflect.TypeOf(update) == reflect.TypeOf(handle.updateType) {
+			go func(h rawHandle) {
+				if err := h.Handler(update); err != nil {
+					u.client.Log.Error(err)
+				}
+			}(handle)
 		}
 	}
 }
@@ -204,18 +281,16 @@ func (e *messageEditHandle) IsMatch(text string) bool {
 func (h *callbackHandle) IsMatch(data []byte) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
-		p := regexp.MustCompile("^" + pattern)
+		if pattern == OnCallbackQuery {
+			return true
+		}
+		p := regexp.MustCompile(pattern)
 		return p.Match(data) || strings.HasPrefix(string(data), pattern)
 	case *regexp.Regexp:
 		return pattern.Match(data)
 	default:
 		return false
 	}
-}
-
-type Command struct {
-	Command string
-	Prefix  string
 }
 
 func (h *messageHandle) IsMatch(text string) bool {
@@ -226,59 +301,32 @@ func (h *messageHandle) IsMatch(text string) bool {
 		}
 		pattern := regexp.MustCompile("^" + Pattern)
 		return pattern.MatchString(text) || strings.HasPrefix(text, Pattern)
-	case Command:
-		Patt := fmt.Sprintf("^[%s]%s", Pattern.Prefix, Pattern.Command)
-		pattern, err := regexp.Compile(Patt)
-		if err != nil {
-			return false
-		}
-		return pattern.MatchString(text)
 	case *regexp.Regexp:
 		return Pattern.MatchString(text)
-	default:
-		panic(fmt.Sprintf("unknown handler type %s", reflect.TypeOf(Pattern).String()))
 	}
+	return false
 }
 
-func (h *messageHandle) Filter(msg *NewMessage) bool {
-	if h.Filters.IsPrivate && !msg.IsPrivate() {
+func (h *messageHandle) runFilterChain(m *NewMessage) bool {
+	if h.Filters == nil {
+		return true
+	}
+	if h.Filters.Outgoing && !m.Message.Out || h.Filters.Incoming && !m.Message.Out || h.Filters.IsPrivate && !m.IsPrivate() || h.Filters.IsGroup && !m.IsGroup() || h.Filters.IsChannel && !m.IsChannel() || h.Filters.IsMedia && !m.IsMedia() || h.Filters.IsCommand && !m.IsCommand() || h.Filters.IsReply && !m.IsReply() || h.Filters.IsForward && !m.IsForward() {
 		return false
 	}
-	if h.Filters.IsGroup && !msg.IsGroup() {
+	if h.Filters.Func != nil && !h.Filters.Func(m) {
 		return false
 	}
-	if h.Filters.IsChannel && !msg.IsChannel() {
-		return false
-	}
-	if h.Filters.IsCommand && !msg.IsCommand() {
-		return false
-	}
-	if h.Filters.Outgoing && !msg.Message.Out {
-		return false
-	}
-	if h.Filters.Func != nil {
-		if !h.Filters.Func(msg) {
-			return false
-		}
-	}
-	if len(h.Filters.BlackListChats) > 0 {
-		for _, chat := range h.Filters.BlackListChats {
-			if msg.ChatID() == chat {
+	if len(h.Filters.Chats) > 0 {
+		for _, chat := range h.Filters.Chats {
+			if !h.Filters.Blacklist && chat != m.ChatID() || h.Filters.Blacklist && chat == m.ChatID() {
 				return false
 			}
 		}
 	}
-	if len(h.Filters.WhiteListChats) > 0 {
-		for _, chat := range h.Filters.WhiteListChats {
-			if msg.ChatID() == chat {
-				return true
-			}
-		}
-		return false
-	}
 	if len(h.Filters.Users) > 0 {
 		for _, user := range h.Filters.Users {
-			if msg.SenderID() == user {
+			if !h.Filters.Blacklist && user != m.SenderID() || h.Filters.Blacklist && user == m.SenderID() {
 				return false
 			}
 		}
@@ -287,115 +335,117 @@ func (h *messageHandle) Filter(msg *NewMessage) bool {
 }
 
 type Filters struct {
-	IsPrivate      bool                   `json:"is_private,omitempty"`
-	IsGroup        bool                   `json:"is_group,omitempty"`
-	IsChannel      bool                   `json:"is_channel,omitempty"`
-	IsCommand      bool                   `json:"is_command,omitempty"`
-	IsText         bool                   `json:"is_text,omitempty"`
-	IsMedia        bool                   `json:"is_media,omitempty"`
-	Func           func(*NewMessage) bool `json:"func,omitempty"`
-	BlackListChats []int64                `json:"black_list_chats,omitempty"`
-	WhiteListChats []int64                `json:"white_list_chats,omitempty"`
-	Users          []int64                `json:"users,omitempty"`
-	Outgoing       bool                   `json:"outgoing,omitempty"`
-	Incoming       bool                   `json:"incoming,omitempty"`
+	IsPrivate bool                   `json:"is_private,omitempty"`
+	IsGroup   bool                   `json:"is_group,omitempty"`
+	IsChannel bool                   `json:"is_channel,omitempty"`
+	IsCommand bool                   `json:"is_command,omitempty"`
+	IsReply   bool                   `json:"is_reply,omitempty"`
+	IsForward bool                   `json:"is_forward,omitempty"`
+	IsText    bool                   `json:"is_text,omitempty"`
+	IsMedia   bool                   `json:"is_media,omitempty"`
+	Func      func(*NewMessage) bool `json:"func,omitempty"`
+	Chats     []int64                `json:"chats,omitempty"`
+	Users     []int64                `json:"users,omitempty"`
+	Blacklist bool                   `json:"blacklist,omitempty"`
+	Outgoing  bool                   `json:"outgoing,omitempty"`
+	Incoming  bool                   `json:"incoming,omitempty"`
 }
 
-func (c *Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessage) error, filters ...*Filters) {
-	var FILTER *Filters
-	if len(filters) > 0 {
-		FILTER = filters[0]
-	}
-	MessageHandles = append(MessageHandles, messageHandle{
-		Pattern: pattern,
-		Handler: handler,
-		Filters: FILTER,
-		Client:  c,
-	})
+func (c *Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessage) error, filters ...*Filters) messageHandle {
+	return UpdateHandleDispatcher.AddM(messageHandle{Pattern: pattern, Handler: handler, Filters: getVariadic(filters, &Filters{}).(*Filters)})
 }
 
-func (c *Client) AddActionHandler(handler func(m *NewMessage) error) {
-	ActionHandles = append(ActionHandles, chatActionHandle{
-		Handler: handler,
-		Client:  c,
-	})
+func (c *Client) AddActionHandler(handler func(m *NewMessage) error) chatActionHandle {
+	return UpdateHandleDispatcher.AddA(chatActionHandle{Handler: handler})
 }
 
-func (c *Client) AddEditHandler(pattern interface{}, handler func(m *NewMessage) error) {
-	MessageEdit = append(MessageEdit, messageEditHandle{pattern, handler, c})
+func (c *Client) AddEditHandler(pattern interface{}, handler func(m *NewMessage) error) messageEditHandle {
+	return UpdateHandleDispatcher.AddME(messageEditHandle{Pattern: pattern, Handler: handler})
 }
 
-func (c *Client) AddInlineHandler(pattern interface{}, handler func(m *InlineQuery) error) {
-	InlineHandles = append(InlineHandles, inlineHandle{pattern, handler, c})
+func (c *Client) AddInlineHandler(pattern interface{}, handler func(m *InlineQuery) error) inlineHandle {
+	return UpdateHandleDispatcher.AddI(inlineHandle{Pattern: pattern, Handler: handler})
 }
 
-func (c *Client) AddCallbackHandler(pattern interface{}, handler func(m *CallbackQuery) error) {
-	CallbackHandles = append(CallbackHandles, callbackHandle{pattern, handler, c})
+func (c *Client) AddCallbackHandler(pattern interface{}, handler func(m *CallbackQuery) error) callbackHandle {
+	return UpdateHandleDispatcher.AddC(callbackHandle{Pattern: pattern, Handler: handler})
 }
 
-func (c *Client) AddRawHandler(updateType Update, handler func(m Update) error) {
-	RawHandles = append(RawHandles, rawHandle{updateType, handler, c})
-}
-
-func (c *Client) RemoveRawHandler(updateType Update) {
-	for i, handle := range RawHandles {
-		if reflect.TypeOf(handle.updateType) == reflect.TypeOf(updateType) {
-			RawHandles = append(RawHandles[:i], RawHandles[i+1:]...)
-		}
-	}
-}
-
-func (c *Client) RemoveEventHandler(pattern interface{}) {
-	// TODO: implement
+func (c *Client) AddRawHandler(updateType Update, handler func(m Update) error) rawHandle {
+	return UpdateHandleDispatcher.AddR(rawHandle{updateType: updateType, Handler: handler})
 }
 
 // Sort and Handle all the Incoming Updates
 // Many more types to be added
-func HandleUpdate(u interface{}) bool {
+func HandleIncomingUpdates(u interface{}) bool {
 UpdateTypeSwitching:
 	switch upd := u.(type) {
 	case *UpdatesObj:
-		cache.UpdatePeersToCache(upd.Users, upd.Chats)
+		go cache.UpdatePeersToCache(upd.Users, upd.Chats)
 		for _, update := range upd.Updates {
 			switch update := update.(type) {
 			case *UpdateNewMessage:
-				go HandleMessageUpdate(update.Message)
+				go UpdateHandleDispatcher.HandleMessageUpdate(update.Message)
 			case *UpdateNewChannelMessage:
-				go HandleMessageUpdate(update.Message)
+				go UpdateHandleDispatcher.HandleMessageUpdate(update.Message)
 			case *UpdateNewScheduledMessage:
-				go HandleMessageUpdate(update.Message)
+				go UpdateHandleDispatcher.HandleMessageUpdate(update.Message)
 			case *UpdateEditMessage:
-				go HandleEditUpdate(update.Message)
+				go UpdateHandleDispatcher.HandleEditUpdate(update.Message)
 			case *UpdateEditChannelMessage:
-				go HandleEditUpdate(update.Message)
+				go UpdateHandleDispatcher.HandleEditUpdate(update.Message)
 			case *UpdateBotInlineQuery:
-				go HandleInlineUpdate(update)
+				go UpdateHandleDispatcher.HandleInlineUpdate(update)
 			case *UpdateBotCallbackQuery:
-				go HandleCallbackUpdate(update)
+				go UpdateHandleDispatcher.HandleCallbackUpdate(update)
 			default:
-				go HandleRawUpdate(update)
+				go UpdateHandleDispatcher.HandleRawUpdate(update)
 			}
 		}
 	case *UpdateShort:
 		switch upd := upd.Update.(type) {
 		case *UpdateNewMessage:
-			go HandleMessageUpdateWithDiffrence(upd.Message, upd.Pts, upd.PtsCount)
+			go UpdateHandleDispatcher.HandleMessageUpdateW(upd.Message, upd.Pts)
 		case *UpdateNewChannelMessage:
-			go HandleMessageUpdateWithDiffrence(upd.Message, upd.Pts, upd.PtsCount)
+			go UpdateHandleDispatcher.HandleMessageUpdateW(upd.Message, upd.Pts)
 		}
 	case *UpdateShortMessage:
-		go HandleMessageUpdateWithDiffrence(&MessageObj{Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities}, upd.Pts, upd.PtsCount)
+		go UpdateHandleDispatcher.HandleMessageUpdateW(&MessageObj{Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities}, upd.Pts)
 	case *UpdateShortChatMessage:
-		go HandleMessageUpdate(&MessageObj{Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: getPeerUser(upd.ChatID), Date: upd.Date, Entities: upd.Entities})
+		go UpdateHandleDispatcher.HandleMessageUpdateW(&MessageObj{Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: getPeerUser(upd.ChatID), Date: upd.Date, Entities: upd.Entities}, upd.Pts)
 	case *UpdateShortSentMessage:
-		go HandleMessageUpdate(&MessageObj{Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities})
+		go UpdateHandleDispatcher.HandleMessageUpdateW(&MessageObj{Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities}, upd.Pts)
 	case *UpdatesCombined:
 		u = upd.Updates
-		cache.UpdatePeersToCache(upd.Users, upd.Chats)
+		go cache.UpdatePeersToCache(upd.Users, upd.Chats)
 		goto UpdateTypeSwitching
 	case *UpdatesTooLong:
 	default:
 		log.Println("unknown update type", reflect.TypeOf(u).String())
 	}
 	return true
+}
+
+func (c *Client) GetDiffrence(Pts int32, Limit int32) (Message, error) {
+	c.Logger.Debug("Getting diffrence for", Pts)
+	updates, err := c.UpdatesGetDifference(Pts-1, Limit, int32(time.Now().Unix()), 0)
+	if err != nil {
+		return nil, err
+	}
+	switch u := updates.(type) {
+	case *UpdatesDifferenceObj:
+		c.Cache.UpdatePeersToCache(u.Users, u.Chats)
+		for _, update := range u.NewMessages {
+			switch update.(type) {
+			case *MessageObj:
+				return update, nil
+			}
+		}
+	case *UpdatesDifferenceSlice:
+		c.Cache.UpdatePeersToCache(u.Users, u.Chats)
+		return u.NewMessages[0], nil
+	default:
+		return nil, nil
+	}
+	return nil, nil
 }

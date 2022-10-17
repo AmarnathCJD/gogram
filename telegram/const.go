@@ -4,7 +4,7 @@ import "regexp"
 
 const (
 	ApiVersion = 147
-	Version    = "v1.0.2"
+	Version    = "v1.0.2c"
 
 	DefaultDC = 4
 
@@ -28,6 +28,7 @@ const (
 	OnChatAction    = "OnChatAction"
 	OnInlineQuery   = "OnInlineQuery"
 	OnCallbackQuery = "OnCallbackQuery"
+	OnDeleteMessage = "OnDeleteMessage"
 )
 
 var (

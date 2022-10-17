@@ -164,8 +164,12 @@ func (m *NewMessage) GetSender() (*UserObj, error) {
 	return m.Client.GetPeerUser(m.SenderID())
 }
 
-func (m *NewMessage) GetSenderChat() string {
-	return "soon will be implemented"
+func (m *NewMessage) IsForward() bool {
+	return m.Message.FwdFrom != nil
+}
+
+func (m *NewMessage) GetSenderChat() *Channel {
+	return m.SenderChat
 }
 
 // Media is a media object in a message
