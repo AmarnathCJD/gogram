@@ -12,12 +12,12 @@ import (
 )
 
 var (
-	MessageHandles  = []MessageHandle{}
-	InlineHandles   = []InlineHandle{}
-	CallbackHandles = []CallbackHandle{}
-	MessageEdit     = []MessageEditHandle{}
-	ActionHandles   = []ChatActionHandle{}
-	RawHandles      = []RawHandle{}
+	MessageHandles  = []messageHandle{}
+	InlineHandles   = []inlineHandle{}
+	CallbackHandles = []callbackHandle{}
+	MessageEdit     = []messageEditHandle{}
+	ActionHandles   = []chatActionHandle{}
+	RawHandles      = []rawHandle{}
 )
 
 func HandleMessageUpdateWithDiffrence(update Message, Pts int32, Limit int32) {
@@ -61,7 +61,19 @@ func (c *Client) getDiffrence(Pts int32, Limit int32) (Message, error) {
 	return nil, nil
 }
 
-func handleMessage(message Message, h MessageHandle) error {
+type messageHandle struct {
+	Pattern interface{}
+	Handler func(m *NewMessage) error
+	Client  *Client
+	Filters *Filters
+}
+
+type chatActionHandle struct {
+	Handler func(m *NewMessage) error
+	Client  *Client
+}
+
+func handleMessage(message Message, h messageHandle) error {
 	m := packMessage(h.Client, message)
 	if h.Filters != nil && h.Filter(m) {
 		if err := h.Handler(m); err != nil {
@@ -92,6 +104,12 @@ func HandleMessageUpdate(update Message) {
 	}
 }
 
+type messageEditHandle struct {
+	Pattern interface{}
+	Handler func(m *NewMessage) error
+	Client  *Client
+}
+
 func HandleEditUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
@@ -105,6 +123,12 @@ func HandleEditUpdate(update Message) {
 	}
 }
 
+type inlineHandle struct {
+	Pattern interface{}
+	Handler func(m *InlineQuery) error
+	Client  *Client
+}
+
 func HandleInlineUpdate(update *UpdateBotInlineQuery) {
 	for _, handle := range InlineHandles {
 		if handle.IsMatch(update.Query) {
@@ -113,6 +137,12 @@ func HandleInlineUpdate(update *UpdateBotInlineQuery) {
 			}
 		}
 	}
+}
+
+type callbackHandle struct {
+	Pattern interface{}
+	Handler func(m *CallbackQuery) error
+	Client  *Client
 }
 
 func HandleCallbackUpdate(update *UpdateBotCallbackQuery) {
@@ -125,6 +155,12 @@ func HandleCallbackUpdate(update *UpdateBotCallbackQuery) {
 	}
 }
 
+type rawHandle struct {
+	updateType Update
+	Handler    func(m Update) error
+	Client     *Client
+}
+
 func HandleRawUpdate(update Update) {
 	for _, handle := range RawHandles {
 		if reflect.TypeOf(handle.updateType) == reflect.TypeOf(update) {
@@ -135,7 +171,7 @@ func HandleRawUpdate(update Update) {
 	}
 }
 
-func (h *InlineHandle) IsMatch(text string) bool {
+func (h *inlineHandle) IsMatch(text string) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
 		if pattern == OnInlineQuery {
@@ -150,7 +186,7 @@ func (h *InlineHandle) IsMatch(text string) bool {
 	}
 }
 
-func (e *MessageEditHandle) IsMatch(text string) bool {
+func (e *messageEditHandle) IsMatch(text string) bool {
 	switch pattern := e.Pattern.(type) {
 	case string:
 		if pattern == OnEditMessage {
@@ -165,7 +201,7 @@ func (e *MessageEditHandle) IsMatch(text string) bool {
 	}
 }
 
-func (h *CallbackHandle) IsMatch(data []byte) bool {
+func (h *callbackHandle) IsMatch(data []byte) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
 		p := regexp.MustCompile("^" + pattern)
@@ -177,7 +213,12 @@ func (h *CallbackHandle) IsMatch(data []byte) bool {
 	}
 }
 
-func (h *MessageHandle) IsMatch(text string) bool {
+type Command struct {
+	Command string
+	Prefix  string
+}
+
+func (h *messageHandle) IsMatch(text string) bool {
 	switch Pattern := h.Pattern.(type) {
 	case string:
 		if Pattern == OnNewMessage {
@@ -186,7 +227,7 @@ func (h *MessageHandle) IsMatch(text string) bool {
 		pattern := regexp.MustCompile("^" + Pattern)
 		return pattern.MatchString(text) || strings.HasPrefix(text, Pattern)
 	case Command:
-		Patt := fmt.Sprintf("^[%s]%s", Pattern.Prefix, Pattern.Cmd)
+		Patt := fmt.Sprintf("^[%s]%s", Pattern.Prefix, Pattern.Command)
 		pattern, err := regexp.Compile(Patt)
 		if err != nil {
 			return false
@@ -199,7 +240,7 @@ func (h *MessageHandle) IsMatch(text string) bool {
 	}
 }
 
-func (h *MessageHandle) Filter(msg *NewMessage) bool {
+func (h *messageHandle) Filter(msg *NewMessage) bool {
 	if h.Filters.IsPrivate && !msg.IsPrivate() {
 		return false
 	}
@@ -245,12 +286,27 @@ func (h *MessageHandle) Filter(msg *NewMessage) bool {
 	return true
 }
 
+type Filters struct {
+	IsPrivate      bool                   `json:"is_private,omitempty"`
+	IsGroup        bool                   `json:"is_group,omitempty"`
+	IsChannel      bool                   `json:"is_channel,omitempty"`
+	IsCommand      bool                   `json:"is_command,omitempty"`
+	IsText         bool                   `json:"is_text,omitempty"`
+	IsMedia        bool                   `json:"is_media,omitempty"`
+	Func           func(*NewMessage) bool `json:"func,omitempty"`
+	BlackListChats []int64                `json:"black_list_chats,omitempty"`
+	WhiteListChats []int64                `json:"white_list_chats,omitempty"`
+	Users          []int64                `json:"users,omitempty"`
+	Outgoing       bool                   `json:"outgoing,omitempty"`
+	Incoming       bool                   `json:"incoming,omitempty"`
+}
+
 func (c *Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessage) error, filters ...*Filters) {
 	var FILTER *Filters
 	if len(filters) > 0 {
 		FILTER = filters[0]
 	}
-	MessageHandles = append(MessageHandles, MessageHandle{
+	MessageHandles = append(MessageHandles, messageHandle{
 		Pattern: pattern,
 		Handler: handler,
 		Filters: FILTER,
@@ -259,26 +315,26 @@ func (c *Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessa
 }
 
 func (c *Client) AddActionHandler(handler func(m *NewMessage) error) {
-	ActionHandles = append(ActionHandles, ChatActionHandle{
+	ActionHandles = append(ActionHandles, chatActionHandle{
 		Handler: handler,
 		Client:  c,
 	})
 }
 
 func (c *Client) AddEditHandler(pattern interface{}, handler func(m *NewMessage) error) {
-	MessageEdit = append(MessageEdit, MessageEditHandle{pattern, handler, c})
+	MessageEdit = append(MessageEdit, messageEditHandle{pattern, handler, c})
 }
 
 func (c *Client) AddInlineHandler(pattern interface{}, handler func(m *InlineQuery) error) {
-	InlineHandles = append(InlineHandles, InlineHandle{pattern, handler, c})
+	InlineHandles = append(InlineHandles, inlineHandle{pattern, handler, c})
 }
 
 func (c *Client) AddCallbackHandler(pattern interface{}, handler func(m *CallbackQuery) error) {
-	CallbackHandles = append(CallbackHandles, CallbackHandle{pattern, handler, c})
+	CallbackHandles = append(CallbackHandles, callbackHandle{pattern, handler, c})
 }
 
 func (c *Client) AddRawHandler(updateType Update, handler func(m Update) error) {
-	RawHandles = append(RawHandles, RawHandle{updateType, handler, c})
+	RawHandles = append(RawHandles, rawHandle{updateType, handler, c})
 }
 
 func (c *Client) RemoveRawHandler(updateType Update) {

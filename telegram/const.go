@@ -4,7 +4,7 @@ import "regexp"
 
 const (
 	ApiVersion = 147
-	Version    = "v1.0.1a"
+	Version    = "v1.0.2"
 
 	DefaultDC = 4
 

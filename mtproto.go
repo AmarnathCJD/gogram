@@ -173,7 +173,7 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	sender, _ := NewMTProto(cfg)
 	sender.serverRequestHandlers = m.serverRequestHandlers
 	m.stopRoutines()
-	m.Logger.Info("User Migrated to DC: ", dc)
+	m.Logger.Info(fmt.Sprintf("User Migrated to DC: %d", dc))
 	err := sender.CreateConnection(true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)

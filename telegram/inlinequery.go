@@ -45,6 +45,22 @@ func (b *InlineBuilder) Results() []InputBotInlineResult {
 	return b.InlineResults
 }
 
+type ArticleOptions struct {
+	ID           string                             `json:"id,omitempty"`
+	ExcludeMedia bool                               `json:"exclude_media,omitempty"`
+	Thumb        InputWebDocument                   `json:"thumb,omitempty"`
+	Content      InputWebDocument                   `json:"content,omitempty"`
+	LinkPreview  bool                               `json:"link_preview,omitempty"`
+	ReplyMarkup  ReplyMarkup                        `json:"reply_markup,omitempty"`
+	Entities     []MessageEntity                    `json:"entities,omitempty"`
+	ParseMode    string                             `json:"parse_mode,omitempty"`
+	Caption      string                             `json:"caption,omitempty"`
+	Venue        *InputBotInlineMessageMediaVenue   `json:"venue,omitempty"`
+	Location     *InputBotInlineMessageMediaGeo     `json:"location,omitempty"`
+	Contact      *InputBotInlineMessageMediaContact `json:"contact,omitempty"`
+	Invoice      *InputBotInlineMessageMediaInvoice `json:"invoice,omitempty"`
+}
+
 func (b *InlineBuilder) Article(title, description, text string, options ...*ArticleOptions) InputBotInlineResult {
 	var opts ArticleOptions
 	if len(options) > 0 {

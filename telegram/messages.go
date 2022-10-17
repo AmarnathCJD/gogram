@@ -430,6 +430,24 @@ func (c *Client) SendDice(peerID interface{}, emoji string) (*NewMessage, error)
 	return c.SendMedia(peerID, &InputMediaDice{Emoticon: emoji})
 }
 
+type ActionResult struct {
+	Peer   InputPeer `json:"peer,omitempty"`
+	Client *Client   `json:"client,omitempty"`
+}
+
+// Cancel the pointed Action,
+// Returns true if the action was cancelled
+func (a *ActionResult) Cancel() bool {
+	if a.Peer == nil || a.Client == nil {
+		return false // Avoid nil pointer dereference
+	}
+	b, err := a.Client.MessagesSetTyping(a.Peer, 0, &SendMessageCancelAction{})
+	if err != nil {
+		return false
+	}
+	return b
+}
+
 // SendAction sends a chat action.
 // This method is a wrapper for messages.setTyping.
 func (c *Client) SendAction(PeerID interface{}, Action interface{}, topMsgID ...int32) (*ActionResult, error) {
@@ -460,7 +478,7 @@ func (c *Client) SendReadAck(PeerID interface{}, MaxID ...int32) (*MessagesAffec
 	if err != nil {
 		return nil, err
 	}
-	maxID := getVariadic(MaxID, 0).(int32)
+	maxID := getVariadic(MaxID, int32(0)).(int32)
 	return c.MessagesReadHistory(peerChat, maxID)
 }
 
