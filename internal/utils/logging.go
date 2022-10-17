@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"log"
+	"strings"
 )
 
 const (
@@ -96,5 +97,8 @@ func getVariable(v ...any) string {
 	if len(v) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%v", v[0])
+	if len(v) == 1 {
+		return fmt.Sprint(v[0])
+	}
+	return strings.Trim(fmt.Sprint(v...), "[]")
 }

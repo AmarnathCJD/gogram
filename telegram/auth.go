@@ -289,6 +289,8 @@ type (
 		IgnoredIDs []int64
 		// client is the client to be used for logging in
 		client *Client
+		// Timeout is the time after which the token will be considered expired
+		Timeout int32
 	}
 )
 
@@ -309,16 +311,25 @@ func (q *QrToken) Recreate() (*QrToken, error) {
 	return q, err
 }
 
-func (q *QrToken) Wait(timeOut ...int32) {
-	var timeout int32
-	q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update) error {
-		q.client.RemoveRawHandler(&UpdateLoginToken{})
-		requ, err := q.client.AuthImportLoginToken(q.Token)
+func (q *QrToken) Wait(timeout ...int32) error {
+	q.Timeout = getVariadic(timeout, 600).(int32) // 10 minutes
+	ch := make(chan int)
+	ev := q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update) error {
+		ch <- 1
+		return nil
+	})
+	select {
+	case <-ch:
+		go ev.Remove()
+		resp, err := q.client.AuthExportLoginToken(q.client.AppID, q.client.ApiHash, q.IgnoredIDs)
+		if err != nil {
+			return err
+		}
 	QrResponseSwitch:
-		switch req := requ.(type) {
+		switch req := resp.(type) {
 		case *AuthLoginTokenMigrateTo:
 			q.client.SwitchDC(int(req.DcID))
-			requ, err = q.client.AuthImportLoginToken(req.Token)
+			resp, err = q.client.AuthImportLoginToken(req.Token)
 			if err != nil {
 				return err
 			}
@@ -335,15 +346,10 @@ func (q *QrToken) Wait(timeOut ...int32) {
 				}
 			}
 		}
-		return err
-	})
-	if len(timeOut) > 0 {
-		timeout = timeOut[0]
-	} else {
-		timeout = q.ExpiresIn
+		return nil
+	case <-time.After(time.Duration(q.Timeout) * time.Second):
+		return errors.New("qr login timed out")
 	}
-	time.Sleep(time.Duration(timeout) * time.Second)
-	q.client.RemoveRawHandler(&UpdateLoginToken{})
 }
 
 func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {

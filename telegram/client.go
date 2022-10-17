@@ -127,7 +127,8 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 	client.stop = stop
 	client.AppID = int32(c.AppID)
 	client.ApiHash = c.AppHash
-	client.AddCustomServerRequestHandler(HandleUpdate)
+	UpdateHandleDispatcher.client = client
+	client.AddCustomServerRequestHandler(HandleIncomingUpdates)
 	return client, nil
 }
 
