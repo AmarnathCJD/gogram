@@ -47,9 +47,12 @@ type MTProto struct {
 	responseChannels *utils.SyncIntObjectChan
 	expectedTypes    *utils.SyncIntReflectTypes
 
-	seqNoMutex sync.Mutex
-	seqNo      int32
-	dclist     map[int]string
+	seqNoMutex         sync.Mutex
+	seqNo              int32
+	lastMessageIDMutex sync.Mutex
+	lastMessageID      int64
+
+	dclist map[int]string
 
 	sessionStorage session.SessionLoader
 
