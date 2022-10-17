@@ -60,6 +60,15 @@ func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
 	return resp.PhoneCodeHash, nil
 }
 
+type LoginOptions struct {
+	Password     string        `json:"password,omitempty"`
+	Code         string        `json:"code,omitempty"`
+	CodeHash     string        `json:"code_hash,omitempty"`
+	CodeCallback func() string `json:"-"`
+	FirstName    string        `json:"first_name,omitempty"`
+	LastName     string        `json:"last_name,omitempty"`
+}
+
 // Authorize client with phone number, code and phone code hash,
 // If phone code hash is empty, it will be requested from telegram server
 func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, error) {
@@ -92,11 +101,11 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 					break
 				}
 				if matchError(err, "The phone code entered was invalid") {
-					fmt.Println("The phone code entered was invalid, please try again")
+					fmt.Println("The phone code entered was invalid, please try again!")
 					continue
 				} else if matchError(err, "Two-steps verification is enabled") {
 					var passwordInput string
-					fmt.Println("Two-step verification is enabled")
+					fmt.Println("Two-steps verification is enabled")
 					for {
 						fmt.Printf("Enter password: ")
 						fmt.Scanln(&passwordInput)
@@ -143,6 +152,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 AuthResultSwitch:
 	switch auth := Auth.(type) {
 	case *AuthAuthorizationSignUpRequired:
+		fmt.Println("Signing up...")
 		var firstName, lastName string
 		if opts.FirstName == "" {
 			fmt.Printf("Enter first name: ")
@@ -195,6 +205,14 @@ func (c *Client) AcceptTOS() (bool, error) {
 	}
 }
 
+type PasswordOptions struct {
+	Hint              string        `json:"hint,omitempty"`
+	Email             string        `json:"email,omitempty"`
+	EmailCodeCallback func() string `json:"email_code_callback,omitempty"`
+}
+
+// Edit2FA changes the 2FA password of the current user,
+// if 2fa is already enabled, should provide the current password.
 func (c *Client) Edit2FA(currPwd string, newPwd string, opts ...*PasswordOptions) (bool, error) {
 	if currPwd == "" && newPwd == "" {
 		return false, errors.New("current password and new password both cannot be empty")
