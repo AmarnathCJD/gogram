@@ -348,6 +348,7 @@ func (q *QrToken) Wait(timeout ...int32) error {
 		}
 		return nil
 	case <-time.After(time.Duration(q.Timeout) * time.Second):
+		go ev.Remove()
 		return errors.New("qr login timed out")
 	}
 }
