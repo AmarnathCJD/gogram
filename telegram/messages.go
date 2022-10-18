@@ -46,9 +46,9 @@ func (c *Client) SendMessage(peerID interface{}, message interface{}, opts ...*S
 	case string:
 		entities, textMessage = parseEntities(message, opt.ParseMode)
 		rawText = message
-	case *MessageMedia, *InputMedia, *InputFile:
+	case MessageMedia, InputMedia, InputFile:
 		media = message
-	case *NewMessage:
+	case NewMessage:
 		entities = message.Message.Entities
 		textMessage = message.MessageText()
 		rawText = message.MessageText()
@@ -114,7 +114,7 @@ func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, 
 	switch message := message.(type) {
 	case string:
 		entities, textMessage = parseEntities(message, opt.ParseMode)
-	case *MessageMedia, *InputMedia, *InputFile:
+	case MessageMedia, InputMedia, InputFile:
 		media = message
 	case *NewMessage:
 		entities = message.Message.Entities
@@ -455,7 +455,7 @@ func (c *Client) SendAction(PeerID interface{}, Action interface{}, topMsgID ...
 	if err != nil {
 		return nil, err
 	}
-	TopMsgID := getVariadic(topMsgID, 0).(int32)
+	TopMsgID := getVariadic(topMsgID, int32(0)).(int32)
 	switch a := Action.(type) {
 	case string:
 		if action, ok := Actions[a]; ok {
