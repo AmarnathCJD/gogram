@@ -34,6 +34,7 @@ type MTProto struct {
 	stopRoutines  context.CancelFunc
 	routineswg    sync.WaitGroup
 	memorySession bool
+	isConnected   bool
 
 	authKey []byte
 
@@ -51,8 +52,6 @@ type MTProto struct {
 	seqNo              int32
 	lastMessageIDMutex sync.Mutex
 	lastMessageID      int64
-
-	dclist map[int]string
 
 	sessionStorage session.SessionLoader
 
@@ -204,15 +203,6 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 	return sender, nil
 }
 
-func (m *MTProto) SetDCList(in map[int]string) {
-	if m.dclist == nil {
-		m.dclist = make(map[int]string)
-	}
-	for k, v := range in {
-		m.dclist[k] = v
-	}
-}
-
 func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
@@ -223,6 +213,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	if err != nil {
 		return err
 	}
+	m.isConnected = true
 	if withLog {
 		m.Logger.Info("Connection to " + m.Addr + "/TcpFull complete!")
 	}
@@ -291,8 +282,13 @@ func (m *MTProto) InvokeRequestWithoutUpdate(data tl.Object, expectedTypes ...re
 	return err
 }
 
+func (m *MTProto) IsConnected() bool {
+	return m.isConnected
+}
+
 func (m *MTProto) Disconnect() error {
 	m.stopRoutines()
+	m.isConnected = false
 	// m.responseChannels.Close()
 	return nil
 }

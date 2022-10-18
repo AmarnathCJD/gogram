@@ -3,11 +3,8 @@
 package telegram
 
 import (
-	"net"
 	"path/filepath"
-	"reflect"
 	"runtime"
-	"strconv"
 	"sync"
 	"time"
 
@@ -19,32 +16,46 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
-type (
-	Client struct {
-		*mtproto.MTProto
-		config    *ClientConfig
-		stop      chan struct{}
-		bot       bool
-		Cache     *CACHE
-		ParseMode string
-		AppID     int32
-		ApiHash   string
-		Log       *utils.Logger
-	}
+// Client is the main struct of the library
+type Client struct {
+	*mtproto.MTProto
+	config        *ClientConfig
+	stop          chan struct{}
+	bot           bool
+	Cache         *CACHE
+	ParseMode     string
+	AppID         int32
+	deviceModel   string
+	systemVersion string
+	appVersion    string
+	ApiHash       string
+	wg            sync.WaitGroup
+	Log           *utils.Logger
+}
 
-	ClientConfig struct {
-		SessionFile   string
-		StringSession string
-		DeviceModel   string
-		SystemVersion string
-		AppVersion    string
-		AppID         int
-		AppHash       string
-		ParseMode     string
-		DataCenter    int
-		LogLevel      string
-	}
-)
+// ClientConfig is the configuration struct for the client
+type ClientConfig struct {
+	// Path to session file, default: ./session.session
+	SessionFile string
+	// String session
+	StringSession string
+	// Device model, default: Android Device
+	DeviceModel string
+	// System version, default: runtime.GOOS + " " + runtime.GOARCH
+	SystemVersion string
+	// App version
+	AppVersion string
+	// Telegram app id
+	AppID int
+	// Telegram app hash
+	AppHash string
+	// Parse mode (Markdown, HTML), default: HTML
+	ParseMode string
+	// Data center id, default: 4 (Not recommended to change)
+	DataCenter int
+	// Set log level (debug, info, warn, error, disable), default: info
+	LogLevel string
+}
 
 // New instance of telegram client,
 // If session file is not provided, it will create a new session file
@@ -58,8 +69,7 @@ type (
 //  - appID: telegram app id
 //  - appHash: telegram app hash
 //  - parseMode: parse mode (Markdown, HTML)
-//  - dataCenter: data center id (default: 2)
-//  - allowUpdates: allow updates (default: true)
+//  - dataCenter: data center id (default: 4)
 //
 func TelegramClient(c ClientConfig) (*Client, error) {
 	c.SessionFile = getStr(c.SessionFile, filepath.Join(workDirectory(), "session.session"))
@@ -70,6 +80,7 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 	}
 	if c.AppID == 0 || c.AppHash == "" {
 		return nil, errors.New("Your API ID or Hash cannot be empty or None. Please get your own API ID and Hash from https://my.telegram.org/apps")
+		// TODO: no need APPID when using string session or session file
 	}
 	mtproto, err := mtproto.NewMTProto(mtproto.Config{
 		AuthKeyFile:   c.SessionFile,
@@ -89,44 +100,33 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 	}
 
 	client := &Client{
-		MTProto:   mtproto,
-		config:    &c,
-		Cache:     cache,
-		ParseMode: getStr(c.ParseMode, "HTML"),
-		Log:       utils.NewLogger("Telegram").SetLevel("debug"),
+		MTProto:       mtproto,
+		config:        &c,
+		Cache:         cache,
+		ParseMode:     getStr(c.ParseMode, "HTML"),
+		deviceModel:   getStr(c.DeviceModel, "Android Device"),
+		systemVersion: getStr(c.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
+		appVersion:    getStr(c.AppVersion, Version),
+		Log:           utils.NewLogger("GoGram").SetLevel(getStr(c.LogLevel, LogInfo)),
+		AppID:         int32(c.AppID),
+		ApiHash:       c.AppHash,
+		stop:          make(chan struct{}, 1),
+		wg:            sync.WaitGroup{},
 	}
 
-	resp, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
+	// First request should always be InvokeWithLayer
+	if _, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
 		ApiID:          int32(c.AppID),
-		DeviceModel:    getStr(c.DeviceModel, "Android Device"),
-		SystemVersion:  getStr(c.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
-		AppVersion:     getStr(c.AppVersion, "v2.3.6"),
+		DeviceModel:    client.deviceModel,
+		SystemVersion:  client.systemVersion,
+		AppVersion:     client.appVersion,
 		SystemLangCode: "en",
 		LangCode:       "en",
 		Query:          &HelpGetConfigParams{},
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "getting server configs")
+	}); err != nil {
+		return nil, errors.Wrap(err, "Invoking with layer")
 	}
 
-	config, ok := resp.(*Config)
-	if !ok {
-		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
-	}
-
-	dcList := make(map[int]string)
-	for _, dc := range config.DcOptions {
-		if dc.Cdn {
-			continue
-		}
-		dcList[int(dc.ID)] = net.JoinHostPort(dc.IpAddress, strconv.Itoa(int(dc.Port)))
-	}
-	client.SetDCList(dcList)
-	stop := make(chan struct{})
-	client.stop = stop
-	client.AppID = int32(c.AppID)
-	client.ApiHash = c.AppHash
 	UpdateHandleDispatcher.client = client
 	client.AddCustomServerRequestHandler(HandleIncomingUpdates)
 	return client, nil
@@ -140,9 +140,9 @@ func (c *Client) SwitchDC(dcID int) error {
 	c.MTProto = sender
 	if _, err = c.InvokeWithLayer(ApiVersion, &InitConnectionParams{
 		ApiID:          c.AppID,
-		DeviceModel:    "Gogram",
-		SystemVersion:  runtime.GOOS + " " + runtime.GOARCH,
-		AppVersion:     Version,
+		DeviceModel:    c.deviceModel,
+		SystemVersion:  c.systemVersion,
+		AppVersion:     c.appVersion,
 		SystemLangCode: "en",
 		LangCode:       "en",
 		Query:          &HelpGetConfigParams{},
@@ -161,19 +161,24 @@ func (c *Client) ExportSender(dcID int) (*Client, error) {
 		MTProto:   sender,
 		config:    c.config,
 		ParseMode: c.ParseMode,
+		Log:       c.Log,
+		AppID:     c.AppID,
+		ApiHash:   c.ApiHash,
+		stop:      make(chan struct{}, 1),
+		wg:        sync.WaitGroup{},
 	}
-	_, e := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
+	if _, e := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
 		ApiID:          c.AppID,
-		DeviceModel:    "Gogram",
-		SystemVersion:  runtime.GOOS + " " + runtime.GOARCH,
-		AppVersion:     Version,
+		DeviceModel:    c.deviceModel,
+		SystemVersion:  c.systemVersion,
+		AppVersion:     c.appVersion,
 		SystemLangCode: "en",
 		LangCode:       "en",
 		Query:          &HelpGetConfigParams{},
-	})
-	if e != nil {
+	}); e != nil {
 		return nil, e
 	}
+
 	if c.MTProto.Addr != client.MTProto.Addr {
 		authExport, err := c.AuthExportAuthorization(int32(dcID))
 		if err != nil {
@@ -193,8 +198,7 @@ func (c *Client) IsUserAuthorized() (bool, error) {
 }
 
 func (c *Client) IsConnected() bool {
-	// TODO: implement
-	return true
+	return c.MTProto.IsConnected()
 }
 
 func (c *Client) Close() {
@@ -203,9 +207,12 @@ func (c *Client) Close() {
 }
 
 func (c *Client) Idle() {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	wg.Wait()
+	c.wg.Add(1)
+	go func() {
+		defer c.wg.Done()
+		<-c.stop
+	}()
+	c.wg.Wait()
 }
 
 // Disconnect client from telegram server
