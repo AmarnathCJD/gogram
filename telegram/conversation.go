@@ -77,7 +77,14 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 		c.lastMsg = m
 		return nil
 	}
-	h := c.Client.AddMessageHandler(OnNewMessage, waitFunc, &Filters{Users: []int64{peerID}})
+	var filter = &Filters{}
+	switch c.Peer.(type) {
+	case *InputPeerChannel, *InputPeerChat:
+		filter.Chats = append(filter.Chats, peerID)
+	default:
+		filter.Users = append(filter.Users, peerID)
+	}
+	h := c.Client.AddMessageHandler(OnNewMessage, waitFunc, filter)
 	c.openH = append(c.openH, &h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
@@ -93,7 +100,18 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 	peerID := c.Client.GetPeerID(c.Peer)
 	resp := make(chan *NewMessage)
 	waitFunc := func(m *NewMessage) error {
-		if m.SenderID() == peerID {
+		IsTrigger := false
+		switch c.Peer.(type) {
+		case *InputPeerChannel, *InputPeerChat:
+			if m.ChatID() == peerID {
+				IsTrigger = true
+			}
+		default:
+			if m.SenderID() == peerID {
+				IsTrigger = true
+			}
+		}
+		if IsTrigger {
 			resp <- m
 			c.lastMsg = m
 		}
@@ -116,7 +134,18 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 	resp := make(chan *NewMessage)
 	waitFunc := func(m *NewMessage) error {
 		if m.IsReply() {
-			if m.SenderID() == peerID {
+			IsTrigger := false
+			switch c.Peer.(type) {
+			case *InputPeerChannel, *InputPeerChat:
+				if m.ChatID() == peerID {
+					IsTrigger = true
+				}
+			default:
+				if m.SenderID() == peerID {
+					IsTrigger = true
+				}
+			}
+			if IsTrigger {
 				resp <- m
 				c.lastMsg = m
 			}

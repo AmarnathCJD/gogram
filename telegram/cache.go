@@ -147,3 +147,25 @@ func (client *Client) GetInputPeer(peer_id int64) (InputPeer, error) {
 	}
 	return nil, fmt.Errorf("cannot cast %v to any kind of InputPeer", peer_id)
 }
+
+func (client *Client) GetPeerUserID(peer InputPeer) (InputUser, error) {
+	switch p := peer.(type) {
+	case *InputPeerUser:
+		peer_user := &InputUserObj{}
+		peer_user.UserID = p.UserID
+		peer_user.AccessHash = p.AccessHash
+		return peer_user, nil
+	}
+	return nil, fmt.Errorf("cannot cast %v to any kind of PeerUser", peer)
+}
+
+func (client *Client) GetPeerChannelID(peer InputPeer) (InputChannel, error) {
+	switch p := peer.(type) {
+	case *InputPeerChannel:
+		peer_channel := &InputChannelObj{}
+		peer_channel.ChannelID = p.ChannelID
+		peer_channel.AccessHash = p.AccessHash
+		return peer_channel, nil
+	}
+	return nil, fmt.Errorf("cannot cast %v to any kind of PeerChannel", peer)
+}

@@ -376,8 +376,10 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, Caption st
 		for _, update := range updates {
 			m = append(m, packMessage(c, update))
 		}
+	} else {
+		return nil, errors.New("no response")
 	}
-	return m, errors.New("no response")
+	return m, nil
 }
 
 // SendReaction sends a reaction to a message.
@@ -579,7 +581,7 @@ func (c *Client) GetCustomEmoji(docIDs ...int64) ([]Document, error) {
 }
 
 type SearchOption struct {
-	IDs      []int32        `json:"ids,omitempty"`
+	IDs      interface{}    `json:"ids,omitempty"`
 	Query    string         `json:"query,omitempty"`
 	Offset   int32          `json:"offset,omitempty"`
 	Limit    int32          `json:"limit,omitempty"`
@@ -603,13 +605,23 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 		inputIDs []InputMessage
 		result   MessagesMessages
 	)
-	for _, id := range opt.IDs {
-		inputIDs = append(inputIDs, &InputMessageID{ID: id})
+	switch i := opt.IDs.(type) {
+	case []int32, []int64, []int:
+		v := reflect.ValueOf(i)
+		for j := 0; int32(j) < opt.Limit; j++ {
+			if reflect.TypeOf(i).Kind() == reflect.Int {
+				inputIDs = append(inputIDs, &InputMessageID{ID: int32(v.Index(j).Int())})
+			}
+		}
+	case int, int64, int32:
+		inputIDs = append(inputIDs, &InputMessageID{ID: int32(i.(int))})
+	case *InputMessage:
+		inputIDs = append(inputIDs, *i)
 	}
 	if len(inputIDs) == 0 && opt.Query == "" && opt.Limit == 0 {
 		opt.Limit = 1
 	}
-	if len(opt.IDs) > 0 {
+	if len(inputIDs) > 0 {
 		switch peer := peer.(type) {
 		case *InputPeerChannel:
 			result, err = c.ChannelsGetMessages(&InputChannelObj{ChannelID: peer.ChannelID, AccessHash: peer.AccessHash}, inputIDs)
@@ -694,8 +706,8 @@ func (c *Client) UnpinMessage(PeerID interface{}, MsgID int32, Opts ...*PinOptio
 // Gets the current pinned message in a chat
 func (c *Client) GetPinnedMessage(PeerID interface{}) (*NewMessage, error) {
 	resp, err := c.GetMessages(PeerID, &SearchOption{
-		Filter: &InputMessagesFilterPinned{},
-		Limit:  1,
+		IDs:   &InputMessagePinned{},
+		Limit: 1,
 	})
 	if err != nil {
 		return nil, err
@@ -704,65 +716,6 @@ func (c *Client) GetPinnedMessage(PeerID interface{}) (*NewMessage, error) {
 		return nil, errors.New("no pinned message")
 	}
 	return &resp[0], nil
-}
-
-type InlineSendOptions struct {
-	Gallery      bool   `json:"gallery,omitempty"`
-	NextOffset   string `json:"next_offset,omitempty"`
-	CacheTime    int32  `json:"cache_time,omitempty"`
-	Private      bool   `json:"private,omitempty"`
-	SwitchPm     string `json:"switch_pm,omitempty"`
-	SwitchPmText string `json:"switch_pm_text,omitempty"`
-}
-
-func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult, Options ...*InlineSendOptions) (bool, error) {
-	options := getVariadic(Options, &InlineSendOptions{}).(*InlineSendOptions)
-	options.CacheTime = getValue(options.CacheTime, 60).(int32)
-	request := &MessagesSetInlineBotResultsParams{
-		Gallery:    options.Gallery,
-		Private:    options.Private,
-		QueryID:    QueryID,
-		Results:    Results,
-		CacheTime:  options.CacheTime,
-		NextOffset: options.NextOffset,
-	}
-	if options.SwitchPm != "" {
-		request.SwitchPm = &InlineBotSwitchPm{
-			Text:       options.SwitchPm,
-			StartParam: getValue(options.SwitchPmText, "start").(string),
-		}
-	}
-	resp, err := c.MessagesSetInlineBotResults(request)
-	if err != nil {
-		return false, err
-	}
-	return resp, nil
-}
-
-type CallbackOptions struct {
-	Alert     bool   `json:"alert,omitempty"`
-	CacheTime int32  `json:"cache_time,omitempty"`
-	URL       string `json:"url,omitempty"`
-}
-
-func (c *Client) AnswerCallbackQuery(QueryID int64, Text string, Opts ...*CallbackOptions) (bool, error) {
-	options := getVariadic(Opts, &CallbackOptions{}).(*CallbackOptions)
-	request := &MessagesSetBotCallbackAnswerParams{
-		QueryID: QueryID,
-		Message: Text,
-		Alert:   options.Alert,
-	}
-	if options.URL != "" {
-		request.URL = options.URL
-	}
-	if options.CacheTime != 0 {
-		request.CacheTime = options.CacheTime
-	}
-	resp, err := c.MessagesSetBotCallbackAnswer(request)
-	if err != nil {
-		return false, err
-	}
-	return resp, nil
 }
 
 type InlineOptions struct {
