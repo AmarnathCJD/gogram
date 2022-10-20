@@ -75,6 +75,8 @@ type DialogOptions struct {
 	FolderID      int32     `json:"folder_id,omitempty"`
 }
 
+type CustomDialog struct{} // TODO
+
 func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 	Options := getVariadic(Opts, &DialogOptions{}).(*DialogOptions)
 	if Options.Limit > 1000 {
@@ -103,4 +105,45 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 	default:
 		return nil, errors.New("could not convert dialogs: " + reflect.TypeOf(resp).String())
 	}
+}
+
+func (c *Client) GetCommonChats(userID interface{}) ([]Chat, error) {
+	peer, err := c.GetSendablePeer(userID)
+	if err != nil {
+		return nil, err
+	}
+	user, ok := peer.(*InputPeerUser)
+	if !ok {
+		return nil, errors.New("peer is not a user")
+	}
+	resp, err := c.MessagesGetCommonChats(&InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, 0, 100)
+	if err != nil {
+		return nil, err
+	}
+	switch p := resp.(type) {
+	case *MessagesChatsObj:
+		go func() { c.Cache.UpdatePeersToCache([]User{}, p.Chats) }()
+		return p.Chats, nil
+	case *MessagesChatsSlice:
+		go func() { c.Cache.UpdatePeersToCache([]User{}, p.Chats) }()
+		return p.Chats, nil
+	default:
+		return nil, errors.New("could not convert chats: " + reflect.TypeOf(resp).String())
+	}
+}
+
+func (c *Client) SetEmojiStatus(emoji ...interface{}) (bool, error) {
+	var status EmojiStatus
+	if len(emoji) > 1 {
+		status = &EmojiStatusEmpty{}
+	} else {
+		em := emoji[0]
+		_, ok := em.(EmojiStatus)
+		if !ok {
+			return false, errors.New("emoji is not an EmojiStatus")
+		}
+		status = em.(EmojiStatus)
+	}
+	_, err := c.AccountUpdateEmojiStatus(status)
+	return err == nil, err
 }

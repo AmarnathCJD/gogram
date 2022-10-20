@@ -492,3 +492,51 @@ func (c *Client) GetChatInviteLink(peerID interface{}, LinkOpts ...*InviteLinkOp
 	})
 	return link, err
 }
+
+type ChannelOptions struct {
+	About        string        `json:"about,omitempty"`
+	NotBroadcast bool          `json:"broadcast,omitempty"`
+	Megagroup    bool          `json:"megagroup,omitempty"`
+	Address      string        `json:"address,omitempty"`
+	ForImport    bool          `json:"for_import,omitempty"`
+	GeoPoint     InputGeoPoint `json:"geo_point,omitempty"`
+}
+
+func (c *Client) CreateChannel(title string, opts ...ChannelOptions) (*Channel, error) {
+	opt := getVariadic(opts, &ChannelOptions{}).(*ChannelOptions)
+	u, err := c.ChannelsCreateChannel(&ChannelsCreateChannelParams{
+		Broadcast: !opt.NotBroadcast,
+		GeoPoint:  opt.GeoPoint,
+		About:     opt.About, ForImport: opt.ForImport,
+		Address:   opt.Address,
+		Megagroup: opt.Megagroup,
+		Title:     title,
+	})
+	if err != nil {
+		return nil, err
+	}
+	switch u := u.(type) {
+	case *UpdatesObj:
+		chat := u.Chats[0]
+		if ch, ok := chat.(*Channel); ok {
+			return ch, nil
+		}
+	}
+	return nil, errors.New("empty reply from server")
+}
+
+func (c *Client) DeleteChannel(channelID interface{}) (*Updates, error) {
+	peer, err := c.GetSendablePeer(channelID)
+	if err != nil {
+		return nil, err
+	}
+	channelPeer, ok := peer.(*InputPeerChannel)
+	if !ok {
+		return nil, errors.New("could not convert peer to channel")
+	}
+	u, err := c.ChannelsDeleteChannel(&InputChannelObj{ChannelID: channelPeer.ChannelID, AccessHash: channelPeer.AccessHash})
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
