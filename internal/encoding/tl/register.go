@@ -11,7 +11,7 @@ import (
 var (
 	// used by decoder, guaranteed that types are convertible to tl.Object
 	objectByCrc = make(map[uint32]reflect.Type) // this value setting by registerObject(), DO NOT CALL IT BY HANDS
-	enumCrcs    = make(map[uint32]null)
+	enumCrcs    = make(map[uint32]struct{})
 )
 
 func registerObject(o Object) {
@@ -23,7 +23,7 @@ func registerObject(o Object) {
 
 func registerEnum(o Object) {
 	registerObject(o)
-	enumCrcs[o.CRC()] = null{}
+	enumCrcs[o.CRC()] = struct{}{}
 }
 
 func RegisterObjects(obs ...Object) {

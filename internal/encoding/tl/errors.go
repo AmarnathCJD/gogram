@@ -1,8 +1,4 @@
-// Copyright£ (c) 2020-2021 KHS Films
-//
-// This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogram/blob/master/LICENSE for details
-
+// Copyright (c) 2022,RoseLoverX
 package tl
 
 import "fmt"
@@ -16,7 +12,7 @@ func (e *ErrRegisteredObjectNotFound) Error() string {
 	return fmt.Sprintf("object with provided crc not registered: 0x%08x", e.Crc)
 }
 
-type ErrMustParseSlicesExplicitly null
+type ErrMustParseSlicesExplicitly struct{}
 
 func (e *ErrMustParseSlicesExplicitly) Error() string {
 	return "got vector CRC code when parsing unknown object: vectors can't be parsed as predicted objects"

@@ -19,9 +19,13 @@ type TCPConnConfig struct {
 	Ctx     context.Context
 	Host    string
 	Timeout time.Duration
+	Socks   *Socks
 }
 
 func NewTCP(cfg TCPConnConfig) (Conn, error) {
+	if cfg.Socks.Host != "" {
+		return newSocksTCP(cfg)
+	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp", cfg.Host)
 	if err != nil {
 		return nil, errors.Wrap(err, "resolving tcp")
@@ -34,6 +38,18 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 	return &tcpConn{
 		cancelReader: NewCancelableReader(cfg.Ctx, conn),
 		conn:         conn,
+		timeout:      cfg.Timeout,
+	}, nil
+}
+
+func newSocksTCP(cfg TCPConnConfig) (Conn, error) {
+	conn, err := DialProxy(cfg.Socks, "tcp", cfg.Host)
+	if err != nil {
+		return nil, err
+	}
+	return &tcpConn{
+		cancelReader: NewCancelableReader(cfg.Ctx, conn),
+		conn:         conn.(*net.TCPConn),
 		timeout:      cfg.Timeout,
 	}, nil
 }

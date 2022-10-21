@@ -11,11 +11,11 @@ import (
 
 type SyncSetInt struct {
 	mutex sync.RWMutex
-	m     map[int]null
+	m     map[int]struct{}
 }
 
 func NewSyncSetInt() *SyncSetInt {
-	return &SyncSetInt{m: make(map[int]null)}
+	return &SyncSetInt{m: make(map[int]struct{})}
 }
 
 func (s *SyncSetInt) Has(key int) bool {
@@ -29,7 +29,7 @@ func (s *SyncSetInt) Add(key int) bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	_, ok := s.m[key]
-	s.m[key] = null{}
+	s.m[key] = struct{}{}
 	return !ok
 }
 
@@ -44,7 +44,7 @@ func (s *SyncSetInt) Delete(key int) bool {
 func (s *SyncSetInt) Reset() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.m = make(map[int]null)
+	s.m = make(map[int]struct{})
 }
 
 type SyncIntObjectChan struct {

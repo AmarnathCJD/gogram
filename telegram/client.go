@@ -13,6 +13,7 @@ import (
 
 	"github.com/amarnathcjd/gogram/internal/keys"
 	"github.com/amarnathcjd/gogram/internal/session"
+	"github.com/amarnathcjd/gogram/internal/transport"
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
@@ -53,8 +54,24 @@ type ClientConfig struct {
 	ParseMode string
 	// Data center id, default: 4 (Not recommended to change)
 	DataCenter int
+	// Socket proxy (supported: socks5, socks4)
+	//
+	SocksProxy *SocksProxy
 	// Set log level (debug, info, warn, error, disable), default: info
 	LogLevel string
+}
+
+type SocksProxy struct {
+	// Socks proxy address
+	Host string
+	// Socks proxy port
+	Port int
+	// Socks5 proxy username
+	Username string
+	// Socks5 proxy password
+	Password string
+	// v5 or v4
+	Version int
 }
 
 // New instance of telegram client,
@@ -82,6 +99,9 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 		return nil, errors.New("Your API ID or Hash cannot be empty or None. Please get your own API ID and Hash from https://my.telegram.org/apps")
 		// TODO: no need APPID when using string session or session file
 	}
+	if c.SocksProxy == nil {
+		c.SocksProxy = &SocksProxy{}
+	}
 	mtproto, err := mtproto.NewMTProto(mtproto.Config{
 		AuthKeyFile:   c.SessionFile,
 		ServerHost:    GetHostIp(dcID),
@@ -89,9 +109,10 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 		DataCenter:    dcID,
 		StringSession: c.StringSession,
 		LogLevel:      getStr(c.LogLevel, LogInfo),
+		SocksProxy:    &transport.Socks{Host: c.SocksProxy.Host, Port: c.SocksProxy.Port, Username: c.SocksProxy.Username, Password: c.SocksProxy.Password, Version: c.SocksProxy.Version},
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "MTProto client")
+		return nil, errors.Wrap(err, "creating mtproto client")
 	}
 
 	err = mtproto.CreateConnection(true)
