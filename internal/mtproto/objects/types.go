@@ -189,7 +189,7 @@ type RpcDropAnswer interface {
 	ImplementsRpcDropAnswer()
 }
 
-type RpcAnswerUnknown null
+type RpcAnswerUnknown struct{}
 
 func (*RpcAnswerUnknown) ImplementsRpcDropAnswer() {}
 
@@ -197,7 +197,7 @@ func (*RpcAnswerUnknown) CRC() uint32 {
 	return 0x5e2ad36e //nolint:gomnd not magic
 }
 
-type RpcAnswerDroppedRunning null
+type RpcAnswerDroppedRunning struct{}
 
 func (*RpcAnswerDroppedRunning) ImplementsRpcDropAnswer() {}
 

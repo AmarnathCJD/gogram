@@ -1,4 +1,4 @@
-// Copyright (c) 2022 RoseLoverX
+// Copyright (c) 2022,RoseLoverX
 
 package messages
 
@@ -10,11 +10,10 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/utils"
+	"github.com/pkg/errors"
 )
 
 // Common это сообщение (зашифрованое либо открытое) которыми общаются между собой клиент и сервер
@@ -37,7 +36,7 @@ type Encrypted struct {
 
 func (msg *Encrypted) Serialize(client MessageInformator, requireToAck bool, seqNo int32) ([]byte, error) {
 	obj := serializePacket(client, msg.Msg, msg.MsgID, requireToAck, seqNo)
-	encryptedData, err := ige.Encrypt(obj, client.GetAuthKey())
+	encryptedData, msgKey, err := ige.Encrypt(obj, client.GetAuthKey())
 	if err != nil {
 		return nil, errors.Wrap(err, "encrypting")
 	}
@@ -46,7 +45,7 @@ func (msg *Encrypted) Serialize(client MessageInformator, requireToAck bool, seq
 
 	e := tl.NewEncoder(buf)
 	e.PutRawBytes(utils.AuthKeyHash(client.GetAuthKey()))
-	e.PutRawBytes(ige.MessageKey(obj))
+	e.PutRawBytes(msgKey)
 	e.PutRawBytes(encryptedData)
 
 	return buf.Bytes(), nil
@@ -92,8 +91,8 @@ func DeserializeEncrypted(data, authKey []byte) (*Encrypted, error) {
 	}
 
 	// этот кусок проверяет валидность данных по ключу
-	trimed := decrypted[0 : 32+messageLen] // суммарное сообщение, после расшифровки
-	if !bytes.Equal(utils.Sha1Byte(trimed)[4:20], msg.MsgKey) {
+	msgKey := ige.MessageKey(authKey, decrypted, true)
+	if !bytes.Equal(msgKey, msg.MsgKey) {
 		return nil, errors.New("wrong message key, can't trust to sender")
 	}
 	msg.Msg = d.PopRawBytes(int(messageLen))

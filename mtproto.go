@@ -1,6 +1,6 @@
 // Copyright (c) 2022 RoseLoverX
 
-package mtproto
+package gogram
 
 import (
 	"context"
@@ -30,6 +30,7 @@ var wd, _ = os.Getwd()
 
 type MTProto struct {
 	Addr          string
+	socksProxy    *transport.Socks
 	transport     transport.Transport
 	stopRoutines  context.CancelFunc
 	routineswg    sync.WaitGroup
@@ -77,6 +78,7 @@ type Config struct {
 	PublicKey  *rsa.PublicKey
 	DataCenter int
 	LogLevel   string
+	SocksProxy *transport.Socks
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -115,6 +117,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		Logger:                utils.NewLogger("MTProto").SetLevel(c.LogLevel),
 		memorySession:         c.MemorySession,
 	}
+	m.socksProxy = c.SocksProxy
 	if c.StringSession != "" {
 		m.ImportAuth(c.StringSession)
 	} else {
@@ -239,6 +242,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 			Ctx:     ctx,
 			Host:    m.Addr,
 			Timeout: defaultTimeout,
+			Socks:   m.socksProxy,
 		},
 		mode.Intermediate,
 	)

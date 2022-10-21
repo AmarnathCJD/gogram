@@ -1,6 +1,6 @@
 // Copyright (c) 2022 RoseLoverX
 
-package mtproto
+package gogram
 
 import (
 	"bytes"

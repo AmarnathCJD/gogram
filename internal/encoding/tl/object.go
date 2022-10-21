@@ -24,20 +24,20 @@ type Unmarshaler interface {
 //==========================================================================================================//
 
 // PseudoTrue is a support struct which is required to get native
-type PseudoTrue null
+type PseudoTrue struct{}
 
 func (*PseudoTrue) CRC() uint32 {
 	return CrcTrue
 }
 
 // PseudoFalse is a support struct which is required to get native
-type PseudoFalse null
+type PseudoFalse struct{}
 
 func (*PseudoFalse) CRC() uint32 {
 	return CrcFalse
 }
 
-type PseudoNil null
+type PseudoNil struct{}
 
 func (*PseudoNil) CRC() uint32 {
 	return CrcNull
