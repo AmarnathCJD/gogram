@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 	"os"
@@ -416,7 +417,11 @@ mediaTypeSwitch:
 			}
 			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: Attributes, Thumb: getValue(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32)}, nil
 		}
-	case []byte:
+	case []byte, *bytes.Reader:
+		uopts := &UploadOptions{}
+		if attr != nil && attr.FileName != "" {
+			uopts.FileName = attr.FileName
+		}
 		var err error
 		mediaFile, err = c.UploadFile(media)
 		if err != nil {

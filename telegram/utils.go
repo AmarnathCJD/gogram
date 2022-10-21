@@ -75,11 +75,12 @@ func matchError(err error, str string) bool {
 }
 
 func resolveMimeType(filePath string) (string, bool) {
+	if matchMimeType := matchMimeType(filePath); matchMimeType != "" {
+		return matchMimeType, mimeIsPhoto(matchMimeType)
+	}
 	file, err := os.Open(filePath)
 	if err != nil {
-		if matchMimeType := matchMimeType(filePath); matchMimeType != "" {
-			return matchMimeType, mimeIsPhoto(matchMimeType)
-		}
+		return "application/octet-stream", false
 	}
 	defer file.Close()
 	buffer := make([]byte, 512)

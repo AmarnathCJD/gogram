@@ -23,7 +23,7 @@ type TCPConnConfig struct {
 }
 
 func NewTCP(cfg TCPConnConfig) (Conn, error) {
-	if cfg.Socks.Host != "" {
+	if cfg.Socks != nil && cfg.Socks.Host != "" {
 		return newSocksTCP(cfg)
 	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp", cfg.Host)

@@ -66,6 +66,7 @@ type (
 func (u *Uploader) Upload() (InputFile, error) {
 	u.Init()
 	u.Start()
+	u.closeWorkers()
 	return u.saveFile()
 }
 
@@ -132,6 +133,12 @@ func (u *Uploader) allocateWorkers() {
 			panic(err)
 		}
 		u.Workers = append(u.Workers, w)
+	}
+}
+
+func (u *Uploader) closeWorkers() {
+	for _, w := range u.Workers {
+		w.Terminate()
 	}
 }
 
