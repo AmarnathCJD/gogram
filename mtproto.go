@@ -171,6 +171,7 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 		AuthKeyFile:   m.sessionStorage.Path(),
 		MemorySession: false,
 		LogLevel:      m.Logger.Lev(),
+		SocksProxy:    m.socksProxy,
 	}
 	sender, _ := NewMTProto(cfg)
 	sender.serverRequestHandlers = m.serverRequestHandlers
@@ -192,6 +193,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		AuthKeyFile:   filepath.Join(wd, "sesion.session"),
 		MemorySession: mem,
 		LogLevel:      m.Logger.Lev(),
+		SocksProxy:    m.socksProxy,
 	}
 	if dcID == m.GetDC() {
 		cfg.SessionStorage = m.sessionStorage
@@ -301,6 +303,7 @@ func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
 	m.Logger.Info("Disconnecting Borrowed Sender from " + m.Addr + "/TcpFull...")
+	m.isConnected = false
 	return nil
 }
 
@@ -361,6 +364,9 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			default:
+				if !m.isConnected {
+					return
+				}
 				err := m.readMsg()
 				switch err {
 				case nil:
