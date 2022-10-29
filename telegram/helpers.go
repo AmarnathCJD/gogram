@@ -70,6 +70,26 @@ func (c *Client) getMultiMedia(m interface{}, attrs *MediaMetadata) ([]*InputSin
 		media = append(media, m)
 	case []*InputSingleMedia:
 		media = m
+	case []NewMessage:
+		for _, msg := range m {
+			if md := msg.Media(); md != nil {
+				mediaObj, err := c.getSendableMedia(md, attrs)
+				if err != nil {
+					return nil, err
+				}
+				inputMedia = append(inputMedia, mediaObj)
+			}
+		}
+	case []*NewMessage:
+		for _, msg := range m {
+			if md := msg.Media(); md != nil {
+				mediaObj, err := c.getSendableMedia(md, attrs)
+				if err != nil {
+					return nil, err
+				}
+				inputMedia = append(inputMedia, mediaObj)
+			}
+		}
 	case []InputMedia:
 		for _, m := range m {
 			mediaObj, err := c.getSendableMedia(m, attrs)
