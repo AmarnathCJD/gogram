@@ -3,12 +3,16 @@
 package telegram
 
 import (
-	"log"
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 )
+
+const DEF_ALBUM_WAIT_TIME = 600 * time.Millisecond
 
 var (
 	UpdateHandleDispatcher = &UpdateDispatcher{}
@@ -20,10 +24,39 @@ type messageHandle struct {
 	Filters *Filters
 }
 
+type albumBox struct {
+	sync.Mutex
+	waitExit chan struct{}
+	messages []*NewMessage
+}
+
+func (a *albumBox) Wait() {
+	time.Sleep(DEF_ALBUM_WAIT_TIME)
+	a.waitExit <- struct{}{}
+}
+
+func (a *albumBox) Add(m *NewMessage) {
+	a.Lock()
+	defer a.Unlock()
+	a.messages = append(a.messages, m)
+}
+
 func (h *messageHandle) Remove() {
 	for i, handle := range UpdateHandleDispatcher.messageHandles {
 		if reflect.DeepEqual(handle, h) {
 			UpdateHandleDispatcher.messageHandles = append(UpdateHandleDispatcher.messageHandles[:i], UpdateHandleDispatcher.messageHandles[i+1:]...)
+		}
+	}
+}
+
+type albumHandle struct {
+	Handler func(alb []*NewMessage) error
+}
+
+func (h *albumHandle) Remove() {
+	for i, handle := range UpdateHandleDispatcher.albumHandles {
+		if reflect.DeepEqual(handle, h) {
+			UpdateHandleDispatcher.albumHandles = append(UpdateHandleDispatcher.albumHandles[:i], UpdateHandleDispatcher.albumHandles[i+1:]...)
 		}
 	}
 }
@@ -113,12 +146,18 @@ type UpdateDispatcher struct {
 	messageEditHandles   []messageEditHandle
 	actionHandles        []chatActionHandle
 	messageDeleteHandles []messageDeleteHandle
+	albumHandles         []albumHandle
 	rawHandles           []rawHandle
 }
 
 func (u *UpdateDispatcher) AddM(m messageHandle) messageHandle {
 	u.messageHandles = append(u.messageHandles, m)
 	return m
+}
+
+func (u *UpdateDispatcher) AddAL(a albumHandle) albumHandle {
+	u.albumHandles = append(u.albumHandles, a)
+	return a
 }
 
 func (u *UpdateDispatcher) AddI(i inlineHandle) inlineHandle {
@@ -154,6 +193,9 @@ func (u *UpdateDispatcher) AddR(r rawHandle) rawHandle {
 func (u *UpdateDispatcher) HandleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
+		if msg.GroupedID != 0 {
+			u.HandleAlbum(*msg)
+		}
 		for _, handle := range u.messageHandles {
 			if handle.IsMatch(msg.Message) {
 				go func(h messageHandle) {
@@ -174,6 +216,35 @@ func (u *UpdateDispatcher) HandleMessageUpdate(update Message) {
 				}
 			}(handle)
 		}
+	}
+}
+
+var (
+	ErrInvalidUpdateType = errors.New("invalid update type")
+	activeAlbums         = make(map[int64]*albumBox)
+)
+
+func (u *UpdateDispatcher) HandleAlbum(message MessageObj) {
+	if group, ok := activeAlbums[message.GroupedID]; ok {
+		group.Add(packMessage(u.client, &message))
+	} else {
+		abox := &albumBox{
+			waitExit: make(chan struct{}),
+			messages: []*NewMessage{packMessage(u.client, &message)},
+		}
+		activeAlbums[message.GroupedID] = abox
+		go func() {
+			<-abox.waitExit
+			for _, handle := range u.albumHandles {
+				go func(h albumHandle) {
+					if err := h.Handler(abox.messages); err != nil {
+						u.client.Log.Error(err)
+					}
+				}(handle)
+			}
+			delete(activeAlbums, message.GroupedID)
+		}()
+		go abox.Wait()
 	}
 }
 
@@ -355,6 +426,10 @@ func (c *Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessa
 	return UpdateHandleDispatcher.AddM(messageHandle{Pattern: pattern, Handler: handler, Filters: getVariadic(filters, &Filters{}).(*Filters)})
 }
 
+func (c *Client) AddAlbumHandler(handler func(m []*NewMessage) error) albumHandle {
+	return UpdateHandleDispatcher.AddAL(albumHandle{Handler: handler})
+}
+
 func (c *Client) AddActionHandler(handler func(m *NewMessage) error) chatActionHandle {
 	return UpdateHandleDispatcher.AddA(chatActionHandle{Handler: handler})
 }
@@ -421,7 +496,7 @@ UpdateTypeSwitching:
 		goto UpdateTypeSwitching
 	case *UpdatesTooLong:
 	default:
-		log.Println("unknown update type", reflect.TypeOf(u).String())
+		UpdateHandleDispatcher.client.Log.Warn(ErrInvalidUpdateType, reflect.TypeOf(u))
 	}
 	return true
 }

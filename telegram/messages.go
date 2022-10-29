@@ -583,6 +583,7 @@ func (c *Client) GetCustomEmoji(docIDs ...int64) ([]Document, error) {
 type SearchOption struct {
 	IDs      interface{}    `json:"ids,omitempty"`
 	Query    string         `json:"query,omitempty"`
+	FromUser interface{}    `json:"from_user,omitempty"`
 	Offset   int32          `json:"offset,omitempty"`
 	Limit    int32          `json:"limit,omitempty"`
 	Filter   MessagesFilter `json:"filter,omitempty"`
@@ -594,7 +595,9 @@ type SearchOption struct {
 }
 
 func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMessage, error) {
-	opt := getVariadic(Opts, &SearchOption{}).(*SearchOption)
+	opt := getVariadic(Opts, &SearchOption{
+		Filter: &InputMessagesFilterEmpty{},
+	}).(*SearchOption)
 	peer, err := c.GetSendablePeer(PeerID)
 	if err != nil {
 		return nil, err
@@ -607,10 +610,18 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 	)
 	switch i := opt.IDs.(type) {
 	case []int32, []int64, []int:
-		v := reflect.ValueOf(i)
-		for j := 0; int32(j) < opt.Limit; j++ {
-			if reflect.TypeOf(i).Kind() == reflect.Int {
-				inputIDs = append(inputIDs, &InputMessageID{ID: int32(v.Index(j).Int())})
+		switch i := i.(type) {
+		case []int32:
+			for _, id := range i {
+				inputIDs = append(inputIDs, &InputMessageID{ID: id})
+			}
+		case []int64:
+			for _, id := range i {
+				inputIDs = append(inputIDs, &InputMessageID{ID: int32(id)})
+			}
+		case []int:
+			for _, id := range i {
+				inputIDs = append(inputIDs, &InputMessageID{ID: int32(id)})
 			}
 		}
 	case int, int64, int32:
@@ -640,7 +651,7 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 			m = append(m, result.Messages...)
 		}
 	} else {
-		result, err = c.MessagesSearch(&MessagesSearchParams{
+		params := &MessagesSearchParams{
 			Peer:      peer,
 			Q:         opt.Query,
 			OffsetID:  opt.Offset,
@@ -652,7 +663,15 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 			MaxID:     opt.MaxID,
 			Limit:     opt.Limit,
 			TopMsgID:  opt.TopMsgID,
-		})
+		}
+		if opt.FromUser != nil {
+			fromUser, err := c.GetSendablePeer(opt.FromUser)
+			if err != nil {
+				return nil, err
+			}
+			params.FromID = fromUser
+		}
+		result, err = c.MessagesSearch(params)
 		if err != nil {
 			return nil, err
 		}
@@ -760,6 +779,60 @@ func (c *Client) InlineQuery(peerID interface{}, Options ...*InlineOptions) (*Me
 		return nil, err
 	}
 	return resp, nil
+}
+
+// GetMediaGroup gets all the messages in a media group.
+//  Params:
+//    - PeerID: The ID of the chat or channel.
+//    - MsgID: The ID of the message.
+func (c *Client) GetMediaGroup(PeerID interface{}, MsgID int32) ([]NewMessage, error) {
+	_, err := c.GetSendablePeer(PeerID)
+	if err != nil {
+		return nil, err
+	}
+	if MsgID <= 0 {
+		return nil, errors.New("invalid message ID")
+	}
+	fetchIDs := func(id int32) []int32 {
+		pref := id - 9
+		later := id + 10
+		var ids []int32
+		for i := pref; i < later; i++ {
+			ids = append(ids, i)
+		}
+		return ids
+	}
+	resp, err := c.GetMessages(PeerID, &SearchOption{
+		IDs: fetchIDs(MsgID),
+	})
+	if err != nil {
+		return nil, err
+	}
+	getMediaGroupID := func(ms []NewMessage) int64 {
+		if len(ms) == 19 {
+			return ms[9].Message.GroupedID
+		}
+		for _, m := range ms {
+			if m.ID == MsgID-1 {
+				return m.Message.GroupedID
+			}
+		}
+		return 0
+	}
+	groupID := getMediaGroupID(resp)
+	if groupID == 0 {
+		return nil, errors.New("The message is not part of a media group")
+	}
+	sameGroup := func(m []NewMessage, groupID int64) []NewMessage {
+		var msgs []NewMessage
+		for _, msg := range m {
+			if msg.Message.GroupedID == groupID {
+				msgs = append(msgs, msg)
+			}
+		}
+		return msgs
+	}
+	return sameGroup(resp, groupID), nil
 }
 
 // Internal functions

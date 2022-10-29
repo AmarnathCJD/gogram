@@ -477,6 +477,5 @@ func GenerateRandomString(n int) string {
 	return string(b)
 }
 
-// TODO CUSTOM LOGGING
-// READY for V1.0
-// TODO: add more methods
+// TODO: IMPLEMENT SenderChat Correctly.
+// Add Album Handle and GetMediaGroup Functions.

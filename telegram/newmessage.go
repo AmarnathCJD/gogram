@@ -511,6 +511,11 @@ func (m *NewMessage) ForwardTo(PeerID interface{}, Opts ...*ForwardOptions) (*Ne
 	return &resps[0], err
 }
 
+// GetMediaGroup returns the media group of the message
+func (m *NewMessage) GetMediaGroup() ([]NewMessage, error) {
+	return m.Client.GetMediaGroup(m.ChatID(), m.ID)
+}
+
 // Download Media to Disk,
 // if path is empty, it will be downloaded to the current directory,
 // returns the path to the downloaded file
