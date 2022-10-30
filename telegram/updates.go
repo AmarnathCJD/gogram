@@ -26,8 +26,9 @@ type messageHandle struct {
 
 type albumBox struct {
 	sync.Mutex
-	waitExit chan struct{}
-	messages []*NewMessage
+	waitExit  chan struct{}
+	messages  []*NewMessage
+	groupedID int64
 }
 
 func (a *albumBox) Wait() {
@@ -50,7 +51,7 @@ func (h *messageHandle) Remove() {
 }
 
 type albumHandle struct {
-	Handler func(alb []*NewMessage) error
+	Handler func(alb *Album) error
 }
 
 func (h *albumHandle) Remove() {
@@ -229,15 +230,20 @@ func (u *UpdateDispatcher) HandleAlbum(message MessageObj) {
 		group.Add(packMessage(u.client, &message))
 	} else {
 		abox := &albumBox{
-			waitExit: make(chan struct{}),
-			messages: []*NewMessage{packMessage(u.client, &message)},
+			waitExit:  make(chan struct{}),
+			messages:  []*NewMessage{packMessage(u.client, &message)},
+			groupedID: message.GroupedID,
 		}
 		activeAlbums[message.GroupedID] = abox
 		go func() {
 			<-abox.waitExit
 			for _, handle := range u.albumHandles {
 				go func(h albumHandle) {
-					if err := h.Handler(abox.messages); err != nil {
+					if err := h.Handler(&Album{
+						GroupedID: abox.groupedID,
+						Messages:  abox.messages,
+						Client:    u.client,
+					}); err != nil {
 						u.client.Log.Error(err)
 					}
 				}(handle)
@@ -426,7 +432,7 @@ func (c *Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessa
 	return UpdateHandleDispatcher.AddM(messageHandle{Pattern: pattern, Handler: handler, Filters: getVariadic(filters, &Filters{}).(*Filters)})
 }
 
-func (c *Client) AddAlbumHandler(handler func(m []*NewMessage) error) albumHandle {
+func (c *Client) AddAlbumHandler(handler func(m *Album) error) albumHandle {
 	return UpdateHandleDispatcher.AddAL(albumHandle{Handler: handler})
 }
 
