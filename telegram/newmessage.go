@@ -54,6 +54,17 @@ func (m *NewMessage) ReplyToMsgID() int32 {
 	return 0
 }
 
+func (m *NewMessage) MarkRead() (err error) {
+	_, err = m.Client.SendReadAck(m.ChatID(), m.ID)
+	return
+}
+
+func (a *NewMessage) Pin(notify ...bool) (err error) {
+	nf := getVariadic(notify, false).(bool)
+	_, err = a.Client.PinMessage(a.ChatID(), a.ID, &PinOptions{Silent: !nf})
+	return
+}
+
 func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 	if !m.IsReply() {
 		return nil, errors.New("message is not a reply")
@@ -521,4 +532,85 @@ func (m *NewMessage) GetMediaGroup() ([]NewMessage, error) {
 // returns the path to the downloaded file
 func (m *NewMessage) Download(opts ...*DownloadOptions) (string, error) {
 	return m.Client.DownloadMedia(m.Media(), opts...)
+}
+
+// Album Type for MediaGroup
+type Album struct {
+	Client    *Client
+	GroupedID int64
+	Messages  []*NewMessage
+}
+
+func (a *Album) Marshal() string {
+	b, _ := json.MarshalIndent(a, "", "  ")
+	return string(b)
+}
+
+func (a *Album) Download(opts ...*DownloadOptions) ([]string, error) {
+	var paths []string
+	for _, m := range a.Messages {
+		path, err := m.Download(opts...)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, path)
+	}
+	return paths, nil
+}
+
+func (a *Album) Delete() (*MessagesAffectedMessages, error) {
+	var ids []int32
+	for _, m := range a.Messages {
+		ids = append(ids, m.ID)
+	}
+	return a.Client.DeleteMessages(a.Messages[0].ChatID(), ids)
+}
+
+func (a *Album) ForwardTo(PeerID interface{}, Opts ...*ForwardOptions) ([]NewMessage, error) {
+	var ids []int32
+	for _, m := range a.Messages {
+		ids = append(ids, m.ID)
+	}
+	return a.Client.Forward(a.Messages[0].ChatID(), PeerID, ids, Opts...)
+}
+
+func (a *Album) IsReply() bool {
+	return a.Messages[0].IsReply()
+}
+
+func (a *Album) IsForward() bool {
+	return a.Messages[0].IsForward()
+}
+
+func (a *Album) GetReplyMessage() (*NewMessage, error) {
+	return a.Messages[0].GetReplyMessage()
+}
+
+func (a *Album) Respond(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
+	return a.Messages[0].Respond(Text, Opts...)
+}
+
+func (a *Album) RespondMedia(Media interface{}, Opts ...MediaOptions) (*NewMessage, error) {
+	return a.Messages[0].RespondMedia(Media, Opts...)
+}
+
+func (a *Album) Reply(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
+	return a.Messages[0].Reply(Text, Opts...)
+}
+
+func (a *Album) ReplyMedia(Media interface{}, Opts ...MediaOptions) (*NewMessage, error) {
+	return a.Messages[0].ReplyMedia(Media, Opts...)
+}
+
+func (a *Album) Edit(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
+	return a.Messages[0].Edit(Text, Opts...)
+}
+
+func (a *Album) MarkRead() error {
+	return a.Messages[0].MarkRead()
+}
+
+func (a *Album) Pin(notify ...bool) error {
+	nf := getVariadic(notify, false).(bool)
+	return a.Messages[0].Pin(nf)
 }
