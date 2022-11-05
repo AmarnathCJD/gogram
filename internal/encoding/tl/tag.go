@@ -3,6 +3,7 @@
 package tl
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -41,7 +42,8 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 	var flagIndexSet bool
 	if strings.HasPrefix(tag.Name, "flag:") {
 		num := strings.TrimPrefix(tag.Name, "flag:")
-		info.index, err = strconv.Atoi(num)
+		index, err := parseUintMax32(num)
+		info.index = int(index)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing index number '%s'", num)
 		}
@@ -227,4 +229,20 @@ func (t *Tags) Set(tag *Tag) error {
 	}
 
 	return nil
+}
+
+const (
+	bit32       = 5  // 5 bits to make 32 different variants
+	defaultBase = 10 // base 10 of numbers
+)
+
+func parseUintMax32(s string) (uint8, error) {
+	if pos, err := strconv.ParseUint(s, defaultBase, bit32); err == nil {
+		return uint8(pos), nil
+	}
+	if s == "2.0" {
+		return 0, nil
+	}
+
+	return 0, fmt.Errorf("invalid uint32 value: %s", s)
 }

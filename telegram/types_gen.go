@@ -399,6 +399,7 @@ type ChannelAdminLogEventsFilter struct {
 	GroupCall bool `tl:"flag:14,encoded_in_bitflags"`
 	Invites   bool `tl:"flag:15,encoded_in_bitflags"`
 	Send      bool `tl:"flag:16,encoded_in_bitflags"`
+	Forums    bool `tl:"flag:17,encoded_in_bitflags"`
 }
 
 func (*ChannelAdminLogEventsFilter) CRC() uint32 {
@@ -451,6 +452,7 @@ type ChatAdminRights struct {
 	Anonymous      bool `tl:"flag:10,encoded_in_bitflags"`
 	ManageCall     bool `tl:"flag:11,encoded_in_bitflags"`
 	Other          bool `tl:"flag:12,encoded_in_bitflags"`
+	ManageTopics   bool `tl:"flag:13,encoded_in_bitflags"`
 }
 
 func (*ChatAdminRights) CRC() uint32 {
@@ -484,6 +486,7 @@ type ChatBannedRights struct {
 	ChangeInfo   bool `tl:"flag:10,encoded_in_bitflags"`
 	InviteUsers  bool `tl:"flag:15,encoded_in_bitflags"`
 	PinMessages  bool `tl:"flag:17,encoded_in_bitflags"`
+	ManageTopics bool `tl:"flag:18,encoded_in_bitflags"`
 	UntilDate    int32
 }
 
@@ -1327,6 +1330,7 @@ func (*MessageReplies) FlagIndex() int {
 
 type MessageReplyHeader struct {
 	ReplyToScheduled bool `tl:"flag:2,encoded_in_bitflags"`
+	ForumTopic       bool `tl:"flag:3,encoded_in_bitflags"`
 	ReplyToMsgID     int32
 	ReplyToPeerID    Peer  `tl:"flag:0"`
 	ReplyToTopID     int32 `tl:"flag:1"`
@@ -1493,6 +1497,24 @@ func (*MessagesExportedChatInvites) CRC() uint32 {
 	return 0xbdc62dcc
 }
 
+type MessagesForumTopics struct {
+	OrderByCreateDate bool `tl:"flag:0,encoded_in_bitflags"`
+	Count             int32
+	Topics            []ForumTopic
+	Messages          []Message
+	Chats             []Chat
+	Users             []User
+	Pts               int32
+}
+
+func (*MessagesForumTopics) CRC() uint32 {
+	return 0x367617d3
+}
+
+func (*MessagesForumTopics) FlagIndex() int {
+	return 0
+}
+
 type MessagesHighScores struct {
 	Scores []*HighScore
 	Users  []User
@@ -1635,16 +1657,6 @@ type MessagesSearchResultsPositions struct {
 
 func (*MessagesSearchResultsPositions) CRC() uint32 {
 	return 0x53b22baf
-}
-
-type MessagesSponsoredMessages struct {
-	Messages []*SponsoredMessage
-	Chats    []Chat
-	Users    []User
-}
-
-func (*MessagesSponsoredMessages) CRC() uint32 {
-	return 0x65a4c7d5
 }
 
 type MessagesTranscribedAudio struct {
@@ -2313,6 +2325,7 @@ func (*SimpleWebViewResultURL) CRC() uint32 {
 
 type SponsoredMessage struct {
 	Recommended    bool `tl:"flag:5,encoded_in_bitflags"`
+	ShowPeerPhoto  bool `tl:"flag:6,encoded_in_bitflags"`
 	RandomID       []byte
 	FromID         Peer       `tl:"flag:3"`
 	ChatInvite     ChatInvite `tl:"flag:4"`
@@ -2616,6 +2629,20 @@ func (*UserFull) CRC() uint32 {
 }
 
 func (*UserFull) FlagIndex() int {
+	return 0
+}
+
+type Username struct {
+	Editable bool `tl:"flag:0,encoded_in_bitflags"`
+	Active   bool `tl:"flag:1,encoded_in_bitflags"`
+	Username string
+}
+
+func (*Username) CRC() uint32 {
+	return 0xb4073647
+}
+
+func (*Username) FlagIndex() int {
 	return 0
 }
 
