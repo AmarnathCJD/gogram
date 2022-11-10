@@ -41,7 +41,6 @@ SetUp Client
     client, _ := telegram.TelegramClient(telegram.ClientConfig{
          AppID: 6,
          AppHash: "",
-         ParseMode: "HTML",
     })
     client.LoginBot(botToken)
     // client.Login(phoneNumber)
@@ -64,6 +63,9 @@ Doing stuff
 
     message, _ := client.SendMessage("username", "Hello I'm talking to you from gogram!")
     message.Edit("Yep!")
+    album, _ := client.SendAlbum("username", []string{'file1.jpg', 'file2.jpg'})
+    message.GetMediaGroup()
+
     message.ReplyMedia(url, opts)
     client.DeleteMessage("username", message.ID)
     message.ForwardTo(message.ChatID())
@@ -90,10 +92,18 @@ Doing stuff
     client.GetChatPhotos(chatID)
     client.GetDialogs()
     client.GetStats("channel")
-    
     client.GetCustomEmoji("documentID")
-
-
+    
+    conv, _ = client.NewConversation("username")
+    conv.GetResponse()
+    
+    client.CreateChannel("Title")
+    album handle := client.AddAlbumHandler(func (a *telegram.Album) error {
+           fmt.Println(a.GroupedID)
+           a.Forward(chat_id)
+           return nil
+    }
+    albumHandle.Remove()
     
     client.SendDice("username", "🎲")
 
@@ -106,10 +116,10 @@ TODO
 - ✔️ Add Update Handle System
 - ✔️ Make a reliable HTML Parser
 - ✔️ Friendly Methods to Handle CallbackQuery, VoiceCalls
+- 🔨 Add Flag2.0 Parser (Then update to Layer-148)
 - 📝 Fix File handling
 - 📝 Write beautiful Docs
 - 📝 Multiple tests
-- 📝 Add more examples
 
 
 .. _MTProto: https://core.telegram.org/mtproto
