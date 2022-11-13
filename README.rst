@@ -98,7 +98,7 @@ Doing stuff
     conv.GetResponse()
     
     client.CreateChannel("Title")
-    album handle := client.AddAlbumHandler(func (a *telegram.Album) error {
+    albumHandle := client.AddAlbumHandler(func (a *telegram.Album) error {
            fmt.Println(a.GroupedID)
            a.Forward(chat_id)
            return nil
