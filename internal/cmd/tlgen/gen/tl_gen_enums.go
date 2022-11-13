@@ -27,7 +27,7 @@ func (g *Generator) generateEnumDefinitions(file *jen.File) {
 	}
 }
 
-func (g *Generator) generateSpecificEnum(enumType string, enumValues []enum) []jen.Code {
+func (*Generator) generateSpecificEnum(enumType string, enumValues []enum) []jen.Code {
 	total := make([]jen.Code, 0)
 
 	typeID := goify(enumType, true)
