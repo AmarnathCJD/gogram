@@ -38,7 +38,7 @@ func root(tlfile, outdir string) error {
 		return fmt.Errorf("read schema file: %w", err)
 	}
 
-	schema, err := tlparser.ParseSchema(fmt.Sprintf("%s", b))
+	schema, err := tlparser.ParseSchema(string(b))
 	if err != nil {
 		return fmt.Errorf("parse schema file: %w", err)
 	}
