@@ -8,7 +8,7 @@ import (
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
 )
 
-func (g *Generator) generateMethodCallerFunc(method tlparser.Method) *jen.Statement {
+func (*Generator) generateMethodCallerFunc(method tlparser.Method) *jen.Statement {
 	resp := createParamsStructFromMethod(method)
 	maximumPositionalArguments := 0
 	if haveOptionalParams(resp.Parameters) {
