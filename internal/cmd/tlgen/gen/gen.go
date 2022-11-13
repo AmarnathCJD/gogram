@@ -3,7 +3,7 @@ package gen
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/dave/jennifer/jen"
@@ -93,5 +93,5 @@ func (g *Generator) generateFile(f func(file *jen.File), filename string) error 
 		return err
 	}
 
-	return ioutil.WriteFile(filename, buf.Bytes(), 0644)
+	return os.WriteFile(filename, buf.Bytes(), 0644)
 }
