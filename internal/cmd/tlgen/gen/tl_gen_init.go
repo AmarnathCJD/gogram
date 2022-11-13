@@ -21,7 +21,7 @@ func (g *Generator) generateInit(file *jen.File) {
 	file.Add(initFunc)
 }
 
-func (g *Generator) createInitStructs(itemNames ...string) jen.Code {
+func (*Generator) createInitStructs(itemNames ...string) jen.Code {
 	sort.Strings(itemNames)
 
 	structs := make([]jen.Code, len(itemNames))
@@ -34,7 +34,7 @@ func (g *Generator) createInitStructs(itemNames ...string) jen.Code {
 	)
 }
 
-func (g *Generator) createInitEnums(itemNames ...string) jen.Code {
+func (*Generator) createInitEnums(itemNames ...string) jen.Code {
 	sort.Strings(itemNames)
 
 	enums := make([]jen.Code, len(itemNames))
