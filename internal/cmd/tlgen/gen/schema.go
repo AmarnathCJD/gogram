@@ -47,7 +47,7 @@ func createInternalSchema(nativeSchema *tlparser.Schema) (*internalSchema, error
 		// ну тогда это просто объект с интерфейсом получается, раз не енум и не одиночный объект
 		for _, obj := range objects {
 			// некоторые конструкторы абсолютно идентичны типу по названию
-			if strings.ToLower(obj.Name) == strings.ToLower(obj.Interface) {
+			if strings.EqualFold(obj.Name, obj.Interface) {
 				obj.Name += "Obj"
 			}
 		}
