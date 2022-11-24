@@ -1001,7 +1001,6 @@ func (c *Client) AccountReorderUsernames(order []string) (bool, error) {
 	return resp, nil
 }
 
-
 type AccountReportPeerParams struct {
 	Peer    InputPeer
 	Reason  ReportReason
@@ -2671,7 +2670,6 @@ func (c *Client) ChannelsDeactivateAllUsernames(channel InputChannel) (bool, err
 	}
 	return resp, nil
 }
-
 
 type ChannelsConvertToGigagroupParams struct {
 	Channel InputChannel
@@ -5841,7 +5839,6 @@ func (c *Client) MessagesForwardMessages(params *MessagesForwardMessagesParams) 
 	return resp, nil
 }
 
-
 type MessagesGetAdminsWithInvitesParams struct {
 	Peer InputPeer
 }
@@ -6121,8 +6118,6 @@ func (c *Client) MessagesGetChats(id []int64) (MessagesChats, error) {
 	}
 	return resp, nil
 }
-
-
 
 type MessagesGetCommonChatsParams struct {
 	UserID InputUser
@@ -8309,7 +8304,6 @@ func (c *Client) MessagesRequestWebView(params *MessagesRequestWebViewParams) (*
 	}
 	return resp, nil
 }
-
 
 type MessagesSaveDefaultSendAsParams struct {
 	Peer   InputPeer
