@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/gen"
@@ -34,12 +33,12 @@ func main() {
 }
 
 func root(tlfile, outdir string) error {
-	b, err := ioutil.ReadFile(tlfile)
+	b, err := os.ReadFile(tlfile)
 	if err != nil {
 		return fmt.Errorf("read schema file: %w", err)
 	}
 
-	schema, err := tlparser.ParseSchema(fmt.Sprintf("%s", b))
+	schema, err := tlparser.ParseSchema(string(b))
 	if err != nil {
 		return fmt.Errorf("parse schema file: %w", err)
 	}

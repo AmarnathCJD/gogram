@@ -117,7 +117,7 @@ func (g *Generator) generateArgumentsForMethod(obj *tlparser.Method) []jen.Code 
 	return items
 }
 
-func (g *Generator) generateMethodArgumentForMakingRequest(obj *tlparser.Method) *jen.Statement {
+func (*Generator) generateMethodArgumentForMakingRequest(obj *tlparser.Method) *jen.Statement {
 	if len(obj.Parameters) > maximumPositionalArguments {
 		return jen.Id("params")
 	}
