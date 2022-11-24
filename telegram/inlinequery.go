@@ -47,6 +47,8 @@ func (b *InlineBuilder) Results() []InputBotInlineResult {
 
 type ArticleOptions struct {
 	ID           string                             `json:"id,omitempty"`
+	Title        string                             `json:"title,omitempty"`
+	Description  string                             `json:"description,omitempty"`
 	ExcludeMedia bool                               `json:"exclude_media,omitempty"`
 	Thumb        InputWebDocument                   `json:"thumb,omitempty"`
 	Content      InputWebDocument                   `json:"content,omitempty"`
@@ -122,7 +124,7 @@ PhotoTypeSwitch:
 		Photo, _ = b.Client.getSendableMedia(media, &MediaMetadata{})
 		goto PhotoTypeSwitch
 	default:
-		b.Client.Logger.Warn("InlineBuilder.Photo: Photo is not a InputMediaPhoto")
+		b.Client.Logger.Warn("InlineBuilder.Photo: Photo is not a InputMediaPhoto, its a %T", p)
 		Image = &InputPhotoEmpty{}
 	}
 	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode).(string))
@@ -183,9 +185,11 @@ DocTypeSwitch:
 	}
 	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode).(string))
 	result := &InputBotInlineResultDocument{
-		ID:       getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
-		Type:     "document",
-		Document: Doc,
+		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
+		Type:        "document",
+		Document:    Doc,
+		Title:       opts.Title,
+		Description: opts.Description,
 		SendMessage: &InputBotInlineMessageMediaAuto{
 			Message:     text,
 			Entities:    e,
