@@ -11204,5 +11204,5 @@ func (c *Client) UsersSetSecureValueErrors(id InputUser, secureErrors []SecureVa
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
-	return resp, nil 
+	return resp, nil
 }
