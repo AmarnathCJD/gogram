@@ -388,27 +388,6 @@ func (*ChannelAdminLogEventActionChangeUsername) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionChangeUsername) ImplementsChannelAdminLogEventAction() {}
 
-type ChannelAdminLogEventActionChangeUsernames struct {
-	PrevValue []string
-	NewValue  []string
-}
-
-func (*ChannelAdminLogEventActionChangeUsernames) CRC() uint32 {
-	return 0xf04fb3a9
-}
-
-func (*ChannelAdminLogEventActionChangeUsernames) ImplementsChannelAdminLogEventAction() {}
-
-type ChannelAdminLogEventActionCreateTopic struct {
-	Topic ForumTopic
-}
-
-func (*ChannelAdminLogEventActionCreateTopic) CRC() uint32 {
-	return 0x58707d28
-}
-
-func (*ChannelAdminLogEventActionCreateTopic) ImplementsChannelAdminLogEventAction() {}
-
 type ChannelAdminLogEventActionDefaultBannedRights struct {
 	PrevBannedRights *ChatBannedRights
 	NewBannedRights  *ChatBannedRights
@@ -430,16 +409,6 @@ func (*ChannelAdminLogEventActionDeleteMessage) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionDeleteMessage) ImplementsChannelAdminLogEventAction() {}
 
-type ChannelAdminLogEventActionDeleteTopic struct {
-	Topic ForumTopic
-}
-
-func (*ChannelAdminLogEventActionDeleteTopic) CRC() uint32 {
-	return 0xae168909
-}
-
-func (*ChannelAdminLogEventActionDeleteTopic) ImplementsChannelAdminLogEventAction() {}
-
 type ChannelAdminLogEventActionDiscardGroupCall struct {
 	Call *InputGroupCall
 }
@@ -460,17 +429,6 @@ func (*ChannelAdminLogEventActionEditMessage) CRC() uint32 {
 }
 
 func (*ChannelAdminLogEventActionEditMessage) ImplementsChannelAdminLogEventAction() {}
-
-type ChannelAdminLogEventActionEditTopic struct {
-	PrevTopic ForumTopic
-	NewTopic  ForumTopic
-}
-
-func (*ChannelAdminLogEventActionEditTopic) CRC() uint32 {
-	return 0xf06fe208
-}
-
-func (*ChannelAdminLogEventActionEditTopic) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionExportedInviteDelete struct {
 	Invite ExportedChatInvite
@@ -602,21 +560,6 @@ func (*ChannelAdminLogEventActionParticipantVolume) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionParticipantVolume) ImplementsChannelAdminLogEventAction() {}
 
-type ChannelAdminLogEventActionPinTopic struct {
-	PrevTopic ForumTopic `tl:"flag:0"`
-	NewTopic  ForumTopic `tl:"flag:1"`
-}
-
-func (*ChannelAdminLogEventActionPinTopic) CRC() uint32 {
-	return 0x5d8d353b
-}
-
-func (*ChannelAdminLogEventActionPinTopic) FlagIndex() int {
-	return 0
-}
-
-func (*ChannelAdminLogEventActionPinTopic) ImplementsChannelAdminLogEventAction() {}
-
 type ChannelAdminLogEventActionSendMessage struct {
 	Message Message
 }
@@ -646,16 +589,6 @@ func (*ChannelAdminLogEventActionStopPoll) CRC() uint32 {
 }
 
 func (*ChannelAdminLogEventActionStopPoll) ImplementsChannelAdminLogEventAction() {}
-
-type ChannelAdminLogEventActionToggleForum struct {
-	NewValue bool
-}
-
-func (*ChannelAdminLogEventActionToggleForum) CRC() uint32 {
-	return 0x2cc6383
-}
-
-func (*ChannelAdminLogEventActionToggleForum) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionToggleGroupCallSetting struct {
 	JoinMuted bool
@@ -982,7 +915,6 @@ type Channel struct {
 	Noforwards          bool `tl:"flag:27,encoded_in_bitflags"`
 	JoinToSend          bool `tl:"flag:28,encoded_in_bitflags"`
 	JoinRequest         bool `tl:"flag:29,encoded_in_bitflags"`
-	Forum               bool `tl:"flag:30,encoded_in_bitflags"`
 	ID                  int64
 	AccessHash          int64 `tl:"flag:13"`
 	Title               string
@@ -994,11 +926,10 @@ type Channel struct {
 	BannedRights        *ChatBannedRights    `tl:"flag:15"`
 	DefaultBannedRights *ChatBannedRights    `tl:"flag:18"`
 	ParticipantsCount   int32                `tl:"flag:17"`
-	Usernames           []*Username          `tl:"flag:18"`
 }
 
 func (*Channel) CRC() uint32 {
-	return 0x83259464
+	return 0x8261ac61
 }
 
 func (*Channel) FlagIndex() int {
@@ -1080,6 +1011,7 @@ type ChatFull interface {
 	ImplementsChatFull()
 }
 type ChannelFull struct {
+	CanDeleteChannel       bool `tl:"flag:2.0,encoded_in_bitflags"`
 	CanViewParticipants    bool `tl:"flag:3,encoded_in_bitflags"`
 	CanSetUsername         bool `tl:"flag:6,encoded_in_bitflags"`
 	CanSetStickers         bool `tl:"flag:7,encoded_in_bitflags"`
@@ -1088,7 +1020,6 @@ type ChannelFull struct {
 	HasScheduled           bool `tl:"flag:19,encoded_in_bitflags"`
 	CanViewStats           bool `tl:"flag:20,encoded_in_bitflags"`
 	Blocked                bool `tl:"flag:22,encoded_in_bitflags"`
-	CanDeleteChannel       bool `tl:"flag:23,encoded_in_bitflags"`
 	ID                     int64
 	About                  string
 	ParticipantsCount      int32 `tl:"flag:0"`
@@ -1942,50 +1873,6 @@ func (*ChatInvitePublicJoinRequests) CRC() uint32 {
 }
 
 func (*ChatInvitePublicJoinRequests) ImplementsExportedChatInvite() {}
-
-type ForumTopic interface {
-	tl.Object
-	ImplementsForumTopic()
-}
-type ForumTopicObj struct {
-	My                   bool `tl:"flag:1,encoded_in_bitflags"`
-	Closed               bool `tl:"flag:2,encoded_in_bitflags"`
-	Pinned               bool `tl:"flag:3,encoded_in_bitflags"`
-	ID                   int32
-	Date                 int32
-	Title                string
-	IconColor            int32
-	IconEmojiID          int64 `tl:"flag:0"`
-	TopMessage           int32
-	ReadInboxMaxID       int32
-	ReadOutboxMaxID      int32
-	UnreadCount          int32
-	UnreadMentionsCount  int32
-	UnreadReactionsCount int32
-	FromID               Peer
-	NotifySettings       *PeerNotifySettings
-	Draft                DraftMessage `tl:"flag:4"`
-}
-
-func (*ForumTopicObj) CRC() uint32 {
-	return 0x71701da9
-}
-
-func (*ForumTopicObj) FlagIndex() int {
-	return 0
-}
-
-func (*ForumTopicObj) ImplementsForumTopic() {}
-
-type ForumTopicDeleted struct {
-	ID int32
-}
-
-func (*ForumTopicDeleted) CRC() uint32 {
-	return 0x23f109b
-}
-
-func (*ForumTopicDeleted) ImplementsForumTopic() {}
 
 type GeoPoint interface {
 	tl.Object
@@ -3011,17 +2898,6 @@ func (*InputNotifyChats) CRC() uint32 {
 
 func (*InputNotifyChats) ImplementsInputNotifyPeer() {}
 
-type InputNotifyForumTopic struct {
-	Peer     InputPeer
-	TopMsgID int32
-}
-
-func (*InputNotifyForumTopic) CRC() uint32 {
-	return 0x5c467992
-}
-
-func (*InputNotifyForumTopic) ImplementsInputNotifyPeer() {}
-
 type InputNotifyPeerObj struct {
 	Peer InputPeer
 }
@@ -3332,14 +3208,6 @@ func (*InputStickerSetEmojiDefaultStatuses) CRC() uint32 {
 }
 
 func (*InputStickerSetEmojiDefaultStatuses) ImplementsInputStickerSet() {}
-
-type InputStickerSetEmojiDefaultTopicIcons struct{}
-
-func (*InputStickerSetEmojiDefaultTopicIcons) CRC() uint32 {
-	return 0x44c1f8e9
-}
-
-func (*InputStickerSetEmojiDefaultTopicIcons) ImplementsInputStickerSet() {}
 
 type InputStickerSetEmojiGenericAnimations struct{}
 
@@ -4317,38 +4185,6 @@ func (*MessageActionSetMessagesTtl) CRC() uint32 {
 
 func (*MessageActionSetMessagesTtl) ImplementsMessageAction() {}
 
-type MessageActionTopicCreate struct {
-	Title       string
-	IconColor   int32
-	IconEmojiID int64 `tl:"flag:0"`
-}
-
-func (*MessageActionTopicCreate) CRC() uint32 {
-	return 0xd999256
-}
-
-func (*MessageActionTopicCreate) FlagIndex() int {
-	return 0
-}
-
-func (*MessageActionTopicCreate) ImplementsMessageAction() {}
-
-type MessageActionTopicEdit struct {
-	Title       string `tl:"flag:0"`
-	IconEmojiID int64  `tl:"flag:1"`
-	Closed      bool   `tl:"flag:2"`
-}
-
-func (*MessageActionTopicEdit) CRC() uint32 {
-	return 0xb18a431c
-}
-
-func (*MessageActionTopicEdit) FlagIndex() int {
-	return 0
-}
-
-func (*MessageActionTopicEdit) ImplementsMessageAction() {}
-
 type MessageActionWebViewDataSent struct {
 	Text string
 }
@@ -5058,17 +4894,6 @@ func (*NotifyChats) CRC() uint32 {
 }
 
 func (*NotifyChats) ImplementsNotifyPeer() {}
-
-type NotifyForumTopic struct {
-	Peer     Peer
-	TopMsgID int32
-}
-
-func (*NotifyForumTopic) CRC() uint32 {
-	return 0x226e6308
-}
-
-func (*NotifyForumTopic) ImplementsNotifyPeer() {}
 
 type NotifyPeerObj struct {
 	Peer Peer
@@ -6955,33 +6780,13 @@ func (*UpdateChannelParticipant) FlagIndex() int {
 
 func (*UpdateChannelParticipant) ImplementsUpdate() {}
 
-type UpdateChannelPinnedTopic struct {
-	ChannelID int64
-	TopicID   int32 `tl:"flag:0"`
-}
-
-func (*UpdateChannelPinnedTopic) CRC() uint32 {
-	return 0xf694b0ae
-}
-
-func (*UpdateChannelPinnedTopic) FlagIndex() int {
-	return 0
-}
-
-func (*UpdateChannelPinnedTopic) ImplementsUpdate() {}
-
 type UpdateChannelReadMessagesContents struct {
 	ChannelID int64
-	TopMsgID  int32 `tl:"flag:0"`
 	Messages  []int32
 }
 
 func (*UpdateChannelReadMessagesContents) CRC() uint32 {
-	return 0xea29055d
-}
-
-func (*UpdateChannelReadMessagesContents) FlagIndex() int {
-	return 0
+	return 0x44bdd535
 }
 
 func (*UpdateChannelReadMessagesContents) ImplementsUpdate() {}
@@ -7262,17 +7067,12 @@ func (*UpdateDialogUnreadMark) FlagIndex() int {
 func (*UpdateDialogUnreadMark) ImplementsUpdate() {}
 
 type UpdateDraftMessage struct {
-	Peer     Peer
-	TopMsgID int32 `tl:"flag:0"`
-	Draft    DraftMessage
+	Peer  Peer
+	Draft DraftMessage
 }
 
 func (*UpdateDraftMessage) CRC() uint32 {
-	return 0x1b49ec6d
-}
-
-func (*UpdateDraftMessage) FlagIndex() int {
-	return 0
+	return 0xee2bb969
 }
 
 func (*UpdateDraftMessage) ImplementsUpdate() {}
@@ -7450,6 +7250,17 @@ func (*UpdateLoginToken) CRC() uint32 {
 
 func (*UpdateLoginToken) ImplementsUpdate() {}
 
+type UpdateMessageID struct {
+	ID       int32
+	RandomID int64
+}
+
+func (*UpdateMessageID) CRC() uint32 {
+	return 0x4e90bfd6
+}
+
+func (*UpdateMessageID) ImplementsUpdate() {}
+
 type UpdateMessageExtendedMedia struct {
 	Peer          Peer
 	MsgID         int32
@@ -7461,17 +7272,6 @@ func (*UpdateMessageExtendedMedia) CRC() uint32 {
 }
 
 func (*UpdateMessageExtendedMedia) ImplementsUpdate() {}
-
-type UpdateMessageID struct {
-	ID       int32
-	RandomID int64
-}
-
-func (*UpdateMessageID) CRC() uint32 {
-	return 0x4e90bfd6
-}
-
-func (*UpdateMessageID) ImplementsUpdate() {}
 
 type UpdateMessagePoll struct {
 	PollID  int64
@@ -7505,16 +7305,11 @@ func (*UpdateMessagePollVote) ImplementsUpdate() {}
 type UpdateMessageReactions struct {
 	Peer      Peer
 	MsgID     int32
-	TopMsgID  int32 `tl:"flag:0"`
 	Reactions *MessageReactions
 }
 
 func (*UpdateMessageReactions) CRC() uint32 {
-	return 0x5e1b3cb8
-}
-
-func (*UpdateMessageReactions) FlagIndex() int {
-	return 0
+	return 0x154798c3
 }
 
 func (*UpdateMessageReactions) ImplementsUpdate() {}
@@ -8003,11 +7798,11 @@ type UpdateUserName struct {
 	UserID    int64
 	FirstName string
 	LastName  string
-	Usernames []*Username
+	Username  string
 }
 
 func (*UpdateUserName) CRC() uint32 {
-	return 0xa7848924
+	return 0xc3f202e0
 }
 
 func (*UpdateUserName) ImplementsUpdate() {}
@@ -8284,11 +8079,10 @@ type UserObj struct {
 	BotInlinePlaceholder string               `tl:"flag:19"`
 	LangCode             string               `tl:"flag:22"`
 	EmojiStatus          EmojiStatus          `tl:"flag:30"`
-	Usernames            []*Username          `tl:"flag:30"`
 }
 
 func (*UserObj) CRC() uint32 {
-	return 0x8f97c628
+	return 0x5d99adee
 }
 
 func (*UserObj) FlagIndex() int {
@@ -9573,35 +9367,6 @@ func (*MessagesSentEncryptedMessageObj) CRC() uint32 {
 }
 
 func (*MessagesSentEncryptedMessageObj) ImplementsMessagesSentEncryptedMessage() {}
-
-type MessagesSponsoredMessages interface {
-	tl.Object
-	ImplementsMessagesSponsoredMessages()
-}
-type MessagesSponsoredMessagesObj struct {
-	PostsBetween int32 `tl:"flag:0"`
-	Messages     []*SponsoredMessage
-	Chats        []Chat
-	Users        []User
-}
-
-func (*MessagesSponsoredMessagesObj) CRC() uint32 {
-	return 0xc9ee1d87
-}
-
-func (*MessagesSponsoredMessagesObj) FlagIndex() int {
-	return 0
-}
-
-func (*MessagesSponsoredMessagesObj) ImplementsMessagesSponsoredMessages() {}
-
-type MessagesSponsoredMessagesEmpty struct{}
-
-func (*MessagesSponsoredMessagesEmpty) CRC() uint32 {
-	return 0x1839490f
-}
-
-func (*MessagesSponsoredMessagesEmpty) ImplementsMessagesSponsoredMessages() {}
 
 type MessagesStickerSet interface {
 	tl.Object
