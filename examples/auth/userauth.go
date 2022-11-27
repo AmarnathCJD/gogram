@@ -19,6 +19,7 @@ func main() {
 		AppHash:  appHash,
 		LogLevel: telegram.LogInfo,
 		// StringSession: "", // Uncomment this line to use string session
+                // SessionFile: "session.session", To use session File.
 	})
 
 	// Authenticate the client using the bot token
