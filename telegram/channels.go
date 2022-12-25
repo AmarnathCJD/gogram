@@ -160,6 +160,7 @@ func (c *Client) GetChatMember(chatID interface{}, userID interface{}) (*Partici
 		UserID = p.UserID
 	case *ChannelParticipantObj:
 		status = Member
+		UserID = p.UserID
 	case *ChannelParticipantSelf:
 		status = Member
 		UserID = p.UserID
