@@ -348,7 +348,7 @@ func (m *MTProto) startPinging(ctx context.Context) {
 			case <-ticker.C:
 				_, err := m.ping(0xCADACADA)
 				if err != nil {
-					m.Logger.Info("ping unsuccessfull: %v", err)
+					m.Reconnect(false)
 				}
 			}
 		}
@@ -387,7 +387,10 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						}
 						return
 					} else {
-						m.Logger.Error(errors.Wrap(err, "reading message"))
+						err = m.Reconnect(false)
+						if err != nil {
+							m.Logger.Error(errors.Wrap(err, "reconnecting error"))
+						}
 					}
 				}
 			}
