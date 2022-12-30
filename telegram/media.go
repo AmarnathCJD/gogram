@@ -429,14 +429,14 @@ func (d *Downloader) Start() (string, error) {
 		go d.downloadParts(w, parts[i])
 	}
 	d.wg.Wait()
-        d.closeWorkers()
+	d.closeWorkers()
 	return d.FileName, nil
 }
 
 func (d *Downloader) closeWorkers() {
-        if len(d.Workers) == 1 && d.Workers[0].GetDC() == d.Client.GetDC() {
-               return
-        }
+	if len(d.Workers) == 1 && d.Workers[0].GetDC() == d.Client.GetDC() {
+		return
+	}
 	for _, w := range d.Workers {
 		w.Terminate()
 	}
