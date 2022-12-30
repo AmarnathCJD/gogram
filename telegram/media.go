@@ -367,7 +367,15 @@ func (d *Downloader) onError() {
 
 func (d *Downloader) allocateWorkers() {
 	if d.Worker == 1 {
-		d.Workers = []*Client{d.Client}
+		if d.Client.GetDC() != int(d.DcID) {
+			cli, err := d.Client.ExportSender(int(d.DcID))
+			if err != nil {
+				d.onError()
+			}
+			d.Workers = []*Client{cli}
+		} else {
+			d.Workers = []*Client{d.Client}
+		}
 		return
 	}
 	for i := 0; i < d.Worker; i++ {
