@@ -29,10 +29,11 @@ type SendOptions struct {
 
 // SendMessage sends a message.
 // This method is a wrapper for messages.sendMessage.
-//  Params:
-//   - peerID: ID of the peer to send the message to.
-//   - Message: Text of the message to be sent.
-//   - Opts: Optional parameters.
+//
+//	Params:
+//	 - peerID: ID of the peer to send the message to.
+//	 - Message: Text of the message to be sent.
+//	 - Opts: Optional parameters.
 func (c *Client) SendMessage(peerID interface{}, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &SendOptions{}).(*SendOptions)
 	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode)
@@ -251,10 +252,11 @@ type MediaMetadata struct {
 
 // SendMedia sends a media message.
 // This method is a wrapper for messages.sendMedia.
-//  Params:
-//   - peerID: ID of the peer to send the message to.
-//   - Media: Media to send.
-//   - Opts: Optional parameters.
+//
+//	Params:
+//	 - peerID: ID of the peer to send the message to.
+//	 - Media: Media to send.
+//	 - Opts: Optional parameters.
 func (c *Client) SendMedia(peerID interface{}, Media interface{}, opts ...*MediaOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
 	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode)
@@ -315,10 +317,11 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 
 // SendAlbum sends a media album.
 // This method is a wrapper for messages.sendMultiMedia.
-//  Params:
-//   - peerID: ID of the peer to send the message to.
-//   - Album: List of media to send.
-//   - Opts: Optional parameters.
+//
+//	Params:
+//	 - peerID: ID of the peer to send the message to.
+//	 - Album: List of media to send.
+//	 - Opts: Optional parameters.
 func (c *Client) SendAlbum(peerID interface{}, Album interface{}, opts ...*MediaOptions) ([]*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
 	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode)
@@ -384,11 +387,12 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, Caption st
 
 // SendReaction sends a reaction to a message.
 // This method is a wrapper for messages.sendReaction
-//  Params:
-//   - peerID: ID of the peer to send the message to.
-//   - msgID: ID of the message to react to.
-//   - reaction: Reaction to send.
-//   - big: Whether to use big emoji.
+//
+//	Params:
+//	 - peerID: ID of the peer to send the message to.
+//	 - msgID: ID of the message to react to.
+//	 - reaction: Reaction to send.
+//	 - big: Whether to use big emoji.
 func (c *Client) SendReaction(peerID interface{}, msgID int32, reaction interface{}, big ...bool) error {
 	b := getVariadic(big, false).(bool)
 	peer, err := c.GetSendablePeer(peerID)
@@ -568,8 +572,9 @@ func (c *Client) DeleteMessages(peerID interface{}, msgIDs []int32, Revoke ...bo
 }
 
 // GetCustomEmoji gets the document of a custom emoji
-//  Params:
-//   - docIDs: the document id of the emoji
+//
+//	Params:
+//	 - docIDs: the document id of the emoji
 func (c *Client) GetCustomEmoji(docIDs ...int64) ([]Document, error) {
 	var em []int64
 	em = append(em, docIDs...)
@@ -628,6 +633,14 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 		inputIDs = append(inputIDs, &InputMessageID{ID: int32(i.(int))})
 	case *InputMessage:
 		inputIDs = append(inputIDs, *i)
+	case *InputMessagePinned:
+		inputIDs = append(inputIDs, &InputMessagePinned{})
+	case *InputMessageID:
+		inputIDs = append(inputIDs, &InputMessageID{ID: i.ID})
+	case *InputMessageReplyTo:
+		inputIDs = append(inputIDs, &InputMessageReplyTo{ID: i.ID})
+	case *InputMessageCallbackQuery:
+		inputIDs = append(inputIDs, &InputMessageCallbackQuery{ID: i.ID})
 	}
 	if len(inputIDs) == 0 && opt.Query == "" && opt.Limit == 0 {
 		opt.Limit = 1
@@ -729,8 +742,7 @@ func (c *Client) UnpinMessage(PeerID interface{}, MsgID int32, Opts ...*PinOptio
 // Gets the current pinned message in a chat
 func (c *Client) GetPinnedMessage(PeerID interface{}) (*NewMessage, error) {
 	resp, err := c.GetMessages(PeerID, &SearchOption{
-		IDs:   &InputMessagePinned{},
-		Limit: 1,
+		IDs: &InputMessagePinned{},
 	})
 	if err != nil {
 		return nil, err
@@ -749,12 +761,13 @@ type InlineOptions struct {
 }
 
 // InlineQuery performs an inline query and returns the results.
-//  Params:
-//    - peerID: The ID of the Inline Bot.
-//    - Query: The query to send.
-//    - Offset: The offset to send.
-//    - Dialog: The chat or channel to send the query to.
-//    - GeoPoint: The location to send.
+//
+//	Params:
+//	  - peerID: The ID of the Inline Bot.
+//	  - Query: The query to send.
+//	  - Offset: The offset to send.
+//	  - Dialog: The chat or channel to send the query to.
+//	  - GeoPoint: The location to send.
 func (c *Client) InlineQuery(peerID interface{}, Options ...*InlineOptions) (*MessagesBotResults, error) {
 	options := getVariadic(Options, &InlineOptions{}).(*InlineOptions)
 	peer, err := c.GetSendablePeer(peerID)
@@ -786,9 +799,10 @@ func (c *Client) InlineQuery(peerID interface{}, Options ...*InlineOptions) (*Me
 }
 
 // GetMediaGroup gets all the messages in a media group.
-//  Params:
-//    - PeerID: The ID of the chat or channel.
-//    - MsgID: The ID of the message.
+//
+//	Params:
+//	  - PeerID: The ID of the chat or channel.
+//	  - MsgID: The ID of the message.
 func (c *Client) GetMediaGroup(PeerID interface{}, MsgID int32) ([]NewMessage, error) {
 	_, err := c.GetSendablePeer(PeerID)
 	if err != nil {
