@@ -76,7 +76,7 @@ func Index(r string, s string) int32 {
 	if i := strings.Index(r, s); i >= 0 {
 		return int32(len(utf16.Encode([]rune(r[:i]))))
 	}
-        // TODO: replace this index with _ to fix blocking next index
+	// TODO: replace this index with _ to fix blocking next index
 	return -1
 }
 
