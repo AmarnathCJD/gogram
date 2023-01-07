@@ -107,7 +107,7 @@ func (u *Uploader) Init() error {
 	if int64(u.ChunkSize) > u.Meta.Size {
 		u.ChunkSize = int32(u.Meta.Size)
 	}
-	if u.Worker == 0 {
+	if int32(u.Worker) == 0 {
 		u.Worker = DEFAULT_WORKERS
 	}
 	// < 10MB
@@ -123,10 +123,6 @@ func (u *Uploader) Init() error {
 }
 
 func (u *Uploader) allocateWorkers() {
-	if u.Worker == 1 {
-		u.Workers = []*Client{u.Client}
-		return
-	}
 	for i := 0; i < u.Worker; i++ {
 		w, err := u.Client.ExportSender(u.Client.GetDC())
 		if err != nil {
@@ -158,6 +154,9 @@ func (u *Uploader) DividePartsToWorkers() [][]int32 {
 	if parts < int32(worker) {
 		worker = int(parts)
 	}
+        if int32(worker) == 0 {
+           worker = 1
+        }
 	var (
 		perWorker = parts / int32(worker)
 		remainder = parts % int32(worker)
