@@ -154,9 +154,9 @@ func (u *Uploader) DividePartsToWorkers() [][]int32 {
 	if parts < int32(worker) {
 		worker = int(parts)
 	}
-        if int32(worker) == 0 {
-           worker = 1
-        }
+	if int32(worker) == 0 {
+		worker = 1
+	}
 	var (
 		perWorker = parts / int32(worker)
 		remainder = parts % int32(worker)
