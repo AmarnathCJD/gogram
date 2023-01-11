@@ -19,7 +19,7 @@ type SendOptions struct {
 	NoForwards    bool                `json:"no_forwards,omitempty"`
 	ScheduleDate  int32               `json:"schedule_date,omitempty"`
 	SendAs        interface{}         `json:"send_as,omitempty"`
-	Thumb         InputFile           `json:"thumb,omitempty"`
+	Thumb         interface{}         `json:"thumb,omitempty"`
 	TTL           int32               `json:"ttl,omitempty"`
 	ForceDocument bool                `json:"force_document,omitempty"`
 	FileName      string              `json:"file_name,omitempty"`
@@ -231,7 +231,7 @@ type MediaOptions struct {
 	ReplyMarkup   ReplyMarkup         `json:"reply_markup,omitempty"`
 	ClearDraft    bool                `json:"clear_draft,omitempty"`
 	NoForwards    bool                `json:"no_forwards,omitempty"`
-	Thumb         InputFile           `json:"thumb,omitempty"`
+	Thumb         interface{}         `json:"thumb,omitempty"`
 	NoSoundVideo  bool                `json:"no_sound_video,omitempty"`
 	ForceDocument bool                `json:"force_document,omitempty"`
 	ReplyID       int32               `json:"reply_id,omitempty"`
@@ -244,7 +244,7 @@ type MediaOptions struct {
 
 type MediaMetadata struct {
 	FileName      string              `json:"file_name,omitempty"`
-	Thumb         InputFile           `json:"thumb,omitempty"`
+	Thumb         interface{}         `json:"thumb,omitempty"`
 	Attributes    []DocumentAttribute `json:"attributes,omitempty"`
 	ForceDocument bool                `json:"force_document,omitempty"`
 	TTL           int32               `json:"ttl,omitempty"`

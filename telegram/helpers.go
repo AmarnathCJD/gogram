@@ -435,7 +435,7 @@ mediaTypeSwitch:
 			if !hasFileName {
 				Attributes = append(Attributes, &DocumentAttributeFilename{FileName: fileName})
 			}
-			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: Attributes, Thumb: getValue(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32)}, nil
+			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: Attributes, Thumb: getValue(c.getThumbValue(attr.Thumb), &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32)}, nil
 		}
 	case []byte, *bytes.Reader:
 		uopts := &UploadOptions{}
@@ -452,6 +452,14 @@ mediaTypeSwitch:
 		return nil, errors.New("media is nil")
 	}
 	return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(mediaFile).String()))
+}
+
+func (c *Client) getThumbValue(thumb interface{}) InputFile {
+	thumbMedia, err := c.UploadFile(thumb)
+	if err != nil {
+		return nil
+	}
+	return thumbMedia
 }
 
 func GetVideoDuration(path string) int64 {

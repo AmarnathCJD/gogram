@@ -201,7 +201,7 @@ func (u *UpdateDispatcher) HandleMessageUpdate(update Message) {
 			if handle.IsMatch(msg.Message) {
 				go func(h messageHandle) {
 					m := packMessage(u.client, msg)
-					if handle.runFilterChain(m) {
+					if h.runFilterChain(m) {
 						if err := h.Handler(m); err != nil {
 							u.client.Log.Error(err)
 						}
