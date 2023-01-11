@@ -2,8 +2,8 @@ package telegram
 
 type GroupCallMedia struct {
 	Peer        Peer
-	started     bool
-	currentFile string
+	Started     bool
+	CurrentFile string
 }
 
 func (c *Client) StartGroupCallMedia(peer interface{}) (*GroupCallMedia, error) {
@@ -23,3 +23,5 @@ func (c *Client) StartGroupCallMedia(peer interface{}) (*GroupCallMedia, error) 
 	// TODO : Implement this
 	return &GroupCallMedia{}, nil
 }
+
+// TODO: after implementing latest Layer.
