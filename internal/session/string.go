@@ -20,7 +20,7 @@ type (
 )
 
 func (s StringSession) Encode() []byte {
-	return []byte(Prefix + base64.StdEncoding.EncodeToString(s.AuthKey))
+	return []byte(Prefix + base64.RawURLEncoding.EncodeToString(s.AuthKey))
 }
 
 func (s StringSession) AppendAllValues() string {
