@@ -479,7 +479,7 @@ UpdateTypeSwitching:
 				go UpdateHandleDispatcher.HandleInlineUpdate(update)
 			case *UpdateBotCallbackQuery:
 				go UpdateHandleDispatcher.HandleCallbackUpdate(update)
-                        // TODO: UpdateChannelParticipant Wrapper
+				// TODO: UpdateChannelParticipant Wrapper
 			default:
 				go UpdateHandleDispatcher.HandleRawUpdate(update)
 			}
