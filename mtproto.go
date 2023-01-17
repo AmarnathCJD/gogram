@@ -380,6 +380,9 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					return
 
 				default:
+                                        // if e, ok := err.(transport.ErrCode); ok {
+                                              //  if int(e) == 4294966892 { m.makeAuthKey() }
+                                        // }
 					if strings.Contains(err.Error(), "required to reconnect!") {
 						err = m.Reconnect(false)
 						if err != nil {
