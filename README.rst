@@ -19,6 +19,14 @@ to make it easy for you to write Golang programs that can interact
 with Telegram. Think of it as a wrapper that has already done the
 heavy job for you, so you can focus on developing an application.
 
+Known Bugs
+----------
+
+• HTML Parser (identical text only first one is detected)
+• getFullChannel fails due to flag2.0
+
+PRs and Issues are always welcome.
+
 Features
 --------
 
