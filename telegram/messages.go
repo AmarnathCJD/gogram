@@ -54,6 +54,11 @@ func (c *Client) SendMessage(peerID interface{}, message interface{}, opts ...*S
 		textMessage = message.MessageText()
 		rawText = message.MessageText()
 		media = message.Media()
+        case *NewMessage:
+		entities = message.Message.Entities
+		textMessage = message.MessageText()
+		rawText = message.MessageText()
+		media = message.Media()
 	default:
 		return nil, fmt.Errorf("invalid message type: %s", reflect.TypeOf(message))
 	}
