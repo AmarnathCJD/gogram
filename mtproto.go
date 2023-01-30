@@ -30,6 +30,8 @@ var wd, _ = os.Getwd()
 
 type MTProto struct {
 	Addr          string
+	appHash       string
+	appID         int32
 	socksProxy    *transport.Socks
 	transport     transport.Transport
 	stopRoutines  context.CancelFunc
@@ -73,6 +75,8 @@ type Config struct {
 	StringSession  string
 	SessionStorage session.SessionLoader
 	MemorySession  bool
+	AppID          int32
+	AppHash        string
 
 	ServerHost string
 	PublicKey  *rsa.PublicKey
@@ -116,6 +120,8 @@ func NewMTProto(c Config) (*MTProto, error) {
 		serverRequestHandlers: make([]customHandlerFunc, 0),
 		Logger:                utils.NewLogger("MTProto").SetLevel(c.LogLevel),
 		memorySession:         c.MemorySession,
+		appID:                 c.AppID,
+		appHash:               c.AppHash,
 	}
 	m.socksProxy = c.SocksProxy
 	if c.StringSession != "" {
@@ -128,21 +134,23 @@ func NewMTProto(c Config) (*MTProto, error) {
 	return m, nil
 }
 
-func (m *MTProto) ExportAuth() ([]byte, []byte, string, int) {
-	return m.authKey, m.authKeyHash, m.Addr, m.GetDC()
+func (m *MTProto) ExportAuth() ([]byte, []byte, string, int, string, int32) {
+	return m.authKey, m.authKeyHash, m.Addr, m.GetDC(), m.appHash, m.appID
 }
 
 func (m *MTProto) ImportAuth(Session string) (bool, error) {
 	StringSession := &session.StringSession{
 		Encoded: Session,
 	}
-	AuthKey, AuthKeyHash, _, IpAddr, err := StringSession.Decode()
+	AuthKey, AuthKeyHash, _, IpAddr, AppHash, AppID, err := StringSession.Decode()
 	if err != nil {
 		return false, fmt.Errorf("decoding string session: %w", err)
 	}
 	m.authKey = AuthKey
 	m.authKeyHash = AuthKeyHash
 	m.Addr = fmt.Sprint(IpAddr)
+	m.appID = AppID
+	m.appHash = AppHash
 	if !m.memorySession {
 		if err := m.SaveSession(); err != nil {
 			return false, fmt.Errorf("saving session: %w", err)
@@ -172,6 +180,8 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 		MemorySession: false,
 		LogLevel:      m.Logger.Lev(),
 		SocksProxy:    m.socksProxy,
+		AppID:         m.appID,
+		AppHash:       m.appHash,
 	}
 	sender, _ := NewMTProto(cfg)
 	sender.serverRequestHandlers = m.serverRequestHandlers
@@ -194,6 +204,8 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		MemorySession: mem,
 		LogLevel:      m.Logger.Lev(),
 		SocksProxy:    m.socksProxy,
+		AppID:         m.appID,
+		AppHash:       m.appHash,
 	}
 	if dcID == m.GetDC() {
 		cfg.SessionStorage = m.sessionStorage

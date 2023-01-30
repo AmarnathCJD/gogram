@@ -212,10 +212,11 @@ func pathIsDir(path string) bool {
 }
 
 // Func to get the file name of Media
-//  Accepted types:
-//   *MessageMedia
-//   *Document
-//   *Photo
+//
+//	Accepted types:
+//	 *MessageMedia
+//	 *Document
+//	 *Photo
 func getFileName(f interface{}) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
@@ -264,8 +265,9 @@ func getFileName(f interface{}) string {
 }
 
 // Func to get the file size of Media
-//  Accepted types:
-//   *MessageMedia
+//
+//	Accepted types:
+//	 *MessageMedia
 func getFileSize(f interface{}) int64 {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
@@ -286,10 +288,11 @@ func getFileSize(f interface{}) int64 {
 }
 
 // Func to get the file extension of Media
-//  Accepted types:
-//   *MessageMedia
-//   *Document
-//   *Photo
+//
+//	Accepted types:
+//	 *MessageMedia
+//	 *Document
+//	 *Photo
 func getFileExt(f interface{}) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
@@ -394,10 +397,11 @@ func workDirectory() string {
 
 // Inverse operation of ResolveBotFileID
 // https://core.telegram.org/bots/api#file
-//  Accepted Types:
-//  	*MessageMedia
-//  	*Document
-//  	*Photo
+//
+//	Accepted Types:
+//		*MessageMedia
+//		*Document
+//		*Photo
 func PackBotFileID(file interface{}) string {
 	var fileID, accessHash, fileType, dcID string
 switchFileType:
@@ -467,8 +471,9 @@ func UnpackBotFileID(fileID string) (int64, int64, int32, int32) {
 
 // Inverse operation of PackBotFileID,
 // https://core.telegram.org/bots/api#file
-//  Accepted Types:
-//  	string
+//
+//	Accepted Types:
+//		string
 func ResolveBotFileID(fileID string) (MessageMedia, error) {
 	fID, accessHash, fileType, dcID := UnpackBotFileID(fileID)
 	if fID == 0 || accessHash == 0 || fileType == 0 || dcID == 0 {

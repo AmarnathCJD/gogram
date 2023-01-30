@@ -69,7 +69,7 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 	return info, nil
 }
 
-//! slicetricks
+// ! slicetricks
 func haveInSlice(s string, slice []string) bool {
 	for _, item := range slice {
 		if item == s {

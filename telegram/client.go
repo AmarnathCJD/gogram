@@ -77,25 +77,25 @@ type SocksProxy struct {
 // New instance of telegram client,
 // If session file is not provided, it will create a new session file
 // in the current working directory
-//  Params:
-//  - sessionFile: path to session file
-//  - stringSession: string session
-//  - deviceModel: device model
-//  - systemVersion: system version
-//  - appVersion: app version
-//  - appID: telegram app id
-//  - appHash: telegram app hash
-//  - parseMode: parse mode (Markdown, HTML)
-//  - dataCenter: data center id (default: 4)
 //
+//	Params:
+//	- sessionFile: path to session file
+//	- stringSession: string session
+//	- deviceModel: device model
+//	- systemVersion: system version
+//	- appVersion: app version
+//	- appID: telegram app id
+//	- appHash: telegram app hash
+//	- parseMode: parse mode (Markdown, HTML)
+//	- dataCenter: data center id (default: 4)
 func TelegramClient(c ClientConfig) (*Client, error) {
-	c.SessionFile = getStr(c.SessionFile, filepath.Join(workDirectory(), "session.session"))
+	c.SessionFile = getStr(c.SessionFile, filepath.Join(getAbsWorkingDir(), "session.session"))
 	dcID := getInt(c.DataCenter, DefaultDC)
 	publicKeys, err := keys.GetRSAKeys()
 	if err != nil {
 		return nil, errors.Wrap(err, "reading public keys")
 	}
-	if c.AppID == 0 || c.AppHash == "" {
+	if c.StringSession == "" && (c.AppID == 0 || c.AppHash == "") {
 		return nil, errors.New("Your API ID or Hash cannot be empty or None. Please get your own API ID and Hash from https://my.telegram.org/apps")
 		// TODO: no need APPID when using string session or session file
 	}
@@ -103,6 +103,8 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 		c.SocksProxy = &SocksProxy{}
 	}
 	mtproto, err := mtproto.NewMTProto(mtproto.Config{
+		AppID:         int32(c.AppID),
+		AppHash:       c.AppHash,
 		AuthKeyFile:   c.SessionFile,
 		ServerHost:    GetHostIp(dcID),
 		PublicKey:     publicKeys[0],
@@ -119,6 +121,7 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "creating connection")
 	}
+	LIB_LOG_LEVEL = getStr(c.LogLevel, LogInfo)
 
 	client := &Client{
 		MTProto:       mtproto,
@@ -128,7 +131,7 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 		deviceModel:   getStr(c.DeviceModel, "Android Device"),
 		systemVersion: getStr(c.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
 		appVersion:    getStr(c.AppVersion, Version),
-		Log:           utils.NewLogger("GoGram").SetLevel(getStr(c.LogLevel, LogInfo)),
+		Log:           utils.NewLogger("GoGram").SetLevel(LIB_LOG_LEVEL),
 		AppID:         int32(c.AppID),
 		ApiHash:       c.AppHash,
 		stop:          make(chan struct{}, 1),
@@ -257,12 +260,14 @@ func (c *Client) IsBot() bool {
 }
 
 func (c *Client) ExportSession() string {
-	authKey, authKeyHash, IpAddr, DcID := c.MTProto.ExportAuth()
+	authKey, authKeyHash, IpAddr, DcID, AppHash, AppID := c.MTProto.ExportAuth()
 	return session.StringSession{
 		AuthKey:     authKey,
 		AuthKeyHash: authKeyHash,
 		IpAddr:      IpAddr,
 		DCID:        DcID,
+		AppHash:     AppHash,
+		AppID:       AppID,
 	}.EncodeToString()
 }
 

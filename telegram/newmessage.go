@@ -2,7 +2,6 @@ package telegram
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -30,18 +29,6 @@ type (
 		Ext    string `json:"ext,omitempty"`
 	}
 )
-
-func (m *NewMessage) PeerChat() (*ChatObj, error) {
-	switch Peer := m.Message.PeerID.(type) {
-	case *PeerUser:
-		return m.Client.GetPeerChat(Peer.UserID)
-	case *PeerChat:
-		return m.Client.GetPeerChat(Peer.ChatID)
-	case *PeerChannel:
-		return m.Client.GetPeerChat(Peer.ChannelID)
-	}
-	return nil, fmt.Errorf("failed to resolve peer")
-}
 
 func (m *NewMessage) MessageText() string {
 	return m.Message.Message
@@ -152,27 +139,27 @@ func (m *NewMessage) Marshal() string {
 }
 
 func (m *NewMessage) GetChat() (*ChatObj, error) {
-	return m.Client.GetPeerChat(m.ChatID())
+	return m.Client.GetChat(m.ChatID())
 }
 
 // GetPeer returns the peer of the message
 func (m *NewMessage) GetPeer() (int64, int64) {
 	if m.IsPrivate() {
 		User, _ := m.Client.GetPeerUser(m.ChatID())
-		return User.ID, User.AccessHash
+		return User.UserID, User.AccessHash
 	} else if m.IsGroup() {
-		Chat, _ := m.Client.GetPeerChat(m.ChatID())
+		Chat, _ := m.Client.GetChat(m.ChatID())
 		return Chat.ID, 0
 	} else if m.IsChannel() {
 		Channel, _ := m.Client.GetPeerChannel(m.ChatID())
-		return Channel.ID, Channel.AccessHash
+		return Channel.ChannelID, Channel.AccessHash
 	}
 	return 0, 0
 }
 
 // GetSender returns the sender of the message
 func (m *NewMessage) GetSender() (*UserObj, error) {
-	return m.Client.GetPeerUser(m.SenderID())
+	return m.Client.GetUser(m.SenderID())
 }
 
 func (m *NewMessage) IsForward() bool {

@@ -126,6 +126,18 @@ func (h *callbackHandle) Remove() {
 	}
 }
 
+type participantHandle struct {
+	Handler func(p *ParticipantUpdate) error
+}
+
+func (h *participantHandle) Remove() {
+	for i, handle := range UpdateHandleDispatcher.participantHandles {
+		if reflect.DeepEqual(handle, h) {
+			UpdateHandleDispatcher.participantHandles = append(UpdateHandleDispatcher.participantHandles[:i], UpdateHandleDispatcher.participantHandles[i+1:]...)
+		}
+	}
+}
+
 type rawHandle struct {
 	updateType Update
 	Handler    func(m Update) error
@@ -144,6 +156,7 @@ type UpdateDispatcher struct {
 	messageHandles       []messageHandle
 	inlineHandles        []inlineHandle
 	callbackHandles      []callbackHandle
+	participantHandles   []participantHandle
 	messageEditHandles   []messageEditHandle
 	actionHandles        []chatActionHandle
 	messageDeleteHandles []messageDeleteHandle
@@ -184,6 +197,11 @@ func (u *UpdateDispatcher) AddME(m messageEditHandle) messageEditHandle {
 func (u *UpdateDispatcher) AddMD(m messageDeleteHandle) messageDeleteHandle {
 	u.messageDeleteHandles = append(u.messageDeleteHandles, m)
 	return m
+}
+
+func (u *UpdateDispatcher) AddP(p participantHandle) participantHandle {
+	u.participantHandles = append(u.participantHandles, p)
+	return p
 }
 
 func (u *UpdateDispatcher) AddR(r rawHandle) rawHandle {
@@ -288,6 +306,16 @@ func (u *UpdateDispatcher) HandleCallbackUpdate(update *UpdateBotCallbackQuery) 
 				}
 			}(handle)
 		}
+	}
+}
+
+func (u *UpdateDispatcher) HandleParticipantUpdate(update *UpdateChannelParticipant) {
+	for _, handle := range u.participantHandles {
+		go func(h participantHandle) {
+			if err := h.Handler(packChannelParticipant(u.client, update)); err != nil {
+				u.client.Log.Error(err)
+			}
+		}(handle)
 	}
 }
 
@@ -440,16 +468,42 @@ func (c *Client) AddActionHandler(handler func(m *NewMessage) error) chatActionH
 	return UpdateHandleDispatcher.AddA(chatActionHandle{Handler: handler})
 }
 
+// Handle updates categorized as "UpdateMessageEdited"
+//
+// Included Updates:
+//   - Message Edited
+//   - Channel Post Edited
 func (c *Client) AddEditHandler(pattern interface{}, handler func(m *NewMessage) error) messageEditHandle {
 	return UpdateHandleDispatcher.AddME(messageEditHandle{Pattern: pattern, Handler: handler})
 }
 
+// Handle updates categorized as "UpdateBotInlineQuery"
+//
+// Included Updates:
+//   - Inline Query
 func (c *Client) AddInlineHandler(pattern interface{}, handler func(m *InlineQuery) error) inlineHandle {
 	return UpdateHandleDispatcher.AddI(inlineHandle{Pattern: pattern, Handler: handler})
 }
 
+// Handle updates categorized as "UpdateBotCallbackQuery"
+//
+// Included Updates:
+//   - Callback Query
 func (c *Client) AddCallbackHandler(pattern interface{}, handler func(m *CallbackQuery) error) callbackHandle {
 	return UpdateHandleDispatcher.AddC(callbackHandle{Pattern: pattern, Handler: handler})
+}
+
+// Handle updates categorized as "UpdateChannelParticipant"
+//
+// Included Updates:
+//   - New Channel Participant
+//   - Banned Channel Participant
+//   - Left Channel Participant
+//   - Kicked Channel Participant
+//   - Channel Participant Admin
+//   - Channel Participant Creator
+func (c *Client) AddParticipantHandler(handler func(m *ParticipantUpdate) error) participantHandle {
+	return UpdateHandleDispatcher.AddP(participantHandle{Handler: handler})
 }
 
 func (c *Client) AddRawHandler(updateType Update, handler func(m Update) error) rawHandle {
@@ -479,7 +533,8 @@ UpdateTypeSwitching:
 				go UpdateHandleDispatcher.HandleInlineUpdate(update)
 			case *UpdateBotCallbackQuery:
 				go UpdateHandleDispatcher.HandleCallbackUpdate(update)
-				// TODO: UpdateChannelParticipant Wrapper
+			case *UpdateChannelParticipant:
+				go UpdateHandleDispatcher.HandleParticipantUpdate(update)
 			default:
 				go UpdateHandleDispatcher.HandleRawUpdate(update)
 			}

@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -47,7 +46,7 @@ func (l *genericFileSessionLoader) Load() (*Session, error) {
 		return l.cached, nil
 	}
 
-	data, err := ioutil.ReadFile(l.path)
+	data, err := os.ReadFile(l.path)
 	data = decodeBytes(data)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading file")
@@ -81,7 +80,7 @@ func (l *genericFileSessionLoader) Store(s *Session) error {
 	file.writeSession(s)
 	data, _ := json.Marshal(file)
 
-	return ioutil.WriteFile(l.path, encodeBytes(data), 0600)
+	return os.WriteFile(l.path, encodeBytes(data), 0600)
 }
 
 func (l *genericFileSessionLoader) Delete() error {

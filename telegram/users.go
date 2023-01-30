@@ -25,11 +25,12 @@ type PhotosOptions struct {
 }
 
 // GetProfilePhotos returns the profile photos of a user
-//  Params:
-//   - userID: The user ID
-//   - Offset: The offset to start from
-//   - Limit: The number of photos to return
-//   - MaxID: The maximum ID of the photo to return
+//
+//	Params:
+//	 - userID: The user ID
+//	 - Offset: The offset to start from
+//	 - Limit: The number of photos to return
+//	 - MaxID: The maximum ID of the photo to return
 func (c *Client) GetProfilePhotos(userID interface{}, Opts ...*PhotosOptions) ([]Photo, error) {
 	Options := getVariadic(Opts, &PhotosOptions{}).(*PhotosOptions)
 	if Options.Limit > 80 {
