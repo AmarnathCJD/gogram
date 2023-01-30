@@ -4,7 +4,7 @@ import "regexp"
 
 const (
 	ApiVersion = 147
-	Version    = "v1.1.3"
+	Version    = "v1.1.8"
 
 	DefaultDC = 4
 
@@ -29,6 +29,10 @@ const (
 	OnInlineQuery   = "OnInlineQuery"
 	OnCallbackQuery = "OnCallbackQuery"
 	OnDeleteMessage = "OnDeleteMessage"
+)
+
+var (
+	LIB_LOG_LEVEL = LogInfo
 )
 
 var (

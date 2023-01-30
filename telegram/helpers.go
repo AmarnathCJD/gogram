@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -47,6 +48,14 @@ func getInt(a int, b int) int {
 		return b
 	}
 	return a
+}
+
+func getAbsWorkingDir() string {
+	dirEx, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	return filepath.Dir(dirEx)
 }
 
 func PathIsWritable(path string) bool {
@@ -238,33 +247,33 @@ func (c *Client) GetSendablePeer(PeerID interface{}) (InputPeer, error) {
 PeerSwitch:
 	switch Peer := PeerID.(type) {
 	case *PeerUser:
-		PeerEntity, err := c.GetPeerUser(Peer.UserID)
+		peerEntity, err := c.GetPeerUser(Peer.UserID)
 		if err != nil {
 			return nil, err
 		}
-		return &InputPeerUser{UserID: Peer.UserID, AccessHash: PeerEntity.AccessHash}, nil
+		return &InputPeerUser{UserID: peerEntity.UserID, AccessHash: peerEntity.AccessHash}, nil
 	case *PeerChat:
 		return &InputPeerChat{ChatID: Peer.ChatID}, nil
 	case *PeerChannel:
-		PeerEntity, err := c.GetPeerChannel(Peer.ChannelID)
+		peerEntity, err := c.GetPeerChannel(Peer.ChannelID)
 		if err != nil {
 			return nil, err
 		}
-		return &InputPeerChannel{ChannelID: Peer.ChannelID, AccessHash: PeerEntity.AccessHash}, nil
+		return &InputPeerChannel{ChannelID: peerEntity.ChannelID, AccessHash: peerEntity.AccessHash}, nil
 	case *InputPeerChat:
 		return Peer, nil
 	case *InputPeerChannel:
-		PeerEntity, err := c.GetPeerChannel(Peer.ChannelID)
+		peerEntity, err := c.GetPeerChannel(Peer.ChannelID)
 		if err != nil {
 			return nil, err
 		}
-		return &InputPeerChannel{ChannelID: PeerEntity.ID, AccessHash: PeerEntity.AccessHash}, nil
+		return &InputPeerChannel{ChannelID: peerEntity.ChannelID, AccessHash: peerEntity.AccessHash}, nil
 	case *InputPeerUser:
-		PeerEntity, err := c.GetPeerUser(Peer.UserID)
+		peerEntity, err := c.GetPeerUser(Peer.UserID)
 		if err != nil {
 			return nil, err
 		}
-		return &InputPeerUser{UserID: PeerEntity.ID, AccessHash: PeerEntity.AccessHash}, nil
+		return &InputPeerUser{UserID: peerEntity.UserID, AccessHash: peerEntity.AccessHash}, nil
 	case *InputPeer:
 		return *Peer, nil
 		// TODO: Add more types
@@ -279,7 +288,7 @@ PeerSwitch:
 	case *UserObj:
 		return &InputPeerUser{UserID: Peer.ID, AccessHash: Peer.AccessHash}, nil
 	case int64, int32, int:
-		PeerEntity, err := c.GetInputPeer(Peer.(int64))
+		PeerEntity, err := c.Cache.GetInputPeer(Peer.(int64))
 		if PeerEntity == nil {
 			return nil, err
 		}
@@ -289,22 +298,22 @@ PeerSwitch:
 			PeerID = i
 			goto PeerSwitch
 		}
-		if Peer == "me" {
+		if Peer == "me" || Peer == "self" {
 			return &InputPeerSelf{}, nil
 		}
-		PeerEntity, err := c.ResolveUsername(Peer)
+		peerEntity, err := c.ResolveUsername(Peer)
 		if err != nil {
 			return nil, err
 		}
-		switch PeerEntity := PeerEntity.(type) {
+		switch peerEntity := peerEntity.(type) {
 		case *ChatObj:
-			return &InputPeerChat{ChatID: PeerEntity.ID}, nil
+			return &InputPeerChat{ChatID: peerEntity.ID}, nil
 		case *Channel:
-			return &InputPeerChannel{ChannelID: PeerEntity.ID, AccessHash: PeerEntity.AccessHash}, nil
+			return &InputPeerChannel{ChannelID: peerEntity.ID, AccessHash: peerEntity.AccessHash}, nil
 		case *UserObj:
-			return &InputPeerUser{UserID: PeerEntity.ID, AccessHash: PeerEntity.AccessHash}, nil
+			return &InputPeerUser{UserID: peerEntity.ID, AccessHash: peerEntity.AccessHash}, nil
 		default:
-			return nil, errors.New(fmt.Sprintf("unknown peer type %s", reflect.TypeOf(PeerEntity).String()))
+			return nil, errors.New(fmt.Sprintf("unknown peer type %s", reflect.TypeOf(peerEntity).String()))
 		}
 	case *ChannelForbidden:
 		return &InputPeerChannel{ChannelID: Peer.ID, AccessHash: Peer.AccessHash}, nil
@@ -315,7 +324,7 @@ PeerSwitch:
 	case *InputChannelFromMessage:
 		return &InputPeerChannelFromMessage{Peer: Peer.Peer, MsgID: Peer.MsgID, ChannelID: Peer.ChannelID}, nil
 	default:
-		return nil, errors.New("Failed to get sendable peer")
+		return nil, errors.New("Failed to get sendable peer, unknown type " + reflect.TypeOf(PeerID).String())
 	}
 }
 
@@ -633,23 +642,75 @@ func packMessage(c *Client, message Message) *NewMessage {
 	return m
 }
 
+func packInlineQuery(c *Client, query *UpdateBotInlineQuery) *InlineQuery {
+	var (
+		iq = &InlineQuery{}
+	)
+	iq.QueryID = query.QueryID
+	iq.Query = query.Query
+	iq.Offset = query.Offset
+	iq.Client = c
+	iq.Sender, _ = c.GetUser(query.UserID)
+	iq.SenderID = query.UserID
+	iq.OriginalUpdate = query
+	return iq
+}
+
+func packCallbackQuery(c *Client, query *UpdateBotCallbackQuery) *CallbackQuery {
+	var (
+		cq = &CallbackQuery{}
+	)
+	cq.QueryID = query.QueryID
+	cq.Data = query.Data
+	cq.Client = c
+	cq.Sender, _ = c.GetUser(query.UserID)
+	cq.Chat = c.getChat(query.Peer)
+	cq.Channel = c.getChannel(query.Peer)
+	cq.OriginalUpdate = query
+	cq.Peer = query.Peer
+	cq.MessageID = query.MsgID
+	cq.SenderID = query.UserID
+	if cq.Channel != nil {
+		cq.ChatID = cq.Channel.ID
+	} else {
+		cq.ChatID = cq.Chat.ID
+	}
+	return cq
+}
+
+func packChannelParticipant(c *Client, update *UpdateChannelParticipant) *ParticipantUpdate {
+	var (
+		pu = &ParticipantUpdate{}
+	)
+	pu.Client = c
+	pu.OriginalUpdate = update
+	pu.Channel = c.getChannel(&PeerChannel{ChannelID: update.ChannelID})
+	pu.User, _ = c.GetUser(update.UserID)
+	pu.Actor, _ = c.GetUser(update.ActorID)
+	pu.Old = update.PrevParticipant
+	pu.New = update.NewParticipant
+	pu.Date = update.Date
+	pu.Invite = update.Invite
+	return pu
+}
+
 func (c *Client) getSender(FromID Peer) *UserObj {
 	if FromID == nil {
 		return &UserObj{}
 	}
 	switch FromID := FromID.(type) {
 	case *PeerUser:
-		u, err := c.Cache.GetUser(FromID.UserID)
+		u, err := c.GetUser(FromID.UserID)
 		if err == nil {
 			return u
 		}
 	case *PeerChat:
-		u, err := c.Cache.GetChat(FromID.ChatID)
+		u, err := c.GetChat(FromID.ChatID)
 		if err == nil {
 			return &UserObj{ID: FromID.ChatID, FirstName: u.Title, LastName: "", Username: "", Phone: "", AccessHash: 0, Photo: nil, Status: nil, Bot: false, Verified: false, Restricted: false}
 		}
 	case *PeerChannel:
-		u, err := c.Cache.GetChannel(FromID.ChannelID)
+		u, err := c.GetChannel(FromID.ChannelID)
 		if err == nil {
 			return &UserObj{ID: FromID.ChannelID, AccessHash: u.AccessHash, Username: u.Username, FirstName: u.Title, LastName: "", Phone: "", Bot: false, Verified: false, LangCode: ""}
 		}
@@ -660,7 +721,7 @@ func (c *Client) getSender(FromID Peer) *UserObj {
 func (c *Client) getChat(PeerID Peer) *ChatObj {
 	switch PeerID := PeerID.(type) {
 	case *PeerChat:
-		chat, err := c.Cache.GetChat(PeerID.ChatID)
+		chat, err := c.GetChat(PeerID.ChatID)
 		if err == nil {
 			return chat
 		}
@@ -671,7 +732,7 @@ func (c *Client) getChat(PeerID Peer) *ChatObj {
 func (c *Client) getChannel(PeerID Peer) *Channel {
 	switch PeerID := PeerID.(type) {
 	case *PeerChannel:
-		channel, err := c.Cache.GetChannel(PeerID.ChannelID)
+		channel, err := c.GetChannel(PeerID.ChannelID)
 		if err == nil {
 			return channel
 		}
@@ -685,55 +746,19 @@ func (c *Client) getPeer(PeerID Peer) InputPeer {
 	}
 	switch PeerID := PeerID.(type) {
 	case *PeerUser:
-		u, err := c.Cache.GetUser(PeerID.UserID)
+		u, err := c.GetUser(PeerID.UserID)
 		if err == nil {
 			return &InputPeerUser{UserID: PeerID.UserID, AccessHash: u.AccessHash}
 		}
 	case *PeerChat:
 		return &InputPeerChat{ChatID: PeerID.ChatID}
 	case *PeerChannel:
-		u, err := c.Cache.GetChannel(PeerID.ChannelID)
+		u, err := c.GetChannel(PeerID.ChannelID)
 		if err == nil {
 			return &InputPeerChannel{ChannelID: PeerID.ChannelID, AccessHash: u.AccessHash}
 		}
 	}
 	return nil
-}
-
-func packInlineQuery(c *Client, query *UpdateBotInlineQuery) *InlineQuery {
-	var (
-		iq = &InlineQuery{}
-	)
-	iq.QueryID = query.QueryID
-	iq.Query = query.Query
-	iq.Offset = query.Offset
-	iq.Client = c
-	iq.Sender, _ = c.Cache.GetUser(query.UserID)
-	iq.SenderID = query.UserID
-	iq.OriginalUpdate = query
-	return iq
-}
-
-func packCallbackQuery(c *Client, query *UpdateBotCallbackQuery) *CallbackQuery {
-	var (
-		cq = &CallbackQuery{}
-	)
-	cq.QueryID = query.QueryID
-	cq.Data = query.Data
-	cq.Client = c
-	cq.Sender, _ = c.Cache.GetUser(query.UserID)
-	cq.Chat = c.getChat(query.Peer)
-	cq.Channel = c.getChannel(query.Peer)
-	cq.OriginalUpdate = query
-	cq.Peer = query.Peer
-	cq.MessageID = query.MsgID
-	cq.SenderID = query.UserID
-	if cq.Channel != nil {
-		cq.ChatID = cq.Channel.ID
-	} else {
-		cq.ChatID = cq.Chat.ID
-	}
-	return cq
 }
 
 func GetInputCheckPassword(password string, accountPassword *AccountPassword) (InputCheckPasswordSRP, error) {

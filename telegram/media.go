@@ -34,6 +34,9 @@ type UploadOptions struct {
 // file can be string, []byte, io.Reader, fs.File
 func (c *Client) UploadFile(file interface{}, Opts ...*UploadOptions) (InputFile, error) {
 	opts := getVariadic(Opts, &UploadOptions{}).(*UploadOptions)
+	if file == nil {
+		return nil, errors.New("file can not be nil")
+	}
 	u := &Uploader{
 		Source:    file,
 		Client:    c,
@@ -123,13 +126,21 @@ func (u *Uploader) Init() error {
 }
 
 func (u *Uploader) allocateWorkers() {
+	wg := &sync.WaitGroup{}
 	for i := 0; i < u.Worker; i++ {
-		w, err := u.Client.ExportSender(u.Client.GetDC())
-		if err != nil {
-			panic(err)
-		}
-		u.Workers = append(u.Workers, w)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			w, err := u.Client.ExportSender(u.Client.GetDC())
+			if err != nil {
+				u.Client.Log.Error(err)
+				return
+			}
+			u.Workers = append(u.Workers, w)
+		}()
 	}
+	wg.Wait()
+	u.Client.Log.Debug("Allocated workers: ", len(u.Workers))
 }
 
 func (u *Uploader) closeWorkers() {
@@ -247,7 +258,7 @@ func (u *Uploader) readPart(part int32) ([]byte, error) {
 		}
 		return buf, nil
 	default:
-		return nil, errors.New("unknown source type")
+		return nil, errors.New("unknown source type, only support string, []byte, fs.File, io.Reader")
 	}
 }
 
@@ -366,24 +377,26 @@ func (d *Downloader) onError() {
 
 func (d *Downloader) allocateWorkers() {
 	if d.Worker == 1 {
-		if d.Client.GetDC() != int(d.DcID) {
-			cli, err := d.Client.ExportSender(int(d.DcID))
+		wNew, err := d.Client.ExportSender(int(d.DcID))
+		if err != nil {
+			d.Client.Log.Error(err)
+		}
+		d.Workers = []*Client{wNew}
+		return
+	}
+	wg := &sync.WaitGroup{}
+	for i := 0; i < d.Worker; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			w, err := d.Client.ExportSender(int(d.DcID))
 			if err != nil {
 				d.onError()
 			}
-			d.Workers = []*Client{cli}
-		} else {
-			d.Workers = []*Client{d.Client}
-		}
-		return
+			d.Workers = append(d.Workers, w)
+		}()
 	}
-	for i := 0; i < d.Worker; i++ {
-		w, err := d.Client.ExportSender(int(d.DcID))
-		if err != nil {
-			d.onError()
-		}
-		d.Workers = append(d.Workers, w)
-	}
+	wg.Wait()
 }
 
 func (d *Downloader) DividePartsToWorkers() [][]int32 {
@@ -433,9 +446,6 @@ func (d *Downloader) Start() (string, error) {
 }
 
 func (d *Downloader) closeWorkers() {
-	if len(d.Workers) == 1 && d.Workers[0].GetDC() == d.Client.GetDC() {
-		return
-	}
 	for _, w := range d.Workers {
 		w.Terminate()
 	}

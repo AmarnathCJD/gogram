@@ -3,9 +3,10 @@ package telegram
 import "github.com/pkg/errors"
 
 // GetChatPhotos returns the profile photos of a chat
-//  Params:
-//   - chatID: The ID of the chat
-//   - limit: The maximum number of photos to be returned
+//
+//	Params:
+//	 - chatID: The ID of the chat
+//	 - limit: The maximum number of photos to be returned
 func (c *Client) GetChatPhotos(chatID interface{}, limit ...int32) ([]Photo, error) {
 	if limit == nil {
 		limit = []int32{1}
@@ -29,8 +30,9 @@ func (c *Client) GetChatPhotos(chatID interface{}, limit ...int32) ([]Photo, err
 }
 
 // GetChatPhoto returns the current chat photo
-//  Params:
-//   - chatID: chat id
+//
+//	Params:
+//	 - chatID: chat id
 func (c *Client) GetChatPhoto(chatID interface{}) (Photo, error) {
 	photos, err := c.GetChatPhotos(chatID)
 	if err != nil {
@@ -43,8 +45,9 @@ func (c *Client) GetChatPhoto(chatID interface{}) (Photo, error) {
 }
 
 // JoinChannel joins a channel or chat by its username or id
-//  Params:
-//  - Channel: the username or id of the channel or chat
+//
+//	Params:
+//	- Channel: the username or id of the channel or chat
 func (c *Client) JoinChannel(Channel interface{}) error {
 	switch p := Channel.(type) {
 	case string:
@@ -77,9 +80,10 @@ func (c *Client) JoinChannel(Channel interface{}) error {
 }
 
 // LeaveChannel leaves a channel or chat
-//  Params:
-//   - Channel: Channel or chat to leave
-//   - Revoke: If true, the channel will be deleted
+//
+//	Params:
+//	 - Channel: Channel or chat to leave
+//	 - Revoke: If true, the channel will be deleted
 func (c *Client) LeaveChannel(Channel interface{}, Revoke ...bool) error {
 	revokeChat := getVariadic(Revoke, false).(bool)
 	channel, err := c.GetSendablePeer(Channel)
@@ -120,9 +124,10 @@ type Participant struct {
 }
 
 // GetChatMember returns the members of a chat
-//  Params:
-//   - chatID: The ID of the chat
-//   - userID: The ID of the user
+//
+//	Params:
+//	 - chatID: The ID of the chat
+//	 - userID: The ID of the user
 func (c *Client) GetChatMember(chatID interface{}, userID interface{}) (*Participant, error) {
 	channel, err := c.GetSendablePeer(chatID)
 	if err != nil {
@@ -171,7 +176,7 @@ func (c *Client) GetChatMember(chatID interface{}, userID interface{}) (*Partici
 		status = Left
 		UserID = c.GetPeerID(p.Peer)
 	}
-	partUser, err := c.Cache.GetUser(UserID)
+	partUser, err := c.GetUser(UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -192,11 +197,12 @@ type ParticipantOptions struct {
 }
 
 // GetChatMembers returns the members of a chat
-//  Params:
-//   - chatID: The ID of the chat
-//   - filter: The filter to use
-//   - offset: The offset to use
-//   - limit: The limit to use
+//
+//	Params:
+//	 - chatID: The ID of the chat
+//	 - filter: The filter to use
+//	 - offset: The offset to use
+//	 - limit: The limit to use
 func (c *Client) GetChatMembers(chatID interface{}, Opts ...*ParticipantOptions) ([]*Participant, int32, error) {
 	channel, err := c.GetSendablePeer(chatID)
 	if err != nil {
@@ -250,7 +256,7 @@ func (c *Client) GetChatMembers(chatID interface{}, Opts ...*ParticipantOptions)
 			status = Left
 			UserID = c.GetPeerID(p.Peer)
 		}
-		partUser, err := c.Cache.GetUser(UserID)
+		partUser, err := c.GetUser(UserID)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -428,9 +434,10 @@ func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...*TitleOptio
 }
 
 // GetStats returns the stats of the channel or message
-//  Params:
-//   - channelID: the channel ID
-//   - messageID: the message ID
+//
+//	Params:
+//	 - channelID: the channel ID
+//	 - messageID: the message ID
 func (c *Client) GetStats(channelID interface{}, messageID ...interface{}) (*StatsBroadcastStats, *StatsMessageStats, error) {
 	peerID, err := c.GetSendablePeer(channelID)
 	if err != nil {
@@ -470,13 +477,14 @@ type InviteLinkOptions struct {
 }
 
 // GetChatInviteLink returns the invite link of a chat
-//  Params:
-//   - peerID : The ID of the chat
-//   - LegacyRevoke : If true, the link will be revoked
-//   - Expire: The time in seconds after which the link will expire
-//   - Limit: The maximum number of users that can join the chat using the link
-//   - Title: The title of the link
-//   - RequestNeeded: If true, join requests will be needed to join the chat
+//
+//	Params:
+//	 - peerID : The ID of the chat
+//	 - LegacyRevoke : If true, the link will be revoked
+//	 - Expire: The time in seconds after which the link will expire
+//	 - Limit: The maximum number of users that can join the chat using the link
+//	 - Title: The title of the link
+//	 - RequestNeeded: If true, join requests will be needed to join the chat
 func (c *Client) GetChatInviteLink(peerID interface{}, LinkOpts ...*InviteLinkOptions) (ExportedChatInvite, error) {
 	LinkOptions := getVariadic(LinkOpts, &InviteLinkOptions{}).(*InviteLinkOptions)
 	peer, err := c.GetSendablePeer(peerID)
