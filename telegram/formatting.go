@@ -14,6 +14,7 @@ func parseEntities(text string, parseMode string) (entities []MessageEntity, new
 	case HTML:
 		return parseHTML(text)
 	case MarkDown:
+		// TODO: Add Markdown parsing
 		return parseMarkdown(text)
 	}
 	return []MessageEntity{}, text
@@ -38,6 +39,9 @@ func parseHTML(t string) ([]MessageEntity, string) {
 		var entity MessageEntity
 		Offset := Index(finalText, s.Text())
 		Length := int32(len(utf16.Encode([]rune(s.Text()))))
+		if Length == 0 {
+			return
+		}
 		switch s.Nodes[0].Data {
 		case "b", "strong":
 			entity = &MessageEntityBold{Offset, Length}
