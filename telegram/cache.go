@@ -1,9 +1,6 @@
 package telegram
 
 import (
-	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,7 +10,15 @@ import (
 	"time"
 	"unsafe"
 
+	aes "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/utils"
+)
+
+const (
+	// CacheUpdateInterval is the interval in seconds at which the cache is updated
+	CacheUpdateInterval = 60
+	// AesKey is the key used to encrypt the cache file
+	AesKey = "12345678901234567890123456789012"
 )
 
 type CACHE struct {
@@ -31,9 +36,8 @@ type InputPeerCache struct {
 }
 
 func (c *CACHE) periodicallyFlushToFile() {
-	var CACHE_UPDATE_INTERVAL = 60
 	for {
-		time.Sleep(time.Duration(CACHE_UPDATE_INTERVAL) * time.Second)
+		time.Sleep(time.Duration(CacheUpdateInterval) * time.Second)
 		c.flushToFile()
 	}
 }
@@ -44,13 +48,12 @@ func (c *CACHE) flushToFile() {
 		log.Println(err)
 	}
 	// encode to aes encrypted json file
-	aesKey := "12345678901234567890123456789012"
 	var b []byte
 	b, err = json.Marshal(c)
 	if err != nil {
 		c.logger.Error("Error while marshalling cache.journal: %v", err)
 	}
-	b, err = EncryptAES(b, aesKey)
+	b, err = aes.EncryptAES(b, AesKey)
 	if err != nil {
 		c.logger.Error("Error while encrypting cache.journal: %v", err)
 	}
@@ -61,13 +64,12 @@ func (c *CACHE) flushToFile() {
 }
 
 func (c *CACHE) loadFromFile() {
-	aesKey := "12345678901234567890123456789012"
 	var b []byte
 	b, err := os.ReadFile("cache.journal")
 	if err != nil {
 		return
 	}
-	b, err = DecryptAES(b, aesKey)
+	b, err = aes.DecryptAES(b, AesKey)
 	if err != nil {
 		c.logger.Error("Error while decrypting cache.journal: %v", err)
 	}
@@ -322,39 +324,3 @@ func (c *Client) GetPeerChannel(channelID int64) (*InputPeerChannel, error) {
 }
 
 // ----------------- AES Encryption -----------------
-
-func EncryptAES(data []byte, key string) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(key))
-	if err != nil {
-		return nil, err
-	}
-	b := pkcs5Padding(data, block.BlockSize())
-	blockMode := cipher.NewCBCEncrypter(block, []byte(key)[:block.BlockSize()])
-	crypted := make([]byte, len(b))
-	blockMode.CryptBlocks(crypted, b)
-	return crypted, nil
-}
-
-func DecryptAES(data []byte, key string) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(key))
-	if err != nil {
-		return nil, err
-	}
-	blockMode := cipher.NewCBCDecrypter(block, []byte(key)[:block.BlockSize()])
-	origData := make([]byte, len(data))
-	blockMode.CryptBlocks(origData, data)
-	origData = pkcs5UnPadding(origData)
-	return origData, nil
-}
-
-func pkcs5Padding(ciphertext []byte, blockSize int) []byte {
-	padding := blockSize - len(ciphertext)%blockSize
-	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
-	return append(ciphertext, padtext...)
-}
-
-func pkcs5UnPadding(origData []byte) []byte {
-	length := len(origData)
-	unpadding := int(origData[length-1])
-	return origData[:(length - unpadding)]
-}

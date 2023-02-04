@@ -1,4 +1,4 @@
-// Copyright (c) 2022 RoseLoverX
+// Copyright (c) 2023 RoseLoverX
 
 package session
 
@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	aes "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/pkg/errors"
 )
@@ -92,6 +93,7 @@ type tokenStorageFormat struct {
 	Hash     string `json:"hash"`
 	Salt     string `json:"salt"`
 	Hostname string `json:"hostname"`
+	AppID    int32  `json:"app_id"`
 }
 
 func (t *tokenStorageFormat) writeSession(s *Session) {
@@ -99,6 +101,7 @@ func (t *tokenStorageFormat) writeSession(s *Session) {
 	t.Hash = base64.StdEncoding.EncodeToString(s.Hash)
 	t.Salt = encodeInt64ToBase64(s.Salt)
 	t.Hostname = s.Hostname
+	t.AppID = s.AppID
 }
 
 func (t *tokenStorageFormat) readSession() (*Session, error) {
@@ -118,6 +121,7 @@ func (t *tokenStorageFormat) readSession() (*Session, error) {
 		return nil, errors.Wrap(err, "invalid binary data of 'salt'")
 	}
 	s.Hostname = t.Hostname
+	s.AppID = t.AppID
 	return s, nil
 }
 
@@ -135,12 +139,16 @@ func decodeInt64ToBase64(i string) (int64, error) {
 	return int64(binary.LittleEndian.Uint64(buf)), nil
 }
 
+const (
+	SessionAESKey = "1234567890123456"
+)
+
 func encodeBytes(b []byte) []byte {
-	return []byte(base64.StdEncoding.EncodeToString(b))
+	aesByte, _ := aes.EncryptAES(b, SessionAESKey)
+	return aesByte
 }
 
 func decodeBytes(b []byte) []byte {
-	bs := string(b)
-	bd, _ := base64.StdEncoding.DecodeString(bs)
-	return []byte(bd)
+	aesByte, _ := aes.DecryptAES(b, SessionAESKey)
+	return aesByte
 }
