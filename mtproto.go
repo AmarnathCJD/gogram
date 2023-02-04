@@ -1,4 +1,4 @@
-// Copyright (c) 2022 RoseLoverX
+// Copyright (c) 2023 RoseLoverX
 
 package gogram
 
@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -26,11 +27,8 @@ import (
 
 const defaultTimeout = 65 * time.Second
 
-var wd, _ = os.Getwd()
-
 type MTProto struct {
 	Addr          string
-	appHash       string
 	appID         int32
 	socksProxy    *transport.Socks
 	transport     transport.Transport
@@ -76,7 +74,6 @@ type Config struct {
 	SessionStorage session.SessionLoader
 	MemorySession  bool
 	AppID          int32
-	AppHash        string
 
 	ServerHost string
 	PublicKey  *rsa.PublicKey
@@ -118,14 +115,16 @@ func NewMTProto(c Config) (*MTProto, error) {
 		responseChannels:      utils.NewSyncIntObjectChan(),
 		expectedTypes:         utils.NewSyncIntReflectTypes(),
 		serverRequestHandlers: make([]customHandlerFunc, 0),
-		Logger:                utils.NewLogger("MTProto").SetLevel(c.LogLevel),
+		Logger:                utils.NewLogger("GoGram [MTProto]").SetLevel(c.LogLevel),
 		memorySession:         c.MemorySession,
 		appID:                 c.AppID,
-		appHash:               c.AppHash,
 	}
 	m.socksProxy = c.SocksProxy
 	if c.StringSession != "" {
-		m.ImportAuth(c.StringSession)
+		_, err := m.ImportAuth(c.StringSession)
+		if err != nil {
+			return nil, fmt.Errorf("importing string session: %w", err)
+		}
 	} else {
 		if s != nil {
 			m.LoadSession(s)
@@ -134,23 +133,25 @@ func NewMTProto(c Config) (*MTProto, error) {
 	return m, nil
 }
 
-func (m *MTProto) ExportAuth() ([]byte, []byte, string, int, string, int32) {
-	return m.authKey, m.authKeyHash, m.Addr, m.GetDC(), m.appHash, m.appID
+func (m *MTProto) ExportAuth() ([]byte, []byte, string, int, int32) {
+	return m.authKey, m.authKeyHash, m.Addr, m.GetDC(), m.appID
+}
+
+func (m *MTProto) ImportRawAuth(authKey []byte, authKeyHash []byte, addr string, dc int, appID int32) (bool, error) {
+	m.authKey, m.authKeyHash, m.Addr, m.appID = authKey, authKeyHash, addr, appID
+	err := m.Reconnect(false)
+	return err != nil, err
 }
 
 func (m *MTProto) ImportAuth(Session string) (bool, error) {
 	StringSession := &session.StringSession{
 		Encoded: Session,
 	}
-	AuthKey, AuthKeyHash, _, IpAddr, AppHash, AppID, err := StringSession.Decode()
+	AuthKey, AuthKeyHash, _, IpAddr, AppID, err := StringSession.Decode()
 	if err != nil {
 		return false, fmt.Errorf("decoding string session: %w", err)
 	}
-	m.authKey = AuthKey
-	m.authKeyHash = AuthKeyHash
-	m.Addr = fmt.Sprint(IpAddr)
-	m.appID = AppID
-	m.appHash = AppHash
+	m.authKey, m.authKeyHash, m.Addr, m.appID = AuthKey, AuthKeyHash, IpAddr, AppID
 	if !m.memorySession {
 		if err := m.SaveSession(); err != nil {
 			return false, fmt.Errorf("saving session: %w", err)
@@ -169,8 +170,15 @@ func (m *MTProto) GetDC() int {
 	return 4
 }
 
+func (m *MTProto) GetAppID() int32 {
+	return m.appID
+}
+
 func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
-	newAddr := utils.DcList[dc]
+	newAddr, isValid := utils.DcList[dc]
+	if !isValid {
+		return nil, fmt.Errorf("invalid DC: %d", dc)
+	}
 	m.sessionStorage.Delete()
 	cfg := Config{
 		DataCenter:    dc,
@@ -181,12 +189,11 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 		LogLevel:      m.Logger.Lev(),
 		SocksProxy:    m.socksProxy,
 		AppID:         m.appID,
-		AppHash:       m.appHash,
 	}
 	sender, _ := NewMTProto(cfg)
 	sender.serverRequestHandlers = m.serverRequestHandlers
 	m.stopRoutines()
-	m.Logger.Info(fmt.Sprintf("User Migrated to DC: %d", dc))
+	m.Logger.Info(fmt.Sprintf("User Migrated to -> [DC %d]", dc))
 	err := sender.CreateConnection(true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
@@ -196,23 +203,27 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 
 func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 	newAddr := utils.DcList[dcID]
+	execWorkDir, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("getting executable path: %w", err)
+	}
+	wd := filepath.Dir(execWorkDir)
 	cfg := Config{
 		DataCenter:    dcID,
 		PublicKey:     m.PublicKey,
 		ServerHost:    newAddr,
-		AuthKeyFile:   filepath.Join(wd, "sesion.session"),
+		AuthKeyFile:   filepath.Join(wd, "temp_sender.session"),
 		MemorySession: mem,
 		LogLevel:      m.Logger.Lev(),
 		SocksProxy:    m.socksProxy,
 		AppID:         m.appID,
-		AppHash:       m.appHash,
 	}
 	if dcID == m.GetDC() {
 		cfg.SessionStorage = m.sessionStorage
 	}
 	sender, _ := NewMTProto(cfg)
-	m.Logger.Info("Exporting new sender for DC", dcID)
-	err := sender.CreateConnection(true)
+	m.Logger.Info("Exporting new sender for [DC " + strconv.Itoa(dcID) + "]")
+	err = sender.CreateConnection(true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
 	}
@@ -224,7 +235,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Info("Connecting to " + m.Addr + "/TcpFull...")
+		m.Logger.Info("Connecting to " + m.Addr + " - [TCPFull]")
 	}
 	err := m.connect(ctx)
 	if err != nil {
@@ -232,18 +243,15 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 	m.isConnected = true
 	if withLog {
-		m.Logger.Info("Connection to " + m.Addr + "/TcpFull complete!")
+		m.Logger.Info("Connection to " + m.Addr + " - [TCPFull] established!")
 	}
 	m.startReadingResponses(ctx)
-
 	if !m.encrypted {
 		err = m.makeAuthKey()
 		if err != nil {
 			return err
 		}
 	}
-
-	m.startPinging(ctx)
 
 	return nil
 }
@@ -264,13 +272,22 @@ func (m *MTProto) connect(ctx context.Context) error {
 		return fmt.Errorf("creating transport: %w", err)
 	}
 
-	CloseOnCancel(ctx, m.transport)
+	closeOnCancel(ctx, m.transport)
 	return nil
 }
 
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
 	resp, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
+		if strings.Contains(err.Error(), "use of closed network connection") {
+			m.Logger.Info("Connection closed. Reconnecting to " + m.Addr + " - [TCPFull]")
+			err = m.Reconnect(false)
+			if err != nil {
+				m.Logger.Error("Reconnecting error: " + err.Error())
+				return nil, fmt.Errorf("reconnecting: %w", err)
+			}
+			return m.makeRequest(data, expectedTypes...)
+		}
 		return nil, fmt.Errorf("sending packet: %w", err)
 	}
 
@@ -279,7 +296,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	case *objects.RpcError:
 		realErr := RpcErrorToNative(r).(*ErrResponseCode)
 		if strings.Contains(realErr.Message, "FLOOD_WAIT_") {
-			m.Logger.Info("Flood wait detected on " + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf(" retrying in %d", realErr.AdditionalInfo.(int)))
+			m.Logger.Info("Flood wait detected on " + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf(" request. Waiting for %d seconds", realErr.AdditionalInfo.(int)))
 			time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
 			return m.makeRequest(data, expectedTypes...)
 		}
@@ -314,7 +331,7 @@ func (m *MTProto) Disconnect() error {
 func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
-	m.Logger.Info("Disconnecting Borrowed Sender from " + m.Addr + "/TcpFull...")
+	m.Logger.Info("Disconnecting from " + m.Addr + " - [TcpFull]...")
 	m.isConnected = false
 	return nil
 }
@@ -325,12 +342,12 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		return errors.Wrap(err, "disconnecting")
 	}
 	if WithLogs {
-		m.Logger.Info("Reconnecting to " + m.Addr + "/TcpFull...")
+		m.Logger.Info("Reconnecting to " + m.Addr + " - [TcpFull]...")
 	}
 
 	err = m.CreateConnection(WithLogs)
 	if err == nil && WithLogs {
-		m.Logger.Info("Connected to " + m.Addr + "/TcpFull complete!")
+		m.Logger.Info("Reconnected to " + m.Addr + " - [TcpFull]")
 	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
@@ -346,27 +363,6 @@ func (m *MTProto) Ping() time.Duration {
 	return time.Since(start)
 }
 
-func (m *MTProto) startPinging(ctx context.Context) {
-	m.routineswg.Add(1)
-	go func() {
-		ticker := time.NewTicker(time.Minute * 1)
-		defer ticker.Stop()
-		defer m.routineswg.Done()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				_, err := m.ping(0xCADACADA)
-				if err != nil {
-					m.Reconnect(false)
-				}
-			}
-		}
-	}()
-}
-
 func (m *MTProto) startReadingResponses(ctx context.Context) {
 	m.routineswg.Add(1)
 	go func() {
@@ -377,6 +373,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				return
 			default:
 				if !m.isConnected {
+					m.Logger.Warn("Connection is not established with " + m.Addr + " - [TcpFull]")
 					return
 				}
 				err := m.readMsg()
@@ -392,9 +389,16 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					return
 
 				default:
-					// if e, ok := err.(transport.ErrCode); ok {
-					//  if int(e) == 4294966892 { m.makeAuthKey() }
-					// }
+					if e, ok := err.(transport.ErrCode); ok {
+						if int(e) == 4294966892 {
+							err = m.makeAuthKey()
+							if err != nil {
+								m.Logger.Error(errors.Wrap(err, "making auth key"))
+							}
+						} else {
+							m.Logger.Error("Unhandled errorCode: " + fmt.Sprintf("%d", e))
+						}
+					}
 					if strings.Contains(err.Error(), "required to reconnect!") {
 						err = m.Reconnect(false)
 						if err != nil {
@@ -442,7 +446,7 @@ func (m *MTProto) readMsg() error {
 
 	err = m.processResponse(response)
 	if err != nil {
-		return errors.Wrap(err, "processing response")
+		return errors.Wrap(err, "Incomming Update")
 	}
 	return nil
 }
@@ -485,7 +489,6 @@ messageTypeSwitching:
 			v <- &errorSessionConfigsChanged{}
 		}
 
-		// m.Ping()
 		m.mutex.Unlock()
 
 	case *objects.NewSessionCreated:
@@ -498,17 +501,9 @@ messageTypeSwitching:
 		}
 
 	case *objects.Pong, *objects.MsgsAck:
-		// skip
 
 	case *objects.BadMsgNotification:
-		messg := BadMsgErrorFromNative(message)
-		switch messg.Code {
-		case 33:
-			m.seqNo -= 16
-		case 32:
-			m.seqNo += 2
-		} // Fix Asap
-		return messg
+		return BadMsgErrorFromNative(message)
 	case *objects.RpcResult:
 		obj := message.Obj
 		if v, ok := obj.(*objects.GzipPacked); ok {
@@ -534,7 +529,7 @@ messageTypeSwitching:
 			}
 		}
 		if !processed {
-			m.Logger.Error(errors.New("got nonsystem message from server: " + reflect.TypeOf(message).String()))
+			m.Logger.Warn("Unhandled Incoming Update: " + fmt.Sprintf("%T", message))
 		}
 	}
 
@@ -557,9 +552,12 @@ func MessageRequireToAck(msg tl.Object) bool {
 	}
 }
 
-func CloseOnCancel(ctx context.Context, c io.Closer) {
+func closeOnCancel(ctx context.Context, c io.Closer) {
 	go func() {
 		<-ctx.Done()
-		c.Close()
+		go func() {
+			defer func() { recover() }()
+			c.Close()
+		}()
 	}()
 }
