@@ -1,4 +1,4 @@
-// Copyright (c) 2022 RoseLoverX
+// Copyright (c) 2023 RoseLoverX
 
 package telegram
 

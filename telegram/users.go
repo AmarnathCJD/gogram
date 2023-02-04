@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// GetMe returns the current user
 func (c *Client) GetMe() (*UserObj, error) {
 	resp, err := c.UsersGetFullUser(&InputUserSelf{})
 	if err != nil {
@@ -78,6 +79,15 @@ type DialogOptions struct {
 
 type CustomDialog struct{} // TODO
 
+// GetDialogs returns the dialogs of the user
+//
+//	Params:
+//	 - OffsetID: The offset ID of the dialog
+//	 - OffsetDate: The offset date of the dialog
+//	 - OffsetPeer: The offset peer of the dialog
+//	 - Limit: The number of dialogs to return
+//	 - ExcludePinned: Whether to exclude pinned dialogs
+//	 - FolderID: The folder ID to get dialogs from
 func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 	Options := getVariadic(Opts, &DialogOptions{}).(*DialogOptions)
 	if Options.Limit > 1000 {
@@ -108,6 +118,10 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 	}
 }
 
+// GetCommonChats returns the common chats of a user
+//
+//	Params:
+//	 - userID: The user Identifier
 func (c *Client) GetCommonChats(userID interface{}) ([]Chat, error) {
 	peer, err := c.GetSendablePeer(userID)
 	if err != nil {
@@ -133,9 +147,13 @@ func (c *Client) GetCommonChats(userID interface{}) ([]Chat, error) {
 	}
 }
 
+// SetEmojiStatus sets the emoji status of the user
+//
+//	Params:
+//	 - emoji: The emoji status to set
 func (c *Client) SetEmojiStatus(emoji ...interface{}) (bool, error) {
 	var status EmojiStatus
-	if len(emoji) > 1 {
+	if len(emoji) < 1 {
 		status = &EmojiStatusEmpty{}
 	} else {
 		em := emoji[0]

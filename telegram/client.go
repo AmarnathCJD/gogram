@@ -1,4 +1,4 @@
-// Copyright (c) 2022 RoseLoverX
+// Copyright (c) 2023 RoseLoverX
 
 package telegram
 
@@ -95,16 +95,14 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "reading public keys")
 	}
-	if c.StringSession == "" && (c.AppID == 0 || c.AppHash == "") {
+	if !doesSessionFileExist(c.SessionFile) && c.StringSession == "" && (c.AppID == 0 || c.AppHash == "") {
 		return nil, errors.New("Your API ID or Hash cannot be empty or None. Please get your own API ID and Hash from https://my.telegram.org/apps")
-		// TODO: no need APPID when using string session or session file
 	}
 	if c.SocksProxy == nil {
 		c.SocksProxy = &SocksProxy{}
 	}
 	mtproto, err := mtproto.NewMTProto(mtproto.Config{
 		AppID:         int32(c.AppID),
-		AppHash:       c.AppHash,
 		AuthKeyFile:   c.SessionFile,
 		ServerHost:    GetHostIp(dcID),
 		PublicKey:     publicKeys[0],
@@ -132,15 +130,22 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 		systemVersion: getStr(c.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
 		appVersion:    getStr(c.AppVersion, Version),
 		Log:           utils.NewLogger("GoGram").SetLevel(LIB_LOG_LEVEL),
-		AppID:         int32(c.AppID),
+		AppID:         mtproto.GetAppID(),
 		ApiHash:       c.AppHash,
 		stop:          make(chan struct{}, 1),
 		wg:            sync.WaitGroup{},
 	}
 
+	if client.ApiHash == "" {
+		client.Log.Warn("API Hash is empty, some features may not work")
+	}
+	if !IsFfmpegInstalled() {
+		client.Log.Warn("FFmpeg is not installed, media metadata will not be available")
+	}
+
 	// First request should always be InvokeWithLayer
 	if _, err := client.InvokeWithLayer(ApiVersion, &InitConnectionParams{
-		ApiID:          int32(c.AppID),
+		ApiID:          client.AppID,
 		DeviceModel:    client.deviceModel,
 		SystemVersion:  client.systemVersion,
 		AppVersion:     client.appVersion,
@@ -230,6 +235,7 @@ func (c *Client) Close() {
 	c.MTProto.Disconnect()
 }
 
+// Idle blocks the current goroutine until the client is stopped/terminated
 func (c *Client) Idle() {
 	c.wg.Add(1)
 	go func() {
@@ -259,22 +265,52 @@ func (c *Client) IsBot() bool {
 	return c.bot
 }
 
+// ExportSession exports the current session to a string,
+// This string can be used to import the session later
 func (c *Client) ExportSession() string {
-	authKey, authKeyHash, IpAddr, DcID, AppHash, AppID := c.MTProto.ExportAuth()
+	authKey, authKeyHash, IpAddr, DcID, AppID := c.MTProto.ExportAuth()
 	return session.StringSession{
 		AuthKey:     authKey,
 		AuthKeyHash: authKeyHash,
 		IpAddr:      IpAddr,
 		DCID:        DcID,
-		AppHash:     AppHash,
 		AppID:       AppID,
 	}.EncodeToString()
 }
 
+// ImportSession imports a session from a string
+//
+//	Params:
+//	  sessionString: The session string
 func (c *Client) ImportSession(sessionString string) (bool, error) {
 	return c.MTProto.ImportAuth(sessionString)
 }
 
+// ImportRawSession imports a session from raw TData
+//
+//	Params:
+//	  authKey: The auth key of the session
+//	  authKeyHash: The auth key hash
+//	  IpAddr: The IP address of the DC
+//	  DcID: The DC ID to connect to
+//	  AppID: The App ID to use
+func (c *Client) ImportRawSession(authKey, authKeyHash []byte, IpAddr string, DcID int, AppID int32) (bool, error) {
+	return c.MTProto.ImportRawAuth(authKey, authKeyHash, IpAddr, DcID, AppID)
+}
+
+// ExportRawSession exports a session to raw TData
+//
+//	Returns:
+//	  authKey: The auth key of the session
+//	  authKeyHash: The auth key hash
+//	  IpAddr: The IP address of the DC
+//	  DcID: The DC ID to connect to
+//	  AppID: The App ID to use
+func (c *Client) ExportRawSession() ([]byte, []byte, string, int, int32) {
+	return c.MTProto.ExportAuth()
+}
+
+// Terminate terminates the mtproto session
 func (c *Client) Terminate() {
 	c.MTProto.Terminate()
 }

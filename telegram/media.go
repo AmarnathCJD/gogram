@@ -7,7 +7,6 @@ import (
 	"hash"
 	"io"
 	"io/fs"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -126,20 +125,22 @@ func (u *Uploader) Init() error {
 }
 
 func (u *Uploader) allocateWorkers() {
-	wg := &sync.WaitGroup{}
-	for i := 0; i < u.Worker; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			w, err := u.Client.ExportSender(u.Client.GetDC())
-			if err != nil {
-				u.Client.Log.Error(err)
-				return
-			}
-			u.Workers = append(u.Workers, w)
-		}()
+	genNewSender := func(c *Client) *Client {
+		cli, err := c.ExportSender(c.GetDC())
+		if err != nil {
+			c.Log.Error(err)
+			return nil
+		}
+		return cli
 	}
-	wg.Wait()
+	u.Client.Log.Debug("Allocating Upload Workers; ", u.Worker)
+	for i := 0; i < u.Worker; i++ {
+		newSender := genNewSender(u.Client)
+		if newSender == nil {
+			continue
+		}
+		u.Workers = append(u.Workers, newSender)
+	}
 	u.Client.Log.Debug("Allocated workers: ", len(u.Workers))
 }
 
@@ -267,7 +268,7 @@ func (u *Uploader) uploadParts(w *Client, parts []int32) {
 	for i := parts[0]; i < parts[1]; i++ {
 		buf, err := u.readPart(i)
 		if err != nil {
-			log.Println(err)
+			u.Client.Log.Error(err)
 			continue
 		}
 		if u.Meta.Big {
