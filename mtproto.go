@@ -290,7 +290,6 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 		}
 		return nil, fmt.Errorf("sending packet: %w", err)
 	}
-
 	response := <-resp
 	switch r := response.(type) {
 	case *objects.RpcError:
