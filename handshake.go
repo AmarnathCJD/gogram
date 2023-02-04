@@ -1,4 +1,4 @@
-// Copyright (c) 2022 RoseLoverX
+// Copyright (c) 2023 RoseLoverX
 
 package gogram
 
@@ -162,7 +162,7 @@ func (m *MTProto) makeAuthKey() error {
 	if !m.memorySession {
 		err = m.SaveSession()
 		if err != nil {
-			m.Logger.Error("TgCrypto - makeAuthKey: %s", err)
+			m.Logger.Error("Saving session: %s", err)
 		}
 	}
 	return err

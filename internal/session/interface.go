@@ -18,6 +18,7 @@ type Session struct {
 	Hash     []byte
 	Salt     int64
 	Hostname string
+	AppID    int32
 }
 
 var (

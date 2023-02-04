@@ -1,4 +1,4 @@
-// Copyright (c) 2022 RoseLoverX
+// Copyright (c) 2023 RoseLoverX
 
 //nolint:gochecknoglobals using it just for simplification and more readable
 package math

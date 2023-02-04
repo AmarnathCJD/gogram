@@ -56,10 +56,9 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 	if !m.encrypted {
 		seqNo = 0
 	}
-	err = m.transport.WriteMsg(data, MessageRequireToAck(request), seqNo)
-	if err != nil {
-		m.Logger.Error("error writing message: %s", err.Error())
-		return nil, fmt.Errorf("writing message: %w", err)
+	errorSendPacket := m.transport.WriteMsg(data, MessageRequireToAck(request), seqNo)
+	if errorSendPacket != nil {
+		return nil, fmt.Errorf("writing message: %w", errorSendPacket)
 	}
 	return resp, nil
 }
@@ -144,6 +143,7 @@ func (m *MTProto) SaveSession() (err error) {
 		Hash:     m.authKeyHash,
 		Salt:     m.serverSalt,
 		Hostname: m.Addr,
+		AppID:    m.appID,
 	})
 }
 
@@ -156,6 +156,7 @@ func (m *MTProto) LoadSession(s *session.Session) {
 	m.authKeyHash = s.Hash
 	m.serverSalt = s.Salt
 	m.Addr = s.Hostname
+	m.appID = s.AppID
 }
 
 func (m *MTProto) reqPQ(nonce *tl.Int128) (*objects.ResPQ, error) {

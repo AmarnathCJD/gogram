@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -386,15 +387,6 @@ func getValue(val interface{}, def interface{}) interface{} {
 	return val
 }
 
-// Internal Function to get the current Working Directory
-func workDirectory() string {
-	ex, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-	return filepath.Dir(ex)
-}
-
 // Inverse operation of ResolveBotFileID
 // https://core.telegram.org/bots/api#file
 //
@@ -473,7 +465,7 @@ func UnpackBotFileID(fileID string) (int64, int64, int32, int32) {
 // https://core.telegram.org/bots/api#file
 //
 //	Accepted Types:
-//		string
+//		fileID
 func ResolveBotFileID(fileID string) (MessageMedia, error) {
 	fID, accessHash, fileType, dcID := UnpackBotFileID(fileID)
 	if fID == 0 || accessHash == 0 || fileType == 0 || dcID == 0 {
@@ -520,4 +512,14 @@ func ResolveBotFileID(fileID string) (MessageMedia, error) {
 		}, nil
 	}
 	return nil, errors.New("invalid file type")
+}
+
+func doesSessionFileExist(filePath string) bool {
+	_, ol := os.Stat(filePath)
+	return !os.IsNotExist(ol)
+}
+
+func IsFfmpegInstalled() bool {
+	_, err := exec.LookPath("ffmpeg")
+	return err == nil
 }
