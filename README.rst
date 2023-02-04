@@ -1,4 +1,4 @@
-GoGram
+GσGɾαɱ
 ========
 .. epigraph::
 
@@ -27,6 +27,10 @@ Known Bugs
 
 PRs and Issues are always welcome.
 
+|imx| |imgo| |cma|
+
+
+
 Features
 --------
 
@@ -41,18 +45,16 @@ Installing
   go get -u github.com/amarnathcjd/gogram
 
     
-SetUp Client
+Set-Up Client
 -----------------
 
 .. code-block:: golang
 
-    client, _ := telegram.TelegramClient(telegram.ClientConfig{
-         AppID: 6,
-         AppHash: "",
+    client, _ := gogram.TelegramClient(gogram.ClientConfig{
+         AppID: 0, 
+         AppHash: "", 
     })
-    client.LoginBot(botToken)
-    // client.Login(phoneNumber)
-
+    client.LoginBot(botToken) // client.Login(phoneNumber)
     client.Idle() // start infinite polling
 
 
@@ -124,7 +126,7 @@ TODO
 - ✔️ Add Update Handle System
 - ✔️ Make a reliable HTML Parser
 - ✔️ Friendly Methods to Handle CallbackQuery, VoiceCalls
-- 🔨 Add Flag2.0 Parser (Then update to Layer-148)
+- 🔨 Add Flag2.0 Parser (Then update to Layer-151https://img.shields.io/github/issues/amarnathcjd/gogram)
 - 📝 Fix File handling
 - 📝 Write beautiful Docs
 - 📝 Multiple tests
@@ -135,6 +137,15 @@ TODO
 .. |image| image:: https://te.legra.ph/file/fe4dbc185ff2138cbdf45.jpg
   :width: 400
   :alt: Logo
+
+.. |imx| image:: https://img.shields.io/github/issues/amarnathcjd/gogram
+   :alt: GitHub issues
+
+.. |imgo| image:: https://img.shields.io/github/go-mod/go-version/amarnathcjd/gogram/master
+   :alt: GitHub go.mod Go version (branch & subdirectory of monorepo)
+
+.. |cma| image:: https://img.shields.io/github/commit-activity/y/amarnathcjd/gogram
+   :alt: GitHub commit activity
 
 Contributing
 ------------
