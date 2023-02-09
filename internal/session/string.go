@@ -63,6 +63,6 @@ func (s StringSession) SplitValues(DecodedString string) (AuthKey, AuthKeyHash [
 	AuthKeyHash = []byte(Sep[1])
 	IpAddr = Sep[2]
 	DcID = int(Sep[3][0])
-	AppID = int32(Sep[5][0])
+	AppID = int32(Sep[4][0])
 	return AuthKey, AuthKeyHash, IpAddr, DcID, AppID
 }
