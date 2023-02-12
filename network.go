@@ -56,6 +56,9 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 	if !m.encrypted {
 		seqNo = 0
 	}
+        if m.transport == nil {
+                return nil, errors.New("tcp transport is nil")
+        }
 	errorSendPacket := m.transport.WriteMsg(data, MessageRequireToAck(request), seqNo)
 	if errorSendPacket != nil {
 		return nil, fmt.Errorf("writing message: %w", errorSendPacket)
