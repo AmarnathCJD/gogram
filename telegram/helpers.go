@@ -246,6 +246,8 @@ updateTypeSwitch:
 func (c *Client) GetSendablePeer(PeerID interface{}) (InputPeer, error) {
 PeerSwitch:
 	switch Peer := PeerID.(type) {
+	case nil:
+		return nil, errors.New("PeerID is nil")
 	case *PeerUser:
 		peerEntity, err := c.GetPeerUser(Peer.UserID)
 		if err != nil {
@@ -672,8 +674,10 @@ func packCallbackQuery(c *Client, query *UpdateBotCallbackQuery) *CallbackQuery 
 	cq.SenderID = query.UserID
 	if cq.Channel != nil {
 		cq.ChatID = cq.Channel.ID
-	} else {
+	} else if cq.Chat != nil {
 		cq.ChatID = cq.Chat.ID
+	} else {
+		cq.ChatID = 0
 	}
 	return cq
 }

@@ -279,8 +279,8 @@ func (m *MTProto) connect(ctx context.Context) error {
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
 	resp, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
-		if strings.Contains(err.Error(), "use of closed network connection") {
-			m.Logger.Info("Connection closed. Reconnecting to " + m.Addr + " - [TCPFull]")
+		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") {
+			m.Logger.Info("Connection Pipe Broken. Reconnecting to " + m.Addr + " - [TCPFull]")
 			err = m.Reconnect(false)
 			if err != nil {
 				m.Logger.Error("Reconnecting error: " + err.Error())
