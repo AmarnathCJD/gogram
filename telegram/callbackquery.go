@@ -19,6 +19,18 @@ type (
 		Peer           Peer
 		Client         *Client
 	}
+
+	InlineCallbackQuery struct {
+		QueryID        int64
+		Data           []byte
+		OriginalUpdate *UpdateInlineBotCallbackQuery
+		Sender         *UserObj
+		MsgID          InputBotInlineMessageID
+		SenderID       int64
+		ChatInstance   int64
+		Client         *Client
+		GameShortName  string
+	} // TODO : implement
 )
 
 func (b *CallbackQuery) Answer(Text string, options ...*CallbackOptions) (bool, error) {
