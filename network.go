@@ -57,7 +57,7 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 		seqNo = 0
 	}
 	if m.transport == nil {
-		return nil, errors.New("tcp transport is nil")
+		return nil, errors.New("transport is closed")
 	}
 	errorSendPacket := m.transport.WriteMsg(data, MessageRequireToAck(request), seqNo)
 	if errorSendPacket != nil {
