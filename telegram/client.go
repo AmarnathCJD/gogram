@@ -20,18 +20,19 @@ import (
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
-	config        *ClientConfig
-	stop          chan struct{}
-	bot           bool
-	Cache         *CACHE
-	ParseMode     string
-	AppID         int32
-	deviceModel   string
-	systemVersion string
-	appVersion    string
-	ApiHash       string
-	wg            sync.WaitGroup
-	Log           *utils.Logger
+	config          *ClientConfig
+	stop            chan struct{}
+	bot             bool
+	Cache           *CACHE
+	ParseMode       string
+	AppID           int32
+	deviceModel     string
+	systemVersion   string
+	appVersion      string
+	ApiHash         string
+	exportedSenders []*Client
+	wg              sync.WaitGroup
+	Log             *utils.Logger
 }
 
 // ClientConfig is the configuration struct for the client
@@ -122,18 +123,19 @@ func TelegramClient(c ClientConfig) (*Client, error) {
 	LIB_LOG_LEVEL = getStr(c.LogLevel, LogInfo)
 
 	client := &Client{
-		MTProto:       mtproto,
-		config:        &c,
-		Cache:         cache,
-		ParseMode:     getStr(c.ParseMode, "HTML"),
-		deviceModel:   getStr(c.DeviceModel, "Android Device"),
-		systemVersion: getStr(c.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
-		appVersion:    getStr(c.AppVersion, Version),
-		Log:           utils.NewLogger("GoGram").SetLevel(LIB_LOG_LEVEL),
-		AppID:         mtproto.GetAppID(),
-		ApiHash:       c.AppHash,
-		stop:          make(chan struct{}, 1),
-		wg:            sync.WaitGroup{},
+		MTProto:         mtproto,
+		config:          &c,
+		Cache:           cache,
+		ParseMode:       getStr(c.ParseMode, "HTML"),
+		deviceModel:     getStr(c.DeviceModel, "Android Device"),
+		systemVersion:   getStr(c.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
+		appVersion:      getStr(c.AppVersion, Version),
+		Log:             utils.NewLogger("GoGram").SetLevel(LIB_LOG_LEVEL),
+		AppID:           mtproto.GetAppID(),
+		ApiHash:         c.AppHash,
+		stop:            make(chan struct{}, 1),
+		exportedSenders: []*Client{},
+		wg:              sync.WaitGroup{},
 	}
 
 	if client.ApiHash == "" {
@@ -179,6 +181,45 @@ func (c *Client) SwitchDC(dcID int) error {
 		return err
 	}
 	return nil
+}
+
+func (c *Client) ExportMultipleSenders(dcID, count int) ([]*Client, []*Client, error) {
+	var clients []*Client
+	var cachedClients []*Client
+	MAX_CACHED_SENDERS_LIMIT := 5
+	var cachedSendersOfSameDC []*Client
+	for _, sender := range c.exportedSenders {
+		if sender.MTProto.GetDC() == dcID {
+			cachedSendersOfSameDC = append(cachedSendersOfSameDC, sender)
+		}
+	}
+	if len(cachedSendersOfSameDC) >= count {
+		return cachedSendersOfSameDC[:count], clients, nil
+	}
+	if len(cachedSendersOfSameDC) > 0 {
+		cachedClients = append(cachedClients, cachedSendersOfSameDC...)
+		count -= len(cachedClients)
+	}
+	wgForExport := sync.WaitGroup{}
+	wgForExport.Add(count)
+	for i := 0; i < count; i++ {
+		go func() {
+			defer wgForExport.Done()
+			senderNew, err := c.ExportSender(dcID)
+			if err != nil {
+				c.Log.Error(err)
+				return
+			}
+			clients = append(clients, senderNew)
+		}()
+	}
+	wgForExport.Wait()
+	if len(c.exportedSenders) <= MAX_CACHED_SENDERS_LIMIT {
+		c.exportedSenders = append(c.exportedSenders, clients...)
+		c.Log.Info("Exported %d senders for DC %d", len(clients), dcID)
+		c.exportedSenders = c.exportedSenders[:MAX_CACHED_SENDERS_LIMIT]
+	}
+	return cachedClients, clients, nil
 }
 
 func (c *Client) ExportSender(dcID int) (*Client, error) {
