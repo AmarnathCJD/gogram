@@ -281,6 +281,8 @@ PeerSwitch:
 		// TODO: Add more types
 	case *InputUserSelf:
 		return &InputPeerSelf{}, nil
+        case *InputPeerSelf:
+                return Peer, nil
 	case *InputUserObj:
 		return &InputPeerUser{UserID: Peer.UserID, AccessHash: Peer.AccessHash}, nil
 	case *ChatObj:
