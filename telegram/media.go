@@ -478,6 +478,10 @@ func (d *Downloader) downloadParts(w *Client, parts []int32) {
 			Limit:        d.ChunkSize,
 			CdnSupported: false,
 		})
+                if err != nil || buf == nil {
+			w.Logger.Warn(err)
+                        continue 
+		}
 		w.Logger.Debug(fmt.Sprintf("downloaded part %d of %d", i, d.Parts))
 		var buffer []byte
 		switch v := buf.(type) {
@@ -485,9 +489,6 @@ func (d *Downloader) downloadParts(w *Client, parts []int32) {
 			buffer = v.Bytes
 		case *UploadFileCdnRedirect:
 			return // TODO
-		}
-		if err != nil {
-			panic(err)
 		}
 		err = d.writeAt(buffer, d.calcOffset(i))
 		if err != nil {
