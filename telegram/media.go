@@ -306,7 +306,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	dc = getValue(dc, opts.DcID).(int32)
 	dc = getValue(dc, c.GetDC()).(int32)
 	size = getValue(size, int64(opts.Size)).(int64)
-	fileName = getValue(fileName, opts.FileName).(string)
+	fileName = getValue(opts.FileName, fileName).(string)
 	d := &Downloader{
 		Client:    c,
 		Source:    location,
