@@ -478,9 +478,9 @@ func (d *Downloader) downloadParts(w *Client, parts []int32) {
 			Limit:        d.ChunkSize,
 			CdnSupported: false,
 		})
-                if err != nil || buf == nil {
+		if err != nil || buf == nil {
 			w.Logger.Warn(err)
-                        continue 
+			continue
 		}
 		w.Logger.Debug(fmt.Sprintf("downloaded part %d of %d", i, d.Parts))
 		var buffer []byte
