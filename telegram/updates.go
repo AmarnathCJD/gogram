@@ -262,7 +262,7 @@ func (u *UpdateDispatcher) HandleAlbum(message MessageObj) {
 						Messages:  abox.messages,
 						Client:    u.client,
 					}); err != nil {
-						u.client.Log.Error(err)
+						u.client.Log.Error("- updates.dispatcher.Album -", err)
 					}
 				}(handle)
 			}
@@ -289,7 +289,7 @@ func (u *UpdateDispatcher) HandleEditUpdate(update Message) {
 			if handle.IsMatch(msg.Message) {
 				go func(h messageEditHandle) {
 					if err := h.Handler(packMessage(u.client, msg)); err != nil {
-						u.client.Log.Error(err)
+						u.client.Log.Error("- updates.dispatcher.EditUpdate -", err)
 					}
 				}(handle)
 			}
@@ -302,7 +302,7 @@ func (u *UpdateDispatcher) HandleCallbackUpdate(update *UpdateBotCallbackQuery) 
 		if handle.IsMatch(update.Data) {
 			go func(h callbackHandle) {
 				if err := h.Handler(packCallbackQuery(u.client, update)); err != nil {
-					u.client.Log.Error(err)
+					u.client.Log.Error("- updates.dispatcher.CallbackUpdate -", err)
 				}
 			}(handle)
 		}
@@ -313,7 +313,7 @@ func (u *UpdateDispatcher) HandleParticipantUpdate(update *UpdateChannelParticip
 	for _, handle := range u.participantHandles {
 		go func(h participantHandle) {
 			if err := h.Handler(packChannelParticipant(u.client, update)); err != nil {
-				u.client.Log.Error(err)
+				u.client.Log.Error("- updates.dispatcher.ParticipantUpdate -", err)
 			}
 		}(handle)
 	}
@@ -324,7 +324,7 @@ func (u *UpdateDispatcher) HandleInlineUpdate(update *UpdateBotInlineQuery) {
 		if handle.IsMatch(update.Query) {
 			go func(h inlineHandle) {
 				if err := h.Handler(packInlineQuery(u.client, update)); err != nil {
-					u.client.Log.Error(err)
+					u.client.Log.Error("- updates.dispatcher.InlineUpdate -", err)
 				}
 			}(handle)
 		}
@@ -335,7 +335,7 @@ func (u *UpdateDispatcher) HandleDeleteUpdate(update *UpdateDeleteMessages) {
 	for _, handle := range u.messageDeleteHandles {
 		go func(h messageDeleteHandle) {
 			if err := h.Handler(update); err != nil {
-				u.client.Log.Error(err)
+				u.client.Log.Error("- updates.dispatcher.DeleteUpdate -", err)
 			}
 		}(handle)
 	}
@@ -346,7 +346,7 @@ func (u *UpdateDispatcher) HandleRawUpdate(update Update) {
 		if reflect.TypeOf(update) == reflect.TypeOf(handle.updateType) {
 			go func(h rawHandle) {
 				if err := h.Handler(update); err != nil {
-					u.client.Log.Error(err)
+					u.client.Log.Error("- updates.dispatcher.RawUpdate -", err)
 				}
 			}(handle)
 		}

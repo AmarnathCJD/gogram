@@ -14,13 +14,18 @@ const (
 
 func main() {
 	// Create a new client
-	client, _ := telegram.TelegramClient(telegram.ClientConfig{
+	client, _ := telegram.NewClient(telegram.ClientConfig{
 		AppID:    appID,
 		AppHash:  appHash,
 		LogLevel: telegram.LogInfo,
 		// StringSession: "", // Uncomment this line to use string session
 		// SessionFile: "session.session", To use session File.
 	})
+
+	// Connect to the server
+	if err := client.Connect(); err != nil {
+		panic(err)
+	}
 
 	// Authenticate the client using the bot token
 	// This will send a code to the phone number if it is not already authenticated

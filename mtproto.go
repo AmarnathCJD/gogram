@@ -35,7 +35,7 @@ type MTProto struct {
 	stopRoutines  context.CancelFunc
 	routineswg    sync.WaitGroup
 	memorySession bool
-	isConnected   bool
+	tcpActive     bool
 
 	authKey []byte
 
@@ -63,10 +63,12 @@ type MTProto struct {
 
 	Logger *utils.Logger
 
-	serverRequestHandlers []customHandlerFunc
+	serverRequestHandlers []func(i any) bool
 }
 
-type customHandlerFunc = func(i any) bool
+type customHandles struct {
+	// custom handlers for server requests
+}
 
 type Config struct {
 	AuthKeyFile    string
@@ -84,53 +86,48 @@ type Config struct {
 
 func NewMTProto(c Config) (*MTProto, error) {
 	if c.SessionStorage == nil {
-		if c.AuthKeyFile == "" {
-			return nil, fmt.Errorf("auth key file is not specified")
+		if c.MemorySession {
+			c.SessionStorage = session.NewInMemory()
+		} else {
+			c.SessionStorage = session.NewFromFile(c.AuthKeyFile)
 		}
-
-		c.SessionStorage = session.NewFromFile(c.AuthKeyFile)
 	}
 
-	s, err := c.SessionStorage.Load()
+	loaded, err := c.SessionStorage.Load()
 	if err != nil {
 		if !(strings.Contains(err.Error(), session.ErrFileNotExists) || strings.Contains(err.Error(), session.ErrPathNotFound)) {
-			return nil, fmt.Errorf("loading session: %w", err)
+			// if the error is not because of file not found or path not found, return the error
+			// else, continue with the execution
+			// check if have write permission in the directory
+			if _, err := os.OpenFile(filepath.Dir(c.AuthKeyFile), os.O_WRONLY, 0666); err != nil {
+				return nil, errors.Wrap(err, "check if you have write permission in the directory")
+			}
+			return nil, errors.Wrap(err, "loading session")
 		}
-	}
-	var encrypted bool
-	if s != nil {
-		c.ServerHost = s.Hostname
-		encrypted = true
-	} else if c.StringSession != "" {
-		encrypted = true
 	}
 
-	m := &MTProto{
-		sessionStorage:        c.SessionStorage,
-		Addr:                  c.ServerHost,
-		encrypted:             encrypted,
-		sessionId:             utils.GenerateSessionID(),
-		serviceChannel:        make(chan tl.Object),
-		PublicKey:             c.PublicKey,
-		responseChannels:      utils.NewSyncIntObjectChan(),
-		expectedTypes:         utils.NewSyncIntReflectTypes(),
-		serverRequestHandlers: make([]customHandlerFunc, 0),
-		Logger:                utils.NewLogger("GoGram [MTProto]").SetLevel(c.LogLevel),
-		memorySession:         c.MemorySession,
-		appID:                 c.AppID,
+	mtproto := &MTProto{sessionStorage: c.SessionStorage, Addr: c.ServerHost, encrypted: false, sessionId: utils.GenerateSessionID(), serviceChannel: make(chan tl.Object), PublicKey: c.PublicKey, responseChannels: utils.NewSyncIntObjectChan(), expectedTypes: utils.NewSyncIntReflectTypes(), serverRequestHandlers: make([]func(i any) bool, 0), Logger: utils.NewLogger("gogram - mtproto").SetLevel(c.LogLevel), memorySession: c.MemorySession, appID: c.AppID}
+	if loaded != nil || c.StringSession != "" {
+		mtproto.encrypted = true
 	}
-	m.socksProxy = c.SocksProxy
-	if c.StringSession != "" {
-		_, err := m.ImportAuth(c.StringSession)
+	if err := mtproto.loadAuth(c.StringSession, loaded); err != nil {
+		return nil, errors.Wrap(err, "loading auth")
+	}
+	return mtproto, nil
+}
+
+func (m *MTProto) loadAuth(stringSession string, sess *session.Session) error {
+	if stringSession != "" {
+		_, err := m.ImportAuth(stringSession)
 		if err != nil {
-			return nil, fmt.Errorf("importing string session: %w", err)
+			return errors.Wrap(err, "importing string session")
 		}
 	} else {
-		if s != nil {
-			m.LoadSession(s)
+		if sess != nil {
+			m.LoadSession(sess)
 		}
 	}
-	return m, nil
+	return nil
 }
 
 func (m *MTProto) ExportAuth() ([]byte, []byte, string, int, int32) {
@@ -139,8 +136,16 @@ func (m *MTProto) ExportAuth() ([]byte, []byte, string, int, int32) {
 
 func (m *MTProto) ImportRawAuth(authKey []byte, authKeyHash []byte, addr string, dc int, appID int32) (bool, error) {
 	m.authKey, m.authKeyHash, m.Addr, m.appID = authKey, authKeyHash, addr, appID
-	err := m.Reconnect(false)
-	return err != nil, err
+	m.Logger.Debug("imported auth key, auth key hash, addr, dc, appID")
+	if !m.memorySession {
+		if err := m.SaveSession(); err != nil {
+			return false, errors.Wrap(err, "saving session")
+		}
+	}
+	if err := m.Reconnect(false); err != nil {
+		return false, errors.Wrap(err, "reconnecting")
+	}
+	return true, nil
 }
 
 func (m *MTProto) ImportAuth(Session string) (bool, error) {
@@ -152,6 +157,7 @@ func (m *MTProto) ImportAuth(Session string) (bool, error) {
 		return false, fmt.Errorf("decoding string session: %w", err)
 	}
 	m.authKey, m.authKeyHash, m.Addr, m.appID = AuthKey, AuthKeyHash, IpAddr, AppID
+	m.Logger.Debug("imported auth key, auth key hash, addr, dc, appID from string session")
 	if !m.memorySession {
 		if err := m.SaveSession(); err != nil {
 			return false, fmt.Errorf("saving session: %w", err)
@@ -170,33 +176,29 @@ func (m *MTProto) GetDC() int {
 	return 4
 }
 
-func (m *MTProto) GetAppID() int32 {
+func (m *MTProto) AppID() int32 {
 	return m.appID
 }
 
 func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	newAddr, isValid := utils.DcList[dc]
 	if !isValid {
-		return nil, fmt.Errorf("invalid DC: %d", dc)
+		return nil, errors.New("invalid DC ID provided")
 	}
 	m.sessionStorage.Delete()
-	cfg := Config{
-		DataCenter:    dc,
-		PublicKey:     m.PublicKey,
-		ServerHost:    newAddr,
-		AuthKeyFile:   m.sessionStorage.Path(),
-		MemorySession: false,
-		LogLevel:      m.Logger.Lev(),
-		SocksProxy:    m.socksProxy,
-		AppID:         m.appID,
+	m.Logger.Debug("deleted old auth key file")
+	cfg := Config{DataCenter: dc, PublicKey: m.PublicKey, ServerHost: newAddr, AuthKeyFile: m.sessionStorage.Path(), MemorySession: false, LogLevel: m.Logger.Lev(), SocksProxy: m.socksProxy, AppID: m.appID}
+	sender, err := NewMTProto(cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating new MTProto")
 	}
-	sender, _ := NewMTProto(cfg)
 	sender.serverRequestHandlers = m.serverRequestHandlers
 	m.stopRoutines()
-	m.Logger.Info(fmt.Sprintf("User Migrated to -> [DC %d]", dc))
-	err := sender.CreateConnection(true)
-	if err != nil {
-		return nil, fmt.Errorf("creating connection: %w", err)
+	m.Logger.Info(fmt.Sprintf("user migrated to -> [DC %d]", dc))
+	m.Logger.Debug("reconnecting to new DC with new auth key")
+	errConn := sender.CreateConnection(true)
+	if errConn != nil {
+		return nil, errors.Wrap(errConn, "creating connection")
 	}
 	return sender, nil
 }
@@ -205,27 +207,18 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 	newAddr := utils.DcList[dcID]
 	execWorkDir, err := os.Executable()
 	if err != nil {
-		return nil, fmt.Errorf("getting executable path: %w", err)
+		return nil, errors.Wrap(err, "getting executable directory")
 	}
 	wd := filepath.Dir(execWorkDir)
-	cfg := Config{
-		DataCenter:    dcID,
-		PublicKey:     m.PublicKey,
-		ServerHost:    newAddr,
-		AuthKeyFile:   filepath.Join(wd, "temp_sender.session"),
-		MemorySession: mem,
-		LogLevel:      m.Logger.Lev(),
-		SocksProxy:    m.socksProxy,
-		AppID:         m.appID,
-	}
+	cfg := Config{DataCenter: dcID, PublicKey: m.PublicKey, ServerHost: newAddr, AuthKeyFile: filepath.Join(wd, "exported_sender"), MemorySession: mem, LogLevel: m.Logger.Lev(), SocksProxy: m.socksProxy, AppID: m.appID}
 	if dcID == m.GetDC() {
 		cfg.SessionStorage = m.sessionStorage
 	}
 	sender, _ := NewMTProto(cfg)
-	m.Logger.Info("Exporting new sender for [DC " + strconv.Itoa(dcID) + "]")
+	m.Logger.Info("exporting new sender to [DC " + strconv.Itoa(dcID) + "]")
 	err = sender.CreateConnection(true)
 	if err != nil {
-		return nil, fmt.Errorf("creating connection: %w", err)
+		return nil, errors.Wrap(err, "creating connection")
 	}
 
 	return sender, nil
@@ -235,22 +228,24 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Info("Connecting to " + m.Addr + " - [TCPFull]")
+		m.Logger.Info("Connecting to <" + m.Addr + "> - <TCPFull>...")
 	}
 	err := m.connect(ctx)
 	if err != nil {
 		return err
 	}
-	m.isConnected = true
+	m.tcpActive = true
 	if withLog {
-		m.Logger.Info("Connection to " + m.Addr + " - [TCPFull] established!")
+		m.Logger.Info("Connection to <" + m.Addr + "> - <TCPFull> established!")
 	}
 	m.startReadingResponses(ctx)
 	if !m.encrypted {
+		m.Logger.Debug("authKey not found, creating new one")
 		err = m.makeAuthKey()
 		if err != nil {
 			return err
 		}
+		m.Logger.Debug("authKey created and saved")
 	}
 
 	return nil
@@ -277,31 +272,35 @@ func (m *MTProto) connect(ctx context.Context) error {
 }
 
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
+	if !m.TcpActive() {
+		return nil, errors.New("Can't make request. Connection is not established")
+	}
 	resp, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
 		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") {
-			m.Logger.Info("Connection Pipe Broken. Reconnecting to " + m.Addr + " - [TCPFull]")
+			m.Logger.Info("connection closed due to broken pipe, reconnecting to <" + m.Addr + ">" + "<TCPFull>...")
 			err = m.Reconnect(false)
 			if err != nil {
-				m.Logger.Error("Reconnecting error: " + err.Error())
-				return nil, fmt.Errorf("reconnecting: %w", err)
+				m.Logger.Error("reconnecting: " + err.Error())
+				return nil, errors.New("reconnecting: " + err.Error())
 			}
 			return m.makeRequest(data, expectedTypes...)
 		}
-		return nil, fmt.Errorf("sending packet: %w", err)
+		return nil, errors.Wrap(err, "sending packet")
 	}
 	response := <-resp
 	switch r := response.(type) {
 	case *objects.RpcError:
 		realErr := RpcErrorToNative(r).(*ErrResponseCode)
 		if strings.Contains(realErr.Message, "FLOOD_WAIT_") {
-			m.Logger.Info("Flood wait detected on " + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf(" request. Waiting for %d seconds", realErr.AdditionalInfo.(int)))
+			m.Logger.Info("flood wait delected on " + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf(" request. sleeping for %d seconds", realErr.AdditionalInfo.(int)))
 			time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
 			return m.makeRequest(data, expectedTypes...)
 		}
 		return nil, realErr
 
 	case *errorSessionConfigsChanged:
+		m.Logger.Debug("session configs changed, resending request")
 		return m.makeRequest(data, expectedTypes...)
 	}
 
@@ -311,18 +310,18 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 func (m *MTProto) InvokeRequestWithoutUpdate(data tl.Object, expectedTypes ...reflect.Type) error {
 	_, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
-		return fmt.Errorf("sending packet: %w", err)
+		return errors.Wrap(err, "sending packet")
 	}
 	return err
 }
 
-func (m *MTProto) IsConnected() bool {
-	return m.isConnected
+func (m *MTProto) TcpActive() bool {
+	return m.tcpActive
 }
 
 func (m *MTProto) Disconnect() error {
 	m.stopRoutines()
-	m.isConnected = false
+	m.tcpActive = false
 	// m.responseChannels.Close()
 	return nil
 }
@@ -330,8 +329,8 @@ func (m *MTProto) Disconnect() error {
 func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
-	m.Logger.Info("Disconnecting from " + m.Addr + " - [TcpFull]...")
-	m.isConnected = false
+	m.Logger.Info("terminating connection to <" + m.Addr + "> - <TCPFull>...")
+	m.tcpActive = false
 	return nil
 }
 
@@ -341,12 +340,12 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		return errors.Wrap(err, "disconnecting")
 	}
 	if WithLogs {
-		m.Logger.Info("Reconnecting to " + m.Addr + " - [TcpFull]...")
+		m.Logger.Info("Reconnecting to <" + m.Addr + "> - <TCPFull>...")
 	}
 
 	err = m.CreateConnection(WithLogs)
 	if err == nil && WithLogs {
-		m.Logger.Info("Reconnected to " + m.Addr + " - [TcpFull]")
+		m.Logger.Info("Reconnected to <" + m.Addr + "> - <TCPFull>!")
 	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
@@ -371,8 +370,8 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			default:
-				if !m.isConnected {
-					m.Logger.Warn("Connection is not established with " + m.Addr + " - [TcpFull]")
+				if !m.tcpActive {
+					m.Logger.Warn("Connection is not established with <" + m.Addr + "> - <TCPFull>!")
 					return
 				}
 				err := m.readMsg()
@@ -445,7 +444,7 @@ func (m *MTProto) readMsg() error {
 
 	err = m.processResponse(response)
 	if err != nil {
-		return errors.Wrap(err, "Incomming Update")
+		return errors.Wrap(err, "incoming update")
 	}
 	return nil
 }
@@ -502,12 +501,15 @@ messageTypeSwitching:
 	case *objects.Pong, *objects.MsgsAck:
 
 	case *objects.BadMsgNotification:
-		return BadMsgErrorFromNative(message)
+		badMsg := BadMsgErrorFromNative(message)
+		m.Logger.Debug("BadMsgNotification: " + badMsg.Error())
+		return badMsg
 	case *objects.RpcResult:
 		obj := message.Obj
 		if v, ok := obj.(*objects.GzipPacked); ok {
 			obj = v.Obj
 		}
+		m.Logger.Debug("RPC response: " + fmt.Sprintf("%T", obj))
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			return errors.Wrap(err, "writing RPC response")
@@ -528,7 +530,7 @@ messageTypeSwitching:
 			}
 		}
 		if !processed {
-			m.Logger.Warn("Unhandled Incoming Update: " + fmt.Sprintf("%T", message))
+			m.Logger.Warn("unhandled message: " + fmt.Sprintf("%T", message))
 		}
 	}
 

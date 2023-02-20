@@ -106,7 +106,7 @@ func (c *Client) SetParseMode(mode string) {
 	}
 	for _, m := range []string{"Markdown", "HTML"} {
 		if m == mode {
-			c.ParseMode = mode
+			// c.ParseMode() = mode
 			return
 		}
 	}
