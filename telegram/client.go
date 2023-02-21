@@ -228,7 +228,7 @@ func (c *Client) createExportedSender(dcID int) (*Client, error) {
 		return nil, errors.Wrap(err, "initial request")
 	}
 	if c.MTProto.GetDC() != exported.GetDC() {
-		if err := exportedSender.shareAuthWithTimeout(c, c.MTProto.GetDC()); err != nil {
+		if err := exportedSender.shareAuthWithTimeout(c, exportedSender.MTProto.GetDC()); err != nil {
 			return nil, errors.Wrap(err, "sharing auth")
 		}
 	}
