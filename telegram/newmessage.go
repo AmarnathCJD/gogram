@@ -386,6 +386,22 @@ func (m *NewMessage) MediaType() string {
 	}
 }
 
+func (m *NewMessage) Text() string {
+	return m.MessageText()
+}
+
+func (m *NewMessage) RawText() string {
+	return m.MessageText()
+}
+
+func (m *NewMessage) Args() string {
+	Messages := strings.Split(m.Text(), " ")
+	if len(Messages) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(strings.Join(Messages[1:], " "))
+}
+
 // IsCommand returns true if the message is a command
 func (m *NewMessage) IsCommand() bool {
 	for _, p := range m.Message.Entities {

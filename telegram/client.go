@@ -37,6 +37,7 @@ type clientData struct {
 	langCode      string
 	parseMode     string
 	logLevel      string
+	botAcc        bool
 }
 
 type cachedExportedSenders struct {
@@ -176,6 +177,22 @@ func (c *Client) Connect() error {
 // Returns true if the client is connected to telegram servers
 func (c *Client) IsConnected() bool {
 	return c.MTProto.TcpActive()
+}
+
+func (c *Client) Start() error {
+	if !c.IsConnected() {
+		if err := c.Connect(); err != nil {
+			return err
+		}
+	}
+	if au, err := c.IsAuthorized(); err != nil && !au {
+		if err := c.AuthPrompt(); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Returns true if the client is authorized as a user or a bot

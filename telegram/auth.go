@@ -11,14 +11,49 @@ import (
 	"hash"
 	"math/big"
 	"math/rand"
+	"regexp"
+	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
 )
 
-const (
-	randombyteLen = 256 // 2048 bit
-)
+// AuthPromt will prompt user to enter phone number or bot token to authorize client
+func (c *Client) AuthPrompt() error {
+	if au, _ := c.IsAuthorized(); au {
+		return nil
+	}
+	var input string
+	MAX_RETRIES := 3
+	for i := 0; i < MAX_RETRIES; i++ {
+		fmt.Printf("Enter phone number (with country code) or bot token: ")
+		fmt.Scanln(&input)
+		if input != "" {
+			botTokenRegex := regexp.MustCompile(`^\d+:\w+$`)
+			if botTokenRegex.MatchString(input) {
+				err := c.LoginBot(input)
+				if err != nil {
+					return err
+				}
+			} else {
+				phoneRegex := regexp.MustCompile(`^\+?\d+$`)
+				if phoneRegex.MatchString(input) {
+					_, err := c.Login(input)
+					if err != nil {
+						return err
+					}
+				} else {
+					fmt.Println("Invalid input, try again")
+					continue
+				}
+			}
+			break
+		} else {
+			fmt.Println("Invalid response, try again")
+		}
+	}
+	return nil
+}
 
 // Authorize client with bot token
 func (c *Client) LoginBot(botToken string) error {
@@ -27,7 +62,7 @@ func (c *Client) LoginBot(botToken string) error {
 	}
 	_, err := c.AuthImportBotAuthorization(1, c.AppID(), c.AppHash(), botToken)
 	if err == nil {
-		// c.bot = true
+		c.clientData.botAcc = true
 	}
 	if au, e := c.IsAuthorized(); !au {
 		if dc, code := getErrorCode(e); code == 303 {
@@ -132,55 +167,46 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 					}
 					break
 				} else if matchError(err, "The code is valid but no user with the given number") {
-					c.AcceptTOS()
-					_, err = c.AuthSignUp(phoneNumber, opts.CodeHash, opts.FirstName, opts.LastName)
-					if err != nil {
-						return false, err
-					}
+					return false, errors.New("Since Feb 2023, Telegram does not allow to create new accounts using API. Please use Telegram app to create an account and then use this library to login.")
+					// c.AcceptTOS()
+					// _, err = c.AuthSignUp(phoneNumber, opts.CodeHash, opts.FirstName, opts.LastName)
+					// if err != nil {
+					// return false, err
+					// }
 				} else {
 					return false, err
 				}
 			} else if codeInput == "cancel" {
 				return false, nil
 			} else {
-				fmt.Println("Invalid response, try again")
+				if err, ok := err.(syscall.Errno); ok && err == syscall.EINTR {
+					return false, nil
+				}
+				fmt.Println("Invalid code, try again")
 			}
 		}
 	} else {
-		return false, nil
-		// TODO: implement
-	}
-AuthResultSwitch:
-	switch auth := Auth.(type) {
-	case *AuthAuthorizationSignUpRequired:
-		fmt.Println("Signing up...")
-		var firstName, lastName string
-		if opts.FirstName == "" {
-			fmt.Printf("Enter first name: ")
-			fmt.Scanln(&firstName)
-		} else {
-			firstName = opts.FirstName
+		if opts.CodeHash == "" {
+			return false, errors.New("Code hash is empty, but code is not")
 		}
-		if opts.LastName == "" {
-			fmt.Printf("Enter last name: ")
-			fmt.Scanln(&lastName)
-		} else {
-			lastName = opts.LastName
-		}
-		Auth, err = c.AuthSignUp(phoneNumber, opts.CodeHash, firstName, lastName)
+		Auth, err = c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
 		if err != nil {
 			return false, err
 		}
-		goto AuthResultSwitch
+	}
+	switch auth := Auth.(type) {
+	case *AuthAuthorizationSignUpRequired:
+		return false, errors.New("Since Feb 2023, Telegram does not allow to create new accounts using API. Please use Telegram app to create an account and then use this library to login.")
 	case *AuthAuthorizationObj:
 		switch u := auth.User.(type) {
 		case *UserObj:
-			// c.bot = u.Bot
-			c.Cache.UpdateUser(u)
+			c.clientData.botAcc = u.Bot
+			go c.Cache.UpdateUser(u)
 		case *UserEmpty:
 			return false, errors.New("user is empty")
 		}
 	case nil:
+		return false, errors.New("auth is nil")
 	}
 	return true, nil
 }
