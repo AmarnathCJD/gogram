@@ -137,7 +137,7 @@ func (m *MTProto) ExportAuth() ([]byte, []byte, string, int, int32) {
 	return m.authKey, m.authKeyHash, m.Addr, m.GetDC(), m.appID
 }
 
-func (m *MTProto) ImportRawAuth(authKey []byte, authKeyHash []byte, addr string, dc int, appID int32) (bool, error) {
+func (m *MTProto) ImportRawAuth(authKey []byte, authKeyHash []byte, addr string, _ int, appID int32) (bool, error) {
 	m.authKey, m.authKeyHash, m.Addr, m.appID = authKey, authKeyHash, addr, appID
 	err := m.Reconnect(false)
 	return err != nil, err
