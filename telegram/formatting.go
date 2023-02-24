@@ -21,9 +21,6 @@ func NewFormatter() *Formatter {
 	}
 }
 
-
-
-
 var Fmt = NewFormatter()
 
 func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, string) {
