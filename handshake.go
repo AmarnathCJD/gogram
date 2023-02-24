@@ -16,6 +16,7 @@ import (
 	"github.com/amarnathcjd/gogram/internal/keys"
 	"github.com/amarnathcjd/gogram/internal/math"
 	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
+	"github.com/pkg/errors"
 )
 
 // https://core.telegram.org/mtproto/auth_key
@@ -56,7 +57,7 @@ func (m *MTProto) makeAuthKey() error {
 		NewNonce:    nonceSecond,
 	})
 	if err != nil {
-		m.Logger.Warn("TgCrypto - makeAuthKey: %s", err)
+		m.Logger.Warn("makeAuthKey: failed to marshal pq inner data")
 		return err
 	}
 
@@ -83,7 +84,12 @@ func (m *MTProto) makeAuthKey() error {
 	}
 
 	// check of hash, random bytes trail removing occurs in this func already
-	decodedMessage := ige.DecryptMessageWithTempKeys(dhParams.EncryptedAnswer, nonceSecond.Int, nonceServer.Int)
+	decodedMessage, err := ige.DecryptMessageWithTempKeys(dhParams.EncryptedAnswer, nonceSecond.Int, nonceServer.Int)
+	if err != nil {
+		m.Logger.Warn(err.Error() + " - <retrying>")
+		return m.makeAuthKey()
+	}
+
 	data, err := tl.DecodeUnknownObject(decodedMessage)
 	if err != nil {
 		return fmt.Errorf("decode: %w", err)
@@ -132,11 +138,14 @@ func (m *MTProto) makeAuthKey() error {
 		return err
 	}
 
-	encryptedMessage = ige.EncryptMessageWithTempKeys(clientDHData, nonceSecond.Int, nonceServer.Int)
+	encryptedMessage, err = ige.EncryptMessageWithTempKeys(clientDHData, nonceSecond.Int, nonceServer.Int)
+	if err != nil {
+		return errors.New("dh: " + err.Error())
+	}
 
 	dhGenStatus, err := m.setClientDHParams(nonceFirst, nonceServer, encryptedMessage)
 	if err != nil {
-		return fmt.Errorf("dhgenStatus: %w", err)
+		return errors.New("dh: " + err.Error())
 	}
 
 	dhg, ok := dhGenStatus.(*objects.DHGenOk)

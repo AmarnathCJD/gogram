@@ -19,18 +19,6 @@ type (
 		Peer           Peer
 		Client         *Client
 	}
-
-	InlineCallbackQuery struct {
-		QueryID        int64
-		Data           []byte
-		OriginalUpdate *UpdateInlineBotCallbackQuery
-		Sender         *UserObj
-		MsgID          InputBotInlineMessageID
-		SenderID       int64
-		ChatInstance   int64
-		Client         *Client
-		GameShortName  string
-	} // TODO : implement
 )
 
 func (b *CallbackQuery) Answer(Text string, options ...*CallbackOptions) (bool, error) {
@@ -189,6 +177,85 @@ func (b *CallbackQuery) ForwardTo(ChatID int64, options ...*ForwardOptions) (*Ne
 }
 
 func (b *CallbackQuery) Marshal() string {
+	bytes, _ := json.MarshalIndent(b, "", "  ")
+	return string(bytes)
+}
+
+type InlineCallbackQuery struct {
+	QueryID        int64
+	Data           []byte
+	OriginalUpdate *UpdateInlineBotCallbackQuery
+	Sender         *UserObj
+	MsgID          InputBotInlineMessageID
+	SenderID       int64
+	ChatInstance   int64
+	Client         *Client
+	GameShortName  string
+}
+
+func (b *InlineCallbackQuery) Answer(Text string, options ...*CallbackOptions) (bool, error) {
+	var opts CallbackOptions
+	if len(options) > 0 {
+		opts = *options[0]
+	}
+	return b.Client.AnswerCallbackQuery(b.QueryID, Text, &opts)
+}
+
+func (b *InlineCallbackQuery) ShortName() string {
+	return b.OriginalUpdate.GameShortName
+}
+
+func (b *InlineCallbackQuery) DataString() string {
+	return string(b.Data)
+}
+
+func (b *InlineCallbackQuery) GetSender() (*UserObj, error) {
+	if b.Sender != nil {
+		return b.Sender, nil
+	}
+	return nil, fmt.Errorf("sender not found")
+}
+
+func (b *InlineCallbackQuery) GetSenderID() int64 {
+	if b.Sender != nil {
+		return b.Sender.ID
+	}
+	return b.SenderID
+}
+
+func (b *InlineCallbackQuery) Edit(Text interface{}, options ...*SendOptions) (*NewMessage, error) {
+	var opts SendOptions
+	if len(options) > 0 {
+		opts = *options[0]
+	}
+	return b.Client.EditMessage(b.MsgID, 0, Text, &opts)
+}
+
+func (b *InlineCallbackQuery) ChatType() string {
+	if b.ChatInstance == int64(InlineQueryPeerTypePm) || b.ChatInstance == int64(InlineQueryPeerTypeSameBotPm) {
+		return EntityUser
+	} else if b.ChatInstance == int64(InlineQueryPeerTypeChat) {
+		return EntityChat
+	} else if b.ChatInstance == int64(InlineQueryPeerTypeBroadcast) || b.ChatInstance == int64(InlineQueryPeerTypeMegagroup) {
+		return EntityChannel
+	} else {
+		return EntityUnknown
+	}
+}
+
+func (b *InlineCallbackQuery) IsPrivate() bool {
+	return b.ChatType() == EntityUser
+}
+
+func (b *InlineCallbackQuery) IsGroup() bool {
+	return b.ChatType() == EntityChat
+}
+
+func (b *InlineCallbackQuery) IsChannel() bool {
+	return b.ChatType() == EntityChannel
+}
+
+func (b *InlineCallbackQuery) Marshal() string {
 	bytes, _ := json.MarshalIndent(b, "", "  ")
 	return string(bytes)
 }

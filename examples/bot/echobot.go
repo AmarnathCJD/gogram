@@ -14,11 +14,16 @@ const (
 
 func main() {
 	// Create a new client
-	client, _ := telegram.TelegramClient(telegram.ClientConfig{
+	client, _ := telegram.NewClient(telegram.ClientConfig{
 		AppID:    appID,
 		AppHash:  appHash,
 		LogLevel: telegram.LogInfo,
 	})
+
+	// Connect to the server
+	if err := client.Connect(); err != nil {
+		panic(err)
+	}
 
 	// Authenticate the client using the bot token
 	if err := client.LoginBot(botToken); err != nil {

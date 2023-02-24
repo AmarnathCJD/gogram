@@ -152,3 +152,31 @@ func decodeBytes(b []byte) []byte {
 	aesByte, _ := aes.DecryptAES(b, SessionAESKey)
 	return aesByte
 }
+
+func NewInMemory() SessionLoader {
+	return &inMemorySessionLoader{}
+}
+
+type inMemorySessionLoader struct {
+	s *Session
+}
+
+var _ SessionLoader = (*inMemorySessionLoader)(nil)
+
+func (l *inMemorySessionLoader) Path() string {
+	return ":memory:"
+}
+
+func (l *inMemorySessionLoader) Load() (*Session, error) {
+	return l.s, nil
+}
+
+func (l *inMemorySessionLoader) Store(s *Session) error {
+	l.s = s
+	return nil
+}
+
+func (l *inMemorySessionLoader) Delete() error {
+	l.s = nil
+	return nil
+}

@@ -17,7 +17,7 @@ import (
 func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (chan tl.Object, error) {
 	msg, err := tl.Marshal(request)
 	if err != nil {
-		return nil, fmt.Errorf("encoding message: %w", err)
+		return nil, errors.Wrap(err, "marshaling request")
 	}
 	m.lastMessageIDMutex.Lock()
 	var (
@@ -57,7 +57,7 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 		seqNo = 0
 	}
 	if m.transport == nil {
-		return nil, errors.New("transport is closed")
+		return nil, errors.New("transport is nil, please use SetTransport")
 	}
 	errorSendPacket := m.transport.WriteMsg(data, MessageRequireToAck(request), seqNo)
 	if errorSendPacket != nil {
@@ -69,7 +69,7 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 func (m *MTProto) writeRPCResponse(msgID int, data tl.Object) error {
 	v, ok := m.responseChannels.Get(msgID)
 	if !ok {
-		return fmt.Errorf("no response channel for message %d", msgID)
+		return errors.New("no response channel found for messageId " + fmt.Sprint(msgID))
 	}
 	v <- data
 	m.responseChannels.Delete(msgID)
@@ -136,7 +136,7 @@ func (m *MTProto) MakeRequestWithHintToDecoder(msg tl.Object, expectedTypes ...r
 	return m.makeRequest(msg, expectedTypes...)
 }
 
-func (m *MTProto) AddCustomServerRequestHandler(handler customHandlerFunc) {
+func (m *MTProto) AddCustomServerRequestHandler(handler func(i any) bool) {
 	m.serverRequestHandlers = append(m.serverRequestHandlers, handler)
 }
 
@@ -172,8 +172,4 @@ func (m *MTProto) reqDHParams(nonce, serverNonce *tl.Int128, p, q []byte, public
 
 func (m *MTProto) setClientDHParams(nonce, serverNonce *tl.Int128, encryptedData []byte) (objects.SetClientDHParamsAnswer, error) {
 	return objects.SetClientDHParams(m, nonce, serverNonce, encryptedData)
-}
-
-func (m *MTProto) ping(pingID int64) (*objects.Pong, error) {
-	return objects.Ping(m, pingID)
 }
