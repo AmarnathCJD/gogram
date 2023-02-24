@@ -107,7 +107,7 @@ type DHGenOk struct {
 	NewNonceHash1 *tl.Int128
 }
 
-func (t *DHGenOk) ImplementsSetClientDHParamsAnswer() {}
+func (*DHGenOk) ImplementsSetClientDHParamsAnswer() {}
 
 func (*DHGenOk) CRC() uint32 {
 	return 0x3bcbf734 //nolint:gomnd not magic
@@ -327,7 +327,7 @@ func (*GzipPacked) CRC() uint32 {
 	return CrcGzipPacked
 }
 
-func (*GzipPacked) MarshalTL(e *tl.Encoder) error {
+func (*GzipPacked) MarshalTL(_ *tl.Encoder) error {
 	panic("not implemented")
 }
 
