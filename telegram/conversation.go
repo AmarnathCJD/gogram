@@ -190,7 +190,7 @@ func (c *Conversation) WaitEvent(ev *Update) (Update, error) {
 	}
 }
 
-func (c *Conversation) WaitRead() {
+func (*Conversation) WaitRead() {
 	// TODO: implement this
 }
 

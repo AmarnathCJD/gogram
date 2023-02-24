@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -121,7 +122,7 @@ func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
 func (c *CACHE) GetInputPeer(peerID int64) (InputPeer, error) {
 
 	if strings.HasPrefix(strconv.Itoa(int(peerID)), "-100") {
-		peerID = peerID - 1000000000000
+		peerID = int64(math.Abs(float64(peerID))) - 1000000000000
 	}
 	for _, user := range c.InputPeers.InputUsers {
 		if user.UserID == peerID {

@@ -378,7 +378,7 @@ func (c *Client) SendAlbum(peerID interface{}, Album interface{}, opts ...*Media
 	return c.sendAlbum(senderPeer, InputAlbum, textMessage, entities, sendAs, opt)
 }
 
-func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, Caption string, entities []MessageEntity, sendAs InputPeer, opt *MediaOptions) ([]*NewMessage, error) {
+func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, _ string, _ []MessageEntity, sendAs InputPeer, opt *MediaOptions) ([]*NewMessage, error) {
 	updateResp, err := c.MessagesSendMultiMedia(&MessagesSendMultiMediaParams{
 		Silent:                 opt.Silent,
 		Background:             false,

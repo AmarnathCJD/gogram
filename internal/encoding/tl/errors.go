@@ -14,7 +14,7 @@ func (e *ErrRegisteredObjectNotFound) Error() string {
 
 type ErrMustParseSlicesExplicitly struct{}
 
-func (e *ErrMustParseSlicesExplicitly) Error() string {
+func (*ErrMustParseSlicesExplicitly) Error() string {
 	return "got vector CRC code when parsing unknown object: vectors can't be parsed as predicted objects"
 }
 
