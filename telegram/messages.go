@@ -25,6 +25,7 @@ type SendOptions struct {
 	FileName      string              `json:"file_name,omitempty"`
 	Attributes    []DocumentAttribute `json:"attributes,omitempty"`
 	Media         interface{}
+	Entites       []MessageEntity
 }
 
 // SendMessage sends a message.
@@ -36,7 +37,7 @@ type SendOptions struct {
 //	 - Opts: Optional parameters.
 func (c *Client) SendMessage(peerID interface{}, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &SendOptions{}).(*SendOptions)
-	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode)
+	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string
@@ -45,7 +46,7 @@ func (c *Client) SendMessage(peerID interface{}, message interface{}, opts ...*S
 	)
 	switch message := message.(type) {
 	case string:
-		entities, textMessage = parseEntities(message, opt.ParseMode)
+		entities, textMessage = Fmt.parseEntities(message, opt.ParseMode)
 		rawText = message
 	case MessageMedia, InputMedia, InputFile:
 		media = message
@@ -61,6 +62,9 @@ func (c *Client) SendMessage(peerID interface{}, message interface{}, opts ...*S
 		media = message.Media()
 	default:
 		return nil, fmt.Errorf("invalid message type: %s", reflect.TypeOf(message))
+	}
+	if opt.Entites != nil {
+		entities = opt.Entites
 	}
 	media = getValue(media, opt.Media)
 	if media != nil {
@@ -111,7 +115,7 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 // This method is a wrapper for messages.editMessage.
 func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &SendOptions{}).(*SendOptions)
-	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode)
+	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string
@@ -119,7 +123,7 @@ func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, 
 	)
 	switch message := message.(type) {
 	case string:
-		entities, textMessage = parseEntities(message, opt.ParseMode)
+		entities, textMessage = Fmt.parseEntities(message, opt.ParseMode)
 	case MessageMedia, InputMedia, InputFile:
 		media = message
 	case *NewMessage:
@@ -128,6 +132,9 @@ func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, 
 		media = message.Media()
 	default:
 		return nil, fmt.Errorf("invalid message type: %s", reflect.TypeOf(message))
+	}
+	if opt.Entites != nil {
+		entities = opt.Entites
 	}
 	media = getValue(media, opt.Media)
 	switch p := peerID.(type) {
@@ -213,9 +220,11 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 		dcID = id.DcID
 	}
 	if dcID != int32(c.GetDC()) {
-		newSender, _ := c.ExportSender(int(dcID))
-		editTrue, err = newSender.MessagesEditInlineBotMessage(editRequest)
-		newSender.Terminate()
+		borrowedSender, borrowError := c.borrowSender(int(dcID))
+		if borrowError != nil {
+			return nil, borrowError
+		}
+		editTrue, err = borrowedSender.MessagesEditInlineBotMessage(editRequest)
 	} else {
 		editTrue, err = c.MessagesEditInlineBotMessage(editRequest)
 	}
@@ -245,6 +254,7 @@ type MediaOptions struct {
 	Attributes    []DocumentAttribute `json:"attributes,omitempty"`
 	ScheduleDate  int32               `json:"schedule_date,omitempty"`
 	SendAs        interface{}         `json:"send_as,omitempty"`
+	Entites       []MessageEntity     `json:"entities,omitempty"`
 }
 
 type MediaMetadata struct {
@@ -264,7 +274,7 @@ type MediaMetadata struct {
 //	 - Opts: Optional parameters.
 func (c *Client) SendMedia(peerID interface{}, Media interface{}, opts ...*MediaOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
-	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode)
+	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string
@@ -275,10 +285,13 @@ func (c *Client) SendMedia(peerID interface{}, Media interface{}, opts ...*Media
 	}
 	switch cap := opt.Caption.(type) {
 	case string:
-		entities, textMessage = parseEntities(cap, opt.ParseMode)
+		entities, textMessage = Fmt.parseEntities(cap, opt.ParseMode)
 	case *NewMessage:
 		entities = cap.Message.Entities
 		textMessage = cap.MessageText()
+	}
+	if opt.Entites != nil {
+		entities = opt.Entites
 	}
 	senderPeer, err := c.GetSendablePeer(peerID)
 	if err != nil {
@@ -329,7 +342,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 //	 - Opts: Optional parameters.
 func (c *Client) SendAlbum(peerID interface{}, Album interface{}, opts ...*MediaOptions) ([]*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
-	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode)
+	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string
@@ -341,10 +354,13 @@ func (c *Client) SendAlbum(peerID interface{}, Album interface{}, opts ...*Media
 
 	switch cap := opt.Caption.(type) {
 	case string:
-		entities, textMessage = parseEntities(cap, opt.ParseMode)
+		entities, textMessage = Fmt.parseEntities(cap, opt.ParseMode)
 	case *NewMessage:
 		entities = cap.Message.Entities
 		textMessage = cap.MessageText()
+	}
+	if opt.Entites != nil {
+		entities = opt.Entites
 	}
 	InputAlbum[len(InputAlbum)-1].Message = textMessage
 	InputAlbum[len(InputAlbum)-1].Entities = entities

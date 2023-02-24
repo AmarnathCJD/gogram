@@ -126,6 +126,19 @@ func (h *callbackHandle) Remove() {
 	}
 }
 
+type inlineCallbackHandle struct {
+	Pattern interface{}
+	Handler func(m *InlineCallbackQuery) error
+}
+
+func (h *inlineCallbackHandle) Remove() {
+	for i, handle := range UpdateHandleDispatcher.inlineCallbackHandles {
+		if reflect.DeepEqual(handle, h) {
+			UpdateHandleDispatcher.inlineCallbackHandles = append(UpdateHandleDispatcher.inlineCallbackHandles[:i], UpdateHandleDispatcher.inlineCallbackHandles[i+1:]...)
+		}
+	}
+}
+
 type participantHandle struct {
 	Handler func(p *ParticipantUpdate) error
 }
@@ -152,16 +165,17 @@ func (h *rawHandle) Remove() {
 }
 
 type UpdateDispatcher struct {
-	client               *Client
-	messageHandles       []messageHandle
-	inlineHandles        []inlineHandle
-	callbackHandles      []callbackHandle
-	participantHandles   []participantHandle
-	messageEditHandles   []messageEditHandle
-	actionHandles        []chatActionHandle
-	messageDeleteHandles []messageDeleteHandle
-	albumHandles         []albumHandle
-	rawHandles           []rawHandle
+	client                *Client
+	messageHandles        []messageHandle
+	inlineHandles         []inlineHandle
+	callbackHandles       []callbackHandle
+	inlineCallbackHandles []inlineCallbackHandle
+	participantHandles    []participantHandle
+	messageEditHandles    []messageEditHandle
+	actionHandles         []chatActionHandle
+	messageDeleteHandles  []messageDeleteHandle
+	albumHandles          []albumHandle
+	rawHandles            []rawHandle
 }
 
 func (u *UpdateDispatcher) AddM(m messageHandle) messageHandle {
@@ -182,6 +196,11 @@ func (u *UpdateDispatcher) AddI(i inlineHandle) inlineHandle {
 func (u *UpdateDispatcher) AddC(c callbackHandle) callbackHandle {
 	u.callbackHandles = append(u.callbackHandles, c)
 	return c
+}
+
+func (u *UpdateDispatcher) AddIC(ic inlineCallbackHandle) inlineCallbackHandle {
+	u.inlineCallbackHandles = append(u.inlineCallbackHandles, ic)
+	return ic
 }
 
 func (u *UpdateDispatcher) AddA(a chatActionHandle) chatActionHandle {
@@ -262,7 +281,7 @@ func (u *UpdateDispatcher) HandleAlbum(message MessageObj) {
 						Messages:  abox.messages,
 						Client:    u.client,
 					}); err != nil {
-						u.client.Log.Error(err)
+						u.client.Log.Error("- updates.dispatcher.Album -", err)
 					}
 				}(handle)
 			}
@@ -289,7 +308,7 @@ func (u *UpdateDispatcher) HandleEditUpdate(update Message) {
 			if handle.IsMatch(msg.Message) {
 				go func(h messageEditHandle) {
 					if err := h.Handler(packMessage(u.client, msg)); err != nil {
-						u.client.Log.Error(err)
+						u.client.Log.Error("- updates.dispatcher.EditUpdate -", err)
 					}
 				}(handle)
 			}
@@ -302,7 +321,19 @@ func (u *UpdateDispatcher) HandleCallbackUpdate(update *UpdateBotCallbackQuery) 
 		if handle.IsMatch(update.Data) {
 			go func(h callbackHandle) {
 				if err := h.Handler(packCallbackQuery(u.client, update)); err != nil {
-					u.client.Log.Error(err)
+					u.client.Log.Error("- updates.dispatcher.CallbackUpdate -", err)
+				}
+			}(handle)
+		}
+	}
+}
+
+func (u *UpdateDispatcher) HandleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery) {
+	for _, handle := range u.inlineCallbackHandles {
+		if handle.IsMatch(update.Data) {
+			go func(h inlineCallbackHandle) {
+				if err := h.Handler(packInlineCallbackQuery(u.client, update)); err != nil {
+					u.client.Log.Error("- updates.dispatcher.InlineCallbackUpdate -", err)
 				}
 			}(handle)
 		}
@@ -313,7 +344,7 @@ func (u *UpdateDispatcher) HandleParticipantUpdate(update *UpdateChannelParticip
 	for _, handle := range u.participantHandles {
 		go func(h participantHandle) {
 			if err := h.Handler(packChannelParticipant(u.client, update)); err != nil {
-				u.client.Log.Error(err)
+				u.client.Log.Error("- updates.dispatcher.ParticipantUpdate -", err)
 			}
 		}(handle)
 	}
@@ -324,7 +355,7 @@ func (u *UpdateDispatcher) HandleInlineUpdate(update *UpdateBotInlineQuery) {
 		if handle.IsMatch(update.Query) {
 			go func(h inlineHandle) {
 				if err := h.Handler(packInlineQuery(u.client, update)); err != nil {
-					u.client.Log.Error(err)
+					u.client.Log.Error("- updates.dispatcher.InlineUpdate -", err)
 				}
 			}(handle)
 		}
@@ -335,7 +366,7 @@ func (u *UpdateDispatcher) HandleDeleteUpdate(update *UpdateDeleteMessages) {
 	for _, handle := range u.messageDeleteHandles {
 		go func(h messageDeleteHandle) {
 			if err := h.Handler(update); err != nil {
-				u.client.Log.Error(err)
+				u.client.Log.Error("- updates.dispatcher.DeleteUpdate -", err)
 			}
 		}(handle)
 	}
@@ -346,7 +377,7 @@ func (u *UpdateDispatcher) HandleRawUpdate(update Update) {
 		if reflect.TypeOf(update) == reflect.TypeOf(handle.updateType) {
 			go func(h rawHandle) {
 				if err := h.Handler(update); err != nil {
-					u.client.Log.Error(err)
+					u.client.Log.Error("- updates.dispatcher.RawUpdate -", err)
 				}
 			}(handle)
 		}
@@ -387,6 +418,21 @@ func (h *callbackHandle) IsMatch(data []byte) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
 		if pattern == OnCallbackQuery {
+			return true
+		}
+		p := regexp.MustCompile(pattern)
+		return p.Match(data) || strings.HasPrefix(string(data), pattern)
+	case *regexp.Regexp:
+		return pattern.Match(data)
+	default:
+		return false
+	}
+}
+
+func (h *inlineCallbackHandle) IsMatch(data []byte) bool {
+	switch pattern := h.Pattern.(type) {
+	case string:
+		if pattern == OnInlineCallbackQuery {
 			return true
 		}
 		p := regexp.MustCompile(pattern)
@@ -493,6 +539,14 @@ func (*Client) AddCallbackHandler(pattern interface{}, handler func(m *CallbackQ
 	return UpdateHandleDispatcher.AddC(callbackHandle{Pattern: pattern, Handler: handler})
 }
 
+// Handle updates categorized as "UpdateInlineBotCallbackQuery"
+//
+// Included Updates:
+//   - Inline Callback Query
+func (c *Client) AddInlineCallbackHandler(pattern interface{}, handler func(m *InlineCallbackQuery) error) inlineCallbackHandle {
+	return UpdateHandleDispatcher.AddIC(inlineCallbackHandle{Pattern: pattern, Handler: handler})
+}
+
 // Handle updates categorized as "UpdateChannelParticipant"
 //
 // Included Updates:
@@ -533,6 +587,8 @@ UpdateTypeSwitching:
 				go UpdateHandleDispatcher.HandleInlineUpdate(update)
 			case *UpdateBotCallbackQuery:
 				go UpdateHandleDispatcher.HandleCallbackUpdate(update)
+			case *UpdateInlineBotCallbackQuery:
+				go UpdateHandleDispatcher.HandleInlineCallbackUpdate(update)
 			case *UpdateChannelParticipant:
 				go UpdateHandleDispatcher.HandleParticipantUpdate(update)
 			default:

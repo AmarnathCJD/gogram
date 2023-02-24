@@ -4,9 +4,7 @@ import "regexp"
 
 const (
 	ApiVersion = 147
-	Version    = "v1.2.0"
-
-	DefaultDC = 4
+	Version    = "v2.1.0"
 
 	LogDebug   = "debug"
 	LogInfo    = "info"
@@ -23,16 +21,22 @@ const (
 	EntityChannel string = "channel"
 	EntityUnknown string = "unknown"
 
-	OnNewMessage    = "OnNewMessage"
-	OnEditMessage   = "OnEditMessage"
-	OnChatAction    = "OnChatAction"
-	OnInlineQuery   = "OnInlineQuery"
-	OnCallbackQuery = "OnCallbackQuery"
-	OnDeleteMessage = "OnDeleteMessage"
+	OnNewMessage          = "OnNewMessage"
+	OnEditMessage         = "OnEditMessage"
+	OnChatAction          = "OnChatAction"
+	OnInlineQuery         = "OnInlineQuery"
+	OnCallbackQuery       = "OnCallbackQuery"
+	OnInlineCallbackQuery = "OnInlineCallbackQuery"
+	OnChosenInlineResult  = "OnChosenInlineResult" // TODO: implement this
+	OnDeleteMessage       = "OnDeleteMessage"
 )
 
 var (
 	LIB_LOG_LEVEL = LogInfo
+)
+
+const (
+	randombyteLen = 256 // 2048 bit
 )
 
 var (

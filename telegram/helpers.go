@@ -684,6 +684,22 @@ func packCallbackQuery(c *Client, query *UpdateBotCallbackQuery) *CallbackQuery 
 	return cq
 }
 
+func packInlineCallbackQuery(c *Client, query *UpdateInlineBotCallbackQuery) *InlineCallbackQuery {
+	var (
+		cq = &InlineCallbackQuery{}
+	)
+	cq.QueryID = query.QueryID
+	cq.Data = query.Data
+	cq.Client = c
+	cq.Sender, _ = c.GetUser(query.UserID)
+	cq.OriginalUpdate = query
+	cq.Data = query.Data
+	cq.GameShortName = query.GameShortName
+	cq.MsgID = query.MsgID
+	cq.SenderID = query.UserID
+	return cq
+}
+
 func packChannelParticipant(c *Client, update *UpdateChannelParticipant) *ParticipantUpdate {
 	var (
 		pu = &ParticipantUpdate{}
