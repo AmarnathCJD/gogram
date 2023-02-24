@@ -520,7 +520,7 @@ func bigExp(x, y, m *big.Int) *big.Int {
 	return new(big.Int).Exp(x, y, m)
 }
 
-func dhHandshakeCheckConfigIsError(gInt int32, primeStr []byte) bool {
+func dhHandshakeCheckConfigIsError(_ int32, _ []byte) bool {
 	return false
 }
 
