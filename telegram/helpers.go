@@ -332,7 +332,7 @@ PeerSwitch:
 	}
 }
 
-func (c *Client) GetPeerID(Peer interface{}) int64 {
+func (*Client) GetPeerID(Peer interface{}) int64 {
 	switch Peer := Peer.(type) {
 	case *PeerChat:
 		return Peer.ChatID

@@ -163,7 +163,7 @@ func (msg *Unencrypted) GetMsgID() int {
 	return int(msg.MsgID)
 }
 
-func (msg *Unencrypted) GetSeqNo() int {
+func (*Unencrypted) GetSeqNo() int {
 	return 0
 }
 

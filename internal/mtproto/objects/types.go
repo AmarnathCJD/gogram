@@ -107,7 +107,7 @@ type DHGenOk struct {
 	NewNonceHash1 *tl.Int128
 }
 
-func (t *DHGenOk) ImplementsSetClientDHParamsAnswer() {}
+func (*DHGenOk) ImplementsSetClientDHParamsAnswer() {}
 
 func (*DHGenOk) CRC() uint32 {
 	return 0x3bcbf734 //nolint:gomnd not magic
