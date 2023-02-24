@@ -272,7 +272,7 @@ func (u *UpdateDispatcher) HandleAlbum(message MessageObj) {
 	}
 }
 
-func (u *UpdateDispatcher) HandleMessageUpdateW(message Message, pts int32) {
+func (u *UpdateDispatcher) HandleMessageUpdateW(_ Message, pts int32) {
 	m, err := u.client.GetDiffrence(pts, 1)
 	if err != nil {
 		u.client.Log.Error(err)
