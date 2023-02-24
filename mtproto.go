@@ -293,7 +293,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	case *objects.RpcError:
 		realErr := RpcErrorToNative(r).(*ErrResponseCode)
 		if strings.Contains(realErr.Message, "FLOOD_WAIT_") {
-			m.Logger.Info("flood wait delected on " + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf(" request. sleeping for %d seconds", realErr.AdditionalInfo.(int)))
+			m.Logger.Info("flood wait detected on " + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf(" request. sleeping for %d seconds", realErr.AdditionalInfo.(int)))
 			time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
 			return m.makeRequest(data, expectedTypes...)
 		}
