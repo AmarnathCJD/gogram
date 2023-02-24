@@ -20,7 +20,7 @@ func parseEntities(text string, parseMode string) (entities []MessageEntity, new
 	return []MessageEntity{}, text
 }
 
-func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, string) {
+func (*Client) FormatMessage(message string, mode string) ([]MessageEntity, string) {
 	if mode == HTML {
 		return parseHTML(message)
 	} else {

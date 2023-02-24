@@ -456,15 +456,15 @@ type Filters struct {
 	Incoming  bool                   `json:"incoming,omitempty"`
 }
 
-func (c *Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessage) error, filters ...*Filters) messageHandle {
+func (*Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessage) error, filters ...*Filters) messageHandle {
 	return UpdateHandleDispatcher.AddM(messageHandle{Pattern: pattern, Handler: handler, Filters: getVariadic(filters, &Filters{}).(*Filters)})
 }
 
-func (c *Client) AddAlbumHandler(handler func(m *Album) error) albumHandle {
+func (*Client) AddAlbumHandler(handler func(m *Album) error) albumHandle {
 	return UpdateHandleDispatcher.AddAL(albumHandle{Handler: handler})
 }
 
-func (c *Client) AddActionHandler(handler func(m *NewMessage) error) chatActionHandle {
+func (*Client) AddActionHandler(handler func(m *NewMessage) error) chatActionHandle {
 	return UpdateHandleDispatcher.AddA(chatActionHandle{Handler: handler})
 }
 
@@ -473,7 +473,7 @@ func (c *Client) AddActionHandler(handler func(m *NewMessage) error) chatActionH
 // Included Updates:
 //   - Message Edited
 //   - Channel Post Edited
-func (c *Client) AddEditHandler(pattern interface{}, handler func(m *NewMessage) error) messageEditHandle {
+func (*Client) AddEditHandler(pattern interface{}, handler func(m *NewMessage) error) messageEditHandle {
 	return UpdateHandleDispatcher.AddME(messageEditHandle{Pattern: pattern, Handler: handler})
 }
 
@@ -481,7 +481,7 @@ func (c *Client) AddEditHandler(pattern interface{}, handler func(m *NewMessage)
 //
 // Included Updates:
 //   - Inline Query
-func (c *Client) AddInlineHandler(pattern interface{}, handler func(m *InlineQuery) error) inlineHandle {
+func (*Client) AddInlineHandler(pattern interface{}, handler func(m *InlineQuery) error) inlineHandle {
 	return UpdateHandleDispatcher.AddI(inlineHandle{Pattern: pattern, Handler: handler})
 }
 
@@ -489,7 +489,7 @@ func (c *Client) AddInlineHandler(pattern interface{}, handler func(m *InlineQue
 //
 // Included Updates:
 //   - Callback Query
-func (c *Client) AddCallbackHandler(pattern interface{}, handler func(m *CallbackQuery) error) callbackHandle {
+func (*Client) AddCallbackHandler(pattern interface{}, handler func(m *CallbackQuery) error) callbackHandle {
 	return UpdateHandleDispatcher.AddC(callbackHandle{Pattern: pattern, Handler: handler})
 }
 
@@ -502,11 +502,11 @@ func (c *Client) AddCallbackHandler(pattern interface{}, handler func(m *Callbac
 //   - Kicked Channel Participant
 //   - Channel Participant Admin
 //   - Channel Participant Creator
-func (c *Client) AddParticipantHandler(handler func(m *ParticipantUpdate) error) participantHandle {
+func (*Client) AddParticipantHandler(handler func(m *ParticipantUpdate) error) participantHandle {
 	return UpdateHandleDispatcher.AddP(participantHandle{Handler: handler})
 }
 
-func (c *Client) AddRawHandler(updateType Update, handler func(m Update) error) rawHandle {
+func (*Client) AddRawHandler(updateType Update, handler func(m Update) error) rawHandle {
 	return UpdateHandleDispatcher.AddR(rawHandle{updateType: updateType, Handler: handler})
 }
 
