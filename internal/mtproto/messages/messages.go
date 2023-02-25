@@ -117,7 +117,7 @@ type Unencrypted struct {
 	MsgID int64
 }
 
-func (msg *Unencrypted) Serialize(_ MessageInformator) ([]byte, error) {
+func (msg *Unencrypted) Serialize(client MessageInformator) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	e := tl.NewEncoder(buf)
 	// authKeyHash, always 0 if unencrypted
@@ -163,7 +163,7 @@ func (msg *Unencrypted) GetMsgID() int {
 	return int(msg.MsgID)
 }
 
-func (*Unencrypted) GetSeqNo() int {
+func (msg *Unencrypted) GetSeqNo() int {
 	return 0
 }
 
