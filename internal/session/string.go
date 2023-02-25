@@ -54,7 +54,7 @@ func (s StringSession) Decode() (AuthKey, AuthKeyHash []byte, DcID int, IpAddr s
 	return AuthKey, AuthKeyHash, DcID, IpAddr, AppID, nil
 }
 
-func (StringSession) SplitValues(DecodedString string) (AuthKey, AuthKeyHash []byte, IpAddr string, DcID int, AppID int32) {
+func (s StringSession) SplitValues(DecodedString string) (AuthKey, AuthKeyHash []byte, IpAddr string, DcID int, AppID int32) {
 	Sep := strings.Split(DecodedString, "::")
 	if len(Sep) != 5 {
 		return nil, nil, "", 0, 0

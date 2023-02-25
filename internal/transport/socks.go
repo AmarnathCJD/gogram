@@ -34,7 +34,7 @@ func DialProxy(s *Socks, network, addr string) (net.Conn, error) {
 	return conn, nil
 }
 
-func DialSocks5(s *Socks, _, addr string) (net.Conn, error) {
+func DialSocks5(s *Socks, network, addr string) (net.Conn, error) {
 	conn, err := net.Dial("tcp", s.Host+":"+strconv.Itoa(s.Port))
 	if err != nil {
 		return nil, err
@@ -170,7 +170,7 @@ func DialSocks5(s *Socks, _, addr string) (net.Conn, error) {
 	return conn, nil
 }
 
-func DialSocks4(s *Socks, _, addr string) (net.Conn, error) {
+func DialSocks4(s *Socks, network, addr string) (net.Conn, error) {
 	conn, err := net.Dial("tcp", s.Host+":"+strconv.Itoa(s.Port))
 	if err != nil {
 		return nil, err
