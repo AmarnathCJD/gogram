@@ -339,7 +339,8 @@ func (q *QrToken) Recreate() (*QrToken, error) {
 }
 
 func (q *QrToken) Wait(timeout ...int32) error {
-	q.Timeout = getVariadic(timeout, 600).(int32) // 10 minutes
+	const def int32 = 600 // 10 minutes
+	q.Timeout = getVariadic(timeout, def).(int32)
 	ch := make(chan int)
 	ev := q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update) error {
 		ch <- 1
