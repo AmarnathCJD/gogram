@@ -70,7 +70,7 @@ func (b *InlineBuilder) Article(title, description, text string, options ...*Art
 	} else {
 		opts = ArticleOptions{}
 	}
-	e, text := b.Client.FormatMessage(text, getValue(opts.ParseMode, b.Client.ParseMode).(string))
+	e, text := b.Client.FormatMessage(text, getValue(opts.ParseMode, b.Client.ParseMode()).(string))
 	result := &InputBotInlineResultObj{
 		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
 		Type:        "article",
@@ -127,7 +127,7 @@ PhotoTypeSwitch:
 		b.Client.Logger.Warn("InlineBuilder.Photo: Photo is not a InputMediaPhoto, its a %T", p)
 		Image = &InputPhotoEmpty{}
 	}
-	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode).(string))
+	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()).(string))
 	result := &InputBotInlineResultPhoto{
 		ID:    getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
 		Type:  "photo",
@@ -183,7 +183,7 @@ DocTypeSwitch:
 		b.Client.Logger.Warn("InlineBuilder.Document: Document is not a InputMediaDocument")
 		Doc = &InputDocumentEmpty{}
 	}
-	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode).(string))
+	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()).(string))
 	result := &InputBotInlineResultDocument{
 		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
 		Type:        "document",
@@ -224,7 +224,7 @@ func (b *InlineBuilder) Game(ID, ShortName string, options ...*ArticleOptions) I
 	} else {
 		opts = ArticleOptions{}
 	}
-	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode).(string))
+	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()).(string))
 	result := &InputBotInlineResultGame{
 		ID:        getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
 		ShortName: ShortName,
