@@ -393,9 +393,9 @@ func (c *Client) GetDC() int {
 // ExportSession exports the current session to a string,
 // This string can be used to import the session later
 func (c *Client) ExportSession() string {
-	authKey, authKeyHash, IpAddr, DcID, AppID := c.MTProto.ExportAuth()
-	c.Log.Debug("exporting session: ", authKey, authKeyHash, IpAddr, DcID, AppID)
-	return session.StringSession{AuthKey: authKey, AuthKeyHash: authKeyHash, IpAddr: IpAddr, DCID: DcID, AppID: AppID}.EncodeToString()
+	authKey, authKeyHash, IpAddr, dcID, AppID := c.MTProto.ExportAuth()
+	c.Log.Debug("Exporting string session...")
+	return session.NewStringSession(authKey, authKeyHash, dcID, IpAddr, AppID).Encode()
 }
 
 // ImportSession imports a session from a string
