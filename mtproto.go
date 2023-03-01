@@ -66,10 +66,6 @@ type MTProto struct {
 	serverRequestHandlers []func(i any) bool
 }
 
-type customHandles struct {
-	// custom handlers for server requests
-}
-
 type Config struct {
 	AuthKeyFile    string
 	StringSession  string
@@ -148,16 +144,13 @@ func (m *MTProto) ImportRawAuth(authKey []byte, authKeyHash []byte, addr string,
 	return true, nil
 }
 
-func (m *MTProto) ImportAuth(Session string) (bool, error) {
-	StringSession := &session.StringSession{
-		Encoded: Session,
+func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
+	sessionString := session.NewEmptyStringSession()
+	if err := sessionString.Decode(stringSession); err != nil {
+		return false, err
 	}
-	AuthKey, AuthKeyHash, _, IpAddr, AppID, err := StringSession.Decode()
-	if err != nil {
-		return false, fmt.Errorf("decoding string session: %w", err)
-	}
-	m.authKey, m.authKeyHash, m.Addr, m.appID = AuthKey, AuthKeyHash, IpAddr, AppID
-	m.Logger.Debug("imported auth key, auth key hash, addr, dc, appID from string session")
+	m.authKey, m.authKeyHash, m.Addr, m.appID = sessionString.AuthKey(), sessionString.AuthKeyHash(), sessionString.IpAddr(), sessionString.AppID()
+	m.Logger.Debug("importing Auth from stringSession...")
 	if !m.memorySession {
 		if err := m.SaveSession(); err != nil {
 			return false, fmt.Errorf("saving session: %w", err)
@@ -167,10 +160,9 @@ func (m *MTProto) ImportAuth(Session string) (bool, error) {
 }
 
 func (m *MTProto) GetDC() int {
-	addr := m.Addr
-	for k, v := range utils.DcList {
-		if v == addr {
-			return k
+	for dc, addr := range utils.DcList {
+		if addr == m.Addr {
+			return dc
 		}
 	}
 	return 4
@@ -215,7 +207,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		cfg.SessionStorage = m.sessionStorage
 	}
 	sender, _ := NewMTProto(cfg)
-	m.Logger.Info("exporting new sender to [DC " + strconv.Itoa(dcID) + "]")
+	m.Logger.Info("exporting new sender for [DC " + strconv.Itoa(dcID) + "]")
 	err = sender.CreateConnection(true)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating connection")
@@ -228,7 +220,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Info("Connecting to <" + m.Addr + "> - <TCPFull>...")
+		m.Logger.Info("Connecting to [" + m.Addr + "] - <TCPFull> ...")
 	}
 	err := m.connect(ctx)
 	if err != nil {
@@ -236,7 +228,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 	m.tcpActive = true
 	if withLog {
-		m.Logger.Info("Connection to <" + m.Addr + "> - <TCPFull> established!")
+		m.Logger.Info("Connection to [" + m.Addr + "] - <TCPFull> established")
 	}
 	m.startReadingResponses(ctx)
 	if !m.encrypted {
@@ -278,7 +270,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	resp, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
 		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") {
-			m.Logger.Info("connection closed due to broken pipe, reconnecting to <" + m.Addr + ">" + "<TCPFull>...")
+			m.Logger.Info("connection closed due to broken pipe, reconnecting to [" + m.Addr + "]" + " - <TCPFull> ...")
 			err = m.Reconnect(false)
 			if err != nil {
 				m.Logger.Error("reconnecting: " + err.Error())
@@ -293,7 +285,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	case *objects.RpcError:
 		realErr := RpcErrorToNative(r).(*ErrResponseCode)
 		if strings.Contains(realErr.Message, "FLOOD_WAIT_") {
-			m.Logger.Info("flood wait detected on " + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf(" request. sleeping for %d seconds", realErr.AdditionalInfo.(int)))
+			m.Logger.Info("Flood wait detected on " + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf(" request. sleeping for %d seconds", realErr.AdditionalInfo.(int)))
 			time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
 			return m.makeRequest(data, expectedTypes...)
 		}
@@ -329,7 +321,7 @@ func (m *MTProto) Disconnect() error {
 func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
-	m.Logger.Info("terminating connection to <" + m.Addr + "> - <TCPFull>...")
+	m.Logger.Info("terminating connection to [" + m.Addr + "] - <TCPFull> ...")
 	m.tcpActive = false
 	return nil
 }
@@ -340,12 +332,12 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		return errors.Wrap(err, "disconnecting")
 	}
 	if WithLogs {
-		m.Logger.Info("Reconnecting to <" + m.Addr + "> - <TCPFull>...")
+		m.Logger.Info("Reconnecting to [" + m.Addr + "] - <TCPFull> ...")
 	}
 
 	err = m.CreateConnection(WithLogs)
 	if err == nil && WithLogs {
-		m.Logger.Info("Reconnected to <" + m.Addr + "> - <TCPFull>!")
+		m.Logger.Info("Reconnected to [" + m.Addr + "] - <TCPFull> ...")
 	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
@@ -371,7 +363,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				return
 			default:
 				if !m.tcpActive {
-					m.Logger.Warn("Connection is not established with <" + m.Addr + "> - <TCPFull>!")
+					m.Logger.Warn("Connection is not established with, stopping Updates Queue")
 					return
 				}
 				err := m.readMsg()
