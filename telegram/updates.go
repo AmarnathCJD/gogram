@@ -601,6 +601,8 @@ UpdateTypeSwitching:
 			go UpdateHandleDispatcher.HandleMessageUpdateW(upd.Message, upd.Pts)
 		case *UpdateNewChannelMessage:
 			go UpdateHandleDispatcher.HandleMessageUpdateW(upd.Message, upd.Pts)
+		default:
+			go UpdateHandleDispatcher.HandleRawUpdate(upd)
 		}
 	case *UpdateShortMessage:
 		go UpdateHandleDispatcher.HandleMessageUpdateW(&MessageObj{Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities}, upd.Pts)
