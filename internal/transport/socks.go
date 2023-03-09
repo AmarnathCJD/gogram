@@ -4,26 +4,19 @@ import (
 	"errors"
 	"io"
 	"net"
+	"net/url"
 	"strconv"
 )
 
-type Socks struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
-	Version  int
-}
-
-func DialProxy(s *Socks, network, addr string) (net.Conn, error) {
+func DialProxy(s *url.URL, network, addr string) (net.Conn, error) {
 	var (
 		conn net.Conn
 		err  error
 	)
-	switch s.Version {
-	case 5:
+	switch s.Scheme {
+	case "socks5":
 		conn, err = DialSocks5(s, network, addr)
-	case 4:
+	case "socks4":
 		conn, err = DialSocks4(s, network, addr)
 	default:
 		return nil, errors.New("unsupported socks version")
@@ -34,13 +27,15 @@ func DialProxy(s *Socks, network, addr string) (net.Conn, error) {
 	return conn, nil
 }
 
-func DialSocks5(s *Socks, network, addr string) (net.Conn, error) {
-	conn, err := net.Dial("tcp", s.Host+":"+strconv.Itoa(s.Port))
+func DialSocks5(s *url.URL, network, addr string) (net.Conn, error) {
+	conn, err := net.Dial("tcp", s.Hostname()+":"+s.Port())
 	if err != nil {
 		return nil, err
 	}
 	// auth
-	if s.Username != "" {
+	if s.User != nil && s.User.Username() != "" {
+		username := s.User.Username()
+		password, _ := s.User.Password()
 		_, err = conn.Write([]byte{5, 2, 0, 2})
 		if err != nil {
 			return nil, err
@@ -57,11 +52,11 @@ func DialSocks5(s *Socks, network, addr string) (net.Conn, error) {
 			// no auth
 		} else if buf[1] == 2 {
 			// username/password
-			_, err = conn.Write(append([]byte{1, byte(len(s.Username))}, []byte(s.Username)...))
+			_, err = conn.Write(append([]byte{1, byte(len(username))}, []byte(username)...))
 			if err != nil {
 				return nil, err
 			}
-			_, err = conn.Write(append([]byte{byte(len(s.Password))}, []byte(s.Password)...))
+			_, err = conn.Write(append([]byte{byte(len(password))}, []byte(password)...))
 			if err != nil {
 				return nil, err
 			}
@@ -170,8 +165,8 @@ func DialSocks5(s *Socks, network, addr string) (net.Conn, error) {
 	return conn, nil
 }
 
-func DialSocks4(s *Socks, network, addr string) (net.Conn, error) {
-	conn, err := net.Dial("tcp", s.Host+":"+strconv.Itoa(s.Port))
+func DialSocks4(s *url.URL, network, addr string) (net.Conn, error) {
+	conn, err := net.Dial("tcp", s.Hostname()+":"+s.Port())
 	if err != nil {
 		return nil, err
 	}
