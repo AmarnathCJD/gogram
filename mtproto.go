@@ -194,7 +194,16 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	}
 	m.sessionStorage.Delete()
 	m.Logger.Debug("deleted old auth key file")
-	cfg := Config{DataCenter: dc, PublicKey: m.PublicKey, ServerHost: newAddr, AuthKeyFile: m.sessionStorage.Path(), MemorySession: false, LogLevel: m.Logger.Lev(), SocksProxy: m.socksProxy, AppID: m.appID}
+	cfg := Config{
+		DataCenter:    dc,
+		PublicKey:     m.PublicKey,
+		ServerHost:    newAddr,
+		AuthKeyFile:   m.sessionStorage.Path(),
+		MemorySession: m.memorySession,
+		LogLevel:      m.Logger.Lev(),
+		SocksProxy:    m.socksProxy,
+		AppID:         m.appID,
+	}
 	sender, err := NewMTProto(cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating new MTProto")
