@@ -67,6 +67,7 @@ type ClientConfig struct {
 	StringSession string
 	LangCode      string
 	ParseMode     string
+	MemorySession bool
 	DataCenter    int
 	PublicKeys    []*rsa.PublicKey
 	NoUpdates     bool
@@ -101,6 +102,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		LogLevel:      LIB_LOG_LEVEL,
 		StringSession: config.StringSession,
 		SocksProxy:    config.SocksProxy,
+		MemorySession: config.MemorySession,
 	})
 	if err != nil {
 		return errors.Wrap(err, "creating mtproto client")
