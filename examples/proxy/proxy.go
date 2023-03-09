@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	appID    = 1025907
-	appHash  = "452b0359b988148995f22ff0f4229750"
-	phoneNum = "+1026164213164"
+	appID    = 6
+	appHash  = "YOUR_APP_HASH"
+	phoneNum = "+YOUR_PHONE_NUMBER"
 )
 
 func main() {
