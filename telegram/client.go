@@ -4,6 +4,7 @@ package telegram
 
 import (
 	"crypto/rsa"
+	"net/url"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -66,10 +67,12 @@ type ClientConfig struct {
 	StringSession string
 	LangCode      string
 	ParseMode     string
+	MemorySession bool
 	DataCenter    int
 	PublicKeys    []*rsa.PublicKey
 	NoUpdates     bool
 	LogLevel      string
+	SocksProxy    *url.URL
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -90,7 +93,17 @@ func NewClient(config ClientConfig) (*Client, error) {
 }
 
 func (c *Client) setupMTProto(config ClientConfig) error {
-	mtproto, err := mtproto.NewMTProto(mtproto.Config{AppID: config.AppID, AuthKeyFile: config.Session, ServerHost: GetHostIp(config.DataCenter), PublicKey: config.PublicKeys[0], DataCenter: config.DataCenter, LogLevel: LIB_LOG_LEVEL, StringSession: config.StringSession})
+	mtproto, err := mtproto.NewMTProto(mtproto.Config{
+		AppID:         config.AppID,
+		AuthKeyFile:   config.Session,
+		ServerHost:    GetHostIp(config.DataCenter),
+		PublicKey:     config.PublicKeys[0],
+		DataCenter:    config.DataCenter,
+		LogLevel:      LIB_LOG_LEVEL,
+		StringSession: config.StringSession,
+		SocksProxy:    config.SocksProxy,
+		MemorySession: config.MemorySession,
+	})
 	if err != nil {
 		return errors.Wrap(err, "creating mtproto client")
 	}

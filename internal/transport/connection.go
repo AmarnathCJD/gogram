@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"net/url"
 	"time"
 
 	"github.com/pkg/errors"
@@ -19,7 +20,7 @@ type TCPConnConfig struct {
 	Ctx     context.Context
 	Host    string
 	Timeout time.Duration
-	Socks   *Socks
+	Socks   *url.URL
 }
 
 func NewTCP(cfg TCPConnConfig) (Conn, error) {

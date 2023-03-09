@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -30,7 +31,7 @@ const defaultTimeout = 65 * time.Second
 type MTProto struct {
 	Addr          string
 	appID         int32
-	socksProxy    *transport.Socks
+	socksProxy    *url.URL
 	transport     transport.Transport
 	stopRoutines  context.CancelFunc
 	routineswg    sync.WaitGroup
@@ -77,7 +78,7 @@ type Config struct {
 	PublicKey  *rsa.PublicKey
 	DataCenter int
 	LogLevel   string
-	SocksProxy *transport.Socks
+	SocksProxy *url.URL
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -102,7 +103,21 @@ func NewMTProto(c Config) (*MTProto, error) {
 		}
 	}
 
-	mtproto := &MTProto{sessionStorage: c.SessionStorage, Addr: c.ServerHost, encrypted: false, sessionId: utils.GenerateSessionID(), serviceChannel: make(chan tl.Object), PublicKey: c.PublicKey, responseChannels: utils.NewSyncIntObjectChan(), expectedTypes: utils.NewSyncIntReflectTypes(), serverRequestHandlers: make([]func(i any) bool, 0), Logger: utils.NewLogger("gogram - mtproto").SetLevel(c.LogLevel), memorySession: c.MemorySession, appID: c.AppID}
+	mtproto := &MTProto{
+		sessionStorage:        c.SessionStorage,
+		Addr:                  c.ServerHost,
+		encrypted:             false,
+		sessionId:             utils.GenerateSessionID(),
+		serviceChannel:        make(chan tl.Object),
+		PublicKey:             c.PublicKey,
+		responseChannels:      utils.NewSyncIntObjectChan(),
+		expectedTypes:         utils.NewSyncIntReflectTypes(),
+		serverRequestHandlers: make([]func(i any) bool, 0),
+		Logger:                utils.NewLogger("gogram - mtproto").SetLevel(c.LogLevel),
+		memorySession:         c.MemorySession,
+		appID:                 c.AppID,
+		socksProxy:            c.SocksProxy,
+	}
 	if loaded != nil || c.StringSession != "" {
 		mtproto.encrypted = true
 	}
@@ -179,7 +194,16 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	}
 	m.sessionStorage.Delete()
 	m.Logger.Debug("deleted old auth key file")
-	cfg := Config{DataCenter: dc, PublicKey: m.PublicKey, ServerHost: newAddr, AuthKeyFile: m.sessionStorage.Path(), MemorySession: false, LogLevel: m.Logger.Lev(), SocksProxy: m.socksProxy, AppID: m.appID}
+	cfg := Config{
+		DataCenter:    dc,
+		PublicKey:     m.PublicKey,
+		ServerHost:    newAddr,
+		AuthKeyFile:   m.sessionStorage.Path(),
+		MemorySession: m.memorySession,
+		LogLevel:      m.Logger.Lev(),
+		SocksProxy:    m.socksProxy,
+		AppID:         m.appID,
+	}
 	sender, err := NewMTProto(cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating new MTProto")
