@@ -441,6 +441,14 @@ func (m *NewMessage) Reply(Text interface{}, Opts ...SendOptions) (*NewMessage, 
 	return &response, err
 }
 
+func (m *NewMessage) ReplyWithoutError(Text interface{}, Opts ...SendOptions) *NewMessage {
+	resp, err := m.Reply(Text, Opts...)
+	if err != nil {
+		m.Client.WrapError(err)
+	}
+	return resp
+}
+
 func (m *NewMessage) Respond(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, SendOptions{})

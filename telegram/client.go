@@ -465,3 +465,11 @@ func (c *Client) Stop() error {
 	close(c.stopCh)
 	return c.MTProto.Terminate()
 }
+
+// WrapError sends an error to the error channel if it is not nil
+func (c *Client) WrapError(err error) error {
+	if err != nil {
+		c.Log.Error(err)
+	}
+	return err
+}
