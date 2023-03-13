@@ -2,67 +2,93 @@ package session
 
 import (
 	"encoding/base64"
+	"errors"
 	"strings"
 )
 
-const (
-	Prefix = "1Bv"
+var (
+	ErrInvalidSession = errors.New("the session string is invalid/has been tampered with")
 )
 
 type (
 	StringSession struct {
-		AuthKey     []byte
-		AuthKeyHash []byte
-		DCID        int
-		IpAddr      string
-		AppID       int32
-		Encoded     string
+		authKey     []byte
+		authKeyHash []byte
+		dcID        int
+		ipAddr      string
+		appID       int32
 	}
 )
 
-func (s StringSession) Encode() []byte {
-	return []byte(Prefix + base64.RawURLEncoding.EncodeToString(s.AuthKey))
+func NewStringSession(authKey, authKeyHash []byte, dcID int, ipAddr string, appID int32) *StringSession {
+	return &StringSession{
+		authKey:     authKey,
+		authKeyHash: authKeyHash,
+		dcID:        dcID,
+		ipAddr:      ipAddr,
+		appID:       appID,
+	}
 }
 
-func (s StringSession) AppendAllValues() string {
-	return string(s.GetAuthKey()) + "::" + string(s.GetAuthKeyHash()) + "::" + string(s.IpAddr) + "::" + string(rune(s.DCID)) + "::" + string(rune(s.AppID))
+func NewEmptyStringSession() *StringSession {
+	return &StringSession{}
 }
 
-func (s StringSession) GetAuthKey() string {
-	return string(s.AuthKey)
+func (s StringSession) AuthKey() []byte {
+	return s.authKey
 }
 
-func (s StringSession) GetAuthKeyHash() string {
-	return string(s.AuthKeyHash)
+func (s StringSession) AuthKeyHash() []byte {
+	return s.authKeyHash
 }
 
-func (s StringSession) EncodeToString() string {
-	return Prefix + base64.RawURLEncoding.EncodeToString([]byte(s.AppendAllValues()))
+func (s StringSession) DcID() int {
+	return s.dcID
 }
 
-func (s StringSession) GetDCID() int {
-	return s.DCID
+func (s StringSession) IpAddr() string {
+	return s.ipAddr
 }
 
-func (s StringSession) Decode() (AuthKey, AuthKeyHash []byte, DcID int, IpAddr string, AppID int32, err error) {
-	Decoded, err := base64.RawURLEncoding.DecodeString(s.Encoded[len(Prefix):])
+func (s StringSession) AppID() int32 {
+	return s.appID
+}
+
+func (s *StringSession) Encode() string {
+	stringPrefix := "1BvX"
+	sessionContents := []string{
+		string(s.authKey),
+		string(s.authKeyHash),
+		s.ipAddr,
+		string(rune(s.dcID)),
+		string(rune(s.appID)),
+	}
+	return stringPrefix + base64.RawURLEncoding.EncodeToString([]byte(strings.Join(sessionContents, "::")))
+}
+
+func (s *StringSession) Decode(encoded string) error {
+	decoded, err := base64.RawURLEncoding.DecodeString(encoded[len("1BvX"):])
 	if err != nil {
-		return nil, nil, 0, "", 0, err
+		return err
 	}
-	DecodedString := string(Decoded)
-	AuthKey, AuthKeyHash, IpAddr, DcID, AppID = s.SplitValues(DecodedString)
-	return AuthKey, AuthKeyHash, DcID, IpAddr, AppID, nil
-}
-
-func (s StringSession) SplitValues(DecodedString string) (AuthKey, AuthKeyHash []byte, IpAddr string, DcID int, AppID int32) {
-	Sep := strings.Split(DecodedString, "::")
-	if len(Sep) != 5 {
-		return nil, nil, "", 0, 0
+	decodedString := string(decoded)
+	split := strings.Split(decodedString, "::")
+	if len(split) != 5 {
+		return ErrInvalidSession
 	}
-	AuthKey = []byte(Sep[0])
-	AuthKeyHash = []byte(Sep[1])
-	IpAddr = Sep[2]
-	DcID = int(Sep[3][0])
-	AppID = int32(Sep[4][0])
-	return AuthKey, AuthKeyHash, IpAddr, DcID, AppID
+	for i, v := range split {
+		switch i {
+		case 0:
+			s.authKey = []byte(v)
+		case 1:
+			s.authKeyHash = []byte(v)
+		case 2:
+			s.ipAddr = v
+		case 3:
+			s.dcID = int(v[0])
+		case 4:
+			s.appID = int32(v[0])
+		}
+	}
+	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -30,7 +31,7 @@ const defaultTimeout = 65 * time.Second
 type MTProto struct {
 	Addr          string
 	appID         int32
-	socksProxy    *transport.Socks
+	socksProxy    *url.URL
 	transport     transport.Transport
 	stopRoutines  context.CancelFunc
 	routineswg    sync.WaitGroup
@@ -66,10 +67,6 @@ type MTProto struct {
 	serverRequestHandlers []func(i any) bool
 }
 
-type customHandles struct {
-	// custom handlers for server requests
-}
-
 type Config struct {
 	AuthKeyFile    string
 	StringSession  string
@@ -81,7 +78,7 @@ type Config struct {
 	PublicKey  *rsa.PublicKey
 	DataCenter int
 	LogLevel   string
-	SocksProxy *transport.Socks
+	SocksProxy *url.URL
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -106,7 +103,21 @@ func NewMTProto(c Config) (*MTProto, error) {
 		}
 	}
 
-	mtproto := &MTProto{sessionStorage: c.SessionStorage, Addr: c.ServerHost, encrypted: false, sessionId: utils.GenerateSessionID(), serviceChannel: make(chan tl.Object), PublicKey: c.PublicKey, responseChannels: utils.NewSyncIntObjectChan(), expectedTypes: utils.NewSyncIntReflectTypes(), serverRequestHandlers: make([]func(i any) bool, 0), Logger: utils.NewLogger("gogram - mtproto").SetLevel(c.LogLevel), memorySession: c.MemorySession, appID: c.AppID}
+	mtproto := &MTProto{
+		sessionStorage:        c.SessionStorage,
+		Addr:                  c.ServerHost,
+		encrypted:             false,
+		sessionId:             utils.GenerateSessionID(),
+		serviceChannel:        make(chan tl.Object),
+		PublicKey:             c.PublicKey,
+		responseChannels:      utils.NewSyncIntObjectChan(),
+		expectedTypes:         utils.NewSyncIntReflectTypes(),
+		serverRequestHandlers: make([]func(i any) bool, 0),
+		Logger:                utils.NewLogger("gogram - mtproto").SetLevel(c.LogLevel),
+		memorySession:         c.MemorySession,
+		appID:                 c.AppID,
+		socksProxy:            c.SocksProxy,
+	}
 	if loaded != nil || c.StringSession != "" {
 		mtproto.encrypted = true
 	}
@@ -134,7 +145,7 @@ func (m *MTProto) ExportAuth() ([]byte, []byte, string, int, int32) {
 	return m.authKey, m.authKeyHash, m.Addr, m.GetDC(), m.appID
 }
 
-func (m *MTProto) ImportRawAuth(authKey []byte, authKeyHash []byte, addr string, dc int, appID int32) (bool, error) {
+func (m *MTProto) ImportRawAuth(authKey []byte, authKeyHash []byte, addr string, _ int, appID int32) (bool, error) {
 	m.authKey, m.authKeyHash, m.Addr, m.appID = authKey, authKeyHash, addr, appID
 	m.Logger.Debug("imported auth key, auth key hash, addr, dc, appID")
 	if !m.memorySession {
@@ -148,16 +159,13 @@ func (m *MTProto) ImportRawAuth(authKey []byte, authKeyHash []byte, addr string,
 	return true, nil
 }
 
-func (m *MTProto) ImportAuth(Session string) (bool, error) {
-	StringSession := &session.StringSession{
-		Encoded: Session,
+func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
+	sessionString := session.NewEmptyStringSession()
+	if err := sessionString.Decode(stringSession); err != nil {
+		return false, err
 	}
-	AuthKey, AuthKeyHash, _, IpAddr, AppID, err := StringSession.Decode()
-	if err != nil {
-		return false, fmt.Errorf("decoding string session: %w", err)
-	}
-	m.authKey, m.authKeyHash, m.Addr, m.appID = AuthKey, AuthKeyHash, IpAddr, AppID
-	m.Logger.Debug("imported auth key, auth key hash, addr, dc, appID from string session")
+	m.authKey, m.authKeyHash, m.Addr, m.appID = sessionString.AuthKey(), sessionString.AuthKeyHash(), sessionString.IpAddr(), sessionString.AppID()
+	m.Logger.Debug("importing Auth from stringSession...")
 	if !m.memorySession {
 		if err := m.SaveSession(); err != nil {
 			return false, fmt.Errorf("saving session: %w", err)
@@ -167,10 +175,9 @@ func (m *MTProto) ImportAuth(Session string) (bool, error) {
 }
 
 func (m *MTProto) GetDC() int {
-	addr := m.Addr
-	for k, v := range utils.DcList {
-		if v == addr {
-			return k
+	for dc, addr := range utils.DcList {
+		if addr == m.Addr {
+			return dc
 		}
 	}
 	return 4
@@ -187,7 +194,16 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	}
 	m.sessionStorage.Delete()
 	m.Logger.Debug("deleted old auth key file")
-	cfg := Config{DataCenter: dc, PublicKey: m.PublicKey, ServerHost: newAddr, AuthKeyFile: m.sessionStorage.Path(), MemorySession: false, LogLevel: m.Logger.Lev(), SocksProxy: m.socksProxy, AppID: m.appID}
+	cfg := Config{
+		DataCenter:    dc,
+		PublicKey:     m.PublicKey,
+		ServerHost:    newAddr,
+		AuthKeyFile:   m.sessionStorage.Path(),
+		MemorySession: m.memorySession,
+		LogLevel:      m.Logger.Lev(),
+		SocksProxy:    m.socksProxy,
+		AppID:         m.appID,
+	}
 	sender, err := NewMTProto(cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating new MTProto")
@@ -215,7 +231,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		cfg.SessionStorage = m.sessionStorage
 	}
 	sender, _ := NewMTProto(cfg)
-	m.Logger.Info("exporting new sender to [DC " + strconv.Itoa(dcID) + "]")
+	m.Logger.Info("exporting new sender for [DC " + strconv.Itoa(dcID) + "]")
 	err = sender.CreateConnection(true)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating connection")
@@ -228,7 +244,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Info("Connecting to <" + m.Addr + "> - <TCPFull>...")
+		m.Logger.Info("Connecting to [" + m.Addr + "] - <TCPFull> ...")
 	}
 	err := m.connect(ctx)
 	if err != nil {
@@ -236,7 +252,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 	m.tcpActive = true
 	if withLog {
-		m.Logger.Info("Connection to <" + m.Addr + "> - <TCPFull> established!")
+		m.Logger.Info("Connection to [" + m.Addr + "] - <TCPFull> established")
 	}
 	m.startReadingResponses(ctx)
 	if !m.encrypted {
@@ -278,7 +294,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	resp, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
 		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") {
-			m.Logger.Info("connection closed due to broken pipe, reconnecting to <" + m.Addr + ">" + "<TCPFull>...")
+			m.Logger.Info("connection closed due to broken pipe, reconnecting to [" + m.Addr + "]" + " - <TCPFull> ...")
 			err = m.Reconnect(false)
 			if err != nil {
 				m.Logger.Error("reconnecting: " + err.Error())
@@ -293,7 +309,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	case *objects.RpcError:
 		realErr := RpcErrorToNative(r).(*ErrResponseCode)
 		if strings.Contains(realErr.Message, "FLOOD_WAIT_") {
-			m.Logger.Info("flood wait delected on " + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf(" request. sleeping for %d seconds", realErr.AdditionalInfo.(int)))
+			m.Logger.Info("Flood wait detected on " + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf(" request. sleeping for %d seconds", realErr.AdditionalInfo.(int)))
 			time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
 			return m.makeRequest(data, expectedTypes...)
 		}
@@ -329,7 +345,7 @@ func (m *MTProto) Disconnect() error {
 func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
-	m.Logger.Info("terminating connection to <" + m.Addr + "> - <TCPFull>...")
+	m.Logger.Info("terminating connection to [" + m.Addr + "] - <TCPFull> ...")
 	m.tcpActive = false
 	return nil
 }
@@ -340,12 +356,12 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		return errors.Wrap(err, "disconnecting")
 	}
 	if WithLogs {
-		m.Logger.Info("Reconnecting to <" + m.Addr + "> - <TCPFull>...")
+		m.Logger.Info("Reconnecting to [" + m.Addr + "] - <TCPFull> ...")
 	}
 
 	err = m.CreateConnection(WithLogs)
 	if err == nil && WithLogs {
-		m.Logger.Info("Reconnected to <" + m.Addr + "> - <TCPFull>!")
+		m.Logger.Info("Reconnected to [" + m.Addr + "] - <TCPFull> ...")
 	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
@@ -371,7 +387,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				return
 			default:
 				if !m.tcpActive {
-					m.Logger.Warn("Connection is not established with <" + m.Addr + "> - <TCPFull>!")
+					m.Logger.Warn("Connection is not established with, stopping Updates Queue")
 					return
 				}
 				err := m.readMsg()

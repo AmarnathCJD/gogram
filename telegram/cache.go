@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
-	"unsafe"
 
 	aes "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/utils"
@@ -22,6 +23,7 @@ const (
 )
 
 type CACHE struct {
+	sync.RWMutex
 	chats      map[int64]*ChatObj
 	users      map[int64]*UserObj
 	channels   map[int64]*Channel
@@ -49,6 +51,8 @@ func (c *CACHE) flushToFile() {
 	}
 	// encode to aes encrypted json file
 	var b []byte
+	c.RLock()
+	defer c.RUnlock()
 	b, err = json.Marshal(c)
 	if err != nil {
 		c.logger.Error("Error while marshalling cache.journal: %v", err)
@@ -73,6 +77,8 @@ func (c *CACHE) loadFromFile() {
 	if err != nil {
 		c.logger.Error("Error while decrypting cache.journal: %v", err)
 	}
+	c.Lock()
+	defer c.Unlock()
 	err = json.Unmarshal(b, c)
 	if err != nil {
 		c.logger.Error("Error while unmarshalling cache.journal: %v", err)
@@ -101,6 +107,8 @@ func NewCache() *CACHE {
 }
 
 func (c *CACHE) getUserPeer(userID int64) (InputUser, error) {
+	c.RLock()
+	defer c.RUnlock()
 	for _, user := range c.InputPeers.InputUsers {
 		if user.UserID == userID {
 			return &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, nil
@@ -110,6 +118,8 @@ func (c *CACHE) getUserPeer(userID int64) (InputUser, error) {
 }
 
 func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
+	c.RLock()
+	defer c.RUnlock()
 	for _, channel := range c.InputPeers.InputChannels {
 		if channel.ChannelID == channelID {
 			return &InputChannelObj{ChannelID: channel.ChannelID, AccessHash: channel.AccessHash}, nil
@@ -119,9 +129,9 @@ func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
 }
 
 func (c *CACHE) GetInputPeer(peerID int64) (InputPeer, error) {
-
+	// if peerID is negative, it is a channel or a chat
 	if strings.HasPrefix(strconv.Itoa(int(peerID)), "-100") {
-		peerID = peerID - 1000000000000
+		peerID = int64(math.Abs(float64(peerID))) - 1000000000000
 	}
 	for _, user := range c.InputPeers.InputUsers {
 		if user.UserID == peerID {
@@ -198,6 +208,9 @@ func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 }
 
 func (c *Client) getChatFromCache(chatID int64) (*ChatObj, error) {
+	c.Cache.Lock()
+	defer c.Cache.Unlock()
+
 	for _, chat := range c.Cache.chats {
 		if chat.ID == chatID {
 			return chat, nil
@@ -250,6 +263,8 @@ func (c *Client) GetChat(chatID int64) (*ChatObj, error) {
 // ----------------- Update User/Channel/Chat in cache -----------------
 
 func (c *CACHE) UpdateUser(user *UserObj) {
+	c.RLock()
+	defer c.RUnlock()
 
 	c.users[user.ID] = user
 	peerUser := &InputPeerUser{UserID: user.ID, AccessHash: user.AccessHash}
@@ -257,6 +272,8 @@ func (c *CACHE) UpdateUser(user *UserObj) {
 }
 
 func (c *CACHE) UpdateChannel(channel *Channel) {
+	c.RLock()
+	defer c.RUnlock()
 
 	c.channels[channel.ID] = channel
 	peerChannel := &InputPeerChannel{ChannelID: channel.ID, AccessHash: channel.AccessHash}
@@ -264,6 +281,8 @@ func (c *CACHE) UpdateChannel(channel *Channel) {
 }
 
 func (c *CACHE) UpdateChat(chat *ChatObj) {
+	c.RLock()
+	defer c.RUnlock()
 
 	c.chats[chat.ID] = chat
 	peerChat := &InputPeerChat{ChatID: chat.ID}
@@ -293,12 +312,13 @@ func (cache *CACHE) UpdatePeersToCache(u []User, c []Chat) {
 
 // ----------------- Cache Misc Functions -----------------
 
-func (c *CACHE) GetSize() uintptr {
-
-	return unsafe.Sizeof(c.users) + unsafe.Sizeof(c.chats) + unsafe.Sizeof(c.channels)
+func (c *CACHE) GetSize() int {
+	return len(c.users) + len(c.chats) + len(c.channels)
 }
 
 func (c *CACHE) Purge() {
+	c.RLock()
+	defer c.RUnlock()
 
 	c.users = make(map[int64]*UserObj)
 	c.chats = make(map[int64]*ChatObj)
@@ -322,5 +342,3 @@ func (c *Client) GetPeerChannel(channelID int64) (*InputPeerChannel, error) {
 	}
 	return nil, fmt.Errorf("no channel with id %d or missing from cache", channelID)
 }
-
-// ----------------- AES Encryption -----------------
