@@ -115,10 +115,24 @@ func mimeIsPhoto(mime string) bool {
 	return strings.HasPrefix(mime, "image/") && !strings.Contains(mime, "image/webp")
 }
 
+func GetFileLocation(file interface{}) (InputFileLocation, int32, int64, string, error) {
+	return getFileLocation(file)
+}
+
 func getFileLocation(file interface{}) (InputFileLocation, int32, int64, string, error) {
-	var location interface{}
+	var (
+		location   interface{}
+		dataCenter int32 = 4
+		fileSize   int64
+	)
 mediaMessageSwitch:
 	switch f := file.(type) {
+	case InputFileLocation:
+		return f, dataCenter, fileSize, "", nil
+	case UserPhoto:
+		location, _ = f.InputLocation()
+		dataCenter = f.DcID()
+		fileSize = f.FileSize()
 	case *Photo, *Document:
 		location = f
 	case *MessageMediaDocument:
@@ -149,8 +163,6 @@ mediaMessageSwitch:
 				}
 			}
 		}
-	case *InputPeerPhotoFileLocation:
-		return f, 0, 0, "profile_photo.jpg", nil
 	default:
 		return nil, 0, 0, "", errors.New("unsupported file type")
 	}
@@ -170,6 +182,8 @@ mediaMessageSwitch:
 			FileReference: l.FileReference,
 			ThumbSize:     sizeType,
 		}, l.DcID, size, getFileName(l), nil
+	case *InputPhotoFileLocation:
+		return l, dataCenter, fileSize, "", nil
 	default:
 		return nil, 0, 0, "", errors.New("unsupported file type")
 	}
@@ -260,6 +274,8 @@ func getFileName(f interface{}) string {
 		return "photo.jpg"
 	case *InputPeerPhotoFileLocation:
 		return "peer_photo.jpg"
+	case *InputPhotoFileLocation:
+		return "photo_file.jpg"
 	default:
 		return "download"
 	}
@@ -351,14 +367,6 @@ func getPeerUser(userID int64) *PeerUser {
 	}
 }
 
-// Fix this
-func GetOption(Type interface{}, options []interface{}) interface{} {
-	if len(options) == 0 {
-		return Type
-	}
-	return options[0]
-}
-
 func IsUrl(str string) bool {
 	u, err := url.Parse(str)
 	return err == nil && u.Scheme != "" && u.Host != ""
@@ -385,6 +393,15 @@ func getValue(val interface{}, def interface{}) interface{} {
 		}
 	}
 	return val
+}
+
+// Internal Function to get the current Working Directory
+func workDirectory() string {
+	ex, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	return filepath.Dir(ex)
 }
 
 // Inverse operation of ResolveBotFileID
@@ -465,7 +482,7 @@ func UnpackBotFileID(fileID string) (int64, int64, int32, int32) {
 // https://core.telegram.org/bots/api#file
 //
 //	Accepted Types:
-//		fileID
+//		string
 func ResolveBotFileID(fileID string) (MessageMedia, error) {
 	fID, accessHash, fileType, dcID := UnpackBotFileID(fileID)
 	if fID == 0 || accessHash == 0 || fileType == 0 || dcID == 0 {
