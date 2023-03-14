@@ -25,6 +25,64 @@ type PhotosOptions struct {
 	Limit  int32 `json:"limit,omitempty"`
 }
 
+type UserPhoto struct {
+	Photo Photo
+}
+
+func (p *UserPhoto) FileID() string {
+	return PackBotFileID(p.Photo)
+}
+
+func (p *UserPhoto) FileSize() int64 {
+	switch p := p.Photo.(type) {
+	case *PhotoObj:
+		if p.VideoSizes != nil {
+			return int64(p.VideoSizes[len(p.VideoSizes)-1].Size)
+		}
+		size, _ := getPhotoSize(p.Sizes[len(p.Sizes)-1])
+		return size
+	}
+	return 0
+}
+
+func (p *UserPhoto) DcID() int32 {
+	switch p := p.Photo.(type) {
+	case *PhotoObj:
+		return p.DcID
+	}
+	return 4
+}
+
+func (p *UserPhoto) InputLocation() (*InputPhotoFileLocation, error) {
+	if photo, ok := p.Photo.(*PhotoObj); ok {
+		if photo.VideoSizes != nil {
+			vidT := ""
+			for _, v := range photo.VideoSizes {
+				vIndt := reflect.Indirect(reflect.ValueOf(v))
+				switch vIndt.Type().Name() {
+				case "VideoSize":
+					vidT = vIndt.FieldByName("Type").String()
+				}
+			}
+
+			return &InputPhotoFileLocation{
+				ID:            photo.ID,
+				AccessHash:    photo.AccessHash,
+				FileReference: photo.FileReference,
+				ThumbSize:     vidT,
+			}, nil
+		}
+		_, thumbSize := getPhotoSize(photo.Sizes[len(photo.Sizes)-1])
+		return &InputPhotoFileLocation{
+			ID:            photo.ID,
+			AccessHash:    photo.AccessHash,
+			FileReference: photo.FileReference,
+			ThumbSize:     thumbSize,
+		}, nil
+	}
+	return nil, errors.New("could not convert photo: " + reflect.TypeOf(p.Photo).String())
+}
+
 // GetProfilePhotos returns the profile photos of a user
 //
 //	Params:
@@ -32,7 +90,7 @@ type PhotosOptions struct {
 //	 - Offset: The offset to start from
 //	 - Limit: The number of photos to return
 //	 - MaxID: The maximum ID of the photo to return
-func (c *Client) GetProfilePhotos(userID interface{}, Opts ...*PhotosOptions) ([]Photo, error) {
+func (c *Client) GetProfilePhotos(userID interface{}, Opts ...*PhotosOptions) ([]UserPhoto, error) {
 	Options := getVariadic(Opts, &PhotosOptions{}).(*PhotosOptions)
 	if Options.Limit > 80 {
 		Options.Limit = 80
@@ -45,7 +103,7 @@ func (c *Client) GetProfilePhotos(userID interface{}, Opts ...*PhotosOptions) ([
 	}
 	User, ok := peer.(*InputPeerUser)
 	if !ok {
-		return nil, errors.New("peer is not a user")
+		return nil, errors.New("given peer is not a user")
 	}
 	resp, err := c.PhotosGetUserPhotos(
 		&InputUserObj{UserID: User.UserID, AccessHash: User.AccessHash},
@@ -59,10 +117,18 @@ func (c *Client) GetProfilePhotos(userID interface{}, Opts ...*PhotosOptions) ([
 	switch p := resp.(type) {
 	case *PhotosPhotosObj:
 		c.Cache.UpdatePeersToCache(p.Users, []Chat{})
-		return p.Photos, nil
+		photos := make([]UserPhoto, len(p.Photos))
+		for i, photo := range p.Photos {
+			photos[i] = UserPhoto{Photo: photo}
+		}
+		return photos, nil
 	case *PhotosPhotosSlice:
 		c.Cache.UpdatePeersToCache(p.Users, []Chat{})
-		return p.Photos, nil
+		photos := make([]UserPhoto, len(p.Photos))
+		for i, photo := range p.Photos {
+			photos[i] = UserPhoto{Photo: photo}
+		}
+		return photos, nil
 	default:
 		return nil, errors.New("could not convert photos: " + reflect.TypeOf(resp).String())
 	}
@@ -78,7 +144,6 @@ type DialogOptions struct {
 }
 
 type CustomDialog struct{} // TODO
-
 // GetDialogs returns the dialogs of the user
 //
 //	Params:
@@ -153,7 +218,7 @@ func (c *Client) GetCommonChats(userID interface{}) ([]Chat, error) {
 //	 - emoji: The emoji status to set
 func (c *Client) SetEmojiStatus(emoji ...interface{}) (bool, error) {
 	var status EmojiStatus
-	if len(emoji) < 1 {
+	if len(emoji) == 0 {
 		status = &EmojiStatusEmpty{}
 	} else {
 		em := emoji[0]
