@@ -56,20 +56,11 @@ func (p *UserPhoto) DcID() int32 {
 func (p *UserPhoto) InputLocation() (*InputPhotoFileLocation, error) {
 	if photo, ok := p.Photo.(*PhotoObj); ok {
 		if photo.VideoSizes != nil {
-			vidT := ""
-			for _, v := range photo.VideoSizes {
-				vIndt := reflect.Indirect(reflect.ValueOf(v))
-				switch vIndt.Type().Name() {
-				case "VideoSize":
-					vidT = vIndt.FieldByName("Type").String()
-				}
-			}
-
 			return &InputPhotoFileLocation{
 				ID:            photo.ID,
 				AccessHash:    photo.AccessHash,
 				FileReference: photo.FileReference,
-				ThumbSize:     vidT,
+				ThumbSize:     photo.VideoSizes[0].Type,
 			}, nil
 		}
 		_, thumbSize := getPhotoSize(photo.Sizes[len(photo.Sizes)-1])
