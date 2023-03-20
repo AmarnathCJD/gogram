@@ -138,7 +138,7 @@ TODO
 - ✔️ Add Update Handle System
 - ✔️ Make a reliable HTML Parser
 - ✔️ Friendly Methods to Handle CallbackQuery, VoiceCalls
-- 🔨 Add Flag2.0 Parser (Then update to Layer-151https://img.shields.io/github/issues/amarnathcjd/gogram)
+- 🔨 Add Flag2.0 Parser (Then update to Layer-151)
 - 📝 Fix File handling
 - 📝 Write beautiful Docs
 - 📝 Multiple tests
