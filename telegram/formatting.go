@@ -24,9 +24,9 @@ func NewFormatter() *Formatter {
 var Fmt = NewFormatter()
 
 func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, string) {
-	if mode == HTML {
+	if strings.EqualFold(mode, HTML) {
 		return Fmt.parseHTML(message)
-	} else if mode == MarkDown {
+	} else if strings.EqualFold(mode, MarkDown) {
 		return Fmt.parseMarkdown(message)
 	} else {
 		return []MessageEntity{}, message
