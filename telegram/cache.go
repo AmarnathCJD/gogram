@@ -11,15 +11,12 @@ import (
 	"sync"
 	"time"
 
-	aes "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
 const (
 	// CacheUpdateInterval is the interval in seconds at which the cache is updated
 	CacheUpdateInterval = 60
-	// AesKey is the key used to encrypt the cache file
-	AesKey = "12345678901234567890123456789012"
 )
 
 type CACHE struct {
@@ -49,7 +46,6 @@ func (c *CACHE) flushToFile() {
 	if err != nil {
 		log.Println(err)
 	}
-	// encode to aes encrypted json file
 	var b []byte
 	c.RLock()
 	defer c.RUnlock()
@@ -57,14 +53,10 @@ func (c *CACHE) flushToFile() {
 	if err != nil {
 		c.logger.Error("Error while marshalling cache.journal: %v", err)
 	}
-	b, err = aes.EncryptAES(b, AesKey)
-	if err != nil {
-		c.logger.Error("Error while encrypting cache.journal: %v", err)
-	}
-	_, err = f.Write(b)
-	if err != nil {
-		c.logger.Error("Error while writing to cache.journal: %v", err)
-	}
+	// prevent corruption of cache file if the program is killed while writing
+	// to the file
+	f.Write(b)
+	f.Close()
 }
 
 func (c *CACHE) loadFromFile() {
@@ -72,10 +64,6 @@ func (c *CACHE) loadFromFile() {
 	b, err := os.ReadFile("cache.journal")
 	if err != nil {
 		return
-	}
-	b, err = aes.DecryptAES(b, AesKey)
-	if err != nil {
-		c.logger.Error("Error while decrypting cache.journal: %v", err)
 	}
 	c.Lock()
 	defer c.Unlock()

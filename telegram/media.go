@@ -20,6 +20,19 @@ const (
 	DEFAULT_PARTS   = 512 * 1024
 )
 
+type Progress struct {
+	Total int64 `json:"total,omitempty"`
+	Now   int64 `json:"now,omitempty"`
+	Done  bool  `json:"done,omitempty"`
+}
+
+func (p *Progress) String() string {
+	if p.Done {
+		return "100%"
+	}
+	return fmt.Sprintf("%f%%", (float64(p.Now) / float64(p.Total) * 100))
+}
+
 type UploadOptions struct {
 	// Worker count for upload file.
 	Threads int `json:"threads,omitempty"`
@@ -28,7 +41,7 @@ type UploadOptions struct {
 	// File name for upload file.
 	FileName string `json:"file_name,omitempty"`
 	// output Progress channel for upload file.
-	ProgressChan chan [2]int64 `json:"-"`
+	ProgressChan chan Progress `json:"progress_chan,omitempty"`
 }
 
 type FileMeta struct {
@@ -47,7 +60,8 @@ type Uploader struct {
 	Workers   []*Client   `json:"workers,omitempty"`
 	wg        *sync.WaitGroup
 	FileID    int64 `json:"file_id,omitempty"`
-	progress  chan [2]int64
+	progress  chan Progress
+	totalDone int64
 	Meta      FileMeta `json:"meta,omitempty"`
 }
 
@@ -67,6 +81,9 @@ func (c *Client) UploadFile(file interface{}, Opts ...*UploadOptions) (InputFile
 			FileName: opts.FileName,
 		},
 	}
+	if opts.ProgressChan != nil {
+		u.progress = opts.ProgressChan
+	}
 	return u.Upload()
 }
 
@@ -77,6 +94,7 @@ func (u *Uploader) Upload() (InputFile, error) {
 	if err := u.Start(); err != nil {
 		return nil, err
 	}
+	u.progress <- Progress{Total: u.Meta.FileSize, Now: u.Meta.FileSize, Done: true}
 	return u.saveFile(), nil
 }
 
@@ -130,7 +148,6 @@ func (u *Uploader) Init() error {
 		u.Meta.IsBig = true
 	}
 	u.FileID = GenerateRandomLong() // Generate random file id
-	u.progress = make(chan [2]int64, 1)
 	u.wg = &sync.WaitGroup{}
 	return nil
 }
@@ -141,7 +158,7 @@ func (u *Uploader) allocateWorkers() error {
 		return err
 	}
 	u.Workers = borrowedSenders
-	fmt.Println("Allocated workers: ", len(u.Workers), " for file upload")
+	u.Client.Log.Info("Upload file: ", u.Meta.FileName, " size: ", u.Meta.FileSize, " parts: ", u.Parts, " workers: ", u.Worker)
 
 	u.Client.Log.Debug("Allocated workers: ", len(u.Workers), " for file upload")
 	return nil
@@ -276,6 +293,10 @@ func (u *Uploader) uploadParts(w *Client, parts []int32) {
 			_, err = w.UploadSaveFilePart(u.FileID, i, buf)
 		}
 		w.Logger.Debug(fmt.Sprintf("uploaded part %d of %d", i, u.Parts))
+		u.totalDone++
+		if u.progress != nil {
+			u.progress <- Progress{Total: int64(u.Parts), Now: u.totalDone}
+		}
 		if err != nil {
 			panic(err)
 		}
