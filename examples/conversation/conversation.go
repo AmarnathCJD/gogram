@@ -31,7 +31,7 @@ func main() {
 	}
 
 	// new conversation
-	conv, _ := client.NewConversation("username or id", 30) // 30 is the timeout in seconds
+	conv, _ := client.NewConversation("username or id", false, 30) // 30 is the timeout in seconds, false means it's not a private conversation
 	defer conv.Close()
 	_, err := conv.SendMessage("Hello, Please reply to this message")
 	if err != nil {

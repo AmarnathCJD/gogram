@@ -23,22 +23,24 @@ type handle interface {
 
 // Conversation is a struct for conversation with user.
 type Conversation struct {
-	Client  *Client
-	Peer    InputPeer
-	timeOut int
-	openH   []handle
-	lastMsg *NewMessage
+	Client    *Client
+	Peer      InputPeer
+	isPrivate bool
+	timeOut   int
+	openH     []handle
+	lastMsg   *NewMessage
 }
 
-func (c *Client) NewConversation(peer any, timeout ...int) (*Conversation, error) {
+func (c *Client) NewConversation(peer any, isPrivate bool, timeout ...int) (*Conversation, error) {
 	peerID, err := c.GetSendablePeer(peer)
 	if err != nil {
 		return nil, err
 	}
 	return &Conversation{
-		Client:  c,
-		Peer:    peerID,
-		timeOut: getVariadic(timeout, DefaultTimeOut).(int),
+		Client:    c,
+		Peer:      peerID,
+		isPrivate: isPrivate,
+		timeOut:   getVariadic(timeout, DefaultTimeOut).(int),
 	}, nil
 }
 
@@ -83,6 +85,7 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 		filter.Chats = append(filter.Chats, peerID)
 	default:
 		filter.Users = append(filter.Users, peerID)
+		filter.IsPrivate = c.isPrivate
 	}
 	h := c.Client.AddMessageHandler(OnNewMessage, waitFunc, filter)
 	c.openH = append(c.openH, &h)
@@ -109,6 +112,9 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 		default:
 			if m.SenderID() == peerID {
 				IsTrigger = true
+			}
+			if c.isPrivate && !m.IsPrivate() {
+				IsTrigger = false
 			}
 		}
 		if IsTrigger {
@@ -143,6 +149,9 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 			default:
 				if m.SenderID() == peerID {
 					IsTrigger = true
+				}
+				if c.isPrivate && !m.IsPrivate() {
+					IsTrigger = false
 				}
 			}
 			if IsTrigger {

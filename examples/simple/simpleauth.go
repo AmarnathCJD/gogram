@@ -7,7 +7,7 @@ import (
 func main() {
 	client, _ := tg.NewClient(tg.ClientConfig{
 		AppID:   6,
-		ApiHash: "",
+		AppHash: "",
 	})
 	client.Start() // this calls client.Connect()
 	// Then asks for userInput for phone num or botToken
