@@ -46,7 +46,7 @@ func (c *Client) SendMessage(peerID interface{}, message interface{}, opts ...*S
 	)
 	switch message := message.(type) {
 	case string:
-		entities, textMessage = Fmt.parseEntities(message, opt.ParseMode)
+		entities, textMessage = parseEntities(message, opt.ParseMode)
 		rawText = message
 	case MessageMedia, InputMedia, InputFile:
 		media = message
@@ -123,7 +123,7 @@ func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, 
 	)
 	switch message := message.(type) {
 	case string:
-		entities, textMessage = Fmt.parseEntities(message, opt.ParseMode)
+		entities, textMessage = parseEntities(message, opt.ParseMode)
 	case MessageMedia, InputMedia, InputFile:
 		media = message
 	case *NewMessage:
@@ -285,7 +285,7 @@ func (c *Client) SendMedia(peerID interface{}, Media interface{}, opts ...*Media
 	}
 	switch cap := opt.Caption.(type) {
 	case string:
-		entities, textMessage = Fmt.parseEntities(cap, opt.ParseMode)
+		entities, textMessage = parseEntities(cap, opt.ParseMode)
 	case *NewMessage:
 		entities = cap.Message.Entities
 		textMessage = cap.MessageText()
@@ -354,7 +354,7 @@ func (c *Client) SendAlbum(peerID interface{}, Album interface{}, opts ...*Media
 
 	switch cap := opt.Caption.(type) {
 	case string:
-		entities, textMessage = Fmt.parseEntities(cap, opt.ParseMode)
+		entities, textMessage = parseEntities(cap, opt.ParseMode)
 	case *NewMessage:
 		entities = cap.Message.Entities
 		textMessage = cap.MessageText()
