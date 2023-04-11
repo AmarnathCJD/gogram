@@ -6,48 +6,25 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"github.com/amarnathcjd/gogram/internal/utils"
 	"golang.org/x/net/html"
 )
 
-type Formatter struct {
-	Log *utils.Logger
-}
-
-func NewFormatter() *Formatter {
-	return &Formatter{
-		Log: utils.NewLogger("gogram - formatter - "),
-	}
-}
-
-var Fmt = NewFormatter()
-
 func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, string) {
-	if mode == HTML {
-		return Fmt.parseHTML(message)
+	return parseEntities(message, mode)
+}
+
+func parseEntities(message string, mode string) ([]MessageEntity, string) {
+	if strings.EqualFold(mode, HTML) {
+		return parseHTML(message)
 	} else if strings.EqualFold(mode, MarkDown) {
-		return Fmt.parseHTML(message) // TODO: parseMarkdown
-	} else if mode == MarkDown {
-		return Fmt.parseHTML(message) // TODO: parseMarkdown
-	} else {
-		return []MessageEntity{}, message
+		return parseHTML(message) // TODO: parseMarkdown
 	}
+	return []MessageEntity{}, message
 }
 
-func (f *Formatter) parseEntities(text string, parseMode string) (entities []MessageEntity, newText string) {
-	switch parseMode {
-	case HTML:
-		return f.parseHTML(text)
-	case MarkDown:
-		return f.parseHTML(text) // TODO: parseMarkdown
-	}
-	return []MessageEntity{}, text
-}
-
-func (f *Formatter) parseHTML(text string) ([]MessageEntity, string) {
-	cleanedText, tags, err := parseHTML(text)
+func parseHTML(text string) ([]MessageEntity, string) {
+	cleanedText, tags, err := parseHTMLToTags(text)
 	if err != nil {
-		f.Log.Error("Error parsing HTML: ", err)
 		return []MessageEntity{}, text
 	}
 
@@ -73,7 +50,7 @@ func supportedTag(tag string) bool {
 	return false
 }
 
-func parseHTML(htmlStr string) (string, []Tag, error) {
+func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 	// Parse the HTML string into a tree of nodes
 	doc, err := html.Parse(strings.NewReader(htmlStr))
 	if err != nil {
@@ -200,6 +177,7 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 	return entities
 }
 
+// parseEntitiesToHTML converts a list of MessageEntities to HTML, given the original text
 func parseEntitiesToHTML(entities []MessageEntity, text string) string {
 	return "TODO: Implement parseEntitiesToHTML"
 }
