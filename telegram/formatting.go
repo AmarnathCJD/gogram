@@ -51,6 +51,8 @@ func supportedTag(tag string) bool {
 }
 
 func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
+        // escape newLine charectors
+        htmlStr = strings.Replace(htmlStr, "\n", "\r\n", -1)
 	// Parse the HTML string into a tree of nodes
 	doc, err := html.Parse(strings.NewReader(htmlStr))
 	if err != nil {
