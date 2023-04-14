@@ -1,6 +1,8 @@
 package telegram
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+)
 
 // GetChatPhotos returns the profile photos of a chat
 //
@@ -539,13 +541,84 @@ func (c *Client) DeleteChannel(channelID interface{}) (*Updates, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	channelPeer, ok := peer.(*InputPeerChannel)
 	if !ok {
 		return nil, errors.New("could not convert peer to channel")
 	}
-	u, err := c.ChannelsDeleteChannel(&InputChannelObj{ChannelID: channelPeer.ChannelID, AccessHash: channelPeer.AccessHash})
+
+	u, err := c.ChannelsDeleteChannel(&InputChannelObj{
+		ChannelID:  channelPeer.ChannelID,
+		AccessHash: channelPeer.AccessHash,
+	})
+
 	if err != nil {
 		return nil, err
 	}
+
 	return &u, nil
+}
+
+func (c *Client) GetChatJoinRequests(channelID interface{}, lim int) ([]*UserObj, error) {
+	perLimit := 100
+	var currentOffsetUser InputUser = &InputUserEmpty{}
+	currentOffsetDate := 0
+
+	// Set active limit to lim if it's less than perLimit, else set it to perLimit
+	activeLimit := perLimit
+	if lim < perLimit {
+		activeLimit = lim
+	}
+
+	// Get sendable peer
+	peer, err := c.GetSendablePeer(channelID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize empty slice to store all users
+	var allUsers []*UserObj
+
+	// Loop until lim is reached
+	for {
+		// Get chat invite importers
+		chatInviteImporters, err := c.MessagesGetChatInviteImporters(&MessagesGetChatInviteImportersParams{
+			Requested:  true,
+			Peer:       peer,
+			Q:          "",
+			OffsetDate: int32(currentOffsetDate),
+			OffsetUser: currentOffsetUser,
+			Limit:      int32(activeLimit),
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		// Add all UserObj objects to allUsers slice
+		for _, user := range chatInviteImporters.Users {
+			if u, ok := user.(*UserObj); ok {
+				allUsers = append(allUsers, u)
+			}
+		}
+
+		// Decrement lim by activeLimit
+		lim -= activeLimit
+
+		// Break out of loop if lim is reached
+		if lim <= 0 {
+			break
+		}
+
+		// Set current offset user and date for next iteration
+		if len(chatInviteImporters.Users) > 0 {
+			if u, ok := chatInviteImporters.Users[len(chatInviteImporters.Users)-1].(*UserObj); ok {
+				currentOffsetUser = &InputUserObj{UserID: u.ID, AccessHash: u.AccessHash}
+			}
+		}
+		if len(chatInviteImporters.Importers) > 0 {
+			currentOffsetDate = int(chatInviteImporters.Importers[len(chatInviteImporters.Importers)-1].Date)
+		}
+	}
+
+	return allUsers, nil
 }
