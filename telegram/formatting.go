@@ -3,6 +3,7 @@ package telegram
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,15 +16,17 @@ func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, st
 	return parseEntities(message, mode)
 }
 
+// parseEntities parses the message and returns a list of MessageEntities and the cleaned text string
 func parseEntities(message string, mode string) ([]MessageEntity, string) {
 	if strings.EqualFold(mode, HTML) {
 		return parseHTML(message)
 	} else if strings.EqualFold(mode, MarkDown) {
-		return parseHTML(message) // TODO: parseMarkdown
+		return parseMarkdown(message)
 	}
 	return []MessageEntity{}, message
 }
 
+// parseHTML parses HTML and returns a list of MessageEntities and the cleaned text string
 func parseHTML(text string) ([]MessageEntity, string) {
 	cleanedText, tags, err := parseHTMLToTags(text)
 	if err != nil {
@@ -32,6 +35,12 @@ func parseHTML(text string) ([]MessageEntity, string) {
 
 	entities := parseTagsToEntity(tags)
 	return entities, cleanedText
+}
+
+// parseMarkdown parses Markdown and returns a list of MessageEntities and the cleaned text string
+func parseMarkdown(text string) ([]MessageEntity, string) {
+	htmlStr := MarkdownToHTML(text)
+	return parseHTML(htmlStr)
 }
 
 // Tag represents a tag in the HTML string, including its type, length, and offset and whether it has nested tags, and its attrs
@@ -53,8 +62,6 @@ func supportedTag(tag string) bool {
 }
 
 func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
-	// escape newLine charectors
-	htmlStr = strings.Replace(htmlStr, "\n", "\r\n", -1)
 	// Parse the HTML string into a tree of nodes
 	doc, err := html.Parse(strings.NewReader(htmlStr))
 	if err != nil {
@@ -117,7 +124,6 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 
 	// Return the cleaned text string and tag offsets list
 	cleanedText := strings.TrimSpace(textBuf.String())
-	cleanedText = strings.Join(strings.Fields(cleanedText), " ")
 	return cleanedText, tagOffsets, nil
 }
 
@@ -275,4 +281,66 @@ func parseEntitiesToHTML(entities []MessageEntity, text string) string {
 	}
 
 	return htmlBuf.String()
+}
+
+func MarkdownToHTML(markdown string) string {
+	// Convert bold syntax (**text**) to <strong> tags
+	boldRe := regexp.MustCompile(`\*\*(.*?)\*\*`)
+	markdown = boldRe.ReplaceAllStringFunc(markdown, func(match string) string {
+		innerText := boldRe.FindStringSubmatch(match)[1]
+		return "<b>" + innerText + "</b>"
+	})
+
+	// Convert italic syntax (__text__) to <em> tags
+	italicRe := regexp.MustCompile(`__(.*?)__`)
+	markdown = italicRe.ReplaceAllStringFunc(markdown, func(match string) string {
+		innerText := italicRe.FindStringSubmatch(match)[1]
+		return "<i>" + innerText + "</i>"
+	})
+
+	// Convert strikethrough syntax (~~text~~) to <del> tags
+	strikeRe := regexp.MustCompile(`~~(.*?)~~`)
+	markdown = strikeRe.ReplaceAllStringFunc(markdown, func(match string) string {
+		innerText := strikeRe.FindStringSubmatch(match)[1]
+		return "<s>" + innerText + "</s>"
+	})
+
+	// Convert preformatted syntax (```text```) to <pre> tags
+	preRe := regexp.MustCompile("```(.*?)```")
+	markdown = preRe.ReplaceAllStringFunc(markdown, func(match string) string {
+		innerText := preRe.FindStringSubmatch(match)[1]
+		return "<pre>" + html.EscapeString(innerText) + "</pre>"
+	})
+
+	// Convert inline code syntax (`code`) to <code> tags
+	codeRe := regexp.MustCompile("`([^`\n]+)`")
+	markdown = codeRe.ReplaceAllStringFunc(markdown, func(match string) string {
+		innerText := codeRe.FindStringSubmatch(match)[1]
+		return "<code>" + html.EscapeString(innerText) + "</code>"
+	})
+
+	// Convert links syntax ([text](url)) to <a> tags
+	linkRe := regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
+	markdown = linkRe.ReplaceAllStringFunc(markdown, func(match string) string {
+		innerText := linkRe.FindStringSubmatch(match)[1]
+		href := linkRe.FindStringSubmatch(match)[2]
+		return "<a href=\"" + html.EscapeString(href) + "\">" + innerText + "</a>"
+	})
+
+	// Convert spoilers syntax (||text||) to <spoiler> tags
+	spoilerRe := regexp.MustCompile(`\|\|([^|]+)\|\|`)
+	markdown = spoilerRe.ReplaceAllStringFunc(markdown, func(match string) string {
+		innerText := spoilerRe.FindStringSubmatch(match)[1]
+		return "<spoiler>" + innerText + "</spoiler>"
+	})
+
+	// Convert underline syntax (!!text!!) to <u> tags
+	underlineRe := regexp.MustCompile(`!!([^!]+)!!`)
+	markdown = underlineRe.ReplaceAllStringFunc(markdown, func(match string) string {
+		innerText := underlineRe.FindStringSubmatch(match)[1]
+		return "<u>" + innerText + "</u>"
+	})
+
+	// Return the resulting HTML
+	return string(bytes.TrimSpace([]byte(markdown)))
 }
