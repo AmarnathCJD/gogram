@@ -9,14 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/amarnathcjd/gogram/internal/utils"
-)
-
-const (
-	// CacheUpdateInterval is the interval in seconds at which the cache is updated
-	CacheUpdateInterval = 60
 )
 
 type CACHE struct {
@@ -32,13 +26,6 @@ type InputPeerCache struct {
 	InputChannels map[int64]*InputPeerChannel `json:"channels,omitempty"`
 	InputUsers    map[int64]*InputPeerUser    `json:"users,omitempty"`
 	InputChats    map[int64]*InputPeerChat    `json:"chats,omitempty"`
-}
-
-func (c *CACHE) periodicallyFlushToFile() {
-	for {
-		time.Sleep(time.Duration(CacheUpdateInterval) * time.Second)
-		c.flushToFile()
-	}
 }
 
 func (c *CACHE) flushToFile() {
@@ -65,8 +52,6 @@ func (c *CACHE) loadFromFile() {
 	if err != nil {
 		return
 	}
-	c.Lock()
-	defer c.Unlock()
 	err = json.Unmarshal(b, c)
 	if err != nil {
 		c.logger.Error("Error while unmarshalling cache.journal: %v", err)
@@ -90,13 +75,10 @@ func NewCache() *CACHE {
 		logger: utils.NewLogger("cache").SetLevel(LIB_LOG_LEVEL),
 	}
 	c.loadFromFile()
-	go c.periodicallyFlushToFile()
 	return c
 }
 
 func (c *CACHE) getUserPeer(userID int64) (InputUser, error) {
-	c.RLock()
-	defer c.RUnlock()
 	for _, user := range c.InputPeers.InputUsers {
 		if user.UserID == userID {
 			return &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, nil
@@ -106,8 +88,6 @@ func (c *CACHE) getUserPeer(userID int64) (InputUser, error) {
 }
 
 func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
-	c.RLock()
-	defer c.RUnlock()
 	for _, channel := range c.InputPeers.InputChannels {
 		if channel.ChannelID == channelID {
 			return &InputChannelObj{ChannelID: channel.ChannelID, AccessHash: channel.AccessHash}, nil
@@ -142,7 +122,6 @@ func (c *CACHE) GetInputPeer(peerID int64) (InputPeer, error) {
 // ------------------ Get Chat/Channel/User From Cache/Telgram ------------------
 
 func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
-
 	for _, user := range c.Cache.users {
 		if user.ID == userID {
 			return user, nil
@@ -167,7 +146,6 @@ func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 }
 
 func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
-
 	for _, channel := range c.Cache.channels {
 		if channel.ID == channelID {
 			return channel, nil
@@ -196,9 +174,6 @@ func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 }
 
 func (c *Client) getChatFromCache(chatID int64) (*ChatObj, error) {
-	c.Cache.Lock()
-	defer c.Cache.Unlock()
-
 	for _, chat := range c.Cache.chats {
 		if chat.ID == chatID {
 			return chat, nil
@@ -251,8 +226,8 @@ func (c *Client) GetChat(chatID int64) (*ChatObj, error) {
 // ----------------- Update User/Channel/Chat in cache -----------------
 
 func (c *CACHE) UpdateUser(user *UserObj) {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 
 	c.users[user.ID] = user
 	peerUser := &InputPeerUser{UserID: user.ID, AccessHash: user.AccessHash}
@@ -260,8 +235,8 @@ func (c *CACHE) UpdateUser(user *UserObj) {
 }
 
 func (c *CACHE) UpdateChannel(channel *Channel) {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 
 	c.channels[channel.ID] = channel
 	peerChannel := &InputPeerChannel{ChannelID: channel.ID, AccessHash: channel.AccessHash}
@@ -269,8 +244,8 @@ func (c *CACHE) UpdateChannel(channel *Channel) {
 }
 
 func (c *CACHE) UpdateChat(chat *ChatObj) {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 
 	c.chats[chat.ID] = chat
 	peerChat := &InputPeerChat{ChatID: chat.ID}
@@ -305,8 +280,8 @@ func (c *CACHE) GetSize() int {
 }
 
 func (c *CACHE) Purge() {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 
 	c.users = make(map[int64]*UserObj)
 	c.chats = make(map[int64]*ChatObj)
