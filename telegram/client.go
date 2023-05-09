@@ -71,6 +71,7 @@ type ClientConfig struct {
 	DataCenter    int
 	PublicKeys    []*rsa.PublicKey
 	NoUpdates     bool
+        NoCache bool
 	LogLevel      string
 	SocksProxy    *url.URL
 }
