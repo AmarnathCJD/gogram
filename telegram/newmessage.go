@@ -56,12 +56,19 @@ func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 	if !m.IsReply() {
 		return nil, errors.New("message is not a reply")
 	}
-	messages, err := m.Client.GetMessages(m.ChatID(), &SearchOption{IDs: []int32{m.ReplyToMsgID()}})
+	messages, err := m.Client.GetMessages(m.ChatID(), &SearchOption{IDs: &InputMessageReplyTo{ID: m.ID}})
 	if err != nil {
 		return nil, err
 	}
 	if len(messages) == 0 {
-		return nil, errors.New("message not found")
+		// if actual message got deleted, try again with actial reply id
+		messages, err = m.Client.GetMessages(m.ChatID(), &SearchOption{IDs: []int32{m.ReplyToMsgID()}})
+		if err != nil {
+			return nil, err
+		}
+		if len(messages) == 0 {
+			return nil, errors.New("message not found")
+		}
 	}
 	return &messages[0], nil
 }
