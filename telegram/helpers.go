@@ -294,7 +294,7 @@ PeerSwitch:
 	case *UserObj:
 		return &InputPeerUser{UserID: Peer.ID, AccessHash: Peer.AccessHash}, nil
 	case int64, int32, int:
-		PeerEntity, err := c.Cache.GetInputPeer(Peer.(int64))
+		PeerEntity, err := c.Cache.GetInputPeer(getAnyInt(PeerID))
 		if PeerEntity == nil {
 			return nil, err
 		}
@@ -348,6 +348,19 @@ func (c *Client) GetPeerID(Peer interface{}) int64 {
 		return Peer.ChannelID
 	case *InputPeerUser:
 		return Peer.UserID
+	default:
+		return 0
+	}
+}
+
+func getAnyInt(v any) int64 {
+	switch v := v.(type) {
+	case int64:
+		return v
+	case int32:
+		return int64(v)
+	case int:
+		return int64(v)
 	default:
 		return 0
 	}
