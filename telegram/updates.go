@@ -622,7 +622,7 @@ UpdateTypeSwitching:
 }
 
 func (c *Client) GetDiffrence(Pts int32, Limit int32) (Message, error) {
-	c.Logger.Debug("Getting diffrence for", Pts)
+	c.Logger.Debug("getting difference with pts: ", Pts)
 	updates, err := c.UpdatesGetDifference(Pts-1, Limit, int32(time.Now().Unix()), 0)
 	if err != nil {
 		return nil, err

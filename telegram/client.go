@@ -23,7 +23,6 @@ import (
 const (
 	// DefaultDC is the default data center id
 	DefaultDataCenter       = 4
-	TelegramUserID          = 777000
 	DefaultDevice           = "Android Device"
 	DefaultSystem           = runtime.GOOS + " " + runtime.GOARCH
 	DisconnectExportedAfter = 60 * time.Second
@@ -71,16 +70,21 @@ type ClientConfig struct {
 	DataCenter    int
 	PublicKeys    []*rsa.PublicKey
 	NoUpdates     bool
-        NoCache bool
+	EnableCache   bool
 	LogLevel      string
 	SocksProxy    *url.URL
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
-	client := &Client{wg: sync.WaitGroup{}, Cache: cache, Log: utils.NewLogger("gogram"), stopCh: make(chan struct{})}
+	client := &Client{wg: sync.WaitGroup{}, Log: utils.NewLogger("gogram"), stopCh: make(chan struct{})}
 	config = cleanClientConfig(config)
 	client.setupClientData(config)
-	client.setupLogging()
+
+	if config.EnableCache {
+		cache.startCacheFileUpdater()
+	}
+
+	client.Cache = cache
 	if err := client.setupMTProto(config); err != nil {
 		return nil, err
 	}
@@ -115,7 +119,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 
 func (c *Client) clientWarnings(config ClientConfig) error {
 	if config.NoUpdates {
-		c.Log.Warn("client is running in no updates mode, some features may not work")
+		c.Log.Warn("client is running in no updates mode, no updates will be handled")
 	}
 	if !doesSessionFileExist(config.Session) && config.StringSession == "" && (c.AppID() == 0 || c.AppHash() == "") {
 		return errors.New("your app id or app hash is empty, please provide them")
@@ -125,7 +129,7 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 	}
 
 	if !IsFfmpegInstalled() {
-		c.Log.Debug("ffmpeg is not installed, some features may not work")
+		c.Log.Debug("ffmpeg is not installed, some media features may not work")
 	}
 	return nil
 }
@@ -152,10 +156,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.langCode = getStr(cnf.LangCode, "en")
 	c.clientData.logLevel = getStr(cnf.LogLevel, LogInfo)
 	c.clientData.parseMode = getStr(cnf.ParseMode, "HTML")
-}
 
-// set the log level of the library
-func (c *Client) setupLogging() {
 	c.Log.SetLevel(c.clientData.logLevel)
 	LIB_LOG_LEVEL = c.clientData.logLevel
 }
@@ -457,8 +458,7 @@ func (c *Client) AppHash() string {
 
 // returns the ParseMode of the client (HTML or Markdown)
 func (c *Client) ParseMode() string {
-	return "HTML"
-	// return c.clientData.parseMode
+	return c.clientData.parseMode
 }
 
 // Terminate client and disconnect from telegram server

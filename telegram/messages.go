@@ -636,19 +636,24 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 	)
 	switch i := opt.IDs.(type) {
 	case []int32, []int64, []int:
+		var ids []int32
 		switch i := i.(type) {
 		case []int32:
-			for _, id := range i {
-				inputIDs = append(inputIDs, &InputMessageID{ID: id})
-			}
+			ids = make([]int32, len(i))
+			copy(ids, i)
 		case []int64:
-			for _, id := range i {
-				inputIDs = append(inputIDs, &InputMessageID{ID: int32(id)})
+			ids = make([]int32, len(i))
+			for j, id := range i {
+				ids[j] = int32(id)
 			}
 		case []int:
-			for _, id := range i {
-				inputIDs = append(inputIDs, &InputMessageID{ID: int32(id)})
+			ids = make([]int32, len(i))
+			for j, id := range i {
+				ids[j] = int32(id)
 			}
+		}
+		for _, id := range ids {
+			inputIDs = append(inputIDs, &InputMessageID{ID: id})
 		}
 	case int, int64, int32:
 		inputIDs = append(inputIDs, &InputMessageID{ID: int32(i.(int))})
