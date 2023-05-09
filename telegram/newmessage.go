@@ -145,6 +145,14 @@ func (m *NewMessage) Marshal() string {
 	return string(b)
 }
 
+func (m *NewMessage) Unmarshal(data []byte) error {
+	if err := json.Unmarshal(data, m.Message); err != nil {
+		return err
+	}
+	m = packMessage(m.Client, m.Message)
+	return nil
+}
+
 func (m *NewMessage) GetChat() (*ChatObj, error) {
 	return m.Client.GetChat(m.ChatID())
 }
