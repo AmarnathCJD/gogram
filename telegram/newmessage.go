@@ -7,28 +7,26 @@ import (
 	"github.com/pkg/errors"
 )
 
-type (
-	NewMessage struct {
-		Client         *Client
-		OriginalUpdate Message
-		Chat           *ChatObj
-		Sender         *UserObj
-		SenderChat     *Channel
-		Channel        *Channel
-		ID             int32
-		Action         MessageAction
-		Message        *MessageObj
-		Peer           InputPeer
-		File           *CustomFile
-	}
+type NewMessage struct {
+	Action         MessageAction
+	Channel        *Channel
+	Chat           *ChatObj
+	Client         *Client
+	File           *CustomFile
+	ID             int32
+	Message        *MessageObj
+	OriginalUpdate Message
+	Peer           InputPeer
+	Sender         *UserObj
+	SenderChat     *Channel
+}
 
-	CustomFile struct {
-		FileID string `json:"file_id,omitempty"`
-		Name   string `json:"name,omitempty"`
-		Size   int64  `json:"size,omitempty"`
-		Ext    string `json:"ext,omitempty"`
-	}
-)
+type CustomFile struct {
+	Ext    string `json:"ext,omitempty"`
+	FileID string `json:"file_id,omitempty"`
+	Name   string `json:"name,omitempty"`
+	Size   int64  `json:"size,omitempty"`
+}
 
 func (m *NewMessage) MessageText() string {
 	return m.Message.Message
@@ -56,6 +54,7 @@ func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 	if !m.IsReply() {
 		return nil, errors.New("message is not a reply")
 	}
+	// try to get message by reply id, cuz if reply is by bot other bots can't get it otherwise
 	messages, err := m.Client.GetMessages(m.ChatID(), &SearchOption{IDs: &InputMessageReplyTo{ID: m.ID}})
 	if err != nil {
 		return nil, err
@@ -157,6 +156,14 @@ func (m *NewMessage) GetChat() (*ChatObj, error) {
 	return m.Client.GetChat(m.ChatID())
 }
 
+func (m *NewMessage) GetSender() (*UserObj, error) {
+	return m.Client.GetUser(m.SenderID())
+}
+
+func (m *NewMessage) GetSenderChat() *Channel {
+	return m.SenderChat
+}
+
 // GetPeer returns the peer of the message
 func (m *NewMessage) GetPeer() (int64, int64) {
 	if m.IsPrivate() {
@@ -172,17 +179,8 @@ func (m *NewMessage) GetPeer() (int64, int64) {
 	return 0, 0
 }
 
-// GetSender returns the sender of the message
-func (m *NewMessage) GetSender() (*UserObj, error) {
-	return m.Client.GetUser(m.SenderID())
-}
-
 func (m *NewMessage) IsForward() bool {
 	return m.Message.FwdFrom != nil
-}
-
-func (m *NewMessage) GetSenderChat() *Channel {
-	return m.SenderChat
 }
 
 // Media is a media object in a message
@@ -456,6 +454,7 @@ func (m *NewMessage) Reply(Text interface{}, Opts ...SendOptions) (*NewMessage, 
 	return &response, err
 }
 
+// ReplyWithoutError calls message.Reply and wraps the error to error channel of the client
 func (m *NewMessage) ReplyWithoutError(Text interface{}, Opts ...SendOptions) *NewMessage {
 	resp, err := m.Reply(Text, Opts...)
 	if err != nil {
@@ -532,9 +531,7 @@ func (m *NewMessage) Delete() (*MessagesAffectedMessages, error) {
 }
 
 // React to a message
-func (m *NewMessage) React(Reaction ...string) error {
-	var Reactions []string
-	Reactions = append(Reactions, Reaction...)
+func (m *NewMessage) React(Reactions ...any) error {
 	return m.Client.SendReaction(m.ChatID(), m.ID, Reactions, true)
 }
 

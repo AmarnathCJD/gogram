@@ -9,32 +9,39 @@ import (
 )
 
 type SendOptions struct {
-	ReplyID       int32               `json:"reply_id,omitempty"`
+	Attributes    []DocumentAttribute `json:"attributes,omitempty"`
 	Caption       interface{}         `json:"caption,omitempty"`
-	ParseMode     string              `json:"parse_mode,omitempty"`
-	Silent        bool                `json:"silent,omitempty"`
-	LinkPreview   bool                `json:"link_preview,omitempty"`
-	ReplyMarkup   ReplyMarkup         `json:"reply_markup,omitempty"`
 	ClearDraft    bool                `json:"clear_draft,omitempty"`
+	Entites       []MessageEntity     `json:"entites,omitempty"`
+	FileName      string              `json:"file_name,omitempty"`
+	ForceDocument bool                `json:"force_document,omitempty"`
+	LinkPreview   bool                `json:"link_preview,omitempty"`
+	Media         interface{}         `json:"media,omitempty"`
 	NoForwards    bool                `json:"no_forwards,omitempty"`
+	ParseMode     string              `json:"parse_mode,omitempty"`
+	ReplyID       int32               `json:"reply_id,omitempty"`
+	ReplyMarkup   ReplyMarkup         `json:"reply_markup,omitempty"`
 	ScheduleDate  int32               `json:"schedule_date,omitempty"`
 	SendAs        interface{}         `json:"send_as,omitempty"`
+	Silent        bool                `json:"silent,omitempty"`
 	Thumb         interface{}         `json:"thumb,omitempty"`
 	TTL           int32               `json:"ttl,omitempty"`
-	ForceDocument bool                `json:"force_document,omitempty"`
-	FileName      string              `json:"file_name,omitempty"`
-	Attributes    []DocumentAttribute `json:"attributes,omitempty"`
-	Media         interface{}
-	Entites       []MessageEntity
 }
 
-// SendMessage sends a message.
-// This method is a wrapper for messages.sendMessage.
+// SendMessage sends a message to a specified peer using the Telegram API method messages.sendMessage.
 //
-//	Params:
-//	 - peerID: ID of the peer to send the message to.
-//	 - Message: Text of the message to be sent.
-//	 - Opts: Optional parameters.
+// Parameters:
+//   - peerID: ID of the peer to send the message to.
+//   - message: The message to be sent. It can be a string, a media object, or a NewMessage.
+//   - opts: Optional parameters that can be used to customize the message sending process.
+//
+// Returns:
+//   - A pointer to a NewMessage object containing information about the sent message.
+//   - An error if the message sending fails.
+//
+// Note: If the message parameter is a NewMessage or a pointer to a NewMessage, the function will extract the message text and entities from it.
+// If the message parameter is a media object, the function will send the media as a separate message and return a pointer to a NewMessage object containing information about the sent media.
+// If the message parameter is a string, the function will parse it for entities and send it as a text message.
 func (c *Client) SendMessage(peerID interface{}, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &SendOptions{}).(*SendOptions)
 	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
@@ -111,8 +118,17 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 	return nil, errors.New("no response")
 }
 
-// EditMessage edits a message.
-// This method is a wrapper for messages.editMessage.
+// EditMessage edits a message. This method is a wrapper for messages.editMessage.
+//
+// Parameters:
+//   - peerID: ID of the peer the message was sent to.
+//   - id: ID of the message to be edited.
+//   - message: New text of the message.
+//   - opts: Optional parameters.
+//
+// Returns:
+//   - NewMessage: Returns a NewMessage object containing the edited message on success.
+//   - error: Returns an error on failure.
 func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &SendOptions{}).(*SendOptions)
 	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
@@ -238,23 +254,23 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 }
 
 type MediaOptions struct {
-	Caption       interface{}         `json:"caption,omitempty"`
-	ParseMode     string              `json:"parse_mode,omitempty"`
-	Silent        bool                `json:"silent,omitempty"`
-	LinkPreview   bool                `json:"link_preview,omitempty"`
-	ReplyMarkup   ReplyMarkup         `json:"reply_markup,omitempty"`
-	ClearDraft    bool                `json:"clear_draft,omitempty"`
-	NoForwards    bool                `json:"no_forwards,omitempty"`
-	Thumb         interface{}         `json:"thumb,omitempty"`
-	NoSoundVideo  bool                `json:"no_sound_video,omitempty"`
-	ForceDocument bool                `json:"force_document,omitempty"`
-	ReplyID       int32               `json:"reply_id,omitempty"`
-	FileName      string              `json:"file_name,omitempty"`
-	TTL           int32               `json:"ttl,omitempty"`
 	Attributes    []DocumentAttribute `json:"attributes,omitempty"`
+	Caption       interface{}         `json:"caption,omitempty"`
+	ClearDraft    bool                `json:"clear_draft,omitempty"`
+	Entites       []MessageEntity     `json:"entities,omitempty"`
+	FileName      string              `json:"file_name,omitempty"`
+	ForceDocument bool                `json:"force_document,omitempty"`
+	LinkPreview   bool                `json:"link_preview,omitempty"`
+	NoForwards    bool                `json:"no_forwards,omitempty"`
+	NoSoundVideo  bool                `json:"no_sound_video,omitempty"`
+	ParseMode     string              `json:"parse_mode,omitempty"`
+	ReplyID       int32               `json:"reply_id,omitempty"`
+	ReplyMarkup   ReplyMarkup         `json:"reply_markup,omitempty"`
 	ScheduleDate  int32               `json:"schedule_date,omitempty"`
 	SendAs        interface{}         `json:"send_as,omitempty"`
-	Entites       []MessageEntity     `json:"entities,omitempty"`
+	Silent        bool                `json:"silent,omitempty"`
+	Thumb         interface{}         `json:"thumb,omitempty"`
+	TTL           int32               `json:"ttl,omitempty"`
 }
 
 type MediaMetadata struct {
@@ -268,10 +284,20 @@ type MediaMetadata struct {
 // SendMedia sends a media message.
 // This method is a wrapper for messages.sendMedia.
 //
-//	Params:
-//	 - peerID: ID of the peer to send the message to.
-//	 - Media: Media to send.
-//	 - Opts: Optional parameters.
+// Params:
+//   - peerID: ID of the peer to send the message to.
+//   - Media: Media to send.
+//   - opts: Optional parameters.
+//
+// Returns:
+//   - A pointer to a NewMessage object and an error if the message sending fails.
+//   - If the message is sent successfully, the returned NewMessage object will contain information about the sent message.
+//
+// Note:
+//   - If the caption in opts is a string, it will be parsed for entities based on the parse_mode in opts.
+//   - If the caption in opts is a pointer to a NewMessage, its entities will be used instead.
+//   - If the entites field in opts is not nil, it will override any entities parsed from the caption.
+//   - If send_as in opts is not nil, the message will be sent from the specified peer, otherwise it will be sent from the sender peer.
 func (c *Client) SendMedia(peerID interface{}, Media interface{}, opts ...*MediaOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
 	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
@@ -336,10 +362,20 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 // SendAlbum sends a media album.
 // This method is a wrapper for messages.sendMultiMedia.
 //
-//	Params:
-//	 - peerID: ID of the peer to send the message to.
-//	 - Album: List of media to send.
-//	 - Opts: Optional parameters.
+// Params:
+//   - peerID: ID of the peer to send the message to.
+//   - Album: List of media to send.
+//   - opts: Optional parameters.
+//
+// Returns:
+//   - A slice of pointers to NewMessage objects and an error if the message sending fails.
+//   - If the messages are sent successfully, the returned NewMessage objects will contain information about the sent messages.
+//
+// Note:
+//   - If the caption in opts is a string, it will be parsed for entities based on the parse_mode in opts.
+//   - If the caption in opts is a pointer to a NewMessage, its entities will be used instead.
+//   - If the entites field in opts is not nil, it will override any entities parsed from the caption.
+//   - If send_as in opts is not nil, the messages will be sent from the specified peer, otherwise they will be sent from the sender peer.
 func (c *Client) SendAlbum(peerID interface{}, Album interface{}, opts ...*MediaOptions) ([]*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
 	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
