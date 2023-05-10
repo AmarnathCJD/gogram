@@ -291,6 +291,13 @@ func MarkdownToHTML(markdown string) string {
 		return "<b>" + innerText + "</b>"
 	})
 
+	// Convert preformatted syntax (```text```) to <pre> tags
+	preRe := regexp.MustCompile("```(.*?)```")
+	markdown = preRe.ReplaceAllStringFunc(markdown, func(match string) string {
+		innerText := preRe.FindStringSubmatch(match)[1]
+		return "<pre>" + html.EscapeString(innerText) + "</pre>"
+	})
+
 	// Convert italic syntax (__text__) to <em> tags
 	italicRe := regexp.MustCompile(`__(.*?)__`)
 	markdown = italicRe.ReplaceAllStringFunc(markdown, func(match string) string {
@@ -303,13 +310,6 @@ func MarkdownToHTML(markdown string) string {
 	markdown = strikeRe.ReplaceAllStringFunc(markdown, func(match string) string {
 		innerText := strikeRe.FindStringSubmatch(match)[1]
 		return "<s>" + innerText + "</s>"
-	})
-
-	// Convert preformatted syntax (```text```) to <pre> tags
-	preRe := regexp.MustCompile("```(.*?)```")
-	markdown = preRe.ReplaceAllStringFunc(markdown, func(match string) string {
-		innerText := preRe.FindStringSubmatch(match)[1]
-		return "<pre>" + html.EscapeString(innerText) + "</pre>"
 	})
 
 	// Convert inline code syntax (`code`) to <code> tags
