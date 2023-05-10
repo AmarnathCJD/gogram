@@ -200,7 +200,7 @@ func (c *Conversation) WaitEvent(ev *Update) (Update, error) {
 }
 
 func (*Conversation) WaitRead() {
-	// TODO: implement this
+	// resp := make(chan *UpdateReadChannelInbox)
 }
 
 func (c *Conversation) removeHandle(h handle) {

@@ -77,7 +77,7 @@ type ClientConfig struct {
 
 func NewClient(config ClientConfig) (*Client, error) {
 	client := &Client{wg: sync.WaitGroup{}, Log: utils.NewLogger("gogram"), stopCh: make(chan struct{})}
-	config = cleanClientConfig(config)
+	config = client.cleanClientConfig(config)
 	client.setupClientData(config)
 
 	if config.EnableCache {
@@ -139,7 +139,15 @@ func (c *Client) setupDispatcher() {
 	c.AddCustomServerRequestHandler(HandleIncomingUpdates)
 }
 
-func cleanClientConfig(config ClientConfig) ClientConfig {
+func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
+	if config.Session != "" {
+		configSession, err := filepath.Abs(config.Session)
+		if err != nil {
+			c.Log.Error("error getting absolute path of session file: ", err)
+		} else {
+			config.Session = configSession
+		}
+	}
 	config.Session = getStr(config.Session, filepath.Join(getAbsWorkingDir(), "session.session"))
 	config.DataCenter = getInt(config.DataCenter, DefaultDataCenter)
 	config.PublicKeys, _ = keys.GetRSAKeys()
