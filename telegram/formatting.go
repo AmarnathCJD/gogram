@@ -292,7 +292,7 @@ func MarkdownToHTML(markdown string) string {
 	})
 
 	// Convert preformatted syntax (```text```) to <pre> tags
-	preRe := regexp.MustCompile("```(.*?)```")
+	preRe := regexp.MustCompile("```([^`\n]+)```")
 	markdown = preRe.ReplaceAllStringFunc(markdown, func(match string) string {
 		innerText := preRe.FindStringSubmatch(match)[1]
 		return "<pre>" + html.EscapeString(innerText) + "</pre>"
