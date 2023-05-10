@@ -120,7 +120,7 @@ func NewCache() *CACHE {
 		logger: utils.NewLogger("cache").SetLevel(LIB_LOG_LEVEL),
 	}
 	c.logger.Debug("Cache initialized successfully")
-	fmt.Println("Cache initialized successfully")
+	
 	return c
 }
 
