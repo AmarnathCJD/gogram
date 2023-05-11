@@ -5,11 +5,14 @@ package telegram
 import (
 	"crypto/rsa"
 	"net/url"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	mtproto "github.com/amarnathcjd/gogram"
@@ -478,6 +481,12 @@ func (c *Client) Terminate() error {
 // Idle blocks the current goroutine until the client is stopped/terminated
 func (c *Client) Idle() {
 	c.wg.Add(1)
+	go func() {
+		sigchan := make(chan os.Signal, 1)
+		signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM)
+		<-sigchan
+		c.Stop()
+	}()
 	go func() { defer c.wg.Done(); <-c.stopCh }()
 	c.wg.Wait()
 }

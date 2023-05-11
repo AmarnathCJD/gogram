@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -37,36 +36,29 @@ type InputPeerCache struct {
 }
 
 func (c *CACHE) flushToFile() {
-	tmpfile, err := os.CreateTemp("", "cache-*.tmp")
+	c.Lock()
+	defer c.Unlock()
+
+	data, err := json.Marshal(c)
 	if err != nil {
-		log.Println(err)
+		c.logger.Error("Error while marshalling cache: %v", err)
 		return
 	}
-	defer os.Remove(tmpfile.Name())
 
-	var b []byte
-	b, err = json.Marshal(c)
+	file, err := os.Create("cache.journal")
 	if err != nil {
-		c.logger.Error("Error while marshalling cache.journal: ", err)
+		c.logger.Error("Error while creating cache.journal: %v", err)
 		return
 	}
 
-	if _, err := tmpfile.Write(b); err != nil {
-		c.logger.Error("Error while writing cache to temporary file: ", err)
+	if _, err := io.WriteString(file, string(data)); err != nil {
+		c.logger.Error("Error while writing cache.journal: %v", err)
 		return
 	}
-
-	if err := tmpfile.Close(); err != nil {
-		c.logger.Error("Error while closing temporary file: ", err)
+	if err := file.Close(); err != nil {
+		c.logger.Error("Error while closing cache.journal: %v", err)
 		return
 	}
-
-	if err := os.Rename(tmpfile.Name(), "cache.journal"); err != nil {
-		c.logger.Error("Error while moving temporary file to cache file: ", err)
-	}
-
-	c.logger.Debug("Cache flushed to file successfully")
-	//  schedule next flush in 80 seconds
 	go time.AfterFunc(80*time.Second, c.flushToFile)
 }
 
@@ -104,6 +96,20 @@ func (c *CACHE) loadFromFile() {
 	}
 }
 
+func (c *CACHE) ExportJSON() ([]byte, error) {
+	c.RLock()
+	defer c.RUnlock()
+
+	return json.Marshal(c.InputPeers)
+}
+
+func (c *CACHE) ImportJSON(data []byte) error {
+	c.Lock()
+	defer c.Unlock()
+
+	return json.Unmarshal(data, c.InputPeers)
+}
+
 var cache = NewCache()
 
 func NewCache() *CACHE {
@@ -120,7 +126,7 @@ func NewCache() *CACHE {
 		logger: utils.NewLogger("cache").SetLevel(LIB_LOG_LEVEL),
 	}
 	c.logger.Debug("Cache initialized successfully")
-	
+
 	return c
 }
 
@@ -135,7 +141,7 @@ func (c *CACHE) writeOnKill() {
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <-signals
-	fmt.Printf("\nReceived signal: %v, flushing cache to file and exiting...\n", sig)
+	c.logger.Debug("\nReceived signal: %v, flushing cache to file and exiting...\n", sig)
 	c.flushToFile()
 }
 
