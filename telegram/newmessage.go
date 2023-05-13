@@ -50,7 +50,7 @@ func (a *NewMessage) Pin(opts ...*PinOptions) (err error) {
 }
 
 func (a *NewMessage) Unpin() (err error) {
-	_, err = a.Client.UnpinMessage(a.ChatID, a.ID)
+	_, err = a.Client.UnpinMessage(a.ChatID(), a.ID)
 	return err
 }
 
