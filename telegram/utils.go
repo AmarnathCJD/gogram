@@ -76,6 +76,25 @@ func matchError(err error, str string) bool {
 }
 
 func resolveMimeType(filePath string) (string, bool) {
+	if IsURL(filePath) {
+		if req, err := http.NewRequest("GET", filePath, nil); err == nil {
+			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 6.1; rv:60.0) Gecko/20100101 Firefox/60.0")
+			if resp, err := http.DefaultClient.Do(req); err == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == 200 {
+					if resp.Header.Get("Content-Type") != "" {
+						return resp.Header.Get("Content-Type"), mimeIsPhoto(resp.Header.Get("Content-Type"))
+					}
+					var b = make([]byte, 512)
+					_, err = resp.Body.Read(b)
+					if err == nil {
+						mime := http.DetectContentType(b)
+						return mime, mimeIsPhoto(mime)
+					}
+				}
+			}
+		}
+	}
 	if matchMimeType := matchMimeType(filePath); matchMimeType != "" {
 		return matchMimeType, mimeIsPhoto(matchMimeType)
 	}
@@ -367,7 +386,7 @@ func getPeerUser(userID int64) *PeerUser {
 	}
 }
 
-func IsUrl(str string) bool {
+func IsURL(str string) bool {
 	u, err := url.Parse(str)
 	return err == nil && u.Scheme != "" && u.Host != ""
 }

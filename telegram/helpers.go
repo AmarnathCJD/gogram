@@ -370,7 +370,7 @@ func (c *Client) getSendableMedia(mediaFile interface{}, attr *MediaMetadata) (I
 mediaTypeSwitch:
 	switch media := mediaFile.(type) {
 	case string:
-		if IsUrl(media) {
+		if IsURL(media) {
 			if _, isImage := resolveMimeType(media); isImage {
 				return &InputMediaPhotoExternal{URL: media}, nil
 			}
