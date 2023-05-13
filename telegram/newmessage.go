@@ -44,10 +44,14 @@ func (m *NewMessage) MarkRead() (err error) {
 	return
 }
 
-func (a *NewMessage) Pin(notify ...bool) (err error) {
-	nf := getVariadic(notify, false).(bool)
-	_, err = a.Client.PinMessage(a.ChatID(), a.ID, &PinOptions{Silent: !nf})
+func (a *NewMessage) Pin(opts ...*PinOptions) (err error) {
+	_, err = a.Client.PinMessage(a.ChatID(), a.ID, opts...)
 	return
+}
+
+func (a *NewMessage) Unpin() (err error) {
+	_, err = a.Client.UnpinMessage(a.ChatID, a.ID)
+	return err
 }
 
 func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
@@ -633,7 +637,10 @@ func (a *Album) MarkRead() error {
 	return a.Messages[0].MarkRead()
 }
 
-func (a *Album) Pin(notify ...bool) error {
-	nf := getVariadic(notify, false).(bool)
-	return a.Messages[0].Pin(nf)
+func (a *Album) Pin(Opts ...*PinOptions) error {
+	return a.Messages[0].Pin(Opts...)
+}
+
+func (a *Album) Unpin() error {
+	return a.Messages[0].Unpin()
 }
