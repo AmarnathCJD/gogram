@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"math/rand"
 	"regexp"
+	"strings"
 	"syscall"
 	"time"
 
@@ -141,6 +142,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 				} else if matchError(err, "Two-steps verification is enabled") {
 					var passwordInput string
 					fmt.Println("Two-steps verification is enabled")
+				acceptPasswordInput:
 					for {
 						fmt.Printf("Enter password: ")
 						fmt.Scanln(&passwordInput)
@@ -163,6 +165,10 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 					}
 					_, err = c.AuthCheckPassword(inputPassword)
 					if err != nil {
+						if strings.Contains(err.Error(), "PASSWORD_HASH_INVALID") {
+							fmt.Println("Password is incorrect, please try again!")
+							goto acceptPasswordInput
+						}
 						return false, err
 					}
 					break
@@ -206,7 +212,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 			return false, errors.New("user is empty")
 		}
 	case nil:
-		return false, errors.New("auth is nil")
+		return false, nil // doesnt mean error
 	}
 	return true, nil
 }
