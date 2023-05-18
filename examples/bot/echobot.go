@@ -23,7 +23,7 @@ func main() {
 	}
 
 	// Authenticate the client using the bot token
-	if err := client.Start(); err != nil {
+	if err := client.LoginBot(botToken); err != nil {
 		panic(err)
 	}
 
