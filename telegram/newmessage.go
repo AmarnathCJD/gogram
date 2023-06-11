@@ -39,6 +39,13 @@ func (m *NewMessage) ReplyToMsgID() int32 {
 	return 0
 }
 
+func (m *NewMessage) ReplySenderID() int64 {
+	if m.Message.ReplyTo != nil {
+		return m.Client.GetPeerID(m.Message.ReplyTo.ReplyToPeerID)
+	}
+	return 0
+}
+
 func (m *NewMessage) MarkRead() (err error) {
 	_, err = m.Client.SendReadAck(m.ChatID(), m.ID)
 	return
