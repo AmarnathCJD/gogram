@@ -173,7 +173,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 					}
 					break
 				} else if matchError(err, "The code is valid but no user with the given number") {
-					return false, errors.New("Since Feb 2023, Telegram does not allow to create new accounts using API. Please use Telegram app to create an account and then use this library to login.")
+					return false, errors.New("Since Feb 2023, Telegram does not allow to create new accounts using ThirdParty Clients API. Please use Telegram app to create an account and then use this library to login.")
 					// c.AcceptTOS()
 					// _, err = c.AuthSignUp(phoneNumber, opts.CodeHash, opts.FirstName, opts.LastName)
 					// if err != nil {

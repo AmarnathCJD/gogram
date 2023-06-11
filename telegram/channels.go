@@ -325,12 +325,16 @@ type BannedOptions struct {
 	Mute   bool              `json:"mute,omitempty"`
 	Unmute bool              `json:"unmute,omitempty"`
 	Rights *ChatBannedRights `json:"rights,omitempty"`
+	Revoke bool              `json:"revoke,omitempty"`
 }
 
 // Edit Restricted rights of a user in a chat,
 // returns true if successfull
 func (c *Client) EditBanned(PeerID interface{}, UserID interface{}, opts ...*BannedOptions) (bool, error) {
 	o := getVariadic(opts, &BannedOptions{Ban: true, Rights: &ChatBannedRights{}}).(*BannedOptions)
+	if o.Rights == nil {
+		o.Rights = &ChatBannedRights{}
+	}
 	peer, err := c.GetSendablePeer(PeerID)
 	if err != nil {
 		return false, err
@@ -358,8 +362,17 @@ func (c *Client) EditBanned(PeerID interface{}, UserID interface{}, opts ...*Ban
 			return false, err
 		}
 	case *InputPeerChat:
-		// TODO: Implement
-		return false, errors.New("not implemented")
+		if o.Ban || o.Unban || o.Mute || o.Unmute {
+			if u, ok := u.(*InputPeerUser); ok {
+				_, err := c.MessagesDeleteChatUser(o.Revoke, p.ChatID, &InputUserObj{UserID: u.UserID, AccessHash: u.AccessHash})
+				return err == nil, err
+			}
+		} else {
+			if u, ok := u.(*InputPeerUser); ok {
+				_, err := c.MessagesAddChatUser(p.ChatID, &InputUserObj{UserID: u.UserID, AccessHash: u.AccessHash}, 0)
+				return err == nil, err
+			}
+		}
 	default:
 		return false, errors.New("peer is not a chat or channel")
 	}
