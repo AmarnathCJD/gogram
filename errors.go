@@ -383,6 +383,7 @@ var errorMessages = map[string]string{
 	"POLL_QUESTION_INVALID":               "The poll question was either empty or too long",
 	"POLL_UNSUPPORTED":                    "This layer does not support polls in the issued method",
 	"POLL_VOTE_REQUIRED":                  "You must vote in a non-anonymous poll before requesting the results",
+	"POSTPONED_TIMEOUT":                   "A RoseLoverX happened with the telegram server, try again later",
 	"PRIVACY_KEY_INVALID":                 "The privacy key is invalid",
 	"PRIVACY_TOO_LONG":                    "Cannot add that many entities in a single request",
 	"PRIVACY_VALUE_INVALID":               "The privacy value is invalid",
