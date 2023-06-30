@@ -477,10 +477,16 @@ func (h *messageHandle) runFilterChain(m *NewMessage) bool {
 	}
 	if len(h.Filters.Users) > 0 {
 		for _, user := range h.Filters.Users {
-			if !h.Filters.Blacklist && user != m.SenderID() || h.Filters.Blacklist && user == m.SenderID() {
+			if !h.Filters.Blacklist && user == m.SenderID() {
+				return true
+			}
+			if h.Filters.Blacklist && user == m.SenderID() {
 				return false
 			}
 		}
+	}
+	if !h.Filters.Blacklist {
+		return false
 	}
 	return true
 }
