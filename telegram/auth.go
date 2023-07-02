@@ -4,13 +4,13 @@ package telegram
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
 	"fmt"
 	"hash"
 	"math/big"
-	"math/rand"
 	"regexp"
 	"strings"
 	"syscall"

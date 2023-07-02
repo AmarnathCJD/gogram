@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -495,6 +496,19 @@ func (c *Client) Idle() {
 func (c *Client) Stop() error {
 	close(c.stopCh)
 	return c.MTProto.Terminate()
+}
+
+// NewRecovery makes a new recovery object
+func (c *Client) NewRecovery() func() {
+	return func() {
+		if r := recover(); r != nil {
+			if c.Log.Lev() == LogDebug {
+				c.Log.Panic(r, "\n\n", string(debug.Stack())) // print stacktrace for debug
+			} else {
+				c.Log.Panic(r)
+			}
+		}
+	}
 }
 
 // WrapError sends an error to the error channel if it is not nil

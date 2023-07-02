@@ -12,16 +12,15 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
 
-type (
-	Mime struct {
-		Extension string
-		Mime      string
-	}
-)
+type Mime struct {
+	Extension string
+	Mime      string
+}
 
 var (
 	MimeTypes = []Mime{
@@ -100,7 +99,7 @@ func resolveMimeType(filePath string) (string, bool) {
 	}
 	file, err := os.Open(filePath)
 	if err != nil {
-		return "application/octet-stream", false
+		return "", false
 	}
 	defer file.Close()
 	buffer := make([]byte, 512)
@@ -134,11 +133,8 @@ func mimeIsPhoto(mime string) bool {
 	return strings.HasPrefix(mime, "image/") && !strings.Contains(mime, "image/webp")
 }
 
+// GetFileLocation returns file location, datacenter, file size and file name
 func GetFileLocation(file interface{}) (InputFileLocation, int32, int64, string, error) {
-	return getFileLocation(file)
-}
-
-func getFileLocation(file interface{}) (InputFileLocation, int32, int64, string, error) {
 	var (
 		location   interface{}
 		dataCenter int32 = 4
@@ -252,51 +248,44 @@ func pathIsDir(path string) bool {
 //	 *Document
 //	 *Photo
 func getFileName(f interface{}) string {
+	getDocName := func(doc *DocumentObj) string {
+		for _, attr := range doc.Attributes {
+			switch attr := attr.(type) {
+			case *DocumentAttributeFilename:
+				return attr.FileName
+			case *DocumentAttributeAudio:
+				return attr.Title + ".mp3"
+			case *DocumentAttributeVideo:
+				return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+			case *DocumentAttributeAnimated:
+				return fmt.Sprintf("animation_%s_%d.gif", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+			case *DocumentAttributeSticker:
+				return fmt.Sprintf("sticker_%s_%d.webp", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+			}
+		}
+		if doc.MimeType != "" {
+			return fmt.Sprintf("file_%s_%d.%s", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000), strings.Split(doc.MimeType, "/")[1])
+		}
+		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+	}
+
 	switch f := f.(type) {
 	case *MessageMediaDocument:
-		for _, attr := range f.Document.(*DocumentObj).Attributes {
-			switch attr := attr.(type) {
-			case *DocumentAttributeFilename:
-				return attr.FileName
-			case *DocumentAttributeAudio:
-				return attr.Title + ".mp3"
-			case *DocumentAttributeVideo:
-				return "video.mp4"
-			case *DocumentAttributeAnimated:
-				return "animation.gif"
-			case *DocumentAttributeSticker:
-				return "sticker.webp"
-			}
-		}
-		return "file"
+		return getDocName(f.Document.(*DocumentObj))
 	case *MessageMediaPhoto:
-		return "photo.jpg"
+		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 	case *MessageMediaContact:
-		return "contact.vcf"
+		return fmt.Sprintf("contact_%s_%d.vcf", f.FirstName, rand.Intn(1000))
 	case *DocumentObj:
-		for _, attr := range f.Attributes {
-			switch attr := attr.(type) {
-			case *DocumentAttributeFilename:
-				return attr.FileName
-			case *DocumentAttributeAudio:
-				return attr.Title + ".mp3"
-			case *DocumentAttributeVideo:
-				return "video.mp4"
-			case *DocumentAttributeAnimated:
-				return "animation.gif"
-			case *DocumentAttributeSticker:
-				return "sticker.webp"
-			}
-		}
-		return "file"
+		return getDocName(f)
 	case *PhotoObj:
-		return "photo.jpg"
+		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 	case *InputPeerPhotoFileLocation:
-		return "peer_photo.jpg"
+		return fmt.Sprintf("profile_photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 	case *InputPhotoFileLocation:
-		return "photo_file.jpg"
+		return fmt.Sprintf("photo_file_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 	default:
-		return "download"
+		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 	}
 }
 
