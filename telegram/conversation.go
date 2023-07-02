@@ -72,22 +72,22 @@ func (c *Conversation) SendMedia(media InputMedia, opts ...*MediaOptions) (*NewM
 }
 
 func (c *Conversation) GetResponse() (*NewMessage, error) {
-	peerID := c.Client.GetPeerID(c.Peer)
+	//peerID := c.Client.GetPeerID(c.Peer)
 	resp := make(chan *NewMessage, 1)
 	waitFunc := func(m *NewMessage) error {
 		resp <- m
 		c.lastMsg = m
 		return nil
 	}
-	var filter = &Filters{}
-	switch c.Peer.(type) {
-	case *InputPeerChannel, *InputPeerChat:
-		filter.Chats = append(filter.Chats, peerID)
-	default:
-		filter.Users = append(filter.Users, peerID)
-		filter.IsPrivate = c.isPrivate
-	}
-	h := c.Client.AddMessageHandler(OnNewMessage, waitFunc, filter)
+	//var filter = &Filters{}
+	//switch c.Peer.(type) {
+	//case *InputPeerChannel, *InputPeerChat:
+	//	filter.Chats = append(filter.Chats, peerID)
+	//default:
+	//	filter.Users = append(filter.Users, peerID)
+	//	filter.IsPrivate = c.isPrivate
+	//}
+	h := c.Client.AddMessageHandler(OnNewMessage, waitFunc)
 	c.openH = append(c.openH, &h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):

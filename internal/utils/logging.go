@@ -86,6 +86,10 @@ func (l *Logger) Debug(v ...any) {
 	}
 }
 
+func (l *Logger) Panic(v ...any) {
+	log.Println(l.Prefix, "- Recovered -", getVariable(v...))
+}
+
 // NewLogger returns a new Logger instance.
 func NewLogger(prefix string) *Logger {
 	return &Logger{

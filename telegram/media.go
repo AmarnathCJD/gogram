@@ -10,13 +10,15 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 )
 
 const (
-	DEFAULT_WORKERS = 5
+	DEFAULT_WORKERS = 3
 	DEFAULT_PARTS   = 512 * 1024
 )
 
@@ -155,18 +157,18 @@ func (u *Uploader) Init() error {
 }
 
 func (u *Uploader) allocateWorkers() error {
+	fmt.Println("allocateWorkers")
 	borrowedSenders, err := u.Client.BorrowExportedSenders(u.Client.GetDC(), u.Worker)
 	if err != nil {
 		return err
 	}
+	fmt.Println("borrowedSenders", borrowedSenders)
 	u.Workers = borrowedSenders
 	u.Client.Log.Info(fmt.Sprintf("Uploading file %s with %d workers", u.Meta.FileName, len(u.Workers)))
 
 	u.Client.Log.Debug("Allocated workers: ", len(u.Workers), " for file upload")
 	return nil
 }
-
-func (u *Uploader) closeWorkers() {} // TODO: close workers after upload
 
 func (u *Uploader) saveFile() InputFile {
 	if u.Meta.IsBig {
@@ -321,7 +323,7 @@ type DownloadOptions struct {
 
 func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (string, error) {
 	opts := getVariadic(Opts, &DownloadOptions{}).(*DownloadOptions)
-	location, dc, size, fileName, err := getFileLocation(file)
+	location, dc, size, fileName, err := GetFileLocation(file)
 	if err != nil {
 		return "", err
 	}
@@ -389,13 +391,11 @@ func (d *Downloader) Init() {
 func (d *Downloader) createFile() (*os.File, error) {
 	if pathIsDir(d.FileName) {
 		d.FileName = filepath.Join(d.FileName, GenerateRandomString(10))
-		os.MkdirAll(filepath.Dir(d.FileName), 0755)
+		if err := os.MkdirAll(filepath.Dir(d.FileName), 0755); err != nil {
+			return nil, err
+		}
 	}
 	return os.Create(d.FileName)
-}
-
-func (d *Downloader) onError() {
-	os.Remove(d.FileName)
 }
 
 func (d *Downloader) allocateWorkers() {
@@ -519,3 +519,34 @@ func GenerateRandomString(n int) string {
 }
 
 // TODO: IMPLEMENT SenderChat Correctly.
+
+func UploadProgressBar(m *NewMessage, pc chan Progress) {
+	var (
+		progressfillemojirectangleempty = "◾️"
+		progressfillemojirectanglefull  = "◻️"
+	)
+
+	genPg := func(filled int64, total int64) string {
+		var (
+			empty = total - filled
+		)
+		totalnumofprogressbar := 10
+		filled = filled / (total / int64(totalnumofprogressbar))
+		empty = int64(totalnumofprogressbar) - filled
+		return fmt.Sprintf("%s%s", strings.Repeat(progressfillemojirectanglefull, int(filled)), strings.Repeat(progressfillemojirectangleempty, int(empty)))
+	}
+	t := time.Now()
+
+	for p := range pc {
+		if p.Total == 0 {
+			continue
+		}
+
+		if time.Since(t) > time.Second*5 {
+			fmt.Println(m.Edit(fmt.Sprintf("Uploading %s  %s", genPg(p.Now, p.Total), p.String())))
+			t = time.Now()
+		}
+	}
+
+	// TODO: implement this
+}

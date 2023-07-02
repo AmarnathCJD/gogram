@@ -1,6 +1,4 @@
 // Copyright (c) 2023 RoseLoverX
-
-//nolint:gochecknoglobals using it just for simplification and more readable
 package math
 
 import (
@@ -43,7 +41,7 @@ func SplitPQ(pq *big.Int) (p1, p2 *big.Int) {
 	rndmax := big.NewInt(0).SetBit(big.NewInt(0), 64, 1)
 
 	what := big.NewInt(0).Set(pq)
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint: gosec смысла нет
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	g := big.NewInt(0)
 	i := 0
 	for !(g.Cmp(big1) == 1 && g.Cmp(what) == -1) {
