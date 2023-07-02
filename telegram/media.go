@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	DEFAULT_WORKERS = 3
+	DEFAULT_WORKERS = 4
 	DEFAULT_PARTS   = 512 * 1024
 )
 
