@@ -3,6 +3,8 @@ package utils
 import (
 	"fmt"
 	"log"
+	"os"
+	"runtime"
 	"strings"
 )
 
@@ -64,30 +66,57 @@ func (l *Logger) SetLevel(level string) *Logger {
 // Log logs a message at the given level.
 func (l *Logger) Error(v ...any) {
 	if l.Level <= ErrorLevel {
-		log.Println(l.Prefix, "- Error -", getVariable(v...))
+		if l.WinTerminal() {
+			log.Println(l.Prefix, "- Error -", getVariable(v...))
+		} else {
+			log.Println(l.Prefix, "-", string("\033[35m")+"Error"+string("\033[0m"), "-", getVariable(v...))
+		}
 	}
 }
 
 func (l *Logger) Warn(v ...any) {
 	if l.Level <= WarnLevel {
-		log.Println(l.Prefix, "- Warn -", getVariable(v...))
+		if l.WinTerminal() {
+			log.Println(l.Prefix, "- Warn -", getVariable(v...))
+		} else {
+			log.Println(l.Prefix, "-", string("\033[33m")+"Warn"+string("\033[0m"), "-", getVariable(v...))
+		}
 	}
 }
 
 func (l *Logger) Info(v ...any) {
 	if l.Level <= InfoLevel {
-		log.Println(l.Prefix, "- Info -", getVariable(v...))
+		if l.WinTerminal() {
+			log.Println(l.Prefix, "-", "Info", "-", getVariable(v...))
+		} else {
+			log.Println(l.Prefix, "-", string("\033[31m")+"Info"+string("\033[0m"), "-", getVariable(v...))
+		}
 	}
 }
 
 func (l *Logger) Debug(v ...any) {
 	if l.Level <= DebugLevel {
-		log.Println(l.Prefix, "- Debug -", getVariable(v...))
+		if l.WinTerminal() {
+			log.Println(l.Prefix, "-", "Debug", "-", getVariable(v...))
+		} else {
+			log.Println(l.Prefix, "-", string("\033[32m")+"Debug"+string("\033[0m"), "-", getVariable(v...))
+		}
 	}
 }
 
 func (l *Logger) Panic(v ...any) {
-	log.Println(l.Prefix, "- Recovered -", getVariable(v...))
+	if l.WinTerminal() {
+		log.Println(l.Prefix, "-", "Panic", "-", getVariable(v...))
+	} else {
+		log.Println(l.Prefix, "-", string("\033[31m")+"Panic"+string("\033[0m"), "-", getVariable(v...))
+	}
+}
+
+func (l *Logger) WinTerminal() bool {
+	if runtime.GOOS == "windows" && os.Getenv("TERM_PROGRAM") != "vscode" {
+		return true
+	}
+	return false
 }
 
 // NewLogger returns a new Logger instance.

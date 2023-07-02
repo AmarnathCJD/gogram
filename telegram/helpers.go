@@ -447,7 +447,7 @@ mediaTypeSwitch:
 						}
 					}
 					if attr.Thumb == nil {
-						thumb, err := GetVideoThumbAsBytes(fileName, duration)
+						thumb, err := ExtractVideoThumb(fileName, duration)
 						if err == nil && len(thumb) > 0 {
 							attr.Thumb, _ = c.UploadFile(thumb)
 						}
@@ -457,7 +457,7 @@ mediaTypeSwitch:
 			if !hasFileName {
 				Attributes = append(Attributes, &DocumentAttributeFilename{FileName: fileName})
 			}
-			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: Attributes, Thumb: getValue(c.getThumbValue(attr.Thumb), &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32)}, nil
+			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: Attributes, Thumb: getValue(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32)}, nil
 		}
 	case []byte, *bytes.Reader:
 		uopts := &UploadOptions{}
@@ -484,13 +484,9 @@ func (c *Client) getThumbValue(thumb interface{}) InputFile {
 	return thumbMedia
 }
 
-func GetMetaDuration(path string) (int64, error) {
-	return utils.ParseDuration(path)
-}
-
 func GetVideoDuration(path string) int64 {
 	if strings.HasSuffix(path, "mp4") {
-		if r, err := GetMetaDuration(path); err == nil {
+		if r, err := utils.ParseDuration(path); err == nil {
 			return r / 1000
 		}
 	}
@@ -527,18 +523,18 @@ func GetVideoDimensions(path string) (int, int) {
 	return width, height
 }
 
-func GetVideoThumbAsBytes(path string, duration int64) ([]byte, error) {
+func ExtractVideoThumb(path string, duration int64) (string, error) {
 	if duration == 0 {
-		duration = GetVideoDuration(path)
+		duration = 2
 	}
-	if duration == 0 {
-		return nil, errors.New("failed to get video duration")
-	}
-	out, err := exec.Command("ffmpeg", "-ss", strconv.FormatInt(duration/2, 10), "-i", path, "-vframes", "1", "-f", "image2", "-").Output()
+	// save thumb to file
+	thumbPath := path + ".jpg"
+	cmd := exec.Command("ffmpeg", "-ss", strconv.FormatInt(duration/2, 10), "-i", path, "-vframes", "1", thumbPath)
+	_, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return out, nil
+	return thumbPath, nil
 }
 
 // TODO: implement this
@@ -564,7 +560,8 @@ func getAttrs(mimeType string) []DocumentAttribute {
 	case "image/gif":
 		return []DocumentAttribute{&DocumentAttributeAnimated{}}
 	case "video/mp4", "video/webm", "video/mpeg", "video/matroska", "video/3gpp", "video/3gpp2", "video/x-matroska", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/x-m4v", "video/x-flv":
-		return []DocumentAttribute{&DocumentAttributeVideo{RoundMessage: false, SupportsStreaming: true}}
+		attrVid := &DocumentAttributeVideo{RoundMessage: false, SupportsStreaming: true, W: 512, H: 512, Duration: 0}
+		return []DocumentAttribute{attrVid}
 	case "audio/mpeg", "audio/ogg", "audio/x-wav", "audio/x-flac", "audio/x-m4a", "audio/3gpp", "audio/3gpp2", "audio/amr", "audio/amr-wb", "audio/AMR-WB+", "audio/mp4", "audio/x-matroska":
 		return []DocumentAttribute{&DocumentAttributeAudio{Voice: false}}
 	default:
@@ -572,7 +569,7 @@ func getAttrs(mimeType string) []DocumentAttribute {
 	}
 }
 
-func mergeAttrs(attrs1, attrs2 []DocumentAttribute) []DocumentAttribute {
+func mergeAttrs(attrs2, attrs1 []DocumentAttribute) []DocumentAttribute {
 	var attrs = make([]DocumentAttribute, 0)
 	attrs = append(attrs, attrs1...)
 	for _, attr := range attrs2 {
