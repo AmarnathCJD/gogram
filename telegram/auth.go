@@ -135,10 +135,10 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 				if err == nil {
 					break
 				}
-				if matchError(err, "The phone code entered was invalid") {
+				if matchError(err, "The provided phone code is invalid.") {
 					fmt.Println("The phone code entered was invalid, please try again!")
 					continue
-				} else if matchError(err, "Two-steps verification is enabled") {
+				} else if matchError(err, "2FA is enabled, use a password to login") {
 					var passwordInput string
 					fmt.Println("Two-steps verification is enabled")
 					for {
