@@ -41,22 +41,22 @@ func (c *CACHE) flushToFile() {
 
 	data, err := json.Marshal(c)
 	if err != nil {
-		c.logger.Error("Error while marshalling cache: %v", err)
+		c.logger.Error("Error while marshalling cache: ", err)
 		return
 	}
 
 	file, err := os.Create("cache.journal")
 	if err != nil {
-		c.logger.Error("Error while creating cache.journal: %v", err)
+		c.logger.Error("Error while creating cache.journal: ", err)
 		return
 	}
 
 	if _, err := io.WriteString(file, string(data)); err != nil {
-		c.logger.Error("Error while writing cache.journal: %v", err)
+		c.logger.Error("Error while writing cache.journal: ", err)
 		return
 	}
 	if err := file.Close(); err != nil {
-		c.logger.Error("Error while closing cache.journal: %v", err)
+		c.logger.Error("Error while closing cache.journal: ", err)
 		return
 	}
 	go time.AfterFunc(80*time.Second, c.flushToFile)
@@ -69,14 +69,14 @@ func (c *CACHE) loadFromFile() {
 			// cache file doesn't exist, this is not an error
 			return
 		}
-		c.logger.Error("Error while opening cache.journal: %v", err)
+		c.logger.Error("Error while opening cache.journal: ", err)
 		return
 	}
 	defer file.Close()
 
 	stat, err := file.Stat()
 	if err != nil {
-		c.logger.Error("Error while getting cache.journal file info: %v", err)
+		c.logger.Error("Error while getting cache.journal file info: ", err)
 		return
 	}
 	if stat.Size() == 0 {
@@ -86,12 +86,12 @@ func (c *CACHE) loadFromFile() {
 
 	data := make([]byte, stat.Size())
 	if _, err := io.ReadFull(file, data); err != nil {
-		c.logger.Error("Error while reading cache.journal: %v", err)
+		c.logger.Error("Error while reading cache.journal: ", err)
 		return
 	}
 
 	if err := json.Unmarshal(data, c); err != nil {
-		c.logger.Error("Error while unmarshalling cache.journal: %v", err)
+		c.logger.Error("Error while unmarshalling cache.journal: ", err)
 		return
 	}
 }
@@ -141,7 +141,7 @@ func (c *CACHE) writeOnKill() {
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <-signals
-	c.logger.Debug("\nReceived signal: %v, flushing cache to file and exiting...\n", sig)
+	c.logger.Debug("\nReceived signal: " + sig.String() + ", flushing cache to file and exiting...\n")
 	c.flushToFile()
 }
 
