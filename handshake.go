@@ -171,7 +171,7 @@ func (m *MTProto) makeAuthKey() error {
 	if !m.memorySession {
 		err = m.SaveSession()
 		if err != nil {
-			m.Logger.Error("Saving session: %s", err)
+			m.Logger.Error("Saving session: ", err)
 		}
 	}
 	return err

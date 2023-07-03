@@ -3,6 +3,7 @@ package telegram
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -124,7 +125,7 @@ PhotoTypeSwitch:
 		Photo, _ = b.Client.getSendableMedia(media, &MediaMetadata{})
 		goto PhotoTypeSwitch
 	default:
-		b.Client.Logger.Warn("InlineBuilder.Photo: Photo is not a InputMediaPhoto, its a %T", p)
+		b.Client.Logger.Warn("InlineBuilder.Photo: Photo is not a InputMediaPhoto, its a", reflect.TypeOf(Photo).String())
 		Image = &InputPhotoEmpty{}
 	}
 	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()).(string))
