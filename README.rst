@@ -109,7 +109,7 @@ Doing stuff
     client.EditTitle("me", "MyNewAmazingName")
 
     client.UploadFile("file.txt")
-    p := client.GetParticipant("chat", "user")
+    p := client.GetChatMember("chat", "user")
 
     p.CanChangeInfo()
     p.GetRank()
