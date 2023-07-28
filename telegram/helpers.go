@@ -476,14 +476,6 @@ mediaTypeSwitch:
 	return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(mediaFile).String()))
 }
 
-func (c *Client) getThumbValue(thumb interface{}) InputFile {
-	thumbMedia, err := c.UploadFile(thumb)
-	if err != nil {
-		return nil
-	}
-	return thumbMedia
-}
-
 func GetVideoDuration(path string) int64 {
 	if strings.HasSuffix(path, "mp4") {
 		if r, err := utils.ParseDuration(path); err == nil {
