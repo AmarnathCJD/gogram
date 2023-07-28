@@ -30,7 +30,7 @@ func (c *Client) AuthPrompt() error {
 		fmt.Printf("Enter phone number (with country code) or bot token: ")
 		fmt.Scanln(&input)
 		if input != "" {
-			botTokenRegex := regexp.MustCompile(`^\d+:\w+$`)
+			botTokenRegex := regexp.MustCompile(`^\d+:[\w\d_-]+$`)
 			if botTokenRegex.MatchString(input) {
 				err := c.LoginBot(input)
 				if err != nil {
@@ -44,7 +44,7 @@ func (c *Client) AuthPrompt() error {
 						return err
 					}
 				} else {
-					fmt.Println("Invalid input, try again")
+					fmt.Println("The input is not a valid phone number or bot token, try again")
 					continue
 				}
 			}
@@ -97,12 +97,13 @@ func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
 }
 
 type LoginOptions struct {
-	Password     string        `json:"password,omitempty"`
-	Code         string        `json:"code,omitempty"`
-	CodeHash     string        `json:"code_hash,omitempty"`
-	CodeCallback func() string `json:"-"`
-	FirstName    string        `json:"first_name,omitempty"`
-	LastName     string        `json:"last_name,omitempty"`
+	Password         string `json:"password,omitempty"`
+	Code             string `json:"code,omitempty"`
+	CodeHash         string `json:"code_hash,omitempty"`
+	CodeCallback     func() (string, error)
+	PasswordCallback func() (string, error)
+	FirstName        string `json:"first_name,omitempty"`
+	LastName         string `json:"last_name,omitempty"`
 }
 
 // Authorize client with phone number, code and phone code hash,
@@ -126,12 +127,29 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 			return false, e
 		}
 		opts.CodeHash = hash
+
+		if opts.CodeCallback == nil {
+			opts.CodeCallback = func() (string, error) {
+				fmt.Printf("Enter code: ")
+				var codeInput string
+				fmt.Scanln(&codeInput)
+				return codeInput, nil
+			}
+		}
+		if opts.PasswordCallback == nil {
+			opts.PasswordCallback = func() (string, error) {
+				fmt.Printf("Two-steps verification is enabled")
+				fmt.Printf("Enter password: ")
+				var passwordInput string
+				fmt.Scanln(&passwordInput)
+				return passwordInput, nil
+			}
+		}
+
 		for {
-			fmt.Printf("Enter code: ")
-			var codeInput string
-			fmt.Scanln(&codeInput)
-			if codeInput != "" {
-				opts.Code = codeInput
+			opts.Code, err = opts.CodeCallback()
+
+			if opts.Code != "" {
 				Auth, err = c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
 				if err == nil {
 					break
@@ -140,16 +158,18 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 					fmt.Println("The phone code entered was invalid, please try again!")
 					continue
 				} else if matchError(err, "Two-steps verification is enabled") {
-					var passwordInput string
-					fmt.Println("Two-steps verification is enabled")
 				acceptPasswordInput:
 					for {
+						passwordInput, err := opts.PasswordCallback()
+						if err != nil {
+							return false, err
+						}
 						fmt.Printf("Enter password: ")
 						fmt.Scanln(&passwordInput)
 						if passwordInput != "" {
 							opts.Password = passwordInput
 							break
-						} else if passwordInput == "cancel" {
+						} else if passwordInput == "cancel" || passwordInput == "exit" {
 							return false, nil
 						} else {
 							fmt.Println("Invalid password, try again")
@@ -159,7 +179,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 					if err != nil {
 						return false, err
 					}
-					inputPassword, err := GetInputCheckPassword(passwordInput, AccPassword)
+					inputPassword, err := GetInputCheckPassword(opts.Password, AccPassword)
 					if err != nil {
 						return false, err
 					}
@@ -182,8 +202,8 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 				} else {
 					return false, err
 				}
-			} else if codeInput == "cancel" {
-				return false, nil
+			} else if opts.Code == "cancel" || opts.Code == "exit" {
+				return false, fmt.Errorf("Login canceled")
 			} else {
 				if err, ok := err.(syscall.Errno); ok && err == syscall.EINTR {
 					return false, nil
