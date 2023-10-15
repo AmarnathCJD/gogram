@@ -159,7 +159,8 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 					continue
 				} else if matchError(err, "Two-steps verification is enabled") {
 				acceptPasswordInput:
-					for {
+					if opts.Password != "" {
+					  for {
 						passwordInput, err := opts.PasswordCallback()
 						if err != nil {
 							return false, err
@@ -174,6 +175,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 						} else {
 							fmt.Println("Invalid password, try again")
 						}
+					  }
 					}
 					AccPassword, err := c.AccountGetPassword()
 					if err != nil {
