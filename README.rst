@@ -1,7 +1,7 @@
 GσGram
 ========
 
-Massive Updates and Bug Fixes coming soon
+Massive Updates and Bug Fixes on October 2023
 
 
 .. epigraph::
