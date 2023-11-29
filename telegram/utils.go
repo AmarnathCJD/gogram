@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/pkg/errors"
 )
 
@@ -70,6 +71,16 @@ func getErrorCode(err error) (int, int) {
 func matchError(err error, str string) bool {
 	if err != nil {
 		return strings.Contains(err.Error(), str)
+	}
+	return false
+}
+
+func matchRPCError(err error, str string) bool {
+	if err != nil {
+		e, isRpc := (err).(*mtproto.ErrResponseCode)
+		if isRpc {
+			return strings.Contains(e.Message, str)
+		}
 	}
 	return false
 }
