@@ -27,7 +27,7 @@ func (c *Client) AuthPrompt() error {
 	var input string
 	MAX_RETRIES := 3
 	for i := 0; i < MAX_RETRIES; i++ {
-		fmt.Printf("Enter phone number (with country code) or bot token: ")
+		fmt.Printf("Enter phone number (with country code [+42xxx]) or bot token: ")
 		fmt.Scanln(&input)
 		if input != "" {
 			botTokenRegex := regexp.MustCompile(`^\d+:[\w\d_-]+$`)
@@ -38,13 +38,13 @@ func (c *Client) AuthPrompt() error {
 				}
 			} else {
 				phoneRegex := regexp.MustCompile(`^\+?\d+$`)
-				if phoneRegex.MatchString(input) {
+				if phoneRegex.MatchString(strings.TrimSpace(input)) {
 					_, err := c.Login(input)
 					if err != nil {
 						return err
 					}
 				} else {
-					fmt.Println("The input is not a valid phone number or bot token, try again")
+					fmt.Println("The input is not a valid phone number or bot token, try again [", i+1, "/", MAX_RETRIES, "]")
 					continue
 				}
 			}
