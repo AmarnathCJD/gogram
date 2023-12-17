@@ -17,9 +17,7 @@ var (
 	ErrTimeOut = errors.New("conversation timeout")
 )
 
-type handle interface {
-	Remove()
-}
+type handle interface{}
 
 // Conversation is a struct for conversation with user.
 type Conversation struct {
@@ -183,7 +181,7 @@ func (c *Conversation) MarkRead() (*MessagesAffectedMessages, error) {
 
 func (c *Conversation) WaitEvent(ev *Update) (Update, error) {
 	resp := make(chan Update)
-	waitFunc := func(u Update) error {
+	waitFunc := func(u Update, c *Client) error {
 		resp <- u
 		return nil
 	}
@@ -210,12 +208,12 @@ func (c *Conversation) removeHandle(h handle) {
 			return
 		}
 	}
-	h.Remove()
+	c.Client.removeHandle(h)
 }
 
 // Close closes the conversation
 func (c *Conversation) Close() {
 	for _, h := range c.openH {
-		h.Remove()
+		c.Client.removeHandle(h)
 	}
 }

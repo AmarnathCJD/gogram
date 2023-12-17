@@ -35,6 +35,7 @@ type MTProto struct {
 	transport     transport.Transport
 	stopRoutines  context.CancelFunc
 	routineswg    sync.WaitGroup
+	processedChan chan struct{}
 	memorySession bool
 	tcpActive     bool
 
