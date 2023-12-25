@@ -1,7 +1,7 @@
 GσGram
 ========
 
-Massive Updates and Bug Fixes on December 2023
+Massive Updates and Bug Fixes on December 2023 :)
 
 
 .. epigraph::
