@@ -1,4 +1,4 @@
-// Copyright (c) 2023 RoseLoverX
+// Copyright (c) 2024 RoseLoverX
 
 package tl
 
@@ -31,13 +31,6 @@ func Decode(data []byte, res any) error {
 	return nil
 }
 
-// DecodeUnknownObject decodes object from message, when you don't actually know, what message contains.
-// due to TL doesn't provide mechanism for understanding is message a int or string, you MUST guarantee, that
-// input stream DOES NOT contains any type WITHOUT its CRC code. So, strings, ints, floats, etc. CAN'T BE
-// automatically parsed.
-//
-// expectNextTypes is your predictions how decoder must parse objects hidden under interfaces.
-// See Decoder.ExpectTypesInInterface description
 func DecodeUnknownObject(data []byte, expectNextTypes ...reflect.Type) (Object, error) {
 	d, err := NewDecoder(bytes.NewReader(data))
 	if err != nil {
@@ -48,8 +41,9 @@ func DecodeUnknownObject(data []byte, expectNextTypes ...reflect.Type) (Object, 
 	}
 
 	obj := d.decodeRegisteredObject()
+
 	if d.err != nil {
-		return nil, errors.Wrap(d.err, "decoding predicted object")
+		return obj, errors.Wrap(d.err, "decoding predicted object")
 	}
 	return obj, nil
 }
@@ -73,6 +67,7 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 	}
 
 	value := reflect.ValueOf(o)
+
 	if value.Kind() != reflect.Ptr {
 		panic("not a pointer")
 	}
@@ -83,10 +78,12 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 	}
 
 	vtyp := value.Type()
-	var optionalBitSet uint32
+
+	var optionalBitSetA uint32
+	var optionalBitSetB uint32
+
 	var flagsetIndex = -1
 	if haveFlag(value.Interface()) {
-		// getting new cause we need idempotent response
 		indexGetter, ok := reflect.New(vtyp).Interface().(FlagIndexGetter)
 		if !ok {
 			panic("type " + value.Type().String() + " has type bit flag tags, but doesn't inplement tl.FlagIndexGetter")
@@ -98,25 +95,27 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 
 	}
 
-	var bitsetParsed bool
+	var isBitsetAParsed bool // flag
+	var isBitsetBParsed bool // flag2
+
 	loopCycles := value.NumField()
 	if flagsetIndex >= 0 {
 		loopCycles++
 	}
+
 	for i := 0; i < loopCycles; i++ {
-		// parsing flag is necessary
 		if flagsetIndex == i {
-			optionalBitSet = d.PopUint()
+			optionalBitSetA = d.PopUint()
 			if d.err != nil {
 				d.err = errors.Wrap(d.err, "read bitset")
 				return
 			}
-			bitsetParsed = true
+			isBitsetAParsed = true
 			continue
 		}
 
 		fieldIndex := i
-		if bitsetParsed {
+		if isBitsetAParsed {
 			fieldIndex--
 		}
 		field := value.Field(fieldIndex)
@@ -127,9 +126,22 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 				d.err = errors.Wrap(err, "parse tag")
 				return
 			}
-
-			if optionalBitSet&(1<<info.index) == 0 {
-				continue
+			if info.version == 1 {
+				if optionalBitSetA&(1<<info.index) == 0 {
+					continue
+				}
+			} else if info.version == 2 {
+				if (!isBitsetBParsed) && isBitsetAParsed {
+					optionalBitSetB = d.PopUint()
+					if d.err != nil {
+						d.err = errors.Wrap(d.err, "read bitset")
+						return
+					}
+					isBitsetBParsed = true
+				}
+				if optionalBitSetB&(1<<info.index) == 0 {
+					continue
+				}
 			}
 
 			if info.encodedInBitflag {
@@ -138,7 +150,7 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 			}
 		}
 
-		if field.Kind() == reflect.Ptr { // && field.IsNil()
+		if field.Kind() == reflect.Ptr {
 			val := reflect.New(field.Type().Elem())
 			field.Set(val)
 		}
@@ -155,6 +167,7 @@ func (d *Decoder) decodeValue(value reflect.Value) {
 	if d.err != nil {
 		return
 	}
+
 	if m, ok := value.Interface().(Unmarshaler); ok {
 		err := m.UnmarshalTL(d)
 		if err != nil {
@@ -169,10 +182,7 @@ func (d *Decoder) decodeValue(value reflect.Value) {
 		return
 	}
 
-	switch value.Kind() { //nolint:exhaustive has default case + more types checked
-	// Float64,Int64,Uint32,Int32,Bool,String,Chan, Func, Uintptr, UnsafePointer,Struct,Map,Array,Int,
-	// Int8,Int16,Uint,Uint8,Uint16,Uint64,Float32,Complex64,Complex128
-	// these values are checked already
+	switch value.Kind() {
 
 	case reflect.Slice:
 		if _, ok := value.Interface().([]byte); ok {
@@ -193,7 +203,6 @@ func (d *Decoder) decodeValue(value reflect.Value) {
 	case reflect.Interface:
 		val = d.decodeRegisteredObject()
 
-		// if we got slice, we must unwrap it, cause WrappedSlice allowed to exist ONLY in root of returned object
 		if v, ok := val.(*WrappedSlice); ok {
 			if reflect.TypeOf(v.data).ConvertibleTo(value.Type()) {
 				val = v.data
@@ -205,7 +214,7 @@ func (d *Decoder) decodeValue(value reflect.Value) {
 			return
 		}
 	default:
-		panic("неизвестная штука: " + value.Type().String())
+		panic("unknown kind of value: " + value.Type().String())
 	}
 
 	if d.err != nil {
@@ -215,19 +224,17 @@ func (d *Decoder) decodeValue(value reflect.Value) {
 	value.Set(reflect.ValueOf(val).Convert(value.Type()))
 }
 
-// декодирует базовые типы, строчки числа, вот это. если тип не найден возвращает nil
 func (d *Decoder) decodeValueGeneral(value reflect.Value) any {
-	// value, which is setting into value arg
 	var val any
 
-	switch value.Kind() { //nolint:exhaustive has default case
+	switch value.Kind() {
 	case reflect.Float64:
 		val = d.PopDouble()
 
 	case reflect.Int64:
 		val = d.PopLong()
 
-	case reflect.Uint32: // это применимо так же к енумам
+	case reflect.Uint32:
 		val = d.PopUint()
 
 	case reflect.Int32:
@@ -240,7 +247,7 @@ func (d *Decoder) decodeValueGeneral(value reflect.Value) any {
 		val = string(d.PopMessage())
 
 	case reflect.Chan, reflect.Func, reflect.Uintptr, reflect.UnsafePointer:
-		panic(value.Kind().String() + " does not supported")
+		panic(value.Kind().String() + " is not supported")
 
 	case reflect.Struct:
 		d.err = fmt.Errorf("%v must implement tl.Object for decoding (also it must be pointer)", value.Type())
@@ -261,7 +268,6 @@ func (d *Decoder) decodeValueGeneral(value reflect.Value) any {
 		return nil
 
 	default:
-		// not basic type
 		return nil
 	}
 
@@ -276,8 +282,6 @@ func (d *Decoder) decodeRegisteredObject() Object {
 
 	var _typ reflect.Type
 
-	// firstly, we are checking specific crc situations.
-	// See https://github.com/amarnathcjd/gogram/issues/51
 	switch crc {
 	case CrcVector:
 		if len(d.expectedTypes) == 0 {
@@ -304,10 +308,10 @@ func (d *Decoder) decodeRegisteredObject() Object {
 		return &PseudoNil{}
 	}
 
-	// in other ways we're trying to get object from registred crcs
 	var ok bool
 	_typ, ok = objectByCrc[crc]
 	if !ok {
+
 		msg, err := d.DumpWithoutRead()
 		if err != nil {
 			return nil
@@ -336,7 +340,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 		d.decodeObject(o, true)
 		if d.err != nil {
 			d.err = errors.Wrapf(d.err, "decode registered object %T", o)
-			return nil
+			return o
 		}
 	}
 

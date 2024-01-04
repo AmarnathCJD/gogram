@@ -1,4 +1,4 @@
-// Copyright (c) 2022, amarnathcjd
+// Copyright (c) 2024, amarnathcjd
 
 package telegram
 
@@ -626,7 +626,15 @@ UpdateTypeSwitching:
 func (c *Client) GetDifference(Pts int32, Limit int32) (Message, error) {
 	c.Logger.Debug("updates.getDifference: [pts: ", Pts, " limit: ", Limit, "]")
 
-	updates, err := c.UpdatesGetDifference(Pts-1, Limit, int32(time.Now().Unix()), 0)
+	updates, err := c.UpdatesGetDifference(&UpdatesGetDifferenceParams{
+		Pts:           Pts - 1,
+		PtsLimit:      Limit,
+		PtsTotalLimit: Limit,
+		Date:          int32(time.Now().Unix()),
+		Qts:           0,
+		QtsLimit:      Limit,
+	})
+
 	if err != nil {
 		return nil, err
 	}

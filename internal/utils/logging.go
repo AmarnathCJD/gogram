@@ -1,3 +1,5 @@
+// Copyright (c) 2024 RoseLoverX
+
 package utils
 
 import (

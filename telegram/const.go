@@ -3,8 +3,8 @@ package telegram
 import "regexp"
 
 const (
-	ApiVersion = 147
-	Version    = "v2.3.4"
+	ApiVersion = 170
+	Version    = "v2.3.5"
 
 	LogDebug   = "debug"
 	LogInfo    = "info"
@@ -27,7 +27,7 @@ const (
 	OnInlineQuery         = "OnInlineQuery"
 	OnCallbackQuery       = "OnCallbackQuery"
 	OnInlineCallbackQuery = "OnInlineCallbackQuery"
-	OnChosenInlineResult  = "OnChosenInlineResult" // TODO: implement this
+	OnChosenInlineResult  = "OnChosenInlineResult"
 	OnDeleteMessage       = "OnDeleteMessage"
 )
 
@@ -36,7 +36,7 @@ var (
 )
 
 const (
-	randombyteLen = 256 // 2048 bit
+	randombyteLen = 256
 )
 
 var (

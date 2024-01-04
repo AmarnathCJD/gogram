@@ -20,6 +20,7 @@ type Parameter struct {
 	Comment      string
 	IsVector     bool
 	IsOptional   bool
+	Version      int
 	BitToTrigger int
 }
 

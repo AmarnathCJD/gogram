@@ -1,6 +1,5 @@
-// Copyright (c) 2023 RoseLoverX
+// Copyright (c) 2024 RoseLoverX
 
-//nolint:gochecknoglobals required global
 package tl
 
 import (

@@ -55,8 +55,10 @@ func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 	// еще одно злоебучее исключение. проблема в том, что bool это вот как бы и объект, да вот как бы и нет
 	// трабла только в том, что нельзя просто так взять, и получить bool из MakeRequest. так что
 	// возвращаем tl.Bool
+	nuk := jen.Nil()
 	if obj.Response.Type == "Bool" {
-		resp = jen.Op("*").Qual(tlPackagePath, "bool")
+		resp = jen.Op("").Qual("", "bool")
+		nuk = jen.Bool()
 	}
 
 	responses := []jen.Code{resp, jen.Error()}
@@ -72,10 +74,11 @@ func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 	//*	}
 	//*
 	//*	return resp, nil
+
 	method := jen.Func().Params(jen.Id("c").Op("*").Id("Client")).Id(goify(obj.Name, true)).Params(g.generateArgumentsForMethod(obj)...).Params(responses...).Block(
 		jen.List(jen.Id("responseData"), jen.Id("err")).Op(":=").Id("c").Dot("MakeRequest").Call(g.generateMethodArgumentForMakingRequest(obj)),
 		jen.If(jen.Err().Op("!=").Nil()).Block(
-			jen.Return(jen.Nil(), jen.Qual(errorsPackagePath, "Wrap").Call(jen.Err(), jen.Lit("sending "+goify(obj.Name, true)))),
+			jen.Return(nuk, jen.Qual(errorsPackagePath, "Wrap").Call(jen.Err(), jen.Lit("sending "+goify(obj.Name, true)))),
 		),
 		jen.Line(),
 		jen.List(jen.Id("resp"), jen.Id("ok")).Op(":=").Id("responseData").Assert(resp),
@@ -117,7 +120,7 @@ func (g *Generator) generateArgumentsForMethod(obj *tlparser.Method) []jen.Code 
 	return items
 }
 
-func (*Generator) generateMethodArgumentForMakingRequest(obj *tlparser.Method) *jen.Statement {
+func (g *Generator) generateMethodArgumentForMakingRequest(obj *tlparser.Method) *jen.Statement {
 	if len(obj.Parameters) > maximumPositionalArguments {
 		return jen.Id("params")
 	}

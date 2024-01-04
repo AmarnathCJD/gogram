@@ -1,4 +1,4 @@
-// Copyright (c) 2023 RoseLoverX
+// Copyright (c) 2024 RoseLoverX
 
 package gogram
 
@@ -35,7 +35,6 @@ type MTProto struct {
 	transport     transport.Transport
 	stopRoutines  context.CancelFunc
 	routineswg    sync.WaitGroup
-	processedChan chan struct{}
 	memorySession bool
 	tcpActive     bool
 
@@ -475,6 +474,7 @@ func (m *MTProto) processResponse(msg messages.Common) error {
 		data, err = tl.DecodeUnknownObject(msg.GetMsg())
 	}
 	if err != nil {
+		m.Logger.Error(errors.Wrap(err, "decoding unknown object"))
 		return fmt.Errorf("unmarshalling response: %w", err)
 	}
 

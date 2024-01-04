@@ -28,6 +28,39 @@ func (*AttachMenuBotsNotModified) CRC() uint32 {
 
 func (*AttachMenuBotsNotModified) ImplementsAttachMenuBots() {}
 
+type BotApp interface {
+	tl.Object
+	ImplementsBotApp()
+}
+type BotAppObj struct {
+	ID          int64
+	AccessHash  int64
+	ShortName   string
+	Title       string
+	Description string
+	Photo       Photo
+	Document    Document `tl:"flag:0"`
+	Hash        int64
+}
+
+func (*BotAppObj) CRC() uint32 {
+	return 0x95fcd1d6
+}
+
+func (*BotAppObj) FlagIndex() int {
+	return 0
+}
+
+func (*BotAppObj) ImplementsBotApp() {}
+
+type BotAppNotModified struct{}
+
+func (*BotAppNotModified) CRC() uint32 {
+	return 0x5da674b7
+}
+
+func (*BotAppNotModified) ImplementsBotApp() {}
+
 type BotCommandScope interface {
 	tl.Object
 	ImplementsBotCommandScope()
@@ -100,6 +133,7 @@ type BotInlineMessage interface {
 	ImplementsBotInlineMessage()
 }
 type BotInlineMessageMediaAuto struct {
+	InvertMedia bool `tl:"flag:3,encoded_in_bitflags"`
 	Message     string
 	Entities    []MessageEntity `tl:"flag:1"`
 	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
@@ -192,8 +226,31 @@ func (*BotInlineMessageMediaVenue) FlagIndex() int {
 
 func (*BotInlineMessageMediaVenue) ImplementsBotInlineMessage() {}
 
+type BotInlineMessageMediaWebPage struct {
+	InvertMedia     bool `tl:"flag:3,encoded_in_bitflags"`
+	ForceLargeMedia bool `tl:"flag:4,encoded_in_bitflags"`
+	ForceSmallMedia bool `tl:"flag:5,encoded_in_bitflags"`
+	Manual          bool `tl:"flag:7,encoded_in_bitflags"`
+	Safe            bool `tl:"flag:8,encoded_in_bitflags"`
+	Message         string
+	Entities        []MessageEntity `tl:"flag:1"`
+	URL             string
+	ReplyMarkup     ReplyMarkup `tl:"flag:2"`
+}
+
+func (*BotInlineMessageMediaWebPage) CRC() uint32 {
+	return 0x809ad9a6
+}
+
+func (*BotInlineMessageMediaWebPage) FlagIndex() int {
+	return 0
+}
+
+func (*BotInlineMessageMediaWebPage) ImplementsBotInlineMessage() {}
+
 type BotInlineMessageText struct {
 	NoWebpage   bool `tl:"flag:0,encoded_in_bitflags"`
+	InvertMedia bool `tl:"flag:3,encoded_in_bitflags"`
 	Message     string
 	Entities    []MessageEntity `tl:"flag:1"`
 	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
@@ -311,6 +368,17 @@ func (*ChannelAdminLogEventActionChangeAvailableReactions) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionChangeAvailableReactions) ImplementsChannelAdminLogEventAction() {}
 
+type ChannelAdminLogEventActionChangeEmojiStatus struct {
+	PrevValue EmojiStatus
+	NewValue  EmojiStatus
+}
+
+func (*ChannelAdminLogEventActionChangeEmojiStatus) CRC() uint32 {
+	return 0x3ea9feb1
+}
+
+func (*ChannelAdminLogEventActionChangeEmojiStatus) ImplementsChannelAdminLogEventAction() {}
+
 type ChannelAdminLogEventActionChangeHistoryTtl struct {
 	PrevValue int32
 	NewValue  int32
@@ -344,6 +412,17 @@ func (*ChannelAdminLogEventActionChangeLocation) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionChangeLocation) ImplementsChannelAdminLogEventAction() {}
 
+type ChannelAdminLogEventActionChangePeerColor struct {
+	PrevValue *PeerColor
+	NewValue  *PeerColor
+}
+
+func (*ChannelAdminLogEventActionChangePeerColor) CRC() uint32 {
+	return 0x5796e780
+}
+
+func (*ChannelAdminLogEventActionChangePeerColor) ImplementsChannelAdminLogEventAction() {}
+
 type ChannelAdminLogEventActionChangePhoto struct {
 	PrevPhoto Photo
 	NewPhoto  Photo
@@ -354,6 +433,17 @@ func (*ChannelAdminLogEventActionChangePhoto) CRC() uint32 {
 }
 
 func (*ChannelAdminLogEventActionChangePhoto) ImplementsChannelAdminLogEventAction() {}
+
+type ChannelAdminLogEventActionChangeProfilePeerColor struct {
+	PrevValue *PeerColor
+	NewValue  *PeerColor
+}
+
+func (*ChannelAdminLogEventActionChangeProfilePeerColor) CRC() uint32 {
+	return 0x5e477b25
+}
+
+func (*ChannelAdminLogEventActionChangeProfilePeerColor) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionChangeStickerSet struct {
 	PrevStickerset InputStickerSet
@@ -388,6 +478,38 @@ func (*ChannelAdminLogEventActionChangeUsername) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionChangeUsername) ImplementsChannelAdminLogEventAction() {}
 
+type ChannelAdminLogEventActionChangeUsernames struct {
+	PrevValue []string
+	NewValue  []string
+}
+
+func (*ChannelAdminLogEventActionChangeUsernames) CRC() uint32 {
+	return 0xf04fb3a9
+}
+
+func (*ChannelAdminLogEventActionChangeUsernames) ImplementsChannelAdminLogEventAction() {}
+
+type ChannelAdminLogEventActionChangeWallpaper struct {
+	PrevValue WallPaper
+	NewValue  WallPaper
+}
+
+func (*ChannelAdminLogEventActionChangeWallpaper) CRC() uint32 {
+	return 0x31bb5d52
+}
+
+func (*ChannelAdminLogEventActionChangeWallpaper) ImplementsChannelAdminLogEventAction() {}
+
+type ChannelAdminLogEventActionCreateTopic struct {
+	Topic ForumTopic
+}
+
+func (*ChannelAdminLogEventActionCreateTopic) CRC() uint32 {
+	return 0x58707d28
+}
+
+func (*ChannelAdminLogEventActionCreateTopic) ImplementsChannelAdminLogEventAction() {}
+
 type ChannelAdminLogEventActionDefaultBannedRights struct {
 	PrevBannedRights *ChatBannedRights
 	NewBannedRights  *ChatBannedRights
@@ -409,6 +531,16 @@ func (*ChannelAdminLogEventActionDeleteMessage) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionDeleteMessage) ImplementsChannelAdminLogEventAction() {}
 
+type ChannelAdminLogEventActionDeleteTopic struct {
+	Topic ForumTopic
+}
+
+func (*ChannelAdminLogEventActionDeleteTopic) CRC() uint32 {
+	return 0xae168909
+}
+
+func (*ChannelAdminLogEventActionDeleteTopic) ImplementsChannelAdminLogEventAction() {}
+
 type ChannelAdminLogEventActionDiscardGroupCall struct {
 	Call *InputGroupCall
 }
@@ -429,6 +561,17 @@ func (*ChannelAdminLogEventActionEditMessage) CRC() uint32 {
 }
 
 func (*ChannelAdminLogEventActionEditMessage) ImplementsChannelAdminLogEventAction() {}
+
+type ChannelAdminLogEventActionEditTopic struct {
+	PrevTopic ForumTopic
+	NewTopic  ForumTopic
+}
+
+func (*ChannelAdminLogEventActionEditTopic) CRC() uint32 {
+	return 0xf06fe208
+}
+
+func (*ChannelAdminLogEventActionEditTopic) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionExportedInviteDelete struct {
 	Invite ExportedChatInvite
@@ -480,11 +623,16 @@ func (*ChannelAdminLogEventActionParticipantJoin) CRC() uint32 {
 func (*ChannelAdminLogEventActionParticipantJoin) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionParticipantJoinByInvite struct {
-	Invite ExportedChatInvite
+	ViaChatlist bool `tl:"flag:0,encoded_in_bitflags"`
+	Invite      ExportedChatInvite
 }
 
 func (*ChannelAdminLogEventActionParticipantJoinByInvite) CRC() uint32 {
-	return 0x5cdada77
+	return 0xfe9fc158
+}
+
+func (*ChannelAdminLogEventActionParticipantJoinByInvite) FlagIndex() int {
+	return 0
 }
 
 func (*ChannelAdminLogEventActionParticipantJoinByInvite) ImplementsChannelAdminLogEventAction() {}
@@ -560,6 +708,21 @@ func (*ChannelAdminLogEventActionParticipantVolume) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionParticipantVolume) ImplementsChannelAdminLogEventAction() {}
 
+type ChannelAdminLogEventActionPinTopic struct {
+	PrevTopic ForumTopic `tl:"flag:0"`
+	NewTopic  ForumTopic `tl:"flag:1"`
+}
+
+func (*ChannelAdminLogEventActionPinTopic) CRC() uint32 {
+	return 0x5d8d353b
+}
+
+func (*ChannelAdminLogEventActionPinTopic) FlagIndex() int {
+	return 0
+}
+
+func (*ChannelAdminLogEventActionPinTopic) ImplementsChannelAdminLogEventAction() {}
+
 type ChannelAdminLogEventActionSendMessage struct {
 	Message Message
 }
@@ -589,6 +752,26 @@ func (*ChannelAdminLogEventActionStopPoll) CRC() uint32 {
 }
 
 func (*ChannelAdminLogEventActionStopPoll) ImplementsChannelAdminLogEventAction() {}
+
+type ChannelAdminLogEventActionToggleAntiSpam struct {
+	NewValue bool
+}
+
+func (*ChannelAdminLogEventActionToggleAntiSpam) CRC() uint32 {
+	return 0x64f36dfc
+}
+
+func (*ChannelAdminLogEventActionToggleAntiSpam) ImplementsChannelAdminLogEventAction() {}
+
+type ChannelAdminLogEventActionToggleForum struct {
+	NewValue bool
+}
+
+func (*ChannelAdminLogEventActionToggleForum) CRC() uint32 {
+	return 0x2cc6383
+}
+
+func (*ChannelAdminLogEventActionToggleForum) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionToggleGroupCallSetting struct {
 	JoinMuted bool
@@ -915,6 +1098,10 @@ type Channel struct {
 	Noforwards          bool `tl:"flag:27,encoded_in_bitflags"`
 	JoinToSend          bool `tl:"flag:28,encoded_in_bitflags"`
 	JoinRequest         bool `tl:"flag:29,encoded_in_bitflags"`
+	Forum               bool `tl:"flag:30,encoded_in_bitflags"`
+	StoriesHidden       bool `tl:"flag2:1,encoded_in_bitflags"`
+	StoriesHiddenMin    bool `tl:"flag2:2,encoded_in_bitflags"`
+	StoriesUnavailable  bool `tl:"flag2:3,encoded_in_bitflags"`
 	ID                  int64
 	AccessHash          int64 `tl:"flag:13"`
 	Title               string
@@ -926,14 +1113,20 @@ type Channel struct {
 	BannedRights        *ChatBannedRights    `tl:"flag:15"`
 	DefaultBannedRights *ChatBannedRights    `tl:"flag:18"`
 	ParticipantsCount   int32                `tl:"flag:17"`
+	Usernames           []*Username          `tl:"flag2:0"`
+	StoriesMaxID        int32                `tl:"flag2:4"`
+	Color               *PeerColor           `tl:"flag2:7"`
+	ProfileColor        *PeerColor           `tl:"flag2:8"`
+	EmojiStatus         EmojiStatus          `tl:"flag2:9"`
+	Level               int32                `tl:"flag2:10"`
 }
 
 func (*Channel) CRC() uint32 {
-	return 0x8261ac61
+	return 0xaadfc8f
 }
 
 func (*Channel) FlagIndex() int {
-	return 0
+	return 21
 }
 
 func (*Channel) ImplementsChat() {}
@@ -1011,7 +1204,6 @@ type ChatFull interface {
 	ImplementsChatFull()
 }
 type ChannelFull struct {
-	CanDeleteChannel       bool `tl:"flag:2.0,encoded_in_bitflags"`
 	CanViewParticipants    bool `tl:"flag:3,encoded_in_bitflags"`
 	CanSetUsername         bool `tl:"flag:6,encoded_in_bitflags"`
 	CanSetStickers         bool `tl:"flag:7,encoded_in_bitflags"`
@@ -1020,6 +1212,12 @@ type ChannelFull struct {
 	HasScheduled           bool `tl:"flag:19,encoded_in_bitflags"`
 	CanViewStats           bool `tl:"flag:20,encoded_in_bitflags"`
 	Blocked                bool `tl:"flag:22,encoded_in_bitflags"`
+	CanDeleteChannel       bool `tl:"flag2:0,encoded_in_bitflags"`
+	Antispam               bool `tl:"flag2:1,encoded_in_bitflags"`
+	ParticipantsHidden     bool `tl:"flag2:2,encoded_in_bitflags"`
+	TranslationsDisabled   bool `tl:"flag2:3,encoded_in_bitflags"`
+	StoriesPinnedAvailable bool `tl:"flag2:5,encoded_in_bitflags"`
+	ViewForumAsMessages    bool `tl:"flag2:6,encoded_in_bitflags"`
 	ID                     int64
 	About                  string
 	ParticipantsCount      int32 `tl:"flag:0"`
@@ -1055,14 +1253,16 @@ type ChannelFull struct {
 	RecentRequesters       []int64         `tl:"flag:28"`
 	DefaultSendAs          Peer            `tl:"flag:29"`
 	AvailableReactions     ChatReactions   `tl:"flag:30"`
+	Stories                *PeerStories    `tl:"flag2:4"`
+	Wallpaper              WallPaper       `tl:"flag2:7"`
 }
 
 func (*ChannelFull) CRC() uint32 {
-	return 0xf2355507
+	return 0xf2bcb6f
 }
 
 func (*ChannelFull) FlagIndex() int {
-	return 0
+	return 9
 }
 
 func (*ChannelFull) ImplementsChatFull() {}
@@ -1070,6 +1270,7 @@ func (*ChannelFull) ImplementsChatFull() {}
 type ChatFullObj struct {
 	CanSetUsername         bool `tl:"flag:7,encoded_in_bitflags"`
 	HasScheduled           bool `tl:"flag:8,encoded_in_bitflags"`
+	TranslationsDisabled   bool `tl:"flag:19,encoded_in_bitflags"`
 	ID                     int64
 	About                  string
 	Participants           ChatParticipants
@@ -1108,15 +1309,19 @@ type ChatInviteObj struct {
 	Public            bool `tl:"flag:2,encoded_in_bitflags"`
 	Megagroup         bool `tl:"flag:3,encoded_in_bitflags"`
 	RequestNeeded     bool `tl:"flag:6,encoded_in_bitflags"`
+	Verified          bool `tl:"flag:7,encoded_in_bitflags"`
+	Scam              bool `tl:"flag:8,encoded_in_bitflags"`
+	Fake              bool `tl:"flag:9,encoded_in_bitflags"`
 	Title             string
 	About             string `tl:"flag:5"`
 	Photo             Photo
 	ParticipantsCount int32
 	Participants      []User `tl:"flag:4"`
+	Color             int32
 }
 
 func (*ChatInviteObj) CRC() uint32 {
-	return 0x300c44c1
+	return 0xcde0ec40
 }
 
 func (*ChatInviteObj) FlagIndex() int {
@@ -1287,6 +1492,7 @@ type Dialog interface {
 type DialogObj struct {
 	Pinned               bool `tl:"flag:2,encoded_in_bitflags"`
 	UnreadMark           bool `tl:"flag:3,encoded_in_bitflags"`
+	ViewForumAsMessages  bool `tl:"flag:6,encoded_in_bitflags"`
 	Peer                 Peer
 	TopMessage           int32
 	ReadInboxMaxID       int32
@@ -1298,10 +1504,11 @@ type DialogObj struct {
 	Pts                  int32        `tl:"flag:0"`
 	Draft                DraftMessage `tl:"flag:1"`
 	FolderID             int32        `tl:"flag:4"`
+	TtlPeriod            int32        `tl:"flag:5"`
 }
 
 func (*DialogObj) CRC() uint32 {
-	return 0xa8edd0f5
+	return 0xd58a08c6
 }
 
 func (*DialogObj) FlagIndex() int {
@@ -1362,6 +1569,25 @@ func (*DialogFilterObj) FlagIndex() int {
 
 func (*DialogFilterObj) ImplementsDialogFilter() {}
 
+type DialogFilterChatlist struct {
+	HasMyInvites bool `tl:"flag:26,encoded_in_bitflags"`
+	ID           int32
+	Title        string
+	Emoticon     string `tl:"flag:25"`
+	PinnedPeers  []InputPeer
+	IncludePeers []InputPeer
+}
+
+func (*DialogFilterChatlist) CRC() uint32 {
+	return 0xd64a04a8
+}
+
+func (*DialogFilterChatlist) FlagIndex() int {
+	return 0
+}
+
+func (*DialogFilterChatlist) ImplementsDialogFilter() {}
+
 type DialogFilterDefault struct{}
 
 func (*DialogFilterDefault) CRC() uint32 {
@@ -1405,8 +1631,8 @@ type DocumentObj struct {
 	Date          int32
 	MimeType      string
 	Size          int64
-	Thumbs        []PhotoSize  `tl:"flag:0"`
-	VideoThumbs   []*VideoSize `tl:"flag:1"`
+	Thumbs        []PhotoSize `tl:"flag:0"`
+	VideoThumbs   []VideoSize `tl:"flag:1"`
 	DcID          int32
 	Attributes    []DocumentAttribute
 }
@@ -1463,6 +1689,7 @@ func (*DocumentAttributeAudio) ImplementsDocumentAttribute() {}
 
 type DocumentAttributeCustomEmoji struct {
 	Free       bool `tl:"flag:0,encoded_in_bitflags"`
+	TextColor  bool `tl:"flag:1,encoded_in_bitflags"`
 	Alt        string
 	Stickerset InputStickerSet
 }
@@ -1526,13 +1753,15 @@ func (*DocumentAttributeSticker) ImplementsDocumentAttribute() {}
 type DocumentAttributeVideo struct {
 	RoundMessage      bool `tl:"flag:0,encoded_in_bitflags"`
 	SupportsStreaming bool `tl:"flag:1,encoded_in_bitflags"`
-	Duration          int32
+	Nosound           bool `tl:"flag:3,encoded_in_bitflags"`
+	Duration          float64
 	W                 int32
 	H                 int32
+	PreloadPrefixSize int32 `tl:"flag:2"`
 }
 
 func (*DocumentAttributeVideo) CRC() uint32 {
-	return 0xef02ce6
+	return 0xd38ff1c2
 }
 
 func (*DocumentAttributeVideo) FlagIndex() int {
@@ -1546,15 +1775,17 @@ type DraftMessage interface {
 	ImplementsDraftMessage()
 }
 type DraftMessageObj struct {
-	NoWebpage    bool  `tl:"flag:1,encoded_in_bitflags"`
-	ReplyToMsgID int32 `tl:"flag:0"`
-	Message      string
-	Entities     []MessageEntity `tl:"flag:3"`
-	Date         int32
+	NoWebpage   bool         `tl:"flag:1,encoded_in_bitflags"`
+	InvertMedia bool         `tl:"flag:6,encoded_in_bitflags"`
+	ReplyTo     InputReplyTo `tl:"flag:4"`
+	Message     string
+	Entities    []MessageEntity `tl:"flag:3"`
+	Media       InputMedia      `tl:"flag:5"`
+	Date        int32
 }
 
 func (*DraftMessageObj) CRC() uint32 {
-	return 0xfd8e711f
+	return 0x3fccf7ef
 }
 
 func (*DraftMessageObj) FlagIndex() int {
@@ -1667,6 +1898,29 @@ func (*EmojiKeywordDeleted) CRC() uint32 {
 }
 
 func (*EmojiKeywordDeleted) ImplementsEmojiKeyword() {}
+
+type EmojiList interface {
+	tl.Object
+	ImplementsEmojiList()
+}
+type EmojiListObj struct {
+	Hash       int64
+	DocumentID []int64
+}
+
+func (*EmojiListObj) CRC() uint32 {
+	return 0x7a1e11d1
+}
+
+func (*EmojiListObj) ImplementsEmojiList() {}
+
+type EmojiListNotModified struct{}
+
+func (*EmojiListNotModified) CRC() uint32 {
+	return 0x481eadfa
+}
+
+func (*EmojiListNotModified) ImplementsEmojiList() {}
 
 type EmojiStatus interface {
 	tl.Object
@@ -1874,6 +2128,52 @@ func (*ChatInvitePublicJoinRequests) CRC() uint32 {
 
 func (*ChatInvitePublicJoinRequests) ImplementsExportedChatInvite() {}
 
+type ForumTopic interface {
+	tl.Object
+	ImplementsForumTopic()
+}
+type ForumTopicObj struct {
+	My                   bool `tl:"flag:1,encoded_in_bitflags"`
+	Closed               bool `tl:"flag:2,encoded_in_bitflags"`
+	Pinned               bool `tl:"flag:3,encoded_in_bitflags"`
+	Short                bool `tl:"flag:5,encoded_in_bitflags"`
+	Hidden               bool `tl:"flag:6,encoded_in_bitflags"`
+	ID                   int32
+	Date                 int32
+	Title                string
+	IconColor            int32
+	IconEmojiID          int64 `tl:"flag:0"`
+	TopMessage           int32
+	ReadInboxMaxID       int32
+	ReadOutboxMaxID      int32
+	UnreadCount          int32
+	UnreadMentionsCount  int32
+	UnreadReactionsCount int32
+	FromID               Peer
+	NotifySettings       *PeerNotifySettings
+	Draft                DraftMessage `tl:"flag:4"`
+}
+
+func (*ForumTopicObj) CRC() uint32 {
+	return 0x71701da9
+}
+
+func (*ForumTopicObj) FlagIndex() int {
+	return 0
+}
+
+func (*ForumTopicObj) ImplementsForumTopic() {}
+
+type ForumTopicDeleted struct {
+	ID int32
+}
+
+func (*ForumTopicDeleted) CRC() uint32 {
+	return 0x23f109b
+}
+
+func (*ForumTopicDeleted) ImplementsForumTopic() {}
+
 type GeoPoint interface {
 	tl.Object
 	ImplementsGeoPoint()
@@ -1950,6 +2250,32 @@ func (*GroupCallDiscarded) CRC() uint32 {
 
 func (*GroupCallDiscarded) ImplementsGroupCall() {}
 
+type InputBotApp interface {
+	tl.Object
+	ImplementsInputBotApp()
+}
+type InputBotAppID struct {
+	ID         int64
+	AccessHash int64
+}
+
+func (*InputBotAppID) CRC() uint32 {
+	return 0xa920bd7a
+}
+
+func (*InputBotAppID) ImplementsInputBotApp() {}
+
+type InputBotAppShortName struct {
+	BotID     InputUser
+	ShortName string
+}
+
+func (*InputBotAppShortName) CRC() uint32 {
+	return 0x908c0407
+}
+
+func (*InputBotAppShortName) ImplementsInputBotApp() {}
+
 type InputBotInlineMessage interface {
 	tl.Object
 	ImplementsInputBotInlineMessage()
@@ -1969,6 +2295,7 @@ func (*InputBotInlineMessageGame) FlagIndex() int {
 func (*InputBotInlineMessageGame) ImplementsInputBotInlineMessage() {}
 
 type InputBotInlineMessageMediaAuto struct {
+	InvertMedia bool `tl:"flag:3,encoded_in_bitflags"`
 	Message     string
 	Entities    []MessageEntity `tl:"flag:1"`
 	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
@@ -2061,8 +2388,30 @@ func (*InputBotInlineMessageMediaVenue) FlagIndex() int {
 
 func (*InputBotInlineMessageMediaVenue) ImplementsInputBotInlineMessage() {}
 
+type InputBotInlineMessageMediaWebPage struct {
+	InvertMedia     bool `tl:"flag:3,encoded_in_bitflags"`
+	ForceLargeMedia bool `tl:"flag:4,encoded_in_bitflags"`
+	ForceSmallMedia bool `tl:"flag:5,encoded_in_bitflags"`
+	Optional        bool `tl:"flag:6,encoded_in_bitflags"`
+	Message         string
+	Entities        []MessageEntity `tl:"flag:1"`
+	URL             string
+	ReplyMarkup     ReplyMarkup `tl:"flag:2"`
+}
+
+func (*InputBotInlineMessageMediaWebPage) CRC() uint32 {
+	return 0xbddcc510
+}
+
+func (*InputBotInlineMessageMediaWebPage) FlagIndex() int {
+	return 0
+}
+
+func (*InputBotInlineMessageMediaWebPage) ImplementsInputBotInlineMessage() {}
+
 type InputBotInlineMessageText struct {
 	NoWebpage   bool `tl:"flag:0,encoded_in_bitflags"`
+	InvertMedia bool `tl:"flag:3,encoded_in_bitflags"`
 	Message     string
 	Entities    []MessageEntity `tl:"flag:1"`
 	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
@@ -2234,13 +2583,14 @@ func (*InputChatPhotoEmpty) CRC() uint32 {
 func (*InputChatPhotoEmpty) ImplementsInputChatPhoto() {}
 
 type InputChatUploadedPhoto struct {
-	File         InputFile `tl:"flag:0"`
-	Video        InputFile `tl:"flag:1"`
-	VideoStartTs float64   `tl:"flag:2"`
+	File             InputFile `tl:"flag:0"`
+	Video            InputFile `tl:"flag:1"`
+	VideoStartTs     float64   `tl:"flag:2"`
+	VideoEmojiMarkup VideoSize `tl:"flag:3"`
 }
 
 func (*InputChatUploadedPhoto) CRC() uint32 {
-	return 0xc642724e
+	return 0xbdcdaec0
 }
 
 func (*InputChatUploadedPhoto) FlagIndex() int {
@@ -2600,6 +2950,17 @@ func (*InputInvoiceMessage) CRC() uint32 {
 
 func (*InputInvoiceMessage) ImplementsInputInvoice() {}
 
+type InputInvoicePremiumGiftCode struct {
+	Purpose InputStorePaymentPurpose
+	Option  *PremiumGiftCodeOption
+}
+
+func (*InputInvoicePremiumGiftCode) CRC() uint32 {
+	return 0x98986c0d
+}
+
+func (*InputInvoicePremiumGiftCode) ImplementsInputInvoice() {}
+
 type InputInvoiceSlug struct {
 	Slug string
 }
@@ -2638,6 +2999,7 @@ func (*InputMediaDice) CRC() uint32 {
 func (*InputMediaDice) ImplementsInputMedia() {}
 
 type InputMediaDocument struct {
+	Spoiler    bool `tl:"flag:2,encoded_in_bitflags"`
 	ID         InputDocument
 	TtlSeconds int32  `tl:"flag:0"`
 	Query      string `tl:"flag:1"`
@@ -2654,6 +3016,7 @@ func (*InputMediaDocument) FlagIndex() int {
 func (*InputMediaDocument) ImplementsInputMedia() {}
 
 type InputMediaDocumentExternal struct {
+	Spoiler    bool `tl:"flag:1,encoded_in_bitflags"`
 	URL        string
 	TtlSeconds int32 `tl:"flag:0"`
 }
@@ -2737,6 +3100,7 @@ func (*InputMediaInvoice) FlagIndex() int {
 func (*InputMediaInvoice) ImplementsInputMedia() {}
 
 type InputMediaPhoto struct {
+	Spoiler    bool `tl:"flag:1,encoded_in_bitflags"`
 	ID         InputPhoto
 	TtlSeconds int32 `tl:"flag:0"`
 }
@@ -2752,6 +3116,7 @@ func (*InputMediaPhoto) FlagIndex() int {
 func (*InputMediaPhoto) ImplementsInputMedia() {}
 
 type InputMediaPhotoExternal struct {
+	Spoiler    bool `tl:"flag:1,encoded_in_bitflags"`
 	URL        string
 	TtlSeconds int32 `tl:"flag:0"`
 }
@@ -2783,9 +3148,21 @@ func (*InputMediaPoll) FlagIndex() int {
 
 func (*InputMediaPoll) ImplementsInputMedia() {}
 
+type InputMediaStory struct {
+	Peer InputPeer
+	ID   int32
+}
+
+func (*InputMediaStory) CRC() uint32 {
+	return 0x89fdd778
+}
+
+func (*InputMediaStory) ImplementsInputMedia() {}
+
 type InputMediaUploadedDocument struct {
 	NosoundVideo bool `tl:"flag:3,encoded_in_bitflags"`
 	ForceFile    bool `tl:"flag:4,encoded_in_bitflags"`
+	Spoiler      bool `tl:"flag:5,encoded_in_bitflags"`
 	File         InputFile
 	Thumb        InputFile `tl:"flag:2"`
 	MimeType     string
@@ -2805,6 +3182,7 @@ func (*InputMediaUploadedDocument) FlagIndex() int {
 func (*InputMediaUploadedDocument) ImplementsInputMedia() {}
 
 type InputMediaUploadedPhoto struct {
+	Spoiler    bool `tl:"flag:2,encoded_in_bitflags"`
 	File       InputFile
 	Stickers   []InputDocument `tl:"flag:0"`
 	TtlSeconds int32           `tl:"flag:1"`
@@ -2834,6 +3212,23 @@ func (*InputMediaVenue) CRC() uint32 {
 }
 
 func (*InputMediaVenue) ImplementsInputMedia() {}
+
+type InputMediaWebPage struct {
+	ForceLargeMedia bool `tl:"flag:0,encoded_in_bitflags"`
+	ForceSmallMedia bool `tl:"flag:1,encoded_in_bitflags"`
+	Optional        bool `tl:"flag:2,encoded_in_bitflags"`
+	URL             string
+}
+
+func (*InputMediaWebPage) CRC() uint32 {
+	return 0xc21b8849
+}
+
+func (*InputMediaWebPage) FlagIndex() int {
+	return 0
+}
+
+func (*InputMediaWebPage) ImplementsInputMedia() {}
 
 type InputMessage interface {
 	tl.Object
@@ -2897,6 +3292,17 @@ func (*InputNotifyChats) CRC() uint32 {
 }
 
 func (*InputNotifyChats) ImplementsInputNotifyPeer() {}
+
+type InputNotifyForumTopic struct {
+	Peer     InputPeer
+	TopMsgID int32
+}
+
+func (*InputNotifyForumTopic) CRC() uint32 {
+	return 0x5c467992
+}
+
+func (*InputNotifyForumTopic) ImplementsInputNotifyPeer() {}
 
 type InputNotifyPeerObj struct {
 	Peer InputPeer
@@ -3088,6 +3494,14 @@ func (*InputPrivacyValueAllowChatParticipants) CRC() uint32 {
 
 func (*InputPrivacyValueAllowChatParticipants) ImplementsInputPrivacyRule() {}
 
+type InputPrivacyValueAllowCloseFriends struct{}
+
+func (*InputPrivacyValueAllowCloseFriends) CRC() uint32 {
+	return 0x2f453e49
+}
+
+func (*InputPrivacyValueAllowCloseFriends) ImplementsInputPrivacyRule() {}
+
 type InputPrivacyValueAllowContacts struct{}
 
 func (*InputPrivacyValueAllowContacts) CRC() uint32 {
@@ -3141,6 +3555,40 @@ func (*InputPrivacyValueDisallowUsers) CRC() uint32 {
 }
 
 func (*InputPrivacyValueDisallowUsers) ImplementsInputPrivacyRule() {}
+
+type InputReplyTo interface {
+	tl.Object
+	ImplementsInputReplyTo()
+}
+type InputReplyToMessage struct {
+	ReplyToMsgID  int32
+	TopMsgID      int32           `tl:"flag:0"`
+	ReplyToPeerID InputPeer       `tl:"flag:1"`
+	QuoteText     string          `tl:"flag:2"`
+	QuoteEntities []MessageEntity `tl:"flag:3"`
+	QuoteOffset   int32           `tl:"flag:4"`
+}
+
+func (*InputReplyToMessage) CRC() uint32 {
+	return 0x22c0f6d5
+}
+
+func (*InputReplyToMessage) FlagIndex() int {
+	return 0
+}
+
+func (*InputReplyToMessage) ImplementsInputReplyTo() {}
+
+type InputReplyToStory struct {
+	UserID  InputUser
+	StoryID int32
+}
+
+func (*InputReplyToStory) CRC() uint32 {
+	return 0x15b0f283
+}
+
+func (*InputReplyToStory) ImplementsInputReplyTo() {}
 
 type InputSecureFile interface {
 	tl.Object
@@ -3201,6 +3649,14 @@ func (*InputStickerSetDice) CRC() uint32 {
 
 func (*InputStickerSetDice) ImplementsInputStickerSet() {}
 
+type InputStickerSetEmojiChannelDefaultStatuses struct{}
+
+func (*InputStickerSetEmojiChannelDefaultStatuses) CRC() uint32 {
+	return 0x49748553
+}
+
+func (*InputStickerSetEmojiChannelDefaultStatuses) ImplementsInputStickerSet() {}
+
 type InputStickerSetEmojiDefaultStatuses struct{}
 
 func (*InputStickerSetEmojiDefaultStatuses) CRC() uint32 {
@@ -3208,6 +3664,14 @@ func (*InputStickerSetEmojiDefaultStatuses) CRC() uint32 {
 }
 
 func (*InputStickerSetEmojiDefaultStatuses) ImplementsInputStickerSet() {}
+
+type InputStickerSetEmojiDefaultTopicIcons struct{}
+
+func (*InputStickerSetEmojiDefaultTopicIcons) CRC() uint32 {
+	return 0x44c1f8e9
+}
+
+func (*InputStickerSetEmojiDefaultTopicIcons) ImplementsInputStickerSet() {}
 
 type InputStickerSetEmojiGenericAnimations struct{}
 
@@ -3294,8 +3758,49 @@ func (*InputStorePaymentGiftPremium) CRC() uint32 {
 
 func (*InputStorePaymentGiftPremium) ImplementsInputStorePaymentPurpose() {}
 
+type InputStorePaymentPremiumGiftCode struct {
+	Users     []InputUser
+	BoostPeer InputPeer `tl:"flag:0"`
+	Currency  string
+	Amount    int64
+}
+
+func (*InputStorePaymentPremiumGiftCode) CRC() uint32 {
+	return 0xa3805f3f
+}
+
+func (*InputStorePaymentPremiumGiftCode) FlagIndex() int {
+	return 0
+}
+
+func (*InputStorePaymentPremiumGiftCode) ImplementsInputStorePaymentPurpose() {}
+
+type InputStorePaymentPremiumGiveaway struct {
+	OnlyNewSubscribers bool `tl:"flag:0,encoded_in_bitflags"`
+	WinnersAreVisible  bool `tl:"flag:3,encoded_in_bitflags"`
+	BoostPeer          InputPeer
+	AdditionalPeers    []InputPeer `tl:"flag:1"`
+	CountriesIso2      []string    `tl:"flag:2"`
+	PrizeDescription   string      `tl:"flag:4"`
+	RandomID           int64
+	UntilDate          int32
+	Currency           string
+	Amount             int64
+}
+
+func (*InputStorePaymentPremiumGiveaway) CRC() uint32 {
+	return 0x160544ca
+}
+
+func (*InputStorePaymentPremiumGiveaway) FlagIndex() int {
+	return 0
+}
+
+func (*InputStorePaymentPremiumGiveaway) ImplementsInputStorePaymentPurpose() {}
+
 type InputStorePaymentPremiumSubscription struct {
 	Restore bool `tl:"flag:0,encoded_in_bitflags"`
+	Upgrade bool `tl:"flag:1,encoded_in_bitflags"`
 }
 
 func (*InputStorePaymentPremiumSubscription) CRC() uint32 {
@@ -3609,6 +4114,19 @@ func (*KeyboardButtonRequestGeoLocation) CRC() uint32 {
 
 func (*KeyboardButtonRequestGeoLocation) ImplementsKeyboardButton() {}
 
+type KeyboardButtonRequestPeer struct {
+	Text        string
+	ButtonID    int32
+	PeerType    RequestPeerType
+	MaxQuantity int32
+}
+
+func (*KeyboardButtonRequestPeer) CRC() uint32 {
+	return 0x53d7bfd8
+}
+
+func (*KeyboardButtonRequestPeer) ImplementsKeyboardButton() {}
+
 type KeyboardButtonRequestPhone struct {
 	Text string
 }
@@ -3646,13 +4164,14 @@ func (*KeyboardButtonSimpleWebView) CRC() uint32 {
 func (*KeyboardButtonSimpleWebView) ImplementsKeyboardButton() {}
 
 type KeyboardButtonSwitchInline struct {
-	SamePeer bool `tl:"flag:0,encoded_in_bitflags"`
-	Text     string
-	Query    string
+	SamePeer  bool `tl:"flag:0,encoded_in_bitflags"`
+	Text      string
+	Query     string
+	PeerTypes []InlineQueryPeerType `tl:"flag:1"`
 }
 
 func (*KeyboardButtonSwitchInline) CRC() uint32 {
-	return 0x568a748
+	return 0x93b9fbb5
 }
 
 func (*KeyboardButtonSwitchInline) FlagIndex() int {
@@ -3756,6 +4275,90 @@ func (*LangPackStringPluralized) FlagIndex() int {
 
 func (*LangPackStringPluralized) ImplementsLangPackString() {}
 
+type MediaArea interface {
+	tl.Object
+	ImplementsMediaArea()
+}
+type InputMediaAreaChannelPost struct {
+	Coordinates *MediaAreaCoordinates
+	Channel     InputChannel
+	MsgID       int32
+}
+
+func (*InputMediaAreaChannelPost) CRC() uint32 {
+	return 0x2271f2bf
+}
+
+func (*InputMediaAreaChannelPost) ImplementsMediaArea() {}
+
+type InputMediaAreaVenue struct {
+	Coordinates *MediaAreaCoordinates
+	QueryID     int64
+	ResultID    string
+}
+
+func (*InputMediaAreaVenue) CRC() uint32 {
+	return 0xb282217f
+}
+
+func (*InputMediaAreaVenue) ImplementsMediaArea() {}
+
+type MediaAreaChannelPost struct {
+	Coordinates *MediaAreaCoordinates
+	ChannelID   int64
+	MsgID       int32
+}
+
+func (*MediaAreaChannelPost) CRC() uint32 {
+	return 0x770416af
+}
+
+func (*MediaAreaChannelPost) ImplementsMediaArea() {}
+
+type MediaAreaGeoPoint struct {
+	Coordinates *MediaAreaCoordinates
+	Geo         GeoPoint
+}
+
+func (*MediaAreaGeoPoint) CRC() uint32 {
+	return 0xdf8b3b22
+}
+
+func (*MediaAreaGeoPoint) ImplementsMediaArea() {}
+
+type MediaAreaSuggestedReaction struct {
+	Dark        bool `tl:"flag:0,encoded_in_bitflags"`
+	Flipped     bool `tl:"flag:1,encoded_in_bitflags"`
+	Coordinates *MediaAreaCoordinates
+	Reaction    Reaction
+}
+
+func (*MediaAreaSuggestedReaction) CRC() uint32 {
+	return 0x14455871
+}
+
+func (*MediaAreaSuggestedReaction) FlagIndex() int {
+	return 0
+}
+
+func (*MediaAreaSuggestedReaction) ImplementsMediaArea() {}
+
+type MediaAreaVenue struct {
+	Coordinates *MediaAreaCoordinates
+	Geo         GeoPoint
+	Title       string
+	Address     string
+	Provider    string
+	VenueID     string
+	VenueType   string
+}
+
+func (*MediaAreaVenue) CRC() uint32 {
+	return 0xbe82db9c
+}
+
+func (*MediaAreaVenue) ImplementsMediaArea() {}
+
 type Message interface {
 	tl.Object
 	ImplementsMessage()
@@ -3771,12 +4374,14 @@ type MessageObj struct {
 	EditHide          bool `tl:"flag:21,encoded_in_bitflags"`
 	Pinned            bool `tl:"flag:24,encoded_in_bitflags"`
 	Noforwards        bool `tl:"flag:26,encoded_in_bitflags"`
+	InvertMedia       bool `tl:"flag:27,encoded_in_bitflags"`
 	ID                int32
 	FromID            Peer `tl:"flag:8"`
 	PeerID            Peer
-	FwdFrom           *MessageFwdHeader   `tl:"flag:2"`
-	ViaBotID          int64               `tl:"flag:11"`
-	ReplyTo           *MessageReplyHeader `tl:"flag:3"`
+	SavedPeerID       Peer               `tl:"flag:28"`
+	FwdFrom           *MessageFwdHeader  `tl:"flag:2"`
+	ViaBotID          int64              `tl:"flag:11"`
+	ReplyTo           MessageReplyHeader `tl:"flag:3"`
 	Date              int32
 	Message           string
 	Media             MessageMedia         `tl:"flag:9"`
@@ -3794,7 +4399,7 @@ type MessageObj struct {
 }
 
 func (*MessageObj) CRC() uint32 {
-	return 0x38116ee0
+	return 0x76bec211
 }
 
 func (*MessageObj) FlagIndex() int {
@@ -3828,7 +4433,7 @@ type MessageService struct {
 	ID          int32
 	FromID      Peer `tl:"flag:8"`
 	PeerID      Peer
-	ReplyTo     *MessageReplyHeader `tl:"flag:3"`
+	ReplyTo     MessageReplyHeader `tl:"flag:3"`
 	Date        int32
 	Action      MessageAction
 	TtlPeriod   int32 `tl:"flag:25"`
@@ -3849,11 +4454,18 @@ type MessageAction interface {
 	ImplementsMessageAction()
 }
 type MessageActionBotAllowed struct {
-	Domain string
+	AttachMenu  bool   `tl:"flag:1,encoded_in_bitflags"`
+	FromRequest bool   `tl:"flag:3,encoded_in_bitflags"`
+	Domain      string `tl:"flag:0"`
+	App         BotApp `tl:"flag:2"`
 }
 
 func (*MessageActionBotAllowed) CRC() uint32 {
-	return 0xabe9affe
+	return 0xc516d679
+}
+
+func (*MessageActionBotAllowed) FlagIndex() int {
+	return 0
 }
 
 func (*MessageActionBotAllowed) ImplementsMessageAction() {}
@@ -4015,17 +4627,64 @@ func (*MessageActionGeoProximityReached) CRC() uint32 {
 
 func (*MessageActionGeoProximityReached) ImplementsMessageAction() {}
 
+type MessageActionGiftCode struct {
+	ViaGiveaway    bool `tl:"flag:0,encoded_in_bitflags"`
+	Unclaimed      bool `tl:"flag:2,encoded_in_bitflags"`
+	BoostPeer      Peer `tl:"flag:1"`
+	Months         int32
+	Slug           string
+	Currency       string `tl:"flag:2"`
+	Amount         int64  `tl:"flag:2"`
+	CryptoCurrency string `tl:"flag:3"`
+	CryptoAmount   int64  `tl:"flag:3"`
+}
+
+func (*MessageActionGiftCode) CRC() uint32 {
+	return 0x678c2e09
+}
+
+func (*MessageActionGiftCode) FlagIndex() int {
+	return 0
+}
+
+func (*MessageActionGiftCode) ImplementsMessageAction() {}
+
 type MessageActionGiftPremium struct {
-	Currency string
-	Amount   int64
-	Months   int32
+	Currency       string
+	Amount         int64
+	Months         int32
+	CryptoCurrency string `tl:"flag:0"`
+	CryptoAmount   int64  `tl:"flag:0"`
 }
 
 func (*MessageActionGiftPremium) CRC() uint32 {
-	return 0xaba0f5c6
+	return 0xc83d6aec
+}
+
+func (*MessageActionGiftPremium) FlagIndex() int {
+	return 0
 }
 
 func (*MessageActionGiftPremium) ImplementsMessageAction() {}
+
+type MessageActionGiveawayLaunch struct{}
+
+func (*MessageActionGiveawayLaunch) CRC() uint32 {
+	return 0x332ba9ed
+}
+
+func (*MessageActionGiveawayLaunch) ImplementsMessageAction() {}
+
+type MessageActionGiveawayResults struct {
+	WinnersCount   int32
+	UnclaimedCount int32
+}
+
+func (*MessageActionGiveawayResults) CRC() uint32 {
+	return 0x2a9fadc5
+}
+
+func (*MessageActionGiveawayResults) ImplementsMessageAction() {}
 
 type MessageActionGroupCall struct {
 	Call     *InputGroupCall
@@ -4136,6 +4795,17 @@ func (*MessageActionPinMessage) CRC() uint32 {
 
 func (*MessageActionPinMessage) ImplementsMessageAction() {}
 
+type MessageActionRequestedPeer struct {
+	ButtonID int32
+	Peers    []Peer
+}
+
+func (*MessageActionRequestedPeer) CRC() uint32 {
+	return 0x31518e9b
+}
+
+func (*MessageActionRequestedPeer) ImplementsMessageAction() {}
+
 type MessageActionScreenshotTaken struct{}
 
 func (*MessageActionScreenshotTaken) CRC() uint32 {
@@ -4175,15 +4845,79 @@ func (*MessageActionSetChatTheme) CRC() uint32 {
 
 func (*MessageActionSetChatTheme) ImplementsMessageAction() {}
 
+type MessageActionSetChatWallPaper struct {
+	Same      bool `tl:"flag:0,encoded_in_bitflags"`
+	ForBoth   bool `tl:"flag:1,encoded_in_bitflags"`
+	Wallpaper WallPaper
+}
+
+func (*MessageActionSetChatWallPaper) CRC() uint32 {
+	return 0x5060a3f4
+}
+
+func (*MessageActionSetChatWallPaper) FlagIndex() int {
+	return 0
+}
+
+func (*MessageActionSetChatWallPaper) ImplementsMessageAction() {}
+
 type MessageActionSetMessagesTtl struct {
-	Period int32
+	Period          int32
+	AutoSettingFrom int64 `tl:"flag:0"`
 }
 
 func (*MessageActionSetMessagesTtl) CRC() uint32 {
-	return 0xaa1afbfd
+	return 0x3c134d7b
+}
+
+func (*MessageActionSetMessagesTtl) FlagIndex() int {
+	return 0
 }
 
 func (*MessageActionSetMessagesTtl) ImplementsMessageAction() {}
+
+type MessageActionSuggestProfilePhoto struct {
+	Photo Photo
+}
+
+func (*MessageActionSuggestProfilePhoto) CRC() uint32 {
+	return 0x57de635e
+}
+
+func (*MessageActionSuggestProfilePhoto) ImplementsMessageAction() {}
+
+type MessageActionTopicCreate struct {
+	Title       string
+	IconColor   int32
+	IconEmojiID int64 `tl:"flag:0"`
+}
+
+func (*MessageActionTopicCreate) CRC() uint32 {
+	return 0xd999256
+}
+
+func (*MessageActionTopicCreate) FlagIndex() int {
+	return 0
+}
+
+func (*MessageActionTopicCreate) ImplementsMessageAction() {}
+
+type MessageActionTopicEdit struct {
+	Title       string `tl:"flag:0"`
+	IconEmojiID int64  `tl:"flag:1"`
+	Closed      bool   `tl:"flag:2"`
+	Hidden      bool   `tl:"flag:3"`
+}
+
+func (*MessageActionTopicEdit) CRC() uint32 {
+	return 0xc0944820
+}
+
+func (*MessageActionTopicEdit) FlagIndex() int {
+	return 0
+}
+
+func (*MessageActionTopicEdit) ImplementsMessageAction() {}
 
 type MessageActionWebViewDataSent struct {
 	Text string
@@ -4507,13 +5241,18 @@ func (*MessageMediaDice) CRC() uint32 {
 func (*MessageMediaDice) ImplementsMessageMedia() {}
 
 type MessageMediaDocument struct {
-	Nopremium  bool     `tl:"flag:3,encoded_in_bitflags"`
-	Document   Document `tl:"flag:0"`
-	TtlSeconds int32    `tl:"flag:2"`
+	Nopremium   bool     `tl:"flag:3,encoded_in_bitflags"`
+	Spoiler     bool     `tl:"flag:4,encoded_in_bitflags"`
+	Video       bool     `tl:"flag:6,encoded_in_bitflags"`
+	Round       bool     `tl:"flag:7,encoded_in_bitflags"`
+	Voice       bool     `tl:"flag:8,encoded_in_bitflags"`
+	Document    Document `tl:"flag:0"`
+	AltDocument Document `tl:"flag:5"`
+	TtlSeconds  int32    `tl:"flag:2"`
 }
 
 func (*MessageMediaDocument) CRC() uint32 {
-	return 0x9cb070d7
+	return 0x4cf4d72d
 }
 
 func (*MessageMediaDocument) FlagIndex() int {
@@ -4567,6 +5306,51 @@ func (*MessageMediaGeoLive) FlagIndex() int {
 
 func (*MessageMediaGeoLive) ImplementsMessageMedia() {}
 
+type MessageMediaGiveaway struct {
+	OnlyNewSubscribers bool `tl:"flag:0,encoded_in_bitflags"`
+	WinnersAreVisible  bool `tl:"flag:2,encoded_in_bitflags"`
+	Channels           []int64
+	CountriesIso2      []string `tl:"flag:1"`
+	PrizeDescription   string   `tl:"flag:3"`
+	Quantity           int32
+	Months             int32
+	UntilDate          int32
+}
+
+func (*MessageMediaGiveaway) CRC() uint32 {
+	return 0xdaad85b0
+}
+
+func (*MessageMediaGiveaway) FlagIndex() int {
+	return 0
+}
+
+func (*MessageMediaGiveaway) ImplementsMessageMedia() {}
+
+type MessageMediaGiveawayResults struct {
+	OnlyNewSubscribers   bool `tl:"flag:0,encoded_in_bitflags"`
+	Refunded             bool `tl:"flag:2,encoded_in_bitflags"`
+	ChannelID            int64
+	AdditionalPeersCount int32 `tl:"flag:3"`
+	LaunchMsgID          int32
+	WinnersCount         int32
+	UnclaimedCount       int32
+	Winners              []int64
+	Months               int32
+	PrizeDescription     string `tl:"flag:1"`
+	UntilDate            int32
+}
+
+func (*MessageMediaGiveawayResults) CRC() uint32 {
+	return 0xc6991068
+}
+
+func (*MessageMediaGiveawayResults) FlagIndex() int {
+	return 0
+}
+
+func (*MessageMediaGiveawayResults) ImplementsMessageMedia() {}
+
 type MessageMediaInvoice struct {
 	ShippingAddressRequested bool `tl:"flag:1,encoded_in_bitflags"`
 	Test                     bool `tl:"flag:3,encoded_in_bitflags"`
@@ -4591,6 +5375,7 @@ func (*MessageMediaInvoice) FlagIndex() int {
 func (*MessageMediaInvoice) ImplementsMessageMedia() {}
 
 type MessageMediaPhoto struct {
+	Spoiler    bool  `tl:"flag:3,encoded_in_bitflags"`
 	Photo      Photo `tl:"flag:0"`
 	TtlSeconds int32 `tl:"flag:2"`
 }
@@ -4616,6 +5401,23 @@ func (*MessageMediaPoll) CRC() uint32 {
 
 func (*MessageMediaPoll) ImplementsMessageMedia() {}
 
+type MessageMediaStory struct {
+	ViaMention bool `tl:"flag:1,encoded_in_bitflags"`
+	Peer       Peer
+	ID         int32
+	Story      StoryItem `tl:"flag:0"`
+}
+
+func (*MessageMediaStory) CRC() uint32 {
+	return 0x68cb6283
+}
+
+func (*MessageMediaStory) FlagIndex() int {
+	return 0
+}
+
+func (*MessageMediaStory) ImplementsMessageMedia() {}
+
 type MessageMediaUnsupported struct{}
 
 func (*MessageMediaUnsupported) CRC() uint32 {
@@ -4640,53 +5442,100 @@ func (*MessageMediaVenue) CRC() uint32 {
 func (*MessageMediaVenue) ImplementsMessageMedia() {}
 
 type MessageMediaWebPage struct {
-	Webpage WebPage
+	ForceLargeMedia bool `tl:"flag:0,encoded_in_bitflags"`
+	ForceSmallMedia bool `tl:"flag:1,encoded_in_bitflags"`
+	Manual          bool `tl:"flag:3,encoded_in_bitflags"`
+	Safe            bool `tl:"flag:4,encoded_in_bitflags"`
+	Webpage         WebPage
 }
 
 func (*MessageMediaWebPage) CRC() uint32 {
-	return 0xa32dd600
+	return 0xddf10c3b
+}
+
+func (*MessageMediaWebPage) FlagIndex() int {
+	return 0
 }
 
 func (*MessageMediaWebPage) ImplementsMessageMedia() {}
 
-type MessageUserVote interface {
+type MessagePeerVote interface {
 	tl.Object
-	ImplementsMessageUserVote()
+	ImplementsMessagePeerVote()
 }
-type MessageUserVoteObj struct {
-	UserID int64
+type MessagePeerVoteObj struct {
+	Peer   Peer
 	Option []byte
 	Date   int32
 }
 
-func (*MessageUserVoteObj) CRC() uint32 {
-	return 0x34d247b4
+func (*MessagePeerVoteObj) CRC() uint32 {
+	return 0xb6cc2d5c
 }
 
-func (*MessageUserVoteObj) ImplementsMessageUserVote() {}
+func (*MessagePeerVoteObj) ImplementsMessagePeerVote() {}
 
-type MessageUserVoteInputOption struct {
-	UserID int64
-	Date   int32
+type MessagePeerVoteInputOption struct {
+	Peer Peer
+	Date int32
 }
 
-func (*MessageUserVoteInputOption) CRC() uint32 {
-	return 0x3ca5b0ec
+func (*MessagePeerVoteInputOption) CRC() uint32 {
+	return 0x74cda504
 }
 
-func (*MessageUserVoteInputOption) ImplementsMessageUserVote() {}
+func (*MessagePeerVoteInputOption) ImplementsMessagePeerVote() {}
 
-type MessageUserVoteMultiple struct {
-	UserID  int64
+type MessagePeerVoteMultiple struct {
+	Peer    Peer
 	Options [][]byte
 	Date    int32
 }
 
-func (*MessageUserVoteMultiple) CRC() uint32 {
-	return 0x8a65e557
+func (*MessagePeerVoteMultiple) CRC() uint32 {
+	return 0x4628f6e6
 }
 
-func (*MessageUserVoteMultiple) ImplementsMessageUserVote() {}
+func (*MessagePeerVoteMultiple) ImplementsMessagePeerVote() {}
+
+type MessageReplyHeader interface {
+	tl.Object
+	ImplementsMessageReplyHeader()
+}
+type MessageReplyHeaderObj struct {
+	ReplyToScheduled bool              `tl:"flag:2,encoded_in_bitflags"`
+	ForumTopic       bool              `tl:"flag:3,encoded_in_bitflags"`
+	Quote            bool              `tl:"flag:9,encoded_in_bitflags"`
+	ReplyToMsgID     int32             `tl:"flag:4"`
+	ReplyToPeerID    Peer              `tl:"flag:0"`
+	ReplyFrom        *MessageFwdHeader `tl:"flag:5"`
+	ReplyMedia       MessageMedia      `tl:"flag:8"`
+	ReplyToTopID     int32             `tl:"flag:1"`
+	QuoteText        string            `tl:"flag:6"`
+	QuoteEntities    []MessageEntity   `tl:"flag:7"`
+	QuoteOffset      int32             `tl:"flag:10"`
+}
+
+func (*MessageReplyHeaderObj) CRC() uint32 {
+	return 0xafbc09db
+}
+
+func (*MessageReplyHeaderObj) FlagIndex() int {
+	return 0
+}
+
+func (*MessageReplyHeaderObj) ImplementsMessageReplyHeader() {}
+
+type MessageReplyStoryHeader struct {
+	UserID  int64
+	StoryID int32
+}
+
+func (*MessageReplyStoryHeader) CRC() uint32 {
+	return 0x9c98bfc1
+}
+
+func (*MessageReplyStoryHeader) ImplementsMessageReplyHeader() {}
 
 type MessagesFilter interface {
 	tl.Object
@@ -4894,6 +5743,17 @@ func (*NotifyChats) CRC() uint32 {
 }
 
 func (*NotifyChats) ImplementsNotifyPeer() {}
+
+type NotifyForumTopic struct {
+	Peer     Peer
+	TopMsgID int32
+}
+
+func (*NotifyForumTopic) CRC() uint32 {
+	return 0x226e6308
+}
+
+func (*NotifyForumTopic) ImplementsNotifyPeer() {}
 
 type NotifyPeerObj struct {
 	Peer Peer
@@ -5571,7 +6431,7 @@ type PhotoObj struct {
 	FileReference []byte
 	Date          int32
 	Sizes         []PhotoSize
-	VideoSizes    []*VideoSize `tl:"flag:1"`
+	VideoSizes    []VideoSize `tl:"flag:1"`
 	DcID          int32
 }
 
@@ -5670,6 +6530,36 @@ func (*PhotoStrippedSize) CRC() uint32 {
 
 func (*PhotoStrippedSize) ImplementsPhotoSize() {}
 
+type PostInteractionCounters interface {
+	tl.Object
+	ImplementsPostInteractionCounters()
+}
+type PostInteractionCountersMessage struct {
+	MsgID     int32
+	Views     int32
+	Forwards  int32
+	Reactions int32
+}
+
+func (*PostInteractionCountersMessage) CRC() uint32 {
+	return 0xe7058e7f
+}
+
+func (*PostInteractionCountersMessage) ImplementsPostInteractionCounters() {}
+
+type PostInteractionCountersStory struct {
+	StoryID   int32
+	Views     int32
+	Forwards  int32
+	Reactions int32
+}
+
+func (*PostInteractionCountersStory) CRC() uint32 {
+	return 0x8a480e27
+}
+
+func (*PostInteractionCountersStory) ImplementsPostInteractionCounters() {}
+
 type PrivacyRule interface {
 	tl.Object
 	ImplementsPrivacyRule()
@@ -5691,6 +6581,14 @@ func (*PrivacyValueAllowChatParticipants) CRC() uint32 {
 }
 
 func (*PrivacyValueAllowChatParticipants) ImplementsPrivacyRule() {}
+
+type PrivacyValueAllowCloseFriends struct{}
+
+func (*PrivacyValueAllowCloseFriends) CRC() uint32 {
+	return 0xf7e8d89b
+}
+
+func (*PrivacyValueAllowCloseFriends) ImplementsPrivacyRule() {}
 
 type PrivacyValueAllowContacts struct{}
 
@@ -5745,6 +6643,31 @@ func (*PrivacyValueDisallowUsers) CRC() uint32 {
 }
 
 func (*PrivacyValueDisallowUsers) ImplementsPrivacyRule() {}
+
+type PublicForward interface {
+	tl.Object
+	ImplementsPublicForward()
+}
+type PublicForwardMessage struct {
+	Message Message
+}
+
+func (*PublicForwardMessage) CRC() uint32 {
+	return 0x1f2bf4a
+}
+
+func (*PublicForwardMessage) ImplementsPublicForward() {}
+
+type PublicForwardStory struct {
+	Peer  Peer
+	Story StoryItem
+}
+
+func (*PublicForwardStory) CRC() uint32 {
+	return 0xedf3add0
+}
+
+func (*PublicForwardStory) ImplementsPublicForward() {}
 
 type Reaction interface {
 	tl.Object
@@ -5884,6 +6807,7 @@ type ReplyKeyboardMarkup struct {
 	Resize      bool `tl:"flag:0,encoded_in_bitflags"`
 	SingleUse   bool `tl:"flag:1,encoded_in_bitflags"`
 	Selective   bool `tl:"flag:2,encoded_in_bitflags"`
+	Persistent  bool `tl:"flag:4,encoded_in_bitflags"`
 	Rows        []*KeyboardButtonRow
 	Placeholder string `tl:"flag:3"`
 }
@@ -5897,6 +6821,61 @@ func (*ReplyKeyboardMarkup) FlagIndex() int {
 }
 
 func (*ReplyKeyboardMarkup) ImplementsReplyMarkup() {}
+
+type RequestPeerType interface {
+	tl.Object
+	ImplementsRequestPeerType()
+}
+type RequestPeerTypeBroadcast struct {
+	Creator         bool             `tl:"flag:0,encoded_in_bitflags"`
+	HasUsername     bool             `tl:"flag:3"`
+	UserAdminRights *ChatAdminRights `tl:"flag:1"`
+	BotAdminRights  *ChatAdminRights `tl:"flag:2"`
+}
+
+func (*RequestPeerTypeBroadcast) CRC() uint32 {
+	return 0x339bef6c
+}
+
+func (*RequestPeerTypeBroadcast) FlagIndex() int {
+	return 0
+}
+
+func (*RequestPeerTypeBroadcast) ImplementsRequestPeerType() {}
+
+type RequestPeerTypeChat struct {
+	Creator         bool             `tl:"flag:0,encoded_in_bitflags"`
+	BotParticipant  bool             `tl:"flag:5,encoded_in_bitflags"`
+	HasUsername     bool             `tl:"flag:3"`
+	Forum           bool             `tl:"flag:4"`
+	UserAdminRights *ChatAdminRights `tl:"flag:1"`
+	BotAdminRights  *ChatAdminRights `tl:"flag:2"`
+}
+
+func (*RequestPeerTypeChat) CRC() uint32 {
+	return 0xc9f06e1b
+}
+
+func (*RequestPeerTypeChat) FlagIndex() int {
+	return 0
+}
+
+func (*RequestPeerTypeChat) ImplementsRequestPeerType() {}
+
+type RequestPeerTypeUser struct {
+	Bot     bool `tl:"flag:0"`
+	Premium bool `tl:"flag:1"`
+}
+
+func (*RequestPeerTypeUser) CRC() uint32 {
+	return 0x5f3b8a00
+}
+
+func (*RequestPeerTypeUser) FlagIndex() int {
+	return 0
+}
+
+func (*RequestPeerTypeUser) ImplementsRequestPeerType() {}
 
 type RichText interface {
 	tl.Object
@@ -6539,6 +7518,172 @@ func (*StickerSetMultiCovered) CRC() uint32 {
 
 func (*StickerSetMultiCovered) ImplementsStickerSetCovered() {}
 
+type StickerSetNoCovered struct {
+	Set *StickerSet
+}
+
+func (*StickerSetNoCovered) CRC() uint32 {
+	return 0x77b15d1c
+}
+
+func (*StickerSetNoCovered) ImplementsStickerSetCovered() {}
+
+type StoryItem interface {
+	tl.Object
+	ImplementsStoryItem()
+}
+type StoryItemObj struct {
+	Pinned           bool `tl:"flag:5,encoded_in_bitflags"`
+	Public           bool `tl:"flag:7,encoded_in_bitflags"`
+	CloseFriends     bool `tl:"flag:8,encoded_in_bitflags"`
+	Min              bool `tl:"flag:9,encoded_in_bitflags"`
+	Noforwards       bool `tl:"flag:10,encoded_in_bitflags"`
+	Edited           bool `tl:"flag:11,encoded_in_bitflags"`
+	Contacts         bool `tl:"flag:12,encoded_in_bitflags"`
+	SelectedContacts bool `tl:"flag:13,encoded_in_bitflags"`
+	Out              bool `tl:"flag:16,encoded_in_bitflags"`
+	ID               int32
+	Date             int32
+	FwdFrom          *StoryFwdHeader `tl:"flag:17"`
+	ExpireDate       int32
+	Caption          string          `tl:"flag:0"`
+	Entities         []MessageEntity `tl:"flag:1"`
+	Media            MessageMedia
+	MediaAreas       []MediaArea   `tl:"flag:14"`
+	Privacy          []PrivacyRule `tl:"flag:2"`
+	Views            *StoryViews   `tl:"flag:3"`
+	SentReaction     Reaction      `tl:"flag:15"`
+}
+
+func (*StoryItemObj) CRC() uint32 {
+	return 0xaf6365a1
+}
+
+func (*StoryItemObj) FlagIndex() int {
+	return 0
+}
+
+func (*StoryItemObj) ImplementsStoryItem() {}
+
+type StoryItemDeleted struct {
+	ID int32
+}
+
+func (*StoryItemDeleted) CRC() uint32 {
+	return 0x51e6ee4f
+}
+
+func (*StoryItemDeleted) ImplementsStoryItem() {}
+
+type StoryItemSkipped struct {
+	CloseFriends bool `tl:"flag:8,encoded_in_bitflags"`
+	ID           int32
+	Date         int32
+	ExpireDate   int32
+}
+
+func (*StoryItemSkipped) CRC() uint32 {
+	return 0xffadc913
+}
+
+func (*StoryItemSkipped) FlagIndex() int {
+	return 0
+}
+
+func (*StoryItemSkipped) ImplementsStoryItem() {}
+
+type StoryReaction interface {
+	tl.Object
+	ImplementsStoryReaction()
+}
+type StoryReactionObj struct {
+	PeerID   Peer
+	Date     int32
+	Reaction Reaction
+}
+
+func (*StoryReactionObj) CRC() uint32 {
+	return 0x6090d6d5
+}
+
+func (*StoryReactionObj) ImplementsStoryReaction() {}
+
+type StoryReactionPublicForward struct {
+	Message Message
+}
+
+func (*StoryReactionPublicForward) CRC() uint32 {
+	return 0xbbab2643
+}
+
+func (*StoryReactionPublicForward) ImplementsStoryReaction() {}
+
+type StoryReactionPublicRepost struct {
+	PeerID Peer
+	Story  StoryItem
+}
+
+func (*StoryReactionPublicRepost) CRC() uint32 {
+	return 0xcfcd0f13
+}
+
+func (*StoryReactionPublicRepost) ImplementsStoryReaction() {}
+
+type StoryView interface {
+	tl.Object
+	ImplementsStoryView()
+}
+type StoryViewObj struct {
+	Blocked              bool `tl:"flag:0,encoded_in_bitflags"`
+	BlockedMyStoriesFrom bool `tl:"flag:1,encoded_in_bitflags"`
+	UserID               int64
+	Date                 int32
+	Reaction             Reaction `tl:"flag:2"`
+}
+
+func (*StoryViewObj) CRC() uint32 {
+	return 0xb0bdeac5
+}
+
+func (*StoryViewObj) FlagIndex() int {
+	return 0
+}
+
+func (*StoryViewObj) ImplementsStoryView() {}
+
+type StoryViewPublicForward struct {
+	Blocked              bool `tl:"flag:0,encoded_in_bitflags"`
+	BlockedMyStoriesFrom bool `tl:"flag:1,encoded_in_bitflags"`
+	Message              Message
+}
+
+func (*StoryViewPublicForward) CRC() uint32 {
+	return 0x9083670b
+}
+
+func (*StoryViewPublicForward) FlagIndex() int {
+	return 0
+}
+
+func (*StoryViewPublicForward) ImplementsStoryView() {}
+
+type StoryViewPublicRepost struct {
+	Blocked              bool `tl:"flag:0,encoded_in_bitflags"`
+	BlockedMyStoriesFrom bool `tl:"flag:1,encoded_in_bitflags"`
+	PeerID               Peer
+	Story                StoryItem
+}
+
+func (*StoryViewPublicRepost) CRC() uint32 {
+	return 0xbd74cf49
+}
+
+func (*StoryViewPublicRepost) FlagIndex() int {
+	return 0
+}
+
+func (*StoryViewPublicRepost) ImplementsStoryView() {}
+
 type Update interface {
 	tl.Object
 	ImplementsUpdate()
@@ -6550,6 +7695,14 @@ func (*UpdateAttachMenuBots) CRC() uint32 {
 }
 
 func (*UpdateAttachMenuBots) ImplementsUpdate() {}
+
+type UpdateAutoSaveSettings struct{}
+
+func (*UpdateAutoSaveSettings) CRC() uint32 {
+	return 0xec05b097
+}
+
+func (*UpdateAutoSaveSettings) ImplementsUpdate() {}
 
 type UpdateBotCallbackQuery struct {
 	QueryID       int64
@@ -6570,6 +7723,18 @@ func (*UpdateBotCallbackQuery) FlagIndex() int {
 }
 
 func (*UpdateBotCallbackQuery) ImplementsUpdate() {}
+
+type UpdateBotChatBoost struct {
+	Peer  Peer
+	Boost *Boost
+	Qts   int32
+}
+
+func (*UpdateBotChatBoost) CRC() uint32 {
+	return 0x904dd49c
+}
+
+func (*UpdateBotChatBoost) ImplementsUpdate() {}
 
 type UpdateBotChatInviteRequester struct {
 	Peer   Peer
@@ -6645,6 +7810,36 @@ func (*UpdateBotMenuButton) CRC() uint32 {
 }
 
 func (*UpdateBotMenuButton) ImplementsUpdate() {}
+
+type UpdateBotMessageReaction struct {
+	Peer         Peer
+	MsgID        int32
+	Date         int32
+	Actor        Peer
+	OldReactions []Reaction
+	NewReactions []Reaction
+	Qts          int32
+}
+
+func (*UpdateBotMessageReaction) CRC() uint32 {
+	return 0xac21d3ce
+}
+
+func (*UpdateBotMessageReaction) ImplementsUpdate() {}
+
+type UpdateBotMessageReactions struct {
+	Peer      Peer
+	MsgID     int32
+	Date      int32
+	Reactions []*ReactionCount
+	Qts       int32
+}
+
+func (*UpdateBotMessageReactions) CRC() uint32 {
+	return 0x9cb7759
+}
+
+func (*UpdateBotMessageReactions) ImplementsUpdate() {}
 
 type UpdateBotPrecheckoutQuery struct {
 	QueryID          int64
@@ -6760,6 +7955,7 @@ func (*UpdateChannelMessageViews) CRC() uint32 {
 func (*UpdateChannelMessageViews) ImplementsUpdate() {}
 
 type UpdateChannelParticipant struct {
+	ViaChatlist     bool `tl:"flag:3,encoded_in_bitflags"`
 	ChannelID       int64
 	Date            int32
 	ActorID         int64
@@ -6780,13 +7976,49 @@ func (*UpdateChannelParticipant) FlagIndex() int {
 
 func (*UpdateChannelParticipant) ImplementsUpdate() {}
 
+type UpdateChannelPinnedTopic struct {
+	Pinned    bool `tl:"flag:0,encoded_in_bitflags"`
+	ChannelID int64
+	TopicID   int32
+}
+
+func (*UpdateChannelPinnedTopic) CRC() uint32 {
+	return 0x192efbe3
+}
+
+func (*UpdateChannelPinnedTopic) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateChannelPinnedTopic) ImplementsUpdate() {}
+
+type UpdateChannelPinnedTopics struct {
+	ChannelID int64
+	Order     []int32 `tl:"flag:0"`
+}
+
+func (*UpdateChannelPinnedTopics) CRC() uint32 {
+	return 0xfe198602
+}
+
+func (*UpdateChannelPinnedTopics) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateChannelPinnedTopics) ImplementsUpdate() {}
+
 type UpdateChannelReadMessagesContents struct {
 	ChannelID int64
+	TopMsgID  int32 `tl:"flag:0"`
 	Messages  []int32
 }
 
 func (*UpdateChannelReadMessagesContents) CRC() uint32 {
-	return 0x44bdd535
+	return 0xea29055d
+}
+
+func (*UpdateChannelReadMessagesContents) FlagIndex() int {
+	return 0
 }
 
 func (*UpdateChannelReadMessagesContents) ImplementsUpdate() {}
@@ -6822,6 +8054,17 @@ func (*UpdateChannelUserTyping) FlagIndex() int {
 }
 
 func (*UpdateChannelUserTyping) ImplementsUpdate() {}
+
+type UpdateChannelViewForumAsMessages struct {
+	ChannelID int64
+	Enabled   bool
+}
+
+func (*UpdateChannelViewForumAsMessages) CRC() uint32 {
+	return 0x7b68920
+}
+
+func (*UpdateChannelViewForumAsMessages) ImplementsUpdate() {}
 
 type UpdateChannelWebPage struct {
 	ChannelID int64
@@ -7067,12 +8310,17 @@ func (*UpdateDialogUnreadMark) FlagIndex() int {
 func (*UpdateDialogUnreadMark) ImplementsUpdate() {}
 
 type UpdateDraftMessage struct {
-	Peer  Peer
-	Draft DraftMessage
+	Peer     Peer
+	TopMsgID int32 `tl:"flag:0"`
+	Draft    DraftMessage
 }
 
 func (*UpdateDraftMessage) CRC() uint32 {
-	return 0xee2bb969
+	return 0x1b49ec6d
+}
+
+func (*UpdateDraftMessage) FlagIndex() int {
+	return 0
 }
 
 func (*UpdateDraftMessage) ImplementsUpdate() {}
@@ -7203,6 +8451,16 @@ func (*UpdateGroupCallParticipants) CRC() uint32 {
 
 func (*UpdateGroupCallParticipants) ImplementsUpdate() {}
 
+type UpdateGroupInvitePrivacyForbidden struct {
+	UserID int64
+}
+
+func (*UpdateGroupInvitePrivacyForbidden) CRC() uint32 {
+	return 0xccf08ad6
+}
+
+func (*UpdateGroupInvitePrivacyForbidden) ImplementsUpdate() {}
+
 type UpdateInlineBotCallbackQuery struct {
 	QueryID       int64
 	UserID        int64
@@ -7250,17 +8508,6 @@ func (*UpdateLoginToken) CRC() uint32 {
 
 func (*UpdateLoginToken) ImplementsUpdate() {}
 
-type UpdateMessageID struct {
-	ID       int32
-	RandomID int64
-}
-
-func (*UpdateMessageID) CRC() uint32 {
-	return 0x4e90bfd6
-}
-
-func (*UpdateMessageID) ImplementsUpdate() {}
-
 type UpdateMessageExtendedMedia struct {
 	Peer          Peer
 	MsgID         int32
@@ -7272,6 +8519,17 @@ func (*UpdateMessageExtendedMedia) CRC() uint32 {
 }
 
 func (*UpdateMessageExtendedMedia) ImplementsUpdate() {}
+
+type UpdateMessageID struct {
+	ID       int32
+	RandomID int64
+}
+
+func (*UpdateMessageID) CRC() uint32 {
+	return 0x4e90bfd6
+}
+
+func (*UpdateMessageID) ImplementsUpdate() {}
 
 type UpdateMessagePoll struct {
 	PollID  int64
@@ -7291,13 +8549,13 @@ func (*UpdateMessagePoll) ImplementsUpdate() {}
 
 type UpdateMessagePollVote struct {
 	PollID  int64
-	UserID  int64
+	Peer    Peer
 	Options [][]byte
 	Qts     int32
 }
 
 func (*UpdateMessagePollVote) CRC() uint32 {
-	return 0x106395c9
+	return 0x24f40e77
 }
 
 func (*UpdateMessagePollVote) ImplementsUpdate() {}
@@ -7305,11 +8563,16 @@ func (*UpdateMessagePollVote) ImplementsUpdate() {}
 type UpdateMessageReactions struct {
 	Peer      Peer
 	MsgID     int32
+	TopMsgID  int32 `tl:"flag:0"`
 	Reactions *MessageReactions
 }
 
 func (*UpdateMessageReactions) CRC() uint32 {
-	return 0x154798c3
+	return 0x5e1b3cb8
+}
+
+func (*UpdateMessageReactions) FlagIndex() int {
+	return 0
 }
 
 func (*UpdateMessageReactions) ImplementsUpdate() {}
@@ -7329,6 +8592,24 @@ func (*UpdateMoveStickerSetToTop) FlagIndex() int {
 }
 
 func (*UpdateMoveStickerSetToTop) ImplementsUpdate() {}
+
+type UpdateNewAuthorization struct {
+	Unconfirmed bool `tl:"flag:0,encoded_in_bitflags"`
+	Hash        int64
+	Date        int32  `tl:"flag:0"`
+	Device      string `tl:"flag:0"`
+	Location    string `tl:"flag:0"`
+}
+
+func (*UpdateNewAuthorization) CRC() uint32 {
+	return 0x8951abef
+}
+
+func (*UpdateNewAuthorization) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateNewAuthorization) ImplementsUpdate() {}
 
 type UpdateNewChannelMessage struct {
 	Message  Message
@@ -7397,12 +8678,17 @@ func (*UpdateNotifySettings) CRC() uint32 {
 func (*UpdateNotifySettings) ImplementsUpdate() {}
 
 type UpdatePeerBlocked struct {
-	PeerID  Peer
-	Blocked bool
+	Blocked              bool `tl:"flag:0,encoded_in_bitflags"`
+	BlockedMyStoriesFrom bool `tl:"flag:1,encoded_in_bitflags"`
+	PeerID               Peer
 }
 
 func (*UpdatePeerBlocked) CRC() uint32 {
-	return 0x246a4b22
+	return 0xebe07752
+}
+
+func (*UpdatePeerBlocked) FlagIndex() int {
+	return 0
 }
 
 func (*UpdatePeerBlocked) ImplementsUpdate() {}
@@ -7442,6 +8728,22 @@ func (*UpdatePeerSettings) CRC() uint32 {
 }
 
 func (*UpdatePeerSettings) ImplementsUpdate() {}
+
+type UpdatePeerWallpaper struct {
+	WallpaperOverridden bool `tl:"flag:1,encoded_in_bitflags"`
+	Peer                Peer
+	Wallpaper           WallPaper `tl:"flag:0"`
+}
+
+func (*UpdatePeerWallpaper) CRC() uint32 {
+	return 0xae3f101d
+}
+
+func (*UpdatePeerWallpaper) FlagIndex() int {
+	return 0
+}
+
+func (*UpdatePeerWallpaper) ImplementsUpdate() {}
 
 type UpdatePendingJoinRequests struct {
 	Peer             Peer
@@ -7526,6 +8828,20 @@ func (*UpdatePinnedMessages) FlagIndex() int {
 }
 
 func (*UpdatePinnedMessages) ImplementsUpdate() {}
+
+type UpdatePinnedSavedDialogs struct {
+	Order []DialogPeer `tl:"flag:0"`
+}
+
+func (*UpdatePinnedSavedDialogs) CRC() uint32 {
+	return 0x686c85a6
+}
+
+func (*UpdatePinnedSavedDialogs) FlagIndex() int {
+	return 0
+}
+
+func (*UpdatePinnedSavedDialogs) ImplementsUpdate() {}
 
 type UpdatePrivacy struct {
 	Key   PrivacyKey
@@ -7657,13 +8973,29 @@ type UpdateReadMessagesContents struct {
 	Messages []int32
 	Pts      int32
 	PtsCount int32
+	Date     int32 `tl:"flag:0"`
 }
 
 func (*UpdateReadMessagesContents) CRC() uint32 {
-	return 0x68c13933
+	return 0xf8227181
+}
+
+func (*UpdateReadMessagesContents) FlagIndex() int {
+	return 0
 }
 
 func (*UpdateReadMessagesContents) ImplementsUpdate() {}
+
+type UpdateReadStories struct {
+	Peer  Peer
+	MaxID int32
+}
+
+func (*UpdateReadStories) CRC() uint32 {
+	return 0xf74e932b
+}
+
+func (*UpdateReadStories) ImplementsUpdate() {}
 
 type UpdateRecentEmojiStatuses struct{}
 
@@ -7689,6 +9021,21 @@ func (*UpdateRecentStickers) CRC() uint32 {
 
 func (*UpdateRecentStickers) ImplementsUpdate() {}
 
+type UpdateSavedDialogPinned struct {
+	Pinned bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer   DialogPeer
+}
+
+func (*UpdateSavedDialogPinned) CRC() uint32 {
+	return 0xaeaf9e74
+}
+
+func (*UpdateSavedDialogPinned) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateSavedDialogPinned) ImplementsUpdate() {}
+
 type UpdateSavedGifs struct{}
 
 func (*UpdateSavedGifs) CRC() uint32 {
@@ -7705,13 +9052,26 @@ func (*UpdateSavedRingtones) CRC() uint32 {
 
 func (*UpdateSavedRingtones) ImplementsUpdate() {}
 
+type UpdateSentStoryReaction struct {
+	Peer     Peer
+	StoryID  int32
+	Reaction Reaction
+}
+
+func (*UpdateSentStoryReaction) CRC() uint32 {
+	return 0x7d627683
+}
+
+func (*UpdateSentStoryReaction) ImplementsUpdate() {}
+
 type UpdateServiceNotification struct {
-	Popup     bool  `tl:"flag:0,encoded_in_bitflags"`
-	InboxDate int32 `tl:"flag:1"`
-	Type      string
-	Message   string
-	Media     MessageMedia
-	Entities  []MessageEntity
+	Popup       bool  `tl:"flag:0,encoded_in_bitflags"`
+	InvertMedia bool  `tl:"flag:2,encoded_in_bitflags"`
+	InboxDate   int32 `tl:"flag:1"`
+	Type        string
+	Message     string
+	Media       MessageMedia
+	Entities    []MessageEntity
 }
 
 func (*UpdateServiceNotification) CRC() uint32 {
@@ -7755,6 +9115,38 @@ func (*UpdateStickerSetsOrder) FlagIndex() int {
 
 func (*UpdateStickerSetsOrder) ImplementsUpdate() {}
 
+type UpdateStoriesStealthMode struct {
+	StealthMode *StoriesStealthMode
+}
+
+func (*UpdateStoriesStealthMode) CRC() uint32 {
+	return 0x2c084dc1
+}
+
+func (*UpdateStoriesStealthMode) ImplementsUpdate() {}
+
+type UpdateStory struct {
+	Peer  Peer
+	Story StoryItem
+}
+
+func (*UpdateStory) CRC() uint32 {
+	return 0x75b3b798
+}
+
+func (*UpdateStory) ImplementsUpdate() {}
+
+type UpdateStoryID struct {
+	ID       int32
+	RandomID int64
+}
+
+func (*UpdateStoryID) CRC() uint32 {
+	return 0x1bf335b9
+}
+
+func (*UpdateStoryID) ImplementsUpdate() {}
+
 type UpdateTheme struct {
 	Theme *Theme
 }
@@ -7783,6 +9175,16 @@ func (*UpdateTranscribedAudio) FlagIndex() int {
 
 func (*UpdateTranscribedAudio) ImplementsUpdate() {}
 
+type UpdateUser struct {
+	UserID int64
+}
+
+func (*UpdateUser) CRC() uint32 {
+	return 0x20529438
+}
+
+func (*UpdateUser) ImplementsUpdate() {}
+
 type UpdateUserEmojiStatus struct {
 	UserID      int64
 	EmojiStatus EmojiStatus
@@ -7798,11 +9200,11 @@ type UpdateUserName struct {
 	UserID    int64
 	FirstName string
 	LastName  string
-	Username  string
+	Usernames []*Username
 }
 
 func (*UpdateUserName) CRC() uint32 {
-	return 0xc3f202e0
+	return 0xa7848924
 }
 
 func (*UpdateUserName) ImplementsUpdate() {}
@@ -7817,19 +9219,6 @@ func (*UpdateUserPhone) CRC() uint32 {
 }
 
 func (*UpdateUserPhone) ImplementsUpdate() {}
-
-type UpdateUserPhoto struct {
-	UserID   int64
-	Date     int32
-	Photo    UserProfilePhoto
-	Previous bool
-}
-
-func (*UpdateUserPhoto) CRC() uint32 {
-	return 0xf227868c
-}
-
-func (*UpdateUserPhoto) ImplementsUpdate() {}
 
 type UpdateUserStatus struct {
 	UserID int64
@@ -7902,11 +9291,11 @@ type UpdateShortChatMessage struct {
 	Pts         int32
 	PtsCount    int32
 	Date        int32
-	FwdFrom     *MessageFwdHeader   `tl:"flag:2"`
-	ViaBotID    int64               `tl:"flag:11"`
-	ReplyTo     *MessageReplyHeader `tl:"flag:3"`
-	Entities    []MessageEntity     `tl:"flag:7"`
-	TtlPeriod   int32               `tl:"flag:25"`
+	FwdFrom     *MessageFwdHeader  `tl:"flag:2"`
+	ViaBotID    int64              `tl:"flag:11"`
+	ReplyTo     MessageReplyHeader `tl:"flag:3"`
+	Entities    []MessageEntity    `tl:"flag:7"`
+	TtlPeriod   int32              `tl:"flag:25"`
 }
 
 func (*UpdateShortChatMessage) CRC() uint32 {
@@ -7930,11 +9319,11 @@ type UpdateShortMessage struct {
 	Pts         int32
 	PtsCount    int32
 	Date        int32
-	FwdFrom     *MessageFwdHeader   `tl:"flag:2"`
-	ViaBotID    int64               `tl:"flag:11"`
-	ReplyTo     *MessageReplyHeader `tl:"flag:3"`
-	Entities    []MessageEntity     `tl:"flag:7"`
-	TtlPeriod   int32               `tl:"flag:25"`
+	FwdFrom     *MessageFwdHeader  `tl:"flag:2"`
+	ViaBotID    int64              `tl:"flag:11"`
+	ReplyTo     MessageReplyHeader `tl:"flag:3"`
+	Entities    []MessageEntity    `tl:"flag:7"`
+	TtlPeriod   int32              `tl:"flag:25"`
 }
 
 func (*UpdateShortMessage) CRC() uint32 {
@@ -8066,6 +9455,10 @@ type UserObj struct {
 	BotAttachMenu        bool `tl:"flag:27,encoded_in_bitflags"`
 	Premium              bool `tl:"flag:28,encoded_in_bitflags"`
 	AttachMenuEnabled    bool `tl:"flag:29,encoded_in_bitflags"`
+	BotCanEdit           bool `tl:"flag2:1,encoded_in_bitflags"`
+	CloseFriend          bool `tl:"flag2:2,encoded_in_bitflags"`
+	StoriesHidden        bool `tl:"flag2:3,encoded_in_bitflags"`
+	StoriesUnavailable   bool `tl:"flag2:4,encoded_in_bitflags"`
 	ID                   int64
 	AccessHash           int64                `tl:"flag:0"`
 	FirstName            string               `tl:"flag:1"`
@@ -8079,14 +9472,18 @@ type UserObj struct {
 	BotInlinePlaceholder string               `tl:"flag:19"`
 	LangCode             string               `tl:"flag:22"`
 	EmojiStatus          EmojiStatus          `tl:"flag:30"`
+	Usernames            []*Username          `tl:"flag2:0"`
+	StoriesMaxID         int32                `tl:"flag2:5"`
+	Color                *PeerColor           `tl:"flag2:8"`
+	ProfileColor         *PeerColor           `tl:"flag2:9"`
 }
 
 func (*UserObj) CRC() uint32 {
-	return 0x5d99adee
+	return 0x215c4438
 }
 
 func (*UserObj) FlagIndex() int {
-	return 0
+	return 19
 }
 
 func (*UserObj) ImplementsUser() {}
@@ -8107,6 +9504,7 @@ type UserProfilePhoto interface {
 }
 type UserProfilePhotoObj struct {
 	HasVideo      bool `tl:"flag:0,encoded_in_bitflags"`
+	Personal      bool `tl:"flag:2,encoded_in_bitflags"`
 	PhotoID       int64
 	StrippedThumb []byte `tl:"flag:1"`
 	DcID          int32
@@ -8185,6 +9583,51 @@ func (*UserStatusRecently) CRC() uint32 {
 }
 
 func (*UserStatusRecently) ImplementsUserStatus() {}
+
+type VideoSize interface {
+	tl.Object
+	ImplementsVideoSize()
+}
+type VideoSizeObj struct {
+	Type         string
+	W            int32
+	H            int32
+	Size         int32
+	VideoStartTs float64 `tl:"flag:0"`
+}
+
+func (*VideoSizeObj) CRC() uint32 {
+	return 0xde33b094
+}
+
+func (*VideoSizeObj) FlagIndex() int {
+	return 0
+}
+
+func (*VideoSizeObj) ImplementsVideoSize() {}
+
+type VideoSizeEmojiMarkup struct {
+	EmojiID          int64
+	BackgroundColors []int32
+}
+
+func (*VideoSizeEmojiMarkup) CRC() uint32 {
+	return 0xf85c413c
+}
+
+func (*VideoSizeEmojiMarkup) ImplementsVideoSize() {}
+
+type VideoSizeStickerMarkup struct {
+	Stickerset       InputStickerSet
+	StickerID        int64
+	BackgroundColors []int32
+}
+
+func (*VideoSizeStickerMarkup) CRC() uint32 {
+	return 0xda082fe
+}
+
+func (*VideoSizeStickerMarkup) ImplementsVideoSize() {}
 
 type WallPaper interface {
 	tl.Object
@@ -8265,24 +9708,25 @@ type WebPage interface {
 	ImplementsWebPage()
 }
 type WebPageObj struct {
-	ID          int64
-	URL         string
-	DisplayURL  string
-	Hash        int32
-	Type        string                   `tl:"flag:0"`
-	SiteName    string                   `tl:"flag:1"`
-	Title       string                   `tl:"flag:2"`
-	Description string                   `tl:"flag:3"`
-	Photo       Photo                    `tl:"flag:4"`
-	EmbedURL    string                   `tl:"flag:5"`
-	EmbedType   string                   `tl:"flag:5"`
-	EmbedWidth  int32                    `tl:"flag:6"`
-	EmbedHeight int32                    `tl:"flag:6"`
-	Duration    int32                    `tl:"flag:7"`
-	Author      string                   `tl:"flag:8"`
-	Document    Document                 `tl:"flag:9"`
-	CachedPage  *Page                    `tl:"flag:10"`
-	Attributes  []*WebPageAttributeTheme `tl:"flag:12"`
+	HasLargeMedia bool `tl:"flag:13,encoded_in_bitflags"`
+	ID            int64
+	URL           string
+	DisplayURL    string
+	Hash          int32
+	Type          string             `tl:"flag:0"`
+	SiteName      string             `tl:"flag:1"`
+	Title         string             `tl:"flag:2"`
+	Description   string             `tl:"flag:3"`
+	Photo         Photo              `tl:"flag:4"`
+	EmbedURL      string             `tl:"flag:5"`
+	EmbedType     string             `tl:"flag:5"`
+	EmbedWidth    int32              `tl:"flag:6"`
+	EmbedHeight   int32              `tl:"flag:6"`
+	Duration      int32              `tl:"flag:7"`
+	Author        string             `tl:"flag:8"`
+	Document      Document           `tl:"flag:9"`
+	CachedPage    *Page              `tl:"flag:10"`
+	Attributes    []WebPageAttribute `tl:"flag:12"`
 }
 
 func (*WebPageObj) CRC() uint32 {
@@ -8296,11 +9740,16 @@ func (*WebPageObj) FlagIndex() int {
 func (*WebPageObj) ImplementsWebPage() {}
 
 type WebPageEmpty struct {
-	ID int64
+	ID  int64
+	URL string `tl:"flag:0"`
 }
 
 func (*WebPageEmpty) CRC() uint32 {
-	return 0xeb1477e8
+	return 0x211a1788
+}
+
+func (*WebPageEmpty) FlagIndex() int {
+	return 0
 }
 
 func (*WebPageEmpty) ImplementsWebPage() {}
@@ -8321,14 +9770,54 @@ func (*WebPageNotModified) ImplementsWebPage() {}
 
 type WebPagePending struct {
 	ID   int64
+	URL  string `tl:"flag:0"`
 	Date int32
 }
 
 func (*WebPagePending) CRC() uint32 {
-	return 0xc586da1c
+	return 0xb0d13e47
+}
+
+func (*WebPagePending) FlagIndex() int {
+	return 0
 }
 
 func (*WebPagePending) ImplementsWebPage() {}
+
+type WebPageAttribute interface {
+	tl.Object
+	ImplementsWebPageAttribute()
+}
+type WebPageAttributeStory struct {
+	Peer  Peer
+	ID    int32
+	Story StoryItem `tl:"flag:0"`
+}
+
+func (*WebPageAttributeStory) CRC() uint32 {
+	return 0x2e94c3e7
+}
+
+func (*WebPageAttributeStory) FlagIndex() int {
+	return 0
+}
+
+func (*WebPageAttributeStory) ImplementsWebPageAttribute() {}
+
+type WebPageAttributeTheme struct {
+	Documents []Document     `tl:"flag:0"`
+	Settings  *ThemeSettings `tl:"flag:1"`
+}
+
+func (*WebPageAttributeTheme) CRC() uint32 {
+	return 0x54b56617
+}
+
+func (*WebPageAttributeTheme) FlagIndex() int {
+	return 0
+}
+
+func (*WebPageAttributeTheme) ImplementsWebPageAttribute() {}
 
 type AccountEmailVerified interface {
 	tl.Object
@@ -8346,7 +9835,7 @@ func (*AccountEmailVerifiedObj) ImplementsAccountEmailVerified() {}
 
 type AccountEmailVerifiedLogin struct {
 	Email    string
-	SentCode *AuthSentCode
+	SentCode AuthSentCode
 }
 
 func (*AccountEmailVerifiedLogin) CRC() uint32 {
@@ -8506,14 +9995,15 @@ type AuthAuthorization interface {
 	ImplementsAuthAuthorization()
 }
 type AuthAuthorizationObj struct {
-	SetupPasswordRequired bool  `tl:"flag:1,encoded_in_bitflags"`
-	OtherwiseReloginDays  int32 `tl:"flag:1"`
-	TmpSessions           int32 `tl:"flag:0"`
+	SetupPasswordRequired bool   `tl:"flag:1,encoded_in_bitflags"`
+	OtherwiseReloginDays  int32  `tl:"flag:1"`
+	TmpSessions           int32  `tl:"flag:0"`
+	FutureAuthToken       []byte `tl:"flag:2"`
 	User                  User
 }
 
 func (*AuthAuthorizationObj) CRC() uint32 {
-	return 0x33fb7bb8
+	return 0x2ea2c0d4
 }
 
 func (*AuthAuthorizationObj) FlagIndex() int {
@@ -8572,6 +10062,37 @@ func (*AuthLoginTokenSuccess) CRC() uint32 {
 
 func (*AuthLoginTokenSuccess) ImplementsAuthLoginToken() {}
 
+type AuthSentCode interface {
+	tl.Object
+	ImplementsAuthSentCode()
+}
+type AuthSentCodeObj struct {
+	Type          AuthSentCodeType
+	PhoneCodeHash string
+	NextType      AuthCodeType `tl:"flag:1"`
+	Timeout       int32        `tl:"flag:2"`
+}
+
+func (*AuthSentCodeObj) CRC() uint32 {
+	return 0x5e002502
+}
+
+func (*AuthSentCodeObj) FlagIndex() int {
+	return 0
+}
+
+func (*AuthSentCodeObj) ImplementsAuthSentCode() {}
+
+type AuthSentCodeSuccess struct {
+	Authorization AuthAuthorization
+}
+
+func (*AuthSentCodeSuccess) CRC() uint32 {
+	return 0x2390fe44
+}
+
+func (*AuthSentCodeSuccess) ImplementsAuthSentCode() {}
+
 type AuthSentCodeType interface {
 	tl.Object
 	ImplementsAuthSentCodeType()
@@ -8597,15 +10118,16 @@ func (*AuthSentCodeTypeCall) CRC() uint32 {
 func (*AuthSentCodeTypeCall) ImplementsAuthSentCodeType() {}
 
 type AuthSentCodeTypeEmailCode struct {
-	AppleSigninAllowed  bool `tl:"flag:0,encoded_in_bitflags"`
-	GoogleSigninAllowed bool `tl:"flag:1,encoded_in_bitflags"`
-	EmailPattern        string
-	Length              int32
-	NextPhoneLoginDate  int32 `tl:"flag:2"`
+	AppleSigninAllowed   bool `tl:"flag:0,encoded_in_bitflags"`
+	GoogleSigninAllowed  bool `tl:"flag:1,encoded_in_bitflags"`
+	EmailPattern         string
+	Length               int32
+	ResetAvailablePeriod int32 `tl:"flag:3"`
+	ResetPendingDate     int32 `tl:"flag:4"`
 }
 
 func (*AuthSentCodeTypeEmailCode) CRC() uint32 {
-	return 0x5a159841
+	return 0xf450f59b
 }
 
 func (*AuthSentCodeTypeEmailCode) FlagIndex() int {
@@ -8613,6 +10135,23 @@ func (*AuthSentCodeTypeEmailCode) FlagIndex() int {
 }
 
 func (*AuthSentCodeTypeEmailCode) ImplementsAuthSentCodeType() {}
+
+type AuthSentCodeTypeFirebaseSms struct {
+	Nonce       []byte `tl:"flag:0"`
+	Receipt     string `tl:"flag:1"`
+	PushTimeout int32  `tl:"flag:1"`
+	Length      int32
+}
+
+func (*AuthSentCodeTypeFirebaseSms) CRC() uint32 {
+	return 0xe57b1432
+}
+
+func (*AuthSentCodeTypeFirebaseSms) FlagIndex() int {
+	return 0
+}
+
+func (*AuthSentCodeTypeFirebaseSms) ImplementsAuthSentCodeType() {}
 
 type AuthSentCodeTypeFlashCall struct {
 	Pattern string
@@ -8623,6 +10162,17 @@ func (*AuthSentCodeTypeFlashCall) CRC() uint32 {
 }
 
 func (*AuthSentCodeTypeFlashCall) ImplementsAuthSentCodeType() {}
+
+type AuthSentCodeTypeFragmentSms struct {
+	URL    string
+	Length int32
+}
+
+func (*AuthSentCodeTypeFragmentSms) CRC() uint32 {
+	return 0xd9565c39
+}
+
+func (*AuthSentCodeTypeFragmentSms) ImplementsAuthSentCodeType() {}
 
 type AuthSentCodeTypeMissedCall struct {
 	Prefix string
@@ -8684,6 +10234,42 @@ func (*ChannelsChannelParticipantsNotModified) CRC() uint32 {
 }
 
 func (*ChannelsChannelParticipantsNotModified) ImplementsChannelsChannelParticipants() {}
+
+type ChatlistsChatlistInvite interface {
+	tl.Object
+	ImplementsChatlistsChatlistInvite()
+}
+type ChatlistsChatlistInviteObj struct {
+	Title    string
+	Emoticon string `tl:"flag:0"`
+	Peers    []Peer
+	Chats    []Chat
+	Users    []User
+}
+
+func (*ChatlistsChatlistInviteObj) CRC() uint32 {
+	return 0x1dcd839d
+}
+
+func (*ChatlistsChatlistInviteObj) FlagIndex() int {
+	return 0
+}
+
+func (*ChatlistsChatlistInviteObj) ImplementsChatlistsChatlistInvite() {}
+
+type ChatlistsChatlistInviteAlready struct {
+	FilterID     int32
+	MissingPeers []Peer
+	AlreadyPeers []Peer
+	Chats        []Chat
+	Users        []User
+}
+
+func (*ChatlistsChatlistInviteAlready) CRC() uint32 {
+	return 0xfa87f659
+}
+
+func (*ChatlistsChatlistInviteAlready) ImplementsChatlistsChatlistInvite() {}
 
 type ContactsBlocked interface {
 	tl.Object
@@ -8769,6 +10355,29 @@ func (*ContactsTopPeersNotModified) CRC() uint32 {
 }
 
 func (*ContactsTopPeersNotModified) ImplementsContactsTopPeers() {}
+
+type HelpAppConfig interface {
+	tl.Object
+	ImplementsHelpAppConfig()
+}
+type HelpAppConfigObj struct {
+	Hash   int32
+	Config JsonValue
+}
+
+func (*HelpAppConfigObj) CRC() uint32 {
+	return 0xdd18782e
+}
+
+func (*HelpAppConfigObj) ImplementsHelpAppConfig() {}
+
+type HelpAppConfigNotModified struct{}
+
+func (*HelpAppConfigNotModified) CRC() uint32 {
+	return 0x7cde641d
+}
+
+func (*HelpAppConfigNotModified) ImplementsHelpAppConfig() {}
 
 type HelpAppUpdate interface {
 	tl.Object
@@ -8876,6 +10485,55 @@ func (*HelpPassportConfigNotModified) CRC() uint32 {
 }
 
 func (*HelpPassportConfigNotModified) ImplementsHelpPassportConfig() {}
+
+type HelpPeerColorSet interface {
+	tl.Object
+	ImplementsHelpPeerColorSet()
+}
+type HelpPeerColorProfileSet struct {
+	PaletteColors []int32
+	BgColors      []int32
+	StoryColors   []int32
+}
+
+func (*HelpPeerColorProfileSet) CRC() uint32 {
+	return 0x767d61eb
+}
+
+func (*HelpPeerColorProfileSet) ImplementsHelpPeerColorSet() {}
+
+type HelpPeerColorSetObj struct {
+	Colors []int32
+}
+
+func (*HelpPeerColorSetObj) CRC() uint32 {
+	return 0x26219a58
+}
+
+func (*HelpPeerColorSetObj) ImplementsHelpPeerColorSet() {}
+
+type HelpPeerColors interface {
+	tl.Object
+	ImplementsHelpPeerColors()
+}
+type HelpPeerColorsObj struct {
+	Hash   int32
+	Colors []*HelpPeerColorOption
+}
+
+func (*HelpPeerColorsObj) CRC() uint32 {
+	return 0xf8ed08
+}
+
+func (*HelpPeerColorsObj) ImplementsHelpPeerColors() {}
+
+type HelpPeerColorsNotModified struct{}
+
+func (*HelpPeerColorsNotModified) CRC() uint32 {
+	return 0x2ba1f5ce
+}
+
+func (*HelpPeerColorsNotModified) ImplementsHelpPeerColors() {}
 
 type HelpPromoData interface {
 	tl.Object
@@ -9100,6 +10758,29 @@ func (*MessagesDialogsSlice) CRC() uint32 {
 
 func (*MessagesDialogsSlice) ImplementsMessagesDialogs() {}
 
+type MessagesEmojiGroups interface {
+	tl.Object
+	ImplementsMessagesEmojiGroups()
+}
+type MessagesEmojiGroupsObj struct {
+	Hash   int32
+	Groups []*EmojiGroup
+}
+
+func (*MessagesEmojiGroupsObj) CRC() uint32 {
+	return 0x881fb94b
+}
+
+func (*MessagesEmojiGroupsObj) ImplementsMessagesEmojiGroups() {}
+
+type MessagesEmojiGroupsNotModified struct{}
+
+func (*MessagesEmojiGroupsNotModified) CRC() uint32 {
+	return 0x6fb4ad87
+}
+
+func (*MessagesEmojiGroupsNotModified) ImplementsMessagesEmojiGroups() {}
+
 type MessagesExportedChatInvite interface {
 	tl.Object
 	ImplementsMessagesExportedChatInvite()
@@ -9216,12 +10897,13 @@ type MessagesChannelMessages struct {
 	Count          int32
 	OffsetIDOffset int32 `tl:"flag:2"`
 	Messages       []Message
+	Topics         []ForumTopic
 	Chats          []Chat
 	Users          []User
 }
 
 func (*MessagesChannelMessages) CRC() uint32 {
-	return 0x64479808
+	return 0xc776ba4e
 }
 
 func (*MessagesChannelMessages) FlagIndex() int {
@@ -9320,6 +11002,47 @@ func (*MessagesRecentStickersNotModified) CRC() uint32 {
 
 func (*MessagesRecentStickersNotModified) ImplementsMessagesRecentStickers() {}
 
+type MessagesSavedDialogs interface {
+	tl.Object
+	ImplementsMessagesSavedDialogs()
+}
+type MessagesSavedDialogsObj struct {
+	Dialogs  []*SavedDialog
+	Messages []Message
+	Chats    []Chat
+	Users    []User
+}
+
+func (*MessagesSavedDialogsObj) CRC() uint32 {
+	return 0xf83ae221
+}
+
+func (*MessagesSavedDialogsObj) ImplementsMessagesSavedDialogs() {}
+
+type MessagesSavedDialogsNotModified struct {
+	Count int32
+}
+
+func (*MessagesSavedDialogsNotModified) CRC() uint32 {
+	return 0xc01f6fe8
+}
+
+func (*MessagesSavedDialogsNotModified) ImplementsMessagesSavedDialogs() {}
+
+type MessagesSavedDialogsSlice struct {
+	Count    int32
+	Dialogs  []*SavedDialog
+	Messages []Message
+	Chats    []Chat
+	Users    []User
+}
+
+func (*MessagesSavedDialogsSlice) CRC() uint32 {
+	return 0x44ba9dd9
+}
+
+func (*MessagesSavedDialogsSlice) ImplementsMessagesSavedDialogs() {}
+
 type MessagesSavedGifs interface {
 	tl.Object
 	ImplementsMessagesSavedGifs()
@@ -9367,6 +11090,35 @@ func (*MessagesSentEncryptedMessageObj) CRC() uint32 {
 }
 
 func (*MessagesSentEncryptedMessageObj) ImplementsMessagesSentEncryptedMessage() {}
+
+type MessagesSponsoredMessages interface {
+	tl.Object
+	ImplementsMessagesSponsoredMessages()
+}
+type MessagesSponsoredMessagesObj struct {
+	PostsBetween int32 `tl:"flag:0"`
+	Messages     []*SponsoredMessage
+	Chats        []Chat
+	Users        []User
+}
+
+func (*MessagesSponsoredMessagesObj) CRC() uint32 {
+	return 0xc9ee1d87
+}
+
+func (*MessagesSponsoredMessagesObj) FlagIndex() int {
+	return 0
+}
+
+func (*MessagesSponsoredMessagesObj) ImplementsMessagesSponsoredMessages() {}
+
+type MessagesSponsoredMessagesEmpty struct{}
+
+func (*MessagesSponsoredMessagesEmpty) CRC() uint32 {
+	return 0x1839490f
+}
+
+func (*MessagesSponsoredMessagesEmpty) ImplementsMessagesSponsoredMessages() {}
 
 type MessagesStickerSet interface {
 	tl.Object
@@ -9438,27 +11190,48 @@ func (*MessagesStickersNotModified) CRC() uint32 {
 
 func (*MessagesStickersNotModified) ImplementsMessagesStickers() {}
 
-type MessagesTranslatedText interface {
+type PaymentsGiveawayInfo interface {
 	tl.Object
-	ImplementsMessagesTranslatedText()
+	ImplementsPaymentsGiveawayInfo()
 }
-type MessagesTranslateNoResult struct{}
-
-func (*MessagesTranslateNoResult) CRC() uint32 {
-	return 0x67ca4737
-}
-
-func (*MessagesTranslateNoResult) ImplementsMessagesTranslatedText() {}
-
-type MessagesTranslateResultText struct {
-	Text string
+type PaymentsGiveawayInfoObj struct {
+	Participating         bool `tl:"flag:0,encoded_in_bitflags"`
+	PreparingResults      bool `tl:"flag:3,encoded_in_bitflags"`
+	StartDate             int32
+	JoinedTooEarlyDate    int32  `tl:"flag:1"`
+	AdminDisallowedChatID int64  `tl:"flag:2"`
+	DisallowedCountry     string `tl:"flag:4"`
 }
 
-func (*MessagesTranslateResultText) CRC() uint32 {
-	return 0xa214f7d0
+func (*PaymentsGiveawayInfoObj) CRC() uint32 {
+	return 0x4367daa0
 }
 
-func (*MessagesTranslateResultText) ImplementsMessagesTranslatedText() {}
+func (*PaymentsGiveawayInfoObj) FlagIndex() int {
+	return 0
+}
+
+func (*PaymentsGiveawayInfoObj) ImplementsPaymentsGiveawayInfo() {}
+
+type PaymentsGiveawayInfoResults struct {
+	Winner         bool `tl:"flag:0,encoded_in_bitflags"`
+	Refunded       bool `tl:"flag:1,encoded_in_bitflags"`
+	StartDate      int32
+	GiftCodeSlug   string `tl:"flag:0"`
+	FinishDate     int32
+	WinnersCount   int32
+	ActivatedCount int32
+}
+
+func (*PaymentsGiveawayInfoResults) CRC() uint32 {
+	return 0xcd5570
+}
+
+func (*PaymentsGiveawayInfoResults) FlagIndex() int {
+	return 0
+}
+
+func (*PaymentsGiveawayInfoResults) ImplementsPaymentsGiveawayInfo() {}
 
 type PaymentsPaymentResult interface {
 	tl.Object
@@ -9510,6 +11283,41 @@ func (*PhotosPhotosSlice) CRC() uint32 {
 }
 
 func (*PhotosPhotosSlice) ImplementsPhotosPhotos() {}
+
+type StoriesAllStories interface {
+	tl.Object
+	ImplementsStoriesAllStories()
+}
+type StoriesAllStoriesObj struct {
+	HasMore     bool `tl:"flag:0,encoded_in_bitflags"`
+	Count       int32
+	State       string
+	PeerStories []*PeerStories
+	Chats       []Chat
+	Users       []User
+	StealthMode *StoriesStealthMode
+}
+
+func (*StoriesAllStoriesObj) CRC() uint32 {
+	return 0x6efc5e81
+}
+
+func (*StoriesAllStoriesObj) FlagIndex() int {
+	return 0
+}
+
+func (*StoriesAllStoriesObj) ImplementsStoriesAllStories() {}
+
+type StoriesAllStoriesNotModified struct {
+	State       string
+	StealthMode *StoriesStealthMode
+}
+
+func (*StoriesAllStoriesNotModified) CRC() uint32 {
+	return 0x1158fe3e
+}
+
+func (*StoriesAllStoriesNotModified) ImplementsStoriesAllStories() {}
 
 type UpdatesChannelDifference interface {
 	tl.Object

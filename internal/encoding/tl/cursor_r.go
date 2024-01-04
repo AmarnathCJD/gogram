@@ -1,4 +1,4 @@
-// Copyright (c) 2023 RoseLoverX
+// Copyright (c) 2024 RoseLoverX
 
 package tl
 
@@ -144,7 +144,7 @@ func (d *Decoder) PopNull() {
 }
 
 func (d *Decoder) PopCRC() uint32 {
-	return d.PopUint() // я так и не понял, кажется что crc это bigendian, но видимо нет
+	return d.PopUint()
 }
 
 func (d *Decoder) PopInt() int32 {
@@ -220,33 +220,29 @@ func (d *Decoder) PopMessage() []byte {
 		return nil
 	}
 
-	// значение первого байта
 	firstByte := val[0]
-	// сколько РЕАЛЬНЫХ байт занимает сообщение. от 0 до бесконечности
+
 	var realSize int
-	// сколько байт занимаем число обозначающее длину массива (1 или 4)
 	var lenNumberSize int
 
-	if firstByte != FuckingMagicNumber {
-		// это tinyMessage по сути, первый байт является 8битным числом, которое представляет длину сообщения
+	if firstByte != MagicNumber {
 		realSize = int(firstByte)
 		lenNumberSize = 1
 	} else {
-		// иначе это largeMessage с блядским магитческим числом 0xfe
-		val = make([]byte, WordLen-1) // WordLen-1 т.к. 1 байт уже прочитали
+
+		val = make([]byte, WordLen-1)
 		d.read(val)
 		if d.err != nil {
 			d.err = errors.Wrapf(d.err, "reading last %v bytes of message size", WordLen-1)
 			return nil
 		}
 
-		val = append(val, 0x0) // добиваем до WordLen
+		val = append(val, 0x0)
 
 		realSize = int(binary.LittleEndian.Uint32(val))
 		lenNumberSize = WordLen
 	}
 
-	// этот буффер и будет уже реальным собщением
 	buf := make([]byte, realSize)
 	d.read(buf)
 	if d.err != nil {
@@ -254,12 +250,8 @@ func (d *Decoder) PopMessage() []byte {
 		return nil
 	}
 
-	// lenNumberSize это сколько байт мы УЖЕ прочитали. надо узнать, сколько еще байт нам нужно дочитать,
-	// что бы их количество делилось на размер слова (4 байта)
 	readLen := lenNumberSize + realSize
 	if readLen%WordLen != 0 {
-		// читаем оставшиеся пустые байты. пустые, потому что длина слова 4 байта, может остаться 1-3 лишних
-		// байта
 		voidBytes := make([]byte, WordLen-readLen%WordLen)
 		d.read(voidBytes)
 		if d.err != nil {
