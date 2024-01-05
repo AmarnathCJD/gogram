@@ -317,6 +317,8 @@ type DownloadOptions struct {
 	DcID int32 `json:"dc_id,omitempty"`
 	// Size of file
 	Size int32 `json:"size,omitempty"`
+	// Progress
+	CallbackFunc func(current, total int32)
 	// Worker count to download file
 	Threads int `json:"threads,omitempty"`
 	// Chunk size to download file
@@ -334,13 +336,14 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	size = getValue(size, int64(opts.Size)).(int64)
 	fileName = getValue(opts.FileName, fileName).(string)
 	d := &Downloader{
-		Client:    c,
-		Source:    location,
-		FileName:  fileName,
-		DcID:      dc,
-		Size:      int32(size),
-		Worker:    opts.Threads,
-		ChunkSize: getValue(opts.ChunkSize, DEFAULT_PARTS).(int32),
+		Client:       c,
+		Source:       location,
+		FileName:     fileName,
+		DcID:         dc,
+		Size:         int32(size),
+		Worker:       opts.Threads,
+		CallbackFunc: opts.CallbackFunc,
+		ChunkSize:    getValue(opts.ChunkSize, DEFAULT_PARTS).(int32),
 	}
 	return d.Download()
 }
@@ -348,15 +351,17 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 type (
 	Downloader struct {
 		*Client
-		Parts     int32
-		ChunkSize int32
-		Worker    int
-		Source    InputFileLocation
-		Size      int32
-		DcID      int32
-		Workers   []*Client
-		FileName  string
-		wg        *sync.WaitGroup
+		Parts        int32
+		ChunkSize    int32
+		Worker       int
+		Source       InputFileLocation
+		Size         int32
+		DcID         int32
+		Workers      []*Client
+		FileName     string
+		wg           *sync.WaitGroup
+		completed    int32
+		CallbackFunc func(current, total int32)
 	}
 )
 
@@ -461,6 +466,10 @@ func (d *Downloader) Start() (string, error) {
 	}
 	d.wg.Wait()
 	d.closeWorkers()
+	// send complete signal
+	if d.CallbackFunc != nil {
+		d.CallbackFunc(d.Size, d.Size)
+	}
 	return d.FileName, nil
 }
 
@@ -507,6 +516,10 @@ func (d *Downloader) downloadParts(w *Client, parts []int32) {
 		err = d.writeAt(buffer, d.calcOffset(i))
 		if err != nil {
 			panic(err)
+		}
+		d.completed += int32(len(buffer))
+		if d.CallbackFunc != nil {
+			d.CallbackFunc(d.completed, d.Size)
 		}
 	}
 }
