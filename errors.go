@@ -151,7 +151,7 @@ var errorMessages = map[string]string{
 	"BOT_POLLS_DISABLED":                  "You cannot create polls under a bot account",
 	"BOT_RESPONSE_TIMEOUT":                "A timeout occurred while fetching data from the bot.",
 	"BOT_SCORE_NOT_MODIFIED":              "The score wasn't modified.",
-	"BROADCAST_CALLS_DISABLED":            "",
+	"BROADCAST_CALLS_DISABLED":            "Broadcast calls are disabled for this chat/channel.",
 	"BROADCAST_FORBIDDEN":                 "Participants of polls in channels should stay anonymous.",
 	"BROADCAST_ID_INVALID":                "Broadcast ID invalid.",
 	"BROADCAST_PUBLIC_VOTERS_FORBIDDEN":   "You can't forward polls with public voters.",

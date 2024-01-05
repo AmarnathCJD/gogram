@@ -156,7 +156,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 		}
 		if opts.PasswordCallback == nil {
 			opts.PasswordCallback = func() (string, error) {
-				fmt.Printf("Two-steps verification is enabled")
+				fmt.Printf("Two-steps verification is enabled\n")
 				fmt.Printf("Enter password: ")
 				var passwordInput string
 				fmt.Scanln(&passwordInput)
@@ -177,14 +177,12 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 					continue
 				} else if matchError(err, "Two-steps verification is enabled") || matchError(err, "2FA is enabled, use a password to login") { // TODO: Implement matchRPCError
 				acceptPasswordInput:
-					if opts.Password != "" {
+					if opts.Password == "" {
 						for {
 							passwordInput, err := opts.PasswordCallback()
 							if err != nil {
 								return false, err
 							}
-							fmt.Printf("Enter password: ")
-							fmt.Scanln(&passwordInput)
 							if passwordInput != "" {
 								opts.Password = passwordInput
 								break
