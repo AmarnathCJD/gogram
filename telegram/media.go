@@ -14,28 +14,14 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/pkg/errors"
 )
 
 const (
 	DEFAULT_WORKERS = 4
-	DEFAULT_PARTS   = 512 * 1024
+	DEFAULT_PARTS   = 512 * 512
 )
-
-type Progress struct {
-	Total int64 `json:"total,omitempty"`
-	Now   int64 `json:"now,omitempty"`
-	Done  bool  `json:"done,omitempty"`
-}
-
-func (p *Progress) String() string {
-	if p.Done {
-		return "100%"
-	}
-	return fmt.Sprintf("%f%%", (float64(p.Now) / float64(p.Total) * 100))
-}
 
 type UploadOptions struct {
 	// Worker count for upload file.
@@ -44,8 +30,8 @@ type UploadOptions struct {
 	ChunkSize int32 `json:"chunk_size,omitempty"`
 	// File name for upload file.
 	FileName string `json:"file_name,omitempty"`
-	// output Progress channel for upload file.
-	ProgressChan chan Progress `json:"progress_chan,omitempty"`
+	// output Callback for upload progress, total parts and uploaded parts.
+	ProgressCallback func(totalParts int32, uploadedParts int32) `json:"-"`
 }
 
 type FileMeta struct {
@@ -53,6 +39,7 @@ type FileMeta struct {
 	FileSize int64     `json:"file_size,omitempty"`
 	IsBig    bool      `json:"is_big,omitempty"`
 	Md5Hash  hash.Hash `json:"md_5_hash,omitempty"`
+	OpenFile *os.File  `json:"open_file,omitempty"`
 }
 
 type Uploader struct {
@@ -64,8 +51,8 @@ type Uploader struct {
 	Workers   []*Client   `json:"workers,omitempty"`
 	wg        *sync.WaitGroup
 	FileID    int64 `json:"file_id,omitempty"`
-	progress  chan Progress
-	totalDone int64
+	progress  func(int32, int32)
+	totalDone int32
 	Meta      FileMeta `json:"meta,omitempty"`
 }
 
@@ -85,8 +72,8 @@ func (c *Client) UploadFile(file interface{}, Opts ...*UploadOptions) (InputFile
 			FileName: opts.FileName,
 		},
 	}
-	if opts.ProgressChan != nil {
-		u.progress = opts.ProgressChan
+	if opts.ProgressCallback != nil {
+		u.progress = opts.ProgressCallback
 	}
 	return u.Upload()
 }
@@ -99,7 +86,7 @@ func (u *Uploader) Upload() (InputFile, error) {
 		return nil, err
 	}
 	if u.progress != nil {
-		u.progress <- Progress{Total: u.Meta.FileSize, Now: u.Meta.FileSize, Done: true}
+		u.progress(u.Parts, u.Parts)
 	}
 	return u.saveFile(), nil
 }
@@ -110,7 +97,7 @@ func (u *Uploader) Init() error {
 		if u.Meta.FileSize == 0 {
 			fi, err := os.Stat(s)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "can not get file size")
 			}
 			u.Meta.FileSize = fi.Size()
 			u.Meta.FileName = fi.Name()
@@ -159,20 +146,21 @@ func (u *Uploader) Init() error {
 }
 
 func (u *Uploader) allocateWorkers() error {
-	fmt.Println("allocateWorkers")
 	borrowedSenders, err := u.Client.BorrowExportedSenders(u.Client.GetDC(), u.Worker)
 	if err != nil {
 		return err
 	}
-	fmt.Println("borrowedSenders", borrowedSenders)
 	u.Workers = borrowedSenders
 	u.Client.Log.Info(fmt.Sprintf("Uploading file %s with %d workers", u.Meta.FileName, len(u.Workers)))
 
-	u.Client.Log.Debug("Allocated workers: ", len(u.Workers), " for file upload")
+	u.Client.Log.Debug("Allocated workers: ", len(u.Workers), " for file upload (%s)", u.Meta.FileName)
 	return nil
 }
 
 func (u *Uploader) saveFile() InputFile {
+	if u.Meta.OpenFile != nil {
+		u.Meta.OpenFile.Close()
+	}
 	if u.Meta.IsBig {
 		return &InputFileBig{u.FileID, u.Parts, u.Meta.FileName}
 	}
@@ -234,17 +222,15 @@ func (u *Uploader) readPart(part int32) ([]byte, error) {
 	)
 	switch s := u.Source.(type) {
 	case string:
-		f, err := os.Open(s)
-		if err != nil {
-			return nil, err
+		if u.Meta.OpenFile == nil {
+			u.Meta.OpenFile, err = os.Open(s)
+			if err != nil {
+				return nil, err
+			}
 		}
-		defer f.Close()
-		_, err = f.Seek(int64(part*u.ChunkSize), 0)
-		if err != nil {
-			return nil, err
-		}
+		offset := int64(part * u.ChunkSize)
 		buf := make([]byte, u.ChunkSize)
-		_, err = f.Read(buf)
+		_, err = u.Meta.OpenFile.ReadAt(buf, offset)
 		if err != nil {
 			return nil, err
 		}
@@ -286,8 +272,10 @@ func (u *Uploader) readPart(part int32) ([]byte, error) {
 
 func (u *Uploader) uploadParts(w *Client, parts []int32) {
 	defer u.wg.Done()
+	buf, _ := u.readPart(parts[0])
 	for i := parts[0]; i < parts[1]; i++ {
-		buf, err := u.readPart(i)
+		//_, err := u.readPart(i)
+		var err error
 		if err != nil {
 			u.Client.Log.Error(err)
 			continue
@@ -302,7 +290,7 @@ func (u *Uploader) uploadParts(w *Client, parts []int32) {
 		w.Logger.Debug(fmt.Sprintf("uploaded part %d of %d", i, u.Parts))
 		u.totalDone++
 		if u.progress != nil {
-			u.progress <- Progress{Total: int64(u.Parts), Now: u.totalDone}
+			u.progress(u.Parts, u.totalDone)
 		}
 		if err != nil {
 			panic(err)
@@ -522,33 +510,23 @@ func GenerateRandomString(n int) string {
 
 // TODO: IMPLEMENT SenderChat Correctly.
 
-func UploadProgressBar(m *NewMessage, pc chan Progress) {
+func UploadProgressBar(m *NewMessage, total int32, now int32) {
 	var (
 		progressfillemojirectangleempty = "◾️"
 		progressfillemojirectanglefull  = "◻️"
 	)
 
-	genPg := func(filled int64, total int64) string {
+	genPg := func(filled int32, total int32) string {
 		var (
 			empty = total - filled
 		)
-		totalnumofprogressbar := 10
-		filled = filled / (total / int64(totalnumofprogressbar))
-		empty = int64(totalnumofprogressbar) - filled
+		var totalnumofprogressbar int32 = 10
+		filled = filled / (total / totalnumofprogressbar)
+		empty = totalnumofprogressbar - filled
 		return fmt.Sprintf("%s%s", strings.Repeat(progressfillemojirectanglefull, int(filled)), strings.Repeat(progressfillemojirectangleempty, int(empty)))
 	}
-	t := time.Now()
-
-	for p := range pc {
-		if p.Total == 0 {
-			continue
-		}
-
-		if time.Since(t) > time.Second*5 {
-			fmt.Println(m.Edit(fmt.Sprintf("Uploading %s  %s", genPg(p.Now, p.Total), p.String())))
-			t = time.Now()
-		}
+	if _, err := m.Edit(fmt.Sprintf("Uploading %s  %s", genPg(now, total), "p.String()")); err != nil {
+		m.Reply(fmt.Sprintf("Error: %s", err.Error()))
 	}
-
 	// TODO: implement this
 }

@@ -372,12 +372,14 @@ mediaTypeSwitch:
 	case string:
 		if IsURL(media) {
 			if _, isImage := resolveMimeType(media); isImage {
-				return &InputMediaPhotoExternal{URL: media}, nil
+				return &InputMediaPhotoExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
 			}
-			return &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0).(int32)}, nil
+			return &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
 		} else {
 			if _, err := os.Stat(media); err == nil {
-				mediaFile, err = c.UploadFile(media)
+				mediaFile, err = c.UploadFile(media, &UploadOptions{
+					ProgressCallback: attr.ProgressCallback,
+				})
 				if err != nil {
 					return nil, err
 				}
@@ -388,14 +390,22 @@ mediaTypeSwitch:
 		}
 	case InputMedia:
 		return media, nil
-	//  case Photo:
+	case Photo:
+		switch media := media.(type) {
+		case *PhotoObj:
+			return &InputMediaPhoto{ID: &InputPhotoObj{ID: media.ID, AccessHash: media.AccessHash, FileReference: media.FileReference}, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
+		case *PhotoEmpty:
+			return &InputMediaPhoto{ID: &InputPhotoEmpty{}, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
+		}
+	case *InputMedia:
+		return *media, nil
 	case MessageMedia:
 		switch media := media.(type) {
 		case *MessageMediaPhoto:
 			Photo := media.Photo.(*PhotoObj)
-			return &InputMediaPhoto{ID: &InputPhotoObj{ID: Photo.ID, AccessHash: Photo.AccessHash, FileReference: Photo.FileReference}, TtlSeconds: getValue(attr.TTL, 0).(int32)}, nil
+			return &InputMediaPhoto{ID: &InputPhotoObj{ID: Photo.ID, AccessHash: Photo.AccessHash, FileReference: Photo.FileReference}, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
 		case *MessageMediaDocument:
-			return &InputMediaDocument{ID: &InputDocumentObj{ID: media.Document.(*DocumentObj).ID, AccessHash: media.Document.(*DocumentObj).AccessHash, FileReference: media.Document.(*DocumentObj).FileReference}}, nil
+			return &InputMediaDocument{ID: &InputDocumentObj{ID: media.Document.(*DocumentObj).ID, AccessHash: media.Document.(*DocumentObj).AccessHash, FileReference: media.Document.(*DocumentObj).FileReference}, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
 		case *MessageMediaGeo:
 			return &InputMediaGeoPoint{GeoPoint: &InputGeoPointObj{Lat: media.Geo.(*GeoPointObj).Lat, Long: media.Geo.(*GeoPointObj).Long}}, nil
 		case *MessageMediaGame:
@@ -405,7 +415,7 @@ mediaTypeSwitch:
 		case *MessageMediaDice:
 			return &InputMediaDice{Emoticon: media.Emoticon}, nil
 		case *MessageMediaPoll:
-			return &InputMediaPoll{Poll: media.Poll}, nil
+			// return &InputMediaPoll{Poll: media.Poll}, nil, Not Implemented
 		case *MessageMediaUnsupported:
 			return nil, errors.New("unsupported media type")
 		default:
@@ -428,7 +438,7 @@ mediaTypeSwitch:
 			fileName = getValue(attr.FileName, media.Name).(string)
 		}
 		if IsPhoto {
-			return &InputMediaUploadedPhoto{File: media}, nil
+			return &InputMediaUploadedPhoto{File: media, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
 		} else {
 			var Attributes = getValue(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}}).([]DocumentAttribute)
 			hasFileName := false
@@ -457,10 +467,12 @@ mediaTypeSwitch:
 			if !hasFileName {
 				Attributes = append(Attributes, &DocumentAttributeFilename{FileName: fileName})
 			}
-			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: Attributes, Thumb: getValue(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32)}, nil
+			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: Attributes, Thumb: getValue(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
 		}
 	case []byte, *bytes.Reader:
-		uopts := &UploadOptions{}
+		uopts := &UploadOptions{
+			ProgressCallback: attr.ProgressCallback,
+		}
 		if attr != nil && attr.FileName != "" {
 			uopts.FileName = attr.FileName
 		}
