@@ -4,7 +4,7 @@ import "regexp"
 
 const (
 	ApiVersion = 170
-	Version    = "v2.3.5"
+	Version    = "v2.3.6"
 
 	LogDebug   = "debug"
 	LogInfo    = "info"
@@ -29,10 +29,6 @@ const (
 	OnInlineCallbackQuery = "OnInlineCallbackQuery"
 	OnChosenInlineResult  = "OnChosenInlineResult"
 	OnDeleteMessage       = "OnDeleteMessage"
-)
-
-var (
-	LIB_LOG_LEVEL = LogInfo
 )
 
 const (

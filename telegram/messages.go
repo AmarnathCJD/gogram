@@ -748,10 +748,10 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 		}
 		switch result := result.(type) {
 		case *MessagesChannelMessages:
-			go c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+			c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 			m = append(m, result.Messages...)
 		case *MessagesMessagesObj:
-			go c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+			c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 			m = append(m, result.Messages...)
 		}
 	} else {
@@ -781,10 +781,10 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 		}
 		switch result := result.(type) {
 		case *MessagesChannelMessages:
-			go c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+			c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 			m = append(m, result.Messages...)
 		case *MessagesMessagesObj:
-			go c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+			c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 			m = append(m, result.Messages...)
 		}
 	}

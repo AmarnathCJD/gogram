@@ -81,15 +81,15 @@ type ClientConfig struct {
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
-	client := &Client{wg: sync.WaitGroup{}, Log: utils.NewLogger("gogram"), stopCh: make(chan struct{})}
+	client := &Client{wg: sync.WaitGroup{}, Log: utils.NewLogger("gogram - client"), stopCh: make(chan struct{})}
 	config = client.cleanClientConfig(config)
 	client.setupClientData(config)
 
 	if config.EnableCache {
-		cache.startCacheFileUpdater()
+		client.Cache.startCacheFileUpdater()
 	}
 
-	client.Cache = cache
+	client.Cache = NewCache(config.LogLevel)
 	if err := client.setupMTProto(config); err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		ServerHost:    GetHostIp(config.DataCenter),
 		PublicKey:     config.PublicKeys[0],
 		DataCenter:    config.DataCenter,
-		LogLevel:      LIB_LOG_LEVEL,
+		LogLevel:      config.LogLevel,
 		StringSession: config.StringSession,
 		SocksProxy:    config.SocksProxy,
 		MemorySession: config.MemorySession,
@@ -119,6 +119,12 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 	}
 	c.MTProto = mtproto
 	c.clientData.appID = mtproto.AppID() // in case the app id was not provided in the config but was in the session
+
+	if config.StringSession != "" {
+		if err := c.Connect(); err != nil {
+			return errors.Wrap(err, "connecting to telegram servers")
+		}
+	}
 
 	return nil
 }
@@ -176,7 +182,6 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.parseMode = getStr(cnf.ParseMode, "HTML")
 
 	c.Log.SetLevel(c.clientData.logLevel)
-	LIB_LOG_LEVEL = c.clientData.logLevel
 }
 
 // initialRequest sends the initial initConnection request
@@ -201,7 +206,7 @@ func (c *Client) InitialRequest() error {
 func (c *Client) Connect() error {
 	err := c.MTProto.CreateConnection(true)
 	if err != nil {
-		return errors.Wrap(err, "creating connection")
+		return errors.Wrap(err, "connecting to telegram servers")
 	}
 	// Initial request (invokeWithLayer) must be sent after connection is established
 	return c.InitialRequest()

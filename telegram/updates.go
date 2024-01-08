@@ -570,7 +570,7 @@ func HandleIncomingUpdates(u interface{}, c *Client) bool {
 UpdateTypeSwitching:
 	switch upd := u.(type) {
 	case *UpdatesObj:
-		go cache.UpdatePeersToCache(upd.Users, upd.Chats)
+		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
 		for _, update := range upd.Updates {
 			switch update := update.(type) {
 			case *UpdateNewMessage:
@@ -614,7 +614,8 @@ UpdateTypeSwitching:
 		go c.handleMessageUpdateW(&MessageObj{Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities}, upd.Pts)
 	case *UpdatesCombined:
 		u = upd.Updates
-		go cache.UpdatePeersToCache(upd.Users, upd.Chats)
+		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
+
 		goto UpdateTypeSwitching
 	case *UpdatesTooLong:
 	default:
