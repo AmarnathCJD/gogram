@@ -100,7 +100,9 @@ func (u *Uploader) Init() error {
 				return errors.Wrap(err, "can not get file size")
 			}
 			u.Meta.FileSize = fi.Size()
-			u.Meta.FileName = fi.Name()
+			if u.Meta.FileName == "" {
+				u.Meta.FileName = fi.Name()
+			}
 		}
 	case []byte:
 		u.Meta.FileSize = int64(len(s))
@@ -110,7 +112,9 @@ func (u *Uploader) Init() error {
 			return err
 		}
 		u.Meta.FileSize = fi.Size()
-		u.Meta.FileName = fi.Name()
+		if u.Meta.FileName == "" {
+			u.Meta.FileName = fi.Name()
+		}
 	case io.Reader:
 		buff := bytes.NewBuffer([]byte{})
 		fs, err := io.Copy(buff, s)
