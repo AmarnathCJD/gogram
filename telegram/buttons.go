@@ -2,7 +2,11 @@
 
 package telegram
 
-import "github.com/pkg/errors"
+import (
+	"bytes"
+
+	"github.com/pkg/errors"
+)
 
 type Button struct{}
 
@@ -38,6 +42,10 @@ func (Button) RequestPhone(Text string) *KeyboardButtonRequestPhone {
 	return &KeyboardButtonRequestPhone{Text: Text}
 }
 
+func (Button) RequestPeer(Text string, ButtonID int32, PeerType RequestPeerType, Max ...int32) *KeyboardButtonRequestPeer {
+	return &KeyboardButtonRequestPeer{Text: Text, ButtonID: ButtonID, PeerType: PeerType, MaxQuantity: getVariadic(Max, int32(0)).(int32)}
+}
+
 func (Button) RequestPoll(Text string, Quiz bool) *KeyboardButtonRequestPoll {
 	return &KeyboardButtonRequestPoll{Text: Text, Quiz: Quiz}
 }
@@ -71,58 +79,86 @@ func (Button) Clear() *ReplyKeyboardHide {
 // It takes one optional argument, which can be either:
 //   - the text of the button to click
 //   - the data of the button to click
-//   - the coordinates of the button to click
+//   - the coordinates of the button to click ([x, y])
 //
 // If no argument is given, the first button will be clicked.
-func (m *NewMessage) Click(o ...any) (*MessagesBotCallbackAnswer, error) {
-	toClickText := ""
-	toClickXY := []int32{}
-	toClickData := []byte{}
-
-	if len(o) == 0 {
-		toClickXY = []int32{0, 0}
-	} else if len(o) == 1 {
-		switch v := o[0].(type) {
-		case string:
-			toClickText = v
-		case []int32:
-			toClickXY = v
-		case []byte:
-			toClickData = v
-		}
-	}
-
+func (m *NewMessage) Click(options ...any) (*MessagesBotCallbackAnswer, error) {
 	requestParams := &MessagesGetBotCallbackAnswerParams{
 		Peer:  m.Peer,
 		MsgID: m.ID,
 		Game:  false,
 	}
 
-	if m.ReplyMarkup() != nil {
-		if toClickData != nil {
-			requestParams.Data = toClickData
-			return m.Client.MessagesGetBotCallbackAnswer(requestParams)
-		}
+	if m.ReplyMarkup() == nil {
+		return nil, errors.New("message has no buttons")
 	}
 
-	if m.ReplyMarkup() != nil {
-		switch mark := (*m.ReplyMarkup()).(type) {
-		case *ReplyInlineMarkup:
-			for ix, row := range mark.Rows {
-				for iy, button := range row.Buttons {
-					switch button := button.(type) {
-					case *KeyboardButtonCallback:
-						if button.Text == toClickText || (len(toClickXY) == 2 && ix == int(toClickXY[0]) && iy == int(toClickXY[1])) {
-							requestParams.Data = button.Data
+	switch messageButtons := (*m.ReplyMarkup()).(type) {
+	case *ReplyInlineMarkup:
+		if len(messageButtons.Rows) == 0 {
+			return nil, errors.New("message has no buttons")
+		}
+
+		switch len(options) {
+		case 0:
+			if len(messageButtons.Rows[0].Buttons) == 0 {
+				return nil, errors.New("message has no buttons")
+			}
+
+			switch button := messageButtons.Rows[0].Buttons[0].(type) {
+			case *KeyboardButtonCallback:
+				requestParams.Data = button.Data
+				//case *KeyboardButtonSimpleWebView:
+			}
+
+		case 1:
+			currentX := 0
+			currentY := 0
+			for _, row := range messageButtons.Rows {
+				for _, button := range row.Buttons {
+					switch opt := options[0].(type) {
+					case string:
+						switch button := button.(type) {
+						case *KeyboardButtonCallback:
+							if button.Text == opt {
+								requestParams.Data = button.Data
+							}
+						}
+					case []byte:
+						switch button := button.(type) {
+						case *KeyboardButtonCallback:
+							if bytes.Equal(button.Data, opt) {
+								requestParams.Data = button.Data
+							}
+						}
+					case int, int32, int64:
+						if optInt, ok := opt.(int); ok && optInt == currentX {
+							switch button := button.(type) {
+							case *KeyboardButtonCallback:
+								requestParams.Data = button.Data
+							}
+						}
+
+					case []int, []int32, []int64:
+						if optInts, ok := opt.([]int); ok && len(optInts) == 2 {
+							if optInts[0] == currentX && optInts[1] == currentY {
+								switch button := button.(type) {
+								case *KeyboardButtonCallback:
+									requestParams.Data = button.Data
+								}
+							}
 						}
 					}
+					currentY++
 				}
+				currentX++
+				currentY = 0
 			}
 		}
 	}
 
 	if requestParams.Data == nil {
-		return nil, errors.New("no button found")
+		return nil, errors.New("button with given text/data/(x,y) not found")
 	}
 
 	return m.Client.MessagesGetBotCallbackAnswer(requestParams)
