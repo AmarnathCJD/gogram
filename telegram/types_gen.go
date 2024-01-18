@@ -943,6 +943,8 @@ type GlobalPrivacySettings struct {
 	ArchiveAndMuteNewNoncontactPeers bool `tl:"flag:0,encoded_in_bitflags"`
 	KeepArchivedUnmuted              bool `tl:"flag:1,encoded_in_bitflags"`
 	KeepArchivedFolders              bool `tl:"flag:2,encoded_in_bitflags"`
+	HideReadMarks                    bool `tl:"flag:3,encoded_in_bitflags"`
+	NewNoncontactPeersRequirePremium bool `tl:"flag:4,encoded_in_bitflags"`
 }
 
 func (*GlobalPrivacySettings) CRC() uint32 {
@@ -1931,6 +1933,14 @@ type NearestDc struct {
 
 func (*NearestDc) CRC() uint32 {
 	return 0x8e1a1775
+}
+
+type OutboxReadDate struct {
+	Date int32
+}
+
+func (*OutboxReadDate) CRC() uint32 {
+	return 0x3bb842ac
 }
 
 type Page struct {
@@ -3183,6 +3193,8 @@ type UserFull struct {
 	StoriesPinnedAvailable  bool `tl:"flag:26,encoded_in_bitflags"`
 	BlockedMyStoriesFrom    bool `tl:"flag:27,encoded_in_bitflags"`
 	WallpaperOverridden     bool `tl:"flag:28,encoded_in_bitflags"`
+	ContactRequirePremium   bool `tl:"flag:29,encoded_in_bitflags"`
+	ReadDatesPrivate        bool `tl:"flag:30,encoded_in_bitflags"`
 	ID                      int64
 	About                   string `tl:"flag:1"`
 	Settings                *PeerSettings

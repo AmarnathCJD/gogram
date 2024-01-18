@@ -3,7 +3,7 @@ package telegram
 import "regexp"
 
 const (
-	ApiVersion = 171
+	ApiVersion = 172
 	Version    = "v2.3.6"
 
 	LogDebug   = "debug"
@@ -33,6 +33,7 @@ const (
 
 const (
 	randombyteLen = 256
+	oneTimeMedia  = 2147483647
 )
 
 var (

@@ -9445,45 +9445,46 @@ type User interface {
 	ImplementsUser()
 }
 type UserObj struct {
-	Self                 bool `tl:"flag:10,encoded_in_bitflags"`
-	Contact              bool `tl:"flag:11,encoded_in_bitflags"`
-	MutualContact        bool `tl:"flag:12,encoded_in_bitflags"`
-	Deleted              bool `tl:"flag:13,encoded_in_bitflags"`
-	Bot                  bool `tl:"flag:14,encoded_in_bitflags"`
-	BotChatHistory       bool `tl:"flag:15,encoded_in_bitflags"`
-	BotNochats           bool `tl:"flag:16,encoded_in_bitflags"`
-	Verified             bool `tl:"flag:17,encoded_in_bitflags"`
-	Restricted           bool `tl:"flag:18,encoded_in_bitflags"`
-	Min                  bool `tl:"flag:20,encoded_in_bitflags"`
-	BotInlineGeo         bool `tl:"flag:21,encoded_in_bitflags"`
-	Support              bool `tl:"flag:23,encoded_in_bitflags"`
-	Scam                 bool `tl:"flag:24,encoded_in_bitflags"`
-	ApplyMinPhoto        bool `tl:"flag:25,encoded_in_bitflags"`
-	Fake                 bool `tl:"flag:26,encoded_in_bitflags"`
-	BotAttachMenu        bool `tl:"flag:27,encoded_in_bitflags"`
-	Premium              bool `tl:"flag:28,encoded_in_bitflags"`
-	AttachMenuEnabled    bool `tl:"flag:29,encoded_in_bitflags"`
-	BotCanEdit           bool `tl:"flag2:1,encoded_in_bitflags"`
-	CloseFriend          bool `tl:"flag2:2,encoded_in_bitflags"`
-	StoriesHidden        bool `tl:"flag2:3,encoded_in_bitflags"`
-	StoriesUnavailable   bool `tl:"flag2:4,encoded_in_bitflags"`
-	ID                   int64
-	AccessHash           int64                `tl:"flag:0"`
-	FirstName            string               `tl:"flag:1"`
-	LastName             string               `tl:"flag:2"`
-	Username             string               `tl:"flag:3"`
-	Phone                string               `tl:"flag:4"`
-	Photo                UserProfilePhoto     `tl:"flag:5"`
-	Status               UserStatus           `tl:"flag:6"`
-	BotInfoVersion       int32                `tl:"flag:14"`
-	RestrictionReason    []*RestrictionReason `tl:"flag:18"`
-	BotInlinePlaceholder string               `tl:"flag:19"`
-	LangCode             string               `tl:"flag:22"`
-	EmojiStatus          EmojiStatus          `tl:"flag:30"`
-	Usernames            []*Username          `tl:"flag2:0"`
-	StoriesMaxID         int32                `tl:"flag2:5"`
-	Color                *PeerColor           `tl:"flag2:8"`
-	ProfileColor         *PeerColor           `tl:"flag2:9"`
+	Self                  bool `tl:"flag:10,encoded_in_bitflags"`
+	Contact               bool `tl:"flag:11,encoded_in_bitflags"`
+	MutualContact         bool `tl:"flag:12,encoded_in_bitflags"`
+	Deleted               bool `tl:"flag:13,encoded_in_bitflags"`
+	Bot                   bool `tl:"flag:14,encoded_in_bitflags"`
+	BotChatHistory        bool `tl:"flag:15,encoded_in_bitflags"`
+	BotNochats            bool `tl:"flag:16,encoded_in_bitflags"`
+	Verified              bool `tl:"flag:17,encoded_in_bitflags"`
+	Restricted            bool `tl:"flag:18,encoded_in_bitflags"`
+	Min                   bool `tl:"flag:20,encoded_in_bitflags"`
+	BotInlineGeo          bool `tl:"flag:21,encoded_in_bitflags"`
+	Support               bool `tl:"flag:23,encoded_in_bitflags"`
+	Scam                  bool `tl:"flag:24,encoded_in_bitflags"`
+	ApplyMinPhoto         bool `tl:"flag:25,encoded_in_bitflags"`
+	Fake                  bool `tl:"flag:26,encoded_in_bitflags"`
+	BotAttachMenu         bool `tl:"flag:27,encoded_in_bitflags"`
+	Premium               bool `tl:"flag:28,encoded_in_bitflags"`
+	AttachMenuEnabled     bool `tl:"flag:29,encoded_in_bitflags"`
+	BotCanEdit            bool `tl:"flag2:1,encoded_in_bitflags"`
+	CloseFriend           bool `tl:"flag2:2,encoded_in_bitflags"`
+	StoriesHidden         bool `tl:"flag2:3,encoded_in_bitflags"`
+	StoriesUnavailable    bool `tl:"flag2:4,encoded_in_bitflags"`
+	ContactRequirePremium bool `tl:"flag2:10,encoded_in_bitflags"`
+	ID                    int64
+	AccessHash            int64                `tl:"flag:0"`
+	FirstName             string               `tl:"flag:1"`
+	LastName              string               `tl:"flag:2"`
+	Username              string               `tl:"flag:3"`
+	Phone                 string               `tl:"flag:4"`
+	Photo                 UserProfilePhoto     `tl:"flag:5"`
+	Status                UserStatus           `tl:"flag:6"`
+	BotInfoVersion        int32                `tl:"flag:14"`
+	RestrictionReason     []*RestrictionReason `tl:"flag:18"`
+	BotInlinePlaceholder  string               `tl:"flag:19"`
+	LangCode              string               `tl:"flag:22"`
+	EmojiStatus           EmojiStatus          `tl:"flag:30"`
+	Usernames             []*Username          `tl:"flag2:0"`
+	StoriesMaxID          int32                `tl:"flag2:5"`
+	Color                 *PeerColor           `tl:"flag2:8"`
+	ProfileColor          *PeerColor           `tl:"flag2:9"`
 }
 
 func (*UserObj) CRC() uint32 {
@@ -9548,18 +9549,30 @@ func (*UserStatusEmpty) CRC() uint32 {
 
 func (*UserStatusEmpty) ImplementsUserStatus() {}
 
-type UserStatusLastMonth struct{}
+type UserStatusLastMonth struct {
+	ByMe bool `tl:"flag:0,encoded_in_bitflags"`
+}
 
 func (*UserStatusLastMonth) CRC() uint32 {
-	return 0x77ebc742
+	return 0x65899777
+}
+
+func (*UserStatusLastMonth) FlagIndex() int {
+	return 0
 }
 
 func (*UserStatusLastMonth) ImplementsUserStatus() {}
 
-type UserStatusLastWeek struct{}
+type UserStatusLastWeek struct {
+	ByMe bool `tl:"flag:0,encoded_in_bitflags"`
+}
 
 func (*UserStatusLastWeek) CRC() uint32 {
-	return 0x7bf09fc
+	return 0x541a1d1a
+}
+
+func (*UserStatusLastWeek) FlagIndex() int {
+	return 0
 }
 
 func (*UserStatusLastWeek) ImplementsUserStatus() {}
@@ -9584,10 +9597,16 @@ func (*UserStatusOnline) CRC() uint32 {
 
 func (*UserStatusOnline) ImplementsUserStatus() {}
 
-type UserStatusRecently struct{}
+type UserStatusRecently struct {
+	ByMe bool `tl:"flag:0,encoded_in_bitflags"`
+}
 
 func (*UserStatusRecently) CRC() uint32 {
-	return 0xe26f42f1
+	return 0x7b197dc8
+}
+
+func (*UserStatusRecently) FlagIndex() int {
+	return 0
 }
 
 func (*UserStatusRecently) ImplementsUserStatus() {}
