@@ -8181,6 +8181,31 @@ func (c *Client) MessagesGetOnlines(peer InputPeer) (*ChatOnlines, error) {
 	return resp, nil
 }
 
+type MessagesGetOutboxReadDateParams struct {
+	Peer  InputPeer
+	MsgID int32
+}
+
+func (*MessagesGetOutboxReadDateParams) CRC() uint32 {
+	return 0x8c4bfe5d
+}
+
+func (c *Client) MessagesGetOutboxReadDate(peer InputPeer, msgID int32) (*OutboxReadDate, error) {
+	responseData, err := c.MakeRequest(&MessagesGetOutboxReadDateParams{
+		MsgID: msgID,
+		Peer:  peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetOutboxReadDate")
+	}
+
+	resp, ok := responseData.(*OutboxReadDate)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesGetPeerDialogsParams struct {
 	Peers []InputDialogPeer
 }
@@ -14230,6 +14255,27 @@ func (c *Client) UsersGetFullUser(id InputUser) (*UsersUserFull, error) {
 	}
 
 	resp, ok := responseData.(*UsersUserFull)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type UsersGetIsPremiumRequiredToContactParams struct {
+	ID []InputUser
+}
+
+func (*UsersGetIsPremiumRequiredToContactParams) CRC() uint32 {
+	return 0xa622aa10
+}
+
+func (c *Client) UsersGetIsPremiumRequiredToContact(id []InputUser) (bool, error) {
+	responseData, err := c.MakeRequest(&UsersGetIsPremiumRequiredToContactParams{ID: id})
+	if err != nil {
+		return false, errors.Wrap(err, "sending UsersGetIsPremiumRequiredToContact")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
