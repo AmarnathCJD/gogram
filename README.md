@@ -26,7 +26,9 @@
 
 > Light Weight, Fast, Elegant Telegram [MTProto API](https://core.telegram.org/api) framework in [Golang](https://golang.org/) for building Telegram clients and bots.
 
-###
+## Status
+
+[![GoDoc](https://godoc.org/github.com/amarnathcjd/gogram?status.svg)](https://godoc.org/github.com/amarnathcjd/gogram)
 [![GoDoc](https://godoc.org/github.com/amarnathcjd/gogram/telegram?status.svg)](https://godoc.org/github.com/amarnathcjd/gogram/telegram)
 [![Go Report Card](https://goreportcard.com/badge/github.com/amarnathcjd/gogram)](https://goreportcard.com/report/github.com/amarnathcjd/gogram)
 [![License](https://img.shields.io/github/license/amarnathcjd/gogram.svg)](https://img.shields.io/github/license/amarnathcjd/gogram.svg)
