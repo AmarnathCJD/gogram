@@ -67,13 +67,13 @@ func main() {
 framework. It enables you to easily interact with the main Telegram API through a user account (custom client) or a bot
 identity (bot API alternative) using Go.
 
-### Support
+## Support
 
 If you'd like to support Gogram, you can consider:
 
 - [Become a GitHub sponsor](https://github.com/sponsors/amarnathcjd).
 
-### Key Features
+## Key Features
 
 - **Ready**: Install Gogram with go get and you are ready to go!
 - **Easy**: Makes the Telegram API simple and intuitive, while still allowing advanced usages.
@@ -84,17 +84,17 @@ If you'd like to support Gogram, you can consider:
 - **Feature-Rich**: Built-in support for file uploading, formatting, custom keyboards, message editing, moderation tools and more.
 - **Up-to-date**: Gogram is always in sync with the latest Telegram API changes and additions (`tl-parser` is used to generate the API layer).
 
-### Current Layer
+## Current Layer
 
 MTProto API **Layer 172**
 
-### Installing
+## Installing
 
 ``` bash
 go get -u github.com/amarnathcjd/gogram/telegram
 ```
 
-### Doing Stuff
+## Doing Stuff
 
 #### Sending a Message
 
