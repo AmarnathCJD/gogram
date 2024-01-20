@@ -419,7 +419,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 
 				default:
 					if e, ok := err.(transport.ErrCode); ok {
-						if int(e) == 4294966892 {
+						if int64(e) == 4294966892 {
 							err = m.makeAuthKey()
 							if err != nil {
 								m.Logger.Error(errors.Wrap(err, "making auth key"))
