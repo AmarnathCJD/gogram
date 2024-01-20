@@ -27,9 +27,9 @@ import (
 const (
 	// DefaultDC is the default data center id
 	DefaultDataCenter       = 4
-	DefaultDevice           = "Android Device"
-	DefaultSystem           = runtime.GOOS + " " + runtime.GOARCH
-	DisconnectExportedAfter = 60 * time.Second
+	DefaultDevice           = "Samsung Galaxy S24 Ultra, running Android 14"
+	DefaultSystem           = runtime.GOOS + " (" + runtime.GOARCH + ")"
+	DisconnectExportedAfter = 30 * time.Second
 )
 
 type clientData struct {
@@ -78,6 +78,14 @@ type ClientConfig struct {
 	EnableCache   bool
 	LogLevel      string
 	SocksProxy    *url.URL
+}
+
+type Session struct {
+	Key      []byte `json:"key,omitempty"`
+	Hash     []byte `json:"hash,omitempty"`
+	Salt     int64  `json:"salt,omitempty"`
+	Hostname string `json:"hostname,omitempty"`
+	AppID    int32  `json:"app_id,omitempty"`
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -436,9 +444,9 @@ func (c *Client) GetDC() int {
 // ExportSession exports the current session to a string,
 // This string can be used to import the session later
 func (c *Client) ExportSession() string {
-	authKey, authKeyHash, IpAddr, dcID, AppID := c.MTProto.ExportAuth()
+	authKey, authKeyHash, _, IpAddr, AppID, dcId := c.MTProto.ExportAuth()
 	c.Log.Debug("Exporting string session...")
-	return session.NewStringSession(authKey, authKeyHash, dcID, IpAddr, AppID).Encode()
+	return session.NewStringSession(authKey, authKeyHash, dcId, IpAddr, AppID).Encode()
 }
 
 // ImportSession imports a session from a string
@@ -470,8 +478,29 @@ func (c *Client) ImportRawSession(authKey, authKeyHash []byte, IpAddr string, Dc
 //	  IpAddr: The IP address of the DC
 //	  DcID: The DC ID to connect to
 //	  AppID: The App ID to use
-func (c *Client) ExportRawSession() ([]byte, []byte, string, int, int32) {
+func (c *Client) ExportRawSession() ([]byte, []byte, int64, string, int32, int) {
 	return c.MTProto.ExportAuth()
+}
+
+// LoadSession loads a session from a file, database, etc.
+//
+//	Params:
+//	  Session: The session to load
+func (c *Client) LoadSession(sess *Session) error {
+	return c.MTProto.LoadSession(&session.Session{
+		Key:      sess.Key,
+		Hash:     sess.Hash,
+		Salt:     sess.Salt,
+		Hostname: sess.Hostname,
+		AppID:    sess.AppID,
+	})
+}
+
+// ShareSession exports the current session to a file, database, etc.
+func (c *Client) ShareSession() *Session {
+	sess := &Session{}
+	sess.Key, sess.Hash, sess.Salt, sess.Hostname, sess.AppID, _ = c.ExportRawSession()
+	return sess
 }
 
 // returns the AppID (api_id) of the client

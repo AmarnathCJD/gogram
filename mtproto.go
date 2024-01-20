@@ -32,7 +32,6 @@ type MTProto struct {
 	Addr          string
 	appID         int32
 	socksProxy    *url.URL
-	socksActive   bool
 	transport     transport.Transport
 	stopRoutines  context.CancelFunc
 	routineswg    sync.WaitGroup
@@ -128,6 +127,17 @@ func NewMTProto(c Config) (*MTProto, error) {
 	return mtproto, nil
 }
 
+func (m *MTProto) LoadSession(sess *session.Session) error {
+	m.authKey, m.authKeyHash, m.Addr, m.appID = sess.Key, sess.Hash, sess.Hostname, sess.AppID
+	m.Logger.Debug("importing Auth from session...")
+	if !m.memorySession {
+		if err := m.SaveSession(); err != nil {
+			return errors.Wrap(err, "saving session")
+		}
+	}
+	return nil
+}
+
 func (m *MTProto) loadAuth(stringSession string, sess *session.Session) error {
 	if stringSession != "" {
 		_, err := m.ImportAuth(stringSession)
@@ -136,14 +146,14 @@ func (m *MTProto) loadAuth(stringSession string, sess *session.Session) error {
 		}
 	} else {
 		if sess != nil {
-			m.LoadSession(sess)
+			m._loadSession(sess)
 		}
 	}
 	return nil
 }
 
-func (m *MTProto) ExportAuth() ([]byte, []byte, string, int, int32) {
-	return m.authKey, m.authKeyHash, m.Addr, m.GetDC(), m.appID
+func (m *MTProto) ExportAuth() ([]byte, []byte, int64, string, int32, int) {
+	return m.authKey, m.authKeyHash, m.serverSalt, m.Addr, m.appID, m.GetDC()
 }
 
 func (m *MTProto) ImportRawAuth(authKey []byte, authKeyHash []byte, addr string, _ int, appID int32) (bool, error) {
