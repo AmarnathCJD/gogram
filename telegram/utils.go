@@ -398,7 +398,7 @@ func IsPhone(phone string) bool {
 	return phoneRe.MatchString(phone)
 }
 
-func getValue(val interface{}, def interface{}) interface{} {
+func getValue(val, def interface{}) interface{} {
 	switch v := val.(type) {
 	case string:
 		if v == "" {
