@@ -5,8 +5,10 @@ package gogram
 import (
 	"context"
 	"crypto/rsa"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -37,6 +39,7 @@ type MTProto struct {
 	routineswg    sync.WaitGroup
 	memorySession bool
 	tcpActive     bool
+	timeOffset    int64
 
 	authKey []byte
 
@@ -124,6 +127,8 @@ func NewMTProto(c Config) (*MTProto, error) {
 	if err := mtproto.loadAuth(c.StringSession, loaded); err != nil {
 		return nil, errors.Wrap(err, "loading auth")
 	}
+
+	//mtproto.offsetTime()
 	return mtproto, nil
 }
 
@@ -538,6 +543,9 @@ messageTypeSwitching:
 
 	case *objects.BadMsgNotification:
 		badMsg := BadMsgErrorFromNative(message)
+		if badMsg.Code == 16 || badMsg.Code == 17 {
+			m.offsetTime()
+		}
 		m.Logger.Debug("BadMsgNotification: " + badMsg.Error())
 		return badMsg
 	case *objects.RpcResult:
@@ -587,6 +595,33 @@ func MessageRequireToAck(msg tl.Object) bool {
 	default:
 		return true
 	}
+}
+
+func (m *MTProto) offsetTime() {
+	currentLocalTime := time.Now().Unix()
+	tempClient := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := tempClient.Get("http://worldtimeapi.org/api/ip")
+	if err != nil {
+		m.Logger.Error(errors.Wrap(err, "offsetting time"))
+		return
+	}
+
+	defer resp.Body.Close()
+
+	var timeResponse struct {
+		Unixtime int64 `json:"unixtime"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&timeResponse); err != nil {
+		m.Logger.Error(errors.Wrap(err, "offsetting time"))
+		return
+	}
+
+	m.timeOffset = timeResponse.Unixtime - currentLocalTime
+	m.Logger.Info("SystemTime is out of sync, offsetting time by " + strconv.FormatInt(m.timeOffset, 10) + " seconds")
 }
 
 func closeOnCancel(ctx context.Context, c io.Closer) {
