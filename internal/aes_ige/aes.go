@@ -168,7 +168,7 @@ func encryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) (
 
 // https://tlgrm.ru/docs/mtproto/auth_key#server-otvecaet-dvuma-sposobami
 // generateTempKeys генерирует временные ключи для шифрования в процессе обемна ключами.
-func generateTempKeys(nonceSecond, nonceServer *big.Int) (key []byte, iv []byte, err error) {
+func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte, err error) {
 	if nonceSecond == nil {
 		return nil, nil, errors.New("nonceSecond is nil")
 	}

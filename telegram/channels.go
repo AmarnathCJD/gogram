@@ -132,7 +132,7 @@ type Participant struct {
 //	Params:
 //	 - chatID: The ID of the chat
 //	 - userID: The ID of the user
-func (c *Client) GetChatMember(chatID interface{}, userID interface{}) (*Participant, error) {
+func (c *Client) GetChatMember(chatID, userID interface{}) (*Participant, error) {
 	channel, err := c.GetSendablePeer(chatID)
 	if err != nil {
 		return nil, err
@@ -283,7 +283,7 @@ type AdminOptions struct {
 
 // Edit Admin rights of a user in a chat,
 // returns true if successfull
-func (c *Client) EditAdmin(PeerID interface{}, UserID interface{}, Opts ...*AdminOptions) (bool, error) {
+func (c *Client) EditAdmin(PeerID, UserID interface{}, Opts ...*AdminOptions) (bool, error) {
 	opts := getVariadic(Opts, &AdminOptions{IsAdmin: true, Rights: &ChatAdminRights{}, Rank: "Admin"}).(*AdminOptions)
 	peer, err := c.GetSendablePeer(PeerID)
 	if err != nil {
@@ -332,7 +332,7 @@ type BannedOptions struct {
 
 // Edit Restricted rights of a user in a chat,
 // returns true if successfull
-func (c *Client) EditBanned(PeerID interface{}, UserID interface{}, opts ...*BannedOptions) (bool, error) {
+func (c *Client) EditBanned(PeerID, UserID interface{}, opts ...*BannedOptions) (bool, error) {
 	o := getVariadic(opts, &BannedOptions{Ban: true, Rights: &ChatBannedRights{}}).(*BannedOptions)
 	if o.Rights == nil {
 		o.Rights = &ChatBannedRights{}
@@ -381,7 +381,7 @@ func (c *Client) EditBanned(PeerID interface{}, UserID interface{}, opts ...*Ban
 	return true, nil
 }
 
-func (c *Client) KickParticipant(PeerID interface{}, UserID interface{}) (bool, error) {
+func (c *Client) KickParticipant(PeerID, UserID interface{}) (bool, error) {
 	peer, err := c.GetSendablePeer(PeerID)
 	if err != nil {
 		return false, err

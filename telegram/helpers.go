@@ -38,14 +38,14 @@ func GetHostIp(dcID int) string {
 	panic("Invalid Data Center ID")
 }
 
-func getStr(a string, b string) string {
+func getStr(a, b string) string {
 	if a == "" {
 		return b
 	}
 	return a
 }
 
-func getInt(a int, b int) int {
+func getInt(a, b int) int {
 	if a == 0 {
 		return b
 	}
@@ -543,7 +543,7 @@ func ExtractVideoThumb(path string, duration int64) (string, error) {
 }
 
 // TODO: implement this
-func GetAudioMetadata(path string) (performer string, title string, duration int32) {
+func GetAudioMetadata(path string) (performer, title string, duration int32) {
 	dur := GetVideoDuration(path)
 	metadata := make(map[string]string)
 	cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format_tags=artist,title", "-of", "default=noprint_wrappers=1:nokey=1", path)
