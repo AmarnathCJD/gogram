@@ -91,7 +91,7 @@ func (t *transport) ReadMsg() (messages.Common, error) {
 	}
 
 	if len(data) == tl.WordLen {
-		code := int(binary.LittleEndian.Uint32(data))
+		code := int64(binary.LittleEndian.Uint32(data))
 		return nil, ErrCode(code)
 	}
 
@@ -121,8 +121,8 @@ func isPacketEncrypted(data []byte) bool {
 	return binary.LittleEndian.Uint64(authKeyHash) != 0
 }
 
-type ErrCode int
+type ErrCode int64
 
 func (e ErrCode) Error() string {
-	return fmt.Sprintf("code %v", int(e))
+	return fmt.Sprintf("code %v", int64(e))
 }

@@ -12,10 +12,10 @@ const (
 	MagicNumber = 0xfe // 253
 
 	// https://core.telegram.org/schema/mtproto
-	CrcVector = 0x1cb5c415
-	CrcFalse  = 0xbc799737
-	CrcTrue   = 0x997275b5
-	CrcNull   = 0x56730bcc
+	CrcVector uint32 = 0x1cb5c415
+	CrcFalse  uint32 = 0xbc799737
+	CrcTrue   uint32 = 0x997275b5
+	CrcNull   uint32 = 0x56730bcc
 
 	bitsInByte = 8 // cause we don't want store magic numbers
 )

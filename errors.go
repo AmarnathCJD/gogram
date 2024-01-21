@@ -13,7 +13,7 @@ import (
 )
 
 type ErrResponseCode struct {
-	Code           int
+	Code           int64
 	Message        string
 	Description    string
 	AdditionalInfo any // some errors has additional data like timeout seconds, dc id etc.
@@ -32,7 +32,7 @@ func RpcErrorToNative(r *objects.RpcError) error {
 	}
 
 	return &ErrResponseCode{
-		Code:           int(r.ErrorCode),
+		Code:           int64(r.ErrorCode),
 		Message:        nativeErrorName,
 		Description:    desc,
 		AdditionalInfo: additionalData,
