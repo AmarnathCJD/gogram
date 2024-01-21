@@ -514,7 +514,7 @@ func GenerateRandomString(n int) string {
 
 // TODO: IMPLEMENT SenderChat Correctly.
 
-func UploadProgressBar(m *NewMessage, total int32, now int32) {
+func UploadProgressBar(m *NewMessage, total, now int32) {
 	var (
 		progressfillemojirectangleempty = "◾️"
 		progressfillemojirectanglefull  = "◻️"

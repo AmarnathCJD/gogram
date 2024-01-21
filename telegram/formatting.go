@@ -14,12 +14,12 @@ import (
 	"golang.org/x/net/html"
 )
 
-func (c *Client) FormatMessage(message string, mode string) ([]MessageEntity, string) {
+func (c *Client) FormatMessage(message, mode string) ([]MessageEntity, string) {
 	return parseEntities(message, mode)
 }
 
 // parseEntities parses the message and returns a list of MessageEntities and the cleaned text string
-func parseEntities(message string, mode string) ([]MessageEntity, string) {
+func parseEntities(message, mode string) ([]MessageEntity, string) {
 	if strings.EqualFold(mode, HTML) {
 		return parseHTML(message)
 	} else if strings.EqualFold(mode, MarkDown) {
