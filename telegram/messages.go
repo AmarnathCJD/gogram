@@ -44,7 +44,7 @@ type SendOptions struct {
 // Note: If the message parameter is a NewMessage or a pointer to a NewMessage, the function will extract the message text and entities from it.
 // If the message parameter is a media object, the function will send the media as a separate message and return a pointer to a NewMessage object containing information about the sent media.
 // If the message parameter is a string, the function will parse it for entities and send it as a text message.
-func (c *Client) SendMessage(peerID interface{}, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
+func (c *Client) SendMessage(peerID, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &SendOptions{}).(*SendOptions)
 	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
 	var (
@@ -310,7 +310,7 @@ type MediaMetadata struct {
 //   - If the caption in opts is a pointer to a NewMessage, its entities will be used instead.
 //   - If the entites field in opts is not nil, it will override any entities parsed from the caption.
 //   - If send_as in opts is not nil, the message will be sent from the specified peer, otherwise it will be sent from the sender peer.
-func (c *Client) SendMedia(peerID interface{}, Media interface{}, opts ...*MediaOptions) (*NewMessage, error) {
+func (c *Client) SendMedia(peerID, Media interface{}, opts ...*MediaOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
 	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
 
@@ -401,7 +401,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 //   - If the caption in opts is a pointer to a NewMessage, its entities will be used instead.
 //   - If the entites field in opts is not nil, it will override any entities parsed from the caption.
 //   - If send_as in opts is not nil, the messages will be sent from the specified peer, otherwise they will be sent from the sender peer.
-func (c *Client) SendAlbum(peerID interface{}, Album interface{}, opts ...*MediaOptions) ([]*NewMessage, error) {
+func (c *Client) SendAlbum(peerID, Album interface{}, opts ...*MediaOptions) ([]*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
 	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
 	var (
@@ -540,7 +540,7 @@ func (a *ActionResult) Cancel() bool {
 
 // SendAction sends a chat action.
 // This method is a wrapper for messages.setTyping.
-func (c *Client) SendAction(PeerID interface{}, Action interface{}, topMsgID ...int32) (*ActionResult, error) {
+func (c *Client) SendAction(PeerID, Action interface{}, topMsgID ...int32) (*ActionResult, error) {
 	peerChat, err := c.GetSendablePeer(PeerID)
 	if err != nil {
 		return nil, err
@@ -587,7 +587,7 @@ type ForwardOptions struct {
 
 // Forward forwards a message.
 // This method is a wrapper for messages.forwardMessages.
-func (c *Client) Forward(peerID interface{}, fromPeerID interface{}, msgIDs []int32, opts ...*ForwardOptions) ([]NewMessage, error) {
+func (c *Client) Forward(peerID, fromPeerID interface{}, msgIDs []int32, opts ...*ForwardOptions) ([]NewMessage, error) {
 	opt := getVariadic(opts, &ForwardOptions{}).(*ForwardOptions)
 	toPeer, err := c.GetSendablePeer(peerID)
 	if err != nil {
@@ -964,7 +964,7 @@ func convertOption(s *SendOptions) *MediaOptions {
 	}
 }
 
-func getVariadic(v interface{}, def interface{}) interface{} {
+func getVariadic(v, def interface{}) interface{} {
 	if v == nil {
 		return def
 	}

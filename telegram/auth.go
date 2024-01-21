@@ -284,7 +284,7 @@ type PasswordOptions struct {
 
 // Edit2FA changes the 2FA password of the current user,
 // if 2fa is already enabled, should provide the current password.
-func (c *Client) Edit2FA(currPwd string, newPwd string, opts ...*PasswordOptions) (bool, error) {
+func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool, error) {
 	if currPwd == "" && newPwd == "" {
 		return false, errors.New("current password and new password both cannot be empty")
 	}
@@ -560,7 +560,7 @@ func passwordHash2(password, salt1, salt2 []byte) []byte {
 	return saltingHashing(pbkdf2sha512(passwordHash1(password, salt1, salt2), salt1, 100000), salt2)
 }
 
-func pbkdf2sha512(hash1 []byte, salt1 []byte, i int) []byte {
+func pbkdf2sha512(hash1, salt1 []byte, i int) []byte {
 	return AlgoKey(hash1, salt1, i, 64, sha512.New)
 }
 

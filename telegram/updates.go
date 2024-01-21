@@ -624,7 +624,7 @@ UpdateTypeSwitching:
 	return true
 }
 
-func (c *Client) GetDifference(Pts int32, Limit int32) (Message, error) {
+func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
 	c.Logger.Debug("updates.getDifference: [pts: ", Pts, " limit: ", Limit, "]")
 
 	updates, err := c.UpdatesGetDifference(&UpdatesGetDifferenceParams{
