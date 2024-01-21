@@ -14,15 +14,15 @@ func (Button) Force(placeHolder string) *ReplyKeyboardForceReply {
 	return &ReplyKeyboardForceReply{Placeholder: placeHolder}
 }
 
-func (Button) Auth(Text string, URL string, ForwardText string, ButtonID int32) *KeyboardButtonURLAuth {
+func (Button) Auth(Text, URL, ForwardText string, ButtonID int32) *KeyboardButtonURLAuth {
 	return &KeyboardButtonURLAuth{Text: Text, URL: URL, FwdText: ForwardText, ButtonID: ButtonID}
 }
 
-func (Button) URL(Text string, URL string) *KeyboardButtonURL {
+func (Button) URL(Text, URL string) *KeyboardButtonURL {
 	return &KeyboardButtonURL{Text: Text, URL: URL}
 }
 
-func (Button) Data(Text string, Data string) *KeyboardButtonCallback {
+func (Button) Data(Text, Data string) *KeyboardButtonCallback {
 	return &KeyboardButtonCallback{Text: Text, Data: []byte(Data)}
 }
 
@@ -54,7 +54,7 @@ func (Button) SwitchInline(Text string, SamePeer bool, Query string) *KeyboardBu
 	return &KeyboardButtonSwitchInline{Text: Text, SamePeer: SamePeer, Query: Query}
 }
 
-func (Button) WebView(Text string, URL string) *KeyboardButtonSimpleWebView {
+func (Button) WebView(Text, URL string) *KeyboardButtonSimpleWebView {
 	return &KeyboardButtonSimpleWebView{Text: Text, URL: URL}
 }
 

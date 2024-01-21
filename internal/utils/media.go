@@ -197,7 +197,7 @@ type IAnyType interface {
 
 type BoxPath []BoxType
 
-func (lhs BoxPath) compareWith(rhs BoxPath) (forwardMatch bool, match bool) {
+func (lhs BoxPath) compareWith(rhs BoxPath) (forwardMatch, match bool) {
 	if len(lhs) > len(rhs) {
 		return false, false
 	}
@@ -423,7 +423,7 @@ func ExtractBoxes(r io.ReadSeeker, parent *BoxInfo, paths []BoxPath) ([]*BoxInfo
 func BoxTypeMoov() BoxType { return StrToBoxType("moov") }
 func BoxTypeMvhd() BoxType { return StrToBoxType("mvhd") }
 
-func matchPath(paths []BoxPath, path BoxPath) (forwardMatch bool, match bool) {
+func matchPath(paths []BoxPath, path BoxPath) (forwardMatch, match bool) {
 	for i := range paths {
 		fm, m := path.compareWith(paths[i])
 		forwardMatch = forwardMatch || fm
@@ -1003,7 +1003,7 @@ func buildFieldsAny(t reflect.Type) []*field {
 	}
 }
 
-func buildField(fieldName string, tag string) *field {
+func buildField(fieldName, tag string) *field {
 	f := &field{
 		name: fieldName,
 	}
