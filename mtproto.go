@@ -96,7 +96,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 			// if the error is not because of file not found or path not found, return the error
 			// else, continue with the execution
 			// check if have write permission in the directory
-			if _, err := os.OpenFile(filepath.Dir(c.AuthKeyFile), os.O_WRONLY, 0666); err != nil {
+			if _, err := os.OpenFile(filepath.Dir(c.AuthKeyFile), os.O_WRONLY, 0222); err != nil {
 				return nil, errors.Wrap(err, "check if you have write permission in the directory")
 			}
 			return nil, errors.Wrap(err, "loading session")
@@ -144,19 +144,23 @@ func (m *MTProto) loadAuth(stringSession string, sess *session.Session) error {
 		if err != nil {
 			return errors.Wrap(err, "importing string session")
 		}
-	} else {
-		if sess != nil {
-			m._loadSession(sess)
-		}
+	} else if sess != nil {
+		m._loadSession(sess)
 	}
 	return nil
 }
 
-func (m *MTProto) ExportAuth() ([]byte, []byte, int64, string, int32, int) {
-	return m.authKey, m.authKeyHash, m.serverSalt, m.Addr, m.appID, m.GetDC()
+func (m *MTProto) ExportAuth() (*session.Session, int) {
+	return &session.Session{
+		Key:      m.authKey,
+		Hash:     m.authKeyHash,
+		Salt:     m.serverSalt,
+		Hostname: m.Addr,
+		AppID:    m.AppID(),
+	}, m.GetDC()
 }
 
-func (m *MTProto) ImportRawAuth(authKey []byte, authKeyHash []byte, addr string, _ int, appID int32) (bool, error) {
+func (m *MTProto) ImportRawAuth(authKey, authKeyHash []byte, addr string, _ int, appID int32) (bool, error) {
 	m.authKey, m.authKeyHash, m.Addr, m.appID = authKey, authKeyHash, addr, appID
 	m.Logger.Debug("imported auth key, auth key hash, addr, dc, appID")
 	if !m.memorySession {
@@ -298,7 +302,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 		return fmt.Errorf("creating transport: %w", err)
 	}
 
-	closeOnCancel(ctx, m.transport)
+	go closeOnCancel(ctx, m.transport)
 	return nil
 }
 
@@ -586,11 +590,9 @@ func MessageRequireToAck(msg tl.Object) bool {
 }
 
 func closeOnCancel(ctx context.Context, c io.Closer) {
+	<-ctx.Done()
 	go func() {
-		<-ctx.Done()
-		go func() {
-			defer func() { recover() }()
-			c.Close()
-		}()
+		defer func() { recover() }()
+		c.Close()
 	}()
 }

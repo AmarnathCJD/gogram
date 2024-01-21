@@ -69,7 +69,8 @@ func TryExpandError(errStr string) (nativeErrorName string, additionalData any) 
 
 	for _, errCase := range specificErrors {
 		if strings.HasPrefix(errStr, errCase.prefix) && strings.HasSuffix(errStr, errCase.suffix) {
-			choosedPrefixSuffix = &errCase //nolint:gosec cause we need nil if not found
+			errCase := errCase
+			choosedPrefixSuffix = &errCase
 			break
 		}
 	}

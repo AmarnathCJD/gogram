@@ -444,9 +444,9 @@ func (c *Client) GetDC() int {
 // ExportSession exports the current session to a string,
 // This string can be used to import the session later
 func (c *Client) ExportSession() string {
-	authKey, authKeyHash, _, IpAddr, AppID, dcId := c.MTProto.ExportAuth()
+	authSession, dcId := c.MTProto.ExportAuth()
 	c.Log.Debug("Exporting string session...")
-	return session.NewStringSession(authKey, authKeyHash, dcId, IpAddr, AppID).Encode()
+	return session.NewStringSession(authSession.Key, authSession.Hash, dcId, authSession.Hostname, authSession.AppID).Encode()
 }
 
 // ImportSession imports a session from a string
@@ -478,8 +478,15 @@ func (c *Client) ImportRawSession(authKey, authKeyHash []byte, IpAddr string, Dc
 //	  IpAddr: The IP address of the DC
 //	  DcID: The DC ID to connect to
 //	  AppID: The App ID to use
-func (c *Client) ExportRawSession() ([]byte, []byte, int64, string, int32, int) {
-	return c.MTProto.ExportAuth()
+func (c *Client) ExportRawSession() *Session {
+	mtSession, _ := c.MTProto.ExportAuth()
+	return &Session{
+		Key:      mtSession.Key,
+		Hash:     mtSession.Hash,
+		Salt:     mtSession.Salt,
+		Hostname: mtSession.Hostname,
+		AppID:    mtSession.AppID,
+	}
 }
 
 // LoadSession loads a session from a file, database, etc.
@@ -494,13 +501,6 @@ func (c *Client) LoadSession(sess *Session) error {
 		Hostname: sess.Hostname,
 		AppID:    sess.AppID,
 	})
-}
-
-// ShareSession exports the current session to a file, database, etc.
-func (c *Client) ShareSession() *Session {
-	sess := &Session{}
-	sess.Key, sess.Hash, sess.Salt, sess.Hostname, sess.AppID, _ = c.ExportRawSession()
-	return sess
 }
 
 // returns the AppID (api_id) of the client
