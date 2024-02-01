@@ -22,7 +22,7 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 	m.lastMessageIDMutex.Lock()
 	var (
 		data  messages.Common
-		msgID = utils.GenerateMessageId(m.lastMessageID)
+		msgID = utils.GenerateMessageId(m.lastMessageID, m.timeOffset)
 	)
 	m.lastMessageIDMutex.Unlock()
 	m.lastMessageID = msgID
