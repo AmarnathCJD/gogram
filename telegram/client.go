@@ -75,7 +75,7 @@ type ClientConfig struct {
 	DataCenter    int
 	PublicKeys    []*rsa.PublicKey
 	NoUpdates     bool
-	EnableCache   bool
+	DisableCache  bool
 	LogLevel      string
 	SocksProxy    *url.URL
 }
@@ -93,11 +93,11 @@ func NewClient(config ClientConfig) (*Client, error) {
 	config = client.cleanClientConfig(config)
 	client.setupClientData(config)
 
-	if config.EnableCache {
-		client.Cache.startCacheFileUpdater()
+	client.Cache = NewCache(config.LogLevel)
+	if !config.DisableCache {
+		client.Cache.writeFile = true
 	}
 
-	client.Cache = NewCache(config.LogLevel)
 	if err := client.setupMTProto(config); err != nil {
 		return nil, err
 	}
