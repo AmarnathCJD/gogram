@@ -14306,6 +14306,14 @@ func (c *Client) UsersGetUsers(id []InputUser) ([]User, error) {
 
 	resp, ok := responseData.([]User)
 	if !ok {
+		if _, ok := responseData.([]*UserObj); ok { // Temp Fix till Problem is Identified
+			var users []User = make([]User, len(responseData.([]*UserObj)))
+			for i, user := range responseData.([]*UserObj) {
+				users[i] = user
+			}
+
+			return users, nil
+		}
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
 	return resp, nil
