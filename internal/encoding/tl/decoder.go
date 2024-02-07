@@ -128,7 +128,6 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 				return
 			}
 			if info.version == 1 {
-				fmt.Println("optionalBitSetA", optionalBitSetA, "index", info.index, "flagsetIndex", flagsetIndex)
 				if optionalBitSetA&(1<<info.index) == 0 {
 					continue
 				}
