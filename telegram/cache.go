@@ -68,8 +68,8 @@ func NewCache(logLevel string) *CACHE {
 
 // --------- Cache file Functions ---------
 func (c *CACHE) WriteFile() {
-	c.Lock()
-	defer c.Unlock()
+	//c.Lock()
+	//defer c.Unlock() // necessary?
 
 	if c.file == nil {
 		var err error

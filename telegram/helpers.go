@@ -448,7 +448,7 @@ mediaTypeSwitch:
 					break
 				}
 				if a, ok := at.(*DocumentAttributeVideo); ok {
-					var duration = int64(getValue(a.Duration, int32(GetVideoDuration(fileName))).(int32))
+					var duration = int64(getValue(int32(a.Duration), int32(GetVideoDuration(fileName))).(int32))
 					if a.W == 0 || a.H == 0 {
 						w, h := GetVideoDimensions(fileName)
 						if w > 0 && h > 0 {
