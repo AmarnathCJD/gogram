@@ -267,17 +267,9 @@ PeerSwitch:
 	case *InputPeerChat:
 		return Peer, nil
 	case *InputPeerChannel:
-		peerEntity, err := c.GetPeerChannel(Peer.ChannelID)
-		if err != nil {
-			return nil, err
-		}
-		return &InputPeerChannel{ChannelID: peerEntity.ChannelID, AccessHash: peerEntity.AccessHash}, nil
+		return Peer, nil
 	case *InputPeerUser:
-		peerEntity, err := c.GetPeerUser(Peer.UserID)
-		if err != nil {
-			return nil, err
-		}
-		return &InputPeerUser{UserID: peerEntity.UserID, AccessHash: peerEntity.AccessHash}, nil
+		return Peer, nil
 	case *InputPeer:
 		return *Peer, nil
 		// TODO: Add more types
