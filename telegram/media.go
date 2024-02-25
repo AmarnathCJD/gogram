@@ -23,6 +23,186 @@ const (
 	DEFAULT_PARTS   = 512 * 512
 )
 
+type Sender struct {
+	buzy bool
+	c    *Client
+}
+
+func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile, error) {
+	opts := getVariadic(Opts, &UploadOptions{}).(*UploadOptions)
+	if src == nil {
+		return nil, errors.New("file can not be nil")
+	}
+
+	var source string
+	switch s := src.(type) {
+	case string:
+		source = s
+	} // TODO: Add more types here
+
+	if source == "" {
+		return nil, errors.New("file can not be nil")
+	}
+
+	file, err := os.Open(source)
+	if err != nil {
+		return nil, err
+	}
+
+	defer file.Close()
+
+	stat, _ := file.Stat()
+	partSize := 1024 * 512 // 512KB
+	if opts.ChunkSize > 0 {
+		partSize = int(opts.ChunkSize)
+	}
+	fileId := GenerateRandomLong()
+	var hash hash.Hash
+
+	IsFsBig := false
+	if stat.Size() > 10*1024*1024 { // 10MB
+		IsFsBig = true
+	}
+
+	if !IsFsBig {
+		hash = md5.New()
+	}
+
+	parts := stat.Size() / int64(partSize)
+	partOver := stat.Size() % int64(partSize)
+
+	totalParts := parts
+	if partOver > 0 {
+		totalParts++
+	}
+
+	wg := sync.WaitGroup{}
+
+	numWorkers := countWorkers(parts)
+	if opts.Threads > 0 {
+		numWorkers = opts.Threads
+	}
+	sender := make([]Sender, numWorkers)
+	sendersPreallocated := 0
+
+	if c.exportedSenders.senders[c.GetDC()] != nil && len(c.exportedSenders.senders[c.GetDC()]) > 0 {
+		for i := 0; i < len(c.exportedSenders.senders[c.GetDC()]); i++ {
+			if c.exportedSenders.senders[c.GetDC()][i] != nil {
+				sender[i] = Sender{c: c.exportedSenders.senders[c.GetDC()][i]}
+				sendersPreallocated++
+			}
+		}
+	}
+
+	for i := sendersPreallocated; i < numWorkers; i++ {
+		x, _ := c.CreateExportedSender(c.GetDC())
+		// go c.AddNewExportedSenderToMap(c.GetDC(), x) TODO: Implement this
+		sender[i] = Sender{c: x}
+	}
+
+	for p := int64(0); p < parts; p++ {
+		wg.Add(1)
+		for {
+			found := false
+			for i := 0; i < numWorkers; i++ {
+				if !sender[i].buzy {
+					part := make([]byte, partSize)
+					_, err := file.Read(part)
+					if err != nil {
+						c.Logger.Error(err)
+						return nil, err
+					}
+
+					found = true
+					sender[i].buzy = true
+					go func(i int, part []byte, p int) {
+						defer wg.Done()
+						c.Logger.Debug("Uploading part", p, "with size", len(part), "in KB:", len(part)/1024, "to", i)
+						if !IsFsBig {
+							_, err = sender[i].c.UploadSaveFilePart(fileId, int32(p), part)
+							hash.Write(part)
+						} else {
+							_, err = sender[i].c.UploadSaveBigFilePart(fileId, int32(p), int32(totalParts), part)
+						}
+						if err != nil {
+							c.Logger.Error(err)
+						}
+						if opts.ProgressCallback != nil {
+							opts.ProgressCallback(int32(totalParts), int32(p))
+						}
+						sender[i].buzy = false
+					}(i, part, int(p))
+					break
+				}
+			}
+
+			if found {
+				break
+			}
+		}
+	}
+
+	if partOver > 0 {
+		part := make([]byte, partOver)
+		_, err := file.Read(part)
+		if err != nil {
+			c.Logger.Error(err)
+		}
+
+		if !IsFsBig {
+			_, err = c.UploadSaveFilePart(fileId, int32(totalParts)-1, part)
+		} else {
+			_, err = c.UploadSaveBigFilePart(fileId, int32(totalParts)-1, int32(totalParts), part)
+		}
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		c.Logger.Debug("Uploaded last part", totalParts-1, "with size", len(part), "in KB:", len(part)/1024)
+	}
+
+	wg.Wait()
+
+	if opts.FileName != "" {
+		source = opts.FileName
+	}
+
+	for i := 0; i < numWorkers; i++ {
+		if sender[i].c != nil {
+			sender[i].c.Terminate()
+		}
+	}
+
+	sender = nil // leave senders to GC
+
+	if !IsFsBig {
+		return &InputFileObj{
+			ID:          fileId,
+			Md5Checksum: string(hash.Sum(nil)),
+			Name:        source,
+			Parts:       int32(totalParts),
+		}, nil
+	}
+
+	return &InputFileBig{
+		ID:    fileId,
+		Parts: int32(totalParts),
+		Name:  source,
+	}, nil
+}
+
+func countWorkers(parts int64) int {
+	if parts < 5 {
+		return int(parts)
+	} else if parts > 100 {
+		return 20
+	} else if parts > 50 {
+		return 10
+	} else {
+		return 5
+	}
+}
+
 type UploadOptions struct {
 	// Worker count for upload file.
 	Threads int `json:"threads,omitempty"`
@@ -58,7 +238,7 @@ type Uploader struct {
 
 // UploadFile upload file to telegram.
 // file can be string, []byte, io.Reader, fs.File
-func (c *Client) UploadFile(file interface{}, Opts ...*UploadOptions) (InputFile, error) {
+func (c *Client) UploadFileOld(file interface{}, Opts ...*UploadOptions) (InputFile, error) {
 	opts := getVariadic(Opts, &UploadOptions{}).(*UploadOptions)
 	if file == nil {
 		return nil, errors.New("file can not be nil")

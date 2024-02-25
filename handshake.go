@@ -44,7 +44,7 @@ func (m *MTProto) makeAuthKey() error {
 
 	// (encoding) p_q_inner_data
 	pq := big.NewInt(0).SetBytes(res.Pq)
-	p, q := math.SplitPQ(pq)
+	p, q := math.Fac(pq)
 	nonceSecond := tl.RandomInt256()
 	nonceServer := res.ServerNonce
 

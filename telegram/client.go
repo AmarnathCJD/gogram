@@ -101,10 +101,10 @@ func NewClient(config ClientConfig) (*Client, error) {
 	if err := client.setupMTProto(config); err != nil {
 		return nil, err
 	}
-	if !config.NoUpdates {
-		client.setupDispatcher()
-		client.Log.Warn("client is running in no updates mode, no updates will be handled")
+	if config.NoUpdates {
+		//client.Log.Warn("client is running in no updates mode, no updates will be handled")
 	} else {
+		client.setupDispatcher()
 		if client.IsConnected() {
 			//TODO: Implement same for manual connect Call.
 			client.UpdatesGetState()
@@ -280,6 +280,18 @@ func (c *Client) switchDC(dcID int) error {
 	return c.InitialRequest()
 }
 
+func (c *Client) AddNewExportedSenderToMap(dcID int, sender *Client) {
+	c.exportedSenders.Lock()
+	defer c.exportedSenders.Unlock()
+	if c.exportedSenders.senders == nil {
+		c.exportedSenders.senders = make(map[int][]*Client)
+	}
+	if c.exportedSenders.senders[dcID] == nil {
+		c.exportedSenders.senders[dcID] = make([]*Client, 0)
+	} // TODO: Implement this
+	c.exportedSenders.senders[dcID] = append(c.exportedSenders.senders[dcID], sender)
+}
+
 func (c *Client) GetCachedExportedSenders(dcID int) []*Client {
 	c.exportedSenders.RLock()
 	defer c.exportedSenders.RUnlock()
@@ -291,7 +303,7 @@ func (c *Client) GetCachedExportedSenders(dcID int) []*Client {
 }
 
 // createExportedSender creates a new exported sender
-func (c *Client) createExportedSender(dcID int) (*Client, error) {
+func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
 	c.Log.Debug("creating exported sender for DC ", dcID)
 	exported, err := c.MTProto.ExportNewSender(dcID, true)
 	if err != nil {
@@ -313,20 +325,21 @@ func (c *Client) createExportedSender(dcID int) (*Client, error) {
 
 func (c *Client) shareAuthWithTimeout(main *Client, dcID int) error {
 	// raise timeout error on timeout
-	timeout := time.After(6 * time.Second)
-	errMade := make(chan error)
-	go func() {
-		select {
-		case <-timeout:
-			errMade <- errors.New("sharing authorization timed out")
-		case err := <-errMade:
-			errMade <- err
-		}
-	}()
-	go func() {
-		errMade <- c.shareAuth(main, dcID)
-	}()
-	return <-errMade
+	//timeout := time.After(6 * time.Second)
+	//errMade := make(chan error)
+	//go func() {
+	//	select {
+	//	case <-timeout:
+	//		errMade <- errors.New("sharing authorization timed out")
+	//	case err := <-errMade:
+	//		errMade <- err
+	//	}
+	//}()
+	//go func() {
+	//errMade <-
+	c.shareAuth(main, dcID)
+	//}()
+	return nil
 }
 
 // shareAuth shares authorization with another client
@@ -367,11 +380,11 @@ func (c *Client) BorrowExportedSenders(dcID int, count ...int) ([]*Client, error
 			exportWaitGroup.Add(1)
 			go func() {
 				defer exportWaitGroup.Done()
-				exportedSender, err := c.createExportedSender(dcID)
+				exportedSender, err := c.CreateExportedSender(dcID)
 				if err != nil {
 					const AuthInvalidError = "The provided authorization is invalid"
 					if strings.Contains(err.Error(), AuthInvalidError) {
-						exportedSender, err = c.createExportedSender(dcID)
+						exportedSender, err = c.CreateExportedSender(dcID)
 						if err != nil {
 							return
 						}
@@ -389,7 +402,7 @@ func (c *Client) BorrowExportedSenders(dcID int, count ...int) ([]*Client, error
 		if total < countInt {
 			returned = append(returned, c.exportedSenders.senders[dcID]...)
 			for i := 0; i < countInt-total; i++ {
-				exportedSender, err := c.createExportedSender(dcID)
+				exportedSender, err := c.CreateExportedSender(dcID)
 				if err != nil {
 					return nil, errors.Wrap(err, "creating exported sender")
 				}
