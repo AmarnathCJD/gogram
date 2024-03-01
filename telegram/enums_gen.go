@@ -137,6 +137,7 @@ func (e InputPrivacyKey) String() string {
 func (e InputPrivacyKey) CRC() uint32 { return uint32(e) }
 
 type Null uint32
+
 const NullCrc Null = 0x56730bcc
 
 func (e Null) String() string {
