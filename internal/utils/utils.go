@@ -3,6 +3,7 @@
 package utils
 
 import (
+	cr "crypto/rand"
 	"crypto/sha1"
 	"fmt"
 	"math/rand"
@@ -29,10 +30,6 @@ func (*PingParams) CRC() uint32 {
 	return 0x7abe77ec
 }
 
-var (
-	prevCacheId = int64(0)
-)
-
 func GenerateMessageId(prevID int64, offset int64) int64 {
 	const billion = 1000 * 1000 * 1000
 	unixnano := time.Now().UnixNano() + (offset * billion)
@@ -43,7 +40,6 @@ func GenerateMessageId(prevID int64, offset int64) int64 {
 		return GenerateMessageId(prevID, offset)
 	}
 
-	prevCacheId = newID
 	return newID
 }
 
@@ -52,8 +48,8 @@ func AuthKeyHash(key []byte) []byte {
 }
 
 func GenerateSessionID() int64 {
-	rand.Seed(time.Now().UnixNano())
-	return rand.Int63() // nolint: gosec потому что начерта?
+	source := rand.NewSource(time.Now().UnixNano())
+	return rand.New(source).Int63()
 }
 
 func FullStack() {
@@ -79,7 +75,7 @@ func Sha1(input string) []byte {
 
 func RandomBytes(size int) []byte {
 	b := make([]byte, size)
-	_, _ = rand.Read(b)
+	_, _ = cr.Read(b)
 	return b
 }
 

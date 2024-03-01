@@ -381,7 +381,7 @@ mediaTypeSwitch:
 					return nil, err
 				}
 				goto mediaTypeSwitch
-			} else if err != nil {
+			} else {
 				return nil, err
 			}
 		}

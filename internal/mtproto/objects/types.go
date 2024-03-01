@@ -372,14 +372,6 @@ func (*GzipPacked) popMessageAsBytes(d *tl.Decoder) ([]byte, error) {
 	}
 
 	return decompressed, nil
-	// data := d.PopMessage()
-	// gz, err := gzip.NewReader(bytes.NewBuffer(data))
-	// check(err)
-
-	// decompressed, err := ioutil.ReadAll(gz)
-	// check(err)
-
-	// return decompressed
 }
 
 type MsgsAck struct {
