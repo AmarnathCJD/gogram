@@ -28,7 +28,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const defaultTimeout = 65 * time.Second
+const defaultTimeout = 30 * time.Second
 
 type MTProto struct {
 	Addr          string
@@ -313,7 +313,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
 	if !m.TcpActive() {
-		return nil, errors.New("Can't make request. Connection is not established")
+		return nil, errors.New("can't make request. connection is not established")
 	}
 	resp, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
@@ -321,8 +321,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 			m.Logger.Info("connection closed due to broken pipe, reconnecting to [" + m.Addr + "]" + " - <TCPFull> ...")
 			err = m.Reconnect(false)
 			if err != nil {
-				m.Logger.Error("reconnecting: " + err.Error())
-				return nil, errors.New("reconnecting: " + err.Error())
+				return nil, errors.Wrap(err, "reconnecting")
 			}
 			return m.makeRequest(data, expectedTypes...)
 		}
@@ -331,13 +330,12 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	response := <-resp
 	switch r := response.(type) {
 	case *objects.RpcError:
-		realErr := RpcErrorToNative(r).(*ErrResponseCode)
-		if strings.Contains(realErr.Message, "FLOOD_WAIT_") {
-			m.Logger.Info("Flood wait detected on '" + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf("' request. sleeping for %s", (time.Duration(realErr.AdditionalInfo.(int))*time.Second).String()))
-			time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
-			return m.makeRequest(data, expectedTypes...)
-		}
-		return nil, realErr
+		//if err := RpcErrorToNative(r).(*ErrResponseCode); strings.Contains(err.Message, "FLOOD_WAIT_") {
+		//m.Logger.Info("flood wait detected on '" + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf("' request. sleeping for %s", (time.Duration(realErr.AdditionalInfo.(int))*time.Second).String()))
+		//time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
+		//return m.makeRequest(data, expectedTypes...) TODO: implement flood wait correctly
+		//}
+		return nil, RpcErrorToNative(r)
 
 	case *errorSessionConfigsChanged:
 		m.Logger.Debug("session configs changed, resending request")
@@ -411,10 +409,28 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				return
 			default:
 				if !m.tcpActive {
-					m.Logger.Warn("Connection is not established with, stopping Updates Queue")
+					m.Logger.Warn("connection is not established with, stopping Updates Queue")
 					return
 				}
 				err := m.readMsg()
+				//errors.Is(err, io.EOF)
+
+				if err != nil {
+					if strings.Contains(err.Error(), "unexpected error: unexpected EOF") {
+						m.Logger.Debug("unexpected EOF, reconnecting to [" + m.Addr + "] - <TCPFull> ...") // TODO: beautify this
+						err = m.Reconnect(false)
+						if err != nil {
+							m.Logger.Error(errors.Wrap(err, "reconnecting"))
+						}
+					} else if strings.Contains(err.Error(), "required to reconnect!") { // network is not stable
+						m.Logger.Debug("network is not stable, reconnecting to [" + m.Addr + "] - <TCPFull> ...")
+						err = m.Reconnect(false)
+						if err != nil {
+							m.Logger.Error(errors.Wrap(err, "reconnecting"))
+						}
+					}
+				}
+
 				switch err {
 				case nil:
 				case context.Canceled:
@@ -425,24 +441,12 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						m.Logger.Error(errors.Wrap(err, "reconnecting"))
 					}
 					return
-
 				default:
-					if e, ok := err.(transport.ErrCode); ok {
-						if int64(e) == 4294966892 {
-							err = m.makeAuthKey()
-							if err != nil {
-								m.Logger.Error(errors.Wrap(err, "making auth key"))
-							}
-						} else {
-							m.Logger.Error("Unhandled errorCode: " + fmt.Sprintf("%d", e))
-						}
-					}
-					if strings.Contains(err.Error(), "required to reconnect!") {
-						err = m.Reconnect(false)
+					if e, ok := err.(transport.ErrCode); ok && e != 4294966892 {
+						err = m.makeAuthKey()
 						if err != nil {
-							m.Logger.Error(errors.Wrap(err, "reconnecting error"))
+							m.Logger.Error(errors.Wrap(err, "making auth key"))
 						}
-						return
 					} else {
 						err = m.Reconnect(false)
 						if err != nil {
