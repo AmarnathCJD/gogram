@@ -157,8 +157,7 @@ func (m *NewMessage) IsReply() bool {
 }
 
 func (m *NewMessage) Marshal() string {
-	b, _ := json.MarshalIndent(m.Message, "", "  ")
-	return string(b)
+	return m.Client.JSON(m.OriginalUpdate)
 }
 
 func (m *NewMessage) Unmarshal(data []byte) (*NewMessage, error) {
@@ -582,8 +581,12 @@ type Album struct {
 }
 
 func (a *Album) Marshal() string {
-	b, _ := json.MarshalIndent(a, "", "  ")
-	return string(b)
+	var messages []Message
+	for _, m := range a.Messages {
+		messages = append(messages, m.OriginalUpdate)
+	}
+
+	return a.Client.JSON(messages)
 }
 
 func (a *Album) Download(opts ...*DownloadOptions) ([]string, error) {

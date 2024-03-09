@@ -3,7 +3,6 @@
 package telegram
 
 import (
-	"encoding/json"
 	"fmt"
 )
 
@@ -179,8 +178,7 @@ func (b *CallbackQuery) ForwardTo(ChatID int64, options ...*ForwardOptions) (*Ne
 }
 
 func (b *CallbackQuery) Marshal() string {
-	bytes, _ := json.MarshalIndent(b, "", "  ")
-	return string(bytes)
+	return b.Client.JSON(b.OriginalUpdate)
 }
 
 type InlineCallbackQuery struct {
@@ -258,6 +256,5 @@ func (b *InlineCallbackQuery) IsChannel() bool {
 }
 
 func (b *InlineCallbackQuery) Marshal() string {
-	bytes, _ := json.MarshalIndent(b, "", "  ")
-	return string(bytes)
+	return b.Client.JSON(b.OriginalUpdate)
 }

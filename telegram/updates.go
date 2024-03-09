@@ -633,7 +633,7 @@ UpdateTypeSwitching:
 		goto UpdateTypeSwitching
 	case *UpdatesTooLong:
 	default:
-		c.Log.Warn("Ignoring Unknown Update Type: ", u)
+		c.Log.Warn("ignoring unknown update type: ", c.JSON(u))
 	}
 	return true
 }

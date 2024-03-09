@@ -726,3 +726,13 @@ func (*errorSessionConfigsChanged) Error() string {
 func (*errorSessionConfigsChanged) CRC() uint32 {
 	return 0x00000000
 }
+
+//type unexpectedEOFError struct{}
+
+//func (*unexpectedEOFError) Error() string {
+//	return "unexpected error: unexpected EOF"
+//}
+
+//func (*unexpectedEOFError) CRC() uint32 {
+//	return 0x00000000
+//}

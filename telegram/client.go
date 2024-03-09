@@ -100,9 +100,10 @@ func NewClient(config ClientConfig) (*Client, error) {
 	config = client.cleanClientConfig(config)
 	client.setupClientData(config)
 
-	client.Cache = NewCache(config.LogLevel)
+	client.Cache = NewCache(config.LogLevel, genCacheFileName(config.StringSession))
 	if !config.DisableCache {
 		client.Cache.writeFile = true
+		client.Cache.ReadFile()
 	}
 
 	if err := client.setupMTProto(config); err != nil {
@@ -121,6 +122,14 @@ func NewClient(config ClientConfig) (*Client, error) {
 		return nil, err
 	}
 	return client, nil
+}
+
+func genCacheFileName(stringSession string) string {
+	if stringSession != "" {
+		// return middle 10 characters of the string session
+		return "gogram_" + stringSession[len(stringSession)/2-2:len(stringSession)/2+2]
+	}
+	return "gogram_main"
 }
 
 func (c *Client) setupMTProto(config ClientConfig) error {

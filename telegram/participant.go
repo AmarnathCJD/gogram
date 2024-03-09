@@ -2,8 +2,6 @@
 
 package telegram
 
-import "encoding/json"
-
 type ParticipantUpdate struct {
 	Client         *Client
 	OriginalUpdate *UpdateChannelParticipant
@@ -126,8 +124,7 @@ func (pu *ParticipantUpdate) Demoted() bool {
 }
 
 func (pu *ParticipantUpdate) Marshal() string {
-	b, _ := json.MarshalIndent(pu.OriginalUpdate, "", "  ")
-	return string(b)
+	return pu.Client.JSON(pu.OriginalUpdate)
 }
 
 // Rest Functions to be implemented

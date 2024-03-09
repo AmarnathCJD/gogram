@@ -4,33 +4,31 @@ package transport
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/url"
 	"strconv"
+	"time"
+)
+
+const (
+	ProxyConnectTimeout = 5 * time.Second
 )
 
 func DialProxy(s *url.URL, network, addr string) (net.Conn, error) {
-	var (
-		conn net.Conn
-		err  error
-	)
 	switch s.Scheme {
 	case "socks5":
-		conn, err = DialSocks5(s, network, addr)
+		return DialSocks5(s, network, addr)
 	case "socks4":
-		conn, err = DialSocks4(s, network, addr)
+		return DialSocks4(s, network, addr)
 	default:
-		return nil, errors.New("unsupported socks version")
+		return nil, fmt.Errorf("unsupported proxy scheme: %s", s.Scheme)
 	}
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
 }
 
 func DialSocks5(s *url.URL, _, addr string) (net.Conn, error) {
-	conn, err := net.Dial("tcp", s.Hostname()+":"+s.Port())
+	conn, err := net.DialTimeout("tcp", s.Hostname()+":"+s.Port(), ProxyConnectTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +166,7 @@ func DialSocks5(s *url.URL, _, addr string) (net.Conn, error) {
 }
 
 func DialSocks4(s *url.URL, _, addr string) (net.Conn, error) {
-	conn, err := net.Dial("tcp", s.Hostname()+":"+s.Port())
+	conn, err := net.DialTimeout("tcp", s.Hostname()+":"+s.Port(), ProxyConnectTimeout)
 	if err != nil {
 		return nil, err
 	}
