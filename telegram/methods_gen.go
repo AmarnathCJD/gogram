@@ -534,6 +534,25 @@ func (c *Client) AccountGetChatThemes(hash int64) (AccountThemes, error) {
 	return resp, nil
 }
 
+type AccountGetConnectedBotsParams struct{}
+
+func (*AccountGetConnectedBotsParams) CRC() uint32 {
+	return 0x4ea4c80f
+}
+
+func (c *Client) AccountGetConnectedBots() (*AccountConnectedBots, error) {
+	responseData, err := c.MakeRequest(&AccountGetConnectedBotsParams{})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending AccountGetConnectedBots")
+	}
+
+	resp, ok := responseData.(*AccountConnectedBots)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type AccountGetContactSignUpNotificationParams struct{}
 
 func (*AccountGetContactSignUpNotificationParams) CRC() uint32 {
@@ -1810,6 +1829,110 @@ func (c *Client) AccountUnregisterDevice(tokenType int32, token string, otherUid
 	return resp, nil
 }
 
+type AccountUpdateBusinessAwayMessageParams struct {
+	Message *InputBusinessAwayMessage `tl:"flag:0"`
+}
+
+func (*AccountUpdateBusinessAwayMessageParams) CRC() uint32 {
+	return 0xa26a7fa5
+}
+
+func (*AccountUpdateBusinessAwayMessageParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AccountUpdateBusinessAwayMessage(message *InputBusinessAwayMessage) (bool, error) {
+	responseData, err := c.MakeRequest(&AccountUpdateBusinessAwayMessageParams{Message: message})
+	if err != nil {
+		return false, errors.Wrap(err, "sending AccountUpdateBusinessAwayMessage")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type AccountUpdateBusinessGreetingMessageParams struct {
+	Message *InputBusinessGreetingMessage `tl:"flag:0"`
+}
+
+func (*AccountUpdateBusinessGreetingMessageParams) CRC() uint32 {
+	return 0x66cdafc4
+}
+
+func (*AccountUpdateBusinessGreetingMessageParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AccountUpdateBusinessGreetingMessage(message *InputBusinessGreetingMessage) (bool, error) {
+	responseData, err := c.MakeRequest(&AccountUpdateBusinessGreetingMessageParams{Message: message})
+	if err != nil {
+		return false, errors.Wrap(err, "sending AccountUpdateBusinessGreetingMessage")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type AccountUpdateBusinessLocationParams struct {
+	GeoPoint InputGeoPoint `tl:"flag:1"`
+	Address  string        `tl:"flag:0"`
+}
+
+func (*AccountUpdateBusinessLocationParams) CRC() uint32 {
+	return 0x9e6b131a
+}
+
+func (*AccountUpdateBusinessLocationParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AccountUpdateBusinessLocation(geoPoint InputGeoPoint, address string) (bool, error) {
+	responseData, err := c.MakeRequest(&AccountUpdateBusinessLocationParams{
+		Address:  address,
+		GeoPoint: geoPoint,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending AccountUpdateBusinessLocation")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type AccountUpdateBusinessWorkHoursParams struct {
+	BusinessWorkHours *BusinessWorkHours `tl:"flag:0"`
+}
+
+func (*AccountUpdateBusinessWorkHoursParams) CRC() uint32 {
+	return 0x4b00e066
+}
+
+func (*AccountUpdateBusinessWorkHoursParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AccountUpdateBusinessWorkHours(businessWorkHours *BusinessWorkHours) (bool, error) {
+	responseData, err := c.MakeRequest(&AccountUpdateBusinessWorkHoursParams{BusinessWorkHours: businessWorkHours})
+	if err != nil {
+		return false, errors.Wrap(err, "sending AccountUpdateBusinessWorkHours")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type AccountUpdateColorParams struct {
 	ForProfile        bool  `tl:"flag:1,encoded_in_bitflags"`
 	Color             int32 `tl:"flag:2"`
@@ -1835,6 +1958,39 @@ func (c *Client) AccountUpdateColor(forProfile bool, color int32, backgroundEmoj
 	}
 
 	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type AccountUpdateConnectedBotParams struct {
+	CanReply   bool `tl:"flag:0,encoded_in_bitflags"`
+	Deleted    bool `tl:"flag:1,encoded_in_bitflags"`
+	Bot        InputUser
+	Recipients *InputBusinessRecipients
+}
+
+func (*AccountUpdateConnectedBotParams) CRC() uint32 {
+	return 0x9c2d527d
+}
+
+func (*AccountUpdateConnectedBotParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AccountUpdateConnectedBot(canReply, deleted bool, bot InputUser, recipients *InputBusinessRecipients) (Updates, error) {
+	responseData, err := c.MakeRequest(&AccountUpdateConnectedBotParams{
+		Bot:        bot,
+		CanReply:   canReply,
+		Deleted:    deleted,
+		Recipients: recipients,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending AccountUpdateConnectedBot")
+	}
+
+	resp, ok := responseData.(Updates)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -6007,6 +6163,27 @@ func (c *Client) HelpGetTermsOfServiceUpdate() (HelpTermsOfServiceUpdate, error)
 	return resp, nil
 }
 
+type HelpGetTimezonesListParams struct {
+	Hash int32
+}
+
+func (*HelpGetTimezonesListParams) CRC() uint32 {
+	return 0x49b30240
+}
+
+func (c *Client) HelpGetTimezonesList(hash int32) (HelpTimezonesList, error) {
+	responseData, err := c.MakeRequest(&HelpGetTimezonesListParams{Hash: hash})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending HelpGetTimezonesList")
+	}
+
+	resp, ok := responseData.(HelpTimezonesList)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type HelpGetUserInfoParams struct {
 	UserID InputUser
 }
@@ -6366,6 +6543,27 @@ func (c *Client) MessagesCheckHistoryImportPeer(peer InputPeer) (*MessagesChecke
 	return resp, nil
 }
 
+type MessagesCheckQuickReplyShortcutParams struct {
+	Shortcut string
+}
+
+func (*MessagesCheckQuickReplyShortcutParams) CRC() uint32 {
+	return 0xf1d0fbd3
+}
+
+func (c *Client) MessagesCheckQuickReplyShortcut(shortcut string) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesCheckQuickReplyShortcutParams{Shortcut: shortcut})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesCheckQuickReplyShortcut")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesClearAllDraftsParams struct{}
 
 func (*MessagesClearAllDraftsParams) CRC() uint32 {
@@ -6615,6 +6813,52 @@ func (c *Client) MessagesDeletePhoneCallHistory(revoke bool) (*MessagesAffectedF
 	}
 
 	resp, ok := responseData.(*MessagesAffectedFoundMessages)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesDeleteQuickReplyMessagesParams struct {
+	ShortcutID int32
+	ID         []int32
+}
+
+func (*MessagesDeleteQuickReplyMessagesParams) CRC() uint32 {
+	return 0xe105e910
+}
+
+func (c *Client) MessagesDeleteQuickReplyMessages(shortcutID int32, id []int32) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesDeleteQuickReplyMessagesParams{
+		ID:         id,
+		ShortcutID: shortcutID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesDeleteQuickReplyMessages")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesDeleteQuickReplyShortcutParams struct {
+	ShortcutID int32
+}
+
+func (*MessagesDeleteQuickReplyShortcutParams) CRC() uint32 {
+	return 0x3cc04740
+}
+
+func (c *Client) MessagesDeleteQuickReplyShortcut(shortcutID int32) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesDeleteQuickReplyShortcutParams{ShortcutID: shortcutID})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesDeleteQuickReplyShortcut")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -6923,19 +7167,20 @@ func (c *Client) MessagesEditInlineBotMessage(params *MessagesEditInlineBotMessa
 }
 
 type MessagesEditMessageParams struct {
-	NoWebpage    bool `tl:"flag:1,encoded_in_bitflags"`
-	InvertMedia  bool `tl:"flag:16,encoded_in_bitflags"`
-	Peer         InputPeer
-	ID           int32
-	Message      string          `tl:"flag:11"`
-	Media        InputMedia      `tl:"flag:14"`
-	ReplyMarkup  ReplyMarkup     `tl:"flag:2"`
-	Entities     []MessageEntity `tl:"flag:3"`
-	ScheduleDate int32           `tl:"flag:15"`
+	NoWebpage            bool `tl:"flag:1,encoded_in_bitflags"`
+	InvertMedia          bool `tl:"flag:16,encoded_in_bitflags"`
+	Peer                 InputPeer
+	ID                   int32
+	Message              string          `tl:"flag:11"`
+	Media                InputMedia      `tl:"flag:14"`
+	ReplyMarkup          ReplyMarkup     `tl:"flag:2"`
+	Entities             []MessageEntity `tl:"flag:3"`
+	ScheduleDate         int32           `tl:"flag:15"`
+	QuickReplyShortcutID int32           `tl:"flag:17"`
 }
 
 func (*MessagesEditMessageParams) CRC() uint32 {
-	return 0x48f71778
+	return 0xdfd14005
 }
 
 func (*MessagesEditMessageParams) FlagIndex() int {
@@ -6949,6 +7194,31 @@ func (c *Client) MessagesEditMessage(params *MessagesEditMessageParams) (Updates
 	}
 
 	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesEditQuickReplyShortcutParams struct {
+	ShortcutID int32
+	Shortcut   string
+}
+
+func (*MessagesEditQuickReplyShortcutParams) CRC() uint32 {
+	return 0x5c003cef
+}
+
+func (c *Client) MessagesEditQuickReplyShortcut(shortcutID int32, shortcut string) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesEditQuickReplyShortcutParams{
+		Shortcut:   shortcut,
+		ShortcutID: shortcutID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesEditQuickReplyShortcut")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -7011,23 +7281,24 @@ func (c *Client) MessagesFaveSticker(id InputDocument, unfave bool) (bool, error
 }
 
 type MessagesForwardMessagesParams struct {
-	Silent            bool `tl:"flag:5,encoded_in_bitflags"`
-	Background        bool `tl:"flag:6,encoded_in_bitflags"`
-	WithMyScore       bool `tl:"flag:8,encoded_in_bitflags"`
-	DropAuthor        bool `tl:"flag:11,encoded_in_bitflags"`
-	DropMediaCaptions bool `tl:"flag:12,encoded_in_bitflags"`
-	Noforwards        bool `tl:"flag:14,encoded_in_bitflags"`
-	FromPeer          InputPeer
-	ID                []int32
-	RandomID          []int64
-	ToPeer            InputPeer
-	TopMsgID          int32     `tl:"flag:9"`
-	ScheduleDate      int32     `tl:"flag:10"`
-	SendAs            InputPeer `tl:"flag:13"`
+	Silent             bool `tl:"flag:5,encoded_in_bitflags"`
+	Background         bool `tl:"flag:6,encoded_in_bitflags"`
+	WithMyScore        bool `tl:"flag:8,encoded_in_bitflags"`
+	DropAuthor         bool `tl:"flag:11,encoded_in_bitflags"`
+	DropMediaCaptions  bool `tl:"flag:12,encoded_in_bitflags"`
+	Noforwards         bool `tl:"flag:14,encoded_in_bitflags"`
+	FromPeer           InputPeer
+	ID                 []int32
+	RandomID           []int64
+	ToPeer             InputPeer
+	TopMsgID           int32                   `tl:"flag:9"`
+	ScheduleDate       int32                   `tl:"flag:10"`
+	SendAs             InputPeer               `tl:"flag:13"`
+	QuickReplyShortcut InputQuickReplyShortcut `tl:"flag:17"`
 }
 
 func (*MessagesForwardMessagesParams) CRC() uint32 {
-	return 0xc661bbc4
+	return 0xd5039208
 }
 
 func (*MessagesForwardMessagesParams) FlagIndex() int {
@@ -7447,16 +7718,16 @@ func (c *Client) MessagesGetDhConfig(version, randomLength int32) (MessagesDhCon
 type MessagesGetDialogFiltersParams struct{}
 
 func (*MessagesGetDialogFiltersParams) CRC() uint32 {
-	return 0xf19ed96d
+	return 0xefd48c89
 }
 
-func (c *Client) MessagesGetDialogFilters() ([]DialogFilter, error) {
+func (c *Client) MessagesGetDialogFilters() (*MessagesDialogFilters, error) {
 	responseData, err := c.MakeRequest(&MessagesGetDialogFiltersParams{})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesGetDialogFilters")
 	}
 
-	resp, ok := responseData.([]DialogFilter)
+	resp, ok := responseData.(*MessagesDialogFilters)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -8386,6 +8657,58 @@ func (c *Client) MessagesGetPollVotes(params *MessagesGetPollVotesParams) (*Mess
 	}
 
 	resp, ok := responseData.(*MessagesVotesList)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesGetQuickRepliesParams struct {
+	Hash int64
+}
+
+func (*MessagesGetQuickRepliesParams) CRC() uint32 {
+	return 0xd483f2a8
+}
+
+func (c *Client) MessagesGetQuickReplies(hash int64) (MessagesQuickReplies, error) {
+	responseData, err := c.MakeRequest(&MessagesGetQuickRepliesParams{Hash: hash})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetQuickReplies")
+	}
+
+	resp, ok := responseData.(MessagesQuickReplies)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesGetQuickReplyMessagesParams struct {
+	ShortcutID int32
+	ID         []int32 `tl:"flag:0"`
+	Hash       int64
+}
+
+func (*MessagesGetQuickReplyMessagesParams) CRC() uint32 {
+	return 0x94a495c3
+}
+
+func (*MessagesGetQuickReplyMessagesParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesGetQuickReplyMessages(shortcutID int32, id []int32, hash int64) (MessagesMessages, error) {
+	responseData, err := c.MakeRequest(&MessagesGetQuickReplyMessagesParams{
+		Hash:       hash,
+		ID:         id,
+		ShortcutID: shortcutID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetQuickReplyMessages")
+	}
+
+	resp, ok := responseData.(MessagesMessages)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -9524,6 +9847,27 @@ func (c *Client) MessagesReorderPinnedSavedDialogs(force bool, order []InputDial
 	return resp, nil
 }
 
+type MessagesReorderQuickRepliesParams struct {
+	Order []int32
+}
+
+func (*MessagesReorderQuickRepliesParams) CRC() uint32 {
+	return 0x60331907
+}
+
+func (c *Client) MessagesReorderQuickReplies(order []int32) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesReorderQuickRepliesParams{Order: order})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesReorderQuickReplies")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesReorderStickerSetsParams struct {
 	Masks  bool `tl:"flag:0,encoded_in_bitflags"`
 	Emojis bool `tl:"flag:1,encoded_in_bitflags"`
@@ -10225,21 +10569,22 @@ func (c *Client) MessagesSendEncryptedService(peer *InputEncryptedChat, randomID
 }
 
 type MessagesSendInlineBotResultParams struct {
-	Silent       bool `tl:"flag:5,encoded_in_bitflags"`
-	Background   bool `tl:"flag:6,encoded_in_bitflags"`
-	ClearDraft   bool `tl:"flag:7,encoded_in_bitflags"`
-	HideVia      bool `tl:"flag:11,encoded_in_bitflags"`
-	Peer         InputPeer
-	ReplyTo      InputReplyTo `tl:"flag:0"`
-	RandomID     int64
-	QueryID      int64
-	ID           string
-	ScheduleDate int32     `tl:"flag:10"`
-	SendAs       InputPeer `tl:"flag:13"`
+	Silent             bool `tl:"flag:5,encoded_in_bitflags"`
+	Background         bool `tl:"flag:6,encoded_in_bitflags"`
+	ClearDraft         bool `tl:"flag:7,encoded_in_bitflags"`
+	HideVia            bool `tl:"flag:11,encoded_in_bitflags"`
+	Peer               InputPeer
+	ReplyTo            InputReplyTo `tl:"flag:0"`
+	RandomID           int64
+	QueryID            int64
+	ID                 string
+	ScheduleDate       int32                   `tl:"flag:10"`
+	SendAs             InputPeer               `tl:"flag:13"`
+	QuickReplyShortcut InputQuickReplyShortcut `tl:"flag:17"`
 }
 
 func (*MessagesSendInlineBotResultParams) CRC() uint32 {
-	return 0xf7bc68ba
+	return 0x3ebee86a
 }
 
 func (*MessagesSendInlineBotResultParams) FlagIndex() int {
@@ -10271,14 +10616,15 @@ type MessagesSendMediaParams struct {
 	Media                  InputMedia
 	Message                string
 	RandomID               int64
-	ReplyMarkup            ReplyMarkup     `tl:"flag:2"`
-	Entities               []MessageEntity `tl:"flag:3"`
-	ScheduleDate           int32           `tl:"flag:10"`
-	SendAs                 InputPeer       `tl:"flag:13"`
+	ReplyMarkup            ReplyMarkup             `tl:"flag:2"`
+	Entities               []MessageEntity         `tl:"flag:3"`
+	ScheduleDate           int32                   `tl:"flag:10"`
+	SendAs                 InputPeer               `tl:"flag:13"`
+	QuickReplyShortcut     InputQuickReplyShortcut `tl:"flag:17"`
 }
 
 func (*MessagesSendMediaParams) CRC() uint32 {
-	return 0x72ccc23d
+	return 0x7bd66041
 }
 
 func (*MessagesSendMediaParams) FlagIndex() int {
@@ -10310,14 +10656,15 @@ type MessagesSendMessageParams struct {
 	ReplyTo                InputReplyTo `tl:"flag:0"`
 	Message                string
 	RandomID               int64
-	ReplyMarkup            ReplyMarkup     `tl:"flag:2"`
-	Entities               []MessageEntity `tl:"flag:3"`
-	ScheduleDate           int32           `tl:"flag:10"`
-	SendAs                 InputPeer       `tl:"flag:13"`
+	ReplyMarkup            ReplyMarkup             `tl:"flag:2"`
+	Entities               []MessageEntity         `tl:"flag:3"`
+	ScheduleDate           int32                   `tl:"flag:10"`
+	SendAs                 InputPeer               `tl:"flag:13"`
+	QuickReplyShortcut     InputQuickReplyShortcut `tl:"flag:17"`
 }
 
 func (*MessagesSendMessageParams) CRC() uint32 {
-	return 0x280d096f
+	return 0xdff8042c
 }
 
 func (*MessagesSendMessageParams) FlagIndex() int {
@@ -10347,12 +10694,13 @@ type MessagesSendMultiMediaParams struct {
 	Peer                   InputPeer
 	ReplyTo                InputReplyTo `tl:"flag:0"`
 	MultiMedia             []*InputSingleMedia
-	ScheduleDate           int32     `tl:"flag:10"`
-	SendAs                 InputPeer `tl:"flag:13"`
+	ScheduleDate           int32                   `tl:"flag:10"`
+	SendAs                 InputPeer               `tl:"flag:13"`
+	QuickReplyShortcut     InputQuickReplyShortcut `tl:"flag:17"`
 }
 
 func (*MessagesSendMultiMediaParams) CRC() uint32 {
-	return 0x456e8987
+	return 0xc964709
 }
 
 func (*MessagesSendMultiMediaParams) FlagIndex() int {
@@ -10363,6 +10711,31 @@ func (c *Client) MessagesSendMultiMedia(params *MessagesSendMultiMediaParams) (U
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesSendMultiMedia")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesSendQuickReplyMessagesParams struct {
+	Peer       InputPeer
+	ShortcutID int32
+}
+
+func (*MessagesSendQuickReplyMessagesParams) CRC() uint32 {
+	return 0x33153ad4
+}
+
+func (c *Client) MessagesSendQuickReplyMessages(peer InputPeer, shortcutID int32) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesSendQuickReplyMessagesParams{
+		Peer:       peer,
+		ShortcutID: shortcutID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesSendQuickReplyMessages")
 	}
 
 	resp, ok := responseData.(Updates)
@@ -10995,6 +11368,27 @@ func (c *Client) MessagesToggleBotInAttachMenu(writeAllowed bool, bot InputUser,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending MessagesToggleBotInAttachMenu")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesToggleDialogFilterTagsParams struct {
+	Enabled bool
+}
+
+func (*MessagesToggleDialogFilterTagsParams) CRC() uint32 {
+	return 0xfd2dda49
+}
+
+func (c *Client) MessagesToggleDialogFilterTags(enabled bool) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesToggleDialogFilterTagsParams{Enabled: enabled})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesToggleDialogFilterTags")
 	}
 
 	resp, ok := responseData.(bool)
@@ -12911,6 +13305,157 @@ func (c *Client) PremiumGetUserBoosts(peer InputPeer, userID InputUser) (*Premiu
 	return resp, nil
 }
 
+type SmsjobsFinishJobParams struct {
+	JobID string
+	Error string `tl:"flag:0"`
+}
+
+func (*SmsjobsFinishJobParams) CRC() uint32 {
+	return 0x4f1ebf24
+}
+
+func (*SmsjobsFinishJobParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) SmsjobsFinishJob(jobID, error string) (bool, error) {
+	responseData, err := c.MakeRequest(&SmsjobsFinishJobParams{
+		Error: error,
+		JobID: jobID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending SmsjobsFinishJob")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type SmsjobsGetSmsJobParams struct {
+	JobID string
+}
+
+func (*SmsjobsGetSmsJobParams) CRC() uint32 {
+	return 0x778d902f
+}
+
+func (c *Client) SmsjobsGetSmsJob(jobID string) (*SmsJob, error) {
+	responseData, err := c.MakeRequest(&SmsjobsGetSmsJobParams{JobID: jobID})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending SmsjobsGetSmsJob")
+	}
+
+	resp, ok := responseData.(*SmsJob)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type SmsjobsGetStatusParams struct{}
+
+func (*SmsjobsGetStatusParams) CRC() uint32 {
+	return 0x10a698e8
+}
+
+func (c *Client) SmsjobsGetStatus() (*SmsjobsStatus, error) {
+	responseData, err := c.MakeRequest(&SmsjobsGetStatusParams{})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending SmsjobsGetStatus")
+	}
+
+	resp, ok := responseData.(*SmsjobsStatus)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type SmsjobsIsEligibleToJoinParams struct{}
+
+func (*SmsjobsIsEligibleToJoinParams) CRC() uint32 {
+	return 0xedc39d0
+}
+
+func (c *Client) SmsjobsIsEligibleToJoin() (*SmsjobsEligibleToJoin, error) {
+	responseData, err := c.MakeRequest(&SmsjobsIsEligibleToJoinParams{})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending SmsjobsIsEligibleToJoin")
+	}
+
+	resp, ok := responseData.(*SmsjobsEligibleToJoin)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type SmsjobsJoinParams struct{}
+
+func (*SmsjobsJoinParams) CRC() uint32 {
+	return 0xa74ece2d
+}
+
+func (c *Client) SmsjobsJoin() (bool, error) {
+	responseData, err := c.MakeRequest(&SmsjobsJoinParams{})
+	if err != nil {
+		return false, errors.Wrap(err, "sending SmsjobsJoin")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type SmsjobsLeaveParams struct{}
+
+func (*SmsjobsLeaveParams) CRC() uint32 {
+	return 0x9898ad73
+}
+
+func (c *Client) SmsjobsLeave() (bool, error) {
+	responseData, err := c.MakeRequest(&SmsjobsLeaveParams{})
+	if err != nil {
+		return false, errors.Wrap(err, "sending SmsjobsLeave")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type SmsjobsUpdateSettingsParams struct {
+	AllowInternational bool `tl:"flag:0,encoded_in_bitflags"`
+}
+
+func (*SmsjobsUpdateSettingsParams) CRC() uint32 {
+	return 0x93fa0bf
+}
+
+func (*SmsjobsUpdateSettingsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) SmsjobsUpdateSettings(allowInternational bool) (bool, error) {
+	responseData, err := c.MakeRequest(&SmsjobsUpdateSettingsParams{AllowInternational: allowInternational})
+	if err != nil {
+		return false, errors.Wrap(err, "sending SmsjobsUpdateSettings")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type StatsGetBroadcastStatsParams struct {
 	Dark    bool `tl:"flag:0,encoded_in_bitflags"`
 	Channel InputChannel
@@ -14364,6 +14909,7 @@ func (c *Client) UsersGetUsers(id []InputUser) ([]User, error) {
 
 			return users, nil
 		}
+
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
 	return resp, nil

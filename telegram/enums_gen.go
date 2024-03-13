@@ -138,7 +138,9 @@ func (e InputPrivacyKey) CRC() uint32 { return uint32(e) }
 
 type Null uint32
 
-const NullCrc Null = 0x56730bcc
+const (
+	NullCrc Null = 0x56730bcc
+)
 
 func (e Null) String() string {
 	switch e {
@@ -149,7 +151,7 @@ func (e Null) String() string {
 	}
 }
 
-func (e Null) CRC() uint32 { return uint32(0x56730bcc) }
+func (e Null) CRC() uint32 { return uint32(e) }
 
 type PhoneCallDiscardReason uint32
 
