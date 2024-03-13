@@ -11,21 +11,21 @@ jobs:
 
         steps:
             - name: Checkout repository
-                uses: actions/checkout@v2
+              uses: actions/checkout@v2
 
             - name: Set up Go
-                uses: actions/setup-go@v2
-                with:
+              uses: actions/setup-go@v2
+              with:
                     go-version: 1.22
 
             - name: Build and run tlgen
-                run: |
+              run: |
                     go build -o tlgen ./internal/cmd/tlgen
                     ./tlgen
 
             - name: Create Pull Request
-                uses: peter-evans/create-pull-request@v3
-                with:
+              uses: peter-evans/create-pull-request@v3
+              with:
                     token: ${{ secrets.GITHUB_TOKEN }}
                     commit-message: Auto LTL
                     title: Auto LTL
