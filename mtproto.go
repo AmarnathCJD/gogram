@@ -401,6 +401,7 @@ func (m *MTProto) Ping() time.Duration {
 
 func (m *MTProto) startReadingResponses(ctx context.Context) {
 	m.routineswg.Add(1)
+
 	go func() {
 		defer m.routineswg.Done()
 		for {
@@ -413,7 +414,6 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					return
 				}
 				err := m.readMsg()
-				//errors.Is(err, io.EOF)
 
 				if err != nil {
 					if strings.Contains(err.Error(), "unexpected error: unexpected EOF") {
@@ -442,16 +442,18 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					}
 					return
 				default:
-					if e, ok := err.(transport.ErrCode); ok && e != 4294966892 {
-						err = m.makeAuthKey()
-						if err != nil {
-							m.Logger.Error(errors.Wrap(err, "making auth key"))
+					switch e := err.(type) {
+					case *ErrResponseCode:
+						if e.Code == 4294966892 {
+							m.Logger.Error(errors.New("[AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)"))
+							panic("[AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)")
 						}
-					} else {
-						err = m.Reconnect(false)
-						if err != nil {
-							m.Logger.Error(errors.Wrap(err, "reconnecting error"))
-						}
+					case *transport.ErrCode:
+						m.Logger.Error(errors.New("[TRANSPORT_ERROR] - " + e.Error()))
+					}
+
+					if err := m.Reconnect(false); err != nil {
+						m.Logger.Error(errors.Wrap(err, "reconnecting"))
 					}
 				}
 			}
@@ -620,12 +622,12 @@ func (m *MTProto) offsetTime() {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&timeResponse); err != nil {
-		m.Logger.Error(errors.Wrap(err, "offsetting time"))
+		m.Logger.Error(errors.Wrap(err, "off-setting time"))
 		return
 	}
 
 	m.timeOffset = timeResponse.Unixtime - currentLocalTime
-	m.Logger.Info("SystemTime is out of sync, offsetting time by " + strconv.FormatInt(m.timeOffset, 10) + " seconds")
+	m.Logger.Info("system time is out of sync, off-setting time by " + strconv.FormatInt(m.timeOffset, 10) + " seconds")
 }
 
 func closeOnCancel(ctx context.Context, c io.Closer) {
