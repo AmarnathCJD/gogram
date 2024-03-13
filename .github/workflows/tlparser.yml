@@ -21,15 +21,13 @@ jobs:
     - name: Build & Run TL Parser
       run: cd ./internal/cmd/tlgen && go run .
 
-    - name: Send PR
-      uses: peter-evans/create-pull-request@v3 
+    - uses: stefanzweifel/git-auto-commit-action@v4
       with:
-            token: ${{ secrets.GITHUB_TOKEN }}
-            commit-message: Auto LTL
-            title: Auto LTL
-            body: Automatically generated pull request from TLParser workflow
-            branch: auto-ltl
-            base: master
-            branch-suffix: timestamp
+        commit_message: "TLParserBot: Auto-Generated TLs"
+        commit_options: "--no-verify"
+        repository: .
+        commit_user_name: AmarnathCjd
+        commit_user_email: 72609355+AmarnathCjd@users.noreply.github.com
+        commit_author: AmarnathCjd <72609355+AmarnathCjd+@users.noreply.github.com>
 
 
