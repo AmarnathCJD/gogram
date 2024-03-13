@@ -18,11 +18,8 @@ jobs:
       with:
         go-version: '1.22'
 
-    - name: Build
-      run: cd ./internal/cmd/tlgen && go build -o tlgen .
-
-    - name: Parse TL Schema
-      run: ./tlgen
+    - name: Build & Run TL Parser
+      run: cd ./internal/cmd/tlgen && go run .
 
     - name: Send PR
       uses: peter-evans/create-pull-request@v3 
