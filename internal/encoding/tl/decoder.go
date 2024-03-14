@@ -86,13 +86,12 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 	if haveFlag(value.Interface()) {
 		indexGetter, ok := reflect.New(vtyp).Interface().(FlagIndexGetter)
 		if !ok {
-			panic("type " + value.Type().String() + " has type bit flag tags, but doesn't inplement tl.FlagIndexGetter")
+			panic("type " + value.Type().String() + " has type bit flag tags, but doesn't implement tl.FlagIndexGetter")
 		}
 		flagsetIndex = indexGetter.FlagIndex()
 		if flagsetIndex < 0 {
 			panic("flag index is below zero, must be index of parameters")
 		}
-
 	}
 
 	var isBitsetAParsed bool // flag
@@ -103,11 +102,20 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 		loopCycles++
 	}
 
+	var alreadyParsed []string
+
+	if vtyp.Name() == "UserFull" { // special case for UserFull
+		optionalBitSetA = d.PopUint()
+		optionalBitSetB = d.PopUint()
+		isBitsetAParsed = true
+		isBitsetBParsed = true
+	}
+
 	for i := 0; i < loopCycles; i++ {
 		if flagsetIndex == i && !isBitsetAParsed {
 			optionalBitSetA = d.PopUint()
 			if d.err != nil {
-				d.err = errors.Wrap(d.err, "read bitset")
+				d.err = errors.Wrap(d.err, "reading bitset("+vtyp.Name()+")")
 				return
 			}
 			isBitsetAParsed = true
@@ -116,7 +124,7 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 		}
 
 		fieldIndex := i
-		if isBitsetAParsed {
+		if isBitsetAParsed && i > 0 {
 			fieldIndex--
 		}
 		field := value.Field(fieldIndex)
@@ -156,9 +164,13 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 			field.Set(val)
 		}
 
-		d.decodeValue(field)
+		if !haveInSlice(vtyp.Field(fieldIndex).Name, alreadyParsed) {
+			d.decodeValue(field)
+			alreadyParsed = append(alreadyParsed, vtyp.Field(fieldIndex).Name)
+		}
+
 		if d.err != nil {
-			d.err = errors.Wrapf(d.err, "decode field '%s'", vtyp.Field(fieldIndex).Name)
+			d.err = errors.Wrap(d.err, "decode object: "+vtyp.Name()+"."+vtyp.Field(fieldIndex).Name)
 			break
 		}
 	}
@@ -204,15 +216,15 @@ func (d *Decoder) decodeValue(value reflect.Value) {
 	case reflect.Interface:
 		val = d.decodeRegisteredObject()
 
+		if d.err != nil {
+			d.err = errors.Wrap(d.err, "decode interface")
+			return
+		}
+
 		if v, ok := val.(*WrappedSlice); ok {
 			if reflect.TypeOf(v.data).ConvertibleTo(value.Type()) {
 				val = v.data
 			}
-		}
-
-		if d.err != nil {
-			d.err = errors.Wrap(d.err, "decode interface")
-			return
 		}
 	default:
 		panic("unknown kind of value: " + value.Type().String())

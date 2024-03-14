@@ -206,7 +206,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.appHash = cnf.AppHash
 	c.clientData.deviceModel = getStr(cnf.DeviceModel, DefaultDevice)
 	c.clientData.systemVersion = getStr(cnf.SystemVersion, DefaultSystem)
-	c.clientData.appVersion = getStr(cnf.AppVersion, "1.0")
+	c.clientData.appVersion = getStr(cnf.AppVersion, Version)
 	c.clientData.langCode = getStr(cnf.LangCode, "en")
 	c.clientData.logLevel = getStr(cnf.LogLevel, LogInfo)
 	c.clientData.parseMode = getStr(cnf.ParseMode, "HTML")
@@ -217,7 +217,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 // initialRequest sends the initial initConnection request
 func (c *Client) InitialRequest() error {
 	c.Log.Debug("sending initial invokeWithLayer request")
-	_, err := c.InvokeWithLayer(ApiVersion, &InitConnectionParams{
+	serverConfig, err := c.InvokeWithLayer(ApiVersion, &InitConnectionParams{
 		ApiID:          c.clientData.appID,
 		DeviceModel:    c.clientData.deviceModel,
 		SystemVersion:  c.clientData.systemVersion,
@@ -226,8 +226,18 @@ func (c *Client) InitialRequest() error {
 		LangCode:       c.clientData.langCode,
 		Query:          &HelpGetConfigParams{},
 	})
+
 	if err != nil {
 		return errors.Wrap(err, "sending invokeWithLayer")
+	}
+
+	c.Log.Debug("received initial invokeWithLayer response")
+	if config, ok := serverConfig.(*Config); ok {
+		for _, dc := range config.DcOptions {
+			if !dc.Ipv6 && !dc.MediaOnly && !dc.Cdn {
+				DataCenters[int(dc.ID)] = dc.IpAddress + ":" + strconv.Itoa(int(dc.Port))
+			}
+		}
 	}
 
 	return nil

@@ -16,15 +16,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	DataCenters = map[int]string{
-		1: "149.154.175.58:443",
-		2: "149.154.167.50:443",
-		3: "149.154.175.100:443",
-		4: "149.154.167.91:443",
-		5: "91.108.56.151:443",
-	}
-)
+var DataCenters = map[int]string{
+	1: "149.154.175.58:443",
+	2: "149.154.167.50:443",
+	3: "149.154.175.100:443",
+	4: "149.154.167.91:443",
+	5: "91.108.56.151:443",
+}
 
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
@@ -323,6 +321,42 @@ PeerSwitch:
 		return &InputPeerChannelFromMessage{Peer: Peer.Peer, MsgID: Peer.MsgID, ChannelID: Peer.ChannelID}, nil
 	default:
 		return nil, errors.New("Failed to get sendable peer, unknown type " + reflect.TypeOf(PeerID).String())
+	}
+}
+
+func (c *Client) GetSendableChannel(PeerID interface{}) (InputChannel, error) {
+	rawPeer, err := c.GetSendablePeer(PeerID)
+	if err != nil {
+		return nil, err
+	}
+
+	switch rawPeer := rawPeer.(type) {
+	case *InputPeerChannel:
+		return &InputChannelObj{ChannelID: rawPeer.ChannelID, AccessHash: rawPeer.AccessHash}, nil
+	case *InputPeerChannelFromMessage:
+		return &InputChannelFromMessage{Peer: rawPeer.Peer, MsgID: rawPeer.MsgID, ChannelID: rawPeer.ChannelID}, nil
+	case *InputPeerChat, *InputPeerUser:
+		return nil, errors.New("given peer is not a channel")
+	default:
+		return nil, errors.New("failed to get sendable channel, unknown type " + reflect.TypeOf(rawPeer).String())
+	}
+}
+
+func (c *Client) GetSendableUser(PeerID interface{}) (InputUser, error) {
+	rawPeer, err := c.GetSendablePeer(PeerID)
+	if err != nil {
+		return nil, err
+	}
+
+	switch rawPeer := rawPeer.(type) {
+	case *InputPeerUser:
+		return &InputUserObj{UserID: rawPeer.UserID, AccessHash: rawPeer.AccessHash}, nil
+	case *InputPeerUserFromMessage:
+		return &InputUserFromMessage{Peer: rawPeer.Peer, MsgID: rawPeer.MsgID, UserID: rawPeer.UserID}, nil
+	case *InputPeerChat, *InputPeerChannel:
+		return nil, errors.New("given peer is not a user")
+	default:
+		return nil, errors.New("failed to get sendable user, unknown type " + reflect.TypeOf(rawPeer).String())
 	}
 }
 
