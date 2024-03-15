@@ -423,7 +423,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 							m.Logger.Error(errors.Wrap(err, "reconnecting"))
 						}
 					} else if strings.Contains(err.Error(), "required to reconnect!") { // network is not stable
-						m.Logger.Debug("network is not stable, reconnecting to [" + m.Addr + "] - <TCPFull> ...")
+						m.Logger.Debug("unstable connection, reconnecting to [" + m.Addr + "] - <TCPFull> ...")
 						err = m.Reconnect(false)
 						if err != nil {
 							m.Logger.Error(errors.Wrap(err, "reconnecting"))
@@ -527,9 +527,23 @@ messageTypeSwitching:
 				return errors.Wrap(err, "saving session")
 			}
 		}
+
+		var badMsgResponseChannel chan tl.Object
+		for _, v := range m.responseChannels.Keys() {
+			if v == int(message.BadMsgID) {
+				badMsgResponseChannel, _ = m.responseChannels.Get(v)
+				m.responseChannels.Delete(v)
+				break
+			}
+		}
+
 		m.Reconnect(false)
 
 		m.mutex.Lock()
+		if badMsgResponseChannel != nil {
+			badMsgResponseChannel <- &errorSessionConfigsChanged{}
+		}
+
 		for _, k := range m.responseChannels.Keys() {
 			v, _ := m.responseChannels.Get(k)
 			v <- &errorSessionConfigsChanged{}

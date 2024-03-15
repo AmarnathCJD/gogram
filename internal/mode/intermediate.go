@@ -37,7 +37,7 @@ func (m *intermediate) WriteMsg(msg []byte) error {
 
 func (m *intermediate) ReadMsg() ([]byte, error) {
 	sizeBuf := make([]byte, tl.WordLen)
-	n, err := m.conn.Read(sizeBuf)
+	n, err := io.ReadFull(m.conn, sizeBuf)
 	if err != nil {
 		return nil, err
 	}
