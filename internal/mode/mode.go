@@ -69,7 +69,7 @@ func Detect(conn io.ReadWriter) (Mode, error) {
 		return nil, ErrInterfaceIsNil
 	}
 	b := []byte{0x0}
-	_, err := conn.Read(b)
+	_, err := io.ReadFull(conn, b)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func Detect(conn io.ReadWriter) (Mode, error) {
 	case transportModeIntermediate[0]:
 		modeAnnounce := make([]byte, 4)
 		copy(modeAnnounce, b)
-		_, err = conn.Read(modeAnnounce[1:])
+		_, err = io.ReadFull(conn, modeAnnounce[1:])
 		if err != nil {
 			return nil, err
 		}

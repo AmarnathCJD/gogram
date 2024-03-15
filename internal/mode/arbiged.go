@@ -60,7 +60,7 @@ func (m *abridged) WriteMsg(msg []byte) error {
 func (m *abridged) ReadMsg() ([]byte, error) {
 	fmt.Println("im here")
 	sizeBuf := make([]byte, 1)
-	n, err := m.conn.Read(sizeBuf)
+	n, err := io.ReadFull(m.conn, sizeBuf)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (m *abridged) ReadMsg() ([]byte, error) {
 
 	if sizeBuf[0] == magicValueSizeMoreThanSingleByte {
 		sizeBuf = make([]byte, 4)
-		n, err := m.conn.Read(sizeBuf[:3])
+		n, err := io.ReadFull(m.conn, sizeBuf[:3])
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +91,7 @@ func (m *abridged) ReadMsg() ([]byte, error) {
 
 	msg := make([]byte, size)
 
-	n, err = m.conn.Read(msg)
+	n, err = io.ReadFull(m.conn, msg)
 	if err != nil {
 		return nil, err
 	}
