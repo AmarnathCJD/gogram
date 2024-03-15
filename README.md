@@ -143,13 +143,17 @@ client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 - [x] Support for Flag2.0, Layer 147
 - [ ] WebRTC Calls Support
 - [ ] Documentation for all methods
-- [ ] Stabilize File Uploading/Downloading
+- [x] Stabilize File Uploading
+- [ ] Stabilize File Downloading
 - [ ] Secret Chats Support
 
 ## Known Issues
 
 - [x] File Uploading/Downloading is not stable
-- [ ] MessageMediaPoll Decode Fails
+- [x] MessageMediaPoll, UserFull Decode Fails
+- [x] invokeWithLayer channel missing while bad Salt
+- [x] tcp.io.Reader.Read unstable
+- [ ] HTML Parser 
 
 ## Contributing
 
