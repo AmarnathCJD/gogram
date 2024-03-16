@@ -5,6 +5,7 @@ package mode
 import (
 	"encoding/binary"
 	"fmt"
+
 	"io"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
@@ -58,7 +59,6 @@ func (m *abridged) WriteMsg(msg []byte) error {
 }
 
 func (m *abridged) ReadMsg() ([]byte, error) {
-	fmt.Println("im here")
 	sizeBuf := make([]byte, 1)
 	n, err := m.conn.Read(sizeBuf)
 	if err != nil {
@@ -67,7 +67,6 @@ func (m *abridged) ReadMsg() ([]byte, error) {
 	if n != 1 {
 		return nil, fmt.Errorf("need to read at least 1 byte")
 	}
-	fmt.Println("im here 2")
 
 	size := 0
 
@@ -85,7 +84,6 @@ func (m *abridged) ReadMsg() ([]byte, error) {
 	} else {
 		size = int(sizeBuf[0])
 	}
-	fmt.Println("im here 3")
 
 	size *= tl.WordLen
 
