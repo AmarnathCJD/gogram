@@ -388,6 +388,8 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
 	})
+
+	m.MakeRequest(&utils.UpdatesGetStateParams{}) // to ask the server to send the updates
 	return errors.Wrap(err, "recreating connection")
 }
 
@@ -423,7 +425,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 							m.Logger.Error(errors.Wrap(err, "reconnecting"))
 						}
 					} else if strings.Contains(err.Error(), "required to reconnect!") { // network is not stable
-						m.Logger.Debug("unstable connection, reconnecting to [" + m.Addr + "] - <TcpInt> ...")
+						m.Logger.Debug("packet read error, reconnecting to [" + m.Addr + "] - <TcpInt> ...")
 						err = m.Reconnect(false)
 						if err != nil {
 							m.Logger.Error(errors.Wrap(err, "reconnecting"))
