@@ -528,24 +528,35 @@ messageTypeSwitching:
 			}
 		}
 
-		var badMsgResponseChannel chan tl.Object
-		for _, v := range m.responseChannels.Keys() {
-			if v == int(message.BadMsgID) {
-				badMsgResponseChannel, _ = m.responseChannels.Get(v)
-				m.responseChannels.Delete(v)
-				break
-			}
-		}
+		var respChannelsBackup *utils.SyncIntObjectChan
+		m.mutex.Lock()
+		respChannelsBackup = m.responseChannels
+
+		m.responseChannels = utils.NewSyncIntObjectChan()
+
+		//var badMsgResponseChannel chan tl.Object
+		//for _, v := range m.responseChannels.Keys() {
+		//	if v == int(message.BadMsgID) {
+		//		badMsgResponseChannel, _ = m.responseChannels.Get(v)
+		//		m.responseChannels.Delete(v)
+		//		break
+		//	}
+		//}
 
 		m.Reconnect(false)
 
-		m.mutex.Lock()
-		if badMsgResponseChannel != nil {
-			badMsgResponseChannel <- &errorSessionConfigsChanged{}
-		}
+		//m.mutex.Lock()
+		//if badMsgResponseChannel != nil {
+		//	badMsgResponseChannel <- &errorSessionConfigsChanged{}
+		//}
 
-		for _, k := range m.responseChannels.Keys() {
-			v, _ := m.responseChannels.Get(k)
+		//for _, k := range m.responseChannels.Keys() {
+		//	v, _ := m.responseChannels.Get(k)
+		//	v <- &errorSessionConfigsChanged{}
+		//}
+
+		for _, k := range respChannelsBackup.Keys() {
+			v, _ := respChannelsBackup.Get(k)
 			v <- &errorSessionConfigsChanged{}
 		}
 
