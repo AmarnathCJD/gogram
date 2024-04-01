@@ -63,7 +63,7 @@ func main() {
 			file.Seek(0, 0)
 			file.WriteString(string(remoteAPIVersion))
 
-			root(tlLOC, desLOC)
+			fmt.Println(root(tlLOC, desLOC))
 		} else {
 			fmt.Println("Local API version is", llayer, "and remote API version is", rlayer)
 			fmt.Println("No update required")
