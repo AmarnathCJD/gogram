@@ -97,6 +97,7 @@ type InputPrivacyKey uint32
 const (
 	InputPrivacyKeyAbout           InputPrivacyKey = 0x3823cc40
 	InputPrivacyKeyAddedByPhone    InputPrivacyKey = 0xd1219bdd
+	InputPrivacyKeyBirthday        InputPrivacyKey = 0xd65a11cc
 	InputPrivacyKeyChatInvite      InputPrivacyKey = 0xbdfb0426
 	InputPrivacyKeyForwards        InputPrivacyKey = 0xa4dd4c08
 	InputPrivacyKeyPhoneCall       InputPrivacyKey = 0xfabadc5f
@@ -113,6 +114,8 @@ func (e InputPrivacyKey) String() string {
 		return "inputPrivacyKeyAbout"
 	case InputPrivacyKey(0xd1219bdd):
 		return "inputPrivacyKeyAddedByPhone"
+	case InputPrivacyKey(0xd65a11cc):
+		return "inputPrivacyKeyBirthday"
 	case InputPrivacyKey(0xbdfb0426):
 		return "inputPrivacyKeyChatInvite"
 	case InputPrivacyKey(0xa4dd4c08):
@@ -135,23 +138,6 @@ func (e InputPrivacyKey) String() string {
 }
 
 func (e InputPrivacyKey) CRC() uint32 { return uint32(e) }
-
-type Null uint32
-
-const (
-	NullCrc Null = 0x56730bcc
-)
-
-func (e Null) String() string {
-	switch e {
-	case Null(0x56730bcc):
-		return "null"
-	default:
-		return "<UNKNOWN Null>"
-	}
-}
-
-func (e Null) CRC() uint32 { return uint32(e) }
 
 type PhoneCallDiscardReason uint32
 
@@ -184,6 +170,7 @@ type PrivacyKey uint32
 const (
 	PrivacyKeyAbout           PrivacyKey = 0xa486b761
 	PrivacyKeyAddedByPhone    PrivacyKey = 0x42ffd42b
+	PrivacyKeyBirthday        PrivacyKey = 0x2000a518
 	PrivacyKeyChatInvite      PrivacyKey = 0x500e6dfa
 	PrivacyKeyForwards        PrivacyKey = 0x69ec56a3
 	PrivacyKeyPhoneCall       PrivacyKey = 0x3d662b7b
@@ -200,6 +187,8 @@ func (e PrivacyKey) String() string {
 		return "privacyKeyAbout"
 	case PrivacyKey(0x42ffd42b):
 		return "privacyKeyAddedByPhone"
+	case PrivacyKey(0x2000a518):
+		return "privacyKeyBirthday"
 	case PrivacyKey(0x500e6dfa):
 		return "privacyKeyChatInvite"
 	case PrivacyKey(0x69ec56a3):
