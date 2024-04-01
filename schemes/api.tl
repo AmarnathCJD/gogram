@@ -1,11 +1,15 @@
-
+boolFalse#bc799737 = Bool;
+boolTrue#997275b5 = Bool;
+	
+true#3fedd339 = True;
+	
+vector#1cb5c415 {t:Type} # [ t ] = Vector t;
+	
+error#c4b9f9bb code:int text:string = Error;
+	
+null#56730bcc = Null;
 
 ---types---
-
-
-
-
-
 
 inputPeerEmpty#7f3b18ea = InputPeer;
 inputPeerSelf#7da07ec9 = InputPeer;
@@ -1769,7 +1773,6 @@ broadcastRevenueTransactionRefund#42d30d2e amount:long date:int provider:string 
 stats.broadcastRevenueTransactions#87158466 count:int transactions:Vector<BroadcastRevenueTransaction> = stats.BroadcastRevenueTransactions;
 
 ---functions---
-
 
 auth.sendCode#a677244f phone_number:string api_id:int api_hash:string settings:CodeSettings = auth.SentCode;
 auth.signUp#aac7b717 flags:# no_joined_notifications:flags.0?true phone_number:string phone_code_hash:string first_name:string last_name:string = auth.Authorization;
