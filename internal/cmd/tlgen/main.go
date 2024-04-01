@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	API_SOURCE = "https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/Telegram/SourceFiles/mtproto/scheme/api.tl"
+	API_SOURCE = "https://raw.githubusercontent.com/null-nick/TL-Schema/c3e09f4310413ff49b695dfe78df64044153c905/api.tl" // "https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/Telegram/SourceFiles/mtproto/scheme/api.tl"
 	tlLOC      = "../../../schemes/api.tl"
 	desLOC     = "../../../telegram/"
 )
