@@ -54,6 +54,8 @@ func main() {
 			fmt.Println("Local API version is", llayer, "and remote API version is", rlayer)
 			fmt.Println("Performing update")
 
+			remoteAPIVersion = cleanComments(remoteAPIVersion)
+
 			file, err := os.OpenFile(tlLOC, os.O_RDWR|os.O_CREATE, 0644)
 			if err != nil {
 				panic(err)
@@ -63,7 +65,12 @@ func main() {
 			file.Seek(0, 0)
 			file.WriteString(string(remoteAPIVersion))
 
-			fmt.Println(root(tlLOC, desLOC))
+			if err := root(tlLOC, desLOC); err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err)
+			} else {
+				fmt.Println("Update completed - Generated code in", desLOC)
+			}
+
 		} else {
 			fmt.Println("Local API version is", llayer, "and remote API version is", rlayer)
 			fmt.Println("No update required")
@@ -261,4 +268,24 @@ func replace(filename, old, new string) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func cleanComments(b []byte) []byte {
+
+	lines := strings.Split(string(b), "\n")
+	var clean []string
+
+	for _, line := range lines {
+		if strings.HasPrefix(line, "//") && !strings.Contains(line, "////") {
+			if strings.Contains(line, "Not used") || strings.Contains(line, "Parsed manually") || strings.Contains(line, "https://") {
+				continue
+			}
+		} else if strings.Contains(line, "////") || strings.Contains(line, "{X:Type}") {
+			continue
+		}
+
+		clean = append(clean, line)
+	}
+
+	return []byte(strings.Join(clean, "\n"))
 }

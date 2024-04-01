@@ -80,11 +80,7 @@ func ParseSchema(source string) (*Schema, error) {
 				paramComments[pname] = strings.TrimSpace(pcomment)
 			case "LAYER":
 			default:
-				if strings.HasPrefix(ctype, "http") {
-					cur.Skip(1)
-					continue
-				}
-				return nil, fmt.Errorf("unknown comment type: %s", ctype)
+				// return nil, fmt.Errorf("unknown comment type: %s", ctype)
 			}
 
 			cur.Skip(1)

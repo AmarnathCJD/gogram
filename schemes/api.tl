@@ -1,22 +1,11 @@
-// https://github.com/telegramdesktop/tdesktop/blob/dev/Telegram/SourceFiles/mtproto/scheme/api.tl
-// https://github.com/telegramdesktop/tdesktop/blob/dev/Telegram/SourceFiles/mtproto/scheme/layer.tl
 
-///////////////////////////////
-///////// Main application API
-///////////////////////////////
 
 ---types---
 
-// boolFalse#bc799737 = Bool;  // Parsed manually
-// boolTrue#997275b5 = Bool;  // Parsed manually
 
-// true#3fedd339 = True;  // Not used
 
-// vector#1cb5c415 {t:Type} # [ t ] = Vector t;  // Parsed manually
 
-// error#c4b9f9bb code:int text:string = Error;  // Not used
 
-// null#56730bcc = Null;  // Parsed manually
 
 inputPeerEmpty#7f3b18ea = InputPeer;
 inputPeerSelf#7da07ec9 = InputPeer;
@@ -1781,14 +1770,6 @@ stats.broadcastRevenueTransactions#87158466 count:int transactions:Vector<Broadc
 
 ---functions---
 
-invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
-invokeAfterMsgs#3dc4b4f0 {X:Type} msg_ids:Vector<long> query:!X = X;
-initConnection#c1cd5ea9 {X:Type} flags:# api_id:int device_model:string system_version:string app_version:string system_lang_code:string lang_pack:string lang_code:string proxy:flags.0?InputClientProxy params:flags.1?JSONValue query:!X = X;
-invokeWithLayer#da9b0d0d {X:Type} layer:int query:!X = X;
-invokeWithoutUpdates#bf9459b7 {X:Type} query:!X = X;
-invokeWithMessagesRange#365275f2 {X:Type} range:MessageRange query:!X = X;
-invokeWithTakeout#aca9fd2e {X:Type} takeout_id:long query:!X = X;
-invokeWithBusinessConnection#dd289f8e {X:Type} connection_id:string query:!X = X;
 
 auth.sendCode#a677244f phone_number:string api_id:int api_hash:string settings:CodeSettings = auth.SentCode;
 auth.signUp#aac7b717 flags:# no_joined_notifications:flags.0?true phone_number:string phone_code_hash:string first_name:string last_name:string = auth.Authorization;
@@ -2424,4 +2405,4 @@ smsjobs.finishJob#4f1ebf24 flags:# job_id:string error:flags.0?string = Bool;
 
 fragment.getCollectibleInfo#be1e85ba collectible:InputCollectible = fragment.CollectibleInfo;
 
-// LAYER 177
+// LAYER 176

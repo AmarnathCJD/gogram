@@ -73,6 +73,7 @@ func GenRandInt() int64 {
 
 func (c *Client) getMultiMedia(m interface{}, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
 	var media []*InputSingleMedia
+	var mediaAttributes = getVariadic(attrs, &MediaMetadata{}).(*MediaMetadata)
 	var inputMedia []InputMedia
 	switch m := m.(type) {
 	case *InputSingleMedia:
@@ -151,7 +152,7 @@ func (c *Client) getMultiMedia(m interface{}, attrs *MediaMetadata) ([]*InputSin
 	for _, m := range inputMedia {
 		switch m := m.(type) {
 		case *InputMediaUploadedPhoto, *InputMediaUploadedDocument, *InputMediaPhotoExternal, *InputMediaDocumentExternal:
-			uploadedMedia, err := c.MessagesUploadMedia(&InputPeerSelf{}, m) // Have to Upload Media only if not Cached
+			uploadedMedia, err := c.MessagesUploadMedia(mediaAttributes.BuissnessConnectionId, &InputPeerSelf{}, m) // Upload if not already cached
 			if err != nil {
 				return nil, err
 			}
