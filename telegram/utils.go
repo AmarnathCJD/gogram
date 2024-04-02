@@ -162,7 +162,7 @@ mediaMessageSwitch:
 		location, _ = f.InputLocation()
 		dataCenter = f.DcID()
 		fileSize = f.FileSize()
-	case *Photo, *Document:
+	case Photo, Document:
 		location = f
 	case *MessageMediaDocument:
 		location = f.Document
