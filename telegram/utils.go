@@ -53,6 +53,7 @@ var (
 		{".xhtml", "application/xhtml+xml"}, {".xls", "application/vnd.ms-excel"}, {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
 		{".xml", "application/xml"}, {".xul", "application/vnd.mozilla.xul+xml"}, {".zip", "application/zip"},
 		{".3gp", "video/3gpp"}, {".3g2", "video/3gpp2"}, {".7z", "application/x-7z-compressed"}, {".tgs", "application/x-tgsticker"}, {".apk", "application/vnd.android.package-archive"},
+		{".flac", "audio/x-flac"}, {".flv", "video/x-flv"}, {".m4v", "video/x-m4v"}, {".mkv", "video/x-matroska"}, {".mov", "video/quicktime"}, {".mp4", "video/mp4"},
 	}
 )
 

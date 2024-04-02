@@ -453,24 +453,32 @@ mediaTypeSwitch:
 		default:
 			return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(media).String()))
 		}
-	case InputFile:
+	case InputFile, *InputFile:
 		var (
-			IsPhoto  bool
-			mimeType string
-			fileName string
+			IsPhoto   bool
+			mimeType  string
+			fileName  string
+			mediaFile InputFile
 		)
 		switch media := media.(type) {
 		case *InputFileObj:
 			mimeType, IsPhoto = resolveMimeType(getValue(attr.FileName, media.Name).(string))
 			attr.Attributes = mergeAttrs(attr.Attributes, getAttrs(mimeType))
 			fileName = getValue(attr.FileName, media.Name).(string)
+			mediaFile = media
 		case *InputFileBig:
 			mimeType, IsPhoto = resolveMimeType(getValue(attr.FileName, media.Name).(string))
 			attr.Attributes = mergeAttrs(attr.Attributes, getAttrs(mimeType))
 			fileName = getValue(attr.FileName, media.Name).(string)
+			mediaFile = media
 		}
+
+		if attr.MimeType != "" {
+			mimeType = attr.MimeType
+		}
+
 		if IsPhoto {
-			return &InputMediaUploadedPhoto{File: media, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
+			return &InputMediaUploadedPhoto{File: mediaFile, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
 		} else {
 			var mediaAttributes = getValue(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}}).([]DocumentAttribute)
 			hasFileName := false
@@ -482,7 +490,7 @@ mediaTypeSwitch:
 				}
 			}
 
-			if attr.Thumb == nil {
+			if attr.Thumb == nil && !attr.DisableThumb {
 				thumbFile, err := c.gatherVideoThumb(fileName, dur)
 				if err != nil {
 					c.Logger.Debug("gathering video thumb", err)
@@ -494,7 +502,8 @@ mediaTypeSwitch:
 			if !hasFileName {
 				mediaAttributes = append(mediaAttributes, &DocumentAttributeFilename{FileName: fileName})
 			}
-			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValue(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool), ForceFile: false}, nil
+
+			return &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValue(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool), ForceFile: false}, nil
 		}
 	case []byte, *bytes.Reader:
 		var uopts *UploadOptions = &UploadOptions{}
@@ -523,6 +532,14 @@ func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 		if strings.HasSuffix(path, "mp4") {
 			if r, err := utils.ParseDuration(path); err == nil {
 				if IsStreamableFile(path) {
+
+					for _, attr := range attrs {
+						if att, ok := attr.(*DocumentAttributeVideo); ok {
+							att.Duration = getValue(att.Duration, float64(r/1000)).(float64)
+							return attrs, int64(r / 1000), nil
+						}
+					}
+
 					attrs = append(attrs, &DocumentAttributeVideo{
 						RoundMessage:      false,
 						SupportsStreaming: true,
@@ -557,6 +574,15 @@ func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 			height, _ = strconv.ParseInt(strings.TrimSpace(lines[1]), 10, 32)
 		}
 
+		for _, attr := range attrs {
+			if att, ok := attr.(*DocumentAttributeVideo); ok {
+				att.W = getValue(att.W, int32(width)).(int32)
+				att.H = getValue(att.H, int32(height)).(int32)
+				att.Duration = getValue(att.Duration, dur).(float64)
+				return attrs, int64(getValue(att.Duration, float64(dur)).(float64)), nil
+			}
+		}
+
 		attrs = append(attrs, &DocumentAttributeVideo{
 			RoundMessage:      false,
 			SupportsStreaming: true,
@@ -577,7 +603,6 @@ func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 		//	waveform  []byte
 		)
 
-		// ffprobe -v error -show_entries format_tags=artist,title -of json cv.mp3
 		cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format_tags=artist,title", "-of", "json", path)
 		out, err := cmd.Output()
 
@@ -611,6 +636,15 @@ func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 
 		if err_duration == nil {
 			dur, _ = strconv.ParseFloat(strings.TrimSpace(string(out_duration)), 64)
+		}
+
+		for _, attr := range attrs {
+			if att, ok := attr.(*DocumentAttributeAudio); ok {
+				att.Performer = getValue(att.Performer, performer).(string)
+				att.Title = getValue(att.Title, title).(string)
+				att.Duration = getValue(att.Duration, int32(dur)).(int32)
+				return attrs, int64(getValue(att.Duration, int32(dur)).(int32)), nil
+			}
 		}
 
 		attrs = append(attrs, &DocumentAttributeAudio{
@@ -660,8 +694,8 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 
 	if IsAudioFile(path) {
 		// get embedded album art
-		cmd := exec.Command("ffmpeg", "-i", path, "-vf", "thumbnail", "-frames:v", "1", path+".png")
-		_, err := cmd.Output()
+		cmd := exec.Command("ffmpeg", "-i", path, "-vf", "scale=200:100:force_original_aspect_ratio=increase,thumbnail", "-frames:v", "1", path+".png")
+		_, err := cmd.CombinedOutput()
 
 		if err != nil {
 			return nil, errors.Wrap(err, "gathering audio thumb")

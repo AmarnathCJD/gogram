@@ -291,6 +291,8 @@ type MediaMetadata struct {
 	ForceDocument         bool                `json:"force_document,omitempty"`
 	TTL                   int32               `json:"ttl,omitempty"`
 	Spoiler               bool                `json:"spoiler,omitempty"`
+	DisableThumb          bool                `json:"gen_thumb,omitempty"`
+	MimeType              string              `json:"mime_type,omitempty"`
 	ProgressCallback      func(int32, int32)  `json:"-"`
 }
 
