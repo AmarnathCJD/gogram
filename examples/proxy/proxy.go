@@ -19,7 +19,7 @@ func main() {
 		AppID:    appID,
 		AppHash:  appHash,
 		LogLevel: telegram.LogInfo,
-		SocksProxy: &url.URL{
+		Proxy: &url.URL{
 			Scheme: "socks5",
 			Host:   "127.0.0.1:1080",
 			// User:   url.UserPassword("username", "password"),

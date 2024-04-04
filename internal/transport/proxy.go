@@ -3,6 +3,7 @@
 package transport
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -13,22 +14,63 @@ import (
 )
 
 const (
-	ProxyConnectTimeout = 5 * time.Second
+	DefaultTimeout = 5 * time.Second
 )
 
-func DialProxy(s *url.URL, network, addr string) (net.Conn, error) {
+func dialProxy(s *url.URL, address string) (net.Conn, error) {
 	switch s.Scheme {
 	case "socks5":
-		return DialSocks5(s, network, addr)
+		return dialSocks5(s, address)
 	case "socks4":
-		return DialSocks4(s, network, addr)
+		return dialSocks4(s, address)
+	case "http":
+		return dialHTTP(s, address)
 	default:
 		return nil, fmt.Errorf("unsupported proxy scheme: %s", s.Scheme)
 	}
 }
 
-func DialSocks5(s *url.URL, _, addr string) (net.Conn, error) {
-	conn, err := net.DialTimeout("tcp", s.Hostname()+":"+s.Port(), ProxyConnectTimeout)
+func dialHTTP(s *url.URL, addr string) (net.Conn, error) {
+	conn, err := net.DialTimeout("tcp", s.Hostname()+":"+s.Port(), DefaultTimeout)
+	if err != nil {
+		return nil, err
+	}
+	_, err = fmt.Fprintf(conn, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n", addr, addr)
+	if err != nil {
+		return nil, err
+	}
+	if s.User != nil && s.User.Username() != "" {
+		username := s.User.Username()
+		password, _ := s.User.Password()
+		_, err = fmt.Fprintf(conn, "Proxy-Authorization: Basic %s\r\n", basicAuth(username, password))
+		if err != nil {
+			return nil, err
+		}
+	}
+	_, err = fmt.Fprint(conn, "\r\n")
+	if err != nil {
+		return nil, err
+	}
+	buf := make([]byte, 12)
+	_, err = io.ReadFull(conn, buf)
+	if err != nil {
+		return nil, err
+	}
+	if string(buf[:9]) != "HTTP/1.1 " {
+		return nil, errors.New("http connect failed")
+	}
+	if string(buf[9:12]) != "200" {
+		return nil, errors.New("http connect failed")
+	}
+	return conn, nil
+}
+
+func basicAuth(username, password string) string {
+	return base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
+}
+
+func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
+	conn, err := net.DialTimeout("tcp", s.Hostname()+":"+s.Port(), DefaultTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -165,8 +207,8 @@ func DialSocks5(s *url.URL, _, addr string) (net.Conn, error) {
 	return conn, nil
 }
 
-func DialSocks4(s *url.URL, _, addr string) (net.Conn, error) {
-	conn, err := net.DialTimeout("tcp", s.Hostname()+":"+s.Port(), ProxyConnectTimeout)
+func dialSocks4(s *url.URL, addr string) (net.Conn, error) {
+	conn, err := net.DialTimeout("tcp", s.Hostname()+":"+s.Port(), DefaultTimeout)
 	if err != nil {
 		return nil, err
 	}

@@ -1,8 +1,8 @@
 module github.com/amarnathcjd/gogram
 
-go 1.22
+go 1.22.1
 
 require (
 	github.com/pkg/errors v0.9.1
-	golang.org/x/net v0.21.0
+	golang.org/x/net v0.24.0
 )

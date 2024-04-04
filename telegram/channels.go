@@ -282,7 +282,7 @@ type AdminOptions struct {
 }
 
 // Edit Admin rights of a user in a chat,
-// returns true if successfull
+// returns true if successful
 func (c *Client) EditAdmin(PeerID, UserID interface{}, Opts ...*AdminOptions) (bool, error) {
 	opts := getVariadic(Opts, &AdminOptions{IsAdmin: true, Rights: &ChatAdminRights{}, Rank: "Admin"}).(*AdminOptions)
 	peer, err := c.GetSendablePeer(PeerID)
@@ -331,7 +331,7 @@ type BannedOptions struct {
 }
 
 // Edit Restricted rights of a user in a chat,
-// returns true if successfull
+// returns true if successful
 func (c *Client) EditBanned(PeerID, UserID interface{}, opts ...*BannedOptions) (bool, error) {
 	o := getVariadic(opts, &BannedOptions{Ban: true, Rights: &ChatBannedRights{}}).(*BannedOptions)
 	if o.Rights == nil {
@@ -421,7 +421,7 @@ type TitleOptions struct {
 }
 
 // Edit the title of a chat, channel or self,
-// returns true if successfull
+// returns true if successful
 func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...*TitleOptions) (bool, error) {
 	opts := getVariadic(Opts, &TitleOptions{}).(*TitleOptions)
 	peer, err := c.GetSendablePeer(PeerID)

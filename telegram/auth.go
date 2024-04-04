@@ -130,14 +130,10 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 	if au, _ := c.IsAuthorized(); au {
 		return true, nil
 	}
-	var opts *LoginOptions
-	if len(options) > 0 {
-		opts = options[0]
-	}
-	if opts == nil {
-		opts = &LoginOptions{}
-	}
-	var Auth AuthAuthorization
+
+	var opts = getVariadic(options, &LoginOptions{}).(*LoginOptions)
+
+	var auth AuthAuthorization
 	var err error
 	if opts.Code == "" {
 		hash, e := c.SendCode(phoneNumber)
@@ -164,83 +160,22 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 			}
 		}
 
-		for {
-			opts.Code, err = opts.CodeCallback()
-
-			if opts.Code != "" {
-				Auth, err = c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
-				if err == nil {
-					break
-				}
-				if matchError(err, "The phone code entered was invalid") {
-					fmt.Println("The phone code entered was invalid, please try again!")
-					continue
-				} else if matchError(err, "Two-steps verification is enabled") || matchError(err, "2FA is enabled, use a password to login") { // TODO: Implement matchRPCError
-				acceptPasswordInput:
-					if opts.Password == "" {
-						for {
-							passwordInput, err := opts.PasswordCallback()
-							if err != nil {
-								return false, err
-							}
-							if passwordInput != "" {
-								opts.Password = passwordInput
-								break
-							} else if passwordInput == "cancel" || passwordInput == "exit" {
-								return false, nil
-							} else {
-								fmt.Println("Invalid password, try again")
-							}
-						}
-					}
-					AccPassword, err := c.AccountGetPassword()
-					if err != nil {
-						return false, err
-					}
-					inputPassword, err := GetInputCheckPassword(opts.Password, AccPassword)
-					if err != nil {
-						return false, err
-					}
-					_, err = c.AuthCheckPassword(inputPassword)
-					if err != nil {
-						if strings.Contains(err.Error(), "PASSWORD_HASH_INVALID") {
-							fmt.Println("Password is incorrect, please try again!")
-							goto acceptPasswordInput
-						}
-						return false, err
-					}
-					break
-				} else if matchError(err, "The code is valid but no user with the given number") {
-					return false, errors.New("Since Feb 2023, Telegram does not allow to create new accounts using ThirdParty Clients API. Please use Telegram app to create an account and then use this library to login.")
-					// c.AcceptTOS()
-					// _, err = c.AuthSignUp(phoneNumber, opts.CodeHash, opts.FirstName, opts.LastName)
-					// if err != nil {
-					// return false, err
-					// }
-				} else {
-					return false, err
-				}
-			} else if opts.Code == "cancel" || opts.Code == "exit" {
-				return false, fmt.Errorf("Login canceled")
-			} else {
-				if err, ok := err.(syscall.Errno); ok && err == syscall.EINTR {
-					return false, nil
-				}
-				fmt.Println("Invalid code, try again")
-			}
+		auth, err = codeAuthAttempt(c, phoneNumber, opts)
+		if err != nil {
+			return false, err
 		}
 	} else {
 		if opts.CodeHash == "" {
 			return false, errors.New("Code hash is empty, but code is not")
 		}
-		Auth, err = c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
+		auth, err = c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
 		if err != nil {
 			return false, err
 		}
 	}
-	switch auth := Auth.(type) {
+	switch auth := auth.(type) {
 	case *AuthAuthorizationSignUpRequired:
-		return false, errors.New("Since Feb 2023, Telegram does not allow to create new accounts using API. Please use Telegram app to create an account and then use this library to login.")
+		return false, errors.New("SignUp using official Telegram app is required")
 	case *AuthAuthorizationObj:
 		switch u := auth.User.(type) {
 		case *UserObj:
@@ -250,9 +185,81 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 			return false, errors.New("user is empty")
 		}
 	case nil:
-		return false, nil // doesnt mean error
+		return false, nil // need not mean error
 	}
 	return true, nil
+}
+
+func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAuthorization, error) {
+	var err error
+
+	for {
+		opts.Code, err = opts.CodeCallback()
+
+		if opts.Code != "" {
+			authResp, err := c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
+			if err == nil {
+				return authResp, nil
+			}
+
+			if matchError(err, "[PHONE_CODE_INVALID]") {
+				c.Log.Error(errors.Wrap(err, "invalid phone code"))
+				continue
+			} else if matchError(err, "Two-steps verification is enabled") || matchError(err, "2FA is enabled, use a password to login") { // TODO: Implement matchRPCError
+			acceptPasswordInput:
+				if opts.Password == "" {
+					for {
+						passwordInput, err := opts.PasswordCallback()
+						if err != nil {
+							return nil, err
+						}
+
+						if passwordInput != "" {
+							opts.Password = passwordInput
+							break
+						} else if passwordInput == "cancel" || passwordInput == "exit" {
+							return nil, errors.New("login canceled")
+						} else {
+							fmt.Println("Invalid password, try again")
+						}
+					}
+				}
+
+				accPassword, err := c.AccountGetPassword()
+				if err != nil {
+					return nil, err
+				}
+
+				inputPassword, err := GetInputCheckPassword(opts.Password, accPassword)
+				if err != nil {
+					return nil, err
+				}
+
+				_, err = c.AuthCheckPassword(inputPassword)
+				if err != nil {
+					if strings.Contains(err.Error(), "PASSWORD_HASH_INVALID") {
+						fmt.Println("Password is incorrect, please try again!")
+						goto acceptPasswordInput
+					}
+					return nil, err
+				}
+				break
+			} else if matchError(err, "The code is valid but no user with the given number") {
+				return nil, errors.New("SignUp using official Telegram app is required")
+			} else {
+				return nil, err
+			}
+		} else if opts.Code == "cancel" || opts.Code == "exit" {
+			return nil, errors.New("login canceled")
+		} else {
+			if err, ok := err.(syscall.Errno); ok && err == syscall.EINTR {
+				return nil, errors.New("login canceled")
+			}
+			fmt.Println("Invalid code, try again")
+		}
+	}
+
+	return nil, nil
 }
 
 func (c *Client) AcceptTOS() (bool, error) {
@@ -263,7 +270,6 @@ func (c *Client) AcceptTOS() (bool, error) {
 	switch tos := tos.(type) {
 	case *HelpTermsOfServiceUpdateObj:
 		fmt.Println(tos.TermsOfService.Text)
-		// Accept TOS
 		fmt.Println("Do you accept the TOS? (y/n)")
 		var input string
 		fmt.Scanln(&input)

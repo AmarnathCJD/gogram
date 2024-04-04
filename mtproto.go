@@ -33,7 +33,7 @@ const defaultTimeout = 30 * time.Second
 type MTProto struct {
 	Addr          string
 	appID         int32
-	socksProxy    *url.URL
+	proxy         *url.URL
 	transport     transport.Transport
 	stopRoutines  context.CancelFunc
 	routineswg    sync.WaitGroup
@@ -81,7 +81,7 @@ type Config struct {
 	PublicKey  *rsa.PublicKey
 	DataCenter int
 	LogLevel   string
-	SocksProxy *url.URL
+	Proxy      *url.URL
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -119,7 +119,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		Logger:                utils.NewLogger("gogram - mtproto").SetLevel(c.LogLevel),
 		memorySession:         c.MemorySession,
 		appID:                 c.AppID,
-		socksProxy:            c.SocksProxy,
+		proxy:                 c.Proxy,
 	}
 	if loaded != nil || c.StringSession != "" {
 		mtproto.encrypted = true
@@ -221,7 +221,7 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 		AuthKeyFile:   m.sessionStorage.Path(),
 		MemorySession: m.memorySession,
 		LogLevel:      m.Logger.Lev(),
-		SocksProxy:    m.socksProxy,
+		Proxy:         m.proxy,
 		AppID:         m.appID,
 	}
 	sender, err := NewMTProto(cfg)
@@ -246,7 +246,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		return nil, errors.Wrap(err, "getting executable directory")
 	}
 	wd := filepath.Dir(execWorkDir)
-	cfg := Config{DataCenter: dcID, PublicKey: m.PublicKey, ServerHost: newAddr, AuthKeyFile: filepath.Join(wd, "exported_sender"), MemorySession: mem, LogLevel: m.Logger.Lev(), SocksProxy: m.socksProxy, AppID: m.appID}
+	cfg := Config{DataCenter: dcID, PublicKey: m.PublicKey, ServerHost: newAddr, AuthKeyFile: filepath.Join(wd, "exported_sender"), MemorySession: mem, LogLevel: m.Logger.Lev(), Proxy: m.proxy, AppID: m.appID}
 	if dcID == m.GetDC() {
 		cfg.SessionStorage = m.sessionStorage
 	}
@@ -264,7 +264,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Info("Connecting to [" + m.Addr + "] - <TcpInt> ...")
+		m.Logger.Info("Connecting to [" + m.Addr + "] - <Tcp> ...")
 	}
 	err := m.connect(ctx)
 	if err != nil {
@@ -272,10 +272,10 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 	m.tcpActive = true
 	if withLog {
-		if m.socksProxy != nil && m.socksProxy.Host != "" {
-			m.Logger.Info("Connection to (" + m.socksProxy.Host + ")[" + m.Addr + "] - <TcpInt> established")
+		if m.proxy != nil && m.proxy.Host != "" {
+			m.Logger.Info("Connection to (~" + m.proxy.Host + ")[" + m.Addr + "] - <Tcp> established")
 		} else {
-			m.Logger.Info("Connection to [" + m.Addr + "] - <TcpInt> established")
+			m.Logger.Info("Connection to [" + m.Addr + "] - <Tcp> established")
 		}
 	}
 	m.startReadingResponses(ctx)
@@ -299,7 +299,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 			Ctx:     ctx,
 			Host:    m.Addr,
 			Timeout: defaultTimeout,
-			Socks:   m.socksProxy,
+			Socks:   m.proxy,
 		},
 		mode.Intermediate,
 	)
@@ -318,7 +318,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	resp, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
 		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") {
-			m.Logger.Info("connection closed due to broken pipe, reconnecting to [" + m.Addr + "]" + " - <TcpInt> ...")
+			m.Logger.Info("connection closed due to broken pipe, reconnecting to [" + m.Addr + "]" + " - <Tcp> ...")
 			err = m.Reconnect(false)
 			if err != nil {
 				return nil, errors.Wrap(err, "reconnecting")
@@ -367,7 +367,7 @@ func (m *MTProto) Disconnect() error {
 func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
-	m.Logger.Info("terminating connection to [" + m.Addr + "] - <TcpInt> ...")
+	m.Logger.Info("terminating connection to [" + m.Addr + "] - <Tcp> ...")
 	m.tcpActive = false
 	return nil
 }
@@ -378,12 +378,12 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		return errors.Wrap(err, "disconnecting")
 	}
 	if WithLogs {
-		m.Logger.Info("Reconnecting to [" + m.Addr + "] - <TcpInt> ...")
+		m.Logger.Info("Reconnecting to [" + m.Addr + "] - <Tcp> ...")
 	}
 
 	err = m.CreateConnection(WithLogs)
 	if err == nil && WithLogs {
-		m.Logger.Info("Reconnected to [" + m.Addr + "] - <TcpInt> ...")
+		m.Logger.Info("Reconnected to [" + m.Addr + "] - <Tcp> ...")
 	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
@@ -419,13 +419,13 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 
 				if err != nil {
 					if strings.Contains(err.Error(), "unexpected error: unexpected EOF") {
-						m.Logger.Debug("unexpected EOF, reconnecting to [" + m.Addr + "] - <TcpInt> ...") // TODO: beautify this
+						m.Logger.Debug("unexpected EOF, reconnecting to [" + m.Addr + "] - <Tcp> ...") // TODO: beautify this
 						err = m.Reconnect(false)
 						if err != nil {
 							m.Logger.Error(errors.Wrap(err, "reconnecting"))
 						}
 					} else if strings.Contains(err.Error(), "required to reconnect!") { // network is not stable
-						m.Logger.Debug("packet read error, reconnecting to [" + m.Addr + "] - <TcpInt> ...")
+						m.Logger.Debug("packet read error, reconnecting to [" + m.Addr + "] - <Tcp> ...")
 						err = m.Reconnect(false)
 						if err != nil {
 							m.Logger.Error(errors.Wrap(err, "reconnecting"))

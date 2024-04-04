@@ -46,7 +46,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 }
 
 func newSocksTCP(cfg TCPConnConfig) (Conn, error) {
-	conn, err := DialProxy(cfg.Socks, "tcp", cfg.Host)
+	conn, err := dialProxy(cfg.Socks, cfg.Host)
 	if err != nil {
 		return nil, err
 	}
