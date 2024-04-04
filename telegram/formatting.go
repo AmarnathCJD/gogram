@@ -186,7 +186,7 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 }
 
 // parseEntitiesToHTML converts a list of MessageEntities to HTML, given the original text
-func parseEntitiesToHTML(entities []MessageEntity, text string) string {
+func _(entities []MessageEntity, text string) string {
 	var htmlBuf bytes.Buffer
 	var openTags []string
 	var openTagOffsets []int32

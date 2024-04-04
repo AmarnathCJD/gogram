@@ -16,47 +16,118 @@ import (
 	"strings"
 	"time"
 
-	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/pkg/errors"
 )
 
-type Mime struct {
-	Extension string
-	Mime      string
+type mimeTypeManager struct {
+	mimeTypes map[string]string
 }
 
-var (
-	MimeTypes = []Mime{
-		{".3gp", "video/3gpp"}, {".7z", "application/x-7z-compressed"}, {".aac", "audio/x-aac"},
-		{".abw", "application/x-abiword"}, {".arc", "application/x-freearc"}, {".avi", "video/x-msvideo"},
-		{".azw", "application/vnd.amazon.ebook"}, {".bin", "application/octet-stream"}, {".bmp", "image/bmp"},
-		{".bz", "application/x-bzip"}, {".bz2", "application/x-bzip2"}, {".csh", "application/x-csh"},
-		{".css", "text/css"}, {".csv", "text/csv"}, {".doc", "application/msword"},
-		{".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}, {".eot", "application/vnd.ms-fontobject"}, {".epub", "application/epub+zip"},
-		{".gz", "application/gzip"}, {".gif", "image/gif"}, {".htm", "text/html"},
-		{".html", "text/html"}, {".ico", "image/vnd.microsoft.icon"}, {".ics", "text/calendar"},
-		{".jar", "application/java-archive"}, {".jpeg", "image/jpeg"}, {".jpg", "image/jpeg"},
-		{".js", "text/javascript"}, {".json", "application/json"}, {".jsonld", "application/ld+json"},
-		{".mid", "audio/midi audio/x-midi"}, {".midi", "audio/midi audio/x-midi"}, {".mjs", "text/javascript"},
-		{".mp3", "audio/mpeg"}, {".mpeg", "video/mpeg"}, {".mpkg", "application/vnd.apple.installer+xml"},
-		{".odp", "application/vnd.oasis.opendocument.presentation"}, {".ods", "application/vnd.oasis.opendocument.spreadsheet"}, {".odt", "application/vnd.oasis.opendocument.text"},
-		{".oga", "audio/ogg"}, {".ogv", "video/ogg"}, {".ogx", "application/ogg"},
-		{".opus", "audio/opus"}, {".otf", "font/otf"}, {".png", "image/png"},
-		{".pdf", "application/pdf"}, {".php", "application/x-httpd-php"}, {".ppt", "application/vnd.ms-powerpoint"},
-		{".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
-		{".rar", "application/vnd.rar"}, {".rtf", "application/rtf"}, {".sh", "application/x-sh"},
-		{".svg", "image/svg+xml"}, {".swf", "application/x-shockwave-flash"}, {".tar", "application/x-tar"},
-		{".tif", "image/tiff"}, {".tiff", "image/tiff"}, {".ts", "video/mp2t"},
-		{".ttf", "font/ttf"}, {".txt", "text/plain"}, {".vsd", "application/vnd.visio"},
-		{".wav", "audio/wav"}, {".weba", "audio/webm"}, {".webm", "video/webm"},
-		{".webp", "image/webp"}, {".woff", "font/woff"}, {".woff2", "font/woff2"},
-		{".xhtml", "application/xhtml+xml"}, {".xls", "application/vnd.ms-excel"}, {".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
-		{".xml", "application/xml"}, {".xul", "application/vnd.mozilla.xul+xml"}, {".zip", "application/zip"},
-		{".3gp", "video/3gpp"}, {".3g2", "video/3gpp2"}, {".7z", "application/x-7z-compressed"}, {".tgs", "application/x-tgsticker"}, {".apk", "application/vnd.android.package-archive"},
-		{".flac", "audio/x-flac"}, {".flv", "video/x-flv"}, {".m4v", "video/x-m4v"}, {".mkv", "video/x-matroska"}, {".mov", "video/quicktime"}, {".mp4", "video/mp4"},
-		{".m4a", "audio/mpeg"},
+func (m *mimeTypeManager) addMime(ext, mime string) {
+	m.mimeTypes[ext] = mime
+}
+
+func (m *mimeTypeManager) match(filePath string) string {
+	if IsURL(filePath) {
+		// do a get request with timeout and get the content type
+		req, err := http.NewRequest("GET", filePath, nil)
+		if err != nil {
+			return ""
+		}
+
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 6.1; rv:60.0) Gecko/20100101 Firefox/60.0")
+		HTTPClient := &http.Client{
+			Timeout: 4 * time.Second,
+		}
+
+		resp, err := HTTPClient.Do(req)
+		if err != nil {
+			return ""
+		}
+
+		defer resp.Body.Close()
+		if resp.StatusCode == 200 {
+			if resp.Header.Get("Content-Type") != "" {
+				return resp.Header.Get("Content-Type")
+			}
+		}
+
+		return ""
 	}
-)
+
+	if mime, ok := m.mimeTypes[filepath.Ext(filePath)]; ok {
+		return mime
+	}
+
+	// use http.DetectContentType if no match
+	file, err := os.Open(filePath)
+	if err != nil {
+		return ""
+	}
+
+	defer file.Close()
+	buffer := make([]byte, 512)
+	_, err = file.Read(buffer)
+
+	if err != nil {
+		return ""
+	}
+
+	return http.DetectContentType(buffer)
+}
+
+func (m *mimeTypeManager) Ext(mime string) string {
+	for ext, m := range m.mimeTypes {
+		if m == mime {
+			return ext
+		}
+	}
+	return ""
+}
+
+func (m *mimeTypeManager) IsPhoto(mime string) bool {
+	return strings.HasPrefix(mime, "image/") && !strings.Contains(mime, "image/webp")
+}
+
+func (m *mimeTypeManager) MIME(filePath string) (string, bool) {
+	mime := m.match(filePath)
+	return mime, m.IsPhoto(mime)
+}
+
+var mimeTypes = &mimeTypeManager{}
+
+func init() {
+	mimeTypes.addMime(".png", "image/png")
+	mimeTypes.addMime(".jpg", "image/jpeg")
+	mimeTypes.addMime(".jpeg", "image/jpeg")
+
+	mimeTypes.addMime(".webp", "image/webp")
+	mimeTypes.addMime(".gif", "image/gif")
+	mimeTypes.addMime(".bmp", "image/bmp")
+	mimeTypes.addMime(".tga", "image/x-tga")
+	mimeTypes.addMime(".tiff", "image/tiff")
+	mimeTypes.addMime(".psd", "image/vnd.adobe.photoshop")
+
+	mimeTypes.addMime(".mp4", "video/mp4")
+	mimeTypes.addMime(".mov", "video/quicktime")
+	mimeTypes.addMime(".avi", "video/avi")
+	mimeTypes.addMime(".flv", "video/x-flv")
+	mimeTypes.addMime(".m4v", "video/x-m4v")
+	mimeTypes.addMime(".mkv", "video/x-matroska")
+	mimeTypes.addMime(".webm", "video/webm")
+	mimeTypes.addMime(".3gp", "video/3gpp")
+
+	mimeTypes.addMime(".mp3", "audio/mpeg")
+	mimeTypes.addMime(".m4a", "audio/m4a")
+	mimeTypes.addMime(".aac", "audio/aac")
+	mimeTypes.addMime(".ogg", "audio/ogg")
+	mimeTypes.addMime(".flac", "audio/x-flac")
+	mimeTypes.addMime(".opus", "audio/opus")
+	mimeTypes.addMime(".wav", "audio/wav")
+	mimeTypes.addMime(".alac", "audio/x-alac")
+
+	mimeTypes.addMime(".tgs", "application/x-tgsticker")
+}
 
 func getErrorCode(err error) (int, int) {
 	datacenter := 0
@@ -77,75 +148,6 @@ func matchError(err error, str string) bool {
 		return strings.Contains(err.Error(), str)
 	}
 	return false
-}
-
-func matchRPCError(err error, str string) bool {
-	if err != nil {
-		e, isRpc := (err).(*mtproto.ErrResponseCode)
-		if isRpc {
-			return strings.Contains(e.Message, str)
-		}
-	}
-	return false
-}
-
-func resolveMimeType(filePath string) (string, bool) {
-	if IsURL(filePath) {
-		if req, err := http.NewRequest("GET", filePath, nil); err == nil {
-			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 6.1; rv:60.0) Gecko/20100101 Firefox/60.0")
-			if resp, err := http.DefaultClient.Do(req); err == nil {
-				defer resp.Body.Close()
-				if resp.StatusCode == 200 {
-					if resp.Header.Get("Content-Type") != "" {
-						return resp.Header.Get("Content-Type"), mimeIsPhoto(resp.Header.Get("Content-Type"))
-					}
-					var b = make([]byte, 512)
-					_, err = resp.Body.Read(b)
-					if err == nil {
-						mime := http.DetectContentType(b)
-						return mime, mimeIsPhoto(mime)
-					}
-				}
-			}
-		}
-	}
-	if matchMimeType := matchMimeType(filePath); matchMimeType != "" {
-		return matchMimeType, mimeIsPhoto(matchMimeType)
-	}
-	file, err := os.Open(filePath)
-	if err != nil {
-		return "", false
-	}
-	defer file.Close()
-	buffer := make([]byte, 512)
-	_, err = file.Read(buffer)
-	if err != nil {
-		return "", false
-	}
-	mime := http.DetectContentType(buffer)
-	return mime, mimeIsPhoto(mime)
-}
-
-func resolveExt(mime string) string {
-	for _, mt := range MimeTypes {
-		if mt.Mime == mime {
-			return mt.Extension
-		}
-	}
-	return ""
-}
-
-func matchMimeType(filePath string) string {
-	for _, mt := range MimeTypes {
-		if strings.HasSuffix(filePath, mt.Extension) {
-			return mt.Mime
-		}
-	}
-	return ""
-}
-
-func mimeIsPhoto(mime string) bool {
-	return strings.HasPrefix(mime, "image/") && !strings.Contains(mime, "image/webp")
 }
 
 // GetFileLocation returns file location, datacenter, file size and file name
@@ -279,7 +281,7 @@ func getFileName(f interface{}) string {
 			}
 		}
 		if doc.MimeType != "" {
-			return fmt.Sprintf("file_%s_%d.%s", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000), strings.Split(doc.MimeType, "/")[1])
+			return fmt.Sprintf("file_%s_%d%s", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000), mimeTypes.Ext(doc.MimeType))
 		}
 		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 	}
@@ -337,7 +339,7 @@ func getFileExt(f interface{}) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
 		doc := f.Document.(*DocumentObj)
-		if e := resolveExt(doc.MimeType); e != "" {
+		if e := mimeTypes.Ext(doc.MimeType); e != "" {
 			return e
 		}
 		for _, attr := range doc.Attributes {
