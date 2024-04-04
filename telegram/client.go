@@ -77,7 +77,7 @@ type ClientConfig struct {
 	NoUpdates     bool
 	DisableCache  bool
 	LogLevel      string
-	SocksProxy    *url.URL
+	Proxy         *url.URL
 }
 
 type Session struct {
@@ -141,7 +141,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		DataCenter:    config.DataCenter,
 		LogLevel:      config.LogLevel,
 		StringSession: config.StringSession,
-		SocksProxy:    config.SocksProxy,
+		Proxy:         config.Proxy,
 		MemorySession: config.MemorySession,
 	})
 	if err != nil {
@@ -245,6 +245,10 @@ func (c *Client) InitialRequest() error {
 
 // Establish connection to telegram servers
 func (c *Client) Connect() error {
+	if c.IsConnected() {
+		return nil
+	}
+
 	err := c.MTProto.CreateConnection(true)
 	if err != nil {
 		return errors.Wrap(err, "connecting to telegram servers")

@@ -270,7 +270,7 @@ var errorMessages = map[string]string{
 	"FIELD_NAME_INVALID":                  "The field with the name FIELD_NAME is invalid",
 	"FILEREF_UPGRADE_NEEDED":              "The client has to be updated in order to support [file references](https://core.telegram.org/api/file_reference).",
 	"FILE_CONTENT_TYPE_INVALID":           "File content-type is invalid.",
-	"FILE_EMTPY":                          "An empty file was provided.",
+	"FILE_EMPTY":                          "An empty file was provided.",
 	"FILE_ID_INVALID":                     "The provided file id is invalid.",
 	"FILE_PARTS_INVALID":                  "The number of file parts is invalid.",
 	"FILE_PART_EMPTY":                     "The provided file part is empty.",

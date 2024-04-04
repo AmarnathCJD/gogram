@@ -371,8 +371,8 @@ func (u *Uploader) dividePartsToWorkers() [][]int32 {
 		remainder = parts % int32(worker)
 	)
 	var (
-		start = int32(0)
-		end   = int32(0)
+		start int32
+		end   int32
 	)
 	var (
 		partsToWorkers = make([][]int32, worker)
@@ -446,7 +446,7 @@ func (u *Uploader) readPart(part int32) ([]byte, error) {
 		}
 		return buf, nil
 	case *bytes.Reader:
-		// coverted io.Reader to bytes.Reader
+		// converted io.Reader to bytes.Reader
 		buf := make([]byte, u.ChunkSize)
 		_, err = s.ReadAt(buf, int64(part*u.ChunkSize))
 		if err != nil {
@@ -603,8 +603,8 @@ func (d *Downloader) DividePartsToWorkers() [][]int32 {
 		remainder = parts % int32(worker)
 	)
 	var (
-		start = int32(0)
-		end   = int32(0)
+		start int32
+		end   int32
 	)
 	var (
 		partsToWorkers = make([][]int32, worker)
@@ -701,12 +701,9 @@ func UploadProgressBar(m *NewMessage, total, now int32) {
 	)
 
 	genPg := func(filled int32, total int32) string {
-		var (
-			empty = total - filled
-		)
 		var totalnumofprogressbar int32 = 10
 		filled = filled / (total / totalnumofprogressbar)
-		empty = totalnumofprogressbar - filled
+		empty := totalnumofprogressbar - filled
 		return fmt.Sprintf("%s%s", strings.Repeat(progressfillemojirectanglefull, int(filled)), strings.Repeat(progressfillemojirectangleempty, int(empty)))
 	}
 	if _, err := m.Edit(fmt.Sprintf("Uploading %s  %s", genPg(now, total), "p.String()")); err != nil {

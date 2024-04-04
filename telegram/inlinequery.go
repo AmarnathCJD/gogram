@@ -108,34 +108,49 @@ func (b *InlineBuilder) Article(title, description, text string, options ...*Art
 
 func (b *InlineBuilder) Photo(photo interface{}, options ...*ArticleOptions) InputBotInlineResult {
 	var opts = getVariadic(options, &ArticleOptions{}).(*ArticleOptions)
-	Photo, _ := b.Client.getSendableMedia(photo, &MediaMetadata{})
-	var Image InputPhoto
+	inputPhoto, err := b.Client.getSendableMedia(photo, &MediaMetadata{})
+	if err != nil {
+		b.Client.Logger.Error("InlineBuilder.Photo: Error getting sendable media:", err)
+		return nil
+	}
+
+	var image InputPhoto
+
 PhotoTypeSwitch:
-	switch p := Photo.(type) {
+	switch p := inputPhoto.(type) {
 	case *InputMediaPhoto:
-		Image = p.ID
+		image = p.ID
 	case *InputMediaUploadedPhoto:
 		media, err := b.Client.MessagesUploadMedia(opts.BuissnessConnectionId, &InputPeerSelf{}, p)
 		if err != nil {
-			Image = &InputPhotoEmpty{}
+			image = &InputPhotoEmpty{}
 		}
-		Photo, _ = b.Client.getSendableMedia(media, &MediaMetadata{})
+
+		inputPhoto, err = b.Client.getSendableMedia(media, &MediaMetadata{})
+		if err != nil {
+			b.Client.Logger.Error("InlineBuilder.Photo: Error getting sendable media:", err)
+			return nil
+		}
+
 		goto PhotoTypeSwitch
 	default:
-		b.Client.Logger.Warn("InlineBuilder.Photo: Photo is not a InputMediaPhoto, its a", reflect.TypeOf(Photo).String())
-		Image = &InputPhotoEmpty{}
+		b.Client.Logger.Warn("InlineBuilder.Photo: Photo is not a InputMediaPhoto but a", reflect.TypeOf(inputPhoto))
+		image = &InputPhotoEmpty{}
 	}
+
 	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()).(string))
+
 	result := &InputBotInlineResultPhoto{
 		ID:    getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
 		Type:  "photo",
-		Photo: Image,
+		Photo: image,
 		SendMessage: &InputBotInlineMessageMediaAuto{
 			Message:     text,
 			Entities:    e,
 			ReplyMarkup: opts.ReplyMarkup,
 		},
 	}
+
 	if opts.ExcludeMedia {
 		result.SendMessage = &InputBotInlineMessageText{
 			Message:     text,
@@ -153,34 +168,42 @@ PhotoTypeSwitch:
 	} else if opts.Invoice != nil {
 		result.SendMessage = opts.Invoice
 	}
+
 	b.InlineResults = append(b.InlineResults, result)
 	return result
 }
 
 func (b *InlineBuilder) Document(document interface{}, options ...*ArticleOptions) InputBotInlineResult {
 	var opts = getVariadic(options, &ArticleOptions{}).(*ArticleOptions)
-	inputDoc, _ := b.Client.getSendableMedia(document, &MediaMetadata{})
-	var Doc InputDocument
+	inputDoc, err := b.Client.getSendableMedia(document, &MediaMetadata{})
+	if err != nil {
+		b.Client.Logger.Error("InlineBuilder.Document: Error getting sendable media:", err)
+		return nil
+	}
+
+	var doc InputDocument
 DocTypeSwitch:
 	switch p := inputDoc.(type) {
 	case *InputMediaDocument:
-		Doc = p.ID
+		document = p.ID
 	case *InputMediaUploadedDocument:
 		media, err := b.Client.MessagesUploadMedia(opts.BuissnessConnectionId, &InputPeerSelf{}, p)
 		if err != nil {
-			Doc = &InputDocumentEmpty{}
+			document = &InputDocumentEmpty{}
 		}
 		inputDoc, _ = b.Client.getSendableMedia(media, &MediaMetadata{})
 		goto DocTypeSwitch
 	default:
-		b.Client.Logger.Warn("InlineBuilder.Document: Document is not a InputMediaDocument")
-		Doc = &InputDocumentEmpty{}
+		b.Client.Logger.Error("InlineBuilder.Document: Document is not a InputMediaDocument")
+		doc = &InputDocumentEmpty{}
 	}
+
 	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()).(string))
+
 	result := &InputBotInlineResultDocument{
 		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
 		Type:        "document",
-		Document:    Doc,
+		Document:    doc,
 		Title:       opts.Title,
 		Description: opts.Description,
 		SendMessage: &InputBotInlineMessageMediaAuto{
@@ -189,6 +212,7 @@ DocTypeSwitch:
 			ReplyMarkup: opts.ReplyMarkup,
 		},
 	}
+
 	if opts.ExcludeMedia {
 		result.SendMessage = &InputBotInlineMessageText{
 			Message:     text,
@@ -206,6 +230,7 @@ DocTypeSwitch:
 	} else if opts.Invoice != nil {
 		result.SendMessage = opts.Invoice
 	}
+
 	b.InlineResults = append(b.InlineResults, result)
 	return result
 }
