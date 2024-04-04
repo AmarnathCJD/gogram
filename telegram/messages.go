@@ -10,6 +10,7 @@ import (
 
 type SendOptions struct {
 	Attributes       []DocumentAttribute `json:"attributes,omitempty"`
+	MimeType         string              `json:"mime_type,omitempty"`
 	Caption          interface{}         `json:"caption,omitempty"`
 	ClearDraft       bool                `json:"clear_draft,omitempty"`
 	Entites          []MessageEntity     `json:"entites,omitempty"`
@@ -175,12 +176,14 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 	)
 	if Media != nil {
 		media, err = c.getSendableMedia(Media, &MediaMetadata{
-			Attributes:       options.Attributes,
-			TTL:              options.TTL,
-			ForceDocument:    options.ForceDocument,
-			Thumb:            options.Thumb,
 			FileName:         options.FileName,
+			Thumb:            options.Thumb,
+			Attributes:       options.Attributes,
+			ForceDocument:    options.ForceDocument,
+			TTL:              options.TTL,
 			Spoiler:          options.Spoiler,
+			DisableThumb:     false,
+			MimeType:         options.MimeType,
 			ProgressCallback: options.ProgressCallback,
 		})
 		if err != nil {
@@ -219,6 +222,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 			Thumb:            options.Thumb,
 			FileName:         options.FileName,
 			Spoiler:          options.Spoiler,
+			MimeType:         options.MimeType,
 			ProgressCallback: options.ProgressCallback,
 		})
 		if err != nil {
@@ -263,6 +267,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 
 type MediaOptions struct {
 	Attributes       []DocumentAttribute `json:"attributes,omitempty"`
+	MimeType         string              `json:"mime_type,omitempty"`
 	Caption          interface{}         `json:"caption,omitempty"`
 	ClearDraft       bool                `json:"clear_draft,omitempty"`
 	Entites          []MessageEntity     `json:"entities,omitempty"`
@@ -329,6 +334,7 @@ func (c *Client) SendMedia(peerID, Media interface{}, opts ...*MediaOptions) (*N
 		Attributes:       opt.Attributes,
 		TTL:              opt.TTL,
 		Spoiler:          opt.Spoiler,
+		MimeType:         opt.MimeType,
 		ProgressCallback: opt.ProgressCallback,
 	})
 
@@ -411,7 +417,7 @@ func (c *Client) SendAlbum(peerID, Album interface{}, opts ...*MediaOptions) ([]
 		entities    []MessageEntity
 		textMessage string
 	)
-	InputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{FileName: opt.FileName, Thumb: opt.Thumb, ForceDocument: opt.ForceDocument, Attributes: opt.Attributes, TTL: opt.TTL, Spoiler: opt.Spoiler})
+	InputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{FileName: opt.FileName, Thumb: opt.Thumb, ForceDocument: opt.ForceDocument, Attributes: opt.Attributes, TTL: opt.TTL, Spoiler: opt.Spoiler, MimeType: opt.MimeType})
 	if multiErr != nil {
 		return nil, multiErr
 	}
@@ -950,6 +956,7 @@ func (c *Client) GetMediaGroup(PeerID interface{}, MsgID int32) ([]NewMessage, e
 func convertOption(s *SendOptions) *MediaOptions {
 	return &MediaOptions{
 		ReplyID:       s.ReplyID,
+		MimeType:      s.MimeType,
 		Caption:       s.Caption,
 		ParseMode:     s.ParseMode,
 		Silent:        s.Silent,

@@ -398,7 +398,7 @@ mediaTypeSwitch:
 	switch media := mediaFile.(type) {
 	case string:
 		if IsURL(media) {
-			if _, isImage := resolveMimeType(media); isImage {
+			if _, isImage := mimeTypes.MIME(media); isImage {
 				return &InputMediaPhotoExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
 			}
 			return &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
@@ -462,12 +462,12 @@ mediaTypeSwitch:
 		)
 		switch media := media.(type) {
 		case *InputFileObj:
-			mimeType, IsPhoto = resolveMimeType(getValue(attr.FileName, media.Name).(string))
+			mimeType, IsPhoto = mimeTypes.MIME(getValue(attr.FileName, media.Name).(string))
 			attr.Attributes = mergeAttrs(attr.Attributes, getAttrs(mimeType))
 			fileName = getValue(attr.FileName, media.Name).(string)
 			mediaFile = media
 		case *InputFileBig:
-			mimeType, IsPhoto = resolveMimeType(getValue(attr.FileName, media.Name).(string))
+			mimeType, IsPhoto = mimeTypes.MIME(getValue(attr.FileName, media.Name).(string))
 			attr.Attributes = mergeAttrs(attr.Attributes, getAttrs(mimeType))
 			fileName = getValue(attr.FileName, media.Name).(string)
 			mediaFile = media
