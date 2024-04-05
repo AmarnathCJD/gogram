@@ -94,7 +94,9 @@ func (m *mimeTypeManager) MIME(filePath string) (string, bool) {
 	return mime, m.IsPhoto(mime)
 }
 
-var mimeTypes = &mimeTypeManager{}
+var mimeTypes = &mimeTypeManager{
+	mimeTypes: make(map[string]string),
+}
 
 func init() {
 	mimeTypes.addMime(".png", "image/png")
