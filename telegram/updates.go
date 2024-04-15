@@ -216,7 +216,7 @@ func (c *Client) handleAlbum(message MessageObj) {
 func (c *Client) handleMessageUpdateW(_ Message, pts int32) {
 	updatedMessage, err := c.GetDifference(pts, 1)
 	if err != nil {
-		c.Log.Error("updates.Dispatcher.GetDifference -", err)
+		c.Log.Error("updates.Dispatcher.getDifference -", err)
 	}
 	if updatedMessage != nil {
 		c.handleMessageUpdate(updatedMessage)
@@ -231,7 +231,7 @@ func (c *Client) handleEditUpdate(update Message) {
 				go func(h messageEditHandle) {
 					defer c.NewRecovery()()
 					if err := h.Handler(packMessage(c, msg)); err != nil {
-						c.Log.Error("updates.dispatcher.EditMessage -", err)
+						c.Log.Error("updates.dispatcher.editMessage -", err)
 					}
 				}(handle)
 			}
@@ -245,7 +245,7 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 			go func(h callbackHandle) {
 				defer c.NewRecovery()()
 				if err := h.Handler(packCallbackQuery(c, update)); err != nil {
-					c.Log.Error("updates.dispatcher.CallbackQuery -", err)
+					c.Log.Error("updates.dispatcher.callbackQuery -", err)
 				}
 			}(handle)
 		}
@@ -258,7 +258,7 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 			go func(h inlineCallbackHandle) {
 				defer c.NewRecovery()()
 				if err := h.Handler(packInlineCallbackQuery(c, update)); err != nil {
-					c.Log.Error("updates.dispatcher.InlineCallbackQuery -", err)
+					c.Log.Error("updates.dispatcher.inlineCallbackQuery -", err)
 				}
 			}(handle)
 		}
@@ -270,7 +270,7 @@ func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 		go func(h participantHandle) {
 			defer c.NewRecovery()()
 			if err := h.Handler(packChannelParticipant(c, update)); err != nil {
-				c.Log.Error("updates.dispatcher.ParticipantUpdate -", err)
+				c.Log.Error("updates.dispatcher.participantUpdate -", err)
 			}
 		}(handle)
 	}
@@ -282,7 +282,7 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 			go func(h inlineHandle) {
 				defer c.NewRecovery()()
 				if err := h.Handler(packInlineQuery(c, update)); err != nil {
-					c.Log.Error("updates.dispatcher.InlineQuery -", err)
+					c.Log.Error("updates.dispatcher.inlineQuery -", err)
 				}
 			}(handle)
 		}
@@ -294,7 +294,7 @@ func (c *Client) handleDeleteUpdate(update Update) {
 		go func(h messageDeleteHandle) {
 			defer c.NewRecovery()()
 			if err := h.Handler(packDeleteMessage(c, update)); err != nil {
-				c.Log.Error("updates.dispatcher.DeleteUpdate -", err)
+				c.Log.Error("updates.dispatcher.deleteUpdate -", err)
 			}
 		}(handle)
 	}
@@ -306,7 +306,7 @@ func (c *Client) handleRawUpdate(update Update) {
 			go func(h rawHandle) {
 				defer c.NewRecovery()()
 				if err := h.Handler(update, c); err != nil {
-					c.Log.Error("updates.dispatcher.RawUpdate -", err)
+					c.Log.Error("updates.dispatcher.rawUpdate -", err)
 				}
 			}(handle)
 		}
@@ -632,8 +632,10 @@ UpdateTypeSwitching:
 
 		goto UpdateTypeSwitching
 	case *UpdatesTooLong:
+		c.Log.Debug("update gap is too long, requesting getState")
+		c.UpdatesGetState()
 	default:
-		c.Log.Warn("ignoring unknown update type: ", c.JSON(u))
+		c.Log.Warn("skipping unhanded update (", reflect.TypeOf(u), "): ", c.JSON(u))
 	}
 	return true
 }
@@ -663,9 +665,11 @@ func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
 				return update, nil
 			}
 		}
+
 	case *UpdatesDifferenceSlice:
 		c.Cache.UpdatePeersToCache(u.Users, u.Chats)
 		return u.NewMessages[0], nil
+
 	default:
 		return nil, nil
 	}
