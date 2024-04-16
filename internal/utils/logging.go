@@ -5,11 +5,8 @@ package utils
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/exec"
 	"runtime"
 	"strings"
-	"time"
 )
 
 const (
@@ -156,13 +153,15 @@ func (l *Logger) levelColor(lev string) string {
 // ASCII Is a pain in Windows Terminal,
 // So we use PowerShell to print the logs
 func (l *Logger) logWin(lev string, v ...any) {
-	cmdPref := "Write-Host -NoNewline -ForegroundColor %s '%s '; Write-Host -NoNewline '%s - '; Write-Host -NoNewline -ForegroundColor %s '%s'; Write-Host -ForegroundColor White ' - %s'"
-	cmdPref = fmt.Sprintf(cmdPref, l.levelColor(lev), time.Now().Format("2006/01/02 15:04:05"), l.Prefix, l.levelColor(lev), lev, getVariable(v...))
-	if _, err := exec.LookPath("powershell"); err == nil {
-		cmd := exec.Command("powershell", "-Command", cmdPref)
-		cmd.Stdout = os.Stdout
-		cmd.Run()
-	} else {
-		log.Println(l.Prefix, "-", lev, "-", getVariable(v...))
-	}
+	log.Println(l.Prefix, "-", lev, "-", getVariable(v...))
+	// Disable PowerShell Logging, it's not working properly
+	// cmdPref := "Write-Host -NoNewline -ForegroundColor %s '%s '; Write-Host -NoNewline '%s - '; Write-Host -NoNewline -ForegroundColor %s '%s'; Write-Host -ForegroundColor White ' - %s'"
+	// cmdPref = fmt.Sprintf(cmdPref, l.levelColor(lev), time.Now().Format("2006/01/02 15:04:05"), l.Prefix, l.levelColor(lev), lev, getVariable(v...))
+	// if _, err := exec.LookPath("powershell"); err == nil {
+	// 	cmd := exec.Command("powershell", "-Command", cmdPref)
+	// 	cmd.Stdout = os.Stdout
+	// 	cmd.Run()
+	// } else {
+	// 	log.Println(l.Prefix, "-", lev, "-", getVariable(v...))
+	// }
 }

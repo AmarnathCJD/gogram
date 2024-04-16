@@ -27,8 +27,6 @@ import (
 const (
 	// DefaultDC is the default data center id
 	DefaultDataCenter       = 4
-	DefaultDevice           = "Samsung Galaxy S24 Ultra, running Android 14"
-	DefaultSystem           = runtime.GOOS + " (" + runtime.GOARCH + ")"
 	DisconnectExportedAfter = 30 * time.Second
 )
 
@@ -204,8 +202,8 @@ func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
 func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.appID = cnf.AppID
 	c.clientData.appHash = cnf.AppHash
-	c.clientData.deviceModel = getStr(cnf.DeviceModel, DefaultDevice)
-	c.clientData.systemVersion = getStr(cnf.SystemVersion, DefaultSystem)
+	c.clientData.deviceModel = getStr(cnf.DeviceModel, "gogram "+runtime.GOOS+" "+runtime.GOARCH)
+	c.clientData.systemVersion = getStr(cnf.SystemVersion, runtime.GOOS+" "+runtime.GOARCH)
 	c.clientData.appVersion = getStr(cnf.AppVersion, Version)
 	c.clientData.langCode = getStr(cnf.LangCode, "en")
 	c.clientData.logLevel = getStr(cnf.LogLevel, LogInfo)
