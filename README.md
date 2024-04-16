@@ -153,6 +153,8 @@ client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 - [x] MessageMediaPoll, UserFull Decode Fails
 - [x] invokeWithLayer channel missing while bad Salt
 - [x] tcp.io.Reader.Read unstable
+- [ ] Session File some issues
+- [ ] Unidentified RPCError decoding fails
 - [ ] HTML Parser 
 
 ## Contributing
