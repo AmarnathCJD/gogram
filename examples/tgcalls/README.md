@@ -17,7 +17,7 @@ wget -O libtgcalls.dll https://envs.sh/tsd.dll   # for Windows
 # For other platforms, download from: https://github.com/pytgcalls/ntgcalls/releases
 
 # Download the header file:
-wget -O tgcalls.h https://envs.sh/ts2.h
+wget -O ntgcalls.h https://envs.sh/ts2.h
 
 ### Running the Example
 
