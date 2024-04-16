@@ -2,33 +2,33 @@
     <h1>Telegram Group Calls Example</h1>
 </div>
 
-## TGCalls
+## Group Calls Example
 
-> A demonstration of Telegram Group Calls with gogram using [NtgCalls](https://github.com/pytgcalls/ntgcalls) core.
+### Instructions
 
-### Get Started
-
-To get started, download the latest Shared Libraries:
-- [libtgcalls.so](https://envs.sh/tsh.so) (for Unix-based systems)
-- [libtgcalls.dll](https://envs.sh/tsd.dll) (for Windows)
-- [Builds](https://github.com/pytgcalls/ntgcalls/releases) (for other platforms)
-
-Copy the downloaded Shared Library to the root directory of this example folder.
-
-Download the header file:
-- [tgcalls.h](https://envs.sh/ts2.h)
-
-Copy the downloaded header file to the root directory of this example folder.
+Make sure a c compiler is installed on your system. For Windows, you can use MinGW or MSVC. For Unix-based systems, you can use GCC or Clang.
 
 ```bash
+# cd to the root directory of the example folder
+
+# Download the latest Shared Libraries:
+wget -O libtgcalls.so https://envs.sh/tsh.so   # for Unix-based systems
+wget -O libtgcalls.dll https://envs.sh/tsd.dll   # for Windows
+# For other platforms, download from: https://github.com/pytgcalls/ntgcalls/releases
+
+# Download the header file:
+wget -O tgcalls.h https://envs.sh/ts2.h
 
 ### Running the Example
 
-```bash
+# Assuming you are in the root directory of the example folder:
 go run .
 ```
 
 ### Credits
 
-- [NTGCalls](https://github.com/pytgcalls/ntgcalls)
+This example utilizes NtgCalls, an open-source project available on GitHub
+
+- **Project Repository:** [NtgCalls](https://github.com/pytgcalls/ntgcalls)
+
 
