@@ -30,6 +30,8 @@ const (
 	DisconnectExportedAfter = 30 * time.Second
 )
 
+// TODO: fix session file issue
+
 type clientData struct {
 	appID         int32
 	appHash       string
