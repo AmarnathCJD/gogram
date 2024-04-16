@@ -8,6 +8,7 @@
 
 Make sure a c compiler is installed on your system. For Windows, you can use MinGW or MSVC. For Unix-based systems, you can use GCC or Clang.
 
+
 ```bash
 # cd to the root directory of the example folder
 
