@@ -141,6 +141,7 @@ func (m *MTProto) AddCustomServerRequestHandler(handler func(i any) bool) {
 }
 
 func (m *MTProto) SaveSession() (err error) {
+	m.Logger.Debug("saving session ->", m.sessionStorage.Path())
 	return m.sessionStorage.Store(&session.Session{
 		Key:      m.authKey,
 		Hash:     m.authKeyHash,

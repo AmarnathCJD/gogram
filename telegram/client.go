@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -127,9 +126,9 @@ func NewClient(config ClientConfig) (*Client, error) {
 func genCacheFileName(stringSession string) string {
 	if stringSession != "" {
 		// return middle 10 characters of the string session
-		return "gogram_" + stringSession[len(stringSession)/2-2:len(stringSession)/2+2]
+		return "cache_" + stringSession[len(stringSession)/2-1:len(stringSession)/2+1]
 	}
-	return "gogram_main"
+	return "cache"
 }
 
 func (c *Client) setupMTProto(config ClientConfig) error {
@@ -167,7 +166,7 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 		return errors.New("your app id or app hash is empty, please provide them")
 	}
 	if config.AppHash == "" {
-		c.Log.Warn("appHash is empty, some features may not work")
+		c.Log.Debug("appHash is empty, some features may not work")
 	}
 
 	if !IsFfmpegInstalled() {
@@ -186,15 +185,10 @@ func (c *Client) setupDispatcher() {
 }
 
 func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
-	if config.Session != "" {
-		configSession, err := filepath.Abs(config.Session)
-		if err != nil {
-			c.Log.Error("error getting absolute path of session file: ", err)
-		} else {
-			config.Session = configSession
-		}
-	}
-	config.Session = getStr(config.Session, filepath.Join(getAbsWorkingDir(), "session.session"))
+
+	// if config.Session is a filename, join it with the working directory
+
+	config.Session = joinAbsWorkingDir(config.Session)
 	config.DataCenter = getInt(config.DataCenter, DefaultDataCenter)
 	config.PublicKeys, _ = keys.GetRSAKeys()
 	return config
@@ -238,6 +232,8 @@ func (c *Client) InitialRequest() error {
 				DataCenters[int(dc.ID)] = dc.IpAddress + ":" + strconv.Itoa(int(dc.Port))
 			}
 		}
+
+		utils.SetDCs(DataCenters)
 	}
 
 	return nil
@@ -516,8 +512,8 @@ func (c *Client) ImportSession(sessionString string) (bool, error) {
 //	  IpAddr: The IP address of the DC
 //	  DcID: The DC ID to connect to
 //	  AppID: The App ID to use
-func (c *Client) ImportRawSession(authKey, authKeyHash []byte, IpAddr string, DcID int, AppID int32) (bool, error) {
-	return c.MTProto.ImportRawAuth(authKey, authKeyHash, IpAddr, DcID, AppID)
+func (c *Client) ImportRawSession(authKey, authKeyHash []byte, IpAddr string, AppID int32) (bool, error) {
+	return c.MTProto.ImportRawAuth(authKey, authKeyHash, IpAddr, AppID)
 }
 
 // ExportRawSession exports a session to raw TData

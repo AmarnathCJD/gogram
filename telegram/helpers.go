@@ -50,12 +50,27 @@ func getInt(a, b int) int {
 	return a
 }
 
-func getAbsWorkingDir() string {
-	dirEx, err := os.Executable()
-	if err != nil {
-		panic(err)
+func joinAbsWorkingDir(filename string) string {
+	if filename == "" {
+		filename = "session.dat" // Default filename for session file
 	}
-	return filepath.Dir(dirEx)
+
+	if !filepath.IsAbs(filename) || !strings.Contains(filename, string(filepath.Separator)) {
+		workDir, err := os.Getwd()
+		if err != nil {
+			panic(err)
+		}
+
+		return filepath.Join(workDir, filename)
+	}
+
+	return filename
+
+	// dirEx, err := os.Executable()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// return filepath.Dir(dirEx)
 }
 
 func PathIsWritable(path string) bool {
