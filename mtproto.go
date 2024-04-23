@@ -165,7 +165,7 @@ func (m *MTProto) ExportAuth() (*session.Session, int) {
 	}, m.GetDC()
 }
 
-func (m *MTProto) ImportRawAuth(authKey, authKeyHash []byte, addr string, _ int, appID int32) (bool, error) {
+func (m *MTProto) ImportRawAuth(authKey, authKeyHash []byte, addr string, appID int32) (bool, error) {
 	m.authKey, m.authKeyHash, m.Addr, m.appID = authKey, authKeyHash, addr, appID
 	m.Logger.Debug("imported auth key, auth key hash, addr, dc, appID")
 	if !m.memorySession {
@@ -210,7 +210,7 @@ func (m *MTProto) AppID() int32 {
 func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	newAddr, isValid := utils.DcList[dc]
 	if !isValid {
-		return nil, errors.New("invalid DC ID provided")
+		return nil, errors.New("invalid data center id provided")
 	}
 	m.sessionStorage.Delete()
 	m.Logger.Debug("deleted old auth key file")
@@ -230,7 +230,7 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	}
 	sender.serverRequestHandlers = m.serverRequestHandlers
 	m.stopRoutines()
-	m.Logger.Info(fmt.Sprintf("user migrated to -> [DC %d]", dc))
+	m.Logger.Info(fmt.Sprintf("user migrated to DC%s - %s", strconv.Itoa(dc), newAddr))
 	m.Logger.Debug("reconnecting to new DC with new auth key")
 	errConn := sender.CreateConnection(true)
 	if errConn != nil {

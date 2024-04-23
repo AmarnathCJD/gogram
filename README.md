@@ -141,7 +141,7 @@ client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 - [x] Updates handling system + Cache
 - [x] HTML, Markdown Parsing, Friendly Methods
 - [x] Support for Flag2.0, Layer 147
-- [ ] WebRTC Calls Support
+- [x] WebRTC Calls Support
 - [ ] Documentation for all methods
 - [x] Stabilize File Uploading
 - [ ] Stabilize File Downloading
@@ -153,9 +153,9 @@ client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 - [x] MessageMediaPoll, UserFull Decode Fails
 - [x] invokeWithLayer channel missing while bad Salt
 - [x] tcp.io.Reader.Read unstable
-- [ ] Session File some issues
+- [x] Session File some issues
 - [ ] Unidentified RPCError decoding fails
-- [ ] HTML Parser 
+- [ ] Perfect HTML Parser 
 
 ## Contributing
 

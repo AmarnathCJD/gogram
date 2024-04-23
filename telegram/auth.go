@@ -69,6 +69,7 @@ func (c *Client) LoginBot(botToken string) error {
 	if au, _ := c.IsAuthorized(); au {
 		return nil
 	}
+
 	_, err := c.AuthImportBotAuthorization(1, c.AppID(), c.AppHash(), botToken)
 	if err == nil {
 		c.clientData.botAcc = true
@@ -202,10 +203,10 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 				return authResp, nil
 			}
 
-			if matchError(err, "[PHONE_CODE_INVALID]") {
+			if matchError(err, "PHONE_CODE_INVALID") {
 				c.Log.Error(errors.Wrap(err, "invalid phone code"))
 				continue
-			} else if matchError(err, "Two-steps verification is enabled") || matchError(err, "2FA is enabled, use a password to login") { // TODO: Implement matchRPCError
+			} else if matchError(err, "SESSION_PASSWORD_NEEDED") {
 			acceptPasswordInput:
 				if opts.Password == "" {
 					for {
