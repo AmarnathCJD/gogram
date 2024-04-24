@@ -956,6 +956,25 @@ func (c *Client) AccountGetPrivacy(key InputPrivacyKey) (*AccountPrivacyRules, e
 	return resp, nil
 }
 
+type AccountGetReactionsNotifySettingsParams struct{}
+
+func (*AccountGetReactionsNotifySettingsParams) CRC() uint32 {
+	return 0x6dd654c
+}
+
+func (c *Client) AccountGetReactionsNotifySettings() (*ReactionsNotifySettings, error) {
+	responseData, err := c.MakeRequest(&AccountGetReactionsNotifySettingsParams{})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending AccountGetReactionsNotifySettings")
+	}
+
+	resp, ok := responseData.(*ReactionsNotifySettings)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type AccountGetRecentEmojiStatusesParams struct {
 	Hash int64
 }
@@ -1926,6 +1945,27 @@ func (c *Client) AccountSetPrivacy(key InputPrivacyKey, rules []InputPrivacyRule
 	return resp, nil
 }
 
+type AccountSetReactionsNotifySettingsParams struct {
+	Settings *ReactionsNotifySettings
+}
+
+func (*AccountSetReactionsNotifySettingsParams) CRC() uint32 {
+	return 0x316ce548
+}
+
+func (c *Client) AccountSetReactionsNotifySettings(settings *ReactionsNotifySettings) (*ReactionsNotifySettings, error) {
+	responseData, err := c.MakeRequest(&AccountSetReactionsNotifySettingsParams{Settings: settings})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending AccountSetReactionsNotifySettings")
+	}
+
+	resp, ok := responseData.(*ReactionsNotifySettings)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type AccountToggleConnectedBotPausedParams struct {
 	Peer   InputPeer
 	Paused bool
@@ -1942,6 +1982,27 @@ func (c *Client) AccountToggleConnectedBotPaused(peer InputPeer, paused bool) (b
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending AccountToggleConnectedBotPaused")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type AccountToggleSponsoredMessagesParams struct {
+	Enabled bool
+}
+
+func (*AccountToggleSponsoredMessagesParams) CRC() uint32 {
+	return 0xb9d9a38d
+}
+
+func (c *Client) AccountToggleSponsoredMessages(enabled bool) (bool, error) {
+	responseData, err := c.MakeRequest(&AccountToggleSponsoredMessagesParams{Enabled: enabled})
+	if err != nil {
+		return false, errors.Wrap(err, "sending AccountToggleSponsoredMessages")
 	}
 
 	resp, ok := responseData.(bool)
@@ -4092,11 +4153,15 @@ func (c *Client) ChannelsGetAdminedPublicChannels(byLocation, checkLimit, forPer
 }
 
 type ChannelsGetChannelRecommendationsParams struct {
-	Channel InputChannel
+	Channel InputChannel `tl:"flag:0"`
 }
 
 func (*ChannelsGetChannelRecommendationsParams) CRC() uint32 {
-	return 0x83b70d97
+	return 0x25a71742
+}
+
+func (*ChannelsGetChannelRecommendationsParams) FlagIndex() int {
+	return 0
 }
 
 func (c *Client) ChannelsGetChannelRecommendations(channel InputChannel) (MessagesChats, error) {
@@ -10724,15 +10789,16 @@ func (c *Client) MessagesSearchEmojiStickerSets(excludeFeatured bool, q string, 
 }
 
 type MessagesSearchGlobalParams struct {
-	FolderID   int32 `tl:"flag:0"`
-	Q          string
-	Filter     MessagesFilter
-	MinDate    int32
-	MaxDate    int32
-	OffsetRate int32
-	OffsetPeer InputPeer
-	OffsetID   int32
-	Limit      int32
+	BroadcastsOnly bool  `tl:"flag:1,encoded_in_bitflags"`
+	FolderID       int32 `tl:"flag:0"`
+	Q              string
+	Filter         MessagesFilter
+	MinDate        int32
+	MaxDate        int32
+	OffsetRate     int32
+	OffsetPeer     InputPeer
+	OffsetID       int32
+	Limit          int32
 }
 
 func (*MessagesSearchGlobalParams) CRC() uint32 {
@@ -11369,16 +11435,22 @@ func (c *Client) MessagesSetBotShippingResults(queryID int64, error string, ship
 type MessagesSetChatAvailableReactionsParams struct {
 	Peer               InputPeer
 	AvailableReactions ChatReactions
+	ReactionsLimit     int32 `tl:"flag:0"`
 }
 
 func (*MessagesSetChatAvailableReactionsParams) CRC() uint32 {
-	return 0xfeb16771
+	return 0x5a150bd4
 }
 
-func (c *Client) MessagesSetChatAvailableReactions(peer InputPeer, availableReactions ChatReactions) (Updates, error) {
+func (*MessagesSetChatAvailableReactionsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesSetChatAvailableReactions(peer InputPeer, availableReactions ChatReactions, reactionsLimit int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesSetChatAvailableReactionsParams{
 		AvailableReactions: availableReactions,
 		Peer:               peer,
+		ReactionsLimit:     reactionsLimit,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesSetChatAvailableReactions")
@@ -15023,6 +15095,31 @@ func (c *Client) StoriesTogglePinned(peer InputPeer, id []int32, pinned bool) ([
 	}
 
 	resp, ok := responseData.([]int32)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type StoriesTogglePinnedToTopParams struct {
+	Peer InputPeer
+	ID   []int32
+}
+
+func (*StoriesTogglePinnedToTopParams) CRC() uint32 {
+	return 0xb297e9b
+}
+
+func (c *Client) StoriesTogglePinnedToTop(peer InputPeer, id []int32) (bool, error) {
+	responseData, err := c.MakeRequest(&StoriesTogglePinnedToTopParams{
+		ID:   id,
+		Peer: peer,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending StoriesTogglePinnedToTop")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
