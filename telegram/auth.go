@@ -311,7 +311,7 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 	}
 
 	if err := json.NewDecoder(respCode.Body).Decode(&result); err != nil {
-		return 0, "", false, err
+		return 0, "", false, errors.Wrap(err, "Too many requests, try again later")
 	}
 
 	code, err := conf.WebCodeCallback()
