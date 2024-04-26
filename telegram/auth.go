@@ -283,7 +283,7 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 
 	if conf.WebCodeCallback == nil {
 		conf.WebCodeCallback = func() (string, error) {
-			fmt.Printf("Enter recieved web login code: ")
+			fmt.Printf("Enter received web login code: ")
 			var password string
 			fmt.Scanln(&password)
 			return password, nil
