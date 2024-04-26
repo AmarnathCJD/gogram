@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -306,9 +305,6 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 	if err != nil || respCode.StatusCode != 200 {
 		return 0, "", false, err
 	}
-
-	b, _ := ioutil.ReadAll(respCode.Body)
-	fmt.Println(string(b))
 
 	var result struct {
 		RandomHash string `json:"random_hash"`
