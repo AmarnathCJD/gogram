@@ -61,21 +61,27 @@ type Client struct {
 	Log             *utils.Logger
 }
 
-type ClientConfig struct {
-	AppID         int32
-	AppHash       string
+type DeviceConfig struct {
 	DeviceModel   string
 	SystemVersion string
 	AppVersion    string
+}
+
+type ClientConfig struct {
+	AppID         int32
+	AppHash       string
+	DeviceConfig  DeviceConfig
 	Session       string
 	StringSession string
 	LangCode      string
 	ParseMode     string
 	MemorySession bool
 	DataCenter    int
+	IpAddr        string
 	PublicKeys    []*rsa.PublicKey
 	NoUpdates     bool
 	DisableCache  bool
+	TestMode      bool
 	LogLevel      string
 	Proxy         *url.URL
 }
@@ -133,10 +139,18 @@ func genCacheFileName(stringSession string) string {
 }
 
 func (c *Client) setupMTProto(config ClientConfig) error {
+	toIpAddr := func() string {
+		if config.IpAddr != "" {
+			return config.IpAddr
+		} else {
+			return GetHostIp(config.DataCenter, config.TestMode)
+		}
+	}
+
 	mtproto, err := mtproto.NewMTProto(mtproto.Config{
 		AppID:         config.AppID,
 		AuthKeyFile:   config.Session,
-		ServerHost:    GetHostIp(config.DataCenter),
+		ServerHost:    toIpAddr(),
 		PublicKey:     config.PublicKeys[0],
 		DataCenter:    config.DataCenter,
 		LogLevel:      config.LogLevel,
@@ -199,7 +213,11 @@ func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
 	// if config.Session is a filename, join it with the working directory
 
 	config.Session = joinAbsWorkingDir(config.Session)
-	config.DataCenter = getInt(config.DataCenter, DefaultDataCenter)
+	if config.TestMode {
+		config.DataCenter = 2
+	} else {
+		config.DataCenter = getInt(config.DataCenter, DefaultDataCenter)
+	}
 	config.PublicKeys, _ = keys.GetRSAKeys()
 	return config
 }
@@ -208,9 +226,9 @@ func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
 func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.appID = cnf.AppID
 	c.clientData.appHash = cnf.AppHash
-	c.clientData.deviceModel = getStr(cnf.DeviceModel, "gogram "+runtime.GOOS+" "+runtime.GOARCH)
-	c.clientData.systemVersion = getStr(cnf.SystemVersion, runtime.GOOS+" "+runtime.GOARCH)
-	c.clientData.appVersion = getStr(cnf.AppVersion, Version)
+	c.clientData.deviceModel = getStr(cnf.DeviceConfig.DeviceModel, "gogram "+runtime.GOOS+" "+runtime.GOARCH)
+	c.clientData.systemVersion = getStr(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH)
+	c.clientData.appVersion = getStr(cnf.DeviceConfig.AppVersion, Version)
 	c.clientData.langCode = getStr(cnf.LangCode, "en")
 	c.clientData.logLevel = getStr(cnf.LogLevel, LogInfo)
 	c.clientData.parseMode = getStr(cnf.ParseMode, "HTML")
