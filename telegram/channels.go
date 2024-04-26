@@ -62,7 +62,7 @@ func (c *Client) JoinChannel(Channel interface{}) error {
 			}
 		}
 	default:
-		channel, err := c.GetSendablePeer(Channel)
+		channel, err := c.ResolvePeer(Channel)
 		if err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ func (c *Client) JoinChannel(Channel interface{}) error {
 //	 - Revoke: If true, the channel will be deleted
 func (c *Client) LeaveChannel(Channel interface{}, Revoke ...bool) error {
 	revokeChat := getVariadic(Revoke, false).(bool)
-	channel, err := c.GetSendablePeer(Channel)
+	channel, err := c.ResolvePeer(Channel)
 	if err != nil {
 		return err
 	}
@@ -133,11 +133,11 @@ type Participant struct {
 //	 - chatID: The ID of the chat
 //	 - userID: The ID of the user
 func (c *Client) GetChatMember(chatID, userID interface{}) (*Participant, error) {
-	channel, err := c.GetSendablePeer(chatID)
+	channel, err := c.ResolvePeer(chatID)
 	if err != nil {
 		return nil, err
 	}
-	user, err := c.GetSendablePeer(userID)
+	user, err := c.ResolvePeer(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ type ParticipantOptions struct {
 //	 - offset: The offset to use
 //	 - limit: The limit to use
 func (c *Client) GetChatMembers(chatID interface{}, Opts ...*ParticipantOptions) ([]*Participant, int32, error) {
-	channel, err := c.GetSendablePeer(chatID)
+	channel, err := c.ResolvePeer(chatID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -285,11 +285,11 @@ type AdminOptions struct {
 // returns true if successful
 func (c *Client) EditAdmin(PeerID, UserID interface{}, Opts ...*AdminOptions) (bool, error) {
 	opts := getVariadic(Opts, &AdminOptions{IsAdmin: true, Rights: &ChatAdminRights{}, Rank: "Admin"}).(*AdminOptions)
-	peer, err := c.GetSendablePeer(PeerID)
+	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return false, err
 	}
-	u, err := c.GetSendablePeer(UserID)
+	u, err := c.ResolvePeer(UserID)
 	if err != nil {
 		return false, err
 	}
@@ -337,11 +337,11 @@ func (c *Client) EditBanned(PeerID, UserID interface{}, opts ...*BannedOptions) 
 	if o.Rights == nil {
 		o.Rights = &ChatBannedRights{}
 	}
-	peer, err := c.GetSendablePeer(PeerID)
+	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return false, err
 	}
-	u, err := c.GetSendablePeer(UserID)
+	u, err := c.ResolvePeer(UserID)
 	if err != nil {
 		return false, err
 	}
@@ -382,11 +382,11 @@ func (c *Client) EditBanned(PeerID, UserID interface{}, opts ...*BannedOptions) 
 }
 
 func (c *Client) KickParticipant(PeerID, UserID interface{}) (bool, error) {
-	peer, err := c.GetSendablePeer(PeerID)
+	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return false, err
 	}
-	u, err := c.GetSendablePeer(UserID)
+	u, err := c.ResolvePeer(UserID)
 	if err != nil {
 		return false, err
 	}
@@ -424,7 +424,7 @@ type TitleOptions struct {
 // returns true if successful
 func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...*TitleOptions) (bool, error) {
 	opts := getVariadic(Opts, &TitleOptions{}).(*TitleOptions)
-	peer, err := c.GetSendablePeer(PeerID)
+	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return false, err
 	}
@@ -456,7 +456,7 @@ func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...*TitleOptio
 //	 - channelID: the channel ID
 //	 - messageID: the message ID
 func (c *Client) GetStats(channelID interface{}, messageID ...interface{}) (*StatsBroadcastStats, *StatsMessageStats, error) {
-	peerID, err := c.GetSendablePeer(channelID)
+	peerID, err := c.ResolvePeer(channelID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -504,7 +504,7 @@ type InviteLinkOptions struct {
 //	 - RequestNeeded: If true, join requests will be needed to join the chat
 func (c *Client) GetChatInviteLink(peerID interface{}, LinkOpts ...*InviteLinkOptions) (ExportedChatInvite, error) {
 	LinkOptions := getVariadic(LinkOpts, &InviteLinkOptions{}).(*InviteLinkOptions)
-	peer, err := c.GetSendablePeer(peerID)
+	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
 	}
@@ -552,7 +552,7 @@ func (c *Client) CreateChannel(title string, opts ...ChannelOptions) (*Channel, 
 }
 
 func (c *Client) DeleteChannel(channelID interface{}) (*Updates, error) {
-	peer, err := c.GetSendablePeer(channelID)
+	peer, err := c.ResolvePeer(channelID)
 	if err != nil {
 		return nil, err
 	}
@@ -586,7 +586,7 @@ func (c *Client) GetChatJoinRequests(channelID interface{}, lim int) ([]*UserObj
 	}
 
 	// Get sendable peer
-	peer, err := c.GetSendablePeer(channelID)
+	peer, err := c.ResolvePeer(channelID)
 	if err != nil {
 		return nil, err
 	}

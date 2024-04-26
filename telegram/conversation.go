@@ -30,7 +30,7 @@ type Conversation struct {
 }
 
 func (c *Client) NewConversation(peer any, isPrivate bool, timeout ...int) (*Conversation, error) {
-	peerID, err := c.GetSendablePeer(peer)
+	peerID, err := c.ResolvePeer(peer)
 	if err != nil {
 		return nil, err
 	}

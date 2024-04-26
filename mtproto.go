@@ -60,7 +60,7 @@ type MTProto struct {
 
 	sessionStorage session.SessionLoader
 
-	PublicKey *rsa.PublicKey
+	publicKey *rsa.PublicKey
 
 	serviceChannel       chan tl.Object
 	serviceModeActivated bool
@@ -112,7 +112,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		encrypted:             false,
 		sessionId:             utils.GenerateSessionID(),
 		serviceChannel:        make(chan tl.Object),
-		PublicKey:             c.PublicKey,
+		publicKey:             c.PublicKey,
 		responseChannels:      utils.NewSyncIntObjectChan(),
 		expectedTypes:         utils.NewSyncIntReflectTypes(),
 		serverRequestHandlers: make([]func(i any) bool, 0),
@@ -207,6 +207,10 @@ func (m *MTProto) AppID() int32 {
 	return m.appID
 }
 
+func (m *MTProto) SetAppID(appID int32) {
+	m.appID = appID
+}
+
 func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	newAddr, isValid := utils.DcList[dc]
 	if !isValid {
@@ -216,7 +220,7 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	m.Logger.Debug("deleted old auth key file")
 	cfg := Config{
 		DataCenter:    dc,
-		PublicKey:     m.PublicKey,
+		PublicKey:     m.publicKey,
 		ServerHost:    newAddr,
 		AuthKeyFile:   m.sessionStorage.Path(),
 		MemorySession: m.memorySession,
@@ -246,12 +250,12 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		return nil, errors.Wrap(err, "getting executable directory")
 	}
 	wd := filepath.Dir(execWorkDir)
-	cfg := Config{DataCenter: dcID, PublicKey: m.PublicKey, ServerHost: newAddr, AuthKeyFile: filepath.Join(wd, "exported_sender"), MemorySession: mem, LogLevel: m.Logger.Lev(), Proxy: m.proxy, AppID: m.appID}
+	cfg := Config{DataCenter: dcID, PublicKey: m.publicKey, ServerHost: newAddr, AuthKeyFile: filepath.Join(wd, "exported_sender"), MemorySession: mem, LogLevel: m.Logger.Lev(), Proxy: m.proxy, AppID: m.appID}
 	if dcID == m.GetDC() {
 		cfg.SessionStorage = m.sessionStorage
 	}
 	sender, _ := NewMTProto(cfg)
-	m.Logger.Info("exporting new sender for [DC " + strconv.Itoa(dcID) + "]")
+	m.Logger.Info("exporting new sender for DC " + strconv.Itoa(dcID))
 	err = sender.CreateConnection(true)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating connection")
@@ -612,7 +616,7 @@ messageTypeSwitching:
 			}
 		}
 		if !processed {
-			m.Logger.Warn("unhandled message: " + fmt.Sprintf("%T", message))
+			m.Logger.Debug("> unhandled update: " + fmt.Sprintf("%T", message))
 		}
 	}
 

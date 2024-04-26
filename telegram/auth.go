@@ -3,15 +3,16 @@
 package telegram
 
 import (
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
-	"crypto/sha512"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
-	"hash"
-	"math/big"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -174,6 +175,8 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 			return false, err
 		}
 	}
+
+	c.SaveSession()
 	switch auth := auth.(type) {
 	case *AuthAuthorizationSignUpRequired:
 		return false, errors.New("SignUp using official Telegram app is required")
@@ -263,6 +266,148 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 	return nil, nil
 }
 
+type ScrapeConfig struct {
+	PhoneNum          string
+	WebCodeCallback   func() (string, error)
+	CreateIfNotExists bool
+}
+
+func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, error) {
+	var conf = getVariadic(config, &ScrapeConfig{
+		CreateIfNotExists: true,
+	}).(*ScrapeConfig)
+
+	if conf.PhoneNum == "" {
+		fmt.Printf("Enter phone number (with country code [+1xxx]): ")
+		fmt.Scanln(&conf.PhoneNum)
+	}
+
+	if conf.WebCodeCallback == nil {
+		conf.WebCodeCallback = func() (string, error) {
+			fmt.Printf("Enter recieved web login code: ")
+			var password string
+			fmt.Scanln(&password)
+			return password, nil
+		}
+	}
+
+	customClient := &http.Client{
+		Timeout: time.Second * 10,
+	}
+
+	reqCode, err := http.NewRequest("POST", "https://my.telegram.org/auth/send_password", strings.NewReader("phone="+url.QueryEscape(conf.PhoneNum)))
+	if err != nil {
+		return 0, "", false, err
+	}
+
+	reqCode.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	respCode, err := customClient.Do(reqCode)
+	if err != nil || respCode.StatusCode != 200 {
+		return 0, "", false, err
+	}
+
+	b, _ := ioutil.ReadAll(respCode.Body)
+	fmt.Println(string(b))
+
+	var result struct {
+		RandomHash string `json:"random_hash"`
+	}
+
+	if err := json.NewDecoder(respCode.Body).Decode(&result); err != nil {
+		return 0, "", false, err
+	}
+
+	code, err := conf.WebCodeCallback()
+	if err != nil {
+		return 0, "", false, err
+	}
+
+	reqLogin, err := http.NewRequest("POST", "https://my.telegram.org/auth/login", strings.NewReader("phone="+url.QueryEscape(conf.PhoneNum)+"&random_hash="+result.RandomHash+"&password="+url.QueryEscape(code)))
+	if err != nil {
+		return 0, "", false, err
+	}
+
+	reqLogin.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	respLogin, err := customClient.Do(reqLogin)
+	if err != nil || respLogin.StatusCode != 200 {
+		return 0, "", false, err
+	}
+
+	cookies := respLogin.Cookies()
+	ALREDY_TRIED_CREATION := false
+
+BackToAppsPage:
+	reqScrape, err := http.NewRequest("GET", "https://my.telegram.org/apps", nil)
+	if err != nil {
+		return 0, "", false, err
+	}
+
+	for _, cookie := range cookies {
+		reqScrape.AddCookie(cookie)
+	}
+
+	respScrape, err := customClient.Do(reqScrape)
+	if err != nil || respScrape.StatusCode != 200 {
+		return 0, "", false, err
+	}
+
+	body, err := io.ReadAll(respScrape.Body)
+	if err != nil {
+		return 0, "", false, err
+	}
+
+	appIDRegex := regexp.MustCompile(`<label for="app_id".*?>.*?</label>\s*<div.*?>\s*<span.*?><strong>(\d+)</strong></span>`)
+	appHashRegex := regexp.MustCompile(`<label for="app_hash".*?>.*?</label>\s*<div.*?>\s*<span.*?>([a-fA-F0-9]+)</span>`)
+
+	appID := appIDRegex.FindStringSubmatch(string(body))
+	appHash := appHashRegex.FindStringSubmatch(string(body))
+
+	if len(appID) < 2 || len(appHash) < 2 || strings.Contains(string(body), "Create new application") && !ALREDY_TRIED_CREATION {
+		ALREDY_TRIED_CREATION = true
+		// assume app is not created, create app
+		hiddenHashRegex := regexp.MustCompile(`<input type="hidden" name="hash" value="([a-fA-F0-9]+)">`)
+		hiddenHash := hiddenHashRegex.FindStringSubmatch(string(body))
+
+		if len(hiddenHash) < 2 {
+			return 0, "", false, errors.New("creation hash not found, try manual creation")
+		}
+
+		appRandomSuffix := make([]byte, 8)
+		_, err := rand.Read(appRandomSuffix)
+
+		if err != nil {
+			return 0, "", false, err
+		}
+
+		reqCreateApp, err := http.NewRequest("POST", "https://my.telegram.org/apps/create", strings.NewReader("hash="+hiddenHash[1]+"&app_title=AppForGogram"+string(appRandomSuffix)+"&app_shortname=gogramapp"+string(appRandomSuffix)+"&app_platform=android&app_url=https%3A%2F%2Fgogram.vercel.app&app_desc=ForGoGram"+string(appRandomSuffix)))
+		if err != nil {
+			return 0, "", false, err
+		}
+
+		reqCreateApp.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		for _, cookie := range cookies {
+			reqCreateApp.AddCookie(cookie)
+		}
+
+		respCreateApp, err := customClient.Do(reqCreateApp)
+		if err != nil || respCreateApp.StatusCode != 200 {
+			return 0, "", false, err
+		}
+
+		goto BackToAppsPage
+	}
+
+	appIdNum, err := strconv.Atoi(appID[1])
+	if err != nil {
+		return 0, "", false, err
+	}
+
+	return int32(appIdNum), appHash[1], true, nil
+}
+
 func (c *Client) AcceptTOS() (bool, error) {
 	tos, err := c.HelpGetTermsOfServiceUpdate()
 	if err != nil {
@@ -300,7 +445,12 @@ func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool
 		opt = opts[0]
 	}
 	if opt.Email != "" && opt.EmailCodeCallback == nil {
-		return false, errors.New("email present without email_code_callback")
+		opt.EmailCodeCallback = func() string {
+			fmt.Printf("Enter received email code: ")
+			var code string
+			fmt.Scanln(&code)
+			return code
+		}
 	}
 	pwd, err := c.AccountGetPassword()
 	if err != nil {
@@ -311,6 +461,7 @@ func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool
 	if err != nil {
 		return false, err
 	}
+
 	// add random bytes to the end of the password
 	pwd.NewAlgo.(*PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow).Salt1 = append(pwd.NewAlgo.(*PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow).Salt1, b...)
 	if !pwd.HasPassword && currPwd != "" {
@@ -327,10 +478,11 @@ func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool
 		password = &InputCheckPasswordEmpty{}
 	}
 	if newPwd != "" {
-		newPasswordHash = computeDigest(pwd.NewAlgo.(*PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow), newPwd)
+		newPasswordHash = ComputeDigest(pwd.NewAlgo.(*PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow), newPwd)
 	} else {
 		newPasswordHash = []byte{}
 	}
+
 	_, err = c.AccountUpdatePasswordSettings(password, &AccountPasswordInputSettings{
 		NewAlgo:           pwd.NewAlgo,
 		NewPasswordHash:   newPasswordHash,
@@ -339,7 +491,7 @@ func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool
 		NewSecureSettings: &SecureSecretSettings{},
 	})
 	if err != nil {
-		if matchError(err, "Email unconfirmed") {
+		if matchError(err, "EMAIL_UNCONFIRMED") {
 			if opt.EmailCodeCallback == nil {
 				return false, errors.New("email_code_callback is nil")
 			}
@@ -418,7 +570,6 @@ func (q *QrToken) Wait(timeout ...int32) error {
 			case *AuthAuthorizationObj:
 				switch u := u.User.(type) {
 				case *UserObj:
-					// q.client.bot = u.Bot
 					q.client.Cache.UpdateUser(u)
 				case *UserEmpty:
 					return errors.New("authorization user is empty")
@@ -469,183 +620,4 @@ func (c *Client) LogOut() error {
 	// c.bot = false
 	c.MTProto.DeleteSession()
 	return err
-}
-
-// GetInputCheckPassword returns InputCheckPasswordSRP
-
-func RandomBytes(size int) []byte {
-	b := make([]byte, size)
-	_, _ = rand.Read(b)
-	return b
-}
-
-// GetInputCheckPassword returns the input check password for the given password and salt.
-// https://core.telegram.org/api/srp#checking-the-password-with-srp
-func GetInputCheckPasswordAlgo(password string, srpB []byte, mp *ModPow) (*SrpAnswer, error) {
-	return getInputCheckPassword(password, srpB, mp, RandomBytes(randombyteLen))
-}
-
-func getInputCheckPassword(password string, srpB []byte, mp *ModPow, random []byte) (*SrpAnswer, error) {
-	if password == "" {
-		return nil, nil
-	}
-	err := validateCurrentAlgo(srpB, mp)
-	if err != nil {
-		return nil, errors.Wrap(err, "validating CurrentAlgo")
-	}
-	p := bytesToBig(mp.P)
-	g := big.NewInt(int64(mp.G))
-	gBytes := pad256(g.Bytes())
-	a := bytesToBig(random)
-	ga := pad256(bigExp(g, a, p).Bytes())
-	gb := pad256(srpB)
-	u := bytesToBig(calcSHA256(ga, gb))
-	x := bytesToBig(passwordHash2([]byte(password), mp.Salt1, mp.Salt2))
-	v := bigExp(g, x, p)
-	k := bytesToBig(calcSHA256(mp.P, gBytes))
-	kv := k.Mul(k, v).Mod(k, p)
-	t := bytesToBig(srpB)
-	if t.Sub(t, kv).Cmp(big.NewInt(0)) == -1 {
-		t.Add(t, p)
-	}
-
-	sa := pad256(bigExp(t, u.Mul(u, x).Add(u, a), p).Bytes())
-
-	ka := calcSHA256(sa)
-
-	M1 := calcSHA256(
-		BytesXor(calcSHA256(mp.P), calcSHA256(gBytes)),
-		calcSHA256(mp.Salt1),
-		calcSHA256(mp.Salt2),
-		ga,
-		gb,
-		ka,
-	)
-
-	return &SrpAnswer{
-		GA: ga,
-		M1: M1,
-	}, nil
-}
-
-type ModPow struct {
-	Salt1 []byte
-	Salt2 []byte
-	G     int32
-	P     []byte
-}
-
-type SrpAnswer struct {
-	GA []byte
-	M1 []byte
-}
-
-func validateCurrentAlgo(srpB []byte, mp *ModPow) error {
-	if dhHandshakeCheckConfigIsError(mp.G, mp.P) {
-		return errors.New("receive invalid config g")
-	}
-
-	p := bytesToBig(mp.P)
-	gb := bytesToBig(srpB)
-
-	if big.NewInt(0).Cmp(gb) != -1 || gb.Cmp(p) != -1 || len(srpB) < 248 || len(srpB) > 256 {
-		return errors.New("receive invalid value of B")
-	}
-
-	return nil
-}
-
-func saltingHashing(data, salt []byte) []byte {
-	return calcSHA256(salt, data, salt)
-}
-
-func passwordHash1(password, salt1, salt2 []byte) []byte {
-	return saltingHashing(saltingHashing(password, salt1), salt2)
-}
-
-func passwordHash2(password, salt1, salt2 []byte) []byte {
-	return saltingHashing(pbkdf2sha512(passwordHash1(password, salt1, salt2), salt1, 100000), salt2)
-}
-
-func pbkdf2sha512(hash1, salt1 []byte, i int) []byte {
-	return AlgoKey(hash1, salt1, i, 64, sha512.New)
-}
-
-func pad256(b []byte) []byte {
-	if len(b) >= 256 {
-		return b[len(b)-256:]
-	}
-
-	tmp := make([]byte, 256)
-	copy(tmp[256-len(b):], b)
-
-	return tmp
-}
-
-func calcSHA256(arrays ...[]byte) []byte {
-	h := sha256.New()
-	for _, arr := range arrays {
-		h.Write(arr)
-	}
-	return h.Sum(nil)
-}
-
-func bytesToBig(b []byte) *big.Int {
-	return new(big.Int).SetBytes(b)
-}
-
-func bigExp(x, y, m *big.Int) *big.Int {
-	return new(big.Int).Exp(x, y, m)
-}
-
-func dhHandshakeCheckConfigIsError(_ int32, _ []byte) bool {
-	return false
-}
-
-func AlgoKey(password, salt []byte, iter, keyLen int, h func() hash.Hash) []byte {
-	prf := hmac.New(h, password)
-	hashLen := prf.Size()
-	numBlocks := (keyLen + hashLen - 1) / hashLen
-
-	var buf [4]byte
-	dk := make([]byte, 0, numBlocks*hashLen)
-	U := make([]byte, hashLen)
-	for block := 1; block <= numBlocks; block++ {
-		prf.Reset()
-		prf.Write(salt)
-		buf[0] = byte(block >> 24)
-		buf[1] = byte(block >> 16)
-		buf[2] = byte(block >> 8)
-		buf[3] = byte(block)
-		prf.Write(buf[:4])
-		dk = prf.Sum(dk)
-		T := dk[len(dk)-hashLen:]
-		copy(U, T)
-
-		for n := 2; n <= iter; n++ {
-			prf.Reset()
-			prf.Write(U)
-			U = U[:0]
-			U = prf.Sum(U)
-			for x := range U {
-				T[x] ^= U[x]
-			}
-		}
-	}
-	return dk[:keyLen]
-}
-
-func BytesXor(a, b []byte) []byte {
-	res := make([]byte, len(a))
-	copy(res, a)
-	for i := range res {
-		res[i] ^= b[i]
-	}
-	return res
-}
-
-func computeDigest(algo *PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow, password string) []byte {
-	hash := passwordHash2([]byte(password), algo.Salt1, algo.Salt2)
-	value := bigExp(big.NewInt(int64(algo.G)), bytesToBig(hash), bytesToBig(algo.P))
-	return pad256(value.Bytes())
 }
