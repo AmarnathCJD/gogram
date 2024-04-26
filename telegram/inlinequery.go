@@ -121,10 +121,7 @@ PhotoTypeSwitch:
 	case *InputMediaPhoto:
 		image = p.ID
 	case *InputMediaUploadedPhoto:
-		media, err := b.Client.MessagesUploadMedia(opts.BuissnessConnectionId, &InputPeerSelf{}, p)
-		if err != nil {
-			image = &InputPhotoEmpty{}
-		}
+		media, _ := b.Client.MessagesUploadMedia(opts.BuissnessConnectionId, &InputPeerSelf{}, p)
 
 		inputPhoto, err = b.Client.getSendableMedia(media, &MediaMetadata{})
 		if err != nil {
@@ -187,15 +184,12 @@ DocTypeSwitch:
 	case *InputMediaDocument:
 		document = p.ID
 	case *InputMediaUploadedDocument:
-		media, err := b.Client.MessagesUploadMedia(opts.BuissnessConnectionId, &InputPeerSelf{}, p)
-		if err != nil {
-			document = &InputDocumentEmpty{}
-		}
+		media, _ := b.Client.MessagesUploadMedia(opts.BuissnessConnectionId, &InputPeerSelf{}, p)
+
 		inputDoc, _ = b.Client.getSendableMedia(media, &MediaMetadata{})
 		goto DocTypeSwitch
 	default:
 		b.Client.Logger.Error("InlineBuilder.Document: Document is not a InputMediaDocument")
-		doc = &InputDocumentEmpty{}
 	}
 
 	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()).(string))
