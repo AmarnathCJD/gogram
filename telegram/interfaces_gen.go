@@ -1345,6 +1345,7 @@ type ChannelFull struct {
 	RecentRequesters       []int64         `tl:"flag:28"`
 	DefaultSendAs          Peer            `tl:"flag:29"`
 	AvailableReactions     ChatReactions   `tl:"flag:30"`
+	ReactionsLimit         int32           `tl:"flag2:13"`
 	Stories                *PeerStories    `tl:"flag2:4"`
 	Wallpaper              WallPaper       `tl:"flag2:7"`
 	BoostsApplied          int32           `tl:"flag2:8"`
@@ -1353,7 +1354,7 @@ type ChannelFull struct {
 }
 
 func (*ChannelFull) CRC() uint32 {
-	return 0x44c054a7
+	return 0xbbab348d
 }
 
 func (*ChannelFull) FlagIndex() int {
@@ -1382,10 +1383,11 @@ type ChatFullObj struct {
 	RequestsPending        int32              `tl:"flag:17"`
 	RecentRequesters       []int64            `tl:"flag:17"`
 	AvailableReactions     ChatReactions      `tl:"flag:18"`
+	ReactionsLimit         int32              `tl:"flag:20"`
 }
 
 func (*ChatFullObj) CRC() uint32 {
-	return 0xc9d31138
+	return 0x2633421b
 }
 
 func (*ChatFullObj) FlagIndex() int {
@@ -9008,6 +9010,18 @@ func (*UpdateNewStickerSet) CRC() uint32 {
 
 func (*UpdateNewStickerSet) ImplementsUpdate() {}
 
+type UpdateNewStoryReaction struct {
+	StoryID  int32
+	Peer     Peer
+	Reaction Reaction
+}
+
+func (*UpdateNewStoryReaction) CRC() uint32 {
+	return 0x1824e40b
+}
+
+func (*UpdateNewStoryReaction) ImplementsUpdate() {}
+
 type UpdateNotifySettings struct {
 	Peer           NotifyPeer
 	NotifySettings *PeerNotifySettings
@@ -10188,6 +10202,22 @@ type WebPageAttribute interface {
 	tl.Object
 	ImplementsWebPageAttribute()
 }
+type WebPageAttributeStickerSet struct {
+	Emojis    bool `tl:"flag:0,encoded_in_bitflags"`
+	TextColor bool `tl:"flag:1,encoded_in_bitflags"`
+	Stickers  []Document
+}
+
+func (*WebPageAttributeStickerSet) CRC() uint32 {
+	return 0x50cc03d3
+}
+
+func (*WebPageAttributeStickerSet) FlagIndex() int {
+	return 0
+}
+
+func (*WebPageAttributeStickerSet) ImplementsWebPageAttribute() {}
+
 type WebPageAttributeStory struct {
 	Peer  Peer
 	ID    int32

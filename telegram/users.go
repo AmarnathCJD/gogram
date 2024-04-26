@@ -88,7 +88,7 @@ func (c *Client) GetProfilePhotos(userID interface{}, Opts ...*PhotosOptions) ([
 	} else if Options.Limit < 1 {
 		Options.Limit = 1
 	}
-	peer, err := c.GetSendablePeer(userID)
+	peer, err := c.ResolvePeer(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 //	Params:
 //	 - userID: The user Identifier
 func (c *Client) GetCommonChats(userID interface{}) ([]Chat, error) {
-	peer, err := c.GetSendablePeer(userID)
+	peer, err := c.ResolvePeer(userID)
 	if err != nil {
 		return nil, err
 	}

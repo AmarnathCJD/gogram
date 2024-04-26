@@ -5,7 +5,7 @@ package telegram
 import "fmt"
 
 func (c *Client) StartGroupCallMedia(peer interface{}) (PhoneCall, error) {
-	peerDialog, err := c.GetSendablePeer(peer)
+	peerDialog, err := c.ResolvePeer(peer)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func (c *Client) StartGroupCallMedia(peer interface{}) (PhoneCall, error) {
 // TODO: after implementing latest Layer.
 
 func (c *Client) GetGroupCall(chatId interface{}) (*InputGroupCall, error) {
-	resolvedPeer, err := c.GetSendablePeer(chatId)
+	resolvedPeer, err := c.ResolvePeer(chatId)
 	if err != nil {
 		return nil, err
 	}

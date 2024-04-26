@@ -81,13 +81,13 @@ func (c *Client) SendMessage(peerID, message interface{}, opts ...*SendOptions) 
 		opt.Caption = getValue(opt.Caption, rawText)
 		return c.SendMedia(peerID, media, convertOption(opt))
 	}
-	senderPeer, err := c.GetSendablePeer(peerID)
+	senderPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
 	}
 	var sendAs InputPeer
 	if opt.SendAs != nil {
-		sendAs, err = c.GetSendablePeer(opt.SendAs)
+		sendAs, err = c.ResolvePeer(opt.SendAs)
 		if err != nil {
 			return nil, err
 		}
@@ -162,7 +162,7 @@ func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, 
 	case *InputBotInlineMessageID:
 		return c.editBotInlineMessage(*p, textMessage, entities, media, opt)
 	}
-	senderPeer, err := c.GetSendablePeer(peerID)
+	senderPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
 	}
@@ -351,13 +351,13 @@ func (c *Client) SendMedia(peerID, Media interface{}, opts ...*MediaOptions) (*N
 	if opt.Entites != nil {
 		entities = opt.Entites
 	}
-	senderPeer, err := c.GetSendablePeer(peerID)
+	senderPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
 	}
 	var sendAs InputPeer
 	if opt.SendAs != nil {
-		sendAs, err = c.GetSendablePeer(opt.SendAs)
+		sendAs, err = c.ResolvePeer(opt.SendAs)
 		if err != nil {
 			return nil, err
 		}
@@ -434,13 +434,13 @@ func (c *Client) SendAlbum(peerID, Album interface{}, opts ...*MediaOptions) ([]
 	}
 	InputAlbum[len(InputAlbum)-1].Message = textMessage
 	InputAlbum[len(InputAlbum)-1].Entities = entities
-	senderPeer, err := c.GetSendablePeer(peerID)
+	senderPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
 	}
 	var sendAs InputPeer
 	if opt.SendAs != nil {
-		sendAs, err = c.GetSendablePeer(opt.SendAs)
+		sendAs, err = c.ResolvePeer(sendAs)
 		if err != nil {
 			return nil, err
 		}
@@ -488,7 +488,7 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 //	 - big: Whether to use big emoji.
 func (c *Client) SendReaction(peerID interface{}, msgID int32, reaction interface{}, big ...bool) error {
 	b := getVariadic(big, false).(bool)
-	peer, err := c.GetSendablePeer(peerID)
+	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return err
 	}
@@ -550,7 +550,7 @@ func (a *ActionResult) Cancel() bool {
 // SendAction sends a chat action.
 // This method is a wrapper for messages.setTyping.
 func (c *Client) SendAction(PeerID, Action interface{}, topMsgID ...int32) (*ActionResult, error) {
-	peerChat, err := c.GetSendablePeer(PeerID)
+	peerChat, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
 	}
@@ -573,7 +573,7 @@ func (c *Client) SendAction(PeerID, Action interface{}, topMsgID ...int32) (*Act
 // SendReadAck sends a read acknowledgement.
 // This method is a wrapper for messages.readHistory.
 func (c *Client) SendReadAck(PeerID interface{}, MaxID ...int32) (*MessagesAffectedMessages, error) {
-	peerChat, err := c.GetSendablePeer(PeerID)
+	peerChat, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
 	}
@@ -598,11 +598,11 @@ type ForwardOptions struct {
 // This method is a wrapper for messages.forwardMessages.
 func (c *Client) Forward(peerID, fromPeerID interface{}, msgIDs []int32, opts ...*ForwardOptions) ([]NewMessage, error) {
 	opt := getVariadic(opts, &ForwardOptions{}).(*ForwardOptions)
-	toPeer, err := c.GetSendablePeer(peerID)
+	toPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
 	}
-	fromPeer, err := c.GetSendablePeer(fromPeerID)
+	fromPeer, err := c.ResolvePeer(fromPeerID)
 	if err != nil {
 		return nil, err
 	}
@@ -612,7 +612,7 @@ func (c *Client) Forward(peerID, fromPeerID interface{}, msgIDs []int32, opts ..
 	}
 	var sendAs InputPeer
 	if opt.SendAs != nil {
-		sendAs, err = c.GetSendablePeer(opt.SendAs)
+		sendAs, err = c.ResolvePeer(opt.SendAs)
 		if err != nil {
 			return nil, err
 		}
@@ -647,7 +647,7 @@ func (c *Client) Forward(peerID, fromPeerID interface{}, msgIDs []int32, opts ..
 // This method is a wrapper for messages.deleteMessages.
 func (c *Client) DeleteMessages(peerID interface{}, msgIDs []int32, Revoke ...bool) (*MessagesAffectedMessages, error) {
 	revoke := getVariadic(Revoke, false).(bool)
-	peer, err := c.GetSendablePeer(peerID)
+	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
 	}
@@ -696,7 +696,7 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 	opt := getVariadic(Opts, &SearchOption{
 		Filter: &InputMessagesFilterEmpty{},
 	}).(*SearchOption)
-	peer, err := c.GetSendablePeer(PeerID)
+	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
 	}
@@ -750,7 +750,7 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 		case *InputPeerChat, *InputPeerUser:
 			result, err = c.MessagesGetMessages(inputIDs)
 		default:
-			return nil, errors.New("invalid peer type")
+			return nil, errors.New("invalid peer type to get messages")
 		}
 		if err != nil {
 			return nil, err
@@ -764,6 +764,10 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 			m = append(m, result.Messages...)
 		}
 	} else {
+		if opt.Filter == nil {
+			opt.Filter = &InputMessagesFilterEmpty{}
+		}
+
 		params := &MessagesSearchParams{
 			Peer:      peer,
 			Q:         opt.Query,
@@ -777,8 +781,9 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 			Limit:     opt.Limit,
 			TopMsgID:  opt.TopMsgID,
 		}
+
 		if opt.FromUser != nil {
-			fromUser, err := c.GetSendablePeer(opt.FromUser)
+			fromUser, err := c.ResolvePeer(opt.FromUser)
 			if err != nil {
 				return nil, err
 			}
@@ -803,6 +808,61 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 	return messages, nil
 }
 
+func (c *Client) GetMessageByID(PeerID interface{}, MsgID int32) (*NewMessage, error) {
+	resp, err := c.GetMessages(PeerID, &SearchOption{
+		IDs: MsgID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 0 {
+		return nil, errors.New("no messages found")
+	}
+	return &resp[0], nil
+}
+
+type HistoryOption struct {
+	Limit  int32
+	Offset int32
+}
+
+func (c *Client) GetHistory(PeerID interface{}, opts ...*HistoryOption) ([]NewMessage, error) {
+	peerToAct, err := c.ResolvePeer(PeerID)
+	if err != nil {
+		return nil, err
+	}
+
+	var opt = getVariadic(opts, &HistoryOption{
+		Limit: 1,
+	}).(*HistoryOption)
+
+	req, err := c.MessagesGetHistory(&MessagesGetHistoryParams{
+		Peer:      peerToAct,
+		Limit:     opt.Limit,
+		AddOffset: opt.Offset,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var messages []NewMessage
+	switch req := req.(type) {
+	case *MessagesMessagesObj:
+		c.Cache.UpdatePeersToCache(req.Users, req.Chats)
+		for _, msg := range req.Messages {
+			messages = append(messages, *packMessage(c, msg))
+		}
+	case *MessagesMessagesSlice:
+		c.Cache.UpdatePeersToCache(req.Users, req.Chats)
+		for _, msg := range req.Messages {
+			messages = append(messages, *packMessage(c, msg))
+		}
+	}
+
+	return messages, nil
+}
+
 type PinOptions struct {
 	Unpin     bool `json:"unpin,omitempty"`
 	PmOneside bool `json:"pm_oneside,omitempty"`
@@ -813,7 +873,7 @@ type PinOptions struct {
 // This method is a wrapper for messages.pinMessage.
 func (c *Client) PinMessage(PeerID interface{}, MsgID int32, Opts ...*PinOptions) (Updates, error) {
 	opts := getVariadic(Opts, &PinOptions{}).(*PinOptions)
-	peer, err := c.GetSendablePeer(PeerID)
+	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
 	}
@@ -868,13 +928,13 @@ type InlineOptions struct {
 //	  - GeoPoint: The location to send.
 func (c *Client) InlineQuery(peerID interface{}, Options ...*InlineOptions) (*MessagesBotResults, error) {
 	options := getVariadic(Options, &InlineOptions{}).(*InlineOptions)
-	peer, err := c.GetSendablePeer(peerID)
+	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
 	}
 	var dialog InputPeer = &InputPeerEmpty{}
 	if options.Dialog != nil {
-		dialog, err = c.GetSendablePeer(options.Dialog)
+		dialog, err = c.ResolvePeer(options.Dialog)
 		if err != nil {
 			return nil, err
 		}
@@ -902,7 +962,7 @@ func (c *Client) InlineQuery(peerID interface{}, Options ...*InlineOptions) (*Me
 //	  - PeerID: The ID of the chat or channel.
 //	  - MsgID: The ID of the message.
 func (c *Client) GetMediaGroup(PeerID interface{}, MsgID int32) ([]NewMessage, error) {
-	_, err := c.GetSendablePeer(PeerID)
+	_, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
 	}

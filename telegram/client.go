@@ -4,6 +4,7 @@ package telegram
 
 import (
 	"crypto/rsa"
+	"log"
 	"net/url"
 	"os"
 	"os/signal"
@@ -160,10 +161,19 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 
 func (c *Client) clientWarnings(config ClientConfig) error {
 	if config.NoUpdates {
-		c.Log.Warn("client is running in no updates mode, no updates will be handled")
+		c.Log.Debug("client is running in no updates mode, no updates will be handled")
 	}
 	if !doesSessionFileExist(config.Session) && config.StringSession == "" && (c.AppID() == 0 || c.AppHash() == "") {
-		return errors.New("your app id or app hash is empty, please provide them")
+		if c.AppID() == 0 {
+			log.Print("app id is empty, call ScrapeAppConfig()? (y/n)")
+			if !utils.AskForConfirmation() {
+				return errors.New("your app id is empty, please provide it")
+			} else {
+				c.ScrapeAppConfig()
+			}
+		} else {
+			return errors.New("your app id or app hash is empty, please provide them")
+		}
 	}
 	if config.AppHash == "" {
 		c.Log.Debug("appHash is empty, some features may not work")
@@ -304,6 +314,15 @@ func (c *Client) switchDC(dcID int) error {
 	}
 	c.MTProto = newDcSender
 	return c.InitialRequest()
+}
+
+func (c *Client) SetAppID(appID int32) {
+	c.clientData.appID = appID
+	c.MTProto.SetAppID(appID)
+}
+
+func (c *Client) SetAppHash(appHash string) {
+	c.clientData.appHash = appHash
 }
 
 func (c *Client) AddNewExportedSenderToMap(dcID int, sender *Client) {

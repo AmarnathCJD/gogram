@@ -84,7 +84,7 @@ func (c *Client) SetBotDefaultPrivileges(privileges *ChatAdminRights, ForChannel
 }
 
 func (c *Client) SetChatMenuButton(userID int64, button *BotMenuButton) (bool, error) {
-	peer, err := c.GetSendablePeer(userID)
+	peer, err := c.ResolvePeer(userID)
 	if err != nil {
 		return false, err
 	}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/pkg/errors"
 )
@@ -340,8 +342,13 @@ PeerSwitch:
 	}
 }
 
+// ResolvePeer resolves a peer to a sendable peer, searches the cache if the peer is already resolved
+func (c *Client) ResolvePeer(peerToResolve interface{}) (InputPeer, error) {
+	return c.GetSendablePeer(peerToResolve)
+}
+
 func (c *Client) GetSendableChannel(PeerID interface{}) (InputChannel, error) {
-	rawPeer, err := c.GetSendablePeer(PeerID)
+	rawPeer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +366,7 @@ func (c *Client) GetSendableChannel(PeerID interface{}) (InputChannel, error) {
 }
 
 func (c *Client) GetSendableUser(PeerID interface{}) (InputUser, error) {
-	rawPeer, err := c.GetSendablePeer(PeerID)
+	rawPeer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
 	}
@@ -1005,7 +1012,7 @@ func GetInputCheckPassword(password string, accountPassword *AccountPassword) (I
 		return nil, errors.New("invalid CurrentAlgo type")
 	}
 
-	mp := &ModPow{
+	mp := &ige.ModPow{
 		Salt1: current.Salt1,
 		Salt2: current.Salt2,
 		G:     current.G,
@@ -1028,7 +1035,20 @@ func GetInputCheckPassword(password string, accountPassword *AccountPassword) (I
 	}, nil
 }
 
-// warpper for json.MarshalIntent, returns string
+// GetInputCheckPassword returns the input check password for the given password and salt.
+// all the internal functions are in internal/ige, send pr if you want to use them directly
+// https://core.telegram.org/api/srp#checking-the-password-with-srp
+func GetInputCheckPasswordAlgo(password string, srpB []byte, mp *ige.ModPow) (*ige.SrpAnswer, error) {
+	return ige.GetInputCheckPassword(password, srpB, mp, ige.RandomBytes(randombyteLen))
+}
+
+func ComputeDigest(algo *PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow, password string) []byte {
+	hash := ige.PasswordHash2([]byte(password), algo.Salt1, algo.Salt2)
+	value := ige.BigExp(big.NewInt(int64(algo.G)), ige.BytesToBig(hash), ige.BytesToBig(algo.P))
+	return ige.Pad256(value.Bytes())
+}
+
+// easy wrapper for json.MarshalIndent, returns string
 func (c *Client) JSON(object interface{}) string {
 	data, err := json.MarshalIndent(object, "", "  ")
 	if err != nil {

@@ -92,3 +92,9 @@ func Xor(dst, src []byte) {
 		dst[i] ^= src[i]
 	}
 }
+
+func AskForConfirmation() bool {
+	var response string
+	_, _ = fmt.Scanln(&response)
+	return response == "y" || response == "Y"
+}
