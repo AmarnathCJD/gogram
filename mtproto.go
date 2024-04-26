@@ -234,7 +234,7 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	}
 	sender.serverRequestHandlers = m.serverRequestHandlers
 	m.stopRoutines()
-	m.Logger.Info(fmt.Sprintf("user migrated to DC%s - %s", strconv.Itoa(dc), newAddr))
+	m.Logger.Info(fmt.Sprintf("user migrated to DC %s - %s", strconv.Itoa(dc), newAddr))
 	m.Logger.Debug("reconnecting to new DC with new auth key")
 	errConn := sender.CreateConnection(true)
 	if errConn != nil {

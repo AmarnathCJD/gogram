@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -307,9 +306,6 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 		return 0, "", false, err
 	}
 
-	b, _ := ioutil.ReadAll(respCode.Body)
-	fmt.Println(string(b))
-
 	var result struct {
 		RandomHash string `json:"random_hash"`
 	}
@@ -367,9 +363,8 @@ BackToAppsPage:
 	if len(appID) < 2 || len(appHash) < 2 || strings.Contains(string(body), "Create new application") && !ALREDY_TRIED_CREATION {
 		ALREDY_TRIED_CREATION = true
 		// assume app is not created, create app
-		hiddenHashRegex := regexp.MustCompile(`<input type="hidden" name="hash" value="([a-fA-F0-9]+)">`)
+		hiddenHashRegex := regexp.MustCompile(`<input type="hidden" name="hash" value="([a-fA-F0-9]+)"\/>`)
 		hiddenHash := hiddenHashRegex.FindStringSubmatch(string(body))
-
 		if len(hiddenHash) < 2 {
 			return 0, "", false, errors.New("creation hash not found, try manual creation")
 		}

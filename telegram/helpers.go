@@ -26,16 +26,28 @@ var DataCenters = map[int]string{
 	5: "91.108.56.151:443",
 }
 
+var TestDataCenters = map[int]string{
+	1: "149.154.175.10:443",
+	2: "149.154.167.40:443",
+	3: "149.154.175.117:443",
+}
+
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
 
-func GetHostIp(dcID int) string {
+func GetHostIp(dcID int, test bool) string {
+	if test {
+		if ip, ok := TestDataCenters[dcID]; ok {
+			return ip
+		}
+	}
+
 	if ip, ok := DataCenters[dcID]; ok {
 		return ip
 	}
-	panic("Invalid Data Center ID")
+	panic("invalid dcID provided")
 }
 
 func getStr(a, b string) string {
