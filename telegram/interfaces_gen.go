@@ -10640,6 +10640,34 @@ func (*AuthSentCodeTypeSms) CRC() uint32 {
 
 func (*AuthSentCodeTypeSms) ImplementsAuthSentCodeType() {}
 
+type AuthSentCodeTypeSmsPhrase struct {
+	Beginning string `tl:"flag:0"`
+}
+
+func (*AuthSentCodeTypeSmsPhrase) CRC() uint32 {
+	return 0xb37794af
+}
+
+func (*AuthSentCodeTypeSmsPhrase) FlagIndex() int {
+	return 0
+}
+
+func (*AuthSentCodeTypeSmsPhrase) ImplementsAuthSentCodeType() {}
+
+type AuthSentCodeTypeSmsWord struct {
+	Beginning string `tl:"flag:0"`
+}
+
+func (*AuthSentCodeTypeSmsWord) CRC() uint32 {
+	return 0xa416ac81
+}
+
+func (*AuthSentCodeTypeSmsWord) FlagIndex() int {
+	return 0
+}
+
+func (*AuthSentCodeTypeSmsWord) ImplementsAuthSentCodeType() {}
+
 type ChannelsChannelParticipants interface {
 	tl.Object
 	ImplementsChannelsChannelParticipants()

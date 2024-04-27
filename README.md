@@ -85,7 +85,7 @@ If you'd like to support Gogram, you can consider:
 - **Feature-Rich**: Built-in support for file uploading, formatting, custom keyboards, message editing, moderation tools and more.
 - **Up-to-date**: Gogram is always in sync with the latest Telegram API changes and additions (`tl-parser` is used to generate the API layer).
 
-#### Current Layer - **178** (Updated on 2024-04-24)
+#### Current Layer - **179** (Updated on 2024-04-27)
 
 ## Installing
 
