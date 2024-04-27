@@ -4,9 +4,8 @@ package telegram
 
 import (
 	"bytes"
-	"fmt"
 	"regexp"
-	"sort"
+	"strconv"
 
 	"strings"
 	"unicode/utf16"
@@ -57,7 +56,7 @@ type Tag struct {
 // supportedTag returns true if the tag is supported by the parser
 func supportedTag(tag string) bool {
 	switch tag {
-	case "b", "strong", "i", "em", "u", "s", "a", "code", "pre", "ins", "del", "spoiler":
+	case "b", "strong", "i", "em", "u", "s", "a", "code", "pre", "ins", "del", "spoiler", "quote", "blockquote", "emoji", "mention":
 		return true
 	}
 	return false
@@ -180,105 +179,17 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 			entities = append(entities, &MessageEntityMention{tag.Offset, tag.Length})
 		case "spoiler":
 			entities = append(entities, &MessageEntitySpoiler{tag.Offset, tag.Length})
+		case "quote", "blockquote":
+			entities = append(entities, &MessageEntityBlockquote{tag.Offset, tag.Length})
+		case "emoji":
+			emoijiId, err := strconv.ParseInt(tag.Attrs["id"], 10, 64)
+			if err != nil {
+				continue
+			}
+			entities = append(entities, &MessageEntityCustomEmoji{tag.Offset, tag.Length, emoijiId})
 		}
 	}
 	return entities
-}
-
-// parseEntitiesToHTML converts a list of MessageEntities to HTML, given the original text
-func _(entities []MessageEntity, text string) string {
-	var htmlBuf bytes.Buffer
-	var openTags []string
-	var openTagOffsets []int32
-	var openTagLengths []int32
-
-	getOffset := func(e MessageEntity) int32 {
-		switch e := e.(type) {
-		case *MessageEntityBold:
-			return e.Offset
-		}
-		return 0
-	}
-
-	getLength := func(e MessageEntity) int32 {
-		switch e := e.(type) {
-		case *MessageEntityBold:
-			return e.Length
-		}
-		return 0
-	}
-
-	getType := func(e MessageEntity) string {
-		switch e.(type) {
-		case *MessageEntityBold:
-			return "bold"
-		}
-		return ""
-	}
-
-	// Sort the entities by offset
-	sort.Slice(entities, func(i, j int) bool {
-		return getOffset(entities[i]) < getOffset(entities[j])
-	})
-
-	// Iterate through the entities and add the appropriate HTML tags
-	for _, entity := range entities {
-		// Write the text between the last entity and this one
-		htmlBuf.WriteString(text[getOffset(entity) : getOffset(entity)+getLength(entity)])
-
-		// Check if this entity is already open
-		for i := range openTags {
-			if openTags[i] == getType(entity) {
-				// Close the tag
-				htmlBuf.WriteString(fmt.Sprintf("</%s>", getType(entity)))
-				openTags = append(openTags[:i], openTags[i+1:]...)
-				openTagOffsets = append(openTagOffsets[:i], openTagOffsets[i+1:]...)
-				openTagLengths = append(openTagLengths[:i], openTagLengths[i+1:]...)
-				break
-			}
-		}
-
-		// Open the tag
-		switch getType(entity) {
-		case "email":
-			htmlBuf.WriteString(fmt.Sprintf("<a href=\"mailto:%s\">", text[getOffset(entity):getOffset(entity)+getLength(entity)]))
-		case "mention_name":
-			htmlBuf.WriteString(fmt.Sprintf("<a href=\"tg://user?id=%d\">", entity.(*MessageEntityMentionName).UserID))
-		case "text_link":
-			htmlBuf.WriteString(fmt.Sprintf("<a href=\"%s\">", entity.(*MessageEntityTextURL).URL))
-		case "url":
-			htmlBuf.WriteString("<a>")
-		case "bold":
-			htmlBuf.WriteString("<b>")
-		case "code":
-			htmlBuf.WriteString("<code>")
-		case "italic":
-			htmlBuf.WriteString("<em>")
-		case "pre":
-			htmlBuf.WriteString(fmt.Sprintf("<pre><code class=\"language-%s\">", entity.(*MessageEntityPre).Language))
-		case "strike":
-			htmlBuf.WriteString("<s>")
-		case "underline":
-			htmlBuf.WriteString("<u>")
-		case "mention":
-			htmlBuf.WriteString("<mention>")
-		case "spoiler":
-			htmlBuf.WriteString("<spoiler>")
-		}
-		openTags = append(openTags, getType(entity))
-		openTagOffsets = append(openTagOffsets, getOffset(entity))
-		openTagLengths = append(openTagLengths, getLength(entity))
-	}
-
-	// Write the text after the last entity
-	htmlBuf.WriteString(text[getOffset(entities[len(entities)-1]) : getOffset(entities[len(entities)-1])+getLength(entities[len(entities)-1])])
-
-	// Close any remaining open tags
-	for i := len(openTags) - 1; i >= 0; i-- {
-		htmlBuf.WriteString(fmt.Sprintf("</%s>", openTags[i]))
-	}
-
-	return htmlBuf.String()
 }
 
 func MarkdownToHTML(markdown string) string {
