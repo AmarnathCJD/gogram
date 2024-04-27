@@ -14,17 +14,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.22'
 
     - name: Build & Run TL Parser
       run: cd ./internal/cmd/tlgen && go run .
 
-    - uses: stefanzweifel/git-auto-commit-action@v4
+    - uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_message: "TLParser: Layer Updated"
         commit_options: "--no-verify"
