@@ -250,6 +250,20 @@ func MarkdownToHTML(markdown string) string {
 		return "<u>" + innerText + "</u>"
 	})
 
+	// Convert blockquote syntax (>>text<<) to <blockquote> tags
+	blockquoteRe := regexp.MustCompile(`>>((.|\n)*?)<<`)
+	markdown = blockquoteRe.ReplaceAllStringFunc(markdown, func(match string) string {
+		innerText := blockquoteRe.FindStringSubmatch(match)[1]
+		return "<blockquote>" + innerText + "</blockquote>"
+	})
+
+	// Convert emoji syntax (::emoji::) to <emoji> tags
+	emojiRe := regexp.MustCompile(`::([^:]+)::`)
+	markdown = emojiRe.ReplaceAllStringFunc(markdown, func(match string) string {
+		innerText := emojiRe.FindStringSubmatch(match)[1]
+		return "<emoji id=\"" + innerText + "\">"
+	})
+
 	// Return the resulting HTML
 	return string(bytes.TrimSpace([]byte(markdown)))
 }

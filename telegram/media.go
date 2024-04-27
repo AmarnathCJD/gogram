@@ -482,6 +482,8 @@ func (u *Uploader) uploadParts(w *Client, parts []int32) {
 	}
 }
 
+// TODO: Implement DownloadMedia Correctly.
+
 type DownloadOptions struct {
 	// Download path to save file
 	FileName string `json:"file_name,omitempty"`

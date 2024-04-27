@@ -98,9 +98,7 @@ go get -u github.com/amarnathcjd/gogram/telegram
 #### Sending a Message
 
 ``` golang
-client.SendMessage("username", "Hello from Gogram!", &telegram.SendOptions{
-	TTL: int32((math.Pow(2, 31) - 1)), //  TTL For OneTimeMedia
-})
+client.SendMessage("username", "Hello from Gogram!")
 
 client.SendDice("username", "🎲")
 
@@ -115,6 +113,7 @@ client.AddMessageHandler("/start", func(m *telegram.Message) error {
 ``` golang
 client.SendMedia("username", "<file-name>", &telegram.MediaOptions{ // filename/inputmedia,...
     Caption: "Hello from Gogram!",
+    TTL: int32((math.Pow(2, 31) - 1)), //  TTL For OneTimeMedia
 })
 
 client.SendAlbum("username", []string{"<file-name>", "<file-name>"}, &telegram.MediaOptions{ // Array of filenames/inputmedia,...
@@ -137,7 +136,7 @@ client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 
 ## Features TODO
 
-- [x] Basic MTProto implementation (LAYER 172)
+- [x] Basic MTProto implementation (LAYER 179)
 - [x] Updates handling system + Cache
 - [x] HTML, Markdown Parsing, Friendly Methods
 - [x] Support for Flag2.0, Layer 147
@@ -153,9 +152,10 @@ client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 - [x] MessageMediaPoll, UserFull Decode Fails
 - [x] invokeWithLayer channel missing while bad Salt
 - [x] tcp.io.Reader.Read unstable
+- [x] Perfect HTML Parser 
 - [x] Session File some issues
 - [ ] Unidentified RPCError decoding fails
-- [ ] Perfect HTML Parser 
+
 
 ## Contributing
 
