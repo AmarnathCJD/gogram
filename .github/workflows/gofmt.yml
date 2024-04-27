@@ -1,4 +1,4 @@
-name: Lint Go
+name: gofmt Linting
 
 on:
   push:
@@ -9,16 +9,14 @@ jobs:
   goLint:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
         with:
-          stable: 'false'
-          go-version: '1.17.6'
+          go-version: '1.22'
 
       - name: Lint
         run: |
           gofmt -l -s -w .
-          cd internal/cmd/tlgen && go run .
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: 'RoseLoverX: auto Linting'
