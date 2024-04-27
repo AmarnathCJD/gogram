@@ -478,6 +478,100 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 	return m, nil
 }
 
+type PollOptions struct {
+	PublicVoters   bool
+	MCQ            bool
+	IsQuiz         bool
+	ClosePeriod    int32
+	CloseDate      int32
+	Solution       string
+	CorrectAnswers []int
+	ReplyID        int32
+	NoForwards     bool
+	ScheduleDate   int32
+}
+
+func (c *Client) SendPoll(peerID interface{}, question string, options []string, opts ...*PollOptions) (*NewMessage, error) {
+	opt := getVariadic(opts, &PollOptions{}).(*PollOptions)
+	senderPeer, err := c.ResolvePeer(peerID)
+	if err != nil {
+		return nil, err
+	}
+	return c.sendPoll(senderPeer, question, options, opt)
+}
+
+func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt *PollOptions) (*NewMessage, error) {
+	questionEntities, actualQuestion := parseEntities(question, c.ParseMode())
+	var actualOptions []*TextWithEntities
+	for _, option := range options {
+		entities, text := parseEntities(option, c.ParseMode())
+		actualOptions = append(actualOptions, &TextWithEntities{
+			Text:     text,
+			Entities: entities,
+		})
+	}
+
+	var answsers []*PollAnswer
+	for i, option := range actualOptions {
+		answsers = append(answsers, &PollAnswer{
+			Text:   option,
+			Option: []byte{byte(i)},
+		})
+	}
+
+	correctAnswers := [][]byte{}
+	if len(opt.CorrectAnswers) > 0 {
+		for _, answer := range opt.CorrectAnswers {
+			correctAnswers = append(correctAnswers, []byte{byte(answer)})
+		}
+	}
+
+	var solnEntites []MessageEntity
+	if opt.Solution != "" {
+		solnEntites, opt.Solution = parseEntities(opt.Solution, c.ParseMode())
+	}
+
+	poll := &InputMediaPoll{
+		Poll: &Poll{
+			ID:             GenRandInt(),
+			Closed:         false,
+			PublicVoters:   opt.PublicVoters,
+			MultipleChoice: opt.MCQ,
+			Quiz:           opt.IsQuiz,
+			Question: &TextWithEntities{
+				Text:     actualQuestion,
+				Entities: questionEntities,
+			},
+			Answers:     answsers,
+			ClosePeriod: opt.ClosePeriod,
+			CloseDate:   opt.CloseDate,
+		},
+		CorrectAnswers:   correctAnswers,
+		Solution:         opt.Solution,
+		SolutionEntities: solnEntites,
+	}
+
+	updateResp, err := c.MessagesSendMedia(&MessagesSendMediaParams{
+		ClearDraft:   false,
+		Noforwards:   opt.NoForwards,
+		Peer:         Peer,
+		ReplyTo:      &InputReplyToMessage{ReplyToMsgID: opt.ReplyID},
+		Media:        poll,
+		RandomID:     GenRandInt(),
+		ScheduleDate: opt.ScheduleDate,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if updateResp != nil {
+		return packMessage(c, processUpdate(updateResp)), nil
+	}
+
+	return nil, errors.New("no response")
+}
+
 // SendReaction sends a reaction to a message.
 // This method is a wrapper for messages.sendReaction
 //
