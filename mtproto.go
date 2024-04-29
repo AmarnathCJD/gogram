@@ -673,3 +673,8 @@ func closeOnCancel(ctx context.Context, c io.Closer) {
 		c.Close()
 	}()
 }
+
+func CloseChannelWithoutPanic(ch chan tl.Object) {
+	defer func() { recover() }()
+	close(ch)
+}
