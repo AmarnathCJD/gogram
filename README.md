@@ -53,6 +53,7 @@ func main() {
 
     client.ConnectBot("<bot-token>") // or client.Login("<phone-number>") for user account
     // client.AuthPrompt() // for console-based interactive auth
+    
 
     client.AddMessageHandler(telegram.OnNewMessage, func(message *telegram.NewMessage) error {
         if m.IsPrivate() {
