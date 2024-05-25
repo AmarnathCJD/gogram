@@ -125,9 +125,9 @@ func (m *NewMessage) ChatType() string {
 		case *PeerUser:
 			return EntityUser
 		case *PeerChat:
-			return EntityChannel
-		case *PeerChannel:
 			return EntityChat
+		case *PeerChannel:
+			return EntityChannel
 		}
 	}
 	return EntityUnknown
