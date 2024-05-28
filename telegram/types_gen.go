@@ -368,6 +368,23 @@ func (*AutoSaveSettings) FlagIndex() int {
 	return 0
 }
 
+type AvailableEffect struct {
+	PremiumRequired   bool `tl:"flag:2,encoded_in_bitflags"`
+	ID                int64
+	Emoticon          string
+	StaticIconID      int64 `tl:"flag:0"`
+	EffectStickerID   int64
+	EffectAnimationID int64 `tl:"flag:1"`
+}
+
+func (*AvailableEffect) CRC() uint32 {
+	return 0x93c3e27e
+}
+
+func (*AvailableEffect) FlagIndex() int {
+	return 0
+}
+
 type AvailableReaction struct {
 	Inactive          bool `tl:"flag:0,encoded_in_bitflags"`
 	Premium           bool `tl:"flag:2,encoded_in_bitflags"`
@@ -485,6 +502,16 @@ type BotsBotInfo struct {
 
 func (*BotsBotInfo) CRC() uint32 {
 	return 0xe8a775b0
+}
+
+type BroadcastRevenueBalances struct {
+	CurrentBalance   int64
+	AvailableBalance int64
+	OverallRevenue   int64
+}
+
+func (*BroadcastRevenueBalances) CRC() uint32 {
+	return 0x8438f1c6
 }
 
 type BusinessAwayMessage struct {
@@ -1028,16 +1055,6 @@ func (*DialogFilterSuggested) CRC() uint32 {
 	return 0x77744d4a
 }
 
-type EmojiGroup struct {
-	Title       string
-	IconEmojiID int64
-	Emoticons   []string
-}
-
-func (*EmojiGroup) CRC() uint32 {
-	return 0x7a9abda9
-}
-
 type EmojiKeywordsDifference struct {
 	LangCode    string
 	FromVersion int32
@@ -1108,6 +1125,21 @@ type ExportedStoryLink struct {
 
 func (*ExportedStoryLink) CRC() uint32 {
 	return 0x3fc9053b
+}
+
+type FactCheck struct {
+	NeedCheck bool              `tl:"flag:0,encoded_in_bitflags"`
+	Country   string            `tl:"flag:1"`
+	Text      *TextWithEntities `tl:"flag:1"`
+	Hash      int64
+}
+
+func (*FactCheck) CRC() uint32 {
+	return 0xb89bfccf
+}
+
+func (*FactCheck) FlagIndex() int {
+	return 0
 }
 
 type FileHash struct {
@@ -2467,58 +2499,6 @@ func (*PaymentsExportedInvoice) CRC() uint32 {
 	return 0xaed0cbd9
 }
 
-type PaymentsPaymentForm struct {
-	CanSaveCredentials bool `tl:"flag:2,encoded_in_bitflags"`
-	PasswordMissing    bool `tl:"flag:3,encoded_in_bitflags"`
-	FormID             int64
-	BotID              int64
-	Title              string
-	Description        string
-	Photo              WebDocument `tl:"flag:5"`
-	Invoice            *Invoice
-	ProviderID         int64
-	URL                string
-	NativeProvider     string                         `tl:"flag:4"`
-	NativeParams       *DataJson                      `tl:"flag:4"`
-	AdditionalMethods  []*PaymentFormMethod           `tl:"flag:6"`
-	SavedInfo          *PaymentRequestedInfo          `tl:"flag:0"`
-	SavedCredentials   []*PaymentSavedCredentialsCard `tl:"flag:1"`
-	Users              []User
-}
-
-func (*PaymentsPaymentForm) CRC() uint32 {
-	return 0xa0058751
-}
-
-func (*PaymentsPaymentForm) FlagIndex() int {
-	return 0
-}
-
-type PaymentsPaymentReceipt struct {
-	Date             int32
-	BotID            int64
-	ProviderID       int64
-	Title            string
-	Description      string
-	Photo            WebDocument `tl:"flag:2"`
-	Invoice          *Invoice
-	Info             *PaymentRequestedInfo `tl:"flag:0"`
-	Shipping         *ShippingOption       `tl:"flag:1"`
-	TipAmount        int64                 `tl:"flag:3"`
-	Currency         string
-	TotalAmount      int64
-	CredentialsTitle string
-	Users            []User
-}
-
-func (*PaymentsPaymentReceipt) CRC() uint32 {
-	return 0x70c4fe03
-}
-
-func (*PaymentsPaymentReceipt) FlagIndex() int {
-	return 0
-}
-
 type PaymentsSavedInfo struct {
 	HasSavedCredentials bool                  `tl:"flag:1,encoded_in_bitflags"`
 	SavedInfo           *PaymentRequestedInfo `tl:"flag:0"`
@@ -2529,6 +2509,22 @@ func (*PaymentsSavedInfo) CRC() uint32 {
 }
 
 func (*PaymentsSavedInfo) FlagIndex() int {
+	return 0
+}
+
+type PaymentsStarsStatus struct {
+	Balance    int64
+	History    []*StarsTransaction
+	NextOffset string `tl:"flag:0"`
+	Chats      []Chat
+	Users      []User
+}
+
+func (*PaymentsStarsStatus) CRC() uint32 {
+	return 0x8cf4ee60
+}
+
+func (*PaymentsStarsStatus) FlagIndex() int {
 	return 0
 }
 
@@ -3204,17 +3200,50 @@ func (*SponsoredMessageReportOption) CRC() uint32 {
 	return 0x430d3150
 }
 
+type StarsTopupOption struct {
+	Extended     bool `tl:"flag:1,encoded_in_bitflags"`
+	Stars        int64
+	StoreProduct string `tl:"flag:0"`
+	Currency     string
+	Amount       int64
+}
+
+func (*StarsTopupOption) CRC() uint32 {
+	return 0xbd915c0
+}
+
+func (*StarsTopupOption) FlagIndex() int {
+	return 0
+}
+
+type StarsTransaction struct {
+	Refund      bool `tl:"flag:3,encoded_in_bitflags"`
+	ID          string
+	Stars       int64
+	Date        int32
+	Peer        StarsTransactionPeer
+	Title       string      `tl:"flag:0"`
+	Description string      `tl:"flag:1"`
+	Photo       WebDocument `tl:"flag:2"`
+}
+
+func (*StarsTransaction) CRC() uint32 {
+	return 0xcc7079b2
+}
+
+func (*StarsTransaction) FlagIndex() int {
+	return 0
+}
+
 type StatsBroadcastRevenueStats struct {
-	TopHoursGraph    StatsGraph
-	RevenueGraph     StatsGraph
-	CurrentBalance   int64
-	AvailableBalance int64
-	OverallRevenue   int64
-	UsdRate          float64
+	TopHoursGraph StatsGraph
+	RevenueGraph  StatsGraph
+	Balances      *BroadcastRevenueBalances
+	UsdRate       float64
 }
 
 func (*StatsBroadcastRevenueStats) CRC() uint32 {
-	return 0xd07b4bad
+	return 0x5407e297
 }
 
 type StatsBroadcastRevenueTransactions struct {
