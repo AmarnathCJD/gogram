@@ -29,6 +29,7 @@ type SendOptions struct {
 	TTL              int32               `json:"ttl,omitempty"`
 	Spoiler          bool                `json:"spoiler,omitempty"`
 	ProgressCallback func(int32, int32)  `json:"-"`
+	Effect           int64               `json:"effect,omitempty"`
 }
 
 // SendMessage sends a message to a specified peer using the Telegram API method messages.sendMessage.
@@ -113,6 +114,7 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 		Entities:     entities,
 		ScheduleDate: opt.ScheduleDate,
 		SendAs:       sendAs,
+		Effect:       opt.Effect,
 	})
 	if err != nil {
 		return nil, err

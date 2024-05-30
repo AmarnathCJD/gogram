@@ -322,7 +322,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	resp, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
 		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") {
-			m.Logger.Info("connection closed due to broken pipe, reconnecting to [" + m.Addr + "]" + " - <Tcp> ...")
+			m.Logger.Info("connection closed due to broken tcp, reconnecting to [" + m.Addr + "]" + " - <Tcp> ...")
 			err = m.Reconnect(false)
 			if err != nil {
 				return nil, errors.Wrap(err, "reconnecting")
@@ -540,26 +540,7 @@ messageTypeSwitching:
 
 		m.responseChannels = utils.NewSyncIntObjectChan()
 
-		//var badMsgResponseChannel chan tl.Object
-		//for _, v := range m.responseChannels.Keys() {
-		//	if v == int(message.BadMsgID) {
-		//		badMsgResponseChannel, _ = m.responseChannels.Get(v)
-		//		m.responseChannels.Delete(v)
-		//		break
-		//	}
-		//}
-
 		m.Reconnect(false)
-
-		//m.mutex.Lock()
-		//if badMsgResponseChannel != nil {
-		//	badMsgResponseChannel <- &errorSessionConfigsChanged{}
-		//}
-
-		//for _, k := range m.responseChannels.Keys() {
-		//	v, _ := m.responseChannels.Get(k)
-		//	v <- &errorSessionConfigsChanged{}
-		//}
 
 		for _, k := range respChannelsBackup.Keys() {
 			v, _ := respChannelsBackup.Get(k)
@@ -584,7 +565,7 @@ messageTypeSwitching:
 		if badMsg.Code == 16 || badMsg.Code == 17 {
 			m.offsetTime()
 		}
-		m.Logger.Debug("BadMsgNotification: " + badMsg.Error())
+		m.Logger.Debug("badMsgNotification: " + badMsg.Error())
 		return badMsg
 	case *objects.RpcResult:
 		obj := message.Obj
@@ -616,7 +597,7 @@ messageTypeSwitching:
 			}
 		}
 		if !processed {
-			m.Logger.Debug("> unhandled update: " + fmt.Sprintf("%T", message))
+			m.Logger.Debug("~ unhandled update: " + fmt.Sprintf("%T", message))
 		}
 	}
 
@@ -672,9 +653,4 @@ func closeOnCancel(ctx context.Context, c io.Closer) {
 		defer func() { recover() }()
 		c.Close()
 	}()
-}
-
-func CloseChannelWithoutPanic(ch chan tl.Object) {
-	defer func() { recover() }()
-	close(ch)
 }

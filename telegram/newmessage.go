@@ -561,6 +561,16 @@ func (m *NewMessage) ForwardTo(PeerID interface{}, Opts ...*ForwardOptions) (*Ne
 	return &resps[0], err
 }
 
+// Fact checks the message for facts
+func (m *NewMessage) Fact() ([]*FactCheck, error) {
+	peer, err := m.Client.ResolvePeer(m.ChatID())
+	if err != nil {
+		return nil, err
+	}
+
+	return m.Client.MessagesGetFactCheck(peer, []int32{m.ID})
+}
+
 // GetMediaGroup returns the media group of the message
 func (m *NewMessage) GetMediaGroup() ([]NewMessage, error) {
 	return m.Client.GetMediaGroup(m.ChatID(), m.ID)

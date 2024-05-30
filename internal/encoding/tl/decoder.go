@@ -294,12 +294,18 @@ func (d *Decoder) decodeRegisteredObject() Object {
 	}
 
 	var _typ reflect.Type
-
 	switch crc {
 	case CrcVector:
 		if len(d.expectedTypes) == 0 {
-			d.PopUint()          // pop vector length
-			vecCrc := d.PopCRC() // read the crc of the vector<...>
+			lenVector := d.PopUint() // pop vector length
+			vecCrc := d.PopCRC()     // read the crc of the vector<...>
+
+			if lenVector == 0 {
+				if d.err != nil && d.err.Error() == "EOF" { // if vector is empty, return nil
+					d.err = nil
+				}
+				return &PseudoNil{}
+			}
 
 			if vecCrc == CrcTrue || vecCrc == CrcFalse {
 				d.expectedTypes = append(d.expectedTypes, reflect.TypeOf([]bool{}))
@@ -316,6 +322,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 		d.expectedTypes = d.expectedTypes[1:]
 
 		res := d.popVector(_typ.Elem(), true)
+
 		if d.err != nil {
 			//d.err = nil
 			return nil // &PseudoNil{}
@@ -331,6 +338,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 					return &PseudoFalse{}
 				}
 			}
+
 		case []Object:
 			if len(res) == 0 {
 				return &PseudoNil{}
@@ -344,6 +352,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 
 				return &WrappedSlice{data: _v.Interface()}
 			}
+
 		default:
 			return &WrappedSlice{data: res}
 		}
