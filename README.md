@@ -154,13 +154,14 @@ client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 
 ## Known Issues
 
-- [x] File Uploading/Downloading is not stable
+- [] File Uploading/Downloading is not stable
 - [x] MessageMediaPoll, UserFull Decode Fails
 - [x] invokeWithLayer channel missing while bad Salt
 - [x] tcp.io.Reader.Read unstable
 - [x] Perfect HTML Parser 
 - [x] Session File some issues
-- [ ] Unidentified RPCError decoding fails
+- [x] Unidentified RPCError decoding fails
+- [ ] File downloading is not stable
 
 
 ## Contributing
