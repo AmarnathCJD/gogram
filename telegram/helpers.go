@@ -606,6 +606,12 @@ func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 			dur, _ = strconv.ParseFloat(strings.TrimSpace(lines[2]), 64)
 			width, _ = strconv.ParseInt(strings.TrimSpace(lines[0]), 10, 32)
 			height, _ = strconv.ParseInt(strings.TrimSpace(lines[1]), 10, 32)
+		} else {
+			width, _ = strconv.ParseInt(strings.TrimSpace(lines[0]), 10, 32)
+			height, _ = strconv.ParseInt(strings.TrimSpace(lines[1]), 10, 32)
+			if len(lines) > 4 {
+				dur, _ = strconv.ParseFloat(strings.TrimSpace(lines[4]), 64)
+			}
 		}
 
 		for _, attr := range attrs {
@@ -742,8 +748,15 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 	}
 
 	// ffmpeg -i input.mp4 -ss 00:00:01.000 -vframes 1 output.png
+	getPosition := func(duration int64) int64 {
+		if duration <= 10 {
+			return duration
+		} else {
+			return int64(rand.Int31n(int32(duration)/2) + 1)
+		}
+	}
 
-	cmd := exec.Command("ffmpeg", "-ss", strconv.FormatInt(duration/2, 10), "-i", path, "-vframes", "1", path+".png")
+	cmd := exec.Command("ffmpeg", "-ss", strconv.FormatInt(getPosition(duration), 10), "-i", path, "-vframes", "1", path+".png")
 	_, err := cmd.Output()
 
 	if err != nil {

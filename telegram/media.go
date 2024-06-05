@@ -139,7 +139,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 							c.Logger.Error(err)
 						}
 						if opts.ProgressCallback != nil {
-							opts.ProgressCallback(int32(totalParts), int32(p))
+							go opts.ProgressCallback(int32(totalParts), int32(p))
 						}
 						sender[i].buzy = false
 					}(i, part, int(p))
@@ -165,6 +165,11 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 		} else {
 			_, err = c.UploadSaveBigFilePart(fileId, int32(totalParts)-1, int32(totalParts), part)
 		}
+
+		if opts.ProgressCallback != nil {
+			go opts.ProgressCallback(int32(totalParts), int32(totalParts))
+		}
+
 		if err != nil {
 			c.Logger.Error(err)
 		}
