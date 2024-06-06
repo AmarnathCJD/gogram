@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -128,6 +129,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 					sender[i].buzy = true
 					go func(i int, part []byte, p int) {
 						defer wg.Done()
+					uploadStartPoint:
 						c.Logger.Debug("Uploading part", p, "with size", len(part), "in KB:", len(part)/1024, "to", i)
 						if !IsFsBig {
 							_, err = sender[i].c.UploadSaveFilePart(fileId, int32(p), part)
@@ -136,6 +138,13 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 							_, err = sender[i].c.UploadSaveBigFilePart(fileId, int32(p), int32(totalParts), part)
 						}
 						if err != nil {
+							if matchError(err, "FLOOD_WAIT_") {
+								if waitTime := getFloodWait(err); waitTime > 0 {
+									c.Logger.Warn("flood wait", waitTime, "seconds, waiting...")
+									time.Sleep(time.Duration(waitTime) * time.Second)
+									goto uploadStartPoint
+								}
+							}
 							c.Logger.Error(err)
 						}
 						if opts.ProgressCallback != nil {
@@ -160,18 +169,27 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 			c.Logger.Error(err)
 		}
 
+	lastPartUploadStartPoint:
+		c.Logger.Debug("Uploading last part", totalParts-1, "with size", len(part), "in KB:", len(part)/1024)
 		if !IsFsBig {
 			_, err = c.UploadSaveFilePart(fileId, int32(totalParts)-1, part)
 		} else {
 			_, err = c.UploadSaveBigFilePart(fileId, int32(totalParts)-1, int32(totalParts), part)
 		}
 
-		if opts.ProgressCallback != nil {
-			go opts.ProgressCallback(int32(totalParts), int32(totalParts))
+		if err != nil {
+			if matchError(err, "FLOOD_WAIT_") {
+				if waitTime := getFloodWait(err); waitTime > 0 {
+					c.Logger.Warn("flood wait", waitTime, "seconds, waiting...")
+					time.Sleep(time.Duration(waitTime) * time.Second)
+					goto lastPartUploadStartPoint
+				}
+			}
+			c.Logger.Error(err)
 		}
 
-		if err != nil {
-			c.Logger.Error(err)
+		if opts.ProgressCallback != nil {
+			go opts.ProgressCallback(int32(totalParts), int32(totalParts))
 		}
 
 		c.Logger.Debug("Uploaded last part", totalParts-1, "with size", len(part), "in KB:", len(part)/1024)
