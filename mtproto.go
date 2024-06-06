@@ -256,7 +256,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 	}
 	sender, _ := NewMTProto(cfg)
 	m.Logger.Info("exporting new sender for DC " + strconv.Itoa(dcID))
-	err = sender.CreateConnection(true)
+	err = sender.CreateConnection(false)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating connection")
 	}
@@ -269,6 +269,8 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	m.stopRoutines = cancelfunc
 	if withLog {
 		m.Logger.Info("Connecting to [" + m.Addr + "] - <Tcp> ...")
+	} else {
+		m.Logger.Debug("Connecting to [" + m.Addr + "] - <Tcp> ...")
 	}
 	err := m.connect(ctx)
 	if err != nil {
@@ -281,7 +283,14 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 		} else {
 			m.Logger.Info("Connection to [" + m.Addr + "] - <Tcp> established")
 		}
+	} else {
+		if m.proxy != nil && m.proxy.Host != "" {
+			m.Logger.Debug("Connection to (~" + m.proxy.Host + ")[" + m.Addr + "] - <Tcp> established")
+		} else {
+			m.Logger.Debug("Connection to [" + m.Addr + "] - <Tcp> established")
+		}
 	}
+
 	m.startReadingResponses(ctx)
 	if !m.encrypted {
 		m.Logger.Debug("authKey not found, creating new one")
