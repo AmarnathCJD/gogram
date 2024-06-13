@@ -8,14 +8,6 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
-// media.Video = &VideoDescription{
-// InputMode: InputModeShell,
-// Input:     fmt.Sprintf("ffmpeg -i %s -loglevel panic -f rawvideo -r 24 -pix_fmt yuv420p -vf scale=1280:720 pipe:1", video),
-// Width:     1280,
-// Height:    720,
-// Fps:       24,
-// }
-
 func main() {
 	client, err := telegram.NewClient(telegram.ClientConfig{
 		AppID:   6,
@@ -43,6 +35,14 @@ func main() {
 		},
 	}
 
+	// media.Video = &VideoDescription{
+	// 	InputMode: InputModeShell,
+	// 	Input:     fmt.Sprintf("ffmpeg -i %s -loglevel panic -f rawvideo -r 24 -pix_fmt yuv420p -vf scale=1280:720 pipe:1", video),
+	// 	Width:     1280,
+	// 	Height:    720,
+	// 	Fps:       24,
+	// }
+
 	joinGroupCall(client, ntg, "@rosexchat", media)
 
 	client.Idle()
@@ -57,9 +57,8 @@ func joinGroupCall(client *telegram.Client, ntg *Client, chatId interface{}, med
 		panic(err)
 	}
 
-	rawChannel, _ := client.GetSendablePeer(chatId)
-	channel := rawChannel.(*telegram.InputPeerChannel)
-	jsonParams, err := ntg.CreateCall(channel.ChannelID, media) // create call object with media description
+	rawChannel, _ := client.GetSendableChannel(chatId)                                         // get the channel object
+	jsonParams, err := ntg.CreateCall(rawChannel.(*telegram.InputChannelObj).ChannelID, media) // create call object with media description
 	if err != nil {
 		panic(err)
 	}
@@ -87,7 +86,7 @@ func joinGroupCall(client *telegram.Client, ntg *Client, chatId interface{}, med
 	for _, update := range callRes.Updates {
 		switch u := update.(type) {
 		case *telegram.UpdateGroupCallConnection: // wait for connection params
-			_ = ntg.Connect(channel.ChannelID, u.Params.Data)
+			_ = ntg.Connect(rawChannel.(*telegram.InputChannelObj).ChannelID, u.Params.Data)
 		}
 	}
 }

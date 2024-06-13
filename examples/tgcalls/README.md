@@ -28,8 +28,8 @@ go run .
 
 ### Credits
 
-This example utilizes NtgCalls, an open-source project available on GitHub
+This example utilizes NTGCalls, an open-source project available on GitHub
 
-- **Project Repository:** [NtgCalls](https://github.com/pytgcalls/ntgcalls)
+- **Project Repository:** [NTGCalls](https://github.com/pytgcalls/ntgcalls)
 
 
