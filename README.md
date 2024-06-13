@@ -127,6 +127,20 @@ client.SendMedia("username", "<file-name>", &telegram.MediaOptions{ // filename/
 client.SendAlbum("username", []string{"<file-name>", "<file-name>"}, &telegram.MediaOptions{ // Array of filenames/inputmedia,...
     Caption: "Hello from Gogram!",
 })
+
+// with progress
+var pm *telegram.ProgressManager
+client.SendMedia("username", "<file-name>", &telegram.MediaOptions{
+    Progress: func(a,b int) {
+        if pm == nil {
+            pm = telegram.NewProgressManager(a, 3) // 3 is edit interval
+        }
+
+        if pm.ShouldEdit(b) {
+            fmt.Println(pm.GetStats(b)) // client.EditMessage("<chat-id>", "<message-id>", pm.GetStats())
+        }
+    },
+})
 ```
 
 #### Inline Queries
@@ -153,7 +167,7 @@ For more examples, check the [examples](examples) directory.
 - [x] WebRTC Calls Support
 - [ ] Documentation for all methods
 - [x] Stabilize File Uploading
-- [ ] Stabilize File Downloading
+- [x] Stabilize File Downloading
 - [ ] Secret Chats Support
 
 ## Known Issues
@@ -165,7 +179,7 @@ For more examples, check the [examples](examples) directory.
 - [x] Perfect HTML Parser
 - [x] Session File some issues
 - [x] Unidentified RPCError decoding fails
-- [ ] File downloading is not stable
+- [x] File downloading is not stable
 
 ## Contributing
 

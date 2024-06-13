@@ -9,19 +9,51 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 )
 
-var DcList = map[int]string{
-	1: "149.154.175.58:443",
-	2: "149.154.167.50:443",
-	3: "149.154.175.100:443",
-	4: "149.154.167.91:443",
-	5: "91.108.56.151:443",
+// ------------------ Telegram Data Center Configs ------------------
+
+var DcList = DCOptions{
+	DCS: map[int][]string{
+		1: {"149.154.175.58:443"},
+		2: {"149.154.167.50:443"},
+		3: {"149.154.175.100:443"},
+		4: {"149.154.167.91:443"},
+		5: {"91.108.56.151:443"},
+	},
 }
 
-func SetDCs(dcList map[int]string) {
-	DcList = dcList
+type DCOptions struct {
+	DCS map[int][]string
+}
+
+func SetDCs(dcs map[int][]string) {
+	DcList.DCS = dcs
+}
+
+func GetAddr(dc int) string {
+	if addrs, ok := DcList.DCS[dc]; ok {
+		return addrs[0]
+	}
+	return ""
+}
+
+func SearchAddr(addr string) int {
+	for dc, addrs := range DcList.DCS {
+		for _, a := range addrs {
+			if a == addr {
+				return dc
+			}
+		}
+	}
+
+	if strings.Contains(addr, "91.108.56") {
+		return 5
+	}
+
+	return 4
 }
 
 type PingParams struct {

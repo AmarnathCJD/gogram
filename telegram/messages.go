@@ -250,7 +250,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 		dcID = id.DcID
 	}
 	if dcID != int32(c.GetDC()) {
-		borrowedSender, borrowError := c.borrowSender(int(dcID))
+		borrowedSender, borrowError := c.CreateExportedSender(int(dcID))
 		if borrowError != nil {
 			return nil, borrowError
 		}
