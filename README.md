@@ -38,11 +38,13 @@
 [![GitHub issues](https://img.shields.io/github/issues/amarnathcjd/gogram.svg)](https://img.shields.io/github/license/amarnathcjd/gogram.svg)
 [![GitHub pull requests](https://img.shields.io/github/issues-pr/amarnathcjd/gogram.svg)](https://img.shields.io/github/license/amarnathcjd/gogram.svg)
 
-⭐️ **Gogram** is a modern, elegant and concurrent [MTProto API](https://core.telegram.org/api)
+⭐️ **Gogram** is a modern, elegant and concurrent **[MTProto API](https://core.telegram.org/api)**
 framework. It enables you to easily interact with the main Telegram API through a user account (custom client) or a bot
 identity (bot API alternative) using Go.
 
 ## Setup
+
+Please note that Gogram requires Go 1.18 or later.
 
 ```bash
 go get -u github.com/amarnathcjd/gogram/telegram
