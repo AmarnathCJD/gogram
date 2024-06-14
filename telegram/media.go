@@ -9,7 +9,6 @@ import (
 	"hash"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
@@ -623,7 +622,6 @@ func (pm *ProgressManager) GetStats(currentSize int) string {
 }
 
 func (pm *ProgressManager) GenProgressBar(b int) string {
-	exec.Command("cls").Run()
 	barLength := 50
 	progress := int((pm.GetProgress(b) / 100) * float64(barLength))
 	bar := "["
