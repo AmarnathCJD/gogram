@@ -9,6 +9,7 @@ import (
 	"hash"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
@@ -73,6 +74,8 @@ func (s *Source) GetReader() io.Reader {
 		return src
 	case []byte:
 		return bytes.NewReader(src)
+	case *bytes.Buffer:
+		return bytes.NewReader(src.Bytes())
 	case *io.Reader:
 		return *src
 	}
@@ -142,8 +145,20 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 	c.Logger.Info(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, sendersPreallocated))
 
 	c.Logger.Debug(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, sendersPreallocated))
+	var MAX_RETRIES = 3
+	var retries = 0
+
 	for i := sendersPreallocated; i < numWorkers; i++ {
 		x, _ := c.CreateExportedSender(c.GetDC())
+		if x == nil {
+			if retries < MAX_RETRIES {
+				retries++
+				i--
+				continue
+			}
+			c.Logger.Error("failed to create exported sender")
+			continue
+		}
 		c.AddNewExportedSenderToMap(c.GetDC(), x)
 		sender[i] = Sender{c: x}
 	}
@@ -153,7 +168,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 		for {
 			found := false
 			for i := 0; i < numWorkers; i++ {
-				if !sender[i].buzy {
+				if !sender[i].buzy && sender[i].c != nil {
 					part := make([]byte, partSize)
 					_, err := file.Read(part)
 					if err != nil {
@@ -194,6 +209,8 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 		}
 	}
 
+	wg.Wait()
+
 	if partOver > 0 {
 		part := make([]byte, partOver)
 		_, err := file.Read(part)
@@ -220,8 +237,6 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 			go opts.ProgressCallback(int32(totalParts), int32(totalParts))
 		}
 	}
-
-	wg.Wait()
 
 	if opts.FileName != "" {
 		fileName = opts.FileName
@@ -250,7 +265,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 func handleIfFlood(err error, c *Client) bool {
 	if matchError(err, "FLOOD_WAIT_") {
 		if waitTime := getFloodWait(err); waitTime > 0 {
-			c.Logger.Warn("flood wait", waitTime, "seconds, waiting...")
+			c.Logger.Warn("flood wait ", waitTime, "(s), waiting...")
 			time.Sleep(time.Duration(waitTime) * time.Second)
 			return true
 		}
@@ -264,8 +279,8 @@ func prettifyFileName(file string) string {
 }
 
 func countWorkers(parts int64) int {
-	if parts < 5 {
-		return int(parts)
+	if parts <= 5 {
+		return int(parts / 2)
 	} else if parts > 100 {
 		return 20
 	} else if parts > 50 {
@@ -288,6 +303,31 @@ type DownloadOptions struct {
 	ProgressCallback func(totalParts int32, downloadedParts int32) `json:"-"`
 	// Datacenter ID of file
 	DCId int32 `json:"dc_id,omitempty"`
+	// Destination Writer
+	Buffer *bytes.Buffer `json:"-"`
+}
+
+type Destination struct {
+	data []byte
+	mu   sync.Mutex
+	file *os.File
+}
+
+func (mb *Destination) WriteAt(p []byte, off int64) (n int, err error) {
+	if mb.file != nil {
+		return mb.file.WriteAt(p, off)
+	}
+
+	mb.mu.Lock()
+	defer mb.mu.Unlock()
+	if int(off)+len(p) > len(mb.data) {
+		newData := make([]byte, int(off)+len(p))
+		copy(newData, mb.data)
+		mb.data = newData
+	}
+
+	copy(mb.data[off:], p)
+	return len(p), nil
 }
 
 func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (string, error) {
@@ -308,12 +348,19 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		partSize = int(opts.ChunkSize)
 	}
 
-	fs, err := os.Create(dest)
-	if err != nil {
-		return "", err
-	}
+	var fs Destination
+	if opts.Buffer == nil {
+		file, err := os.OpenFile(dest, os.O_CREATE|os.O_RDWR, 0666)
+		if err != nil {
+			return "", err
+		}
 
-	defer fs.Close()
+		fs.file = file
+
+		defer func() {
+			fs.file.Close()
+		}()
+	}
 
 	parts := size / int64(partSize)
 	partOver := size % int64(partSize)
@@ -345,12 +392,28 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		}
 	}
 
+	if opts.Buffer != nil {
+		dest = ":mem-buffer:"
+	}
+
 	c.Logger.Info(fmt.Sprintf("file - download: (%s) - (%d) - (%d)", dest, size, parts))
 	c.Logger.Info(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, wPreallocated))
 
 	c.Logger.Debug(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, wPreallocated))
+	var MAX_RETRIES = 3
+	var retries = 0
+
 	for i := wPreallocated; i < numWorkers; i++ {
 		x, _ := c.CreateExportedSender(int(dc))
+		if x == nil {
+			if retries < MAX_RETRIES {
+				retries++
+				i--
+				continue
+			}
+			c.Logger.Error("failed to create exported sender")
+			continue
+		}
 		c.AddNewExportedSenderToMap(int(dc), x)
 		w[i] = Sender{c: x}
 	}
@@ -360,7 +423,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		for {
 			found := false
 			for i := 0; i < numWorkers; i++ {
-				if !w[i].buzy {
+				if !w[i].buzy && w[i].c != nil {
 					found = true
 					part := make([]byte, partSize)
 					w[i].buzy = true
@@ -409,8 +472,21 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		}
 	}
 
+	wg.Wait()
+
 	if partOver > 0 {
 	downloadLastPartStartPoint:
+		if w[0].c == nil {
+			for i := 0; i < numWorkers; i++ {
+				if w[i].c != nil {
+					w[0].c = w[i].c
+					break
+				}
+			}
+		}
+
+		c.Logger.Debug(fmt.Sprintf("downloading last part %d/%d in chunks of %d", totalParts-1, totalParts, partOver/1024))
+
 		buf, err := w[0].c.UploadGetFile(&UploadGetFileParams{
 			Location:     location,
 			Offset:       int64(int(parts) * partSize),
@@ -442,22 +518,27 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		}
 	}
 
-	wg.Wait()
-
 	if opts.ProgressCallback != nil {
 		opts.ProgressCallback(int32(totalParts), int32(totalParts))
+	}
+
+	if opts.Buffer != nil {
+		c.Logger.Debug("writing to buffer, size: ", len(fs.data))
+
+		opts.Buffer.Write(fs.data)
+		return "", nil
 	}
 
 	return dest, nil
 }
 
 // ----------------------- Progress Manager -----------------------
-
 type ProgressManager struct {
 	startTime    int64
 	editInterval int
 	lastEdit     int64
 	totalSize    int
+	lastPerc     float64
 }
 
 func NewProgressManager(totalSize int, editInterval int) *ProgressManager {
@@ -475,6 +556,7 @@ func (pm *ProgressManager) SetTotalSize(totalSize int) {
 
 func (pm *ProgressManager) PrintFunc() func(a, b int32) {
 	return func(a, b int32) {
+		pm.SetTotalSize(int(a))
 		if pm.ShouldEdit() {
 			fmt.Println(pm.GetStats(int(b)))
 		} else {
@@ -500,7 +582,16 @@ func (pm *ProgressManager) ShouldEdit() bool {
 }
 
 func (pm *ProgressManager) GetProgress(currentSize int) float64 {
-	return float64(currentSize) / float64(pm.totalSize) * 100
+	if pm.totalSize == 0 {
+		return 0
+	}
+	var currPerc = float64(currentSize) / float64(pm.totalSize) * 100
+	if currPerc < pm.lastPerc {
+		return pm.lastPerc
+	}
+
+	pm.lastPerc = currPerc
+	return currPerc
 }
 
 func (pm *ProgressManager) GetETA(currentSize int) string {
@@ -511,7 +602,7 @@ func (pm *ProgressManager) GetETA(currentSize int) string {
 
 func (pm *ProgressManager) GetSpeed(currentSize int) string {
 	// partSize = 512 * 512: 512KB
-	partSize := 512 * 512
+	partSize := 512 * 1024
 	dataTransfered := partSize * currentSize
 	elapsedTime := time.Since(time.Unix(pm.startTime, 0))
 	if int(elapsedTime.Seconds()) == 0 {
@@ -528,5 +619,23 @@ func (pm *ProgressManager) GetSpeed(currentSize int) string {
 }
 
 func (pm *ProgressManager) GetStats(currentSize int) string {
-	return fmt.Sprintf("Progress: %.2f%% | ETA: %s | Speed: %s", pm.GetProgress(currentSize), pm.GetETA(currentSize), pm.GetSpeed(currentSize))
+	return fmt.Sprintf("Progress: %.2f%% | ETA: %s | Speed: %s\n%s", pm.GetProgress(currentSize), pm.GetETA(currentSize), pm.GetSpeed(currentSize), pm.GenProgressBar(currentSize))
+}
+
+func (pm *ProgressManager) GenProgressBar(b int) string {
+	exec.Command("cls").Run()
+	barLength := 50
+	progress := int((pm.GetProgress(b) / 100) * float64(barLength))
+	bar := "["
+
+	for i := 0; i < barLength; i++ {
+		if i < progress {
+			bar += "="
+		} else {
+			bar += " "
+		}
+	}
+	bar += "]"
+
+	return fmt.Sprintf("\r%s %d%%", bar, int(pm.GetProgress(b)))
 }
