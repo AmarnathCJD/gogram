@@ -41,7 +41,7 @@ func maxBitflag(params []tlparser.Parameter) int {
 
 func goify(name string, public bool) string {
 	delim := strcase.ToDelimited(name, '|')
-	delim = strings.ReplaceAll(delim, ".", "|") // strace не видит точки!!
+	delim = strings.ReplaceAll(delim, ".", "|")
 	splitted := strings.Split(delim, "|")
 	for i, item := range splitted {
 		item = strings.ToLower(item)
@@ -52,7 +52,6 @@ func goify(name string, public bool) string {
 		itemRunes := []rune(item)
 
 		if i == 0 && !public {
-			// потому что aPI, uRL, это криворуко
 			itemRunes = []rune(strings.ToLower(item))
 		} else {
 			itemRunes[0] = unicode.ToUpper(itemRunes[0])
@@ -104,7 +103,7 @@ func (g *Generator) typeIdFromSchemaType(t string) *jen.Statement {
 			break
 		}
 		//pp.Fprintln(os.Stderr, g.schema)
-		panic("пробовали обработать '" + t + "'")
+		panic("'" + t + "'")
 	}
 
 	return item

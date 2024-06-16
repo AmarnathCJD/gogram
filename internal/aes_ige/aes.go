@@ -47,7 +47,6 @@ func Encrypt(msg, authKey []byte) (out, msgKey []byte, _ error) {
 }
 
 func encrypt(msg, authKey []byte, decode bool) (out, msgKey []byte, _ error) {
-	// СУДЯ ПО ВСЕМУ вообще не уверен, но это видимо паддинг для добива блока, чтоб он делился на 256 бит
 	padding := 16 + (16-(len(msg)%16))&15
 	data := make([]byte, len(msg)+padding)
 	n := copy(data, msg)
@@ -75,7 +74,6 @@ func encrypt(msg, authKey []byte, decode bool) (out, msgKey []byte, _ error) {
 	return out, msgKey, nil
 }
 
-// checkData это msgkey в понятиях мтпрото, нужно что бы проверить, успешно ли прошла расшифровка
 func Decrypt(msg, authKey, checkData []byte) ([]byte, error) {
 	return decrypt(msg, authKey, checkData, true)
 }
@@ -112,7 +110,7 @@ func doAES256IGEdecrypt(data, out, key, iv []byte) error {
 	return c.doAES256IGEdecrypt(data, out)
 }
 
-// DecryptMessageWithTempKeys дешифрует сообщение паролем, которые получены в процессе обмена ключами диффи хеллмана
+// DecryptMessageWithTempKeys
 func DecryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) ([]byte, error) {
 	key, iv, errTemp := generateTempKeys(nonceSecond, nonceServer)
 	if errTemp != nil {
@@ -124,11 +122,10 @@ func DecryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) (
 		return nil, err
 	}
 
-	// decodedWithHash := SHA1(answer) + answer + (0-15 рандомных байт); длина должна делиться на 16;
+	// decodedWithHash := SHA1(answer) + answer + (0-15); 16;
 	decodedHash := decodedWithHash[:20]
 	decodedMessage := decodedWithHash[20:]
 
-	// режем последние 0-15 байт ориентируюясь по хешу
 	for i := len(decodedMessage) - 1; i > len(decodedMessage)-16; i-- {
 		if bytes.Equal(decodedHash, utils.Sha1Byte(decodedMessage[:i])) {
 			return decodedMessage[:i], nil
@@ -138,11 +135,10 @@ func DecryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) (
 	return nil, errors.New("couldn't trim message: hashes incompatible on more than 16 tries")
 }
 
-// EncryptMessageWithTempKeys шифрует сообщение паролем, которые получены в процессе обмена ключами диффи хеллмана
+// EncryptMessageWithTempKeys
 func EncryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) ([]byte, error) {
 	hash := utils.Sha1Byte(msg)
 
-	// добавляем остаток рандомных байт в сообщение, что бы суммарно оно делилось на 16
 	totalLen := len(hash) + len(msg)
 	overflowedLen := totalLen % 16
 	needToAdd := 16 - overflowedLen
@@ -167,7 +163,7 @@ func encryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) (
 }
 
 // https://tlgrm.ru/docs/mtproto/auth_key#server-otvecaet-dvuma-sposobami
-// generateTempKeys генерирует временные ключи для шифрования в процессе обемна ключами.
+// generateTempKeys.
 func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte, err error) {
 	if nonceSecond == nil {
 		return nil, nil, errors.New("nonceSecond is nil")

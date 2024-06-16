@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Common это сообщение (зашифрованое либо открытое) которыми общаются между собой клиент и сервер
+// Common is an interface for all messages
 type Common interface {
 	GetMsg() []byte
 	GetMsgID() int
@@ -63,7 +63,7 @@ func DeserializeEncrypted(data, authKey []byte) (*Encrypted, error) {
 	if !bytes.Equal(keyHash, utils.AuthKeyHash(authKey)) {
 		return nil, errors.New("wrong encryption key")
 	}
-	msg.MsgKey = d.PopRawBytes(tl.Int128Len) // msgKey это хэш от расшифрованного набора байт, последние 16 символов
+	msg.MsgKey = d.PopRawBytes(tl.Int128Len)
 	encryptedData := d.PopRawBytes(len(data) - (tl.LongLen + tl.Int128Len))
 
 	decrypted, err := ige.Decrypt(encryptedData, authKey, msg.MsgKey)
@@ -90,7 +90,6 @@ func DeserializeEncrypted(data, authKey []byte) (*Encrypted, error) {
 		return nil, fmt.Errorf("wrong bits of message_id: %d", mod)
 	}
 
-	// этот кусок проверяет валидность данных по ключу
 	msgKey := ige.MessageKey(authKey, decrypted, true)
 	if !bytes.Equal(msgKey, msg.MsgKey) {
 		return nil, errors.New("wrong message key, can't trust to sender")
@@ -169,8 +168,9 @@ func (msg *Unencrypted) GetSeqNo() int {
 
 //------------------------------------------------------------------------------------------
 
-// MessageInformator нужен что бы отдавать информацию о текущей сессии для сериализации сообщения
-// по факту это *MTProto структура
+// MessageInformator
+//
+//	*MTProto
 type MessageInformator interface {
 	GetSessionID() int64
 	GetSeqNo() int32
@@ -187,8 +187,8 @@ func serializePacket(client MessageInformator, msg []byte, messageID int64, requ
 	d.PutRawBytes(saltBytes)
 	d.PutLong(client.GetSessionID())
 	d.PutLong(messageID)
-	if requireToAck { // не спрашивай, как это работает
-		d.PutInt(seqNo | 1) // почему тут добавляется бит не ебу
+	if requireToAck {
+		d.PutInt(seqNo | 1)
 	} else {
 		d.PutInt(seqNo)
 	}

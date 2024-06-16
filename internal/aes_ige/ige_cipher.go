@@ -42,7 +42,7 @@ func NewCipher(key, iv []byte) (*Cipher, error) {
 	return c, nil
 }
 
-func (c *Cipher) doAES256IGEencrypt(in, out []byte) error { //nolint:dupl потому что алгоритм на тоненького
+func (c *Cipher) doAES256IGEencrypt(in, out []byte) error { //nolint:dupl
 	if err := isCorrectData(in); err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (c *Cipher) doAES256IGEencrypt(in, out []byte) error { //nolint:dupl пот
 	return nil
 }
 
-func (c *Cipher) doAES256IGEdecrypt(in, out []byte) error { //nolint:dupl потому что алгоритм на тоненького
+func (c *Cipher) doAES256IGEdecrypt(in, out []byte) error { //nolint:dupl
 	if err := isCorrectData(in); err != nil {
 		return err
 	}

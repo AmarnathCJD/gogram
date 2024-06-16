@@ -42,7 +42,7 @@ func (e *Encoder) CheckErr() error {
 	return e.err
 }
 
-// PutBool very specific type, т.к. There is a separate constructor under true and false,
+// PutBool very specific type. There is a separate constructor under true and false,
 // then we can calculate that these are two crc constants
 func (e *Encoder) PutBool(v bool) {
 	crc := CrcFalse
@@ -111,7 +111,7 @@ func (e *Encoder) putTinyBytes(msg []byte) {
 	}
 
 	buf := make([]byte, factBytesLen)
-	buf[0] = byte(len(msg)) // пихаем в первый байт размер сообщения
+	buf[0] = byte(len(msg))
 	copy(buf[1:], msg)
 
 	e.write(buf)
