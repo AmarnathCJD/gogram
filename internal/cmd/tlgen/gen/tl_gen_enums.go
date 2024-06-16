@@ -7,7 +7,7 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
-func (g *Generator) generateEnumDefinitions(file *jen.File) {
+func (g *Generator) generateEnumDefinitions(file *jen.File, _ bool) {
 	enumTypes := make([]string, len(g.schema.Enums))
 	enumIndex := 0
 	for _type := range g.schema.Enums {

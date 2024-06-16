@@ -8,7 +8,7 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
-func (g *Generator) generateInterfaces(f *jen.File) {
+func (g *Generator) generateInterfaces(f *jen.File, d bool) {
 	keys := make([]string, 0, len(g.schema.Types))
 	for key := range g.schema.Types {
 		keys = append(keys, key)
@@ -47,16 +47,18 @@ func (g *Generator) generateInterfaces(f *jen.File) {
 			return structs[i].Name < structs[j].Name
 		})
 
-		wg := sync.WaitGroup{}
-		for i, _type := range structs {
-			wg.Add(1)
-			go func(_type tlparser.Object, i int) {
-				defer wg.Done()
-				structs[i].Comment = g.generateComment(_type.Name, "constructor")
-			}(_type, i)
-		}
+		if d {
+			wg := sync.WaitGroup{}
+			for i, _type := range structs {
+				wg.Add(1)
+				go func(_type tlparser.Object, i int) {
+					defer wg.Done()
+					structs[i].Comment = g.generateComment(_type.Name, "constructor")
+				}(_type, i)
+			}
 
-		wg.Wait()
+			wg.Wait()
+		}
 
 		for _, _type := range structs {
 			if goify(_type.Name, true) == goify(i, true) {
