@@ -2,6 +2,7 @@
 
 package telegram
 
+// [Telegram Passport](/passport) authorization form
 type AccountAuthorizationForm struct {
 	RequiredTypes    []SecureRequiredType
 	Values           []*SecureValue
@@ -18,6 +19,7 @@ func (*AccountAuthorizationForm) FlagIndex() int {
 	return 0
 }
 
+// Logged-in sessions
 type AccountAuthorizations struct {
 	AuthorizationTtlDays int32
 	Authorizations       []*Authorization
@@ -27,6 +29,7 @@ func (*AccountAuthorizations) CRC() uint32 {
 	return 0x4bff8ea0
 }
 
+// Media autodownload settings
 type AccountAutoDownloadSettings struct {
 	Low    *AutoDownloadSettings
 	Medium *AutoDownloadSettings
@@ -37,6 +40,7 @@ func (*AccountAutoDownloadSettings) CRC() uint32 {
 	return 0x63cacf26
 }
 
+// Contains media autosave settings
 type AccountAutoSaveSettings struct {
 	UsersSettings      *AutoSaveSettings
 	ChatsSettings      *AutoSaveSettings
@@ -69,6 +73,7 @@ func (*AccountConnectedBots) CRC() uint32 {
 	return 0x17d7f87b
 }
 
+// Sensitive content settings
 type AccountContentSettings struct {
 	SensitiveEnabled   bool `tl:"flag:0,encoded_in_bitflags"`
 	SensitiveCanChange bool `tl:"flag:1,encoded_in_bitflags"`
@@ -82,6 +87,7 @@ func (*AccountContentSettings) FlagIndex() int {
 	return 0
 }
 
+// Configuration for two-factor authorization
 type AccountPassword struct {
 	HasRecovery             bool            `tl:"flag:0,encoded_in_bitflags"`
 	HasSecureValues         bool            `tl:"flag:1,encoded_in_bitflags"`
@@ -106,6 +112,7 @@ func (*AccountPassword) FlagIndex() int {
 	return 0
 }
 
+// Settings for setting up a new password
 type AccountPasswordInputSettings struct {
 	NewAlgo           PasswordKdfAlgo       `tl:"flag:0"`
 	NewPasswordHash   []byte                `tl:"flag:0"`
@@ -122,6 +129,7 @@ func (*AccountPasswordInputSettings) FlagIndex() int {
 	return 0
 }
 
+// Private info associated to the password info (recovery email, telegram [passport](/passport) info &amp; so on)
 type AccountPasswordSettings struct {
 	Email          string                `tl:"flag:0"`
 	SecureSettings *SecureSecretSettings `tl:"flag:1"`
@@ -135,6 +143,7 @@ func (*AccountPasswordSettings) FlagIndex() int {
 	return 0
 }
 
+// Privacy rules
 type AccountPrivacyRules struct {
 	Rules []PrivacyRule
 	Chats []Chat
@@ -161,6 +170,7 @@ func (*AccountResolvedBusinessChatLinks) FlagIndex() int {
 	return 0
 }
 
+// The sent email code
 type AccountSentEmailCode struct {
 	EmailPattern string
 	Length       int32
@@ -170,6 +180,7 @@ func (*AccountSentEmailCode) CRC() uint32 {
 	return 0x811f854f
 }
 
+// Takeout info
 type AccountTakeout struct {
 	ID int64
 }
@@ -178,6 +189,7 @@ func (*AccountTakeout) CRC() uint32 {
 	return 0x4dba4501
 }
 
+// Temporary payment password
 type AccountTmpPassword struct {
 	TmpPassword []byte
 	ValidUntil  int32
@@ -187,6 +199,7 @@ func (*AccountTmpPassword) CRC() uint32 {
 	return 0xdb64fd34
 }
 
+// Web authorizations
 type AccountWebAuthorizations struct {
 	Authorizations []*WebAuthorization
 	Users          []User
@@ -196,6 +209,7 @@ func (*AccountWebAuthorizations) CRC() uint32 {
 	return 0xed56c9fc
 }
 
+// Time to live in days of the current account
 type AccountDaysTtl struct {
 	Days int32
 }
@@ -204,6 +218,7 @@ func (*AccountDaysTtl) CRC() uint32 {
 	return 0xb8d0afdf
 }
 
+// Contains the link that must be used to open a [direct link Mini App](/api/bots/webapps#direct-link-mini-apps).
 type AppWebViewResultURL struct {
 	URL string
 }
@@ -212,6 +227,7 @@ func (*AppWebViewResultURL) CRC() uint32 {
 	return 0x3c1b4f0d
 }
 
+// Represents a [bot mini app that can be launched from the attachment/side menu »](/api/bots/attach)
 type AttachMenuBot struct {
 	Inactive                 bool `tl:"flag:0,encoded_in_bitflags"`
 	HasSettings              bool `tl:"flag:1,encoded_in_bitflags"`
@@ -233,6 +249,7 @@ func (*AttachMenuBot) FlagIndex() int {
 	return 0
 }
 
+// Represents an attachment menu icon for [bot mini apps »](/api/bots/attach)
 type AttachMenuBotIcon struct {
 	Name   string
 	Icon   Document
@@ -247,6 +264,7 @@ func (*AttachMenuBotIcon) FlagIndex() int {
 	return 0
 }
 
+// Represents an attachment menu icon color for [bot mini apps »](/api/bots/attach)
 type AttachMenuBotIconColor struct {
 	Name  string
 	Color int32
@@ -256,6 +274,7 @@ func (*AttachMenuBotIconColor) CRC() uint32 {
 	return 0x4576f3f0
 }
 
+// Represents a [bot mini app that can be launched from the attachment menu »](/api/bots/attach)
 type AttachMenuBotsBot struct {
 	Bot   *AttachMenuBot
 	Users []User
@@ -265,6 +284,7 @@ func (*AttachMenuBotsBot) CRC() uint32 {
 	return 0x93bf667f
 }
 
+// Data for copying of authorization between data centers.
 type AuthExportedAuthorization struct {
 	ID    int64
 	Bytes []byte
@@ -274,6 +294,7 @@ func (*AuthExportedAuthorization) CRC() uint32 {
 	return 0xb434e2b8
 }
 
+// [Future auth token »](/api/auth#future-auth-tokens) to be used on subsequent authorizations
 type AuthLoggedOut struct {
 	FutureAuthToken []byte `tl:"flag:0"`
 }
@@ -286,6 +307,7 @@ func (*AuthLoggedOut) FlagIndex() int {
 	return 0
 }
 
+// Recovery info of a [2FA password](/api/srp), only for accounts with a [recovery email configured](/api/srp#email-verification).
 type AuthPasswordRecovery struct {
 	EmailPattern string
 }
@@ -294,6 +316,7 @@ func (*AuthPasswordRecovery) CRC() uint32 {
 	return 0x137948a5
 }
 
+// Logged-in session
 type Authorization struct {
 	Current                   bool `tl:"flag:0,encoded_in_bitflags"`
 	OfficialApp               bool `tl:"flag:1,encoded_in_bitflags"`
@@ -323,6 +346,7 @@ func (*Authorization) FlagIndex() int {
 	return 0
 }
 
+// Autodownload settings
 type AutoDownloadSettings struct {
 	Disabled                      bool `tl:"flag:0,encoded_in_bitflags"`
 	VideoPreloadLarge             bool `tl:"flag:1,encoded_in_bitflags"`
@@ -345,6 +369,7 @@ func (*AutoDownloadSettings) FlagIndex() int {
 	return 0
 }
 
+// Peer-specific media autosave settings
 type AutoSaveException struct {
 	Peer     Peer
 	Settings *AutoSaveSettings
@@ -354,6 +379,7 @@ func (*AutoSaveException) CRC() uint32 {
 	return 0x81602d47
 }
 
+// Media autosave settings
 type AutoSaveSettings struct {
 	Photos       bool  `tl:"flag:0,encoded_in_bitflags"`
 	Videos       bool  `tl:"flag:1,encoded_in_bitflags"`
@@ -385,6 +411,7 @@ func (*AvailableEffect) FlagIndex() int {
 	return 0
 }
 
+// Animations associated with a message reaction
 type AvailableReaction struct {
 	Inactive          bool `tl:"flag:0,encoded_in_bitflags"`
 	Premium           bool `tl:"flag:2,encoded_in_bitflags"`
@@ -407,6 +434,7 @@ func (*AvailableReaction) FlagIndex() int {
 	return 0
 }
 
+// Credit card info URL provided by the bank
 type BankCardOpenURL struct {
 	URL  string
 	Name string
@@ -430,6 +458,7 @@ func (*Birthday) FlagIndex() int {
 	return 0
 }
 
+// Info about one or more [boosts](/api/boost) applied by a specific user.
 type Boost struct {
 	Gift          bool `tl:"flag:1,encoded_in_bitflags"`
 	Giveaway      bool `tl:"flag:2,encoded_in_bitflags"`
@@ -468,6 +497,7 @@ func (*BotBusinessConnection) FlagIndex() int {
 	return 0
 }
 
+// Describes a bot command that can be used in a chat
 type BotCommand struct {
 	Command     string
 	Description string
@@ -477,6 +507,7 @@ func (*BotCommand) CRC() uint32 {
 	return 0xc27ac8c7
 }
 
+// Info about bots (available bot commands, etc)
 type BotInfo struct {
 	UserID              int64         `tl:"flag:0"`
 	Description         string        `tl:"flag:1"`
@@ -494,6 +525,7 @@ func (*BotInfo) FlagIndex() int {
 	return 0
 }
 
+// Localized information about a bot.
 type BotsBotInfo struct {
 	Name        string
 	About       string
@@ -640,6 +672,7 @@ func (*BusinessWorkHours) FlagIndex() int {
 	return 0
 }
 
+// Configuration for [CDN](/cdn) file downloads.
 type CdnConfig struct {
 	PublicKeys []*CdnPublicKey
 }
@@ -648,6 +681,7 @@ func (*CdnConfig) CRC() uint32 {
 	return 0x5725e40a
 }
 
+// Public key to use <strong>only</strong> during handshakes to [CDN](/cdn) DCs.
 type CdnPublicKey struct {
 	DcID      int32
 	PublicKey string
@@ -657,6 +691,7 @@ func (*CdnPublicKey) CRC() uint32 {
 	return 0xc982eaba
 }
 
+// Admin log event
 type ChannelAdminLogEvent struct {
 	ID     int64
 	Date   int32
@@ -668,6 +703,7 @@ func (*ChannelAdminLogEvent) CRC() uint32 {
 	return 0x1fad68cd
 }
 
+// Filter only certain admin log events
 type ChannelAdminLogEventsFilter struct {
 	Join      bool `tl:"flag:0,encoded_in_bitflags"`
 	Leave     bool `tl:"flag:1,encoded_in_bitflags"`
@@ -697,6 +733,7 @@ func (*ChannelAdminLogEventsFilter) FlagIndex() int {
 	return 0
 }
 
+// Admin log events
 type ChannelsAdminLogResults struct {
 	Events []*ChannelAdminLogEvent
 	Chats  []Chat
@@ -707,6 +744,7 @@ func (*ChannelsAdminLogResults) CRC() uint32 {
 	return 0xed8af74d
 }
 
+// Represents a channel participant
 type ChannelsChannelParticipant struct {
 	Participant ChannelParticipant
 	Chats       []Chat
@@ -717,6 +755,7 @@ func (*ChannelsChannelParticipant) CRC() uint32 {
 	return 0xdfb80317
 }
 
+// A list of peers that can be used to send messages in a specific group
 type ChannelsSendAsPeers struct {
 	Peers []*SendAsPeer
 	Chats []Chat
@@ -727,6 +766,7 @@ func (*ChannelsSendAsPeers) CRC() uint32 {
 	return 0xf496b0c6
 }
 
+// Represents the rights of an admin in a [channel/supergroup](/api/channel).
 type ChatAdminRights struct {
 	ChangeInfo     bool `tl:"flag:0,encoded_in_bitflags"`
 	PostMessages   bool `tl:"flag:1,encoded_in_bitflags"`
@@ -753,6 +793,7 @@ func (*ChatAdminRights) FlagIndex() int {
 	return 0
 }
 
+// Info about chat invites generated by admins.
 type ChatAdminWithInvites struct {
 	AdminID             int64
 	InvitesCount        int32
@@ -763,6 +804,7 @@ func (*ChatAdminWithInvites) CRC() uint32 {
 	return 0xf2ecef23
 }
 
+// Represents the rights of a normal user in a [supergroup/channel/chat](/api/channel). In this case, the flags are inverted: if set, a flag <strong>does not allow</strong> a user to do X.
 type ChatBannedRights struct {
 	ViewMessages    bool `tl:"flag:0,encoded_in_bitflags"`
 	SendMessages    bool `tl:"flag:1,encoded_in_bitflags"`
@@ -795,6 +837,7 @@ func (*ChatBannedRights) FlagIndex() int {
 	return 0
 }
 
+// When and which user joined the chat using a chat invite
 type ChatInviteImporter struct {
 	Requested   bool `tl:"flag:0,encoded_in_bitflags"`
 	ViaChatlist bool `tl:"flag:3,encoded_in_bitflags"`
@@ -812,6 +855,7 @@ func (*ChatInviteImporter) FlagIndex() int {
 	return 0
 }
 
+// Number of online users in a chat
 type ChatOnlines struct {
 	Onlines int32
 }
@@ -820,6 +864,7 @@ func (*ChatOnlines) CRC() uint32 {
 	return 0xf041e250
 }
 
+// Updated information about a [chat folder deep link »](/api/links#chat-folder-links).
 type ChatlistsChatlistUpdates struct {
 	MissingPeers []Peer
 	Chats        []Chat
@@ -830,6 +875,7 @@ func (*ChatlistsChatlistUpdates) CRC() uint32 {
 	return 0x93bd878d
 }
 
+// Info about an exported [chat folder deep link »](/api/links#chat-folder-links).
 type ChatlistsExportedChatlistInvite struct {
 	Filter DialogFilter
 	Invite *ExportedChatlistInvite
@@ -839,6 +885,7 @@ func (*ChatlistsExportedChatlistInvite) CRC() uint32 {
 	return 0x10e6e3a6
 }
 
+// Info about multiple [chat folder deep links »](/api/links#chat-folder-links).
 type ChatlistsExportedInvites struct {
 	Invites []*ExportedChatlistInvite
 	Chats   []Chat
@@ -849,6 +896,7 @@ func (*ChatlistsExportedInvites) CRC() uint32 {
 	return 0x10ab6dc7
 }
 
+// Settings used by telegram servers for sending the confirm code.
 type CodeSettings struct {
 	AllowFlashcall  bool     `tl:"flag:0,encoded_in_bitflags"`
 	CurrentNumber   bool     `tl:"flag:1,encoded_in_bitflags"`
@@ -869,6 +917,7 @@ func (*CodeSettings) FlagIndex() int {
 	return 0
 }
 
+// Current configuration
 type Config struct {
 	DefaultP2PContacts      bool `tl:"flag:3,encoded_in_bitflags"`
 	PreloadFeaturedStickers bool `tl:"flag:4,encoded_in_bitflags"`
@@ -941,6 +990,7 @@ func (*ConnectedBot) FlagIndex() int {
 	return 0
 }
 
+// A contact of the current user that is registered in the system.
 type Contact struct {
 	UserID int64
 	Mutual bool
@@ -959,6 +1009,7 @@ func (*ContactBirthday) CRC() uint32 {
 	return 0x1d998733
 }
 
+// Contact status: online / offline.
 type ContactStatus struct {
 	UserID int64
 	Status UserStatus
@@ -977,6 +1028,7 @@ func (*ContactsContactBirthdays) CRC() uint32 {
 	return 0x114ff30d
 }
 
+// Users found by name substring and auxiliary data.
 type ContactsFound struct {
 	MyResults []Peer
 	Results   []Peer
@@ -988,6 +1040,7 @@ func (*ContactsFound) CRC() uint32 {
 	return 0xb3134d9d
 }
 
+// Info on successfully imported contacts.
 type ContactsImportedContacts struct {
 	Imported       []*ImportedContact
 	PopularInvites []*PopularContact
@@ -999,6 +1052,7 @@ func (*ContactsImportedContacts) CRC() uint32 {
 	return 0x77d01c3b
 }
 
+// Resolved peer
 type ContactsResolvedPeer struct {
 	Peer  Peer
 	Chats []Chat
@@ -1009,6 +1063,7 @@ func (*ContactsResolvedPeer) CRC() uint32 {
 	return 0x7f077ad9
 }
 
+// Represents a json-encoded object
 type DataJson struct {
 	Data string
 }
@@ -1017,6 +1072,7 @@ func (*DataJson) CRC() uint32 {
 	return 0x7d748d04
 }
 
+// Data center
 type DcOption struct {
 	Ipv6         bool `tl:"flag:0,encoded_in_bitflags"`
 	MediaOnly    bool `tl:"flag:1,encoded_in_bitflags"`
@@ -1038,6 +1094,7 @@ func (*DcOption) FlagIndex() int {
 	return 0
 }
 
+// Contains info about the default value of the Time-To-Live setting, applied to all new chats.
 type DefaultHistoryTtl struct {
 	Period int32
 }
@@ -1046,6 +1103,7 @@ func (*DefaultHistoryTtl) CRC() uint32 {
 	return 0x43b46b20
 }
 
+// Suggested [folders](/api/folders)
 type DialogFilterSuggested struct {
 	Filter      DialogFilter
 	Description string
@@ -1055,6 +1113,7 @@ func (*DialogFilterSuggested) CRC() uint32 {
 	return 0x77744d4a
 }
 
+// Changes to emoji keywords
 type EmojiKeywordsDifference struct {
 	LangCode    string
 	FromVersion int32
@@ -1066,6 +1125,7 @@ func (*EmojiKeywordsDifference) CRC() uint32 {
 	return 0x5cc761bd
 }
 
+// Emoji language
 type EmojiLanguage struct {
 	LangCode string
 }
@@ -1074,6 +1134,7 @@ func (*EmojiLanguage) CRC() uint32 {
 	return 0xb3fb5361
 }
 
+// An HTTP URL which can be used to automatically log in into translation platform and suggest new emoji replacements. The URL will be valid for 30 seconds after generation
 type EmojiURL struct {
 	URL string
 }
@@ -1082,6 +1143,7 @@ func (*EmojiURL) CRC() uint32 {
 	return 0xa575739d
 }
 
+// Error.
 type Error struct {
 	Code int32
 	Text string
@@ -1091,6 +1153,7 @@ func (*Error) CRC() uint32 {
 	return 0xc4b9f9bb
 }
 
+// Exported [chat folder deep link »](/api/links#chat-folder-links).
 type ExportedChatlistInvite struct {
 	Title string
 	URL   string
@@ -1101,6 +1164,7 @@ func (*ExportedChatlistInvite) CRC() uint32 {
 	return 0xc5181ac
 }
 
+// Describes a [temporary profile link](/api/links#temporary-profile-links).
 type ExportedContactToken struct {
 	URL     string
 	Expires int32
@@ -1110,6 +1174,7 @@ func (*ExportedContactToken) CRC() uint32 {
 	return 0x41bf109b
 }
 
+// Link to a message in a supergroup/channel
 type ExportedMessageLink struct {
 	Link string
 	Html string
@@ -1119,6 +1184,7 @@ func (*ExportedMessageLink) CRC() uint32 {
 	return 0x5dab1af4
 }
 
+// Represents a [story deep link](/api/stories#story-links).
 type ExportedStoryLink struct {
 	Link string
 }
@@ -1142,6 +1208,7 @@ func (*FactCheck) FlagIndex() int {
 	return 0
 }
 
+// SHA256 Hash of an uploaded file, to be checked for validity after download
 type FileHash struct {
 	Offset int64
 	Limit  int32
@@ -1152,6 +1219,7 @@ func (*FileHash) CRC() uint32 {
 	return 0xf39b035c
 }
 
+// Folder
 type Folder struct {
 	AutofillNewBroadcasts     bool `tl:"flag:0,encoded_in_bitflags"`
 	AutofillPublicGroups      bool `tl:"flag:1,encoded_in_bitflags"`
@@ -1169,6 +1237,7 @@ func (*Folder) FlagIndex() int {
 	return 0
 }
 
+// Peer in a folder
 type FolderPeer struct {
 	Peer     Peer
 	FolderID int32
@@ -1191,6 +1260,7 @@ func (*FragmentCollectibleInfo) CRC() uint32 {
 	return 0x6ebdff91
 }
 
+// Indicates an already sent game
 type Game struct {
 	ID          int64
 	AccessHash  int64
@@ -1209,6 +1279,7 @@ func (*Game) FlagIndex() int {
 	return 0
 }
 
+// Global privacy settings
 type GlobalPrivacySettings struct {
 	ArchiveAndMuteNewNoncontactPeers bool `tl:"flag:0,encoded_in_bitflags"`
 	KeepArchivedUnmuted              bool `tl:"flag:1,encoded_in_bitflags"`
@@ -1225,6 +1296,7 @@ func (*GlobalPrivacySettings) FlagIndex() int {
 	return 0
 }
 
+// Info about a group call participant
 type GroupCallParticipant struct {
 	Muted           bool `tl:"flag:0,encoded_in_bitflags"`
 	Left            bool `tl:"flag:1,encoded_in_bitflags"`
@@ -1255,6 +1327,7 @@ func (*GroupCallParticipant) FlagIndex() int {
 	return 0
 }
 
+// Info about a video stream
 type GroupCallParticipantVideo struct {
 	Paused       bool `tl:"flag:0,encoded_in_bitflags"`
 	Endpoint     string
@@ -1270,6 +1343,7 @@ func (*GroupCallParticipantVideo) FlagIndex() int {
 	return 0
 }
 
+// Describes a group of video synchronization source identifiers
 type GroupCallParticipantVideoSourceGroup struct {
 	Semantics string
 	Sources   []int32
@@ -1279,6 +1353,7 @@ func (*GroupCallParticipantVideoSourceGroup) CRC() uint32 {
 	return 0xdcb118b7
 }
 
+// Info about an RTMP stream in a group call or livestream
 type GroupCallStreamChannel struct {
 	Channel         int32
 	Scale           int32
@@ -1289,6 +1364,7 @@ func (*GroupCallStreamChannel) CRC() uint32 {
 	return 0x80eb48af
 }
 
+// Name, ISO code, localized name and phone codes/patterns of a specific country
 type HelpCountry struct {
 	Hidden       bool `tl:"flag:0,encoded_in_bitflags"`
 	Iso2         string
@@ -1305,6 +1381,7 @@ func (*HelpCountry) FlagIndex() int {
 	return 0
 }
 
+// Country code and phone number pattern of a specific country
 type HelpCountryCode struct {
 	CountryCode string
 	Prefixes    []string `tl:"flag:0"`
@@ -1319,6 +1396,7 @@ func (*HelpCountryCode) FlagIndex() int {
 	return 0
 }
 
+// Text of a text message with an invitation to install Telegram.
 type HelpInviteText struct {
 	Message string
 }
@@ -1327,6 +1405,7 @@ func (*HelpInviteText) CRC() uint32 {
 	return 0x18cb9f78
 }
 
+// Contains info about a [color palette »](/api/colors).
 type HelpPeerColorOption struct {
 	Hidden          bool `tl:"flag:0,encoded_in_bitflags"`
 	ColorID         int32
@@ -1344,6 +1423,7 @@ func (*HelpPeerColorOption) FlagIndex() int {
 	return 0
 }
 
+// Telegram Premium promotion information
 type HelpPremiumPromo struct {
 	StatusText     string
 	StatusEntities []MessageEntity
@@ -1357,6 +1437,7 @@ func (*HelpPremiumPromo) CRC() uint32 {
 	return 0x5334759c
 }
 
+// Recent t.me URLs
 type HelpRecentMeUrls struct {
 	Urls  []RecentMeURL
 	Chats []Chat
@@ -1367,6 +1448,7 @@ func (*HelpRecentMeUrls) CRC() uint32 {
 	return 0xe0310d7
 }
 
+// Info on support user.
 type HelpSupport struct {
 	PhoneNumber string
 	User        User
@@ -1376,6 +1458,7 @@ func (*HelpSupport) CRC() uint32 {
 	return 0x17c6b5f6
 }
 
+// Localized name for telegram support
 type HelpSupportName struct {
 	Name string
 }
@@ -1384,6 +1467,7 @@ func (*HelpSupportName) CRC() uint32 {
 	return 0x8c05f1c9
 }
 
+// Info about the latest telegram Terms Of Service
 type HelpTermsOfService struct {
 	Popup         bool `tl:"flag:0,encoded_in_bitflags"`
 	ID            *DataJson
@@ -1400,6 +1484,7 @@ func (*HelpTermsOfService) FlagIndex() int {
 	return 0
 }
 
+// Game highscore
 type HighScore struct {
 	Pos    int32
 	UserID int64
@@ -1410,6 +1495,7 @@ func (*HighScore) CRC() uint32 {
 	return 0x73a379eb
 }
 
+// Successfully imported contact.
 type ImportedContact struct {
 	UserID   int64
 	ClientID int64
@@ -1419,6 +1505,7 @@ func (*ImportedContact) CRC() uint32 {
 	return 0xc13e3c50
 }
 
+// The bot requested the user to message them in private
 type InlineBotSwitchPm struct {
 	Text       string
 	StartParam string
@@ -1428,6 +1515,7 @@ func (*InlineBotSwitchPm) CRC() uint32 {
 	return 0x3c20629f
 }
 
+// Specifies an [inline mode mini app](/api/bots/webapps#inline-mode-mini-apps) button, shown on top of the inline query results list.
 type InlineBotWebView struct {
 	Text string
 	URL  string
@@ -1437,6 +1525,7 @@ func (*InlineBotWebView) CRC() uint32 {
 	return 0xb57295d5
 }
 
+// Event that occurred in the application.
 type InputAppEvent struct {
 	Time float64
 	Type string
@@ -1536,6 +1625,7 @@ func (*InputBusinessRecipients) FlagIndex() int {
 	return 0
 }
 
+// Folder ID
 type InputChatlistDialogFilter struct {
 	FilterID int32
 }
@@ -1544,6 +1634,7 @@ func (*InputChatlistDialogFilter) CRC() uint32 {
 	return 0xf3e0da33
 }
 
+// Info about an [MTProxy](/mtproto/mtproto-transports#transport-obfuscation) used to connect.
 type InputClientProxy struct {
 	Address string
 	Port    int32
@@ -1553,6 +1644,7 @@ func (*InputClientProxy) CRC() uint32 {
 	return 0x75588b3f
 }
 
+// Creates an encrypted chat.
 type InputEncryptedChat struct {
 	ChatID     int32
 	AccessHash int64
@@ -1562,6 +1654,7 @@ func (*InputEncryptedChat) CRC() uint32 {
 	return 0xf141b5e1
 }
 
+// Peer in a folder
 type InputFolderPeer struct {
 	Peer     InputPeer
 	FolderID int32
@@ -1571,6 +1664,7 @@ func (*InputFolderPeer) CRC() uint32 {
 	return 0xfbd2c296
 }
 
+// Points to a specific group call
 type InputGroupCall struct {
 	ID         int64
 	AccessHash int64
@@ -1580,6 +1674,7 @@ func (*InputGroupCall) CRC() uint32 {
 	return 0xd8aa840f
 }
 
+// Notification settings.
 type InputPeerNotifySettings struct {
 	ShowPreviews      bool              `tl:"flag:0"`
 	Silent            bool              `tl:"flag:1"`
@@ -1598,6 +1693,7 @@ func (*InputPeerNotifySettings) FlagIndex() int {
 	return 0
 }
 
+// Phone call
 type InputPhoneCall struct {
 	ID         int64
 	AccessHash int64
@@ -1607,6 +1703,7 @@ func (*InputPhoneCall) CRC() uint32 {
 	return 0x1e36fded
 }
 
+// Phone contact.
 type InputPhoneContact struct {
 	ClientID  int64
 	Phone     string
@@ -1618,6 +1715,7 @@ func (*InputPhoneContact) CRC() uint32 {
 	return 0xf392b7f4
 }
 
+// Secure value, [for more info see the passport docs »](/passport/encryption#encryption)
 type InputSecureValue struct {
 	Type        SecureValueType
 	Data        *SecureData       `tl:"flag:0"`
@@ -1637,6 +1735,7 @@ func (*InputSecureValue) FlagIndex() int {
 	return 0
 }
 
+// A single media in an [album or grouped media](/api/files#albums-grouped-media) sent with [messages.sendMultiMedia](/method/messages.sendMultiMedia).
 type InputSingleMedia struct {
 	Media    InputMedia
 	RandomID int64
@@ -1652,6 +1751,7 @@ func (*InputSingleMedia) FlagIndex() int {
 	return 0
 }
 
+// Sticker in a stickerset
 type InputStickerSetItem struct {
 	Document   InputDocument
 	Emoji      string
@@ -1667,6 +1767,7 @@ func (*InputStickerSetItem) FlagIndex() int {
 	return 0
 }
 
+// Theme settings
 type InputThemeSettings struct {
 	MessageColorsAnimated bool `tl:"flag:2,encoded_in_bitflags"`
 	BaseTheme             BaseTheme
@@ -1685,6 +1786,7 @@ func (*InputThemeSettings) FlagIndex() int {
 	return 0
 }
 
+// The document
 type InputWebDocument struct {
 	URL        string
 	Size       int32
@@ -1696,6 +1798,7 @@ func (*InputWebDocument) CRC() uint32 {
 	return 0x9bed434d
 }
 
+// Invoice
 type Invoice struct {
 	Test                     bool `tl:"flag:0,encoded_in_bitflags"`
 	NameRequested            bool `tl:"flag:1,encoded_in_bitflags"`
@@ -1721,6 +1824,7 @@ func (*Invoice) FlagIndex() int {
 	return 0
 }
 
+// JSON key: value pair
 type JsonObjectValue struct {
 	Key   string
 	Value JsonValue
@@ -1730,6 +1834,7 @@ func (*JsonObjectValue) CRC() uint32 {
 	return 0xc0de1bd9
 }
 
+// Inline keyboard row
 type KeyboardButtonRow struct {
 	Buttons []KeyboardButton
 }
@@ -1738,6 +1843,7 @@ func (*KeyboardButtonRow) CRC() uint32 {
 	return 0x77608b83
 }
 
+// This object represents a portion of the price for goods or services.
 type LabeledPrice struct {
 	Label  string
 	Amount int64
@@ -1747,6 +1853,7 @@ func (*LabeledPrice) CRC() uint32 {
 	return 0xcb296bf8
 }
 
+// Changes to the app's localization pack
 type LangPackDifference struct {
 	LangCode    string
 	FromVersion int32
@@ -1758,6 +1865,7 @@ func (*LangPackDifference) CRC() uint32 {
 	return 0xf385c1f6
 }
 
+// Identifies a localization pack
 type LangPackLanguage struct {
 	Official        bool `tl:"flag:0,encoded_in_bitflags"`
 	Rtl             bool `tl:"flag:2,encoded_in_bitflags"`
@@ -1780,6 +1888,7 @@ func (*LangPackLanguage) FlagIndex() int {
 	return 0
 }
 
+// Position on a photo where a mask should be placed when [attaching stickers to media »](/api/stickers#attached-stickers)
 type MaskCoords struct {
 	N    int32
 	X    float64
@@ -1791,6 +1900,7 @@ func (*MaskCoords) CRC() uint32 {
 	return 0xaed6dbb2
 }
 
+// Coordinates and size of a clicable rectangular area on top of a story.
 type MediaAreaCoordinates struct {
 	X        float64
 	Y        float64
@@ -1803,6 +1913,7 @@ func (*MediaAreaCoordinates) CRC() uint32 {
 	return 0x3d1ea4e
 }
 
+// Info about a forwarded message
 type MessageFwdHeader struct {
 	Imported       bool   `tl:"flag:7,encoded_in_bitflags"`
 	SavedOut       bool   `tl:"flag:11,encoded_in_bitflags"`
@@ -1827,6 +1938,7 @@ func (*MessageFwdHeader) FlagIndex() int {
 	return 0
 }
 
+// How a certain peer reacted to the message
 type MessagePeerReaction struct {
 	Big      bool `tl:"flag:0,encoded_in_bitflags"`
 	Unread   bool `tl:"flag:1,encoded_in_bitflags"`
@@ -1844,6 +1956,7 @@ func (*MessagePeerReaction) FlagIndex() int {
 	return 0
 }
 
+// Indicates a range of chat messages
 type MessageRange struct {
 	MinID int32
 	MaxID int32
@@ -1853,6 +1966,7 @@ func (*MessageRange) CRC() uint32 {
 	return 0xae30253
 }
 
+// [Message reactions »](/api/reactions)
 type MessageReactions struct {
 	Min             bool `tl:"flag:0,encoded_in_bitflags"`
 	CanSeeList      bool `tl:"flag:2,encoded_in_bitflags"`
@@ -1869,6 +1983,7 @@ func (*MessageReactions) FlagIndex() int {
 	return 0
 }
 
+// Info about [the comment section of a channel post, or a simple message thread](/api/threads)
 type MessageReplies struct {
 	Comments       bool `tl:"flag:0,encoded_in_bitflags"`
 	Replies        int32
@@ -1887,6 +2002,7 @@ func (*MessageReplies) FlagIndex() int {
 	return 0
 }
 
+// View, forward counter + info about replies of a specific message
 type MessageViews struct {
 	Views    int32           `tl:"flag:0"`
 	Forwards int32           `tl:"flag:1"`
@@ -1901,6 +2017,7 @@ func (*MessageViews) FlagIndex() int {
 	return 0
 }
 
+// Messages found and affected by changes
 type MessagesAffectedFoundMessages struct {
 	Pts      int32
 	PtsCount int32
@@ -1912,6 +2029,7 @@ func (*MessagesAffectedFoundMessages) CRC() uint32 {
 	return 0xef8d3e6c
 }
 
+// Affected part of communication history with the user or in a chat.
 type MessagesAffectedHistory struct {
 	Pts      int32
 	PtsCount int32
@@ -1922,6 +2040,7 @@ func (*MessagesAffectedHistory) CRC() uint32 {
 	return 0xb45c69d1
 }
 
+// Events affected by operation
 type MessagesAffectedMessages struct {
 	Pts      int32
 	PtsCount int32
@@ -1931,6 +2050,7 @@ func (*MessagesAffectedMessages) CRC() uint32 {
 	return 0x84d19185
 }
 
+// Archived stickersets
 type MessagesArchivedStickers struct {
 	Count int32
 	Sets  []StickerSetCovered
@@ -1940,6 +2060,7 @@ func (*MessagesArchivedStickers) CRC() uint32 {
 	return 0x4fcba9c8
 }
 
+// Contains information about a [direct link Mini App](/api/bots/webapps#direct-link-mini-apps)
 type MessagesBotApp struct {
 	Inactive           bool `tl:"flag:0,encoded_in_bitflags"`
 	RequestWriteAccess bool `tl:"flag:1,encoded_in_bitflags"`
@@ -1955,6 +2076,7 @@ func (*MessagesBotApp) FlagIndex() int {
 	return 0
 }
 
+// Callback answer sent by the bot in response to a button press
 type MessagesBotCallbackAnswer struct {
 	Alert     bool   `tl:"flag:1,encoded_in_bitflags"`
 	HasURL    bool   `tl:"flag:3,encoded_in_bitflags"`
@@ -1972,6 +2094,7 @@ func (*MessagesBotCallbackAnswer) FlagIndex() int {
 	return 0
 }
 
+// Result of a query to an inline bot
 type MessagesBotResults struct {
 	Gallery       bool `tl:"flag:0,encoded_in_bitflags"`
 	QueryID       int64
@@ -1991,6 +2114,7 @@ func (*MessagesBotResults) FlagIndex() int {
 	return 0
 }
 
+// Info about chat invites generated by admins.
 type MessagesChatAdminsWithInvites struct {
 	Admins []*ChatAdminWithInvites
 	Users  []User
@@ -2000,6 +2124,7 @@ func (*MessagesChatAdminsWithInvites) CRC() uint32 {
 	return 0xb69b72d7
 }
 
+// Full info about a [channel](/api/channel#channels), [supergroup](/api/channel#supergroups), [gigagroup](/api/channel#gigagroups) or [basic group](/api/channel#basic-groups).
 type MessagesChatFull struct {
 	FullChat ChatFull
 	Chats    []Chat
@@ -2010,6 +2135,7 @@ func (*MessagesChatFull) CRC() uint32 {
 	return 0xe5d7d19c
 }
 
+// Info about the users that joined the chat using a specific chat invite
 type MessagesChatInviteImporters struct {
 	Count     int32
 	Importers []*ChatInviteImporter
@@ -2020,6 +2146,7 @@ func (*MessagesChatInviteImporters) CRC() uint32 {
 	return 0x81b6b00a
 }
 
+// Contains a confirmation text to be shown to the user, upon [importing chat history, click here for more info »](/api/import).
 type MessagesCheckedHistoryImportPeer struct {
 	ConfirmText string
 }
@@ -2041,6 +2168,7 @@ func (*MessagesDialogFilters) FlagIndex() int {
 	return 0
 }
 
+// Information about a [message thread](/api/threads)
 type MessagesDiscussionMessage struct {
 	Messages        []Message
 	MaxID           int32 `tl:"flag:0"`
@@ -2059,6 +2187,7 @@ func (*MessagesDiscussionMessage) FlagIndex() int {
 	return 0
 }
 
+// Info about chat invites exported by a certain admin.
 type MessagesExportedChatInvites struct {
 	Count   int32
 	Invites []ExportedChatInvite
@@ -2069,6 +2198,7 @@ func (*MessagesExportedChatInvites) CRC() uint32 {
 	return 0xbdc62dcc
 }
 
+// Contains information about multiple [forum topics](/api/forum#forum-topics)
 type MessagesForumTopics struct {
 	OrderByCreateDate bool `tl:"flag:0,encoded_in_bitflags"`
 	Count             int32
@@ -2087,6 +2217,7 @@ func (*MessagesForumTopics) FlagIndex() int {
 	return 0
 }
 
+// Highscores in a game
 type MessagesHighScores struct {
 	Scores []*HighScore
 	Users  []User
@@ -2096,6 +2227,7 @@ func (*MessagesHighScores) CRC() uint32 {
 	return 0x9a3bfd99
 }
 
+// ID of a specific [chat import session, click here for more info »](/api/import).
 type MessagesHistoryImport struct {
 	ID int64
 }
@@ -2104,6 +2236,10 @@ func (*MessagesHistoryImport) CRC() uint32 {
 	return 0x1662af0b
 }
 
+/*
+Contains information about a chat export file [generated by a foreign chat app, click here for more info](/api/import).<br>
+If neither the `pm` or `group` flags are set, the specified chat export was generated from a chat of unknown type.
+*/
 type MessagesHistoryImportParsed struct {
 	Pm    bool   `tl:"flag:0,encoded_in_bitflags"`
 	Group bool   `tl:"flag:1,encoded_in_bitflags"`
@@ -2118,6 +2254,7 @@ func (*MessagesHistoryImportParsed) FlagIndex() int {
 	return 0
 }
 
+// Inactive chat list
 type MessagesInactiveChats struct {
 	Dates []int32
 	Chats []Chat
@@ -2137,6 +2274,7 @@ func (*MessagesInvitedUsers) CRC() uint32 {
 	return 0x7f5defa6
 }
 
+// Message edit data for media
 type MessagesMessageEditData struct {
 	Caption bool `tl:"flag:0,encoded_in_bitflags"`
 }
@@ -2149,6 +2287,7 @@ func (*MessagesMessageEditData) FlagIndex() int {
 	return 0
 }
 
+// List of peers that reacted to a specific message
 type MessagesMessageReactionsList struct {
 	Count      int32
 	Reactions  []*MessagePeerReaction
@@ -2165,6 +2304,7 @@ func (*MessagesMessageReactionsList) FlagIndex() int {
 	return 0
 }
 
+// View, forward counter + info about replies
 type MessagesMessageViews struct {
 	Views []*MessageViews
 	Chats []Chat
@@ -2184,6 +2324,7 @@ func (*MessagesMyStickers) CRC() uint32 {
 	return 0xfaff629d
 }
 
+// Dialog info of multiple peers
 type MessagesPeerDialogs struct {
 	Dialogs  []Dialog
 	Messages []Message
@@ -2196,6 +2337,7 @@ func (*MessagesPeerDialogs) CRC() uint32 {
 	return 0x3371c354
 }
 
+// Peer settings
 type MessagesPeerSettings struct {
 	Settings *PeerSettings
 	Chats    []Chat
@@ -2206,6 +2348,7 @@ func (*MessagesPeerSettings) CRC() uint32 {
 	return 0x6880b94d
 }
 
+// Indicates how many results would be found by a [messages.search](/method/messages.search) call with the same parameters
 type MessagesSearchCounter struct {
 	Inexact bool `tl:"flag:1,encoded_in_bitflags"`
 	Filter  MessagesFilter
@@ -2220,6 +2363,7 @@ func (*MessagesSearchCounter) FlagIndex() int {
 	return 0
 }
 
+// Information about found messages sent on a specific day
 type MessagesSearchResultsCalendar struct {
 	Inexact        bool `tl:"flag:0,encoded_in_bitflags"`
 	Count          int32
@@ -2240,6 +2384,7 @@ func (*MessagesSearchResultsCalendar) FlagIndex() int {
 	return 0
 }
 
+// Information about sparse positions of messages
 type MessagesSearchResultsPositions struct {
 	Count     int32
 	Positions []*SearchResultPosition
@@ -2249,6 +2394,7 @@ func (*MessagesSearchResultsPositions) CRC() uint32 {
 	return 0x53b22baf
 }
 
+// [Transcribed text from a voice message »](/api/transcribe)
 type MessagesTranscribedAudio struct {
 	Pending               bool `tl:"flag:0,encoded_in_bitflags"`
 	TranscriptionID       int64
@@ -2265,6 +2411,7 @@ func (*MessagesTranscribedAudio) FlagIndex() int {
 	return 0
 }
 
+// Translated text with [entities](/api/entities)
 type MessagesTranslateResult struct {
 	Result []*TextWithEntities
 }
@@ -2273,6 +2420,7 @@ func (*MessagesTranslateResult) CRC() uint32 {
 	return 0x33db32f8
 }
 
+// How users voted in a poll
 type MessagesVotesList struct {
 	Count      int32
 	Votes      []MessagePeerVote
@@ -2289,6 +2437,7 @@ func (*MessagesVotesList) FlagIndex() int {
 	return 0
 }
 
+// Represents an Instant View webpage.
 type MessagesWebPage struct {
 	Webpage WebPage
 	Chats   []Chat
@@ -2313,6 +2462,7 @@ func (*MissingInvitee) FlagIndex() int {
 	return 0
 }
 
+// Contains information about a single [boost slot »](/api/boost).
 type MyBoost struct {
 	Slot              int32
 	Peer              Peer `tl:"flag:0"`
@@ -2329,6 +2479,7 @@ func (*MyBoost) FlagIndex() int {
 	return 0
 }
 
+// Nearest data center, according to geo-ip.
 type NearestDc struct {
 	Country   string
 	ThisDc    int32
@@ -2347,6 +2498,7 @@ func (*OutboxReadDate) CRC() uint32 {
 	return 0x3bb842ac
 }
 
+// [Instant view](https://instantview.telegram.org) page
 type Page struct {
 	Part      bool `tl:"flag:0,encoded_in_bitflags"`
 	Rtl       bool `tl:"flag:1,encoded_in_bitflags"`
@@ -2366,6 +2518,7 @@ func (*Page) FlagIndex() int {
 	return 0
 }
 
+// Page caption
 type PageCaption struct {
 	Text   RichText
 	Credit RichText
@@ -2375,6 +2528,7 @@ func (*PageCaption) CRC() uint32 {
 	return 0x6f747657
 }
 
+// Related article
 type PageRelatedArticle struct {
 	URL           string
 	WebpageID     int64
@@ -2393,6 +2547,7 @@ func (*PageRelatedArticle) FlagIndex() int {
 	return 0
 }
 
+// Table cell
 type PageTableCell struct {
 	Header       bool     `tl:"flag:0,encoded_in_bitflags"`
 	AlignCenter  bool     `tl:"flag:3,encoded_in_bitflags"`
@@ -2412,6 +2567,7 @@ func (*PageTableCell) FlagIndex() int {
 	return 0
 }
 
+// Table row
 type PageTableRow struct {
 	Cells []*PageTableCell
 }
@@ -2420,6 +2576,7 @@ func (*PageTableRow) CRC() uint32 {
 	return 0xe0c0c5e5
 }
 
+// Payment identifier
 type PaymentCharge struct {
 	ID               string
 	ProviderChargeID string
@@ -2429,6 +2586,7 @@ func (*PaymentCharge) CRC() uint32 {
 	return 0xea02c27e
 }
 
+// Represents an additional payment method
 type PaymentFormMethod struct {
 	URL   string
 	Title string
@@ -2438,6 +2596,7 @@ func (*PaymentFormMethod) CRC() uint32 {
 	return 0x88f8f21b
 }
 
+// Order info provided by the user
 type PaymentRequestedInfo struct {
 	Name            string       `tl:"flag:0"`
 	Phone           string       `tl:"flag:1"`
@@ -2453,6 +2612,7 @@ func (*PaymentRequestedInfo) FlagIndex() int {
 	return 0
 }
 
+// Saved credit card
 type PaymentSavedCredentialsCard struct {
 	ID    string
 	Title string
@@ -2462,6 +2622,7 @@ func (*PaymentSavedCredentialsCard) CRC() uint32 {
 	return 0xcdc27a1f
 }
 
+// Credit card info, provided by the card's bank(s)
 type PaymentsBankCardData struct {
 	Title    string
 	OpenUrls []*BankCardOpenURL
@@ -2471,6 +2632,7 @@ func (*PaymentsBankCardData) CRC() uint32 {
 	return 0x3e24e573
 }
 
+// Contains info about a [Telegram Premium giftcode link](/api/links#premium-giftcode-links).
 type PaymentsCheckedGiftCode struct {
 	ViaGiveaway   bool  `tl:"flag:2,encoded_in_bitflags"`
 	FromID        Peer  `tl:"flag:4"`
@@ -2491,6 +2653,7 @@ func (*PaymentsCheckedGiftCode) FlagIndex() int {
 	return 0
 }
 
+// Exported [invoice deep link](/api/links#invoice-links)
 type PaymentsExportedInvoice struct {
 	URL string
 }
@@ -2499,6 +2662,7 @@ func (*PaymentsExportedInvoice) CRC() uint32 {
 	return 0xaed0cbd9
 }
 
+// Saved server-side order information
 type PaymentsSavedInfo struct {
 	HasSavedCredentials bool                  `tl:"flag:1,encoded_in_bitflags"`
 	SavedInfo           *PaymentRequestedInfo `tl:"flag:0"`
@@ -2528,6 +2692,7 @@ func (*PaymentsStarsStatus) FlagIndex() int {
 	return 0
 }
 
+// Validated user-provided info
 type PaymentsValidatedRequestedInfo struct {
 	ID              string            `tl:"flag:0"`
 	ShippingOptions []*ShippingOption `tl:"flag:1"`
@@ -2541,6 +2706,7 @@ func (*PaymentsValidatedRequestedInfo) FlagIndex() int {
 	return 0
 }
 
+// Information about a blocked peer
 type PeerBlocked struct {
 	PeerID Peer
 	Date   int32
@@ -2550,6 +2716,7 @@ func (*PeerBlocked) CRC() uint32 {
 	return 0xe8fd8014
 }
 
+// Represents a [color palette »](/api/colors).
 type PeerColor struct {
 	Color             int32 `tl:"flag:0"`
 	BackgroundEmojiID int64 `tl:"flag:1"`
@@ -2563,6 +2730,7 @@ func (*PeerColor) FlagIndex() int {
 	return 0
 }
 
+// Notification settings.
 type PeerNotifySettings struct {
 	ShowPreviews        bool              `tl:"flag:0"`
 	Silent              bool              `tl:"flag:1"`
@@ -2585,6 +2753,7 @@ func (*PeerNotifySettings) FlagIndex() int {
 	return 0
 }
 
+// List of actions that are possible when interacting with this user, to be shown as suggested actions in the [chat action bar »](/api/action-bar), see [here »](/api/action-bar) for more info.
 type PeerSettings struct {
 	ReportSpam            bool   `tl:"flag:0,encoded_in_bitflags"`
 	AddContact            bool   `tl:"flag:1,encoded_in_bitflags"`
@@ -2612,6 +2781,7 @@ func (*PeerSettings) FlagIndex() int {
 	return 0
 }
 
+// [Stories](/api/stories) associated to a peer
 type PeerStories struct {
 	Peer      Peer
 	MaxReadID int32 `tl:"flag:0"`
@@ -2626,6 +2796,7 @@ func (*PeerStories) FlagIndex() int {
 	return 0
 }
 
+// An invite to a group call or livestream
 type PhoneExportedGroupCallInvite struct {
 	Link string
 }
@@ -2634,6 +2805,7 @@ func (*PhoneExportedGroupCallInvite) CRC() uint32 {
 	return 0x204bd158
 }
 
+// Contains info about a group call, and partial info about its participants.
 type PhoneGroupCall struct {
 	Call                   GroupCall
 	Participants           []*GroupCallParticipant
@@ -2646,6 +2818,7 @@ func (*PhoneGroupCall) CRC() uint32 {
 	return 0x9e727aad
 }
 
+// Info about RTMP streams in a group call or livestream
 type PhoneGroupCallStreamChannels struct {
 	Channels []*GroupCallStreamChannel
 }
@@ -2654,6 +2827,7 @@ func (*PhoneGroupCallStreamChannels) CRC() uint32 {
 	return 0xd0e482b2
 }
 
+// RTMP URL and stream key to be used in streaming software
 type PhoneGroupCallStreamRtmpURL struct {
 	URL string
 	Key string
@@ -2663,6 +2837,7 @@ func (*PhoneGroupCallStreamRtmpURL) CRC() uint32 {
 	return 0x2dbf3432
 }
 
+// Info about the participants of a group call or livestream
 type PhoneGroupParticipants struct {
 	Count        int32
 	Participants []*GroupCallParticipant
@@ -2676,6 +2851,7 @@ func (*PhoneGroupParticipants) CRC() uint32 {
 	return 0xf47751b6
 }
 
+// A list of peers that can be used to join a group call, presenting yourself as a specific user/channel.
 type PhoneJoinAsPeers struct {
 	Peers []Peer
 	Chats []Chat
@@ -2686,6 +2862,7 @@ func (*PhoneJoinAsPeers) CRC() uint32 {
 	return 0xafe5623f
 }
 
+// A VoIP phone call
 type PhonePhoneCall struct {
 	PhoneCall PhoneCall
 	Users     []User
@@ -2695,6 +2872,7 @@ func (*PhonePhoneCall) CRC() uint32 {
 	return 0xec82e140
 }
 
+// Protocol info for libtgvoip
 type PhoneCallProtocol struct {
 	UdpP2P          bool `tl:"flag:0,encoded_in_bitflags"`
 	UdpReflector    bool `tl:"flag:1,encoded_in_bitflags"`
@@ -2711,6 +2889,7 @@ func (*PhoneCallProtocol) FlagIndex() int {
 	return 0
 }
 
+// Photo with auxiliary data.
 type PhotosPhoto struct {
 	Photo Photo
 	Users []User
@@ -2720,6 +2899,7 @@ func (*PhotosPhoto) CRC() uint32 {
 	return 0x20212ca8
 }
 
+// Poll
 type Poll struct {
 	ID             int64
 	Closed         bool `tl:"flag:0,encoded_in_bitflags"`
@@ -2740,6 +2920,7 @@ func (*Poll) FlagIndex() int {
 	return 1
 }
 
+// A possible answer of a poll
 type PollAnswer struct {
 	Text   *TextWithEntities
 	Option []byte
@@ -2749,6 +2930,7 @@ func (*PollAnswer) CRC() uint32 {
 	return 0xff16e2ca
 }
 
+// A poll answer, and how users voted on it
 type PollAnswerVoters struct {
 	Chosen  bool `tl:"flag:0,encoded_in_bitflags"`
 	Correct bool `tl:"flag:1,encoded_in_bitflags"`
@@ -2764,6 +2946,7 @@ func (*PollAnswerVoters) FlagIndex() int {
 	return 0
 }
 
+// Results of poll
 type PollResults struct {
 	Min              bool                `tl:"flag:0,encoded_in_bitflags"`
 	Results          []*PollAnswerVoters `tl:"flag:1"`
@@ -2781,6 +2964,7 @@ func (*PollResults) FlagIndex() int {
 	return 0
 }
 
+// Popular contact
 type PopularContact struct {
 	ClientID  int64
 	Importers int32
@@ -2790,6 +2974,7 @@ func (*PopularContact) CRC() uint32 {
 	return 0x5ce14175
 }
 
+// Shipping address
 type PostAddress struct {
 	StreetLine1 string
 	StreetLine2 string
@@ -2803,6 +2988,7 @@ func (*PostAddress) CRC() uint32 {
 	return 0x1e8caaeb
 }
 
+// List of [boosts](/api/boost) that were applied to a peer by multiple users.
 type PremiumBoostsList struct {
 	Count      int32
 	Boosts     []*Boost
@@ -2818,6 +3004,7 @@ func (*PremiumBoostsList) FlagIndex() int {
 	return 0
 }
 
+// Contains info about the current [boost status](/api/boost) of a peer.
 type PremiumBoostsStatus struct {
 	MyBoost            bool `tl:"flag:2,encoded_in_bitflags"`
 	Level              int32
@@ -2839,6 +3026,7 @@ func (*PremiumBoostsStatus) FlagIndex() int {
 	return 0
 }
 
+// A list of peers we are currently [boosting](/api/boost), and how many [boost slots](/api/boost) we have left.
 type PremiumMyBoosts struct {
 	MyBoosts []*MyBoost
 	Chats    []Chat
@@ -2849,6 +3037,7 @@ func (*PremiumMyBoosts) CRC() uint32 {
 	return 0x9ae228e2
 }
 
+// Contains info about a [giveaway/gift](/api/giveaways) option.
 type PremiumGiftCodeOption struct {
 	Users         int32
 	Months        int32
@@ -2866,6 +3055,7 @@ func (*PremiumGiftCodeOption) FlagIndex() int {
 	return 0
 }
 
+// Telegram Premium gift option
 type PremiumGiftOption struct {
 	Months       int32
 	Currency     string
@@ -2882,6 +3072,7 @@ func (*PremiumGiftOption) FlagIndex() int {
 	return 0
 }
 
+// Describes a Telegram Premium subscription option
 type PremiumSubscriptionOption struct {
 	Current            bool   `tl:"flag:1,encoded_in_bitflags"`
 	CanPurchaseUpgrade bool   `tl:"flag:2,encoded_in_bitflags"`
@@ -2901,6 +3092,7 @@ func (*PremiumSubscriptionOption) FlagIndex() int {
 	return 0
 }
 
+// Contains info about a [prepaid giveaway »](/api/giveaways).
 type PrepaidGiveaway struct {
 	ID       int64
 	Months   int32
@@ -2923,6 +3115,7 @@ func (*QuickReply) CRC() uint32 {
 	return 0x697102b
 }
 
+// Reactions
 type ReactionCount struct {
 	ChosenOrder int32 `tl:"flag:0"`
 	Reaction    Reaction
@@ -2952,6 +3145,7 @@ func (*ReactionsNotifySettings) FlagIndex() int {
 	return 0
 }
 
+// Contains info about when a certain participant has read a message
 type ReadParticipantDate struct {
 	UserID int64
 	Date   int32
@@ -2961,6 +3155,7 @@ func (*ReadParticipantDate) CRC() uint32 {
 	return 0x4a4ff172
 }
 
+// Message ID, for which PUSH-notifications were cancelled.
 type ReceivedNotifyMessage struct {
 	ID    int32
 	Flags int32
@@ -2970,6 +3165,7 @@ func (*ReceivedNotifyMessage) CRC() uint32 {
 	return 0xa384b779
 }
 
+// Restriction reason.
 type RestrictionReason struct {
 	Platform string
 	Reason   string
@@ -2980,6 +3176,7 @@ func (*RestrictionReason) CRC() uint32 {
 	return 0xd072acb4
 }
 
+// Represents a [saved dialog »](/api/saved-messages).
 type SavedDialog struct {
 	Pinned     bool `tl:"flag:2,encoded_in_bitflags"`
 	Peer       Peer
@@ -2994,6 +3191,7 @@ func (*SavedDialog) FlagIndex() int {
 	return 0
 }
 
+// Saved contact
 type SavedPhoneContact struct {
 	Phone     string
 	FirstName string
@@ -3019,6 +3217,7 @@ func (*SavedReactionTag) FlagIndex() int {
 	return 0
 }
 
+// Information about a message in a specific position
 type SearchResultPosition struct {
 	MsgID  int32
 	Date   int32
@@ -3029,6 +3228,7 @@ func (*SearchResultPosition) CRC() uint32 {
 	return 0x7f648b67
 }
 
+// Information about found messages sent on a specific day, used to split the `messages` in [messages.searchResultsCalendar](/constructor/messages.searchResultsCalendar) constructors by days.
 type SearchResultsCalendarPeriod struct {
 	Date     int32
 	MinMsgID int32
@@ -3040,6 +3240,7 @@ func (*SearchResultsCalendarPeriod) CRC() uint32 {
 	return 0xc9b0539f
 }
 
+// Encrypted credentials required to decrypt [telegram passport](/passport) data.
 type SecureCredentialsEncrypted struct {
 	Data   []byte
 	Hash   []byte
@@ -3050,6 +3251,7 @@ func (*SecureCredentialsEncrypted) CRC() uint32 {
 	return 0x33f0ea47
 }
 
+// Secure [passport](/passport) data, for more info [see the passport docs »](/passport/encryption#securedata)
 type SecureData struct {
 	Data     []byte
 	DataHash []byte
@@ -3060,6 +3262,7 @@ func (*SecureData) CRC() uint32 {
 	return 0x8aeabec3
 }
 
+// Secure settings
 type SecureSecretSettings struct {
 	SecureAlgo     SecurePasswordKdfAlgo
 	SecureSecret   []byte
@@ -3070,6 +3273,7 @@ func (*SecureSecretSettings) CRC() uint32 {
 	return 0x1527bcac
 }
 
+// Secure value
 type SecureValue struct {
 	Type        SecureValueType
 	Data        *SecureData     `tl:"flag:0"`
@@ -3090,6 +3294,7 @@ func (*SecureValue) FlagIndex() int {
 	return 0
 }
 
+// Secure value hash
 type SecureValueHash struct {
 	Type SecureValueType
 	Hash []byte
@@ -3099,6 +3304,7 @@ func (*SecureValueHash) CRC() uint32 {
 	return 0xed1ecdb0
 }
 
+// Indicates a peer that can be used to send messages
 type SendAsPeer struct {
 	PremiumRequired bool `tl:"flag:0,encoded_in_bitflags"`
 	Peer            Peer
@@ -3112,6 +3318,7 @@ func (*SendAsPeer) FlagIndex() int {
 	return 0
 }
 
+// Shipping option
 type ShippingOption struct {
 	ID     string
 	Title  string
@@ -3122,6 +3329,7 @@ func (*ShippingOption) CRC() uint32 {
 	return 0xb6213cdf
 }
 
+// Contains the webview URL with appropriate theme parameters added
 type SimpleWebViewResultURL struct {
 	URL string
 }
@@ -3168,6 +3376,7 @@ func (*SmsjobsStatus) FlagIndex() int {
 	return 0
 }
 
+// A [sponsored message](https://core.telegram.org/api/sponsored-messages).
 type SponsoredMessage struct {
 	Recommended    bool `tl:"flag:5,encoded_in_bitflags"`
 	CanReport      bool `tl:"flag:12,encoded_in_bitflags"`
@@ -3263,6 +3472,7 @@ func (*StatsBroadcastRevenueWithdrawalURL) CRC() uint32 {
 	return 0xec659737
 }
 
+// [Channel statistics](/api/stats).
 type StatsBroadcastStats struct {
 	Period                       *StatsDateRangeDays
 	Followers                    *StatsAbsValueAndPrev
@@ -3292,6 +3502,7 @@ func (*StatsBroadcastStats) CRC() uint32 {
 	return 0x396ca5fc
 }
 
+// Supergroup [statistics](/api/stats)
 type StatsMegagroupStats struct {
 	Period                  *StatsDateRangeDays
 	Members                 *StatsAbsValueAndPrev
@@ -3316,6 +3527,7 @@ func (*StatsMegagroupStats) CRC() uint32 {
 	return 0xef7ff916
 }
 
+// Message statistics
 type StatsMessageStats struct {
 	ViewsGraph              StatsGraph
 	ReactionsByEmotionGraph StatsGraph
@@ -3325,6 +3537,7 @@ func (*StatsMessageStats) CRC() uint32 {
 	return 0x7fe91c14
 }
 
+// Contains info about the forwards of a [story](/api/stories) as a message to public chats and reposts by public channels.
 type StatsPublicForwards struct {
 	Count      int32
 	Forwards   []PublicForward
@@ -3341,6 +3554,7 @@ func (*StatsPublicForwards) FlagIndex() int {
 	return 0
 }
 
+// Contains [statistics](/api/stats) about a [story](/api/stories).
 type StatsStoryStats struct {
 	ViewsGraph              StatsGraph
 	ReactionsByEmotionGraph StatsGraph
@@ -3350,6 +3564,7 @@ func (*StatsStoryStats) CRC() uint32 {
 	return 0x50cd067c
 }
 
+// Statistics value couple; initial and final value for period of time currently in consideration
 type StatsAbsValueAndPrev struct {
 	Current  float64
 	Previous float64
@@ -3359,6 +3574,7 @@ func (*StatsAbsValueAndPrev) CRC() uint32 {
 	return 0xcb43acde
 }
 
+// [Channel statistics](/api/stats) date range
 type StatsDateRangeDays struct {
 	MinDate int32
 	MaxDate int32
@@ -3368,6 +3584,7 @@ func (*StatsDateRangeDays) CRC() uint32 {
 	return 0xb637edaf
 }
 
+// Information about an active admin in a supergroup
 type StatsGroupTopAdmin struct {
 	UserID  int64
 	Deleted int32
@@ -3379,6 +3596,7 @@ func (*StatsGroupTopAdmin) CRC() uint32 {
 	return 0xd7584c87
 }
 
+// Information about an active supergroup inviter
 type StatsGroupTopInviter struct {
 	UserID      int64
 	Invitations int32
@@ -3388,6 +3606,7 @@ func (*StatsGroupTopInviter) CRC() uint32 {
 	return 0x535f779d
 }
 
+// Information about an active user in a supergroup
 type StatsGroupTopPoster struct {
 	UserID   int64
 	Messages int32
@@ -3398,6 +3617,10 @@ func (*StatsGroupTopPoster) CRC() uint32 {
 	return 0x9d04af9b
 }
 
+/*
+[Channel statistics percentage](/api/stats).<br>
+Compute the percentage simply by doing `part * total / 100`
+*/
 type StatsPercentValue struct {
 	Part  float64
 	Total float64
@@ -3407,6 +3630,7 @@ func (*StatsPercentValue) CRC() uint32 {
 	return 0xcbce2fe0
 }
 
+// URL with chat statistics
 type StatsURL struct {
 	URL string
 }
@@ -3415,6 +3639,7 @@ func (*StatsURL) CRC() uint32 {
 	return 0x47a971e0
 }
 
+// Keywords for a certain sticker
 type StickerKeyword struct {
 	DocumentID int64
 	Keyword    []string
@@ -3424,6 +3649,10 @@ func (*StickerKeyword) CRC() uint32 {
 	return 0xfcfeb29c
 }
 
+/*
+A stickerpack is a group of stickers associated to the same emoji.<br>
+It is <strong>not</strong> a sticker pack the way it is usually intended, you may be looking for a [StickerSet](/type/StickerSet).
+*/
 type StickerPack struct {
 	Emoticon  string
 	Documents []int64
@@ -3433,6 +3662,7 @@ func (*StickerPack) CRC() uint32 {
 	return 0x12b299d4
 }
 
+// Represents a stickerset (stickerpack)
 type StickerSet struct {
 	Archived           bool  `tl:"flag:1,encoded_in_bitflags"`
 	Official           bool  `tl:"flag:2,encoded_in_bitflags"`
@@ -3462,6 +3692,7 @@ func (*StickerSet) FlagIndex() int {
 	return 0
 }
 
+// A suggested short name for a stickerpack
 type StickersSuggestedShortName struct {
 	ShortName string
 }
@@ -3470,6 +3701,7 @@ func (*StickersSuggestedShortName) CRC() uint32 {
 	return 0x85fea03f
 }
 
+// [Active story list](/api/stories#watching-stories) of a specific peer.
 type StoriesPeerStories struct {
 	Stories *PeerStories
 	Chats   []Chat
@@ -3480,6 +3712,7 @@ func (*StoriesPeerStories) CRC() uint32 {
 	return 0xcae68768
 }
 
+// List of [stories](/api/stories#pinned-or-archived-stories)
 type StoriesStories struct {
 	Count       int32
 	Stories     []StoryItem
@@ -3496,6 +3729,7 @@ func (*StoriesStories) FlagIndex() int {
 	return 0
 }
 
+// List of peers that reacted to or intercated with a specific [story](/api/stories)
 type StoriesStoryReactionsList struct {
 	Count      int32
 	Reactions  []StoryReaction
@@ -3512,6 +3746,7 @@ func (*StoriesStoryReactionsList) FlagIndex() int {
 	return 0
 }
 
+// Reaction and view counters for a list of [stories](/api/stories)
 type StoriesStoryViews struct {
 	Views []*StoryViews
 	Users []User
@@ -3521,6 +3756,7 @@ func (*StoriesStoryViews) CRC() uint32 {
 	return 0xde9eed1d
 }
 
+// Reaction and view counters for a [story](/api/stories)
 type StoriesStoryViewsList struct {
 	Count          int32
 	ViewsCount     int32
@@ -3540,6 +3776,7 @@ func (*StoriesStoryViewsList) FlagIndex() int {
 	return 0
 }
 
+// Information about the current [stealth mode](/api/stories#stealth-mode) session.
 type StoriesStealthMode struct {
 	ActiveUntilDate   int32 `tl:"flag:0"`
 	CooldownUntilDate int32 `tl:"flag:1"`
@@ -3553,6 +3790,7 @@ func (*StoriesStealthMode) FlagIndex() int {
 	return 0
 }
 
+// Contains info about the original poster of a reposted story.
 type StoryFwdHeader struct {
 	Modified bool   `tl:"flag:3,encoded_in_bitflags"`
 	From     Peer   `tl:"flag:0"`
@@ -3568,6 +3806,7 @@ func (*StoryFwdHeader) FlagIndex() int {
 	return 0
 }
 
+// Aggregated view and reaction information of a [story](/api/stories).
 type StoryViews struct {
 	HasViewers     bool `tl:"flag:1,encoded_in_bitflags"`
 	ViewsCount     int32
@@ -3585,6 +3824,7 @@ func (*StoryViews) FlagIndex() int {
 	return 0
 }
 
+// Styled text with [message entities](/api/entities)
 type TextWithEntities struct {
 	Text     string
 	Entities []MessageEntity
@@ -3594,6 +3834,7 @@ func (*TextWithEntities) CRC() uint32 {
 	return 0x751f3146
 }
 
+// Theme
 type Theme struct {
 	Creator       bool `tl:"flag:0,encoded_in_bitflags"`
 	Default       bool `tl:"flag:1,encoded_in_bitflags"`
@@ -3616,6 +3857,7 @@ func (*Theme) FlagIndex() int {
 	return 0
 }
 
+// Theme settings
 type ThemeSettings struct {
 	MessageColorsAnimated bool `tl:"flag:2,encoded_in_bitflags"`
 	BaseTheme             BaseTheme
@@ -3643,6 +3885,7 @@ func (*Timezone) CRC() uint32 {
 	return 0xff9289f5
 }
 
+// Top peer
 type TopPeer struct {
 	Peer   Peer
 	Rating float64
@@ -3652,6 +3895,7 @@ func (*TopPeer) CRC() uint32 {
 	return 0xedcdc05b
 }
 
+// Top peer category
 type TopPeerCategoryPeers struct {
 	Category TopPeerCategory
 	Count    int32
@@ -3662,6 +3906,7 @@ func (*TopPeerCategoryPeers) CRC() uint32 {
 	return 0xfb834291
 }
 
+// Updates state.
 type UpdatesState struct {
 	Pts         int32
 	Qts         int32
@@ -3674,6 +3919,7 @@ func (*UpdatesState) CRC() uint32 {
 	return 0xa56c2a3e
 }
 
+// Represents a chunk of an [HTTP webfile](/api/files) downloaded through telegram's secure MTProto servers
 type UploadWebFile struct {
 	Size     int32
 	MimeType string
@@ -3686,6 +3932,7 @@ func (*UploadWebFile) CRC() uint32 {
 	return 0x21e753bc
 }
 
+// Extended user info
 type UserFull struct {
 	Blocked                 bool `tl:"flag:0,encoded_in_bitflags"`
 	PhoneCallsAvailable     bool `tl:"flag:4,encoded_in_bitflags"`
@@ -3738,6 +3985,7 @@ func (*UserFull) FlagIndex() int {
 	return 14
 }
 
+// Contains information about a username.
 type Username struct {
 	Editable bool `tl:"flag:0,encoded_in_bitflags"`
 	Active   bool `tl:"flag:1,encoded_in_bitflags"`
@@ -3752,6 +4000,7 @@ func (*Username) FlagIndex() int {
 	return 0
 }
 
+// Full user information
 type UsersUserFull struct {
 	FullUser *UserFull
 	Chats    []Chat
@@ -3762,6 +4011,7 @@ func (*UsersUserFull) CRC() uint32 {
 	return 0x3b6d152e
 }
 
+// [Wallpaper](/api/wallpapers) rendering information.
 type WallPaperSettings struct {
 	Blur                  bool   `tl:"flag:1,encoded_in_bitflags"`
 	Motion                bool   `tl:"flag:2,encoded_in_bitflags"`
@@ -3782,6 +4032,7 @@ func (*WallPaperSettings) FlagIndex() int {
 	return 0
 }
 
+// Represents a bot logged in using the [Telegram login widget](/widgets/login)
 type WebAuthorization struct {
 	Hash        int64
 	BotID       int64
@@ -3798,6 +4049,7 @@ func (*WebAuthorization) CRC() uint32 {
 	return 0xa6f8f452
 }
 
+// Info about a sent inline webview message
 type WebViewMessageSent struct {
 	MsgID InputBotInlineMessageID `tl:"flag:0"`
 }
@@ -3810,6 +4062,7 @@ func (*WebViewMessageSent) FlagIndex() int {
 	return 0
 }
 
+// Contains the webview URL with appropriate theme and user info parameters added
 type WebViewResultURL struct {
 	QueryID int64
 	URL     string
