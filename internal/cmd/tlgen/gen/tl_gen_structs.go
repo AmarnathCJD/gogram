@@ -3,6 +3,7 @@ package gen
 import (
 	"fmt"
 	"sort"
+	"sync"
 
 	"github.com/dave/jennifer/jen"
 	"github.com/k0kubun/pp"
@@ -14,6 +15,17 @@ func (g *Generator) generateSpecificStructs(f *jen.File) {
 	sort.Slice(g.schema.SingleInterfaceTypes, func(i, j int) bool {
 		return g.schema.SingleInterfaceTypes[i].Name < g.schema.SingleInterfaceTypes[j].Name
 	})
+
+	wg := sync.WaitGroup{}
+	for i, _type := range g.schema.SingleInterfaceTypes {
+		wg.Add(1)
+		go func(_type tlparser.Object, i int) {
+			defer wg.Done()
+			g.schema.SingleInterfaceTypes[i].Comment = g.generateComment(_type.Name, "constructor")
+		}(_type, i)
+	}
+
+	wg.Wait()
 
 	for _, _type := range g.schema.SingleInterfaceTypes {
 		f.Add(g.generateStructTypeAndMethods(_type, nil))
@@ -49,7 +61,7 @@ func (g *Generator) generateStructTypeAndMethods(definition tlparser.Object, imp
 	// can be nil
 	var fieldIndexFunc jen.Code
 	if containsOptionalParameters {
-		flagBitIndex := -1 // -1 это если нет опциональных полей вообще
+		flagBitIndex := -1 // index of the flags parameter
 		if containsOptionalParameters {
 			for i, param := range definition.Parameters {
 				if param.Name == "flags" && param.Type == "bitflags" || param.Name == "flags2" && param.Type == "bitflags" {

@@ -25,7 +25,7 @@ func (g *Generator) generateMethods(f *jen.File) {
 		wg.Add(1)
 		go func(method tlparser.Method, i int) {
 			defer wg.Done()
-			g.schema.Methods[i].Comment = g.generateComment(method.Name)
+			g.schema.Methods[i].Comment = g.generateComment(method.Name, "method")
 		}(method, i)
 	}
 
@@ -63,8 +63,8 @@ func (g *Generator) generateMethods(f *jen.File) {
 	//	}
 }
 
-func (g *Generator) generateComment(name string) string {
-	var base = "https://core.telegram.org/method/"
+func (g *Generator) generateComment(name string, _type string) string {
+	var base = "https://core.telegram.org/" + _type + "/"
 	req, _ := http.NewRequest("GET", base+name, nil)
 
 	resp, err := http.DefaultClient.Do(req)
@@ -85,8 +85,14 @@ func (g *Generator) generateComment(name string) string {
 	ack = strings.Split(ack, "<div id=\"dev_page_content\">")[1]
 	ack = strings.Split(ack, "</p>")[0]
 	ack = strings.ReplaceAll(ack, "<p>", "")
+	//ack = strings.ReplaceAll(ack, "see .", "")
 	a_tag_regex := regexp.MustCompile(`<a href="([^"]*)">([^<]*)</a>`)
-	ack = a_tag_regex.ReplaceAllString(ack, "")
+	ack = a_tag_regex.ReplaceAllString(ack, "[$2]($1)")
+
+	code_tag_regex := regexp.MustCompile(`<code>([^<]*)</code>`)
+	ack = code_tag_regex.ReplaceAllString(ack, "`$1`")
+
+	ack = strings.TrimSpace(ack)
 
 	if strings.Contains(ack, "The page has not been saved") {
 		return ""
