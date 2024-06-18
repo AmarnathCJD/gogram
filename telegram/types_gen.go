@@ -1247,6 +1247,15 @@ func (*FolderPeer) CRC() uint32 {
 	return 0xe9baa668
 }
 
+type FoundStory struct {
+	Peer  Peer
+	Story StoryItem
+}
+
+func (*FoundStory) CRC() uint32 {
+	return 0xe87acbc0
+}
+
 type FragmentCollectibleInfo struct {
 	PurchaseDate   int32
 	Currency       string
@@ -1276,6 +1285,21 @@ func (*Game) CRC() uint32 {
 }
 
 func (*Game) FlagIndex() int {
+	return 0
+}
+
+type GeoPointAddress struct {
+	CountryIso2 string
+	State       string `tl:"flag:0"`
+	City        string `tl:"flag:1"`
+	Street      string `tl:"flag:2"`
+}
+
+func (*GeoPointAddress) CRC() uint32 {
+	return 0xde4c5d93
+}
+
+func (*GeoPointAddress) FlagIndex() int {
 	return 0
 }
 
@@ -1907,10 +1931,15 @@ type MediaAreaCoordinates struct {
 	W        float64
 	H        float64
 	Rotation float64
+	Radius   float64 `tl:"flag:0"`
 }
 
 func (*MediaAreaCoordinates) CRC() uint32 {
-	return 0x3d1ea4e
+	return 0xcfc9e002
+}
+
+func (*MediaAreaCoordinates) FlagIndex() int {
+	return 0
 }
 
 // Info about a forwarded message
@@ -2676,6 +2705,24 @@ func (*PaymentsSavedInfo) FlagIndex() int {
 	return 0
 }
 
+type PaymentsStarsRevenueStats struct {
+	RevenueGraph StatsGraph
+	Status       *StarsRevenueStatus
+	UsdRate      float64
+}
+
+func (*PaymentsStarsRevenueStats) CRC() uint32 {
+	return 0xc92bb73b
+}
+
+type PaymentsStarsRevenueWithdrawalURL struct {
+	URL string
+}
+
+func (*PaymentsStarsRevenueWithdrawalURL) CRC() uint32 {
+	return 0x1dab80b7
+}
+
 type PaymentsStarsStatus struct {
 	Balance    int64
 	History    []*StarsTransaction
@@ -3409,6 +3456,22 @@ func (*SponsoredMessageReportOption) CRC() uint32 {
 	return 0x430d3150
 }
 
+type StarsRevenueStatus struct {
+	WithdrawalEnabled bool `tl:"flag:0,encoded_in_bitflags"`
+	CurrentBalance    int64
+	AvailableBalance  int64
+	OverallRevenue    int64
+	NextWithdrawalAt  int32 `tl:"flag:1"`
+}
+
+func (*StarsRevenueStatus) CRC() uint32 {
+	return 0x79342946
+}
+
+func (*StarsRevenueStatus) FlagIndex() int {
+	return 0
+}
+
 type StarsTopupOption struct {
 	Extended     bool `tl:"flag:1,encoded_in_bitflags"`
 	Stars        int64
@@ -3426,18 +3489,22 @@ func (*StarsTopupOption) FlagIndex() int {
 }
 
 type StarsTransaction struct {
-	Refund      bool `tl:"flag:3,encoded_in_bitflags"`
-	ID          string
-	Stars       int64
-	Date        int32
-	Peer        StarsTransactionPeer
-	Title       string      `tl:"flag:0"`
-	Description string      `tl:"flag:1"`
-	Photo       WebDocument `tl:"flag:2"`
+	Refund          bool `tl:"flag:3,encoded_in_bitflags"`
+	Pending         bool `tl:"flag:4,encoded_in_bitflags"`
+	Failed          bool `tl:"flag:6,encoded_in_bitflags"`
+	ID              string
+	Stars           int64
+	Date            int32
+	Peer            StarsTransactionPeer
+	Title           string      `tl:"flag:0"`
+	Description     string      `tl:"flag:1"`
+	Photo           WebDocument `tl:"flag:2"`
+	TransactionDate int32       `tl:"flag:5"`
+	TransactionURL  string      `tl:"flag:5"`
 }
 
 func (*StarsTransaction) CRC() uint32 {
-	return 0xcc7079b2
+	return 0xaa00c898
 }
 
 func (*StarsTransaction) FlagIndex() int {
@@ -3699,6 +3766,22 @@ type StickersSuggestedShortName struct {
 
 func (*StickersSuggestedShortName) CRC() uint32 {
 	return 0x85fea03f
+}
+
+type StoriesFoundStories struct {
+	Count      int32
+	Stories    []*FoundStory
+	NextOffset string `tl:"flag:0"`
+	Chats      []Chat
+	Users      []User
+}
+
+func (*StoriesFoundStories) CRC() uint32 {
+	return 0xe2de7737
+}
+
+func (*StoriesFoundStories) FlagIndex() int {
+	return 0
 }
 
 // [Active story list](https://core.telegram.org/api/stories#watching-stories) of a specific peer.

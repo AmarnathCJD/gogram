@@ -2034,10 +2034,11 @@ type DraftMessageObj struct {
 	Entities    []MessageEntity `tl:"flag:3"`
 	Media       InputMedia      `tl:"flag:5"`
 	Date        int32
+	Effect      int64 `tl:"flag:7"`
 }
 
 func (*DraftMessageObj) CRC() uint32 {
-	return 0x3fccf7ef
+	return 0x2d65321f
 }
 
 func (*DraftMessageObj) FlagIndex() int {
@@ -4947,10 +4948,15 @@ func (*MediaAreaChannelPost) ImplementsMediaArea() {}
 type MediaAreaGeoPoint struct {
 	Coordinates *MediaAreaCoordinates
 	Geo         GeoPoint
+	Address     *GeoPointAddress `tl:"flag:0"`
 }
 
 func (*MediaAreaGeoPoint) CRC() uint32 {
-	return 0xdf8b3b22
+	return 0xcad5452d
+}
+
+func (*MediaAreaGeoPoint) FlagIndex() int {
+	return 0
 }
 
 func (*MediaAreaGeoPoint) ImplementsMediaArea() {}
@@ -4972,6 +4978,17 @@ func (*MediaAreaSuggestedReaction) FlagIndex() int {
 }
 
 func (*MediaAreaSuggestedReaction) ImplementsMediaArea() {}
+
+type MediaAreaURL struct {
+	Coordinates *MediaAreaCoordinates
+	URL         string
+}
+
+func (*MediaAreaURL) CRC() uint32 {
+	return 0x37381085
+}
+
+func (*MediaAreaURL) ImplementsMediaArea() {}
 
 // Represents a location tag attached to a [story](https://core.telegram.org/api/stories), with additional venue information.
 type MediaAreaVenue struct {
@@ -9087,6 +9104,26 @@ func (*UpdateBroadcastRevenueTransactions) CRC() uint32 {
 
 func (*UpdateBroadcastRevenueTransactions) ImplementsUpdate() {}
 
+type UpdateBusinessBotCallbackQuery struct {
+	QueryID        int64
+	UserID         int64
+	ConnectionID   string
+	Message        Message
+	ReplyToMessage Message `tl:"flag:2"`
+	ChatInstance   int64
+	Data           []byte `tl:"flag:0"`
+}
+
+func (*UpdateBusinessBotCallbackQuery) CRC() uint32 {
+	return 0x1ea2fda7
+}
+
+func (*UpdateBusinessBotCallbackQuery) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateBusinessBotCallbackQuery) ImplementsUpdate() {}
+
 // A new channel or supergroup is available, or info about an existing channel has changed and must be refeteched.
 type UpdateChannel struct {
 	ChannelID int64
@@ -10440,6 +10477,17 @@ func (*UpdateStarsBalance) CRC() uint32 {
 }
 
 func (*UpdateStarsBalance) ImplementsUpdate() {}
+
+type UpdateStarsRevenueStatus struct {
+	Peer   Peer
+	Status *StarsRevenueStatus
+}
+
+func (*UpdateStarsRevenueStatus) CRC() uint32 {
+	return 0xa584b019
+}
+
+func (*UpdateStarsRevenueStatus) ImplementsUpdate() {}
 
 // Installed stickersets have changed, the client should refetch them as [described in the docs](https://core.telegram.org/api/stickers#installing-stickersets).
 type UpdateStickerSets struct {
