@@ -1420,6 +1420,7 @@ type ChannelFull struct {
 	ViewForumAsMessages    bool `tl:"flag2:6,encoded_in_bitflags"`
 	RestrictedSponsored    bool `tl:"flag2:11,encoded_in_bitflags"`
 	CanViewRevenue         bool `tl:"flag2:12,encoded_in_bitflags"`
+	PaidMediaAllowed       bool `tl:"flag2:14,encoded_in_bitflags"`
 	ID                     int64
 	About                  string
 	ParticipantsCount      int32 `tl:"flag:0"`
@@ -3545,6 +3546,17 @@ func (*InputMediaInvoice) FlagIndex() int {
 }
 
 func (*InputMediaInvoice) ImplementsInputMedia() {}
+
+type InputMediaPaidMedia struct {
+	StarsAmount   int64
+	ExtendedMedia []InputMedia
+}
+
+func (*InputMediaPaidMedia) CRC() uint32 {
+	return 0xaa661fc3
+}
+
+func (*InputMediaPaidMedia) ImplementsInputMedia() {}
 
 // Forwarded photo
 type InputMediaPhoto struct {
@@ -6138,6 +6150,17 @@ func (*MessageMediaInvoice) FlagIndex() int {
 
 func (*MessageMediaInvoice) ImplementsMessageMedia() {}
 
+type MessageMediaPaidMedia struct {
+	StarsAmount   int64
+	ExtendedMedia []MessageExtendedMedia
+}
+
+func (*MessageMediaPaidMedia) CRC() uint32 {
+	return 0xa8852491
+}
+
+func (*MessageMediaPaidMedia) ImplementsMessageMedia() {}
+
 // Attached photo.
 type MessageMediaPhoto struct {
 	Spoiler    bool  `tl:"flag:3,encoded_in_bitflags"`
@@ -8484,6 +8507,14 @@ func (*StarsTransactionPeerObj) CRC() uint32 {
 
 func (*StarsTransactionPeerObj) ImplementsStarsTransactionPeer() {}
 
+type StarsTransactionPeerAds struct{}
+
+func (*StarsTransactionPeerAds) CRC() uint32 {
+	return 0x60682812
+}
+
+func (*StarsTransactionPeerAds) ImplementsStarsTransactionPeer() {}
+
 type StarsTransactionPeerAppStore struct{}
 
 func (*StarsTransactionPeerAppStore) CRC() uint32 {
@@ -9791,11 +9822,11 @@ func (*UpdateLoginToken) ImplementsUpdate() {}
 type UpdateMessageExtendedMedia struct {
 	Peer          Peer
 	MsgID         int32
-	ExtendedMedia MessageExtendedMedia
+	ExtendedMedia []MessageExtendedMedia
 }
 
 func (*UpdateMessageExtendedMedia) CRC() uint32 {
-	return 0x5a73a98c
+	return 0xd5a41724
 }
 
 func (*UpdateMessageExtendedMedia) ImplementsUpdate() {}
@@ -11672,15 +11703,16 @@ func (*AuthSentCodeTypeEmailCode) ImplementsAuthSentCodeType() {}
 
 // An authentication code should be delivered via SMS after Firebase attestation, as described in the [auth documentation »](https://core.telegram.org/api/auth).
 type AuthSentCodeTypeFirebaseSms struct {
-	Nonce              []byte `tl:"flag:0"`
-	PlayIntegrityNonce []byte `tl:"flag:2"`
-	Receipt            string `tl:"flag:1"`
-	PushTimeout        int32  `tl:"flag:1"`
-	Length             int32
+	Nonce                  []byte `tl:"flag:0"`
+	PlayIntegrityProjectID int64  `tl:"flag:2"`
+	PlayIntegrityNonce     []byte `tl:"flag:2"`
+	Receipt                string `tl:"flag:1"`
+	PushTimeout            int32  `tl:"flag:1"`
+	Length                 int32
 }
 
 func (*AuthSentCodeTypeFirebaseSms) CRC() uint32 {
-	return 0x13c90f17
+	return 0x9fd736
 }
 
 func (*AuthSentCodeTypeFirebaseSms) FlagIndex() int {

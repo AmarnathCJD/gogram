@@ -11008,6 +11008,7 @@ func (c *Client) MessagesReportSpam(peer InputPeer) (bool, error) {
 
 type MessagesRequestAppWebViewParams struct {
 	WriteAllowed bool `tl:"flag:0,encoded_in_bitflags"`
+	Compact      bool `tl:"flag:7,encoded_in_bitflags"`
 	Peer         InputPeer
 	App          InputBotApp
 	StartParam   string    `tl:"flag:1"`
@@ -11016,7 +11017,7 @@ type MessagesRequestAppWebViewParams struct {
 }
 
 func (*MessagesRequestAppWebViewParams) CRC() uint32 {
-	return 0x8c5a3b3c
+	return 0x53618bce
 }
 
 func (*MessagesRequestAppWebViewParams) FlagIndex() int {
@@ -11024,13 +11025,13 @@ func (*MessagesRequestAppWebViewParams) FlagIndex() int {
 }
 
 // Open a [bot mini app](https://core.telegram.org/bots/webapps) from a [direct Mini App deep link](https://core.telegram.org/api/links#direct-mini-app-links), sending over user information after user confirmation.
-func (c *Client) MessagesRequestAppWebView(params *MessagesRequestAppWebViewParams) (*AppWebViewResultURL, error) {
+func (c *Client) MessagesRequestAppWebView(params *MessagesRequestAppWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesRequestAppWebView")
 	}
 
-	resp, ok := responseData.(*AppWebViewResultURL)
+	resp, ok := responseData.(*WebViewResultURL)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -11068,6 +11069,7 @@ func (c *Client) MessagesRequestEncryption(userID InputUser, randomID int32, gA 
 type MessagesRequestSimpleWebViewParams struct {
 	FromSwitchWebview bool `tl:"flag:1,encoded_in_bitflags"`
 	FromSideMenu      bool `tl:"flag:2,encoded_in_bitflags"`
+	Compact           bool `tl:"flag:7,encoded_in_bitflags"`
 	Bot               InputUser
 	URL               string    `tl:"flag:3"`
 	StartParam        string    `tl:"flag:4"`
@@ -11076,7 +11078,7 @@ type MessagesRequestSimpleWebViewParams struct {
 }
 
 func (*MessagesRequestSimpleWebViewParams) CRC() uint32 {
-	return 0x1a46500a
+	return 0x413a3e73
 }
 
 func (*MessagesRequestSimpleWebViewParams) FlagIndex() int {
@@ -11084,13 +11086,13 @@ func (*MessagesRequestSimpleWebViewParams) FlagIndex() int {
 }
 
 // Open a [bot mini app](https://core.telegram.org/api/bots/webapps).
-func (c *Client) MessagesRequestSimpleWebView(params *MessagesRequestSimpleWebViewParams) (*SimpleWebViewResultURL, error) {
+func (c *Client) MessagesRequestSimpleWebView(params *MessagesRequestSimpleWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesRequestSimpleWebView")
 	}
 
-	resp, ok := responseData.(*SimpleWebViewResultURL)
+	resp, ok := responseData.(*WebViewResultURL)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -11134,6 +11136,7 @@ func (c *Client) MessagesRequestURLAuth(peer InputPeer, msgID, buttonID int32, u
 type MessagesRequestWebViewParams struct {
 	FromBotMenu bool `tl:"flag:4,encoded_in_bitflags"`
 	Silent      bool `tl:"flag:5,encoded_in_bitflags"`
+	Compact     bool `tl:"flag:7,encoded_in_bitflags"`
 	Peer        InputPeer
 	Bot         InputUser
 	URL         string    `tl:"flag:1"`
@@ -13259,6 +13262,27 @@ func (c *Client) PaymentsGetSavedInfo() (*PaymentsSavedInfo, error) {
 	return resp, nil
 }
 
+type PaymentsGetStarsRevenueAdsAccountURLParams struct {
+	Peer InputPeer
+}
+
+func (*PaymentsGetStarsRevenueAdsAccountURLParams) CRC() uint32 {
+	return 0xd1d7efc5
+}
+
+func (c *Client) PaymentsGetStarsRevenueAdsAccountURL(peer InputPeer) (*PaymentsStarsRevenueAdsAccountURL, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarsRevenueAdsAccountURLParams{Peer: peer})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetStarsRevenueAdsAccountURL")
+	}
+
+	resp, ok := responseData.(*PaymentsStarsRevenueAdsAccountURL)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsGetStarsRevenueStatsParams struct {
 	Dark bool `tl:"flag:0,encoded_in_bitflags"`
 	Peer InputPeer
@@ -13376,6 +13400,31 @@ func (c *Client) PaymentsGetStarsTransactions(params *PaymentsGetStarsTransactio
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending PaymentsGetStarsTransactions")
+	}
+
+	resp, ok := responseData.(*PaymentsStarsStatus)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsGetStarsTransactionsByIDParams struct {
+	Peer InputPeer
+	ID   []*InputStarsTransaction
+}
+
+func (*PaymentsGetStarsTransactionsByIDParams) CRC() uint32 {
+	return 0x27842d2e
+}
+
+func (c *Client) PaymentsGetStarsTransactionsByID(peer InputPeer, id []*InputStarsTransaction) (*PaymentsStarsStatus, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarsTransactionsByIDParams{
+		ID:   id,
+		Peer: peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetStarsTransactionsByID")
 	}
 
 	resp, ok := responseData.(*PaymentsStarsStatus)
