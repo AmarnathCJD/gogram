@@ -75,7 +75,7 @@ func main() {
 			return nil
 		}
 
-        return nil
+        	return nil
 	})
 
 	client.Idle() // block main goroutine until client is closed
@@ -110,8 +110,8 @@ client.SendMessage("username", "Hello from Gogram!")
 
 client.SendDice("username", "🎲")
 
-client.AddMessageHandler("/start", func(m *telegram.Message) error {
-    m.Reply("Hello from Gogram!") // m.Respond("<text>")
+client.AddMessageHandler("/start", func(m *telegram.NewMessage) error {
+    m.Reply("Hello from Gogram!") // m.Respond("...")
     return nil
 })
 ```
@@ -160,7 +160,7 @@ For more examples, check the [examples](examples) directory.
 
 ## Features TODO
 
-- [x] Basic MTProto implementation (LAYER 179)
+- [x] Basic MTProto implementation (LAYER 183)
 - [x] Updates handling system + Cache
 - [x] HTML, Markdown Parsing, Friendly Methods
 - [x] Support for Flag2.0, Layer 147
@@ -169,17 +169,11 @@ For more examples, check the [examples](examples) directory.
 - [x] Stabilize File Uploading
 - [x] Stabilize File Downloading
 - [ ] Secret Chats Support
+- [ ] Cdn DC Support
 
 ## Known Issues
 
-- [x] File Uploading/Downloading is not stable
-- [x] MessageMediaPoll, UserFull Decode Fails
-- [x] invokeWithLayer channel missing while bad Salt
-- [x] tcp.io.Reader.Read unstable
-- [x] Perfect HTML Parser
-- [x] Session File some issues
-- [x] Unidentified RPCError decoding fails
-- [x] File downloading is not stable
+- [x] ~ Open Issues if Found :)
 
 ## Contributing
 
