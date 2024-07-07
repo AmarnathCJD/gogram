@@ -315,7 +315,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 			Timeout: defaultTimeout,
 			Socks:   m.proxy,
 		},
-		mode.Intermediate,
+		mode.Abridged,
 	)
 	if err != nil {
 		return fmt.Errorf("creating transport: %w", err)
@@ -452,6 +452,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				case context.Canceled:
 					return
 				case io.EOF:
+					m.Logger.Debug("EOF error, reconnecting to [" + m.Addr + "] - <Tcp> ...")
 					err = m.Reconnect(false)
 					if err != nil {
 						m.Logger.Error(errors.Wrap(err, "reconnecting"))
@@ -467,6 +468,8 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					case *transport.ErrCode:
 						m.Logger.Error(errors.New("[TRANSPORT_ERROR_CODE] - " + e.Error()))
 					}
+
+					m.Logger.Debug(errors.Wrap(err, "reading message"))
 
 					if err := m.Reconnect(false); err != nil {
 						m.Logger.Error(errors.Wrap(err, "reconnecting"))
@@ -582,11 +585,11 @@ messageTypeSwitching:
 		if v, ok := obj.(*objects.GzipPacked); ok {
 			obj = v.Obj
 		}
-		m.Logger.Debug("RPC response: " + fmt.Sprintf("%T", obj))
+		m.Logger.Debug("rpc - response: " + fmt.Sprintf("%T", obj))
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			if strings.Contains(err.Error(), "no response channel found") {
-				m.Logger.Error(errors.Wrap(err, "writing RPC response"))
+				m.Logger.Error(errors.Wrap(err, "writing rpc response"))
 			} else {
 				return errors.Wrap(err, "writing RPC response")
 			}
