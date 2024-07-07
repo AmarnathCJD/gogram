@@ -451,3 +451,16 @@ func (c *Client) GetPeerChannel(channelID int64) (*InputPeerChannel, error) {
 	}
 	return nil, fmt.Errorf("no channel with id %d or missing from cache", channelID)
 }
+
+func (c *Client) IdInCache(id int64) bool {
+	_, ok := c.Cache.InputPeers.InputUsers[id]
+	if ok {
+		return true
+	}
+	_, ok = c.Cache.InputPeers.InputChats[id]
+	if ok {
+		return true
+	}
+	_, ok = c.Cache.InputPeers.InputChannels[id]
+	return ok
+}
