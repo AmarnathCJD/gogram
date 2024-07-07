@@ -67,6 +67,8 @@ type MTProto struct {
 	serviceChannel       chan tl.Object
 	serviceModeActivated bool
 
+	authKey404 []int64
+
 	Logger *utils.Logger
 
 	serverRequestHandlers []func(i any) bool
@@ -462,8 +464,21 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					switch e := err.(type) {
 					case *ErrResponseCode:
 						if e.Code == 4294966892 {
-							m.Logger.Error(errors.New("[AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)"))
-							panic("[AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)")
+							if m.authKey404 == nil || len(m.authKey404) == 0 {
+								m.authKey404 = []int64{1, time.Now().Unix()}
+							} else {
+								if time.Now().Unix()-m.authKey404[1] < 30 { // repeated failures
+									m.authKey404[0]++
+								} else {
+									m.authKey404[0] = 1
+								}
+								m.authKey404[1] = time.Now().Unix()
+							}
+							if m.authKey404[0] > 3 {
+								panic("[AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)")
+							} else {
+								m.Logger.Error(errors.New("(retry: " + strconv.FormatInt(m.authKey404[0], 10) + ") [AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)"))
+							}
 						}
 					case *transport.ErrCode:
 						m.Logger.Error(errors.New("[TRANSPORT_ERROR_CODE] - " + e.Error()))
