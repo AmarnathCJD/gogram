@@ -628,11 +628,11 @@ UpdateTypeSwitching:
 		}
 		go c.handleRawUpdate(upd.Update)
 	case *UpdateShortMessage:
-		go c.handleMessageUpdateW(&MessageObj{Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities}, upd.Pts)
+		go c.handleMessageUpdateW(&MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}, upd.Pts)
 	case *UpdateShortChatMessage:
-		go c.handleMessageUpdateW(&MessageObj{Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities}, upd.Pts)
+		go c.handleMessageUpdateW(&MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}, upd.Pts)
 	case *UpdateShortSentMessage:
-		go c.handleMessageUpdateW(&MessageObj{Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities}, upd.Pts)
+		go c.handleMessageUpdateW(&MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}, upd.Pts)
 	case *UpdatesCombined:
 		u = upd.Updates
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
@@ -648,7 +648,7 @@ UpdateTypeSwitching:
 }
 
 func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
-	c.Logger.Debug("updates.getDifference: (pts: ", Pts, " limit: ", Limit, ")")
+	c.Logger.Debug("updates.getDifference: [pts: ", Pts, " limit: ", Limit, "]")
 
 	updates, err := c.UpdatesGetDifference(&UpdatesGetDifferenceParams{
 		Pts:           Pts - 1,
