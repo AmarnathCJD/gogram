@@ -35,7 +35,7 @@ func (pu *ParticipantUpdate) ActorID() int64 {
 	return 0
 }
 
-func (pu *ParticipantUpdate) Added() bool {
+func (pu *ParticipantUpdate) IsAdded() bool {
 	if pu.Old != nil && pu.New != nil {
 		if _, ok := pu.Old.(*ChannelParticipantBanned); ok {
 			if _, ok := pu.New.(*ChannelParticipantObj); ok {
@@ -51,11 +51,11 @@ func (pu *ParticipantUpdate) Added() bool {
 	return false
 }
 
-func (pu *ParticipantUpdate) Left() bool {
+func (pu *ParticipantUpdate) IsLeft() bool {
 	return pu.New == nil
 }
 
-func (pu *ParticipantUpdate) Joined() bool {
+func (pu *ParticipantUpdate) IsJoined() bool {
 	if pu.Old != nil && pu.New != nil {
 		if _, ok := pu.Old.(*ChannelParticipantLeft); ok {
 			if _, ok := pu.New.(*ChannelParticipantObj); ok {
@@ -71,7 +71,7 @@ func (pu *ParticipantUpdate) Joined() bool {
 	return false
 }
 
-func (pu *ParticipantUpdate) Banned() bool {
+func (pu *ParticipantUpdate) IsBanned() bool {
 	if pu.Old != nil && pu.New != nil {
 		if _, ok := pu.Old.(*ChannelParticipantObj); ok {
 			if _, ok := pu.New.(*ChannelParticipantBanned); ok {
@@ -82,7 +82,7 @@ func (pu *ParticipantUpdate) Banned() bool {
 	return false
 }
 
-func (pu *ParticipantUpdate) Kicked() bool {
+func (pu *ParticipantUpdate) IsKicked() bool {
 	if pu.Old != nil && pu.New != nil {
 		if _, ok := pu.Old.(*ChannelParticipantObj); ok {
 			if _, ok := pu.New.(*ChannelParticipantLeft); ok {
@@ -93,7 +93,7 @@ func (pu *ParticipantUpdate) Kicked() bool {
 	return false
 }
 
-func (pu *ParticipantUpdate) Promoted() bool {
+func (pu *ParticipantUpdate) IsPromoted() bool {
 	if pu.Old != nil && pu.New != nil {
 		if _, ok := pu.Old.(*ChannelParticipantObj); ok {
 			if _, ok := pu.New.(*ChannelParticipantAdmin); ok {
@@ -109,7 +109,7 @@ func (pu *ParticipantUpdate) Promoted() bool {
 	return false
 }
 
-func (pu *ParticipantUpdate) Demoted() bool {
+func (pu *ParticipantUpdate) IsDemoted() bool {
 	if pu.Old != nil && pu.New != nil {
 		if _, ok := pu.Old.(*ChannelParticipantAdmin); ok {
 			if _, ok := pu.New.(*ChannelParticipantObj); ok {
@@ -123,8 +123,8 @@ func (pu *ParticipantUpdate) Demoted() bool {
 	return false
 }
 
-func (pu *ParticipantUpdate) Marshal() string {
-	return pu.Client.JSON(pu.OriginalUpdate)
+func (pu *ParticipantUpdate) Marshal(nointent ...bool) string {
+	return pu.Client.JSON(pu.OriginalUpdate, nointent)
 }
 
 // Rest Functions to be implemented
