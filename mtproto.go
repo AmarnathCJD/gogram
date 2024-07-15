@@ -302,6 +302,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 
 	m.startReadingResponses(ctx)
+	go m.longPing()
 	if !m.encrypted {
 		m.Logger.Debug("authKey not found, creating new one")
 		err = m.makeAuthKey()
@@ -426,6 +427,17 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 
 	//m.MakeRequest(&utils.UpdatesGetStateParams{}) // to ask the server to send the updates
 	return errors.Wrap(err, "recreating connection")
+}
+
+// keep pinging to keep the connection alive
+func (m *MTProto) longPing() {
+	for {
+		time.Sleep(20 * time.Second)
+		pingId := time.Now().Unix()
+		m.InvokeRequestWithoutUpdate(&utils.PingParams{
+			PingID: pingId,
+		})
+	}
 }
 
 func (m *MTProto) Ping() time.Duration {
@@ -605,6 +617,7 @@ messageTypeSwitching:
 		}
 
 	case *objects.Pong, *objects.MsgsAck:
+		m.Logger.Debug("rpc - ping: " + fmt.Sprintf("%T", message))
 
 	case *objects.BadMsgNotification:
 		badMsg := BadMsgErrorFromNative(message)
