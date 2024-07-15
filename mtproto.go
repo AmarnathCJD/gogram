@@ -391,10 +391,10 @@ func (m *MTProto) Disconnect() error {
 	m.stopRoutines()
 	m.tcpActive = false
 
-	for _, v := range m.responseChannels.Keys() {
-		ch, _ := m.responseChannels.Get(v)
-		ch <- &errorReconnectRequired{}
-	}
+	// for _, v := range m.responseChannels.Keys() {
+	// 	ch, _ := m.responseChannels.Get(v)
+	// 	ch <- &errorReconnectRequired{}
+	// }
 
 	// m.responseChannels.Close()
 	return nil
@@ -432,7 +432,7 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 // keep pinging to keep the connection alive
 func (m *MTProto) longPing() {
 	for {
-		time.Sleep(20 * time.Second)
+		time.Sleep(30 * time.Second)
 		pingId := time.Now().Unix()
 		m.InvokeRequestWithoutUpdate(&utils.PingParams{
 			PingID: pingId,
@@ -595,17 +595,25 @@ messageTypeSwitching:
 
 		var respChannelsBackup *utils.SyncIntObjectChan
 		m.mutex.Lock()
+		defer m.mutex.Unlock()
 		respChannelsBackup = m.responseChannels
 
 		m.responseChannels = utils.NewSyncIntObjectChan()
-		m.Reconnect(false)
+		//m.Reconnect(false)
+
+		sendToChannelWithTimeout := func(ch chan tl.Object, data tl.Object) {
+			timeout := time.After(1 * time.Millisecond)
+			select {
+			case ch <- data:
+			case <-timeout:
+			}
+		}
 
 		for _, k := range respChannelsBackup.Keys() {
 			v, _ := respChannelsBackup.Get(k)
-			v <- &errorSessionConfigsChanged{}
+			respChannelsBackup.Delete(k)
+			sendToChannelWithTimeout(v, &errorSessionConfigsChanged{})
 		}
-
-		m.mutex.Unlock()
 
 	case *objects.NewSessionCreated:
 		m.serverSalt = message.ServerSalt
