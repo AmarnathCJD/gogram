@@ -7,6 +7,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+var AskTasks = make(map[int64]chan int64, 100)
+var Answers = map[int64]chan *NewMessage{}
+
 type NewMessage struct {
 	Action         MessageAction
 	Channel        *Channel
@@ -495,6 +498,23 @@ func (m *NewMessage) Respond(Text interface{}, Opts ...SendOptions) (*NewMessage
 	response := *resp
 	response.Message.PeerID = m.Message.PeerID
 	return &response, err
+}
+
+func (m *NewMessage) Ask(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
+	_, err := m.Respond(Text, Opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	AskTasks[m.ChatID()] = make(chan int64, 1)
+	AskTasks[m.ChatID()] <- m.ChatID()
+	close(AskTasks[m.ChatID()])
+
+	Answers[m.ChatID()] = make(chan *NewMessage)
+	answer := <-Answers[m.ChatID()]
+	close(Answers[m.ChatID()])
+
+	return answer, nil
 }
 
 func (m *NewMessage) SendDice(Emoticon string) (*NewMessage, error) {

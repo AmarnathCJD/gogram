@@ -139,6 +139,19 @@ func (c *Client) handleMessageUpdate(update Message) {
 		if msg.GroupedID != 0 {
 			c.handleAlbum(*msg)
 		}
+
+		m := packMessage(c, msg)
+		if askTask, ok := AskTasks[m.ChatID()]; ok {
+			select {
+			case id := <-askTask:
+				if id == m.ChatID() {
+					Answers[m.ChatID()] <- m
+				}
+			default:
+				break
+			}
+		}
+
 		for _, handler := range c.dispatcher.messageHandles {
 			if handler.IsMatch(msg.Message) {
 				go func(h messageHandle) {
