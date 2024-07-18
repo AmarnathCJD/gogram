@@ -513,6 +513,7 @@ func (m *NewMessage) Ask(Text interface{}, Opts ...SendOptions) (*NewMessage, er
 	Answers[m.ChatID()] = make(chan *NewMessage)
 	answer := <-Answers[m.ChatID()]
 	close(Answers[m.ChatID()])
+	delete(Answers, m.ChatID())
 
 	return answer, nil
 }

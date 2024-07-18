@@ -148,8 +148,10 @@ func (c *Client) handleMessageUpdate(update Message) {
 					Answers[m.ChatID()] <- m
 				}
 			default:
-				break
 			}
+
+			delete(AskTasks, m.ChatID())
+			return
 		}
 
 		for _, handler := range c.dispatcher.messageHandles {
