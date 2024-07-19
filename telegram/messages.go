@@ -30,6 +30,7 @@ type SendOptions struct {
 	Spoiler          bool                `json:"spoiler,omitempty"`
 	ProgressCallback func(int32, int32)  `json:"-"`
 	Effect           int64               `json:"effect,omitempty"`
+	Timeouts         int32               `json:"timeouts,omitempty"`
 }
 
 // SendMessage sends a message to a specified peer using the Telegram API method messages.sendMessage.
