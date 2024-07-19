@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
@@ -55,10 +56,8 @@ type MTProto struct {
 	responseChannels *utils.SyncIntObjectChan
 	expectedTypes    *utils.SyncIntReflectTypes
 
-	seqNoMutex         sync.Mutex
-	seqNo              int32
-	lastMessageIDMutex sync.Mutex
-	lastMessageID      int64
+	genMsgID     func(int64) int64
+	currentSeqNo atomic.Int32
 
 	sessionStorage session.SessionLoader
 
