@@ -160,7 +160,7 @@ For more examples, check the [examples](examples) directory.
 
 ## Features TODO
 
-- [x] Basic MTProto implementation (LAYER 183)
+- [x] Basic MTProto implementation (LAYER 184)
 - [x] Updates handling system + Cache
 - [x] HTML, Markdown Parsing, Friendly Methods
 - [x] Support for Flag2.0, Layer 147
@@ -181,7 +181,7 @@ Gogram is an open-source project and your contribution is very much appreciated.
 
 ## Resources
 
-- Documentation: [Gogram Docs](https://gogramd.vercel.app)
+- Documentation: [documentation](https://gogramd.vercel.app)
 - Support: [@rosexchat](https://t.me/rosexchat), [@EvieSupport](https://t.me/EvieSupport)
 
 ## License

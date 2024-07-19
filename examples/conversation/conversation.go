@@ -30,10 +30,12 @@ func main() {
 		panic(err)
 	}
 
+	client.On("message", convEventHandler)
+
 	// new conversation
 	conv, _ := client.NewConversation("username or id", false, 30) // 30 is the timeout in seconds, false means it's not a private conversation
 	defer conv.Close()
-	_, err := conv.SendMessage("Hello, Please reply to this message")
+	_, err := conv.Respond("Hello, Please reply to this message")
 	if err != nil {
 		panic(err)
 	}
@@ -44,6 +46,16 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// Print the response
+
 	fmt.Println("Response:", resp.Text())
+}
+
+func convEventHandler(m *telegram.NewMessage) error {
+	response, err := m.Ask("What's your name?")
+	if err != nil {
+		return err
+	}
+
+	response.Reply("Nice to meet you, " + response.Text())
+	return nil
 }
