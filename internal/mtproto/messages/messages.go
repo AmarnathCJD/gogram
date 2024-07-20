@@ -34,8 +34,8 @@ type Encrypted struct {
 	MsgKey    []byte
 }
 
-func (msg *Encrypted) Serialize(client MessageInformator, requireToAck bool, seqNo int32) ([]byte, error) {
-	obj := serializePacket(client, msg.Msg, msg.MsgID, requireToAck, seqNo)
+func (msg *Encrypted) Serialize(client MessageInformator, seqNo int32) ([]byte, error) {
+	obj := serializePacket(client, msg.Msg, msg.MsgID, seqNo)
 	encryptedData, msgKey, err := ige.Encrypt(obj, client.GetAuthKey())
 	if err != nil {
 		return nil, errors.Wrap(err, "encrypting")
@@ -178,7 +178,7 @@ type MessageInformator interface {
 	GetAuthKey() []byte
 }
 
-func serializePacket(client MessageInformator, msg []byte, messageID int64, requireToAck bool, seqNo int32) []byte {
+func serializePacket(client MessageInformator, msg []byte, messageID int64, seqNo int32) []byte {
 	buf := bytes.NewBuffer(nil)
 	d := tl.NewEncoder(buf)
 
@@ -187,11 +187,7 @@ func serializePacket(client MessageInformator, msg []byte, messageID int64, requ
 	d.PutRawBytes(saltBytes)
 	d.PutLong(client.GetSessionID())
 	d.PutLong(messageID)
-	if requireToAck {
-		d.PutInt(seqNo | 1)
-	} else {
-		d.PutInt(seqNo)
-	}
+	d.PutInt(seqNo)
 	d.PutInt(int32(len(msg)))
 	d.PutRawBytes(msg)
 	return buf.Bytes()

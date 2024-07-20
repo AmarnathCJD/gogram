@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -70,17 +71,27 @@ func (*UpdatesGetStateParams) CRC() uint32 {
 	return 0xedd4882a
 }
 
-func GenerateMessageId(prevID int64, offset int64) int64 {
-	const billion = 1000 * 1000 * 1000
-	unixnano := time.Now().UnixNano() + (offset * billion)
-	seconds := unixnano / billion
-	nanoseconds := unixnano % billion
-	newID := (seconds << 32) | (nanoseconds & -4)
-	if newID <= prevID {
-		return GenerateMessageId(prevID, offset)
-	}
+func NewMsgIDGenerator() func(timeOffset int64) int64 {
+	var (
+		mu        sync.Mutex
+		lastMsgID int64
+	)
+	return func(timeOffset int64) int64 {
+		mu.Lock()
+		defer mu.Unlock()
 
-	return newID
+		now := time.Now().UnixNano() + timeOffset
+		nowSec := now / int64(time.Second)
+		nowNano := (now % int64(time.Second)) & -4 // mod 4
+
+		msgID := (nowSec << 32) | nowNano
+		if msgID <= lastMsgID {
+			msgID = lastMsgID + 4
+		}
+
+		lastMsgID = msgID
+		return msgID
+	}
 }
 
 func AuthKeyHash(key []byte) []byte {

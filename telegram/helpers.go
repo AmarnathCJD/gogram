@@ -441,6 +441,17 @@ func getAnyInt(v any) int64 {
 }
 
 func (c *Client) getSendableMedia(mediaFile interface{}, attr *MediaMetadata) (InputMedia, error) {
+	switch thumb := attr.Thumb.(type) {
+	case InputFile, *InputFile, nil:
+
+	default:
+		fi, err := c.UploadFile(thumb)
+		if err != nil {
+			return nil, err
+		}
+		attr.Thumb = fi
+	}
+
 mediaTypeSwitch:
 	switch media := mediaFile.(type) {
 	case string:

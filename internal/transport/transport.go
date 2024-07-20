@@ -17,7 +17,7 @@ import (
 
 type Transport interface {
 	Close() error
-	WriteMsg(msg messages.Common, requireToAck bool, seqNo int32) error
+	WriteMsg(msg messages.Common, seqNo int32) error
 	ReadMsg() (messages.Common, error)
 }
 
@@ -55,7 +55,7 @@ func (t *transport) Close() error {
 	return t.conn.Close()
 }
 
-func (t *transport) WriteMsg(msg messages.Common, requireToAck bool, seqNo int32) error {
+func (t *transport) WriteMsg(msg messages.Common, seqNo int32) error {
 	var data []byte
 	switch message := msg.(type) {
 	case *messages.Unencrypted:
@@ -63,7 +63,7 @@ func (t *transport) WriteMsg(msg messages.Common, requireToAck bool, seqNo int32
 
 	case *messages.Encrypted:
 		var err error
-		data, err = message.Serialize(t.m, requireToAck, seqNo)
+		data, err = message.Serialize(t.m, seqNo)
 		if err != nil {
 			return errors.Wrap(err, "serializing message")
 		}

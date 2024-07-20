@@ -19,13 +19,11 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 	if err != nil {
 		return nil, errors.Wrap(err, "marshaling request")
 	}
-	m.lastMessageIDMutex.Lock()
+
 	var (
 		data  messages.Common
-		msgID = utils.GenerateMessageId(m.lastMessageID, m.timeOffset)
+		msgID = m.genMsgID(m.timeOffset)
 	)
-	m.lastMessageIDMutex.Unlock()
-	m.lastMessageID = msgID
 
 	// adding types for parser if required
 	if len(expectedTypes) > 0 {
@@ -52,14 +50,18 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 			MsgID: msgID,
 		}
 	}
-	seqNo := m.UpdateSeqNo()
-	if !m.encrypted {
-		seqNo = 0
+
+	var seqNo int32
+	if isNotContentRelated(request) {
+		seqNo = m.GetSeqNo()
+	} else {
+		seqNo = m.UpdateSeqNo()
 	}
+
 	if m.transport == nil {
 		return nil, errors.New("transport is nil, please use SetTransport")
 	}
-	errorSendPacket := m.transport.WriteMsg(data, MessageRequireToAck(request), seqNo)
+	errorSendPacket := m.transport.WriteMsg(data, seqNo)
 	if errorSendPacket != nil {
 		return nil, fmt.Errorf("writing message: %w", errorSendPacket)
 	}
@@ -84,6 +86,17 @@ func (m *MTProto) getRespChannel() chan tl.Object {
 	return make(chan tl.Object)
 }
 
+func isNotContentRelated(t tl.Object) bool {
+	switch t.(type) {
+	case *objects.PingParams,
+		*objects.MsgsAck,
+		*objects.GzipPacked:
+		return true
+	default:
+		return false
+	}
+}
+
 func isNullableResponse(t tl.Object) bool {
 	switch t.(type) {
 	case *objects.Pong, *objects.MsgsAck:
@@ -99,15 +112,12 @@ func (m *MTProto) GetSessionID() int64 {
 
 // GetSeqNo returns seqno 🧐
 func (m *MTProto) GetSeqNo() int32 {
-	return m.seqNo
+	return m.currentSeqNo.Load() * 2
 }
 
 func (m *MTProto) UpdateSeqNo() int32 {
-	m.seqNoMutex.Lock()
-	defer m.seqNoMutex.Unlock()
-
-	m.seqNo += 2
-	return m.seqNo
+	// https://core.telegram.org/mtproto/description#message-sequence-number-msg-seqno
+	return (m.currentSeqNo.Add(1)-1)*2 + 1
 }
 
 // GetServerSalt returns current server salt 🧐
