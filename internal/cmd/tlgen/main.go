@@ -194,7 +194,7 @@ func getAPILayerFromFile(tlfile string) string {
 	return strings.TrimSpace(strings.TrimPrefix(lastLine, "// LAYER"))
 }
 
-func minorFixes(outdir string, layer string) {
+func minorFixes(outdir, layer string) {
 	execWorkDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -266,7 +266,7 @@ func minorFixes(outdir string, layer string) {
 		file.Truncate(0)
 		file.Seek(0, 0)
 
-		_, err = file.Write([]byte(str))
+		_, err = file.WriteString(str)
 		if err != nil {
 			panic(err)
 		}
@@ -292,7 +292,7 @@ func minorFixes(outdir string, layer string) {
 
 		rdfile.Truncate(0)
 		rdfile.Seek(0, 0)
-		rdfile.Write([]byte(str))
+		rdfile.WriteString(str)
 	}
 }
 
@@ -307,10 +307,10 @@ func replace(filename, old, new string) {
 		panic(err)
 	}
 
-	//fmt.Println("Replacing", old, "with", new, "in", filename)
+	// fmt.Println("Replacing", old, "with", new, "in", filename)
 
 	str := string(content)
-	str = strings.Replace(str, old, new, -1)
+	str = strings.ReplaceAll(str, old, new)
 
 	// truncate the file before writing
 	err = f.Truncate(0)
@@ -323,7 +323,7 @@ func replace(filename, old, new string) {
 		panic(err)
 	}
 
-	_, err = f.Write([]byte(str))
+	_, err = f.WriteString(str)
 	if err != nil {
 		panic(err)
 	}
@@ -358,7 +358,7 @@ func cleanComments(b []byte) []byte {
 
 	clean = []string{}
 	for i := 0; i < len(lines); i++ {
-		if i+1 < len(lines) && len(lines[i]) == 0 && len(lines[i+1]) == 0 {
+		if i+1 < len(lines) && lines[i] == "" && lines[i+1] == "" {
 			continue
 		}
 
