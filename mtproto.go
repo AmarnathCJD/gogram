@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
@@ -28,7 +29,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-const defaultTimeout = 60 * time.Second // after 60 sec without any read/write, lib will try to reconnect
+const (
+	defaultTimeout = 60 * time.Second // after 60 sec without any read/write, lib will try to reconnect
+	acksThreshold  = 10
+)
 
 type MTProto struct {
 	Addr          string
@@ -54,11 +58,10 @@ type MTProto struct {
 	mutex            sync.Mutex
 	responseChannels *utils.SyncIntObjectChan
 	expectedTypes    *utils.SyncIntReflectTypes
+	pendingAcks      *utils.SyncSet[int64]
 
-	seqNoMutex         sync.Mutex
-	seqNo              int32
-	lastMessageIDMutex sync.Mutex
-	lastMessageID      int64
+	genMsgID     func(int64) int64
+	currentSeqNo atomic.Int32
 
 	sessionStorage session.SessionLoader
 
@@ -120,6 +123,8 @@ func NewMTProto(c Config) (*MTProto, error) {
 		publicKey:             c.PublicKey,
 		responseChannels:      utils.NewSyncIntObjectChan(),
 		expectedTypes:         utils.NewSyncIntReflectTypes(),
+		pendingAcks:           utils.NewSyncSet[int64](),
+		genMsgID:              utils.NewMsgIDGenerator(),
 		serverRequestHandlers: make([]func(i any) bool, 0),
 		Logger:                utils.NewLogger("gogram - mtproto").SetLevel(c.LogLevel),
 		memorySession:         c.MemorySession,
@@ -565,6 +570,16 @@ func (m *MTProto) readMsg() error {
 func (m *MTProto) processResponse(msg messages.Common) error {
 	var data tl.Object
 	var err error
+
+	if (msg.GetSeqNo() & 1) != 0 {
+		msgID := int64(msg.GetMsgID())
+		if m.pendingAcks.Has(msgID) {
+			return nil
+		} else {
+			m.pendingAcks.Add(msgID)
+		}
+	}
+
 	if et, ok := m.expectedTypes.Get(msg.GetMsgID()); ok && len(et) > 0 {
 		data, err = tl.DecodeUnknownObject(msg.GetMsg(), et...)
 	} else {
@@ -624,6 +639,14 @@ messageTypeSwitching:
 			}
 		}
 
+	case *objects.MsgsNewDetailedInfo:
+		m.pendingAcks.Add(message.AnswerMsgID)
+		return nil
+
+	case *objects.MsgsDetailedInfo:
+		m.pendingAcks.Add(message.AnswerMsgID)
+		return nil
+
 	case *objects.Pong, *objects.MsgsAck:
 		m.Logger.Debug("rpc - ping: " + fmt.Sprintf("%T", message))
 
@@ -634,6 +657,7 @@ messageTypeSwitching:
 		}
 		m.Logger.Debug("bad-msg-notification: " + badMsg.Error())
 		return badMsg
+
 	case *objects.RpcResult:
 		obj := message.Obj
 		if v, ok := obj.(*objects.GzipPacked); ok {
@@ -668,11 +692,15 @@ messageTypeSwitching:
 		}
 	}
 
-	if (msg.GetSeqNo() & 1) != 0 {
-		_, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: []int64{int64(msg.GetMsgID())}})
+	if m.pendingAcks.Len() >= acksThreshold {
+		m.Logger.Debug("Sending acks", m.pendingAcks.Len())
+
+		_, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: m.pendingAcks.Keys()})
 		if err != nil {
-			return errors.Wrap(err, "sending ack")
+			return errors.Wrap(err, "sending acks")
 		}
+
+		m.pendingAcks.Clear()
 	}
 
 	return nil
