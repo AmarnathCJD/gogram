@@ -4,6 +4,7 @@ package telegram
 
 import (
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -442,44 +443,48 @@ func getValue(val, def interface{}) interface{} {
 //		*MessageMedia
 //		*Document
 //		*Photo
-func PackBotFileID(file interface{}) string {
-	var fileID, accessHash, fileType, dcID string
+func PackBotFileID(file any) string {
+	var (
+		fID, accessHash int64
+		fileType, dcID  int32
+	)
+
 switchFileType:
 	switch f := file.(type) {
 	case *DocumentObj:
-		fileID = strconv.FormatInt(f.ID, 10)
-		accessHash = strconv.FormatInt(f.AccessHash, 10)
-		fileType = "5"
-		dcID = fmt.Sprintf("%d", f.DcID)
+		fID = f.ID
+		accessHash = f.AccessHash
+		fileType = 5
+		dcID = f.DcID
 		for _, attr := range f.Attributes {
 			switch attr := attr.(type) {
 			case *DocumentAttributeAudio:
 				if attr.Voice {
-					fileType = "3"
+					fileType = 3
 					break switchFileType
 				}
-				fileType = "9"
+				fileType = 9
 				break switchFileType
 			case *DocumentAttributeVideo:
 				if attr.RoundMessage {
-					fileType = "13"
+					fileType = 13
 					break switchFileType
 				}
-				fileType = "4"
+				fileType = 4
 				break switchFileType
 			case *DocumentAttributeSticker:
-				fileType = "8"
+				fileType = 8
 				break switchFileType
 			case *DocumentAttributeAnimated:
-				fileType = "10"
+				fileType = 10
 				break switchFileType
 			}
 		}
 	case *PhotoObj:
-		fileID = strconv.FormatInt(f.ID, 10)
-		accessHash = strconv.FormatInt(f.AccessHash, 10)
-		fileType = "2"
-		dcID = fmt.Sprintf("%d", f.DcID)
+		fID = f.ID
+		accessHash = f.AccessHash
+		fileType = 2
+		dcID = f.DcID
 	case *MessageMediaDocument:
 		file = f.Document
 		goto switchFileType
@@ -487,10 +492,55 @@ switchFileType:
 		file = f.Photo
 		goto switchFileType
 	}
-	if fileID == "" || accessHash == "" || fileType == "" || dcID == "" {
+
+	if fID == 0 || accessHash == 0 || fileType == 0 || dcID == 0 {
 		return ""
 	}
-	return base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf("%s_%s_%s_%s", fileType, dcID, fileID, accessHash)))
+
+	buf := make([]byte, 4+4+8+8)
+	binary.LittleEndian.PutUint32(buf[0:], uint32(fileType))
+	binary.LittleEndian.PutUint32(buf[4:], uint32(dcID))
+	binary.LittleEndian.PutUint64(buf[8:], uint64(fID))
+	binary.LittleEndian.PutUint64(buf[16:], uint64(accessHash))
+	return base64.RawURLEncoding.EncodeToString(RLCEncode(applyXORInt32(buf, 0x00000001)))
+}
+
+// Aplicar XOR a cada int32 en los datos
+func applyXORInt32(data []byte, pattern uint32) []byte {
+	xored := make([]byte, len(data))
+	for i := 0; i < len(data); i += 4 {
+		// Leer el int32 de los datos
+		value := binary.LittleEndian.Uint32(data[i:])
+		// Aplicar XOR
+		xoredValue := value ^ pattern
+		// Escribir el int32 resultante
+		binary.LittleEndian.PutUint32(xored[i:], xoredValue)
+	}
+	return xored
+}
+
+// Run-Length Encoding para ceros
+func RLCEncode(data []byte) []byte {
+	var encoded []byte
+	count := 0
+
+	for i := 0; i < len(data); i++ {
+		if data[i] == 0 {
+			count++
+		} else {
+			if count > 0 {
+				encoded = append(encoded, 0, byte(count))
+				count = 0
+			}
+			encoded = append(encoded, data[i])
+		}
+	}
+
+	if count > 0 {
+		encoded = append(encoded, 0, byte(count))
+	}
+
+	return encoded
 }
 
 func UnpackBotFileID(fileID string) (int64, int64, int32, int32) {
@@ -498,15 +548,25 @@ func UnpackBotFileID(fileID string) (int64, int64, int32, int32) {
 	if err != nil {
 		return 0, 0, 0, 0
 	}
-	parts := strings.Split(string(data), "_")
-	if len(parts) != 4 {
-		return 0, 0, 0, 0
+
+	if len(data) == 24 {
+		fileType := int32(binary.LittleEndian.Uint32(data[0:]))
+		dcID := int32(binary.LittleEndian.Uint32(data[4:]))
+		fID := int64(binary.LittleEndian.Uint64(data[8:]))
+		accessHash := int64(binary.LittleEndian.Uint64(data[16:]))
+		return fID, accessHash, fileType, dcID
 	}
-	fileType, _ := strconv.Atoi(parts[0])
-	dcID, _ := strconv.Atoi(parts[1])
-	fID, _ := strconv.ParseInt(parts[2], 10, 64)
-	accessHash, _ := strconv.ParseInt(parts[3], 10, 64)
-	return fID, accessHash, int32(fileType), int32(dcID)
+
+	// legacy
+	if parts := strings.SplitN(string(data), "_", 4); len(parts) == 4 {
+		fileType, _ := strconv.Atoi(parts[0])
+		dcID, _ := strconv.Atoi(parts[1])
+		fID, _ := strconv.ParseInt(parts[2], 10, 64)
+		accessHash, _ := strconv.ParseInt(parts[3], 10, 64)
+		return fID, accessHash, int32(fileType), int32(dcID)
+	}
+
+	return 0, 0, 0, 0
 }
 
 // Inverse operation of PackBotFileID,
