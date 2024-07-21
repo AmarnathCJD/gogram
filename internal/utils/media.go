@@ -343,7 +343,6 @@ func ParseDuration(file string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	var mdatAppeared bool
 	for _, bi := range bis {
 		switch bi.Type {
 		case BoxTypeMvhd():
@@ -354,14 +353,11 @@ func ParseDuration(file string) (int64, error) {
 			if _, err := Unmarshal(r, bi.Size-bi.HeaderSize, &mvhd, bi.Context); err != nil {
 				return 0, err
 			}
-			probeInfo.Timescale = mvhd.Timescale
 			if mvhd.GetVersion() == 0 {
 				probeInfo.Duration = uint64(mvhd.DurationV0)
 			} else {
 				probeInfo.Duration = mvhd.DurationV1
 			}
-		case BoxTypeMoov():
-			probeInfo.FastStart = !mdatAppeared
 		}
 	}
 	return int64(probeInfo.Duration), nil

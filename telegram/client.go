@@ -106,7 +106,7 @@ func (s *Session) Encode() string {
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
-	client := &Client{wg: sync.WaitGroup{}, Log: utils.NewLogger("gogram - client"), stopCh: make(chan struct{})}
+	client := &Client{wg: sync.WaitGroup{}, Log: utils.NewLogger("gogram [client]"), stopCh: make(chan struct{})}
 	config = client.cleanClientConfig(config)
 	client.setupClientData(config)
 

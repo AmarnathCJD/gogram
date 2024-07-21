@@ -57,7 +57,7 @@ func NewCache(logLevel string, fileN string) *CACHE {
 			InputUsers:    make(map[int64]int64),
 			InputChats:    make(map[int64]int64),
 		},
-		logger: utils.NewLogger("gogram - cache").SetLevel(logLevel),
+		logger: utils.NewLogger("gogram [cache]").SetLevel(logLevel),
 	}
 
 	c.logger.Debug("initialized cache (" + c.fileN + ") successfully")
@@ -342,6 +342,19 @@ func (c *Client) GetChat(chatID int64) (*ChatObj, error) {
 		return nil, err
 	}
 	return chat, nil
+}
+
+// mux function to getChat/getChannel/getUser
+func (c *Client) GetPeer(peerID int64) (any, error) {
+	if chat, err := c.GetChat(peerID); err == nil {
+		return chat, nil
+	} else if channel, err := c.GetChannel(peerID); err == nil {
+		return channel, nil
+	} else if user, err := c.GetUser(peerID); err == nil {
+		return user, nil
+	} else {
+		return nil, err
+	}
 }
 
 // ----------------- Update User/Channel/Chat in cache -----------------

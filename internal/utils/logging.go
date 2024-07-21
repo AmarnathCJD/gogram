@@ -5,7 +5,6 @@ package utils
 import (
 	"fmt"
 	"log"
-	"runtime"
 	"strings"
 )
 
@@ -20,7 +19,22 @@ const (
 	ErrorLevel
 	// NoLevel disables all logging
 	NoLevel
+	// TraceLevel is the highest level of logging
+	TraceLevel
 )
+
+var (
+	colorOff    = []byte("\033[0m")
+	colorRed    = []byte("\033[0;31m")
+	colorGreen  = []byte("\033[0;32m")
+	colorOrange = []byte("\033[0;33m")
+	colorPurple = []byte("\033[0;35m")
+	colorCyan   = []byte("\033[0;36m")
+)
+
+func colorize(color []byte, s string) string {
+	return string(color) + s + string(colorOff)
+}
 
 // Logger is the logging struct.
 type Logger struct {
@@ -40,6 +54,8 @@ func (l *Logger) Lev() string {
 		return "error"
 	case NoLevel:
 		return "disabled"
+	case TraceLevel:
+		return "trace"
 	default:
 		return "info"
 	}
@@ -66,55 +82,38 @@ func (l *Logger) SetLevel(level string) *Logger {
 
 // Log logs a message at the given level.
 func (l *Logger) Error(v ...any) {
+	// TODO: runtime.Caller(1)
 	if l.Level <= ErrorLevel {
-		if l.WinTerminal() {
-			l.logWin("error", v...)
-		} else {
-			log.Println(l.Prefix, "-", string("\033[35m")+"error"+string("\033[0m"), "-", getVariable(v...))
-		}
+		log.Println(colorize(colorRed, "[error]"), l.Prefix, "-", getVariable(v...))
 	}
 }
 
 func (l *Logger) Warn(v ...any) {
 	if l.Level <= WarnLevel {
-		if l.WinTerminal() {
-			l.logWin("warn", v...)
-		} else {
-			log.Println(l.Prefix, "-", string("\033[33m")+"warning"+string("\033[0m"), "-", getVariable(v...))
-		}
+		log.Println(colorize(colorOrange, "[warn]"), l.Prefix, "-", getVariable(v...))
 	}
 }
 
 func (l *Logger) Info(v ...any) {
 	if l.Level <= InfoLevel {
-		if l.WinTerminal() {
-			l.logWin("info", v...)
-		} else {
-			log.Println(l.Prefix, "-", string("\033[31m")+"info"+string("\033[0m"), "-", getVariable(v...))
-		}
+		log.Println(colorize(colorGreen, "[info] "), l.Prefix, "-", getVariable(v...))
 	}
 }
 
 func (l *Logger) Debug(v ...any) {
 	if l.Level <= DebugLevel {
-		if l.WinTerminal() {
-			l.logWin("debug", v...)
-		} else {
-			log.Println(l.Prefix, "-", string("\033[32m")+"debug"+string("\033[0m"), "-", getVariable(v...))
-		}
+		log.Println(colorize(colorPurple, "[debug]"), l.Prefix, "-", getVariable(v...))
+	}
+}
+
+func (l *Logger) Trace(v ...any) {
+	if l.Level <= TraceLevel {
+		log.Println(colorize(colorCyan, "[trace]"), l.Prefix, "-", getVariable(v...))
 	}
 }
 
 func (l *Logger) Panic(v ...any) {
-	if l.WinTerminal() {
-		l.logWin("panic", v...)
-	} else {
-		log.Println(l.Prefix, "-", string("\033[31m")+"panic"+string("\033[0m"), "-", getVariable(v...))
-	}
-}
-
-func (l *Logger) WinTerminal() bool {
-	return runtime.GOOS == "windows"
+	log.Panic(colorize(colorCyan, "[panic]"), l.Prefix, "-", getVariable(v...))
 }
 
 // NewLogger returns a new Logger instance.
@@ -132,36 +131,4 @@ func getVariable(v ...any) string {
 		return fmt.Sprint(v[0])
 	}
 	return strings.Trim(fmt.Sprint(v...), "[]")
-}
-
-func (l *Logger) levelColor(lev string) string {
-	lev = strings.ToLower(lev)
-	if lev == "debug" {
-		return "Green"
-	} else if lev == "info" {
-		return "Magenta"
-	} else if lev == "warn" {
-		return "Yellow"
-	} else if lev == "error" {
-		return "Red"
-	} else if lev == "panic" {
-		return "Cyan"
-	}
-	return "White"
-}
-
-// ASCII Is a pain in Windows Terminal,
-// So we use PowerShell to print the logs
-func (l *Logger) logWin(lev string, v ...any) {
-	log.Println(l.Prefix, "-", lev, "-", getVariable(v...))
-	// Disable PowerShell Logging, it's not working properly
-	// cmdPref := "Write-Host -NoNewline -ForegroundColor %s '%s '; Write-Host -NoNewline '%s - '; Write-Host -NoNewline -ForegroundColor %s '%s'; Write-Host -ForegroundColor White ' - %s'"
-	// cmdPref = fmt.Sprintf(cmdPref, l.levelColor(lev), time.Now().Format("2006/01/02 15:04:05"), l.Prefix, l.levelColor(lev), lev, getVariable(v...))
-	// if _, err := exec.LookPath("powershell"); err == nil {
-	// 	cmd := exec.Command("powershell", "-Command", cmdPref)
-	// 	cmd.Stdout = os.Stdout
-	// 	cmd.Run()
-	// } else {
-	// 	log.Println(l.Prefix, "-", lev, "-", getVariable(v...))
-	// }
 }
