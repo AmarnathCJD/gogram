@@ -65,9 +65,9 @@ func (g *Generator) generateMethods(f *jen.File, d bool) {
 	//	}
 }
 
-func (g *Generator) generateComment(name string, _type string) string {
+func (g *Generator) generateComment(name, _type string) string {
 	var base = "https://core.telegram.org/" + _type + "/"
-	req, _ := http.NewRequest("GET", base+name, nil)
+	req, _ := http.NewRequest("GET", base+name, http.NoBody)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -117,17 +117,17 @@ func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 
 	responses := []jen.Code{resp, jen.Error()}
 
-	//*	data, err := c.MakeRequest(params)
-	//*	if err != nil {
-	//*		return nil, errors.Wrap(err, "sedning AuthSendCode")
-	//*	}
-	//*
-	//*	resp, ok := data.(*AuthSentCode)
-	//*	if !ok {
-	//*		panic("got invalid response type: " + reflect.TypeOf(data).String())
-	//*	}
-	//*
-	//*	return resp, nil
+	//	data, err := c.MakeRequest(params)
+	//	if err != nil {
+	//		return nil, errors.Wrap(err, "sedning AuthSendCode")
+	//	}
+	//
+	//	resp, ok := data.(*AuthSentCode)
+	//	if !ok {
+	//		panic("got invalid response type: " + reflect.TypeOf(data).String())
+	//	}
+	//
+	//	return resp, nil
 
 	method := jen.Func().Params(jen.Id("c").Op("*").Id("Client")).Id(goify(obj.Name, true)).Params(g.generateArgumentsForMethod(obj)...).Params(responses...).Block(
 		jen.List(jen.Id("responseData"), jen.Id("err")).Op(":=").Id("c").Dot("MakeRequest").Call(g.generateMethodArgumentForMakingRequest(obj)),
