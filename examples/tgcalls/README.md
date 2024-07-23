@@ -1,35 +1,28 @@
 <div align="center">
-    <h1>Telegram Group Calls Example</h1>
+    <h1>Group and Voice Calls Example</h1>
 </div>
 
 ## Group Calls Example
 
-### Instructions
+The example uses the <a href="github.com/pytgcalls/ntgcalls">ntgcalls</a> library to connect via webrtc calls of Telegram along with gogram.
 
-Make sure a c compiler is installed on your system. For Windows, you can use MinGW or MSVC. For Unix-based systems, you can use GCC or Clang.
+### Dependencies
 
+Cpp or C is required to link the webrtc library. Make sure to have it installed.
+
+<h3>Installation</h3>
+
+<p>Download the latest binaries from <a href="https://github.com/pytgcalls/ntgcalls/releases/latest">here</a> and extract the <b>*.so</b> / <b>*.dll</b> and <b>*.h</b> files to the project directory.</p>
+
+<p><b>NOTE:</b> shared-libs are to be downloaded (depending on the platform), not the static ones.</p>
+
+### Example Links
+
+- <a href="https://github.com/pytgcalls/ntgcalls/releases/download/v1.2.1/ntgcalls.windows-x86_64-shared_libs.zip">windows-shared-x86_64 (v1.2.1)</a>
+- <a href="https://github.com/pytgcalls/ntgcalls/releases/download/v1.2.1/ntgcalls.linux-x86_64-shared_libs.zip">linux-shared-x86_64 (v1.2.1)</a>
+
+### Usage
 
 ```bash
-# cd to the root directory of the example folder
-
-# Download the latest Shared Libraries:
-wget -O libtgcalls.so https://envs.sh/tsh.so   # for Unix-based systems
-wget -O libtgcalls.dll https://envs.sh/tsd.dll   # for Windows
-# For other platforms, download from: https://github.com/pytgcalls/ntgcalls/releases
-
-# Download the header file:
-wget -O ntgcalls.h https://envs.sh/ts2.h
-
-### Running the Example
-
-# Assuming you are in the root directory of the example folder:
-go run .
+go run main.go
 ```
-
-### Credits
-
-This example utilizes NTGCalls, an open-source project available on GitHub
-
-- **Project Repository:** [NTGCalls](https://github.com/pytgcalls/ntgcalls)
-
-
