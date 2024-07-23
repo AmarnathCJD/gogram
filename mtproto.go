@@ -230,6 +230,8 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	if newAddr == "" {
 		return nil, errors.New("invalid data center id provided")
 	}
+
+	m.Logger.Debug("migrating to new dc... (dc: " + strconv.Itoa(dc) + ")")
 	m.sessionStorage.Delete()
 	m.Logger.Debug("deleted old auth key file")
 	cfg := Config{
