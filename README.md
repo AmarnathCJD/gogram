@@ -69,7 +69,7 @@ func main() {
 
 	client.LoginBot("<bot-token>") // or client.Login("<phone-number>") for user account, or client.AuthPrompt() for interactive login
 
-	client.On(telegram.OnMessage, func(message *telegram.NewMessage) error {
+	client.On(telegram.OnMessage, func(message *telegram.NewMessage) error { // client.AddMessageHandler
 			message.Reply("Hello from Gogram!")
         	return nil
 	}, 
@@ -143,7 +143,7 @@ client.SendMedia("username", "<file-name>", &telegram.MediaOptions{
 #### Inline Queries
 
 ```golang
-client.On("inline:<pattern>", func(iq *telegram.InlineQuery) error {
+client.On("inline:<pattern>", func(iq *telegram.InlineQuery) error { // client.AddInlineHandler
 	builder := iq.Builder()
 	builder.Article("<title>", "<description>", "<text>", &telegram.ArticleOptions{
 			LinkPreview: true,
@@ -156,7 +156,7 @@ client.On("inline:<pattern>", func(iq *telegram.InlineQuery) error {
 #### Callback Queries
 
 ```golang
-client.On("callback:<pattern>", func(cb *telegram.CallbackQuery) error {
+client.On("callback:<pattern>", func(cb *telegram.CallbackQuery) error { // client.AddCallbackHandler
     cb.Answer("This is a callback response", &CallbackOptions{
 		Alert: true,
 	})
