@@ -13,28 +13,21 @@ const (
 )
 
 func main() {
-	// Create a new client
+	// create a new client object
 	client, _ := telegram.NewClient(telegram.ClientConfig{
 		AppID:    appID,
 		AppHash:  appHash,
 		LogLevel: telegram.LogInfo,
 	})
 
-	// Connect to the server
-	if err := client.Connect(); err != nil {
-		panic(err)
-	}
-
-	// Authenticate the client using the bot token
-	if err := client.LoginBot(botToken); err != nil {
-		panic(err)
-	}
+	client.LoginBot(botToken)
 
 	client.On("message", convEventHandler)
 
 	// new conversation
 	conv, _ := client.NewConversation("username or id", false, 30) // 30 is the timeout in seconds, false means it's not a private conversation
 	defer conv.Close()
+
 	_, err := conv.Respond("Hello, Please reply to this message")
 	if err != nil {
 		panic(err)
@@ -47,7 +40,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("Response:", resp.Text())
+	fmt.Println("response:", resp.Text())
 }
 
 func convEventHandler(m *telegram.NewMessage) error {

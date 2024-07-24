@@ -13,12 +13,13 @@ const (
 )
 
 func main() {
+	// create a new client object
 	client, _ := telegram.NewClient(telegram.ClientConfig{
 		AppID:   apiKey,
 		AppHash: apiHash,
 	})
 
-	if err := client.ConnectBot(botToken); err != nil {
+	if err := client.LoginBot(botToken); err != nil {
 		panic(err)
 	}
 
