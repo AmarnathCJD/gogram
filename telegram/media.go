@@ -343,11 +343,11 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		return "", err
 	}
 
-	dc = getValue(dc, opts.DCId).(int32)
+	dc = getValue(dc, opts.DCId)
 	if dc == 0 {
 		dc = int32(c.GetDC())
 	}
-	dest := getValue(opts.FileName, fileName).(string)
+	dest := getValue(opts.FileName, fileName)
 
 	partSize := 1024 * 512 // 512KB
 	if opts.ChunkSize > 0 {
