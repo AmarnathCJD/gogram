@@ -10,6 +10,11 @@ import (
 	"reflect"
 )
 
+func padding4(size int) int {
+	t := (-uint64(size)) & 3
+	return int(t)
+}
+
 func haveFlag(v any) bool {
 	typ := reflect.TypeOf(v)
 	for i := 0; i < typ.NumField(); i++ {

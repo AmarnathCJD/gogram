@@ -9,7 +9,7 @@ const (
 	Int128Len = WordLen * 4 // int128
 	Int256Len = WordLen * 8 // int256
 
-	MagicNumber = 0xfe // 253
+	MagicNumber = 0xfe // 254
 
 	// https://core.telegram.org/schema/mtproto
 	CrcVector uint32 = 0x1cb5c415
