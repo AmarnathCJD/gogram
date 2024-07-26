@@ -262,7 +262,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 }
 
 func handleIfFlood(err error, c *Client) bool {
-	if matchError(err, "FLOOD_WAIT_") {
+	if matchError(err, "FLOOD_WAIT_") || matchError(err, "FLOOD_PREMIUM_WAIT_") {
 		if waitTime := getFloodWait(err); waitTime > 0 {
 			c.Logger.Warn("flood wait ", waitTime, "(s), waiting...")
 			time.Sleep(time.Duration(waitTime) * time.Second)
@@ -457,7 +457,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 						}
 						_, err = fs.WriteAt(buffer, int64(p*partSize))
 						if err != nil {
-							panic(err)
+							c.Logger.Error(err)
 						}
 						if opts.ProgressCallback != nil {
 							go opts.ProgressCallback(int32(totalParts), int32(p))
@@ -509,7 +509,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 			_, err = fs.WriteAt(buffer, int64(int(parts)*partSize))
 
 			if err != nil {
-				panic(err)
+				c.Logger.Error(err)
 			}
 		case *UploadFileCdnRedirect:
 			return "", nil // TODO

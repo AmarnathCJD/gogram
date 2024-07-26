@@ -154,8 +154,12 @@ func getFloodWait(err error) time.Duration {
 		} else if re := regexp.MustCompile(`FLOOD_WAIT_(\d+)`); re.MatchString(err.Error()) {
 			wait, _ := strconv.Atoi(re.FindStringSubmatch(err.Error())[1])
 			return time.Duration(wait) * time.Second
+		} else if re := regexp.MustCompile(`FLOOD_PREMIUM_WAIT_(\d+)`); re.MatchString(err.Error()) {
+			wait, _ := strconv.Atoi(re.FindStringSubmatch(err.Error())[1])
+			return time.Duration(wait) * time.Second
 		}
 	}
+
 	return 0
 }
 
