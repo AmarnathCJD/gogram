@@ -315,7 +315,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 			}
 
 			// seek back to initial position
-			d.buf.Seek(-8, 1)
+			d.unread(8) // d.buf.Seek(-8, io.SeekCurrent)
 		}
 
 		_typ = d.expectedTypes[0]
