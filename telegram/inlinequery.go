@@ -73,9 +73,9 @@ func (b *InlineBuilder) Article(title, description, text string, options ...*Art
 	} else {
 		opts = ArticleOptions{}
 	}
-	e, text := b.Client.FormatMessage(text, getValue(opts.ParseMode, b.Client.ParseMode()).(string))
+	e, text := b.Client.FormatMessage(text, getValue(opts.ParseMode, b.Client.ParseMode()))
 	result := &InputBotInlineResultObj{
-		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
+		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())),
 		Type:        "article",
 		Title:       title,
 		Description: description,
@@ -135,10 +135,10 @@ PhotoTypeSwitch:
 		image = &InputPhotoEmpty{}
 	}
 
-	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()).(string))
+	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()))
 
 	result := &InputBotInlineResultPhoto{
-		ID:    getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
+		ID:    getValue(opts.ID, fmt.Sprint(GenerateRandomLong())),
 		Type:  "photo",
 		Photo: image,
 		SendMessage: &InputBotInlineMessageMediaAuto{
@@ -192,10 +192,10 @@ DocTypeSwitch:
 		b.Client.Logger.Error("InlineBuilder.Document: Document is not a InputMediaDocument")
 	}
 
-	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()).(string))
+	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()))
 
 	result := &InputBotInlineResultDocument{
-		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
+		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())),
 		Type:        "document",
 		Document:    doc,
 		Title:       opts.Title,
@@ -236,9 +236,9 @@ func (b *InlineBuilder) Game(ID, ShortName string, options ...*ArticleOptions) I
 	} else {
 		opts = ArticleOptions{}
 	}
-	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()).(string))
+	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()))
 	result := &InputBotInlineResultGame{
-		ID:        getValue(opts.ID, fmt.Sprint(GenerateRandomLong())).(string),
+		ID:        getValue(opts.ID, fmt.Sprint(GenerateRandomLong())),
 		ShortName: ShortName,
 		SendMessage: &InputBotInlineMessageMediaAuto{
 			Message:     text,
