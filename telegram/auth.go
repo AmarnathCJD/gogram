@@ -137,7 +137,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 		return true, nil
 	}
 
-	var opts = getVariadic(options, &LoginOptions{}).(*LoginOptions)
+	var opts = getVariadic(options, &LoginOptions{})
 
 	var auth AuthAuthorization
 	var err error
@@ -279,7 +279,7 @@ type ScrapeConfig struct {
 func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, error) {
 	var conf = getVariadic(config, &ScrapeConfig{
 		CreateIfNotExists: true,
-	}).(*ScrapeConfig)
+	})
 
 	if conf.PhoneNum == "" {
 		fmt.Printf("Enter phone number (with country code [+1xxx]): ")
@@ -543,7 +543,7 @@ func (q *QrToken) Recreate() (*QrToken, error) {
 
 func (q *QrToken) Wait(timeout ...int32) error {
 	const def int32 = 600 // 10 minutes
-	q.Timeout = getVariadic(timeout, def).(int32)
+	q.Timeout = getVariadic(timeout, def)
 	ch := make(chan int)
 	ev := q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update, client *Client) error {
 		ch <- 1

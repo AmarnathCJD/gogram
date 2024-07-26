@@ -4,7 +4,7 @@ import "regexp"
 
 const (
 	ApiVersion = 184
-	Version    = "v2.3.16"
+	Version    = "v2.3.17"
 
 	LogDebug   = "debug"
 	LogInfo    = "info"

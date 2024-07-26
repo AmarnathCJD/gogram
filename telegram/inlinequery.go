@@ -107,7 +107,7 @@ func (b *InlineBuilder) Article(title, description, text string, options ...*Art
 }
 
 func (b *InlineBuilder) Photo(photo interface{}, options ...*ArticleOptions) InputBotInlineResult {
-	var opts = getVariadic(options, &ArticleOptions{}).(*ArticleOptions)
+	var opts = getVariadic(options, &ArticleOptions{})
 	inputPhoto, err := b.Client.getSendableMedia(photo, &MediaMetadata{})
 	if err != nil {
 		b.Client.Logger.Error("InlineBuilder.Photo: Error getting sendable media:", err)
@@ -171,7 +171,7 @@ PhotoTypeSwitch:
 }
 
 func (b *InlineBuilder) Document(document interface{}, options ...*ArticleOptions) InputBotInlineResult {
-	var opts = getVariadic(options, &ArticleOptions{}).(*ArticleOptions)
+	var opts = getVariadic(options, &ArticleOptions{})
 	inputDoc, err := b.Client.getSendableMedia(document, &MediaMetadata{})
 	if err != nil {
 		b.Client.Logger.Error("InlineBuilder.Document: Error getting sendable media:", err)

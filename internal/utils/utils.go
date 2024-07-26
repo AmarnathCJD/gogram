@@ -80,7 +80,9 @@ func NewMsgIDGenerator() func(timeOffset int64) int64 {
 		mu.Lock()
 		defer mu.Unlock()
 
-		now := time.Now().UnixNano() + timeOffset
+		now_time := time.Now().Add(time.Duration(timeOffset) * time.Second)
+		now := now_time.UnixNano()
+
 		nowSec := now / int64(time.Second)
 		nowNano := (now % int64(time.Second)) & -4 // mod 4
 

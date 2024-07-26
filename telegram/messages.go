@@ -48,7 +48,7 @@ type SendOptions struct {
 // If the message parameter is a media object, the function will send the media as a separate message and return a pointer to a NewMessage object containing information about the sent media.
 // If the message parameter is a string, the function will parse it for entities and send it as a text message.
 func (c *Client) SendMessage(peerID, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
-	opt := getVariadic(opts, &SendOptions{}).(*SendOptions)
+	opt := getVariadic(opts, &SendOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
@@ -138,7 +138,7 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 //   - NewMessage: Returns a NewMessage object containing the edited message on success.
 //   - error: Returns an error on failure.
 func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
-	opt := getVariadic(opts, &SendOptions{}).(*SendOptions)
+	opt := getVariadic(opts, &SendOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
@@ -322,7 +322,7 @@ type MediaMetadata struct {
 //   - If the entites field in opts is not nil, it will override any entities parsed from the caption.
 //   - If send_as in opts is not nil, the message will be sent from the specified peer, otherwise it will be sent from the sender peer.
 func (c *Client) SendMedia(peerID, Media interface{}, opts ...*MediaOptions) (*NewMessage, error) {
-	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
+	opt := getVariadic(opts, &MediaOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 
 	var (
@@ -414,7 +414,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 //   - If the entites field in opts is not nil, it will override any entities parsed from the caption.
 //   - If send_as in opts is not nil, the messages will be sent from the specified peer, otherwise they will be sent from the sender peer.
 func (c *Client) SendAlbum(peerID, Album interface{}, opts ...*MediaOptions) ([]*NewMessage, error) {
-	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
+	opt := getVariadic(opts, &MediaOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
@@ -495,7 +495,7 @@ type PollOptions struct {
 }
 
 func (c *Client) SendPoll(peerID interface{}, question string, options []string, opts ...*PollOptions) (*NewMessage, error) {
-	opt := getVariadic(opts, &PollOptions{}).(*PollOptions)
+	opt := getVariadic(opts, &PollOptions{})
 	senderPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
@@ -584,7 +584,7 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 //	 - reaction: Reaction to send.
 //	 - big: Whether to use big emoji.
 func (c *Client) SendReaction(peerID interface{}, msgID int32, reaction interface{}, big ...bool) error {
-	b := getVariadic(big, false).(bool)
+	b := getVariadic(big, false)
 	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return err
@@ -651,7 +651,7 @@ func (c *Client) SendAction(PeerID, Action interface{}, topMsgID ...int32) (*Act
 	if err != nil {
 		return nil, err
 	}
-	TopMsgID := getVariadic(topMsgID, int32(0)).(int32)
+	TopMsgID := getVariadic(topMsgID, int32(0))
 	switch a := Action.(type) {
 	case string:
 		if action, ok := Actions[a]; ok {
@@ -674,7 +674,7 @@ func (c *Client) SendReadAck(PeerID interface{}, MaxID ...int32) (*MessagesAffec
 	if err != nil {
 		return nil, err
 	}
-	maxID := getVariadic(MaxID, int32(0)).(int32)
+	maxID := getVariadic(MaxID, int32(0))
 	return c.MessagesReadHistory(peerChat, maxID)
 }
 
@@ -694,7 +694,7 @@ type ForwardOptions struct {
 // Forward forwards a message.
 // This method is a wrapper for messages.forwardMessages.
 func (c *Client) Forward(peerID, fromPeerID interface{}, msgIDs []int32, opts ...*ForwardOptions) ([]NewMessage, error) {
-	opt := getVariadic(opts, &ForwardOptions{}).(*ForwardOptions)
+	opt := getVariadic(opts, &ForwardOptions{})
 	toPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
@@ -743,7 +743,7 @@ func (c *Client) Forward(peerID, fromPeerID interface{}, msgIDs []int32, opts ..
 // DeleteMessages deletes messages.
 // This method is a wrapper for messages.deleteMessages.
 func (c *Client) DeleteMessages(peerID interface{}, msgIDs []int32, Revoke ...bool) (*MessagesAffectedMessages, error) {
-	revoke := getVariadic(Revoke, false).(bool)
+	revoke := getVariadic(Revoke, false)
 	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
@@ -792,7 +792,7 @@ type SearchOption struct {
 func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMessage, error) {
 	opt := getVariadic(Opts, &SearchOption{
 		Filter: &InputMessagesFilterEmpty{},
-	}).(*SearchOption)
+	})
 	peer, err := c.ResolvePeer(PeerID)
 
 	if err != nil {
@@ -925,7 +925,7 @@ func (c *Client) GetHistory(PeerID interface{}, opts ...*HistoryOption) ([]NewMe
 
 	var opt = getVariadic(opts, &HistoryOption{
 		Limit: 1,
-	}).(*HistoryOption)
+	})
 
 	req, err := c.MessagesGetHistory(&MessagesGetHistoryParams{
 		Peer:      peerToAct,
@@ -963,7 +963,7 @@ type PinOptions struct {
 // Pin pins a message.
 // This method is a wrapper for messages.pinMessage.
 func (c *Client) PinMessage(PeerID interface{}, MsgID int32, Opts ...*PinOptions) (Updates, error) {
-	opts := getVariadic(Opts, &PinOptions{}).(*PinOptions)
+	opts := getVariadic(Opts, &PinOptions{})
 	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
@@ -983,7 +983,7 @@ func (c *Client) PinMessage(PeerID interface{}, MsgID int32, Opts ...*PinOptions
 
 // UnpinMessage unpins a message.
 func (c *Client) UnpinMessage(PeerID interface{}, MsgID int32, Opts ...*PinOptions) (Updates, error) {
-	opts := getVariadic(Opts, &PinOptions{}).(*PinOptions)
+	opts := getVariadic(Opts, &PinOptions{})
 	opts.Unpin = true
 	return c.PinMessage(PeerID, MsgID, opts)
 }
@@ -1018,7 +1018,7 @@ type InlineOptions struct {
 //	  - Dialog: The chat or channel to send the query to.
 //	  - GeoPoint: The location to send.
 func (c *Client) InlineQuery(peerID interface{}, Options ...*InlineOptions) (*MessagesBotResults, error) {
-	options := getVariadic(Options, &InlineOptions{}).(*InlineOptions)
+	options := getVariadic(Options, &InlineOptions{})
 	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
@@ -1125,19 +1125,30 @@ func convertOption(s *SendOptions) *MediaOptions {
 	}
 }
 
-func getVariadic(v, def interface{}) interface{} {
-	if v == nil {
+// func getVariadic(v, def interface{}) interface{} {
+// 	if v == nil {
+// 		return def
+// 	}
+// 	rv := reflect.ValueOf(v)
+// 	if rv.Kind() == reflect.Ptr {
+// 		rv = rv.Elem()
+// 	}
+// 	if rv.Kind() != reflect.Slice {
+// 		return v
+// 	}
+// 	if rv.Len() == 0 {
+// 		return def
+// 	}
+// 	return rv.Index(0).Interface()
+// }
+
+func getVariadic[T any](opts []T, def T) T {
+	if len(opts) == 0 {
 		return def
 	}
-	rv := reflect.ValueOf(v)
-	if rv.Kind() == reflect.Ptr {
-		rv = rv.Elem()
-	}
-	if rv.Kind() != reflect.Slice {
-		return v
-	}
-	if rv.Len() == 0 {
+	first := opts[0]
+	if reflect.ValueOf(first).IsNil() {
 		return def
 	}
-	return rv.Index(0).Interface()
+	return first
 }

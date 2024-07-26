@@ -466,7 +466,7 @@ func (m *NewMessage) Conv(timeout ...int32) (*Conversation, error) {
 
 // Ask starts new conversation with the user
 func (m *NewMessage) Ask(Text interface{}, Opts ...*SendOptions) (*NewMessage, error) {
-	var opt = getVariadic(Opts, &SendOptions{}).(*SendOptions)
+	var opt = getVariadic(Opts, &SendOptions{})
 	if opt.Timeouts == 0 {
 		opt.Timeouts = 120 // default timeout
 	}

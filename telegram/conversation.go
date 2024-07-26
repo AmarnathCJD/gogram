@@ -28,7 +28,7 @@ func (c *Client) NewConversation(peer any, isPrivate bool, timeout ...int32) (*C
 		Client:    c,
 		Peer:      peerID,
 		isPrivate: isPrivate,
-		timeOut:   getVariadic(timeout, ConvDefaultTimeOut).(int32),
+		timeOut:   getVariadic(timeout, ConvDefaultTimeOut),
 	}, nil
 }
 
@@ -37,7 +37,7 @@ func NewConversation(client *Client, peer InputPeer, timeout ...int32) *Conversa
 	return &Conversation{
 		Client:  client,
 		Peer:    peer,
-		timeOut: getVariadic(timeout, ConvDefaultTimeOut).(int32),
+		timeOut: getVariadic(timeout, ConvDefaultTimeOut),
 	}
 }
 
@@ -56,7 +56,7 @@ func (c *Conversation) RespondMedia(media InputMedia, opts ...*MediaOptions) (*N
 }
 
 func (c *Conversation) Reply(text any, opts ...*SendOptions) (*NewMessage, error) {
-	var options = getVariadic(opts, &SendOptions{}).(*SendOptions)
+	var options = getVariadic(opts, &SendOptions{})
 	if options.ReplyID == 0 {
 		if c.lastMsg != nil {
 			options.ReplyID = c.lastMsg.ID
@@ -67,7 +67,7 @@ func (c *Conversation) Reply(text any, opts ...*SendOptions) (*NewMessage, error
 }
 
 func (c *Conversation) ReplyMedia(media InputMedia, opts ...*MediaOptions) (*NewMessage, error) {
-	var options = getVariadic(opts, &MediaOptions{}).(*MediaOptions)
+	var options = getVariadic(opts, &MediaOptions{})
 	if options.ReplyID == 0 {
 		if c.lastMsg != nil {
 			options.ReplyID = c.lastMsg.ID

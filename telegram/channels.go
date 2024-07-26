@@ -89,7 +89,7 @@ func (c *Client) JoinChannel(Channel interface{}) error {
 //	 - Channel: Channel or chat to leave
 //	 - Revoke: If true, the channel will be deleted
 func (c *Client) LeaveChannel(Channel interface{}, Revoke ...bool) error {
-	revokeChat := getVariadic(Revoke, false).(bool)
+	revokeChat := getVariadic(Revoke, false)
 	channel, err := c.ResolvePeer(Channel)
 	if err != nil {
 		return err
@@ -216,7 +216,7 @@ func (c *Client) GetChatMembers(chatID interface{}, Opts ...*ParticipantOptions)
 	if !ok {
 		return nil, 0, errors.New("peer is not a channel")
 	}
-	opts := getVariadic(Opts, &ParticipantOptions{Filter: &ChannelParticipantsSearch{}, Limit: 1}).(*ParticipantOptions)
+	opts := getVariadic(Opts, &ParticipantOptions{Filter: &ChannelParticipantsSearch{}, Limit: 1})
 	if opts.Query != "" {
 		opts.Filter = &ChannelParticipantsSearch{Q: opts.Query}
 	}
@@ -284,7 +284,7 @@ type AdminOptions struct {
 // Edit Admin rights of a user in a chat,
 // returns true if successful
 func (c *Client) EditAdmin(PeerID, UserID interface{}, Opts ...*AdminOptions) (bool, error) {
-	opts := getVariadic(Opts, &AdminOptions{IsAdmin: true, Rights: &ChatAdminRights{}, Rank: "Admin"}).(*AdminOptions)
+	opts := getVariadic(Opts, &AdminOptions{IsAdmin: true, Rights: &ChatAdminRights{}, Rank: "Admin"})
 	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return false, err
@@ -333,7 +333,7 @@ type BannedOptions struct {
 // Edit Restricted rights of a user in a chat,
 // returns true if successful
 func (c *Client) EditBanned(PeerID, UserID interface{}, opts ...*BannedOptions) (bool, error) {
-	o := getVariadic(opts, &BannedOptions{Ban: true, Rights: &ChatBannedRights{}}).(*BannedOptions)
+	o := getVariadic(opts, &BannedOptions{Ban: true, Rights: &ChatBannedRights{}})
 	if o.Rights == nil {
 		o.Rights = &ChatBannedRights{}
 	}
@@ -423,7 +423,7 @@ type TitleOptions struct {
 // Edit the title of a chat, channel or self,
 // returns true if successful
 func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...*TitleOptions) (bool, error) {
-	opts := getVariadic(Opts, &TitleOptions{}).(*TitleOptions)
+	opts := getVariadic(Opts, &TitleOptions{})
 	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return false, err
@@ -503,7 +503,7 @@ type InviteLinkOptions struct {
 //	 - Title: The title of the link
 //	 - RequestNeeded: If true, join requests will be needed to join the chat
 func (c *Client) GetChatInviteLink(peerID interface{}, LinkOpts ...*InviteLinkOptions) (ExportedChatInvite, error) {
-	LinkOptions := getVariadic(LinkOpts, &InviteLinkOptions{}).(*InviteLinkOptions)
+	LinkOptions := getVariadic(LinkOpts, &InviteLinkOptions{})
 	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
@@ -528,8 +528,8 @@ type ChannelOptions struct {
 	GeoPoint     InputGeoPoint `json:"geo_point,omitempty"`
 }
 
-func (c *Client) CreateChannel(title string, opts ...ChannelOptions) (*Channel, error) {
-	opt := getVariadic(opts, &ChannelOptions{}).(*ChannelOptions)
+func (c *Client) CreateChannel(title string, opts ...*ChannelOptions) (*Channel, error) {
+	opt := getVariadic(opts, &ChannelOptions{})
 	u, err := c.ChannelsCreateChannel(&ChannelsCreateChannelParams{
 		Broadcast: !opt.NotBroadcast,
 		GeoPoint:  opt.GeoPoint,
