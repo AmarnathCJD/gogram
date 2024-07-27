@@ -741,6 +741,10 @@ func (m *MTProto) offsetTime() {
 		return
 	}
 
+	if timeResponse.Unixtime < currentLocalTime {
+		return // -no need to offset time
+	}
+
 	m.timeOffset = timeResponse.Unixtime - currentLocalTime
 	m.Logger.Info("system time is out of sync, offsetting time by " + strconv.FormatInt(m.timeOffset, 10) + " seconds")
 }
