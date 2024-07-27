@@ -422,22 +422,51 @@ func IsPhone(phone string) bool {
 	return phoneRe.MatchString(phone)
 }
 
-func getValue(val, def interface{}) interface{} {
-	switch v := val.(type) {
-	case string:
-		if v == "" {
-			return def
-		}
-	case int, int32, int64:
-		if v == 0 {
-			return def
-		}
-	default:
-		if v == nil {
-			return def
-		}
+func getValue[T comparable](val, def T) T {
+	var zero T
+	if val == zero {
+		return def
 	}
 	return val
+}
+
+func getValueSlice[T any](val, def []T) []T {
+	if val == nil {
+		return def
+	}
+	return val
+}
+
+func getValueAny(val, def any) any {
+	if val == nil {
+		return def
+	}
+	return val
+}
+
+type Number interface {
+	int | int8 | int16 | int32 | int64 | uint | uint8 | uint16 | uint32 | uint64 | float32 | float64
+}
+
+func convertSlice[T2 Number, T1 Number](t1 []T1) []T2 {
+	t2 := make([]T2, len(t1))
+	for i := range t1 {
+		t2[i] = T2(t1[i])
+	}
+	return t2
+}
+
+func parseInt32(a any) int32 {
+	switch a := a.(type) {
+	case int32:
+		return a
+	case int:
+		return int32(a)
+	case int64:
+		return int32(a)
+	default:
+		return 0
+	}
 }
 
 // Inverse operation of ResolveBotFileID

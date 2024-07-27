@@ -214,7 +214,7 @@ func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
 	if config.TestMode {
 		config.DataCenter = 2
 	} else {
-		config.DataCenter = getInt(config.DataCenter, DefaultDataCenter)
+		config.DataCenter = getValue(config.DataCenter, DefaultDataCenter)
 	}
 	config.PublicKeys, _ = keys.GetRSAKeys()
 	return config
@@ -224,12 +224,12 @@ func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
 func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.appID = cnf.AppID
 	c.clientData.appHash = cnf.AppHash
-	c.clientData.deviceModel = getStr(cnf.DeviceConfig.DeviceModel, "gogram "+runtime.GOOS+" "+runtime.GOARCH)
-	c.clientData.systemVersion = getStr(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH)
-	c.clientData.appVersion = getStr(cnf.DeviceConfig.AppVersion, Version)
-	c.clientData.langCode = getStr(cnf.LangCode, "en")
-	c.clientData.logLevel = getStr(cnf.LogLevel, LogInfo)
-	c.clientData.parseMode = getStr(cnf.ParseMode, "HTML")
+	c.clientData.deviceModel = getValue(cnf.DeviceConfig.DeviceModel, "gogram "+runtime.GOOS+" "+runtime.GOARCH)
+	c.clientData.systemVersion = getValue(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH)
+	c.clientData.appVersion = getValue(cnf.DeviceConfig.AppVersion, Version)
+	c.clientData.langCode = getValue(cnf.LangCode, "en")
+	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
+	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
 
 	c.Log.SetLevel(c.clientData.logLevel)
 }

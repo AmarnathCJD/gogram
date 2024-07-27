@@ -49,7 +49,7 @@ type SendOptions struct {
 // If the message parameter is a string, the function will parse it for entities and send it as a text message.
 func (c *Client) SendMessage(peerID, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &SendOptions{}).(*SendOptions)
-	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
+	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string
@@ -80,7 +80,7 @@ func (c *Client) SendMessage(peerID, message interface{}, opts ...*SendOptions) 
 	}
 	media = getValue(media, opt.Media)
 	if media != nil {
-		opt.Caption = getValue(opt.Caption, rawText)
+		opt.Caption = getValueAny(opt.Caption, rawText)
 		return c.SendMedia(peerID, media, convertOption(opt))
 	}
 	senderPeer, err := c.ResolvePeer(peerID)
@@ -139,7 +139,7 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 //   - error: Returns an error on failure.
 func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &SendOptions{}).(*SendOptions)
-	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
+	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string
@@ -323,7 +323,7 @@ type MediaMetadata struct {
 //   - If send_as in opts is not nil, the message will be sent from the specified peer, otherwise it will be sent from the sender peer.
 func (c *Client) SendMedia(peerID, Media interface{}, opts ...*MediaOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
-	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
+	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 
 	var (
 		entities    []MessageEntity
@@ -415,7 +415,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 //   - If send_as in opts is not nil, the messages will be sent from the specified peer, otherwise they will be sent from the sender peer.
 func (c *Client) SendAlbum(peerID, Album interface{}, opts ...*MediaOptions) ([]*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
-	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
+	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string
@@ -809,18 +809,11 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 		var ids []int32
 		switch i := i.(type) {
 		case []int32:
-			ids = make([]int32, len(i))
-			copy(ids, i)
+			ids = convertSlice[int32](i)
 		case []int64:
-			ids = make([]int32, len(i))
-			for j, id := range i {
-				ids[j] = int32(id)
-			}
+			ids = convertSlice[int32](i)
 		case []int:
-			ids = make([]int32, len(i))
-			for j, id := range i {
-				ids[j] = int32(id)
-			}
+			ids = convertSlice[int32](i)
 		}
 		for _, id := range ids {
 			inputIDs = append(inputIDs, &InputMessageID{ID: id})
