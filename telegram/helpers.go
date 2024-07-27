@@ -50,33 +50,6 @@ func GetHostIp(dcID int, test bool) string {
 	panic("invalid dcID provided")
 }
 
-func getStr(a, b string) string {
-	if a == "" {
-		return b
-	}
-	return a
-}
-
-func getInt(a, b int) int {
-	if a == 0 {
-		return b
-	}
-	return a
-}
-
-func parseInt32(a interface{}) int32 {
-	switch a := a.(type) {
-	case int32:
-		return a
-	case int:
-		return int32(a)
-	case int64:
-		return int32(a)
-	default:
-		return 0
-	}
-}
-
 func joinAbsWorkingDir(filename string) string {
 	if filename == "" {
 		filename = "session.dat" // Default filename for session file
@@ -457,9 +430,9 @@ mediaTypeSwitch:
 	case string:
 		if IsURL(media) {
 			if _, isImage := mimeTypes.MIME(media); isImage {
-				return &InputMediaPhotoExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
+				return &InputMediaPhotoExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
 			}
-			return &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
+			return &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
 		} else {
 			if _, err := os.Stat(media); err == nil {
 				uploadOpts := &UploadOptions{}
@@ -485,17 +458,17 @@ mediaTypeSwitch:
 	case Photo:
 		switch media := media.(type) {
 		case *PhotoObj:
-			return &InputMediaPhoto{ID: &InputPhotoObj{ID: media.ID, AccessHash: media.AccessHash, FileReference: media.FileReference}, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
+			return &InputMediaPhoto{ID: &InputPhotoObj{ID: media.ID, AccessHash: media.AccessHash, FileReference: media.FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
 		case *PhotoEmpty:
-			return &InputMediaPhoto{ID: &InputPhotoEmpty{}, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
+			return &InputMediaPhoto{ID: &InputPhotoEmpty{}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
 		}
 	case MessageMedia:
 		switch media := media.(type) {
 		case *MessageMediaPhoto:
 			Photo := media.Photo.(*PhotoObj)
-			return &InputMediaPhoto{ID: &InputPhotoObj{ID: Photo.ID, AccessHash: Photo.AccessHash, FileReference: Photo.FileReference}, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
+			return &InputMediaPhoto{ID: &InputPhotoObj{ID: Photo.ID, AccessHash: Photo.AccessHash, FileReference: Photo.FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
 		case *MessageMediaDocument:
-			return &InputMediaDocument{ID: &InputDocumentObj{ID: media.Document.(*DocumentObj).ID, AccessHash: media.Document.(*DocumentObj).AccessHash, FileReference: media.Document.(*DocumentObj).FileReference}, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
+			return &InputMediaDocument{ID: &InputDocumentObj{ID: media.Document.(*DocumentObj).ID, AccessHash: media.Document.(*DocumentObj).AccessHash, FileReference: media.Document.(*DocumentObj).FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
 		case *MessageMediaGeo:
 			return &InputMediaGeoPoint{GeoPoint: &InputGeoPointObj{Lat: media.Geo.(*GeoPointObj).Lat, Long: media.Geo.(*GeoPointObj).Long}}, nil
 		case *MessageMediaGame:
@@ -520,14 +493,14 @@ mediaTypeSwitch:
 		)
 		switch media := media.(type) {
 		case *InputFileObj:
-			mimeType, IsPhoto = mimeTypes.MIME(getValue(attr.FileName, media.Name).(string))
+			mimeType, IsPhoto = mimeTypes.MIME(getValue(attr.FileName, media.Name))
 			attr.Attributes = mergeAttrs(attr.Attributes, getAttrs(mimeType))
-			fileName = getValue(attr.FileName, media.Name).(string)
+			fileName = getValue(attr.FileName, media.Name)
 			mediaFile = media
 		case *InputFileBig:
-			mimeType, IsPhoto = mimeTypes.MIME(getValue(attr.FileName, media.Name).(string))
+			mimeType, IsPhoto = mimeTypes.MIME(getValue(attr.FileName, media.Name))
 			attr.Attributes = mergeAttrs(attr.Attributes, getAttrs(mimeType))
-			fileName = getValue(attr.FileName, media.Name).(string)
+			fileName = getValue(attr.FileName, media.Name)
 			mediaFile = media
 		}
 
@@ -536,9 +509,9 @@ mediaTypeSwitch:
 		}
 
 		if IsPhoto {
-			return &InputMediaUploadedPhoto{File: mediaFile, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
+			return &InputMediaUploadedPhoto{File: mediaFile, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
 		} else {
-			var mediaAttributes = getValue(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}}).([]DocumentAttribute)
+			var mediaAttributes = getValueSlice(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}})
 			hasFileName := false
 			mediaAttributes, dur, _ := gatherVideoMetadata(fileName, mediaAttributes)
 
@@ -561,7 +534,7 @@ mediaTypeSwitch:
 				mediaAttributes = append(mediaAttributes, &DocumentAttributeFilename{FileName: fileName})
 			}
 
-			return &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValue(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool), ForceFile: false}, nil
+			return &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValueAny(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false), ForceFile: false}, nil
 		}
 	case []byte, *bytes.Reader:
 		var uopts *UploadOptions = &UploadOptions{}
@@ -593,7 +566,7 @@ func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 
 					for _, attr := range attrs {
 						if att, ok := attr.(*DocumentAttributeVideo); ok {
-							att.Duration = getValue(att.Duration, float64(r/1000)).(float64)
+							att.Duration = getValue(att.Duration, float64(r/1000))
 							return attrs, int64(r / 1000), nil
 						}
 					}
@@ -638,10 +611,10 @@ func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 
 		for _, attr := range attrs {
 			if att, ok := attr.(*DocumentAttributeVideo); ok {
-				att.W = getValue(att.W, int32(width)).(int32)
-				att.H = getValue(att.H, int32(height)).(int32)
-				att.Duration = getValue(att.Duration, dur).(float64)
-				return attrs, int64(getValue(att.Duration, float64(dur)).(float64)), nil
+				att.W = getValue(att.W, int32(width))
+				att.H = getValue(att.H, int32(height))
+				att.Duration = getValue(att.Duration, dur)
+				return attrs, int64(getValue(att.Duration, float64(dur))), nil
 			}
 		}
 
@@ -702,10 +675,10 @@ func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 
 		for _, attr := range attrs {
 			if att, ok := attr.(*DocumentAttributeAudio); ok {
-				att.Performer = getValue(att.Performer, performer).(string)
-				att.Title = getValue(att.Title, title).(string)
-				att.Duration = getValue(att.Duration, int32(dur)).(int32)
-				return attrs, int64(getValue(att.Duration, int32(dur)).(int32)), nil
+				att.Performer = getValue(att.Performer, performer)
+				att.Title = getValue(att.Title, title)
+				att.Duration = getValue(att.Duration, int32(dur))
+				return attrs, int64(getValue(att.Duration, int32(dur))), nil
 			}
 		}
 
