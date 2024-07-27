@@ -15,7 +15,9 @@ import (
 
 // A Decoder reads and decodes TL values from an input stream.
 type Decoder struct {
-	buf *bytes.Reader
+	buf []byte
+	pos int
+
 	err error
 
 	// see Decoder.ExpectTypesInInterface description
@@ -30,7 +32,7 @@ func NewDecoder(r io.Reader) (*Decoder, error) {
 		return nil, errors.Wrap(err, "reading data before decoding")
 	}
 
-	return &Decoder{buf: bytes.NewReader(data)}, nil
+	return &Decoder{buf: data}, nil
 }
 
 // ExpectTypesInInterface defines, how decoder must parse implicit objects.
@@ -46,36 +48,37 @@ func (d *Decoder) ExpectTypesInInterface(types ...reflect.Type) {
 	d.expectedTypes = types
 }
 
-func (d *Decoder) read(buf []byte) {
+func (d *Decoder) read2(n int) []byte {
 	if d.err != nil {
-		return
+		return nil
 	}
 
-	n, err := d.buf.Read(buf)
-	if err != nil {
-		d.unread(n)
-		d.err = err
-		return
+	m := len(d.buf) - d.pos
+	if n > m {
+		d.err = fmt.Errorf("buffer weren't fully read: want %v bytes, got %v", n, m)
+		return nil
 	}
+	data := d.buf[d.pos : d.pos+n]
+	d.pos += n
+	return data
+}
 
-	if n != len(buf) {
-		d.unread(n)
-		d.err = fmt.Errorf("buffer weren't fully read: want %v bytes, got %v", len(buf), n)
-		return
+func (d *Decoder) read(buf []byte) {
+	tmp := d.read2(len(buf))
+	if d.err == nil {
+		copy(buf, tmp)
 	}
 }
 
 func (d *Decoder) unread(count int) {
-	for i := 0; i < count; i++ {
-		if d.buf.UnreadByte() != nil {
-			return
-		}
+	d.pos -= count
+	if d.pos < 0 {
+		d.pos = 0
 	}
 }
 
 func (d *Decoder) PopLong() int64 {
-	val := make([]byte, LongLen)
-	d.read(val)
+	val := d.read2(LongLen)
 	if d.err != nil {
 		return 0
 	}
@@ -84,8 +87,7 @@ func (d *Decoder) PopLong() int64 {
 }
 
 func (d *Decoder) PopDouble() float64 {
-	val := make([]byte, DoubleLen)
-	d.read(val)
+	val := d.read2(DoubleLen)
 	if d.err != nil {
 		return 0
 	}
@@ -94,8 +96,7 @@ func (d *Decoder) PopDouble() float64 {
 }
 
 func (d *Decoder) PopUint() uint32 {
-	val := make([]byte, WordLen)
-	d.read(val)
+	val := d.read2(WordLen)
 	if d.err != nil {
 		return 0
 	}
@@ -104,13 +105,7 @@ func (d *Decoder) PopUint() uint32 {
 }
 
 func (d *Decoder) PopRawBytes(size int) []byte {
-	val := make([]byte, size)
-	d.read(val)
-	if d.err != nil {
-		return nil
-	}
-
-	return val
+	return bytes.Clone(d.read2(size))
 }
 
 func (d *Decoder) PopBool() bool {
@@ -151,11 +146,12 @@ func (d *Decoder) PopInt() int32 {
 }
 
 func (d *Decoder) GetRestOfMessage() ([]byte, error) {
-	return io.ReadAll(d.buf)
+	m := len(d.buf) - d.pos
+	return bytes.Clone(d.read2(m)), d.err
 }
 
 func (d *Decoder) DumpWithoutRead() ([]byte, error) {
-	data, err := io.ReadAll(d.buf)
+	data, err := d.GetRestOfMessage()
 	if err != nil {
 		return nil, err
 	}
@@ -212,59 +208,28 @@ func (d *Decoder) popVector(as reflect.Type, ignoreCRC bool) any {
 }
 
 func (d *Decoder) PopMessage() []byte {
-	val := []byte{0}
+	return bytes.Clone(d.popBytes())
+}
 
-	d.read(val)
-	if d.err != nil {
+func (d *Decoder) popBytes() []byte {
+	tmp := d.PopUint()
+
+	size := int(tmp & 0xff)
+	pad := 0
+
+	switch {
+	case size == 0:
 		return nil
+	case size == 254:
+		size = int(tmp >> 8)
+		pad = padding4(size)
+	default:
+		pad = padding4(size + 1)
+		d.unread(3)
 	}
 
-	firstByte := val[0]
-
-	var realSize int
-	var lenNumberSize int
-
-	if firstByte != MagicNumber {
-		realSize = int(firstByte)
-		lenNumberSize = 1
-	} else {
-
-		val = make([]byte, WordLen-1)
-		d.read(val)
-		if d.err != nil {
-			d.err = errors.Wrapf(d.err, "reading last %v bytes of message size", WordLen-1)
-			return nil
-		}
-
-		val = append(val, 0x0)
-
-		realSize = int(binary.LittleEndian.Uint32(val))
-		lenNumberSize = WordLen
-	}
-
-	buf := make([]byte, realSize)
-	d.read(buf)
-	if d.err != nil {
-		d.err = errors.Wrapf(d.err, "reading message data with len of %v", realSize)
-		return nil
-	}
-
-	readLen := lenNumberSize + realSize
-	if readLen%WordLen != 0 {
-		voidBytes := make([]byte, WordLen-readLen%WordLen)
-		d.read(voidBytes)
-		if d.err != nil {
-			d.err = errors.Wrapf(d.err, "reading %v last void bytes", WordLen-readLen%WordLen)
-			return nil
-		}
-
-		for _, b := range voidBytes {
-			if b != 0 {
-				d.err = fmt.Errorf("some of void bytes doesn't equal zero: %#v", voidBytes)
-				return nil
-			}
-		}
-	}
+	buf := d.read2(size)
+	_ = d.read2(pad) // padding
 
 	return buf
 }
