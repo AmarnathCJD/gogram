@@ -575,42 +575,19 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 	return nil, errors.New("no response")
 }
 
-// SendReaction sends a reaction to a message.
-// This method is a wrapper for messages.sendReaction
-//
-//	Params:
-//	 - peerID: ID of the peer to send the message to.
-//	 - msgID: ID of the message to react to.
-//	 - reaction: Reaction to send.
-//	 - big: Whether to use big emoji.
+// SendReaction sends a reaction to a message, which can be an emoji or a custom emoji.
 func (c *Client) SendReaction(peerID interface{}, msgID int32, reaction interface{}, big ...bool) error {
 	b := getVariadic(big, false)
 	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return err
 	}
-	var r []Reaction
-	switch reaction := reaction.(type) {
-	case string:
-		if reaction == "" {
-			r = append(r, &ReactionEmpty{})
-		}
-		r = append(r, &ReactionEmoji{reaction})
-	case []string:
-		for _, v := range reaction {
-			if v == "" {
-				r = append(r, &ReactionEmpty{})
-			}
-			r = append(r, &ReactionEmoji{v})
-		}
-	case ReactionCustomEmoji:
-		r = append(r, &reaction)
-	case []ReactionCustomEmoji:
-		for _, v := range reaction {
-			v := v
-			r = append(r, &v)
-		}
+
+	r, err := convertReaction(reaction)
+	if err != nil {
+		return err
 	}
+
 	_, err = c.MessagesSendReaction(&MessagesSendReactionParams{
 		Peer:        peer,
 		Big:         b,
@@ -619,6 +596,45 @@ func (c *Client) SendReaction(peerID interface{}, msgID int32, reaction interfac
 		Reaction:    r,
 	})
 	return err
+}
+
+func convertReaction(reaction interface{}) ([]Reaction, error) {
+	var r []Reaction
+	switch v := reaction.(type) {
+	case string:
+		r = append(r, createReactionFromString(v))
+	case []string:
+		for _, s := range v {
+			r = append(r, createReactionFromString(s))
+		}
+	case ReactionCustomEmoji:
+		r = append(r, &v)
+	case []ReactionCustomEmoji:
+		for _, ce := range v {
+			r = append(r, &ce)
+		}
+	case []any:
+		for _, i := range v {
+			switch iv := i.(type) {
+			case string:
+				r = append(r, createReactionFromString(iv))
+			case ReactionCustomEmoji:
+				r = append(r, &iv)
+			default:
+				return nil, errors.New("invalid reaction type in array")
+			}
+		}
+	default:
+		return nil, errors.New("invalid reaction type")
+	}
+	return r, nil
+}
+
+func createReactionFromString(s string) Reaction {
+	if s == "" {
+		return &ReactionEmpty{}
+	}
+	return &ReactionEmoji{s}
 }
 
 // SendDice sends a special dice message.
@@ -1143,12 +1159,13 @@ func convertOption(s *SendOptions) *MediaOptions {
 // 	return rv.Index(0).Interface()
 // }
 
-func getVariadic[T any](opts []T, def T) T {
+func getVariadic[T comparable](opts []T, def T) T {
 	if len(opts) == 0 {
 		return def
 	}
 	first := opts[0]
-	if reflect.ValueOf(first).IsNil() {
+	var zero T
+	if first == zero {
 		return def
 	}
 	return first

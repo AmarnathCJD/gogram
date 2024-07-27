@@ -723,7 +723,7 @@ func MessageRequireToAck(msg tl.Object) bool {
 
 func (m *MTProto) offsetTime() {
 	currentLocalTime := time.Now().Unix()
-	client := http.Client{Timeout: 5 * time.Second}
+	client := http.Client{Timeout: 2 * time.Second}
 
 	resp, err := client.Get("http://worldtimeapi.org/api/ip")
 	if err != nil {
