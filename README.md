@@ -43,24 +43,6 @@ identity (bot API alternative) using Go.</p>
 > gogram is currently in beta stage: there may be a few bugs  
 > feel free to try it out, though, any feedback is appreciated!
 
-## 📚 Table of Contents
-
-- [🚀 Setup](#setup)
-- [⚡ Quick Start](#quick-start)
-- [💖 Support Dev](#support-dev)
-- [🌟 Key Features](#key-features)
-- [💡 Doing Stuff](#doing-stuff)
-  - [💬 Sending a Message](#sending-a-message)
-  - [📷 Sending Media](#sending-media)
-  - [🔍 Inline Queries](#inline-queries)
-  - [🔔 Callback Queries](#callback-queries)
-- [🛠️ Features](#features)
-- [🐞 Known Issues](#known-issues)
-- [👥 Contributing](#contributing)
-- [📜 License](#license)
-
-
-
 ## setup
 
 <p>please note that gogram requires Go <b>1.18</b> or later to support go-generics</p>
@@ -115,7 +97,6 @@ If you'd like to support Gogram, you can consider:
   <li><strong>feature-rich</strong>: 🌟 built-in support for file uploading, formatting, custom keyboards, message editing, moderation tools and more.</li>
   <li><strong>up-to-date</strong>: 🔄 gogram is always in sync with the latest telegram api changes and additions (<code>tl-parser</code> is used to generate the api layer).</li>
 </ul>
-
 
 #### Current Layer - **184** (Updated on 2024-07-07)
 
