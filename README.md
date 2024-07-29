@@ -43,6 +43,23 @@ identity (bot API alternative) using Go.</p>
 > gogram is currently in beta stage: there may be a few bugs  
 > feel free to try it out, though, any feedback is appreciated!
 
+## 📚 Table of Contents
+
+- [🚀 Setup](#setup)
+- [⚡ Quick Start](#quick-start)
+- [💖 Support Dev](#support-dev)
+- [🌟 Key Features](#key-features)
+- [💡 Doing Stuff](#doing-stuff)
+  - [💬 Sending a Message](#sending-a-message)
+  - [📷 Sending Media](#sending-media)
+  - [🔍 Inline Queries](#inline-queries)
+  - [🔔 Callback Queries](#callback-queries)
+- [🛠️ Features](#features)
+- [🐞 Known Issues](#known-issues)
+- [👥 Contributing](#contributing)
+- [📜 License](#license)
+
+
 
 ## setup
 
