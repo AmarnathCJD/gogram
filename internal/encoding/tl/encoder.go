@@ -6,19 +6,29 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/pkg/errors"
 )
 
+var bufferPool = sync.Pool{
+	New: func() any {
+		return bytes.NewBuffer(make([]byte, 8*1024)) // 8kb
+	},
+}
+
 func Marshal(v any) ([]byte, error) {
-	buf := bytes.NewBuffer(nil)
+	buf := bufferPool.Get().(*bytes.Buffer)
+	defer bufferPool.Put(buf)
+	buf.Reset()
+
 	encoder := NewEncoder(buf)
 	encoder.encodeValue(reflect.ValueOf(v))
 	if err := encoder.CheckErr(); err != nil {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return bytes.Clone(buf.Bytes()), nil
 }
 
 func (c *Encoder) encodeValue(value reflect.Value) {
