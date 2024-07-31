@@ -500,6 +500,7 @@ func (*BotCommand) CRC() uint32 {
 
 // Info about bots (available bot commands, etc)
 type BotInfo struct {
+	HasPreviewMedias    bool          `tl:"flag:6,encoded_in_bitflags"`
 	UserID              int64         `tl:"flag:0"`
 	Description         string        `tl:"flag:1"`
 	DescriptionPhoto    Photo         `tl:"flag:4"`
@@ -516,6 +517,15 @@ func (*BotInfo) FlagIndex() int {
 	return 0
 }
 
+type BotPreviewMedia struct {
+	Date  int32
+	Media MessageMedia
+}
+
+func (*BotPreviewMedia) CRC() uint32 {
+	return 0x23e91ba3
+}
+
 // Localized information about a bot.
 type BotsBotInfo struct {
 	Name        string
@@ -525,6 +535,28 @@ type BotsBotInfo struct {
 
 func (*BotsBotInfo) CRC() uint32 {
 	return 0xe8a775b0
+}
+
+type BotsPopularAppBots struct {
+	NextOffset string `tl:"flag:0"`
+	Users      []User
+}
+
+func (*BotsPopularAppBots) CRC() uint32 {
+	return 0x1991b13b
+}
+
+func (*BotsPopularAppBots) FlagIndex() int {
+	return 0
+}
+
+type BotsPreviewInfo struct {
+	Media     []*BotPreviewMedia
+	LangCodes []string
+}
+
+func (*BotsPreviewInfo) CRC() uint32 {
+	return 0xca71d64
 }
 
 type BroadcastRevenueBalances struct {
@@ -3459,6 +3491,22 @@ func (*SponsoredMessageReportOption) CRC() uint32 {
 	return 0x430d3150
 }
 
+type StarsGiftOption struct {
+	Extended     bool `tl:"flag:1,encoded_in_bitflags"`
+	Stars        int64
+	StoreProduct string `tl:"flag:0"`
+	Currency     string
+	Amount       int64
+}
+
+func (*StarsGiftOption) CRC() uint32 {
+	return 0x5e0589f1
+}
+
+func (*StarsGiftOption) FlagIndex() int {
+	return 0
+}
+
 type StarsRevenueStatus struct {
 	WithdrawalEnabled bool `tl:"flag:0,encoded_in_bitflags"`
 	CurrentBalance    int64
@@ -3495,6 +3543,7 @@ type StarsTransaction struct {
 	Refund          bool `tl:"flag:3,encoded_in_bitflags"`
 	Pending         bool `tl:"flag:4,encoded_in_bitflags"`
 	Failed          bool `tl:"flag:6,encoded_in_bitflags"`
+	Gift            bool `tl:"flag:10,encoded_in_bitflags"`
 	ID              string
 	Stars           int64
 	Date            int32
