@@ -5,6 +5,7 @@ package utils
 import (
 	"fmt"
 	"log"
+	"runtime"
 	"strings"
 )
 
@@ -113,7 +114,10 @@ func (l *Logger) Trace(v ...any) {
 }
 
 func (l *Logger) Panic(v ...any) {
-	log.Panic(colorize(colorCyan, "[panic]"), l.Prefix, "-", getVariable(v...))
+	stack := make([]byte, 1024)
+	runtime.Stack(stack, false)
+
+	log.Println(colorize(colorCyan, "[panic]"), l.Prefix, "-", getVariable(v...), "\n", colorize(colorOrange, string(stack)))
 }
 
 // NewLogger returns a new Logger instance.
