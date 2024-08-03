@@ -70,12 +70,12 @@ type MTProto struct {
 	serviceChannel       chan tl.Object
 	serviceModeActivated bool
 
-	authKey404     []int64
-	shouldTransfer bool
+	authKey404 []int64
 
 	Logger *utils.Logger
 
 	serverRequestHandlers []func(i any) bool
+	floodHandler          func(err error) bool
 }
 
 type Config struct {
@@ -84,6 +84,7 @@ type Config struct {
 	SessionStorage session.SessionLoader
 	MemorySession  bool
 	AppID          int32
+	FloodHandler   func(err error) bool
 
 	ServerHost string
 	PublicKey  *rsa.PublicKey
@@ -130,6 +131,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		memorySession:         c.MemorySession,
 		appID:                 c.AppID,
 		proxy:                 c.Proxy,
+		floodHandler:          func(err error) bool { return false },
 	}
 
 	mtproto.Logger.Debug("initializing mtproto...")
@@ -142,7 +144,9 @@ func NewMTProto(c Config) (*MTProto, error) {
 		return nil, errors.Wrap(err, "loading auth")
 	}
 
-	//go mtproto.checkBreaking()
+	if c.FloodHandler != nil {
+		mtproto.floodHandler = c.FloodHandler
+	}
 
 	return mtproto, nil
 }
@@ -209,10 +213,6 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 	return true, nil
 }
 
-func (m *MTProto) SetTransfer(transfer bool) {
-	m.shouldTransfer = transfer
-}
-
 func (m *MTProto) GetDC() int {
 	return utils.SearchAddr(m.Addr)
 }
@@ -231,10 +231,10 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 	}
 	newAddr := utils.GetAddr(dc)
 	if newAddr == "" {
-		return nil, errors.New("invalid data center id provided")
+		return nil, errors.New("dc_id not found")
 	}
 
-	m.Logger.Debug("migrating to new dc... (dc: " + strconv.Itoa(dc) + ")")
+	m.Logger.Debug("migrating to new DC... dc-" + strconv.Itoa(dc))
 	m.sessionStorage.Delete()
 	m.Logger.Debug("deleted old auth key file")
 	cfg := Config{
@@ -342,8 +342,6 @@ func (m *MTProto) connect(ctx context.Context) error {
 		return fmt.Errorf("creating transport: %w", err)
 	}
 
-	m.SetTransfer(true)
-
 	go closeOnCancel(ctx, m.transport)
 	return nil
 }
@@ -367,20 +365,18 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	response := <-resp
 	switch r := response.(type) {
 	case *objects.RpcError:
-		// if err := RpcErrorToNative(r).(*ErrResponseCode); strings.Contains(err.Message, "FLOOD_WAIT_") {
-		//		m.Logger.Info("flood wait detected on '" + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf("' request. sleeping for %s", (time.Duration(realErr.AdditionalInfo.(int))*time.Second).String()))
-		//		time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
-		//		return m.makeRequest(data, expectedTypes...) TODO: implement flood wait correctly
-		// }
+		if err := RpcErrorToNative(r).(*ErrResponseCode); strings.Contains(err.Message, "FLOOD_WAIT_") || strings.Contains(err.Message, "FLOOD_PREMIUM_WAIT_") {
+			if done := m.floodHandler(err); !done {
+				return nil, RpcErrorToNative(r)
+			} else {
+				return m.makeRequest(data, expectedTypes...)
+			}
+		}
 		return nil, RpcErrorToNative(r)
 
 	case *errorSessionConfigsChanged:
 		m.Logger.Debug("session configs changed, resending request")
 		return m.makeRequest(data, expectedTypes...)
-
-	case *errorReconnectRequired:
-		m.Logger.Info("req info: " + fmt.Sprintf("%T", data))
-		return nil, errors.New("required to reconnect!")
 	}
 
 	return tl.UnwrapNativeTypes(response), nil
@@ -402,12 +398,6 @@ func (m *MTProto) Disconnect() error {
 	m.stopRoutines()
 	m.tcpActive = false
 
-	// for _, v := range m.responseChannels.Keys() {
-	// 	ch, _ := m.responseChannels.Get(v)
-	// 	ch <- &errorReconnectRequired{}
-	// }
-
-	// m.responseChannels.Close()
 	return nil
 }
 
@@ -436,7 +426,6 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		PingID: 123456789,
 	})
 
-	//m.MakeRequest(&utils.UpdatesGetStateParams{}) // to ask the server to send the updates
 	return errors.Wrap(err, "recreating connection")
 }
 
@@ -506,21 +495,9 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					switch e := err.(type) {
 					case *ErrResponseCode:
 						if e.Code == 4294966892 {
-							if m.authKey404 == nil || len(m.authKey404) == 0 {
-								m.authKey404 = []int64{1, time.Now().Unix()}
-							} else {
-								if time.Now().Unix()-m.authKey404[1] < 30 { // repeated failures
-									m.authKey404[0]++
-								} else {
-									m.authKey404[0] = 1
-								}
-								m.authKey404[1] = time.Now().Unix()
-							}
-							if m.authKey404[0] > 3 {
-								panic("[AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)")
-							} else {
-								m.Logger.Error(errors.New("(retry: " + strconv.FormatInt(m.authKey404[0], 10) + ") [AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)"))
-							}
+							m.handle404Error()
+						} else {
+							m.Logger.Debug(errors.New("[RESPONSE_ERROR_CODE] - " + e.Error()))
 						}
 					case *transport.ErrCode:
 						m.Logger.Error(errors.New("[TRANSPORT_ERROR_CODE] - " + e.Error()))
@@ -535,6 +512,30 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			}
 		}
 	}()
+}
+
+func (m *MTProto) handle404Error() {
+	if m.authKey404 == nil || len(m.authKey404) == 0 {
+		m.authKey404 = []int64{1, time.Now().Unix()}
+	} else {
+		if time.Now().Unix()-m.authKey404[1] < 30 { // repeated failures
+			m.authKey404[0]++
+		} else {
+			m.authKey404[0] = 1
+		}
+		m.authKey404[1] = time.Now().Unix()
+	}
+	if m.authKey404[0] == 4 {
+		m.Logger.Error(errors.New("(last retry: 4) reconnecting due to [AUTH_KEY_INVALID] (code -404)"))
+		err := m.Reconnect(false)
+		if err != nil {
+			m.Logger.Error(errors.Wrap(err, "reconnecting"))
+		}
+	} else if m.authKey404[0] > 4 {
+		panic("[AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)")
+	} else {
+		m.Logger.Error(errors.New("(retry: " + strconv.FormatInt(m.authKey404[0], 10) + ") [AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)"))
+	}
 }
 
 func (m *MTProto) readMsg() error {
@@ -756,20 +757,3 @@ func closeOnCancel(ctx context.Context, c io.Closer) {
 		c.Close()
 	}()
 }
-
-// func (m *MTProto) checkBreaking() {
-// 	ticker := time.NewTicker(2 * time.Second)
-// 	defer ticker.Stop()
-
-// 	for range ticker.C {
-// 		if m.shouldTransfer && !m.TcpActive() {
-// 			//m.CreateConnection(false)
-// 			for i := 0; i < 2; i++ {
-// 				//_, err := m.MakeRequest(&utils.UpdatesGetStateParams{})
-// 				//if err == nil {
-// 					break
-// 				}
-// 			}
-// 		}
-// 	}
-// }

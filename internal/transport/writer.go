@@ -9,8 +9,8 @@ import (
 	"strconv"
 )
 
-// CancelableReader is a wrapper around io.Reader, that allows to cancel read operation.
-type CancelableReader struct {
+// Reader is a wrapper around io.Reader, that allows to cancel read operation.
+type Reader struct {
 	ctx  context.Context
 	data chan []byte
 
@@ -20,7 +20,7 @@ type CancelableReader struct {
 	r   io.Reader
 }
 
-func (c *CancelableReader) begin() {
+func (c *Reader) begin() {
 	for {
 		select {
 		case sizeWant := <-c.sizeWant:
@@ -43,20 +43,7 @@ func (c *CancelableReader) begin() {
 	}
 }
 
-// func isClosed(ch <-chan int) bool {
-// 	select {
-// 	case <-ch:
-// 		return true
-// 	default:
-// 	}
-// 	return false
-// }
-
-func (c *CancelableReader) Read(p []byte) (int, error) {
-	// if isClosed(c.sizeWant) {
-	// 	return 0, c.err
-	// }
-
+func (c *Reader) Read(p []byte) (int, error) {
 	select {
 	case <-c.ctx.Done():
 		return 0, c.ctx.Err()
@@ -75,7 +62,7 @@ func (c *CancelableReader) Read(p []byte) (int, error) {
 	}
 }
 
-func (c *CancelableReader) ReadByte() (byte, error) {
+func (c *Reader) ReadByte() (byte, error) {
 	b := make([]byte, 1)
 
 	n, err := c.Read(b)
@@ -89,8 +76,8 @@ func (c *CancelableReader) ReadByte() (byte, error) {
 	return b[0], nil
 }
 
-func NewCancelableReader(ctx context.Context, r io.Reader) *CancelableReader {
-	c := &CancelableReader{
+func NewReader(ctx context.Context, r io.Reader) *Reader {
+	c := &Reader{
 		r:        r,
 		ctx:      ctx,
 		data:     make(chan []byte),

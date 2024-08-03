@@ -13,9 +13,9 @@ import (
 )
 
 type tcpConn struct {
-	cancelReader *CancelableReader
-	conn         *net.TCPConn
-	timeout      time.Duration
+	reader  *Reader
+	conn    *net.TCPConn
+	timeout time.Duration
 }
 
 type TCPConnConfig struct {
@@ -39,9 +39,9 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 	}
 
 	return &tcpConn{
-		cancelReader: NewCancelableReader(cfg.Ctx, conn),
-		conn:         conn,
-		timeout:      cfg.Timeout,
+		reader:  NewReader(cfg.Ctx, conn),
+		conn:    conn,
+		timeout: cfg.Timeout,
 	}, nil
 }
 
@@ -51,9 +51,9 @@ func newSocksTCP(cfg TCPConnConfig) (Conn, error) {
 		return nil, err
 	}
 	return &tcpConn{
-		cancelReader: NewCancelableReader(cfg.Ctx, conn),
-		conn:         conn.(*net.TCPConn),
-		timeout:      cfg.Timeout,
+		reader:  NewReader(cfg.Ctx, conn),
+		conn:    conn.(*net.TCPConn),
+		timeout: cfg.Timeout,
 	}, nil
 }
 
@@ -73,7 +73,7 @@ func (t *tcpConn) Read(b []byte) (int, error) {
 		}
 	}
 
-	n, err := t.cancelReader.Read(b)
+	n, err := t.reader.Read(b)
 	if err != nil {
 		if e, ok := err.(*net.OpError); ok {
 			if e.Err.Error() == "i/o timeout" {

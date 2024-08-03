@@ -24,12 +24,10 @@ import (
 )
 
 const (
-	// DefaultDC is the default data center id
+	// The Initial DC to connect to, before auth
 	DefaultDataCenter       = 4
 	DisconnectExportedAfter = 5 * time.Minute
 )
-
-// TODO: fix session file issue
 
 type clientData struct {
 	appID         int32
@@ -88,6 +86,7 @@ type ClientConfig struct {
 	TestMode      bool
 	LogLevel      string
 	Proxy         *url.URL
+	FloodHandler  func(err error) bool
 }
 
 type Session struct {
@@ -307,6 +306,8 @@ func (c *Client) Start() error {
 	} else if err != nil {
 		return err
 	}
+
+	c.stopCh = make(chan struct{}) // reset the stop channel
 	return nil
 }
 
@@ -544,7 +545,6 @@ func (c *Client) Idle() {
 func (c *Client) Stop() error {
 	close(c.stopCh)
 	go c.cleanExportedSenders()
-	c.MTProto.SetTransfer(false) // to stop connection break check.
 	return c.MTProto.Terminate()
 }
 
