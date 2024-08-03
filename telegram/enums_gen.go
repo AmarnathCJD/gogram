@@ -349,6 +349,7 @@ func (e SecureValueType) CRC() uint32 { return uint32(e) }
 type TopPeerCategory uint32
 
 const (
+	TopPeerCategoryBotsApp        TopPeerCategory = 0xfd9e7bec
 	TopPeerCategoryBotsInline     TopPeerCategory = 0x148677e2
 	TopPeerCategoryBotsPm         TopPeerCategory = 0xab661b5b
 	TopPeerCategoryChannels       TopPeerCategory = 0x161d9628
@@ -361,6 +362,8 @@ const (
 
 func (e TopPeerCategory) String() string {
 	switch e {
+	case TopPeerCategory(0xfd9e7bec):
+		return "topPeerCategoryBotsApp"
 	case TopPeerCategory(0x148677e2):
 		return "topPeerCategoryBotsInline"
 	case TopPeerCategory(0xab661b5b):

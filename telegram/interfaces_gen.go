@@ -2009,11 +2009,12 @@ type DocumentAttributeVideo struct {
 	Duration          float64
 	W                 int32
 	H                 int32
-	PreloadPrefixSize int32 `tl:"flag:2"`
+	PreloadPrefixSize int32   `tl:"flag:2"`
+	VideoStartTs      float64 `tl:"flag:4"`
 }
 
 func (*DocumentAttributeVideo) CRC() uint32 {
-	return 0xd38ff1c2
+	return 0x17399fad
 }
 
 func (*DocumentAttributeVideo) FlagIndex() int {
@@ -3156,6 +3157,16 @@ func (*InputFileBig) CRC() uint32 {
 
 func (*InputFileBig) ImplementsInputFile() {}
 
+type InputFileStoryDocument struct {
+	ID InputDocument
+}
+
+func (*InputFileStoryDocument) CRC() uint32 {
+	return 0x62dc8b48
+}
+
+func (*InputFileStoryDocument) ImplementsInputFile() {}
+
 type InputFileLocation interface {
 	tl.Object
 	ImplementsInputFileLocation()
@@ -3401,11 +3412,11 @@ func (*InputInvoiceSlug) CRC() uint32 {
 func (*InputInvoiceSlug) ImplementsInputInvoice() {}
 
 type InputInvoiceStars struct {
-	Option *StarsTopupOption
+	Purpose InputStorePaymentPurpose
 }
 
 func (*InputInvoiceStars) CRC() uint32 {
-	return 0x1da33ad8
+	return 0x65f00ce3
 }
 
 func (*InputInvoiceStars) ImplementsInputInvoice() {}
@@ -4376,17 +4387,30 @@ func (*InputStorePaymentPremiumSubscription) FlagIndex() int {
 
 func (*InputStorePaymentPremiumSubscription) ImplementsInputStorePaymentPurpose() {}
 
-type InputStorePaymentStars struct {
+type InputStorePaymentStarsGift struct {
+	UserID   InputUser
 	Stars    int64
 	Currency string
 	Amount   int64
 }
 
-func (*InputStorePaymentStars) CRC() uint32 {
-	return 0x4f0ee8df
+func (*InputStorePaymentStarsGift) CRC() uint32 {
+	return 0x1d741ef7
 }
 
-func (*InputStorePaymentStars) ImplementsInputStorePaymentPurpose() {}
+func (*InputStorePaymentStarsGift) ImplementsInputStorePaymentPurpose() {}
+
+type InputStorePaymentStarsTopup struct {
+	Stars    int64
+	Currency string
+	Amount   int64
+}
+
+func (*InputStorePaymentStarsTopup) CRC() uint32 {
+	return 0xdddd0f56
+}
+
+func (*InputStorePaymentStarsTopup) ImplementsInputStorePaymentPurpose() {}
 
 type InputTheme interface {
 	tl.Object
@@ -5020,6 +5044,19 @@ func (*MediaAreaVenue) CRC() uint32 {
 
 func (*MediaAreaVenue) ImplementsMediaArea() {}
 
+type MediaAreaWeather struct {
+	Coordinates  *MediaAreaCoordinates
+	Emoji        string
+	TemperatureC float64
+	Color        int32
+}
+
+func (*MediaAreaWeather) CRC() uint32 {
+	return 0x49a6549c
+}
+
+func (*MediaAreaWeather) ImplementsMediaArea() {}
+
 type Message interface {
 	tl.Object
 	ImplementsMessage()
@@ -5366,6 +5403,25 @@ func (*MessageActionGiftPremium) FlagIndex() int {
 }
 
 func (*MessageActionGiftPremium) ImplementsMessageAction() {}
+
+type MessageActionGiftStars struct {
+	Currency       string
+	Amount         int64
+	Stars          int64
+	CryptoCurrency string `tl:"flag:0"`
+	CryptoAmount   int64  `tl:"flag:0"`
+	TransactionID  string `tl:"flag:1"`
+}
+
+func (*MessageActionGiftStars) CRC() uint32 {
+	return 0x45d5b021
+}
+
+func (*MessageActionGiftStars) FlagIndex() int {
+	return 0
+}
+
+func (*MessageActionGiftStars) ImplementsMessageAction() {}
 
 // A [giveaway](https://core.telegram.org/api/giveaways) was started.
 type MessageActionGiveawayLaunch struct{}
@@ -10945,6 +11001,7 @@ type UserObj struct {
 	StoriesUnavailable    bool `tl:"flag2:4,encoded_in_bitflags"`
 	ContactRequirePremium bool `tl:"flag2:10,encoded_in_bitflags"`
 	BotBusiness           bool `tl:"flag2:11,encoded_in_bitflags"`
+	BotHasMainApp         bool `tl:"flag2:13,encoded_in_bitflags"`
 	ID                    int64
 	AccessHash            int64                `tl:"flag:0"`
 	FirstName             string               `tl:"flag:1"`
@@ -10962,10 +11019,11 @@ type UserObj struct {
 	StoriesMaxID          int32                `tl:"flag2:5"`
 	Color                 *PeerColor           `tl:"flag2:8"`
 	ProfileColor          *PeerColor           `tl:"flag2:9"`
+	BotActiveUsers        int32                `tl:"flag2:12"`
 }
 
 func (*UserObj) CRC() uint32 {
-	return 0x215c4438
+	return 0x83314fca
 }
 
 func (*UserObj) FlagIndex() int {

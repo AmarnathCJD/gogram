@@ -3,54 +3,55 @@
         <img src="https://i.imgur.com/RE1M0sM.png" alt="Gogram" width="256">
     </a>
     <br>
-    <b>Telegram MTProto API Framework for Golang</b>
+    <b>modern golang library for mtproto</b>
     <br>
     <b>
-    <a href="/">
-        HOME
-    </a>
-    •
-    <a href="/examples/">
-        DOCS
-    </a>
-    •
-    <a href="https://github.com/amarnathcjd/gogram/releases">
-        RELEASES
-    </a>
-    •
-    <a href="https://t.me/rosexchat">
-        SUPPORT
-    </a>
+    <a href="https://gogramd.vercel.app">documentation</a>
+    &nbsp;•&nbsp;
+    <a href="https://github.com/amarnathcjd/gogram/releases">releases</a>
+    &nbsp;•&nbsp;
+    <a href="https://t.me/rosexchat">telegram chat</a>
     </b>
 </p>
 
-## <b>GoGram</b>
+<div align='center'>
+<a href="https://godoc.org/github.com/amarnathcjd/gogram" style='text-decoration: none'>
+    <img src="https://godoc.org/github.com/amarnathcjd/gogram?status.svg" alt="GoDoc">
+</a>
+<a href="https://goreportcard.com/report/github.com/amarnathcjd/gogram" style='text-decoration: none'>
+    <img src="https://goreportcard.com/badge/github.com/amarnathcjd/gogram" alt="Go Report Card">
+</a>
+<a href="https://img.shields.io/github/license/amarnathcjd/gogram.svg" style='text-decoration: none'>
+    <img src="https://img.shields.io/github/license/amarnathcjd/gogram.svg" alt="License">
+</a>
+<a href="https://img.shields.io/github/stars/amarnathcjd/gogram.svg?style=social&label=Stars" style='text-decoration: none'>
+    <img src="https://img.shields.io/github/stars/amarnathcjd/gogram.svg?style=social&label=Stars" alt="GitHub stars">
+</a>
+<a href="https://img.shields.io/github/forks/amarnathcjd/gogram.svg?style=social&label=Fork">
+    <img src="https://img.shields.io/github/forks/amarnathcjd/gogram.svg?style=social&label=Fork" alt="GitHub forks">
+</a>
+</div>
 
-<p>Light Weight, Fast, Elegant Telegram <b><a href="https://core.telegram.org/api">MTProto API</a></b> framework in <b><a href="https://golang.org/">Golang</a></b> for building Telegram clients and bots.</p>
-
-## Status
-
-[![GoDoc](https://godoc.org/github.com/amarnathcjd/gogram?status.svg)](https://godoc.org/github.com/amarnathcjd/gogram)
-[![Go Report Card](https://goreportcard.com/badge/github.com/amarnathcjd/gogram)](https://goreportcard.com/report/github.com/amarnathcjd/gogram)
-[![License](https://img.shields.io/github/license/amarnathcjd/gogram.svg)](https://img.shields.io/github/license/amarnathcjd/gogram.svg)
-[![GitHub stars](https://img.shields.io/github/stars/amarnathcjd/gogram.svg?style=social&label=Stars)](https://img.shields.io/github/license/amarnathcjd/gogram.svg?style=social&label=Stars)
-[![GitHub forks](https://img.shields.io/github/forks/amarnathcjd/gogram.svg?style=social&label=Fork)](https://img.shields.io/github/license/amarnathcjd/gogram.svg?style=social&label=Fork)
-[![GitHub issues](https://img.shields.io/github/issues/amarnathcjd/gogram.svg)](https://img.shields.io/github/license/amarnathcjd/gogram.svg)
-[![GitHub pull requests](https://img.shields.io/github/issues-pr/amarnathcjd/gogram.svg)](https://img.shields.io/github/license/amarnathcjd/gogram.svg)
+<br>
 
 <p>⭐️ <b>Gogram</b> is a modern, elegant and concurrent <b><a href='https://core.telegram.org/api'>MTProto API</a></b>
 framework. It enables you to easily interact with the main Telegram API through a user account (custom client) or a bot
 identity (bot API alternative) using Go.</p>
+<br>
 
-## Setup
+> [!WARNING]
+> gogram is currently in beta stage: there may be a few bugs  
+> feel free to try it out, though, any feedback is appreciated!
 
-<p>Please note that Gogram requires Go <b>1.18</b> or later.</p>
+## setup
+
+<p>please note that gogram requires Go <b>1.18</b> or later to support go-generics</p>
 
 ```bash
 go get -u github.com/amarnathcjd/gogram/telegram
 ```
 
-## Getting Started
+## quick start
 
 ```golang
 package main
@@ -60,7 +61,6 @@ import "github.com/amarnathcjd/gogram/telegram"
 func main() {
 	client, err := telegram.NewClient(telegram.ClientConfig{
 		AppID: 6, AppHash: "<app-hash>",
-		// StringSession: "<string-session>",
 	})
 
 	if err != nil {
@@ -71,38 +71,40 @@ func main() {
 
 	client.On(telegram.OnMessage, func(message *telegram.NewMessage) error { // client.AddMessageHandler
 			message.Reply("Hello from Gogram!")
-        	return nil
-	}, 
-        telegram.FilterPrivate) // waits for private messages only
+        		return nil
+	}, telegram.FilterPrivate) // waits for private messages only
 
 	client.Idle() // block main goroutine until client is closed
 }
 ```
 
-## Support
+## support dev
 
 If you'd like to support Gogram, you can consider:
 
-- [Become a GitHub sponsor](https://github.com/sponsors/amarnathcjd).
+- <a href="https://github.com/sponsors/amarnathcjd" style="text-decoration: none; color: green;">become a github sponsor</a>
+- star this repo :)
 
-## Key Features
+## key features
 
-- **Ready**: Install Gogram with go get and you are ready to go!
-- **Easy**: Makes the Telegram API simple and intuitive, while still allowing advanced usages.
-- **Elegant**: Low-level details are abstracted and re-presented in a more convenient way.
-- **Fast**: Backed by a powerful and concurrent library, Gogram can handle even the heaviest workloads.
-- **Zero Dependencies**: No need to install anything else than Gogram itself.
-- **Powerful**: Full access to Telegram's API to execute any official client action and more.
-- **Feature-Rich**: Built-in support for file uploading, formatting, custom keyboards, message editing, moderation tools and more.
-- **Up-to-date**: Gogram is always in sync with the latest Telegram API changes and additions (`tl-parser` is used to generate the API layer).
+<ul>
+  <li><strong>ready</strong>: 🚀 install gogram with <code>go get</code> and you are ready to go!</li>
+  <li><strong>easy</strong>: 😊 makes the telegram api simple and intuitive, while still allowing advanced usages.</li>
+  <li><strong>elegant</strong>: 💎 low-level details are abstracted and re-presented in a more convenient way.</li>
+  <li><strong>fast</strong>: ⚡ backed by a powerful and concurrent library, gogram can handle even the heaviest workloads.</li>
+  <li><strong>zero dependencies</strong>: 🛠️ no need to install anything else than gogram itself.</li>
+  <li><strong>powerful</strong>: 💪 full access to telegram's api to execute any official client action and more.</li>
+  <li><strong>feature-rich</strong>: 🌟 built-in support for file uploading, formatting, custom keyboards, message editing, moderation tools and more.</li>
+  <li><strong>up-to-date</strong>: 🔄 gogram is always in sync with the latest telegram api changes and additions (<code>tl-parser</code> is used to generate the api layer).</li>
+</ul>
 
-#### Current Layer - **184** (Updated on 2024-07-07)
+#### Current Layer - **185** (Updated on 2024-07-31)
 
-## Doing Stuff
-
-#### Sending a Message
+## doing stuff
 
 ```golang
+// sending a message
+
 client.SendMessage("username", "Hello from Gogram!")
 
 client.SendDice("username", "🎲")
@@ -113,9 +115,9 @@ client.On("message:/start", func(m *telegram.NewMessage) error {
 })
 ```
 
-#### Sending Media
-
 ```golang
+// sending media
+
 client.SendMedia("username", "<file-name>", &telegram.MediaOptions{ // filename/inputmedia,...
     Caption: "Hello from Gogram!",
     TTL: int32((math.Pow(2, 31) - 1)), //  TTL For OneTimeMedia
@@ -140,9 +142,9 @@ client.SendMedia("username", "<file-name>", &telegram.MediaOptions{
 })
 ```
 
-#### Inline Queries
-
 ```golang
+// inline queries
+
 client.On("inline:<pattern>", func(iq *telegram.InlineQuery) error { // client.AddInlineHandler
 	builder := iq.Builder()
 	builder.Article("<title>", "<description>", "<text>", &telegram.ArticleOptions{
@@ -153,9 +155,9 @@ client.On("inline:<pattern>", func(iq *telegram.InlineQuery) error { // client.A
 })
 ```
 
-#### Callback Queries
-
 ```golang
+// callback queries
+
 client.On("callback:<pattern>", func(cb *telegram.CallbackQuery) error { // client.AddCallbackHandler
     cb.Answer("This is a callback response", &CallbackOptions{
 		Alert: true,
@@ -164,33 +166,28 @@ client.On("callback:<pattern>", func(cb *telegram.CallbackQuery) error { // clie
 })
 ```
 
-For more examples, check the [examples](examples) directory.
+For more examples, check the **[examples](examples)** directory.
 
-## Features TODO
+## features
 
-- [x] Basic MTProto implementation (LAYER 184)
-- [x] Updates handling system + Cache
-- [x] HTML, Markdown Parsing, Friendly Methods
-- [x] Support for Flag2.0, Layer 147
-- [x] WebRTC Calls Support
-- [ ] Documentation for all methods
-- [x] Stabilize File Uploading
-- [x] Stabilize File Downloading
-- [ ] Secret Chats Support
-- [ ] Cdn DC Support
+- [x] basic mtproto implementation (layer 184)
+- [x] updates handling system + cache
+- [x] html, markdown parsing, friendly methods
+- [x] support for flag2.0, layer 147
+- [x] webrtc calls support
+- [ ] documentation for all methods
+- [x] stabilize file uploading
+- [x] stabilize file downloading
+- [ ] secret chats support
+- [ ] cdn dc support
 
-## Known Issues
+## known issues
 
-- [x] ~ Open Issues if Found :)
+- [x] ~ open issues if found :)
 
-## Contributing
+## contributing
 
 Gogram is an open-source project and your contribution is very much appreciated. If you'd like to contribute, simply fork the repository, commit your changes and send a pull request. If you have any questions, feel free to ask.
-
-## Resources
-
-- Documentation: [documentation](https://gogramd.vercel.app) (not finished yet)
-- Support: [@rosexchat](https://t.me/rosexchat), [@EvieSupport](https://t.me/EvieSupport)
 
 ## License
 
