@@ -146,17 +146,17 @@ func getErrorCode(err error) (int, int) {
 	return datacenter, code
 }
 
-func getFloodWait(err error) time.Duration {
+func getFloodWait(err error) int {
 	if err != nil {
 		if re := regexp.MustCompile(`A wait of (\d+) seconds is required`); re.MatchString(err.Error()) {
 			wait, _ := strconv.Atoi(re.FindStringSubmatch(err.Error())[1])
-			return time.Duration(wait) * time.Second
+			return wait
 		} else if re := regexp.MustCompile(`FLOOD_WAIT_(\d+)`); re.MatchString(err.Error()) {
 			wait, _ := strconv.Atoi(re.FindStringSubmatch(err.Error())[1])
-			return time.Duration(wait) * time.Second
+			return wait
 		} else if re := regexp.MustCompile(`FLOOD_PREMIUM_WAIT_(\d+)`); re.MatchString(err.Error()) {
 			wait, _ := strconv.Atoi(re.FindStringSubmatch(err.Error())[1])
-			return time.Duration(wait) * time.Second
+			return wait
 		}
 	}
 

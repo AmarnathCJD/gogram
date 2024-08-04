@@ -61,6 +61,20 @@ func (s *Source) GetSizeAndName() (int64, string) {
 	return 0, ""
 }
 
+func (s *Source) GetName() string {
+	switch src := s.Source.(type) {
+	case string:
+		file, err := os.Open(src)
+		if err != nil {
+			return ""
+		}
+		return file.Name()
+	case *os.File:
+		return src.Name()
+	}
+	return ""
+}
+
 func (s *Source) GetReader() io.Reader {
 	switch src := s.Source.(type) {
 	case string:
@@ -125,6 +139,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 	if opts.Threads > 0 {
 		numWorkers = opts.Threads
 	}
+
 	sender := make([]Sender, numWorkers)
 	sendersPreallocated := 0
 
@@ -140,27 +155,28 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 		}
 	}
 
-	c.Logger.Info(fmt.Sprintf("file - upload: (%s) - (%d) - (%d)", source, size, parts))
+	c.Logger.Info(fmt.Sprintf("file - upload: (%s) - (%d) - (%d)", source.GetName(), size, parts))
 	c.Logger.Info(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, sendersPreallocated))
 
 	c.Logger.Debug(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, sendersPreallocated))
-	var MAX_RETRIES = 3
-	var retries = 0
 
-	for i := sendersPreallocated; i < numWorkers; i++ {
-		x, _ := c.CreateExportedSender(c.GetDC())
-		if x == nil {
-			if retries < MAX_RETRIES {
-				retries++
-				i--
-				continue
-			}
-			c.Logger.Error("failed to create exported sender")
-			continue
+	nW := numWorkers
+	numWorkers = sendersPreallocated
+
+	createAndAppendSender := func(dcId int, senders []Sender, senderIndex int) {
+		conn, _ := c.CreateExportedSender(dcId)
+		if conn != nil {
+			senders[senderIndex] = Sender{c: conn}
+			go c.AddNewExportedSenderToMap(dcId, conn)
+			numWorkers++
 		}
-		c.AddNewExportedSenderToMap(c.GetDC(), x)
-		sender[i] = Sender{c: x}
 	}
+
+	go func() {
+		for i := sendersPreallocated; i < nW; i++ {
+			createAndAppendSender(c.GetDC(), sender, i)
+		}
+	}()
 
 	for p := int64(0); p < parts; p++ {
 		wg.Add(1)
@@ -179,22 +195,24 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 					sender[i].buzy = true
 					go func(i int, part []byte, p int) {
 						defer wg.Done()
-					uploadStartPoint:
+					partUploadStartPoint:
 						c.Logger.Debug(fmt.Sprintf("uploading part %d/%d in chunks of %d", p, totalParts, len(part)/1024))
 						if !IsFsBig {
 							_, err = sender[i].c.UploadSaveFilePart(fileId, int32(p), part)
-							hash.Write(part)
 						} else {
 							_, err = sender[i].c.UploadSaveBigFilePart(fileId, int32(p), int32(totalParts), part)
 						}
 						if err != nil {
 							if handleIfFlood(err, c) {
-								goto uploadStartPoint
+								goto partUploadStartPoint
 							}
 							c.Logger.Error(err)
 						}
 						if opts.ProgressCallback != nil {
 							go opts.ProgressCallback(int32(totalParts), int32(p))
+						}
+						if !IsFsBig {
+							hash.Write(part)
 						}
 						sender[i].buzy = false
 					}(i, part, int(p))
@@ -277,22 +295,23 @@ func prettifyFileName(file string) string {
 	return filepath.Base(file)
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func countWorkers(parts int64) int {
 	if parts <= 5 {
-		return max(int(parts/2), 1)
-	} else if parts > 100 {
-		return 20
-	} else if parts > 50 {
-		return 10
-	} else {
+		return 1
+	} else if parts <= 10 {
+		return 2
+	} else if parts <= 50 {
+		return 3
+	} else if parts <= 100 {
 		return 5
+	} else if parts <= 200 {
+		return 6
+	} else if parts <= 400 {
+		return 7
+	} else if parts <= 500 {
+		return 8
+	} else {
+		return 12 // not recommended to use more than 15 workers
 	}
 }
 
@@ -372,6 +391,9 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	partOver := size % int64(partSize)
 
 	totalParts := parts
+	if partOver > 0 {
+		totalParts++
+	}
 
 	wg := sync.WaitGroup{}
 	numWorkers := countWorkers(parts)
@@ -402,23 +424,24 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	c.Logger.Info(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, wPreallocated))
 
 	c.Logger.Debug(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, wPreallocated))
-	var MAX_RETRIES = 3
-	var retries = 0
 
-	for i := wPreallocated; i < numWorkers; i++ {
-		x, _ := c.CreateExportedSender(int(dc))
-		if x == nil {
-			if retries < MAX_RETRIES {
-				retries++
-				i--
-				continue
-			}
-			c.Logger.Error("failed to create exported sender")
-			continue
+	nW := numWorkers
+	numWorkers = wPreallocated
+
+	createAndAppendSender := func(dcId int, senders []Sender, senderIndex int) {
+		conn, _ := c.CreateExportedSender(dcId)
+		if conn != nil {
+			senders[senderIndex] = Sender{c: conn}
+			go c.AddNewExportedSenderToMap(dcId, conn)
+			numWorkers++
 		}
-		c.AddNewExportedSenderToMap(int(dc), x)
-		w[i] = Sender{c: x}
 	}
+
+	go func() {
+		for i := wPreallocated; i < nW; i++ {
+			createAndAppendSender(int(dc), w, i)
+		}
+	}()
 
 	for p := int64(0); p < parts; p++ {
 		wg.Add(1)
