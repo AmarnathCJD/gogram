@@ -746,7 +746,7 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 	// ffmpeg -i input.mp4 -ss 00:00:01.000 -vframes 1 output.png
 	getPosition := func(duration int64) int64 {
 		if duration <= 10 {
-			return duration
+			return (duration / 2) + 1
 		} else {
 			return int64(rand.Int31n(int32(duration)/2) + 1)
 		}

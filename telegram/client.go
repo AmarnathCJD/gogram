@@ -4,6 +4,7 @@ package telegram
 
 import (
 	"crypto/rsa"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -44,6 +45,7 @@ type clientData struct {
 type exportedSender struct {
 	client *Client
 	dcID   int
+	added  time.Time
 }
 
 type cachedExportedSenders struct {
@@ -126,6 +128,8 @@ func NewClient(config ClientConfig) (*Client, error) {
 	if err := client.clientWarnings(config); err != nil {
 		return nil, err
 	}
+	go client.loopForCleaningExpiredSenders() // start the loop for cleaning expired senders
+
 	return client, nil
 }
 
@@ -328,9 +332,9 @@ func (c *Client) Disconnect() error {
 }
 
 // switchDC permanently switches the data center
-func (c *Client) switchDc(dcID int) error {
+func (c *Client) SwitchDc(dcID int) error {
 	c.Log.Debug("switching data center to (" + strconv.Itoa(dcID) + ")")
-	newDcSender, err := c.MTProto.ReconnectToNewDC(dcID)
+	newDcSender, err := c.MTProto.SwitchDc(dcID)
 	if err != nil {
 		return errors.Wrap(err, "reconnecting to new dc")
 	}
@@ -351,22 +355,23 @@ func (c *Client) AddNewExportedSenderToMap(dcID int, sender *Client) {
 	c.exportedSenders.Lock()
 	c.exportedSenders.senders = append(
 		c.exportedSenders.senders,
-		exportedSender{client: sender, dcID: dcID},
+		exportedSender{client: sender, dcID: dcID, added: time.Now()},
 	)
 	c.exportedSenders.Unlock()
+}
 
-	go func() {
+func (c *Client) loopForCleaningExpiredSenders() {
+	for {
 		time.Sleep(DisconnectExportedAfter)
 		c.exportedSenders.Lock()
-		defer c.exportedSenders.Unlock()
-
 		for i, s := range c.exportedSenders.senders {
-			if s.client == sender {
+			if time.Since(s.added) > DisconnectExportedAfter {
+				s.client.Terminate()
 				c.exportedSenders.senders = append(c.exportedSenders.senders[:i], c.exportedSenders.senders[i+1:]...)
-				break
 			}
 		}
-	}() // remove the sender from the map after the expiry time
+		c.exportedSenders.Unlock()
+	}
 }
 
 func (c *Client) GetCachedExportedSenders(dcID int) []*Client {
@@ -391,31 +396,32 @@ func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
 		return nil, errors.Wrap(err, "exporting new sender")
 	}
 	exportedSender := &Client{MTProto: exported, Cache: c.Cache, Log: utils.NewLogger("gogram - sender").SetLevel(c.Log.Lev()), wg: sync.WaitGroup{}, clientData: c.clientData, stopCh: make(chan struct{})}
-	err = exportedSender.InitialRequest()
-	if err != nil {
-		return nil, errors.Wrap(err, "initial request")
+
+	initialReq := &InitConnectionParams{
+		ApiID:          c.clientData.appID,
+		DeviceModel:    c.clientData.deviceModel,
+		SystemVersion:  c.clientData.systemVersion,
+		AppVersion:     c.clientData.appVersion,
+		SystemLangCode: c.clientData.langCode,
+		LangCode:       c.clientData.langCode,
+		Query:          &HelpGetConfigParams{},
 	}
 
 	if c.MTProto.GetDC() != exported.GetDC() {
-		if err := exportedSender.shareAuth(c, exportedSender.MTProto.GetDC()); err != nil {
-			return nil, errors.Wrap(err, "sharing auth")
+		c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
+		auth, err := c.AuthExportAuthorization(int32(exported.GetDC()))
+		if err != nil {
+			return nil, errors.Wrap(err, "exporting auth")
+		}
+
+		initialReq.Query = &AuthImportAuthorizationParams{
+			ID:    auth.ID,
+			Bytes: auth.Bytes,
 		}
 	}
-	c.Log.Debug("exported sender for dc ", exported.GetDC(), " is ready")
-	return exportedSender, nil
-}
 
-// shareAuth shares authorization with another client
-func (c *Client) shareAuth(main *Client, dcID int) error {
-	mainAuth, err := main.AuthExportAuthorization(int32(dcID))
-	if err != nil || mainAuth == nil {
-		return errors.Wrap(err, "exporting authorization")
-	}
-	_, err = c.AuthImportAuthorization(mainAuth.ID, mainAuth.Bytes)
-	if err != nil {
-		return errors.Wrap(err, "importing authorization")
-	}
-	return nil
+	_, err = exportedSender.InvokeWithLayer(ApiVersion, initialReq)
+	return exportedSender, err
 }
 
 // cleanExportedSenders terminates all exported senders and removes them from cache
@@ -449,7 +455,7 @@ func (c *Client) GetDC() int {
 // This string can be used to import the session later
 func (c *Client) ExportSession() string {
 	authSession, dcId := c.MTProto.ExportAuth()
-	c.Log.Debug("exporting string session...")
+	c.Log.Debug("exporting auth to string session...")
 	return session.NewStringSession(authSession.Key, authSession.Hash, dcId, authSession.Hostname, authSession.AppID).Encode()
 }
 
@@ -458,7 +464,7 @@ func (c *Client) ExportSession() string {
 //	Params:
 //	  sessionString: The sessionString to authenticate with
 func (c *Client) ImportSession(sessionString string) (bool, error) {
-	c.Log.Debug("importing session: ", sessionString)
+	c.Log.Debug("importing auth from string session...")
 	return c.MTProto.ImportAuth(sessionString)
 }
 
