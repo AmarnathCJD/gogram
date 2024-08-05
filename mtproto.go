@@ -742,7 +742,7 @@ func (m *MTProto) offsetTime() {
 		return
 	}
 
-	if timeResponse.Unixtime < currentLocalTime {
+	if timeResponse.Unixtime <= currentLocalTime {
 		return // -no need to offset time
 	}
 
