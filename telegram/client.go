@@ -27,7 +27,7 @@ import (
 const (
 	// The Initial DC to connect to, before auth
 	DefaultDataCenter       = 4
-	DisconnectExportedAfter = 5 * time.Minute
+	DisconnectExportedAfter = 15 * time.Minute
 )
 
 type clientData struct {
@@ -364,12 +364,15 @@ func (c *Client) loopForCleaningExpiredSenders() {
 	for {
 		time.Sleep(DisconnectExportedAfter)
 		c.exportedSenders.Lock()
-		for i, s := range c.exportedSenders.senders {
+		newSenders := c.exportedSenders.senders[:0]
+		for _, s := range c.exportedSenders.senders {
 			if time.Since(s.added) > DisconnectExportedAfter {
 				s.client.Terminate()
-				c.exportedSenders.senders = append(c.exportedSenders.senders[:i], c.exportedSenders.senders[i+1:]...)
+			} else {
+				newSenders = append(newSenders, s)
 			}
 		}
+		c.exportedSenders.senders = newSenders
 		c.exportedSenders.Unlock()
 	}
 }

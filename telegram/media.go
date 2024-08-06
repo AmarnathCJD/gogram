@@ -355,6 +355,13 @@ func (mb *Destination) WriteAt(p []byte, off int64) (n int, err error) {
 	return len(p), nil
 }
 
+func (mb *Destination) Close() error {
+	if mb.file != nil {
+		return mb.file.Close()
+	}
+	return nil
+}
+
 func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (string, error) {
 	opts := getVariadic(Opts, &DownloadOptions{})
 	location, dc, size, fileName, err := GetFileLocation(file)
@@ -381,11 +388,9 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		}
 
 		fs.file = file
-
-		defer func() {
-			fs.file.Close()
-		}()
 	}
+
+	defer fs.Close()
 
 	parts := size / int64(partSize)
 	partOver := size % int64(partSize)
