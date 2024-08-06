@@ -391,6 +391,9 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	partOver := size % int64(partSize)
 
 	totalParts := parts
+	if partOver > 0 {
+		totalParts++
+	}
 
 	numWorkers := countWorkers(parts)
 	if opts.Threads > 0 {
@@ -425,8 +428,8 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	numWorkers = wPreallocated
 
 	createAndAppendSender := func(dcId int, senders []Sender, senderIndex int) {
-		conn, _ := c.CreateExportedSender(dcId)
-		if conn != nil {
+		conn, err := c.CreateExportedSender(dcId)
+		if conn != nil && err == nil {
 			senders[senderIndex] = Sender{c: conn}
 			go c.AddNewExportedSenderToMap(dcId, conn)
 			numWorkers++
@@ -548,6 +551,14 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 					break
 				}
 			}
+		}
+
+		if w[0].c == nil {
+			createAndAppendSender(int(dc), w, 0)
+		}
+
+		if w[0].c == nil {
+			return "", errors.Wrap(errors.New("failed to create sender for dc "+fmt.Sprint(dc)), "download failed")
 		}
 
 		c.Logger.Debug(fmt.Sprintf("downloading last part %d/%d in chunks of %d", totalParts-1, totalParts, partOver/1024))
