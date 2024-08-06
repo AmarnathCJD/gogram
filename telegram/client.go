@@ -395,7 +395,8 @@ func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "exporting new sender")
 	}
-	exportedSender := &Client{MTProto: exported, Cache: c.Cache, Log: utils.NewLogger("gogram - sender").SetLevel(c.Log.Lev()), wg: sync.WaitGroup{}, clientData: c.clientData, stopCh: make(chan struct{})}
+
+	exportedSender := &Client{MTProto: exported, Cache: NewCache(LogDisable, ""), Log: utils.NewLogger("gogram - sender").SetLevel(c.Log.Lev()), wg: sync.WaitGroup{}, clientData: c.clientData, stopCh: make(chan struct{})}
 
 	initialReq := &InitConnectionParams{
 		ApiID:          c.clientData.appID,

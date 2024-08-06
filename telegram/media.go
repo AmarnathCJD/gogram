@@ -303,13 +303,13 @@ func countWorkers(parts int64) int {
 	} else if parts <= 50 {
 		return 3
 	} else if parts <= 100 {
-		return 5
-	} else if parts <= 200 {
 		return 6
-	} else if parts <= 400 {
+	} else if parts <= 200 {
 		return 7
-	} else if parts <= 500 {
+	} else if parts <= 400 {
 		return 8
+	} else if parts <= 500 {
+		return 10
 	} else {
 		return 12 // not recommended to use more than 15 workers
 	}
@@ -392,7 +392,6 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 
 	totalParts := parts
 
-	wg := sync.WaitGroup{}
 	numWorkers := countWorkers(parts)
 	if opts.Threads > 0 {
 		numWorkers = opts.Threads
@@ -440,20 +439,36 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		}
 	}()
 
+	mu := sync.Mutex{}
+	wg := sync.WaitGroup{}
+
 	for p := int64(0); p < parts; p++ {
 		wg.Add(1)
-		for {
-			found := false
-			for i := 0; i < numWorkers; i++ {
-				if !w[i].buzy && w[i].c != nil {
+		go func(p int64) {
+			defer wg.Done()
 
-					found = true
-					w[i].buzy = true
+			for {
+				mu.Lock()
+				found := false
+				var workerIndex int
+				for i := 0; i < numWorkers; i++ {
+					if !w[i].buzy && w[i].c != nil {
+						found = true
+						w[i].buzy = true
+						workerIndex = i
+						break
+					}
+				}
+				mu.Unlock()
+
+				if found {
 					go func(i int, p int) {
 						defer func() {
+							mu.Lock()
 							w[i].buzy = false
-							wg.Done()
+							mu.Unlock()
 						}()
+
 						retryCount := 0
 						reqTimeout := 3 * time.Second
 
@@ -499,32 +514,27 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 							if opts.ProgressCallback != nil {
 								go opts.ProgressCallback(int32(totalParts), int32(p))
 							}
-							w[i].buzy = false
 						case err := <-errorChan:
 							if handleIfFlood(err, c) {
 								goto partDownloadStartPoint
 							}
 							c.Logger.Error(err)
-							w[i].buzy = false
 						case <-time.After(reqTimeout):
 							c.Logger.Debug(fmt.Errorf("upload part %d timed out - retrying", p))
 							retryCount++
-							if retryCount > 5 {
+							if retryCount > 3 {
 								c.Logger.Debug(fmt.Errorf("upload part %d timed out - giving up", p))
 								return
-							} else if retryCount > 3 {
+							} else if retryCount > 2 {
 								reqTimeout = 5 * time.Second
 							}
 							goto partDownloadStartPoint
 						}
-					}(i, int(p))
+					}(workerIndex, int(p))
+					break
 				}
 			}
-
-			if found {
-				break
-			}
-		}
+		}(p)
 	}
 
 	wg.Wait()
