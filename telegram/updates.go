@@ -93,16 +93,18 @@ type albumHandle struct {
 	Group    string
 }
 
-func (h *albumHandle) SetPriority(priority int) {
+func (h *albumHandle) SetPriority(priority int) *albumHandle {
 	h.Priority = priority
+	return h
 }
 
 func (h *albumHandle) GetPriority() int {
 	return h.Priority
 }
 
-func (h *albumHandle) SetGroup(group string) {
+func (h *albumHandle) SetGroup(group string) *albumHandle {
 	h.Group = group
+	return h
 }
 
 func (h *albumHandle) GetGroup() string {
@@ -134,16 +136,18 @@ type chatActionHandle struct {
 	Group    string
 }
 
-func (h *chatActionHandle) SetPriority(priority int) {
+func (h *chatActionHandle) SetPriority(priority int) *chatActionHandle {
 	h.Priority = priority
+	return h
 }
 
 func (h *chatActionHandle) GetPriority() int {
 	return h.Priority
 }
 
-func (h *chatActionHandle) SetGroup(group string) {
+func (h *chatActionHandle) SetGroup(group string) *chatActionHandle {
 	h.Group = group
+	return h
 }
 
 func (h *chatActionHandle) GetGroup() string {
@@ -158,16 +162,18 @@ type messageEditHandle struct {
 	Group    string
 }
 
-func (h *messageEditHandle) SetPriority(priority int) {
+func (h *messageEditHandle) SetPriority(priority int) *messageEditHandle {
 	h.Priority = priority
+	return h
 }
 
 func (h *messageEditHandle) GetPriority() int {
 	return h.Priority
 }
 
-func (h *messageEditHandle) SetGroup(group string) {
+func (h *messageEditHandle) SetGroup(group string) *messageEditHandle {
 	h.Group = group
+	return h
 }
 
 func (h *messageEditHandle) GetGroup() string {
@@ -182,16 +188,18 @@ type messageDeleteHandle struct {
 	Group    string
 }
 
-func (h *messageDeleteHandle) SetPriority(priority int) {
+func (h *messageDeleteHandle) SetPriority(priority int) *messageDeleteHandle {
 	h.Priority = priority
+	return h
 }
 
 func (h *messageDeleteHandle) GetPriority() int {
 	return h.Priority
 }
 
-func (h *messageDeleteHandle) SetGroup(group string) {
+func (h *messageDeleteHandle) SetGroup(group string) *messageDeleteHandle {
 	h.Group = group
+	return h
 }
 
 func (h *messageDeleteHandle) GetGroup() string {
@@ -206,16 +214,18 @@ type inlineHandle struct {
 	Group    string
 }
 
-func (h *inlineHandle) SetPriority(priority int) {
+func (h *inlineHandle) SetPriority(priority int) *inlineHandle {
 	h.Priority = priority
+	return h
 }
 
 func (h *inlineHandle) GetPriority() int {
 	return h.Priority
 }
 
-func (h *inlineHandle) SetGroup(group string) {
+func (h *inlineHandle) SetGroup(group string) *inlineHandle {
 	h.Group = group
+	return h
 }
 
 func (h *inlineHandle) GetGroup() string {
@@ -230,16 +240,18 @@ type callbackHandle struct {
 	Group    string
 }
 
-func (h *callbackHandle) SetPriority(priority int) {
+func (h *callbackHandle) SetPriority(priority int) *callbackHandle {
 	h.Priority = priority
+	return h
 }
 
 func (h *callbackHandle) GetPriority() int {
 	return h.Priority
 }
 
-func (h *callbackHandle) SetGroup(group string) {
+func (h *callbackHandle) SetGroup(group string) *callbackHandle {
 	h.Group = group
+	return h
 }
 
 func (h *callbackHandle) GetGroup() string {
@@ -254,16 +266,18 @@ type inlineCallbackHandle struct {
 	Group    string
 }
 
-func (h *inlineCallbackHandle) SetPriority(priority int) {
+func (h *inlineCallbackHandle) SetPriority(priority int) *inlineCallbackHandle {
 	h.Priority = priority
+	return h
 }
 
 func (h *inlineCallbackHandle) GetPriority() int {
 	return h.Priority
 }
 
-func (h *inlineCallbackHandle) SetGroup(group string) {
+func (h *inlineCallbackHandle) SetGroup(group string) *inlineCallbackHandle {
 	h.Group = group
+	return h
 }
 
 func (h *inlineCallbackHandle) GetGroup() string {
@@ -277,16 +291,18 @@ type participantHandle struct {
 	Group    string
 }
 
-func (h *participantHandle) SetPriority(priority int) {
+func (h *participantHandle) SetPriority(priority int) *participantHandle {
 	h.Priority = priority
+	return h
 }
 
 func (h *participantHandle) GetPriority() int {
 	return h.Priority
 }
 
-func (h *participantHandle) SetGroup(group string) {
+func (h *participantHandle) SetGroup(group string) *participantHandle {
 	h.Group = group
+	return h
 }
 
 func (h *participantHandle) GetGroup() string {
@@ -301,16 +317,18 @@ type rawHandle struct {
 	Group      string
 }
 
-func (h *rawHandle) SetPriority(priority int) {
+func (h *rawHandle) SetPriority(priority int) *rawHandle {
 	h.Priority = priority
+	return h
 }
 
 func (h *rawHandle) GetPriority() int {
 	return h.Priority
 }
 
-func (h *rawHandle) SetGroup(group string) {
+func (h *rawHandle) SetGroup(group string) *rawHandle {
 	h.Group = group
+	return h
 }
 
 func (h *rawHandle) GetGroup() string {
