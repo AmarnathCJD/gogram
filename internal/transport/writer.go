@@ -14,30 +14,34 @@ type Reader struct {
 	ctx  context.Context
 	data chan []byte
 
-	sizeWant chan int
+	sizeRead chan int
 
 	err error
 	r   io.Reader
 }
 
 func (c *Reader) begin() {
+	defer func() {
+		close(c.data)
+		close(c.sizeRead)
+	}()
+
 	for {
 		select {
-		case sizeWant := <-c.sizeWant:
-			buf := make([]byte, sizeWant)
+		case buf := <-c.data:
 			n, err := io.ReadFull(c.r, buf)
 			if err != nil {
 				c.err = err
-				close(c.data)
 				return
 			}
-			if n != sizeWant {
-				panic("read " + strconv.Itoa(n) + ", want " + strconv.Itoa(sizeWant))
+
+			// if len(buf) != n, err = ErrUnexpectedEOF, this will never happen
+			if false {
+				panic("read " + strconv.Itoa(n) + ", want " + strconv.Itoa(len(buf)))
 			}
-			c.data <- buf
+
+			c.sizeRead <- n
 		case <-c.ctx.Done():
-			close(c.data)
-			close(c.sizeWant)
 			return
 		}
 	}
@@ -54,25 +58,20 @@ func isClosed(ch <-chan int) bool {
 }
 
 func (c *Reader) Read(p []byte) (int, error) {
-	if isClosed(c.sizeWant) {
-		return 0, io.EOF
+	select {
+	case <-c.ctx.Done():
+		return 0, c.ctx.Err()
+	case c.data <- p:
 	}
 
 	select {
 	case <-c.ctx.Done():
 		return 0, c.ctx.Err()
-	case c.sizeWant <- len(p):
-	}
-
-	select {
-	case <-c.ctx.Done():
-		return 0, c.ctx.Err()
-	case d, ok := <-c.data:
+	case n, ok := <-c.sizeRead:
 		if !ok {
 			return 0, c.err
 		}
-		copy(p, d)
-		return len(d), nil
+		return n, nil
 	}
 }
 
@@ -95,7 +94,7 @@ func NewReader(ctx context.Context, r io.Reader) *Reader {
 		r:        r,
 		ctx:      ctx,
 		data:     make(chan []byte),
-		sizeWant: make(chan int),
+		sizeRead: make(chan int),
 	}
 	go c.begin()
 	return c
