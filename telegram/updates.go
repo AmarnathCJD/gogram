@@ -17,7 +17,7 @@ import (
 // TODO: confine sort to when new handler priorities are set.
 // way to set prio on adding event handler (this solves todo-1)
 // calling endGroup from inside the event handler.
-// make it more efficient 
+// make it more efficient
 
 type Handle interface {
 	IsMatch(text string) bool
