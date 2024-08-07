@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
@@ -345,6 +346,7 @@ func (mb *Destination) WriteAt(p []byte, off int64) (n int, err error) {
 
 	mb.mu.Lock()
 	defer mb.mu.Unlock()
+
 	if int(off)+len(p) > len(mb.data) {
 		newData := make([]byte, int(off)+len(p))
 		copy(newData, mb.data)
@@ -362,7 +364,13 @@ func (mb *Destination) Close() error {
 	return nil
 }
 
-func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (string, error) {
+type DownloadResult struct {
+	part int64
+	data []byte
+	err  error
+}
+
+func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, error) {
 	opts := getVariadic(Opts, &DownloadOptions{})
 	location, dc, size, fileName, err := GetFileLocation(file)
 	if err != nil {
@@ -373,6 +381,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	if dc == 0 {
 		dc = int32(c.GetDC())
 	}
+
 	dest := getValue(opts.FileName, fileName)
 
 	partSize := 1024 * 512 // 512KB
@@ -380,7 +389,16 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		partSize = int(opts.ChunkSize)
 	}
 
-	var fs Destination
+	worker := make(chan *Client, 1)
+	resultChan := make(chan DownloadResult, 1)
+	progressChan := make(chan int, 1)
+
+	var (
+		wg                  sync.WaitGroup
+		currentPart, partDL atomic.Int64
+		fs                  Destination
+	)
+
 	if opts.Buffer == nil {
 		file, err := os.OpenFile(dest, os.O_CREATE|os.O_RDWR, 0666)
 		if err != nil {
@@ -390,7 +408,14 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		fs.file = file
 	}
 
-	defer fs.Close()
+	defer func() {
+		fs.Close()
+		c.Logger.Debug("file closed")
+		close(worker)
+		close(resultChan)
+		close(progressChan)
+		c.Logger.Debug("channels closed")
+	}()
 
 	parts := size / int64(partSize)
 	partOver := size % int64(partSize)
@@ -405,203 +430,139 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		numWorkers = opts.Threads
 	}
 
-	w := make([]Sender, numWorkers)
-	wPreallocated := 0
+	go func() {
+		wPreallocated := 0
 
-	if pre := c.GetCachedExportedSenders(c.GetDC()); len(pre) > 0 {
-		for i := 0; i < len(pre); i++ {
-			if wPreallocated >= numWorkers {
-				break
-			}
-			if pre[i] != nil {
-				w[i] = Sender{c: pre[i]}
-				wPreallocated++
+		if pre := c.GetCachedExportedSenders(c.GetDC()); len(pre) > 0 {
+			for i := 0; i < len(pre); i++ {
+				if wPreallocated >= numWorkers {
+					break
+				}
+				if pre[i] != nil {
+					worker <- pre[i]
+					wPreallocated++
+				}
 			}
 		}
-	}
 
-	if opts.Buffer != nil {
-		dest = ":mem-buffer:"
-	}
-
-	c.Logger.Info(fmt.Sprintf("file - download: (%s) - (%d) - (%d)", dest, size, parts))
-	c.Logger.Info(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, wPreallocated))
-
-	c.Logger.Debug(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, wPreallocated))
-
-	nW := numWorkers
-	numWorkers = wPreallocated
-
-	createAndAppendSender := func(dcId int, senders []Sender, senderIndex int) {
-		conn, err := c.CreateExportedSender(dcId)
-		if conn != nil && err == nil {
-			senders[senderIndex] = Sender{c: conn}
-			go c.AddNewExportedSenderToMap(dcId, conn)
-			numWorkers++
+		if opts.Buffer != nil {
+			dest = ":mem-buffer:"
 		}
-	}
+
+		c.Logger.Info(fmt.Sprintf("file - download: (%s) - (%d) - (%d)", dest, size, parts))
+		c.Logger.Info(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, wPreallocated))
+
+		c.Logger.Debug(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, wPreallocated))
+
+		nW := numWorkers
+		numWorkers = wPreallocated
+
+		for i := wPreallocated; i < nW; i++ {
+			conn, err := c.CreateExportedSender(int(dc))
+			if conn != nil && err == nil {
+				worker <- conn
+				c.AddNewExportedSenderToMap(int(dc), conn)
+				numWorkers++
+			}
+		}
+
+	}()
 
 	go func() {
-		for i := wPreallocated; i < nW; i++ {
-			createAndAppendSender(int(dc), w, i)
+		// downloadParts
+		wID := 1
+		for work := range worker {
+			wg.Add(1)
+
+			go func(wID int) {
+				defer func() {
+					wg.Done()
+				}()
+
+				for {
+					p := currentPart.Add(1) - 1
+					if p >= totalParts {
+						return
+					}
+
+				partDownloadStartPoint:
+					c.Logger.Debug(fmt.Sprintf("download wID=%d part %d/%d in chunks of %d", wID, p, totalParts, partSize/1024))
+
+					upl, err := work.UploadGetFile(&UploadGetFileParams{
+						Location:     location,
+						Offset:       p * int64(partSize),
+						Limit:        int32(partSize),
+						CdnSupported: false,
+					})
+					if err != nil {
+						if handleIfFlood(err, c) {
+							goto partDownloadStartPoint
+						}
+
+						resultChan <- DownloadResult{
+							err: err,
+						}
+						return
+					}
+
+					var buffer []byte
+					switch v := upl.(type) {
+					case *UploadFileObj:
+						buffer = v.Bytes
+					case *UploadFileCdnRedirect:
+						panic("cdn redirect not impl") // TODO
+					}
+
+					resultChan <- DownloadResult{
+						part: p,
+						data: buffer,
+					}
+
+					partDL.Add(1)
+
+					select {
+					case progressChan <- 1:
+					default:
+						// Do nothing if the channel is full
+					}
+
+				}
+			}(wID)
+
+			wID++
 		}
 	}()
 
-	mu := sync.Mutex{}
-	wg := sync.WaitGroup{}
-
-	for p := int64(0); p < parts; p++ {
-		wg.Add(1)
-		go func(p int64) {
-			defer wg.Done()
-
-			for {
-				mu.Lock()
-				found := false
-				var workerIndex int
-				for i := 0; i < numWorkers; i++ {
-					if !w[i].buzy && w[i].c != nil {
-						found = true
-						w[i].buzy = true
-						workerIndex = i
-						break
-					}
-				}
-				mu.Unlock()
-
-				if found {
-					go func(i int, p int) {
-						defer func() {
-							mu.Lock()
-							w[i].buzy = false
-							mu.Unlock()
-						}()
-
-						retryCount := 0
-						reqTimeout := 3 * time.Second
-
-					partDownloadStartPoint:
-						c.Logger.Debug(fmt.Sprintf("download part %d/%d in chunks of %d", p, totalParts, partSize/1024))
-
-						resultChan := make(chan UploadFile, 1)
-						errorChan := make(chan error, 1)
-
-						go func() {
-							upl, err := w[i].c.UploadGetFile(&UploadGetFileParams{
-								Location:     location,
-								Offset:       int64(p * partSize),
-								Limit:        int32(partSize),
-								CdnSupported: false,
-							})
-							if err != nil {
-								errorChan <- err
-								return
-							}
-							resultChan <- upl
-						}()
-
-						select {
-						case upl := <-resultChan:
-							if upl == nil {
-								goto partDownloadStartPoint
-							}
-
-							var buffer []byte
-							switch v := upl.(type) {
-							case *UploadFileObj:
-								buffer = v.Bytes
-							case *UploadFileCdnRedirect:
-								panic("cdn redirect not impl") // TODO
-							}
-
-							_, err := fs.WriteAt(buffer, int64(p*partSize))
-							if err != nil {
-								c.Logger.Error(err)
-							}
-
-							if opts.ProgressCallback != nil {
-								go opts.ProgressCallback(int32(totalParts), int32(p))
-							}
-						case err := <-errorChan:
-							if handleIfFlood(err, c) {
-								goto partDownloadStartPoint
-							}
-							c.Logger.Error(err)
-						case <-time.After(reqTimeout):
-							c.Logger.Debug(fmt.Errorf("upload part %d timed out - retrying", p))
-							retryCount++
-							if retryCount > 3 {
-								c.Logger.Debug(fmt.Errorf("upload part %d timed out - giving up", p))
-								return
-							} else if retryCount > 2 {
-								reqTimeout = 5 * time.Second
-							}
-							goto partDownloadStartPoint
-						}
-					}(workerIndex, int(p))
-					break
-				}
-			}
-		}(p)
-	}
-
-	wg.Wait()
-
-	if partOver > 0 {
-	downloadLastPartStartPoint:
-		if w[0].c == nil {
-			for i := 0; i < numWorkers; i++ {
-				if w[i].c != nil {
-					w[0].c = w[i].c
-					break
-				}
+	go func() {
+		// TODO(eos175) single rutine for progress, proxy var
+		for p := range progressChan {
+			_ = p
+			if opts.ProgressCallback != nil {
+				opts.ProgressCallback(int32(totalParts), int32(partDL.Load()))
 			}
 		}
+	}()
 
-		if w[0].c == nil {
-			createAndAppendSender(int(dc), w, 0)
+	wByte := 0
+	for res := range resultChan {
+		if res.err != nil {
+			c.Logger.Error(err)
+			return "", err
 		}
 
-		if w[0].c == nil {
-			return "", errors.Wrap(errors.New("failed to create sender for dc "+fmt.Sprint(dc)), "download failed")
+		_, err := fs.WriteAt(res.data, res.part*int64(partSize))
+		if err != nil {
+			c.Logger.Error(err)
+			return "", err
 		}
 
-		c.Logger.Debug(fmt.Sprintf("downloading last part %d/%d in chunks of %d", totalParts-1, totalParts, partOver/1024))
-
-		buf, err := w[0].c.UploadGetFile(&UploadGetFileParams{
-			Location:     location,
-			Offset:       int64(int(parts) * partSize),
-			Limit:        int32(partSize),
-			CdnSupported: false,
-		})
-
-		if err != nil || buf == nil {
-			if handleIfFlood(err, c) {
-				goto downloadLastPartStartPoint
-			}
-			w[0].c.Logger.Warn(err)
-		}
-		var buffer []byte
-		switch v := buf.(type) {
-		case *UploadFileObj:
-			buffer = v.Bytes
-			_, err = fs.WriteAt(buffer, int64(int(parts)*partSize))
-
-			if err != nil {
-				c.Logger.Error(err)
-			}
-		case *UploadFileCdnRedirect:
-			panic("cdn redirect not impl") // TODO
-		}
-
-		if opts.ProgressCallback != nil {
-			go opts.ProgressCallback(int32(totalParts), int32(parts))
+		wByte += len(res.data)
+		if wByte >= int(size) {
+			break
 		}
 	}
 
-	if opts.ProgressCallback != nil {
-		opts.ProgressCallback(int32(totalParts), int32(totalParts))
-	}
+	wg.Wait() // TODO() needless
 
 	if opts.Buffer != nil {
 		c.Logger.Debug("writing to buffer, size: ", len(fs.data))
