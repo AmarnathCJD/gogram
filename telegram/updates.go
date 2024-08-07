@@ -5,11 +5,22 @@ package telegram
 import (
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 	"unsafe"
+
+	"github.com/pkg/errors"
 )
+
+type Handle interface {
+	IsMatch(text string) bool
+	SetPriority(priority int) *Handle
+	SetGroup(group string) *Handle
+	GetPriority() int
+	GetGroup() string
+}
 
 type MessageHandler func(m *NewMessage) error
 type EditHandler func(m *NewMessage) error
@@ -20,12 +31,6 @@ type CallbackHandler func(m *CallbackQuery) error
 type InlineCallbackHandler func(m *InlineCallbackQuery) error
 type ParticipantHandler func(m *ParticipantUpdate) error
 type RawHandler func(m Update, c *Client) error
-
-type messageHandle struct {
-	Pattern interface{}
-	Handler MessageHandler
-	Filters []Filter
-}
 
 func (c *Client) removeHandle(h interface{}) {
 	removeHandleFromSlice := func(handles []interface{}, handle interface{}) []interface{} {
@@ -55,8 +60,53 @@ func (c *Client) removeHandle(h interface{}) {
 	}
 }
 
+type messageHandle struct {
+	Pattern  interface{}
+	Handler  MessageHandler
+	Filters  []Filter
+	Priority int
+	Group    string
+}
+
+func (h *messageHandle) SetPriority(priority int) *messageHandle {
+	h.Priority = priority
+	return h
+}
+
+func (h *messageHandle) GetPriority() int {
+	return h.Priority
+}
+
+func (h *messageHandle) SetGroup(group string) *messageHandle {
+	h.Group = group
+	return h
+}
+
+func (h *messageHandle) GetGroup() string {
+	return h.Group
+}
+
 type albumHandle struct {
-	Handler func(alb *Album) error
+	Handler  func(alb *Album) error
+	Filters  []Filter
+	Priority int
+	Group    string
+}
+
+func (h *albumHandle) SetPriority(priority int) {
+	h.Priority = priority
+}
+
+func (h *albumHandle) GetPriority() int {
+	return h.Priority
+}
+
+func (h *albumHandle) SetGroup(group string) {
+	h.Group = group
+}
+
+func (h *albumHandle) GetGroup() string {
+	return h.Group
 }
 
 type albumBox struct {
@@ -78,40 +128,193 @@ func (a *albumBox) Add(m *NewMessage) {
 }
 
 type chatActionHandle struct {
-	Handler MessageHandler
+	Handler  MessageHandler
+	Filters  []Filter
+	Priority int
+	Group    string
 }
+
+func (h *chatActionHandle) SetPriority(priority int) {
+	h.Priority = priority
+}
+
+func (h *chatActionHandle) GetPriority() int {
+	return h.Priority
+}
+
+func (h *chatActionHandle) SetGroup(group string) {
+	h.Group = group
+}
+
+func (h *chatActionHandle) GetGroup() string {
+	return h.Group
+}
+
 type messageEditHandle struct {
-	Pattern interface{}
-	Handler MessageHandler
+	Pattern  interface{}
+	Handler  MessageHandler
+	Filters  []Filter
+	Priority int
+	Group    string
+}
+
+func (h *messageEditHandle) SetPriority(priority int) {
+	h.Priority = priority
+}
+
+func (h *messageEditHandle) GetPriority() int {
+	return h.Priority
+}
+
+func (h *messageEditHandle) SetGroup(group string) {
+	h.Group = group
+}
+
+func (h *messageEditHandle) GetGroup() string {
+	return h.Group
 }
 
 type messageDeleteHandle struct {
-	Pattern interface{}
-	Handler func(m *DeleteMessage) error
+	Pattern  interface{}
+	Handler  func(m *DeleteMessage) error
+	Filters  []Filter
+	Priority int
+	Group    string
+}
+
+func (h *messageDeleteHandle) SetPriority(priority int) {
+	h.Priority = priority
+}
+
+func (h *messageDeleteHandle) GetPriority() int {
+	return h.Priority
+}
+
+func (h *messageDeleteHandle) SetGroup(group string) {
+	h.Group = group
+}
+
+func (h *messageDeleteHandle) GetGroup() string {
+	return h.Group
 }
 
 type inlineHandle struct {
-	Pattern interface{}
-	Handler InlineHandler
+	Pattern  interface{}
+	Handler  InlineHandler
+	Filters  []Filter
+	Priority int
+	Group    string
+}
+
+func (h *inlineHandle) SetPriority(priority int) {
+	h.Priority = priority
+}
+
+func (h *inlineHandle) GetPriority() int {
+	return h.Priority
+}
+
+func (h *inlineHandle) SetGroup(group string) {
+	h.Group = group
+}
+
+func (h *inlineHandle) GetGroup() string {
+	return h.Group
 }
 
 type callbackHandle struct {
-	Pattern interface{}
-	Handler CallbackHandler
+	Pattern  interface{}
+	Handler  CallbackHandler
+	Filters  []Filter
+	Priority int
+	Group    string
+}
+
+func (h *callbackHandle) SetPriority(priority int) {
+	h.Priority = priority
+}
+
+func (h *callbackHandle) GetPriority() int {
+	return h.Priority
+}
+
+func (h *callbackHandle) SetGroup(group string) {
+	h.Group = group
+}
+
+func (h *callbackHandle) GetGroup() string {
+	return h.Group
 }
 
 type inlineCallbackHandle struct {
-	Pattern interface{}
-	Handler InlineCallbackHandler
+	Pattern  interface{}
+	Handler  InlineCallbackHandler
+	Filters  []Filter
+	Priority int
+	Group    string
+}
+
+func (h *inlineCallbackHandle) SetPriority(priority int) {
+	h.Priority = priority
+}
+
+func (h *inlineCallbackHandle) GetPriority() int {
+	return h.Priority
+}
+
+func (h *inlineCallbackHandle) SetGroup(group string) {
+	h.Group = group
+}
+
+func (h *inlineCallbackHandle) GetGroup() string {
+	return h.Group
 }
 
 type participantHandle struct {
-	Handler func(p *ParticipantUpdate) error
+	Handler  func(p *ParticipantUpdate) error
+	Filters  []Filter
+	Priority int
+	Group    string
+}
+
+func (h *participantHandle) SetPriority(priority int) {
+	h.Priority = priority
+}
+
+func (h *participantHandle) GetPriority() int {
+	return h.Priority
+}
+
+func (h *participantHandle) SetGroup(group string) {
+	h.Group = group
+}
+
+func (h *participantHandle) GetGroup() string {
+	return h.Group
 }
 
 type rawHandle struct {
 	updateType Update
 	Handler    RawHandler
+	Filters    []Filter
+	Priority   int
+	Group      string
+}
+
+func (h *rawHandle) SetPriority(priority int) {
+	h.Priority = priority
+}
+
+func (h *rawHandle) GetPriority() int {
+	return h.Priority
+}
+
+func (h *rawHandle) SetGroup(group string) {
+	h.Group = group
+}
+
+func (h *rawHandle) GetGroup() string {
+	return h.Group
 }
 
 type UpdateDispatcher struct {
@@ -133,34 +336,95 @@ func (c *Client) NewUpdateDispatcher() {
 	c.dispatcher = &UpdateDispatcher{}
 }
 
+func hasEndGroup(f []Filter) bool {
+	for _, filter := range f {
+		if filter.EndGroup {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
 		if msg.GroupedID != 0 {
 			c.handleAlbum(*msg)
 		}
+
+		sort.SliceStable(c.dispatcher.messageHandles, func(i, j int) bool {
+			if c.dispatcher.messageHandles[i].Group == c.dispatcher.messageHandles[j].Group {
+				return c.dispatcher.messageHandles[i].Priority < c.dispatcher.messageHandles[j].Priority
+			}
+			return c.dispatcher.messageHandles[i].Group < c.dispatcher.messageHandles[j].Group
+		})
+
+		processedGroups := make(map[string]bool)
+		handlerChannel := make(chan messageHandle, len(c.dispatcher.messageHandles))
+
 		for _, handler := range c.dispatcher.messageHandles {
 			if handler.IsMatch(msg.Message) {
-				go func(h messageHandle) {
-					m := packMessage(c, msg)
-					if h.runFilterChain(m) {
-						defer c.NewRecovery()()
-						if err := h.Handler(m); err != nil {
-							c.Log.Error(err)
-						}
-					}
-				}(handler)
+				// Check if the handler's group has already been processed
+				if processedGroups[handler.GetGroup()] {
+					continue
+				}
+
+				if hasEndGroup(handler.Filters) {
+					processedGroups[handler.GetGroup()] = true
+				}
+
+				handlerChannel <- handler
 			}
 		}
-	case *MessageService:
-		for _, handler := range c.dispatcher.actionHandles {
-			go func(h chatActionHandle) {
-				defer c.NewRecovery()()
-				if err := h.Handler(packMessage(c, msg)); err != nil {
-					c.Log.Error(err)
+		close(handlerChannel)
+
+		var wg sync.WaitGroup
+		for handler := range handlerChannel {
+			wg.Add(1)
+			go func(h messageHandle) {
+				defer wg.Done()
+				packedMessage := packMessage(c, msg)
+				if h.runFilterChain(packedMessage) {
+					defer c.NewRecovery()()
+					if err := h.Handler(packedMessage); err != nil {
+						c.Log.Error(errors.Wrap(err, "updates.dispatcher.message"))
+					}
 				}
 			}(handler)
 		}
+		wg.Wait()
+
+	case *MessageService:
+		var wg sync.WaitGroup
+
+		sort.SliceStable(c.dispatcher.actionHandles, func(i, j int) bool {
+			if c.dispatcher.actionHandles[i].Group == c.dispatcher.actionHandles[j].Group {
+				return c.dispatcher.actionHandles[i].Priority < c.dispatcher.actionHandles[j].Priority
+			}
+			return c.dispatcher.actionHandles[i].Group < c.dispatcher.actionHandles[j].Group
+		})
+
+		processedGroups := make(map[string]bool)
+
+		for _, handler := range c.dispatcher.actionHandles {
+			go func(h chatActionHandle) {
+				if processedGroups[h.GetGroup()] {
+					return
+				}
+
+				if hasEndGroup(handler.Filters) {
+					processedGroups[handler.GetGroup()] = true
+				}
+
+				wg.Add(1)
+				defer wg.Done()
+				defer c.NewRecovery()()
+				if err := h.Handler(packMessage(c, msg)); err != nil {
+					c.Log.Error(errors.Wrap(err, "updates.dispatcher.action"))
+				}
+			}(handler)
+		}
+		wg.Wait()
 	}
 }
 
@@ -179,14 +443,32 @@ func (c *Client) handleAlbum(message MessageObj) {
 		c.dispatcher.activeAlbums[message.GroupedID] = abox
 		go func() {
 			<-abox.waitExit
+
+			sort.SliceStable(c.dispatcher.albumHandles, func(i, j int) bool {
+				if c.dispatcher.albumHandles[i].Group == c.dispatcher.albumHandles[j].Group {
+					return c.dispatcher.albumHandles[i].Priority < c.dispatcher.albumHandles[j].Priority
+				}
+				return c.dispatcher.albumHandles[i].Group < c.dispatcher.albumHandles[j].Group
+			})
+
+			processedGroups := make(map[string]bool)
+
 			for _, handle := range c.dispatcher.albumHandles {
 				go func(h albumHandle) {
+					if processedGroups[h.GetGroup()] {
+						return
+					}
+
+					if hasEndGroup(handle.Filters) {
+						processedGroups[handle.GetGroup()] = true
+					}
+
 					if err := h.Handler(&Album{
 						GroupedID: abox.groupedId,
 						Messages:  abox.messages,
 						Client:    c,
 					}); err != nil {
-						c.Log.Error("updates.Dispatcher.Album - ", err)
+						c.Log.Error(errors.Wrap(err, "updates.dispatcher.album"))
 					}
 				}(handle)
 			}
@@ -196,7 +478,7 @@ func (c *Client) handleAlbum(message MessageObj) {
 	}
 }
 
-func (c *Client) handleMessageUpdateW(m Message, pts int32) {
+func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
 	switch msg := m.(type) {
 	case *MessageObj:
 		if c.IdInCache(c.GetPeerID(msg.FromID)) && c.IdInCache(c.GetPeerID(msg.PeerID)) {
@@ -214,93 +496,224 @@ func (c *Client) handleMessageUpdateW(m Message, pts int32) {
 }
 
 func (c *Client) handleEditUpdate(update Message) {
-	switch msg := update.(type) {
-	case *MessageObj:
-		for _, handle := range c.dispatcher.messageEditHandles {
-			if handle.IsMatch(msg.Message) {
-				go func(h messageEditHandle) {
-					defer c.NewRecovery()()
-					if err := h.Handler(packMessage(c, msg)); err != nil {
-						c.Log.Error("updates.dispatcher.editMessage -", err)
-					}
-				}(handle)
+	if msg, ok := update.(*MessageObj); ok {
+		sort.SliceStable(c.dispatcher.messageEditHandles, func(i, j int) bool {
+			if c.dispatcher.messageEditHandles[i].Group == c.dispatcher.messageEditHandles[j].Group {
+				return c.dispatcher.messageEditHandles[i].Priority < c.dispatcher.messageEditHandles[j].Priority
+			}
+			return c.dispatcher.messageEditHandles[i].Group < c.dispatcher.messageEditHandles[j].Group
+		})
+
+		processedGroups := make(map[string]bool)
+		handlerChannel := make(chan messageEditHandle, len(c.dispatcher.messageEditHandles))
+
+		for _, handler := range c.dispatcher.messageEditHandles {
+			if handler.IsMatch(msg.Message) {
+				if processedGroups[handler.GetGroup()] {
+					continue
+				}
+
+				if hasEndGroup(handler.Filters) {
+					processedGroups[handler.GetGroup()] = true
+				}
+
+				handlerChannel <- handler
 			}
 		}
+		close(handlerChannel)
+
+		var wg sync.WaitGroup
+		for handler := range handlerChannel {
+			wg.Add(1)
+			go func(h messageEditHandle) {
+				defer wg.Done()
+				defer c.NewRecovery()()
+				if err := h.Handler(packMessage(c, msg)); err != nil {
+					c.Log.Error(errors.Wrap(err, "updates.dispatcher.editMessage"))
+				}
+			}(handler)
+		}
+		wg.Wait()
 	}
 }
 
 func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
-	for _, handle := range c.dispatcher.callbackHandles {
-		if handle.IsMatch(update.Data) {
-			go func(h callbackHandle) {
-				defer c.NewRecovery()()
-				if err := h.Handler(packCallbackQuery(c, update)); err != nil {
-					c.Log.Error("updates.dispatcher.callbackQuery -", err)
-				}
-			}(handle)
+	sort.SliceStable(c.dispatcher.callbackHandles, func(i, j int) bool {
+		if c.dispatcher.callbackHandles[i].Group == c.dispatcher.callbackHandles[j].Group {
+			return c.dispatcher.callbackHandles[i].Priority < c.dispatcher.callbackHandles[j].Priority
 		}
+		return c.dispatcher.callbackHandles[i].Group < c.dispatcher.callbackHandles[j].Group
+	})
+
+	processedGroups := make(map[string]bool)
+	handlerChannel := make(chan callbackHandle, len(c.dispatcher.callbackHandles))
+
+	for _, handler := range c.dispatcher.callbackHandles {
+		if handler.IsMatch(update.Data) {
+			if processedGroups[handler.GetGroup()] {
+				continue
+			}
+
+			if hasEndGroup(handler.Filters) {
+				processedGroups[handler.GetGroup()] = true
+			}
+
+			handlerChannel <- handler
+		}
+
 	}
+	close(handlerChannel)
+
+	var wg sync.WaitGroup
+
+	for handler := range handlerChannel {
+		wg.Add(1)
+		go func(h callbackHandle) {
+			defer wg.Done()
+			defer c.NewRecovery()()
+			if err := h.Handler(packCallbackQuery(c, update)); err != nil {
+				c.Log.Error(errors.Wrap(err, "updates.dispatcher.callbackQuery"))
+			}
+		}(handler)
+	}
+	wg.Wait()
 }
 
 func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery) {
-	for _, handle := range c.dispatcher.inlineCallbackHandles {
-		if handle.IsMatch(update.Data) {
-			go func(h inlineCallbackHandle) {
-				defer c.NewRecovery()()
-				if err := h.Handler(packInlineCallbackQuery(c, update)); err != nil {
-					c.Log.Error("updates.dispatcher.inlineCallbackQuery -", err)
-				}
-			}(handle)
+	sort.SliceStable(c.dispatcher.inlineCallbackHandles, func(i, j int) bool {
+		if c.dispatcher.inlineCallbackHandles[i].Group == c.dispatcher.inlineCallbackHandles[j].Group {
+			return c.dispatcher.inlineCallbackHandles[i].Priority < c.dispatcher.inlineCallbackHandles[j].Priority
+		}
+		return c.dispatcher.inlineCallbackHandles[i].Group < c.dispatcher.inlineCallbackHandles[j].Group
+	})
+
+	processedGroups := make(map[string]bool)
+	handlerChannel := make(chan inlineCallbackHandle, len(c.dispatcher.inlineCallbackHandles))
+
+	for _, handler := range c.dispatcher.inlineCallbackHandles {
+		if handler.IsMatch(update.Data) {
+			if processedGroups[handler.GetGroup()] {
+				continue
+			}
+
+			if hasEndGroup(handler.Filters) {
+				processedGroups[handler.GetGroup()] = true
+			}
+
+			handlerChannel <- handler
 		}
 	}
+	close(handlerChannel)
+
+	var wg sync.WaitGroup
+
+	for handler := range handlerChannel {
+		wg.Add(1)
+		go func(h inlineCallbackHandle) {
+			defer wg.Done()
+			defer c.NewRecovery()()
+			if err := h.Handler(packInlineCallbackQuery(c, update)); err != nil {
+				c.Log.Error(errors.Wrap(err, "updates.dispatcher.inlineCallbackQuery"))
+			}
+		}(handler)
+	}
+	wg.Wait()
 }
 
 func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
-	for _, handle := range c.dispatcher.participantHandles {
+	handlerChannel := make(chan participantHandle, len(c.dispatcher.participantHandles))
+
+	for _, handler := range c.dispatcher.participantHandles {
+		handlerChannel <- handler
+	}
+	close(handlerChannel)
+
+	var wg sync.WaitGroup
+
+	for handler := range handlerChannel {
+		wg.Add(1)
 		go func(h participantHandle) {
+			defer wg.Done()
 			defer c.NewRecovery()()
 			if err := h.Handler(packChannelParticipant(c, update)); err != nil {
-				c.Log.Error("updates.dispatcher.participantUpdate -", err)
+				c.Log.Error(errors.Wrap(err, "updates.dispatcher.participant"))
 			}
-		}(handle)
+		}(handler)
 	}
+	wg.Wait()
 }
 
 func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
-	for _, handle := range c.dispatcher.inlineHandles {
-		if handle.IsMatch(update.Query) {
-			go func(h inlineHandle) {
-				defer c.NewRecovery()()
-				if err := h.Handler(packInlineQuery(c, update)); err != nil {
-					c.Log.Error("updates.dispatcher.inlineQuery -", err)
-				}
-			}(handle)
+	handlerChannel := make(chan inlineHandle, len(c.dispatcher.inlineHandles))
+
+	for _, handler := range c.dispatcher.inlineHandles {
+		if handler.IsMatch(update.Query) {
+			handlerChannel <- handler
 		}
 	}
+	close(handlerChannel)
+
+	var wg sync.WaitGroup
+
+	for handler := range handlerChannel {
+		wg.Add(1)
+		go func(h inlineHandle) {
+			defer wg.Done()
+			defer c.NewRecovery()()
+			if err := h.Handler(packInlineQuery(c, update)); err != nil {
+				c.Log.Error(errors.Wrap(err, "updates.dispatcher.inlineQuery"))
+			}
+		}(handler)
+	}
+	wg.Wait()
 }
 
 func (c *Client) handleDeleteUpdate(update Update) {
-	for _, handle := range c.dispatcher.messageDeleteHandles {
+	handlerChannel := make(chan messageDeleteHandle, len(c.dispatcher.messageDeleteHandles))
+
+	for _, handler := range c.dispatcher.messageDeleteHandles {
+		handlerChannel <- handler
+	}
+	close(handlerChannel)
+
+	var wg sync.WaitGroup
+
+	for handler := range handlerChannel {
+		wg.Add(1)
 		go func(h messageDeleteHandle) {
+			defer wg.Done()
 			defer c.NewRecovery()()
 			if err := h.Handler(packDeleteMessage(c, update)); err != nil {
-				c.Log.Error("updates.dispatcher.deleteUpdate -", err)
+				c.Log.Error(errors.Wrap(err, "updates.dispatcher.deleteMessage"))
 			}
-		}(handle)
+		}(handler)
 	}
+	wg.Wait()
 }
 
 func (c *Client) handleRawUpdate(update Update) {
-	for _, handle := range c.dispatcher.rawHandles {
-		if reflect.TypeOf(update) == reflect.TypeOf(handle.updateType) {
-			go func(h rawHandle) {
-				defer c.NewRecovery()()
-				if err := h.Handler(update, c); err != nil {
-					c.Log.Error("updates.dispatcher.rawUpdate -", err)
-				}
-			}(handle)
+	handlerChannel := make(chan rawHandle, len(c.dispatcher.rawHandles))
+
+	for _, handler := range c.dispatcher.rawHandles {
+		if reflect.TypeOf(update) == reflect.TypeOf(handler.updateType) {
+			handlerChannel <- handler
 		}
 	}
+	close(handlerChannel)
+
+	var wg sync.WaitGroup
+
+	for handler := range handlerChannel {
+		wg.Add(1)
+		go func(h rawHandle) {
+			defer wg.Done()
+			defer c.NewRecovery()()
+			if err := h.Handler(update, c); err != nil {
+				c.Log.Error(errors.Wrap(err, "updates.dispatcher.rawUpdate"))
+			}
+		}(handler)
+	}
+	wg.Wait()
 }
 
 func (h *inlineHandle) IsMatch(text string) bool {
@@ -450,9 +863,9 @@ func (h *messageHandle) runFilterChain(m *NewMessage) bool {
 }
 
 type Filter struct {
-	Private, Group, Channel, Media, Command, Reply, Forward, FromBot, Blacklist, Mention bool
-	Users, Chats                                                                         []int64
-	Func                                                                                 func(m *NewMessage) bool
+	Private, Group, Channel, Media, Command, Reply, Forward, FromBot, Blacklist, Mention, EndGroup bool
+	Users, Chats                                                                                   []int64
+	Func                                                                                           func(m *NewMessage) bool
 }
 
 var (
@@ -475,16 +888,19 @@ var (
 	FilterFunc = func(f func(m *NewMessage) bool) Filter {
 		return Filter{Func: f}
 	}
+	FilterEndGroup = func() Filter {
+		return Filter{EndGroup: true}
+	}
 )
 
-func (c *Client) AddMessageHandler(pattern interface{}, handler MessageHandler, filters ...Filter) messageHandle {
+func (c *Client) AddMessageHandler(pattern interface{}, handler MessageHandler, filters ...Filter) *messageHandle {
 	var messageFilters []Filter
 	if len(filters) > 0 {
 		messageFilters = filters
 	}
 	handle := messageHandle{Pattern: pattern, Handler: handler, Filters: messageFilters}
 	c.dispatcher.messageHandles = append(c.dispatcher.messageHandles, handle)
-	return handle
+	return &c.dispatcher.messageHandles[len(c.dispatcher.messageHandles)-1]
 }
 
 func (c *Client) AddDeleteHandler(pattern interface{}, handler func(d *DeleteMessage) error) messageDeleteHandle {
@@ -605,17 +1021,17 @@ UpdateTypeSwitching:
 	case *UpdateShort:
 		switch upd := upd.Update.(type) {
 		case *UpdateNewMessage:
-			go c.handleMessageUpdateW(upd.Message, upd.Pts)
+			go c.handleMessageUpdateWith(upd.Message, upd.Pts)
 		case *UpdateNewChannelMessage:
-			go c.handleMessageUpdateW(upd.Message, upd.Pts)
+			go c.handleMessageUpdateWith(upd.Message, upd.Pts)
 		}
 		go c.handleRawUpdate(upd.Update)
 	case *UpdateShortMessage:
-		go c.handleMessageUpdateW(&MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}, upd.Pts)
+		go c.handleMessageUpdateWith(&MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}, upd.Pts)
 	case *UpdateShortChatMessage:
-		go c.handleMessageUpdateW(&MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}, upd.Pts)
+		go c.handleMessageUpdateWith(&MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}, upd.Pts)
 	case *UpdateShortSentMessage:
-		go c.handleMessageUpdateW(&MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}, upd.Pts)
+		go c.handleMessageUpdateWith(&MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}, upd.Pts)
 	case *UpdatesCombined:
 		u = upd.Updates
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
@@ -761,4 +1177,12 @@ func (c *Client) On(pattern any, handler interface{}, filters ...Filter) handleI
 	}
 
 	return nil
+}
+
+func (c *Client) OnGroup(group string, pattern any, handler interface{}, filters ...Filter) handleInterface {
+	h := c.On(pattern, handler, filters...)
+	if h != nil {
+		h.(Handle).SetGroup(group)
+	}
+	return h
 }
