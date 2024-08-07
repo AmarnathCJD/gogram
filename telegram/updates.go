@@ -18,6 +18,7 @@ import (
 // way to set prio on adding event handler (this solves todo-1)
 // calling endGroup from inside the event handler.
 // make it more efficient
+// maybe add a channnel to the newMessage,... types as endGroup.
 
 type Handle interface {
 	IsMatch(text string) bool
