@@ -924,7 +924,7 @@ func (c *Client) runFilterChain(m *NewMessage, filters []Filter) bool {
 		}
 	)
 
-	if filters != nil && len(filters) > 0 {
+	if len(filters) > 0 {
 		for _, filter := range filters {
 			if filter.Private && !m.IsPrivate() || filter.Group && !m.IsGroup() || filter.Channel && !m.IsChannel() {
 				return false
