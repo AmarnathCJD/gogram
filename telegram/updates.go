@@ -519,7 +519,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 		for group, handlers := range c.dispatcher.messageHandles {
 			go func(group string, handlers []messageHandle) {
 				for _, handler := range handlers {
-					if handler.IsMatch(msg.Message) {
+					if handler.IsMatch(msg.Message, c) {
 						handle := func(h messageHandle) error {
 							packed := packMessage(c, msg)
 							if c.runFilterChain(packed, h.Filters) {
@@ -896,13 +896,26 @@ func (h *inlineCallbackHandle) IsMatch(data []byte) bool {
 	}
 }
 
-func (h *messageHandle) IsMatch(text string) bool {
+func (h *messageHandle) IsMatch(text string, c *Client) bool {
 	switch Pattern := h.Pattern.(type) {
 	case string:
 		if Pattern == OnNewMessage {
 			return true
 		}
-		pattern := regexp.MustCompile("^" + Pattern)
+
+		if strings.HasPrefix(Pattern, "cmd:") {
+			//(?i)^[!/-]ping(?: |$|@botusername)(.*)$
+			Pattern = "(?i)^[!/]" + strings.TrimPrefix(Pattern, "cmd:")
+			if me := c.Me(); me != nil {
+				Pattern += "(?: |$|@" + me.Username + ")(.*)"
+			}
+		} else {
+			if !strings.HasPrefix(Pattern, "^") {
+				Pattern = "^" + Pattern
+			}
+		}
+
+		pattern := regexp.MustCompile(Pattern)
 		return pattern.MatchString(text) || strings.HasPrefix(text, Pattern)
 	case *regexp.Regexp:
 		return Pattern.MatchString(text)
@@ -1247,6 +1260,7 @@ type ev interface{}
 
 var (
 	OnMessage        ev = "message"
+	OnCommand        ev = "command"
 	OnEdit           ev = "edit"
 	OnDelete         ev = "delete"
 	OnAlbum          ev = "album"
@@ -1278,6 +1292,13 @@ func (c *Client) On(pattern any, handler interface{}, filters ...Filter) Handle 
 				return c.AddMessageHandler(args, h, filters...)
 			}
 			return c.AddMessageHandler(OnNewMessage, h, filters...)
+		}
+	case OnCommand:
+		if h, ok := handler.(func(m *NewMessage) error); ok {
+			if args != "" {
+				return c.AddMessageHandler("cmd:"+args, h, append(filters, FilterCommand)...)
+			}
+			return c.AddMessageHandler(OnNewMessage, h, append(filters, FilterCommand)...)
 		}
 	case OnEdit:
 		if h, ok := handler.(func(m *NewMessage) error); ok {
