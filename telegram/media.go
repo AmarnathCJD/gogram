@@ -479,7 +479,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 						}()
 
 						retryCount := 0
-						reqTimeout := 3 * time.Second
+						reqTimeout := 4 * time.Second
 
 					partDownloadStartPoint:
 						c.Logger.Debug(fmt.Sprintf("download part %d/%d in chunks of %d", p, totalParts, partSize/1024))
@@ -535,7 +535,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 								c.Logger.Debug(fmt.Errorf("upload part %d timed out - giving up", p))
 								return
 							} else if retryCount > 2 {
-								reqTimeout = 5 * time.Second
+								reqTimeout = 6 * time.Second
 							}
 							goto partDownloadStartPoint
 						}
