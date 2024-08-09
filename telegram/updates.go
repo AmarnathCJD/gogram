@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/pkg/errors"
 )
@@ -29,34 +28,6 @@ type ParticipantHandler func(m *ParticipantUpdate) error
 type RawHandler func(m Update, c *Client) error
 
 var EndGroup = errors.New("end-group-trigger")
-
-func (c *Client) removeHandle(h interface{}) {
-	removeHandleFromSlice := func(handles []interface{}, handle interface{}) []interface{} {
-		for i, h := range handles {
-			if reflect.DeepEqual(h, handle) {
-				return append(handles[:i], handles[i+1:]...)
-			}
-		}
-		return handles
-	}
-
-	handleMap := map[reflect.Type]*[]interface{}{
-		reflect.TypeOf((*messageHandle)(nil)):        (*[]interface{})(unsafe.Pointer(&c.dispatcher.messageHandles)),
-		reflect.TypeOf((*albumHandle)(nil)):          (*[]interface{})(unsafe.Pointer(&c.dispatcher.albumHandles)),
-		reflect.TypeOf((*chatActionHandle)(nil)):     (*[]interface{})(unsafe.Pointer(&c.dispatcher.actionHandles)),
-		reflect.TypeOf((*messageEditHandle)(nil)):    (*[]interface{})(unsafe.Pointer(&c.dispatcher.messageEditHandles)),
-		reflect.TypeOf((*inlineHandle)(nil)):         (*[]interface{})(unsafe.Pointer(&c.dispatcher.inlineHandles)),
-		reflect.TypeOf((*callbackHandle)(nil)):       (*[]interface{})(unsafe.Pointer(&c.dispatcher.callbackHandles)),
-		reflect.TypeOf((*inlineCallbackHandle)(nil)): (*[]interface{})(unsafe.Pointer(&c.dispatcher.inlineCallbackHandles)),
-		reflect.TypeOf((*participantHandle)(nil)):    (*[]interface{})(unsafe.Pointer(&c.dispatcher.participantHandles)),
-		reflect.TypeOf((*rawHandle)(nil)):            (*[]interface{})(unsafe.Pointer(&c.dispatcher.rawHandles)),
-	}
-
-	handleType := reflect.TypeOf(h)
-	if handles, ok := handleMap[handleType]; ok {
-		*handles = removeHandleFromSlice(*handles, h)
-	}
-}
 
 type messageHandle struct {
 	Pattern     interface{}
@@ -246,16 +217,16 @@ func (h *rawHandle) GetGroup() string {
 }
 
 type UpdateDispatcher struct {
-	messageHandles        map[string][]messageHandle
-	inlineHandles         map[string][]inlineHandle
-	callbackHandles       map[string][]callbackHandle
-	inlineCallbackHandles map[string][]inlineCallbackHandle
-	participantHandles    map[string][]participantHandle
-	messageEditHandles    map[string][]messageEditHandle
-	actionHandles         map[string][]chatActionHandle
-	messageDeleteHandles  map[string][]messageDeleteHandle
-	albumHandles          map[string][]albumHandle
-	rawHandles            map[string][]rawHandle
+	messageHandles        map[string][]*messageHandle
+	inlineHandles         map[string][]*inlineHandle
+	callbackHandles       map[string][]*callbackHandle
+	inlineCallbackHandles map[string][]*inlineCallbackHandle
+	participantHandles    map[string][]*participantHandle
+	messageEditHandles    map[string][]*messageEditHandle
+	actionHandles         map[string][]*chatActionHandle
+	messageDeleteHandles  map[string][]*messageDeleteHandle
+	albumHandles          map[string][]*albumHandle
+	rawHandles            map[string][]*rawHandle
 	activeAlbums          map[int64]*albumBox
 	sortTrigger           chan any
 }
@@ -266,214 +237,30 @@ func (c *Client) NewUpdateDispatcher() {
 	c.dispatcher.SortTrigger()
 }
 
-func (d *UpdateDispatcher) sortMessage() {
-	for group, handles := range d.messageHandles {
-		correctHandles := handles[:0] // Reuse the same slice to avoid extra allocation
-		var toMove []Handle           // Collect handles that need to be moved
+// ---------------------------- Dispatcher Functions ----------------------------
 
-		for _, handle := range handles {
-			if handle.Group == group {
+// sortgeneric
+func sortGeneric[T Handle](handles map[string][]T) map[string][]T {
+	for group, h := range handles {
+		correctHandles := h[:0]
+		var toMove []T
+
+		for _, handle := range h {
+			if handle.GetGroup() == group {
 				correctHandles = append(correctHandles, handle)
 			} else {
-				toMove = append(toMove, &handle)
+				toMove = append(toMove, handle)
 			}
 		}
 
-		d.messageHandles[group] = correctHandles // Update with the correct handles
+		handles[group] = correctHandles
 
 		for _, handle := range toMove {
-			d.messageHandles[handle.GetGroup()] = append(d.messageHandles[handle.GetGroup()], *handle.(*messageHandle))
+			handles[handle.GetGroup()] = append(handles[handle.GetGroup()], handle)
 		}
 	}
-}
 
-func (d *UpdateDispatcher) sortAlbum() {
-	for group, handles := range d.albumHandles {
-		correctHandles := handles[:0]
-		var toMove []Handle
-
-		for _, handle := range handles {
-			if handle.Group == group {
-				correctHandles = append(correctHandles, handle)
-			} else {
-				toMove = append(toMove, &handle)
-			}
-		}
-
-		d.albumHandles[group] = correctHandles
-
-		for _, handle := range toMove {
-			d.albumHandles[handle.GetGroup()] = append(d.albumHandles[handle.GetGroup()], *handle.(*albumHandle))
-		}
-	}
-}
-
-func (d *UpdateDispatcher) sortAction() {
-	for group, handles := range d.actionHandles {
-		correctHandles := handles[:0]
-		var toMove []Handle
-
-		for _, handle := range handles {
-			if handle.Group == group {
-				correctHandles = append(correctHandles, handle)
-			} else {
-				toMove = append(toMove, &handle)
-			}
-		}
-
-		d.actionHandles[group] = correctHandles
-
-		for _, handle := range toMove {
-			d.actionHandles[handle.GetGroup()] = append(d.actionHandles[handle.GetGroup()], *handle.(*chatActionHandle))
-		}
-	}
-}
-
-func (d *UpdateDispatcher) sortMessageEdit() {
-	for group, handles := range d.messageEditHandles {
-		correctHandles := handles[:0]
-		var toMove []Handle
-
-		for _, handle := range handles {
-			if handle.Group == group {
-				correctHandles = append(correctHandles, handle)
-			} else {
-				toMove = append(toMove, &handle)
-			}
-		}
-
-		d.messageEditHandles[group] = correctHandles
-
-		for _, handle := range toMove {
-			d.messageEditHandles[handle.GetGroup()] = append(d.messageEditHandles[handle.GetGroup()], *handle.(*messageEditHandle))
-		}
-	}
-}
-
-func (d *UpdateDispatcher) sortInline() {
-	for group, handles := range d.inlineHandles {
-		correctHandles := handles[:0]
-		var toMove []Handle
-
-		for _, handle := range handles {
-			if handle.Group == group {
-				correctHandles = append(correctHandles, handle)
-			} else {
-				toMove = append(toMove, &handle)
-			}
-		}
-
-		d.inlineHandles[group] = correctHandles
-
-		for _, handle := range toMove {
-			d.inlineHandles[handle.GetGroup()] = append(d.inlineHandles[handle.GetGroup()], *handle.(*inlineHandle))
-		}
-	}
-}
-
-func (d *UpdateDispatcher) sortCallback() {
-	for group, handles := range d.callbackHandles {
-		correctHandles := handles[:0]
-		var toMove []Handle
-
-		for _, handle := range handles {
-			if handle.Group == group {
-				correctHandles = append(correctHandles, handle)
-			} else {
-				toMove = append(toMove, &handle)
-			}
-		}
-
-		d.callbackHandles[group] = correctHandles
-
-		for _, handle := range toMove {
-			d.callbackHandles[handle.GetGroup()] = append(d.callbackHandles[handle.GetGroup()], *handle.(*callbackHandle))
-		}
-	}
-}
-
-func (d *UpdateDispatcher) sortInlineCallback() {
-	for group, handles := range d.inlineCallbackHandles {
-		correctHandles := handles[:0]
-		var toMove []Handle
-
-		for _, handle := range handles {
-			if handle.Group == group {
-				correctHandles = append(correctHandles, handle)
-			} else {
-				toMove = append(toMove, &handle)
-			}
-		}
-
-		d.inlineCallbackHandles[group] = correctHandles
-
-		for _, handle := range toMove {
-			d.inlineCallbackHandles[handle.GetGroup()] = append(d.inlineCallbackHandles[handle.GetGroup()], *handle.(*inlineCallbackHandle))
-		}
-	}
-}
-
-func (d *UpdateDispatcher) sortParticipant() {
-	for group, handles := range d.participantHandles {
-		correctHandles := handles[:0]
-		var toMove []Handle
-
-		for _, handle := range handles {
-			if handle.Group == group {
-				correctHandles = append(correctHandles, handle)
-			} else {
-				toMove = append(toMove, &handle)
-			}
-		}
-
-		d.participantHandles[group] = correctHandles
-
-		for _, handle := range toMove {
-			d.participantHandles[handle.GetGroup()] = append(d.participantHandles[handle.GetGroup()], *handle.(*participantHandle))
-		}
-	}
-}
-
-func (d *UpdateDispatcher) sortDelete() {
-	for group, handles := range d.messageDeleteHandles {
-		correctHandles := handles[:0]
-		var toMove []Handle
-
-		for _, handle := range handles {
-			if handle.Group == group {
-				correctHandles = append(correctHandles, handle)
-			} else {
-				toMove = append(toMove, &handle)
-			}
-		}
-
-		d.messageDeleteHandles[group] = correctHandles
-
-		for _, handle := range toMove {
-			d.messageDeleteHandles[handle.GetGroup()] = append(d.messageDeleteHandles[handle.GetGroup()], *handle.(*messageDeleteHandle))
-		}
-	}
-}
-
-func (d *UpdateDispatcher) sortRaw() {
-	for group, handles := range d.rawHandles {
-		correctHandles := handles[:0]
-		var toMove []Handle
-
-		for _, handle := range handles {
-			if handle.Group == group {
-				correctHandles = append(correctHandles, handle)
-			} else {
-				toMove = append(toMove, &handle)
-			}
-		}
-
-		d.rawHandles[group] = correctHandles
-
-		for _, handle := range toMove {
-			d.rawHandles[handle.GetGroup()] = append(d.rawHandles[handle.GetGroup()], *handle.(*rawHandle))
-		}
-	}
+	return handles
 }
 
 func (d *UpdateDispatcher) SortTrigger() {
@@ -485,29 +272,84 @@ func (d *UpdateDispatcher) SortTrigger() {
 		for handle := range d.sortTrigger {
 			switch handle.(type) {
 			case *messageHandle:
-				d.sortMessage()
+				sortGeneric(d.messageHandles)
 			case *albumHandle:
-				d.sortAlbum()
+				sortGeneric(d.albumHandles)
 			case *chatActionHandle:
-				d.sortAction()
+				sortGeneric(d.actionHandles)
 			case *messageEditHandle:
-				d.sortMessageEdit()
+				sortGeneric(d.messageEditHandles)
 			case *inlineHandle:
-				d.sortInline()
+				sortGeneric(d.inlineHandles)
 			case *callbackHandle:
-				d.sortCallback()
+				sortGeneric(d.callbackHandles)
 			case *inlineCallbackHandle:
-				d.sortInlineCallback()
+				sortGeneric(d.inlineCallbackHandles)
 			case *participantHandle:
-				d.sortParticipant()
+				sortGeneric(d.participantHandles)
 			case *messageDeleteHandle:
-				d.sortDelete()
+				sortGeneric(d.messageDeleteHandles)
 			case *rawHandle:
-				d.sortRaw()
+				sortGeneric(d.rawHandles)
 			}
 		}
 	}()
 }
+
+func (c *Client) RemoveHandle(handle Handle) error {
+	if c.dispatcher == nil {
+		return errors.New("dispatcher not initialized")
+	}
+
+	if err := c.removeHandle(handle); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) removeHandle(handle Handle) error {
+	switch h := handle.(type) {
+	case *messageHandle:
+		removeHandleFromMap(h, c.dispatcher.messageHandles)
+	case *inlineHandle:
+		removeHandleFromMap(h, c.dispatcher.inlineHandles)
+	case *callbackHandle:
+		removeHandleFromMap(h, c.dispatcher.callbackHandles)
+	case *inlineCallbackHandle:
+		removeHandleFromMap(h, c.dispatcher.inlineCallbackHandles)
+	case *participantHandle:
+		removeHandleFromMap(h, c.dispatcher.participantHandles)
+	case *messageEditHandle:
+		removeHandleFromMap(h, c.dispatcher.messageEditHandles)
+	case *chatActionHandle:
+		removeHandleFromMap(h, c.dispatcher.actionHandles)
+	case *messageDeleteHandle:
+		removeHandleFromMap(h, c.dispatcher.messageDeleteHandles)
+	case *albumHandle:
+		removeHandleFromMap(h, c.dispatcher.albumHandles)
+	case *rawHandle:
+		removeHandleFromMap(h, c.dispatcher.rawHandles)
+	default:
+		return errors.New("invalid handle type")
+	}
+
+	return nil
+}
+
+func removeHandleFromMap[T any](handle T, handlesMap map[string][]T) {
+	for key, handles := range handlesMap {
+		for i, h := range handles {
+			if reflect.DeepEqual(h, handle) {
+				// Remove the handle by appending the slice before and after the index
+				handlesMap[key] = append(handles[:i], handles[i+1:]...)
+				return
+			}
+		}
+	}
+}
+
+// ---------------------------- Handle Functions ----------------------------
 
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
@@ -517,10 +359,10 @@ func (c *Client) handleMessageUpdate(update Message) {
 		}
 
 		for group, handlers := range c.dispatcher.messageHandles {
-			go func(group string, handlers []messageHandle) {
+			go func(group string, handlers []*messageHandle) {
 				for _, handler := range handlers {
 					if handler.IsMatch(msg.Message, c) {
-						handle := func(h messageHandle) error {
+						handle := func(h *messageHandle) error {
 							packed := packMessage(c, msg)
 							if c.runFilterChain(packed, h.Filters) {
 								defer c.NewRecovery()()
@@ -550,7 +392,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 	case *MessageService:
 		for group, handler := range c.dispatcher.actionHandles {
 			for _, h := range handler {
-				handle := func(h chatActionHandle) error {
+				handle := func(h *chatActionHandle) error {
 					defer c.NewRecovery()()
 					if err := h.Handler(packMessage(c, msg)); err != nil {
 						if errors.Is(err, EndGroup) {
@@ -592,7 +434,7 @@ func (c *Client) handleAlbum(message MessageObj) {
 
 			for gp, handlers := range c.dispatcher.albumHandles {
 				for _, handler := range handlers {
-					handle := func(h albumHandle) error {
+					handle := func(h *albumHandle) error {
 						if err := h.Handler(&Album{
 							GroupedID: abox.groupedId,
 							Messages:  abox.messages,
@@ -644,7 +486,7 @@ func (c *Client) handleEditUpdate(update Message) {
 		for group, handlers := range c.dispatcher.messageEditHandles {
 			for _, handler := range handlers {
 				if handler.IsMatch(msg.Message) {
-					handle := func(h messageEditHandle) error {
+					handle := func(h *messageEditHandle) error {
 						packed := packMessage(c, msg)
 						defer c.NewRecovery()()
 						if c.runFilterChain(packed, h.Filters) {
@@ -675,7 +517,7 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 	for group, handlers := range c.dispatcher.callbackHandles {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Data) {
-				handle := func(h callbackHandle) error {
+				handle := func(h *callbackHandle) error {
 					packed := packCallbackQuery(c, update)
 					defer c.NewRecovery()()
 					if err := h.Handler(packed); err != nil {
@@ -703,7 +545,7 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 	for group, handlers := range c.dispatcher.inlineCallbackHandles {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Data) {
-				handle := func(h inlineCallbackHandle) error {
+				handle := func(h *inlineCallbackHandle) error {
 					packed := packInlineCallbackQuery(c, update)
 					defer c.NewRecovery()()
 					if err := h.Handler(packed); err != nil {
@@ -730,7 +572,7 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 	for group, handlers := range c.dispatcher.participantHandles {
 		for _, handler := range handlers {
-			handle := func(h participantHandle) error {
+			handle := func(h *participantHandle) error {
 				packed := packChannelParticipant(c, update)
 				defer c.NewRecovery()()
 				if err := h.Handler(packed); err != nil {
@@ -757,7 +599,7 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 	for group, handlers := range c.dispatcher.inlineHandles {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Query) {
-				handle := func(h inlineHandle) error {
+				handle := func(h *inlineHandle) error {
 					packed := packInlineQuery(c, update)
 					defer c.NewRecovery()()
 					if err := h.Handler(packed); err != nil {
@@ -784,7 +626,7 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 func (c *Client) handleDeleteUpdate(update Update) {
 	for group, handlers := range c.dispatcher.messageDeleteHandles {
 		for _, handler := range handlers {
-			handle := func(h messageDeleteHandle) error {
+			handle := func(h *messageDeleteHandle) error {
 				packed := packDeleteMessage(c, update)
 				defer c.NewRecovery()()
 				if err := h.Handler(packed); err != nil {
@@ -811,7 +653,7 @@ func (c *Client) handleRawUpdate(update Update) {
 	for group, handlers := range c.dispatcher.rawHandles {
 		for _, handler := range handlers {
 			if reflect.TypeOf(update) == reflect.TypeOf(handler.updateType) {
-				handle := func(h rawHandle) error {
+				handle := func(h *rawHandle) error {
 					defer c.NewRecovery()()
 					if err := h.Handler(update, c); err != nil {
 						if errors.Is(err, EndGroup) {
@@ -1030,12 +872,12 @@ func (c *Client) AddMessageHandler(pattern interface{}, handler MessageHandler, 
 	}
 
 	if c.dispatcher.messageHandles == nil {
-		c.dispatcher.messageHandles = make(map[string][]messageHandle)
+		c.dispatcher.messageHandles = make(map[string][]*messageHandle)
 	}
 
 	handle := messageHandle{Pattern: pattern, Handler: handler, Filters: messageFilters, sortTrigger: c.dispatcher.sortTrigger}
-	c.dispatcher.messageHandles["default"] = append(c.dispatcher.messageHandles["default"], handle)
-	return &c.dispatcher.messageHandles["default"][len(c.dispatcher.messageHandles["default"])-1]
+	c.dispatcher.messageHandles["default"] = append(c.dispatcher.messageHandles["default"], &handle)
+	return c.dispatcher.messageHandles["default"][len(c.dispatcher.messageHandles["default"])-1]
 }
 
 func (c *Client) AddDeleteHandler(pattern interface{}, handler func(d *DeleteMessage) error) Handle {
@@ -1046,31 +888,31 @@ func (c *Client) AddDeleteHandler(pattern interface{}, handler func(d *DeleteMes
 	}
 
 	if c.dispatcher.messageDeleteHandles == nil {
-		c.dispatcher.messageDeleteHandles = make(map[string][]messageDeleteHandle)
+		c.dispatcher.messageDeleteHandles = make(map[string][]*messageDeleteHandle)
 	}
 
-	c.dispatcher.messageDeleteHandles["default"] = append(c.dispatcher.messageDeleteHandles["default"], handle)
-	return &c.dispatcher.messageDeleteHandles["default"][len(c.dispatcher.messageDeleteHandles["default"])-1]
+	c.dispatcher.messageDeleteHandles["default"] = append(c.dispatcher.messageDeleteHandles["default"], &handle)
+	return c.dispatcher.messageDeleteHandles["default"][len(c.dispatcher.messageDeleteHandles["default"])-1]
 }
 
 func (c *Client) AddAlbumHandler(handler func(m *Album) error) Handle {
 	if c.dispatcher.albumHandles == nil {
-		c.dispatcher.albumHandles = make(map[string][]albumHandle)
+		c.dispatcher.albumHandles = make(map[string][]*albumHandle)
 	}
 
 	handle := albumHandle{Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
-	c.dispatcher.albumHandles["default"] = append(c.dispatcher.albumHandles["default"], handle)
-	return &c.dispatcher.albumHandles["default"][len(c.dispatcher.albumHandles["default"])-1]
+	c.dispatcher.albumHandles["default"] = append(c.dispatcher.albumHandles["default"], &handle)
+	return c.dispatcher.albumHandles["default"][len(c.dispatcher.albumHandles["default"])-1]
 }
 
 func (c *Client) AddActionHandler(handler MessageHandler) Handle {
 	if c.dispatcher.actionHandles == nil {
-		c.dispatcher.actionHandles = make(map[string][]chatActionHandle)
+		c.dispatcher.actionHandles = make(map[string][]*chatActionHandle)
 	}
 
 	handle := chatActionHandle{Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
-	c.dispatcher.actionHandles["default"] = append(c.dispatcher.actionHandles["default"], handle)
-	return &c.dispatcher.actionHandles["default"][len(c.dispatcher.actionHandles["default"])-1]
+	c.dispatcher.actionHandles["default"] = append(c.dispatcher.actionHandles["default"], &handle)
+	return c.dispatcher.actionHandles["default"][len(c.dispatcher.actionHandles["default"])-1]
 }
 
 // Handle updates categorized as "UpdateMessageEdited"
@@ -1080,12 +922,12 @@ func (c *Client) AddActionHandler(handler MessageHandler) Handle {
 //   - Channel Post Edited
 func (c *Client) AddEditHandler(pattern interface{}, handler MessageHandler, filters ...Filter) Handle {
 	if c.dispatcher.messageEditHandles == nil {
-		c.dispatcher.messageEditHandles = make(map[string][]messageEditHandle)
+		c.dispatcher.messageEditHandles = make(map[string][]*messageEditHandle)
 	}
 
 	handle := messageEditHandle{Pattern: pattern, Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
-	c.dispatcher.messageEditHandles["default"] = append(c.dispatcher.messageEditHandles["default"], handle)
-	return &c.dispatcher.messageEditHandles["default"][len(c.dispatcher.messageEditHandles["default"])-1]
+	c.dispatcher.messageEditHandles["default"] = append(c.dispatcher.messageEditHandles["default"], &handle)
+	return c.dispatcher.messageEditHandles["default"][len(c.dispatcher.messageEditHandles["default"])-1]
 }
 
 // Handle updates categorized as "UpdateBotInlineQuery"
@@ -1094,12 +936,12 @@ func (c *Client) AddEditHandler(pattern interface{}, handler MessageHandler, fil
 //   - Inline Query
 func (c *Client) AddInlineHandler(pattern interface{}, handler InlineHandler) Handle {
 	if c.dispatcher.inlineHandles == nil {
-		c.dispatcher.inlineHandles = make(map[string][]inlineHandle)
+		c.dispatcher.inlineHandles = make(map[string][]*inlineHandle)
 	}
 
 	handle := inlineHandle{Pattern: pattern, Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
-	c.dispatcher.inlineHandles["default"] = append(c.dispatcher.inlineHandles["default"], handle)
-	return &c.dispatcher.inlineHandles["default"][len(c.dispatcher.inlineHandles["default"])-1]
+	c.dispatcher.inlineHandles["default"] = append(c.dispatcher.inlineHandles["default"], &handle)
+	return c.dispatcher.inlineHandles["default"][len(c.dispatcher.inlineHandles["default"])-1]
 }
 
 // Handle updates categorized as "UpdateBotCallbackQuery"
@@ -1108,12 +950,12 @@ func (c *Client) AddInlineHandler(pattern interface{}, handler InlineHandler) Ha
 //   - Callback Query
 func (c *Client) AddCallbackHandler(pattern interface{}, handler CallbackHandler) Handle {
 	if c.dispatcher.callbackHandles == nil {
-		c.dispatcher.callbackHandles = make(map[string][]callbackHandle)
+		c.dispatcher.callbackHandles = make(map[string][]*callbackHandle)
 	}
 
 	handle := callbackHandle{Pattern: pattern, Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
-	c.dispatcher.callbackHandles["default"] = append(c.dispatcher.callbackHandles["default"], handle)
-	return &c.dispatcher.callbackHandles["default"][len(c.dispatcher.callbackHandles["default"])-1]
+	c.dispatcher.callbackHandles["default"] = append(c.dispatcher.callbackHandles["default"], &handle)
+	return c.dispatcher.callbackHandles["default"][len(c.dispatcher.callbackHandles["default"])-1]
 }
 
 // Handle updates categorized as "UpdateInlineBotCallbackQuery"
@@ -1122,12 +964,12 @@ func (c *Client) AddCallbackHandler(pattern interface{}, handler CallbackHandler
 //   - Inline Callback Query
 func (c *Client) AddInlineCallbackHandler(pattern interface{}, handler InlineCallbackHandler) Handle {
 	if c.dispatcher.inlineCallbackHandles == nil {
-		c.dispatcher.inlineCallbackHandles = make(map[string][]inlineCallbackHandle)
+		c.dispatcher.inlineCallbackHandles = make(map[string][]*inlineCallbackHandle)
 	}
 
 	handle := inlineCallbackHandle{Pattern: pattern, Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
-	c.dispatcher.inlineCallbackHandles["default"] = append(c.dispatcher.inlineCallbackHandles["default"], handle)
-	return &c.dispatcher.inlineCallbackHandles["default"][len(c.dispatcher.inlineCallbackHandles["default"])-1]
+	c.dispatcher.inlineCallbackHandles["default"] = append(c.dispatcher.inlineCallbackHandles["default"], &handle)
+	return c.dispatcher.inlineCallbackHandles["default"][len(c.dispatcher.inlineCallbackHandles["default"])-1]
 }
 
 // Handle updates categorized as "UpdateChannelParticipant"
@@ -1141,22 +983,22 @@ func (c *Client) AddInlineCallbackHandler(pattern interface{}, handler InlineCal
 //   - Channel Participant Creator
 func (c *Client) AddParticipantHandler(handler ParticipantHandler) Handle {
 	if c.dispatcher.participantHandles == nil {
-		c.dispatcher.participantHandles = make(map[string][]participantHandle)
+		c.dispatcher.participantHandles = make(map[string][]*participantHandle)
 	}
 
 	handle := participantHandle{Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
-	c.dispatcher.participantHandles["default"] = append(c.dispatcher.participantHandles["default"], handle)
-	return &c.dispatcher.participantHandles["default"][len(c.dispatcher.participantHandles["default"])-1]
+	c.dispatcher.participantHandles["default"] = append(c.dispatcher.participantHandles["default"], &handle)
+	return c.dispatcher.participantHandles["default"][len(c.dispatcher.participantHandles["default"])-1]
 }
 
 func (c *Client) AddRawHandler(updateType Update, handler RawHandler) Handle {
 	if c.dispatcher.rawHandles == nil {
-		c.dispatcher.rawHandles = make(map[string][]rawHandle)
+		c.dispatcher.rawHandles = make(map[string][]*rawHandle)
 	}
 
 	handle := rawHandle{updateType: updateType, Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
-	c.dispatcher.rawHandles["default"] = append(c.dispatcher.rawHandles["default"], handle)
-	return &c.dispatcher.rawHandles["default"][len(c.dispatcher.rawHandles["default"])-1]
+	c.dispatcher.rawHandles["default"] = append(c.dispatcher.rawHandles["default"], &handle)
+	return c.dispatcher.rawHandles["default"][len(c.dispatcher.rawHandles["default"])-1]
 }
 
 // Sort and Handle all the Incoming Updates
