@@ -906,8 +906,10 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 		if strings.HasPrefix(Pattern, "cmd:") {
 			//(?i)^[!/-]ping(?: |$|@botusername)(.*)$
 			Pattern = "(?i)^[!/]" + strings.TrimPrefix(Pattern, "cmd:")
-			if me := c.Me(); me != nil {
+			if me := c.Me(); me != nil && me.Username != "" && me.Bot {
 				Pattern += "(?: |$|@" + me.Username + ")(.*)"
+			} else {
+				Pattern += "(.*)"
 			}
 		} else {
 			if !strings.HasPrefix(Pattern, "^") {
