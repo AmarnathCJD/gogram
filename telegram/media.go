@@ -329,7 +329,7 @@ type DownloadOptions struct {
 	// Datacenter ID of file
 	DCId int32 `json:"dc_id,omitempty"`
 	// Destination Writer
-	Buffer *bytes.Buffer `json:"-"`
+	Buffer io.Writer `json:"-"`
 }
 
 type Destination struct {
