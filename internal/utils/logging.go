@@ -91,7 +91,7 @@ func (l *Logger) Error(v ...any) {
 
 func (l *Logger) Warn(v ...any) {
 	if l.Level <= WarnLevel {
-		log.Println(colorize(colorOrange, "[warn]"), l.Prefix, "-", getVariable(v...))
+		log.Println(colorize(colorOrange, "[warn] "), l.Prefix, "-", getVariable(v...))
 	}
 }
 

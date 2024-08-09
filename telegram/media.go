@@ -422,6 +422,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 
 	if opts.Buffer != nil {
 		dest = ":mem-buffer:"
+		c.Logger.Warn("downloading to buffer (memory) - use with caution")
 	}
 
 	c.Logger.Info(fmt.Sprintf("file - download: (%s) - (%d) - (%d)", dest, size, parts))
