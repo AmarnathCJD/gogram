@@ -276,7 +276,7 @@ func (c *Client) InitialRequest() error {
 
 // Establish connection to telegram servers
 func (c *Client) Connect() error {
-	defer c.meIfy()
+	defer c.GetMe()
 
 	if c.IsConnected() {
 		return nil
@@ -328,15 +328,6 @@ func (c *Client) IsAuthorized() (bool, error) {
 		return false, err
 	}
 	return true, nil
-}
-
-func (c *Client) meIfy() {
-	if c.clientData.me == nil {
-		me, _ := c.GetMe()
-		if me != nil {
-			c.clientData.me = me
-		}
-	}
 }
 
 // Disconnect from telegram servers
