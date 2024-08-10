@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"math/rand"
 	"os"
@@ -443,6 +444,8 @@ mediaTypeSwitch:
 				if err != nil {
 					return nil, err
 				}
+				attr.FileAbsPath = media
+
 				goto mediaTypeSwitch
 			} else {
 				return nil, err
@@ -510,7 +513,10 @@ mediaTypeSwitch:
 		} else {
 			var mediaAttributes = getValueSlice(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}})
 			hasFileName := false
-			mediaAttributes, dur, _ := gatherVideoMetadata(fileName, mediaAttributes)
+			mediaAttributes, dur, err := gatherVideoMetadata(getValue(attr.FileAbsPath, fileName), mediaAttributes)
+			if err != nil {
+				c.Logger.Debug(errors.Wrap(err, "gathering video metadata"))
+			}
 
 			for _, at := range mediaAttributes {
 				if _, ok := at.(*DocumentAttributeFilename); ok {
@@ -519,9 +525,9 @@ mediaTypeSwitch:
 			}
 
 			if attr.Thumb == nil && !attr.DisableThumb {
-				thumbFile, err := c.gatherVideoThumb(fileName, dur)
+				thumbFile, err := c.gatherVideoThumb(getValue(attr.FileAbsPath, fileName), dur)
 				if err != nil {
-					c.Logger.Debug("gathering video thumb", err)
+					c.Logger.Debug(errors.Wrap(err, "gathering video thumb"))
 				} else {
 					attr.Thumb = thumbFile
 				}
@@ -533,7 +539,7 @@ mediaTypeSwitch:
 
 			return &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValueAny(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false), ForceFile: false}, nil
 		}
-	case []byte, *bytes.Reader:
+	case []byte, *io.Reader, *bytes.Buffer, *os.File:
 		var uopts *UploadOptions = &UploadOptions{}
 		if attr != nil {
 			uopts.ProgressCallback = attr.ProgressCallback
@@ -548,7 +554,7 @@ mediaTypeSwitch:
 		}
 		goto mediaTypeSwitch
 	case nil:
-		return nil, errors.New("media is nil, cannot send")
+		return nil, errors.New("media given is nil, cannot send nil media")
 	}
 	return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(mediaFile).String()))
 }
@@ -1090,7 +1096,3 @@ func (c *Client) JSON(object interface{}, nointent ...any) string {
 	}
 	return string(data)
 }
-
-// func (c *Client) JSON(object interface{}, err error) {
-// 	return
-// }

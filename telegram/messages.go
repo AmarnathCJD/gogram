@@ -305,6 +305,7 @@ type MediaMetadata struct {
 	MimeType              string              `json:"mime_type,omitempty"`
 	ProgressCallback      func(int32, int32)  `json:"-"`
 	UploadThreads         int                 `json:"-"`
+	FileAbsPath           string              `json:"-"`
 }
 
 // SendMedia sends a media message.
