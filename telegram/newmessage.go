@@ -127,6 +127,9 @@ func (m *NewMessage) ChatType() string {
 		case *PeerChat:
 			return EntityChat
 		case *PeerChannel:
+			if !m.Channel.Broadcast {
+				return EntityChat
+			}
 			return EntityChannel
 		}
 	}
