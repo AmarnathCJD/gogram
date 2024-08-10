@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -668,16 +669,19 @@ func (pm *ProgressManager) GetStats(currentSize int) string {
 func (pm *ProgressManager) GenProgressBar(b int) string {
 	barLength := 50
 	progress := int((pm.GetProgress(b) / 100) * float64(barLength))
-	bar := "["
 
+	var bar strings.Builder
+	bar.Grow(barLength + 3) // Prelocation for ("[" + bar + "]")
+
+	bar.WriteString("[")
 	for i := 0; i < barLength; i++ {
 		if i < progress {
-			bar += "="
+			bar.WriteString("=")
 		} else {
-			bar += " "
+			bar.WriteString(" ")
 		}
 	}
-	bar += "]"
+	bar.WriteString("]")
 
-	return fmt.Sprintf("\r%s %d%%", bar, int(pm.GetProgress(b)))
+	return fmt.Sprintf("\r%s %d%%", bar.String(), int(pm.GetProgress(b)))
 }
