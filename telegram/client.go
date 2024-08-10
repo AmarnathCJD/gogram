@@ -40,6 +40,7 @@ type clientData struct {
 	parseMode     string
 	logLevel      string
 	botAcc        bool
+	me            *UserObj
 }
 
 type exportedSender struct {
@@ -182,7 +183,7 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 	}
 	if !doesSessionFileExist(config.Session) && config.StringSession == "" && (c.AppID() == 0 || c.AppHash() == "") {
 		if c.AppID() == 0 {
-			log.Print("app id is empty, call ScrapeAppConfig()? (y/n)")
+			log.Print("app id is empty, fetch from api.telegram.org? (y/n): ")
 			if !utils.AskForConfirmation() {
 				return errors.New("your app id is empty, please provide it")
 			} else {
@@ -275,9 +276,13 @@ func (c *Client) InitialRequest() error {
 
 // Establish connection to telegram servers
 func (c *Client) Connect() error {
+	defer c.GetMe()
+
 	if c.IsConnected() {
 		return nil
 	}
+
+	c.Log.Debug("connecting to telegram servers")
 
 	err := c.MTProto.CreateConnection(true)
 	if err != nil {
@@ -349,6 +354,10 @@ func (c *Client) SetAppID(appID int32) {
 
 func (c *Client) SetAppHash(appHash string) {
 	c.clientData.appHash = appHash
+}
+
+func (c *Client) Me() *UserObj {
+	return c.clientData.me
 }
 
 func (c *Client) AddNewExportedSenderToMap(dcID int, sender *Client) {

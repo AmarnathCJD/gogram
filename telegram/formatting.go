@@ -134,7 +134,7 @@ func getTextLength(n *html.Node) int32 {
 	currentNode := n.FirstChild
 	for currentNode != nil {
 		if currentNode.Type == html.TextNode {
-			tagLength += utf16RuneCountInString(currentNode.Data)
+			tagLength += utf16RuneCountInString(strings.TrimSpace(currentNode.Data))
 		} else if currentNode.Type == html.ElementNode {
 			tagLength += getTextLength(currentNode)
 		}

@@ -7,15 +7,13 @@ import (
 
 const ConvDefaultTimeOut = int32(60)
 
-type handle interface{}
-
 // Conversation is a struct for conversation with user.
 type Conversation struct {
 	Client    *Client
 	Peer      InputPeer
 	isPrivate bool
 	timeOut   int32
-	openH     []handle
+	openH     []Handle
 	lastMsg   *NewMessage
 }
 
@@ -99,13 +97,13 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 
 	h := c.Client.On(OnMessage, waitFunc, filters...)
 
-	c.openH = append(c.openH, &h)
+	c.openH = append(c.openH, h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
-		go c.removeHandle(&h)
+		go c.removeHandle(h)
 		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
 	case m := <-resp:
-		go c.removeHandle(&h)
+		go c.removeHandle(h)
 		return m, nil
 	}
 }
@@ -131,13 +129,13 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 	}
 
 	h := c.Client.On(OnEdit, waitFunc, filters...)
-	c.openH = append(c.openH, &h)
+	c.openH = append(c.openH, h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
-		go c.removeHandle(&h)
+		go c.removeHandle(h)
 		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
 	case m := <-resp:
-		go c.removeHandle(&h)
+		go c.removeHandle(h)
 		return m, nil
 	}
 }
@@ -165,13 +163,13 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 	filters = append(filters, FilterReply)
 
 	h := c.Client.On(OnMessage, waitFunc, filters...)
-	c.openH = append(c.openH, &h)
+	c.openH = append(c.openH, h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
-		go c.removeHandle(&h)
+		go c.removeHandle(h)
 		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
 	case m := <-resp:
-		go c.removeHandle(&h)
+		go c.removeHandle(h)
 		return m, nil
 	}
 }
@@ -192,13 +190,13 @@ func (c *Conversation) WaitEvent(ev *Update) (Update, error) {
 	}
 
 	h := c.Client.On(*ev, waitFunc)
-	c.openH = append(c.openH, &h)
+	c.openH = append(c.openH, h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
-		go c.removeHandle(&h)
+		go c.removeHandle(h)
 		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
 	case u := <-resp:
-		go c.removeHandle(&h)
+		go c.removeHandle(h)
 		return u, nil
 	}
 }
@@ -215,19 +213,19 @@ func (c *Conversation) WaitRead() (*UpdateReadChannelInbox, error) {
 	}
 
 	h := c.Client.On(&UpdateReadChannelInbox{}, waitFunc)
-	c.openH = append(c.openH, &h)
+	c.openH = append(c.openH, h)
 
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
-		go c.removeHandle(&h)
+		go c.removeHandle(h)
 		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
 	case u := <-resp:
-		go c.removeHandle(&h)
+		go c.removeHandle(h)
 		return u, nil
 	}
 }
 
-func (c *Conversation) removeHandle(h handle) {
+func (c *Conversation) removeHandle(h Handle) {
 	for i, v := range c.openH {
 		if v == h {
 			c.openH = append(c.openH[:i], c.openH[i+1:]...)

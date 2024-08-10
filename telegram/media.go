@@ -330,7 +330,7 @@ type DownloadOptions struct {
 	// Datacenter ID of file
 	DCId int32 `json:"dc_id,omitempty"`
 	// Destination Writer
-	Buffer *bytes.Buffer `json:"-"`
+	Buffer io.Writer `json:"-"`
 }
 
 type Destination struct {
@@ -447,6 +447,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 		if opts.Buffer != nil {
 			dest = ":mem-buffer:"
+			c.Logger.Warn("downloading to buffer (memory) - use with caution")
 		}
 
 		c.Logger.Info(fmt.Sprintf("file - download: (%s) - (%d) - (%d)", dest, size, parts))
