@@ -31,8 +31,6 @@ func (c *Client) StartGroupCallMedia(peer interface{}) (PhoneCall, error) {
 	return nil, fmt.Errorf("StartGroupCallMedia: failed to start group call")
 }
 
-// TODO: after implementing latest Layer.
-
 func (c *Client) GetGroupCall(chatId interface{}) (*InputGroupCall, error) {
 	resolvedPeer, err := c.ResolvePeer(chatId)
 	if err != nil {

@@ -2,6 +2,8 @@
 
 package telegram
 
+import "errors"
+
 type ParticipantUpdate struct {
 	Client         *Client
 	OriginalUpdate *UpdateChannelParticipant
@@ -127,4 +129,79 @@ func (pu *ParticipantUpdate) Marshal(nointent ...bool) string {
 	return pu.Client.JSON(pu.OriginalUpdate, nointent)
 }
 
-// Rest Functions to be implemented
+func (pu *ParticipantUpdate) Ban() (bool, error) {
+	if pu.User == nil {
+		return false, errors.New("ParticipantUpdate.Ban: User is nil")
+	}
+
+	if pu.Channel == nil {
+		return false, errors.New("ParticipantUpdate.Ban: Channel is nil")
+	}
+
+	_, err := pu.Client.EditBanned(pu.Channel, pu.User, &BannedOptions{
+		Ban: true,
+	})
+
+	return err == nil, err
+}
+
+func (pu *ParticipantUpdate) Unban() (bool, error) {
+	if pu.User == nil {
+		return false, errors.New("ParticipantUpdate.Unban: User is nil")
+	}
+
+	if pu.Channel == nil {
+		return false, errors.New("ParticipantUpdate.Unban: Channel is nil")
+	}
+
+	_, err := pu.Client.EditBanned(pu.Channel, pu.User, &BannedOptions{
+		Unban: true,
+	})
+
+	return err == nil, err
+}
+
+func (pu *ParticipantUpdate) Kick() (bool, error) {
+	if pu.User == nil {
+		return false, errors.New("ParticipantUpdate.Kick: User is nil")
+	}
+
+	if pu.Channel == nil {
+		return false, errors.New("ParticipantUpdate.Kick: Channel is nil")
+	}
+
+	_, err := pu.Client.KickParticipant(pu.Channel, pu.User)
+	return err == nil, err
+}
+
+func (pu *ParticipantUpdate) Promote() (bool, error) {
+	if pu.User == nil {
+		return false, errors.New("ParticipantUpdate.Promote: User is nil")
+	}
+
+	if pu.Channel == nil {
+		return false, errors.New("ParticipantUpdate.Promote: Channel is nil")
+	}
+
+	_, err := pu.Client.EditAdmin(pu.Channel, pu.User, &AdminOptions{
+		IsAdmin: true,
+	})
+
+	return err == nil, err
+}
+
+func (pu *ParticipantUpdate) Demote() (bool, error) {
+	if pu.User == nil {
+		return false, errors.New("ParticipantUpdate.Demote: User is nil")
+	}
+
+	if pu.Channel == nil {
+		return false, errors.New("ParticipantUpdate.Demote: Channel is nil")
+	}
+
+	_, err := pu.Client.EditAdmin(pu.Channel, pu.User, &AdminOptions{
+		IsAdmin: false,
+	})
+
+	return err == nil, err
+}
