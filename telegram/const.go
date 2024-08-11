@@ -12,9 +12,8 @@ const (
 	LogError   = "error"
 	LogDisable = "disabled"
 
-	MarkDown   string = "Markdown"
-	HTML       string = "HTML"
-	MarkDownV2 string = "MarkdownV2"
+	MarkDown string = "Markdown"
+	HTML     string = "HTML"
 
 	EntityUser    string = "user"
 	EntityChat    string = "chat"
