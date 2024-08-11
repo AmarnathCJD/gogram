@@ -551,6 +551,7 @@ func (m *NewMessage) ReplyMedia(Media interface{}, Opts ...MediaOptions) (*NewMe
 	} else {
 		Opts[0].ReplyID = m.ID
 	}
+
 	resp, err := m.Client.SendMedia(m.ChatID(), Media, &Opts[0])
 	if err != nil {
 		return nil, err
@@ -558,6 +559,14 @@ func (m *NewMessage) ReplyMedia(Media interface{}, Opts ...MediaOptions) (*NewMe
 	response := *resp
 	response.Message.PeerID = m.Message.PeerID
 	return &response, err
+}
+
+func (m *NewMessage) ReplyAlbum(Album any, Opts ...*MediaOptions) ([]*NewMessage, error) {
+	if len(Opts) == 0 {
+		Opts = append(Opts, &MediaOptions{})
+	}
+	Opts[0].ReplyID = m.ID
+	return m.Client.SendAlbum(m.ChatID(), Album, Opts...)
 }
 
 func (m *NewMessage) RespondMedia(Media interface{}, Opts ...MediaOptions) (*NewMessage, error) {
@@ -571,6 +580,13 @@ func (m *NewMessage) RespondMedia(Media interface{}, Opts ...MediaOptions) (*New
 	response := *resp
 	response.Message.PeerID = m.Message.PeerID
 	return &response, err
+}
+
+func (m *NewMessage) RespondAlbum(Album any, Opts ...*MediaOptions) ([]*NewMessage, error) {
+	if len(Opts) == 0 {
+		Opts = append(Opts, &MediaOptions{})
+	}
+	return m.Client.SendAlbum(m.ChatID(), Album, Opts...)
 }
 
 // Delete deletes the message
