@@ -454,8 +454,6 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	for p := int64(0); p < parts; p++ {
 		wg.Add(1)
 		go func(p int64) {
-			defer wg.Done()
-
 			for {
 				mu.Lock()
 				found := false
@@ -473,13 +471,14 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 				if found {
 					go func(i int, p int) {
 						defer func() {
+							defer wg.Done()
 							mu.Lock()
 							w[i].buzy = false
 							mu.Unlock()
 						}()
 
 						retryCount := 0
-						reqTimeout := 4 * time.Second
+						reqTimeout := 5 * time.Second
 
 					partDownloadStartPoint:
 						c.Logger.Debug(fmt.Sprintf("download part %d/%d in chunks of %d", p, totalParts, partSize/1024))
@@ -529,12 +528,11 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 							}
 							c.Logger.Error(err)
 						case <-time.After(reqTimeout):
-							c.Logger.Debug(fmt.Errorf("upload part %d timed out - retrying", p))
 							retryCount++
-							if retryCount > 3 {
-								c.Logger.Debug(fmt.Errorf("upload part %d timed out - giving up", p))
+							if retryCount > 4 {
+								c.Logger.Debug(fmt.Errorf("upload part %d timed out - giving up after %d retries", p, retryCount))
 								return
-							} else if retryCount > 2 {
+							} else if retryCount > 3 {
 								reqTimeout = 6 * time.Second
 							}
 							goto partDownloadStartPoint
