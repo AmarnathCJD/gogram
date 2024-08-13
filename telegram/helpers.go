@@ -216,16 +216,11 @@ func (c *Client) processUpdate(upd Updates) *MessageObj {
 updateTypeSwitch:
 	switch update := upd.(type) {
 	case *UpdateShortSentMessage:
-		fromId, err := c.GetPeer(c.Me().ID)
-		if err != nil {
-			fromId = &PeerUser{}
-		}
-
 		return &MessageObj{
 			ID:        update.ID,
 			PeerID:    &PeerUser{},
 			Date:      update.Date,
-			FromID:    fromId.(*PeerUser),
+			FromID:    &PeerUser{UserID: c.GetPeerID(c.Me())},
 			Out:       update.Out,
 			Media:     update.Media,
 			Entities:  update.Entities,
@@ -296,13 +291,20 @@ PeerSwitch:
 		return Peer, nil
 	case *InputPeer:
 		return *Peer, nil
-		// TODO: Add more types
 	case *InputUserSelf:
 		return &InputPeerSelf{}, nil
 	case *InputPeerSelf:
 		return Peer, nil
+	case *InputPeerEmpty:
+		return Peer, nil
+	case *InputPeerUserFromMessage:
+		return Peer, nil
+	case *InputPeerChannelFromMessage:
+		return Peer, nil
 	case *InputUserObj:
 		return &InputPeerUser{UserID: Peer.UserID, AccessHash: Peer.AccessHash}, nil
+	case *InputChannelObj:
+		return &InputPeerChannel{ChannelID: Peer.ChannelID, AccessHash: Peer.AccessHash}, nil
 	case *ChatObj:
 		return &InputPeerChat{ChatID: Peer.ID}, nil
 	case *Channel:
@@ -392,6 +394,9 @@ func (c *Client) GetSendableUser(PeerID interface{}) (InputUser, error) {
 }
 
 func (c *Client) GetPeerID(Peer interface{}) int64 {
+	if Peer == nil {
+		return 0
+	}
 	switch Peer := Peer.(type) {
 	case *PeerChat:
 		return Peer.ChatID
@@ -405,6 +410,16 @@ func (c *Client) GetPeerID(Peer interface{}) int64 {
 		return Peer.ChannelID
 	case *InputPeerUser:
 		return Peer.UserID
+	case *UserObj:
+		return Peer.ID
+	case *ChatObj:
+		return Peer.ID
+	case *Channel:
+		return Peer.ID
+	case *InputUserObj:
+		return Peer.UserID
+	case *InputChannelObj:
+		return Peer.ChannelID
 	default:
 		return 0
 	}
@@ -491,7 +506,7 @@ mediaTypeSwitch:
 		case *MessageMediaDice:
 			return &InputMediaDice{Emoticon: media.Emoticon}, nil
 		case *MessageMediaPoll:
-			// return &InputMediaPoll{Poll: media.Poll}, nil, Not Implemented
+			return convertPoll(media), nil
 		case *MessageMediaUnsupported:
 			return nil, errors.New("unsupported media type")
 		default:
@@ -568,6 +583,24 @@ mediaTypeSwitch:
 		return nil, errors.New("media given is nil, cannot send nil media")
 	}
 	return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(mediaFile).String()))
+}
+
+func convertPoll(poll *MessageMediaPoll) *InputMediaPoll {
+	newPoll := &InputMediaPoll{
+		Poll:             poll.Poll,
+		Solution:         poll.Results.Solution,
+		SolutionEntities: poll.Results.SolutionEntities,
+	}
+
+	var correctAnswers [][]byte
+	for _, answer := range poll.Results.Results {
+		if answer.Correct {
+			correctAnswers = append(correctAnswers, answer.Option)
+		}
+	}
+
+	newPoll.CorrectAnswers = correctAnswers
+	return newPoll
 }
 
 func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttribute, int64, error) {
