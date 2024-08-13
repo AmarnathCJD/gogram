@@ -336,7 +336,7 @@ func cleanComments(b []byte) []byte {
 
 	lines := strings.Split(string(b), "\n")
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 12; i++ {
 		if strings.HasPrefix(lines[i], "//") {
 			lines[i] = ""
 		}
