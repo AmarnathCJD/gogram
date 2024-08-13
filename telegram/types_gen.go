@@ -507,10 +507,11 @@ type BotInfo struct {
 	DescriptionDocument Document      `tl:"flag:5"`
 	Commands            []*BotCommand `tl:"flag:2"`
 	MenuButton          BotMenuButton `tl:"flag:3"`
+	PrivacyPolicyURL    string        `tl:"flag:7"`
 }
 
 func (*BotInfo) CRC() uint32 {
-	return 0x8f300b57
+	return 0x82437e74
 }
 
 func (*BotInfo) FlagIndex() int {
@@ -2038,13 +2039,30 @@ type MessageReactions struct {
 	ReactionsAsTags bool `tl:"flag:3,encoded_in_bitflags"`
 	Results         []*ReactionCount
 	RecentReactions []*MessagePeerReaction `tl:"flag:1"`
+	TopReactors     []*MessageReactor      `tl:"flag:4"`
 }
 
 func (*MessageReactions) CRC() uint32 {
-	return 0x4f2b9479
+	return 0xa339f0b
 }
 
 func (*MessageReactions) FlagIndex() int {
+	return 0
+}
+
+type MessageReactor struct {
+	Top       bool `tl:"flag:0,encoded_in_bitflags"`
+	My        bool `tl:"flag:1,encoded_in_bitflags"`
+	Anonymous bool `tl:"flag:2,encoded_in_bitflags"`
+	PeerID    Peer `tl:"flag:3"`
+	Count     int32
+}
+
+func (*MessageReactor) CRC() uint32 {
+	return 0x4ba3a95a
+}
+
+func (*MessageReactor) FlagIndex() int {
 	return 0
 }
 
@@ -2768,15 +2786,18 @@ func (*PaymentsStarsRevenueWithdrawalURL) CRC() uint32 {
 }
 
 type PaymentsStarsStatus struct {
-	Balance    int64
-	History    []*StarsTransaction
-	NextOffset string `tl:"flag:0"`
-	Chats      []Chat
-	Users      []User
+	Balance                     int64
+	History                     []*StarsTransaction  `tl:"flag:3"`
+	Subscriptions               []*StarsSubscription `tl:"flag:1"`
+	NextOffset                  string               `tl:"flag:0"`
+	SubscriptionsNextOffset     string               `tl:"flag:2"`
+	Chats                       []Chat
+	SubscriptionsMissingBalance int64 `tl:"flag:4"`
+	Users                       []User
 }
 
 func (*PaymentsStarsStatus) CRC() uint32 {
-	return 0x8cf4ee60
+	return 0xbbfa316c
 }
 
 func (*PaymentsStarsStatus) FlagIndex() int {
@@ -3469,13 +3490,14 @@ type SponsoredMessage struct {
 	Entities       []MessageEntity `tl:"flag:1"`
 	Photo          Photo           `tl:"flag:6"`
 	Color          *PeerColor      `tl:"flag:13"`
+	Media          MessageMedia    `tl:"flag:14"`
 	ButtonText     string
 	SponsorInfo    string `tl:"flag:7"`
 	AdditionalInfo string `tl:"flag:8"`
 }
 
 func (*SponsoredMessage) CRC() uint32 {
-	return 0xbdedf566
+	return 0x4d93a990
 }
 
 func (*SponsoredMessage) FlagIndex() int {
@@ -3523,6 +3545,34 @@ func (*StarsRevenueStatus) FlagIndex() int {
 	return 0
 }
 
+type StarsSubscription struct {
+	Canceled       bool `tl:"flag:0,encoded_in_bitflags"`
+	CanRefulfill   bool `tl:"flag:1,encoded_in_bitflags"`
+	MissingBalance bool `tl:"flag:2,encoded_in_bitflags"`
+	ID             string
+	Peer           Peer
+	UntilDate      int32
+	Pricing        *StarsSubscriptionPricing
+	ChatInviteHash string `tl:"flag:3"`
+}
+
+func (*StarsSubscription) CRC() uint32 {
+	return 0x538ecf18
+}
+
+func (*StarsSubscription) FlagIndex() int {
+	return 0
+}
+
+type StarsSubscriptionPricing struct {
+	Period int32
+	Amount int64
+}
+
+func (*StarsSubscriptionPricing) CRC() uint32 {
+	return 0x5416d58
+}
+
 type StarsTopupOption struct {
 	Extended     bool `tl:"flag:1,encoded_in_bitflags"`
 	Stars        int64
@@ -3540,26 +3590,29 @@ func (*StarsTopupOption) FlagIndex() int {
 }
 
 type StarsTransaction struct {
-	Refund          bool `tl:"flag:3,encoded_in_bitflags"`
-	Pending         bool `tl:"flag:4,encoded_in_bitflags"`
-	Failed          bool `tl:"flag:6,encoded_in_bitflags"`
-	Gift            bool `tl:"flag:10,encoded_in_bitflags"`
-	ID              string
-	Stars           int64
-	Date            int32
-	Peer            StarsTransactionPeer
-	Title           string         `tl:"flag:0"`
-	Description     string         `tl:"flag:1"`
-	Photo           WebDocument    `tl:"flag:2"`
-	TransactionDate int32          `tl:"flag:5"`
-	TransactionURL  string         `tl:"flag:5"`
-	BotPayload      []byte         `tl:"flag:7"`
-	MsgID           int32          `tl:"flag:8"`
-	ExtendedMedia   []MessageMedia `tl:"flag:9"`
+	Refund             bool `tl:"flag:3,encoded_in_bitflags"`
+	Pending            bool `tl:"flag:4,encoded_in_bitflags"`
+	Failed             bool `tl:"flag:6,encoded_in_bitflags"`
+	Gift               bool `tl:"flag:10,encoded_in_bitflags"`
+	ID                 string
+	Reaction           bool `tl:"flag:11,encoded_in_bitflags"`
+	Stars              int64
+	Subscription       bool `tl:"flag:12,encoded_in_bitflags"`
+	Date               int32
+	Peer               StarsTransactionPeer
+	Title              string         `tl:"flag:0"`
+	Description        string         `tl:"flag:1"`
+	Photo              WebDocument    `tl:"flag:2"`
+	TransactionDate    int32          `tl:"flag:5"`
+	TransactionURL     string         `tl:"flag:5"`
+	BotPayload         []byte         `tl:"flag:7"`
+	MsgID              int32          `tl:"flag:8"`
+	ExtendedMedia      []MessageMedia `tl:"flag:9"`
+	SubscriptionPeriod int32          `tl:"flag:12"`
 }
 
 func (*StarsTransaction) CRC() uint32 {
-	return 0x2db5418f
+	return 0x433aeb2b
 }
 
 func (*StarsTransaction) FlagIndex() int {

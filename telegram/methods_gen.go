@@ -5409,19 +5409,25 @@ func (c *Client) ChannelsTogglePreHistoryHidden(channel InputChannel, enabled bo
 }
 
 type ChannelsToggleSignaturesParams struct {
-	Channel InputChannel
-	Enabled bool
+	Channel           InputChannel
+	SignaturesEnabled bool `tl:"flag:0,encoded_in_bitflags"`
+	ProfilesEnabled   bool `tl:"flag:1,encoded_in_bitflags"`
 }
 
 func (*ChannelsToggleSignaturesParams) CRC() uint32 {
-	return 0x1f69b606
+	return 0x418d549c
+}
+
+func (*ChannelsToggleSignaturesParams) FlagIndex() int {
+	return 1
 }
 
 // Enable/disable message signatures in channels
-func (c *Client) ChannelsToggleSignatures(channel InputChannel, enabled bool) (Updates, error) {
+func (c *Client) ChannelsToggleSignatures(channel InputChannel, signaturesEnabled, profilesEnabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleSignaturesParams{
-		Channel: channel,
-		Enabled: enabled,
+		Channel:           channel,
+		ProfilesEnabled:   profilesEnabled,
+		SignaturesEnabled: signaturesEnabled,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending ChannelsToggleSignatures")
@@ -7391,6 +7397,37 @@ func (c *Client) MessagesAddChatUser(chatID int64, userID InputUser, fwdLimit in
 	return resp, nil
 }
 
+type MessagesChangeStarsSubscriptionParams struct {
+	Canceled       bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer           InputPeer
+	SubscriptionID string
+}
+
+func (*MessagesChangeStarsSubscriptionParams) CRC() uint32 {
+	return 0xc7770878
+}
+
+func (*MessagesChangeStarsSubscriptionParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesChangeStarsSubscription(canceled bool, peer InputPeer, subscriptionID string) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesChangeStarsSubscriptionParams{
+		Canceled:       canceled,
+		Peer:           peer,
+		SubscriptionID: subscriptionID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesChangeStarsSubscription")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesCheckChatInviteParams struct {
 	Hash string
 }
@@ -8217,13 +8254,14 @@ type MessagesExportChatInviteParams struct {
 	LegacyRevokePermanent bool `tl:"flag:2,encoded_in_bitflags"`
 	RequestNeeded         bool `tl:"flag:3,encoded_in_bitflags"`
 	Peer                  InputPeer
-	ExpireDate            int32  `tl:"flag:0"`
-	UsageLimit            int32  `tl:"flag:1"`
-	Title                 string `tl:"flag:4"`
+	ExpireDate            int32                     `tl:"flag:0"`
+	UsageLimit            int32                     `tl:"flag:1"`
+	Title                 string                    `tl:"flag:4"`
+	SubscriptionPricing   *StarsSubscriptionPricing `tl:"flag:5"`
 }
 
 func (*MessagesExportChatInviteParams) CRC() uint32 {
-	return 0xa02ce5d5
+	return 0xa455de90
 }
 
 func (*MessagesExportChatInviteParams) FlagIndex() int {
@@ -8303,6 +8341,31 @@ func (c *Client) MessagesForwardMessages(params *MessagesForwardMessagesParams) 
 	}
 
 	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesFulfillStarsSubscriptionParams struct {
+	Peer           InputPeer
+	SubscriptionID string
+}
+
+func (*MessagesFulfillStarsSubscriptionParams) CRC() uint32 {
+	return 0xcc5bebb3
+}
+
+func (c *Client) MessagesFulfillStarsSubscription(peer InputPeer, subscriptionID string) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesFulfillStarsSubscriptionParams{
+		Peer:           peer,
+		SubscriptionID: subscriptionID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesFulfillStarsSubscription")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -8576,13 +8639,14 @@ func (c *Client) MessagesGetBotCallbackAnswer(params *MessagesGetBotCallbackAnsw
 }
 
 type MessagesGetChatInviteImportersParams struct {
-	Requested  bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer       InputPeer
-	Link       string `tl:"flag:1"`
-	Q          string `tl:"flag:2"`
-	OffsetDate int32
-	OffsetUser InputUser
-	Limit      int32
+	Requested           bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer                InputPeer
+	SubscriptionExpired bool   `tl:"flag:3,encoded_in_bitflags"`
+	Link                string `tl:"flag:1"`
+	Q                   string `tl:"flag:2"`
+	OffsetDate          int32
+	OffsetUser          InputUser
+	Limit               int32
 }
 
 func (*MessagesGetChatInviteImportersParams) CRC() uint32 {
@@ -10241,6 +10305,37 @@ func (c *Client) MessagesGetSplitRanges() ([]*MessageRange, error) {
 	}
 
 	resp, ok := responseData.([]*MessageRange)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesGetStarsSubscriptionsParams struct {
+	MissingBalance bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer           InputPeer
+	Offset         string
+}
+
+func (*MessagesGetStarsSubscriptionsParams) CRC() uint32 {
+	return 0x32512c5
+}
+
+func (*MessagesGetStarsSubscriptionsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesGetStarsSubscriptions(missingBalance bool, peer InputPeer, offset string) (*PaymentsStarsStatus, error) {
+	responseData, err := c.MakeRequest(&MessagesGetStarsSubscriptionsParams{
+		MissingBalance: missingBalance,
+		Offset:         offset,
+		Peer:           peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetStarsSubscriptions")
+	}
+
+	resp, ok := responseData.(*PaymentsStarsStatus)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -11975,6 +12070,35 @@ func (c *Client) MessagesSendMultiMedia(params *MessagesSendMultiMediaParams) (U
 	return resp, nil
 }
 
+type MessagesSendPaidReactionParams struct {
+	Private  bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer     InputPeer
+	MsgID    int32
+	Count    int32
+	RandomID int64
+}
+
+func (*MessagesSendPaidReactionParams) CRC() uint32 {
+	return 0x25c8fe3e
+}
+
+func (*MessagesSendPaidReactionParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesSendPaidReaction(params *MessagesSendPaidReactionParams) (Updates, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesSendPaidReaction")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesSendQuickReplyMessagesParams struct {
 	Peer       InputPeer
 	ShortcutID int32
@@ -12274,10 +12398,11 @@ type MessagesSetChatAvailableReactionsParams struct {
 	Peer               InputPeer
 	AvailableReactions ChatReactions
 	ReactionsLimit     int32 `tl:"flag:0"`
+	PaidEnabled        bool  `tl:"flag:1"`
 }
 
 func (*MessagesSetChatAvailableReactionsParams) CRC() uint32 {
-	return 0x5a150bd4
+	return 0x864b2581
 }
 
 func (*MessagesSetChatAvailableReactionsParams) FlagIndex() int {
@@ -12285,9 +12410,10 @@ func (*MessagesSetChatAvailableReactionsParams) FlagIndex() int {
 }
 
 // Change the set of [message reactions »](https://core.telegram.org/api/reactions) that can be used in a certain group, supergroup or channel
-func (c *Client) MessagesSetChatAvailableReactions(peer InputPeer, availableReactions ChatReactions, reactionsLimit int32) (Updates, error) {
+func (c *Client) MessagesSetChatAvailableReactions(peer InputPeer, availableReactions ChatReactions, reactionsLimit int32, paidEnabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesSetChatAvailableReactionsParams{
 		AvailableReactions: availableReactions,
+		PaidEnabled:        paidEnabled,
 		Peer:               peer,
 		ReactionsLimit:     reactionsLimit,
 	})
@@ -12743,6 +12869,33 @@ func (c *Client) MessagesToggleNoForwards(peer InputPeer, enabled bool) (Updates
 	}
 
 	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesTogglePaidReactionPrivacyParams struct {
+	Peer    InputPeer
+	MsgID   int32
+	Private bool
+}
+
+func (*MessagesTogglePaidReactionPrivacyParams) CRC() uint32 {
+	return 0x849ad397
+}
+
+func (c *Client) MessagesTogglePaidReactionPrivacy(peer InputPeer, msgID int32, private bool) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesTogglePaidReactionPrivacyParams{
+		MsgID:   msgID,
+		Peer:    peer,
+		Private: private,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesTogglePaidReactionPrivacy")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
