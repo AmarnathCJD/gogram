@@ -331,8 +331,17 @@ func replace(filename, old, new string) {
 }
 
 func cleanComments(b []byte) []byte {
+	re := regexp.MustCompile(`---types---\n\n(.+?)\n\n---types---`)
+	b = re.ReplaceAll(b, []byte("$1\n\n---types---"))
 
 	lines := strings.Split(string(b), "\n")
+
+	for i := 0; i < 10; i++ {
+		if strings.HasPrefix(lines[i], "//") {
+			lines[i] = ""
+		}
+	}
+
 	var clean []string
 
 	var parsedManually bool
