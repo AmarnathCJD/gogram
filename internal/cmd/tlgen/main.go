@@ -23,6 +23,7 @@ const (
 var (
 	API_SOURCES = []string{"https://raw.githubusercontent.com/null-nick/TL-Schema/main/api.tl",
 		"https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/Telegram/SourceFiles/mtproto/scheme/api.tl",
+			       "https://raw.githubusercontent.com/TGScheme/Schema/main/main_api.tl",
 	}
 )
 
