@@ -133,7 +133,11 @@ func (b *CallbackQuery) Reply(Text interface{}, options ...*SendOptions) (*NewMe
 	if len(options) > 0 {
 		opts = *options[0]
 	}
-	opts.ReplyID = b.MessageID
+	msg, err := b.GetMessage()
+	if err != nil {
+		return nil, err
+	}
+	opts.ReplyID = msg.ReplyToMsgID()
 	return b.Client.SendMessage(b.Peer, Text, &opts)
 }
 
@@ -150,7 +154,11 @@ func (b *CallbackQuery) ReplyMedia(Media interface{}, options ...*MediaOptions) 
 	if len(options) > 0 {
 		opts = *options[0]
 	}
-	opts.ReplyID = b.MessageID
+	msg, err := b.GetMessage()
+	if err != nil {
+		return nil, err
+	}
+	opts.ReplyID = msg.ReplyToMsgID()
 	return b.Client.SendMedia(b.Peer, Media, &opts)
 }
 
