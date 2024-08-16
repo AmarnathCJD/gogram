@@ -16,6 +16,7 @@ type SendOptions struct {
 	Entites          []MessageEntity     `json:"entites,omitempty"`
 	FileName         string              `json:"file_name,omitempty"`
 	ForceDocument    bool                `json:"force_document,omitempty"`
+	InvertMedia      bool                `json:"invert_media,omitempty"`
 	LinkPreview      bool                `json:"link_preview,omitempty"`
 	Media            interface{}         `json:"media,omitempty"`
 	NoForwards       bool                `json:"no_forwards,omitempty"`
@@ -106,6 +107,7 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 		ClearDraft:             opt.ClearDraft,
 		Noforwards:             opt.NoForwards,
 		UpdateStickersetsOrder: false,
+		InvertMedia:            opt.InvertMedia,
 		Peer:                   Peer,
 		ReplyTo: &InputReplyToMessage{
 			ReplyToMsgID: opt.ReplyID,
@@ -202,6 +204,7 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 		ID:           id,
 		Message:      Message,
 		NoWebpage:    !options.LinkPreview,
+		InvertMedia:  options.InvertMedia,
 		ReplyMarkup:  options.ReplyMarkup,
 		Entities:     entities,
 		Media:        media,
@@ -243,6 +246,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 		ID:          ID,
 		Message:     Message,
 		NoWebpage:   !options.LinkPreview,
+		InvertMedia: options.InvertMedia,
 		ReplyMarkup: options.ReplyMarkup,
 		Entities:    entities,
 		Media:       media,
@@ -283,6 +287,7 @@ type MediaOptions struct {
 	Entites          []MessageEntity     `json:"entities,omitempty"`
 	FileName         string              `json:"file_name,omitempty"`
 	ForceDocument    bool                `json:"force_document,omitempty"`
+	InvertMedia      bool                `json:"invert_media,omitempty"`
 	LinkPreview      bool                `json:"link_preview,omitempty"`
 	NoForwards       bool                `json:"no_forwards,omitempty"`
 	NoSoundVideo     bool                `json:"no_sound_video,omitempty"`
@@ -386,6 +391,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 		ClearDraft:             opt.ClearDraft,
 		Noforwards:             opt.NoForwards,
 		UpdateStickersetsOrder: false,
+		InvertMedia:            opt.InvertMedia,
 		Peer:                   Peer,
 		ReplyTo: &InputReplyToMessage{
 			ReplyToMsgID: opt.ReplyID,
@@ -1153,6 +1159,7 @@ func convertOption(s *SendOptions) *MediaOptions {
 		ParseMode:     s.ParseMode,
 		Silent:        s.Silent,
 		LinkPreview:   s.LinkPreview,
+		InvertMedia:   s.InvertMedia,
 		ReplyMarkup:   s.ReplyMarkup,
 		ClearDraft:    s.ClearDraft,
 		NoForwards:    s.NoForwards,
