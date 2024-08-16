@@ -534,10 +534,10 @@ mediaTypeSwitch:
 			mimeType = attr.MimeType
 		}
 
-		if IsPhoto {
+		if IsPhoto && !attr.ForceDocument {
 			return &InputMediaUploadedPhoto{File: mediaFile, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
 		} else {
-			var mediaAttributes = getValueSlice(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}})
+			mediaAttributes := getValueSlice(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}})
 			hasFileName := false
 			mediaAttributes, dur, err := gatherVideoMetadata(getValue(attr.FileAbsPath, fileName), mediaAttributes)
 			if err != nil {
