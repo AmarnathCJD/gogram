@@ -5409,9 +5409,9 @@ func (c *Client) ChannelsTogglePreHistoryHidden(channel InputChannel, enabled bo
 }
 
 type ChannelsToggleSignaturesParams struct {
-	Channel           InputChannel
 	SignaturesEnabled bool `tl:"flag:0,encoded_in_bitflags"`
 	ProfilesEnabled   bool `tl:"flag:1,encoded_in_bitflags"`
+	Channel           InputChannel
 }
 
 func (*ChannelsToggleSignaturesParams) CRC() uint32 {
@@ -5419,11 +5419,11 @@ func (*ChannelsToggleSignaturesParams) CRC() uint32 {
 }
 
 func (*ChannelsToggleSignaturesParams) FlagIndex() int {
-	return 1
+	return 0
 }
 
 // Enable/disable message signatures in channels
-func (c *Client) ChannelsToggleSignatures(channel InputChannel, signaturesEnabled, profilesEnabled bool) (Updates, error) {
+func (c *Client) ChannelsToggleSignatures(signaturesEnabled, profilesEnabled bool, channel InputChannel) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleSignaturesParams{
 		Channel:           channel,
 		ProfilesEnabled:   profilesEnabled,
@@ -7397,37 +7397,6 @@ func (c *Client) MessagesAddChatUser(chatID int64, userID InputUser, fwdLimit in
 	return resp, nil
 }
 
-type MessagesChangeStarsSubscriptionParams struct {
-	Canceled       bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer           InputPeer
-	SubscriptionID string
-}
-
-func (*MessagesChangeStarsSubscriptionParams) CRC() uint32 {
-	return 0xc7770878
-}
-
-func (*MessagesChangeStarsSubscriptionParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesChangeStarsSubscription(canceled bool, peer InputPeer, subscriptionID string) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesChangeStarsSubscriptionParams{
-		Canceled:       canceled,
-		Peer:           peer,
-		SubscriptionID: subscriptionID,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesChangeStarsSubscription")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesCheckChatInviteParams struct {
 	Hash string
 }
@@ -8347,31 +8316,6 @@ func (c *Client) MessagesForwardMessages(params *MessagesForwardMessagesParams) 
 	return resp, nil
 }
 
-type MessagesFulfillStarsSubscriptionParams struct {
-	Peer           InputPeer
-	SubscriptionID string
-}
-
-func (*MessagesFulfillStarsSubscriptionParams) CRC() uint32 {
-	return 0xcc5bebb3
-}
-
-func (c *Client) MessagesFulfillStarsSubscription(peer InputPeer, subscriptionID string) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesFulfillStarsSubscriptionParams{
-		Peer:           peer,
-		SubscriptionID: subscriptionID,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesFulfillStarsSubscription")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesGetAdminsWithInvitesParams struct {
 	Peer InputPeer
 }
@@ -8640,8 +8584,8 @@ func (c *Client) MessagesGetBotCallbackAnswer(params *MessagesGetBotCallbackAnsw
 
 type MessagesGetChatInviteImportersParams struct {
 	Requested           bool `tl:"flag:0,encoded_in_bitflags"`
+	SubscriptionExpired bool `tl:"flag:3,encoded_in_bitflags"`
 	Peer                InputPeer
-	SubscriptionExpired bool   `tl:"flag:3,encoded_in_bitflags"`
 	Link                string `tl:"flag:1"`
 	Q                   string `tl:"flag:2"`
 	OffsetDate          int32
@@ -10305,37 +10249,6 @@ func (c *Client) MessagesGetSplitRanges() ([]*MessageRange, error) {
 	}
 
 	resp, ok := responseData.([]*MessageRange)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesGetStarsSubscriptionsParams struct {
-	MissingBalance bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer           InputPeer
-	Offset         string
-}
-
-func (*MessagesGetStarsSubscriptionsParams) CRC() uint32 {
-	return 0x32512c5
-}
-
-func (*MessagesGetStarsSubscriptionsParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesGetStarsSubscriptions(missingBalance bool, peer InputPeer, offset string) (*PaymentsStarsStatus, error) {
-	responseData, err := c.MakeRequest(&MessagesGetStarsSubscriptionsParams{
-		MissingBalance: missingBalance,
-		Offset:         offset,
-		Peer:           peer,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetStarsSubscriptions")
-	}
-
-	resp, ok := responseData.(*PaymentsStarsStatus)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -13403,6 +13316,37 @@ func (c *Client) PaymentsCanPurchasePremium(purpose InputStorePaymentPurpose) (b
 	return resp, nil
 }
 
+type PaymentsChangeStarsSubscriptionParams struct {
+	Peer           InputPeer
+	SubscriptionID string
+	Canceled       bool `tl:"flag:0"`
+}
+
+func (*PaymentsChangeStarsSubscriptionParams) CRC() uint32 {
+	return 0xc7770878
+}
+
+func (*PaymentsChangeStarsSubscriptionParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsChangeStarsSubscription(peer InputPeer, subscriptionID string, canceled bool) (bool, error) {
+	responseData, err := c.MakeRequest(&PaymentsChangeStarsSubscriptionParams{
+		Canceled:       canceled,
+		Peer:           peer,
+		SubscriptionID: subscriptionID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending PaymentsChangeStarsSubscription")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsCheckGiftCodeParams struct {
 	Slug string
 }
@@ -13471,6 +13415,31 @@ func (c *Client) PaymentsExportInvoice(invoiceMedia InputMedia) (*PaymentsExport
 	}
 
 	resp, ok := responseData.(*PaymentsExportedInvoice)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsFulfillStarsSubscriptionParams struct {
+	Peer           InputPeer
+	SubscriptionID string
+}
+
+func (*PaymentsFulfillStarsSubscriptionParams) CRC() uint32 {
+	return 0xcc5bebb3
+}
+
+func (c *Client) PaymentsFulfillStarsSubscription(peer InputPeer, subscriptionID string) (bool, error) {
+	responseData, err := c.MakeRequest(&PaymentsFulfillStarsSubscriptionParams{
+		Peer:           peer,
+		SubscriptionID: subscriptionID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending PaymentsFulfillStarsSubscription")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -13750,6 +13719,37 @@ func (c *Client) PaymentsGetStarsStatus(peer InputPeer) (*PaymentsStarsStatus, e
 	return resp, nil
 }
 
+type PaymentsGetStarsSubscriptionsParams struct {
+	MissingBalance bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer           InputPeer
+	Offset         string
+}
+
+func (*PaymentsGetStarsSubscriptionsParams) CRC() uint32 {
+	return 0x32512c5
+}
+
+func (*PaymentsGetStarsSubscriptionsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsGetStarsSubscriptions(missingBalance bool, peer InputPeer, offset string) (*PaymentsStarsStatus, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarsSubscriptionsParams{
+		MissingBalance: missingBalance,
+		Offset:         offset,
+		Peer:           peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetStarsSubscriptions")
+	}
+
+	resp, ok := responseData.(*PaymentsStarsStatus)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsGetStarsTopupOptionsParams struct{}
 
 func (*PaymentsGetStarsTopupOptionsParams) CRC() uint32 {
@@ -13770,16 +13770,17 @@ func (c *Client) PaymentsGetStarsTopupOptions() ([]*StarsTopupOption, error) {
 }
 
 type PaymentsGetStarsTransactionsParams struct {
-	Inbound   bool `tl:"flag:0,encoded_in_bitflags"`
-	Outbound  bool `tl:"flag:1,encoded_in_bitflags"`
-	Ascending bool `tl:"flag:2,encoded_in_bitflags"`
-	Peer      InputPeer
-	Offset    string
-	Limit     int32
+	Inbound        bool   `tl:"flag:0,encoded_in_bitflags"`
+	Outbound       bool   `tl:"flag:1,encoded_in_bitflags"`
+	Ascending      bool   `tl:"flag:2,encoded_in_bitflags"`
+	SubscriptionID string `tl:"flag:3"`
+	Peer           InputPeer
+	Offset         string
+	Limit          int32
 }
 
 func (*PaymentsGetStarsTransactionsParams) CRC() uint32 {
-	return 0x97938d5a
+	return 0x69da4557
 }
 
 func (*PaymentsGetStarsTransactionsParams) FlagIndex() int {
