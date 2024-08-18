@@ -27,7 +27,7 @@ const (
 	// If the packet length is greater than or equal to 127 words, we encode 4 bytes length, 1 is a magic
 	// number, remaining 3 is real length
 	// https://core.telegram.org/mtproto/mtproto-transports#abridged
-	magicValueSizeMoreThanSingleByte byte = 0x7f
+	magicValueSizeMoreThanSingleByte = 0x7f
 )
 
 func (m *abridged) WriteMsg(msg []byte) error {
@@ -35,20 +35,17 @@ func (m *abridged) WriteMsg(msg []byte) error {
 		return ErrNotMultiple{Len: len(msg)}
 	}
 
-	var size []byte
+	bsize := make([]byte, 4)
 
 	msgLength := len(msg) / tl.WordLen
 	if msgLength < int(magicValueSizeMoreThanSingleByte) {
-		size = []byte{byte(msgLength)}
+		bsize[0] = byte(msgLength)
+		bsize = bsize[:1]
 	} else {
-		b1 := byte(msgLength)
-		b2 := byte(msgLength >> 8)
-		b3 := byte(msgLength >> 16)
-
-		size = []byte{magicValueSizeMoreThanSingleByte, b1, b2, b3}
+		binary.LittleEndian.PutUint32(bsize, uint32(msgLength)<<8|magicValueSizeMoreThanSingleByte)
 	}
 
-	if _, err := m.conn.Write(size); err != nil {
+	if _, err := m.conn.Write(bsize); err != nil {
 		return err
 	}
 	if _, err := m.conn.Write(msg); err != nil {
@@ -59,8 +56,8 @@ func (m *abridged) WriteMsg(msg []byte) error {
 }
 
 func (m *abridged) ReadMsg() ([]byte, error) {
-	sizeBuf := make([]byte, 1)
-	n, err := m.conn.Read(sizeBuf)
+	sizeBuf := make([]byte, 4)
+	n, err := m.conn.Read(sizeBuf[:1])
 	if err != nil {
 		return nil, err
 	}
@@ -68,10 +65,9 @@ func (m *abridged) ReadMsg() ([]byte, error) {
 		return nil, fmt.Errorf("need to read at least 1 byte")
 	}
 
-	size := 0
+	size := int(sizeBuf[0])
 
-	if sizeBuf[0] == magicValueSizeMoreThanSingleByte {
-		sizeBuf = make([]byte, 4)
+	if size == magicValueSizeMoreThanSingleByte {
 		n, err := m.conn.Read(sizeBuf[:3])
 		if err != nil {
 			return nil, err
@@ -81,8 +77,6 @@ func (m *abridged) ReadMsg() ([]byte, error) {
 		}
 
 		size = int(binary.LittleEndian.Uint32(sizeBuf))
-	} else {
-		size = int(sizeBuf[0])
 	}
 
 	size *= tl.WordLen
