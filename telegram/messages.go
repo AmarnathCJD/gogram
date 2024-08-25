@@ -29,7 +29,7 @@ type SendOptions struct {
 	Thumb            interface{}         `json:"thumb,omitempty"`
 	TTL              int32               `json:"ttl,omitempty"`
 	Spoiler          bool                `json:"spoiler,omitempty"`
-	ProgressCallback func(int32, int32)  `json:"-"`
+	ProgressCallback func(int64, int64)  `json:"-"`
 	UploadThreads    int                 `json:"-"`
 	Effect           int64               `json:"effect,omitempty"`
 	Timeouts         int32               `json:"timeouts,omitempty"`
@@ -300,7 +300,7 @@ type MediaOptions struct {
 	Thumb            interface{}         `json:"thumb,omitempty"`
 	TTL              int32               `json:"ttl,omitempty"`
 	Spoiler          bool                `json:"spoiler,omitempty"`
-	ProgressCallback func(int32, int32)  `json:"-"`
+	ProgressCallback func(int64, int64)  `json:"-"`
 	UploadThreads    int                 `json:"-"`
 }
 
@@ -314,7 +314,7 @@ type MediaMetadata struct {
 	Spoiler               bool                `json:"spoiler,omitempty"`
 	DisableThumb          bool                `json:"gen_thumb,omitempty"`
 	MimeType              string              `json:"mime_type,omitempty"`
-	ProgressCallback      func(int32, int32)  `json:"-"`
+	ProgressCallback      func(int64, int64)  `json:"-"`
 	UploadThreads         int                 `json:"-"`
 	FileAbsPath           string              `json:"-"`
 }

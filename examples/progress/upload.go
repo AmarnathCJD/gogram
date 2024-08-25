@@ -27,12 +27,12 @@ func main() {
 	m, _ := client.SendMessage(chat, "Starting File Upload...")
 
 	client.SendMedia(chat, "<file-name>", &telegram.MediaOptions{
-		ProgressCallback: func(total, curr int32) {
+		ProgressCallback: func(total, curr int64) {
 			if pm == nil {
-				pm = telegram.NewProgressManager(int(total), 5) // 5 seconds edit interval
+				pm = telegram.NewProgressManager(total, 5) // 5 seconds edit interval
 			}
 			if pm.ShouldEdit() {
-				client.EditMessage(chat, m.ID, pm.GetStats(int(curr)))
+				client.EditMessage(chat, m.ID, pm.GetStats(curr))
 			}
 		},
 	})

@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
@@ -29,7 +30,7 @@ type UploadOptions struct {
 	// File name for upload file.
 	FileName string `json:"file_name,omitempty"`
 	// output Callback for upload progress, total parts and uploaded parts.
-	ProgressCallback func(totalParts int32, uploadedParts int32) `json:"-"`
+	ProgressCallback func(totalParts int64, uploadedParts int64) `json:"-"`
 }
 
 type Sender struct {
@@ -163,6 +164,8 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 	nW := numWorkers
 	numWorkers = sendersPreallocated
 
+	doneBytes := atomic.Int64{}
+
 	createAndAppendSender := func(dcId int, senders []Sender, senderIndex int) {
 		conn, _ := c.CreateExportedSender(dcId)
 		if conn != nil {
@@ -208,8 +211,10 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 							}
 							c.Logger.Error(err)
 						}
+						doneBytes.Add(int64(len(part)))
+
 						if opts.ProgressCallback != nil {
-							go opts.ProgressCallback(int32(totalParts), int32(p))
+							go opts.ProgressCallback(size, doneBytes.Load())
 						}
 						if !IsFsBig {
 							hash.Write(part)
@@ -250,17 +255,14 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 			c.Logger.Error(err)
 		}
 
+		doneBytes.Add(int64(len(part)))
 		if opts.ProgressCallback != nil {
-			go opts.ProgressCallback(int32(totalParts), int32(totalParts))
+			go opts.ProgressCallback(size, doneBytes.Load())
 		}
 	}
 
 	if opts.FileName != "" {
 		fileName = opts.FileName
-	}
-
-	if opts.ProgressCallback != nil {
-		opts.ProgressCallback(int32(totalParts), int32(totalParts))
 	}
 
 	if !IsFsBig {
@@ -324,8 +326,8 @@ type DownloadOptions struct {
 	Threads int `json:"threads,omitempty"`
 	// Chunk size to download file
 	ChunkSize int32 `json:"chunk_size,omitempty"`
-	// output Callback for download progress, total parts and downloaded parts.
-	ProgressCallback func(totalParts int32, downloadedParts int32) `json:"-"`
+	// output Callback for download progress in bytes.
+	ProgressCallback func(totalBytes int64, downloadedBytes int64) `json:"-"`
 	// Datacenter ID of file
 	DCId int32 `json:"dc_id,omitempty"`
 	// Destination Writer
@@ -433,6 +435,8 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	nW := numWorkers
 	numWorkers = wPreallocated
 
+	doneBytes := atomic.Int64{}
+
 	createAndAppendSender := func(dcId int, senders []Sender, senderIndex int) {
 		conn, err := c.CreateExportedSender(dcId)
 		if conn != nil && err == nil {
@@ -511,7 +515,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 							case *UploadFileObj:
 								buffer = v.Bytes
 							case *UploadFileCdnRedirect:
-								panic("cdn redirect not impl") // TODO
+								panic("CDN redirect not implemented") // TODO
 							}
 
 							_, err := fs.WriteAt(buffer, int64(p*partSize))
@@ -519,8 +523,9 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 								c.Logger.Error(err)
 							}
 
+							doneBytes.Add(int64(len(buffer)))
 							if opts.ProgressCallback != nil {
-								go opts.ProgressCallback(int32(totalParts), int32(p))
+								go opts.ProgressCallback(size, doneBytes.Load())
 							}
 						case err := <-errorChan:
 							if handleIfFlood(err, c) {
@@ -590,16 +595,13 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 				c.Logger.Error(err)
 			}
 		case *UploadFileCdnRedirect:
-			panic("cdn redirect not impl") // TODO
+			panic("CDN redirect not implemented") // TODO
 		}
 
+		doneBytes.Add(int64(len(buffer)))
 		if opts.ProgressCallback != nil {
-			go opts.ProgressCallback(int32(totalParts), int32(parts))
+			go opts.ProgressCallback(size, doneBytes.Load())
 		}
-	}
-
-	if opts.ProgressCallback != nil {
-		opts.ProgressCallback(int32(totalParts), int32(totalParts))
 	}
 
 	if opts.Buffer != nil {
@@ -617,38 +619,38 @@ type ProgressManager struct {
 	startTime    int64
 	editInterval int
 	lastEdit     int64
-	totalSize    int
+	totalSize    int64
 	lastPerc     float64
 }
 
-func NewProgressManager(totalSize int, editInterval int) *ProgressManager {
+func NewProgressManager(totalBytes int64, editInterval int) *ProgressManager {
 	return &ProgressManager{
 		startTime:    time.Now().Unix(),
 		editInterval: editInterval,
-		totalSize:    totalSize,
+		totalSize:    totalBytes,
 		lastEdit:     time.Now().Unix(),
 	}
 }
 
-func (pm *ProgressManager) SetTotalSize(totalSize int) {
+func (pm *ProgressManager) SetTotalSize(totalSize int64) {
 	pm.totalSize = totalSize
 }
 
-func (pm *ProgressManager) PrintFunc() func(a, b int32) {
-	return func(a, b int32) {
-		pm.SetTotalSize(int(a))
+func (pm *ProgressManager) PrintFunc() func(a, b int64) {
+	return func(a, b int64) {
+		pm.SetTotalSize(a)
 		if pm.ShouldEdit() {
-			fmt.Println(pm.GetStats(int(b)))
+			fmt.Println(pm.GetStats(b))
 		} else {
-			fmt.Println(pm.GetStats(int(b)))
+			fmt.Println(pm.GetStats(b))
 		}
 	}
 }
 
-func (pm *ProgressManager) EditFunc(msg *NewMessage) func(a, b int32) {
-	return func(a, b int32) {
+func (pm *ProgressManager) EditFunc(msg *NewMessage) func(a, b int64) {
+	return func(a, b int64) {
 		if pm.ShouldEdit() {
-			_, _ = msg.Client.EditMessage(msg.Peer, msg.ID, pm.GetStats(int(b)))
+			_, _ = msg.Client.EditMessage(msg.Peer, msg.ID, pm.GetStats(b))
 		}
 	}
 }
@@ -661,11 +663,11 @@ func (pm *ProgressManager) ShouldEdit() bool {
 	return false
 }
 
-func (pm *ProgressManager) GetProgress(currentSize int) float64 {
+func (pm *ProgressManager) GetProgress(currentBytes int64) float64 {
 	if pm.totalSize == 0 {
 		return 0
 	}
-	var currPerc = float64(currentSize) / float64(pm.totalSize) * 100
+	var currPerc = float64(currentBytes) / float64(pm.totalSize) * 100
 	if currPerc < pm.lastPerc {
 		return pm.lastPerc
 	}
@@ -674,21 +676,18 @@ func (pm *ProgressManager) GetProgress(currentSize int) float64 {
 	return currPerc
 }
 
-func (pm *ProgressManager) GetETA(currentSize int) string {
+func (pm *ProgressManager) GetETA(currentBytes int64) string {
 	elapsed := time.Now().Unix() - pm.startTime
-	remaining := float64(pm.totalSize-currentSize) / float64(currentSize) * float64(elapsed)
+	remaining := float64(pm.totalSize-currentBytes) / float64(currentBytes) * float64(elapsed)
 	return (time.Second * time.Duration(remaining)).String()
 }
 
-func (pm *ProgressManager) GetSpeed(currentSize int) string {
-	// partSize = 512 * 512: 512KB
-	partSize := 512 * 1024
-	dataTransfered := partSize * currentSize
+func (pm *ProgressManager) GetSpeed(currentBytes int64) string {
 	elapsedTime := time.Since(time.Unix(pm.startTime, 0))
 	if int(elapsedTime.Seconds()) == 0 {
 		return "0 B/s"
 	}
-	speedBps := float64(dataTransfered) / elapsedTime.Seconds()
+	speedBps := float64(currentBytes) / elapsedTime.Seconds()
 	if speedBps < 1024 {
 		return fmt.Sprintf("%.2f B/s", speedBps)
 	} else if speedBps < 1024*1024 {
@@ -698,11 +697,11 @@ func (pm *ProgressManager) GetSpeed(currentSize int) string {
 	}
 }
 
-func (pm *ProgressManager) GetStats(currentSize int) string {
-	return fmt.Sprintf("Progress: %.2f%% | ETA: %s | Speed: %s\n%s", pm.GetProgress(currentSize), pm.GetETA(currentSize), pm.GetSpeed(currentSize), pm.GenProgressBar(currentSize))
+func (pm *ProgressManager) GetStats(currentBytes int64) string {
+	return fmt.Sprintf("Progress: %.2f%% | ETA: %s | Speed: %s\n%s", pm.GetProgress(currentBytes), pm.GetETA(currentBytes), pm.GetSpeed(currentBytes), pm.GenProgressBar(currentBytes))
 }
 
-func (pm *ProgressManager) GenProgressBar(b int) string {
+func (pm *ProgressManager) GenProgressBar(b int64) string {
 	barLength := 50
 	progress := int((pm.GetProgress(b) / 100) * float64(barLength))
 	bar := "["
