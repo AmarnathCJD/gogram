@@ -52,12 +52,14 @@ func New(v Variant, conn io.ReadWriter) (Mode, error) {
 
 func initMode(v Variant, conn io.ReadWriter) (Mode, error) {
 	switch v {
-	case PaddedIntermediate, Full:
+	case PaddedIntermediate:
 		panic("not supported yet")
 	case Abridged:
 		return &abridged{conn: conn}, nil
 	case Intermediate:
 		return &intermediate{conn: conn}, nil
+	case Full:
+		return &full{conn: conn}, nil
 	default:
 		return nil, ErrModeNotSupported
 	}
