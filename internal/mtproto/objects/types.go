@@ -2,8 +2,7 @@
 
 package objects
 
-// some types are decoding VEEEEEEERY specific way, so it stored here and only here.
-
+// Some types are decoded in a very specific way, so their decoding logic is stored here and only here.
 import (
 	"bytes"
 	"compress/gzip"
@@ -16,8 +15,8 @@ import (
 
 // TYPES
 
-type Null struct {
-}
+// Null is an empty object used for transmission in TL channels. It signifies that a response is not expected.
+type Null struct{}
 
 func (*Null) CRC() uint32 {
 	panic("makes no sense")
@@ -31,7 +30,7 @@ type ResPQ struct {
 }
 
 func (*ResPQ) CRC() uint32 {
-	return 0x05162463 //nolint:gomnd not magic
+	return 0x05162463
 }
 
 type PQInnerData struct {
@@ -44,7 +43,7 @@ type PQInnerData struct {
 }
 
 func (*PQInnerData) CRC() uint32 {
-	return 0x83c95aec //nolint:gomnd not magic
+	return 0x83c95aec
 }
 
 type ServerDHParams interface {
@@ -61,7 +60,7 @@ type ServerDHParamsFail struct {
 func (*ServerDHParamsFail) ImplementsServerDHParams() {}
 
 func (*ServerDHParamsFail) CRC() uint32 {
-	return 0x79cb045d //nolint:gomnd not magic
+	return 0x79cb045d
 }
 
 type ServerDHParamsOk struct {
@@ -73,10 +72,10 @@ type ServerDHParamsOk struct {
 func (*ServerDHParamsOk) ImplementsServerDHParams() {}
 
 func (*ServerDHParamsOk) CRC() uint32 {
-	return 0xd0e8075c //nolint:gomnd not magic
+	return 0xd0e8075c
 }
 
-type ServerDHInnerData struct { //nolint:maligned telegram require to fix
+type ServerDHInnerData struct {
 	Nonce       *tl.Int128
 	ServerNonce *tl.Int128
 	G           int32
@@ -86,7 +85,7 @@ type ServerDHInnerData struct { //nolint:maligned telegram require to fix
 }
 
 func (*ServerDHInnerData) CRC() uint32 {
-	return 0xb5890dba //nolint:gomnd not magic
+	return 0xb5890dba
 }
 
 type ClientDHInnerData struct {
@@ -97,7 +96,7 @@ type ClientDHInnerData struct {
 }
 
 func (*ClientDHInnerData) CRC() uint32 {
-	return 0x6643b654 //nolint:gomnd not magic
+	return 0x6643b654
 }
 
 type DHGenOk struct {
@@ -109,7 +108,7 @@ type DHGenOk struct {
 func (t *DHGenOk) ImplementsSetClientDHParamsAnswer() {}
 
 func (*DHGenOk) CRC() uint32 {
-	return 0x3bcbf734 //nolint:gomnd not magic
+	return 0x3bcbf734
 }
 
 type SetClientDHParamsAnswer interface {
@@ -126,7 +125,7 @@ type DHGenRetry struct {
 func (*DHGenRetry) ImplementsSetClientDHParamsAnswer() {}
 
 func (*DHGenRetry) CRC() uint32 {
-	return 0x46dc1fb9 //nolint:gomnd not magic
+	return 0x46dc1fb9
 }
 
 type DHGenFail struct {
@@ -138,7 +137,7 @@ type DHGenFail struct {
 func (*DHGenFail) ImplementsSetClientDHParamsAnswer() {}
 
 func (*DHGenFail) CRC() uint32 {
-	return 0xa69dae02 //nolint:gomnd not magic
+	return 0xa69dae02
 }
 
 type RpcResult struct {
@@ -150,20 +149,20 @@ func (*RpcResult) CRC() uint32 {
 	return CrcRpcResult
 }
 
-// DecodeFromButItsVector
-//func (t *RpcResult) DecodeFromButItsVector(d *Decoder, as reflect.Type) {
-//	t.ReqMsgID = d.PopLong()
-//	crc := binary.LittleEndian.Uint32(d.GetRestOfMessage()[:WordLen])
-//	if crc == CrcGzipPacked {
-//		_ = d.PopCRC()
-//		gz := &GzipPacked{}
-//		gz.DecodeFromButItsVector(d, as)
-//		t.Obj = gz.Obj.(*InnerVectorObject)
-//	} else {
-//		vector := d.PopVector(as)
-//		t.Obj = &InnerVectorObject{I: vector}
-//	}
-//}
+// func (t *RpcResult) DecodeFromButItsVector(d *Decoder, as reflect.Type) {
+// 	t.ReqMsgID = d.PopLong()
+// 	crc := binary.LittleEndian.Uint32(d.GetRestOfMessage()[:WordLen])
+//
+// 	if crc == CrcGzipPacked {
+// 		_ = d.PopCRC()
+// 		gz := &GzipPacked{}
+// 		gz.DecodeFromButItsVector(d, as)
+// 		t.Obj = gz.Obj.(*InnerVectorObject)
+// 	} else {
+// 		vector := d.PopVector(as)
+// 		t.Obj = &InnerVectorObject{I: vector}
+// 	}
+// }
 
 type RpcError struct {
 	ErrorCode    int32
@@ -249,16 +248,16 @@ func (*NewSessionCreated) CRC() uint32 {
 	return 0x9ec20908
 }
 
-// Exception from the rule: it turns out to be almost-vector, t.k.
+// This is an exception to the usual vector handling rules.
 //
-// recorded as `msg_container#73f1f8dc messages:vector<%Message> = MessageContainer;`
-// Judging by everything, <%Type> means that this can be an unknown vector???
+// The data is encoded as `msg_container#73f1f8dc messages:vector<%Message> = MessageContainer;`.
+// It appears that `<%Type>` indicates a possible implicit vector, but this behavior is not fully understood.
 //
-// Maybe the developers crowed at this moment, I don't know the truth
+// It's possible that the developers were not thinking clearly at this point, but it's difficult to say for sure.
 type MessageContainer []*messages.Encrypted
 
 func (*MessageContainer) CRC() uint32 {
-	return 0x73f1f8dc //nolint:gomnd not magic
+	return 0x73f1f8dc
 }
 
 func (t *MessageContainer) MarshalTL(e *tl.Encoder) error {
@@ -336,11 +335,13 @@ func (t *GzipPacked) UnmarshalTL(d *tl.Decoder) error {
 }
 
 func (*GzipPacked) popMessageAsBytes(d *tl.Decoder) ([]byte, error) {
-	// TODO: STANDARD SYSTEM PACKAGE gzip writes "gzip: invalid header". This is how I figured out,
-	// The zip itself drops the bit, which is about a billion bits from the real message
-	// eg: message starts with 0x1f 0x8b 0x08 0x00 ..., but at the same time gzip
-	// returns a fragment, which starts further messages for 500+ bytes
-	// This is how it works. So that we probably won't touch, God forbid that worked
+	// TODO: The standard gzip package throws an error "gzip: invalid header".
+	// After investigating, it appears that the gzip function is receiving a segment of data that is located
+	// billions of bits away from the actual message. For example, the message starts with 0x1f 0x8b 0x08 0x00 ...,
+	// but the gzip function is receiving a segment that is 500+ bytes ahead of the message start.
+	//
+	// This current implementation appears to work. Therefore, it is best not to modify it to avoid potentially
+	// breaking functionality.
 
 	decompressed := make([]byte, 0, 4096)
 
@@ -394,7 +395,7 @@ type BadServerSalt struct {
 func (*BadServerSalt) ImplementsBadMsgNotification() {}
 
 func (*BadServerSalt) CRC() uint32 {
-	return 0xedab447b //nolint:gomnd not magic
+	return 0xedab447b
 }
 
 // msg_new_detailed_info#809db6df answer_msg_id:long bytes:int status:int = MsgDetailedInfo;
@@ -404,7 +405,7 @@ type MsgResendReq struct {
 }
 
 func (*MsgResendReq) CRC() uint32 {
-	return 0x7d861a08 //nolint:gomnd not magic
+	return 0x7d861a08
 }
 
 type MsgsStateReq struct {
@@ -412,7 +413,7 @@ type MsgsStateReq struct {
 }
 
 func (*MsgsStateReq) CRC() uint32 {
-	return 0xda69fb52 //nolint:gomnd not magic
+	return 0xda69fb52
 }
 
 type MsgsStateInfo struct {
@@ -421,7 +422,7 @@ type MsgsStateInfo struct {
 }
 
 func (*MsgsStateInfo) CRC() uint32 {
-	return 0x04deb57d //nolint:gomnd not magic
+	return 0x04deb57d
 }
 
 type MsgsAllInfo struct {
@@ -430,7 +431,7 @@ type MsgsAllInfo struct {
 }
 
 func (*MsgsAllInfo) CRC() uint32 {
-	return 0x8cc0d131 //nolint:gomnd not magic
+	return 0x8cc0d131
 }
 
 type MsgsDetailedInfo struct {
@@ -441,7 +442,7 @@ type MsgsDetailedInfo struct {
 }
 
 func (*MsgsDetailedInfo) CRC() uint32 {
-	return 0x276d3ec6 //nolint:gomnd not magic
+	return 0x276d3ec6
 }
 
 type MsgsNewDetailedInfo struct {
@@ -451,5 +452,5 @@ type MsgsNewDetailedInfo struct {
 }
 
 func (*MsgsNewDetailedInfo) CRC() uint32 {
-	return 0x809db6df //nolint:gomnd not magic
+	return 0x809db6df
 }

@@ -49,6 +49,10 @@ func (m *full) ReadMsg() ([]byte, error) {
 	}
 
 	buf := make([]byte, size)
+	// panic: runtime error: slice bounds out of range [4:2]
+	if size < 8 {
+		return nil, fmt.Errorf("invalid message size: %d", size)
+	}
 	_, err = io.ReadFull(m.conn, buf[4:])
 	if err != nil {
 		return nil, err

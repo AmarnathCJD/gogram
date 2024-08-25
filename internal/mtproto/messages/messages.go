@@ -2,9 +2,8 @@
 
 package messages
 
-// messages implements encoding and decoding messages in mtproto
-// messages can be encoded end decoded
-
+// messages provides functions for encoding and decoding messages in MTProto.
+// It handles the serialization and deserialization of messages using the MTProto protocol.
 import (
 	"bytes"
 	"encoding/binary"
@@ -16,7 +15,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Common is an interface for all messages
+// Common is a message (either encrypted or unencrypted) used for communication between the client and server.
 type Common interface {
 	GetMsg() []byte
 	GetMsgID() int
@@ -136,7 +135,7 @@ func DeserializeUnencrypted(data []byte) (*Unencrypted, error) {
 
 	mod := msg.MsgID & 3
 	if mod != 1 && mod != 3 {
-		return nil, fmt.Errorf("Wrong bits of message_id: %#v", uint64(mod))
+		return nil, fmt.Errorf("wrong bits of message_id: %#v", uint64(mod))
 	}
 
 	messageLen := d.PopUint()
@@ -166,11 +165,10 @@ func (msg *Unencrypted) GetSeqNo() int {
 	return 0
 }
 
-//------------------------------------------------------------------------------------------
-
-// MessageInformator
+// ------------------------------------------------------------------------------------------
 //
-//	*MTProto
+// MessageInformator is used to provide information about the current session for message serialization.
+// It is essentially an MTProto data structure.
 type MessageInformator interface {
 	GetSessionID() int64
 	GetSeqNo() int32

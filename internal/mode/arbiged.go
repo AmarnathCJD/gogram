@@ -17,16 +17,18 @@ type abridged struct {
 
 var _ Mode = (*abridged)(nil)
 
-var transportModeAbridged = [...]byte{0xef} // meta:immutable
+var transportModeAbridged = [...]byte{0xef} // 0xef is a magic number
 
 func (*abridged) getModeAnnouncement() []byte {
 	return transportModeAbridged[:]
 }
 
 const (
-	// If the packet length is greater than or equal to 127 words, we encode 4 bytes length, 1 is a magic
-	// number, remaining 3 is real length
-	// https://core.telegram.org/mtproto/mtproto-transports#abridged
+	// If the packet length is greater than or equal to 127 words, we encode 4 bytes for the length:
+	//   - 1 byte is a magic number (0x7f).
+	//   - The remaining 3 bytes represent the actual length in little-endian order.
+	//
+	// See: https://core.telegram.org/mtproto/mtproto-transports#abridged
 	magicValueSizeMoreThanSingleByte = 0x7f
 )
 
