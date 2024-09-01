@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -742,7 +743,7 @@ func (m *MTProto) offsetTime() {
 		return
 	}
 
-	if timeResponse.Unixtime <= currentLocalTime {
+	if timeResponse.Unixtime <= currentLocalTime || math.Abs(float64(timeResponse.Unixtime-currentLocalTime)) < 60 {
 		return // -no need to offset time
 	}
 

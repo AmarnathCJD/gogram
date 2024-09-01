@@ -794,10 +794,10 @@ func (c *Client) runFilterChain(m *NewMessage, filters []Filter) bool {
 					return false
 				}
 			}
-			if filter.Users != nil && len(filter.Users) > 0 {
+			if len(filter.Users) > 0 {
 				actUsers = filter.Users
 			}
-			if filter.Chats != nil && len(filter.Chats) > 0 {
+			if len(filter.Chats) > 0 {
 				actGroups = filter.Chats
 			}
 			if filter.Blacklist {
