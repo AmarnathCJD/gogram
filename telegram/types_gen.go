@@ -461,10 +461,11 @@ type Boost struct {
 	Expires       int32
 	UsedGiftSlug  string `tl:"flag:4"`
 	Multiplier    int32  `tl:"flag:5"`
+	Stars         int64  `tl:"flag:6"`
 }
 
 func (*Boost) CRC() uint32 {
-	return 0x2a1c8c71
+	return 0x4b3e14d6
 }
 
 func (*Boost) FlagIndex() int {
@@ -561,13 +562,18 @@ func (*BotsPreviewInfo) CRC() uint32 {
 }
 
 type BroadcastRevenueBalances struct {
-	CurrentBalance   int64
-	AvailableBalance int64
-	OverallRevenue   int64
+	WithdrawalEnabled bool `tl:"flag:0,encoded_in_bitflags"`
+	CurrentBalance    int64
+	AvailableBalance  int64
+	OverallRevenue    int64
 }
 
 func (*BroadcastRevenueBalances) CRC() uint32 {
-	return 0x8438f1c6
+	return 0xc3ff71e7
+}
+
+func (*BroadcastRevenueBalances) FlagIndex() int {
+	return 0
 }
 
 type BusinessAwayMessage struct {
@@ -747,6 +753,7 @@ type ChannelAdminLogEventsFilter struct {
 	Invites   bool `tl:"flag:15,encoded_in_bitflags"`
 	Send      bool `tl:"flag:16,encoded_in_bitflags"`
 	Forums    bool `tl:"flag:17,encoded_in_bitflags"`
+	SubExtend bool `tl:"flag:18,encoded_in_bitflags"`
 }
 
 func (*ChannelAdminLogEventsFilter) CRC() uint32 {
@@ -3126,8 +3133,8 @@ type PremiumBoostsStatus struct {
 	NextLevelBoosts    int32              `tl:"flag:0"`
 	PremiumAudience    *StatsPercentValue `tl:"flag:1"`
 	BoostURL           string
-	PrepaidGiveaways   []*PrepaidGiveaway `tl:"flag:3"`
-	MyBoostSlots       []int32            `tl:"flag:2"`
+	PrepaidGiveaways   []PrepaidGiveaway `tl:"flag:3"`
+	MyBoostSlots       []int32           `tl:"flag:2"`
 }
 
 func (*PremiumBoostsStatus) CRC() uint32 {
@@ -3202,18 +3209,6 @@ func (*PremiumSubscriptionOption) CRC() uint32 {
 
 func (*PremiumSubscriptionOption) FlagIndex() int {
 	return 0
-}
-
-// Contains info about a [prepaid giveaway »](https://core.telegram.org/api/giveaways).
-type PrepaidGiveaway struct {
-	ID       int64
-	Months   int32
-	Quantity int32
-	Date     int32
-}
-
-func (*PrepaidGiveaway) CRC() uint32 {
-	return 0xb2539d54
 }
 
 type QuickReply struct {
@@ -3529,6 +3524,39 @@ func (*StarsGiftOption) FlagIndex() int {
 	return 0
 }
 
+type StarsGiveawayOption struct {
+	Extended     bool `tl:"flag:0,encoded_in_bitflags"`
+	Default      bool `tl:"flag:1,encoded_in_bitflags"`
+	Stars        int64
+	YearlyBoosts int32
+	StoreProduct string `tl:"flag:2"`
+	Currency     string
+	Amount       int64
+	Winners      []*StarsGiveawayWinnersOption
+}
+
+func (*StarsGiveawayOption) CRC() uint32 {
+	return 0x94ce852a
+}
+
+func (*StarsGiveawayOption) FlagIndex() int {
+	return 0
+}
+
+type StarsGiveawayWinnersOption struct {
+	Default      bool `tl:"flag:0,encoded_in_bitflags"`
+	Users        int32
+	PerUserStars int64
+}
+
+func (*StarsGiveawayWinnersOption) CRC() uint32 {
+	return 0x54236209
+}
+
+func (*StarsGiveawayWinnersOption) FlagIndex() int {
+	return 0
+}
+
 type StarsRevenueStatus struct {
 	WithdrawalEnabled bool `tl:"flag:0,encoded_in_bitflags"`
 	CurrentBalance    int64
@@ -3595,6 +3623,7 @@ type StarsTransaction struct {
 	Failed             bool `tl:"flag:6,encoded_in_bitflags"`
 	Gift               bool `tl:"flag:10,encoded_in_bitflags"`
 	Reaction           bool `tl:"flag:11,encoded_in_bitflags"`
+	Subscription       bool `tl:"flag:12,encoded_in_bitflags"`
 	ID                 string
 	Stars              int64
 	Date               int32
@@ -3608,10 +3637,11 @@ type StarsTransaction struct {
 	MsgID              int32          `tl:"flag:8"`
 	ExtendedMedia      []MessageMedia `tl:"flag:9"`
 	SubscriptionPeriod int32          `tl:"flag:12"`
+	GiveawayPostID     int32          `tl:"flag:13"`
 }
 
 func (*StarsTransaction) CRC() uint32 {
-	return 0x433aeb2b
+	return 0xee7522d5
 }
 
 func (*StarsTransaction) FlagIndex() int {
