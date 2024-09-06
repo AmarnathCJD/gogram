@@ -864,22 +864,65 @@ func packMessage(c *Client, message Message) *NewMessage {
 	default:
 		return nil
 	}
+
+	// Set the chat and channel information
+	m.Chat = c.getChat(m.Message.PeerID)
+	m.Channel = c.getChannel(m.Message.PeerID)
+
+	if m.Channel != nil && m.Channel.Min {
+		if actualChannel, err := c.ChannelsGetChannels([]InputChannel{&InputChannelObj{ChannelID: m.Channel.ID, AccessHash: m.Channel.AccessHash}}); err == nil {
+			switch actualChannels := actualChannel.(type) {
+			case *MessagesChatsObj:
+				if len(actualChannels.Chats) > 0 {
+					if channelActual, ok := actualChannels.Chats[0].(*Channel); ok {
+						c.Cache.UpdateChannel(channelActual)
+						m.Channel = channelActual
+					}
+				}
+			case *MessagesChatsSlice:
+				if len(actualChannels.Chats) > 0 {
+					if channelActual, ok := actualChannels.Chats[0].(*Channel); ok {
+						c.Cache.UpdateChannel(channelActual)
+						m.Channel = channelActual
+					}
+				}
+			}
+		}
+	} else if m.Channel != nil && !m.Channel.Min {
+		c.Cache.UpdateChannel(m.Channel)
+	}
+
 	if m.Message.Out {
 		m.Sender = c.Me()
 	} else {
 		if m.Message.FromID != nil {
 			m.Sender = c.getSender(m.Message.FromID)
+			if m.Sender != nil && m.Sender.Min {
+				actualSenderReference := &InputUserFromMessage{
+					Peer:   c.getInputPeer(m.Message.PeerID),
+					MsgID:  m.ID,
+					UserID: m.Sender.ID,
+				}
+				if actualUser, err := c.UsersGetUsers([]InputUser{actualSenderReference}); err == nil && len(actualUser) > 0 {
+					if userActual, ok := actualUser[0].(*UserObj); ok {
+						c.Cache.UpdateUser(userActual)
+						m.Sender = userActual
+					}
+				}
+			} else if m.Sender != nil && !m.Sender.Min {
+				c.Cache.UpdateUser(m.Sender)
+			}
 		} else {
 			m.Sender = c.getSender(m.Message.PeerID)
 		}
 	}
-	m.Chat = c.getChat(m.Message.PeerID)
-	m.Channel = c.getChannel(m.Message.PeerID)
+
 	if m.Channel != nil && (m.Sender.ID == m.Channel.ID) {
 		m.SenderChat = c.getChannel(m.Message.FromID)
 	} else {
 		m.SenderChat = &Channel{}
 	}
+
 	m.Peer = c.getInputPeer(m.Message.PeerID)
 	if m.IsMedia() {
 		FileID := PackBotFileID(m.Media())

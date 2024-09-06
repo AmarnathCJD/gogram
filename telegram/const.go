@@ -4,13 +4,17 @@ import "regexp"
 
 const (
 	ApiVersion = 187
-	Version    = "v2.3.17"
+	Version    = "v2.3.18"
 
 	LogDebug   = "debug"
 	LogInfo    = "info"
 	LogWarn    = "warn"
 	LogError   = "error"
 	LogDisable = "disabled"
+
+	ModeAbridged     = "modeAbridged"
+	ModeFull         = "modeFull"
+	ModeIntermediate = "modeIntermediate"
 
 	MarkDown string = "Markdown"
 	HTML     string = "HTML"
