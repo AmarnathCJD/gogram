@@ -21,9 +21,9 @@ const (
 )
 
 var (
-	API_SOURCES = []string{"https://raw.githubusercontent.com/null-nick/TL-Schema/main/api.tl",
+	API_SOURCES = []string{
+		"https://raw.githubusercontent.com/TGScheme/Schema/main/main_api.tl", "https://raw.githubusercontent.com/null-nick/TL-Schema/main/api.tl",
 		"https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/Telegram/SourceFiles/mtproto/scheme/api.tl",
-		"https://raw.githubusercontent.com/TGScheme/Schema/main/main_api.tl",
 	}
 )
 
@@ -70,7 +70,7 @@ func main() {
 
 			remoteAPIVersion = cleanComments(remoteAPIVersion)
 
-			file, err := os.OpenFile(tlLOC, os.O_RDWR|os.O_CREATE, 0644)
+			file, err := os.OpenFile(tlLOC, os.O_RDWR|os.O_CREATE, 0600)
 			if err != nil {
 				panic(err)
 			}
@@ -243,12 +243,14 @@ func minorFixes(outdir, layer string) {
 		ID:     id,
 	})`)
 
+	replaceWithRegexp(filepath.Join(execWorkDir, "methods_gen.go"), `(?m)^\s*Chatlist\s*$`, "    Chatlist InputChatlistDialogFilter")
+
 	replace(filepath.Join(execWorkDir, "enums_gen.go"), `Null Null`, `NullCrc Null`)
 
 	replace(filepath.Join(execWorkDir, "init_gen.go"), `Null,`, `NullCrc,`)
 	if layer != "0" {
 		// replace eg: ApiVersion = 181
-		file, err := os.OpenFile(filepath.Join(execWorkDir, "const.go"), os.O_RDWR|os.O_CREATE, 0644)
+		file, err := os.OpenFile(filepath.Join(execWorkDir, "const.go"), os.O_RDWR|os.O_CREATE, 0600)
 		if err != nil {
 			panic(err)
 		}
@@ -274,7 +276,7 @@ func minorFixes(outdir, layer string) {
 
 		// ALSO UPDATE README.md with ApiVersion
 
-		rdfile, err := os.OpenFile(filepath.Join(execWorkDir, "../README.md"), os.O_RDWR|os.O_CREATE, 0644)
+		rdfile, err := os.OpenFile(filepath.Join(execWorkDir, "../README.md"), os.O_RDWR|os.O_CREATE, 0600)
 		if err != nil {
 			panic(err)
 		}
@@ -298,7 +300,7 @@ func minorFixes(outdir, layer string) {
 }
 
 func replace(filename, old, new string) {
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		panic(err)
 	}
@@ -312,6 +314,42 @@ func replace(filename, old, new string) {
 
 	str := string(content)
 	str = strings.ReplaceAll(str, old, new)
+
+	// truncate the file before writing
+	err = f.Truncate(0)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = f.Seek(0, 0)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = f.WriteString(str)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func replaceWithRegexp(filename, old, new string) {
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	content, err := io.ReadAll(f)
+	if err != nil {
+		panic(err)
+	}
+
+	// fmt.Println("Replacing", old, "with", new, "in", filename)
+
+	// regexp.MustCompile(`(?m)^Chatlist\s*$`).ReplaceAllString(string(content), "Chatlist InputChatlistDialogFilter")
+
+	str := string(content)
+	re := regexp.MustCompile(old)
+	str = re.ReplaceAllString(str, new)
 
 	// truncate the file before writing
 	err = f.Truncate(0)

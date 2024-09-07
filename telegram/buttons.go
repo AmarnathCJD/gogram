@@ -4,10 +4,12 @@ package telegram
 
 import (
 	"bytes"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
+// Button is a helper struct for creating buttons for messages.
 type Button struct{}
 
 func (Button) Force(placeHolder string) *ReplyKeyboardForceReply {
@@ -74,14 +76,19 @@ func (Button) Clear() *ReplyKeyboardHide {
 	return &ReplyKeyboardHide{}
 }
 
-// message.Click() is a function that clicks a button in a message.
-//
-// It takes one optional argument, which can be either:
-//   - the text of the button to click
-//   - the data of the button to click
-//   - the coordinates of the button to click ([x, y])
+type ClickOptions struct {
+	Game     bool
+	Password string
+}
+
+// Click clicks a button in a message.
 //
 // If no argument is given, the first button will be clicked.
+//
+// If an argument is provided, it can be one of the following:
+//   - The text of the button to click.
+//   - The data of the button to click.
+//   - The coordinates of the button to click as a slice of integers [x, y].
 func (m *NewMessage) Click(options ...any) (*MessagesBotCallbackAnswer, error) {
 	requestParams := &MessagesGetBotCallbackAnswerParams{
 		Peer:  m.Peer,
@@ -89,26 +96,42 @@ func (m *NewMessage) Click(options ...any) (*MessagesBotCallbackAnswer, error) {
 		Game:  false,
 	}
 
-	if m.ReplyMarkup() == nil {
-		return nil, errors.New("message has no buttons")
+	if len(options) > 0 {
+		if opt, ok := options[0].(*ClickOptions); ok {
+			requestParams.Game = opt.Game
+			if opt.Password != "" {
+				accountPasswordSrp, err := m.Client.AccountGetPassword()
+				if err != nil {
+					return nil, err
+				}
+
+				password, err := GetInputCheckPassword(opt.Password, accountPasswordSrp)
+				if err != nil {
+					return nil, err
+				}
+
+				requestParams.Password = password
+			}
+		}
 	}
 
-	switch messageButtons := (*m.ReplyMarkup()).(type) {
-	case *ReplyInlineMarkup:
+	if m.ReplyMarkup() == nil {
+		return nil, errors.New("replyMarkup: message has no buttons")
+	}
+
+	if messageButtons, ok := (*m.ReplyMarkup()).(*ReplyInlineMarkup); ok {
 		if len(messageButtons.Rows) == 0 {
-			return nil, errors.New("message has no buttons")
+			return nil, errors.New("replyMarkup: rows are empty")
 		}
 
 		switch len(options) {
 		case 0:
 			if len(messageButtons.Rows[0].Buttons) == 0 {
-				return nil, errors.New("message has no buttons")
+				return nil, errors.New("replyMarkup: row(0) has no buttons")
 			}
 
-			switch button := messageButtons.Rows[0].Buttons[0].(type) {
-			case *KeyboardButtonCallback:
+			if button, ok := messageButtons.Rows[0].Buttons[0].(*KeyboardButtonCallback); ok {
 				requestParams.Data = button.Data
-				//case *KeyboardButtonSimpleWebView:
 			}
 
 		case 1:
@@ -118,23 +141,16 @@ func (m *NewMessage) Click(options ...any) (*MessagesBotCallbackAnswer, error) {
 				for _, button := range row.Buttons {
 					switch opt := options[0].(type) {
 					case string:
-						switch button := button.(type) {
-						case *KeyboardButtonCallback:
-							if button.Text == opt {
-								requestParams.Data = button.Data
-							}
+						if button, ok := button.(*KeyboardButtonCallback); ok && strings.EqualFold(button.Text, opt) {
+							requestParams.Data = button.Data
 						}
 					case []byte:
-						switch button := button.(type) {
-						case *KeyboardButtonCallback:
-							if bytes.Equal(button.Data, opt) {
-								requestParams.Data = button.Data
-							}
+						if button, ok := button.(*KeyboardButtonCallback); ok && bytes.Equal(button.Data, opt) {
+							requestParams.Data = button.Data
 						}
 					case int, int32, int64:
 						if optInt, ok := opt.(int); ok && optInt == currentX {
-							switch button := button.(type) {
-							case *KeyboardButtonCallback:
+							if button, ok := button.(*KeyboardButtonCallback); ok {
 								requestParams.Data = button.Data
 							}
 						}
@@ -142,12 +158,14 @@ func (m *NewMessage) Click(options ...any) (*MessagesBotCallbackAnswer, error) {
 					case []int, []int32, []int64:
 						if optInts, ok := opt.([]int); ok && len(optInts) == 2 {
 							if optInts[0] == currentX && optInts[1] == currentY {
-								switch button := button.(type) {
-								case *KeyboardButtonCallback:
+								if button, ok := button.(*KeyboardButtonCallback); ok {
 									requestParams.Data = button.Data
 								}
 							}
 						}
+
+					default:
+						return nil, errors.New("replyMarkup: invalid argument type (expected string, []byte, int, or []int)")
 					}
 					currentY++
 				}
@@ -158,7 +176,7 @@ func (m *NewMessage) Click(options ...any) (*MessagesBotCallbackAnswer, error) {
 	}
 
 	if requestParams.Data == nil {
-		return nil, errors.New("button with given text/data/(x,y) not found")
+		return nil, errors.New("replyMarkup: button with given (text, data, or coordinates) not found")
 	}
 
 	return m.Client.MessagesGetBotCallbackAnswer(requestParams)
