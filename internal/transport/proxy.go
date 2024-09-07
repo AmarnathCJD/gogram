@@ -13,9 +13,7 @@ import (
 	"time"
 )
 
-const (
-	DefaultTimeout = 5 * time.Second
-)
+const DefaultTimeout = 5 * time.Second
 
 func dialProxy(s *url.URL, address string) (net.Conn, error) {
 	switch s.Scheme {
