@@ -218,6 +218,15 @@ func (*AccountDaysTtl) CRC() uint32 {
 	return 0xb8d0afdf
 }
 
+// Contains the link that must be used to open a [direct link Mini App](https://core.telegram.org/api/bots/webapps#direct-link-mini-apps).
+type AppWebViewResultURL struct {
+	URL string
+}
+
+func (*AppWebViewResultURL) CRC() uint32 {
+	return 0x3c1b4f0d
+}
+
 // Represents a [bot mini app that can be launched from the attachment/side menu »](https://core.telegram.org/api/bots/attach)
 type AttachMenuBot struct {
 	Inactive                 bool `tl:"flag:0,encoded_in_bitflags"`
@@ -1186,13 +1195,18 @@ func (*Error) CRC() uint32 {
 
 // Exported [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
 type ExportedChatlistInvite struct {
-	Title string
-	URL   string
-	Peers []Peer
+	Revoked bool `tl:"flag:0,encoded_in_bitflags"`
+	Title   string
+	URL     string
+	Peers   []Peer
 }
 
 func (*ExportedChatlistInvite) CRC() uint32 {
 	return 0xc5181ac
+}
+
+func (*ExportedChatlistInvite) FlagIndex() int {
+	return 0
 }
 
 // Describes a [temporary profile link](https://core.telegram.org/api/links#temporary-profile-links).
@@ -1248,6 +1262,17 @@ type FileHash struct {
 
 func (*FileHash) CRC() uint32 {
 	return 0xf39b035c
+}
+
+// File is currently unavailable.
+type FileLocationUnavailable struct {
+	VolumeID int64
+	LocalID  int32
+	Secret   int64
+}
+
+func (*FileLocationUnavailable) CRC() uint32 {
+	return 0x7c596b46
 }
 
 // Folder
@@ -3434,6 +3459,15 @@ type ShippingOption struct {
 
 func (*ShippingOption) CRC() uint32 {
 	return 0xb6213cdf
+}
+
+// Contains the webview URL with appropriate theme parameters added
+type SimpleWebViewResultURL struct {
+	URL string
+}
+
+func (*SimpleWebViewResultURL) CRC() uint32 {
+	return 0x882f76bb
 }
 
 type SmsJob struct {

@@ -479,6 +479,30 @@ func (*ChannelAdminLogEventActionChangeAvailableReactions) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionChangeAvailableReactions) ImplementsChannelAdminLogEventAction() {}
 
+// The [custom emoji](https://core.telegram.org/api/custom-emoji) used to generate the pattern of the [background profile color »](https://core.telegram.org/api/colors) of a channel was changed.
+type ChannelAdminLogEventActionChangeBackgroundEmoji struct {
+	PrevValue int64
+	NewValue  int64
+}
+
+func (*ChannelAdminLogEventActionChangeBackgroundEmoji) CRC() uint32 {
+	return 0x445fc434
+}
+
+func (*ChannelAdminLogEventActionChangeBackgroundEmoji) ImplementsChannelAdminLogEventAction() {}
+
+// The [background profile color »](https://core.telegram.org/api/colors) of a channel was changed.
+type ChannelAdminLogEventActionChangeColor struct {
+	PrevValue int32
+	NewValue  int32
+}
+
+func (*ChannelAdminLogEventActionChangeColor) CRC() uint32 {
+	return 0x3c2b247b
+}
+
+func (*ChannelAdminLogEventActionChangeColor) ImplementsChannelAdminLogEventAction() {}
+
 // The [emoji status](https://core.telegram.org/api/emoji-status) was changed
 type ChannelAdminLogEventActionChangeEmojiStatus struct {
 	PrevValue EmojiStatus
@@ -585,6 +609,18 @@ func (*ChannelAdminLogEventActionChangeStickerSet) CRC() uint32 {
 }
 
 func (*ChannelAdminLogEventActionChangeStickerSet) ImplementsChannelAdminLogEventAction() {}
+
+// The chat theme was changed
+type ChannelAdminLogEventActionChangeTheme struct {
+	PrevValue string
+	NewValue  string
+}
+
+func (*ChannelAdminLogEventActionChangeTheme) CRC() uint32 {
+	return 0xfe69018d
+}
+
+func (*ChannelAdminLogEventActionChangeTheme) ImplementsChannelAdminLogEventAction() {}
 
 // Channel/supergroup title was changed
 type ChannelAdminLogEventActionChangeTitle struct {
@@ -1377,6 +1413,7 @@ func (*ChannelForbidden) ImplementsChat() {}
 // Info about a group
 type ChatObj struct {
 	Creator             bool `tl:"flag:0,encoded_in_bitflags"`
+	Kicked              bool `tl:"flag:1,encoded_in_bitflags"`
 	Left                bool `tl:"flag:2,encoded_in_bitflags"`
 	Deactivated         bool `tl:"flag:5,encoded_in_bitflags"`
 	CallActive          bool `tl:"flag:23,encoded_in_bitflags"`
@@ -4436,6 +4473,18 @@ func (*InputStorePaymentPremiumSubscription) FlagIndex() int {
 
 func (*InputStorePaymentPremiumSubscription) ImplementsInputStorePaymentPurpose() {}
 
+type InputStorePaymentStars struct {
+	Stars    int64
+	Currency string
+	Amount   int64
+}
+
+func (*InputStorePaymentStars) CRC() uint32 {
+	return 0x4f0ee8df
+}
+
+func (*InputStorePaymentStars) ImplementsInputStorePaymentPurpose() {}
+
 type InputStorePaymentStarsGift struct {
 	UserID   InputUser
 	Stars    int64
@@ -5235,6 +5284,14 @@ type MessageAction interface {
 	tl.Object
 	ImplementsMessageAction()
 }
+type MessageActionAttachMenuBotAllowed struct{}
+
+func (*MessageActionAttachMenuBotAllowed) CRC() uint32 {
+	return 0xe7e75f97
+}
+
+func (*MessageActionAttachMenuBotAllowed) ImplementsMessageAction() {}
+
 type MessageActionBoostApply struct {
 	Boosts int32
 }
@@ -5390,6 +5447,14 @@ func (*MessageActionContactSignUp) CRC() uint32 {
 }
 
 func (*MessageActionContactSignUp) ImplementsMessageAction() {}
+
+type MessageActionCreatedBroadcastList struct{}
+
+func (*MessageActionCreatedBroadcastList) CRC() uint32 {
+	return 0x55555557
+}
+
+func (*MessageActionCreatedBroadcastList) ImplementsMessageAction() {}
 
 // Custom action (most likely not supported by the current layer, an upgrade might be needed)
 type MessageActionCustomAction struct {
@@ -5578,6 +5643,17 @@ func (*MessageActionInviteToGroupCall) CRC() uint32 {
 
 func (*MessageActionInviteToGroupCall) ImplementsMessageAction() {}
 
+type MessageActionLoginUnknownLocation struct {
+	Title   string
+	Address string
+}
+
+func (*MessageActionLoginUnknownLocation) CRC() uint32 {
+	return 0x555555f5
+}
+
+func (*MessageActionLoginUnknownLocation) ImplementsMessageAction() {}
+
 type MessageActionPaymentRefunded struct {
 	Peer        Peer
 	Currency    string
@@ -5654,6 +5730,14 @@ func (*MessageActionPhoneCall) FlagIndex() int {
 }
 
 func (*MessageActionPhoneCall) ImplementsMessageAction() {}
+
+type MessageActionPhoneNumberRequest struct{}
+
+func (*MessageActionPhoneNumberRequest) CRC() uint32 {
+	return 0x1baa035
+}
+
+func (*MessageActionPhoneNumberRequest) ImplementsMessageAction() {}
 
 // A message was pinned
 type MessageActionPinMessage struct{}
@@ -5781,6 +5865,17 @@ func (*MessageActionSetMessagesTtl) FlagIndex() int {
 
 func (*MessageActionSetMessagesTtl) ImplementsMessageAction() {}
 
+// The user applied a [wallpaper »](https://core.telegram.org/api/wallpapers) previously sent by the other user in a [messageActionSetChatWallPaper](https://core.telegram.org/constructor/messageActionSetChatWallPaper) message.
+type MessageActionSetSameChatWallPaper struct {
+	Wallpaper WallPaper
+}
+
+func (*MessageActionSetSameChatWallPaper) CRC() uint32 {
+	return 0xc0787d6d
+}
+
+func (*MessageActionSetSameChatWallPaper) ImplementsMessageAction() {}
+
 // A new profile picture was suggested using [photos.uploadContactProfilePhoto](https://core.telegram.org/method/photos.uploadContactProfilePhoto).
 type MessageActionSuggestProfilePhoto struct {
 	Photo Photo
@@ -5791,6 +5886,16 @@ func (*MessageActionSuggestProfilePhoto) CRC() uint32 {
 }
 
 func (*MessageActionSuggestProfilePhoto) ImplementsMessageAction() {}
+
+type MessageActionTtlChange struct {
+	Ttl int32
+}
+
+func (*MessageActionTtlChange) CRC() uint32 {
+	return 0x55555552
+}
+
+func (*MessageActionTtlChange) ImplementsMessageAction() {}
 
 // A [forum topic](https://core.telegram.org/api/forum#forum-topics) was created.
 type MessageActionTopicCreate struct {
@@ -5826,6 +5931,24 @@ func (*MessageActionTopicEdit) FlagIndex() int {
 }
 
 func (*MessageActionTopicEdit) ImplementsMessageAction() {}
+
+type MessageActionUserJoined struct{}
+
+func (*MessageActionUserJoined) CRC() uint32 {
+	return 0x55555550
+}
+
+func (*MessageActionUserJoined) ImplementsMessageAction() {}
+
+type MessageActionUserUpdatedPhoto struct {
+	NewUserPhoto UserProfilePhoto
+}
+
+func (*MessageActionUserUpdatedPhoto) CRC() uint32 {
+	return 0x55555551
+}
+
+func (*MessageActionUserUpdatedPhoto) ImplementsMessageAction() {}
 
 // Data from an opened [reply keyboard bot mini app](https://core.telegram.org/api/bots/webapps) was relayed to the bot that owns it (user side service message).
 type MessageActionWebViewDataSent struct {
@@ -6617,6 +6740,14 @@ func (*InputMessagesFilterPhotoVideo) CRC() uint32 {
 }
 
 func (*InputMessagesFilterPhotoVideo) ImplementsMessagesFilter() {}
+
+type InputMessagesFilterPhotoVideoDocuments struct{}
+
+func (*InputMessagesFilterPhotoVideoDocuments) CRC() uint32 {
+	return 0xd95e73bb
+}
+
+func (*InputMessagesFilterPhotoVideoDocuments) ImplementsMessagesFilter() {}
 
 // Filter for messages containing photos.
 type InputMessagesFilterPhotos struct{}
@@ -8004,8 +8135,8 @@ func (*RequestPeerTypeBroadcast) ImplementsRequestPeerType() {}
 // Choose a chat or supergroup
 type RequestPeerTypeChat struct {
 	Creator         bool             `tl:"flag:0,encoded_in_bitflags"`
-	BotParticipant  bool             `tl:"flag:5,encoded_in_bitflags"`
 	HasUsername     bool             `tl:"flag:3"`
+	BotParticipant  bool             `tl:"flag:5,encoded_in_bitflags"`
 	Forum           bool             `tl:"flag:4"`
 	UserAdminRights *ChatAdminRights `tl:"flag:1"`
 	BotAdminRights  *ChatAdminRights `tl:"flag:2"`
@@ -10255,6 +10386,16 @@ func (*UpdateNotifySettings) CRC() uint32 {
 
 func (*UpdateNotifySettings) ImplementsUpdate() {}
 
+type UpdatePaidReactionPrivacy struct {
+	Private bool
+}
+
+func (*UpdatePaidReactionPrivacy) CRC() uint32 {
+	return 0x51ca7aec
+}
+
+func (*UpdatePaidReactionPrivacy) ImplementsUpdate() {}
+
 // We blocked a peer, see [here »](https://core.telegram.org/api/block) for more info on blocklists.
 type UpdatePeerBlocked struct {
 	Blocked              bool `tl:"flag:0,encoded_in_bitflags"`
@@ -10832,6 +10973,22 @@ func (*UpdateTheme) CRC() uint32 {
 
 func (*UpdateTheme) ImplementsUpdate() {}
 
+type UpdateTranscribeAudio struct {
+	Final           bool `tl:"flag:0,encoded_in_bitflags"`
+	TranscriptionID int64
+	Text            string
+}
+
+func (*UpdateTranscribeAudio) CRC() uint32 {
+	return 0x88617090
+}
+
+func (*UpdateTranscribeAudio) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateTranscribeAudio) ImplementsUpdate() {}
+
 // A pending [voice message transcription »](https://core.telegram.org/api/transcribe) initiated with [messages.transcribeAudio](https://core.telegram.org/method/messages.transcribeAudio) was updated.
 type UpdateTranscribedAudio struct {
 	Pending         bool `tl:"flag:0,encoded_in_bitflags"`
@@ -10899,6 +11056,20 @@ func (*UpdateUserPhone) CRC() uint32 {
 }
 
 func (*UpdateUserPhone) ImplementsUpdate() {}
+
+// Change of contact's profile photo.
+type UpdateUserPhoto struct {
+	UserID   int64
+	Date     int32
+	Photo    UserProfilePhoto
+	Previous bool
+}
+
+func (*UpdateUserPhoto) CRC() uint32 {
+	return 0xf227868c
+}
+
+func (*UpdateUserPhoto) ImplementsUpdate() {}
 
 // Contact status update.
 type UpdateUserStatus struct {
@@ -11248,6 +11419,14 @@ func (*UserStatusEmpty) CRC() uint32 {
 
 func (*UserStatusEmpty) ImplementsUserStatus() {}
 
+type UserStatusHidden struct{}
+
+func (*UserStatusHidden) CRC() uint32 {
+	return 0xcf7d64b1
+}
+
+func (*UserStatusHidden) ImplementsUserStatus() {}
+
 // Online status: last seen last month
 type UserStatusLastMonth struct {
 	ByMe bool `tl:"flag:0,encoded_in_bitflags"`
@@ -11529,6 +11708,16 @@ func (*WebPagePending) FlagIndex() int {
 }
 
 func (*WebPagePending) ImplementsWebPage() {}
+
+type WebPageURLPending struct {
+	URL string
+}
+
+func (*WebPageURLPending) CRC() uint32 {
+	return 0xd41a5167
+}
+
+func (*WebPageURLPending) ImplementsWebPage() {}
 
 type WebPageAttribute interface {
 	tl.Object
@@ -13348,13 +13537,15 @@ func (*PaymentsPaymentFormObj) FlagIndex() int {
 func (*PaymentsPaymentFormObj) ImplementsPaymentsPaymentForm() {}
 
 type PaymentsPaymentFormStars struct {
-	FormID      int64
-	BotID       int64
-	Title       string
-	Description string
-	Photo       WebDocument `tl:"flag:5"`
-	Invoice     *Invoice
-	Users       []User
+	CanSaveCredentials bool `tl:"flag:2,encoded_in_bitflags"`
+	PasswordMissing    bool `tl:"flag:3,encoded_in_bitflags"`
+	FormID             int64
+	BotID              int64
+	Title              string
+	Description        string
+	Photo              WebDocument `tl:"flag:5"`
+	Invoice            *Invoice
+	Users              []User
 }
 
 func (*PaymentsPaymentFormStars) CRC() uint32 {
