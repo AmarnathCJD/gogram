@@ -11,9 +11,9 @@ type AttachMenuBots interface {
 
 // Represents a list of [bot mini apps that can be launched from the attachment menu »](https://core.telegram.org/api/bots/attach)
 type AttachMenuBotsObj struct {
-	Hash  int64
-	Bots  []*AttachMenuBot
-	Users []User
+	Hash  int64            // Hash used for caching, for more info click here
+	Bots  []*AttachMenuBot // List of bot mini apps that can be launched from the attachment menu
+	Users []User           // Info about related users/bots
 }
 
 func (*AttachMenuBotsObj) CRC() uint32 {
@@ -38,14 +38,14 @@ type BotApp interface {
 
 // Contains information about a [direct link Mini App](https://core.telegram.org/api/bots/webapps#direct-link-mini-apps).
 type BotAppObj struct {
-	ID          int64
-	AccessHash  int64
-	ShortName   string
-	Title       string
-	Description string
-	Photo       Photo
-	Document    Document `tl:"flag:0"`
-	Hash        int64
+	ID          int64    // bot mini app ID
+	AccessHash  int64    // bot mini app access hash
+	ShortName   string   // bot mini app short name, used to generate Direct Mini App deep links.
+	Title       string   // bot mini app title.
+	Description string   // bot mini app description.
+	Photo       Photo    // bot mini app photo.
+	Document    Document `tl:"flag:0"` // bot mini app animation.
+	Hash        int64    // Hash to pass to messages.getBotApp, to avoid refetching bot app info if it hasn't changed.
 }
 
 func (*BotAppObj) CRC() uint32 {
@@ -101,7 +101,7 @@ func (*BotCommandScopeDefault) ImplementsBotCommandScope() {}
 
 // The specified bot commands will be valid only in a specific dialog.
 type BotCommandScopePeer struct {
-	Peer InputPeer
+	Peer InputPeer // The dialog
 }
 
 func (*BotCommandScopePeer) CRC() uint32 {
@@ -112,7 +112,7 @@ func (*BotCommandScopePeer) ImplementsBotCommandScope() {}
 
 // The specified bot commands will be valid for all admins of the specified [group or supergroup](https://core.telegram.org/api/channel).
 type BotCommandScopePeerAdmins struct {
-	Peer InputPeer
+	Peer InputPeer // The chat
 }
 
 func (*BotCommandScopePeerAdmins) CRC() uint32 {
@@ -123,8 +123,8 @@ func (*BotCommandScopePeerAdmins) ImplementsBotCommandScope() {}
 
 // The specified bot commands will be valid only for a specific user in the specified [group or supergroup](https://core.telegram.org/api/channel).
 type BotCommandScopePeerUser struct {
-	Peer   InputPeer
-	UserID InputUser
+	Peer   InputPeer // The chat
+	UserID InputUser // The user
 }
 
 func (*BotCommandScopePeerUser) CRC() uint32 {
@@ -149,10 +149,10 @@ type BotInlineMessage interface {
 
 // Send whatever media is attached to the [botInlineMediaResult](https://core.telegram.org/constructor/botInlineMediaResult)
 type BotInlineMessageMediaAuto struct {
-	InvertMedia bool `tl:"flag:3,encoded_in_bitflags"`
-	Message     string
-	Entities    []MessageEntity `tl:"flag:1"`
-	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
+	InvertMedia bool            `tl:"flag:3,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
+	Message     string          // Caption
+	Entities    []MessageEntity `tl:"flag:1"` // Message entities for styled text
+	ReplyMarkup ReplyMarkup     `tl:"flag:2"` // Inline keyboard
 }
 
 func (*BotInlineMessageMediaAuto) CRC() uint32 {
@@ -167,11 +167,11 @@ func (*BotInlineMessageMediaAuto) ImplementsBotInlineMessage() {}
 
 // Send a contact
 type BotInlineMessageMediaContact struct {
-	PhoneNumber string
-	FirstName   string
-	LastName    string
-	Vcard       string
-	ReplyMarkup ReplyMarkup `tl:"flag:2"`
+	PhoneNumber string      // Phone number
+	FirstName   string      // First name
+	LastName    string      // Last name
+	Vcard       string      // VCard info
+	ReplyMarkup ReplyMarkup `tl:"flag:2"` // Inline keyboard
 }
 
 func (*BotInlineMessageMediaContact) CRC() uint32 {
@@ -186,11 +186,11 @@ func (*BotInlineMessageMediaContact) ImplementsBotInlineMessage() {}
 
 // Send a geolocation
 type BotInlineMessageMediaGeo struct {
-	Geo                         GeoPoint
-	Heading                     int32       `tl:"flag:0"`
-	Period                      int32       `tl:"flag:1"`
-	ProximityNotificationRadius int32       `tl:"flag:3"`
-	ReplyMarkup                 ReplyMarkup `tl:"flag:2"`
+	Geo                         GeoPoint    // Geolocation
+	Heading                     int32       `tl:"flag:0"` // For live locations, a direction in which the location moves, in degrees; 1-360.
+	Period                      int32       `tl:"flag:1"` // Validity period
+	ProximityNotificationRadius int32       `tl:"flag:3"` // For live locations, a maximum distance to another chat member for proximity alerts, in meters (0-100000).
+	ReplyMarkup                 ReplyMarkup `tl:"flag:2"` // Inline keyboard
 }
 
 func (*BotInlineMessageMediaGeo) CRC() uint32 {
@@ -205,14 +205,14 @@ func (*BotInlineMessageMediaGeo) ImplementsBotInlineMessage() {}
 
 // Send an invoice
 type BotInlineMessageMediaInvoice struct {
-	ShippingAddressRequested bool `tl:"flag:1,encoded_in_bitflags"`
-	Test                     bool `tl:"flag:3,encoded_in_bitflags"`
-	Title                    string
-	Description              string
-	Photo                    WebDocument `tl:"flag:0"`
-	Currency                 string
-	TotalAmount              int64
-	ReplyMarkup              ReplyMarkup `tl:"flag:2"`
+	ShippingAddressRequested bool        `tl:"flag:1,encoded_in_bitflags"` // Set this flag if you require the user's shipping address to complete the order
+	Test                     bool        `tl:"flag:3,encoded_in_bitflags"` // Test invoice
+	Title                    string      // Product name, 1-32 characters
+	Description              string      // Product description, 1-255 characters
+	Photo                    WebDocument `tl:"flag:0"` // Product photo
+	Currency                 string      // Three-letter ISO 4217 currency code, or 'XTR' for Telegram Stars.
+	TotalAmount              int64       // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	ReplyMarkup              ReplyMarkup `tl:"flag:2"` // Inline keyboard
 }
 
 func (*BotInlineMessageMediaInvoice) CRC() uint32 {
@@ -227,13 +227,13 @@ func (*BotInlineMessageMediaInvoice) ImplementsBotInlineMessage() {}
 
 // Send a venue
 type BotInlineMessageMediaVenue struct {
-	Geo         GeoPoint
-	Title       string
-	Address     string
-	Provider    string
-	VenueID     string
-	VenueType   string
-	ReplyMarkup ReplyMarkup `tl:"flag:2"`
+	Geo         GeoPoint    // Geolocation of venue
+	Title       string      // Venue name
+	Address     string      // Address
+	Provider    string      // Venue provider: currently only "foursquare" and "gplaces" (Google Places) need to be supported
+	VenueID     string      // Venue ID in the provider's database
+	VenueType   string      // Venue type in the provider's database
+	ReplyMarkup ReplyMarkup `tl:"flag:2"` // Inline keyboard
 }
 
 func (*BotInlineMessageMediaVenue) CRC() uint32 {
@@ -248,15 +248,15 @@ func (*BotInlineMessageMediaVenue) ImplementsBotInlineMessage() {}
 
 // Specifies options that must be used to generate the link preview for the message, or even a standalone link preview without an attached message.
 type BotInlineMessageMediaWebPage struct {
-	InvertMedia     bool `tl:"flag:3,encoded_in_bitflags"`
-	ForceLargeMedia bool `tl:"flag:4,encoded_in_bitflags"`
-	ForceSmallMedia bool `tl:"flag:5,encoded_in_bitflags"`
-	Manual          bool `tl:"flag:7,encoded_in_bitflags"`
-	Safe            bool `tl:"flag:8,encoded_in_bitflags"`
-	Message         string
-	Entities        []MessageEntity `tl:"flag:1"`
-	URL             string
-	ReplyMarkup     ReplyMarkup `tl:"flag:2"`
+	InvertMedia     bool            `tl:"flag:3,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
+	ForceLargeMedia bool            `tl:"flag:4,encoded_in_bitflags"` // If set, specifies that a large media preview should be used.
+	ForceSmallMedia bool            `tl:"flag:5,encoded_in_bitflags"` // If set, specifies that a small media preview should be used.
+	Manual          bool            `tl:"flag:7,encoded_in_bitflags"` // If set, indicates that the URL used for the webpage preview was specified manually using inputMediaWebPage, and may not be related to any of the URLs specified in the message.
+	Safe            bool            `tl:"flag:8,encoded_in_bitflags"` // If set, the link can be opened directly without user confirmation.
+	Message         string          // The message, can be empty.
+	Entities        []MessageEntity `tl:"flag:1"` // Message entities for styled text
+	URL             string          // The URL to use for the link preview.
+	ReplyMarkup     ReplyMarkup     `tl:"flag:2"` // Reply markup for sending bot buttons
 }
 
 func (*BotInlineMessageMediaWebPage) CRC() uint32 {
@@ -271,11 +271,11 @@ func (*BotInlineMessageMediaWebPage) ImplementsBotInlineMessage() {}
 
 // Send a simple text message
 type BotInlineMessageText struct {
-	NoWebpage   bool `tl:"flag:0,encoded_in_bitflags"`
-	InvertMedia bool `tl:"flag:3,encoded_in_bitflags"`
-	Message     string
-	Entities    []MessageEntity `tl:"flag:1"`
-	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
+	NoWebpage   bool            `tl:"flag:0,encoded_in_bitflags"` // Disable webpage preview
+	InvertMedia bool            `tl:"flag:3,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
+	Message     string          // The message
+	Entities    []MessageEntity `tl:"flag:1"` // Message entities for styled text
+	ReplyMarkup ReplyMarkup     `tl:"flag:2"` // Inline keyboard
 }
 
 func (*BotInlineMessageText) CRC() uint32 {
@@ -295,13 +295,13 @@ type BotInlineResult interface {
 
 // Media result
 type BotInlineMediaResult struct {
-	ID          string
-	Type        string
-	Photo       Photo    `tl:"flag:0"`
-	Document    Document `tl:"flag:1"`
-	Title       string   `tl:"flag:2"`
-	Description string   `tl:"flag:3"`
-	SendMessage BotInlineMessage
+	ID          string           // Result ID
+	Type        string           // Result type (see bot API docs)
+	Photo       Photo            `tl:"flag:0"` // If type is 'photo', the photo to send
+	Document    Document         `tl:"flag:1"` // If type is 'document', the document to send
+	Title       string           `tl:"flag:2"` // Result title
+	Description string           `tl:"flag:3"` // Description
+	SendMessage BotInlineMessage // Depending on the 'type' and on the constructor, contains the caption of the media or the content of the message to be sent instead of the media
 }
 
 func (*BotInlineMediaResult) CRC() uint32 {
@@ -316,14 +316,14 @@ func (*BotInlineMediaResult) ImplementsBotInlineResult() {}
 
 // Generic result
 type BotInlineResultObj struct {
-	ID          string
-	Type        string
-	Title       string      `tl:"flag:1"`
-	Description string      `tl:"flag:2"`
-	URL         string      `tl:"flag:3"`
-	Thumb       WebDocument `tl:"flag:4"`
-	Content     WebDocument `tl:"flag:5"`
-	SendMessage BotInlineMessage
+	ID          string           // Result ID
+	Type        string           // Result type (see bot API docs)
+	Title       string           `tl:"flag:1"` // Result title
+	Description string           `tl:"flag:2"` // Result description
+	URL         string           `tl:"flag:3"` // URL of article or webpage
+	Thumb       WebDocument      `tl:"flag:4"` // Thumbnail for the result
+	Content     WebDocument      `tl:"flag:5"` // Content of the result
+	SendMessage BotInlineMessage // Message to send
 }
 
 func (*BotInlineResultObj) CRC() uint32 {
@@ -343,8 +343,8 @@ type BotMenuButton interface {
 
 // [Bot menu button](https://core.telegram.org/api/bots/menu) that opens a [web app](https://core.telegram.org/api/bots/webapps) when clicked.
 type BotMenuButtonObj struct {
-	Text string
-	URL  string
+	Text string // Title to be displayed on the menu button instead of 'Menu'
+	URL  string // URL of a web app to open when the user clicks on the button
 }
 
 func (*BotMenuButtonObj) CRC() uint32 {
@@ -375,10 +375,12 @@ type BroadcastRevenueTransaction interface {
 	tl.Object
 	ImplementsBroadcastRevenueTransaction()
 }
+
+// Describes earnings from sponsored messages in a channel in some time frame, see [here »](https://core.telegram.org/api/revenue) for more info.
 type BroadcastRevenueTransactionProceeds struct {
-	Amount   int64
-	FromDate int32
-	ToDate   int32
+	Amount   int64 // Amount in the smallest unit of the cryptocurrency.
+	FromDate int32 // Start unixtime for the timeframe.
+	ToDate   int32 // End unixtime for the timeframe.
 }
 
 func (*BroadcastRevenueTransactionProceeds) CRC() uint32 {
@@ -387,10 +389,11 @@ func (*BroadcastRevenueTransactionProceeds) CRC() uint32 {
 
 func (*BroadcastRevenueTransactionProceeds) ImplementsBroadcastRevenueTransaction() {}
 
+// Describes a [refund for failed withdrawal of ad earnings »](https://core.telegram.org/api/revenue#withdrawing-revenue)
 type BroadcastRevenueTransactionRefund struct {
-	Amount   int64
-	Date     int32
-	Provider string
+	Amount   int64  // Amount refunded.
+	Date     int32  // Date of refund.
+	Provider string // Payment provider name.
 }
 
 func (*BroadcastRevenueTransactionRefund) CRC() uint32 {
@@ -399,14 +402,15 @@ func (*BroadcastRevenueTransactionRefund) CRC() uint32 {
 
 func (*BroadcastRevenueTransactionRefund) ImplementsBroadcastRevenueTransaction() {}
 
+// Describes a [withdrawal of ad earnings »](https://core.telegram.org/api/revenue#withdrawing-revenue)
 type BroadcastRevenueTransactionWithdrawal struct {
-	Pending         bool `tl:"flag:0,encoded_in_bitflags"`
-	Failed          bool `tl:"flag:2,encoded_in_bitflags"`
-	Amount          int64
-	Date            int32
-	Provider        string
-	TransactionDate int32  `tl:"flag:1"`
-	TransactionURL  string `tl:"flag:1"`
+	Pending         bool   `tl:"flag:0,encoded_in_bitflags"` // Whether the withdrawal is currently pending
+	Failed          bool   `tl:"flag:2,encoded_in_bitflags"` // Whether the withdrawal has failed
+	Amount          int64  // Amount withdrawn
+	Date            int32  // Withdrawal date
+	Provider        string // Payment provider name
+	TransactionDate int32  `tl:"flag:1"` // If neither 'pending' nor 'failed' are set, the transaction was completed successfully, and this field will contain the point in time (Unix timestamp) when the withdrawal was completed successfully.
+	TransactionURL  string `tl:"flag:1"` // If neither 'pending' nor 'failed' are set, the transaction was completed successfully, and this field will contain a URL where the withdrawal transaction can be viewed.
 }
 
 func (*BroadcastRevenueTransactionWithdrawal) CRC() uint32 {
@@ -423,6 +427,8 @@ type BusinessAwayMessageSchedule interface {
 	tl.Object
 	ImplementsBusinessAwayMessageSchedule()
 }
+
+// Always send [Telegram Business away messages](https://core.telegram.org/api/business#away-messages) to users writing to us in private.
 type BusinessAwayMessageScheduleAlways struct{}
 
 func (*BusinessAwayMessageScheduleAlways) CRC() uint32 {
@@ -431,9 +437,10 @@ func (*BusinessAwayMessageScheduleAlways) CRC() uint32 {
 
 func (*BusinessAwayMessageScheduleAlways) ImplementsBusinessAwayMessageSchedule() {}
 
+// Send [Telegram Business away messages](https://core.telegram.org/api/business#away-messages) to users writing to us in private in the specified time span.
 type BusinessAwayMessageScheduleCustom struct {
-	StartDate int32
-	EndDate   int32
+	StartDate int32 // Start date (UNIX timestamp).
+	EndDate   int32 // End date (UNIX timestamp).
 }
 
 func (*BusinessAwayMessageScheduleCustom) CRC() uint32 {
@@ -442,6 +449,7 @@ func (*BusinessAwayMessageScheduleCustom) CRC() uint32 {
 
 func (*BusinessAwayMessageScheduleCustom) ImplementsBusinessAwayMessageSchedule() {}
 
+// Send [Telegram Business away messages](https://core.telegram.org/api/business#away-messages) to users writing to us in private outside of the configured [Telegram Business working hours](https://core.telegram.org/api/business#opening-hours).
 type BusinessAwayMessageScheduleOutsideWorkHours struct{}
 
 func (*BusinessAwayMessageScheduleOutsideWorkHours) CRC() uint32 {
@@ -457,8 +465,8 @@ type ChannelAdminLogEventAction interface {
 
 // The description was changed
 type ChannelAdminLogEventActionChangeAbout struct {
-	PrevValue string
-	NewValue  string
+	PrevValue string // Previous description
+	NewValue  string // New description
 }
 
 func (*ChannelAdminLogEventActionChangeAbout) CRC() uint32 {
@@ -469,8 +477,8 @@ func (*ChannelAdminLogEventActionChangeAbout) ImplementsChannelAdminLogEventActi
 
 // The set of allowed [message reactions »](https://core.telegram.org/api/reactions) for this channel has changed
 type ChannelAdminLogEventActionChangeAvailableReactions struct {
-	PrevValue ChatReactions
-	NewValue  ChatReactions
+	PrevValue ChatReactions // Previously allowed reaction emojis
+	NewValue  ChatReactions // New allowed reaction emojis
 }
 
 func (*ChannelAdminLogEventActionChangeAvailableReactions) CRC() uint32 {
@@ -481,8 +489,8 @@ func (*ChannelAdminLogEventActionChangeAvailableReactions) ImplementsChannelAdmi
 
 // The [custom emoji](https://core.telegram.org/api/custom-emoji) used to generate the pattern of the [background profile color »](https://core.telegram.org/api/colors) of a channel was changed.
 type ChannelAdminLogEventActionChangeBackgroundEmoji struct {
-	PrevValue int64
-	NewValue  int64
+	PrevValue int64 // Old custom emoji ID (or 0 if none)
+	NewValue  int64 // New custom emoji ID (or 0 if none)
 }
 
 func (*ChannelAdminLogEventActionChangeBackgroundEmoji) CRC() uint32 {
@@ -493,8 +501,8 @@ func (*ChannelAdminLogEventActionChangeBackgroundEmoji) ImplementsChannelAdminLo
 
 // The [background profile color »](https://core.telegram.org/api/colors) of a channel was changed.
 type ChannelAdminLogEventActionChangeColor struct {
-	PrevValue int32
-	NewValue  int32
+	PrevValue int32 // The old color palette ID.
+	NewValue  int32 // The old color palette ID.
 }
 
 func (*ChannelAdminLogEventActionChangeColor) CRC() uint32 {
@@ -505,8 +513,8 @@ func (*ChannelAdminLogEventActionChangeColor) ImplementsChannelAdminLogEventActi
 
 // The [emoji status](https://core.telegram.org/api/emoji-status) was changed
 type ChannelAdminLogEventActionChangeEmojiStatus struct {
-	PrevValue EmojiStatus
-	NewValue  EmojiStatus
+	PrevValue EmojiStatus // Previous emoji status
+	NewValue  EmojiStatus // New emoji status
 }
 
 func (*ChannelAdminLogEventActionChangeEmojiStatus) CRC() uint32 {
@@ -515,9 +523,10 @@ func (*ChannelAdminLogEventActionChangeEmojiStatus) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionChangeEmojiStatus) ImplementsChannelAdminLogEventAction() {}
 
+// The supergroup's [custom emoji stickerset](https://core.telegram.org/api/boost#setting-a-custom-emoji-stickerset-for-supergroups) was changed.
 type ChannelAdminLogEventActionChangeEmojiStickerSet struct {
-	PrevStickerset InputStickerSet
-	NewStickerset  InputStickerSet
+	PrevStickerset InputStickerSet // Old value
+	NewStickerset  InputStickerSet // New value
 }
 
 func (*ChannelAdminLogEventActionChangeEmojiStickerSet) CRC() uint32 {
@@ -528,8 +537,8 @@ func (*ChannelAdminLogEventActionChangeEmojiStickerSet) ImplementsChannelAdminLo
 
 // The Time-To-Live of messages in this chat was changed
 type ChannelAdminLogEventActionChangeHistoryTtl struct {
-	PrevValue int32
-	NewValue  int32
+	PrevValue int32 // Previous value
+	NewValue  int32 // New value
 }
 
 func (*ChannelAdminLogEventActionChangeHistoryTtl) CRC() uint32 {
@@ -540,8 +549,8 @@ func (*ChannelAdminLogEventActionChangeHistoryTtl) ImplementsChannelAdminLogEven
 
 // The linked chat was changed
 type ChannelAdminLogEventActionChangeLinkedChat struct {
-	PrevValue int64
-	NewValue  int64
+	PrevValue int64 // Previous linked chat
+	NewValue  int64 // New linked chat
 }
 
 func (*ChannelAdminLogEventActionChangeLinkedChat) CRC() uint32 {
@@ -552,8 +561,8 @@ func (*ChannelAdminLogEventActionChangeLinkedChat) ImplementsChannelAdminLogEven
 
 // The geogroup location was changed
 type ChannelAdminLogEventActionChangeLocation struct {
-	PrevValue ChannelLocation
-	NewValue  ChannelLocation
+	PrevValue ChannelLocation // Previous location
+	NewValue  ChannelLocation // New location
 }
 
 func (*ChannelAdminLogEventActionChangeLocation) CRC() uint32 {
@@ -564,8 +573,8 @@ func (*ChannelAdminLogEventActionChangeLocation) ImplementsChannelAdminLogEventA
 
 // The [message accent color](https://core.telegram.org/api/colors) was changed
 type ChannelAdminLogEventActionChangePeerColor struct {
-	PrevValue *PeerColor
-	NewValue  *PeerColor
+	PrevValue *PeerColor // Previous accent palette
+	NewValue  *PeerColor // New accent palette
 }
 
 func (*ChannelAdminLogEventActionChangePeerColor) CRC() uint32 {
@@ -576,8 +585,8 @@ func (*ChannelAdminLogEventActionChangePeerColor) ImplementsChannelAdminLogEvent
 
 // The channel/supergroup's picture was changed
 type ChannelAdminLogEventActionChangePhoto struct {
-	PrevPhoto Photo
-	NewPhoto  Photo
+	PrevPhoto Photo // Previous picture
+	NewPhoto  Photo // New picture
 }
 
 func (*ChannelAdminLogEventActionChangePhoto) CRC() uint32 {
@@ -588,8 +597,8 @@ func (*ChannelAdminLogEventActionChangePhoto) ImplementsChannelAdminLogEventActi
 
 // The [profile accent color](https://core.telegram.org/api/colors) was changed
 type ChannelAdminLogEventActionChangeProfilePeerColor struct {
-	PrevValue *PeerColor
-	NewValue  *PeerColor
+	PrevValue *PeerColor // Previous accent palette
+	NewValue  *PeerColor // New accent palette
 }
 
 func (*ChannelAdminLogEventActionChangeProfilePeerColor) CRC() uint32 {
@@ -600,8 +609,8 @@ func (*ChannelAdminLogEventActionChangeProfilePeerColor) ImplementsChannelAdminL
 
 // The supergroup's stickerset was changed
 type ChannelAdminLogEventActionChangeStickerSet struct {
-	PrevStickerset InputStickerSet
-	NewStickerset  InputStickerSet
+	PrevStickerset InputStickerSet // Previous stickerset
+	NewStickerset  InputStickerSet // New stickerset
 }
 
 func (*ChannelAdminLogEventActionChangeStickerSet) CRC() uint32 {
@@ -612,8 +621,8 @@ func (*ChannelAdminLogEventActionChangeStickerSet) ImplementsChannelAdminLogEven
 
 // The chat theme was changed
 type ChannelAdminLogEventActionChangeTheme struct {
-	PrevValue string
-	NewValue  string
+	PrevValue string // Previous theme emoji
+	NewValue  string // New theme emoji
 }
 
 func (*ChannelAdminLogEventActionChangeTheme) CRC() uint32 {
@@ -624,8 +633,8 @@ func (*ChannelAdminLogEventActionChangeTheme) ImplementsChannelAdminLogEventActi
 
 // Channel/supergroup title was changed
 type ChannelAdminLogEventActionChangeTitle struct {
-	PrevValue string
-	NewValue  string
+	PrevValue string // Previous title
+	NewValue  string // New title
 }
 
 func (*ChannelAdminLogEventActionChangeTitle) CRC() uint32 {
@@ -636,8 +645,8 @@ func (*ChannelAdminLogEventActionChangeTitle) ImplementsChannelAdminLogEventActi
 
 // Channel/supergroup username was changed
 type ChannelAdminLogEventActionChangeUsername struct {
-	PrevValue string
-	NewValue  string
+	PrevValue string // Old username
+	NewValue  string // New username
 }
 
 func (*ChannelAdminLogEventActionChangeUsername) CRC() uint32 {
@@ -648,8 +657,8 @@ func (*ChannelAdminLogEventActionChangeUsername) ImplementsChannelAdminLogEventA
 
 // The list of usernames associated with the channel was changed
 type ChannelAdminLogEventActionChangeUsernames struct {
-	PrevValue []string
-	NewValue  []string
+	PrevValue []string // Previous set of usernames
+	NewValue  []string // New set of usernames
 }
 
 func (*ChannelAdminLogEventActionChangeUsernames) CRC() uint32 {
@@ -660,8 +669,8 @@ func (*ChannelAdminLogEventActionChangeUsernames) ImplementsChannelAdminLogEvent
 
 // The [wallpaper](https://core.telegram.org/api/wallpapers) was changed
 type ChannelAdminLogEventActionChangeWallpaper struct {
-	PrevValue WallPaper
-	NewValue  WallPaper
+	PrevValue WallPaper // Previous wallpaper
+	NewValue  WallPaper // New wallpaper
 }
 
 func (*ChannelAdminLogEventActionChangeWallpaper) CRC() uint32 {
@@ -672,7 +681,7 @@ func (*ChannelAdminLogEventActionChangeWallpaper) ImplementsChannelAdminLogEvent
 
 // A [forum topic](https://core.telegram.org/api/forum#forum-topics) was created
 type ChannelAdminLogEventActionCreateTopic struct {
-	Topic ForumTopic
+	Topic ForumTopic // The forum topic that was created
 }
 
 func (*ChannelAdminLogEventActionCreateTopic) CRC() uint32 {
@@ -683,8 +692,8 @@ func (*ChannelAdminLogEventActionCreateTopic) ImplementsChannelAdminLogEventActi
 
 // The default banned rights were modified
 type ChannelAdminLogEventActionDefaultBannedRights struct {
-	PrevBannedRights *ChatBannedRights
-	NewBannedRights  *ChatBannedRights
+	PrevBannedRights *ChatBannedRights // Previous global banned rights
+	NewBannedRights  *ChatBannedRights // New global banned rights.
 }
 
 func (*ChannelAdminLogEventActionDefaultBannedRights) CRC() uint32 {
@@ -695,7 +704,7 @@ func (*ChannelAdminLogEventActionDefaultBannedRights) ImplementsChannelAdminLogE
 
 // A message was deleted
 type ChannelAdminLogEventActionDeleteMessage struct {
-	Message Message
+	Message Message // The message that was deleted
 }
 
 func (*ChannelAdminLogEventActionDeleteMessage) CRC() uint32 {
@@ -706,7 +715,7 @@ func (*ChannelAdminLogEventActionDeleteMessage) ImplementsChannelAdminLogEventAc
 
 // A [forum topic](https://core.telegram.org/api/forum#forum-topics) was deleted
 type ChannelAdminLogEventActionDeleteTopic struct {
-	Topic ForumTopic
+	Topic ForumTopic // The forum topic that was deleted
 }
 
 func (*ChannelAdminLogEventActionDeleteTopic) CRC() uint32 {
@@ -717,7 +726,7 @@ func (*ChannelAdminLogEventActionDeleteTopic) ImplementsChannelAdminLogEventActi
 
 // A group call was terminated
 type ChannelAdminLogEventActionDiscardGroupCall struct {
-	Call *InputGroupCall
+	Call *InputGroupCall // The group call that was terminated
 }
 
 func (*ChannelAdminLogEventActionDiscardGroupCall) CRC() uint32 {
@@ -728,8 +737,8 @@ func (*ChannelAdminLogEventActionDiscardGroupCall) ImplementsChannelAdminLogEven
 
 // A message was edited
 type ChannelAdminLogEventActionEditMessage struct {
-	PrevMessage Message
-	NewMessage  Message
+	PrevMessage Message // Old message
+	NewMessage  Message // New message
 }
 
 func (*ChannelAdminLogEventActionEditMessage) CRC() uint32 {
@@ -740,8 +749,8 @@ func (*ChannelAdminLogEventActionEditMessage) ImplementsChannelAdminLogEventActi
 
 // A [forum topic](https://core.telegram.org/api/forum#forum-topics) was edited
 type ChannelAdminLogEventActionEditTopic struct {
-	PrevTopic ForumTopic
-	NewTopic  ForumTopic
+	PrevTopic ForumTopic // Previous topic information
+	NewTopic  ForumTopic // New topic information
 }
 
 func (*ChannelAdminLogEventActionEditTopic) CRC() uint32 {
@@ -752,7 +761,7 @@ func (*ChannelAdminLogEventActionEditTopic) ImplementsChannelAdminLogEventAction
 
 // A chat invite was deleted
 type ChannelAdminLogEventActionExportedInviteDelete struct {
-	Invite ExportedChatInvite
+	Invite ExportedChatInvite // The deleted chat invite
 }
 
 func (*ChannelAdminLogEventActionExportedInviteDelete) CRC() uint32 {
@@ -763,8 +772,8 @@ func (*ChannelAdminLogEventActionExportedInviteDelete) ImplementsChannelAdminLog
 
 // A chat invite was edited
 type ChannelAdminLogEventActionExportedInviteEdit struct {
-	PrevInvite ExportedChatInvite
-	NewInvite  ExportedChatInvite
+	PrevInvite ExportedChatInvite // Previous chat invite information
+	NewInvite  ExportedChatInvite // New chat invite information
 }
 
 func (*ChannelAdminLogEventActionExportedInviteEdit) CRC() uint32 {
@@ -775,7 +784,7 @@ func (*ChannelAdminLogEventActionExportedInviteEdit) ImplementsChannelAdminLogEv
 
 // A specific invite link was revoked
 type ChannelAdminLogEventActionExportedInviteRevoke struct {
-	Invite ExportedChatInvite
+	Invite ExportedChatInvite // The invite link that was revoked
 }
 
 func (*ChannelAdminLogEventActionExportedInviteRevoke) CRC() uint32 {
@@ -786,7 +795,7 @@ func (*ChannelAdminLogEventActionExportedInviteRevoke) ImplementsChannelAdminLog
 
 // A user was invited to the group
 type ChannelAdminLogEventActionParticipantInvite struct {
-	Participant ChannelParticipant
+	Participant ChannelParticipant // The user that was invited
 }
 
 func (*ChannelAdminLogEventActionParticipantInvite) CRC() uint32 {
@@ -806,8 +815,8 @@ func (*ChannelAdminLogEventActionParticipantJoin) ImplementsChannelAdminLogEvent
 
 // A user joined the [supergroup/channel](https://core.telegram.org/api/channel) using a specific invite link
 type ChannelAdminLogEventActionParticipantJoinByInvite struct {
-	ViaChatlist bool `tl:"flag:0,encoded_in_bitflags"`
-	Invite      ExportedChatInvite
+	ViaChatlist bool               `tl:"flag:0,encoded_in_bitflags"` // The participant joined by importing a chat folder deep link.
+	Invite      ExportedChatInvite // The invite link used to join the supergroup/channel
 }
 
 func (*ChannelAdminLogEventActionParticipantJoinByInvite) CRC() uint32 {
@@ -822,8 +831,8 @@ func (*ChannelAdminLogEventActionParticipantJoinByInvite) ImplementsChannelAdmin
 
 // A new member was accepted to the chat by an admin
 type ChannelAdminLogEventActionParticipantJoinByRequest struct {
-	Invite     ExportedChatInvite
-	ApprovedBy int64
+	Invite     ExportedChatInvite // The invite link that was used to join the chat
+	ApprovedBy int64              // ID of the admin that approved the invite
 }
 
 func (*ChannelAdminLogEventActionParticipantJoinByRequest) CRC() uint32 {
@@ -843,7 +852,7 @@ func (*ChannelAdminLogEventActionParticipantLeave) ImplementsChannelAdminLogEven
 
 // A group call participant was muted
 type ChannelAdminLogEventActionParticipantMute struct {
-	Participant *GroupCallParticipant
+	Participant *GroupCallParticipant // The participant that was muted
 }
 
 func (*ChannelAdminLogEventActionParticipantMute) CRC() uint32 {
@@ -865,8 +874,8 @@ func (*ChannelAdminLogEventActionParticipantSubExtend) ImplementsChannelAdminLog
 
 // The admin [rights](https://core.telegram.org/api/rights) of a user were changed
 type ChannelAdminLogEventActionParticipantToggleAdmin struct {
-	PrevParticipant ChannelParticipant
-	NewParticipant  ChannelParticipant
+	PrevParticipant ChannelParticipant // Previous admin rights
+	NewParticipant  ChannelParticipant // New admin rights
 }
 
 func (*ChannelAdminLogEventActionParticipantToggleAdmin) CRC() uint32 {
@@ -877,8 +886,8 @@ func (*ChannelAdminLogEventActionParticipantToggleAdmin) ImplementsChannelAdminL
 
 // The banned [rights](https://core.telegram.org/api/rights) of a user were changed
 type ChannelAdminLogEventActionParticipantToggleBan struct {
-	PrevParticipant ChannelParticipant
-	NewParticipant  ChannelParticipant
+	PrevParticipant ChannelParticipant // Old banned rights of user
+	NewParticipant  ChannelParticipant // New banned rights of user
 }
 
 func (*ChannelAdminLogEventActionParticipantToggleBan) CRC() uint32 {
@@ -889,7 +898,7 @@ func (*ChannelAdminLogEventActionParticipantToggleBan) ImplementsChannelAdminLog
 
 // A group call participant was unmuted
 type ChannelAdminLogEventActionParticipantUnmute struct {
-	Participant *GroupCallParticipant
+	Participant *GroupCallParticipant // The participant that was unmuted
 }
 
 func (*ChannelAdminLogEventActionParticipantUnmute) CRC() uint32 {
@@ -900,7 +909,7 @@ func (*ChannelAdminLogEventActionParticipantUnmute) ImplementsChannelAdminLogEve
 
 // channelAdminLogEvent.user_id has set the volume of participant.peer to participant.volume
 type ChannelAdminLogEventActionParticipantVolume struct {
-	Participant *GroupCallParticipant
+	Participant *GroupCallParticipant // The participant whose volume was changed
 }
 
 func (*ChannelAdminLogEventActionParticipantVolume) CRC() uint32 {
@@ -911,8 +920,8 @@ func (*ChannelAdminLogEventActionParticipantVolume) ImplementsChannelAdminLogEve
 
 // A [forum topic](https://core.telegram.org/api/forum#forum-topics) was pinned or unpinned
 type ChannelAdminLogEventActionPinTopic struct {
-	PrevTopic ForumTopic `tl:"flag:0"`
-	NewTopic  ForumTopic `tl:"flag:1"`
+	PrevTopic ForumTopic `tl:"flag:0"` // Previous topic information
+	NewTopic  ForumTopic `tl:"flag:1"` // New topic information
 }
 
 func (*ChannelAdminLogEventActionPinTopic) CRC() uint32 {
@@ -927,7 +936,7 @@ func (*ChannelAdminLogEventActionPinTopic) ImplementsChannelAdminLogEventAction(
 
 // A message was posted in a channel
 type ChannelAdminLogEventActionSendMessage struct {
-	Message Message
+	Message Message // The message that was sent
 }
 
 func (*ChannelAdminLogEventActionSendMessage) CRC() uint32 {
@@ -938,7 +947,7 @@ func (*ChannelAdminLogEventActionSendMessage) ImplementsChannelAdminLogEventActi
 
 // A group call was started
 type ChannelAdminLogEventActionStartGroupCall struct {
-	Call *InputGroupCall
+	Call *InputGroupCall // Group call
 }
 
 func (*ChannelAdminLogEventActionStartGroupCall) CRC() uint32 {
@@ -949,7 +958,7 @@ func (*ChannelAdminLogEventActionStartGroupCall) ImplementsChannelAdminLogEventA
 
 // A poll was stopped
 type ChannelAdminLogEventActionStopPoll struct {
-	Message Message
+	Message Message // The poll that was stopped
 }
 
 func (*ChannelAdminLogEventActionStopPoll) CRC() uint32 {
@@ -960,7 +969,7 @@ func (*ChannelAdminLogEventActionStopPoll) ImplementsChannelAdminLogEventAction(
 
 // [Native antispam](https://core.telegram.org/api/antispam) functionality was enabled or disabled.
 type ChannelAdminLogEventActionToggleAntiSpam struct {
-	NewValue bool
+	NewValue bool // Whether antispam functionality was enabled or disabled.
 }
 
 func (*ChannelAdminLogEventActionToggleAntiSpam) CRC() uint32 {
@@ -971,7 +980,7 @@ func (*ChannelAdminLogEventActionToggleAntiSpam) ImplementsChannelAdminLogEventA
 
 // [Forum](https://core.telegram.org/api/forum) functionality was enabled or disabled.
 type ChannelAdminLogEventActionToggleForum struct {
-	NewValue bool
+	NewValue bool // Whether forum functionality was enabled or disabled.
 }
 
 func (*ChannelAdminLogEventActionToggleForum) CRC() uint32 {
@@ -982,7 +991,7 @@ func (*ChannelAdminLogEventActionToggleForum) ImplementsChannelAdminLogEventActi
 
 // Group call settings were changed
 type ChannelAdminLogEventActionToggleGroupCallSetting struct {
-	JoinMuted bool
+	JoinMuted bool // Whether all users are muted by default upon joining
 }
 
 func (*ChannelAdminLogEventActionToggleGroupCallSetting) CRC() uint32 {
@@ -993,7 +1002,7 @@ func (*ChannelAdminLogEventActionToggleGroupCallSetting) ImplementsChannelAdminL
 
 // Invites were enabled/disabled
 type ChannelAdminLogEventActionToggleInvites struct {
-	NewValue bool
+	NewValue bool // New value
 }
 
 func (*ChannelAdminLogEventActionToggleInvites) CRC() uint32 {
@@ -1004,7 +1013,7 @@ func (*ChannelAdminLogEventActionToggleInvites) ImplementsChannelAdminLogEventAc
 
 // Forwards were enabled or disabled
 type ChannelAdminLogEventActionToggleNoForwards struct {
-	NewValue bool
+	NewValue bool // Old value
 }
 
 func (*ChannelAdminLogEventActionToggleNoForwards) CRC() uint32 {
@@ -1015,7 +1024,7 @@ func (*ChannelAdminLogEventActionToggleNoForwards) ImplementsChannelAdminLogEven
 
 // The hidden prehistory setting was [changed](https://core.telegram.org/method/channels.togglePreHistoryHidden)
 type ChannelAdminLogEventActionTogglePreHistoryHidden struct {
-	NewValue bool
+	NewValue bool // New value
 }
 
 func (*ChannelAdminLogEventActionTogglePreHistoryHidden) CRC() uint32 {
@@ -1036,7 +1045,7 @@ func (*ChannelAdminLogEventActionToggleSignatureProfiles) ImplementsChannelAdmin
 
 // Channel signatures were enabled/disabled
 type ChannelAdminLogEventActionToggleSignatures struct {
-	NewValue bool
+	NewValue bool // New value
 }
 
 func (*ChannelAdminLogEventActionToggleSignatures) CRC() uint32 {
@@ -1047,8 +1056,8 @@ func (*ChannelAdminLogEventActionToggleSignatures) ImplementsChannelAdminLogEven
 
 // [Slow mode setting for supergroups was changed](https://core.telegram.org/method/channels.toggleSlowMode)
 type ChannelAdminLogEventActionToggleSlowMode struct {
-	PrevValue int32
-	NewValue  int32
+	PrevValue int32 // Previous slow mode value
+	NewValue  int32 // New slow mode value
 }
 
 func (*ChannelAdminLogEventActionToggleSlowMode) CRC() uint32 {
@@ -1059,7 +1068,7 @@ func (*ChannelAdminLogEventActionToggleSlowMode) ImplementsChannelAdminLogEventA
 
 // A message was pinned
 type ChannelAdminLogEventActionUpdatePinned struct {
-	Message Message
+	Message Message // The message that was pinned
 }
 
 func (*ChannelAdminLogEventActionUpdatePinned) CRC() uint32 {
@@ -1075,8 +1084,8 @@ type ChannelLocation interface {
 
 // Geographical location of supergroup (geogroups)
 type ChannelLocationObj struct {
-	GeoPoint GeoPoint
-	Address  string
+	GeoPoint GeoPoint // Geographical location of supergroup
+	Address  string   // Textual description of the address
 }
 
 func (*ChannelLocationObj) CRC() uint32 {
@@ -1101,8 +1110,8 @@ type ChannelMessagesFilter interface {
 
 // Filter for getting only certain types of channel messages
 type ChannelMessagesFilterObj struct {
-	ExcludeNewMessages bool `tl:"flag:1,encoded_in_bitflags"`
-	Ranges             []*MessageRange
+	ExcludeNewMessages bool            `tl:"flag:1,encoded_in_bitflags"` // Whether to exclude new messages from the search
+	Ranges             []*MessageRange // A range of messages to fetch
 }
 
 func (*ChannelMessagesFilterObj) CRC() uint32 {
@@ -1148,14 +1157,14 @@ func (*ChannelParticipantObj) ImplementsChannelParticipant() {}
 
 // Admin
 type ChannelParticipantAdmin struct {
-	CanEdit     bool `tl:"flag:0,encoded_in_bitflags"`
-	Self        bool `tl:"flag:1,encoded_in_bitflags"`
-	UserID      int64
-	InviterID   int64 `tl:"flag:1"`
-	PromotedBy  int64
-	Date        int32
-	AdminRights *ChatAdminRights
-	Rank        string `tl:"flag:2"`
+	CanEdit     bool             `tl:"flag:0,encoded_in_bitflags"` // Can this admin promote other admins with the same permissions?
+	Self        bool             `tl:"flag:1,encoded_in_bitflags"` // Is this the current user
+	UserID      int64            // Admin user ID
+	InviterID   int64            `tl:"flag:1"` // User that invited the admin to the channel/group
+	PromotedBy  int64            // User that promoted the user to admin
+	Date        int32            // When did the user join
+	AdminRights *ChatAdminRights // Admin rights
+	Rank        string           `tl:"flag:2"` // The role (rank) of the admin in the group: just an arbitrary string, 'admin' by default
 }
 
 func (*ChannelParticipantAdmin) CRC() uint32 {
@@ -1170,11 +1179,11 @@ func (*ChannelParticipantAdmin) ImplementsChannelParticipant() {}
 
 // Banned/kicked user
 type ChannelParticipantBanned struct {
-	Left         bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer         Peer
-	KickedBy     int64
-	Date         int32
-	BannedRights *ChatBannedRights
+	Left         bool              `tl:"flag:0,encoded_in_bitflags"` // Whether the user has left the group
+	Peer         Peer              // The banned peer
+	KickedBy     int64             // User was kicked by the specified admin
+	Date         int32             // When did the user join the group
+	BannedRights *ChatBannedRights // Banned rights
 }
 
 func (*ChannelParticipantBanned) CRC() uint32 {
@@ -1189,9 +1198,9 @@ func (*ChannelParticipantBanned) ImplementsChannelParticipant() {}
 
 // Channel/supergroup creator
 type ChannelParticipantCreator struct {
-	UserID      int64
-	AdminRights *ChatAdminRights
-	Rank        string `tl:"flag:0"`
+	UserID      int64            // User ID
+	AdminRights *ChatAdminRights // Creator admin rights
+	Rank        string           `tl:"flag:0"` // The role (rank) of the group creator in the group: just an arbitrary string, 'admin' by default
 }
 
 func (*ChannelParticipantCreator) CRC() uint32 {
@@ -1206,7 +1215,7 @@ func (*ChannelParticipantCreator) ImplementsChannelParticipant() {}
 
 // A participant that left the channel/supergroup
 type ChannelParticipantLeft struct {
-	Peer Peer
+	Peer Peer // The peer that left
 }
 
 func (*ChannelParticipantLeft) CRC() uint32 {
@@ -1250,7 +1259,7 @@ func (*ChannelParticipantsAdmins) ImplementsChannelParticipantsFilter() {}
 
 // Fetch only banned participants
 type ChannelParticipantsBanned struct {
-	Q string
+	Q string // Optional filter for searching banned participants by name (otherwise empty)
 }
 
 func (*ChannelParticipantsBanned) CRC() uint32 {
@@ -1270,7 +1279,7 @@ func (*ChannelParticipantsBots) ImplementsChannelParticipantsFilter() {}
 
 // Fetch only participants that are also contacts
 type ChannelParticipantsContacts struct {
-	Q string
+	Q string // Optional search query for searching contact participants by name
 }
 
 func (*ChannelParticipantsContacts) CRC() uint32 {
@@ -1281,7 +1290,7 @@ func (*ChannelParticipantsContacts) ImplementsChannelParticipantsFilter() {}
 
 // Fetch only kicked participants
 type ChannelParticipantsKicked struct {
-	Q string
+	Q string // Optional filter for searching kicked participants by name (otherwise empty)
 }
 
 func (*ChannelParticipantsKicked) CRC() uint32 {
@@ -1295,8 +1304,8 @@ This filter is used when looking for supergroup members to mention.<br>
 This filter will automatically remove anonymous admins, and return even non-participant users that replied to a specific [thread](https://core.telegram.org/api/threads) through the [comment section](https://core.telegram.org/api/threads#channel-comments) of a channel.
 */
 type ChannelParticipantsMentions struct {
-	Q        string `tl:"flag:0"`
-	TopMsgID int32  `tl:"flag:1"`
+	Q        string `tl:"flag:0"` // Filter by user name or username
+	TopMsgID int32  `tl:"flag:1"` // Look only for users that posted in this thread
 }
 
 func (*ChannelParticipantsMentions) CRC() uint32 {
@@ -1320,7 +1329,7 @@ func (*ChannelParticipantsRecent) ImplementsChannelParticipantsFilter() {}
 
 // Query participants by name
 type ChannelParticipantsSearch struct {
-	Q string
+	Q string // Search query
 }
 
 func (*ChannelParticipantsSearch) CRC() uint32 {
@@ -1392,12 +1401,12 @@ func (*Channel) ImplementsChat() {}
 
 // Indicates a channel/supergroup we can't access because we were banned, or for some other reason.
 type ChannelForbidden struct {
-	Broadcast  bool `tl:"flag:5,encoded_in_bitflags"`
-	Megagroup  bool `tl:"flag:8,encoded_in_bitflags"`
-	ID         int64
-	AccessHash int64
-	Title      string
-	UntilDate  int32 `tl:"flag:16"`
+	Broadcast  bool   `tl:"flag:5,encoded_in_bitflags"` // Is this a channel
+	Megagroup  bool   `tl:"flag:8,encoded_in_bitflags"` // Is this a supergroup
+	ID         int64  // Channel ID
+	AccessHash int64  // Access hash
+	Title      string // Title
+	UntilDate  int32  `tl:"flag:16"` // The ban is valid until the specified date
 }
 
 func (*ChannelForbidden) CRC() uint32 {
@@ -1410,7 +1419,7 @@ func (*ChannelForbidden) FlagIndex() int {
 
 func (*ChannelForbidden) ImplementsChat() {}
 
-// Info about a group
+// Info about a group.
 type ChatObj struct {
 	Creator             bool `tl:"flag:0,encoded_in_bitflags"`
 	Kicked              bool `tl:"flag:1,encoded_in_bitflags"`
@@ -1442,7 +1451,7 @@ func (*ChatObj) ImplementsChat() {}
 
 // Empty constructor, group doesn't exist
 type ChatEmpty struct {
-	ID int64
+	ID int64 // Group identifier
 }
 
 func (*ChatEmpty) CRC() uint32 {
@@ -1453,8 +1462,8 @@ func (*ChatEmpty) ImplementsChat() {}
 
 // A group to which the user has no access. E.g., because the user was kicked from the group.
 type ChatForbidden struct {
-	ID    int64
-	Title string
+	ID    int64  // User identifier
+	Title string // Group name
 }
 
 func (*ChatForbidden) CRC() uint32 {
@@ -1544,26 +1553,26 @@ func (*ChannelFull) ImplementsChatFull() {}
 
 // Full info about a [basic group](https://core.telegram.org/api/channel#basic-groups).
 type ChatFullObj struct {
-	CanSetUsername         bool `tl:"flag:7,encoded_in_bitflags"`
-	HasScheduled           bool `tl:"flag:8,encoded_in_bitflags"`
-	TranslationsDisabled   bool `tl:"flag:19,encoded_in_bitflags"`
-	ID                     int64
-	About                  string
-	Participants           ChatParticipants
-	ChatPhoto              Photo `tl:"flag:2"`
-	NotifySettings         *PeerNotifySettings
-	ExportedInvite         ExportedChatInvite `tl:"flag:13"`
-	BotInfo                []*BotInfo         `tl:"flag:3"`
-	PinnedMsgID            int32              `tl:"flag:6"`
-	FolderID               int32              `tl:"flag:11"`
-	Call                   *InputGroupCall    `tl:"flag:12"`
-	TtlPeriod              int32              `tl:"flag:14"`
-	GroupcallDefaultJoinAs Peer               `tl:"flag:15"`
-	ThemeEmoticon          string             `tl:"flag:16"`
-	RequestsPending        int32              `tl:"flag:17"`
-	RecentRequesters       []int64            `tl:"flag:17"`
-	AvailableReactions     ChatReactions      `tl:"flag:18"`
-	ReactionsLimit         int32              `tl:"flag:20"`
+	CanSetUsername         bool                `tl:"flag:7,encoded_in_bitflags"`  // Can we change the username of this chat
+	HasScheduled           bool                `tl:"flag:8,encoded_in_bitflags"`  // Whether scheduled messages are available
+	TranslationsDisabled   bool                `tl:"flag:19,encoded_in_bitflags"` // Whether the real-time chat translation popup should be hidden.
+	ID                     int64               // ID of the chat
+	About                  string              // About string for this chat
+	Participants           ChatParticipants    // Participant list
+	ChatPhoto              Photo               `tl:"flag:2"` // Chat photo
+	NotifySettings         *PeerNotifySettings // Notification settings
+	ExportedInvite         ExportedChatInvite  `tl:"flag:13"` // Chat invite
+	BotInfo                []*BotInfo          `tl:"flag:3"`  // Info about bots that are in this chat
+	PinnedMsgID            int32               `tl:"flag:6"`  // Message ID of the last pinned message
+	FolderID               int32               `tl:"flag:11"` // Peer folder ID, for more info click here
+	Call                   *InputGroupCall     `tl:"flag:12"` // Group call information
+	TtlPeriod              int32               `tl:"flag:14"` // Time-To-Live of messages sent by the current user to this chat
+	GroupcallDefaultJoinAs Peer                `tl:"flag:15"` // When using phone.getGroupCallJoinAs to get a list of peers that can be used to join a group call, this field indicates the peer that should be selected by default.
+	ThemeEmoticon          string              `tl:"flag:16"` // Emoji representing a specific chat theme
+	RequestsPending        int32               `tl:"flag:17"` // Pending join requests
+	RecentRequesters       []int64             `tl:"flag:17"` // IDs of users who requested to join recently
+	AvailableReactions     ChatReactions       `tl:"flag:18"` // Allowed message reactions
+	ReactionsLimit         int32               `tl:"flag:20"` // This flag may be used to impose a custom limit of unique reactions (i.e. a customizable version of appConfig.reactions_uniq_max).
 }
 
 func (*ChatFullObj) CRC() uint32 {
@@ -1614,7 +1623,7 @@ func (*ChatInviteObj) ImplementsChatInvite() {}
 
 // The user has already joined this chat
 type ChatInviteAlready struct {
-	Chat Chat
+	Chat Chat // The chat connected to the invite
 }
 
 func (*ChatInviteAlready) CRC() uint32 {
@@ -1625,8 +1634,8 @@ func (*ChatInviteAlready) ImplementsChatInvite() {}
 
 // A chat invitation that also allows peeking into the group to read messages without joining it.
 type ChatInvitePeek struct {
-	Chat    Chat
-	Expires int32
+	Chat    Chat  // Chat information
+	Expires int32 // Read-only anonymous access to this group will be revoked at this date
 }
 
 func (*ChatInvitePeek) CRC() uint32 {
@@ -1642,9 +1651,9 @@ type ChatParticipant interface {
 
 // Group member.
 type ChatParticipantObj struct {
-	UserID    int64
-	InviterID int64
-	Date      int32
+	UserID    int64 // Member user ID
+	InviterID int64 // ID of the user that added the member to the group
+	Date      int32 // Date added to the group
 }
 
 func (*ChatParticipantObj) CRC() uint32 {
@@ -1655,9 +1664,9 @@ func (*ChatParticipantObj) ImplementsChatParticipant() {}
 
 // Chat admin
 type ChatParticipantAdmin struct {
-	UserID    int64
-	InviterID int64
-	Date      int32
+	UserID    int64 // ID of a group member that is admin
+	InviterID int64 // ID of the user that added the member to the group
+	Date      int32 // Date when the user was added
 }
 
 func (*ChatParticipantAdmin) CRC() uint32 {
@@ -1668,7 +1677,7 @@ func (*ChatParticipantAdmin) ImplementsChatParticipant() {}
 
 // Represents the creator of the group
 type ChatParticipantCreator struct {
-	UserID int64
+	UserID int64 // ID of the user that created the group
 }
 
 func (*ChatParticipantCreator) CRC() uint32 {
@@ -1684,9 +1693,9 @@ type ChatParticipants interface {
 
 // Group members.
 type ChatParticipantsObj struct {
-	ChatID       int64
-	Participants []ChatParticipant
-	Version      int32
+	ChatID       int64             // Group identifier
+	Participants []ChatParticipant // List of group members
+	Version      int32             // Group version number
 }
 
 func (*ChatParticipantsObj) CRC() uint32 {
@@ -1697,8 +1706,8 @@ func (*ChatParticipantsObj) ImplementsChatParticipants() {}
 
 // Info on members is unavailable
 type ChatParticipantsForbidden struct {
-	ChatID          int64
-	SelfParticipant ChatParticipant `tl:"flag:0"`
+	ChatID          int64           // Group ID
+	SelfParticipant ChatParticipant `tl:"flag:0"` // Info about the group membership of the current user
 }
 
 func (*ChatParticipantsForbidden) CRC() uint32 {
@@ -1718,10 +1727,10 @@ type ChatPhoto interface {
 
 // Group profile photo.
 type ChatPhotoObj struct {
-	HasVideo      bool `tl:"flag:0,encoded_in_bitflags"`
-	PhotoID       int64
-	StrippedThumb []byte `tl:"flag:1"`
-	DcID          int32
+	HasVideo      bool   `tl:"flag:0,encoded_in_bitflags"` // Whether the user has an animated profile picture
+	PhotoID       int64  // Photo ID
+	StrippedThumb []byte `tl:"flag:1"` // Stripped thumbnail
+	DcID          int32  // DC where this photo is stored
 }
 
 func (*ChatPhotoObj) CRC() uint32 {
@@ -1750,7 +1759,7 @@ type ChatReactions interface {
 
 // All reactions or all non-custom reactions are allowed
 type ChatReactionsAll struct {
-	AllowCustom bool `tl:"flag:0,encoded_in_bitflags"`
+	AllowCustom bool `tl:"flag:0,encoded_in_bitflags"` // Whether to allow custom reactions
 }
 
 func (*ChatReactionsAll) CRC() uint32 {
@@ -1774,7 +1783,7 @@ func (*ChatReactionsNone) ImplementsChatReactions() {}
 
 // Some reactions are allowed
 type ChatReactionsSome struct {
-	Reactions []Reaction
+	Reactions []Reaction // Allowed set of reactions: the reactions_in_chat_max configuration field indicates the maximum number of reactions that can be specified in this field.
 }
 
 func (*ChatReactionsSome) CRC() uint32 {
@@ -1790,21 +1799,24 @@ type Dialog interface {
 
 // Chat
 type DialogObj struct {
-	Pinned               bool `tl:"flag:2,encoded_in_bitflags"`
-	UnreadMark           bool `tl:"flag:3,encoded_in_bitflags"`
-	ViewForumAsMessages  bool `tl:"flag:6,encoded_in_bitflags"`
-	Peer                 Peer
-	TopMessage           int32
-	ReadInboxMaxID       int32
-	ReadOutboxMaxID      int32
-	UnreadCount          int32
-	UnreadMentionsCount  int32
-	UnreadReactionsCount int32
-	NotifySettings       *PeerNotifySettings
-	Pts                  int32        `tl:"flag:0"`
-	Draft                DraftMessage `tl:"flag:1"`
-	FolderID             int32        `tl:"flag:4"`
-	TtlPeriod            int32        `tl:"flag:5"`
+	Pinned              bool `tl:"flag:2,encoded_in_bitflags"` // Is the dialog pinned
+	UnreadMark          bool `tl:"flag:3,encoded_in_bitflags"` // Whether the chat was manually marked as unread
+	ViewForumAsMessages bool `tl:"flag:6,encoded_in_bitflags"` /*
+	Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client.
+	This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
+	*/
+	Peer                 Peer                // The chat
+	TopMessage           int32               // The latest message ID
+	ReadInboxMaxID       int32               // Position up to which all incoming messages are read.
+	ReadOutboxMaxID      int32               // Position up to which all outgoing messages are read.
+	UnreadCount          int32               // Number of unread messages
+	UnreadMentionsCount  int32               // Number of unread mentions
+	UnreadReactionsCount int32               // Number of unread reactions to messages you sent
+	NotifySettings       *PeerNotifySettings // Notification settings
+	Pts                  int32               `tl:"flag:0"` // PTS
+	Draft                DraftMessage        `tl:"flag:1"` // Message draft
+	FolderID             int32               `tl:"flag:4"` // Peer folder ID, for more info click here
+	TtlPeriod            int32               `tl:"flag:5"` // Time-to-live of all messages sent in this dialog
 }
 
 func (*DialogObj) CRC() uint32 {
@@ -1819,14 +1831,14 @@ func (*DialogObj) ImplementsDialog() {}
 
 // Dialog in folder
 type DialogFolder struct {
-	Pinned                     bool `tl:"flag:2,encoded_in_bitflags"`
-	Folder                     *Folder
-	Peer                       Peer
-	TopMessage                 int32
-	UnreadMutedPeersCount      int32
-	UnreadUnmutedPeersCount    int32
-	UnreadMutedMessagesCount   int32
-	UnreadUnmutedMessagesCount int32
+	Pinned                     bool    `tl:"flag:2,encoded_in_bitflags"` // Is this folder pinned
+	Folder                     *Folder // The folder
+	Peer                       Peer    // Peer in folder
+	TopMessage                 int32   // Latest message ID of dialog
+	UnreadMutedPeersCount      int32   // Number of unread muted peers in folder
+	UnreadUnmutedPeersCount    int32   // Number of unread unmuted peers in folder
+	UnreadMutedMessagesCount   int32   // Number of unread messages from muted peers in folder
+	UnreadUnmutedMessagesCount int32   // Number of unread messages from unmuted peers in folder
 }
 
 func (*DialogFolder) CRC() uint32 {
@@ -1846,21 +1858,21 @@ type DialogFilter interface {
 
 // Dialog filter AKA [folder](https://core.telegram.org/api/folders)
 type DialogFilterObj struct {
-	Contacts        bool `tl:"flag:0,encoded_in_bitflags"`
-	NonContacts     bool `tl:"flag:1,encoded_in_bitflags"`
-	Groups          bool `tl:"flag:2,encoded_in_bitflags"`
-	Broadcasts      bool `tl:"flag:3,encoded_in_bitflags"`
-	Bots            bool `tl:"flag:4,encoded_in_bitflags"`
-	ExcludeMuted    bool `tl:"flag:11,encoded_in_bitflags"`
-	ExcludeRead     bool `tl:"flag:12,encoded_in_bitflags"`
-	ExcludeArchived bool `tl:"flag:13,encoded_in_bitflags"`
-	ID              int32
-	Title           string
-	Emoticon        string `tl:"flag:25"`
-	Color           int32  `tl:"flag:27"`
-	PinnedPeers     []InputPeer
-	IncludePeers    []InputPeer
-	ExcludePeers    []InputPeer
+	Contacts        bool        `tl:"flag:0,encoded_in_bitflags"`  // Whether to include all contacts in this folder
+	NonContacts     bool        `tl:"flag:1,encoded_in_bitflags"`  // Whether to include all non-contacts in this folder
+	Groups          bool        `tl:"flag:2,encoded_in_bitflags"`  // Whether to include all groups in this folder
+	Broadcasts      bool        `tl:"flag:3,encoded_in_bitflags"`  // Whether to include all channels in this folder
+	Bots            bool        `tl:"flag:4,encoded_in_bitflags"`  // Whether to include all bots in this folder
+	ExcludeMuted    bool        `tl:"flag:11,encoded_in_bitflags"` // Whether to exclude muted chats from this folder
+	ExcludeRead     bool        `tl:"flag:12,encoded_in_bitflags"` // Whether to exclude read chats from this folder
+	ExcludeArchived bool        `tl:"flag:13,encoded_in_bitflags"` // Whether to exclude archived chats from this folder
+	ID              int32       // Folder ID
+	Title           string      // Folder name (max 12 UTF-8 chars)
+	Emoticon        string      `tl:"flag:25"` // Emoji to use as icon for the folder.
+	Color           int32       `tl:"flag:27"` // A color ID for the folder tag associated to this folder,.
+	PinnedPeers     []InputPeer // Pinned chats, folders can have unlimited pinned chats
+	IncludePeers    []InputPeer // Include the following chats in this folder
+	ExcludePeers    []InputPeer // Exclude the following chats from this folder
 }
 
 func (*DialogFilterObj) CRC() uint32 {
@@ -1875,13 +1887,13 @@ func (*DialogFilterObj) ImplementsDialogFilter() {}
 
 // A folder imported using a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
 type DialogFilterChatlist struct {
-	HasMyInvites bool `tl:"flag:26,encoded_in_bitflags"`
-	ID           int32
-	Title        string
-	Emoticon     string `tl:"flag:25"`
-	Color        int32  `tl:"flag:27"`
-	PinnedPeers  []InputPeer
-	IncludePeers []InputPeer
+	HasMyInvites bool        `tl:"flag:26,encoded_in_bitflags"` // Whether the current user has created some chat folder deep links  to share the folder as well.
+	ID           int32       // ID of the folder
+	Title        string      // Name of the folder (max 12 UTF-8 chars)
+	Emoticon     string      `tl:"flag:25"` // Emoji to use as icon for the folder.
+	Color        int32       `tl:"flag:27"` // A color ID for the folder tag associated to this folder,.
+	PinnedPeers  []InputPeer // Pinned chats, folders can have unlimited pinned chats
+	IncludePeers []InputPeer // Chats to include in the folder
 }
 
 func (*DialogFilterChatlist) CRC() uint32 {
@@ -1910,7 +1922,7 @@ type DialogPeer interface {
 
 // Peer
 type DialogPeerObj struct {
-	Peer Peer
+	Peer Peer // Peer
 }
 
 func (*DialogPeerObj) CRC() uint32 {
@@ -1921,7 +1933,7 @@ func (*DialogPeerObj) ImplementsDialogPeer() {}
 
 // [Peer folder](https://core.telegram.org/api/folders#peer-folders)
 type DialogPeerFolder struct {
-	FolderID int32
+	FolderID int32 // Peer folder ID, for more info click here
 }
 
 func (*DialogPeerFolder) CRC() uint32 {
@@ -1937,16 +1949,16 @@ type Document interface {
 
 // Document
 type DocumentObj struct {
-	ID            int64
-	AccessHash    int64
-	FileReference []byte
-	Date          int32
-	MimeType      string
-	Size          int64
-	Thumbs        []PhotoSize `tl:"flag:0"`
-	VideoThumbs   []VideoSize `tl:"flag:1"`
-	DcID          int32
-	Attributes    []DocumentAttribute
+	ID            int64               // Document ID
+	AccessHash    int64               // Check sum, dependent on document ID
+	FileReference []byte              // File reference
+	Date          int32               // Creation date
+	MimeType      string              // MIME type
+	Size          int64               // Size
+	Thumbs        []PhotoSize         `tl:"flag:0"` // Thumbnails
+	VideoThumbs   []VideoSize         `tl:"flag:1"` // Video thumbnails
+	DcID          int32               // DC ID
+	Attributes    []DocumentAttribute // Attributes
 }
 
 func (*DocumentObj) CRC() uint32 {
@@ -1961,7 +1973,7 @@ func (*DocumentObj) ImplementsDocument() {}
 
 // Empty constructor, document doesn't exist.
 type DocumentEmpty struct {
-	ID int64
+	ID int64 // Document ID or '0'
 }
 
 func (*DocumentEmpty) CRC() uint32 {
@@ -1986,11 +1998,14 @@ func (*DocumentAttributeAnimated) ImplementsDocumentAttribute() {}
 
 // Represents an audio file
 type DocumentAttributeAudio struct {
-	Voice     bool `tl:"flag:10,encoded_in_bitflags"`
-	Duration  int32
-	Title     string `tl:"flag:0"`
-	Performer string `tl:"flag:1"`
-	Waveform  []byte `tl:"flag:2"`
+	Voice     bool   `tl:"flag:10,encoded_in_bitflags"` // Whether this is a voice message
+	Duration  int32  // Duration in seconds
+	Title     string `tl:"flag:0"` // Name of song
+	Performer string `tl:"flag:1"` // Performer
+	Waveform  []byte `tl:"flag:2"` /*
+	Waveform: consists in a series of bitpacked 5-bit values.
+	Example implementation: android.
+	*/
 }
 
 func (*DocumentAttributeAudio) CRC() uint32 {
@@ -2005,10 +2020,10 @@ func (*DocumentAttributeAudio) ImplementsDocumentAttribute() {}
 
 // Info about a custom emoji
 type DocumentAttributeCustomEmoji struct {
-	Free       bool `tl:"flag:0,encoded_in_bitflags"`
-	TextColor  bool `tl:"flag:1,encoded_in_bitflags"`
-	Alt        string
-	Stickerset InputStickerSet
+	Free       bool            `tl:"flag:0,encoded_in_bitflags"` // Whether this custom emoji can be sent by non-Premium users
+	TextColor  bool            `tl:"flag:1,encoded_in_bitflags"` // Whether the color of this TGS custom emoji should be changed to the text color when used in messages, the accent color if used as emoji status, white on chat photos, or another appropriate color based on context.
+	Alt        string          // The actual emoji
+	Stickerset InputStickerSet // The emoji stickerset to which this emoji belongs.
 }
 
 func (*DocumentAttributeCustomEmoji) CRC() uint32 {
@@ -2023,7 +2038,7 @@ func (*DocumentAttributeCustomEmoji) ImplementsDocumentAttribute() {}
 
 // A simple document with a file name
 type DocumentAttributeFilename struct {
-	FileName string
+	FileName string // The file name
 }
 
 func (*DocumentAttributeFilename) CRC() uint32 {
@@ -2043,8 +2058,8 @@ func (*DocumentAttributeHasStickers) ImplementsDocumentAttribute() {}
 
 // Defines the width and height of an image uploaded as document
 type DocumentAttributeImageSize struct {
-	W int32
-	H int32
+	W int32 // Width of image
+	H int32 // Height of image
 }
 
 func (*DocumentAttributeImageSize) CRC() uint32 {
@@ -2055,10 +2070,10 @@ func (*DocumentAttributeImageSize) ImplementsDocumentAttribute() {}
 
 // Defines a sticker
 type DocumentAttributeSticker struct {
-	Mask       bool `tl:"flag:1,encoded_in_bitflags"`
-	Alt        string
-	Stickerset InputStickerSet
-	MaskCoords *MaskCoords `tl:"flag:0"`
+	Mask       bool            `tl:"flag:1,encoded_in_bitflags"` // Whether this is a mask sticker
+	Alt        string          // Alternative emoji representation of sticker
+	Stickerset InputStickerSet // Associated stickerset
+	MaskCoords *MaskCoords     `tl:"flag:0"` // Mask coordinates (if this is a mask sticker, attached to a photo)
 }
 
 func (*DocumentAttributeSticker) CRC() uint32 {
@@ -2073,14 +2088,14 @@ func (*DocumentAttributeSticker) ImplementsDocumentAttribute() {}
 
 // Defines a video
 type DocumentAttributeVideo struct {
-	RoundMessage      bool `tl:"flag:0,encoded_in_bitflags"`
-	SupportsStreaming bool `tl:"flag:1,encoded_in_bitflags"`
-	Nosound           bool `tl:"flag:3,encoded_in_bitflags"`
-	Duration          float64
-	W                 int32
-	H                 int32
-	PreloadPrefixSize int32   `tl:"flag:2"`
-	VideoStartTs      float64 `tl:"flag:4"`
+	RoundMessage      bool    `tl:"flag:0,encoded_in_bitflags"` // Whether this is a round video
+	SupportsStreaming bool    `tl:"flag:1,encoded_in_bitflags"` // Whether the video supports streaming
+	Nosound           bool    `tl:"flag:3,encoded_in_bitflags"` // Whether the specified document is a video file with no audio tracks (a GIF animation (even as MPEG4), for example)
+	Duration          float64 // Duration in seconds
+	W                 int32   // Video width
+	H                 int32   // Video height
+	PreloadPrefixSize int32   `tl:"flag:2"` // Number of bytes to preload when preloading videos (particularly video stories).
+	VideoStartTs      float64 `tl:"flag:4"` // Floating point UNIX timestamp in seconds, indicating the frame of the video that should be used as static preview and thumbnail.
 }
 
 func (*DocumentAttributeVideo) CRC() uint32 {
@@ -2100,14 +2115,14 @@ type DraftMessage interface {
 
 // Represents a message [draft](https://core.telegram.org/api/drafts).
 type DraftMessageObj struct {
-	NoWebpage   bool         `tl:"flag:1,encoded_in_bitflags"`
-	InvertMedia bool         `tl:"flag:6,encoded_in_bitflags"`
-	ReplyTo     InputReplyTo `tl:"flag:4"`
-	Message     string
-	Entities    []MessageEntity `tl:"flag:3"`
-	Media       InputMedia      `tl:"flag:5"`
-	Date        int32
-	Effect      int64 `tl:"flag:7"`
+	NoWebpage   bool            `tl:"flag:1,encoded_in_bitflags"` // Whether no webpage preview will be generated
+	InvertMedia bool            `tl:"flag:6,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
+	ReplyTo     InputReplyTo    `tl:"flag:4"`                     // If set, indicates that the message should be sent in reply to the specified message or story.
+	Message     string          // The draft
+	Entities    []MessageEntity `tl:"flag:3"` // Message entities for styled text.
+	Media       InputMedia      `tl:"flag:5"` // Media.
+	Date        int32           // Date of last update of the draft.
+	Effect      int64           `tl:"flag:7"` // A message effect that should be played as specified here.
 }
 
 func (*DraftMessageObj) CRC() uint32 {
@@ -2122,7 +2137,7 @@ func (*DraftMessageObj) ImplementsDraftMessage() {}
 
 // Empty draft
 type DraftMessageEmpty struct {
-	Date int32 `tl:"flag:0"`
+	Date int32 `tl:"flag:0"` // When was the draft last updated
 }
 
 func (*DraftMessageEmpty) CRC() uint32 {
@@ -2142,7 +2157,7 @@ type EmailVerification interface {
 
 // Apple ID email verification token
 type EmailVerificationApple struct {
-	Token string
+	Token string // Token
 }
 
 func (*EmailVerificationApple) CRC() uint32 {
@@ -2153,7 +2168,7 @@ func (*EmailVerificationApple) ImplementsEmailVerification() {}
 
 // Email verification code
 type EmailVerificationCode struct {
-	Code string
+	Code string // Received verification code
 }
 
 func (*EmailVerificationCode) CRC() uint32 {
@@ -2164,7 +2179,7 @@ func (*EmailVerificationCode) ImplementsEmailVerification() {}
 
 // Google ID email verification token
 type EmailVerificationGoogle struct {
-	Token string
+	Token string // Token
 }
 
 func (*EmailVerificationGoogle) CRC() uint32 {
@@ -2189,8 +2204,8 @@ func (*EmailVerifyPurposeLoginChange) ImplementsEmailVerifyPurpose() {}
 
 // Email verification purpose: setup login email
 type EmailVerifyPurposeLoginSetup struct {
-	PhoneNumber   string
-	PhoneCodeHash string
+	PhoneNumber   string // Phone number
+	PhoneCodeHash string // Phone code hash as specified by the documentation
 }
 
 func (*EmailVerifyPurposeLoginSetup) CRC() uint32 {
@@ -2213,11 +2228,11 @@ type EmojiGroup interface {
 	ImplementsEmojiGroup()
 }
 
-// Represents an [emoji category](https://core.telegram.org/api/custom-emoji#emoji-categories).
+// Represents an [emoji category](https://core.telegram.org/api/emoji-categories).
 type EmojiGroupObj struct {
-	Title       string
-	IconEmojiID int64
-	Emoticons   []string
+	Title       string   // Category name, i.e. "Animals", "Flags", "Faces" and so on...
+	IconEmojiID int64    // A single custom emoji used as preview for the category.
+	Emoticons   []string // A list of UTF-8 emojis, matching the category.
 }
 
 func (*EmojiGroupObj) CRC() uint32 {
@@ -2226,10 +2241,11 @@ func (*EmojiGroupObj) CRC() uint32 {
 
 func (*EmojiGroupObj) ImplementsEmojiGroup() {}
 
+// Represents an [emoji category](https://core.telegram.org/api/emoji-categories), that should be moved to the top of the list when choosing a sticker for a [business introduction](https://core.telegram.org/api/business#business-introduction)
 type EmojiGroupGreeting struct {
-	Title       string
-	IconEmojiID int64
-	Emoticons   []string
+	Title       string   // Category name, i.e. "Animals", "Flags", "Faces" and so on...
+	IconEmojiID int64    // A single custom emoji used as preview for the category.
+	Emoticons   []string // A list of UTF-8 emojis, matching the category.
 }
 
 func (*EmojiGroupGreeting) CRC() uint32 {
@@ -2238,9 +2254,10 @@ func (*EmojiGroupGreeting) CRC() uint32 {
 
 func (*EmojiGroupGreeting) ImplementsEmojiGroup() {}
 
+// An [emoji category](https://core.telegram.org/api/emoji-categories), used to select all [Premium](https://core.telegram.org/api/premium)-only stickers (i.e. those with a [Premium effect »](https://core.telegram.org/api/stickers#premium-animated-sticker-effects))/[Premium](https://core.telegram.org/api/premium)-only [custom emojis](https://core.telegram.org/api/custom-emoji) (i.e. those where the [documentAttributeCustomEmoji](https://core.telegram.org/constructor/documentAttributeCustomEmoji).`free` flag is <strong>not</strong> set)
 type EmojiGroupPremium struct {
-	Title       string
-	IconEmojiID int64
+	Title       string // Category name, i.e. "Animals", "Flags", "Faces" and so on...
+	IconEmojiID int64  // A single custom emoji used as preview for the category.
 }
 
 func (*EmojiGroupPremium) CRC() uint32 {
@@ -2256,8 +2273,8 @@ type EmojiKeyword interface {
 
 // Emoji keyword
 type EmojiKeywordObj struct {
-	Keyword   string
-	Emoticons []string
+	Keyword   string   // Keyword
+	Emoticons []string // Emojis associated to keyword
 }
 
 func (*EmojiKeywordObj) CRC() uint32 {
@@ -2268,8 +2285,8 @@ func (*EmojiKeywordObj) ImplementsEmojiKeyword() {}
 
 // Deleted emoji keyword
 type EmojiKeywordDeleted struct {
-	Keyword   string
-	Emoticons []string
+	Keyword   string   // Keyword
+	Emoticons []string // Emojis that were associated to keyword
 }
 
 func (*EmojiKeywordDeleted) CRC() uint32 {
@@ -2285,8 +2302,8 @@ type EmojiList interface {
 
 // Represents a list of [custom emojis](https://core.telegram.org/api/custom-emoji).
 type EmojiListObj struct {
-	Hash       int64
-	DocumentID []int64
+	Hash       int64   // Hash used for caching, for more info click here
+	DocumentID []int64 // Custom emoji IDs
 }
 
 func (*EmojiListObj) CRC() uint32 {
@@ -2311,7 +2328,7 @@ type EmojiStatus interface {
 
 // An [emoji status](https://core.telegram.org/api/emoji-status)
 type EmojiStatusObj struct {
-	DocumentID int64
+	DocumentID int64 // Custom emoji document ID
 }
 
 func (*EmojiStatusObj) CRC() uint32 {
@@ -2331,8 +2348,8 @@ func (*EmojiStatusEmpty) ImplementsEmojiStatus() {}
 
 // An [emoji status](https://core.telegram.org/api/emoji-status) valid until the specified date
 type EmojiStatusUntil struct {
-	DocumentID int64
-	Until      int32
+	DocumentID int64 // Custom emoji document ID
+	Until      int32 // This status is valid until this date
 }
 
 func (*EmojiStatusUntil) CRC() uint32 {
@@ -2348,13 +2365,17 @@ type EncryptedChat interface {
 
 // Encrypted chat
 type EncryptedChatObj struct {
-	ID             int32
-	AccessHash     int64
-	Date           int32
-	AdminID        int64
-	ParticipantID  int64
-	GAOrB          []byte
-	KeyFingerprint int64
+	ID            int32  // Chat ID
+	AccessHash    int64  // Check sum dependent on the user ID
+	Date          int32  // Date chat was created
+	AdminID       int64  // Chat creator ID
+	ParticipantID int64  // ID of the second chat participant
+	GAOrB         []byte /*
+	'B = g ^ b mod p', if the currently authorized user is the chat's creator,
+	or 'A = g ^ a mod p' otherwise
+	See Wikipedia for more info
+	*/
+	KeyFingerprint int64 // 64-bit fingerprint of received key
 }
 
 func (*EncryptedChatObj) CRC() uint32 {
@@ -2365,8 +2386,8 @@ func (*EncryptedChatObj) ImplementsEncryptedChat() {}
 
 // Discarded or deleted chat.
 type EncryptedChatDiscarded struct {
-	HistoryDeleted bool `tl:"flag:0,encoded_in_bitflags"`
-	ID             int32
+	HistoryDeleted bool  `tl:"flag:0,encoded_in_bitflags"` // Whether both users of this secret chat should also remove all of its messages
+	ID             int32 // Chat ID
 }
 
 func (*EncryptedChatDiscarded) CRC() uint32 {
@@ -2381,7 +2402,7 @@ func (*EncryptedChatDiscarded) ImplementsEncryptedChat() {}
 
 // Empty constructor.
 type EncryptedChatEmpty struct {
-	ID int32
+	ID int32 // Chat ID
 }
 
 func (*EncryptedChatEmpty) CRC() uint32 {
@@ -2392,13 +2413,13 @@ func (*EncryptedChatEmpty) ImplementsEncryptedChat() {}
 
 // Request to create an encrypted chat.
 type EncryptedChatRequested struct {
-	FolderID      int32 `tl:"flag:0"`
-	ID            int32
-	AccessHash    int64
-	Date          int32
-	AdminID       int64
-	ParticipantID int64
-	GA            []byte
+	FolderID      int32  `tl:"flag:0"` // Peer folder ID, for more info click here
+	ID            int32  // Chat ID
+	AccessHash    int64  // Check sum depending on user ID
+	Date          int32  // Chat creation date
+	AdminID       int64  // Chat creator ID
+	ParticipantID int64  // ID of second chat participant
+	GA            []byte // 'A = g ^ a mod p', see Wikipedia
 }
 
 func (*EncryptedChatRequested) CRC() uint32 {
@@ -2413,11 +2434,11 @@ func (*EncryptedChatRequested) ImplementsEncryptedChat() {}
 
 // Chat waiting for approval of second participant.
 type EncryptedChatWaiting struct {
-	ID            int32
-	AccessHash    int64
-	Date          int32
-	AdminID       int64
-	ParticipantID int64
+	ID            int32 // Chat ID
+	AccessHash    int64 // Checking sum depending on user ID
+	Date          int32 // Date of chat creation
+	AdminID       int64 // Chat creator ID
+	ParticipantID int64 // ID of second chat participant
 }
 
 func (*EncryptedChatWaiting) CRC() uint32 {
@@ -2433,11 +2454,11 @@ type EncryptedFile interface {
 
 // Encrypted file.
 type EncryptedFileObj struct {
-	ID             int64
-	AccessHash     int64
-	Size           int64
-	DcID           int32
-	KeyFingerprint int32
+	ID             int64 // File ID
+	AccessHash     int64 // Checking sum depending on user ID
+	Size           int64 // File size in bytes
+	DcID           int32 // Number of data center
+	KeyFingerprint int32 // 32-bit fingerprint of key used for file encryption
 }
 
 func (*EncryptedFileObj) CRC() uint32 {
@@ -2462,11 +2483,11 @@ type EncryptedMessage interface {
 
 // Encrypted message.
 type EncryptedMessageObj struct {
-	RandomID int64
-	ChatID   int32
-	Date     int32
-	Bytes    []byte
-	File     EncryptedFile
+	RandomID int64         // Random message ID, assigned by the author of message
+	ChatID   int32         // ID of encrypted chat
+	Date     int32         // Date of sending
+	Bytes    []byte        // TL-serialization of DecryptedMessage type, encrypted with the key created at chat initialization
+	File     EncryptedFile // Attached encrypted file
 }
 
 func (*EncryptedMessageObj) CRC() uint32 {
@@ -2477,10 +2498,10 @@ func (*EncryptedMessageObj) ImplementsEncryptedMessage() {}
 
 // Encrypted service message
 type EncryptedMessageService struct {
-	RandomID int64
-	ChatID   int32
-	Date     int32
-	Bytes    []byte
+	RandomID int64  // Random message ID, assigned by the author of message
+	ChatID   int32  // ID of encrypted chat
+	Date     int32  // Date of sending
+	Bytes    []byte // TL-serialization of the DecryptedMessage type, encrypted with the key created at chat initialization
 }
 
 func (*EncryptedMessageService) CRC() uint32 {
@@ -2538,25 +2559,29 @@ type ForumTopic interface {
 
 // Represents a [forum topic](https://core.telegram.org/api/forum#forum-topics).
 type ForumTopicObj struct {
-	My                   bool `tl:"flag:1,encoded_in_bitflags"`
-	Closed               bool `tl:"flag:2,encoded_in_bitflags"`
-	Pinned               bool `tl:"flag:3,encoded_in_bitflags"`
-	Short                bool `tl:"flag:5,encoded_in_bitflags"`
-	Hidden               bool `tl:"flag:6,encoded_in_bitflags"`
-	ID                   int32
-	Date                 int32
-	Title                string
-	IconColor            int32
-	IconEmojiID          int64 `tl:"flag:0"`
-	TopMessage           int32
-	ReadInboxMaxID       int32
-	ReadOutboxMaxID      int32
-	UnreadCount          int32
-	UnreadMentionsCount  int32
-	UnreadReactionsCount int32
-	FromID               Peer
-	NotifySettings       *PeerNotifySettings
-	Draft                DraftMessage `tl:"flag:4"`
+	My     bool `tl:"flag:1,encoded_in_bitflags"` // Whether the topic was created by the current user
+	Closed bool `tl:"flag:2,encoded_in_bitflags"` // Whether the topic is closed (no messages can be sent to it)
+	Pinned bool `tl:"flag:3,encoded_in_bitflags"` // Whether the topic is pinned
+	Short  bool `tl:"flag:5,encoded_in_bitflags"` /*
+	Whether this constructor is a reduced version of the full topic information.
+	If set, only the 'my', 'closed', 'id', 'date', 'title', 'icon_color', 'icon_emoji_id' and 'from_id' parameters will contain valid information.
+	Reduced info is usually only returned in topic-related admin log events  and in the messages.channelMessages constructor: if needed, full information can be fetched using channels.getForumTopicsByID.
+	*/
+	Hidden               bool                `tl:"flag:6,encoded_in_bitflags"` // Whether the topic is hidden (only valid for the "General" topic, 'id=1')
+	ID                   int32               // Topic ID
+	Date                 int32               // Topic creation date
+	Title                string              // Topic title
+	IconColor            int32               // If no custom emoji icon is specified, specifies the color of the fallback topic icon (RGB), one of '0x6FB9F0', '0xFFD67E', '0xCB86DB', '0x8EEE98', '0xFF93B2', or '0xFB6F5F'.
+	IconEmojiID          int64               `tl:"flag:0"` // ID of the custom emoji used as topic icon.
+	TopMessage           int32               // ID of the last message that was sent to this topic
+	ReadInboxMaxID       int32               // Position up to which all incoming messages are read.
+	ReadOutboxMaxID      int32               // Position up to which all outgoing messages are read.
+	UnreadCount          int32               // Number of unread messages
+	UnreadMentionsCount  int32               // Number of unread mentions
+	UnreadReactionsCount int32               // Number of unread reactions to messages you sent
+	FromID               Peer                // ID of the peer that created the topic
+	NotifySettings       *PeerNotifySettings // Notification settings
+	Draft                DraftMessage        `tl:"flag:4"` // Message draft
 }
 
 func (*ForumTopicObj) CRC() uint32 {
@@ -2571,7 +2596,7 @@ func (*ForumTopicObj) ImplementsForumTopic() {}
 
 // Represents a deleted forum topic.
 type ForumTopicDeleted struct {
-	ID int32
+	ID int32 // The ID of the deleted forum topic.
 }
 
 func (*ForumTopicDeleted) CRC() uint32 {
@@ -2587,10 +2612,10 @@ type GeoPoint interface {
 
 // GeoPoint.
 type GeoPointObj struct {
-	Long           float64
-	Lat            float64
-	AccessHash     int64
-	AccuracyRadius int32 `tl:"flag:0"`
+	Long           float64 // Longitude
+	Lat            float64 // Latitude
+	AccessHash     int64   // Access hash
+	AccuracyRadius int32   `tl:"flag:0"` // The estimated horizontal accuracy of the location, in meters; as defined by the sender.
 }
 
 func (*GeoPointObj) CRC() uint32 {
@@ -2619,24 +2644,24 @@ type GroupCall interface {
 
 // Info about a group call or livestream
 type GroupCallObj struct {
-	JoinMuted               bool `tl:"flag:1,encoded_in_bitflags"`
-	CanChangeJoinMuted      bool `tl:"flag:2,encoded_in_bitflags"`
-	JoinDateAsc             bool `tl:"flag:6,encoded_in_bitflags"`
-	ScheduleStartSubscribed bool `tl:"flag:8,encoded_in_bitflags"`
-	CanStartVideo           bool `tl:"flag:9,encoded_in_bitflags"`
-	RecordVideoActive       bool `tl:"flag:11,encoded_in_bitflags"`
-	RtmpStream              bool `tl:"flag:12,encoded_in_bitflags"`
-	ListenersHidden         bool `tl:"flag:13,encoded_in_bitflags"`
-	ID                      int64
-	AccessHash              int64
-	ParticipantsCount       int32
-	Title                   string `tl:"flag:3"`
-	StreamDcID              int32  `tl:"flag:4"`
-	RecordStartDate         int32  `tl:"flag:5"`
-	ScheduleDate            int32  `tl:"flag:7"`
-	UnmutedVideoCount       int32  `tl:"flag:10"`
-	UnmutedVideoLimit       int32
-	Version                 int32
+	JoinMuted               bool   `tl:"flag:1,encoded_in_bitflags"`  // Whether the user should be muted upon joining the call
+	CanChangeJoinMuted      bool   `tl:"flag:2,encoded_in_bitflags"`  // Whether the current user can change the value of the 'join_muted' flag using phone.toggleGroupCallSettings
+	JoinDateAsc             bool   `tl:"flag:6,encoded_in_bitflags"`  // Specifies the ordering to use when locally sorting by date and displaying in the UI group call participants.
+	ScheduleStartSubscribed bool   `tl:"flag:8,encoded_in_bitflags"`  // Whether we subscribed to the scheduled call
+	CanStartVideo           bool   `tl:"flag:9,encoded_in_bitflags"`  // Whether you can start streaming video into the call
+	RecordVideoActive       bool   `tl:"flag:11,encoded_in_bitflags"` // Whether the group call is currently being recorded
+	RtmpStream              bool   `tl:"flag:12,encoded_in_bitflags"` // Whether RTMP streams are allowed
+	ListenersHidden         bool   `tl:"flag:13,encoded_in_bitflags"` // Whether the listeners list is hidden and cannot be fetched using phone.getGroupParticipants. The 'phone.groupParticipants.count' and 'groupCall.participants_count' counters will still include listeners.
+	ID                      int64  // Group call ID
+	AccessHash              int64  // Group call access hash
+	ParticipantsCount       int32  // Participant count
+	Title                   string `tl:"flag:3"`  // Group call title
+	StreamDcID              int32  `tl:"flag:4"`  // DC ID to be used for livestream chunks
+	RecordStartDate         int32  `tl:"flag:5"`  // When was the recording started
+	ScheduleDate            int32  `tl:"flag:7"`  // When is the call scheduled to start
+	UnmutedVideoCount       int32  `tl:"flag:10"` // Number of people currently streaming video into the call
+	UnmutedVideoLimit       int32  // Maximum number of people allowed to stream video into the call
+	Version                 int32  // Version
 }
 
 func (*GroupCallObj) CRC() uint32 {
@@ -2651,9 +2676,9 @@ func (*GroupCallObj) ImplementsGroupCall() {}
 
 // An ended group call
 type GroupCallDiscarded struct {
-	ID         int64
-	AccessHash int64
-	Duration   int32
+	ID         int64 // Group call ID
+	AccessHash int64 // Group call access hash
+	Duration   int32 // Group call duration
 }
 
 func (*GroupCallDiscarded) CRC() uint32 {
@@ -2669,8 +2694,8 @@ type InputBotApp interface {
 
 // Used to fetch information about a [direct link Mini App](https://core.telegram.org/api/bots/webapps#direct-link-mini-apps) by its ID
 type InputBotAppID struct {
-	ID         int64
-	AccessHash int64
+	ID         int64 // direct link Mini App ID.
+	AccessHash int64 // Access hash, obtained from the botApp constructor.
 }
 
 func (*InputBotAppID) CRC() uint32 {
@@ -2681,8 +2706,8 @@ func (*InputBotAppID) ImplementsInputBotApp() {}
 
 // Used to fetch information about a [direct link Mini App](https://core.telegram.org/api/bots/webapps#direct-link-mini-apps) by its short name
 type InputBotAppShortName struct {
-	BotID     InputUser
-	ShortName string
+	BotID     InputUser // ID of the bot that owns the bot mini app
+	ShortName string    // Short name, obtained from a Direct Mini App deep link
 }
 
 func (*InputBotAppShortName) CRC() uint32 {
@@ -2698,7 +2723,7 @@ type InputBotInlineMessage interface {
 
 // A game
 type InputBotInlineMessageGame struct {
-	ReplyMarkup ReplyMarkup `tl:"flag:2"`
+	ReplyMarkup ReplyMarkup `tl:"flag:2"` // Inline keyboard
 }
 
 func (*InputBotInlineMessageGame) CRC() uint32 {
@@ -2713,10 +2738,10 @@ func (*InputBotInlineMessageGame) ImplementsInputBotInlineMessage() {}
 
 // A media
 type InputBotInlineMessageMediaAuto struct {
-	InvertMedia bool `tl:"flag:3,encoded_in_bitflags"`
-	Message     string
-	Entities    []MessageEntity `tl:"flag:1"`
-	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
+	InvertMedia bool            `tl:"flag:3,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
+	Message     string          // Caption
+	Entities    []MessageEntity `tl:"flag:1"` // Message entities for styled text
+	ReplyMarkup ReplyMarkup     `tl:"flag:2"` // Inline keyboard
 }
 
 func (*InputBotInlineMessageMediaAuto) CRC() uint32 {
@@ -2731,11 +2756,11 @@ func (*InputBotInlineMessageMediaAuto) ImplementsInputBotInlineMessage() {}
 
 // A contact
 type InputBotInlineMessageMediaContact struct {
-	PhoneNumber string
-	FirstName   string
-	LastName    string
-	Vcard       string
-	ReplyMarkup ReplyMarkup `tl:"flag:2"`
+	PhoneNumber string      // Phone number
+	FirstName   string      // First name
+	LastName    string      // Last name
+	Vcard       string      // VCard info
+	ReplyMarkup ReplyMarkup `tl:"flag:2"` // Inline keyboard
 }
 
 func (*InputBotInlineMessageMediaContact) CRC() uint32 {
@@ -2750,11 +2775,11 @@ func (*InputBotInlineMessageMediaContact) ImplementsInputBotInlineMessage() {}
 
 // Geolocation
 type InputBotInlineMessageMediaGeo struct {
-	GeoPoint                    InputGeoPoint
-	Heading                     int32       `tl:"flag:0"`
-	Period                      int32       `tl:"flag:1"`
-	ProximityNotificationRadius int32       `tl:"flag:3"`
-	ReplyMarkup                 ReplyMarkup `tl:"flag:2"`
+	GeoPoint                    InputGeoPoint // Geolocation
+	Heading                     int32         `tl:"flag:0"` // For live locations, a direction in which the location moves, in degrees; 1-360
+	Period                      int32         `tl:"flag:1"` // Validity period
+	ProximityNotificationRadius int32         `tl:"flag:3"` // For live locations, a maximum distance to another chat member for proximity alerts, in meters (0-100000)
+	ReplyMarkup                 ReplyMarkup   `tl:"flag:2"` // Reply markup for bot/inline keyboards
 }
 
 func (*InputBotInlineMessageMediaGeo) CRC() uint32 {
@@ -2769,14 +2794,14 @@ func (*InputBotInlineMessageMediaGeo) ImplementsInputBotInlineMessage() {}
 
 // An invoice
 type InputBotInlineMessageMediaInvoice struct {
-	Title        string
-	Description  string
-	Photo        *InputWebDocument `tl:"flag:0"`
-	Invoice      *Invoice
-	Payload      []byte
-	Provider     string
-	ProviderData *DataJson
-	ReplyMarkup  ReplyMarkup `tl:"flag:2"`
+	Title        string            // Product name, 1-32 characters
+	Description  string            // Product description, 1-255 characters
+	Photo        *InputWebDocument `tl:"flag:0"` // Invoice photo
+	Invoice      *Invoice          // The invoice
+	Payload      []byte            // Bot-defined invoice payload, 1-128 bytes. This will not be displayed to the user, use for your internal processes.
+	Provider     string            // Payments provider token, obtained via Botfather
+	ProviderData *DataJson         // A JSON-serialized object for data about the invoice, which will be shared with the payment provider. A detailed description of the required fields should be provided by the payment provider.
+	ReplyMarkup  ReplyMarkup       `tl:"flag:2"` // Inline keyboard
 }
 
 func (*InputBotInlineMessageMediaInvoice) CRC() uint32 {
@@ -2791,13 +2816,13 @@ func (*InputBotInlineMessageMediaInvoice) ImplementsInputBotInlineMessage() {}
 
 // Venue
 type InputBotInlineMessageMediaVenue struct {
-	GeoPoint    InputGeoPoint
-	Title       string
-	Address     string
-	Provider    string
-	VenueID     string
-	VenueType   string
-	ReplyMarkup ReplyMarkup `tl:"flag:2"`
+	GeoPoint    InputGeoPoint // Geolocation
+	Title       string        // Venue name
+	Address     string        // Address
+	Provider    string        // Venue provider: currently only "foursquare" and "gplaces" (Google Places) need to be supported
+	VenueID     string        // Venue ID in the provider's database
+	VenueType   string        // Venue type in the provider's database
+	ReplyMarkup ReplyMarkup   `tl:"flag:2"` // Inline keyboard
 }
 
 func (*InputBotInlineMessageMediaVenue) CRC() uint32 {
@@ -2812,14 +2837,14 @@ func (*InputBotInlineMessageMediaVenue) ImplementsInputBotInlineMessage() {}
 
 // Specifies options that will be used to generate the link preview for the message, or even a standalone link preview without an attached message.
 type InputBotInlineMessageMediaWebPage struct {
-	InvertMedia     bool `tl:"flag:3,encoded_in_bitflags"`
-	ForceLargeMedia bool `tl:"flag:4,encoded_in_bitflags"`
-	ForceSmallMedia bool `tl:"flag:5,encoded_in_bitflags"`
-	Optional        bool `tl:"flag:6,encoded_in_bitflags"`
-	Message         string
-	Entities        []MessageEntity `tl:"flag:1"`
-	URL             string
-	ReplyMarkup     ReplyMarkup `tl:"flag:2"`
+	InvertMedia     bool            `tl:"flag:3,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
+	ForceLargeMedia bool            `tl:"flag:4,encoded_in_bitflags"` // If set, specifies that a large media preview should be used.
+	ForceSmallMedia bool            `tl:"flag:5,encoded_in_bitflags"` // If set, specifies that a small media preview should be used.
+	Optional        bool            `tl:"flag:6,encoded_in_bitflags"` // If not set, a 'WEBPAGE_NOT_FOUND' RPC error will be emitted if a webpage preview cannot be generated for the specified 'url'; otherwise, no error will be emitted (unless the provided message is also empty, in which case a 'MESSAGE_EMPTY' will be emitted, instead).
+	Message         string          // The message, can be empty.
+	Entities        []MessageEntity `tl:"flag:1"` // Message entities for styled text
+	URL             string          // The URL to use for the link preview.
+	ReplyMarkup     ReplyMarkup     `tl:"flag:2"` // Inline keyboard
 }
 
 func (*InputBotInlineMessageMediaWebPage) CRC() uint32 {
@@ -2834,11 +2859,11 @@ func (*InputBotInlineMessageMediaWebPage) ImplementsInputBotInlineMessage() {}
 
 // Simple text message
 type InputBotInlineMessageText struct {
-	NoWebpage   bool `tl:"flag:0,encoded_in_bitflags"`
-	InvertMedia bool `tl:"flag:3,encoded_in_bitflags"`
-	Message     string
-	Entities    []MessageEntity `tl:"flag:1"`
-	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
+	NoWebpage   bool            `tl:"flag:0,encoded_in_bitflags"` // Disable webpage preview
+	InvertMedia bool            `tl:"flag:3,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
+	Message     string          // Message
+	Entities    []MessageEntity `tl:"flag:1"` // Message entities for styled text
+	ReplyMarkup ReplyMarkup     `tl:"flag:2"` // Inline keyboard
 }
 
 func (*InputBotInlineMessageText) CRC() uint32 {
@@ -2858,9 +2883,9 @@ type InputBotInlineMessageID interface {
 
 // Represents a sent inline message from the perspective of a bot (legacy constructor)
 type InputBotInlineMessageIDObj struct {
-	DcID       int32
-	ID         int64
-	AccessHash int64
+	DcID       int32 // DC ID to use when working with this inline message
+	ID         int64 // ID of message, contains both the (32-bit, legacy) owner ID and the message ID, used only for Bot API backwards compatibility with 32-bit user ID.
+	AccessHash int64 // Access hash of message
 }
 
 func (*InputBotInlineMessageIDObj) CRC() uint32 {
@@ -2871,10 +2896,10 @@ func (*InputBotInlineMessageIDObj) ImplementsInputBotInlineMessageID() {}
 
 // Represents a sent inline message from the perspective of a bot
 type InputBotInlineMessageID64 struct {
-	DcID       int32
-	OwnerID    int64
-	ID         int32
-	AccessHash int64
+	DcID       int32 // DC ID to use when working with this inline message
+	OwnerID    int64 // ID of the owner of this message
+	ID         int32 // ID of message
+	AccessHash int64 // Access hash of message
 }
 
 func (*InputBotInlineMessageID64) CRC() uint32 {
@@ -2890,14 +2915,14 @@ type InputBotInlineResult interface {
 
 // An inline bot result
 type InputBotInlineResultObj struct {
-	ID          string
-	Type        string
-	Title       string            `tl:"flag:1"`
-	Description string            `tl:"flag:2"`
-	URL         string            `tl:"flag:3"`
-	Thumb       *InputWebDocument `tl:"flag:4"`
-	Content     *InputWebDocument `tl:"flag:5"`
-	SendMessage InputBotInlineMessage
+	ID          string                // ID of result
+	Type        string                // Result type (see bot API docs)
+	Title       string                `tl:"flag:1"` // Result title
+	Description string                `tl:"flag:2"` // Result description
+	URL         string                `tl:"flag:3"` // URL of result
+	Thumb       *InputWebDocument     `tl:"flag:4"` // Thumbnail for result
+	Content     *InputWebDocument     `tl:"flag:5"` // Result contents
+	SendMessage InputBotInlineMessage // Message to send when the result is selected
 }
 
 func (*InputBotInlineResultObj) CRC() uint32 {
@@ -2912,12 +2937,12 @@ func (*InputBotInlineResultObj) ImplementsInputBotInlineResult() {}
 
 // Document (media of any type except for photos)
 type InputBotInlineResultDocument struct {
-	ID          string
-	Type        string
-	Title       string `tl:"flag:1"`
-	Description string `tl:"flag:2"`
-	Document    InputDocument
-	SendMessage InputBotInlineMessage
+	ID          string                // Result ID
+	Type        string                // Result type (see bot API docs)
+	Title       string                `tl:"flag:1"` // Result title
+	Description string                `tl:"flag:2"` // Result description
+	Document    InputDocument         // Document to send
+	SendMessage InputBotInlineMessage // Message to send when the result is selected
 }
 
 func (*InputBotInlineResultDocument) CRC() uint32 {
@@ -2932,9 +2957,9 @@ func (*InputBotInlineResultDocument) ImplementsInputBotInlineResult() {}
 
 // Game
 type InputBotInlineResultGame struct {
-	ID          string
-	ShortName   string
-	SendMessage InputBotInlineMessage
+	ID          string                // Result ID
+	ShortName   string                // Game short name
+	SendMessage InputBotInlineMessage // Message to send when the result is selected
 }
 
 func (*InputBotInlineResultGame) CRC() uint32 {
@@ -2945,10 +2970,10 @@ func (*InputBotInlineResultGame) ImplementsInputBotInlineResult() {}
 
 // Photo
 type InputBotInlineResultPhoto struct {
-	ID          string
-	Type        string
-	Photo       InputPhoto
-	SendMessage InputBotInlineMessage
+	ID          string                // Result ID
+	Type        string                // Result type (see bot API docs)
+	Photo       InputPhoto            // Photo to send
+	SendMessage InputBotInlineMessage // Message to send when the result is selected
 }
 
 func (*InputBotInlineResultPhoto) CRC() uint32 {
@@ -2964,8 +2989,8 @@ type InputChannel interface {
 
 // Represents a channel
 type InputChannelObj struct {
-	ChannelID  int64
-	AccessHash int64
+	ChannelID  int64 // Channel ID
+	AccessHash int64 // Access hash taken from the channel constructor
 }
 
 func (*InputChannelObj) CRC() uint32 {
@@ -2985,9 +3010,9 @@ func (*InputChannelEmpty) ImplementsInputChannel() {}
 
 // Defines a [min](https://core.telegram.org/api/min) channel that was seen in a certain message of a certain chat.
 type InputChannelFromMessage struct {
-	Peer      InputPeer
-	MsgID     int32
-	ChannelID int64
+	Peer      InputPeer // The chat where the channel was seen
+	MsgID     int32     // The message ID in the chat where the channel was seen
+	ChannelID int64     // The channel ID
 }
 
 func (*InputChannelFromMessage) CRC() uint32 {
@@ -3003,7 +3028,7 @@ type InputChatPhoto interface {
 
 // Existing photo to be set as a chat profile photo.
 type InputChatPhotoObj struct {
-	ID InputPhoto
+	ID InputPhoto // Existing photo
 }
 
 func (*InputChatPhotoObj) CRC() uint32 {
@@ -3023,10 +3048,10 @@ func (*InputChatPhotoEmpty) ImplementsInputChatPhoto() {}
 
 // New photo to be set as group profile photo.
 type InputChatUploadedPhoto struct {
-	File             InputFile `tl:"flag:0"`
-	Video            InputFile `tl:"flag:1"`
-	VideoStartTs     float64   `tl:"flag:2"`
-	VideoEmojiMarkup VideoSize `tl:"flag:3"`
+	File             InputFile `tl:"flag:0"` // File saved in parts using the method upload.saveFilePart
+	Video            InputFile `tl:"flag:1"` // Square video for animated profile picture
+	VideoStartTs     float64   `tl:"flag:2"` // Floating point UNIX timestamp in seconds, indicating the frame of the video/sticker that should be used as static preview; can only be used if 'video' or 'video_emoji_markup' is set.
+	VideoEmojiMarkup VideoSize `tl:"flag:3"` // Animated sticker profile picture, must contain either a videoSizeEmojiMarkup or a videoSizeStickerMarkup constructor.
 }
 
 func (*InputChatUploadedPhoto) CRC() uint32 {
@@ -3055,9 +3080,9 @@ func (*InputCheckPasswordEmpty) ImplementsInputCheckPasswordSRP() {}
 
 // Constructor for checking the validity of a 2FA SRP password (see [SRP](https://core.telegram.org/api/srp))
 type InputCheckPasswordSRPObj struct {
-	SRPID int64
-	A     []byte
-	M1    []byte
+	SRPID int64  // SRP ID
+	A     []byte // 'A' parameter (see SRP)
+	M1    []byte // 'M1' parameter (see SRP)
 }
 
 func (*InputCheckPasswordSRPObj) CRC() uint32 {
@@ -3070,8 +3095,10 @@ type InputCollectible interface {
 	tl.Object
 	ImplementsInputCollectible()
 }
+
+// Represents a [phone number fragment collectible](https://core.telegram.org/api/fragment)
 type InputCollectiblePhone struct {
-	Phone string
+	Phone string // Phone number
 }
 
 func (*InputCollectiblePhone) CRC() uint32 {
@@ -3080,8 +3107,9 @@ func (*InputCollectiblePhone) CRC() uint32 {
 
 func (*InputCollectiblePhone) ImplementsInputCollectible() {}
 
+// Represents a [username fragment collectible](https://core.telegram.org/api/fragment)
 type InputCollectibleUsername struct {
-	Username string
+	Username string // Username
 }
 
 func (*InputCollectibleUsername) CRC() uint32 {
@@ -3097,7 +3125,7 @@ type InputDialogPeer interface {
 
 // A peer
 type InputDialogPeerObj struct {
-	Peer InputPeer
+	Peer InputPeer // Peer
 }
 
 func (*InputDialogPeerObj) CRC() uint32 {
@@ -3108,7 +3136,7 @@ func (*InputDialogPeerObj) ImplementsInputDialogPeer() {}
 
 // All peers in a [peer folder](https://core.telegram.org/api/folders#peer-folders)
 type InputDialogPeerFolder struct {
-	FolderID int32
+	FolderID int32 // Peer folder ID, for more info click here
 }
 
 func (*InputDialogPeerFolder) CRC() uint32 {
@@ -3124,9 +3152,9 @@ type InputDocument interface {
 
 // Defines a document for subsequent interaction.
 type InputDocumentObj struct {
-	ID            int64
-	AccessHash    int64
-	FileReference []byte
+	ID            int64  // Document ID
+	AccessHash    int64  // access_hash parameter from the document constructor
+	FileReference []byte // File reference
 }
 
 func (*InputDocumentObj) CRC() uint32 {
@@ -3151,8 +3179,8 @@ type InputEncryptedFile interface {
 
 // Sets forwarded encrypted file for attachment.
 type InputEncryptedFileObj struct {
-	ID         int64
-	AccessHash int64
+	ID         int64 // File ID, value of id parameter from encryptedFile
+	AccessHash int64 // Checking sum, value of access_hash parameter from encryptedFile
 }
 
 func (*InputEncryptedFileObj) CRC() uint32 {
@@ -3163,9 +3191,9 @@ func (*InputEncryptedFileObj) ImplementsInputEncryptedFile() {}
 
 // Assigns a new big encrypted file (over 10 MB in size), saved in parts using the method [upload.saveBigFilePart](https://core.telegram.org/method/upload.saveBigFilePart).
 type InputEncryptedFileBigUploaded struct {
-	ID             int64
-	Parts          int32
-	KeyFingerprint int32
+	ID             int64 // Random file id, created by the client
+	Parts          int32 // Number of saved parts
+	KeyFingerprint int32 // 32-bit imprint of the key used to encrypt the file
 }
 
 func (*InputEncryptedFileBigUploaded) CRC() uint32 {
@@ -3185,10 +3213,10 @@ func (*InputEncryptedFileEmpty) ImplementsInputEncryptedFile() {}
 
 // Sets new encrypted file saved by parts using upload.saveFilePart method.
 type InputEncryptedFileUploaded struct {
-	ID             int64
-	Parts          int32
-	Md5Checksum    string
-	KeyFingerprint int32
+	ID             int64  // Random file ID created by client
+	Parts          int32  // Number of saved parts
+	Md5Checksum    string // In case md5-HASH of the (already encrypted) file was transmitted, file content will be checked prior to use
+	KeyFingerprint int32  // 32-bit fingerprint of the key used to encrypt a file
 }
 
 func (*InputEncryptedFileUploaded) CRC() uint32 {
@@ -3204,10 +3232,10 @@ type InputFile interface {
 
 // Defines a file saved in parts using the method [upload.saveFilePart](https://core.telegram.org/method/upload.saveFilePart).
 type InputFileObj struct {
-	ID          int64
-	Parts       int32
-	Name        string
-	Md5Checksum string
+	ID          int64  // Random file identifier created by the client
+	Parts       int32  // Number of parts saved
+	Name        string // Full name of the file
+	Md5Checksum string // In case the file's md5-hash was passed, contents of the file will be checked prior to use
 }
 
 func (*InputFileObj) CRC() uint32 {
@@ -3218,9 +3246,9 @@ func (*InputFileObj) ImplementsInputFile() {}
 
 // Assigns a big file (over 10 MB in size), saved in part using the method [upload.saveBigFilePart](https://core.telegram.org/method/upload.saveBigFilePart).
 type InputFileBig struct {
-	ID    int64
-	Parts int32
-	Name  string
+	ID    int64  // Random file id, created by the client
+	Parts int32  // Number of parts saved
+	Name  string // Full file name
 }
 
 func (*InputFileBig) CRC() uint32 {
@@ -3229,8 +3257,9 @@ func (*InputFileBig) CRC() uint32 {
 
 func (*InputFileBig) ImplementsInputFile() {}
 
+// Used to [edit the thumbnail/static preview of a story, see here »](https://core.telegram.org/api/stories#editing-stories) for more info on the full flow.
 type InputFileStoryDocument struct {
-	ID InputDocument
+	ID InputDocument // The old story video.
 }
 
 func (*InputFileStoryDocument) CRC() uint32 {
@@ -3246,10 +3275,10 @@ type InputFileLocation interface {
 
 // Document location (video, voice, audio, basically every type except photo)
 type InputDocumentFileLocation struct {
-	ID            int64
-	AccessHash    int64
-	FileReference []byte
-	ThumbSize     string
+	ID            int64  // Document ID
+	AccessHash    int64  // access_hash parameter from the document constructor
+	FileReference []byte // File reference
+	ThumbSize     string // Thumbnail size to download the thumbnail
 }
 
 func (*InputDocumentFileLocation) CRC() uint32 {
@@ -3260,8 +3289,8 @@ func (*InputDocumentFileLocation) ImplementsInputFileLocation() {}
 
 // Location of encrypted secret chat file.
 type InputEncryptedFileLocation struct {
-	ID         int64
-	AccessHash int64
+	ID         int64 // File ID, id parameter value from encryptedFile
+	AccessHash int64 // Checksum, access_hash parameter value from encryptedFile
 }
 
 func (*InputEncryptedFileLocation) CRC() uint32 {
@@ -3272,10 +3301,10 @@ func (*InputEncryptedFileLocation) ImplementsInputFileLocation() {}
 
 // DEPRECATED location of a photo
 type InputFileLocationObj struct {
-	VolumeID      int64
-	LocalID       int32
-	Secret        int64
-	FileReference []byte
+	VolumeID      int64  // Server volume
+	LocalID       int32  // File identifier
+	Secret        int64  // Check sum to access the file
+	FileReference []byte // File reference
 }
 
 func (*InputFileLocationObj) CRC() uint32 {
@@ -3286,11 +3315,11 @@ func (*InputFileLocationObj) ImplementsInputFileLocation() {}
 
 // Chunk of a livestream
 type InputGroupCallStream struct {
-	Call         *InputGroupCall
-	TimeMs       int64
-	Scale        int32
-	VideoChannel int32 `tl:"flag:0"`
-	VideoQuality int32 `tl:"flag:0"`
+	Call         *InputGroupCall // Livestream info
+	TimeMs       int64           // Timestamp in milliseconds
+	Scale        int32           // Specifies the duration of the video segment to fetch in milliseconds, by bitshifting '1000' to the right 'scale' times: 'duration_ms := 1000 &gt;&gt; scale'
+	VideoChannel int32           `tl:"flag:0"` // Selected video channel
+	VideoQuality int32           `tl:"flag:0"` // Selected video quality (0 = lowest, 1 = medium, 2 = best)
 }
 
 func (*InputGroupCallStream) CRC() uint32 {
@@ -3305,9 +3334,9 @@ func (*InputGroupCallStream) ImplementsInputFileLocation() {}
 
 // Location of profile photo of channel/group/supergroup/user
 type InputPeerPhotoFileLocation struct {
-	Big     bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer    InputPeer
-	PhotoID int64
+	Big     bool      `tl:"flag:0,encoded_in_bitflags"` // Whether to download the high-quality version of the picture
+	Peer    InputPeer // The peer whose profile picture should be downloaded
+	PhotoID int64     // Photo ID
 }
 
 func (*InputPeerPhotoFileLocation) CRC() uint32 {
@@ -3322,10 +3351,10 @@ func (*InputPeerPhotoFileLocation) ImplementsInputFileLocation() {}
 
 // Use this object to download a photo with [upload.getFile](https://core.telegram.org/method/upload.getFile) method
 type InputPhotoFileLocation struct {
-	ID            int64
-	AccessHash    int64
-	FileReference []byte
-	ThumbSize     string
+	ID            int64  // Photo ID, obtained from the photo object
+	AccessHash    int64  // Photo's access hash, obtained from the photo object
+	FileReference []byte // File reference
+	ThumbSize     string // The PhotoSize to download: must be set to the 'type' field of the desired PhotoSize object of the photo
 }
 
 func (*InputPhotoFileLocation) CRC() uint32 {
@@ -3336,12 +3365,12 @@ func (*InputPhotoFileLocation) ImplementsInputFileLocation() {}
 
 // DEPRECATED legacy photo file location
 type InputPhotoLegacyFileLocation struct {
-	ID            int64
-	AccessHash    int64
-	FileReference []byte
-	VolumeID      int64
-	LocalID       int32
-	Secret        int64
+	ID            int64  // Photo ID
+	AccessHash    int64  // Access hash
+	FileReference []byte // File reference
+	VolumeID      int64  // Volume ID
+	LocalID       int32  // Local ID
+	Secret        int64  // Secret
 }
 
 func (*InputPhotoLegacyFileLocation) CRC() uint32 {
@@ -3352,8 +3381,8 @@ func (*InputPhotoLegacyFileLocation) ImplementsInputFileLocation() {}
 
 // Location of encrypted telegram [passport](https://core.telegram.org/passport) file.
 type InputSecureFileLocation struct {
-	ID         int64
-	AccessHash int64
+	ID         int64 // File ID, id parameter value from secureFile
+	AccessHash int64 // Checksum, access_hash parameter value from secureFile
 }
 
 func (*InputSecureFileLocation) CRC() uint32 {
@@ -3364,8 +3393,8 @@ func (*InputSecureFileLocation) ImplementsInputFileLocation() {}
 
 // Location of stickerset thumbnail (see [files](https://core.telegram.org/api/files))
 type InputStickerSetThumb struct {
-	Stickerset   InputStickerSet
-	ThumbVersion int32
+	Stickerset   InputStickerSet // Sticker set
+	ThumbVersion int32           // Thumbnail version
 }
 
 func (*InputStickerSetThumb) CRC() uint32 {
@@ -3390,8 +3419,8 @@ type InputGame interface {
 
 // Indicates an already sent game
 type InputGameID struct {
-	ID         int64
-	AccessHash int64
+	ID         int64 // game ID from Game constructor
+	AccessHash int64 // access hash from Game constructor
 }
 
 func (*InputGameID) CRC() uint32 {
@@ -3402,8 +3431,8 @@ func (*InputGameID) ImplementsInputGame() {}
 
 // Game by short name
 type InputGameShortName struct {
-	BotID     InputUser
-	ShortName string
+	BotID     InputUser // The bot that provides the game
+	ShortName string    // The game's short name, usually obtained from a game link
 }
 
 func (*InputGameShortName) CRC() uint32 {
@@ -3419,9 +3448,9 @@ type InputGeoPoint interface {
 
 // Defines a GeoPoint by its coordinates.
 type InputGeoPointObj struct {
-	Lat            float64
-	Long           float64
-	AccuracyRadius int32 `tl:"flag:0"`
+	Lat            float64 // Latitude
+	Long           float64 // Longitude
+	AccuracyRadius int32   `tl:"flag:0"` // The estimated horizontal accuracy of the location, in meters; as defined by the sender.
 }
 
 func (*InputGeoPointObj) CRC() uint32 {
@@ -3457,10 +3486,10 @@ func (*InputInvoiceChatInviteSubscription) CRC() uint32 {
 
 func (*InputInvoiceChatInviteSubscription) ImplementsInputInvoice() {}
 
-// An invoice contained in a [messageMediaInvoice](https://core.telegram.org/constructor/messageMediaInvoice) message.
+// An invoice contained in a [messageMediaInvoice](https://core.telegram.org/constructor/messageMediaInvoice) message or [paid media »](https://core.telegram.org/api/paid-media).
 type InputInvoiceMessage struct {
-	Peer  InputPeer
-	MsgID int32
+	Peer  InputPeer // Chat where the invoice/paid media was sent
+	MsgID int32     // Message ID
 }
 
 func (*InputInvoiceMessage) CRC() uint32 {
@@ -3469,10 +3498,10 @@ func (*InputInvoiceMessage) CRC() uint32 {
 
 func (*InputInvoiceMessage) ImplementsInputInvoice() {}
 
-// Used if the user wishes to start a channel [giveaway](https://core.telegram.org/api/giveaways) or send some [giftcodes](https://core.telegram.org/api/giveaways) to members of a channel, in exchange for [boosts](https://core.telegram.org/api/boost).
+// Used if the user wishes to start a channel/supergroup [giveaway](https://core.telegram.org/api/giveaways) or send some [giftcodes](https://core.telegram.org/api/giveaways) to members of a channel/supergroup, in exchange for [boosts](https://core.telegram.org/api/boost).
 type InputInvoicePremiumGiftCode struct {
-	Purpose InputStorePaymentPurpose
-	Option  *PremiumGiftCodeOption
+	Purpose InputStorePaymentPurpose // Should be populated with inputStorePaymentPremiumGiveaway for giveaways and inputStorePaymentPremiumGiftCode for gifts.
+	Option  *PremiumGiftCodeOption   // Should be populated with one of the giveaway options returned by payments.getPremiumGiftCodeOptions, see the giveaways  documentation for more info.
 }
 
 func (*InputInvoicePremiumGiftCode) CRC() uint32 {
@@ -3483,7 +3512,7 @@ func (*InputInvoicePremiumGiftCode) ImplementsInputInvoice() {}
 
 // An invoice slug taken from an [invoice deep link](https://core.telegram.org/api/links#invoice-links) or from the <a href="/api/config#premium-invoice-slug">`premium_invoice_slug` app config parameter »</a>
 type InputInvoiceSlug struct {
-	Slug string
+	Slug string // The invoice slug
 }
 
 func (*InputInvoiceSlug) CRC() uint32 {
@@ -3492,8 +3521,9 @@ func (*InputInvoiceSlug) CRC() uint32 {
 
 func (*InputInvoiceSlug) ImplementsInputInvoice() {}
 
+// Used to top up the [Telegram Stars](https://core.telegram.org/api/stars) balance of the current account or someone else's account.
 type InputInvoiceStars struct {
-	Purpose InputStorePaymentPurpose
+	Purpose InputStorePaymentPurpose // Either an inputStorePaymentStarsTopup or an inputStorePaymentStarsGift.
 }
 
 func (*InputInvoiceStars) CRC() uint32 {
@@ -3509,10 +3539,10 @@ type InputMedia interface {
 
 // Phone book contact
 type InputMediaContact struct {
-	PhoneNumber string
-	FirstName   string
-	LastName    string
-	Vcard       string
+	PhoneNumber string // Phone number
+	FirstName   string // Contact's first name
+	LastName    string // Contact's last name
+	Vcard       string // Contact vcard
 }
 
 func (*InputMediaContact) CRC() uint32 {
@@ -3523,7 +3553,7 @@ func (*InputMediaContact) ImplementsInputMedia() {}
 
 // Send a [dice-based animated sticker](https://core.telegram.org/api/dice)
 type InputMediaDice struct {
-	Emoticon string
+	Emoticon string // The emoji, for now <img class="emoji" src="//telegram.org/img/emoji/40/F09F8F80.png" width="20" height="20" alt="🏀" />, <img class="emoji" src="//telegram.org/img/emoji/40/F09F8EB2.png" width="20" height="20" alt="🎲" /> and <img class="emoji" src="//telegram.org/img/emoji/40/F09F8EAF.png" width="20" height="20" alt="🎯" /> are supported
 }
 
 func (*InputMediaDice) CRC() uint32 {
@@ -3534,10 +3564,10 @@ func (*InputMediaDice) ImplementsInputMedia() {}
 
 // Forwarded document
 type InputMediaDocument struct {
-	Spoiler    bool `tl:"flag:2,encoded_in_bitflags"`
-	ID         InputDocument
-	TtlSeconds int32  `tl:"flag:0"`
-	Query      string `tl:"flag:1"`
+	Spoiler    bool          `tl:"flag:2,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
+	ID         InputDocument // The document to be forwarded.
+	TtlSeconds int32         `tl:"flag:0"` // Time to live of self-destructing document
+	Query      string        `tl:"flag:1"` // Text query or emoji that was used by the user to find this sticker or GIF: used to improve search result relevance.
 }
 
 func (*InputMediaDocument) CRC() uint32 {
@@ -3552,9 +3582,9 @@ func (*InputMediaDocument) ImplementsInputMedia() {}
 
 // Document that will be downloaded by the telegram servers
 type InputMediaDocumentExternal struct {
-	Spoiler    bool `tl:"flag:1,encoded_in_bitflags"`
-	URL        string
-	TtlSeconds int32 `tl:"flag:0"`
+	Spoiler    bool   `tl:"flag:1,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
+	URL        string // URL of the document
+	TtlSeconds int32  `tl:"flag:0"` // Self-destruct time to live of document
 }
 
 func (*InputMediaDocumentExternal) CRC() uint32 {
@@ -3578,7 +3608,7 @@ func (*InputMediaEmpty) ImplementsInputMedia() {}
 
 // A game
 type InputMediaGame struct {
-	ID InputGame
+	ID InputGame // The game to forward
 }
 
 func (*InputMediaGame) CRC() uint32 {
@@ -3589,11 +3619,11 @@ func (*InputMediaGame) ImplementsInputMedia() {}
 
 // [Live geolocation](https://core.telegram.org/api/live-location)
 type InputMediaGeoLive struct {
-	Stopped                     bool `tl:"flag:0,encoded_in_bitflags"`
-	GeoPoint                    InputGeoPoint
-	Heading                     int32 `tl:"flag:2"`
-	Period                      int32 `tl:"flag:1"`
-	ProximityNotificationRadius int32 `tl:"flag:3"`
+	Stopped                     bool          `tl:"flag:0,encoded_in_bitflags"` // Whether sending of the geolocation was stopped
+	GeoPoint                    InputGeoPoint // Current geolocation
+	Heading                     int32         `tl:"flag:2"` // For live locations, a direction in which the location moves, in degrees; 1-360.
+	Period                      int32         `tl:"flag:1"` // Validity period of the current location
+	ProximityNotificationRadius int32         `tl:"flag:3"` // For live locations, a maximum distance to another chat member for proximity alerts, in meters (0-100000)
 }
 
 func (*InputMediaGeoLive) CRC() uint32 {
@@ -3608,7 +3638,7 @@ func (*InputMediaGeoLive) ImplementsInputMedia() {}
 
 // Map.
 type InputMediaGeoPoint struct {
-	GeoPoint InputGeoPoint
+	GeoPoint InputGeoPoint // GeoPoint
 }
 
 func (*InputMediaGeoPoint) CRC() uint32 {
@@ -3619,15 +3649,15 @@ func (*InputMediaGeoPoint) ImplementsInputMedia() {}
 
 // Generated invoice of a [bot payment](https://core.telegram.org/bots/payments)
 type InputMediaInvoice struct {
-	Title         string
-	Description   string
-	Photo         *InputWebDocument `tl:"flag:0"`
-	Invoice       *Invoice
-	Payload       []byte
-	Provider      string `tl:"flag:3"`
-	ProviderData  *DataJson
-	StartParam    string     `tl:"flag:1"`
-	ExtendedMedia InputMedia `tl:"flag:2"`
+	Title         string            // Product name, 1-32 characters
+	Description   string            // Product description, 1-255 characters
+	Photo         *InputWebDocument `tl:"flag:0"` // URL of the product photo for the invoice. Can be a photo of the goods or a marketing image for a service. People like it better when they see what they are paying for.
+	Invoice       *Invoice          // The actual invoice
+	Payload       []byte            // Bot-defined invoice payload, 1-128 bytes. This will not be displayed to the user, use for your internal processes.
+	Provider      string            `tl:"flag:3"` // Payments provider token, obtained via Botfather
+	ProviderData  *DataJson         // JSON-encoded data about the invoice, which will be shared with the payment provider. A detailed description of required fields should be provided by the payment provider.
+	StartParam    string            `tl:"flag:1"` // Unique bot deep links start parameter. If present, forwarded copies of the sent message will have a URL button with a deep link to the bot (instead of a Pay button), with the value used as the start parameter. If absent, forwarded copies of the sent message will have a Pay button, allowing multiple users to pay directly from the forwarded message, using the same invoice.
+	ExtendedMedia InputMedia        `tl:"flag:2"` // Deprecated
 }
 
 func (*InputMediaInvoice) CRC() uint32 {
@@ -3640,6 +3670,7 @@ func (*InputMediaInvoice) FlagIndex() int {
 
 func (*InputMediaInvoice) ImplementsInputMedia() {}
 
+// [Paid media, see here »](https://core.telegram.org/api/paid-media) for more info.
 type InputMediaPaidMedia struct {
 	StarsAmount   int64
 	ExtendedMedia []InputMedia
@@ -3658,9 +3689,9 @@ func (*InputMediaPaidMedia) ImplementsInputMedia() {}
 
 // Forwarded photo
 type InputMediaPhoto struct {
-	Spoiler    bool `tl:"flag:1,encoded_in_bitflags"`
-	ID         InputPhoto
-	TtlSeconds int32 `tl:"flag:0"`
+	Spoiler    bool       `tl:"flag:1,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
+	ID         InputPhoto // Photo to be forwarded
+	TtlSeconds int32      `tl:"flag:0"` // Time to live in seconds of self-destructing photo
 }
 
 func (*InputMediaPhoto) CRC() uint32 {
@@ -3675,9 +3706,9 @@ func (*InputMediaPhoto) ImplementsInputMedia() {}
 
 // New photo that will be uploaded by the server using the specified URL
 type InputMediaPhotoExternal struct {
-	Spoiler    bool `tl:"flag:1,encoded_in_bitflags"`
-	URL        string
-	TtlSeconds int32 `tl:"flag:0"`
+	Spoiler    bool   `tl:"flag:1,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
+	URL        string // URL of the photo
+	TtlSeconds int32  `tl:"flag:0"` // Self-destruct time to live of photo
 }
 
 func (*InputMediaPhotoExternal) CRC() uint32 {
@@ -3692,10 +3723,10 @@ func (*InputMediaPhotoExternal) ImplementsInputMedia() {}
 
 // A poll
 type InputMediaPoll struct {
-	Poll             *Poll
-	CorrectAnswers   [][]byte        `tl:"flag:0"`
-	Solution         string          `tl:"flag:1"`
-	SolutionEntities []MessageEntity `tl:"flag:1"`
+	Poll             *Poll           // The poll to send
+	CorrectAnswers   [][]byte        `tl:"flag:0"` // Correct answer IDs (for quiz polls)
+	Solution         string          `tl:"flag:1"` // Explanation of quiz solution
+	SolutionEntities []MessageEntity `tl:"flag:1"` // Message entities for styled text
 }
 
 func (*InputMediaPoll) CRC() uint32 {
@@ -3710,8 +3741,8 @@ func (*InputMediaPoll) ImplementsInputMedia() {}
 
 // Forwarded story
 type InputMediaStory struct {
-	Peer InputPeer
-	ID   int32
+	Peer InputPeer // Peer where the story was posted
+	ID   int32     // Story ID
 }
 
 func (*InputMediaStory) CRC() uint32 {
@@ -3722,15 +3753,15 @@ func (*InputMediaStory) ImplementsInputMedia() {}
 
 // New document
 type InputMediaUploadedDocument struct {
-	NosoundVideo bool `tl:"flag:3,encoded_in_bitflags"`
-	ForceFile    bool `tl:"flag:4,encoded_in_bitflags"`
-	Spoiler      bool `tl:"flag:5,encoded_in_bitflags"`
-	File         InputFile
-	Thumb        InputFile `tl:"flag:2"`
-	MimeType     string
-	Attributes   []DocumentAttribute
-	Stickers     []InputDocument `tl:"flag:0"`
-	TtlSeconds   int32           `tl:"flag:1"`
+	NosoundVideo bool                `tl:"flag:3,encoded_in_bitflags"` // Whether the specified document is a video file with no audio tracks (a GIF animation (even as MPEG4), for example)
+	ForceFile    bool                `tl:"flag:4,encoded_in_bitflags"` // Force the media file to be uploaded as document
+	Spoiler      bool                `tl:"flag:5,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
+	File         InputFile           // The uploaded file
+	Thumb        InputFile           `tl:"flag:2"` // Thumbnail of the document, uploaded as for the file
+	MimeType     string              // MIME type of document
+	Attributes   []DocumentAttribute // Attributes that specify the type of the document (video, audio, voice, sticker, etc.)
+	Stickers     []InputDocument     `tl:"flag:0"` // Attached stickers
+	TtlSeconds   int32               `tl:"flag:1"` // Time to live in seconds of self-destructing document
 }
 
 func (*InputMediaUploadedDocument) CRC() uint32 {
@@ -3745,10 +3776,10 @@ func (*InputMediaUploadedDocument) ImplementsInputMedia() {}
 
 // Photo
 type InputMediaUploadedPhoto struct {
-	Spoiler    bool `tl:"flag:2,encoded_in_bitflags"`
-	File       InputFile
-	Stickers   []InputDocument `tl:"flag:0"`
-	TtlSeconds int32           `tl:"flag:1"`
+	Spoiler    bool            `tl:"flag:2,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
+	File       InputFile       // The uploaded file
+	Stickers   []InputDocument `tl:"flag:0"` // Attached mask stickers
+	TtlSeconds int32           `tl:"flag:1"` // Time to live in seconds of self-destructing photo
 }
 
 func (*InputMediaUploadedPhoto) CRC() uint32 {
@@ -3763,12 +3794,12 @@ func (*InputMediaUploadedPhoto) ImplementsInputMedia() {}
 
 // Can be used to send a venue geolocation.
 type InputMediaVenue struct {
-	GeoPoint  InputGeoPoint
-	Title     string
-	Address   string
-	Provider  string
-	VenueID   string
-	VenueType string
+	GeoPoint  InputGeoPoint // Geolocation
+	Title     string        // Venue name
+	Address   string        // Physical address of the venue
+	Provider  string        // Venue provider: currently only "foursquare" and "gplaces" (Google Places) need to be supported
+	VenueID   string        // Venue ID in the provider's database
+	VenueType string        // Venue type in the provider's database
 }
 
 func (*InputMediaVenue) CRC() uint32 {
@@ -3779,10 +3810,10 @@ func (*InputMediaVenue) ImplementsInputMedia() {}
 
 // Specifies options that will be used to generate the link preview for the caption, or even a standalone link preview without an attached message.
 type InputMediaWebPage struct {
-	ForceLargeMedia bool `tl:"flag:0,encoded_in_bitflags"`
-	ForceSmallMedia bool `tl:"flag:1,encoded_in_bitflags"`
-	Optional        bool `tl:"flag:2,encoded_in_bitflags"`
-	URL             string
+	ForceLargeMedia bool   `tl:"flag:0,encoded_in_bitflags"` // If set, specifies that a large media preview should be used.
+	ForceSmallMedia bool   `tl:"flag:1,encoded_in_bitflags"` // If set, specifies that a small media preview should be used.
+	Optional        bool   `tl:"flag:2,encoded_in_bitflags"` // If not set, a 'WEBPAGE_NOT_FOUND' RPC error will be emitted if a webpage preview cannot be generated for the specified 'url'; otherwise, no error will be emitted (unless the provided message is also empty, in which case a 'MESSAGE_EMPTY' will be emitted, instead).
+	URL             string // The URL to use for the link preview.
 }
 
 func (*InputMediaWebPage) CRC() uint32 {
@@ -3802,8 +3833,8 @@ type InputMessage interface {
 
 // Used by bots for fetching information about the message that originated a callback query
 type InputMessageCallbackQuery struct {
-	ID      int32
-	QueryID int64
+	ID      int32 // Message ID
+	QueryID int64 // Callback query ID
 }
 
 func (*InputMessageCallbackQuery) CRC() uint32 {
@@ -3814,7 +3845,7 @@ func (*InputMessageCallbackQuery) ImplementsInputMessage() {}
 
 // Message by ID
 type InputMessageID struct {
-	ID int32
+	ID int32 // Message ID
 }
 
 func (*InputMessageID) CRC() uint32 {
@@ -3834,7 +3865,7 @@ func (*InputMessagePinned) ImplementsInputMessage() {}
 
 // Message to which the specified message replies to
 type InputMessageReplyTo struct {
-	ID int32
+	ID int32 // ID of the message that replies to the message we need
 }
 
 func (*InputMessageReplyTo) CRC() uint32 {
@@ -3868,8 +3899,8 @@ func (*InputNotifyChats) ImplementsInputNotifyPeer() {}
 
 // Notifications generated by a [topic](https://core.telegram.org/api/forum#forum-topics) in a [forum](https://core.telegram.org/api/forum).
 type InputNotifyForumTopic struct {
-	Peer     InputPeer
-	TopMsgID int32
+	Peer     InputPeer // Forum ID
+	TopMsgID int32     // Topic ID
 }
 
 func (*InputNotifyForumTopic) CRC() uint32 {
@@ -3880,7 +3911,7 @@ func (*InputNotifyForumTopic) ImplementsInputNotifyPeer() {}
 
 // Notifications generated by a certain user or group.
 type InputNotifyPeerObj struct {
-	Peer InputPeer
+	Peer InputPeer // User or group
 }
 
 func (*InputNotifyPeerObj) CRC() uint32 {
@@ -3905,8 +3936,8 @@ type InputPaymentCredentials interface {
 
 // Payment credentials
 type InputPaymentCredentialsObj struct {
-	Save bool `tl:"flag:0,encoded_in_bitflags"`
-	Data *DataJson
+	Save bool      `tl:"flag:0,encoded_in_bitflags"` // Save payment credential for future use
+	Data *DataJson // Payment credentials
 }
 
 func (*InputPaymentCredentialsObj) CRC() uint32 {
@@ -3921,7 +3952,7 @@ func (*InputPaymentCredentialsObj) ImplementsInputPaymentCredentials() {}
 
 // Apple pay payment credentials
 type InputPaymentCredentialsApplePay struct {
-	PaymentData *DataJson
+	PaymentData *DataJson // Payment data
 }
 
 func (*InputPaymentCredentialsApplePay) CRC() uint32 {
@@ -3932,7 +3963,7 @@ func (*InputPaymentCredentialsApplePay) ImplementsInputPaymentCredentials() {}
 
 // Google Pay payment credentials
 type InputPaymentCredentialsGooglePay struct {
-	PaymentToken *DataJson
+	PaymentToken *DataJson // Payment token
 }
 
 func (*InputPaymentCredentialsGooglePay) CRC() uint32 {
@@ -3943,8 +3974,8 @@ func (*InputPaymentCredentialsGooglePay) ImplementsInputPaymentCredentials() {}
 
 // Saved payment credentials
 type InputPaymentCredentialsSaved struct {
-	ID          string
-	TmpPassword []byte
+	ID          string // Credential ID
+	TmpPassword []byte // Temporary password
 }
 
 func (*InputPaymentCredentialsSaved) CRC() uint32 {
@@ -3960,8 +3991,8 @@ type InputPeer interface {
 
 // Defines a channel for further interaction.
 type InputPeerChannel struct {
-	ChannelID  int64
-	AccessHash int64
+	ChannelID  int64 // Channel identifier
+	AccessHash int64 // access_hash value from the channel constructor
 }
 
 func (*InputPeerChannel) CRC() uint32 {
@@ -3972,9 +4003,9 @@ func (*InputPeerChannel) ImplementsInputPeer() {}
 
 // Defines a [min](https://core.telegram.org/api/min) channel that was seen in a certain message of a certain chat.
 type InputPeerChannelFromMessage struct {
-	Peer      InputPeer
-	MsgID     int32
-	ChannelID int64
+	Peer      InputPeer // The chat where the channel's message was seen
+	MsgID     int32     // The message ID
+	ChannelID int64     // The identifier of the channel that was seen
 }
 
 func (*InputPeerChannelFromMessage) CRC() uint32 {
@@ -3985,7 +4016,7 @@ func (*InputPeerChannelFromMessage) ImplementsInputPeer() {}
 
 // Defines a chat for further interaction.
 type InputPeerChat struct {
-	ChatID int64
+	ChatID int64 // Chat identifier
 }
 
 func (*InputPeerChat) CRC() uint32 {
@@ -4014,8 +4045,8 @@ func (*InputPeerSelf) ImplementsInputPeer() {}
 
 // Defines a user for further interaction.
 type InputPeerUser struct {
-	UserID     int64
-	AccessHash int64
+	UserID     int64 // User identifier
+	AccessHash int64 // access_hash value from the user constructor
 }
 
 func (*InputPeerUser) CRC() uint32 {
@@ -4026,9 +4057,9 @@ func (*InputPeerUser) ImplementsInputPeer() {}
 
 // Defines a [min](https://core.telegram.org/api/min) user that was seen in a certain message of a certain chat.
 type InputPeerUserFromMessage struct {
-	Peer   InputPeer
-	MsgID  int32
-	UserID int64
+	Peer   InputPeer // The chat where the user was seen
+	MsgID  int32     // The message ID
+	UserID int64     // The identifier of the user that was seen
 }
 
 func (*InputPeerUserFromMessage) CRC() uint32 {
@@ -4044,9 +4075,9 @@ type InputPhoto interface {
 
 // Defines a photo for further interaction.
 type InputPhotoObj struct {
-	ID            int64
-	AccessHash    int64
-	FileReference []byte
+	ID            int64  // Photo identifier
+	AccessHash    int64  // access_hash value from the photo constructor
+	FileReference []byte // File reference
 }
 
 func (*InputPhotoObj) CRC() uint32 {
@@ -4080,7 +4111,7 @@ func (*InputPrivacyValueAllowAll) ImplementsInputPrivacyRule() {}
 
 // Allow only participants of certain chats
 type InputPrivacyValueAllowChatParticipants struct {
-	Chats []int64
+	Chats []int64 // Allowed chat IDs
 }
 
 func (*InputPrivacyValueAllowChatParticipants) CRC() uint32 {
@@ -4107,6 +4138,7 @@ func (*InputPrivacyValueAllowContacts) CRC() uint32 {
 
 func (*InputPrivacyValueAllowContacts) ImplementsInputPrivacyRule() {}
 
+// Allow only users with a [Premium subscription »](https://core.telegram.org/api/premium), currently only usable for [inputPrivacyKeyChatInvite](https://core.telegram.org/constructor/inputPrivacyKeyChatInvite).
 type InputPrivacyValueAllowPremium struct{}
 
 func (*InputPrivacyValueAllowPremium) CRC() uint32 {
@@ -4117,7 +4149,7 @@ func (*InputPrivacyValueAllowPremium) ImplementsInputPrivacyRule() {}
 
 // Allow only certain users
 type InputPrivacyValueAllowUsers struct {
-	Users []InputUser
+	Users []InputUser // Allowed users
 }
 
 func (*InputPrivacyValueAllowUsers) CRC() uint32 {
@@ -4137,7 +4169,7 @@ func (*InputPrivacyValueDisallowAll) ImplementsInputPrivacyRule() {}
 
 // Disallow only participants of certain chats
 type InputPrivacyValueDisallowChatParticipants struct {
-	Chats []int64
+	Chats []int64 // Disallowed chat IDs
 }
 
 func (*InputPrivacyValueDisallowChatParticipants) CRC() uint32 {
@@ -4157,7 +4189,7 @@ func (*InputPrivacyValueDisallowContacts) ImplementsInputPrivacyRule() {}
 
 // Disallow only certain users
 type InputPrivacyValueDisallowUsers struct {
-	Users []InputUser
+	Users []InputUser // Users to disallow
 }
 
 func (*InputPrivacyValueDisallowUsers) CRC() uint32 {
@@ -4170,8 +4202,10 @@ type InputQuickReplyShortcut interface {
 	tl.Object
 	ImplementsInputQuickReplyShortcut()
 }
+
+// Selects a [quick reply shortcut](https://core.telegram.org/api/business#quick-reply-shortcuts) by name.
 type InputQuickReplyShortcutObj struct {
-	Shortcut string
+	Shortcut string // Shortcut name.
 }
 
 func (*InputQuickReplyShortcutObj) CRC() uint32 {
@@ -4180,8 +4214,9 @@ func (*InputQuickReplyShortcutObj) CRC() uint32 {
 
 func (*InputQuickReplyShortcutObj) ImplementsInputQuickReplyShortcut() {}
 
+// Selects a [quick reply shortcut](https://core.telegram.org/api/business#quick-reply-shortcuts) by its numeric ID.
 type InputQuickReplyShortcutID struct {
-	ShortcutID int32
+	ShortcutID int32 // Shortcut ID.
 }
 
 func (*InputQuickReplyShortcutID) CRC() uint32 {
@@ -4197,12 +4232,15 @@ type InputReplyTo interface {
 
 // Reply to a message.
 type InputReplyToMessage struct {
-	ReplyToMsgID  int32
-	TopMsgID      int32           `tl:"flag:0"`
-	ReplyToPeerID InputPeer       `tl:"flag:1"`
-	QuoteText     string          `tl:"flag:2"`
-	QuoteEntities []MessageEntity `tl:"flag:3"`
-	QuoteOffset   int32           `tl:"flag:4"`
+	ReplyToMsgID int32 // The message ID to reply to.
+	TopMsgID     int32 `tl:"flag:0"` /*
+	This field must contain the topic ID only when replying to messages in forum topics different from the "General" topic (i.e. 'reply_to_msg_id' is set and 'reply_to_msg_id != topicID' and 'topicID != 1').
+	If the replied-to message is deleted before the method finishes execution, the value in this field will be used to send the message to the correct topic, instead of the "General" topic.
+	*/
+	ReplyToPeerID InputPeer       `tl:"flag:1"` // Used to reply to messages sent to another chat (specified here), can only be used for non-'protected' chats and messages.
+	QuoteText     string          `tl:"flag:2"` // Used to quote-reply to only a certain section (specified here) of the original message. The maximum UTF-8 length for quotes is specified in the quote_length_max config key.
+	QuoteEntities []MessageEntity `tl:"flag:3"` // Message entities for styled text from the 'quote_text' field.
+	QuoteOffset   int32           `tl:"flag:4"` // Offset of the message 'quote_text' within the original message (in UTF-16 code units).
 }
 
 func (*InputReplyToMessage) CRC() uint32 {
@@ -4217,8 +4255,8 @@ func (*InputReplyToMessage) ImplementsInputReplyTo() {}
 
 // Reply to a story.
 type InputReplyToStory struct {
-	Peer    InputPeer
-	StoryID int32
+	Peer    InputPeer // Sender of the story
+	StoryID int32     // ID of the story to reply to.
 }
 
 func (*InputReplyToStory) CRC() uint32 {
@@ -4234,8 +4272,8 @@ type InputSecureFile interface {
 
 // Pre-uploaded [passport](https://core.telegram.org/passport) file, for more info [see the passport docs »](https://core.telegram.org/passport/encryption#inputsecurefile)
 type InputSecureFileObj struct {
-	ID         int64
-	AccessHash int64
+	ID         int64 // Secure file ID
+	AccessHash int64 // Secure file access hash
 }
 
 func (*InputSecureFileObj) CRC() uint32 {
@@ -4246,11 +4284,11 @@ func (*InputSecureFileObj) ImplementsInputSecureFile() {}
 
 // Uploaded secure file, for more info [see the passport docs »](https://core.telegram.org/passport/encryption#inputsecurefile)
 type InputSecureFileUploaded struct {
-	ID          int64
-	Parts       int32
-	Md5Checksum string
-	FileHash    []byte
-	Secret      []byte
+	ID          int64  // Secure file ID
+	Parts       int32  // Secure file part count
+	Md5Checksum string // MD5 hash of encrypted uploaded file, to be checked server-side
+	FileHash    []byte // File hash
+	Secret      []byte // Secret
 }
 
 func (*InputSecureFileUploaded) CRC() uint32 {
@@ -4284,7 +4322,7 @@ func (*InputStickerSetAnimatedEmojiAnimations) ImplementsInputStickerSet() {}
 
 // Used for fetching [animated dice stickers](https://core.telegram.org/api/dice)
 type InputStickerSetDice struct {
-	Emoticon string
+	Emoticon string // The emoji, for now <img class="emoji" src="//telegram.org/img/emoji/40/F09F8F80.png" width="20" height="20" alt="🏀" />, <img class="emoji" src="//telegram.org/img/emoji/40/F09F8EB2.png" width="20" height="20" alt="🎲" /> and <img class="emoji" src="//telegram.org/img/emoji/40/F09F8EAF.png" width="20" height="20" alt="🎯" /> are supported
 }
 
 func (*InputStickerSetDice) CRC() uint32 {
@@ -4340,8 +4378,8 @@ func (*InputStickerSetEmpty) ImplementsInputStickerSet() {}
 
 // Stickerset by ID
 type InputStickerSetID struct {
-	ID         int64
-	AccessHash int64
+	ID         int64 // ID
+	AccessHash int64 // Access hash
 }
 
 func (*InputStickerSetID) CRC() uint32 {
@@ -4361,7 +4399,7 @@ func (*InputStickerSetPremiumGifts) ImplementsInputStickerSet() {}
 
 // Stickerset by short name, from a [stickerset deep link »](https://core.telegram.org/api/links#stickerset-links)
 type InputStickerSetShortName struct {
-	ShortName string
+	ShortName string // Short name from a stickerset deep link
 }
 
 func (*InputStickerSetShortName) CRC() uint32 {
@@ -4377,7 +4415,7 @@ type InputStickeredMedia interface {
 
 // A document with stickers attached
 type InputStickeredMediaDocument struct {
-	ID InputDocument
+	ID InputDocument // The document
 }
 
 func (*InputStickeredMediaDocument) CRC() uint32 {
@@ -4388,7 +4426,7 @@ func (*InputStickeredMediaDocument) ImplementsInputStickeredMedia() {}
 
 // A photo with stickers attached
 type InputStickeredMediaPhoto struct {
-	ID InputPhoto
+	ID InputPhoto // The photo
 }
 
 func (*InputStickeredMediaPhoto) CRC() uint32 {
@@ -4404,9 +4442,9 @@ type InputStorePaymentPurpose interface {
 
 // Info about a gifted Telegram Premium purchase
 type InputStorePaymentGiftPremium struct {
-	UserID   InputUser
-	Currency string
-	Amount   int64
+	UserID   InputUser // The user to which the Telegram Premium subscription was gifted
+	Currency string    // Three-letter ISO 4217 currency code
+	Amount   int64     // Price of the product in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*InputStorePaymentGiftPremium) CRC() uint32 {
@@ -4415,12 +4453,12 @@ func (*InputStorePaymentGiftPremium) CRC() uint32 {
 
 func (*InputStorePaymentGiftPremium) ImplementsInputStorePaymentPurpose() {}
 
-// Used to gift [Telegram Premium](https://core.telegram.org/api/premium) subscriptions only to some specific subscribers of a channel or to some of our contacts, see [here »](https://core.telegram.org/api/giveaways) for more info on giveaways and gifts.
+// Used to gift [Telegram Premium](https://core.telegram.org/api/premium) subscriptions only to some specific subscribers of a channel/supergroup or to some of our contacts, see [here »](https://core.telegram.org/api/giveaways) for more info on giveaways and gifts.
 type InputStorePaymentPremiumGiftCode struct {
-	Users     []InputUser
-	BoostPeer InputPeer `tl:"flag:0"`
-	Currency  string
-	Amount    int64
+	Users     []InputUser // The users that will receive the Telegram Premium subscriptions.
+	BoostPeer InputPeer   `tl:"flag:0"` // If set, the gifts will be sent on behalf of a channel/supergroup we are an admin of, which will also assign some boosts to it. Otherwise, the gift will be sent directly from the currently logged in user, and we will gain some extra boost slots..
+	Currency  string      // Three-letter ISO 4217 currency code
+	Amount    int64       // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*InputStorePaymentPremiumGiftCode) CRC() uint32 {
@@ -4435,16 +4473,16 @@ func (*InputStorePaymentPremiumGiftCode) ImplementsInputStorePaymentPurpose() {}
 
 // Used to pay for a [giveaway, see here »](https://core.telegram.org/api/giveaways) for more info.
 type InputStorePaymentPremiumGiveaway struct {
-	OnlyNewSubscribers bool `tl:"flag:0,encoded_in_bitflags"`
-	WinnersAreVisible  bool `tl:"flag:3,encoded_in_bitflags"`
-	BoostPeer          InputPeer
-	AdditionalPeers    []InputPeer `tl:"flag:1"`
-	CountriesIso2      []string    `tl:"flag:2"`
-	PrizeDescription   string      `tl:"flag:4"`
-	RandomID           int64
-	UntilDate          int32
-	Currency           string
-	Amount             int64
+	OnlyNewSubscribers bool        `tl:"flag:0,encoded_in_bitflags"` // If set, only new subscribers starting from the giveaway creation date will be able to participate to the giveaway.
+	WinnersAreVisible  bool        `tl:"flag:3,encoded_in_bitflags"` // If set, giveaway winners are public and will be listed in a messageMediaGiveawayResults message that will be automatically sent to the channel once the giveaway ends.
+	BoostPeer          InputPeer   // The channel/supergroup starting the giveaway, that the user must join to participate, that will receive the giveaway boosts;.
+	AdditionalPeers    []InputPeer `tl:"flag:1"` // Additional channels that the user must join to participate to the giveaway can be specified here.
+	CountriesIso2      []string    `tl:"flag:2"` // The set of users that can participate to the giveaway can be restricted by passing here an explicit whitelist of up to giveaway_countries_max countries, specified as two-letter ISO 3166-1 alpha-2 country codes.
+	PrizeDescription   string      `tl:"flag:4"` // Can contain a textual description of additional giveaway prizes.
+	RandomID           int64       // Random ID to avoid resending the giveaway
+	UntilDate          int32       // The end date of the giveaway, must be at most giveaway_period_max seconds in the future;.
+	Currency           string      // Three-letter ISO 4217 currency code
+	Amount             int64       // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*InputStorePaymentPremiumGiveaway) CRC() uint32 {
@@ -4459,8 +4497,8 @@ func (*InputStorePaymentPremiumGiveaway) ImplementsInputStorePaymentPurpose() {}
 
 // Info about a Telegram Premium purchase
 type InputStorePaymentPremiumSubscription struct {
-	Restore bool `tl:"flag:0,encoded_in_bitflags"`
-	Upgrade bool `tl:"flag:1,encoded_in_bitflags"`
+	Restore bool `tl:"flag:0,encoded_in_bitflags"` // Pass true if this is a restore of a Telegram Premium purchase; only for the App Store
+	Upgrade bool `tl:"flag:1,encoded_in_bitflags"` // Pass true if this is an upgrade from a monthly subscription to a yearly subscription; only for App Store
 }
 
 func (*InputStorePaymentPremiumSubscription) CRC() uint32 {
@@ -4473,10 +4511,11 @@ func (*InputStorePaymentPremiumSubscription) FlagIndex() int {
 
 func (*InputStorePaymentPremiumSubscription) ImplementsInputStorePaymentPurpose() {}
 
+// Used to top up the [Telegram Stars balance](https://core.telegram.org/api/stars) using the Play Store/App Store flow (official apps only).
 type InputStorePaymentStars struct {
-	Stars    int64
-	Currency string
-	Amount   int64
+	Stars    int64  // Amount of stars to topup
+	Currency string // Three-letter ISO 4217 currency code
+	Amount   int64  // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*InputStorePaymentStars) CRC() uint32 {
@@ -4485,11 +4524,12 @@ func (*InputStorePaymentStars) CRC() uint32 {
 
 func (*InputStorePaymentStars) ImplementsInputStorePaymentPurpose() {}
 
+// Used to gift [Telegram Stars](https://core.telegram.org/api/stars) to a friend.
 type InputStorePaymentStarsGift struct {
-	UserID   InputUser
-	Stars    int64
-	Currency string
-	Amount   int64
+	UserID   InputUser // The user to which the stars should be gifted.
+	Stars    int64     // Amount of stars to gift
+	Currency string    // Three-letter ISO 4217 currency code
+	Amount   int64     // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*InputStorePaymentStarsGift) CRC() uint32 {
@@ -4523,10 +4563,11 @@ func (*InputStorePaymentStarsGiveaway) FlagIndex() int {
 
 func (*InputStorePaymentStarsGiveaway) ImplementsInputStorePaymentPurpose() {}
 
+// Used to top up the [Telegram Stars balance](https://core.telegram.org/api/stars) of the current account.
 type InputStorePaymentStarsTopup struct {
-	Stars    int64
-	Currency string
-	Amount   int64
+	Stars    int64  // Amount of stars to topup
+	Currency string // Three-letter ISO 4217 currency code
+	Amount   int64  // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*InputStorePaymentStarsTopup) CRC() uint32 {
@@ -4542,8 +4583,8 @@ type InputTheme interface {
 
 // Theme
 type InputThemeObj struct {
-	ID         int64
-	AccessHash int64
+	ID         int64 // ID
+	AccessHash int64 // Access hash
 }
 
 func (*InputThemeObj) CRC() uint32 {
@@ -4554,7 +4595,7 @@ func (*InputThemeObj) ImplementsInputTheme() {}
 
 // Theme by theme ID
 type InputThemeSlug struct {
-	Slug string
+	Slug string // Unique theme ID obtained from a theme deep link
 }
 
 func (*InputThemeSlug) CRC() uint32 {
@@ -4570,8 +4611,8 @@ type InputUser interface {
 
 // Defines a user for further interaction.
 type InputUserObj struct {
-	UserID     int64
-	AccessHash int64
+	UserID     int64 // User identifier
+	AccessHash int64 // access_hash value from the user constructor
 }
 
 func (*InputUserObj) CRC() uint32 {
@@ -4591,9 +4632,9 @@ func (*InputUserEmpty) ImplementsInputUser() {}
 
 // Defines a [min](https://core.telegram.org/api/min) user that was seen in a certain message of a certain chat.
 type InputUserFromMessage struct {
-	Peer   InputPeer
-	MsgID  int32
-	UserID int64
+	Peer   InputPeer // The chat where the user was seen
+	MsgID  int32     // The message ID
+	UserID int64     // The identifier of the user that was seen
 }
 
 func (*InputUserFromMessage) CRC() uint32 {
@@ -4618,8 +4659,8 @@ type InputWallPaper interface {
 
 // [Wallpaper](https://core.telegram.org/api/wallpapers)
 type InputWallPaperObj struct {
-	ID         int64
-	AccessHash int64
+	ID         int64 // Wallpaper ID
+	AccessHash int64 // Access hash
 }
 
 func (*InputWallPaperObj) CRC() uint32 {
@@ -4630,7 +4671,7 @@ func (*InputWallPaperObj) ImplementsInputWallPaper() {}
 
 // [Wallpaper](https://core.telegram.org/api/wallpapers) with no file access hash, used for example when deleting (`unsave=true`) wallpapers using [account.saveWallPaper](https://core.telegram.org/method/account.saveWallPaper), specifying just the wallpaper ID.
 type InputWallPaperNoFile struct {
-	ID int64
+	ID int64 // Wallpaper ID
 }
 
 func (*InputWallPaperNoFile) CRC() uint32 {
@@ -4641,7 +4682,7 @@ func (*InputWallPaperNoFile) ImplementsInputWallPaper() {}
 
 // [Wallpaper](https://core.telegram.org/api/wallpapers) by slug (a unique ID, obtained from a [wallpaper link »](https://core.telegram.org/api/links#wallpaper-links))
 type InputWallPaperSlug struct {
-	Slug string
+	Slug string // Unique wallpaper ID
 }
 
 func (*InputWallPaperSlug) CRC() uint32 {
@@ -4657,10 +4698,10 @@ type InputWebFileLocation interface {
 
 // Used to download an album cover for any music file using [upload.getWebFile](https://core.telegram.org/method/upload.getWebFile), see the [webfile docs for more info »](https://core.telegram.org/api/files#downloading-webfiles).
 type InputWebFileAudioAlbumThumbLocation struct {
-	Small     bool          `tl:"flag:2,encoded_in_bitflags"`
-	Document  InputDocument `tl:"flag:0"`
-	Title     string        `tl:"flag:1"`
-	Performer string        `tl:"flag:1"`
+	Small     bool          `tl:"flag:2,encoded_in_bitflags"` // Used to return a thumbnail with '100x100' resolution (instead of the default '600x600')
+	Document  InputDocument `tl:"flag:0"`                     // The audio file in question: must NOT be provided in secret chats, provide the 'title' and 'performer' fields instead.
+	Title     string        `tl:"flag:1"`                     // Song title: should only be used in secret chats, in normal chats provide 'document' instead, as it has more lax rate limits.
+	Performer string        `tl:"flag:1"`                     // Song performer: should only be used in secret chats, in normal chats provide 'document' instead, as it has more lax rate limits.
 }
 
 func (*InputWebFileAudioAlbumThumbLocation) CRC() uint32 {
@@ -4675,12 +4716,12 @@ func (*InputWebFileAudioAlbumThumbLocation) ImplementsInputWebFileLocation() {}
 
 // Used to download a server-generated image with the map preview from a [geoPoint](https://core.telegram.org/constructor/geoPoint), see the [webfile docs for more info »](https://core.telegram.org/api/files#downloading-webfiles).
 type InputWebFileGeoPointLocation struct {
-	GeoPoint   InputGeoPoint
-	AccessHash int64
-	W          int32
-	H          int32
-	Zoom       int32
-	Scale      int32
+	GeoPoint   InputGeoPoint // Generated from the 'lat', 'long' and 'accuracy_radius' parameters of the geoPoint
+	AccessHash int64         // Access hash of the geoPoint
+	W          int32         // Map width in pixels before applying scale; 16-1024
+	H          int32         // Map height in pixels before applying scale; 16-1024
+	Zoom       int32         // Map zoom level; 13-20
+	Scale      int32         // Map scale; 1-3
 }
 
 func (*InputWebFileGeoPointLocation) CRC() uint32 {
@@ -4691,8 +4732,8 @@ func (*InputWebFileGeoPointLocation) ImplementsInputWebFileLocation() {}
 
 // Location of a remote HTTP(s) file
 type InputWebFileLocationObj struct {
-	URL        string
-	AccessHash int64
+	URL        string // HTTP URL of file
+	AccessHash int64  // Access hash
 }
 
 func (*InputWebFileLocationObj) CRC() uint32 {
@@ -4708,7 +4749,7 @@ type JsonValue interface {
 
 // JSON array
 type JsonArray struct {
-	Value []JsonValue
+	Value []JsonValue // JSON values
 }
 
 func (*JsonArray) CRC() uint32 {
@@ -4719,7 +4760,7 @@ func (*JsonArray) ImplementsJsonValue() {}
 
 // JSON boolean value
 type JsonBool struct {
-	Value bool
+	Value bool // Value
 }
 
 func (*JsonBool) CRC() uint32 {
@@ -4739,7 +4780,7 @@ func (*JsonNull) ImplementsJsonValue() {}
 
 // JSON numeric value
 type JsonNumber struct {
-	Value float64
+	Value float64 // Value
 }
 
 func (*JsonNumber) CRC() uint32 {
@@ -4750,7 +4791,7 @@ func (*JsonNumber) ImplementsJsonValue() {}
 
 // JSON object value
 type JsonObject struct {
-	Value []*JsonObjectValue
+	Value []*JsonObjectValue // Values
 }
 
 func (*JsonObject) CRC() uint32 {
@@ -4761,7 +4802,7 @@ func (*JsonObject) ImplementsJsonValue() {}
 
 // JSON string
 type JsonString struct {
-	Value string
+	Value string // Value
 }
 
 func (*JsonString) CRC() uint32 {
@@ -4774,14 +4815,19 @@ type KeyboardButton interface {
 	tl.Object
 	ImplementsKeyboardButton()
 }
+
+// Prompts the user to select and share one or more peers with the bot using [messages.sendBotRequestedPeer](https://core.telegram.org/method/messages.sendBotRequestedPeer).
 type InputKeyboardButtonRequestPeer struct {
-	NameRequested     bool `tl:"flag:0,encoded_in_bitflags"`
-	UsernameRequested bool `tl:"flag:1,encoded_in_bitflags"`
-	PhotoRequested    bool `tl:"flag:2,encoded_in_bitflags"`
-	Text              string
-	ButtonID          int32
-	PeerType          RequestPeerType
-	MaxQuantity       int32
+	NameRequested     bool            `tl:"flag:0,encoded_in_bitflags"` // Set this flag to request the peer's name.
+	UsernameRequested bool            `tl:"flag:1,encoded_in_bitflags"` // Set this flag to request the peer's '@username' (if any).
+	PhotoRequested    bool            `tl:"flag:2,encoded_in_bitflags"` // Set this flag to request the peer's photo (if any).
+	Text              string          // Button text
+	ButtonID          int32           // Button ID, to be passed to messages.sendBotRequestedPeer.
+	PeerType          RequestPeerType /*
+	Filtering criteria to use for the peer selection list shown to the user.
+	The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to 'max_quantity') peers of the specified type, if needed.
+	*/
+	MaxQuantity int32 // Maximum number of peers that can be chosen.
 }
 
 func (*InputKeyboardButtonRequestPeer) CRC() uint32 {
@@ -4796,11 +4842,14 @@ func (*InputKeyboardButtonRequestPeer) ImplementsKeyboardButton() {}
 
 // Button to request a user to [authorize](https://core.telegram.org/method/messages.acceptUrlAuth) via URL using [Seamless Telegram Login](https://core.telegram.orghttps://telegram.org/blog/privacy-discussions-web-bots#meet-seamless-web-bots).
 type InputKeyboardButtonURLAuth struct {
-	RequestWriteAccess bool `tl:"flag:0,encoded_in_bitflags"`
-	Text               string
-	FwdText            string `tl:"flag:1"`
-	URL                string
-	Bot                InputUser
+	RequestWriteAccess bool   `tl:"flag:0,encoded_in_bitflags"` // Set this flag to request the permission for your bot to send messages to the user.
+	Text               string // Button text
+	FwdText            string `tl:"flag:1"` // New text of the button in forwarded messages.
+	URL                string /*
+	An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
+	NOTE: You must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
+	*/
+	Bot InputUser // Username of a bot, which will be used for user authorization. See Setting up a bot for more details. If not specified, the current bot's username will be assumed. The url's domain must be the same as the domain linked with the bot. See Linking your domain to the bot for more details.
 }
 
 func (*InputKeyboardButtonURLAuth) CRC() uint32 {
@@ -4815,8 +4864,8 @@ func (*InputKeyboardButtonURLAuth) ImplementsKeyboardButton() {}
 
 // Button that links directly to a user profile
 type InputKeyboardButtonUserProfile struct {
-	Text   string
-	UserID InputUser
+	Text   string    // Button text
+	UserID InputUser // User ID
 }
 
 func (*InputKeyboardButtonUserProfile) CRC() uint32 {
@@ -4827,7 +4876,7 @@ func (*InputKeyboardButtonUserProfile) ImplementsKeyboardButton() {}
 
 // Bot keyboard button
 type KeyboardButtonObj struct {
-	Text string
+	Text string // Button text
 }
 
 func (*KeyboardButtonObj) CRC() uint32 {
@@ -4838,7 +4887,7 @@ func (*KeyboardButtonObj) ImplementsKeyboardButton() {}
 
 // Button to buy a product
 type KeyboardButtonBuy struct {
-	Text string
+	Text string // Button text
 }
 
 func (*KeyboardButtonBuy) CRC() uint32 {
@@ -4849,9 +4898,9 @@ func (*KeyboardButtonBuy) ImplementsKeyboardButton() {}
 
 // Callback button
 type KeyboardButtonCallback struct {
-	RequiresPassword bool `tl:"flag:0,encoded_in_bitflags"`
-	Text             string
-	Data             []byte
+	RequiresPassword bool   `tl:"flag:0,encoded_in_bitflags"` // Whether the user should verify his identity by entering his 2FA SRP parameters to the messages.getBotCallbackAnswer method. NOTE: telegram and the bot WILL NOT have access to the plaintext password, thanks to SRP. This button is mainly used by the official @botfather bot, for verifying the user's identity before transferring ownership of a bot to another user.
+	Text             string // Button text
+	Data             []byte // Callback data
 }
 
 func (*KeyboardButtonCallback) CRC() uint32 {
@@ -4866,7 +4915,7 @@ func (*KeyboardButtonCallback) ImplementsKeyboardButton() {}
 
 // Button to start a game
 type KeyboardButtonGame struct {
-	Text string
+	Text string // Button text
 }
 
 func (*KeyboardButtonGame) CRC() uint32 {
@@ -4877,7 +4926,7 @@ func (*KeyboardButtonGame) ImplementsKeyboardButton() {}
 
 // Button to request a user's geolocation
 type KeyboardButtonRequestGeoLocation struct {
-	Text string
+	Text string // Button text
 }
 
 func (*KeyboardButtonRequestGeoLocation) CRC() uint32 {
@@ -4888,10 +4937,13 @@ func (*KeyboardButtonRequestGeoLocation) ImplementsKeyboardButton() {}
 
 // Prompts the user to select and share one or more peers with the bot using [messages.sendBotRequestedPeer](https://core.telegram.org/method/messages.sendBotRequestedPeer)
 type KeyboardButtonRequestPeer struct {
-	Text        string
-	ButtonID    int32
-	PeerType    RequestPeerType
-	MaxQuantity int32
+	Text     string          // Button text
+	ButtonID int32           // Button ID, to be passed to messages.sendBotRequestedPeer.
+	PeerType RequestPeerType /*
+	Filtering criteria to use for the peer selection list shown to the user.
+	The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to 'max_quantity') peers of the specified type, if needed.
+	*/
+	MaxQuantity int32 // Maximum number of peers that can be chosen.
 }
 
 func (*KeyboardButtonRequestPeer) CRC() uint32 {
@@ -4902,7 +4954,7 @@ func (*KeyboardButtonRequestPeer) ImplementsKeyboardButton() {}
 
 // Button to request a user's phone number
 type KeyboardButtonRequestPhone struct {
-	Text string
+	Text string // Button text
 }
 
 func (*KeyboardButtonRequestPhone) CRC() uint32 {
@@ -4913,8 +4965,8 @@ func (*KeyboardButtonRequestPhone) ImplementsKeyboardButton() {}
 
 // A button that allows the user to create and send a poll when pressed; available only in private
 type KeyboardButtonRequestPoll struct {
-	Quiz bool `tl:"flag:0"`
-	Text string
+	Quiz bool   `tl:"flag:0"` // If set, only quiz polls can be sent
+	Text string // Button text
 }
 
 func (*KeyboardButtonRequestPoll) CRC() uint32 {
@@ -4929,8 +4981,8 @@ func (*KeyboardButtonRequestPoll) ImplementsKeyboardButton() {}
 
 // Button to open a [bot mini app](https://core.telegram.org/api/bots/webapps) using [messages.requestSimpleWebView](https://core.telegram.org/method/messages.requestSimpleWebView), without sending user information to the web app.
 type KeyboardButtonSimpleWebView struct {
-	Text string
-	URL  string
+	Text string // Button text
+	URL  string // Web app URL
 }
 
 func (*KeyboardButtonSimpleWebView) CRC() uint32 {
@@ -4941,10 +4993,10 @@ func (*KeyboardButtonSimpleWebView) ImplementsKeyboardButton() {}
 
 // Button to force a user to switch to inline mode: pressing the button will prompt the user to select one of their chats, open that chat and insert the bot's username and the specified inline query in the input field.
 type KeyboardButtonSwitchInline struct {
-	SamePeer  bool `tl:"flag:0,encoded_in_bitflags"`
-	Text      string
-	Query     string
-	PeerTypes []InlineQueryPeerType `tl:"flag:1"`
+	SamePeer  bool                  `tl:"flag:0,encoded_in_bitflags"` // If set, pressing the button will insert the bot's username and the specified inline 'query' in the current chat's input field.
+	Text      string                // Button label
+	Query     string                // The inline query to use
+	PeerTypes []InlineQueryPeerType `tl:"flag:1"` // Filter to use when selecting chats.
 }
 
 func (*KeyboardButtonSwitchInline) CRC() uint32 {
@@ -4959,8 +5011,8 @@ func (*KeyboardButtonSwitchInline) ImplementsKeyboardButton() {}
 
 // URL button
 type KeyboardButtonURL struct {
-	Text string
-	URL  string
+	Text string // Button label
+	URL  string // URL
 }
 
 func (*KeyboardButtonURL) CRC() uint32 {
@@ -4971,10 +5023,14 @@ func (*KeyboardButtonURL) ImplementsKeyboardButton() {}
 
 // Button to request a user to authorize via URL using [Seamless Telegram Login](https://core.telegram.orghttps://telegram.org/blog/privacy-discussions-web-bots#meet-seamless-web-bots). When the user clicks on such a button, [messages.requestUrlAuth](https://core.telegram.org/method/messages.requestUrlAuth) should be called, providing the `button_id` and the ID of the container message. The returned [urlAuthResultRequest](https://core.telegram.org/constructor/urlAuthResultRequest) object will contain more details about the authorization request (`request_write_access` if the bot would like to send messages to the user along with the username of the bot which will be used for user authorization). Finally, the user can choose to call [messages.acceptUrlAuth](https://core.telegram.org/method/messages.acceptUrlAuth) to get a [urlAuthResultAccepted](https://core.telegram.org/constructor/urlAuthResultAccepted) with the URL to open instead of the `url` of this constructor, or a [urlAuthResultDefault](https://core.telegram.org/constructor/urlAuthResultDefault), in which case the `url` of this constructor must be opened, instead. If the user refuses the authorization request but still wants to open the link, the `url` of this constructor must be used.
 type KeyboardButtonURLAuth struct {
-	Text     string
-	FwdText  string `tl:"flag:0"`
-	URL      string
-	ButtonID int32
+	Text    string // Button label
+	FwdText string `tl:"flag:0"` // New text of the button in forwarded messages.
+	URL     string /*
+	An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
+
+	NOTE: Services must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
+	*/
+	ButtonID int32 // ID of the button to pass to messages.requestUrlAuth
 }
 
 func (*KeyboardButtonURLAuth) CRC() uint32 {
@@ -4989,8 +5045,8 @@ func (*KeyboardButtonURLAuth) ImplementsKeyboardButton() {}
 
 // Button that links directly to a user profile
 type KeyboardButtonUserProfile struct {
-	Text   string
-	UserID int64
+	Text   string // Button text
+	UserID int64  // User ID
 }
 
 func (*KeyboardButtonUserProfile) CRC() uint32 {
@@ -5001,8 +5057,8 @@ func (*KeyboardButtonUserProfile) ImplementsKeyboardButton() {}
 
 // Button to open a [bot mini app](https://core.telegram.org/api/bots/webapps) using [messages.requestWebView](https://core.telegram.org/method/messages.requestWebView), sending over user information after user confirmation.
 type KeyboardButtonWebView struct {
-	Text string
-	URL  string
+	Text string // Button text
+	URL  string // Web app url
 }
 
 func (*KeyboardButtonWebView) CRC() uint32 {
@@ -5018,8 +5074,8 @@ type LangPackString interface {
 
 // Translated localization string
 type LangPackStringObj struct {
-	Key   string
-	Value string
+	Key   string // Language key
+	Value string // Value
 }
 
 func (*LangPackStringObj) CRC() uint32 {
@@ -5030,7 +5086,7 @@ func (*LangPackStringObj) ImplementsLangPackString() {}
 
 // Deleted localization string
 type LangPackStringDeleted struct {
-	Key string
+	Key string // Localization key
 }
 
 func (*LangPackStringDeleted) CRC() uint32 {
@@ -5041,13 +5097,13 @@ func (*LangPackStringDeleted) ImplementsLangPackString() {}
 
 // A language pack string which has different forms based on the number of some object it mentions. See [https://www.unicode.org/cldr/charts/latest/supplemental/language_plural_rules.html](https://core.telegram.orghttps://www.unicode.org/cldr/charts/latest/supplemental/language_plural_rules.html) for more info
 type LangPackStringPluralized struct {
-	Key        string
-	ZeroValue  string `tl:"flag:0"`
-	OneValue   string `tl:"flag:1"`
-	TwoValue   string `tl:"flag:2"`
-	FewValue   string `tl:"flag:3"`
-	ManyValue  string `tl:"flag:4"`
-	OtherValue string
+	Key        string // Localization key
+	ZeroValue  string `tl:"flag:0"` // Value for zero objects
+	OneValue   string `tl:"flag:1"` // Value for one object
+	TwoValue   string `tl:"flag:2"` // Value for two objects
+	FewValue   string `tl:"flag:3"` // Value for a few objects
+	ManyValue  string `tl:"flag:4"` // Value for many objects
+	OtherValue string // Default value
 }
 
 func (*LangPackStringPluralized) CRC() uint32 {
@@ -5067,9 +5123,9 @@ type MediaArea interface {
 
 // Represents a channel post
 type InputMediaAreaChannelPost struct {
-	Coordinates *MediaAreaCoordinates
-	Channel     InputChannel
-	MsgID       int32
+	Coordinates *MediaAreaCoordinates // The size and location of the media area corresponding to the location sticker on top of the story media.
+	Channel     InputChannel          // The channel that posted the message
+	MsgID       int32                 // ID of the channel message
 }
 
 func (*InputMediaAreaChannelPost) CRC() uint32 {
@@ -5080,9 +5136,9 @@ func (*InputMediaAreaChannelPost) ImplementsMediaArea() {}
 
 // Represents a [location tag](https://core.telegram.org/api/stories#media-areas) attached to a [story](https://core.telegram.org/api/stories), with additional venue information.
 type InputMediaAreaVenue struct {
-	Coordinates *MediaAreaCoordinates
-	QueryID     int64
-	ResultID    string
+	Coordinates *MediaAreaCoordinates // The size and location of the media area corresponding to the location sticker on top of the story media.
+	QueryID     int64                 // The 'query_id' from messages.botResults,.
+	ResultID    string                // The 'id' of the chosen result,.
 }
 
 func (*InputMediaAreaVenue) CRC() uint32 {
@@ -5093,9 +5149,9 @@ func (*InputMediaAreaVenue) ImplementsMediaArea() {}
 
 // Represents a channel post.
 type MediaAreaChannelPost struct {
-	Coordinates *MediaAreaCoordinates
-	ChannelID   int64
-	MsgID       int32
+	Coordinates *MediaAreaCoordinates // The size and location of the media area corresponding to the location sticker on top of the story media.
+	ChannelID   int64                 // The channel that posted the message
+	MsgID       int32                 // ID of the channel message
 }
 
 func (*MediaAreaChannelPost) CRC() uint32 {
@@ -5106,9 +5162,9 @@ func (*MediaAreaChannelPost) ImplementsMediaArea() {}
 
 // Represents a geolocation tag attached to a [story](https://core.telegram.org/api/stories).
 type MediaAreaGeoPoint struct {
-	Coordinates *MediaAreaCoordinates
-	Geo         GeoPoint
-	Address     *GeoPointAddress `tl:"flag:0"`
+	Coordinates *MediaAreaCoordinates // The size and position of the media area corresponding to the location sticker on top of the story media.
+	Geo         GeoPoint              // Coordinates of the geolocation tag.
+	Address     *GeoPointAddress      `tl:"flag:0"` // Optional textual representation of the address.
 }
 
 func (*MediaAreaGeoPoint) CRC() uint32 {
@@ -5123,10 +5179,10 @@ func (*MediaAreaGeoPoint) ImplementsMediaArea() {}
 
 // Represents a reaction bubble.
 type MediaAreaSuggestedReaction struct {
-	Dark        bool `tl:"flag:0,encoded_in_bitflags"`
-	Flipped     bool `tl:"flag:1,encoded_in_bitflags"`
-	Coordinates *MediaAreaCoordinates
-	Reaction    Reaction
+	Dark        bool                  `tl:"flag:0,encoded_in_bitflags"` // Whether the reaction bubble has a dark background.
+	Flipped     bool                  `tl:"flag:1,encoded_in_bitflags"` // Whether the reaction bubble is mirrored (.
+	Coordinates *MediaAreaCoordinates // The coordinates of the media area corresponding to the reaction button.
+	Reaction    Reaction              // The reaction that should be sent when this area is clicked.
 }
 
 func (*MediaAreaSuggestedReaction) CRC() uint32 {
@@ -5139,9 +5195,10 @@ func (*MediaAreaSuggestedReaction) FlagIndex() int {
 
 func (*MediaAreaSuggestedReaction) ImplementsMediaArea() {}
 
+// Represents a [URL media area](https://core.telegram.org/api/stories#urls).
 type MediaAreaURL struct {
-	Coordinates *MediaAreaCoordinates
-	URL         string
+	Coordinates *MediaAreaCoordinates // The size and location of the media area corresponding to the URL button on top of the story media.
+	URL         string                // URL to open when clicked.
 }
 
 func (*MediaAreaURL) CRC() uint32 {
@@ -5152,13 +5209,13 @@ func (*MediaAreaURL) ImplementsMediaArea() {}
 
 // Represents a location tag attached to a [story](https://core.telegram.org/api/stories), with additional venue information.
 type MediaAreaVenue struct {
-	Coordinates *MediaAreaCoordinates
-	Geo         GeoPoint
-	Title       string
-	Address     string
-	Provider    string
-	VenueID     string
-	VenueType   string
+	Coordinates *MediaAreaCoordinates // The size and location of the media area corresponding to the location sticker on top of the story media.
+	Geo         GeoPoint              // Coordinates of the venue
+	Title       string                // Venue name
+	Address     string                // Address
+	Provider    string                // Venue provider: currently only "foursquare" needs to be supported.
+	VenueID     string                // Venue ID in the provider's database
+	VenueType   string                // Venue type in the provider's database
 }
 
 func (*MediaAreaVenue) CRC() uint32 {
@@ -5167,11 +5224,12 @@ func (*MediaAreaVenue) CRC() uint32 {
 
 func (*MediaAreaVenue) ImplementsMediaArea() {}
 
+// Represents a [weather widget »](https://core.telegram.org/api/stories#weather).
 type MediaAreaWeather struct {
-	Coordinates  *MediaAreaCoordinates
-	Emoji        string
-	TemperatureC float64
-	Color        int32
+	Coordinates  *MediaAreaCoordinates // The size and location of the media area corresponding to the widget on top of the story media.
+	Emoji        string                // Weather emoji, should be rendered as an animated emoji.
+	TemperatureC float64               // Temperature in degrees Celsius.
+	Color        int32                 // ARGB background color.
 }
 
 func (*MediaAreaWeather) CRC() uint32 {
@@ -5187,44 +5245,50 @@ type Message interface {
 
 // A message
 type MessageObj struct {
-	Out                  bool `tl:"flag:1,encoded_in_bitflags"`
-	Mentioned            bool `tl:"flag:4,encoded_in_bitflags"`
-	MediaUnread          bool `tl:"flag:5,encoded_in_bitflags"`
-	Silent               bool `tl:"flag:13,encoded_in_bitflags"`
-	Post                 bool `tl:"flag:14,encoded_in_bitflags"`
-	FromScheduled        bool `tl:"flag:18,encoded_in_bitflags"`
-	Legacy               bool `tl:"flag:19,encoded_in_bitflags"`
-	EditHide             bool `tl:"flag:21,encoded_in_bitflags"`
-	Pinned               bool `tl:"flag:24,encoded_in_bitflags"`
-	Noforwards           bool `tl:"flag:26,encoded_in_bitflags"`
-	InvertMedia          bool `tl:"flag:27,encoded_in_bitflags"`
-	Offline              bool `tl:"flag2:1,encoded_in_bitflags"`
-	ID                   int32
-	FromID               Peer  `tl:"flag:8"`
-	FromBoostsApplied    int32 `tl:"flag:29"`
-	PeerID               Peer
-	SavedPeerID          Peer               `tl:"flag:28"`
-	FwdFrom              *MessageFwdHeader  `tl:"flag:2"`
-	ViaBotID             int64              `tl:"flag:11"`
-	ViaBusinessBotID     int64              `tl:"flag2:0"`
-	ReplyTo              MessageReplyHeader `tl:"flag:3"`
-	Date                 int32
-	Message              string
-	Media                MessageMedia         `tl:"flag:9"`
-	ReplyMarkup          ReplyMarkup          `tl:"flag:6"`
-	Entities             []MessageEntity      `tl:"flag:7"`
-	Views                int32                `tl:"flag:10"`
-	Forwards             int32                `tl:"flag:10"`
-	Replies              *MessageReplies      `tl:"flag:23"`
-	EditDate             int32                `tl:"flag:15"`
-	PostAuthor           string               `tl:"flag:16"`
-	GroupedID            int64                `tl:"flag:17"`
-	Reactions            *MessageReactions    `tl:"flag:20"`
-	RestrictionReason    []*RestrictionReason `tl:"flag:22"`
-	TtlPeriod            int32                `tl:"flag:25"`
-	QuickReplyShortcutID int32                `tl:"flag:30"`
-	Effect               int64                `tl:"flag2:2"`
-	Factcheck            *FactCheck           `tl:"flag2:3"`
+	Out               bool  `tl:"flag:1,encoded_in_bitflags"`  // Is this an outgoing message
+	Mentioned         bool  `tl:"flag:4,encoded_in_bitflags"`  // Whether we were mentioned in this message
+	MediaUnread       bool  `tl:"flag:5,encoded_in_bitflags"`  // Whether there are unread media attachments in this message
+	Silent            bool  `tl:"flag:13,encoded_in_bitflags"` // Whether this is a silent message (no notification triggered)
+	Post              bool  `tl:"flag:14,encoded_in_bitflags"` // Whether this is a channel post
+	FromScheduled     bool  `tl:"flag:18,encoded_in_bitflags"` // Whether this is a scheduled message
+	Legacy            bool  `tl:"flag:19,encoded_in_bitflags"` // This is a legacy message: it has to be refetched with the new layer
+	EditHide          bool  `tl:"flag:21,encoded_in_bitflags"` // Whether the message should be shown as not modified to the user, even if an edit date is present
+	Pinned            bool  `tl:"flag:24,encoded_in_bitflags"` // Whether this message is pinned
+	Noforwards        bool  `tl:"flag:26,encoded_in_bitflags"` // Whether this message is protected and thus cannot be forwarded; clients should also prevent users from saving attached media (i.e. videos should only be streamed, photos should be kept in RAM, et cetera).
+	InvertMedia       bool  `tl:"flag:27,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
+	Offline           bool  `tl:"flag2:1,encoded_in_bitflags"` // If set, the message was sent because of a scheduled action by the message sender, for example, as away, or a greeting service message.
+	ID                int32 // ID of the message
+	FromID            Peer  `tl:"flag:8"`  // ID of the sender of the message
+	FromBoostsApplied int32 `tl:"flag:29"` /*
+	Supergroups only, contains the number of boosts this user has given the current supergroup, and should be shown in the UI in the header of the message.
+	Only present for incoming messages from non-anonymous supergroup members that have boosted the supergroup.
+	Note that this counter should be locally overridden for non-anonymous <em>outgoing</em> messages, according to the current value of channelFull.'boosts_applied', to ensure the value is correct even for messages sent by the current user before a supergroup was boosted (or after a boost has expired or the number of boosts has changed); do not update this value for incoming messages from other users, even if their boosts have changed.
+	*/
+	PeerID      Peer // Peer ID, the chat where this message was sent
+	SavedPeerID Peer `tl:"flag:28"` /*
+	Messages fetched from a saved messages dialog  will have 'peer'=inputPeerSelf and the 'saved_peer_id' flag set to the ID of the saved dialog.
+	*/
+	FwdFrom              *MessageFwdHeader    `tl:"flag:2"`  // Info about forwarded messages
+	ViaBotID             int64                `tl:"flag:11"` // ID of the inline bot that generated the message
+	ViaBusinessBotID     int64                `tl:"flag2:0"` // Whether the message was sent by the business bot specified in 'via_bot_id' on behalf of the user.
+	ReplyTo              MessageReplyHeader   `tl:"flag:3"`  // Reply information
+	Date                 int32                // Date of the message
+	Message              string               // The message
+	Media                MessageMedia         `tl:"flag:9"`  // Media attachment
+	ReplyMarkup          ReplyMarkup          `tl:"flag:6"`  // Reply markup (bot/inline keyboards)
+	Entities             []MessageEntity      `tl:"flag:7"`  // Message entities for styled text
+	Views                int32                `tl:"flag:10"` // View count for channel posts
+	Forwards             int32                `tl:"flag:10"` // Forward counter
+	Replies              *MessageReplies      `tl:"flag:23"` // Info about post comments (for channels) or message replies (for groups)
+	EditDate             int32                `tl:"flag:15"` // Last edit date of this message
+	PostAuthor           string               `tl:"flag:16"` // Name of the author of this message for channel posts (with signatures enabled)
+	GroupedID            int64                `tl:"flag:17"` // Multiple media messages sent using messages.sendMultiMedia with the same grouped ID indicate an album or media group
+	Reactions            *MessageReactions    `tl:"flag:20"` // Reactions to this message
+	RestrictionReason    []*RestrictionReason `tl:"flag:22"` // Contains the reason why access to this message must be restricted.
+	TtlPeriod            int32                `tl:"flag:25"` // Time To Live of the message, once message.date+message.ttl_period === time(), the message will be deleted on the server, and must be deleted locally as well.
+	QuickReplyShortcutID int32                `tl:"flag:30"` // If set, this message is a quick reply shortcut message  (note that quick reply shortcut messages <em>sent</em> to a private chat will <em>not</em> have this field set).
+	Effect               int64                `tl:"flag2:2"` // A message effect that should be played as specified here.
+	Factcheck            *FactCheck           `tl:"flag2:3"` // Represents a fact-check.
 }
 
 func (*MessageObj) CRC() uint32 {
@@ -5239,8 +5303,8 @@ func (*MessageObj) ImplementsMessage() {}
 
 // Empty constructor, non-existent message.
 type MessageEmpty struct {
-	ID     int32
-	PeerID Peer `tl:"flag:0"`
+	ID     int32 // Message identifier
+	PeerID Peer  `tl:"flag:0"` // Peer ID, the chat where this message was sent
 }
 
 func (*MessageEmpty) CRC() uint32 {
@@ -5255,19 +5319,19 @@ func (*MessageEmpty) ImplementsMessage() {}
 
 // Indicates a service message
 type MessageService struct {
-	Out         bool `tl:"flag:1,encoded_in_bitflags"`
-	Mentioned   bool `tl:"flag:4,encoded_in_bitflags"`
-	MediaUnread bool `tl:"flag:5,encoded_in_bitflags"`
-	Silent      bool `tl:"flag:13,encoded_in_bitflags"`
-	Post        bool `tl:"flag:14,encoded_in_bitflags"`
-	Legacy      bool `tl:"flag:19,encoded_in_bitflags"`
-	ID          int32
-	FromID      Peer `tl:"flag:8"`
-	PeerID      Peer
-	ReplyTo     MessageReplyHeader `tl:"flag:3"`
-	Date        int32
-	Action      MessageAction
-	TtlPeriod   int32 `tl:"flag:25"`
+	Out         bool               `tl:"flag:1,encoded_in_bitflags"`  // Whether the message is outgoing
+	Mentioned   bool               `tl:"flag:4,encoded_in_bitflags"`  // Whether we were mentioned in the message
+	MediaUnread bool               `tl:"flag:5,encoded_in_bitflags"`  // Whether the message contains unread media
+	Silent      bool               `tl:"flag:13,encoded_in_bitflags"` // Whether the message is silent
+	Post        bool               `tl:"flag:14,encoded_in_bitflags"` // Whether it's a channel post
+	Legacy      bool               `tl:"flag:19,encoded_in_bitflags"` // This is a legacy message: it has to be refetched with the new layer
+	ID          int32              // Message ID
+	FromID      Peer               `tl:"flag:8"` // ID of the sender of this message
+	PeerID      Peer               // Sender of service message
+	ReplyTo     MessageReplyHeader `tl:"flag:3"` // Reply (thread) information
+	Date        int32              // Message date
+	Action      MessageAction      // Event connected with the service message
+	TtlPeriod   int32              `tl:"flag:25"` // Time To Live of the message, once message.date+message.ttl_period === time(), the message will be deleted on the server, and must be deleted locally as well.
 }
 
 func (*MessageService) CRC() uint32 {
@@ -5292,8 +5356,9 @@ func (*MessageActionAttachMenuBotAllowed) CRC() uint32 {
 
 func (*MessageActionAttachMenuBotAllowed) ImplementsMessageAction() {}
 
+// Some [boosts »](https://core.telegram.org/api/boost) were applied to the channel or supergroup.
 type MessageActionBoostApply struct {
-	Boosts int32
+	Boosts int32 // Number of applied boosts.
 }
 
 func (*MessageActionBoostApply) CRC() uint32 {
@@ -5304,10 +5369,10 @@ func (*MessageActionBoostApply) ImplementsMessageAction() {}
 
 // We have given the bot permission to send us direct messages.
 type MessageActionBotAllowed struct {
-	AttachMenu  bool   `tl:"flag:1,encoded_in_bitflags"`
-	FromRequest bool   `tl:"flag:3,encoded_in_bitflags"`
-	Domain      string `tl:"flag:0"`
-	App         BotApp `tl:"flag:2"`
+	AttachMenu  bool   `tl:"flag:1,encoded_in_bitflags"` // We have authorized the bot to send us messages by installing the bot's attachment menu.
+	FromRequest bool   `tl:"flag:3,encoded_in_bitflags"` // We have allowed the bot to send us messages using bots.allowSendMessage.
+	Domain      string `tl:"flag:0"`                     // We have authorized the bot to send us messages by logging into a website via Telegram Login ; this field contains the domain name of the website on which the user has logged in.
+	App         BotApp `tl:"flag:2"`                     // We have authorized the bot to send us messages by opening the specified bot mini app.
 }
 
 func (*MessageActionBotAllowed) CRC() uint32 {
@@ -5322,7 +5387,7 @@ func (*MessageActionBotAllowed) ImplementsMessageAction() {}
 
 // The channel was created
 type MessageActionChannelCreate struct {
-	Title string
+	Title string // Original channel/supergroup title
 }
 
 func (*MessageActionChannelCreate) CRC() uint32 {
@@ -5333,8 +5398,8 @@ func (*MessageActionChannelCreate) ImplementsMessageAction() {}
 
 // Indicates the channel was [migrated](https://core.telegram.org/api/channel) from the specified chat
 type MessageActionChannelMigrateFrom struct {
-	Title  string
-	ChatID int64
+	Title  string // The old chat title
+	ChatID int64  // The old chat ID
 }
 
 func (*MessageActionChannelMigrateFrom) CRC() uint32 {
@@ -5345,7 +5410,7 @@ func (*MessageActionChannelMigrateFrom) ImplementsMessageAction() {}
 
 // New member in the group
 type MessageActionChatAddUser struct {
-	Users []int64
+	Users []int64 // Users that were invited to the chat
 }
 
 func (*MessageActionChatAddUser) CRC() uint32 {
@@ -5356,8 +5421,8 @@ func (*MessageActionChatAddUser) ImplementsMessageAction() {}
 
 // Group created
 type MessageActionChatCreate struct {
-	Title string
-	Users []int64
+	Title string  // Group name
+	Users []int64 // List of group members
 }
 
 func (*MessageActionChatCreate) CRC() uint32 {
@@ -5377,7 +5442,7 @@ func (*MessageActionChatDeletePhoto) ImplementsMessageAction() {}
 
 // User left the group.
 type MessageActionChatDeleteUser struct {
-	UserID int64
+	UserID int64 // Leaving user ID
 }
 
 func (*MessageActionChatDeleteUser) CRC() uint32 {
@@ -5388,7 +5453,7 @@ func (*MessageActionChatDeleteUser) ImplementsMessageAction() {}
 
 // Group profile changed
 type MessageActionChatEditPhoto struct {
-	Photo Photo
+	Photo Photo // New group profile photo
 }
 
 func (*MessageActionChatEditPhoto) CRC() uint32 {
@@ -5399,7 +5464,7 @@ func (*MessageActionChatEditPhoto) ImplementsMessageAction() {}
 
 // Group name changed.
 type MessageActionChatEditTitle struct {
-	Title string
+	Title string // New group name
 }
 
 func (*MessageActionChatEditTitle) CRC() uint32 {
@@ -5410,7 +5475,7 @@ func (*MessageActionChatEditTitle) ImplementsMessageAction() {}
 
 // A user joined the chat via an invite link
 type MessageActionChatJoinedByLink struct {
-	InviterID int64
+	InviterID int64 // ID of the user that created the invite link
 }
 
 func (*MessageActionChatJoinedByLink) CRC() uint32 {
@@ -5430,7 +5495,7 @@ func (*MessageActionChatJoinedByRequest) ImplementsMessageAction() {}
 
 // Indicates the chat was [migrated](https://core.telegram.org/api/channel) to the specified supergroup
 type MessageActionChatMigrateTo struct {
-	ChannelID int64
+	ChannelID int64 // The supergroup it was migrated to
 }
 
 func (*MessageActionChatMigrateTo) CRC() uint32 {
@@ -5458,7 +5523,7 @@ func (*MessageActionCreatedBroadcastList) ImplementsMessageAction() {}
 
 // Custom action (most likely not supported by the current layer, an upgrade might be needed)
 type MessageActionCustomAction struct {
-	Message string
+	Message string // Action message
 }
 
 func (*MessageActionCustomAction) CRC() uint32 {
@@ -5478,8 +5543,8 @@ func (*MessageActionEmpty) ImplementsMessageAction() {}
 
 // Someone scored in a game
 type MessageActionGameScore struct {
-	GameID int64
-	Score  int32
+	GameID int64 // Game ID
+	Score  int32 // Score
 }
 
 func (*MessageActionGameScore) CRC() uint32 {
@@ -5490,9 +5555,9 @@ func (*MessageActionGameScore) ImplementsMessageAction() {}
 
 // A user of the chat is now in proximity of another user
 type MessageActionGeoProximityReached struct {
-	FromID   Peer
-	ToID     Peer
-	Distance int32
+	FromID   Peer  // The user or chat that is now in proximity of 'to_id'
+	ToID     Peer  // The user or chat that subscribed to live geolocation proximity alerts
+	Distance int32 // Distance, in meters (0-100000)
 }
 
 func (*MessageActionGeoProximityReached) CRC() uint32 {
@@ -5503,15 +5568,15 @@ func (*MessageActionGeoProximityReached) ImplementsMessageAction() {}
 
 // Contains a [Telegram Premium giftcode link](https://core.telegram.org/api/links#premium-giftcode-links).
 type MessageActionGiftCode struct {
-	ViaGiveaway    bool `tl:"flag:0,encoded_in_bitflags"`
-	Unclaimed      bool `tl:"flag:2,encoded_in_bitflags"`
-	BoostPeer      Peer `tl:"flag:1"`
-	Months         int32
-	Slug           string
-	Currency       string `tl:"flag:2"`
-	Amount         int64  `tl:"flag:2"`
-	CryptoCurrency string `tl:"flag:3"`
-	CryptoAmount   int64  `tl:"flag:3"`
+	ViaGiveaway    bool   `tl:"flag:0,encoded_in_bitflags"` // If set, this gift code was received from a giveaway  started by a channel/supergroup we're subscribed to.
+	Unclaimed      bool   `tl:"flag:2,encoded_in_bitflags"` // If set, the link was not redeemed yet.
+	BoostPeer      Peer   `tl:"flag:1"`                     // Identifier of the channel/supergroup that created the gift code either directly or through a giveaway: if we import this giftcode link, we will also automatically boost this channel/supergroup.
+	Months         int32  // Duration in months of the gifted Telegram Premium subscription.
+	Slug           string // Slug of the Telegram Premium giftcode link
+	Currency       string `tl:"flag:2"` // Three-letter ISO 4217 currency code
+	Amount         int64  `tl:"flag:2"` // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	CryptoCurrency string `tl:"flag:3"` // If set, the gift was made using the specified cryptocurrency.
+	CryptoAmount   int64  `tl:"flag:3"` // If 'crypto_currency' is set, contains the paid amount, in the smallest units of the cryptocurrency.
 }
 
 func (*MessageActionGiftCode) CRC() uint32 {
@@ -5526,11 +5591,11 @@ func (*MessageActionGiftCode) ImplementsMessageAction() {}
 
 // Info about a gifted Telegram Premium subscription
 type MessageActionGiftPremium struct {
-	Currency       string
-	Amount         int64
-	Months         int32
-	CryptoCurrency string `tl:"flag:0"`
-	CryptoAmount   int64  `tl:"flag:0"`
+	Currency       string // Three-letter ISO 4217 currency code
+	Amount         int64  // Price of the gift in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Months         int32  // Duration of the gifted Telegram Premium subscription
+	CryptoCurrency string `tl:"flag:0"` // If the gift was bought using a cryptocurrency, the cryptocurrency name.
+	CryptoAmount   int64  `tl:"flag:0"` // If the gift was bought using a cryptocurrency, price of the gift in the smallest units of a cryptocurrency.
 }
 
 func (*MessageActionGiftPremium) CRC() uint32 {
@@ -5543,13 +5608,14 @@ func (*MessageActionGiftPremium) FlagIndex() int {
 
 func (*MessageActionGiftPremium) ImplementsMessageAction() {}
 
+// You gifted or were gifted some [Telegram Stars](https://core.telegram.org/api/stars).
 type MessageActionGiftStars struct {
-	Currency       string
-	Amount         int64
-	Stars          int64
-	CryptoCurrency string `tl:"flag:0"`
-	CryptoAmount   int64  `tl:"flag:0"`
-	TransactionID  string `tl:"flag:1"`
+	Currency       string // Three-letter ISO 4217 currency code
+	Amount         int64  // Price of the gift in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Stars          int64  // Amount of gifted stars
+	CryptoCurrency string `tl:"flag:0"` // If the gift was bought using a cryptocurrency, the cryptocurrency name.
+	CryptoAmount   int64  `tl:"flag:0"` // If the gift was bought using a cryptocurrency, price of the gift in the smallest units of a cryptocurrency.
+	TransactionID  string `tl:"flag:1"` // Identifier of the transaction, only visible to the receiver of the gift.
 }
 
 func (*MessageActionGiftStars) CRC() uint32 {
@@ -5596,8 +5662,8 @@ func (*MessageActionGiveawayResults) ImplementsMessageAction() {}
 
 // The group call has ended
 type MessageActionGroupCall struct {
-	Call     *InputGroupCall
-	Duration int32 `tl:"flag:0"`
+	Call     *InputGroupCall // Group call
+	Duration int32           `tl:"flag:0"` // Group call duration
 }
 
 func (*MessageActionGroupCall) CRC() uint32 {
@@ -5612,8 +5678,8 @@ func (*MessageActionGroupCall) ImplementsMessageAction() {}
 
 // A group call was scheduled
 type MessageActionGroupCallScheduled struct {
-	Call         *InputGroupCall
-	ScheduleDate int32
+	Call         *InputGroupCall // The group call
+	ScheduleDate int32           // When is this group call scheduled to start
 }
 
 func (*MessageActionGroupCallScheduled) CRC() uint32 {
@@ -5633,8 +5699,8 @@ func (*MessageActionHistoryClear) ImplementsMessageAction() {}
 
 // A set of users was invited to the group call
 type MessageActionInviteToGroupCall struct {
-	Call  *InputGroupCall
-	Users []int64
+	Call  *InputGroupCall // The group call
+	Users []int64         // The invited users
 }
 
 func (*MessageActionInviteToGroupCall) CRC() uint32 {
@@ -5654,12 +5720,13 @@ func (*MessageActionLoginUnknownLocation) CRC() uint32 {
 
 func (*MessageActionLoginUnknownLocation) ImplementsMessageAction() {}
 
+// Describes a payment refund (service message received by both users and bots).
 type MessageActionPaymentRefunded struct {
-	Peer        Peer
-	Currency    string
-	TotalAmount int64
-	Payload     []byte `tl:"flag:0"`
-	Charge      *PaymentCharge
+	Peer        Peer           // Identifier of the peer that returned the funds.
+	Currency    string         // Currency, 'XTR' for Telegram Stars.
+	TotalAmount int64          // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Payload     []byte         `tl:"flag:0"` // Bot specified invoice payload (only received by bots).
+	Charge      *PaymentCharge // Provider payment identifier
 }
 
 func (*MessageActionPaymentRefunded) CRC() uint32 {
@@ -5674,11 +5741,11 @@ func (*MessageActionPaymentRefunded) ImplementsMessageAction() {}
 
 // A payment was sent
 type MessageActionPaymentSent struct {
-	RecurringInit bool `tl:"flag:2,encoded_in_bitflags"`
-	RecurringUsed bool `tl:"flag:3,encoded_in_bitflags"`
-	Currency      string
-	TotalAmount   int64
-	InvoiceSlug   string `tl:"flag:0"`
+	RecurringInit bool   `tl:"flag:2,encoded_in_bitflags"` // Whether this is the first payment of a recurring payment we just subscribed to
+	RecurringUsed bool   `tl:"flag:3,encoded_in_bitflags"` // Whether this payment is part of a recurring payment
+	Currency      string // Three-letter ISO 4217 currency code, or 'XTR' for Telegram Stars.
+	TotalAmount   int64  // Price of the product in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	InvoiceSlug   string `tl:"flag:0"` // An invoice slug taken from an invoice deep link or from the <a href="/api/config#premium-invoice-slug">'premium_invoice_slug' app config parameter </a>
 }
 
 func (*MessageActionPaymentSent) CRC() uint32 {
@@ -5693,14 +5760,14 @@ func (*MessageActionPaymentSent) ImplementsMessageAction() {}
 
 // A user just sent a payment to me (a bot)
 type MessageActionPaymentSentMe struct {
-	RecurringInit    bool `tl:"flag:2,encoded_in_bitflags"`
-	RecurringUsed    bool `tl:"flag:3,encoded_in_bitflags"`
-	Currency         string
-	TotalAmount      int64
-	Payload          []byte
-	Info             *PaymentRequestedInfo `tl:"flag:0"`
-	ShippingOptionID string                `tl:"flag:1"`
-	Charge           *PaymentCharge
+	RecurringInit    bool                  `tl:"flag:2,encoded_in_bitflags"` // Whether this is the first payment of a recurring payment we just subscribed to
+	RecurringUsed    bool                  `tl:"flag:3,encoded_in_bitflags"` // Whether this payment is part of a recurring payment
+	Currency         string                // Three-letter ISO 4217 currency code, or 'XTR' for Telegram Stars.
+	TotalAmount      int64                 // Price of the product in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Payload          []byte                // Bot specified invoice payload
+	Info             *PaymentRequestedInfo `tl:"flag:0"` // Order info provided by the user
+	ShippingOptionID string                `tl:"flag:1"` // Identifier of the shipping option chosen by the user
+	Charge           *PaymentCharge        // Provider payment identifier
 }
 
 func (*MessageActionPaymentSentMe) CRC() uint32 {
@@ -5715,10 +5782,10 @@ func (*MessageActionPaymentSentMe) ImplementsMessageAction() {}
 
 // A phone call
 type MessageActionPhoneCall struct {
-	Video    bool `tl:"flag:2,encoded_in_bitflags"`
-	CallID   int64
-	Reason   PhoneCallDiscardReason `tl:"flag:0"`
-	Duration int32                  `tl:"flag:1"`
+	Video    bool                   `tl:"flag:2,encoded_in_bitflags"` // Is this a video call?
+	CallID   int64                  // Call ID
+	Reason   PhoneCallDiscardReason `tl:"flag:0"` // If the call has ended, the reason why it ended
+	Duration int32                  `tl:"flag:1"` // Duration of the call in seconds
 }
 
 func (*MessageActionPhoneCall) CRC() uint32 {
@@ -5766,10 +5833,10 @@ func (*MessageActionPrizeStars) FlagIndex() int {
 
 func (*MessageActionPrizeStars) ImplementsMessageAction() {}
 
-// Contains info about one or more peers that the user shared with the bot after clicking on a [keyboardButtonRequestPeer](https://core.telegram.org/constructor/keyboardButtonRequestPeer) button.
+// Contains info about one or more peers that the we (the user) shared with the bot after clicking on a [keyboardButtonRequestPeer](https://core.telegram.org/constructor/keyboardButtonRequestPeer) button (service message sent by the user).
 type MessageActionRequestedPeer struct {
-	ButtonID int32
-	Peers    []Peer
+	ButtonID int32  // 'button_id' contained in the keyboardButtonRequestPeer
+	Peers    []Peer // The shared peers
 }
 
 func (*MessageActionRequestedPeer) CRC() uint32 {
@@ -5778,9 +5845,10 @@ func (*MessageActionRequestedPeer) CRC() uint32 {
 
 func (*MessageActionRequestedPeer) ImplementsMessageAction() {}
 
+// Contains info about one or more peers that the a user shared with the me (the bot) after clicking on a [keyboardButtonRequestPeer](https://core.telegram.org/constructor/keyboardButtonRequestPeer) button (service message received by the bot).
 type MessageActionRequestedPeerSentMe struct {
-	ButtonID int32
-	Peers    []RequestedPeer
+	ButtonID int32           // 'button_id' contained in the keyboardButtonRequestPeer
+	Peers    []RequestedPeer // Info about the shared peers.
 }
 
 func (*MessageActionRequestedPeerSentMe) CRC() uint32 {
@@ -5800,7 +5868,7 @@ func (*MessageActionScreenshotTaken) ImplementsMessageAction() {}
 
 // Request for secure [telegram passport](https://core.telegram.org/passport) values was sent
 type MessageActionSecureValuesSent struct {
-	Types []SecureValueType
+	Types []SecureValueType // Secure value types
 }
 
 func (*MessageActionSecureValuesSent) CRC() uint32 {
@@ -5811,8 +5879,8 @@ func (*MessageActionSecureValuesSent) ImplementsMessageAction() {}
 
 // Secure [telegram passport](https://core.telegram.org/passport) values were received
 type MessageActionSecureValuesSentMe struct {
-	Values      []*SecureValue
-	Credentials *SecureCredentialsEncrypted
+	Values      []*SecureValue              // Vector with information about documents and other Telegram Passport elements that were shared with the bot
+	Credentials *SecureCredentialsEncrypted // Encrypted credentials required to decrypt the data
 }
 
 func (*MessageActionSecureValuesSentMe) CRC() uint32 {
@@ -5823,7 +5891,7 @@ func (*MessageActionSecureValuesSentMe) ImplementsMessageAction() {}
 
 // The chat theme was changed
 type MessageActionSetChatTheme struct {
-	Emoticon string
+	Emoticon string // The emoji that identifies a chat theme
 }
 
 func (*MessageActionSetChatTheme) CRC() uint32 {
@@ -5834,9 +5902,12 @@ func (*MessageActionSetChatTheme) ImplementsMessageAction() {}
 
 // The [wallpaper »](https://core.telegram.org/api/wallpapers) of the current chat was changed.
 type MessageActionSetChatWallPaper struct {
-	Same      bool `tl:"flag:0,encoded_in_bitflags"`
-	ForBoth   bool `tl:"flag:1,encoded_in_bitflags"`
-	Wallpaper WallPaper
+	Same    bool `tl:"flag:0,encoded_in_bitflags"` // If set, indicates the user applied a wallpaper  previously sent by the other user in a messageActionSetChatWallPaper message.
+	ForBoth bool `tl:"flag:1,encoded_in_bitflags"` /*
+	If set, indicates the wallpaper was forcefully applied for both sides, without explicit confirmation from the other side.
+	If the message is incoming, and we did not like the new wallpaper the other user has chosen for us, we can re-set our previous wallpaper just on our side, by invoking messages.setChatWallPaper, providing only the 'revert' flag (and obviously the 'peer' parameter).
+	*/
+	Wallpaper WallPaper // New wallpaper
 }
 
 func (*MessageActionSetChatWallPaper) CRC() uint32 {
@@ -5851,8 +5922,8 @@ func (*MessageActionSetChatWallPaper) ImplementsMessageAction() {}
 
 // The Time-To-Live of messages in this chat was changed.
 type MessageActionSetMessagesTtl struct {
-	Period          int32
-	AutoSettingFrom int64 `tl:"flag:0"`
+	Period          int32 // New Time-To-Live of all messages sent in this chat; if 0, autodeletion was disabled.
+	AutoSettingFrom int64 `tl:"flag:0"` // If set, the chat TTL setting was set not due to a manual change by one of participants, but automatically because one of the participants has the default TTL settings enabled. For example, when a user writes to us for the first time and we have set a default messages TTL of 1 week, this service message (with 'auto_setting_from=our_userid') will be emitted before our first message.
 }
 
 func (*MessageActionSetMessagesTtl) CRC() uint32 {
@@ -5867,7 +5938,7 @@ func (*MessageActionSetMessagesTtl) ImplementsMessageAction() {}
 
 // The user applied a [wallpaper »](https://core.telegram.org/api/wallpapers) previously sent by the other user in a [messageActionSetChatWallPaper](https://core.telegram.org/constructor/messageActionSetChatWallPaper) message.
 type MessageActionSetSameChatWallPaper struct {
-	Wallpaper WallPaper
+	Wallpaper WallPaper // The wallpaper
 }
 
 func (*MessageActionSetSameChatWallPaper) CRC() uint32 {
@@ -5878,7 +5949,7 @@ func (*MessageActionSetSameChatWallPaper) ImplementsMessageAction() {}
 
 // A new profile picture was suggested using [photos.uploadContactProfilePhoto](https://core.telegram.org/method/photos.uploadContactProfilePhoto).
 type MessageActionSuggestProfilePhoto struct {
-	Photo Photo
+	Photo Photo // The photo that the user suggested we set as profile picture.
 }
 
 func (*MessageActionSuggestProfilePhoto) CRC() uint32 {
@@ -5899,9 +5970,9 @@ func (*MessageActionTtlChange) ImplementsMessageAction() {}
 
 // A [forum topic](https://core.telegram.org/api/forum#forum-topics) was created.
 type MessageActionTopicCreate struct {
-	Title       string
-	IconColor   int32
-	IconEmojiID int64 `tl:"flag:0"`
+	Title       string // Topic name.
+	IconColor   int32  // If no custom emoji icon is specified, specifies the color of the fallback topic icon (RGB), one of '0x6FB9F0', '0xFFD67E', '0xCB86DB', '0x8EEE98', '0xFF93B2', or '0xFB6F5F'.
+	IconEmojiID int64  `tl:"flag:0"` // ID of the custom emoji used as topic icon.
 }
 
 func (*MessageActionTopicCreate) CRC() uint32 {
@@ -5916,10 +5987,10 @@ func (*MessageActionTopicCreate) ImplementsMessageAction() {}
 
 // [Forum topic](https://core.telegram.org/api/forum#forum-topics) information was edited.
 type MessageActionTopicEdit struct {
-	Title       string `tl:"flag:0"`
-	IconEmojiID int64  `tl:"flag:1"`
-	Closed      bool   `tl:"flag:2"`
-	Hidden      bool   `tl:"flag:3"`
+	Title       string `tl:"flag:0"` // New topic title.
+	IconEmojiID int64  `tl:"flag:1"` // ID of the new custom emoji used as topic icon, or if it was removed.
+	Closed      bool   `tl:"flag:2"` // Whether the topic was opened or closed.
+	Hidden      bool   `tl:"flag:3"` // Whether the topic was hidden or unhidden (only valid for the "General" topic, 'id=1').
 }
 
 func (*MessageActionTopicEdit) CRC() uint32 {
@@ -5952,7 +6023,7 @@ func (*MessageActionUserUpdatedPhoto) ImplementsMessageAction() {}
 
 // Data from an opened [reply keyboard bot mini app](https://core.telegram.org/api/bots/webapps) was relayed to the bot that owns it (user side service message).
 type MessageActionWebViewDataSent struct {
-	Text string
+	Text string // Text of the keyboardButtonSimpleWebView that was pressed to open the web app.
 }
 
 func (*MessageActionWebViewDataSent) CRC() uint32 {
@@ -5963,8 +6034,8 @@ func (*MessageActionWebViewDataSent) ImplementsMessageAction() {}
 
 // Data from an opened [reply keyboard bot mini app](https://core.telegram.org/api/bots/webapps) was relayed to the bot that owns it (bot side service message).
 type MessageActionWebViewDataSentMe struct {
-	Text string
-	Data string
+	Text string // Text of the keyboardButtonSimpleWebView that was pressed to open the web app.
+	Data string // Relayed data.
 }
 
 func (*MessageActionWebViewDataSentMe) CRC() uint32 {
@@ -5980,9 +6051,9 @@ type MessageEntity interface {
 
 // Message entity that can be used to create a user [user mention](https://core.telegram.org/api/mentions): received mentions use the [messageEntityMentionName](https://core.telegram.org/constructor/messageEntityMentionName) constructor, instead.
 type InputMessageEntityMentionName struct {
-	Offset int32
-	Length int32
-	UserID InputUser
+	Offset int32     // Offset of message entity within message (in UTF-16 code units)
+	Length int32     // Length of message entity within message (in UTF-16 code units)
+	UserID InputUser // Identifier of the user that was mentioned
 }
 
 func (*InputMessageEntityMentionName) CRC() uint32 {
@@ -5993,8 +6064,8 @@ func (*InputMessageEntityMentionName) ImplementsMessageEntity() {}
 
 // Indicates a credit card number
 type MessageEntityBankCard struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityBankCard) CRC() uint32 {
@@ -6005,9 +6076,9 @@ func (*MessageEntityBankCard) ImplementsMessageEntity() {}
 
 // Message entity representing a block quote.
 type MessageEntityBlockquote struct {
-	Collapsed bool `tl:"flag:0,encoded_in_bitflags"`
-	Offset    int32
-	Length    int32
+	Collapsed bool  `tl:"flag:0,encoded_in_bitflags"` // Whether the quote is collapsed by default.
+	Offset    int32 // Offset of message entity within message (in UTF-16 code units)
+	Length    int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityBlockquote) CRC() uint32 {
@@ -6022,8 +6093,8 @@ func (*MessageEntityBlockquote) ImplementsMessageEntity() {}
 
 // Message entity representing <strong>bold text</strong>.
 type MessageEntityBold struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityBold) CRC() uint32 {
@@ -6034,8 +6105,8 @@ func (*MessageEntityBold) ImplementsMessageEntity() {}
 
 // Message entity representing a bot /command
 type MessageEntityBotCommand struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityBotCommand) CRC() uint32 {
@@ -6046,8 +6117,8 @@ func (*MessageEntityBotCommand) ImplementsMessageEntity() {}
 
 // Message entity representing a <strong>$cashtag</strong>.
 type MessageEntityCashtag struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityCashtag) CRC() uint32 {
@@ -6058,8 +6129,8 @@ func (*MessageEntityCashtag) ImplementsMessageEntity() {}
 
 // Message entity representing a `codeblock`.
 type MessageEntityCode struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityCode) CRC() uint32 {
@@ -6073,9 +6144,9 @@ Represents a custom emoji.<br>
 Note that this entity must wrap exactly one regular emoji (the one contained in [documentAttributeCustomEmoji](https://core.telegram.org/constructor/documentAttributeCustomEmoji).`alt`) in the related text, otherwise the server will ignore it.
 */
 type MessageEntityCustomEmoji struct {
-	Offset     int32
-	Length     int32
-	DocumentID int64
+	Offset     int32 // Offset of message entity within message (in UTF-16 code units)
+	Length     int32 // Length of message entity within message (in UTF-16 code units)
+	DocumentID int64 // Document ID of the custom emoji, use messages.getCustomEmojiDocuments to fetch the emoji animation and the actual emoji it represents.
 }
 
 func (*MessageEntityCustomEmoji) CRC() uint32 {
@@ -6086,8 +6157,8 @@ func (*MessageEntityCustomEmoji) ImplementsMessageEntity() {}
 
 // Message entity representing an [email@example.com](https://core.telegram.orgmailto:email@example.com).
 type MessageEntityEmail struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityEmail) CRC() uint32 {
@@ -6098,8 +6169,8 @@ func (*MessageEntityEmail) ImplementsMessageEntity() {}
 
 // <strong>#hashtag</strong> message entity
 type MessageEntityHashtag struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityHashtag) CRC() uint32 {
@@ -6110,8 +6181,8 @@ func (*MessageEntityHashtag) ImplementsMessageEntity() {}
 
 // Message entity representing <em>italic text</em>.
 type MessageEntityItalic struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityItalic) CRC() uint32 {
@@ -6122,8 +6193,8 @@ func (*MessageEntityItalic) ImplementsMessageEntity() {}
 
 // Message entity [mentioning](https://core.telegram.org/api/mentions) a user by `@username`; [messageEntityMentionName](https://core.telegram.org/constructor/messageEntityMentionName) can also be used to mention users by their ID.
 type MessageEntityMention struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityMention) CRC() uint32 {
@@ -6134,9 +6205,9 @@ func (*MessageEntityMention) ImplementsMessageEntity() {}
 
 // Message entity representing a [user mention](https://core.telegram.org/api/mentions): for <em>creating</em> a mention use [inputMessageEntityMentionName](https://core.telegram.org/constructor/inputMessageEntityMentionName).
 type MessageEntityMentionName struct {
-	Offset int32
-	Length int32
-	UserID int64
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
+	UserID int64 // Identifier of the user that was mentioned
 }
 
 func (*MessageEntityMentionName) CRC() uint32 {
@@ -6147,8 +6218,8 @@ func (*MessageEntityMentionName) ImplementsMessageEntity() {}
 
 // Message entity representing a phone number.
 type MessageEntityPhone struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityPhone) CRC() uint32 {
@@ -6159,9 +6230,9 @@ func (*MessageEntityPhone) ImplementsMessageEntity() {}
 
 // Message entity representing a preformatted `codeblock`, allowing the user to specify a programming language for the codeblock.
 type MessageEntityPre struct {
-	Offset   int32
-	Length   int32
-	Language string
+	Offset   int32  // Offset of message entity within message (in UTF-16 code units)
+	Length   int32  // Length of message entity within message (in UTF-16 code units)
+	Language string // Programming language of the code
 }
 
 func (*MessageEntityPre) CRC() uint32 {
@@ -6172,8 +6243,8 @@ func (*MessageEntityPre) ImplementsMessageEntity() {}
 
 // Message entity representing a spoiler
 type MessageEntitySpoiler struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntitySpoiler) CRC() uint32 {
@@ -6184,8 +6255,8 @@ func (*MessageEntitySpoiler) ImplementsMessageEntity() {}
 
 // Message entity representing <del>strikethrough</del> text.
 type MessageEntityStrike struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityStrike) CRC() uint32 {
@@ -6196,9 +6267,9 @@ func (*MessageEntityStrike) ImplementsMessageEntity() {}
 
 // Message entity representing a [text url](https://core.telegram.orghttps://google.com): for in-text urls like [https://google.com](https://core.telegram.orghttps://google.com) use [messageEntityUrl](https://core.telegram.org/constructor/messageEntityUrl).
 type MessageEntityTextURL struct {
-	Offset int32
-	Length int32
-	URL    string
+	Offset int32  // Offset of message entity within message (in UTF-16 code units)
+	Length int32  // Length of message entity within message (in UTF-16 code units)
+	URL    string // The actual URL
 }
 
 func (*MessageEntityTextURL) CRC() uint32 {
@@ -6209,8 +6280,8 @@ func (*MessageEntityTextURL) ImplementsMessageEntity() {}
 
 // Message entity representing underlined text.
 type MessageEntityUnderline struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityUnderline) CRC() uint32 {
@@ -6221,8 +6292,8 @@ func (*MessageEntityUnderline) ImplementsMessageEntity() {}
 
 // Unknown message entity
 type MessageEntityUnknown struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityUnknown) CRC() uint32 {
@@ -6233,8 +6304,8 @@ func (*MessageEntityUnknown) ImplementsMessageEntity() {}
 
 // Message entity representing an in-text url: [https://google.com](https://core.telegram.orghttps://google.com); for [text urls](https://core.telegram.orghttps://google.com), use [messageEntityTextUrl](https://core.telegram.org/constructor/messageEntityTextUrl).
 type MessageEntityURL struct {
-	Offset int32
-	Length int32
+	Offset int32 // Offset of message entity within message (in UTF-16 code units)
+	Length int32 // Length of message entity within message (in UTF-16 code units)
 }
 
 func (*MessageEntityURL) CRC() uint32 {
@@ -6248,9 +6319,9 @@ type MessageExtendedMedia interface {
 	ImplementsMessageExtendedMedia()
 }
 
-// Extended media
+// Already purchased paid media, [see here »](https://core.telegram.org/api/paid-media) for more info.
 type MessageExtendedMediaObj struct {
-	Media MessageMedia
+	Media MessageMedia // The media we purchased.
 }
 
 func (*MessageExtendedMediaObj) CRC() uint32 {
@@ -6259,12 +6330,12 @@ func (*MessageExtendedMediaObj) CRC() uint32 {
 
 func (*MessageExtendedMediaObj) ImplementsMessageExtendedMedia() {}
 
-// Extended media preview
+// Paid media preview for not yet purchased paid media, [see here »](https://core.telegram.org/api/paid-media) for more info.
 type MessageExtendedMediaPreview struct {
-	W             int32     `tl:"flag:0"`
-	H             int32     `tl:"flag:0"`
-	Thumb         PhotoSize `tl:"flag:1"`
-	VideoDuration int32     `tl:"flag:2"`
+	W             int32     `tl:"flag:0"` // Width
+	H             int32     `tl:"flag:0"` // Height
+	Thumb         PhotoSize `tl:"flag:1"` // Extremely low resolution thumbnail.
+	VideoDuration int32     `tl:"flag:2"` // Video duration for videos.
 }
 
 func (*MessageExtendedMediaPreview) CRC() uint32 {
@@ -6284,11 +6355,11 @@ type MessageMedia interface {
 
 // Attached contact.
 type MessageMediaContact struct {
-	PhoneNumber string
-	FirstName   string
-	LastName    string
-	Vcard       string
-	UserID      int64
+	PhoneNumber string // Phone number
+	FirstName   string // Contact's first name
+	LastName    string // Contact's last name
+	Vcard       string // VCARD of contact
+	UserID      int64  // User identifier or '0', if the user with the given phone number is not registered
 }
 
 func (*MessageMediaContact) CRC() uint32 {
@@ -6299,8 +6370,8 @@ func (*MessageMediaContact) ImplementsMessageMedia() {}
 
 // [Dice-based animated sticker](https://core.telegram.org/api/dice)
 type MessageMediaDice struct {
-	Value    int32
-	Emoticon string
+	Value    int32  // Dice value
+	Emoticon string // The emoji, for now <img class="emoji" src="//telegram.org/img/emoji/40/F09F8F80.png" width="20" height="20" alt="🏀" />, <img class="emoji" src="//telegram.org/img/emoji/40/F09F8EB2.png" width="20" height="20" alt="🎲" /> and <img class="emoji" src="//telegram.org/img/emoji/40/F09F8EAF.png" width="20" height="20" alt="🎯" /> are supported
 }
 
 func (*MessageMediaDice) CRC() uint32 {
@@ -6311,14 +6382,14 @@ func (*MessageMediaDice) ImplementsMessageMedia() {}
 
 // Document (video, audio, voice, sticker, any media type except photo)
 type MessageMediaDocument struct {
-	Nopremium   bool     `tl:"flag:3,encoded_in_bitflags"`
-	Spoiler     bool     `tl:"flag:4,encoded_in_bitflags"`
-	Video       bool     `tl:"flag:6,encoded_in_bitflags"`
-	Round       bool     `tl:"flag:7,encoded_in_bitflags"`
-	Voice       bool     `tl:"flag:8,encoded_in_bitflags"`
-	Document    Document `tl:"flag:0"`
-	AltDocument Document `tl:"flag:5"`
-	TtlSeconds  int32    `tl:"flag:2"`
+	Nopremium   bool     `tl:"flag:3,encoded_in_bitflags"` // Whether this is a normal sticker, if not set this is a premium sticker and a premium sticker animation must be played.
+	Spoiler     bool     `tl:"flag:4,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
+	Video       bool     `tl:"flag:6,encoded_in_bitflags"` // Whether this is a video.
+	Round       bool     `tl:"flag:7,encoded_in_bitflags"` // Whether this is a round video.
+	Voice       bool     `tl:"flag:8,encoded_in_bitflags"` // Whether this is a voice message.
+	Document    Document `tl:"flag:0"`                     // Attached document
+	AltDocument Document `tl:"flag:5"`                     // Currently only used for story videos, may contain an alternative version of the story video, explicitly encoded using H.264 (in MPEG4 transport) at a lower resolution than 'document'.
+	TtlSeconds  int32    `tl:"flag:2"`                     // Time to live of self-destructing document
 }
 
 func (*MessageMediaDocument) CRC() uint32 {
@@ -6342,7 +6413,7 @@ func (*MessageMediaEmpty) ImplementsMessageMedia() {}
 
 // Telegram game
 type MessageMediaGame struct {
-	Game *Game
+	Game *Game // Game
 }
 
 func (*MessageMediaGame) CRC() uint32 {
@@ -6353,7 +6424,7 @@ func (*MessageMediaGame) ImplementsMessageMedia() {}
 
 // Attached map.
 type MessageMediaGeo struct {
-	Geo GeoPoint
+	Geo GeoPoint // GeoPoint
 }
 
 func (*MessageMediaGeo) CRC() uint32 {
@@ -6364,10 +6435,10 @@ func (*MessageMediaGeo) ImplementsMessageMedia() {}
 
 // Indicates a [live geolocation](https://core.telegram.org/api/live-location)
 type MessageMediaGeoLive struct {
-	Geo                         GeoPoint
-	Heading                     int32 `tl:"flag:0"`
-	Period                      int32
-	ProximityNotificationRadius int32 `tl:"flag:1"`
+	Geo                         GeoPoint // Geolocation
+	Heading                     int32    `tl:"flag:0"` // For live locations, a direction in which the location moves, in degrees; 1-360
+	Period                      int32    // Validity period of provided geolocation
+	ProximityNotificationRadius int32    `tl:"flag:1"` // For live locations, a maximum distance to another chat member for proximity alerts, in meters (0-100000).
 }
 
 func (*MessageMediaGeoLive) CRC() uint32 {
@@ -6431,16 +6502,16 @@ func (*MessageMediaGiveawayResults) ImplementsMessageMedia() {}
 
 // Invoice
 type MessageMediaInvoice struct {
-	ShippingAddressRequested bool `tl:"flag:1,encoded_in_bitflags"`
-	Test                     bool `tl:"flag:3,encoded_in_bitflags"`
-	Title                    string
-	Description              string
-	Photo                    WebDocument `tl:"flag:0"`
-	ReceiptMsgID             int32       `tl:"flag:2"`
-	Currency                 string
-	TotalAmount              int64
-	StartParam               string
-	ExtendedMedia            MessageExtendedMedia `tl:"flag:4"`
+	ShippingAddressRequested bool                 `tl:"flag:1,encoded_in_bitflags"` // Whether the shipping address was requested
+	Test                     bool                 `tl:"flag:3,encoded_in_bitflags"` // Whether this is an example invoice
+	Title                    string               // Product name, 1-32 characters
+	Description              string               // Product description, 1-255 characters
+	Photo                    WebDocument          `tl:"flag:0"` // URL of the product photo for the invoice. Can be a photo of the goods or a marketing image for a service. People like it better when they see what they are paying for.
+	ReceiptMsgID             int32                `tl:"flag:2"` // Message ID of receipt: if set, clients should change the text of the first keyboardButtonBuy button always attached to the message to a localized version of the word 'Receipt'
+	Currency                 string               // Three-letter ISO 4217 currency code, or 'XTR' for Telegram Stars.
+	TotalAmount              int64                // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	StartParam               string               // Unique bot deep-linking parameter that can be used to generate this invoice
+	ExtendedMedia            MessageExtendedMedia `tl:"flag:4"` // Deprecated
 }
 
 func (*MessageMediaInvoice) CRC() uint32 {
@@ -6453,9 +6524,10 @@ func (*MessageMediaInvoice) FlagIndex() int {
 
 func (*MessageMediaInvoice) ImplementsMessageMedia() {}
 
+// [Paid media, see here »](https://core.telegram.org/api/paid-media) for more info.
 type MessageMediaPaidMedia struct {
-	StarsAmount   int64
-	ExtendedMedia []MessageExtendedMedia
+	StarsAmount   int64                  // The price of the media in Telegram Stars.
+	ExtendedMedia []MessageExtendedMedia // Either the paid-for media, or super low resolution media previews if the media wasn't purchased yet,.
 }
 
 func (*MessageMediaPaidMedia) CRC() uint32 {
@@ -6466,9 +6538,9 @@ func (*MessageMediaPaidMedia) ImplementsMessageMedia() {}
 
 // Attached photo.
 type MessageMediaPhoto struct {
-	Spoiler    bool  `tl:"flag:3,encoded_in_bitflags"`
-	Photo      Photo `tl:"flag:0"`
-	TtlSeconds int32 `tl:"flag:2"`
+	Spoiler    bool  `tl:"flag:3,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
+	Photo      Photo `tl:"flag:0"`                     // Photo
+	TtlSeconds int32 `tl:"flag:2"`                     // Time to live in seconds of self-destructing photo
 }
 
 func (*MessageMediaPhoto) CRC() uint32 {
@@ -6483,8 +6555,8 @@ func (*MessageMediaPhoto) ImplementsMessageMedia() {}
 
 // Poll
 type MessageMediaPoll struct {
-	Poll    *Poll
-	Results *PollResults
+	Poll    *Poll        // The poll
+	Results *PollResults // The results of the poll
 }
 
 func (*MessageMediaPoll) CRC() uint32 {
@@ -6495,10 +6567,10 @@ func (*MessageMediaPoll) ImplementsMessageMedia() {}
 
 // Represents a forwarded [story](https://core.telegram.org/api/stories) or a story mention.
 type MessageMediaStory struct {
-	ViaMention bool `tl:"flag:1,encoded_in_bitflags"`
-	Peer       Peer
-	ID         int32
-	Story      StoryItem `tl:"flag:0"`
+	ViaMention bool      `tl:"flag:1,encoded_in_bitflags"` // If set, indicates that this someone has mentioned us in this story (i.e. by tagging us in the description) or vice versa, we have mentioned the other peer (if the message is outgoing).
+	Peer       Peer      // Peer that posted the story.
+	ID         int32     // Story ID
+	Story      StoryItem `tl:"flag:0"` // The story itself, if absent fetch it using stories.getStoriesByID and the 'peer'/'id' parameters specified above.
 }
 
 func (*MessageMediaStory) CRC() uint32 {
@@ -6522,12 +6594,12 @@ func (*MessageMediaUnsupported) ImplementsMessageMedia() {}
 
 // Venue
 type MessageMediaVenue struct {
-	Geo       GeoPoint
-	Title     string
-	Address   string
-	Provider  string
-	VenueID   string
-	VenueType string
+	Geo       GeoPoint // Geolocation of venue
+	Title     string   // Venue name
+	Address   string   // Address
+	Provider  string   // Venue provider: currently only "foursquare" and "gplaces" (Google Places) need to be supported
+	VenueID   string   // Venue ID in the provider's database
+	VenueType string   // Venue type in the provider's database
 }
 
 func (*MessageMediaVenue) CRC() uint32 {
@@ -6538,11 +6610,11 @@ func (*MessageMediaVenue) ImplementsMessageMedia() {}
 
 // Preview of webpage
 type MessageMediaWebPage struct {
-	ForceLargeMedia bool `tl:"flag:0,encoded_in_bitflags"`
-	ForceSmallMedia bool `tl:"flag:1,encoded_in_bitflags"`
-	Manual          bool `tl:"flag:3,encoded_in_bitflags"`
-	Safe            bool `tl:"flag:4,encoded_in_bitflags"`
-	Webpage         WebPage
+	ForceLargeMedia bool    `tl:"flag:0,encoded_in_bitflags"` // If set, specifies that a large media preview should be used.
+	ForceSmallMedia bool    `tl:"flag:1,encoded_in_bitflags"` // If set, specifies that a small media preview should be used.
+	Manual          bool    `tl:"flag:3,encoded_in_bitflags"` // If set, indicates that the URL used for the webpage preview was specified manually using inputMediaWebPage, and may not be related to any of the URLs specified in the message.
+	Safe            bool    `tl:"flag:4,encoded_in_bitflags"` // If set, the webpage can be opened directly without user confirmation; otherwise, user confirmation is required, showing the exact URL that will be opened.
+	Webpage         WebPage // Webpage preview
 }
 
 func (*MessageMediaWebPage) CRC() uint32 {
@@ -6562,9 +6634,9 @@ type MessagePeerVote interface {
 
 // How a peer voted in a poll
 type MessagePeerVoteObj struct {
-	Peer   Peer
-	Option []byte
-	Date   int32
+	Peer   Peer   // Peer ID
+	Option []byte // The option chosen by the peer
+	Date   int32  // When did the peer cast the vote
 }
 
 func (*MessagePeerVoteObj) CRC() uint32 {
@@ -6575,8 +6647,8 @@ func (*MessagePeerVoteObj) ImplementsMessagePeerVote() {}
 
 // How a peer voted in a poll (reduced constructor, returned if an `option` was provided to [messages.getPollVotes](https://core.telegram.org/method/messages.getPollVotes))
 type MessagePeerVoteInputOption struct {
-	Peer Peer
-	Date int32
+	Peer Peer  // The peer that voted for the queried 'option'
+	Date int32 // When did the peer cast the vote
 }
 
 func (*MessagePeerVoteInputOption) CRC() uint32 {
@@ -6587,9 +6659,9 @@ func (*MessagePeerVoteInputOption) ImplementsMessagePeerVote() {}
 
 // How a peer voted in a multiple-choice poll
 type MessagePeerVoteMultiple struct {
-	Peer    Peer
-	Options [][]byte
-	Date    int32
+	Peer    Peer     // Peer ID
+	Options [][]byte // Options chosen by the peer
+	Date    int32    // When did the peer cast their votes
 }
 
 func (*MessagePeerVoteMultiple) CRC() uint32 {
@@ -6605,17 +6677,17 @@ type MessageReplyHeader interface {
 
 // Message replies and [thread](https://core.telegram.org/api/threads) information
 type MessageReplyHeaderObj struct {
-	ReplyToScheduled bool              `tl:"flag:2,encoded_in_bitflags"`
-	ForumTopic       bool              `tl:"flag:3,encoded_in_bitflags"`
-	Quote            bool              `tl:"flag:9,encoded_in_bitflags"`
-	ReplyToMsgID     int32             `tl:"flag:4"`
-	ReplyToPeerID    Peer              `tl:"flag:0"`
-	ReplyFrom        *MessageFwdHeader `tl:"flag:5"`
-	ReplyMedia       MessageMedia      `tl:"flag:8"`
-	ReplyToTopID     int32             `tl:"flag:1"`
-	QuoteText        string            `tl:"flag:6"`
-	QuoteEntities    []MessageEntity   `tl:"flag:7"`
-	QuoteOffset      int32             `tl:"flag:10"`
+	ReplyToScheduled bool              `tl:"flag:2,encoded_in_bitflags"` // This is a reply to a scheduled message.
+	ForumTopic       bool              `tl:"flag:3,encoded_in_bitflags"` // Whether this message was sent in a forum topic (except for the General topic).
+	Quote            bool              `tl:"flag:9,encoded_in_bitflags"` // Whether this message is quoting a part of another message.
+	ReplyToMsgID     int32             `tl:"flag:4"`                     // ID of message to which this message is replying
+	ReplyToPeerID    Peer              `tl:"flag:0"`                     // For replies sent in channel discussion threads of which the current user is not a member, the discussion group ID
+	ReplyFrom        *MessageFwdHeader `tl:"flag:5"`                     // When replying to a message sent by a certain peer to another chat, contains info about the peer that originally sent the message to that other chat.
+	ReplyMedia       MessageMedia      `tl:"flag:8"`                     // When replying to a media sent by a certain peer to another chat, contains the media of the replied-to message.
+	ReplyToTopID     int32             `tl:"flag:1"`                     // ID of the message that started this message thread
+	QuoteText        string            `tl:"flag:6"`                     // Used to quote-reply to only a certain section (specified here) of the original message.
+	QuoteEntities    []MessageEntity   `tl:"flag:7"`                     // Message entities for styled text from the 'quote_text' field.
+	QuoteOffset      int32             `tl:"flag:10"`                    // Offset of the message 'quote_text' within the original message (in UTF-16 code units).
 }
 
 func (*MessageReplyHeaderObj) CRC() uint32 {
@@ -6630,8 +6702,8 @@ func (*MessageReplyHeaderObj) ImplementsMessageReplyHeader() {}
 
 // Represents a reply to a [story](https://core.telegram.org/api/stories)
 type MessageReplyStoryHeader struct {
-	Peer    Peer
-	StoryID int32
+	Peer    Peer  // Sender of the story.
+	StoryID int32 // Story ID
 }
 
 func (*MessageReplyStoryHeader) CRC() uint32 {
@@ -6719,7 +6791,7 @@ func (*InputMessagesFilterMyMentions) ImplementsMessagesFilter() {}
 
 // Return only phone calls
 type InputMessagesFilterPhoneCalls struct {
-	Missed bool `tl:"flag:0,encoded_in_bitflags"`
+	Missed bool `tl:"flag:0,encoded_in_bitflags"` // Return only missed phone calls
 }
 
 func (*InputMessagesFilterPhoneCalls) CRC() uint32 {
@@ -6828,8 +6900,8 @@ func (*NotificationSoundDefault) ImplementsNotificationSound() {}
 
 // Indicates a specific local notification sound should be used
 type NotificationSoundLocal struct {
-	Title string
-	Data  string
+	Title string // Notification sound title
+	Data  string // Notification sound identifier (arbitrary data used by the client to identify a specific local notification sound)
 }
 
 func (*NotificationSoundLocal) CRC() uint32 {
@@ -6849,7 +6921,7 @@ func (*NotificationSoundNone) ImplementsNotificationSound() {}
 
 // A specific previously uploaded notification sound should be used
 type NotificationSoundRingtone struct {
-	ID int64
+	ID int64 // Document ID of notification sound uploaded using account.uploadRingtone
 }
 
 func (*NotificationSoundRingtone) CRC() uint32 {
@@ -6883,8 +6955,8 @@ func (*NotifyChats) ImplementsNotifyPeer() {}
 
 // Notifications generated by a [topic](https://core.telegram.org/api/forum#forum-topics) in a [forum](https://core.telegram.org/api/forum).
 type NotifyForumTopic struct {
-	Peer     Peer
-	TopMsgID int32
+	Peer     Peer  // Forum ID
+	TopMsgID int32 // Topic ID
 }
 
 func (*NotifyForumTopic) CRC() uint32 {
@@ -6895,7 +6967,7 @@ func (*NotifyForumTopic) ImplementsNotifyPeer() {}
 
 // Notifications generated by a certain user or group.
 type NotifyPeerObj struct {
-	Peer Peer
+	Peer Peer // user or group
 }
 
 func (*NotifyPeerObj) CRC() uint32 {
@@ -6920,7 +6992,7 @@ type PageBlock interface {
 
 // Link to section within the page itself (like `&lt;a href="#target"&gt;anchor&lt;/a&gt;`)
 type PageBlockAnchor struct {
-	Name string
+	Name string // Name of target section
 }
 
 func (*PageBlockAnchor) CRC() uint32 {
@@ -6931,8 +7003,8 @@ func (*PageBlockAnchor) ImplementsPageBlock() {}
 
 // Audio
 type PageBlockAudio struct {
-	AudioID int64
-	Caption *PageCaption
+	AudioID int64        // Audio ID (to be fetched from the container page constructor
+	Caption *PageCaption // Audio caption
 }
 
 func (*PageBlockAudio) CRC() uint32 {
@@ -6943,8 +7015,8 @@ func (*PageBlockAudio) ImplementsPageBlock() {}
 
 // Author and date of creation of article
 type PageBlockAuthorDate struct {
-	Author        RichText
-	PublishedDate int32
+	Author        RichText // Author name
+	PublishedDate int32    // Date of publication
 }
 
 func (*PageBlockAuthorDate) CRC() uint32 {
@@ -6955,8 +7027,8 @@ func (*PageBlockAuthorDate) ImplementsPageBlock() {}
 
 // Quote (equivalent to the HTML `&lt;blockquote&gt;`)
 type PageBlockBlockquote struct {
-	Text    RichText
-	Caption RichText
+	Text    RichText // Quote contents
+	Caption RichText // Caption
 }
 
 func (*PageBlockBlockquote) CRC() uint32 {
@@ -6967,7 +7039,7 @@ func (*PageBlockBlockquote) ImplementsPageBlock() {}
 
 // Reference to a telegram channel
 type PageBlockChannel struct {
-	Channel Chat
+	Channel Chat // The channel/supergroup/chat
 }
 
 func (*PageBlockChannel) CRC() uint32 {
@@ -6978,8 +7050,8 @@ func (*PageBlockChannel) ImplementsPageBlock() {}
 
 // Collage of media
 type PageBlockCollage struct {
-	Items   []PageBlock
-	Caption *PageCaption
+	Items   []PageBlock  // Media elements
+	Caption *PageCaption // Caption
 }
 
 func (*PageBlockCollage) CRC() uint32 {
@@ -6990,7 +7062,7 @@ func (*PageBlockCollage) ImplementsPageBlock() {}
 
 // A page cover
 type PageBlockCover struct {
-	Cover PageBlock
+	Cover PageBlock // Cover
 }
 
 func (*PageBlockCover) CRC() uint32 {
@@ -7001,9 +7073,9 @@ func (*PageBlockCover) ImplementsPageBlock() {}
 
 // A collapsible details block
 type PageBlockDetails struct {
-	Open   bool `tl:"flag:0,encoded_in_bitflags"`
-	Blocks []PageBlock
-	Title  RichText
+	Open   bool        `tl:"flag:0,encoded_in_bitflags"` // Whether the block is open by default
+	Blocks []PageBlock // Block contents
+	Title  RichText    // Always visible heading for the block
 }
 
 func (*PageBlockDetails) CRC() uint32 {
@@ -7027,14 +7099,14 @@ func (*PageBlockDivider) ImplementsPageBlock() {}
 
 // An embedded webpage
 type PageBlockEmbed struct {
-	FullWidth      bool   `tl:"flag:0,encoded_in_bitflags"`
-	AllowScrolling bool   `tl:"flag:3,encoded_in_bitflags"`
-	URL            string `tl:"flag:1"`
-	Html           string `tl:"flag:2"`
-	PosterPhotoID  int64  `tl:"flag:4"`
-	W              int32  `tl:"flag:5"`
-	H              int32  `tl:"flag:5"`
-	Caption        *PageCaption
+	FullWidth      bool         `tl:"flag:0,encoded_in_bitflags"` // Whether the block should be full width
+	AllowScrolling bool         `tl:"flag:3,encoded_in_bitflags"` // Whether scrolling should be allowed
+	URL            string       `tl:"flag:1"`                     // Web page URL, if available
+	Html           string       `tl:"flag:2"`                     // HTML-markup of the embedded page
+	PosterPhotoID  int64        `tl:"flag:4"`                     // Poster photo, if available
+	W              int32        `tl:"flag:5"`                     // Block width, if known
+	H              int32        `tl:"flag:5"`                     // Block height, if known
+	Caption        *PageCaption // Caption
 }
 
 func (*PageBlockEmbed) CRC() uint32 {
@@ -7049,13 +7121,13 @@ func (*PageBlockEmbed) ImplementsPageBlock() {}
 
 // An embedded post
 type PageBlockEmbedPost struct {
-	URL           string
-	WebpageID     int64
-	AuthorPhotoID int64
-	Author        string
-	Date          int32
-	Blocks        []PageBlock
-	Caption       *PageCaption
+	URL           string       // Web page URL
+	WebpageID     int64        // ID of generated webpage preview
+	AuthorPhotoID int64        // ID of the author's photo
+	Author        string       // Author name
+	Date          int32        // Creation date
+	Blocks        []PageBlock  // Post contents
+	Caption       *PageCaption // Caption
 }
 
 func (*PageBlockEmbedPost) CRC() uint32 {
@@ -7066,7 +7138,7 @@ func (*PageBlockEmbedPost) ImplementsPageBlock() {}
 
 // Page footer
 type PageBlockFooter struct {
-	Text RichText
+	Text RichText // Contents
 }
 
 func (*PageBlockFooter) CRC() uint32 {
@@ -7077,7 +7149,7 @@ func (*PageBlockFooter) ImplementsPageBlock() {}
 
 // Page header
 type PageBlockHeader struct {
-	Text RichText
+	Text RichText // Contents
 }
 
 func (*PageBlockHeader) CRC() uint32 {
@@ -7088,7 +7160,7 @@ func (*PageBlockHeader) ImplementsPageBlock() {}
 
 // Kicker
 type PageBlockKicker struct {
-	Text RichText
+	Text RichText // Contents
 }
 
 func (*PageBlockKicker) CRC() uint32 {
@@ -7099,7 +7171,7 @@ func (*PageBlockKicker) ImplementsPageBlock() {}
 
 // Unordered list of IV blocks
 type PageBlockList struct {
-	Items []PageListItem
+	Items []PageListItem // List of blocks in an IV page
 }
 
 func (*PageBlockList) CRC() uint32 {
@@ -7110,11 +7182,11 @@ func (*PageBlockList) ImplementsPageBlock() {}
 
 // A map
 type PageBlockMap struct {
-	Geo     GeoPoint
-	Zoom    int32
-	W       int32
-	H       int32
-	Caption *PageCaption
+	Geo     GeoPoint     // Location of the map center
+	Zoom    int32        // Map zoom level; 13-20
+	W       int32        // Map width in pixels before applying scale; 16-102
+	H       int32        // Map height in pixels before applying scale; 16-1024
+	Caption *PageCaption // Caption
 }
 
 func (*PageBlockMap) CRC() uint32 {
@@ -7125,7 +7197,7 @@ func (*PageBlockMap) ImplementsPageBlock() {}
 
 // Ordered list of IV blocks
 type PageBlockOrderedList struct {
-	Items []PageListOrderedItem
+	Items []PageListOrderedItem // List items
 }
 
 func (*PageBlockOrderedList) CRC() uint32 {
@@ -7136,7 +7208,7 @@ func (*PageBlockOrderedList) ImplementsPageBlock() {}
 
 // A paragraph
 type PageBlockParagraph struct {
-	Text RichText
+	Text RichText // Text
 }
 
 func (*PageBlockParagraph) CRC() uint32 {
@@ -7147,10 +7219,10 @@ func (*PageBlockParagraph) ImplementsPageBlock() {}
 
 // A photo
 type PageBlockPhoto struct {
-	PhotoID   int64
-	Caption   *PageCaption
-	URL       string `tl:"flag:0"`
-	WebpageID int64  `tl:"flag:0"`
+	PhotoID   int64        // Photo ID
+	Caption   *PageCaption // Caption
+	URL       string       `tl:"flag:0"` // HTTP URL of page the photo leads to when clicked
+	WebpageID int64        `tl:"flag:0"` // ID of preview of the page the photo leads to when clicked
 }
 
 func (*PageBlockPhoto) CRC() uint32 {
@@ -7165,8 +7237,8 @@ func (*PageBlockPhoto) ImplementsPageBlock() {}
 
 // Preformatted (`&lt;pre&gt;` text)
 type PageBlockPreformatted struct {
-	Text     RichText
-	Language string
+	Text     RichText // Text
+	Language string   // Programming language of preformatted text
 }
 
 func (*PageBlockPreformatted) CRC() uint32 {
@@ -7177,8 +7249,8 @@ func (*PageBlockPreformatted) ImplementsPageBlock() {}
 
 // Pullquote
 type PageBlockPullquote struct {
-	Text    RichText
-	Caption RichText
+	Text    RichText // Text
+	Caption RichText // Caption
 }
 
 func (*PageBlockPullquote) CRC() uint32 {
@@ -7189,8 +7261,8 @@ func (*PageBlockPullquote) ImplementsPageBlock() {}
 
 // Related articles
 type PageBlockRelatedArticles struct {
-	Title    RichText
-	Articles []*PageRelatedArticle
+	Title    RichText              // Title
+	Articles []*PageRelatedArticle // Related articles
 }
 
 func (*PageBlockRelatedArticles) CRC() uint32 {
@@ -7201,8 +7273,8 @@ func (*PageBlockRelatedArticles) ImplementsPageBlock() {}
 
 // Slideshow
 type PageBlockSlideshow struct {
-	Items   []PageBlock
-	Caption *PageCaption
+	Items   []PageBlock  // Slideshow items
+	Caption *PageCaption // Caption
 }
 
 func (*PageBlockSlideshow) CRC() uint32 {
@@ -7213,7 +7285,7 @@ func (*PageBlockSlideshow) ImplementsPageBlock() {}
 
 // Subheader
 type PageBlockSubheader struct {
-	Text RichText
+	Text RichText // Subheader
 }
 
 func (*PageBlockSubheader) CRC() uint32 {
@@ -7224,7 +7296,7 @@ func (*PageBlockSubheader) ImplementsPageBlock() {}
 
 // Subtitle
 type PageBlockSubtitle struct {
-	Text RichText
+	Text RichText // Text
 }
 
 func (*PageBlockSubtitle) CRC() uint32 {
@@ -7235,10 +7307,10 @@ func (*PageBlockSubtitle) ImplementsPageBlock() {}
 
 // Table
 type PageBlockTable struct {
-	Bordered bool `tl:"flag:0,encoded_in_bitflags"`
-	Striped  bool `tl:"flag:1,encoded_in_bitflags"`
-	Title    RichText
-	Rows     []*PageTableRow
+	Bordered bool            `tl:"flag:0,encoded_in_bitflags"` // Does the table have a visible border?
+	Striped  bool            `tl:"flag:1,encoded_in_bitflags"` // Is the table striped?
+	Title    RichText        // Title
+	Rows     []*PageTableRow // Table rows
 }
 
 func (*PageBlockTable) CRC() uint32 {
@@ -7253,7 +7325,7 @@ func (*PageBlockTable) ImplementsPageBlock() {}
 
 // Title
 type PageBlockTitle struct {
-	Text RichText
+	Text RichText // Title
 }
 
 func (*PageBlockTitle) CRC() uint32 {
@@ -7273,10 +7345,10 @@ func (*PageBlockUnsupported) ImplementsPageBlock() {}
 
 // Video
 type PageBlockVideo struct {
-	Autoplay bool `tl:"flag:0,encoded_in_bitflags"`
-	Loop     bool `tl:"flag:1,encoded_in_bitflags"`
-	VideoID  int64
-	Caption  *PageCaption
+	Autoplay bool         `tl:"flag:0,encoded_in_bitflags"` // Whether the video is set to autoplay
+	Loop     bool         `tl:"flag:1,encoded_in_bitflags"` // Whether the video is set to loop
+	VideoID  int64        // Video ID
+	Caption  *PageCaption // Caption
 }
 
 func (*PageBlockVideo) CRC() uint32 {
@@ -7296,7 +7368,7 @@ type PageListItem interface {
 
 // List item
 type PageListItemBlocks struct {
-	Blocks []PageBlock
+	Blocks []PageBlock // Blocks
 }
 
 func (*PageListItemBlocks) CRC() uint32 {
@@ -7307,7 +7379,7 @@ func (*PageListItemBlocks) ImplementsPageListItem() {}
 
 // List item
 type PageListItemText struct {
-	Text RichText
+	Text RichText // Text
 }
 
 func (*PageListItemText) CRC() uint32 {
@@ -7323,8 +7395,8 @@ type PageListOrderedItem interface {
 
 // Ordered list of [IV](https://core.telegram.orghttps://instantview.telegram.org) blocks
 type PageListOrderedItemBlocks struct {
-	Num    string
-	Blocks []PageBlock
+	Num    string      // Number of element within ordered list
+	Blocks []PageBlock // Item contents
 }
 
 func (*PageListOrderedItemBlocks) CRC() uint32 {
@@ -7335,8 +7407,8 @@ func (*PageListOrderedItemBlocks) ImplementsPageListOrderedItem() {}
 
 // Ordered list of text items
 type PageListOrderedItemText struct {
-	Num  string
-	Text RichText
+	Num  string   // Number of element within ordered list
+	Text RichText // Text
 }
 
 func (*PageListOrderedItemText) CRC() uint32 {
@@ -7352,10 +7424,10 @@ type PasswordKdfAlgo interface {
 
 // This key derivation algorithm defines that [SRP 2FA login](https://core.telegram.org/api/srp) must be used
 type PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow struct {
-	Salt1 []byte
-	Salt2 []byte
-	G     int32
-	P     []byte
+	Salt1 []byte // One of two salts used by the derivation function (see SRP 2FA login)
+	Salt2 []byte // One of two salts used by the derivation function (see SRP 2FA login)
+	G     int32  // Base (see SRP 2FA login)
+	P     []byte // 2048-bit modulus (see SRP 2FA login)
 }
 
 func (*PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow) CRC() uint32 {
@@ -7381,7 +7453,7 @@ type Peer interface {
 
 // Channel/supergroup
 type PeerChannel struct {
-	ChannelID int64
+	ChannelID int64 // Channel ID
 }
 
 func (*PeerChannel) CRC() uint32 {
@@ -7392,7 +7464,7 @@ func (*PeerChannel) ImplementsPeer() {}
 
 // Group.
 type PeerChat struct {
-	ChatID int64
+	ChatID int64 // Group identifier
 }
 
 func (*PeerChat) CRC() uint32 {
@@ -7403,7 +7475,7 @@ func (*PeerChat) ImplementsPeer() {}
 
 // Chat partner
 type PeerUser struct {
-	UserID int64
+	UserID int64 // User identifier
 }
 
 func (*PeerUser) CRC() uint32 {
@@ -7419,9 +7491,9 @@ type PeerLocated interface {
 
 // Peer geolocated nearby
 type PeerLocatedObj struct {
-	Peer     Peer
-	Expires  int32
-	Distance int32
+	Peer     Peer  // Peer
+	Expires  int32 // Validity period of current data
+	Distance int32 // Distance from the peer in meters
 }
 
 func (*PeerLocatedObj) CRC() uint32 {
@@ -7432,7 +7504,7 @@ func (*PeerLocatedObj) ImplementsPeerLocated() {}
 
 // Current peer
 type PeerSelfLocated struct {
-	Expires int32
+	Expires int32 // Expiry of geolocation info for current peer
 }
 
 func (*PeerSelfLocated) CRC() uint32 {
@@ -7448,19 +7520,19 @@ type PhoneCall interface {
 
 // Phone call
 type PhoneCallObj struct {
-	P2PAllowed       bool `tl:"flag:5,encoded_in_bitflags"`
-	Video            bool `tl:"flag:6,encoded_in_bitflags"`
-	ID               int64
-	AccessHash       int64
-	Date             int32
-	AdminID          int64
-	ParticipantID    int64
-	GAOrB            []byte
-	KeyFingerprint   int64
-	Protocol         *PhoneCallProtocol
-	Connections      []PhoneConnection
-	StartDate        int32
-	CustomParameters *DataJson `tl:"flag:7"`
+	P2PAllowed       bool               `tl:"flag:5,encoded_in_bitflags"` // Whether P2P connection to the other peer is allowed
+	Video            bool               `tl:"flag:6,encoded_in_bitflags"` // Whether this is a video call
+	ID               int64              // Call ID
+	AccessHash       int64              // Access hash
+	Date             int32              // Date of creation of the call
+	AdminID          int64              // User ID of the creator of the call
+	ParticipantID    int64              // User ID of the other participant in the call
+	GAOrB            []byte             // Parameter for key exchange
+	KeyFingerprint   int64              // Key fingerprint
+	Protocol         *PhoneCallProtocol // Call protocol info to be passed to libtgvoip
+	Connections      []PhoneConnection  // List of endpoints the user can connect to exchange call data
+	StartDate        int32              // When was the call actually started
+	CustomParameters *DataJson          `tl:"flag:7"` // Custom JSON-encoded call parameters to be passed to tgcalls.
 }
 
 func (*PhoneCallObj) CRC() uint32 {
@@ -7475,14 +7547,14 @@ func (*PhoneCallObj) ImplementsPhoneCall() {}
 
 // An accepted phone call
 type PhoneCallAccepted struct {
-	Video         bool `tl:"flag:6,encoded_in_bitflags"`
-	ID            int64
-	AccessHash    int64
-	Date          int32
-	AdminID       int64
-	ParticipantID int64
-	GB            []byte
-	Protocol      *PhoneCallProtocol
+	Video         bool               `tl:"flag:6,encoded_in_bitflags"` // Whether this is a video call
+	ID            int64              // ID of accepted phone call
+	AccessHash    int64              // Access hash of phone call
+	Date          int32              // When was the call accepted
+	AdminID       int64              // ID of the call creator
+	ParticipantID int64              // ID of the other user in the call
+	GB            []byte             // B parameter for secure E2E phone call key exchange
+	Protocol      *PhoneCallProtocol // Protocol to use for phone call
 }
 
 func (*PhoneCallAccepted) CRC() uint32 {
@@ -7497,12 +7569,12 @@ func (*PhoneCallAccepted) ImplementsPhoneCall() {}
 
 // Indicates a discarded phone call
 type PhoneCallDiscarded struct {
-	NeedRating bool `tl:"flag:2,encoded_in_bitflags"`
-	NeedDebug  bool `tl:"flag:3,encoded_in_bitflags"`
-	Video      bool `tl:"flag:6,encoded_in_bitflags"`
-	ID         int64
-	Reason     PhoneCallDiscardReason `tl:"flag:0"`
-	Duration   int32                  `tl:"flag:1"`
+	NeedRating bool                   `tl:"flag:2,encoded_in_bitflags"` // Whether the server required the user to rate the call
+	NeedDebug  bool                   `tl:"flag:3,encoded_in_bitflags"` // Whether the server required the client to send the libtgvoip call debug data
+	Video      bool                   `tl:"flag:6,encoded_in_bitflags"` // Whether the call was a video call
+	ID         int64                  // Call ID
+	Reason     PhoneCallDiscardReason `tl:"flag:0"` // Why was the phone call discarded
+	Duration   int32                  `tl:"flag:1"` // Duration of the phone call in seconds
 }
 
 func (*PhoneCallDiscarded) CRC() uint32 {
@@ -7517,7 +7589,7 @@ func (*PhoneCallDiscarded) ImplementsPhoneCall() {}
 
 // Empty constructor
 type PhoneCallEmpty struct {
-	ID int64
+	ID int64 // Call ID
 }
 
 func (*PhoneCallEmpty) CRC() uint32 {
@@ -7528,14 +7600,14 @@ func (*PhoneCallEmpty) ImplementsPhoneCall() {}
 
 // Requested phone call
 type PhoneCallRequested struct {
-	Video         bool `tl:"flag:6,encoded_in_bitflags"`
-	ID            int64
-	AccessHash    int64
-	Date          int32
-	AdminID       int64
-	ParticipantID int64
-	GAHash        []byte
-	Protocol      *PhoneCallProtocol
+	Video         bool               `tl:"flag:6,encoded_in_bitflags"` // Whether this is a video call
+	ID            int64              // Phone call ID
+	AccessHash    int64              // Access hash
+	Date          int32              // When was the phone call created
+	AdminID       int64              // ID of the creator of the phone call
+	ParticipantID int64              // ID of the other participant of the phone call
+	GAHash        []byte             // Parameter for key exchange
+	Protocol      *PhoneCallProtocol // Call protocol info to be passed to libtgvoip
 }
 
 func (*PhoneCallRequested) CRC() uint32 {
@@ -7550,14 +7622,14 @@ func (*PhoneCallRequested) ImplementsPhoneCall() {}
 
 // Incoming phone call
 type PhoneCallWaiting struct {
-	Video         bool `tl:"flag:6,encoded_in_bitflags"`
-	ID            int64
-	AccessHash    int64
-	Date          int32
-	AdminID       int64
-	ParticipantID int64
-	Protocol      *PhoneCallProtocol
-	ReceiveDate   int32 `tl:"flag:0"`
+	Video         bool               `tl:"flag:6,encoded_in_bitflags"` // Is this a video call
+	ID            int64              // Call ID
+	AccessHash    int64              // Access hash
+	Date          int32              // Date
+	AdminID       int64              // Admin ID
+	ParticipantID int64              // Participant ID
+	Protocol      *PhoneCallProtocol // Phone call protocol info
+	ReceiveDate   int32              `tl:"flag:0"` // When was the phone call received
 }
 
 func (*PhoneCallWaiting) CRC() uint32 {
@@ -7577,12 +7649,12 @@ type PhoneConnection interface {
 
 // Identifies an endpoint that can be used to connect to the other user in a phone call
 type PhoneConnectionObj struct {
-	Tcp     bool `tl:"flag:0,encoded_in_bitflags"`
-	ID      int64
-	Ip      string
-	Ipv6    string
-	Port    int32
-	PeerTag []byte
+	Tcp     bool   `tl:"flag:0,encoded_in_bitflags"` // Whether TCP should be used
+	ID      int64  // Endpoint ID
+	Ip      string // IP address of endpoint
+	Ipv6    string // IPv6 address of endpoint
+	Port    int32  // Port ID
+	PeerTag []byte // Our peer tag
 }
 
 func (*PhoneConnectionObj) CRC() uint32 {
@@ -7597,14 +7669,14 @@ func (*PhoneConnectionObj) ImplementsPhoneConnection() {}
 
 // WebRTC connection parameters
 type PhoneConnectionWebrtc struct {
-	Turn     bool `tl:"flag:0,encoded_in_bitflags"`
-	Stun     bool `tl:"flag:1,encoded_in_bitflags"`
-	ID       int64
-	Ip       string
-	Ipv6     string
-	Port     int32
-	Username string
-	Password string
+	Turn     bool   `tl:"flag:0,encoded_in_bitflags"` // Whether this is a TURN endpoint
+	Stun     bool   `tl:"flag:1,encoded_in_bitflags"` // Whether this is a STUN endpoint
+	ID       int64  // Endpoint ID
+	Ip       string // IP address
+	Ipv6     string // IPv6 address
+	Port     int32  // Port
+	Username string // Username
+	Password string // Password
 }
 
 func (*PhoneConnectionWebrtc) CRC() uint32 {
@@ -7624,14 +7696,14 @@ type Photo interface {
 
 // Photo
 type PhotoObj struct {
-	HasStickers   bool `tl:"flag:0,encoded_in_bitflags"`
-	ID            int64
-	AccessHash    int64
-	FileReference []byte
-	Date          int32
-	Sizes         []PhotoSize
-	VideoSizes    []VideoSize `tl:"flag:1"`
-	DcID          int32
+	HasStickers   bool        `tl:"flag:0,encoded_in_bitflags"` // Whether the photo has mask stickers attached to it
+	ID            int64       // ID
+	AccessHash    int64       // Access hash
+	FileReference []byte      // file reference
+	Date          int32       // Date of upload
+	Sizes         []PhotoSize // Available sizes for download
+	VideoSizes    []VideoSize `tl:"flag:1"` // For animated profiles, the MPEG4 videos
+	DcID          int32       // DC ID to use for download
 }
 
 func (*PhotoObj) CRC() uint32 {
@@ -7646,7 +7718,7 @@ func (*PhotoObj) ImplementsPhoto() {}
 
 // Empty constructor, non-existent photo
 type PhotoEmpty struct {
-	ID int64
+	ID int64 // Photo identifier
 }
 
 func (*PhotoEmpty) CRC() uint32 {
@@ -7662,10 +7734,10 @@ type PhotoSize interface {
 
 // Description of an image and its content.
 type PhotoCachedSize struct {
-	Type  string
-	W     int32
-	H     int32
-	Bytes []byte
+	Type  string // Thumbnail type
+	W     int32  // Image width
+	H     int32  // Image height
+	Bytes []byte // Binary data, file content
 }
 
 func (*PhotoCachedSize) CRC() uint32 {
@@ -7676,8 +7748,8 @@ func (*PhotoCachedSize) ImplementsPhotoSize() {}
 
 // Messages with animated stickers can have a compressed svg (&lt; 300 bytes) to show the outline of the sticker before fetching the actual lottie animation.
 type PhotoPathSize struct {
-	Type  string
-	Bytes []byte
+	Type  string // Always 'j'
+	Bytes []byte // Compressed SVG path payload
 }
 
 func (*PhotoPathSize) CRC() uint32 {
@@ -7688,10 +7760,10 @@ func (*PhotoPathSize) ImplementsPhotoSize() {}
 
 // Image description.
 type PhotoSizeObj struct {
-	Type string
-	W    int32
-	H    int32
-	Size int32
+	Type string // Thumbnail type
+	W    int32  // Image width
+	H    int32  // Image height
+	Size int32  // File size
 }
 
 func (*PhotoSizeObj) CRC() uint32 {
@@ -7702,7 +7774,7 @@ func (*PhotoSizeObj) ImplementsPhotoSize() {}
 
 // Empty constructor. Image with this thumbnail is unavailable.
 type PhotoSizeEmpty struct {
-	Type string
+	Type string // Thumbnail type
 }
 
 func (*PhotoSizeEmpty) CRC() uint32 {
@@ -7713,10 +7785,10 @@ func (*PhotoSizeEmpty) ImplementsPhotoSize() {}
 
 // Progressively encoded photosize
 type PhotoSizeProgressive struct {
-	Type  string
-	W     int32
-	H     int32
-	Sizes []int32
+	Type  string  // Photosize type
+	W     int32   // Photo width
+	H     int32   // Photo height
+	Sizes []int32 // Sizes of progressive JPEG file prefixes, which can be used to preliminarily show the image.
 }
 
 func (*PhotoSizeProgressive) CRC() uint32 {
@@ -7727,8 +7799,8 @@ func (*PhotoSizeProgressive) ImplementsPhotoSize() {}
 
 // A low-resolution compressed JPG payload
 type PhotoStrippedSize struct {
-	Type  string
-	Bytes []byte
+	Type  string // Thumbnail type
+	Bytes []byte // Thumbnail data
 }
 
 func (*PhotoStrippedSize) CRC() uint32 {
@@ -7744,10 +7816,10 @@ type PostInteractionCounters interface {
 
 // Interaction counters for a message.
 type PostInteractionCountersMessage struct {
-	MsgID     int32
-	Views     int32
-	Forwards  int32
-	Reactions int32
+	MsgID     int32 // Message ID
+	Views     int32 // Number of views
+	Forwards  int32 // Number of forwards to public channels
+	Reactions int32 // Number of reactions
 }
 
 func (*PostInteractionCountersMessage) CRC() uint32 {
@@ -7758,10 +7830,10 @@ func (*PostInteractionCountersMessage) ImplementsPostInteractionCounters() {}
 
 // Interaction counters for a story.
 type PostInteractionCountersStory struct {
-	StoryID   int32
-	Views     int32
-	Forwards  int32
-	Reactions int32
+	StoryID   int32 // Story ID
+	Views     int32 // Number of views
+	Forwards  int32 // Number of forwards and reposts to public chats and channels
+	Reactions int32 // Number of reactions
 }
 
 func (*PostInteractionCountersStory) CRC() uint32 {
@@ -7777,10 +7849,10 @@ type PrepaidGiveaway interface {
 
 // Contains info about a [prepaid giveaway »](https://core.telegram.org/api/giveaways).
 type PrepaidGiveawayObj struct {
-	ID       int64
-	Months   int32
-	Quantity int32
-	Date     int32
+	ID       int64 // Prepaid giveaway ID.
+	Months   int32 // Duration in months of each gifted Telegram Premium subscription.
+	Quantity int32 // Number of given away Telegram Premium subscriptions.
+	Date     int32 // Payment date.
 }
 
 func (*PrepaidGiveawayObj) CRC() uint32 {
@@ -7819,7 +7891,7 @@ func (*PrivacyValueAllowAll) ImplementsPrivacyRule() {}
 
 // Allow all participants of certain chats
 type PrivacyValueAllowChatParticipants struct {
-	Chats []int64
+	Chats []int64 // Allowed chats
 }
 
 func (*PrivacyValueAllowChatParticipants) CRC() uint32 {
@@ -7846,6 +7918,7 @@ func (*PrivacyValueAllowContacts) CRC() uint32 {
 
 func (*PrivacyValueAllowContacts) ImplementsPrivacyRule() {}
 
+// Allow only users with a [Premium subscription »](https://core.telegram.org/api/premium), currently only usable for [inputPrivacyKeyChatInvite](https://core.telegram.org/constructor/inputPrivacyKeyChatInvite).
 type PrivacyValueAllowPremium struct{}
 
 func (*PrivacyValueAllowPremium) CRC() uint32 {
@@ -7856,7 +7929,7 @@ func (*PrivacyValueAllowPremium) ImplementsPrivacyRule() {}
 
 // Allow only certain users
 type PrivacyValueAllowUsers struct {
-	Users []int64
+	Users []int64 // Allowed users
 }
 
 func (*PrivacyValueAllowUsers) CRC() uint32 {
@@ -7876,7 +7949,7 @@ func (*PrivacyValueDisallowAll) ImplementsPrivacyRule() {}
 
 // Disallow only participants of certain chats
 type PrivacyValueDisallowChatParticipants struct {
-	Chats []int64
+	Chats []int64 // Disallowed chats
 }
 
 func (*PrivacyValueDisallowChatParticipants) CRC() uint32 {
@@ -7896,7 +7969,7 @@ func (*PrivacyValueDisallowContacts) ImplementsPrivacyRule() {}
 
 // Disallow only certain users
 type PrivacyValueDisallowUsers struct {
-	Users []int64
+	Users []int64 // Disallowed users
 }
 
 func (*PrivacyValueDisallowUsers) CRC() uint32 {
@@ -7912,7 +7985,7 @@ type PublicForward interface {
 
 // Contains info about a forward of a [story](https://core.telegram.org/api/stories) as a message.
 type PublicForwardMessage struct {
-	Message Message
+	Message Message // Info about the message with the reposted story.
 }
 
 func (*PublicForwardMessage) CRC() uint32 {
@@ -7923,8 +7996,8 @@ func (*PublicForwardMessage) ImplementsPublicForward() {}
 
 // Contains info about a forward of a [story](https://core.telegram.org/api/stories) as a repost by a public channel.
 type PublicForwardStory struct {
-	Peer  Peer
-	Story StoryItem
+	Peer  Peer      // The channel that reposted the story.
+	Story StoryItem // The reposted story (may be different from the original story).
 }
 
 func (*PublicForwardStory) CRC() uint32 {
@@ -7940,7 +8013,7 @@ type Reaction interface {
 
 // [Custom emoji](https://core.telegram.org/api/custom-emoji) message reaction
 type ReactionCustomEmoji struct {
-	DocumentID int64
+	DocumentID int64 // Custom emoji document ID
 }
 
 func (*ReactionCustomEmoji) CRC() uint32 {
@@ -7951,7 +8024,7 @@ func (*ReactionCustomEmoji) ImplementsReaction() {}
 
 // Normal emoji message reaction
 type ReactionEmoji struct {
-	Emoticon string
+	Emoticon string // Emoji
 }
 
 func (*ReactionEmoji) CRC() uint32 {
@@ -7984,8 +8057,8 @@ type RecentMeURL interface {
 
 // Recent t.me link to a chat
 type RecentMeURLChat struct {
-	URL    string
-	ChatID int64
+	URL    string // t.me URL
+	ChatID int64  // Chat ID
 }
 
 func (*RecentMeURLChat) CRC() uint32 {
@@ -7996,8 +8069,8 @@ func (*RecentMeURLChat) ImplementsRecentMeURL() {}
 
 // Recent t.me invite link to a chat
 type RecentMeURLChatInvite struct {
-	URL        string
-	ChatInvite ChatInvite
+	URL        string     // t.me URL
+	ChatInvite ChatInvite // Chat invitation
 }
 
 func (*RecentMeURLChatInvite) CRC() uint32 {
@@ -8008,8 +8081,8 @@ func (*RecentMeURLChatInvite) ImplementsRecentMeURL() {}
 
 // Recent t.me stickerset installation URL
 type RecentMeURLStickerSet struct {
-	URL string
-	Set StickerSetCovered
+	URL string            // t.me URL
+	Set StickerSetCovered // Stickerset
 }
 
 func (*RecentMeURLStickerSet) CRC() uint32 {
@@ -8020,7 +8093,7 @@ func (*RecentMeURLStickerSet) ImplementsRecentMeURL() {}
 
 // Unknown t.me url
 type RecentMeURLUnknown struct {
-	URL string
+	URL string // URL
 }
 
 func (*RecentMeURLUnknown) CRC() uint32 {
@@ -8031,8 +8104,8 @@ func (*RecentMeURLUnknown) ImplementsRecentMeURL() {}
 
 // Recent t.me link to a user
 type RecentMeURLUser struct {
-	URL    string
-	UserID int64
+	URL    string // URL
+	UserID int64  // User ID
 }
 
 func (*RecentMeURLUser) CRC() uint32 {
@@ -8048,7 +8121,7 @@ type ReplyMarkup interface {
 
 // Bot or inline keyboard
 type ReplyInlineMarkup struct {
-	Rows []*KeyboardButtonRow
+	Rows []*KeyboardButtonRow // Bot or inline keyboard rows
 }
 
 func (*ReplyInlineMarkup) CRC() uint32 {
@@ -8059,9 +8132,12 @@ func (*ReplyInlineMarkup) ImplementsReplyMarkup() {}
 
 // Force the user to send a reply
 type ReplyKeyboardForceReply struct {
-	SingleUse   bool   `tl:"flag:1,encoded_in_bitflags"`
-	Selective   bool   `tl:"flag:2,encoded_in_bitflags"`
-	Placeholder string `tl:"flag:3"`
+	SingleUse bool `tl:"flag:1,encoded_in_bitflags"` // Requests clients to hide the keyboard as soon as it's been used. The keyboard will still be available, but clients will automatically display the usual letter-keyboard in the chat – the user can press a special button in the input field to see the custom keyboard again.
+	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
+	Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+	Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
+	*/
+	Placeholder string `tl:"flag:3"` // The placeholder to be shown in the input field when the keyboard is active; 1-64 characters.
 }
 
 func (*ReplyKeyboardForceReply) CRC() uint32 {
@@ -8076,7 +8152,11 @@ func (*ReplyKeyboardForceReply) ImplementsReplyMarkup() {}
 
 // Hide sent bot keyboard
 type ReplyKeyboardHide struct {
-	Selective bool `tl:"flag:2,encoded_in_bitflags"`
+	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
+	Use this flag if you want to remove the keyboard for specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+
+	Example: A user votes in a poll, bot returns confirmation message in reply to the vote and removes the keyboard for that user, while still showing the keyboard with poll options to users who haven't voted yet
+	*/
 }
 
 func (*ReplyKeyboardHide) CRC() uint32 {
@@ -8091,12 +8171,16 @@ func (*ReplyKeyboardHide) ImplementsReplyMarkup() {}
 
 // Bot keyboard
 type ReplyKeyboardMarkup struct {
-	Resize      bool `tl:"flag:0,encoded_in_bitflags"`
-	SingleUse   bool `tl:"flag:1,encoded_in_bitflags"`
-	Selective   bool `tl:"flag:2,encoded_in_bitflags"`
-	Persistent  bool `tl:"flag:4,encoded_in_bitflags"`
-	Rows        []*KeyboardButtonRow
-	Placeholder string `tl:"flag:3"`
+	Resize    bool `tl:"flag:0,encoded_in_bitflags"` // Requests clients to resize the keyboard vertically for optimal fit (e.g., make the keyboard smaller if there are just two rows of buttons). If not set, the custom keyboard is always of the same height as the app's standard keyboard.
+	SingleUse bool `tl:"flag:1,encoded_in_bitflags"` // Requests clients to hide the keyboard as soon as it's been used. The keyboard will still be available, but clients will automatically display the usual letter-keyboard in the chat – the user can press a special button in the input field to see the custom keyboard again.
+	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
+	Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+
+	Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
+	*/
+	Persistent  bool                 `tl:"flag:4,encoded_in_bitflags"` // Requests clients to always show the keyboard when the regular keyboard is hidden.
+	Rows        []*KeyboardButtonRow // Button row
+	Placeholder string               `tl:"flag:3"` // The placeholder to be shown in the input field when the keyboard is active; 1-64 characters.
 }
 
 func (*ReplyKeyboardMarkup) CRC() uint32 {
@@ -8116,10 +8200,10 @@ type RequestPeerType interface {
 
 // Choose a channel
 type RequestPeerTypeBroadcast struct {
-	Creator         bool             `tl:"flag:0,encoded_in_bitflags"`
-	HasUsername     bool             `tl:"flag:3"`
-	UserAdminRights *ChatAdminRights `tl:"flag:1"`
-	BotAdminRights  *ChatAdminRights `tl:"flag:2"`
+	Creator         bool             `tl:"flag:0,encoded_in_bitflags"` // Whether to allow only choosing channels that were created by the current user.
+	HasUsername     bool             `tl:"flag:3"`                     // If specified, allows only choosing channels with or without a username, according to the value of Bool.
+	UserAdminRights *ChatAdminRights `tl:"flag:1"`                     // If specified, allows only choosing channels where the current user is an admin with at least the specified admin rights.
+	BotAdminRights  *ChatAdminRights `tl:"flag:2"`                     // If specified, allows only choosing channels where the bot is an admin with at least the specified admin rights.
 }
 
 func (*RequestPeerTypeBroadcast) CRC() uint32 {
@@ -8134,12 +8218,12 @@ func (*RequestPeerTypeBroadcast) ImplementsRequestPeerType() {}
 
 // Choose a chat or supergroup
 type RequestPeerTypeChat struct {
-	Creator         bool             `tl:"flag:0,encoded_in_bitflags"`
-	HasUsername     bool             `tl:"flag:3"`
-	BotParticipant  bool             `tl:"flag:5,encoded_in_bitflags"`
-	Forum           bool             `tl:"flag:4"`
-	UserAdminRights *ChatAdminRights `tl:"flag:1"`
-	BotAdminRights  *ChatAdminRights `tl:"flag:2"`
+	Creator         bool             `tl:"flag:0,encoded_in_bitflags"` // Whether to allow only choosing chats or supergroups that were created by the current user.
+	HasUsername     bool             `tl:"flag:3"`                     // Whether to allow only choosing chats or supergroups where the bot is a participant.
+	BotParticipant  bool             `tl:"flag:5,encoded_in_bitflags"` // If specified, allows only choosing channels with or without a username, according to the value of Bool.
+	Forum           bool             `tl:"flag:4"`                     // If specified, allows only choosing chats or supergroups that are or aren't forums, according to the value of Bool.
+	UserAdminRights *ChatAdminRights `tl:"flag:1"`                     // If specified, allows only choosing chats or supergroups where the current user is an admin with at least the specified admin rights.
+	BotAdminRights  *ChatAdminRights `tl:"flag:2"`                     // If specified, allows only choosing chats or supergroups where the bot is an admin with at least the specified admin rights.
 }
 
 func (*RequestPeerTypeChat) CRC() uint32 {
@@ -8154,8 +8238,8 @@ func (*RequestPeerTypeChat) ImplementsRequestPeerType() {}
 
 // Choose a user.
 type RequestPeerTypeUser struct {
-	Bot     bool `tl:"flag:0"`
-	Premium bool `tl:"flag:1"`
+	Bot     bool `tl:"flag:0"` // Whether to allow choosing only bots.
+	Premium bool `tl:"flag:1"` // Whether to allow choosing only Premium users.
 }
 
 func (*RequestPeerTypeUser) CRC() uint32 {
@@ -8172,11 +8256,13 @@ type RequestedPeer interface {
 	tl.Object
 	ImplementsRequestedPeer()
 }
+
+// Info about a [channel/supergroup](https://core.telegram.org/api/channel), shared by a user with the currently logged in bot using [messages.sendBotRequestedPeer](https://core.telegram.org/method/messages.sendBotRequestedPeer).
 type RequestedPeerChannel struct {
-	ChannelID int64
-	Title     string `tl:"flag:0"`
-	Username  string `tl:"flag:1"`
-	Photo     Photo  `tl:"flag:2"`
+	ChannelID int64  // Channel/supergroup ID.
+	Title     string `tl:"flag:0"` // Channel/supergroup title.
+	Username  string `tl:"flag:1"` // Channel/supergroup username.
+	Photo     Photo  `tl:"flag:2"` // Channel/supergroup photo.
 }
 
 func (*RequestedPeerChannel) CRC() uint32 {
@@ -8189,10 +8275,11 @@ func (*RequestedPeerChannel) FlagIndex() int {
 
 func (*RequestedPeerChannel) ImplementsRequestedPeer() {}
 
+// Info about a [chat](https://core.telegram.org/api/channel), shared by a user with the currently logged in bot using [messages.sendBotRequestedPeer](https://core.telegram.org/method/messages.sendBotRequestedPeer).
 type RequestedPeerChat struct {
-	ChatID int64
-	Title  string `tl:"flag:0"`
-	Photo  Photo  `tl:"flag:2"`
+	ChatID int64  // Chat ID.
+	Title  string `tl:"flag:0"` // Chat title.
+	Photo  Photo  `tl:"flag:2"` // Chat photo.
 }
 
 func (*RequestedPeerChat) CRC() uint32 {
@@ -8205,12 +8292,13 @@ func (*RequestedPeerChat) FlagIndex() int {
 
 func (*RequestedPeerChat) ImplementsRequestedPeer() {}
 
+// Info about a user, shared by a user with the currently logged in bot using [messages.sendBotRequestedPeer](https://core.telegram.org/method/messages.sendBotRequestedPeer).
 type RequestedPeerUser struct {
-	UserID    int64
-	FirstName string `tl:"flag:0"`
-	LastName  string `tl:"flag:0"`
-	Username  string `tl:"flag:1"`
-	Photo     Photo  `tl:"flag:2"`
+	UserID    int64  // User ID.
+	FirstName string `tl:"flag:0"` // First name.
+	LastName  string `tl:"flag:0"` // Last name.
+	Username  string `tl:"flag:1"` // Username.
+	Photo     Photo  `tl:"flag:2"` // Profile photo.
 }
 
 func (*RequestedPeerUser) CRC() uint32 {
@@ -8230,8 +8318,8 @@ type RichText interface {
 
 // Text linking to another section of the page
 type TextAnchor struct {
-	Text RichText
-	Name string
+	Text RichText // Text
+	Name string   // Section name
 }
 
 func (*TextAnchor) CRC() uint32 {
@@ -8242,7 +8330,7 @@ func (*TextAnchor) ImplementsRichText() {}
 
 // <strong>Bold</strong> text
 type TextBold struct {
-	Text RichText
+	Text RichText // Text
 }
 
 func (*TextBold) CRC() uint32 {
@@ -8253,7 +8341,7 @@ func (*TextBold) ImplementsRichText() {}
 
 // Concatenation of rich texts
 type TextConcat struct {
-	Texts []RichText
+	Texts []RichText // Concatenated rich texts
 }
 
 func (*TextConcat) CRC() uint32 {
@@ -8264,8 +8352,8 @@ func (*TextConcat) ImplementsRichText() {}
 
 // Rich text email link
 type TextEmail struct {
-	Text  RichText
-	Email string
+	Text  RichText // Link text
+	Email string   // Email address
 }
 
 func (*TextEmail) CRC() uint32 {
@@ -8285,7 +8373,7 @@ func (*TextEmpty) ImplementsRichText() {}
 
 // `fixed-width` rich text
 type TextFixed struct {
-	Text RichText
+	Text RichText // Text
 }
 
 func (*TextFixed) CRC() uint32 {
@@ -8296,9 +8384,9 @@ func (*TextFixed) ImplementsRichText() {}
 
 // Inline image
 type TextImage struct {
-	DocumentID int64
-	W          int32
-	H          int32
+	DocumentID int64 // Document ID
+	W          int32 // Width
+	H          int32 // Height
 }
 
 func (*TextImage) CRC() uint32 {
@@ -8309,7 +8397,7 @@ func (*TextImage) ImplementsRichText() {}
 
 // <em>Italic</em> text
 type TextItalic struct {
-	Text RichText
+	Text RichText // Text
 }
 
 func (*TextItalic) CRC() uint32 {
@@ -8320,7 +8408,7 @@ func (*TextItalic) ImplementsRichText() {}
 
 // Highlighted text
 type TextMarked struct {
-	Text RichText
+	Text RichText // Text
 }
 
 func (*TextMarked) CRC() uint32 {
@@ -8331,8 +8419,8 @@ func (*TextMarked) ImplementsRichText() {}
 
 // Rich text linked to a phone number
 type TextPhone struct {
-	Text  RichText
-	Phone string
+	Text  RichText // Text
+	Phone string   // Phone number
 }
 
 func (*TextPhone) CRC() uint32 {
@@ -8343,7 +8431,7 @@ func (*TextPhone) ImplementsRichText() {}
 
 // Plain text
 type TextPlain struct {
-	Text string
+	Text string // Text
 }
 
 func (*TextPlain) CRC() uint32 {
@@ -8354,7 +8442,7 @@ func (*TextPlain) ImplementsRichText() {}
 
 // <del>Strikethrough</del> text
 type TextStrike struct {
-	Text RichText
+	Text RichText // Text
 }
 
 func (*TextStrike) CRC() uint32 {
@@ -8365,7 +8453,7 @@ func (*TextStrike) ImplementsRichText() {}
 
 // Subscript text
 type TextSubscript struct {
-	Text RichText
+	Text RichText // Text
 }
 
 func (*TextSubscript) CRC() uint32 {
@@ -8376,7 +8464,7 @@ func (*TextSubscript) ImplementsRichText() {}
 
 // Superscript text
 type TextSuperscript struct {
-	Text RichText
+	Text RichText // Text
 }
 
 func (*TextSuperscript) CRC() uint32 {
@@ -8387,7 +8475,7 @@ func (*TextSuperscript) ImplementsRichText() {}
 
 // Underlined text
 type TextUnderline struct {
-	Text RichText
+	Text RichText // Text
 }
 
 func (*TextUnderline) CRC() uint32 {
@@ -8398,9 +8486,9 @@ func (*TextUnderline) ImplementsRichText() {}
 
 // Link
 type TextURL struct {
-	Text      RichText
-	URL       string
-	WebpageID int64
+	Text      RichText // Text of link
+	URL       string   // Webpage HTTP URL
+	WebpageID int64    // If a preview was already generated for the page, the page ID
 }
 
 func (*TextURL) CRC() uint32 {
@@ -8416,13 +8504,13 @@ type SecureFile interface {
 
 // Secure [passport](https://core.telegram.org/passport) file, for more info [see the passport docs »](https://core.telegram.org/passport/encryption#inputsecurefile)
 type SecureFileObj struct {
-	ID         int64
-	AccessHash int64
-	Size       int64
-	DcID       int32
-	Date       int32
-	FileHash   []byte
-	Secret     []byte
+	ID         int64  // ID
+	AccessHash int64  // Access hash
+	Size       int64  // File size
+	DcID       int32  // DC ID
+	Date       int32  // Date of upload
+	FileHash   []byte // File hash
+	Secret     []byte // Secret
 }
 
 func (*SecureFileObj) CRC() uint32 {
@@ -8447,7 +8535,7 @@ type SecurePasswordKdfAlgo interface {
 
 // PBKDF2 with SHA512 and 100000 iterations KDF algo
 type SecurePasswordKdfAlgoPbkdf2Hmacsha512Iter100000 struct {
-	Salt []byte
+	Salt []byte // Salt
 }
 
 func (*SecurePasswordKdfAlgoPbkdf2Hmacsha512Iter100000) CRC() uint32 {
@@ -8458,7 +8546,7 @@ func (*SecurePasswordKdfAlgoPbkdf2Hmacsha512Iter100000) ImplementsSecurePassword
 
 // SHA512 KDF algo
 type SecurePasswordKdfAlgoSHA512 struct {
-	Salt []byte
+	Salt []byte // Salt
 }
 
 func (*SecurePasswordKdfAlgoSHA512) CRC() uint32 {
@@ -8483,7 +8571,7 @@ type SecurePlainData interface {
 
 // Email address to use in [telegram passport](https://core.telegram.org/passport): [it must be verified, first »](https://core.telegram.org/passport/encryption#secureplaindata).
 type SecurePlainEmail struct {
-	Email string
+	Email string // Email address
 }
 
 func (*SecurePlainEmail) CRC() uint32 {
@@ -8494,7 +8582,7 @@ func (*SecurePlainEmail) ImplementsSecurePlainData() {}
 
 // Phone number to use in [telegram passport](https://core.telegram.org/passport): [it must be verified, first »](https://core.telegram.org/passport/encryption#secureplaindata).
 type SecurePlainPhone struct {
-	Phone string
+	Phone string // Phone number
 }
 
 func (*SecurePlainPhone) CRC() uint32 {
@@ -8510,10 +8598,10 @@ type SecureRequiredType interface {
 
 // Required type
 type SecureRequiredTypeObj struct {
-	NativeNames         bool `tl:"flag:0,encoded_in_bitflags"`
-	SelfieRequired      bool `tl:"flag:1,encoded_in_bitflags"`
-	TranslationRequired bool `tl:"flag:2,encoded_in_bitflags"`
-	Type                SecureValueType
+	NativeNames         bool            `tl:"flag:0,encoded_in_bitflags"` // Native names
+	SelfieRequired      bool            `tl:"flag:1,encoded_in_bitflags"` // Is a selfie required
+	TranslationRequired bool            `tl:"flag:2,encoded_in_bitflags"` // Is a translation required
+	Type                SecureValueType // Secure value type
 }
 
 func (*SecureRequiredTypeObj) CRC() uint32 {
@@ -8528,7 +8616,7 @@ func (*SecureRequiredTypeObj) ImplementsSecureRequiredType() {}
 
 // One of
 type SecureRequiredTypeOneOf struct {
-	Types []SecureRequiredType
+	Types []SecureRequiredType // Secure required value types
 }
 
 func (*SecureRequiredTypeOneOf) CRC() uint32 {
@@ -8544,9 +8632,9 @@ type SecureValueError interface {
 
 // Secure value error
 type SecureValueErrorObj struct {
-	Type SecureValueType
-	Hash []byte
-	Text string
+	Type SecureValueType // Type of element which has the issue
+	Hash []byte          // Hash
+	Text string          // Error message
 }
 
 func (*SecureValueErrorObj) CRC() uint32 {
@@ -8557,10 +8645,10 @@ func (*SecureValueErrorObj) ImplementsSecureValueError() {}
 
 // Represents an issue in one of the data fields that was provided by the user. The error is considered resolved when the field's value changes.
 type SecureValueErrorData struct {
-	Type     SecureValueType
-	DataHash []byte
-	Field    string
-	Text     string
+	Type     SecureValueType // The section of the user's Telegram Passport which has the error, one of secureValueTypePersonalDetails, secureValueTypePassport, secureValueTypeDriverLicense, secureValueTypeIdentityCard, secureValueTypeInternalPassport, secureValueTypeAddress
+	DataHash []byte          // Data hash
+	Field    string          // Name of the data field which has the error
+	Text     string          // Error message
 }
 
 func (*SecureValueErrorData) CRC() uint32 {
@@ -8571,9 +8659,9 @@ func (*SecureValueErrorData) ImplementsSecureValueError() {}
 
 // Represents an issue with a document scan. The error is considered resolved when the file with the document scan changes.
 type SecureValueErrorFile struct {
-	Type     SecureValueType
-	FileHash []byte
-	Text     string
+	Type     SecureValueType // One of secureValueTypeUtilityBill, secureValueTypeBankStatement, secureValueTypeRentalAgreement, secureValueTypePassportRegistration, secureValueTypeTemporaryRegistration
+	FileHash []byte          // File hash
+	Text     string          // Error message
 }
 
 func (*SecureValueErrorFile) CRC() uint32 {
@@ -8584,9 +8672,9 @@ func (*SecureValueErrorFile) ImplementsSecureValueError() {}
 
 // Represents an issue with a list of scans. The error is considered resolved when the list of files containing the scans changes.
 type SecureValueErrorFiles struct {
-	Type     SecureValueType
-	FileHash [][]byte
-	Text     string
+	Type     SecureValueType // One of secureValueTypeUtilityBill, secureValueTypeBankStatement, secureValueTypeRentalAgreement, secureValueTypePassportRegistration, secureValueTypeTemporaryRegistration
+	FileHash [][]byte        // File hash
+	Text     string          // Error message
 }
 
 func (*SecureValueErrorFiles) CRC() uint32 {
@@ -8597,9 +8685,9 @@ func (*SecureValueErrorFiles) ImplementsSecureValueError() {}
 
 // Represents an issue with the front side of a document. The error is considered resolved when the file with the front side of the document changes.
 type SecureValueErrorFrontSide struct {
-	Type     SecureValueType
-	FileHash []byte
-	Text     string
+	Type     SecureValueType // One of secureValueTypePassport, secureValueTypeDriverLicense, secureValueTypeIdentityCard, secureValueTypeInternalPassport
+	FileHash []byte          // File hash
+	Text     string          // Error message
 }
 
 func (*SecureValueErrorFrontSide) CRC() uint32 {
@@ -8610,9 +8698,9 @@ func (*SecureValueErrorFrontSide) ImplementsSecureValueError() {}
 
 // Represents an issue with the reverse side of a document. The error is considered resolved when the file with reverse side of the document changes.
 type SecureValueErrorReverseSide struct {
-	Type     SecureValueType
-	FileHash []byte
-	Text     string
+	Type     SecureValueType // One of secureValueTypeDriverLicense, secureValueTypeIdentityCard
+	FileHash []byte          // File hash
+	Text     string          // Error message
 }
 
 func (*SecureValueErrorReverseSide) CRC() uint32 {
@@ -8623,9 +8711,9 @@ func (*SecureValueErrorReverseSide) ImplementsSecureValueError() {}
 
 // Represents an issue with the selfie with a document. The error is considered resolved when the file with the selfie changes.
 type SecureValueErrorSelfie struct {
-	Type     SecureValueType
-	FileHash []byte
-	Text     string
+	Type     SecureValueType // One of secureValueTypePassport, secureValueTypeDriverLicense, secureValueTypeIdentityCard, secureValueTypeInternalPassport
+	FileHash []byte          // File hash
+	Text     string          // Error message
 }
 
 func (*SecureValueErrorSelfie) CRC() uint32 {
@@ -8636,9 +8724,9 @@ func (*SecureValueErrorSelfie) ImplementsSecureValueError() {}
 
 // Represents an issue with one of the files that constitute the translation of a document. The error is considered resolved when the file changes.
 type SecureValueErrorTranslationFile struct {
-	Type     SecureValueType
-	FileHash []byte
-	Text     string
+	Type     SecureValueType // One of secureValueTypePersonalDetails, secureValueTypePassport, secureValueTypeDriverLicense, secureValueTypeIdentityCard, secureValueTypeInternalPassport, secureValueTypeUtilityBill, secureValueTypeBankStatement, secureValueTypeRentalAgreement, secureValueTypePassportRegistration, secureValueTypeTemporaryRegistration
+	FileHash []byte          // File hash
+	Text     string          // Error message
 }
 
 func (*SecureValueErrorTranslationFile) CRC() uint32 {
@@ -8649,9 +8737,9 @@ func (*SecureValueErrorTranslationFile) ImplementsSecureValueError() {}
 
 // Represents an issue with the translated version of a document. The error is considered resolved when a file with the document translation changes.
 type SecureValueErrorTranslationFiles struct {
-	Type     SecureValueType
-	FileHash [][]byte
-	Text     string
+	Type     SecureValueType // One of secureValueTypePersonalDetails, secureValueTypePassport, secureValueTypeDriverLicense, secureValueTypeIdentityCard, secureValueTypeInternalPassport, secureValueTypeUtilityBill, secureValueTypeBankStatement, secureValueTypeRentalAgreement, secureValueTypePassportRegistration, secureValueTypeTemporaryRegistration
+	FileHash [][]byte        // Hash
+	Text     string          // Error message
 }
 
 func (*SecureValueErrorTranslationFiles) CRC() uint32 {
@@ -8694,9 +8782,9 @@ func (*SendMessageChooseStickerAction) ImplementsSendMessageAction() {}
 
 // User has clicked on an animated emoji triggering a [reaction, click here for more info »](https://core.telegram.org/api/animated-emojis#emoji-reactions).
 type SendMessageEmojiInteraction struct {
-	Emoticon    string
-	MsgID       int32
-	Interaction *DataJson
+	Emoticon    string    // Emoji
+	MsgID       int32     // Message ID of the animated emoji that was clicked
+	Interaction *DataJson // A JSON object with interaction info, click here for more info
 }
 
 func (*SendMessageEmojiInteraction) CRC() uint32 {
@@ -8707,7 +8795,7 @@ func (*SendMessageEmojiInteraction) ImplementsSendMessageAction() {}
 
 // User is watching an animated emoji reaction triggered by another user, [click here for more info »](https://core.telegram.org/api/animated-emojis#emoji-reactions).
 type SendMessageEmojiInteractionSeen struct {
-	Emoticon string
+	Emoticon string // Emoji
 }
 
 func (*SendMessageEmojiInteractionSeen) CRC() uint32 {
@@ -8736,7 +8824,7 @@ func (*SendMessageGeoLocationAction) ImplementsSendMessageAction() {}
 
 // Chat history is being imported
 type SendMessageHistoryImportAction struct {
-	Progress int32
+	Progress int32 // Progress percentage
 }
 
 func (*SendMessageHistoryImportAction) CRC() uint32 {
@@ -8783,7 +8871,7 @@ func (*SendMessageTypingAction) ImplementsSendMessageAction() {}
 
 // User is uploading a voice message.
 type SendMessageUploadAudioAction struct {
-	Progress int32
+	Progress int32 // Progress percentage
 }
 
 func (*SendMessageUploadAudioAction) CRC() uint32 {
@@ -8794,7 +8882,7 @@ func (*SendMessageUploadAudioAction) ImplementsSendMessageAction() {}
 
 // User is uploading a file.
 type SendMessageUploadDocumentAction struct {
-	Progress int32
+	Progress int32 // Progress percentage
 }
 
 func (*SendMessageUploadDocumentAction) CRC() uint32 {
@@ -8805,7 +8893,7 @@ func (*SendMessageUploadDocumentAction) ImplementsSendMessageAction() {}
 
 // User is uploading a photo.
 type SendMessageUploadPhotoAction struct {
-	Progress int32
+	Progress int32 // Progress percentage
 }
 
 func (*SendMessageUploadPhotoAction) CRC() uint32 {
@@ -8816,7 +8904,7 @@ func (*SendMessageUploadPhotoAction) ImplementsSendMessageAction() {}
 
 // User is uploading a round video
 type SendMessageUploadRoundAction struct {
-	Progress int32
+	Progress int32 // Progress percentage
 }
 
 func (*SendMessageUploadRoundAction) CRC() uint32 {
@@ -8827,7 +8915,7 @@ func (*SendMessageUploadRoundAction) ImplementsSendMessageAction() {}
 
 // User is uploading a video.
 type SendMessageUploadVideoAction struct {
-	Progress int32
+	Progress int32 // Progress percentage
 }
 
 func (*SendMessageUploadVideoAction) CRC() uint32 {
@@ -8849,8 +8937,10 @@ type StarsTransactionPeer interface {
 	tl.Object
 	ImplementsStarsTransactionPeer()
 }
+
+// Describes a [Telegram Star](https://core.telegram.org/api/stars) transaction with another peer.
 type StarsTransactionPeerObj struct {
-	Peer Peer
+	Peer Peer // The peer.
 }
 
 func (*StarsTransactionPeerObj) CRC() uint32 {
@@ -8859,6 +8949,7 @@ func (*StarsTransactionPeerObj) CRC() uint32 {
 
 func (*StarsTransactionPeerObj) ImplementsStarsTransactionPeer() {}
 
+// Describes a [Telegram Star](https://core.telegram.org/api/stars) transaction used to pay for [Telegram ads as specified here »](https://core.telegram.org/api/stars#paying-for-ads).
 type StarsTransactionPeerAds struct{}
 
 func (*StarsTransactionPeerAds) CRC() uint32 {
@@ -8867,6 +8958,7 @@ func (*StarsTransactionPeerAds) CRC() uint32 {
 
 func (*StarsTransactionPeerAds) ImplementsStarsTransactionPeer() {}
 
+// Describes a [Telegram Star](https://core.telegram.org/api/stars) transaction with the App Store, used when purchasing Telegram Stars through the App Store.
 type StarsTransactionPeerAppStore struct{}
 
 func (*StarsTransactionPeerAppStore) CRC() uint32 {
@@ -8875,6 +8967,7 @@ func (*StarsTransactionPeerAppStore) CRC() uint32 {
 
 func (*StarsTransactionPeerAppStore) ImplementsStarsTransactionPeer() {}
 
+// Describes a [Telegram Star](https://core.telegram.org/api/stars) transaction with [Fragment](https://core.telegram.orghttps://fragment.com), used when purchasing Telegram Stars through [Fragment](https://core.telegram.orghttps://fragment.com).
 type StarsTransactionPeerFragment struct{}
 
 func (*StarsTransactionPeerFragment) CRC() uint32 {
@@ -8883,6 +8976,7 @@ func (*StarsTransactionPeerFragment) CRC() uint32 {
 
 func (*StarsTransactionPeerFragment) ImplementsStarsTransactionPeer() {}
 
+// Describes a [Telegram Star](https://core.telegram.org/api/stars) transaction with the Play Store, used when purchasing Telegram Stars through the Play Store.
 type StarsTransactionPeerPlayMarket struct{}
 
 func (*StarsTransactionPeerPlayMarket) CRC() uint32 {
@@ -8891,6 +8985,7 @@ func (*StarsTransactionPeerPlayMarket) CRC() uint32 {
 
 func (*StarsTransactionPeerPlayMarket) ImplementsStarsTransactionPeer() {}
 
+// Describes a [Telegram Star](https://core.telegram.org/api/stars) transaction made using [@PremiumBot](https://core.telegram.orghttps://t.me/premiumbot) (i.e. using the [inputInvoiceStars](https://core.telegram.org/constructor/inputInvoiceStars) flow described [here »](https://core.telegram.org/api/stars#buying-or-gifting-stars)).
 type StarsTransactionPeerPremiumBot struct{}
 
 func (*StarsTransactionPeerPremiumBot) CRC() uint32 {
@@ -8899,6 +8994,7 @@ func (*StarsTransactionPeerPremiumBot) CRC() uint32 {
 
 func (*StarsTransactionPeerPremiumBot) ImplementsStarsTransactionPeer() {}
 
+// Describes a [Telegram Star](https://core.telegram.org/api/stars) transaction that cannot be described using the current layer.
 type StarsTransactionPeerUnsupported struct{}
 
 func (*StarsTransactionPeerUnsupported) CRC() uint32 {
@@ -8914,8 +9010,8 @@ type StatsGraph interface {
 
 // [Channel statistics graph](https://core.telegram.org/api/stats)
 type StatsGraphObj struct {
-	Json      *DataJson
-	ZoomToken string `tl:"flag:0"`
+	Json      *DataJson // Statistics data
+	ZoomToken string    `tl:"flag:0"` // Zoom token
 }
 
 func (*StatsGraphObj) CRC() uint32 {
@@ -8930,7 +9026,7 @@ func (*StatsGraphObj) ImplementsStatsGraph() {}
 
 // This [channel statistics graph](https://core.telegram.org/api/stats) must be generated asynchronously using [stats.loadAsyncGraph](https://core.telegram.org/method/stats.loadAsyncGraph) to reduce server load
 type StatsGraphAsync struct {
-	Token string
+	Token string // Token to use for fetching the async graph
 }
 
 func (*StatsGraphAsync) CRC() uint32 {
@@ -8941,7 +9037,7 @@ func (*StatsGraphAsync) ImplementsStatsGraph() {}
 
 // An error occurred while generating the [statistics graph](https://core.telegram.org/api/stats)
 type StatsGraphError struct {
-	Error string
+	Error string // The error
 }
 
 func (*StatsGraphError) CRC() uint32 {
@@ -8957,8 +9053,8 @@ type StickerSetCovered interface {
 
 // Stickerset with a single sticker as preview
 type StickerSetCoveredObj struct {
-	Set   *StickerSet
-	Cover Document
+	Set   *StickerSet // Stickerset
+	Cover Document    // Preview
 }
 
 func (*StickerSetCoveredObj) CRC() uint32 {
@@ -8972,10 +9068,10 @@ Stickerset preview with all stickers of the stickerset included.<br>
 Currently used only for [custom emoji stickersets](https://core.telegram.org/api/custom-emoji), to avoid a further call to [messages.getStickerSet](https://core.telegram.org/method/messages.getStickerSet).
 */
 type StickerSetFullCovered struct {
-	Set       *StickerSet
-	Packs     []*StickerPack
-	Keywords  []*StickerKeyword
-	Documents []Document
+	Set       *StickerSet       // Stickerset
+	Packs     []*StickerPack    // Emoji information about every sticker in the stickerset
+	Keywords  []*StickerKeyword // Keywords for some or every sticker in the stickerset.
+	Documents []Document        // Stickers
 }
 
 func (*StickerSetFullCovered) CRC() uint32 {
@@ -8986,8 +9082,8 @@ func (*StickerSetFullCovered) ImplementsStickerSetCovered() {}
 
 // Stickerset, with multiple stickers as preview
 type StickerSetMultiCovered struct {
-	Set    *StickerSet
-	Covers []Document
+	Set    *StickerSet // Stickerset
+	Covers []Document  // Preview stickers
 }
 
 func (*StickerSetMultiCovered) CRC() uint32 {
@@ -8998,7 +9094,7 @@ func (*StickerSetMultiCovered) ImplementsStickerSetCovered() {}
 
 // Just the stickerset information, with no previews.
 type StickerSetNoCovered struct {
-	Set *StickerSet
+	Set *StickerSet // Stickerset information.
 }
 
 func (*StickerSetNoCovered) CRC() uint32 {
@@ -9014,27 +9110,27 @@ type StoryItem interface {
 
 // Represents a [story](https://core.telegram.org/api/stories).
 type StoryItemObj struct {
-	Pinned           bool `tl:"flag:5,encoded_in_bitflags"`
-	Public           bool `tl:"flag:7,encoded_in_bitflags"`
-	CloseFriends     bool `tl:"flag:8,encoded_in_bitflags"`
-	Min              bool `tl:"flag:9,encoded_in_bitflags"`
-	Noforwards       bool `tl:"flag:10,encoded_in_bitflags"`
-	Edited           bool `tl:"flag:11,encoded_in_bitflags"`
-	Contacts         bool `tl:"flag:12,encoded_in_bitflags"`
-	SelectedContacts bool `tl:"flag:13,encoded_in_bitflags"`
-	Out              bool `tl:"flag:16,encoded_in_bitflags"`
-	ID               int32
-	Date             int32
-	FromID           Peer            `tl:"flag:18"`
-	FwdFrom          *StoryFwdHeader `tl:"flag:17"`
-	ExpireDate       int32
-	Caption          string          `tl:"flag:0"`
-	Entities         []MessageEntity `tl:"flag:1"`
-	Media            MessageMedia
-	MediaAreas       []MediaArea   `tl:"flag:14"`
-	Privacy          []PrivacyRule `tl:"flag:2"`
-	Views            *StoryViews   `tl:"flag:3"`
-	SentReaction     Reaction      `tl:"flag:15"`
+	Pinned           bool            `tl:"flag:5,encoded_in_bitflags"`  // Whether this story is pinned on the user's profile
+	Public           bool            `tl:"flag:7,encoded_in_bitflags"`  // Whether this story is public and can be viewed by everyone
+	CloseFriends     bool            `tl:"flag:8,encoded_in_bitflags"`  // Whether this story can only be viewed by our close friends
+	Min              bool            `tl:"flag:9,encoded_in_bitflags"`  // Full information about this story was omitted for space and performance reasons; use stories.getStoriesByID to fetch full info about this story when and if needed.
+	Noforwards       bool            `tl:"flag:10,encoded_in_bitflags"` // Whether this story is protected and thus cannot be forwarded; clients should also prevent users from saving attached media (i.e. videos should only be streamed, photos should be kept in RAM, et cetera).
+	Edited           bool            `tl:"flag:11,encoded_in_bitflags"` // Indicates whether the story was edited.
+	Contacts         bool            `tl:"flag:12,encoded_in_bitflags"` // Whether this story can only be viewed by our contacts
+	SelectedContacts bool            `tl:"flag:13,encoded_in_bitflags"` // Whether this story can only be viewed by a select list of our contacts
+	Out              bool            `tl:"flag:16,encoded_in_bitflags"` // indicates whether we sent this story.
+	ID               int32           // ID of the story.
+	Date             int32           // When was the story posted.
+	FromID           Peer            `tl:"flag:18"` // Sender of the story.
+	FwdFrom          *StoryFwdHeader `tl:"flag:17"` // For reposted stories , contains info about the original story.
+	ExpireDate       int32           // When does the story expire.
+	Caption          string          `tl:"flag:0"` // Story caption.
+	Entities         []MessageEntity `tl:"flag:1"` // Message entities for styled text
+	Media            MessageMedia    // Story media.
+	MediaAreas       []MediaArea     `tl:"flag:14"` // List of media areas,.
+	Privacy          []PrivacyRule   `tl:"flag:2"`  // Privacy rules indicating who can and can't view this story
+	Views            *StoryViews     `tl:"flag:3"`  // View date and reaction information
+	SentReaction     Reaction        `tl:"flag:15"` // The reaction we sent.
 }
 
 func (*StoryItemObj) CRC() uint32 {
@@ -9049,7 +9145,7 @@ func (*StoryItemObj) ImplementsStoryItem() {}
 
 // Represents a previously active story, that was deleted
 type StoryItemDeleted struct {
-	ID int32
+	ID int32 // Story ID
 }
 
 func (*StoryItemDeleted) CRC() uint32 {
@@ -9060,10 +9156,10 @@ func (*StoryItemDeleted) ImplementsStoryItem() {}
 
 // Represents an active story, whose full information was omitted for space and performance reasons; use [stories.getStoriesByID](https://core.telegram.org/method/stories.getStoriesByID) to fetch full info about the skipped story when and if needed.
 type StoryItemSkipped struct {
-	CloseFriends bool `tl:"flag:8,encoded_in_bitflags"`
-	ID           int32
-	Date         int32
-	ExpireDate   int32
+	CloseFriends bool  `tl:"flag:8,encoded_in_bitflags"` // Whether this story can only be viewed by our close friends
+	ID           int32 // Story ID
+	Date         int32 // When was the story posted.
+	ExpireDate   int32 // When does the story expire.
 }
 
 func (*StoryItemSkipped) CRC() uint32 {
@@ -9083,9 +9179,9 @@ type StoryReaction interface {
 
 // How a certain peer reacted to a story
 type StoryReactionObj struct {
-	PeerID   Peer
-	Date     int32
-	Reaction Reaction
+	PeerID   Peer     // The peer
+	Date     int32    // Reaction date
+	Reaction Reaction // The reaction
 }
 
 func (*StoryReactionObj) CRC() uint32 {
@@ -9096,7 +9192,7 @@ func (*StoryReactionObj) ImplementsStoryReaction() {}
 
 // A certain peer has forwarded the story as a message to a public chat or channel.
 type StoryReactionPublicForward struct {
-	Message Message
+	Message Message // The message with the forwarded story.
 }
 
 func (*StoryReactionPublicForward) CRC() uint32 {
@@ -9107,8 +9203,8 @@ func (*StoryReactionPublicForward) ImplementsStoryReaction() {}
 
 // A certain peer has reposted the story.
 type StoryReactionPublicRepost struct {
-	PeerID Peer
-	Story  StoryItem
+	PeerID Peer      // The peer that reposted the story.
+	Story  StoryItem // The reposted story.
 }
 
 func (*StoryReactionPublicRepost) CRC() uint32 {
@@ -9124,11 +9220,11 @@ type StoryView interface {
 
 // [Story](https://core.telegram.org/api/stories) view date and reaction information
 type StoryViewObj struct {
-	Blocked              bool `tl:"flag:0,encoded_in_bitflags"`
-	BlockedMyStoriesFrom bool `tl:"flag:1,encoded_in_bitflags"`
-	UserID               int64
-	Date                 int32
-	Reaction             Reaction `tl:"flag:2"`
+	Blocked              bool     `tl:"flag:0,encoded_in_bitflags"` // Whether we have completely blocked this user, including from viewing more of our stories.
+	BlockedMyStoriesFrom bool     `tl:"flag:1,encoded_in_bitflags"` // Whether we have blocked this user from viewing more of our stories.
+	UserID               int64    // The user that viewed the story
+	Date                 int32    // When did the user view the story
+	Reaction             Reaction `tl:"flag:2"` // If present, contains the reaction that the user left on the story
 }
 
 func (*StoryViewObj) CRC() uint32 {
@@ -9143,9 +9239,9 @@ func (*StoryViewObj) ImplementsStoryView() {}
 
 // A certain peer has forwarded the story as a message to a public chat or channel.
 type StoryViewPublicForward struct {
-	Blocked              bool `tl:"flag:0,encoded_in_bitflags"`
-	BlockedMyStoriesFrom bool `tl:"flag:1,encoded_in_bitflags"`
-	Message              Message
+	Blocked              bool    `tl:"flag:0,encoded_in_bitflags"` // Whether we have completely blocked this user, including from viewing more of our stories.
+	BlockedMyStoriesFrom bool    `tl:"flag:1,encoded_in_bitflags"` // Whether we have blocked this user from viewing more of our stories.
+	Message              Message // The message with the forwarded story.
 }
 
 func (*StoryViewPublicForward) CRC() uint32 {
@@ -9160,10 +9256,10 @@ func (*StoryViewPublicForward) ImplementsStoryView() {}
 
 // A certain peer has reposted the story.
 type StoryViewPublicRepost struct {
-	Blocked              bool `tl:"flag:0,encoded_in_bitflags"`
-	BlockedMyStoriesFrom bool `tl:"flag:1,encoded_in_bitflags"`
-	PeerID               Peer
-	Story                StoryItem
+	Blocked              bool      `tl:"flag:0,encoded_in_bitflags"` // Whether we have completely blocked this user, including from viewing more of our stories.
+	BlockedMyStoriesFrom bool      `tl:"flag:1,encoded_in_bitflags"` // Whether we have blocked this user from viewing more of our stories.
+	PeerID               Peer      // The peer that reposted the story.
+	Story                StoryItem // The reposted story.
 }
 
 func (*StoryViewPublicRepost) CRC() uint32 {
@@ -9199,9 +9295,10 @@ func (*UpdateAutoSaveSettings) CRC() uint32 {
 
 func (*UpdateAutoSaveSettings) ImplementsUpdate() {}
 
+// Connecting or disconnecting a [business bot](https://core.telegram.org/api/business#connected-bots) or changing the connection settings will emit an [updateBotBusinessConnect](https://core.telegram.org/constructor/updateBotBusinessConnect) update to the bot, with the new settings and a `connection_id` that will be used by the bot to handle updates from and send messages as the user.
 type UpdateBotBusinessConnect struct {
-	Connection *BotBusinessConnection
-	Qts        int32
+	Connection *BotBusinessConnection // Business connection settings
+	Qts        int32                  // New qts value, see updates  for more info.
 }
 
 func (*UpdateBotBusinessConnect) CRC() uint32 {
@@ -9212,13 +9309,13 @@ func (*UpdateBotBusinessConnect) ImplementsUpdate() {}
 
 // A callback button was pressed, and the button data was sent to the bot that created the button
 type UpdateBotCallbackQuery struct {
-	QueryID       int64
-	UserID        int64
-	Peer          Peer
-	MsgID         int32
-	ChatInstance  int64
-	Data          []byte `tl:"flag:0"`
-	GameShortName string `tl:"flag:1"`
+	QueryID       int64  // Query ID
+	UserID        int64  // ID of the user that pressed the button
+	Peer          Peer   // Chat where the inline keyboard was sent
+	MsgID         int32  // Message ID
+	ChatInstance  int64  // Global identifier, uniquely corresponding to the chat to which the message with the callback button was sent. Useful for high scores in games.
+	Data          []byte `tl:"flag:0"` // Callback data
+	GameShortName string `tl:"flag:1"` // Short name of a Game to be returned, serves as the unique identifier for the game
 }
 
 func (*UpdateBotCallbackQuery) CRC() uint32 {
@@ -9231,11 +9328,11 @@ func (*UpdateBotCallbackQuery) FlagIndex() int {
 
 func (*UpdateBotCallbackQuery) ImplementsUpdate() {}
 
-// A [channel boost](https://core.telegram.org/api/boost) has changed (bots only)
+// A [channel/supergroup boost](https://core.telegram.org/api/boost) has changed (bots only)
 type UpdateBotChatBoost struct {
-	Peer  Peer
-	Boost *Boost
-	Qts   int32
+	Peer  Peer   // Channel
+	Boost *Boost // New boost information
+	Qts   int32  // QTS event sequence identifier
 }
 
 func (*UpdateBotChatBoost) CRC() uint32 {
@@ -9246,12 +9343,12 @@ func (*UpdateBotChatBoost) ImplementsUpdate() {}
 
 // Someone has requested to join a chat or channel (bots only, users will receive an [updatePendingJoinRequests](https://core.telegram.org/constructor/updatePendingJoinRequests), instead)
 type UpdateBotChatInviteRequester struct {
-	Peer   Peer
-	Date   int32
-	UserID int64
-	About  string
-	Invite ExportedChatInvite
-	Qts    int32
+	Peer   Peer               // The chat or channel in question
+	Date   int32              // When was the join request  made
+	UserID int64              // The user ID that is asking to join the chat or channel
+	About  string             // Bio of the user
+	Invite ExportedChatInvite // Chat invite link that was used by the user to send the join request
+	Qts    int32              // QTS event sequence identifier
 }
 
 func (*UpdateBotChatInviteRequester) CRC() uint32 {
@@ -9262,9 +9359,9 @@ func (*UpdateBotChatInviteRequester) ImplementsUpdate() {}
 
 // The [command set](https://core.telegram.org/api/bots/commands) of a certain bot in a certain chat has changed.
 type UpdateBotCommands struct {
-	Peer     Peer
-	BotID    int64
-	Commands []*BotCommand
+	Peer     Peer          // The affected chat
+	BotID    int64         // ID of the bot that changed its command set
+	Commands []*BotCommand // New bot commands
 }
 
 func (*UpdateBotCommands) CRC() uint32 {
@@ -9273,11 +9370,12 @@ func (*UpdateBotCommands) CRC() uint32 {
 
 func (*UpdateBotCommands) ImplementsUpdate() {}
 
+// A message was deleted in a [connected business chat »](https://core.telegram.org/api/business#connected-bots).
 type UpdateBotDeleteBusinessMessage struct {
-	ConnectionID string
-	Peer         Peer
-	Messages     []int32
-	Qts          int32
+	ConnectionID string  // Business connection ID.
+	Peer         Peer    // Peer where the messages were deleted.
+	Messages     []int32 // IDs of the messages that were deleted.
+	Qts          int32   // New qts value, see updates  for more info.
 }
 
 func (*UpdateBotDeleteBusinessMessage) CRC() uint32 {
@@ -9286,11 +9384,12 @@ func (*UpdateBotDeleteBusinessMessage) CRC() uint32 {
 
 func (*UpdateBotDeleteBusinessMessage) ImplementsUpdate() {}
 
+// A message was edited in a [connected business chat »](https://core.telegram.org/api/business#connected-bots).
 type UpdateBotEditBusinessMessage struct {
-	ConnectionID   string
-	Message        Message
-	ReplyToMessage Message `tl:"flag:0"`
-	Qts            int32
+	ConnectionID   string  // Business connection ID
+	Message        Message // New message.
+	ReplyToMessage Message `tl:"flag:0"` // The message that 'message' is replying to.
+	Qts            int32   // New qts value, see updates  for more info.
 }
 
 func (*UpdateBotEditBusinessMessage) CRC() uint32 {
@@ -9305,12 +9404,12 @@ func (*UpdateBotEditBusinessMessage) ImplementsUpdate() {}
 
 // An incoming inline query
 type UpdateBotInlineQuery struct {
-	QueryID  int64
-	UserID   int64
-	Query    string
-	Geo      GeoPoint            `tl:"flag:0"`
-	PeerType InlineQueryPeerType `tl:"flag:1"`
-	Offset   string
+	QueryID  int64               // Query ID
+	UserID   int64               // User that sent the query
+	Query    string              // Text of query
+	Geo      GeoPoint            `tl:"flag:0"` // Attached geolocation
+	PeerType InlineQueryPeerType `tl:"flag:1"` // Type of the chat from which the inline query was sent.
+	Offset   string              // Offset to navigate through results
 }
 
 func (*UpdateBotInlineQuery) CRC() uint32 {
@@ -9325,11 +9424,11 @@ func (*UpdateBotInlineQuery) ImplementsUpdate() {}
 
 // The result of an inline query that was chosen by a user and sent to their chat partner. Please see our documentation on the [feedback collecting](https://core.telegram.orghttps://core.telegram.org/bots/inline#collecting-feedback) for details on how to enable these updates for your bot.
 type UpdateBotInlineSend struct {
-	UserID int64
-	Query  string
-	Geo    GeoPoint `tl:"flag:0"`
-	ID     string
-	MsgID  InputBotInlineMessageID `tl:"flag:1"`
+	UserID int64                   // The user that chose the result
+	Query  string                  // The query that was used to obtain the result
+	Geo    GeoPoint                `tl:"flag:0"` // Optional. Sender location, only for bots that require user location
+	ID     string                  // The unique identifier for the result that was chosen
+	MsgID  InputBotInlineMessageID `tl:"flag:1"` // Identifier of the sent inline message. Available only if there is an inline keyboard attached to the message. Will be also received in callback queries and can be used to edit the message.
 }
 
 func (*UpdateBotInlineSend) CRC() uint32 {
@@ -9344,8 +9443,8 @@ func (*UpdateBotInlineSend) ImplementsUpdate() {}
 
 // The menu button behavior for the specified bot has changed
 type UpdateBotMenuButton struct {
-	BotID  int64
-	Button BotMenuButton
+	BotID  int64         // Bot ID
+	Button BotMenuButton // New menu button
 }
 
 func (*UpdateBotMenuButton) CRC() uint32 {
@@ -9356,13 +9455,13 @@ func (*UpdateBotMenuButton) ImplementsUpdate() {}
 
 // Bots only: a user has changed their reactions on a message with public reactions.
 type UpdateBotMessageReaction struct {
-	Peer         Peer
-	MsgID        int32
-	Date         int32
-	Actor        Peer
-	OldReactions []Reaction
-	NewReactions []Reaction
-	Qts          int32
+	Peer         Peer       // Peer of the reacted-to message.
+	MsgID        int32      // ID of the reacted-to message.
+	Date         int32      // Date of the change.
+	Actor        Peer       // The user that (un)reacted to the message.
+	OldReactions []Reaction // Old reactions
+	NewReactions []Reaction // New reactions
+	Qts          int32      // QTS event sequence identifier
 }
 
 func (*UpdateBotMessageReaction) CRC() uint32 {
@@ -9373,11 +9472,11 @@ func (*UpdateBotMessageReaction) ImplementsUpdate() {}
 
 // Bots only: the number of reactions on a message with anonymous reactions has changed.
 type UpdateBotMessageReactions struct {
-	Peer      Peer
-	MsgID     int32
-	Date      int32
-	Reactions []*ReactionCount
-	Qts       int32
+	Peer      Peer             // Peer of the reacted-to message.
+	MsgID     int32            // ID of the reacted-to message.
+	Date      int32            // Date of the change.
+	Reactions []*ReactionCount // New reaction counters.
+	Qts       int32            // QTS event sequence identifier
 }
 
 func (*UpdateBotMessageReactions) CRC() uint32 {
@@ -9386,11 +9485,12 @@ func (*UpdateBotMessageReactions) CRC() uint32 {
 
 func (*UpdateBotMessageReactions) ImplementsUpdate() {}
 
+// A message was received via a [connected business chat »](https://core.telegram.org/api/business#connected-bots).
 type UpdateBotNewBusinessMessage struct {
-	ConnectionID   string
-	Message        Message
-	ReplyToMessage Message `tl:"flag:0"`
-	Qts            int32
+	ConnectionID   string  // Connection ID.
+	Message        Message // New message.
+	ReplyToMessage Message `tl:"flag:0"` // The message that 'message' is replying to.
+	Qts            int32   // New qts value, see updates  for more info.
 }
 
 func (*UpdateBotNewBusinessMessage) CRC() uint32 {
@@ -9405,13 +9505,13 @@ func (*UpdateBotNewBusinessMessage) ImplementsUpdate() {}
 
 // This object contains information about an incoming pre-checkout query.
 type UpdateBotPrecheckoutQuery struct {
-	QueryID          int64
-	UserID           int64
-	Payload          []byte
-	Info             *PaymentRequestedInfo `tl:"flag:0"`
-	ShippingOptionID string                `tl:"flag:1"`
-	Currency         string
-	TotalAmount      int64
+	QueryID          int64                 // Unique query identifier
+	UserID           int64                 // User who sent the query
+	Payload          []byte                // Bot specified invoice payload
+	Info             *PaymentRequestedInfo `tl:"flag:0"` // Order info provided by the user
+	ShippingOptionID string                `tl:"flag:1"` // Identifier of the shipping option chosen by the user
+	Currency         string                // Three-letter ISO 4217 currency code, or 'XTR' for Telegram Stars.
+	TotalAmount      int64                 // Total amount in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*UpdateBotPrecheckoutQuery) CRC() uint32 {
@@ -9438,10 +9538,10 @@ func (*UpdateBotPurchasedPaidMedia) ImplementsUpdate() {}
 
 // This object contains information about an incoming shipping query.
 type UpdateBotShippingQuery struct {
-	QueryID         int64
-	UserID          int64
-	Payload         []byte
-	ShippingAddress *PostAddress
+	QueryID         int64        // Unique query identifier
+	UserID          int64        // User who sent the query
+	Payload         []byte       // Bot specified invoice payload
+	ShippingAddress *PostAddress // User specified shipping address
 }
 
 func (*UpdateBotShippingQuery) CRC() uint32 {
@@ -9452,10 +9552,10 @@ func (*UpdateBotShippingQuery) ImplementsUpdate() {}
 
 // A bot was stopped or re-started.
 type UpdateBotStopped struct {
-	UserID  int64
-	Date    int32
-	Stopped bool
-	Qts     int32
+	UserID  int64 // The user ID
+	Date    int32 // When did this action occur
+	Stopped bool  // Whether the bot was stopped or started
+	Qts     int32 // New qts value, see updates  for more info.
 }
 
 func (*UpdateBotStopped) CRC() uint32 {
@@ -9466,7 +9566,7 @@ func (*UpdateBotStopped) ImplementsUpdate() {}
 
 // A new incoming event; for bots only
 type UpdateBotWebhookJson struct {
-	Data *DataJson
+	Data *DataJson // The event
 }
 
 func (*UpdateBotWebhookJson) CRC() uint32 {
@@ -9477,9 +9577,9 @@ func (*UpdateBotWebhookJson) ImplementsUpdate() {}
 
 // A new incoming query; for bots only
 type UpdateBotWebhookJsonQuery struct {
-	QueryID int64
-	Data    *DataJson
-	Timeout int32
+	QueryID int64     // Query identifier
+	Data    *DataJson // Query data
+	Timeout int32     // Query timeout
 }
 
 func (*UpdateBotWebhookJsonQuery) CRC() uint32 {
@@ -9488,9 +9588,10 @@ func (*UpdateBotWebhookJsonQuery) CRC() uint32 {
 
 func (*UpdateBotWebhookJsonQuery) ImplementsUpdate() {}
 
+// A new [channel ad revenue transaction was made, see here »](https://core.telegram.org/api/revenue#revenue-statistics) for more info.
 type UpdateBroadcastRevenueTransactions struct {
-	Peer     Peer
-	Balances *BroadcastRevenueBalances
+	Peer     Peer                      // Channel
+	Balances *BroadcastRevenueBalances // New ad revenue balance.
 }
 
 func (*UpdateBroadcastRevenueTransactions) CRC() uint32 {
@@ -9499,14 +9600,15 @@ func (*UpdateBroadcastRevenueTransactions) CRC() uint32 {
 
 func (*UpdateBroadcastRevenueTransactions) ImplementsUpdate() {}
 
+// A callback button sent via a [business connection](https://core.telegram.org/api/business#connected-bots) was pressed, and the button data was sent to the bot that created the button.
 type UpdateBusinessBotCallbackQuery struct {
-	QueryID        int64
-	UserID         int64
-	ConnectionID   string
-	Message        Message
-	ReplyToMessage Message `tl:"flag:2"`
-	ChatInstance   int64
-	Data           []byte `tl:"flag:0"`
+	QueryID        int64   // Query ID
+	UserID         int64   // ID of the user that pressed the button
+	ConnectionID   string  // Business connection ID
+	Message        Message // Message that contains the keyboard (also contains info about the chat where the message was sent).
+	ReplyToMessage Message `tl:"flag:2"` // The message that 'message' is replying to.
+	ChatInstance   int64   // Global identifier, uniquely corresponding to the chat to which the message with the callback button was sent. Useful for high scores in games.
+	Data           []byte  `tl:"flag:0"` // Callback data
 }
 
 func (*UpdateBusinessBotCallbackQuery) CRC() uint32 {
@@ -9519,9 +9621,9 @@ func (*UpdateBusinessBotCallbackQuery) FlagIndex() int {
 
 func (*UpdateBusinessBotCallbackQuery) ImplementsUpdate() {}
 
-// A new channel or supergroup is available, or info about an existing channel has changed and must be refeteched.
+// Channel/supergroup ([channel](https://core.telegram.org/constructor/channel) and/or [channelFull](https://core.telegram.org/constructor/channelFull)) information was updated.
 type UpdateChannel struct {
-	ChannelID int64
+	ChannelID int64 // Channel ID
 }
 
 func (*UpdateChannel) CRC() uint32 {
@@ -9532,8 +9634,8 @@ func (*UpdateChannel) ImplementsUpdate() {}
 
 // The history of a [channel/supergroup](https://core.telegram.org/api/channel) was hidden.
 type UpdateChannelAvailableMessages struct {
-	ChannelID      int64
-	AvailableMinID int32
+	ChannelID      int64 // Channel/supergroup ID
+	AvailableMinID int32 // Identifier of a maximum unavailable message in a channel due to hidden history.
 }
 
 func (*UpdateChannelAvailableMessages) CRC() uint32 {
@@ -9544,9 +9646,9 @@ func (*UpdateChannelAvailableMessages) ImplementsUpdate() {}
 
 // The forward counter of a message in a channel has changed
 type UpdateChannelMessageForwards struct {
-	ChannelID int64
-	ID        int32
-	Forwards  int32
+	ChannelID int64 // Channel ID
+	ID        int32 // ID of the message
+	Forwards  int32 // New forward counter
 }
 
 func (*UpdateChannelMessageForwards) CRC() uint32 {
@@ -9557,9 +9659,9 @@ func (*UpdateChannelMessageForwards) ImplementsUpdate() {}
 
 // The view counter of a message in a channel has changed
 type UpdateChannelMessageViews struct {
-	ChannelID int64
-	ID        int32
-	Views     int32
+	ChannelID int64 // Channel ID
+	ID        int32 // ID of the message
+	Views     int32 // New view counter
 }
 
 func (*UpdateChannelMessageViews) CRC() uint32 {
@@ -9570,15 +9672,15 @@ func (*UpdateChannelMessageViews) ImplementsUpdate() {}
 
 // A participant has left, joined, was banned or admined in a [channel or supergroup](https://core.telegram.org/api/channel).
 type UpdateChannelParticipant struct {
-	ViaChatlist     bool `tl:"flag:3,encoded_in_bitflags"`
-	ChannelID       int64
-	Date            int32
-	ActorID         int64
-	UserID          int64
-	PrevParticipant ChannelParticipant `tl:"flag:0"`
-	NewParticipant  ChannelParticipant `tl:"flag:1"`
-	Invite          ExportedChatInvite `tl:"flag:2"`
-	Qts             int32
+	ViaChatlist     bool               `tl:"flag:3,encoded_in_bitflags"` // Whether the participant joined using a chat folder deep link.
+	ChannelID       int64              // Channel ID
+	Date            int32              // Date of the event
+	ActorID         int64              // User that triggered the change (inviter, admin that kicked the user, or the even the user_id itself)
+	UserID          int64              // User that was affected by the change
+	PrevParticipant ChannelParticipant `tl:"flag:0"` // Previous participant status
+	NewParticipant  ChannelParticipant `tl:"flag:1"` // New participant status
+	Invite          ExportedChatInvite `tl:"flag:2"` // Chat invite used to join the channel/supergroup
+	Qts             int32              // New qts value, see updates  for more info.
 }
 
 func (*UpdateChannelParticipant) CRC() uint32 {
@@ -9593,9 +9695,9 @@ func (*UpdateChannelParticipant) ImplementsUpdate() {}
 
 // A [forum topic »](https://core.telegram.org/api/forum#forum-topics) was pinned or unpinned.
 type UpdateChannelPinnedTopic struct {
-	Pinned    bool `tl:"flag:0,encoded_in_bitflags"`
-	ChannelID int64
-	TopicID   int32
+	Pinned    bool  `tl:"flag:0,encoded_in_bitflags"` // Whether the topic was pinned or unpinned
+	ChannelID int64 // The forum ID
+	TopicID   int32 // The topic ID
 }
 
 func (*UpdateChannelPinnedTopic) CRC() uint32 {
@@ -9610,8 +9712,8 @@ func (*UpdateChannelPinnedTopic) ImplementsUpdate() {}
 
 // The [pinned topics](https://core.telegram.org/api/forum#forum-topics) of a forum have changed.
 type UpdateChannelPinnedTopics struct {
-	ChannelID int64
-	Order     []int32 `tl:"flag:0"`
+	ChannelID int64   // Forum ID.
+	Order     []int32 `tl:"flag:0"` // Ordered list containing the IDs of all pinned topics.
 }
 
 func (*UpdateChannelPinnedTopics) CRC() uint32 {
@@ -9626,9 +9728,9 @@ func (*UpdateChannelPinnedTopics) ImplementsUpdate() {}
 
 // The specified [channel/supergroup](https://core.telegram.org/api/channel) messages were read
 type UpdateChannelReadMessagesContents struct {
-	ChannelID int64
-	TopMsgID  int32 `tl:"flag:0"`
-	Messages  []int32
+	ChannelID int64   // Channel/supergroup ID
+	TopMsgID  int32   `tl:"flag:0"` // Forum topic ID.
+	Messages  []int32 // IDs of messages that were read
 }
 
 func (*UpdateChannelReadMessagesContents) CRC() uint32 {
@@ -9646,8 +9748,8 @@ There are new updates in the specified channel, the client must fetch them.<br>
 If the difference is too long or if the channel isn't currently in the states, start fetching from the specified pts.
 */
 type UpdateChannelTooLong struct {
-	ChannelID int64
-	Pts       int32 `tl:"flag:0"`
+	ChannelID int64 // The channel
+	Pts       int32 `tl:"flag:0"` // The PTS.
 }
 
 func (*UpdateChannelTooLong) CRC() uint32 {
@@ -9662,10 +9764,10 @@ func (*UpdateChannelTooLong) ImplementsUpdate() {}
 
 // A user is typing in a [supergroup, channel](https://core.telegram.org/api/channel) or [message thread](https://core.telegram.org/api/threads)
 type UpdateChannelUserTyping struct {
-	ChannelID int64
-	TopMsgID  int32 `tl:"flag:0"`
-	FromID    Peer
-	Action    SendMessageAction
+	ChannelID int64             // Channel ID
+	TopMsgID  int32             `tl:"flag:0"` // Thread ID
+	FromID    Peer              // The peer that is typing
+	Action    SendMessageAction // Whether the user is typing, sending a media or doing something else
 }
 
 func (*UpdateChannelUserTyping) CRC() uint32 {
@@ -9683,8 +9785,8 @@ Users may also choose to display messages from all topics as if they were sent t
 This setting only affects the current account, and is synced to other logged in sessions using the [channels.toggleViewForumAsMessages](https://core.telegram.org/method/channels.toggleViewForumAsMessages) method; invoking this method will update the value of the `view_forum_as_messages` flag of [channelFull](https://core.telegram.org/constructor/channelFull) or [dialog](https://core.telegram.org/constructor/dialog) and emit an [updateChannelViewForumAsMessages](https://core.telegram.org/constructor/updateChannelViewForumAsMessages).
 */
 type UpdateChannelViewForumAsMessages struct {
-	ChannelID int64
-	Enabled   bool
+	ChannelID int64 // The forum ID
+	Enabled   bool  // The new value of the toggle.
 }
 
 func (*UpdateChannelViewForumAsMessages) CRC() uint32 {
@@ -9695,10 +9797,10 @@ func (*UpdateChannelViewForumAsMessages) ImplementsUpdate() {}
 
 // A webpage preview of a link in a [channel/supergroup](https://core.telegram.org/api/channel) message was generated
 type UpdateChannelWebPage struct {
-	ChannelID int64
-	Webpage   WebPage
-	Pts       int32
-	PtsCount  int32
+	ChannelID int64   // Channel/supergroup ID
+	Webpage   WebPage // Generated webpage preview
+	Pts       int32   // Event count after generation
+	PtsCount  int32   // Number of events that were generated
 }
 
 func (*UpdateChannelWebPage) CRC() uint32 {
@@ -9707,9 +9809,9 @@ func (*UpdateChannelWebPage) CRC() uint32 {
 
 func (*UpdateChannelWebPage) ImplementsUpdate() {}
 
-// A new chat is available
+// Chat ([chat](https://core.telegram.org/constructor/chat) and/or [chatFull](https://core.telegram.org/constructor/chatFull)) information was updated.
 type UpdateChat struct {
-	ChatID int64
+	ChatID int64 // Chat ID
 }
 
 func (*UpdateChat) CRC() uint32 {
@@ -9720,9 +9822,9 @@ func (*UpdateChat) ImplementsUpdate() {}
 
 // Default banned rights in a [normal chat](https://core.telegram.org/api/channel) were updated
 type UpdateChatDefaultBannedRights struct {
-	Peer                Peer
-	DefaultBannedRights *ChatBannedRights
-	Version             int32
+	Peer                Peer              // The chat
+	DefaultBannedRights *ChatBannedRights // New default banned rights
+	Version             int32             // Version
 }
 
 func (*UpdateChatDefaultBannedRights) CRC() uint32 {
@@ -9733,14 +9835,14 @@ func (*UpdateChatDefaultBannedRights) ImplementsUpdate() {}
 
 // A user has joined or left a specific chat
 type UpdateChatParticipant struct {
-	ChatID          int64
-	Date            int32
-	ActorID         int64
-	UserID          int64
-	PrevParticipant ChatParticipant    `tl:"flag:0"`
-	NewParticipant  ChatParticipant    `tl:"flag:1"`
-	Invite          ExportedChatInvite `tl:"flag:2"`
-	Qts             int32
+	ChatID          int64              // Chat ID
+	Date            int32              // When did this event occur
+	ActorID         int64              // User that triggered the change (inviter, admin that kicked the user, or the even the user_id itself)
+	UserID          int64              // User that was affected by the change
+	PrevParticipant ChatParticipant    `tl:"flag:0"` // Previous participant info (empty if this participant just joined)
+	NewParticipant  ChatParticipant    `tl:"flag:1"` // New participant info (empty if this participant just left)
+	Invite          ExportedChatInvite `tl:"flag:2"` // The invite that was used to join the group
+	Qts             int32              // New qts value, see updates  for more info.
 }
 
 func (*UpdateChatParticipant) CRC() uint32 {
@@ -9755,11 +9857,11 @@ func (*UpdateChatParticipant) ImplementsUpdate() {}
 
 // New group member.
 type UpdateChatParticipantAdd struct {
-	ChatID    int64
-	UserID    int64
-	InviterID int64
-	Date      int32
-	Version   int32
+	ChatID    int64 // Group ID
+	UserID    int64 // ID of the new member
+	InviterID int64 // ID of the user, who added member to the group
+	Date      int32 // When was the participant added
+	Version   int32 // Chat version number
 }
 
 func (*UpdateChatParticipantAdd) CRC() uint32 {
@@ -9770,10 +9872,10 @@ func (*UpdateChatParticipantAdd) ImplementsUpdate() {}
 
 // Admin permissions of a user in a [basic group](https://core.telegram.org/api/channel#basic-groups) were changed
 type UpdateChatParticipantAdmin struct {
-	ChatID  int64
-	UserID  int64
-	IsAdmin bool
-	Version int32
+	ChatID  int64 // Chat ID
+	UserID  int64 // ID of the (de)admined user
+	IsAdmin bool  // Whether the user was rendered admin
+	Version int32 // Used in basic groups to reorder updates and make sure that all of them was received.
 }
 
 func (*UpdateChatParticipantAdmin) CRC() uint32 {
@@ -9784,9 +9886,9 @@ func (*UpdateChatParticipantAdmin) ImplementsUpdate() {}
 
 // A member has left the group.
 type UpdateChatParticipantDelete struct {
-	ChatID  int64
-	UserID  int64
-	Version int32
+	ChatID  int64 // Group ID
+	UserID  int64 // ID of the user
+	Version int32 // Used in basic groups to reorder updates and make sure that all of them was received.
 }
 
 func (*UpdateChatParticipantDelete) CRC() uint32 {
@@ -9797,7 +9899,7 @@ func (*UpdateChatParticipantDelete) ImplementsUpdate() {}
 
 // Composition of chat participants changed.
 type UpdateChatParticipants struct {
-	Participants ChatParticipants
+	Participants ChatParticipants // Updated chat participants
 }
 
 func (*UpdateChatParticipants) CRC() uint32 {
@@ -9808,9 +9910,9 @@ func (*UpdateChatParticipants) ImplementsUpdate() {}
 
 // The user is preparing a message in a group; typing, recording, uploading, etc. This update is valid for 6 seconds. If no further updates of this kind are received after 6 seconds, it should be considered that the user stopped doing whatever they were doing
 type UpdateChatUserTyping struct {
-	ChatID int64
-	FromID Peer
-	Action SendMessageAction
+	ChatID int64             // Group id
+	FromID Peer              // Peer that started typing (can be the chat itself, in case of anonymous admins).
+	Action SendMessageAction // Type of action
 }
 
 func (*UpdateChatUserTyping) CRC() uint32 {
@@ -9819,7 +9921,7 @@ func (*UpdateChatUserTyping) CRC() uint32 {
 
 func (*UpdateChatUserTyping) ImplementsUpdate() {}
 
-// The server-side configuration has changed; the client should re-fetch the config using [help.getConfig](https://core.telegram.org/method/help.getConfig)
+// The server-side configuration has changed; the client should re-fetch the config using [help.getConfig](https://core.telegram.org/method/help.getConfig) and [help.getAppConfig](https://core.telegram.org/method/help.getAppConfig).
 type UpdateConfig struct{}
 
 func (*UpdateConfig) CRC() uint32 {
@@ -9839,7 +9941,7 @@ func (*UpdateContactsReset) ImplementsUpdate() {}
 
 // Changes in the data center configuration options.
 type UpdateDcOptions struct {
-	DcOptions []*DcOption
+	DcOptions []*DcOption // New connection options
 }
 
 func (*UpdateDcOptions) CRC() uint32 {
@@ -9850,10 +9952,10 @@ func (*UpdateDcOptions) ImplementsUpdate() {}
 
 // Some messages in a [supergroup/channel](https://core.telegram.org/api/channel) were deleted
 type UpdateDeleteChannelMessages struct {
-	ChannelID int64
-	Messages  []int32
-	Pts       int32
-	PtsCount  int32
+	ChannelID int64   // Channel ID
+	Messages  []int32 // IDs of messages that were deleted
+	Pts       int32   // Event count after generation
+	PtsCount  int32   // Number of events that were generated
 }
 
 func (*UpdateDeleteChannelMessages) CRC() uint32 {
@@ -9864,9 +9966,9 @@ func (*UpdateDeleteChannelMessages) ImplementsUpdate() {}
 
 // Messages were deleted.
 type UpdateDeleteMessages struct {
-	Messages []int32
-	Pts      int32
-	PtsCount int32
+	Messages []int32 // List of identifiers of deleted messages
+	Pts      int32   // New quality of actions in a message box
+	PtsCount int32   // Number of generated events
 }
 
 func (*UpdateDeleteMessages) CRC() uint32 {
@@ -9875,8 +9977,9 @@ func (*UpdateDeleteMessages) CRC() uint32 {
 
 func (*UpdateDeleteMessages) ImplementsUpdate() {}
 
+// A [quick reply shortcut »](https://core.telegram.org/api/business#quick-reply-shortcuts) was deleted. This will <strong>not</strong> emit [updateDeleteQuickReplyMessages](https://core.telegram.org/constructor/updateDeleteQuickReplyMessages) updates, even if all the messages in the shortcut are also deleted by this update.
 type UpdateDeleteQuickReply struct {
-	ShortcutID int32
+	ShortcutID int32 // ID of the quick reply shortcut that was deleted.
 }
 
 func (*UpdateDeleteQuickReply) CRC() uint32 {
@@ -9885,9 +9988,10 @@ func (*UpdateDeleteQuickReply) CRC() uint32 {
 
 func (*UpdateDeleteQuickReply) ImplementsUpdate() {}
 
+// One or more messages in a [quick reply shortcut »](https://core.telegram.org/api/business#quick-reply-shortcuts) were deleted.
 type UpdateDeleteQuickReplyMessages struct {
-	ShortcutID int32
-	Messages   []int32
+	ShortcutID int32   // Quick reply shortcut ID.
+	Messages   []int32 // IDs of the deleted messages.
 }
 
 func (*UpdateDeleteQuickReplyMessages) CRC() uint32 {
@@ -9898,8 +10002,8 @@ func (*UpdateDeleteQuickReplyMessages) ImplementsUpdate() {}
 
 // Some [scheduled messages](https://core.telegram.org/api/scheduled-messages) were deleted from the schedule queue of a chat
 type UpdateDeleteScheduledMessages struct {
-	Peer     Peer
-	Messages []int32
+	Peer     Peer    // Peer
+	Messages []int32 // Deleted scheduled messages
 }
 
 func (*UpdateDeleteScheduledMessages) CRC() uint32 {
@@ -9910,8 +10014,8 @@ func (*UpdateDeleteScheduledMessages) ImplementsUpdate() {}
 
 // A new [folder](https://core.telegram.org/api/folders) was added
 type UpdateDialogFilter struct {
-	ID     int32
-	Filter DialogFilter `tl:"flag:0"`
+	ID     int32        // Folder ID
+	Filter DialogFilter `tl:"flag:0"` // Folder info
 }
 
 func (*UpdateDialogFilter) CRC() uint32 {
@@ -9926,7 +10030,7 @@ func (*UpdateDialogFilter) ImplementsUpdate() {}
 
 // New [folder](https://core.telegram.org/api/folders) order
 type UpdateDialogFilterOrder struct {
-	Order []int32
+	Order []int32 // Ordered folder IDs
 }
 
 func (*UpdateDialogFilterOrder) CRC() uint32 {
@@ -9946,9 +10050,9 @@ func (*UpdateDialogFilters) ImplementsUpdate() {}
 
 // A dialog was pinned/unpinned
 type UpdateDialogPinned struct {
-	Pinned   bool  `tl:"flag:0,encoded_in_bitflags"`
-	FolderID int32 `tl:"flag:1"`
-	Peer     DialogPeer
+	Pinned   bool       `tl:"flag:0,encoded_in_bitflags"` // Whether the dialog was pinned
+	FolderID int32      `tl:"flag:1"`                     // Peer folder ID, for more info click here
+	Peer     DialogPeer // The dialog
 }
 
 func (*UpdateDialogPinned) CRC() uint32 {
@@ -9963,8 +10067,8 @@ func (*UpdateDialogPinned) ImplementsUpdate() {}
 
 // The manual unread mark of a chat was changed
 type UpdateDialogUnreadMark struct {
-	Unread bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer   DialogPeer
+	Unread bool       `tl:"flag:0,encoded_in_bitflags"` // Was the chat marked or unmarked as read
+	Peer   DialogPeer // The dialog
 }
 
 func (*UpdateDialogUnreadMark) CRC() uint32 {
@@ -9979,9 +10083,9 @@ func (*UpdateDialogUnreadMark) ImplementsUpdate() {}
 
 // Notifies a change of a message [draft](https://core.telegram.org/api/drafts).
 type UpdateDraftMessage struct {
-	Peer     Peer
-	TopMsgID int32 `tl:"flag:0"`
-	Draft    DraftMessage
+	Peer     Peer         // The peer to which the draft is associated
+	TopMsgID int32        `tl:"flag:0"` // ID of the forum topic to which the draft is associated
+	Draft    DraftMessage // The draft
 }
 
 func (*UpdateDraftMessage) CRC() uint32 {
@@ -9996,9 +10100,9 @@ func (*UpdateDraftMessage) ImplementsUpdate() {}
 
 // A message was edited in a [channel/supergroup](https://core.telegram.org/api/channel)
 type UpdateEditChannelMessage struct {
-	Message  Message
-	Pts      int32
-	PtsCount int32
+	Message  Message // The new message
+	Pts      int32   // Event count after generation
+	PtsCount int32   // Number of events that were generated
 }
 
 func (*UpdateEditChannelMessage) CRC() uint32 {
@@ -10009,9 +10113,9 @@ func (*UpdateEditChannelMessage) ImplementsUpdate() {}
 
 // A message was edited
 type UpdateEditMessage struct {
-	Message  Message
-	Pts      int32
-	PtsCount int32
+	Message  Message // The new edited message
+	Pts      int32   // PTS
+	PtsCount int32   // PTS count
 }
 
 func (*UpdateEditMessage) CRC() uint32 {
@@ -10022,7 +10126,7 @@ func (*UpdateEditMessage) ImplementsUpdate() {}
 
 // Interlocutor is typing a message in an encrypted chat. Update period is 6 second. If upon this time there is no repeated update, it shall be considered that the interlocutor stopped typing.
 type UpdateEncryptedChatTyping struct {
-	ChatID int32
+	ChatID int32 // Chat ID
 }
 
 func (*UpdateEncryptedChatTyping) CRC() uint32 {
@@ -10033,9 +10137,9 @@ func (*UpdateEncryptedChatTyping) ImplementsUpdate() {}
 
 // Communication history in an encrypted chat was marked as read.
 type UpdateEncryptedMessagesRead struct {
-	ChatID  int32
-	MaxDate int32
-	Date    int32
+	ChatID  int32 // Chat ID
+	MaxDate int32 // Maximum value of data for read messages
+	Date    int32 // Time when messages were read
 }
 
 func (*UpdateEncryptedMessagesRead) CRC() uint32 {
@@ -10046,8 +10150,8 @@ func (*UpdateEncryptedMessagesRead) ImplementsUpdate() {}
 
 // Change of state in an encrypted chat.
 type UpdateEncryption struct {
-	Chat EncryptedChat
-	Date int32
+	Chat EncryptedChat // Encrypted chat
+	Date int32         // Date of change
 }
 
 func (*UpdateEncryption) CRC() uint32 {
@@ -10067,9 +10171,9 @@ func (*UpdateFavedStickers) ImplementsUpdate() {}
 
 // The peer list of a [peer folder](https://core.telegram.org/api/folders#peer-folders) was updated
 type UpdateFolderPeers struct {
-	FolderPeers []*FolderPeer
-	Pts         int32
-	PtsCount    int32
+	FolderPeers []*FolderPeer // New peer list
+	Pts         int32         // Event count after generation
+	PtsCount    int32         // Number of events that were generated
 }
 
 func (*UpdateFolderPeers) CRC() uint32 {
@@ -10080,8 +10184,8 @@ func (*UpdateFolderPeers) ImplementsUpdate() {}
 
 // Live geoposition message was viewed
 type UpdateGeoLiveViewed struct {
-	Peer  Peer
-	MsgID int32
+	Peer  Peer  // The user that viewed the live geoposition
+	MsgID int32 // Message ID of geoposition message
 }
 
 func (*UpdateGeoLiveViewed) CRC() uint32 {
@@ -10092,8 +10196,8 @@ func (*UpdateGeoLiveViewed) ImplementsUpdate() {}
 
 // A new groupcall was started
 type UpdateGroupCall struct {
-	ChatID int64
-	Call   GroupCall
+	ChatID int64     // The channel/supergroup where this group call or livestream takes place
+	Call   GroupCall // Info about the group call or livestream
 }
 
 func (*UpdateGroupCall) CRC() uint32 {
@@ -10104,8 +10208,8 @@ func (*UpdateGroupCall) ImplementsUpdate() {}
 
 // New WebRTC parameters
 type UpdateGroupCallConnection struct {
-	Presentation bool `tl:"flag:0,encoded_in_bitflags"`
-	Params       *DataJson
+	Presentation bool      `tl:"flag:0,encoded_in_bitflags"` // Are these parameters related to the screen capture session currently in progress?
+	Params       *DataJson // WebRTC parameters
 }
 
 func (*UpdateGroupCallConnection) CRC() uint32 {
@@ -10120,9 +10224,9 @@ func (*UpdateGroupCallConnection) ImplementsUpdate() {}
 
 // The participant list of a certain group call has changed
 type UpdateGroupCallParticipants struct {
-	Call         *InputGroupCall
-	Participants []*GroupCallParticipant
-	Version      int32
+	Call         *InputGroupCall         // Group call
+	Participants []*GroupCallParticipant // New participant list
+	Version      int32                   // Version
 }
 
 func (*UpdateGroupCallParticipants) CRC() uint32 {
@@ -10133,12 +10237,12 @@ func (*UpdateGroupCallParticipants) ImplementsUpdate() {}
 
 // This notification is received by bots when a button is pressed
 type UpdateInlineBotCallbackQuery struct {
-	QueryID       int64
-	UserID        int64
-	MsgID         InputBotInlineMessageID
-	ChatInstance  int64
-	Data          []byte `tl:"flag:0"`
-	GameShortName string `tl:"flag:1"`
+	QueryID       int64                   // Query ID
+	UserID        int64                   // ID of the user that pressed the button
+	MsgID         InputBotInlineMessageID // ID of the inline message with the button
+	ChatInstance  int64                   // Global identifier, uniquely corresponding to the chat to which the message with the callback button was sent. Useful for high scores in games.
+	Data          []byte                  `tl:"flag:0"` // Data associated with the callback button. Be aware that a bad client can send arbitrary data in this field.
+	GameShortName string                  `tl:"flag:1"` // Short name of a Game to be returned, serves as the unique identifier for the game
 }
 
 func (*UpdateInlineBotCallbackQuery) CRC() uint32 {
@@ -10153,7 +10257,7 @@ func (*UpdateInlineBotCallbackQuery) ImplementsUpdate() {}
 
 // Language pack updated
 type UpdateLangPack struct {
-	Difference *LangPackDifference
+	Difference *LangPackDifference // Changed strings
 }
 
 func (*UpdateLangPack) CRC() uint32 {
@@ -10164,7 +10268,7 @@ func (*UpdateLangPack) ImplementsUpdate() {}
 
 // A language pack has changed, the client should manually fetch the changed strings using [langpack.getDifference](https://core.telegram.org/method/langpack.getDifference)
 type UpdateLangPackTooLong struct {
-	LangCode string
+	LangCode string // Language code
 }
 
 func (*UpdateLangPackTooLong) CRC() uint32 {
@@ -10182,11 +10286,11 @@ func (*UpdateLoginToken) CRC() uint32 {
 
 func (*UpdateLoginToken) ImplementsUpdate() {}
 
-// Extended media update
+// You [bought a paid media »](https://core.telegram.org/api/paid-media): this update contains the revealed media.
 type UpdateMessageExtendedMedia struct {
-	Peer          Peer
-	MsgID         int32
-	ExtendedMedia []MessageExtendedMedia
+	Peer          Peer                   // Peer where the paid media was posted
+	MsgID         int32                  // ID of the message containing the paid media
+	ExtendedMedia []MessageExtendedMedia // Revealed media, contains only messageExtendedMedia constructors.
 }
 
 func (*UpdateMessageExtendedMedia) CRC() uint32 {
@@ -10197,8 +10301,8 @@ func (*UpdateMessageExtendedMedia) ImplementsUpdate() {}
 
 // Sent message with <strong>random_id</strong> client identifier was assigned an identifier.
 type UpdateMessageID struct {
-	ID       int32
-	RandomID int64
+	ID       int32 // id identifier of a respective Message
+	RandomID int64 // Previously transferred client random_id identifier
 }
 
 func (*UpdateMessageID) CRC() uint32 {
@@ -10209,9 +10313,9 @@ func (*UpdateMessageID) ImplementsUpdate() {}
 
 // The results of a poll have changed
 type UpdateMessagePoll struct {
-	PollID  int64
-	Poll    *Poll `tl:"flag:0"`
-	Results *PollResults
+	PollID  int64        // Poll ID
+	Poll    *Poll        `tl:"flag:0"` // If the server knows the client hasn't cached this poll yet, the poll itself
+	Results *PollResults // New poll results
 }
 
 func (*UpdateMessagePoll) CRC() uint32 {
@@ -10226,10 +10330,10 @@ func (*UpdateMessagePoll) ImplementsUpdate() {}
 
 // A specific peer has voted in a poll
 type UpdateMessagePollVote struct {
-	PollID  int64
-	Peer    Peer
-	Options [][]byte
-	Qts     int32
+	PollID  int64    // Poll ID
+	Peer    Peer     // The peer that voted in the poll
+	Options [][]byte // Chosen option(s)
+	Qts     int32    // New qts value, see updates  for more info.
 }
 
 func (*UpdateMessagePollVote) CRC() uint32 {
@@ -10240,10 +10344,10 @@ func (*UpdateMessagePollVote) ImplementsUpdate() {}
 
 // New [message reactions »](https://core.telegram.org/api/reactions) are available
 type UpdateMessageReactions struct {
-	Peer      Peer
-	MsgID     int32
-	TopMsgID  int32 `tl:"flag:0"`
-	Reactions *MessageReactions
+	Peer      Peer              // Peer
+	MsgID     int32             // Message ID
+	TopMsgID  int32             `tl:"flag:0"` // Forum topic ID
+	Reactions *MessageReactions // Reactions
 }
 
 func (*UpdateMessageReactions) CRC() uint32 {
@@ -10258,9 +10362,9 @@ func (*UpdateMessageReactions) ImplementsUpdate() {}
 
 // A stickerset was just moved to top, [see here for more info »](https://core.telegram.org/api/stickers#recent-stickersets)
 type UpdateMoveStickerSetToTop struct {
-	Masks      bool `tl:"flag:0,encoded_in_bitflags"`
-	Emojis     bool `tl:"flag:1,encoded_in_bitflags"`
-	Stickerset int64
+	Masks      bool  `tl:"flag:0,encoded_in_bitflags"` // This update is referring to a mask stickerset
+	Emojis     bool  `tl:"flag:1,encoded_in_bitflags"` // This update is referring to a custom emoji stickerset
+	Stickerset int64 // Stickerset ID
 }
 
 func (*UpdateMoveStickerSetToTop) CRC() uint32 {
@@ -10275,11 +10379,11 @@ func (*UpdateMoveStickerSetToTop) ImplementsUpdate() {}
 
 // A new session logged into the current user's account through an unknown device.
 type UpdateNewAuthorization struct {
-	Unconfirmed bool `tl:"flag:0,encoded_in_bitflags"`
-	Hash        int64
-	Date        int32  `tl:"flag:0"`
-	Device      string `tl:"flag:0"`
-	Location    string `tl:"flag:0"`
+	Unconfirmed bool   `tl:"flag:0,encoded_in_bitflags"` // Whether the session is unconfirmed,.
+	Hash        int64  // Hash used for caching, for more info click here
+	Date        int32  `tl:"flag:0"` // Authorization date
+	Device      string `tl:"flag:0"` // Name of device, for example <em>Android</em>
+	Location    string `tl:"flag:0"` // Location, for example <em>USA, NY (IP=1.2.3.4)</em>
 }
 
 func (*UpdateNewAuthorization) CRC() uint32 {
@@ -10294,9 +10398,9 @@ func (*UpdateNewAuthorization) ImplementsUpdate() {}
 
 // A new message was sent in a [channel/supergroup](https://core.telegram.org/api/channel)
 type UpdateNewChannelMessage struct {
-	Message  Message
-	Pts      int32
-	PtsCount int32
+	Message  Message // New message
+	Pts      int32   // Event count after generation
+	PtsCount int32   // Number of events that were generated
 }
 
 func (*UpdateNewChannelMessage) CRC() uint32 {
@@ -10307,8 +10411,8 @@ func (*UpdateNewChannelMessage) ImplementsUpdate() {}
 
 // New encrypted message.
 type UpdateNewEncryptedMessage struct {
-	Message EncryptedMessage
-	Qts     int32
+	Message EncryptedMessage // Message
+	Qts     int32            // New qts value, see updates  for more info.
 }
 
 func (*UpdateNewEncryptedMessage) CRC() uint32 {
@@ -10319,9 +10423,9 @@ func (*UpdateNewEncryptedMessage) ImplementsUpdate() {}
 
 // New message in a private chat or in a [basic group](https://core.telegram.orghttps://core.telegram.org/api/channel#basic-groups).
 type UpdateNewMessage struct {
-	Message  Message
-	Pts      int32
-	PtsCount int32
+	Message  Message // Message
+	Pts      int32   // New quantity of actions in a message box
+	PtsCount int32   // Number of generated events
 }
 
 func (*UpdateNewMessage) CRC() uint32 {
@@ -10330,8 +10434,9 @@ func (*UpdateNewMessage) CRC() uint32 {
 
 func (*UpdateNewMessage) ImplementsUpdate() {}
 
+// A new [quick reply shortcut »](https://core.telegram.org/api/business#quick-reply-shortcuts) was created.
 type UpdateNewQuickReply struct {
-	QuickReply *QuickReply
+	QuickReply *QuickReply // Quick reply shortcut.
 }
 
 func (*UpdateNewQuickReply) CRC() uint32 {
@@ -10342,7 +10447,7 @@ func (*UpdateNewQuickReply) ImplementsUpdate() {}
 
 // A message was added to the [schedule queue of a chat](https://core.telegram.org/api/scheduled-messages)
 type UpdateNewScheduledMessage struct {
-	Message Message
+	Message Message // Message
 }
 
 func (*UpdateNewScheduledMessage) CRC() uint32 {
@@ -10353,7 +10458,7 @@ func (*UpdateNewScheduledMessage) ImplementsUpdate() {}
 
 // A new stickerset was installed
 type UpdateNewStickerSet struct {
-	Stickerset MessagesStickerSet
+	Stickerset MessagesStickerSet // The installed stickerset
 }
 
 func (*UpdateNewStickerSet) CRC() uint32 {
@@ -10362,10 +10467,11 @@ func (*UpdateNewStickerSet) CRC() uint32 {
 
 func (*UpdateNewStickerSet) ImplementsUpdate() {}
 
+// Represents a new [reaction to a story](https://core.telegram.org/api/reactions#notifications-about-reactions).
 type UpdateNewStoryReaction struct {
-	StoryID  int32
-	Peer     Peer
-	Reaction Reaction
+	StoryID  int32    // Story ID.
+	Peer     Peer     // The peer where the story was posted.
+	Reaction Reaction // The reaction.
 }
 
 func (*UpdateNewStoryReaction) CRC() uint32 {
@@ -10376,8 +10482,8 @@ func (*UpdateNewStoryReaction) ImplementsUpdate() {}
 
 // Changes in notification settings.
 type UpdateNotifySettings struct {
-	Peer           NotifyPeer
-	NotifySettings *PeerNotifySettings
+	Peer           NotifyPeer          // Notification source
+	NotifySettings *PeerNotifySettings // New notification settings
 }
 
 func (*UpdateNotifySettings) CRC() uint32 {
@@ -10398,9 +10504,9 @@ func (*UpdatePaidReactionPrivacy) ImplementsUpdate() {}
 
 // We blocked a peer, see [here »](https://core.telegram.org/api/block) for more info on blocklists.
 type UpdatePeerBlocked struct {
-	Blocked              bool `tl:"flag:0,encoded_in_bitflags"`
-	BlockedMyStoriesFrom bool `tl:"flag:1,encoded_in_bitflags"`
-	PeerID               Peer
+	Blocked              bool `tl:"flag:0,encoded_in_bitflags"` // Whether the peer was blocked or unblocked
+	BlockedMyStoriesFrom bool `tl:"flag:1,encoded_in_bitflags"` // Whether the peer was added/removed to/from the story blocklist; if not set, this update affects the main blocklist,.
+	PeerID               Peer // The (un)blocked peer
 }
 
 func (*UpdatePeerBlocked) CRC() uint32 {
@@ -10415,8 +10521,8 @@ func (*UpdatePeerBlocked) ImplementsUpdate() {}
 
 // The Time-To-Live for messages sent by the current user in a specific chat has changed
 type UpdatePeerHistoryTtl struct {
-	Peer      Peer
-	TtlPeriod int32 `tl:"flag:0"`
+	Peer      Peer  // The chat
+	TtlPeriod int32 `tl:"flag:0"` // The new Time-To-Live
 }
 
 func (*UpdatePeerHistoryTtl) CRC() uint32 {
@@ -10431,7 +10537,7 @@ func (*UpdatePeerHistoryTtl) ImplementsUpdate() {}
 
 // List of peers near you was updated
 type UpdatePeerLocated struct {
-	Peers []PeerLocated
+	Peers []PeerLocated // Geolocated peer list update
 }
 
 func (*UpdatePeerLocated) CRC() uint32 {
@@ -10442,8 +10548,8 @@ func (*UpdatePeerLocated) ImplementsUpdate() {}
 
 // Settings of a certain peer have changed
 type UpdatePeerSettings struct {
-	Peer     Peer
-	Settings *PeerSettings
+	Peer     Peer          // The peer
+	Settings *PeerSettings // Associated peer settings
 }
 
 func (*UpdatePeerSettings) CRC() uint32 {
@@ -10454,9 +10560,9 @@ func (*UpdatePeerSettings) ImplementsUpdate() {}
 
 // The [wallpaper »](https://core.telegram.org/api/wallpapers) of a given peer has changed.
 type UpdatePeerWallpaper struct {
-	WallpaperOverridden bool `tl:"flag:1,encoded_in_bitflags"`
-	Peer                Peer
-	Wallpaper           WallPaper `tl:"flag:0"`
+	WallpaperOverridden bool      `tl:"flag:1,encoded_in_bitflags"` // Whether the other user has chosen a custom wallpaper for us using messages.setChatWallPaper and the 'for_both' flag,.
+	Peer                Peer      // The peer where the wallpaper has changed.
+	Wallpaper           WallPaper `tl:"flag:0"` // The new wallpaper, if none the wallpaper was removed and the default wallpaper should be used.
 }
 
 func (*UpdatePeerWallpaper) CRC() uint32 {
@@ -10471,9 +10577,9 @@ func (*UpdatePeerWallpaper) ImplementsUpdate() {}
 
 // Someone has requested to join a chat or channel
 type UpdatePendingJoinRequests struct {
-	Peer             Peer
-	RequestsPending  int32
-	RecentRequesters []int64
+	Peer             Peer    // Chat or channel
+	RequestsPending  int32   // Number of pending join requests  for the chat or channel
+	RecentRequesters []int64 // IDs of users that have recently requested to join
 }
 
 func (*UpdatePendingJoinRequests) CRC() uint32 {
@@ -10484,7 +10590,7 @@ func (*UpdatePendingJoinRequests) ImplementsUpdate() {}
 
 // An incoming phone call
 type UpdatePhoneCall struct {
-	PhoneCall PhoneCall
+	PhoneCall PhoneCall // Phone call
 }
 
 func (*UpdatePhoneCall) CRC() uint32 {
@@ -10495,8 +10601,8 @@ func (*UpdatePhoneCall) ImplementsUpdate() {}
 
 // Incoming phone call signaling payload
 type UpdatePhoneCallSignalingData struct {
-	PhoneCallID int64
-	Data        []byte
+	PhoneCallID int64  // Phone call ID
+	Data        []byte // Signaling payload
 }
 
 func (*UpdatePhoneCallSignalingData) CRC() uint32 {
@@ -10507,11 +10613,11 @@ func (*UpdatePhoneCallSignalingData) ImplementsUpdate() {}
 
 // Messages were pinned/unpinned in a [channel/supergroup](https://core.telegram.org/api/channel)
 type UpdatePinnedChannelMessages struct {
-	Pinned    bool `tl:"flag:0,encoded_in_bitflags"`
-	ChannelID int64
-	Messages  []int32
-	Pts       int32
-	PtsCount  int32
+	Pinned    bool    `tl:"flag:0,encoded_in_bitflags"` // Whether the messages were pinned or unpinned
+	ChannelID int64   // Channel ID
+	Messages  []int32 // Messages
+	Pts       int32   // Event count after generation
+	PtsCount  int32   // Number of events that were generated
 }
 
 func (*UpdatePinnedChannelMessages) CRC() uint32 {
@@ -10526,8 +10632,8 @@ func (*UpdatePinnedChannelMessages) ImplementsUpdate() {}
 
 // Pinned dialogs were updated
 type UpdatePinnedDialogs struct {
-	FolderID int32        `tl:"flag:1"`
-	Order    []DialogPeer `tl:"flag:0"`
+	FolderID int32        `tl:"flag:1"` // Peer folder ID, for more info click here
+	Order    []DialogPeer `tl:"flag:0"` // New order of pinned dialogs
 }
 
 func (*UpdatePinnedDialogs) CRC() uint32 {
@@ -10542,11 +10648,11 @@ func (*UpdatePinnedDialogs) ImplementsUpdate() {}
 
 // Some messages were pinned in a chat
 type UpdatePinnedMessages struct {
-	Pinned   bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer     Peer
-	Messages []int32
-	Pts      int32
-	PtsCount int32
+	Pinned   bool    `tl:"flag:0,encoded_in_bitflags"` // Whether the messages were pinned or unpinned
+	Peer     Peer    // Peer
+	Messages []int32 // Message IDs
+	Pts      int32   // Event count after generation
+	PtsCount int32   // Number of events that were generated
 }
 
 func (*UpdatePinnedMessages) CRC() uint32 {
@@ -10561,7 +10667,7 @@ func (*UpdatePinnedMessages) ImplementsUpdate() {}
 
 // [Pinned saved dialogs »](https://core.telegram.org/api/saved-messages) were updated
 type UpdatePinnedSavedDialogs struct {
-	Order []DialogPeer `tl:"flag:0"`
+	Order []DialogPeer `tl:"flag:0"` // New order of pinned saved dialogs
 }
 
 func (*UpdatePinnedSavedDialogs) CRC() uint32 {
@@ -10576,8 +10682,8 @@ func (*UpdatePinnedSavedDialogs) ImplementsUpdate() {}
 
 // Privacy rules were changed
 type UpdatePrivacy struct {
-	Key   PrivacyKey
-	Rules []PrivacyRule
+	Key   PrivacyKey    // Peers to which the privacy rules apply
+	Rules []PrivacyRule // New privacy rules
 }
 
 func (*UpdatePrivacy) CRC() uint32 {
@@ -10595,8 +10701,9 @@ func (*UpdatePtsChanged) CRC() uint32 {
 
 func (*UpdatePtsChanged) ImplementsUpdate() {}
 
+// Info about or the order of [quick reply shortcuts »](https://core.telegram.org/api/business#quick-reply-shortcuts) was changed.
 type UpdateQuickReplies struct {
-	QuickReplies []*QuickReply
+	QuickReplies []*QuickReply // New quick reply shortcut order and information.
 }
 
 func (*UpdateQuickReplies) CRC() uint32 {
@@ -10605,8 +10712,9 @@ func (*UpdateQuickReplies) CRC() uint32 {
 
 func (*UpdateQuickReplies) ImplementsUpdate() {}
 
+// A new message was added to a [quick reply shortcut »](https://core.telegram.org/api/business#quick-reply-shortcuts).
 type UpdateQuickReplyMessage struct {
-	Message Message
+	Message Message // The message that was added (the message.'quick_reply_shortcut_id' field will contain the shortcut ID).
 }
 
 func (*UpdateQuickReplyMessage) CRC() uint32 {
@@ -10617,11 +10725,11 @@ func (*UpdateQuickReplyMessage) ImplementsUpdate() {}
 
 // Incoming comments in a [discussion thread](https://core.telegram.org/api/threads) were marked as read
 type UpdateReadChannelDiscussionInbox struct {
-	ChannelID     int64
-	TopMsgID      int32
-	ReadMaxID     int32
-	BroadcastID   int64 `tl:"flag:0"`
-	BroadcastPost int32 `tl:"flag:0"`
+	ChannelID     int64 // Discussion group ID
+	TopMsgID      int32 // ID of the group message that started the thread (message in linked discussion group)
+	ReadMaxID     int32 // Message ID of latest read incoming message for this thread
+	BroadcastID   int64 `tl:"flag:0"` // If set, contains the ID of the channel that contains the post that started the comment thread in the discussion group ('channel_id')
+	BroadcastPost int32 `tl:"flag:0"` // If set, contains the ID of the channel post that started the comment thread
 }
 
 func (*UpdateReadChannelDiscussionInbox) CRC() uint32 {
@@ -10636,9 +10744,9 @@ func (*UpdateReadChannelDiscussionInbox) ImplementsUpdate() {}
 
 // Outgoing comments in a [discussion thread](https://core.telegram.org/api/threads) were marked as read
 type UpdateReadChannelDiscussionOutbox struct {
-	ChannelID int64
-	TopMsgID  int32
-	ReadMaxID int32
+	ChannelID int64 // Supergroup ID
+	TopMsgID  int32 // ID of the group message that started the thread
+	ReadMaxID int32 // Message ID of latest read outgoing message for this thread
 }
 
 func (*UpdateReadChannelDiscussionOutbox) CRC() uint32 {
@@ -10649,11 +10757,11 @@ func (*UpdateReadChannelDiscussionOutbox) ImplementsUpdate() {}
 
 // Incoming messages in a [channel/supergroup](https://core.telegram.org/api/channel) were read
 type UpdateReadChannelInbox struct {
-	FolderID         int32 `tl:"flag:0"`
-	ChannelID        int64
-	MaxID            int32
-	StillUnreadCount int32
-	Pts              int32
+	FolderID         int32 `tl:"flag:0"` // Peer folder ID, for more info click here
+	ChannelID        int64 // Channel/supergroup ID
+	MaxID            int32 // Position up to which all incoming messages are read.
+	StillUnreadCount int32 // Count of messages weren't read yet
+	Pts              int32 // Event count after generation
 }
 
 func (*UpdateReadChannelInbox) CRC() uint32 {
@@ -10668,8 +10776,8 @@ func (*UpdateReadChannelInbox) ImplementsUpdate() {}
 
 // Outgoing messages in a [channel/supergroup](https://core.telegram.org/api/channel) were read
 type UpdateReadChannelOutbox struct {
-	ChannelID int64
-	MaxID     int32
+	ChannelID int64 // Channel/supergroup ID
+	MaxID     int32 // Position up to which all outgoing messages are read.
 }
 
 func (*UpdateReadChannelOutbox) CRC() uint32 {
@@ -10698,12 +10806,12 @@ func (*UpdateReadFeaturedStickers) ImplementsUpdate() {}
 
 // Incoming messages were read
 type UpdateReadHistoryInbox struct {
-	FolderID         int32 `tl:"flag:0"`
-	Peer             Peer
-	MaxID            int32
-	StillUnreadCount int32
-	Pts              int32
-	PtsCount         int32
+	FolderID         int32 `tl:"flag:0"` // Peer folder ID, for more info click here
+	Peer             Peer  // Peer
+	MaxID            int32 // Maximum ID of messages read
+	StillUnreadCount int32 // Number of messages that are still unread
+	Pts              int32 // Event count after generation
+	PtsCount         int32 // Number of events that were generated
 }
 
 func (*UpdateReadHistoryInbox) CRC() uint32 {
@@ -10718,10 +10826,10 @@ func (*UpdateReadHistoryInbox) ImplementsUpdate() {}
 
 // Outgoing messages were read
 type UpdateReadHistoryOutbox struct {
-	Peer     Peer
-	MaxID    int32
-	Pts      int32
-	PtsCount int32
+	Peer     Peer  // Peer
+	MaxID    int32 // Maximum ID of read outgoing messages
+	Pts      int32 // Event count after generation
+	PtsCount int32 // Number of events that were generated
 }
 
 func (*UpdateReadHistoryOutbox) CRC() uint32 {
@@ -10732,10 +10840,10 @@ func (*UpdateReadHistoryOutbox) ImplementsUpdate() {}
 
 // Contents of messages in the common [message box](https://core.telegram.org/api/updates) were read
 type UpdateReadMessagesContents struct {
-	Messages []int32
-	Pts      int32
-	PtsCount int32
-	Date     int32 `tl:"flag:0"`
+	Messages []int32 // IDs of read messages
+	Pts      int32   // Event count after generation
+	PtsCount int32   // Number of events that were generated
+	Date     int32   `tl:"flag:0"` // When was the last message in 'messages' marked as read.
 }
 
 func (*UpdateReadMessagesContents) CRC() uint32 {
@@ -10750,8 +10858,8 @@ func (*UpdateReadMessagesContents) ImplementsUpdate() {}
 
 // Stories of a specific peer were marked as read.
 type UpdateReadStories struct {
-	Peer  Peer
-	MaxID int32
+	Peer  Peer  // The peer
+	MaxID int32 // ID of the last story that was marked as read
 }
 
 func (*UpdateReadStories) CRC() uint32 {
@@ -10789,8 +10897,8 @@ func (*UpdateRecentStickers) ImplementsUpdate() {}
 
 // A [saved message dialog](https://core.telegram.org/api/saved-messages) was pinned/unpinned
 type UpdateSavedDialogPinned struct {
-	Pinned bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer   DialogPeer
+	Pinned bool       `tl:"flag:0,encoded_in_bitflags"` // Whether the dialog was pinned
+	Peer   DialogPeer // The dialog
 }
 
 func (*UpdateSavedDialogPinned) CRC() uint32 {
@@ -10812,6 +10920,7 @@ func (*UpdateSavedGifs) CRC() uint32 {
 
 func (*UpdateSavedGifs) ImplementsUpdate() {}
 
+// The list of [reaction tag »](https://core.telegram.org/api/saved-messages#tags) names assigned by the user has changed and should be refetched using [messages.getSavedReactionTags »](https://core.telegram.org/method/messages.getSavedReactionTags).
 type UpdateSavedReactionTags struct{}
 
 func (*UpdateSavedReactionTags) CRC() uint32 {
@@ -10831,9 +10940,9 @@ func (*UpdateSavedRingtones) ImplementsUpdate() {}
 
 // Indicates we [reacted to a story »](https://core.telegram.org/api/stories#reactions).
 type UpdateSentStoryReaction struct {
-	Peer     Peer
-	StoryID  int32
-	Reaction Reaction
+	Peer     Peer     // The peer that sent the story
+	StoryID  int32    // ID of the story we reacted to
+	Reaction Reaction // The reaction that was sent
 }
 
 func (*UpdateSentStoryReaction) CRC() uint32 {
@@ -10844,13 +10953,16 @@ func (*UpdateSentStoryReaction) ImplementsUpdate() {}
 
 // A service message for the user.
 type UpdateServiceNotification struct {
-	Popup       bool  `tl:"flag:0,encoded_in_bitflags"`
-	InvertMedia bool  `tl:"flag:2,encoded_in_bitflags"`
-	InboxDate   int32 `tl:"flag:1"`
-	Type        string
-	Message     string
-	Media       MessageMedia
-	Entities    []MessageEntity
+	Popup       bool  `tl:"flag:0,encoded_in_bitflags"` // If set, the message must be displayed in a popup.
+	InvertMedia bool  `tl:"flag:2,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
+	InboxDate   int32 `tl:"flag:1"`                     /*
+	When was the notification received
+	The message must also be stored locally as part of the message history with the user id '777000' (Telegram Notifications).
+	*/
+	Type     string          // String, identical in format and contents to the <a href="/api/errors#error-type">type</a> field in API errors. Describes type of service message. It is acceptable to ignore repeated messages of the same type within a short period of time (15 minutes).
+	Message  string          // Message text
+	Media    MessageMedia    // Media content (optional)
+	Entities []MessageEntity // Message entities for styled text
 }
 
 func (*UpdateServiceNotification) CRC() uint32 {
@@ -10863,8 +10975,9 @@ func (*UpdateServiceNotification) FlagIndex() int {
 
 func (*UpdateServiceNotification) ImplementsUpdate() {}
 
+// A new SMS job was received
 type UpdateSmsJob struct {
-	JobID string
+	JobID string // SMS job ID
 }
 
 func (*UpdateSmsJob) CRC() uint32 {
@@ -10873,8 +10986,9 @@ func (*UpdateSmsJob) CRC() uint32 {
 
 func (*UpdateSmsJob) ImplementsUpdate() {}
 
+// The current account's [Telegram Stars balance »](https://core.telegram.org/api/stars) has changed.
 type UpdateStarsBalance struct {
-	Balance int64
+	Balance int64 // New balance.
 }
 
 func (*UpdateStarsBalance) CRC() uint32 {
@@ -10883,9 +10997,10 @@ func (*UpdateStarsBalance) CRC() uint32 {
 
 func (*UpdateStarsBalance) ImplementsUpdate() {}
 
+// The [Telegram Star balance of a channel/bot we own has changed »](https://core.telegram.org/api/stars#revenue-statistics).
 type UpdateStarsRevenueStatus struct {
-	Peer   Peer
-	Status *StarsRevenueStatus
+	Peer   Peer                // Channel/bot
+	Status *StarsRevenueStatus // New Telegram Star balance.
 }
 
 func (*UpdateStarsRevenueStatus) CRC() uint32 {
@@ -10896,8 +11011,8 @@ func (*UpdateStarsRevenueStatus) ImplementsUpdate() {}
 
 // Installed stickersets have changed, the client should refetch them as [described in the docs](https://core.telegram.org/api/stickers#installing-stickersets).
 type UpdateStickerSets struct {
-	Masks  bool `tl:"flag:0,encoded_in_bitflags"`
-	Emojis bool `tl:"flag:1,encoded_in_bitflags"`
+	Masks  bool `tl:"flag:0,encoded_in_bitflags"` // Whether mask stickersets have changed
+	Emojis bool `tl:"flag:1,encoded_in_bitflags"` // Whether the list of installed custom emoji stickersets has changed
 }
 
 func (*UpdateStickerSets) CRC() uint32 {
@@ -10912,9 +11027,9 @@ func (*UpdateStickerSets) ImplementsUpdate() {}
 
 // The order of stickersets was changed
 type UpdateStickerSetsOrder struct {
-	Masks  bool `tl:"flag:0,encoded_in_bitflags"`
-	Emojis bool `tl:"flag:1,encoded_in_bitflags"`
-	Order  []int64
+	Masks  bool    `tl:"flag:0,encoded_in_bitflags"` // Whether the updated stickers are mask stickers
+	Emojis bool    `tl:"flag:1,encoded_in_bitflags"` // Whether the updated stickers are custom emoji stickers
+	Order  []int64 // New sticker order by sticker ID
 }
 
 func (*UpdateStickerSetsOrder) CRC() uint32 {
@@ -10929,7 +11044,7 @@ func (*UpdateStickerSetsOrder) ImplementsUpdate() {}
 
 // Indicates that [stories stealth mode](https://core.telegram.org/api/stories#stealth-mode) was activated.
 type UpdateStoriesStealthMode struct {
-	StealthMode *StoriesStealthMode
+	StealthMode *StoriesStealthMode // Information about the current stealth mode session.
 }
 
 func (*UpdateStoriesStealthMode) CRC() uint32 {
@@ -10940,8 +11055,8 @@ func (*UpdateStoriesStealthMode) ImplementsUpdate() {}
 
 // A new story was posted.
 type UpdateStory struct {
-	Peer  Peer
-	Story StoryItem
+	Peer  Peer      // ID of the poster.
+	Story StoryItem // The story that was posted.
 }
 
 func (*UpdateStory) CRC() uint32 {
@@ -10952,8 +11067,8 @@ func (*UpdateStory) ImplementsUpdate() {}
 
 // A story was successfully uploaded.
 type UpdateStoryID struct {
-	ID       int32
-	RandomID int64
+	ID       int32 // The 'id' that was attributed to the story.
+	RandomID int64 // The 'random_id' that was passed to stories.sendStory.
 }
 
 func (*UpdateStoryID) CRC() uint32 {
@@ -10964,7 +11079,7 @@ func (*UpdateStoryID) ImplementsUpdate() {}
 
 // A cloud theme was updated
 type UpdateTheme struct {
-	Theme *Theme
+	Theme *Theme // Theme
 }
 
 func (*UpdateTheme) CRC() uint32 {
@@ -10991,11 +11106,11 @@ func (*UpdateTranscribeAudio) ImplementsUpdate() {}
 
 // A pending [voice message transcription »](https://core.telegram.org/api/transcribe) initiated with [messages.transcribeAudio](https://core.telegram.org/method/messages.transcribeAudio) was updated.
 type UpdateTranscribedAudio struct {
-	Pending         bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer            Peer
-	MsgID           int32
-	TranscriptionID int64
-	Text            string
+	Pending         bool   `tl:"flag:0,encoded_in_bitflags"` // Whether this transcription is still pending and further updateTranscribedAudio about it will be sent in the future.
+	Peer            Peer   // Peer of the transcribed message
+	MsgID           int32  // Transcribed message ID
+	TranscriptionID int64  // Transcription ID
+	Text            string // Transcribed text
 }
 
 func (*UpdateTranscribedAudio) CRC() uint32 {
@@ -11008,9 +11123,9 @@ func (*UpdateTranscribedAudio) FlagIndex() int {
 
 func (*UpdateTranscribedAudio) ImplementsUpdate() {}
 
-// User information was updated, it must be refetched using [users.getFullUser](https://core.telegram.org/method/users.getFullUser).
+// User ([user](https://core.telegram.org/constructor/user) and/or [userFull](https://core.telegram.org/constructor/userFull)) information was updated.
 type UpdateUser struct {
-	UserID int64
+	UserID int64 // User ID
 }
 
 func (*UpdateUser) CRC() uint32 {
@@ -11021,8 +11136,8 @@ func (*UpdateUser) ImplementsUpdate() {}
 
 // The [emoji status](https://core.telegram.org/api/emoji-status) of a certain user has changed
 type UpdateUserEmojiStatus struct {
-	UserID      int64
-	EmojiStatus EmojiStatus
+	UserID      int64       // User ID
+	EmojiStatus EmojiStatus // New emoji status
 }
 
 func (*UpdateUserEmojiStatus) CRC() uint32 {
@@ -11033,10 +11148,10 @@ func (*UpdateUserEmojiStatus) ImplementsUpdate() {}
 
 // Changes the user's first name, last name and username.
 type UpdateUserName struct {
-	UserID    int64
-	FirstName string
-	LastName  string
-	Usernames []*Username
+	UserID    int64       // User identifier
+	FirstName string      // New first name. Corresponds to the new value of real_first_name field of the userFull constructor.
+	LastName  string      // New last name. Corresponds to the new value of real_last_name field of the userFull constructor.
+	Usernames []*Username // Usernames.
 }
 
 func (*UpdateUserName) CRC() uint32 {
@@ -11047,8 +11162,8 @@ func (*UpdateUserName) ImplementsUpdate() {}
 
 // A user's phone number was changed
 type UpdateUserPhone struct {
-	UserID int64
-	Phone  string
+	UserID int64  // User ID
+	Phone  string // New phone number
 }
 
 func (*UpdateUserPhone) CRC() uint32 {
@@ -11059,10 +11174,10 @@ func (*UpdateUserPhone) ImplementsUpdate() {}
 
 // Change of contact's profile photo.
 type UpdateUserPhoto struct {
-	UserID   int64
-	Date     int32
-	Photo    UserProfilePhoto
-	Previous bool
+	UserID   int64            // User identifier
+	Date     int32            // Date of photo update.
+	Photo    UserProfilePhoto // New profile photo
+	Previous bool             // (boolTrue), if one of the previously used photos is set a profile photo.
 }
 
 func (*UpdateUserPhoto) CRC() uint32 {
@@ -11073,8 +11188,8 @@ func (*UpdateUserPhoto) ImplementsUpdate() {}
 
 // Contact status update.
 type UpdateUserStatus struct {
-	UserID int64
-	Status UserStatus
+	UserID int64      // User identifier
+	Status UserStatus // New status
 }
 
 func (*UpdateUserStatus) CRC() uint32 {
@@ -11085,8 +11200,8 @@ func (*UpdateUserStatus) ImplementsUpdate() {}
 
 // The user is preparing a message; typing, recording, uploading, etc. This update is valid for 6 seconds. If no further updates of this kind are received after 6 seconds, it should be considered that the user stopped doing whatever they were doing
 type UpdateUserTyping struct {
-	UserID int64
-	Action SendMessageAction
+	UserID int64             // User id
+	Action SendMessageAction // Action type
 }
 
 func (*UpdateUserTyping) CRC() uint32 {
@@ -11097,9 +11212,9 @@ func (*UpdateUserTyping) ImplementsUpdate() {}
 
 // An [instant view](https://core.telegram.orghttps://instantview.telegram.org) webpage preview was generated
 type UpdateWebPage struct {
-	Webpage  WebPage
-	Pts      int32
-	PtsCount int32
+	Webpage  WebPage // Webpage preview
+	Pts      int32   // Event count after generation
+	PtsCount int32   // Number of events that were generated
 }
 
 func (*UpdateWebPage) CRC() uint32 {
@@ -11110,7 +11225,7 @@ func (*UpdateWebPage) ImplementsUpdate() {}
 
 // Indicates to a bot that a webview was closed and an inline message was sent on behalf of the user using [messages.sendWebViewResultMessage](https://core.telegram.org/method/messages.sendWebViewResultMessage)
 type UpdateWebViewResultSent struct {
-	QueryID int64
+	QueryID int64 // Web app interaction ID
 }
 
 func (*UpdateWebViewResultSent) CRC() uint32 {
@@ -11126,8 +11241,8 @@ type Updates interface {
 
 // Shortened constructor containing info on one update not requiring auxiliary data
 type UpdateShort struct {
-	Update Update
-	Date   int32
+	Update Update // Update
+	Date   int32  // Date of event
 }
 
 func (*UpdateShort) CRC() uint32 {
@@ -11138,22 +11253,22 @@ func (*UpdateShort) ImplementsUpdates() {}
 
 // Shortened constructor containing info on one new incoming text message from a chat
 type UpdateShortChatMessage struct {
-	Out         bool `tl:"flag:1,encoded_in_bitflags"`
-	Mentioned   bool `tl:"flag:4,encoded_in_bitflags"`
-	MediaUnread bool `tl:"flag:5,encoded_in_bitflags"`
-	Silent      bool `tl:"flag:13,encoded_in_bitflags"`
-	ID          int32
-	FromID      int64
-	ChatID      int64
-	Message     string
-	Pts         int32
-	PtsCount    int32
-	Date        int32
-	FwdFrom     *MessageFwdHeader  `tl:"flag:2"`
-	ViaBotID    int64              `tl:"flag:11"`
-	ReplyTo     MessageReplyHeader `tl:"flag:3"`
-	Entities    []MessageEntity    `tl:"flag:7"`
-	TtlPeriod   int32              `tl:"flag:25"`
+	Out         bool               `tl:"flag:1,encoded_in_bitflags"`  // Whether the message is outgoing
+	Mentioned   bool               `tl:"flag:4,encoded_in_bitflags"`  // Whether we were mentioned in this message
+	MediaUnread bool               `tl:"flag:5,encoded_in_bitflags"`  // Whether the message contains some unread mentions
+	Silent      bool               `tl:"flag:13,encoded_in_bitflags"` // If true, the message is a silent message, no notifications should be triggered
+	ID          int32              // ID of the message
+	FromID      int64              // ID of the sender of the message
+	ChatID      int64              // ID of the chat where the message was sent
+	Message     string             // Message
+	Pts         int32              // PTS
+	PtsCount    int32              // PTS count
+	Date        int32              // date
+	FwdFrom     *MessageFwdHeader  `tl:"flag:2"`  // Info about a forwarded message
+	ViaBotID    int64              `tl:"flag:11"` // Info about the inline bot used to generate this message
+	ReplyTo     MessageReplyHeader `tl:"flag:3"`  // Reply (thread) information
+	Entities    []MessageEntity    `tl:"flag:7"`  // Entities for styled text
+	TtlPeriod   int32              `tl:"flag:25"` // Time To Live of the message, once updateShortChatMessage.date+updateShortChatMessage.ttl_period === time(), the message will be deleted on the server, and must be deleted locally as well.
 }
 
 func (*UpdateShortChatMessage) CRC() uint32 {
@@ -11168,21 +11283,21 @@ func (*UpdateShortChatMessage) ImplementsUpdates() {}
 
 // Info about a message sent to (received from) another user
 type UpdateShortMessage struct {
-	Out         bool `tl:"flag:1,encoded_in_bitflags"`
-	Mentioned   bool `tl:"flag:4,encoded_in_bitflags"`
-	MediaUnread bool `tl:"flag:5,encoded_in_bitflags"`
-	Silent      bool `tl:"flag:13,encoded_in_bitflags"`
-	ID          int32
-	UserID      int64
-	Message     string
-	Pts         int32
-	PtsCount    int32
-	Date        int32
-	FwdFrom     *MessageFwdHeader  `tl:"flag:2"`
-	ViaBotID    int64              `tl:"flag:11"`
-	ReplyTo     MessageReplyHeader `tl:"flag:3"`
-	Entities    []MessageEntity    `tl:"flag:7"`
-	TtlPeriod   int32              `tl:"flag:25"`
+	Out         bool               `tl:"flag:1,encoded_in_bitflags"`  // Whether the message is outgoing
+	Mentioned   bool               `tl:"flag:4,encoded_in_bitflags"`  // Whether we were mentioned in the message
+	MediaUnread bool               `tl:"flag:5,encoded_in_bitflags"`  // Whether there are some unread mentions in this message
+	Silent      bool               `tl:"flag:13,encoded_in_bitflags"` // If true, the message is a silent message, no notifications should be triggered
+	ID          int32              // The message ID
+	UserID      int64              // The ID of the sender (if 'outgoing' will be the ID of the destination) of the message
+	Message     string             // The message
+	Pts         int32              // PTS
+	PtsCount    int32              // PTS count
+	Date        int32              // date
+	FwdFrom     *MessageFwdHeader  `tl:"flag:2"`  // Info about a forwarded message
+	ViaBotID    int64              `tl:"flag:11"` // Info about the inline bot used to generate this message
+	ReplyTo     MessageReplyHeader `tl:"flag:3"`  // Reply and thread information
+	Entities    []MessageEntity    `tl:"flag:7"`  // Entities for styled text
+	TtlPeriod   int32              `tl:"flag:25"` // Time To Live of the message, once message.date+message.ttl_period === time(), the message will be deleted on the server, and must be deleted locally as well.
 }
 
 func (*UpdateShortMessage) CRC() uint32 {
@@ -11197,14 +11312,14 @@ func (*UpdateShortMessage) ImplementsUpdates() {}
 
 // Shortened constructor containing info on one outgoing message to a contact (the destination chat has to be extracted from the method call that returned this object).
 type UpdateShortSentMessage struct {
-	Out       bool `tl:"flag:1,encoded_in_bitflags"`
-	ID        int32
-	Pts       int32
-	PtsCount  int32
-	Date      int32
-	Media     MessageMedia    `tl:"flag:9"`
-	Entities  []MessageEntity `tl:"flag:7"`
-	TtlPeriod int32           `tl:"flag:25"`
+	Out       bool            `tl:"flag:1,encoded_in_bitflags"` // Whether the message is outgoing
+	ID        int32           // ID of the sent message
+	Pts       int32           // PTS
+	PtsCount  int32           // PTS count
+	Date      int32           // date
+	Media     MessageMedia    `tl:"flag:9"`  // Attached media
+	Entities  []MessageEntity `tl:"flag:7"`  // Entities for styled text
+	TtlPeriod int32           `tl:"flag:25"` // Time To Live of the message, once message.date+message.ttl_period === time(), the message will be deleted on the server, and must be deleted locally as well.
 }
 
 func (*UpdateShortSentMessage) CRC() uint32 {
@@ -11219,11 +11334,11 @@ func (*UpdateShortSentMessage) ImplementsUpdates() {}
 
 // Full constructor of updates
 type UpdatesObj struct {
-	Updates []Update
-	Users   []User
-	Chats   []Chat
-	Date    int32
-	Seq     int32
+	Updates []Update // List of updates
+	Users   []User   // List of users mentioned in updates
+	Chats   []Chat   // List of chats mentioned in updates
+	Date    int32    // Current date
+	Seq     int32    // Total number of sent updates
 }
 
 func (*UpdatesObj) CRC() uint32 {
@@ -11234,12 +11349,12 @@ func (*UpdatesObj) ImplementsUpdates() {}
 
 // Constructor for a group of updates.
 type UpdatesCombined struct {
-	Updates  []Update
-	Users    []User
-	Chats    []Chat
-	Date     int32
-	SeqStart int32
-	Seq      int32
+	Updates  []Update // List of updates
+	Users    []User   // List of users mentioned in updates
+	Chats    []Chat   // List of chats mentioned in updates
+	Date     int32    // Current date
+	SeqStart int32    // Value seq for the earliest update in a group
+	Seq      int32    // Value seq for the latest update in a group
 }
 
 func (*UpdatesCombined) CRC() uint32 {
@@ -11264,7 +11379,7 @@ type URLAuthResult interface {
 
 // Details about an accepted authorization request, for more info [click here »](https://core.telegram.org/api/url-authorization)
 type URLAuthResultAccepted struct {
-	URL string
+	URL string // The URL name of the website on which the user has logged in.
 }
 
 func (*URLAuthResultAccepted) CRC() uint32 {
@@ -11284,9 +11399,9 @@ func (*URLAuthResultDefault) ImplementsURLAuthResult() {}
 
 // Details about the authorization request, for more info [click here »](https://core.telegram.org/api/url-authorization)
 type URLAuthResultRequest struct {
-	RequestWriteAccess bool `tl:"flag:0,encoded_in_bitflags"`
-	Bot                User
-	Domain             string
+	RequestWriteAccess bool   `tl:"flag:0,encoded_in_bitflags"` // Whether the bot would like to send messages to the user
+	Bot                User   // Username of a bot, which will be used for user authorization. If not specified, the current bot's username will be assumed. The url's domain must be the same as the domain linked with the bot. See Linking your domain to the bot for more details.
+	Domain             string // The domain name of the website on which the user will log in.
 }
 
 func (*URLAuthResultRequest) CRC() uint32 {
@@ -11304,51 +11419,154 @@ type User interface {
 	ImplementsUser()
 }
 
-// Indicates info about a certain user
+// Indicates info about a certain user.
 type UserObj struct {
-	Self                  bool `tl:"flag:10,encoded_in_bitflags"`
-	Contact               bool `tl:"flag:11,encoded_in_bitflags"`
-	MutualContact         bool `tl:"flag:12,encoded_in_bitflags"`
-	Deleted               bool `tl:"flag:13,encoded_in_bitflags"`
-	Bot                   bool `tl:"flag:14,encoded_in_bitflags"`
-	BotChatHistory        bool `tl:"flag:15,encoded_in_bitflags"`
-	BotNochats            bool `tl:"flag:16,encoded_in_bitflags"`
-	Verified              bool `tl:"flag:17,encoded_in_bitflags"`
-	Restricted            bool `tl:"flag:18,encoded_in_bitflags"`
-	Min                   bool `tl:"flag:20,encoded_in_bitflags"`
-	BotInlineGeo          bool `tl:"flag:21,encoded_in_bitflags"`
-	Support               bool `tl:"flag:23,encoded_in_bitflags"`
-	Scam                  bool `tl:"flag:24,encoded_in_bitflags"`
-	ApplyMinPhoto         bool `tl:"flag:25,encoded_in_bitflags"`
-	Fake                  bool `tl:"flag:26,encoded_in_bitflags"`
-	BotAttachMenu         bool `tl:"flag:27,encoded_in_bitflags"`
-	Premium               bool `tl:"flag:28,encoded_in_bitflags"`
-	AttachMenuEnabled     bool `tl:"flag:29,encoded_in_bitflags"`
-	BotCanEdit            bool `tl:"flag2:1,encoded_in_bitflags"`
-	CloseFriend           bool `tl:"flag2:2,encoded_in_bitflags"`
-	StoriesHidden         bool `tl:"flag2:3,encoded_in_bitflags"`
-	StoriesUnavailable    bool `tl:"flag2:4,encoded_in_bitflags"`
-	ContactRequirePremium bool `tl:"flag2:10,encoded_in_bitflags"`
-	BotBusiness           bool `tl:"flag2:11,encoded_in_bitflags"`
-	BotHasMainApp         bool `tl:"flag2:13,encoded_in_bitflags"`
-	ID                    int64
-	AccessHash            int64                `tl:"flag:0"`
-	FirstName             string               `tl:"flag:1"`
-	LastName              string               `tl:"flag:2"`
-	Username              string               `tl:"flag:3"`
-	Phone                 string               `tl:"flag:4"`
-	Photo                 UserProfilePhoto     `tl:"flag:5"`
-	Status                UserStatus           `tl:"flag:6"`
-	BotInfoVersion        int32                `tl:"flag:14"`
-	RestrictionReason     []*RestrictionReason `tl:"flag:18"`
-	BotInlinePlaceholder  string               `tl:"flag:19"`
-	LangCode              string               `tl:"flag:22"`
-	EmojiStatus           EmojiStatus          `tl:"flag:30"`
-	Usernames             []*Username          `tl:"flag2:0"`
-	StoriesMaxID          int32                `tl:"flag2:5"`
-	Color                 *PeerColor           `tl:"flag2:8"`
-	ProfileColor          *PeerColor           `tl:"flag2:9"`
-	BotActiveUsers        int32                `tl:"flag2:12"`
+	Self    bool `tl:"flag:10,encoded_in_bitflags"` // Whether this user indicates the currently logged in user
+	Contact bool `tl:"flag:11,encoded_in_bitflags"` /*
+	Whether this user is a contact
+	When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+	*/
+	MutualContact bool `tl:"flag:12,encoded_in_bitflags"` /*
+	Whether this user is a mutual contact.
+	When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+	*/
+	Deleted bool `tl:"flag:13,encoded_in_bitflags"` /*
+	Whether the account of this user was deleted.
+	Changes to this flag should invalidate the local userFull cache for this user ID,.
+	*/
+	Bot bool `tl:"flag:14,encoded_in_bitflags"` /*
+	Is this user a bot?
+	Changes to this flag should invalidate the local userFull cache for this user ID,.
+	*/
+	BotChatHistory bool `tl:"flag:15,encoded_in_bitflags"` // Can the bot see all messages in groups?
+	BotNochats     bool `tl:"flag:16,encoded_in_bitflags"` // Can the bot be added to groups?
+	Verified       bool `tl:"flag:17,encoded_in_bitflags"` // Whether this user is verified
+	Restricted     bool `tl:"flag:18,encoded_in_bitflags"` // Access to this user must be restricted for the reason specified in 'restriction_reason'
+	Min            bool `tl:"flag:20,encoded_in_bitflags"` // See min
+	BotInlineGeo   bool `tl:"flag:21,encoded_in_bitflags"` // Whether the bot can request our geolocation in inline mode
+	Support        bool `tl:"flag:23,encoded_in_bitflags"` // Whether this is an official support user
+	Scam           bool `tl:"flag:24,encoded_in_bitflags"` // This may be a scam user
+	ApplyMinPhoto  bool `tl:"flag:25,encoded_in_bitflags"` // If set and 'min' is set, the value of 'photo' can be used to update the local database, see the documentation of that flag for more info.
+	Fake           bool `tl:"flag:26,encoded_in_bitflags"` // If set, this user was reported by many users as a fake or scam user: be careful when interacting with them.
+	BotAttachMenu  bool `tl:"flag:27,encoded_in_bitflags"` // Whether this bot offers an attachment menu web app
+	Premium        bool `tl:"flag:28,encoded_in_bitflags"` /*
+	Whether this user is a Telegram Premium user
+	Changes to this flag should invalidate the local userFull cache for this user ID,.
+	Changes to this flag if the 'self' flag is set should also trigger the following calls, to refresh the respective caches:
+	- The help.getConfig cache
+	- The messages.getTopReactions cache if the 'bot' flag is not set
+	*/
+	AttachMenuEnabled bool `tl:"flag:29,encoded_in_bitflags"` /*
+	Whether we installed the attachment menu web app offered by this bot.
+	When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+	*/
+	BotCanEdit bool `tl:"flag2:1,encoded_in_bitflags"` /*
+	Whether we can edit the profile picture, name, about text and description of this bot because we own it.
+	When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+	Changes to this flag (if 'min' is not set) should invalidate the local userFull cache for this user ID.
+	*/
+	CloseFriend bool `tl:"flag2:2,encoded_in_bitflags"` /*
+	Whether we marked this user as a close friend,.
+	When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+	*/
+	StoriesHidden bool `tl:"flag2:3,encoded_in_bitflags"` /*
+	Whether we have hidden  all active stories of this user.
+	When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+	*/
+	StoriesUnavailable    bool `tl:"flag2:4,encoded_in_bitflags"`  // No stories from this user are visible.
+	ContactRequirePremium bool `tl:"flag2:10,encoded_in_bitflags"` /*
+	If set, we can only write to this user if they have already sent some messages to us, if we are subscribed to Telegram Premium, or if they're a mutual contact (user.'mutual_contact').
+	All the secondary conditions listed above must be checked separately to verify whether we can still write to the user, even if this flag is set (i.e. a mutual contact will have this flag set even if we can still write to them, and so on...); to avoid doing these extra checks if we haven't yet cached all the required information (for example while displaying the chat list in the sharing UI) the users.getIsPremiumRequiredToContact method may be invoked instead, passing the list of users currently visible in the UI, returning a list of booleans that directly specify whether we can or cannot write to each user; alternatively, the userFull.'contact_require_premium' flag contains the same (fully checked, i.e. it's not just a copy of this flag) info returned by users.getIsPremiumRequiredToContact.
+	To set this flag for ourselves invoke account.setGlobalPrivacySettings, setting the 'settings.new_noncontact_peers_require_premium' flag.
+	*/
+	BotBusiness   bool  `tl:"flag2:11,encoded_in_bitflags"` // Whether this bot can be connected to a user as specified here.
+	BotHasMainApp bool  `tl:"flag2:13,encoded_in_bitflags"` // If set, this bot has configured a Main Mini App.
+	ID            int64 // ID of the user,.
+	AccessHash    int64 `tl:"flag:0"` /*
+	Access hash of the user,.
+	If this flag is set, when updating the local peer database, generate a virtual flag called 'min_access_hash', which is:
+	- Set to 'true' if 'min' is set AND
+	- The 'phone' flag is not set OR
+	- The 'phone' flag is set and the associated phone number string is non-empty
+	- Set to 'false' otherwise.
+
+	Then, apply both 'access_hash' and 'min_access_hash' to the local database if:
+	- 'min_access_hash' is false OR
+	- 'min_access_hash' is true AND
+	- There is no locally cached object for this user OR
+	- There is no 'access_hash' in the local cache OR
+	- The cached object's 'min_access_hash' is also true
+	If the final merged object stored to the database has the 'min_access_hash' field set to true, the related 'access_hash' is only suitable to use in <a href="/constructor/inputPeerPhotoFileLocation">'inputPeerPhotoFileLocation' </a>, to directly download the profile pictures of users, everywhere else a 'inputPeer*FromMessage' constructor will have to be generated as specified here.
+	Bots can also use min access hashes in some conditions, by passing '0' instead of the min access hash.
+	*/
+	FirstName string `tl:"flag:1"` /*
+	First name.
+	When updating the local peer database, apply changes to this field only if:
+	- The 'min' flag is not set OR
+	- The 'min' flag is set AND
+	- The 'min' flag of the locally cached user entry is set.
+	*/
+	LastName string `tl:"flag:2"` /*
+	Last name.
+	When updating the local peer database, apply changes to this field only if:
+	- The 'min' flag is not set OR
+	- The 'min' flag is set AND
+	- The 'min' flag of the locally cached user entry is set.
+	*/
+	Username string `tl:"flag:3"` /*
+	Main active username.
+	When updating the local peer database, apply changes to this field only if:
+	- The 'min' flag is not set OR
+	- The 'min' flag is set AND
+	- The 'min' flag of the locally cached user entry is set.
+	Changes to this flag should invalidate the local userFull cache for this user ID if the above conditions are respected and the 'bot_can_edit' flag is also set.
+	*/
+	Phone string `tl:"flag:4"` /*
+	Phone number.
+	When updating the local peer database, apply changes to this field only if:
+	- The 'min' flag is not set OR
+	- The 'min' flag is set AND
+	- The 'min' flag of the locally cached user entry is set.
+	*/
+	Photo UserProfilePhoto `tl:"flag:5"` /*
+	Profile picture of user.
+	When updating the local peer database, apply changes to this field only if:
+	- The 'min' flag is not set OR
+	- The 'min' flag is set AND
+	- The 'apply_min_photo' flag is set OR
+	- The 'min' flag of the locally cached user entry is set.
+	*/
+	Status UserStatus `tl:"flag:6"` /*
+	Online status of user.
+	When updating the local peer database, apply changes to this field only if:
+	- The 'min' flag is not set OR
+	- The 'min' flag is set AND
+	- The 'min' flag of the locally cached user entry is set OR
+	- The locally cached user entry is equal to userStatusEmpty.
+	*/
+	BotInfoVersion int32 `tl:"flag:14"` /*
+	Version of the bot_info field in userFull, incremented every time it changes.
+	Changes to this flag should invalidate the local userFull cache for this user ID,.
+	*/
+	RestrictionReason    []*RestrictionReason `tl:"flag:18"` // Contains the reason why access to this user must be restricted.
+	BotInlinePlaceholder string               `tl:"flag:19"` // Inline placeholder for this inline bot
+	LangCode             string               `tl:"flag:22"` // Language code of the user
+	EmojiStatus          EmojiStatus          `tl:"flag:30"` // Emoji status
+	Usernames            []*Username          `tl:"flag2:0"` /*
+	Additional usernames.
+	When updating the local peer database, apply changes to this field only if:
+	- The 'min' flag is not set OR
+	- The 'min' flag is set AND
+	- The 'min' flag of the locally cached user entry is set.
+	Changes to this flag (if the above conditions are respected) should invalidate the local userFull cache for this user ID.
+	*/
+	StoriesMaxID int32 `tl:"flag2:5"` /*
+	ID of the maximum read story.
+	When updating the local peer database, do not apply changes to this field if the 'min' flag of the incoming constructor is set.
+	*/
+	Color          *PeerColor `tl:"flag2:8"`  // The user's accent color.
+	ProfileColor   *PeerColor `tl:"flag2:9"`  // The user's profile color.
+	BotActiveUsers int32      `tl:"flag2:12"` // Monthly Active Users (MAU) of this bot (may be absent for small bots).
 }
 
 func (*UserObj) CRC() uint32 {
@@ -11363,7 +11581,7 @@ func (*UserObj) ImplementsUser() {}
 
 // Empty constructor, non-existent user.
 type UserEmpty struct {
-	ID int64
+	ID int64 // User identifier or '0'
 }
 
 func (*UserEmpty) CRC() uint32 {
@@ -11379,11 +11597,11 @@ type UserProfilePhoto interface {
 
 // User profile photo.
 type UserProfilePhotoObj struct {
-	HasVideo      bool `tl:"flag:0,encoded_in_bitflags"`
-	Personal      bool `tl:"flag:2,encoded_in_bitflags"`
-	PhotoID       int64
-	StrippedThumb []byte `tl:"flag:1"`
-	DcID          int32
+	HasVideo      bool   `tl:"flag:0,encoded_in_bitflags"` // Whether an animated profile picture is available for this user
+	Personal      bool   `tl:"flag:2,encoded_in_bitflags"` // Whether this profile photo is only visible to us (i.e. it was set using photos.uploadContactProfilePhoto).
+	PhotoID       int64  // Identifier of the respective photo
+	StrippedThumb []byte `tl:"flag:1"` // Stripped thumbnail
+	DcID          int32  // DC ID where the photo is stored
 }
 
 func (*UserProfilePhotoObj) CRC() uint32 {
@@ -11429,7 +11647,7 @@ func (*UserStatusHidden) ImplementsUserStatus() {}
 
 // Online status: last seen last month
 type UserStatusLastMonth struct {
-	ByMe bool `tl:"flag:0,encoded_in_bitflags"`
+	ByMe bool `tl:"flag:0,encoded_in_bitflags"` // If set, the exact user status of this user is actually available to us, but to view it we must first purchase a Premium subscription, or allow this user to see <em>our</em> exact last online status..
 }
 
 func (*UserStatusLastMonth) CRC() uint32 {
@@ -11444,7 +11662,7 @@ func (*UserStatusLastMonth) ImplementsUserStatus() {}
 
 // Online status: last seen last week
 type UserStatusLastWeek struct {
-	ByMe bool `tl:"flag:0,encoded_in_bitflags"`
+	ByMe bool `tl:"flag:0,encoded_in_bitflags"` // If set, the exact user status of this user is actually available to us, but to view it we must first purchase a Premium subscription, or allow this user to see <em>our</em> exact last online status..
 }
 
 func (*UserStatusLastWeek) CRC() uint32 {
@@ -11459,7 +11677,7 @@ func (*UserStatusLastWeek) ImplementsUserStatus() {}
 
 // The user's offline status.
 type UserStatusOffline struct {
-	WasOnline int32
+	WasOnline int32 // Time the user was last seen online
 }
 
 func (*UserStatusOffline) CRC() uint32 {
@@ -11470,7 +11688,7 @@ func (*UserStatusOffline) ImplementsUserStatus() {}
 
 // Online status of the user.
 type UserStatusOnline struct {
-	Expires int32
+	Expires int32 // Time to expiration of the current online status
 }
 
 func (*UserStatusOnline) CRC() uint32 {
@@ -11481,7 +11699,7 @@ func (*UserStatusOnline) ImplementsUserStatus() {}
 
 // Online status: last seen recently
 type UserStatusRecently struct {
-	ByMe bool `tl:"flag:0,encoded_in_bitflags"`
+	ByMe bool `tl:"flag:0,encoded_in_bitflags"` // If set, the exact user status of this user is actually available to us, but to view it we must first purchase a Premium subscription, or allow this user to see <em>our</em> exact last online status..
 }
 
 func (*UserStatusRecently) CRC() uint32 {
@@ -11501,11 +11719,11 @@ type VideoSize interface {
 
 // An [animated profile picture](https://core.telegram.org/api/files#animated-profile-pictures) in MPEG4 format
 type VideoSizeObj struct {
-	Type         string
-	W            int32
-	H            int32
-	Size         int32
-	VideoStartTs float64 `tl:"flag:0"`
+	Type         string  // 'u' for animated profile pictures, and 'v' for trimmed and downscaled video previews
+	W            int32   // Video width
+	H            int32   // Video height
+	Size         int32   // File size
+	VideoStartTs float64 `tl:"flag:0"` // Timestamp that should be shown as static preview to the user (seconds)
 }
 
 func (*VideoSizeObj) CRC() uint32 {
@@ -11520,8 +11738,8 @@ func (*VideoSizeObj) ImplementsVideoSize() {}
 
 // An [animated profile picture](https://core.telegram.org/api/files#animated-profile-pictures) based on a [custom emoji sticker](https://core.telegram.org/api/custom-emoji).
 type VideoSizeEmojiMarkup struct {
-	EmojiID          int64
-	BackgroundColors []int32
+	EmojiID          int64   // Custom emoji ID: the custom emoji sticker is shown at the center of the profile picture and occupies at most 67% of it.
+	BackgroundColors []int32 // 1, 2, 3 or 4 RBG-24 colors used to generate a solid (1), gradient (2) or freeform gradient (3, 4) background, similar to how fill wallpapers are generated. The rotation angle for gradient backgrounds is 0.
 }
 
 func (*VideoSizeEmojiMarkup) CRC() uint32 {
@@ -11532,9 +11750,9 @@ func (*VideoSizeEmojiMarkup) ImplementsVideoSize() {}
 
 // An [animated profile picture](https://core.telegram.org/api/files#animated-profile-pictures) based on a [sticker](https://core.telegram.org/api/stickers).
 type VideoSizeStickerMarkup struct {
-	Stickerset       InputStickerSet
-	StickerID        int64
-	BackgroundColors []int32
+	Stickerset       InputStickerSet // Stickerset
+	StickerID        int64           // Sticker ID
+	BackgroundColors []int32         // 1, 2, 3 or 4 RBG-24 colors used to generate a solid (1), gradient (2) or freeform gradient (3, 4) background, similar to how fill wallpapers are generated. The rotation angle for gradient backgrounds is 0.
 }
 
 func (*VideoSizeStickerMarkup) CRC() uint32 {
@@ -11550,15 +11768,15 @@ type WallPaper interface {
 
 // Represents a [wallpaper](https://core.telegram.org/api/wallpapers) based on an image.
 type WallPaperObj struct {
-	ID         int64
-	Creator    bool `tl:"flag:0,encoded_in_bitflags"`
-	Default    bool `tl:"flag:1,encoded_in_bitflags"`
-	Pattern    bool `tl:"flag:3,encoded_in_bitflags"`
-	Dark       bool `tl:"flag:4,encoded_in_bitflags"`
-	AccessHash int64
-	Slug       string
-	Document   Document
-	Settings   *WallPaperSettings `tl:"flag:2"`
+	ID         int64              // Identifier
+	Creator    bool               `tl:"flag:0,encoded_in_bitflags"` // Whether we created this wallpaper
+	Default    bool               `tl:"flag:1,encoded_in_bitflags"` // Whether this is the default wallpaper
+	Pattern    bool               `tl:"flag:3,encoded_in_bitflags"` // Whether this is a pattern wallpaper
+	Dark       bool               `tl:"flag:4,encoded_in_bitflags"` // Whether this wallpaper should be used in dark mode.
+	AccessHash int64              // Access hash
+	Slug       string             // Unique wallpaper ID, used when generating wallpaper links or importing wallpaper links.
+	Document   Document           // The actual wallpaper
+	Settings   *WallPaperSettings `tl:"flag:2"` // Info on how to generate the wallpaper, according to these instructions.
 }
 
 func (*WallPaperObj) CRC() uint32 {
@@ -11573,10 +11791,10 @@ func (*WallPaperObj) ImplementsWallPaper() {}
 
 // Represents a [wallpaper](https://core.telegram.org/api/wallpapers) only based on colors/gradients.
 type WallPaperNoFile struct {
-	ID       int64
-	Default  bool               `tl:"flag:1,encoded_in_bitflags"`
-	Dark     bool               `tl:"flag:4,encoded_in_bitflags"`
-	Settings *WallPaperSettings `tl:"flag:2"`
+	ID       int64              // Wallpaper ID
+	Default  bool               `tl:"flag:1,encoded_in_bitflags"` // Whether this is the default wallpaper
+	Dark     bool               `tl:"flag:4,encoded_in_bitflags"` // Whether this wallpaper should be used in dark mode.
+	Settings *WallPaperSettings `tl:"flag:2"`                     // Info on how to generate the wallpaper.
 }
 
 func (*WallPaperNoFile) CRC() uint32 {
@@ -11596,11 +11814,11 @@ type WebDocument interface {
 
 // Remote document
 type WebDocumentObj struct {
-	URL        string
-	AccessHash int64
-	Size       int32
-	MimeType   string
-	Attributes []DocumentAttribute
+	URL        string              // Document URL
+	AccessHash int64               // Access hash
+	Size       int32               // File size
+	MimeType   string              // MIME type
+	Attributes []DocumentAttribute // Attributes for media types
 }
 
 func (*WebDocumentObj) CRC() uint32 {
@@ -11611,10 +11829,10 @@ func (*WebDocumentObj) ImplementsWebDocument() {}
 
 // Remote document that can be downloaded without [proxying through telegram](https://core.telegram.org/api/files)
 type WebDocumentNoProxy struct {
-	URL        string
-	Size       int32
-	MimeType   string
-	Attributes []DocumentAttribute
+	URL        string              // Document URL
+	Size       int32               // File size
+	MimeType   string              // MIME type
+	Attributes []DocumentAttribute // Attributes for media types
 }
 
 func (*WebDocumentNoProxy) CRC() uint32 {
@@ -11630,25 +11848,25 @@ type WebPage interface {
 
 // Webpage preview
 type WebPageObj struct {
-	HasLargeMedia bool `tl:"flag:13,encoded_in_bitflags"`
-	ID            int64
-	URL           string
-	DisplayURL    string
-	Hash          int32
-	Type          string             `tl:"flag:0"`
-	SiteName      string             `tl:"flag:1"`
-	Title         string             `tl:"flag:2"`
-	Description   string             `tl:"flag:3"`
-	Photo         Photo              `tl:"flag:4"`
-	EmbedURL      string             `tl:"flag:5"`
-	EmbedType     string             `tl:"flag:5"`
-	EmbedWidth    int32              `tl:"flag:6"`
-	EmbedHeight   int32              `tl:"flag:6"`
-	Duration      int32              `tl:"flag:7"`
-	Author        string             `tl:"flag:8"`
-	Document      Document           `tl:"flag:9"`
-	CachedPage    *Page              `tl:"flag:10"`
-	Attributes    []WebPageAttribute `tl:"flag:12"`
+	HasLargeMedia bool               `tl:"flag:13,encoded_in_bitflags"` // Whether the size of the media in the preview can be changed.
+	ID            int64              // Preview ID
+	URL           string             // URL of previewed webpage
+	DisplayURL    string             // Webpage URL to be displayed to the user
+	Hash          int32              // Hash used for caching, for more info click here
+	Type          string             `tl:"flag:0"`  // Type of the web page. Can be: article, photo, audio, video, document, profile, app, or something else,.
+	SiteName      string             `tl:"flag:1"`  // Short name of the site (e.g., Google Docs, App Store)
+	Title         string             `tl:"flag:2"`  // Title of the content
+	Description   string             `tl:"flag:3"`  // Content description
+	Photo         Photo              `tl:"flag:4"`  // Image representing the content
+	EmbedURL      string             `tl:"flag:5"`  // URL to show in the embedded preview
+	EmbedType     string             `tl:"flag:5"`  // MIME type of the embedded preview, (e.g., text/html or video/mp4)
+	EmbedWidth    int32              `tl:"flag:6"`  // Width of the embedded preview
+	EmbedHeight   int32              `tl:"flag:6"`  // Height of the embedded preview
+	Duration      int32              `tl:"flag:7"`  // Duration of the content, in seconds
+	Author        string             `tl:"flag:8"`  // Author of the content
+	Document      Document           `tl:"flag:9"`  // Preview of the content as a media file
+	CachedPage    *Page              `tl:"flag:10"` // Page contents in instant view format
+	Attributes    []WebPageAttribute `tl:"flag:12"` // Webpage attributes
 }
 
 func (*WebPageObj) CRC() uint32 {
@@ -11663,8 +11881,8 @@ func (*WebPageObj) ImplementsWebPage() {}
 
 // No preview is available for the webpage
 type WebPageEmpty struct {
-	ID  int64
-	URL string `tl:"flag:0"`
+	ID  int64  // Preview ID
+	URL string `tl:"flag:0"` // URL of the webpage.
 }
 
 func (*WebPageEmpty) CRC() uint32 {
@@ -11679,7 +11897,7 @@ func (*WebPageEmpty) ImplementsWebPage() {}
 
 // The preview of the webpage hasn't changed
 type WebPageNotModified struct {
-	CachedPageViews int32 `tl:"flag:0"`
+	CachedPageViews int32 `tl:"flag:0"` // Page view count
 }
 
 func (*WebPageNotModified) CRC() uint32 {
@@ -11694,9 +11912,9 @@ func (*WebPageNotModified) ImplementsWebPage() {}
 
 // A preview of the webpage is currently being generated
 type WebPagePending struct {
-	ID   int64
-	URL  string `tl:"flag:0"`
-	Date int32
+	ID   int64  // ID of preview
+	URL  string `tl:"flag:0"` // URL of the webpage
+	Date int32  // When was the processing started
 }
 
 func (*WebPagePending) CRC() uint32 {
@@ -11723,10 +11941,12 @@ type WebPageAttribute interface {
 	tl.Object
 	ImplementsWebPageAttribute()
 }
+
+// Contains info about a [stickerset »](https://core.telegram.org/api/stickers), for a [webPage](https://core.telegram.org/constructor/webPage) preview of a [stickerset deep link »](https://core.telegram.org/api/links#stickerset-links) (the [webPage](https://core.telegram.org/constructor/webPage) will have a `type` of `telegram_stickerset`).
 type WebPageAttributeStickerSet struct {
-	Emojis    bool `tl:"flag:0,encoded_in_bitflags"`
-	TextColor bool `tl:"flag:1,encoded_in_bitflags"`
-	Stickers  []Document
+	Emojis    bool       `tl:"flag:0,encoded_in_bitflags"` // Whether this i s a custom emoji stickerset.
+	TextColor bool       `tl:"flag:1,encoded_in_bitflags"` // Whether the color of this TGS custom emoji stickerset should be changed to the text color when used in messages, the accent color if used as emoji status, white on chat photos, or another appropriate color based on context.
+	Stickers  []Document // A subset of the stickerset in the stickerset.
 }
 
 func (*WebPageAttributeStickerSet) CRC() uint32 {
@@ -11741,9 +11961,9 @@ func (*WebPageAttributeStickerSet) ImplementsWebPageAttribute() {}
 
 // Webpage preview of a Telegram story
 type WebPageAttributeStory struct {
-	Peer  Peer
-	ID    int32
-	Story StoryItem `tl:"flag:0"`
+	Peer  Peer      // Peer that posted the story
+	ID    int32     // Story ID
+	Story StoryItem `tl:"flag:0"` // May contain the story, if not the story should be fetched when and if needed using stories.getStoriesByID with the above 'id' and 'peer'.
 }
 
 func (*WebPageAttributeStory) CRC() uint32 {
@@ -11758,8 +11978,8 @@ func (*WebPageAttributeStory) ImplementsWebPageAttribute() {}
 
 // Page theme
 type WebPageAttributeTheme struct {
-	Documents []Document     `tl:"flag:0"`
-	Settings  *ThemeSettings `tl:"flag:1"`
+	Documents []Document     `tl:"flag:0"` // Theme files
+	Settings  *ThemeSettings `tl:"flag:1"` // Theme settings
 }
 
 func (*WebPageAttributeTheme) CRC() uint32 {
@@ -11779,7 +11999,7 @@ type AccountEmailVerified interface {
 
 // The email was verified correctly.
 type AccountEmailVerifiedObj struct {
-	Email string
+	Email string // The verified email address.
 }
 
 func (*AccountEmailVerifiedObj) CRC() uint32 {
@@ -11790,8 +12010,8 @@ func (*AccountEmailVerifiedObj) ImplementsAccountEmailVerified() {}
 
 // The email was verified correctly, and a login code was just sent to it.
 type AccountEmailVerifiedLogin struct {
-	Email    string
-	SentCode AuthSentCode
+	Email    string       // The verified email address.
+	SentCode AuthSentCode // Info about the sent login code
 }
 
 func (*AccountEmailVerifiedLogin) CRC() uint32 {
@@ -11807,8 +12027,8 @@ type AccountEmojiStatuses interface {
 
 // A list of [emoji statuses](https://core.telegram.org/api/emoji-status)
 type AccountEmojiStatusesObj struct {
-	Hash     int64
-	Statuses []EmojiStatus
+	Hash     int64         // Hash used for caching, for more info click here
+	Statuses []EmojiStatus // Emoji statuses
 }
 
 func (*AccountEmojiStatusesObj) CRC() uint32 {
@@ -11833,7 +12053,7 @@ type AccountResetPasswordResult interface {
 
 // You recently requested a password reset that was canceled, please wait until the specified date before requesting another reset.
 type AccountResetPasswordFailedWait struct {
-	RetryDate int32
+	RetryDate int32 // Wait until this date before requesting another reset.
 }
 
 func (*AccountResetPasswordFailedWait) CRC() uint32 {
@@ -11853,7 +12073,7 @@ func (*AccountResetPasswordOk) ImplementsAccountResetPasswordResult() {}
 
 // You successfully requested a password reset, please wait until the specified date before finalizing the reset.
 type AccountResetPasswordRequestedWait struct {
-	UntilDate int32
+	UntilDate int32 // Wait until this date before finalizing the reset.
 }
 
 func (*AccountResetPasswordRequestedWait) CRC() uint32 {
@@ -11878,7 +12098,7 @@ func (*AccountSavedRingtoneObj) ImplementsAccountSavedRingtone() {}
 
 // The notification sound was not in MP3 format and was successfully converted and saved, use the returned [Document](https://core.telegram.org/type/Document) to refer to the notification sound from now on
 type AccountSavedRingtoneConverted struct {
-	Document Document
+	Document Document // The converted notification sound
 }
 
 func (*AccountSavedRingtoneConverted) CRC() uint32 {
@@ -11894,8 +12114,8 @@ type AccountSavedRingtones interface {
 
 // A list of saved notification sounds
 type AccountSavedRingtonesObj struct {
-	Hash      int64
-	Ringtones []Document
+	Hash      int64      // Hash used for caching, for more info click here
+	Ringtones []Document // Saved notification sounds
 }
 
 func (*AccountSavedRingtonesObj) CRC() uint32 {
@@ -11920,8 +12140,8 @@ type AccountThemes interface {
 
 // Installed themes
 type AccountThemesObj struct {
-	Hash   int64
-	Themes []*Theme
+	Hash   int64    // Hash used for caching, for more info click here
+	Themes []*Theme // Themes
 }
 
 func (*AccountThemesObj) CRC() uint32 {
@@ -11946,8 +12166,8 @@ type AccountWallPapers interface {
 
 // Installed [wallpapers](https://core.telegram.org/api/wallpapers)
 type AccountWallPapersObj struct {
-	Hash       int64
-	Wallpapers []WallPaper
+	Hash       int64       // Hash used for caching, for more info click here
+	Wallpapers []WallPaper // Wallpapers
 }
 
 func (*AccountWallPapersObj) CRC() uint32 {
@@ -11972,11 +12192,11 @@ type AuthAuthorization interface {
 
 // Contains user authorization info.
 type AuthAuthorizationObj struct {
-	SetupPasswordRequired bool   `tl:"flag:1,encoded_in_bitflags"`
-	OtherwiseReloginDays  int32  `tl:"flag:1"`
-	TmpSessions           int32  `tl:"flag:0"`
-	FutureAuthToken       []byte `tl:"flag:2"`
-	User                  User
+	SetupPasswordRequired bool   `tl:"flag:1,encoded_in_bitflags"` // Suggests the user to set up a 2-step verification password to be able to log in again
+	OtherwiseReloginDays  int32  `tl:"flag:1"`                     // Iff setup_password_required is set and the user declines to set a 2-step verification password, they will be able to log into their account via SMS again only after this many days pass.
+	TmpSessions           int32  `tl:"flag:0"`                     // Temporary passport sessions
+	FutureAuthToken       []byte `tl:"flag:2"`                     // A future auth token
+	User                  User   // Info on authorized user
 }
 
 func (*AuthAuthorizationObj) CRC() uint32 {
@@ -11991,7 +12211,7 @@ func (*AuthAuthorizationObj) ImplementsAuthAuthorization() {}
 
 // An account with this phone number doesn't exist on telegram: the user has to [enter basic information and sign up](https://core.telegram.org/api/auth)
 type AuthAuthorizationSignUpRequired struct {
-	TermsOfService *HelpTermsOfService `tl:"flag:0"`
+	TermsOfService *HelpTermsOfService `tl:"flag:0"` // Telegram's terms of service: the user must read and accept the terms of service before signing up to telegram
 }
 
 func (*AuthAuthorizationSignUpRequired) CRC() uint32 {
@@ -12011,8 +12231,8 @@ type AuthLoginToken interface {
 
 // Login token (for [QR code login](https://core.telegram.org/api/qr-login))
 type AuthLoginTokenObj struct {
-	Expires int32
-	Token   []byte
+	Expires int32  // Expiration date of QR code
+	Token   []byte // Token to render in QR code
 }
 
 func (*AuthLoginTokenObj) CRC() uint32 {
@@ -12023,8 +12243,8 @@ func (*AuthLoginTokenObj) ImplementsAuthLoginToken() {}
 
 // Repeat the query to the specified DC
 type AuthLoginTokenMigrateTo struct {
-	DcID  int32
-	Token []byte
+	DcID  int32  // DC ID
+	Token []byte // Token to use for login
 }
 
 func (*AuthLoginTokenMigrateTo) CRC() uint32 {
@@ -12035,7 +12255,7 @@ func (*AuthLoginTokenMigrateTo) ImplementsAuthLoginToken() {}
 
 // Login via token (QR code) succeeded!
 type AuthLoginTokenSuccess struct {
-	Authorization AuthAuthorization
+	Authorization AuthAuthorization // Authorization info
 }
 
 func (*AuthLoginTokenSuccess) CRC() uint32 {
@@ -12051,10 +12271,10 @@ type AuthSentCode interface {
 
 // Contains info about a sent verification code.
 type AuthSentCodeObj struct {
-	Type          AuthSentCodeType
-	PhoneCodeHash string
-	NextType      AuthCodeType `tl:"flag:1"`
-	Timeout       int32        `tl:"flag:2"`
+	Type          AuthSentCodeType // Phone code type
+	PhoneCodeHash string           // Phone code hash, to be stored and later re-used with auth.signIn
+	NextType      AuthCodeType     `tl:"flag:1"` // Phone code type that will be sent next, if the phone code is not received within 'timeout' seconds: to send it use auth.resendCode
+	Timeout       int32            `tl:"flag:2"` // Timeout for reception of the phone code
 }
 
 func (*AuthSentCodeObj) CRC() uint32 {
@@ -12069,7 +12289,7 @@ func (*AuthSentCodeObj) ImplementsAuthSentCode() {}
 
 // The user successfully authorized using [future auth tokens](https://core.telegram.org/api/auth#future-auth-tokens)
 type AuthSentCodeSuccess struct {
-	Authorization AuthAuthorization
+	Authorization AuthAuthorization // Authorization info
 }
 
 func (*AuthSentCodeSuccess) CRC() uint32 {
@@ -12085,7 +12305,7 @@ type AuthSentCodeType interface {
 
 // The code was sent through the telegram app
 type AuthSentCodeTypeApp struct {
-	Length int32
+	Length int32 // Length of the code in bytes
 }
 
 func (*AuthSentCodeTypeApp) CRC() uint32 {
@@ -12096,7 +12316,7 @@ func (*AuthSentCodeTypeApp) ImplementsAuthSentCodeType() {}
 
 // The code will be sent via a phone call: a synthesized voice will tell the user which verification code to input.
 type AuthSentCodeTypeCall struct {
-	Length int32
+	Length int32 // Length of the verification code
 }
 
 func (*AuthSentCodeTypeCall) CRC() uint32 {
@@ -12107,12 +12327,12 @@ func (*AuthSentCodeTypeCall) ImplementsAuthSentCodeType() {}
 
 // The code was sent via the [previously configured login email »](https://core.telegram.org/api/auth#email-verification)
 type AuthSentCodeTypeEmailCode struct {
-	AppleSigninAllowed   bool `tl:"flag:0,encoded_in_bitflags"`
-	GoogleSigninAllowed  bool `tl:"flag:1,encoded_in_bitflags"`
-	EmailPattern         string
-	Length               int32
-	ResetAvailablePeriod int32 `tl:"flag:3"`
-	ResetPendingDate     int32 `tl:"flag:4"`
+	AppleSigninAllowed   bool   `tl:"flag:0,encoded_in_bitflags"` // Whether authorization through Apple ID is allowed
+	GoogleSigninAllowed  bool   `tl:"flag:1,encoded_in_bitflags"` // Whether authorization through Google ID is allowed
+	EmailPattern         string // Pattern of the email
+	Length               int32  // Length of the sent verification code
+	ResetAvailablePeriod int32  `tl:"flag:3"` // Clients should wait for the specified amount of seconds before allowing the user to invoke auth.resetLoginEmail (will be 0 for Premium users).
+	ResetPendingDate     int32  `tl:"flag:4"` // An email reset was already requested, and will occur at the specified date.
 }
 
 func (*AuthSentCodeTypeEmailCode) CRC() uint32 {
@@ -12127,12 +12347,12 @@ func (*AuthSentCodeTypeEmailCode) ImplementsAuthSentCodeType() {}
 
 // An authentication code should be delivered via SMS after Firebase attestation, as described in the [auth documentation »](https://core.telegram.org/api/auth).
 type AuthSentCodeTypeFirebaseSms struct {
-	Nonce                  []byte `tl:"flag:0"`
-	PlayIntegrityProjectID int64  `tl:"flag:2"`
-	PlayIntegrityNonce     []byte `tl:"flag:2"`
-	Receipt                string `tl:"flag:1"`
-	PushTimeout            int32  `tl:"flag:1"`
-	Length                 int32
+	Nonce                  []byte `tl:"flag:0"` // On Android, the nonce to be used as described in the auth documentation
+	PlayIntegrityProjectID int64  `tl:"flag:2"` // Google Play Integrity project ID
+	PlayIntegrityNonce     []byte `tl:"flag:2"` // Play Integrity API nonce
+	Receipt                string `tl:"flag:1"` // On iOS, must be compared with the 'receipt' extracted from the received push notification.
+	PushTimeout            int32  `tl:"flag:1"` // On iOS: if a push notification with the 'ios_push_secret' isn't received within 'push_timeout' seconds, the 'next_type' authentication method must be used, with auth.resendCode.
+	Length                 int32  // Length of the code that will be delivered.
 }
 
 func (*AuthSentCodeTypeFirebaseSms) CRC() uint32 {
@@ -12147,7 +12367,7 @@ func (*AuthSentCodeTypeFirebaseSms) ImplementsAuthSentCodeType() {}
 
 // The code will be sent via a flash phone call, that will be closed immediately. The phone code will then be the phone number itself, just make sure that the phone number matches the specified pattern.
 type AuthSentCodeTypeFlashCall struct {
-	Pattern string
+	Pattern string // pattern to match
 }
 
 func (*AuthSentCodeTypeFlashCall) CRC() uint32 {
@@ -12158,8 +12378,8 @@ func (*AuthSentCodeTypeFlashCall) ImplementsAuthSentCodeType() {}
 
 // The code was delivered via [fragment.com](https://core.telegram.orghttps://fragment.com).
 type AuthSentCodeTypeFragmentSms struct {
-	URL    string
-	Length int32
+	URL    string // Open the specified URL to log into fragment.com with the wallet that owns the specified phone number and view the code.
+	Length int32  // Length of the delivered code.
 }
 
 func (*AuthSentCodeTypeFragmentSms) CRC() uint32 {
@@ -12170,8 +12390,8 @@ func (*AuthSentCodeTypeFragmentSms) ImplementsAuthSentCodeType() {}
 
 // The code will be sent via a flash phone call, that will be closed immediately. The last digits of the phone number that calls are the code that must be entered manually by the user.
 type AuthSentCodeTypeMissedCall struct {
-	Prefix string
-	Length int32
+	Prefix string // Prefix of the phone number from which the call will be made
+	Length int32  // Length of the verification code
 }
 
 func (*AuthSentCodeTypeMissedCall) CRC() uint32 {
@@ -12182,8 +12402,8 @@ func (*AuthSentCodeTypeMissedCall) ImplementsAuthSentCodeType() {}
 
 // The user should add and verify an email address in order to login as described [here »](https://core.telegram.org/api/auth#email-verification).
 type AuthSentCodeTypeSetUpEmailRequired struct {
-	AppleSigninAllowed  bool `tl:"flag:0,encoded_in_bitflags"`
-	GoogleSigninAllowed bool `tl:"flag:1,encoded_in_bitflags"`
+	AppleSigninAllowed  bool `tl:"flag:0,encoded_in_bitflags"` // Whether authorization through Apple ID is allowed
+	GoogleSigninAllowed bool `tl:"flag:1,encoded_in_bitflags"` // Whether authorization through Google ID is allowed
 }
 
 func (*AuthSentCodeTypeSetUpEmailRequired) CRC() uint32 {
@@ -12198,7 +12418,7 @@ func (*AuthSentCodeTypeSetUpEmailRequired) ImplementsAuthSentCodeType() {}
 
 // The code was sent via SMS
 type AuthSentCodeTypeSms struct {
-	Length int32
+	Length int32 // Length of the code in bytes
 }
 
 func (*AuthSentCodeTypeSms) CRC() uint32 {
@@ -12207,8 +12427,9 @@ func (*AuthSentCodeTypeSms) CRC() uint32 {
 
 func (*AuthSentCodeTypeSms) ImplementsAuthSentCodeType() {}
 
+// The code was sent via SMS as a secret phrase starting with the word specified in `beginning`
 type AuthSentCodeTypeSmsPhrase struct {
-	Beginning string `tl:"flag:0"`
+	Beginning string `tl:"flag:0"` // If set, the secret phrase (and the SMS) starts with this word.
 }
 
 func (*AuthSentCodeTypeSmsPhrase) CRC() uint32 {
@@ -12221,8 +12442,9 @@ func (*AuthSentCodeTypeSmsPhrase) FlagIndex() int {
 
 func (*AuthSentCodeTypeSmsPhrase) ImplementsAuthSentCodeType() {}
 
+// The code was sent via SMS as a secret word, starting with the letter specified in `beginning`
 type AuthSentCodeTypeSmsWord struct {
-	Beginning string `tl:"flag:0"`
+	Beginning string `tl:"flag:0"` // If set, the secret word in the sent SMS (which may contain multiple words) starts with this letter.
 }
 
 func (*AuthSentCodeTypeSmsWord) CRC() uint32 {
@@ -12242,10 +12464,10 @@ type ChannelsChannelParticipants interface {
 
 // Represents multiple channel participants
 type ChannelsChannelParticipantsObj struct {
-	Count        int32
-	Participants []ChannelParticipant
-	Chats        []Chat
-	Users        []User
+	Count        int32                // Total number of participants that correspond to the given query
+	Participants []ChannelParticipant // Participants
+	Chats        []Chat               // Mentioned chats
+	Users        []User               // Users mentioned in participant info
 }
 
 func (*ChannelsChannelParticipantsObj) CRC() uint32 {
@@ -12267,6 +12489,8 @@ type ChannelsSponsoredMessageReportResult interface {
 	tl.Object
 	ImplementsChannelsSponsoredMessageReportResult()
 }
+
+// Sponsored messages were hidden for the user in all chats.
 type ChannelsSponsoredMessageReportResultAdsHidden struct{}
 
 func (*ChannelsSponsoredMessageReportResultAdsHidden) CRC() uint32 {
@@ -12276,9 +12500,10 @@ func (*ChannelsSponsoredMessageReportResultAdsHidden) CRC() uint32 {
 func (*ChannelsSponsoredMessageReportResultAdsHidden) ImplementsChannelsSponsoredMessageReportResult() {
 }
 
+// The user must choose a report option from the localized options available in `options`, and after selection, [channels.reportSponsoredMessage](https://core.telegram.org/method/channels.reportSponsoredMessage) must be invoked again, passing the option's `option` field to the `option` param of the method.
 type ChannelsSponsoredMessageReportResultChooseOption struct {
-	Title   string
-	Options []*SponsoredMessageReportOption
+	Title   string                          // Title of the option selection popup.
+	Options []*SponsoredMessageReportOption // Localized list of options.
 }
 
 func (*ChannelsSponsoredMessageReportResultChooseOption) CRC() uint32 {
@@ -12288,6 +12513,7 @@ func (*ChannelsSponsoredMessageReportResultChooseOption) CRC() uint32 {
 func (*ChannelsSponsoredMessageReportResultChooseOption) ImplementsChannelsSponsoredMessageReportResult() {
 }
 
+// The sponsored message was reported successfully.
 type ChannelsSponsoredMessageReportResultReported struct{}
 
 func (*ChannelsSponsoredMessageReportResultReported) CRC() uint32 {
@@ -12304,11 +12530,11 @@ type ChatlistsChatlistInvite interface {
 
 // Info about a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
 type ChatlistsChatlistInviteObj struct {
-	Title    string
-	Emoticon string `tl:"flag:0"`
-	Peers    []Peer
-	Chats    []Chat
-	Users    []User
+	Title    string // Name of the link
+	Emoticon string `tl:"flag:0"` // Emoji to use as icon for the folder.
+	Peers    []Peer // Supergroups and channels to join
+	Chats    []Chat // Related chat information
+	Users    []User // Related user information
 }
 
 func (*ChatlistsChatlistInviteObj) CRC() uint32 {
@@ -12323,11 +12549,11 @@ func (*ChatlistsChatlistInviteObj) ImplementsChatlistsChatlistInvite() {}
 
 // Updated info about a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links) we already imported.
 type ChatlistsChatlistInviteAlready struct {
-	FilterID     int32
-	MissingPeers []Peer
-	AlreadyPeers []Peer
-	Chats        []Chat
-	Users        []User
+	FilterID     int32  // ID of the imported folder
+	MissingPeers []Peer // New peers to be imported
+	AlreadyPeers []Peer // Peers that were already imported
+	Chats        []Chat // Related chat information
+	Users        []User // Related user information
 }
 
 func (*ChatlistsChatlistInviteAlready) CRC() uint32 {
@@ -12343,9 +12569,9 @@ type ContactsBlocked interface {
 
 // Full list of blocked users.
 type ContactsBlockedObj struct {
-	Blocked []*PeerBlocked
-	Chats   []Chat
-	Users   []User
+	Blocked []*PeerBlocked // List of blocked users
+	Chats   []Chat         // Blocked chats
+	Users   []User         // List of users
 }
 
 func (*ContactsBlockedObj) CRC() uint32 {
@@ -12356,10 +12582,10 @@ func (*ContactsBlockedObj) ImplementsContactsBlocked() {}
 
 // Incomplete list of blocked users.
 type ContactsBlockedSlice struct {
-	Count   int32
-	Blocked []*PeerBlocked
-	Chats   []Chat
-	Users   []User
+	Count   int32          // Total number of elements in the list
+	Blocked []*PeerBlocked // List of blocked users
+	Chats   []Chat         // Blocked chats
+	Users   []User         // List of users
 }
 
 func (*ContactsBlockedSlice) CRC() uint32 {
@@ -12375,9 +12601,9 @@ type ContactsContacts interface {
 
 // The current user's contact list and info on users.
 type ContactsContactsObj struct {
-	Contacts   []*Contact
-	SavedCount int32
-	Users      []User
+	Contacts   []*Contact // Contact list
+	SavedCount int32      // Number of contacts that were saved successfully
+	Users      []User     // User list
 }
 
 func (*ContactsContactsObj) CRC() uint32 {
@@ -12402,9 +12628,9 @@ type ContactsTopPeers interface {
 
 // Top peers
 type ContactsTopPeersObj struct {
-	Categories []*TopPeerCategoryPeers
-	Chats      []Chat
-	Users      []User
+	Categories []*TopPeerCategoryPeers // Top peers by top peer category
+	Chats      []Chat                  // Chats
+	Users      []User                  // Users
 }
 
 func (*ContactsTopPeersObj) CRC() uint32 {
@@ -12438,8 +12664,8 @@ type HelpAppConfig interface {
 
 // Contains various [client configuration parameters](https://core.telegram.org/api/config#client-configuration)
 type HelpAppConfigObj struct {
-	Hash   int32
-	Config JsonValue
+	Hash   int32     // Hash used for caching, for more info click here
+	Config JsonValue // Client configuration parameters
 }
 
 func (*HelpAppConfigObj) CRC() uint32 {
@@ -12464,14 +12690,14 @@ type HelpAppUpdate interface {
 
 // An update is available for the application.
 type HelpAppUpdateObj struct {
-	CanNotSkip bool `tl:"flag:0,encoded_in_bitflags"`
-	ID         int32
-	Version    string
-	Text       string
-	Entities   []MessageEntity
-	Document   Document `tl:"flag:1"`
-	URL        string   `tl:"flag:2"`
-	Sticker    Document `tl:"flag:3"`
+	CanNotSkip bool            `tl:"flag:0,encoded_in_bitflags"` // Unskippable, the new info must be shown to the user (with a popup or something else)
+	ID         int32           // Update ID
+	Version    string          // New version name
+	Text       string          // Text description of the update
+	Entities   []MessageEntity // Message entities for styled text
+	Document   Document        `tl:"flag:1"` // Application binary
+	URL        string          `tl:"flag:2"` // Application download URL
+	Sticker    Document        `tl:"flag:3"` // Associated sticker
 }
 
 func (*HelpAppUpdateObj) CRC() uint32 {
@@ -12500,8 +12726,8 @@ type HelpCountriesList interface {
 
 // Name, ISO code, localized name and phone codes/patterns of all available countries
 type HelpCountriesListObj struct {
-	Countries []*HelpCountry
-	Hash      int32
+	Countries []*HelpCountry // Name, ISO code, localized name and phone codes/patterns of all available countries
+	Hash      int32          // Hash used for caching, for more info click here
 }
 
 func (*HelpCountriesListObj) CRC() uint32 {
@@ -12526,9 +12752,9 @@ type HelpDeepLinkInfo interface {
 
 // Deep link info, see [the here for more details](https://core.telegram.org/api/links#unsupported-links)
 type HelpDeepLinkInfoObj struct {
-	UpdateApp bool `tl:"flag:0,encoded_in_bitflags"`
-	Message   string
-	Entities  []MessageEntity `tl:"flag:1"`
+	UpdateApp bool            `tl:"flag:0,encoded_in_bitflags"` // An update of the app is required to parse this link
+	Message   string          // Message to show to the user
+	Entities  []MessageEntity `tl:"flag:1"` // Message entities for styled text
 }
 
 func (*HelpDeepLinkInfoObj) CRC() uint32 {
@@ -12557,8 +12783,8 @@ type HelpPassportConfig interface {
 
 // Telegram [passport](https://core.telegram.org/passport) configuration
 type HelpPassportConfigObj struct {
-	Hash           int32
-	CountriesLangs *DataJson
+	Hash           int32     // Hash used for caching, for more info click here
+	CountriesLangs *DataJson // Localization
 }
 
 func (*HelpPassportConfigObj) CRC() uint32 {
@@ -12583,9 +12809,9 @@ type HelpPeerColorSet interface {
 
 // Represents a [color palette that can be used in profile pages »](https://core.telegram.org/api/colors).
 type HelpPeerColorProfileSet struct {
-	PaletteColors []int32
-	BgColors      []int32
-	StoryColors   []int32
+	PaletteColors []int32 // A list of 1-2 colors in RGB format, shown in the color palette settings to describe the current palette.
+	BgColors      []int32 // A list of 1-2 colors in RGB format describing the colors used to generate the actual background used in the profile page.
+	StoryColors   []int32 // A list of 2 colors in RGB format describing the colors of the gradient used for the unread active story indicator around the profile photo.
 }
 
 func (*HelpPeerColorProfileSet) CRC() uint32 {
@@ -12596,7 +12822,7 @@ func (*HelpPeerColorProfileSet) ImplementsHelpPeerColorSet() {}
 
 // Represents a [color palette that can be used in message accents »](https://core.telegram.org/api/colors).
 type HelpPeerColorSetObj struct {
-	Colors []int32
+	Colors []int32 // A list of 1-3 colors in RGB format, describing the accent color.
 }
 
 func (*HelpPeerColorSetObj) CRC() uint32 {
@@ -12612,8 +12838,8 @@ type HelpPeerColors interface {
 
 // Contains info about multiple [color palettes »](https://core.telegram.org/api/colors).
 type HelpPeerColorsObj struct {
-	Hash   int32
-	Colors []*HelpPeerColorOption
+	Hash   int32                  // Hash used for caching, for more info click here
+	Colors []*HelpPeerColorOption // Usable color palettes.
 }
 
 func (*HelpPeerColorsObj) CRC() uint32 {
@@ -12638,13 +12864,13 @@ type HelpPromoData interface {
 
 // MTProxy/Public Service Announcement information
 type HelpPromoDataObj struct {
-	Proxy      bool `tl:"flag:0,encoded_in_bitflags"`
-	Expires    int32
-	Peer       Peer
-	Chats      []Chat
-	Users      []User
-	PsaType    string `tl:"flag:1"`
-	PsaMessage string `tl:"flag:2"`
+	Proxy      bool   `tl:"flag:0,encoded_in_bitflags"` // MTProxy-related channel
+	Expires    int32  // Expiry of PSA/MTProxy info
+	Peer       Peer   // MTProxy/PSA peer
+	Chats      []Chat // Chat info
+	Users      []User // User info
+	PsaType    string `tl:"flag:1"` // PSA type
+	PsaMessage string `tl:"flag:2"` // PSA message
 }
 
 func (*HelpPromoDataObj) CRC() uint32 {
@@ -12659,7 +12885,7 @@ func (*HelpPromoDataObj) ImplementsHelpPromoData() {}
 
 // No PSA/MTProxy info is available
 type HelpPromoDataEmpty struct {
-	Expires int32
+	Expires int32 // Re-fetch PSA/MTProxy info after the specified number of seconds
 }
 
 func (*HelpPromoDataEmpty) CRC() uint32 {
@@ -12675,8 +12901,8 @@ type HelpTermsOfServiceUpdate interface {
 
 // Info about an update of telegram's terms of service. If the terms of service are declined, then the [account.deleteAccount](https://core.telegram.org/method/account.deleteAccount) method should be called with the reason "Decline ToS update"
 type HelpTermsOfServiceUpdateObj struct {
-	Expires        int32
-	TermsOfService *HelpTermsOfService
+	Expires        int32               // New TOS updates will have to be queried using help.getTermsOfServiceUpdate in 'expires' seconds
+	TermsOfService *HelpTermsOfService // New terms of service
 }
 
 func (*HelpTermsOfServiceUpdateObj) CRC() uint32 {
@@ -12687,7 +12913,7 @@ func (*HelpTermsOfServiceUpdateObj) ImplementsHelpTermsOfServiceUpdate() {}
 
 // No changes were made to telegram's terms of service
 type HelpTermsOfServiceUpdateEmpty struct {
-	Expires int32
+	Expires int32 // New TOS updates will have to be queried using help.getTermsOfServiceUpdate in 'expires' seconds
 }
 
 func (*HelpTermsOfServiceUpdateEmpty) CRC() uint32 {
@@ -12700,9 +12926,11 @@ type HelpTimezonesList interface {
 	tl.Object
 	ImplementsHelpTimezonesList()
 }
+
+// Timezone information that may be used elsewhere in the API, such as to set [Telegram Business opening hours »](https://core.telegram.org/api/business#opening-hours).
 type HelpTimezonesListObj struct {
-	Timezones []*Timezone
-	Hash      int32
+	Timezones []*Timezone // Timezones
+	Hash      int32       // Hash used for caching, for more info click here
 }
 
 func (*HelpTimezonesListObj) CRC() uint32 {
@@ -12711,6 +12939,7 @@ func (*HelpTimezonesListObj) CRC() uint32 {
 
 func (*HelpTimezonesListObj) ImplementsHelpTimezonesList() {}
 
+// The timezone list has not changed.
 type HelpTimezonesListNotModified struct{}
 
 func (*HelpTimezonesListNotModified) CRC() uint32 {
@@ -12726,10 +12955,10 @@ type HelpUserInfo interface {
 
 // Internal use
 type HelpUserInfoObj struct {
-	Message  string
-	Entities []MessageEntity
-	Author   string
-	Date     int32
+	Message  string          // Info
+	Entities []MessageEntity // Message entities for styled text
+	Author   string          // Author
+	Date     int32           // Date
 }
 
 func (*HelpUserInfoObj) CRC() uint32 {
@@ -12754,8 +12983,8 @@ type MessagesAllStickers interface {
 
 // Info about all installed stickers
 type MessagesAllStickersObj struct {
-	Hash int64
-	Sets []*StickerSet
+	Hash int64         // Hash used for caching, for more info click here
+	Sets []*StickerSet // All stickersets
 }
 
 func (*MessagesAllStickersObj) CRC() uint32 {
@@ -12777,10 +13006,12 @@ type MessagesAvailableEffects interface {
 	tl.Object
 	ImplementsMessagesAvailableEffects()
 }
+
+// The full list of usable [animated message effects »](https://core.telegram.org/api/effects).
 type MessagesAvailableEffectsObj struct {
-	Hash      int32
-	Effects   []*AvailableEffect
-	Documents []Document
+	Hash      int32              // Hash used for caching, for more info click here
+	Effects   []*AvailableEffect // Message effects
+	Documents []Document         // Documents specified in the 'effects' constructors.
 }
 
 func (*MessagesAvailableEffectsObj) CRC() uint32 {
@@ -12789,6 +13020,7 @@ func (*MessagesAvailableEffectsObj) CRC() uint32 {
 
 func (*MessagesAvailableEffectsObj) ImplementsMessagesAvailableEffects() {}
 
+// The full list of usable [animated message effects »](https://core.telegram.org/api/effects) hasn't changed.
 type MessagesAvailableEffectsNotModified struct{}
 
 func (*MessagesAvailableEffectsNotModified) CRC() uint32 {
@@ -12804,8 +13036,8 @@ type MessagesAvailableReactions interface {
 
 // Animations and metadata associated with [message reactions »](https://core.telegram.org/api/reactions)
 type MessagesAvailableReactionsObj struct {
-	Hash      int32
-	Reactions []*AvailableReaction
+	Hash      int32                // Hash used for caching, for more info click here
+	Reactions []*AvailableReaction // Animations and metadata associated with message reactions
 }
 
 func (*MessagesAvailableReactionsObj) CRC() uint32 {
@@ -12830,7 +13062,7 @@ type MessagesChats interface {
 
 // List of chats with auxiliary data.
 type MessagesChatsObj struct {
-	Chats []Chat
+	Chats []Chat // List of chats
 }
 
 func (*MessagesChatsObj) CRC() uint32 {
@@ -12841,8 +13073,8 @@ func (*MessagesChatsObj) ImplementsMessagesChats() {}
 
 // Partial list of chats, more would have to be fetched with [pagination](https://core.telegram.org/api/offsets)
 type MessagesChatsSlice struct {
-	Count int32
-	Chats []Chat
+	Count int32  // Total number of results that were found server-side (not all are included in 'chats')
+	Chats []Chat // Chats
 }
 
 func (*MessagesChatsSlice) CRC() uint32 {
@@ -12858,10 +13090,10 @@ type MessagesDhConfig interface {
 
 // New set of configuring parameters.
 type MessagesDhConfigObj struct {
-	G       int32
-	P       []byte
-	Version int32
-	Random  []byte
+	G       int32  // New value prime, see Wikipedia
+	P       []byte // New value primitive root, see Wikipedia
+	Version int32  // Version of set of parameters
+	Random  []byte // Random sequence of bytes of assigned length
 }
 
 func (*MessagesDhConfigObj) CRC() uint32 {
@@ -12872,7 +13104,7 @@ func (*MessagesDhConfigObj) ImplementsMessagesDhConfig() {}
 
 // Configuring parameters did not change.
 type MessagesDhConfigNotModified struct {
-	Random []byte
+	Random []byte // Random sequence of bytes of assigned length
 }
 
 func (*MessagesDhConfigNotModified) CRC() uint32 {
@@ -12888,10 +13120,10 @@ type MessagesDialogs interface {
 
 // Full list of chats with messages and auxiliary data.
 type MessagesDialogsObj struct {
-	Dialogs  []Dialog
-	Messages []Message
-	Chats    []Chat
-	Users    []User
+	Dialogs  []Dialog  // List of chats
+	Messages []Message // List of last messages from each chat
+	Chats    []Chat    // List of groups mentioned in the chats
+	Users    []User    // List of users mentioned in messages and groups
 }
 
 func (*MessagesDialogsObj) CRC() uint32 {
@@ -12902,7 +13134,7 @@ func (*MessagesDialogsObj) ImplementsMessagesDialogs() {}
 
 // Dialogs haven't changed
 type MessagesDialogsNotModified struct {
-	Count int32
+	Count int32 // Number of dialogs found server-side by the query
 }
 
 func (*MessagesDialogsNotModified) CRC() uint32 {
@@ -12913,11 +13145,11 @@ func (*MessagesDialogsNotModified) ImplementsMessagesDialogs() {}
 
 // Incomplete list of dialogs with messages and auxiliary data.
 type MessagesDialogsSlice struct {
-	Count    int32
-	Dialogs  []Dialog
-	Messages []Message
-	Chats    []Chat
-	Users    []User
+	Count    int32     // Total number of dialogs
+	Dialogs  []Dialog  // List of dialogs
+	Messages []Message // List of last messages from dialogs
+	Chats    []Chat    // List of chats mentioned in dialogs
+	Users    []User    // List of users mentioned in messages and chats
 }
 
 func (*MessagesDialogsSlice) CRC() uint32 {
@@ -12931,10 +13163,10 @@ type MessagesEmojiGroups interface {
 	ImplementsMessagesEmojiGroups()
 }
 
-// Represents a list of [emoji categories](https://core.telegram.org/api/custom-emoji#emoji-categories).
+// Represents a list of [emoji categories](https://core.telegram.org/api/emoji-categories).
 type MessagesEmojiGroupsObj struct {
-	Hash   int32
-	Groups []EmojiGroup
+	Hash   int32        // Hash used for caching, for more info click here
+	Groups []EmojiGroup // A list of emoji categories.
 }
 
 func (*MessagesEmojiGroupsObj) CRC() uint32 {
@@ -12943,7 +13175,7 @@ func (*MessagesEmojiGroupsObj) CRC() uint32 {
 
 func (*MessagesEmojiGroupsObj) ImplementsMessagesEmojiGroups() {}
 
-// The list of [emoji categories](https://core.telegram.org/api/custom-emoji#emoji-categories) hasn't changed.
+// The list of [emoji categories](https://core.telegram.org/api/emoji-categories) hasn't changed.
 type MessagesEmojiGroupsNotModified struct{}
 
 func (*MessagesEmojiGroupsNotModified) CRC() uint32 {
@@ -12959,8 +13191,8 @@ type MessagesExportedChatInvite interface {
 
 // Info about a chat invite
 type MessagesExportedChatInviteObj struct {
-	Invite ExportedChatInvite
-	Users  []User
+	Invite ExportedChatInvite // Info about the chat invite
+	Users  []User             // Mentioned users
 }
 
 func (*MessagesExportedChatInviteObj) CRC() uint32 {
@@ -12971,9 +13203,9 @@ func (*MessagesExportedChatInviteObj) ImplementsMessagesExportedChatInvite() {}
 
 // The specified chat invite was replaced with another one
 type MessagesExportedChatInviteReplaced struct {
-	Invite    ExportedChatInvite
-	NewInvite ExportedChatInvite
-	Users     []User
+	Invite    ExportedChatInvite // The replaced chat invite
+	NewInvite ExportedChatInvite // The invite that replaces the previous invite
+	Users     []User             // Mentioned users
 }
 
 func (*MessagesExportedChatInviteReplaced) CRC() uint32 {
@@ -12989,9 +13221,9 @@ type MessagesFavedStickers interface {
 
 // Favorited stickers
 type MessagesFavedStickersObj struct {
-	Hash     int64
-	Packs    []*StickerPack
-	Stickers []Document
+	Hash     int64          // Hash used for caching, for more info click here
+	Packs    []*StickerPack // Emojis associated to stickers
+	Stickers []Document     // Favorited stickers
 }
 
 func (*MessagesFavedStickersObj) CRC() uint32 {
@@ -13016,11 +13248,11 @@ type MessagesFeaturedStickers interface {
 
 // Featured stickersets
 type MessagesFeaturedStickersObj struct {
-	Premium bool `tl:"flag:0,encoded_in_bitflags"`
-	Hash    int64
-	Count   int32
-	Sets    []StickerSetCovered
-	Unread  []int64
+	Premium bool                `tl:"flag:0,encoded_in_bitflags"` // Whether this is a premium stickerset
+	Hash    int64               // Hash used for caching, for more info click here
+	Count   int32               // Total number of featured stickers
+	Sets    []StickerSetCovered // Featured stickersets
+	Unread  []int64             // IDs of new featured stickersets
 }
 
 func (*MessagesFeaturedStickersObj) CRC() uint32 {
@@ -13035,7 +13267,7 @@ func (*MessagesFeaturedStickersObj) ImplementsMessagesFeaturedStickers() {}
 
 // Featured stickers haven't changed
 type MessagesFeaturedStickersNotModified struct {
-	Count int32
+	Count int32 // Total number of featured stickers
 }
 
 func (*MessagesFeaturedStickersNotModified) CRC() uint32 {
@@ -13051,8 +13283,8 @@ type MessagesFoundStickerSets interface {
 
 // Found stickersets
 type MessagesFoundStickerSetsObj struct {
-	Hash int64
-	Sets []StickerSetCovered
+	Hash int64               // Hash used for caching, for more info click here
+	Sets []StickerSetCovered // Found stickersets
 }
 
 func (*MessagesFoundStickerSetsObj) CRC() uint32 {
@@ -13077,14 +13309,17 @@ type MessagesMessages interface {
 
 // Channel messages
 type MessagesChannelMessages struct {
-	Inexact        bool `tl:"flag:1,encoded_in_bitflags"`
-	Pts            int32
-	Count          int32
-	OffsetIDOffset int32 `tl:"flag:2"`
-	Messages       []Message
-	Topics         []ForumTopic
-	Chats          []Chat
-	Users          []User
+	Inexact        bool  `tl:"flag:1,encoded_in_bitflags"` // If set, returned results may be inexact
+	Pts            int32 // Event count after generation
+	Count          int32 // Total number of results were found server-side (may not be all included here)
+	OffsetIDOffset int32 `tl:"flag:2"` /*
+	Indicates the absolute position of 'messages[0]' within the total result set with count 'count'.
+	This is useful, for example, if the result was fetched using 'offset_id', and we need to display a 'progress/total' counter (like 'photo 134 of 200', for all media in a chat, we could simply use 'photo ${offset_id_offset} of ${count}'.
+	*/
+	Messages []Message    // Found messages
+	Topics   []ForumTopic // Forum topic information
+	Chats    []Chat       // Chats
+	Users    []User       // Users
 }
 
 func (*MessagesChannelMessages) CRC() uint32 {
@@ -13099,9 +13334,9 @@ func (*MessagesChannelMessages) ImplementsMessagesMessages() {}
 
 // Full list of messages with auxiliary data.
 type MessagesMessagesObj struct {
-	Messages []Message
-	Chats    []Chat
-	Users    []User
+	Messages []Message // List of messages
+	Chats    []Chat    // List of chats mentioned in dialogs
+	Users    []User    // List of users mentioned in messages and chats
 }
 
 func (*MessagesMessagesObj) CRC() uint32 {
@@ -13112,7 +13347,7 @@ func (*MessagesMessagesObj) ImplementsMessagesMessages() {}
 
 // No new messages matching the query were found
 type MessagesMessagesNotModified struct {
-	Count int32
+	Count int32 // Number of results found server-side by the given query
 }
 
 func (*MessagesMessagesNotModified) CRC() uint32 {
@@ -13123,13 +13358,16 @@ func (*MessagesMessagesNotModified) ImplementsMessagesMessages() {}
 
 // Incomplete list of messages and auxiliary data.
 type MessagesMessagesSlice struct {
-	Inexact        bool `tl:"flag:1,encoded_in_bitflags"`
-	Count          int32
-	NextRate       int32 `tl:"flag:0"`
-	OffsetIDOffset int32 `tl:"flag:2"`
-	Messages       []Message
-	Chats          []Chat
-	Users          []User
+	Inexact        bool  `tl:"flag:1,encoded_in_bitflags"` // If set, indicates that the results may be inexact
+	Count          int32 // Total number of messages in the list
+	NextRate       int32 `tl:"flag:0"` // Rate to use in the 'offset_rate' parameter in the next call to messages.searchGlobal
+	OffsetIDOffset int32 `tl:"flag:2"` /*
+	Indicates the absolute position of 'messages[0]' within the total result set with count 'count'.
+	This is useful, for example, if the result was fetched using 'offset_id', and we need to display a 'progress/total' counter (like 'photo 134 of 200', for all media in a chat, we could simply use 'photo ${offset_id_offset} of ${count}'.
+	*/
+	Messages []Message // List of messages
+	Chats    []Chat    // List of chats mentioned in messages
+	Users    []User    // List of users mentioned in messages and chats
 }
 
 func (*MessagesMessagesSlice) CRC() uint32 {
@@ -13146,11 +13384,13 @@ type MessagesQuickReplies interface {
 	tl.Object
 	ImplementsMessagesQuickReplies()
 }
+
+// Info about [quick reply shortcuts »](https://core.telegram.org/api/business#quick-reply-shortcuts).
 type MessagesQuickRepliesObj struct {
-	QuickReplies []*QuickReply
-	Messages     []Message
-	Chats        []Chat
-	Users        []User
+	QuickReplies []*QuickReply // Quick reply shortcuts.
+	Messages     []Message     // Messages mentioned in 'quick_replies'.
+	Chats        []Chat        // Mentioned chats
+	Users        []User        // Mentioned users
 }
 
 func (*MessagesQuickRepliesObj) CRC() uint32 {
@@ -13159,6 +13399,7 @@ func (*MessagesQuickRepliesObj) CRC() uint32 {
 
 func (*MessagesQuickRepliesObj) ImplementsMessagesQuickReplies() {}
 
+// Info about [quick reply shortcuts »](https://core.telegram.org/api/business#quick-reply-shortcuts) hasn't changed.
 type MessagesQuickRepliesNotModified struct{}
 
 func (*MessagesQuickRepliesNotModified) CRC() uint32 {
@@ -13174,8 +13415,8 @@ type MessagesReactions interface {
 
 // List of [message reactions](https://core.telegram.org/api/reactions)
 type MessagesReactionsObj struct {
-	Hash      int64
-	Reactions []Reaction
+	Hash      int64      // Hash used for caching, for more info click here
+	Reactions []Reaction // Reactions
 }
 
 func (*MessagesReactionsObj) CRC() uint32 {
@@ -13200,10 +13441,10 @@ type MessagesRecentStickers interface {
 
 // Recently used stickers
 type MessagesRecentStickersObj struct {
-	Hash     int64
-	Packs    []*StickerPack
-	Stickers []Document
-	Dates    []int32
+	Hash     int64          // Hash used for caching, for more info click here
+	Packs    []*StickerPack // Emojis associated to stickers
+	Stickers []Document     // Recent stickers
+	Dates    []int32        // When was each sticker last used
 }
 
 func (*MessagesRecentStickersObj) CRC() uint32 {
@@ -13228,10 +13469,10 @@ type MessagesSavedDialogs interface {
 
 // Represents some [saved message dialogs »](https://core.telegram.org/api/saved-messages).
 type MessagesSavedDialogsObj struct {
-	Dialogs  []*SavedDialog
-	Messages []Message
-	Chats    []Chat
-	Users    []User
+	Dialogs  []*SavedDialog // Saved message dialogs.
+	Messages []Message      // List of last messages from each saved dialog
+	Chats    []Chat         // Mentioned chats
+	Users    []User         // Mentioned users
 }
 
 func (*MessagesSavedDialogsObj) CRC() uint32 {
@@ -13242,7 +13483,7 @@ func (*MessagesSavedDialogsObj) ImplementsMessagesSavedDialogs() {}
 
 // The saved dialogs haven't changed
 type MessagesSavedDialogsNotModified struct {
-	Count int32
+	Count int32 // Number of saved dialogs found server-side by the query
 }
 
 func (*MessagesSavedDialogsNotModified) CRC() uint32 {
@@ -13253,11 +13494,11 @@ func (*MessagesSavedDialogsNotModified) ImplementsMessagesSavedDialogs() {}
 
 // Incomplete list of [saved message dialogs »](https://core.telegram.org/api/saved-messages) with messages and auxiliary data.
 type MessagesSavedDialogsSlice struct {
-	Count    int32
-	Dialogs  []*SavedDialog
-	Messages []Message
-	Chats    []Chat
-	Users    []User
+	Count    int32          // Total number of saved message dialogs
+	Dialogs  []*SavedDialog // List of saved message dialogs
+	Messages []Message      // List of last messages from dialogs
+	Chats    []Chat         // Mentioned chats
+	Users    []User         // Mentioned users
 }
 
 func (*MessagesSavedDialogsSlice) CRC() uint32 {
@@ -13273,8 +13514,8 @@ type MessagesSavedGifs interface {
 
 // Saved gifs
 type MessagesSavedGifsObj struct {
-	Hash int64
-	Gifs []Document
+	Hash int64      // Hash used for caching, for more info click here
+	Gifs []Document // List of saved gifs
 }
 
 func (*MessagesSavedGifsObj) CRC() uint32 {
@@ -13296,9 +13537,11 @@ type MessagesSavedReactionTags interface {
 	tl.Object
 	ImplementsMessagesSavedReactionTags()
 }
+
+// List of [reaction tag »](https://core.telegram.org/api/saved-messages#tags) names assigned by the user.
 type MessagesSavedReactionTagsObj struct {
-	Tags []*SavedReactionTag
-	Hash int64
+	Tags []*SavedReactionTag // Saved reaction tags.
+	Hash int64               // Hash used for caching, for more info click here
 }
 
 func (*MessagesSavedReactionTagsObj) CRC() uint32 {
@@ -13307,6 +13550,7 @@ func (*MessagesSavedReactionTagsObj) CRC() uint32 {
 
 func (*MessagesSavedReactionTagsObj) ImplementsMessagesSavedReactionTags() {}
 
+// The list of [reaction tag »](https://core.telegram.org/api/saved-messages#tags) names assigned by the user hasn't changed.
 type MessagesSavedReactionTagsNotModified struct{}
 
 func (*MessagesSavedReactionTagsNotModified) CRC() uint32 {
@@ -13322,8 +13566,8 @@ type MessagesSentEncryptedMessage interface {
 
 // Message with a file enclosure sent to a protected chat
 type MessagesSentEncryptedFile struct {
-	Date int32
-	File EncryptedFile
+	Date int32         // Sending date
+	File EncryptedFile // Attached file
 }
 
 func (*MessagesSentEncryptedFile) CRC() uint32 {
@@ -13334,7 +13578,7 @@ func (*MessagesSentEncryptedFile) ImplementsMessagesSentEncryptedMessage() {}
 
 // Message without file attachments sent to an encrypted file.
 type MessagesSentEncryptedMessageObj struct {
-	Date int32
+	Date int32 // Date of sending
 }
 
 func (*MessagesSentEncryptedMessageObj) CRC() uint32 {
@@ -13350,10 +13594,10 @@ type MessagesSponsoredMessages interface {
 
 // A set of sponsored messages associated to a channel
 type MessagesSponsoredMessagesObj struct {
-	PostsBetween int32 `tl:"flag:0"`
-	Messages     []*SponsoredMessage
-	Chats        []Chat
-	Users        []User
+	PostsBetween int32               `tl:"flag:0"` // If set, specifies the minimum number of messages between shown sponsored messages; otherwise, only one sponsored message must be shown after all ordinary messages.
+	Messages     []*SponsoredMessage // Sponsored messages
+	Chats        []Chat              // Chats mentioned in the sponsored messages
+	Users        []User              // Users mentioned in the sponsored messages
 }
 
 func (*MessagesSponsoredMessagesObj) CRC() uint32 {
@@ -13382,10 +13626,10 @@ type MessagesStickerSet interface {
 
 // Stickerset and stickers inside it
 type MessagesStickerSetObj struct {
-	Set       *StickerSet
-	Packs     []*StickerPack
-	Keywords  []*StickerKeyword
-	Documents []Document
+	Set       *StickerSet       // The stickerset
+	Packs     []*StickerPack    // Emoji info for stickers
+	Keywords  []*StickerKeyword // Keywords for some or every sticker in the stickerset.
+	Documents []Document        // Stickers in stickerset
 }
 
 func (*MessagesStickerSetObj) CRC() uint32 {
@@ -13410,7 +13654,7 @@ type MessagesStickerSetInstallResult interface {
 
 // The stickerset was installed, but since there are too many stickersets some were archived
 type MessagesStickerSetInstallResultArchive struct {
-	Sets []StickerSetCovered
+	Sets []StickerSetCovered // Archived stickersets
 }
 
 func (*MessagesStickerSetInstallResultArchive) CRC() uint32 {
@@ -13435,8 +13679,8 @@ type MessagesStickers interface {
 
 // Found stickers
 type MessagesStickersObj struct {
-	Hash     int64
-	Stickers []Document
+	Hash     int64      // Hash used for caching, for more info click here
+	Stickers []Document // Stickers
 }
 
 func (*MessagesStickersObj) CRC() uint32 {
@@ -13461,12 +13705,12 @@ type PaymentsGiveawayInfo interface {
 
 // Contains info about an ongoing [giveaway](https://core.telegram.org/api/giveaways).
 type PaymentsGiveawayInfoObj struct {
-	Participating         bool `tl:"flag:0,encoded_in_bitflags"`
-	PreparingResults      bool `tl:"flag:3,encoded_in_bitflags"`
-	StartDate             int32
-	JoinedTooEarlyDate    int32  `tl:"flag:1"`
-	AdminDisallowedChatID int64  `tl:"flag:2"`
-	DisallowedCountry     string `tl:"flag:4"`
+	Participating         bool   `tl:"flag:0,encoded_in_bitflags"` // The current user is participating in the giveaway.
+	PreparingResults      bool   `tl:"flag:3,encoded_in_bitflags"` // If set, the giveaway has ended and the results are being prepared.
+	StartDate             int32  // When was the giveaway started
+	JoinedTooEarlyDate    int32  `tl:"flag:1"` // The current user can't participate in the giveaway, because they were already a member of the channel when the giveaway started, and the 'only_new_subscribers' was set when starting the giveaway.
+	AdminDisallowedChatID int64  `tl:"flag:2"` // If set, the current user can't participate in the giveaway, because they are an administrator in one of the channels (ID specified in this flag) that created the giveaway.
+	DisallowedCountry     string `tl:"flag:4"` // If set, the current user can't participate in this giveaway, because their phone number is from the specified disallowed country (specified as a two-letter ISO 3166-1 alpha-2 country code).
 }
 
 func (*PaymentsGiveawayInfoObj) CRC() uint32 {
@@ -13508,22 +13752,35 @@ type PaymentsPaymentForm interface {
 
 // Payment form
 type PaymentsPaymentFormObj struct {
-	CanSaveCredentials bool `tl:"flag:2,encoded_in_bitflags"`
-	PasswordMissing    bool `tl:"flag:3,encoded_in_bitflags"`
-	FormID             int64
-	BotID              int64
-	Title              string
-	Description        string
-	Photo              WebDocument `tl:"flag:5"`
-	Invoice            *Invoice
-	ProviderID         int64
-	URL                string
-	NativeProvider     string                         `tl:"flag:4"`
-	NativeParams       *DataJson                      `tl:"flag:4"`
-	AdditionalMethods  []*PaymentFormMethod           `tl:"flag:6"`
-	SavedInfo          *PaymentRequestedInfo          `tl:"flag:0"`
-	SavedCredentials   []*PaymentSavedCredentialsCard `tl:"flag:1"`
-	Users              []User
+	CanSaveCredentials bool        `tl:"flag:2,encoded_in_bitflags"` // Whether the user can choose to save credentials.
+	PasswordMissing    bool        `tl:"flag:3,encoded_in_bitflags"` // Indicates that the user can save payment credentials, but only after setting up a 2FA password (currently the account doesn't have a 2FA password)
+	FormID             int64       // Form ID
+	BotID              int64       // Bot ID
+	Title              string      // Form title
+	Description        string      // Description
+	Photo              WebDocument `tl:"flag:5"` // Product photo
+	Invoice            *Invoice    // Invoice
+	ProviderID         int64       // Payment provider ID.
+	URL                string      // Payment form URL
+	NativeProvider     string      `tl:"flag:4"` /*
+	Payment provider name.
+	One of the following:
+	- 'stripe'
+	*/
+	NativeParams *DataJson `tl:"flag:4"` /*
+	Contains information about the payment provider, if available, to support it natively without the need for opening the URL.
+	A JSON object that can contain the following fields:
+
+	- 'apple_pay_merchant_id': Apple Pay merchant ID
+	- 'google_pay_public_key': Google Pay public key
+	- 'need_country': True, if the user country must be provided,
+	- 'need_zip': True, if the user ZIP/postal code must be provided,
+	- 'need_cardholder_name': True, if the cardholder name must be provided
+	*/
+	AdditionalMethods []*PaymentFormMethod           `tl:"flag:6"` // Additional payment methods
+	SavedInfo         *PaymentRequestedInfo          `tl:"flag:0"` // Saved server-side order information
+	SavedCredentials  []*PaymentSavedCredentialsCard `tl:"flag:1"` // Contains information about saved card credentials
+	Users             []User                         // Users
 }
 
 func (*PaymentsPaymentFormObj) CRC() uint32 {
@@ -13536,6 +13793,7 @@ func (*PaymentsPaymentFormObj) FlagIndex() int {
 
 func (*PaymentsPaymentFormObj) ImplementsPaymentsPaymentForm() {}
 
+// Represents a payment form, for payments to be using [Telegram Stars, see here »](https://core.telegram.org/api/stars) for more info.
 type PaymentsPaymentFormStars struct {
 	CanSaveCredentials bool `tl:"flag:2,encoded_in_bitflags"`
 	PasswordMissing    bool `tl:"flag:3,encoded_in_bitflags"`
@@ -13565,20 +13823,20 @@ type PaymentsPaymentReceipt interface {
 
 // Receipt
 type PaymentsPaymentReceiptObj struct {
-	Date             int32
-	BotID            int64
-	ProviderID       int64
-	Title            string
-	Description      string
-	Photo            WebDocument `tl:"flag:2"`
-	Invoice          *Invoice
-	Info             *PaymentRequestedInfo `tl:"flag:0"`
-	Shipping         *ShippingOption       `tl:"flag:1"`
-	TipAmount        int64                 `tl:"flag:3"`
-	Currency         string
-	TotalAmount      int64
-	CredentialsTitle string
-	Users            []User
+	Date             int32                 // Date of generation
+	BotID            int64                 // Bot ID
+	ProviderID       int64                 // Provider ID
+	Title            string                // Title
+	Description      string                // Description
+	Photo            WebDocument           `tl:"flag:2"` // Photo
+	Invoice          *Invoice              // Invoice
+	Info             *PaymentRequestedInfo `tl:"flag:0"` // Info
+	Shipping         *ShippingOption       `tl:"flag:1"` // Selected shipping option
+	TipAmount        int64                 `tl:"flag:3"` // Tipped amount
+	Currency         string                // Three-letter ISO 4217 currency code
+	TotalAmount      int64                 // Total amount in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	CredentialsTitle string                // Payment credential name
+	Users            []User                // Users
 }
 
 func (*PaymentsPaymentReceiptObj) CRC() uint32 {
@@ -13591,17 +13849,18 @@ func (*PaymentsPaymentReceiptObj) FlagIndex() int {
 
 func (*PaymentsPaymentReceiptObj) ImplementsPaymentsPaymentReceipt() {}
 
+// Receipt for [payment made using Telegram Stars](https://core.telegram.org/api/stars).
 type PaymentsPaymentReceiptStars struct {
-	Date          int32
-	BotID         int64
-	Title         string
-	Description   string
-	Photo         WebDocument `tl:"flag:2"`
-	Invoice       *Invoice
-	Currency      string
-	TotalAmount   int64
-	TransactionID string
-	Users         []User
+	Date          int32       // Date of generation
+	BotID         int64       // Bot ID
+	Title         string      // Title
+	Description   string      // Description
+	Photo         WebDocument `tl:"flag:2"` // Product photo
+	Invoice       *Invoice    // Invoice
+	Currency      string      // Currency, always 'XTR'.
+	TotalAmount   int64       // Amount of Telegram Stars.
+	TransactionID string      // Transaction ID
+	Users         []User      // Info about users mentioned in the other fields.
 }
 
 func (*PaymentsPaymentReceiptStars) CRC() uint32 {
@@ -13621,7 +13880,7 @@ type PaymentsPaymentResult interface {
 
 // Payment result
 type PaymentsPaymentResultObj struct {
-	Updates Updates
+	Updates Updates // Info about the payment
 }
 
 func (*PaymentsPaymentResultObj) CRC() uint32 {
@@ -13632,7 +13891,7 @@ func (*PaymentsPaymentResultObj) ImplementsPaymentsPaymentResult() {}
 
 // Payment was not successful, additional verification is needed
 type PaymentsPaymentVerificationNeeded struct {
-	URL string
+	URL string // URL for additional payment credentials verification
 }
 
 func (*PaymentsPaymentVerificationNeeded) CRC() uint32 {
@@ -13648,8 +13907,8 @@ type PhotosPhotos interface {
 
 // Full list of photos with auxiliary data.
 type PhotosPhotosObj struct {
-	Photos []Photo
-	Users  []User
+	Photos []Photo // List of photos
+	Users  []User  // List of mentioned users
 }
 
 func (*PhotosPhotosObj) CRC() uint32 {
@@ -13660,9 +13919,9 @@ func (*PhotosPhotosObj) ImplementsPhotosPhotos() {}
 
 // Incomplete list of photos with auxiliary data.
 type PhotosPhotosSlice struct {
-	Count  int32
-	Photos []Photo
-	Users  []User
+	Count  int32   // Total number of photos
+	Photos []Photo // List of photos
+	Users  []User  // List of mentioned users
 }
 
 func (*PhotosPhotosSlice) CRC() uint32 {
@@ -13678,13 +13937,13 @@ type StoriesAllStories interface {
 
 // Full list of active (or active and hidden) [stories](https://core.telegram.org/api/stories#watching-stories).
 type StoriesAllStoriesObj struct {
-	HasMore     bool `tl:"flag:0,encoded_in_bitflags"`
-	Count       int32
-	State       string
-	PeerStories []*PeerStories
-	Chats       []Chat
-	Users       []User
-	StealthMode *StoriesStealthMode
+	HasMore     bool                `tl:"flag:0,encoded_in_bitflags"` // Whether more results can be fetched as described here.
+	Count       int32               // Total number of active (or active and hidden) stories
+	State       string              // State to use for pagination
+	PeerStories []*PeerStories      // Stories
+	Chats       []Chat              // Mentioned chats
+	Users       []User              // Mentioned users
+	StealthMode *StoriesStealthMode // Current stealth mode information
 }
 
 func (*StoriesAllStoriesObj) CRC() uint32 {
@@ -13699,8 +13958,8 @@ func (*StoriesAllStoriesObj) ImplementsStoriesAllStories() {}
 
 // The list of active (or active and hidden) [stories](https://core.telegram.org/api/stories#watching-stories) has not changed.
 type StoriesAllStoriesNotModified struct {
-	State       string
-	StealthMode *StoriesStealthMode
+	State       string              // State to use to ask for updates
+	StealthMode *StoriesStealthMode // Current stealth mode information
 }
 
 func (*StoriesAllStoriesNotModified) CRC() uint32 {
@@ -13716,13 +13975,13 @@ type UpdatesChannelDifference interface {
 
 // The new updates
 type UpdatesChannelDifferenceObj struct {
-	Final        bool `tl:"flag:0,encoded_in_bitflags"`
-	Pts          int32
-	Timeout      int32 `tl:"flag:1"`
-	NewMessages  []Message
-	OtherUpdates []Update
-	Chats        []Chat
-	Users        []User
+	Final        bool      `tl:"flag:0,encoded_in_bitflags"` // Whether there are more updates to be fetched using getDifference, starting from the provided 'pts'
+	Pts          int32     // The PTS from which to start getting updates the next time
+	Timeout      int32     `tl:"flag:1"` // Clients are supposed to refetch the channel difference after timeout seconds have elapsed, if the user is currently viewing the chat,.
+	NewMessages  []Message // New messages
+	OtherUpdates []Update  // Other updates
+	Chats        []Chat    // Chats
+	Users        []User    // Users
 }
 
 func (*UpdatesChannelDifferenceObj) CRC() uint32 {
@@ -13737,9 +13996,9 @@ func (*UpdatesChannelDifferenceObj) ImplementsUpdatesChannelDifference() {}
 
 // There are no new updates
 type UpdatesChannelDifferenceEmpty struct {
-	Final   bool `tl:"flag:0,encoded_in_bitflags"`
-	Pts     int32
-	Timeout int32 `tl:"flag:1"`
+	Final   bool  `tl:"flag:0,encoded_in_bitflags"` // Whether there are more updates that must be fetched (always false)
+	Pts     int32 // The latest PTS
+	Timeout int32 `tl:"flag:1"` // Clients are supposed to refetch the channel difference after timeout seconds have elapsed, if the user is currently viewing the chat,.
 }
 
 func (*UpdatesChannelDifferenceEmpty) CRC() uint32 {
@@ -13754,12 +14013,12 @@ func (*UpdatesChannelDifferenceEmpty) ImplementsUpdatesChannelDifference() {}
 
 // The provided `pts + limit &lt; remote pts`. Simply, there are too many updates to be fetched (more than `limit`), the client has to resolve the update gap in one of the following ways (assuming the existence of a persistent database to locally store messages):
 type UpdatesChannelDifferenceTooLong struct {
-	Final    bool  `tl:"flag:0,encoded_in_bitflags"`
-	Timeout  int32 `tl:"flag:1"`
-	Dialog   Dialog
-	Messages []Message
-	Chats    []Chat
-	Users    []User
+	Final    bool      `tl:"flag:0,encoded_in_bitflags"` // Whether there are more updates that must be fetched (always false)
+	Timeout  int32     `tl:"flag:1"`                     // Clients are supposed to refetch the channel difference after timeout seconds have elapsed
+	Dialog   Dialog    // Dialog containing the latest PTS that can be used to reset the channel state
+	Messages []Message // The latest messages
+	Chats    []Chat    // Chats from messages
+	Users    []User    // Users from messages
 }
 
 func (*UpdatesChannelDifferenceTooLong) CRC() uint32 {
@@ -13779,12 +14038,12 @@ type UpdatesDifference interface {
 
 // Full list of occurred events.
 type UpdatesDifferenceObj struct {
-	NewMessages          []Message
-	NewEncryptedMessages []EncryptedMessage
-	OtherUpdates         []Update
-	Chats                []Chat
-	Users                []User
-	State                *UpdatesState
+	NewMessages          []Message          // List of new messages
+	NewEncryptedMessages []EncryptedMessage // List of new encrypted secret chat messages
+	OtherUpdates         []Update           // List of updates
+	Chats                []Chat             // List of chats mentioned in events
+	Users                []User             // List of users mentioned in events
+	State                *UpdatesState      // Current state
 }
 
 func (*UpdatesDifferenceObj) CRC() uint32 {
@@ -13795,8 +14054,8 @@ func (*UpdatesDifferenceObj) ImplementsUpdatesDifference() {}
 
 // No events.
 type UpdatesDifferenceEmpty struct {
-	Date int32
-	Seq  int32
+	Date int32 // Current date
+	Seq  int32 // Number of sent updates
 }
 
 func (*UpdatesDifferenceEmpty) CRC() uint32 {
@@ -13807,12 +14066,12 @@ func (*UpdatesDifferenceEmpty) ImplementsUpdatesDifference() {}
 
 // Incomplete list of occurred events.
 type UpdatesDifferenceSlice struct {
-	NewMessages          []Message
-	NewEncryptedMessages []EncryptedMessage
-	OtherUpdates         []Update
-	Chats                []Chat
-	Users                []User
-	IntermediateState    *UpdatesState
+	NewMessages          []Message          // List of new messages
+	NewEncryptedMessages []EncryptedMessage // New messages from the encrypted event sequence
+	OtherUpdates         []Update           // List of updates
+	Chats                []Chat             // List of chats mentioned in events
+	Users                []User             // List of users mentioned in events
+	IntermediateState    *UpdatesState      // Intermediary state
 }
 
 func (*UpdatesDifferenceSlice) CRC() uint32 {
@@ -13823,7 +14082,7 @@ func (*UpdatesDifferenceSlice) ImplementsUpdatesDifference() {}
 
 // The difference is [too long](https://core.telegram.org/api/updates#recovering-gaps), and the specified state must be used to refetch updates.
 type UpdatesDifferenceTooLong struct {
-	Pts int32
+	Pts int32 // The new state to use.
 }
 
 func (*UpdatesDifferenceTooLong) CRC() uint32 {
@@ -13839,7 +14098,7 @@ type UploadCdnFile interface {
 
 // Represent a chunk of a [CDN](https://core.telegram.org/cdn) file.
 type UploadCdnFileObj struct {
-	Bytes []byte
+	Bytes []byte // The data
 }
 
 func (*UploadCdnFileObj) CRC() uint32 {
@@ -13850,7 +14109,7 @@ func (*UploadCdnFileObj) ImplementsUploadCdnFile() {}
 
 // The file was cleared from the temporary RAM cache of the [CDN](https://core.telegram.org/cdn) and has to be re-uploaded.
 type UploadCdnFileReuploadNeeded struct {
-	RequestToken []byte
+	RequestToken []byte // Request token (see CDN)
 }
 
 func (*UploadCdnFileReuploadNeeded) CRC() uint32 {
@@ -13866,9 +14125,9 @@ type UploadFile interface {
 
 // File content.
 type UploadFileObj struct {
-	Type  StorageFileType
-	Mtime int32
-	Bytes []byte
+	Type  StorageFileType // File type
+	Mtime int32           // Modification time
+	Bytes []byte          // Binary data, file content
 }
 
 func (*UploadFileObj) CRC() uint32 {
@@ -13879,11 +14138,11 @@ func (*UploadFileObj) ImplementsUploadFile() {}
 
 // The file must be downloaded from a [CDN DC](https://core.telegram.org/cdn).
 type UploadFileCdnRedirect struct {
-	DcID          int32
-	FileToken     []byte
-	EncryptionKey []byte
-	EncryptionIv  []byte
-	FileHashes    []*FileHash
+	DcID          int32       // CDN DC ID
+	FileToken     []byte      // File token (see CDN files)
+	EncryptionKey []byte      // Encryption key (see CDN files)
+	EncryptionIv  []byte      // Encryption IV (see CDN files)
+	FileHashes    []*FileHash // File hashes (see CDN files)
 }
 
 func (*UploadFileCdnRedirect) CRC() uint32 {
