@@ -1802,8 +1802,8 @@ type DialogObj struct {
 	Pinned              bool `tl:"flag:2,encoded_in_bitflags"` // Is the dialog pinned
 	UnreadMark          bool `tl:"flag:3,encoded_in_bitflags"` // Whether the chat was manually marked as unread
 	ViewForumAsMessages bool `tl:"flag:6,encoded_in_bitflags"` /*
-	Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client.
-	This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
+		Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client.
+		This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
 	*/
 	Peer                 Peer                // The chat
 	TopMessage           int32               // The latest message ID
@@ -2003,8 +2003,8 @@ type DocumentAttributeAudio struct {
 	Title     string `tl:"flag:0"` // Name of song
 	Performer string `tl:"flag:1"` // Performer
 	Waveform  []byte `tl:"flag:2"` /*
-	Waveform: consists in a series of bitpacked 5-bit values.
-	Example implementation: android.
+		Waveform: consists in a series of bitpacked 5-bit values.
+		Example implementation: android.
 	*/
 }
 
@@ -2371,9 +2371,9 @@ type EncryptedChatObj struct {
 	AdminID       int64  // Chat creator ID
 	ParticipantID int64  // ID of the second chat participant
 	GAOrB         []byte /*
-	'B = g ^ b mod p', if the currently authorized user is the chat's creator,
-	or 'A = g ^ a mod p' otherwise
-	See Wikipedia for more info
+		'B = g ^ b mod p', if the currently authorized user is the chat's creator,
+		or 'A = g ^ a mod p' otherwise
+		See Wikipedia for more info
 	*/
 	KeyFingerprint int64 // 64-bit fingerprint of received key
 }
@@ -2563,9 +2563,9 @@ type ForumTopicObj struct {
 	Closed bool `tl:"flag:2,encoded_in_bitflags"` // Whether the topic is closed (no messages can be sent to it)
 	Pinned bool `tl:"flag:3,encoded_in_bitflags"` // Whether the topic is pinned
 	Short  bool `tl:"flag:5,encoded_in_bitflags"` /*
-	Whether this constructor is a reduced version of the full topic information.
-	If set, only the 'my', 'closed', 'id', 'date', 'title', 'icon_color', 'icon_emoji_id' and 'from_id' parameters will contain valid information.
-	Reduced info is usually only returned in topic-related admin log events  and in the messages.channelMessages constructor: if needed, full information can be fetched using channels.getForumTopicsByID.
+		Whether this constructor is a reduced version of the full topic information.
+		If set, only the 'my', 'closed', 'id', 'date', 'title', 'icon_color', 'icon_emoji_id' and 'from_id' parameters will contain valid information.
+		Reduced info is usually only returned in topic-related admin log events  and in the messages.channelMessages constructor: if needed, full information can be fetched using channels.getForumTopicsByID.
 	*/
 	Hidden               bool                `tl:"flag:6,encoded_in_bitflags"` // Whether the topic is hidden (only valid for the "General" topic, 'id=1')
 	ID                   int32               // Topic ID
@@ -4234,8 +4234,8 @@ type InputReplyTo interface {
 type InputReplyToMessage struct {
 	ReplyToMsgID int32 // The message ID to reply to.
 	TopMsgID     int32 `tl:"flag:0"` /*
-	This field must contain the topic ID only when replying to messages in forum topics different from the "General" topic (i.e. 'reply_to_msg_id' is set and 'reply_to_msg_id != topicID' and 'topicID != 1').
-	If the replied-to message is deleted before the method finishes execution, the value in this field will be used to send the message to the correct topic, instead of the "General" topic.
+		This field must contain the topic ID only when replying to messages in forum topics different from the "General" topic (i.e. 'reply_to_msg_id' is set and 'reply_to_msg_id != topicID' and 'topicID != 1').
+		If the replied-to message is deleted before the method finishes execution, the value in this field will be used to send the message to the correct topic, instead of the "General" topic.
 	*/
 	ReplyToPeerID InputPeer       `tl:"flag:1"` // Used to reply to messages sent to another chat (specified here), can only be used for non-'protected' chats and messages.
 	QuoteText     string          `tl:"flag:2"` // Used to quote-reply to only a certain section (specified here) of the original message. The maximum UTF-8 length for quotes is specified in the quote_length_max config key.
@@ -4824,8 +4824,8 @@ type InputKeyboardButtonRequestPeer struct {
 	Text              string          // Button text
 	ButtonID          int32           // Button ID, to be passed to messages.sendBotRequestedPeer.
 	PeerType          RequestPeerType /*
-	Filtering criteria to use for the peer selection list shown to the user.
-	The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to 'max_quantity') peers of the specified type, if needed.
+		Filtering criteria to use for the peer selection list shown to the user.
+		The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to 'max_quantity') peers of the specified type, if needed.
 	*/
 	MaxQuantity int32 // Maximum number of peers that can be chosen.
 }
@@ -4846,8 +4846,8 @@ type InputKeyboardButtonURLAuth struct {
 	Text               string // Button text
 	FwdText            string `tl:"flag:1"` // New text of the button in forwarded messages.
 	URL                string /*
-	An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
-	NOTE: You must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
+		An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
+		NOTE: You must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
 	*/
 	Bot InputUser // Username of a bot, which will be used for user authorization. See Setting up a bot for more details. If not specified, the current bot's username will be assumed. The url's domain must be the same as the domain linked with the bot. See Linking your domain to the bot for more details.
 }
@@ -4940,8 +4940,8 @@ type KeyboardButtonRequestPeer struct {
 	Text     string          // Button text
 	ButtonID int32           // Button ID, to be passed to messages.sendBotRequestedPeer.
 	PeerType RequestPeerType /*
-	Filtering criteria to use for the peer selection list shown to the user.
-	The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to 'max_quantity') peers of the specified type, if needed.
+		Filtering criteria to use for the peer selection list shown to the user.
+		The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to 'max_quantity') peers of the specified type, if needed.
 	*/
 	MaxQuantity int32 // Maximum number of peers that can be chosen.
 }
@@ -5026,9 +5026,9 @@ type KeyboardButtonURLAuth struct {
 	Text    string // Button label
 	FwdText string `tl:"flag:0"` // New text of the button in forwarded messages.
 	URL     string /*
-	An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
+		An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
 
-	NOTE: Services must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
+		NOTE: Services must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
 	*/
 	ButtonID int32 // ID of the button to pass to messages.requestUrlAuth
 }
@@ -5260,13 +5260,13 @@ type MessageObj struct {
 	ID                int32 // ID of the message
 	FromID            Peer  `tl:"flag:8"`  // ID of the sender of the message
 	FromBoostsApplied int32 `tl:"flag:29"` /*
-	Supergroups only, contains the number of boosts this user has given the current supergroup, and should be shown in the UI in the header of the message.
-	Only present for incoming messages from non-anonymous supergroup members that have boosted the supergroup.
-	Note that this counter should be locally overridden for non-anonymous <em>outgoing</em> messages, according to the current value of channelFull.'boosts_applied', to ensure the value is correct even for messages sent by the current user before a supergroup was boosted (or after a boost has expired or the number of boosts has changed); do not update this value for incoming messages from other users, even if their boosts have changed.
+		Supergroups only, contains the number of boosts this user has given the current supergroup, and should be shown in the UI in the header of the message.
+		Only present for incoming messages from non-anonymous supergroup members that have boosted the supergroup.
+		Note that this counter should be locally overridden for non-anonymous <em>outgoing</em> messages, according to the current value of channelFull.'boosts_applied', to ensure the value is correct even for messages sent by the current user before a supergroup was boosted (or after a boost has expired or the number of boosts has changed); do not update this value for incoming messages from other users, even if their boosts have changed.
 	*/
 	PeerID      Peer // Peer ID, the chat where this message was sent
 	SavedPeerID Peer `tl:"flag:28"` /*
-	Messages fetched from a saved messages dialog  will have 'peer'=inputPeerSelf and the 'saved_peer_id' flag set to the ID of the saved dialog.
+		Messages fetched from a saved messages dialog  will have 'peer'=inputPeerSelf and the 'saved_peer_id' flag set to the ID of the saved dialog.
 	*/
 	FwdFrom              *MessageFwdHeader    `tl:"flag:2"`  // Info about forwarded messages
 	ViaBotID             int64                `tl:"flag:11"` // ID of the inline bot that generated the message
@@ -5904,8 +5904,8 @@ func (*MessageActionSetChatTheme) ImplementsMessageAction() {}
 type MessageActionSetChatWallPaper struct {
 	Same    bool `tl:"flag:0,encoded_in_bitflags"` // If set, indicates the user applied a wallpaper  previously sent by the other user in a messageActionSetChatWallPaper message.
 	ForBoth bool `tl:"flag:1,encoded_in_bitflags"` /*
-	If set, indicates the wallpaper was forcefully applied for both sides, without explicit confirmation from the other side.
-	If the message is incoming, and we did not like the new wallpaper the other user has chosen for us, we can re-set our previous wallpaper just on our side, by invoking messages.setChatWallPaper, providing only the 'revert' flag (and obviously the 'peer' parameter).
+		If set, indicates the wallpaper was forcefully applied for both sides, without explicit confirmation from the other side.
+		If the message is incoming, and we did not like the new wallpaper the other user has chosen for us, we can re-set our previous wallpaper just on our side, by invoking messages.setChatWallPaper, providing only the 'revert' flag (and obviously the 'peer' parameter).
 	*/
 	Wallpaper WallPaper // New wallpaper
 }
@@ -8134,8 +8134,8 @@ func (*ReplyInlineMarkup) ImplementsReplyMarkup() {}
 type ReplyKeyboardForceReply struct {
 	SingleUse bool `tl:"flag:1,encoded_in_bitflags"` // Requests clients to hide the keyboard as soon as it's been used. The keyboard will still be available, but clients will automatically display the usual letter-keyboard in the chat – the user can press a special button in the input field to see the custom keyboard again.
 	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
-	Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
-	Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
+		Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+		Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
 	*/
 	Placeholder string `tl:"flag:3"` // The placeholder to be shown in the input field when the keyboard is active; 1-64 characters.
 }
@@ -8153,9 +8153,9 @@ func (*ReplyKeyboardForceReply) ImplementsReplyMarkup() {}
 // Hide sent bot keyboard
 type ReplyKeyboardHide struct {
 	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
-	Use this flag if you want to remove the keyboard for specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+		Use this flag if you want to remove the keyboard for specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
 
-	Example: A user votes in a poll, bot returns confirmation message in reply to the vote and removes the keyboard for that user, while still showing the keyboard with poll options to users who haven't voted yet
+		Example: A user votes in a poll, bot returns confirmation message in reply to the vote and removes the keyboard for that user, while still showing the keyboard with poll options to users who haven't voted yet
 	*/
 }
 
@@ -8174,9 +8174,9 @@ type ReplyKeyboardMarkup struct {
 	Resize    bool `tl:"flag:0,encoded_in_bitflags"` // Requests clients to resize the keyboard vertically for optimal fit (e.g., make the keyboard smaller if there are just two rows of buttons). If not set, the custom keyboard is always of the same height as the app's standard keyboard.
 	SingleUse bool `tl:"flag:1,encoded_in_bitflags"` // Requests clients to hide the keyboard as soon as it's been used. The keyboard will still be available, but clients will automatically display the usual letter-keyboard in the chat – the user can press a special button in the input field to see the custom keyboard again.
 	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
-	Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+		Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
 
-	Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
+		Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
 	*/
 	Persistent  bool                 `tl:"flag:4,encoded_in_bitflags"` // Requests clients to always show the keyboard when the regular keyboard is hidden.
 	Rows        []*KeyboardButtonRow // Button row
@@ -10956,8 +10956,8 @@ type UpdateServiceNotification struct {
 	Popup       bool  `tl:"flag:0,encoded_in_bitflags"` // If set, the message must be displayed in a popup.
 	InvertMedia bool  `tl:"flag:2,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
 	InboxDate   int32 `tl:"flag:1"`                     /*
-	When was the notification received
-	The message must also be stored locally as part of the message history with the user id '777000' (Telegram Notifications).
+		When was the notification received
+		The message must also be stored locally as part of the message history with the user id '777000' (Telegram Notifications).
 	*/
 	Type     string          // String, identical in format and contents to the <a href="/api/errors#error-type">type</a> field in API errors. Describes type of service message. It is acceptable to ignore repeated messages of the same type within a short period of time (15 minutes).
 	Message  string          // Message text
@@ -11423,20 +11423,20 @@ type User interface {
 type UserObj struct {
 	Self    bool `tl:"flag:10,encoded_in_bitflags"` // Whether this user indicates the currently logged in user
 	Contact bool `tl:"flag:11,encoded_in_bitflags"` /*
-	Whether this user is a contact
-	When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+		Whether this user is a contact
+		When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
 	*/
 	MutualContact bool `tl:"flag:12,encoded_in_bitflags"` /*
-	Whether this user is a mutual contact.
-	When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+		Whether this user is a mutual contact.
+		When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
 	*/
 	Deleted bool `tl:"flag:13,encoded_in_bitflags"` /*
-	Whether the account of this user was deleted.
-	Changes to this flag should invalidate the local userFull cache for this user ID,.
+		Whether the account of this user was deleted.
+		Changes to this flag should invalidate the local userFull cache for this user ID,.
 	*/
 	Bot bool `tl:"flag:14,encoded_in_bitflags"` /*
-	Is this user a bot?
-	Changes to this flag should invalidate the local userFull cache for this user ID,.
+		Is this user a bot?
+		Changes to this flag should invalidate the local userFull cache for this user ID,.
 	*/
 	BotChatHistory bool `tl:"flag:15,encoded_in_bitflags"` // Can the bot see all messages in groups?
 	BotNochats     bool `tl:"flag:16,encoded_in_bitflags"` // Can the bot be added to groups?
@@ -11450,119 +11450,119 @@ type UserObj struct {
 	Fake           bool `tl:"flag:26,encoded_in_bitflags"` // If set, this user was reported by many users as a fake or scam user: be careful when interacting with them.
 	BotAttachMenu  bool `tl:"flag:27,encoded_in_bitflags"` // Whether this bot offers an attachment menu web app
 	Premium        bool `tl:"flag:28,encoded_in_bitflags"` /*
-	Whether this user is a Telegram Premium user
-	Changes to this flag should invalidate the local userFull cache for this user ID,.
-	Changes to this flag if the 'self' flag is set should also trigger the following calls, to refresh the respective caches:
-	- The help.getConfig cache
-	- The messages.getTopReactions cache if the 'bot' flag is not set
+		Whether this user is a Telegram Premium user
+		Changes to this flag should invalidate the local userFull cache for this user ID,.
+		Changes to this flag if the 'self' flag is set should also trigger the following calls, to refresh the respective caches:
+		- The help.getConfig cache
+		- The messages.getTopReactions cache if the 'bot' flag is not set
 	*/
 	AttachMenuEnabled bool `tl:"flag:29,encoded_in_bitflags"` /*
-	Whether we installed the attachment menu web app offered by this bot.
-	When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+		Whether we installed the attachment menu web app offered by this bot.
+		When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
 	*/
 	BotCanEdit bool `tl:"flag2:1,encoded_in_bitflags"` /*
-	Whether we can edit the profile picture, name, about text and description of this bot because we own it.
-	When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
-	Changes to this flag (if 'min' is not set) should invalidate the local userFull cache for this user ID.
+		Whether we can edit the profile picture, name, about text and description of this bot because we own it.
+		When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+		Changes to this flag (if 'min' is not set) should invalidate the local userFull cache for this user ID.
 	*/
 	CloseFriend bool `tl:"flag2:2,encoded_in_bitflags"` /*
-	Whether we marked this user as a close friend,.
-	When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+		Whether we marked this user as a close friend,.
+		When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
 	*/
 	StoriesHidden bool `tl:"flag2:3,encoded_in_bitflags"` /*
-	Whether we have hidden  all active stories of this user.
-	When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+		Whether we have hidden  all active stories of this user.
+		When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
 	*/
 	StoriesUnavailable    bool `tl:"flag2:4,encoded_in_bitflags"`  // No stories from this user are visible.
 	ContactRequirePremium bool `tl:"flag2:10,encoded_in_bitflags"` /*
-	If set, we can only write to this user if they have already sent some messages to us, if we are subscribed to Telegram Premium, or if they're a mutual contact (user.'mutual_contact').
-	All the secondary conditions listed above must be checked separately to verify whether we can still write to the user, even if this flag is set (i.e. a mutual contact will have this flag set even if we can still write to them, and so on...); to avoid doing these extra checks if we haven't yet cached all the required information (for example while displaying the chat list in the sharing UI) the users.getIsPremiumRequiredToContact method may be invoked instead, passing the list of users currently visible in the UI, returning a list of booleans that directly specify whether we can or cannot write to each user; alternatively, the userFull.'contact_require_premium' flag contains the same (fully checked, i.e. it's not just a copy of this flag) info returned by users.getIsPremiumRequiredToContact.
-	To set this flag for ourselves invoke account.setGlobalPrivacySettings, setting the 'settings.new_noncontact_peers_require_premium' flag.
+		If set, we can only write to this user if they have already sent some messages to us, if we are subscribed to Telegram Premium, or if they're a mutual contact (user.'mutual_contact').
+		All the secondary conditions listed above must be checked separately to verify whether we can still write to the user, even if this flag is set (i.e. a mutual contact will have this flag set even if we can still write to them, and so on...); to avoid doing these extra checks if we haven't yet cached all the required information (for example while displaying the chat list in the sharing UI) the users.getIsPremiumRequiredToContact method may be invoked instead, passing the list of users currently visible in the UI, returning a list of booleans that directly specify whether we can or cannot write to each user; alternatively, the userFull.'contact_require_premium' flag contains the same (fully checked, i.e. it's not just a copy of this flag) info returned by users.getIsPremiumRequiredToContact.
+		To set this flag for ourselves invoke account.setGlobalPrivacySettings, setting the 'settings.new_noncontact_peers_require_premium' flag.
 	*/
 	BotBusiness   bool  `tl:"flag2:11,encoded_in_bitflags"` // Whether this bot can be connected to a user as specified here.
 	BotHasMainApp bool  `tl:"flag2:13,encoded_in_bitflags"` // If set, this bot has configured a Main Mini App.
 	ID            int64 // ID of the user,.
 	AccessHash    int64 `tl:"flag:0"` /*
-	Access hash of the user,.
-	If this flag is set, when updating the local peer database, generate a virtual flag called 'min_access_hash', which is:
-	- Set to 'true' if 'min' is set AND
-	- The 'phone' flag is not set OR
-	- The 'phone' flag is set and the associated phone number string is non-empty
-	- Set to 'false' otherwise.
+		Access hash of the user,.
+		If this flag is set, when updating the local peer database, generate a virtual flag called 'min_access_hash', which is:
+		- Set to 'true' if 'min' is set AND
+		- The 'phone' flag is not set OR
+		- The 'phone' flag is set and the associated phone number string is non-empty
+		- Set to 'false' otherwise.
 
-	Then, apply both 'access_hash' and 'min_access_hash' to the local database if:
-	- 'min_access_hash' is false OR
-	- 'min_access_hash' is true AND
-	- There is no locally cached object for this user OR
-	- There is no 'access_hash' in the local cache OR
-	- The cached object's 'min_access_hash' is also true
-	If the final merged object stored to the database has the 'min_access_hash' field set to true, the related 'access_hash' is only suitable to use in <a href="/constructor/inputPeerPhotoFileLocation">'inputPeerPhotoFileLocation' </a>, to directly download the profile pictures of users, everywhere else a 'inputPeer*FromMessage' constructor will have to be generated as specified here.
-	Bots can also use min access hashes in some conditions, by passing '0' instead of the min access hash.
+		Then, apply both 'access_hash' and 'min_access_hash' to the local database if:
+		- 'min_access_hash' is false OR
+		- 'min_access_hash' is true AND
+		- There is no locally cached object for this user OR
+		- There is no 'access_hash' in the local cache OR
+		- The cached object's 'min_access_hash' is also true
+		If the final merged object stored to the database has the 'min_access_hash' field set to true, the related 'access_hash' is only suitable to use in <a href="/constructor/inputPeerPhotoFileLocation">'inputPeerPhotoFileLocation' </a>, to directly download the profile pictures of users, everywhere else a 'inputPeer*FromMessage' constructor will have to be generated as specified here.
+		Bots can also use min access hashes in some conditions, by passing '0' instead of the min access hash.
 	*/
 	FirstName string `tl:"flag:1"` /*
-	First name.
-	When updating the local peer database, apply changes to this field only if:
-	- The 'min' flag is not set OR
-	- The 'min' flag is set AND
-	- The 'min' flag of the locally cached user entry is set.
+		First name.
+		When updating the local peer database, apply changes to this field only if:
+		- The 'min' flag is not set OR
+		- The 'min' flag is set AND
+		- The 'min' flag of the locally cached user entry is set.
 	*/
 	LastName string `tl:"flag:2"` /*
-	Last name.
-	When updating the local peer database, apply changes to this field only if:
-	- The 'min' flag is not set OR
-	- The 'min' flag is set AND
-	- The 'min' flag of the locally cached user entry is set.
+		Last name.
+		When updating the local peer database, apply changes to this field only if:
+		- The 'min' flag is not set OR
+		- The 'min' flag is set AND
+		- The 'min' flag of the locally cached user entry is set.
 	*/
 	Username string `tl:"flag:3"` /*
-	Main active username.
-	When updating the local peer database, apply changes to this field only if:
-	- The 'min' flag is not set OR
-	- The 'min' flag is set AND
-	- The 'min' flag of the locally cached user entry is set.
-	Changes to this flag should invalidate the local userFull cache for this user ID if the above conditions are respected and the 'bot_can_edit' flag is also set.
+		Main active username.
+		When updating the local peer database, apply changes to this field only if:
+		- The 'min' flag is not set OR
+		- The 'min' flag is set AND
+		- The 'min' flag of the locally cached user entry is set.
+		Changes to this flag should invalidate the local userFull cache for this user ID if the above conditions are respected and the 'bot_can_edit' flag is also set.
 	*/
 	Phone string `tl:"flag:4"` /*
-	Phone number.
-	When updating the local peer database, apply changes to this field only if:
-	- The 'min' flag is not set OR
-	- The 'min' flag is set AND
-	- The 'min' flag of the locally cached user entry is set.
+		Phone number.
+		When updating the local peer database, apply changes to this field only if:
+		- The 'min' flag is not set OR
+		- The 'min' flag is set AND
+		- The 'min' flag of the locally cached user entry is set.
 	*/
 	Photo UserProfilePhoto `tl:"flag:5"` /*
-	Profile picture of user.
-	When updating the local peer database, apply changes to this field only if:
-	- The 'min' flag is not set OR
-	- The 'min' flag is set AND
-	- The 'apply_min_photo' flag is set OR
-	- The 'min' flag of the locally cached user entry is set.
+		Profile picture of user.
+		When updating the local peer database, apply changes to this field only if:
+		- The 'min' flag is not set OR
+		- The 'min' flag is set AND
+		- The 'apply_min_photo' flag is set OR
+		- The 'min' flag of the locally cached user entry is set.
 	*/
 	Status UserStatus `tl:"flag:6"` /*
-	Online status of user.
-	When updating the local peer database, apply changes to this field only if:
-	- The 'min' flag is not set OR
-	- The 'min' flag is set AND
-	- The 'min' flag of the locally cached user entry is set OR
-	- The locally cached user entry is equal to userStatusEmpty.
+		Online status of user.
+		When updating the local peer database, apply changes to this field only if:
+		- The 'min' flag is not set OR
+		- The 'min' flag is set AND
+		- The 'min' flag of the locally cached user entry is set OR
+		- The locally cached user entry is equal to userStatusEmpty.
 	*/
 	BotInfoVersion int32 `tl:"flag:14"` /*
-	Version of the bot_info field in userFull, incremented every time it changes.
-	Changes to this flag should invalidate the local userFull cache for this user ID,.
+		Version of the bot_info field in userFull, incremented every time it changes.
+		Changes to this flag should invalidate the local userFull cache for this user ID,.
 	*/
 	RestrictionReason    []*RestrictionReason `tl:"flag:18"` // Contains the reason why access to this user must be restricted.
 	BotInlinePlaceholder string               `tl:"flag:19"` // Inline placeholder for this inline bot
 	LangCode             string               `tl:"flag:22"` // Language code of the user
 	EmojiStatus          EmojiStatus          `tl:"flag:30"` // Emoji status
 	Usernames            []*Username          `tl:"flag2:0"` /*
-	Additional usernames.
-	When updating the local peer database, apply changes to this field only if:
-	- The 'min' flag is not set OR
-	- The 'min' flag is set AND
-	- The 'min' flag of the locally cached user entry is set.
-	Changes to this flag (if the above conditions are respected) should invalidate the local userFull cache for this user ID.
+		Additional usernames.
+		When updating the local peer database, apply changes to this field only if:
+		- The 'min' flag is not set OR
+		- The 'min' flag is set AND
+		- The 'min' flag of the locally cached user entry is set.
+		Changes to this flag (if the above conditions are respected) should invalidate the local userFull cache for this user ID.
 	*/
 	StoriesMaxID int32 `tl:"flag2:5"` /*
-	ID of the maximum read story.
-	When updating the local peer database, do not apply changes to this field if the 'min' flag of the incoming constructor is set.
+		ID of the maximum read story.
+		When updating the local peer database, do not apply changes to this field if the 'min' flag of the incoming constructor is set.
 	*/
 	Color          *PeerColor `tl:"flag2:8"`  // The user's accent color.
 	ProfileColor   *PeerColor `tl:"flag2:9"`  // The user's profile color.
@@ -13313,8 +13313,8 @@ type MessagesChannelMessages struct {
 	Pts            int32 // Event count after generation
 	Count          int32 // Total number of results were found server-side (may not be all included here)
 	OffsetIDOffset int32 `tl:"flag:2"` /*
-	Indicates the absolute position of 'messages[0]' within the total result set with count 'count'.
-	This is useful, for example, if the result was fetched using 'offset_id', and we need to display a 'progress/total' counter (like 'photo 134 of 200', for all media in a chat, we could simply use 'photo ${offset_id_offset} of ${count}'.
+		Indicates the absolute position of 'messages[0]' within the total result set with count 'count'.
+		This is useful, for example, if the result was fetched using 'offset_id', and we need to display a 'progress/total' counter (like 'photo 134 of 200', for all media in a chat, we could simply use 'photo ${offset_id_offset} of ${count}'.
 	*/
 	Messages []Message    // Found messages
 	Topics   []ForumTopic // Forum topic information
@@ -13362,8 +13362,8 @@ type MessagesMessagesSlice struct {
 	Count          int32 // Total number of messages in the list
 	NextRate       int32 `tl:"flag:0"` // Rate to use in the 'offset_rate' parameter in the next call to messages.searchGlobal
 	OffsetIDOffset int32 `tl:"flag:2"` /*
-	Indicates the absolute position of 'messages[0]' within the total result set with count 'count'.
-	This is useful, for example, if the result was fetched using 'offset_id', and we need to display a 'progress/total' counter (like 'photo 134 of 200', for all media in a chat, we could simply use 'photo ${offset_id_offset} of ${count}'.
+		Indicates the absolute position of 'messages[0]' within the total result set with count 'count'.
+		This is useful, for example, if the result was fetched using 'offset_id', and we need to display a 'progress/total' counter (like 'photo 134 of 200', for all media in a chat, we could simply use 'photo ${offset_id_offset} of ${count}'.
 	*/
 	Messages []Message // List of messages
 	Chats    []Chat    // List of chats mentioned in messages
@@ -13763,19 +13763,19 @@ type PaymentsPaymentFormObj struct {
 	ProviderID         int64       // Payment provider ID.
 	URL                string      // Payment form URL
 	NativeProvider     string      `tl:"flag:4"` /*
-	Payment provider name.
-	One of the following:
-	- 'stripe'
+		Payment provider name.
+		One of the following:
+		- 'stripe'
 	*/
 	NativeParams *DataJson `tl:"flag:4"` /*
-	Contains information about the payment provider, if available, to support it natively without the need for opening the URL.
-	A JSON object that can contain the following fields:
+		Contains information about the payment provider, if available, to support it natively without the need for opening the URL.
+		A JSON object that can contain the following fields:
 
-	- 'apple_pay_merchant_id': Apple Pay merchant ID
-	- 'google_pay_public_key': Google Pay public key
-	- 'need_country': True, if the user country must be provided,
-	- 'need_zip': True, if the user ZIP/postal code must be provided,
-	- 'need_cardholder_name': True, if the cardholder name must be provided
+		- 'apple_pay_merchant_id': Apple Pay merchant ID
+		- 'google_pay_public_key': Google Pay public key
+		- 'need_country': True, if the user country must be provided,
+		- 'need_zip': True, if the user ZIP/postal code must be provided,
+		- 'need_cardholder_name': True, if the cardholder name must be provided
 	*/
 	AdditionalMethods []*PaymentFormMethod           `tl:"flag:6"` // Additional payment methods
 	SavedInfo         *PaymentRequestedInfo          `tl:"flag:0"` // Saved server-side order information
