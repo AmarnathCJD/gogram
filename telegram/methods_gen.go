@@ -5750,11 +5750,11 @@ func (c *Client) ChatlistsDeleteExportedInvite(chatlist *InputChatlistDialogFilt
 }
 
 type ChatlistsEditExportedInviteParams struct {
-	Revoked bool `tl:"flag:0,encoded_in_bitflags"`
-    Chatlist InputChatlistDialogFilter
-	Slug  string
-	Title string      `tl:"flag:1"`
-	Peers []InputPeer `tl:"flag:2"`
+	Revoked  bool `tl:"flag:0,encoded_in_bitflags"`
+	Chatlist InputChatlistDialogFilter
+	Slug     string
+	Title    string      `tl:"flag:1"`
+	Peers    []InputPeer `tl:"flag:2"`
 }
 
 func (*ChatlistsEditExportedInviteParams) CRC() uint32 {
