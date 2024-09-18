@@ -67,6 +67,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	client.Conn()
+
 	client.LoginBot("<bot-token>") // or client.Login("<phone-number>") for user account, or client.AuthPrompt() for interactive login
 
 	client.On(telegram.OnMessage, func(message *telegram.NewMessage) error { // client.AddMessageHandler
