@@ -3991,19 +3991,27 @@ func (c *Client) ChannelsCheckUsername(channel InputChannel, username string) (b
 }
 
 type ChannelsClickSponsoredMessageParams struct {
-	Channel  InputChannel
-	RandomID []byte
+	Media      bool `tl:"flag:0,encoded_in_bitflags"`
+	Fullscreen bool `tl:"flag:1,encoded_in_bitflags"`
+	Channel    InputChannel
+	RandomID   []byte
 }
 
 func (*ChannelsClickSponsoredMessageParams) CRC() uint32 {
-	return 0x18afbc93
+	return 0x1445d75
+}
+
+func (*ChannelsClickSponsoredMessageParams) FlagIndex() int {
+	return 0
 }
 
 // Informs the server that the user has either:
-func (c *Client) ChannelsClickSponsoredMessage(channel InputChannel, randomID []byte) (bool, error) {
+func (c *Client) ChannelsClickSponsoredMessage(media, fullscreen bool, channel InputChannel, randomID []byte) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsClickSponsoredMessageParams{
-		Channel:  channel,
-		RandomID: randomID,
+		Channel:    channel,
+		Fullscreen: fullscreen,
+		Media:      media,
+		RandomID:   randomID,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending ChannelsClickSponsoredMessage")
@@ -5750,8 +5758,7 @@ func (c *Client) ChatlistsDeleteExportedInvite(chatlist *InputChatlistDialogFilt
 }
 
 type ChatlistsEditExportedInviteParams struct {
-	Revoked  bool `tl:"flag:0,encoded_in_bitflags"`
-	Chatlist InputChatlistDialogFilter
+	Chatlist *InputChatlistDialogFilter
 	Slug     string
 	Title    string      `tl:"flag:1"`
 	Peers    []InputPeer `tl:"flag:2"`
@@ -5766,8 +5773,13 @@ func (*ChatlistsEditExportedInviteParams) FlagIndex() int {
 }
 
 // Edit a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
-func (c *Client) ChatlistsEditExportedInvite(params *ChatlistsEditExportedInviteParams) (*ExportedChatlistInvite, error) {
-	responseData, err := c.MakeRequest(params)
+func (c *Client) ChatlistsEditExportedInvite(chatlist *InputChatlistDialogFilter, slug, title string, peers []InputPeer) (*ExportedChatlistInvite, error) {
+	responseData, err := c.MakeRequest(&ChatlistsEditExportedInviteParams{
+		Chatlist: chatlist,
+		Peers:    peers,
+		Slug:     slug,
+		Title:    title,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending ChatlistsEditExportedInvite")
 	}
@@ -10329,38 +10341,6 @@ func (c *Client) MessagesGetSplitRanges() ([]*MessageRange, error) {
 	}
 
 	resp, ok := responseData.([]*MessageRange)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesGetStatsURLParams struct {
-	Dark   bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer   InputPeer
-	Params string
-}
-
-func (*MessagesGetStatsURLParams) CRC() uint32 {
-	return 0x812c2ae6
-}
-
-func (*MessagesGetStatsURLParams) FlagIndex() int {
-	return 0
-}
-
-// Returns URL with the chat statistics. Currently this method can be used only for channels
-func (c *Client) MessagesGetStatsURL(dark bool, peer InputPeer, params string) (*StatsURL, error) {
-	responseData, err := c.MakeRequest(&MessagesGetStatsURLParams{
-		Dark:   dark,
-		Params: params,
-		Peer:   peer,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetStatsURL")
-	}
-
-	resp, ok := responseData.(*StatsURL)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
