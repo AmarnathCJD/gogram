@@ -41,6 +41,7 @@ identity (bot API alternative) using Go.</p>
 
 > [!WARNING]
 > gogram is currently in beta stage: there may be a few bugs  
+> althought its pretty stable and feature-rich.
 > feel free to try it out, though, any feedback is appreciated!
 
 ## setup
