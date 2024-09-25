@@ -228,8 +228,11 @@ updateTypeSwitch:
 		}
 	case *UpdatesObj:
 		upd := update.Updates[0]
-		if len(update.Updates) == 2 {
-			upd = update.Updates[1]
+		for _, u := range update.Updates {
+			switch u.(type) {
+			case *UpdateNewMessage, *UpdateNewChannelMessage, *UpdateEditMessage, *UpdateEditChannelMessage:
+				upd = u
+			}
 		}
 		switch upd := upd.(type) {
 		case *UpdateNewMessage:
