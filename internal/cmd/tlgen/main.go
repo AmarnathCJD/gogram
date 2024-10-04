@@ -246,8 +246,11 @@ func minorFixes(outdir, layer string) {
 	replaceWithRegexp(filepath.Join(execWorkDir, "methods_gen.go"), `(?m)^\s*Chatlist\s*$`, "    Chatlist InputChatlistDialogFilter")
 
 	replace(filepath.Join(execWorkDir, "enums_gen.go"), `Null Null`, `NullCrc Null`)
+	replace(filepath.Join(execWorkDir, "enums_gen.go"), `MessagesMessageEmpty MessagesMessageEmpty`, `MessagesMessageEmptyCrc MessagesMessageEmpty`)
 
 	replace(filepath.Join(execWorkDir, "init_gen.go"), `Null,`, `NullCrc,`)
+	replace(filepath.Join(execWorkDir, "init_gen.go"), `MessagesMessageEmpty,`, `MessagesMessageEmptyCrc,`)
+
 	if layer != "0" {
 		// replace eg: ApiVersion = 181
 		file, err := os.OpenFile(filepath.Join(execWorkDir, "const.go"), os.O_RDWR|os.O_CREATE, 0600)
