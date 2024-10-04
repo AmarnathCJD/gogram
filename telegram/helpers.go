@@ -901,12 +901,11 @@ func packMessage(c *Client, message Message) *NewMessage {
 		if m.Message.FromID != nil {
 			m.Sender = c.getSender(m.Message.FromID)
 			if m.Sender != nil && m.Sender.Min {
-				actualSenderReference := &InputUserFromMessage{
+				if actualUser, err := c.UsersGetUsers([]InputUser{&InputUserFromMessage{
 					Peer:   c.getInputPeer(m.Message.PeerID),
 					MsgID:  m.ID,
 					UserID: m.Sender.ID,
-				}
-				if actualUser, err := c.UsersGetUsers([]InputUser{actualSenderReference}); err == nil && len(actualUser) > 0 {
+				}}); err == nil && len(actualUser) > 0 {
 					if userActual, ok := actualUser[0].(*UserObj); ok {
 						c.Cache.UpdateUser(userActual)
 						m.Sender = userActual
@@ -920,10 +919,14 @@ func packMessage(c *Client, message Message) *NewMessage {
 		}
 	}
 
-	if m.Channel != nil && (m.Sender.ID == m.Channel.ID) {
+	if (m.Channel != nil && m.Sender != nil) && (m.Sender.ID == m.Channel.ID) {
 		m.SenderChat = c.getChannel(m.Message.FromID)
 	} else {
 		m.SenderChat = &Channel{}
+	}
+
+	if m.Chat == nil && m.Sender != nil {
+		m.Chat = &ChatObj{ID: m.Sender.ID, Title: m.Sender.FirstName} // private user/bot chat
 	}
 
 	m.Peer = c.getInputPeer(m.Message.PeerID)
