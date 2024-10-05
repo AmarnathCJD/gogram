@@ -2,6 +2,7 @@ package gen
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -30,14 +31,14 @@ func haveOptionalParams(params []tlparser.Parameter) bool {
 }
 
 func maxBitflag(params []tlparser.Parameter) int {
-	max := 0
+	maximum := 0
 	for _, param := range params {
-		if param.BitToTrigger > max {
-			max = param.BitToTrigger
+		if param.BitToTrigger > maximum {
+			maximum = param.BitToTrigger
 		}
 	}
 
-	return max
+	return maximum
 }
 
 func goify(name string, public bool) string {
@@ -119,4 +120,31 @@ func SliceContains(slice []string, item string) bool {
 	}
 
 	return false
+}
+
+var (
+	regexLinkTag       = regexp.MustCompile(`(?i)<a\s+href="([^"]+)"\s*>([^<]+)</a>`)
+	regexStrongTag     = regexp.MustCompile(`(?i)<strong>([^<]+)</strong>`)
+	regexMarkdownLink  = regexp.MustCompile(`\[(.+)\]\(.+\)`)
+	regexSeeHereTag    = regexp.MustCompile(`(?i)see here[^.]*`)
+	regexCodeTag       = regexp.MustCompile(`(?i)<code>([^<]+)</code>`)
+	regexBreakTag      = regexp.MustCompile(`(?i)<br>`)
+	regexArrowRightTag = regexp.MustCompile(`(?i)»`)
+	regexExtraSpaces   = regexp.MustCompile(`(?i)\s+\.`)
+	regexTrailingComma = regexp.MustCompile(`(?i),\s*$`)
+	regexTableTag      = regexp.MustCompile(`<td style="text-align: center;">.*?</td>\s*<td>(.*?)</td>`)
+)
+
+func cleanComment(comment string) string {
+	comment = regexLinkTag.ReplaceAllString(comment, "$2")
+	comment = regexStrongTag.ReplaceAllString(comment, "$1")
+	comment = regexMarkdownLink.ReplaceAllString(comment, "$1")
+	comment = regexSeeHereTag.ReplaceAllString(comment, "")
+	comment = regexCodeTag.ReplaceAllString(comment, "$1")
+	comment = regexBreakTag.ReplaceAllString(comment, "\n")
+	comment = regexArrowRightTag.ReplaceAllString(comment, "")
+	comment = regexExtraSpaces.ReplaceAllString(comment, ".")
+	comment = regexTrailingComma.ReplaceAllString(comment, "")
+
+	return comment
 }
