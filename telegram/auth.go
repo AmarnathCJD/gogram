@@ -28,6 +28,11 @@ func (c *Client) ConnectBot(botToken string) error {
 	return c.LoginBot(botToken)
 }
 
+var (
+	botTokenRegex = regexp.MustCompile(`^\d+:[\w\d_-]+$`)
+	phoneRegex    = regexp.MustCompile(`^\+?\d+$`)
+)
+
 // AuthPromt will prompt user to enter phone number or bot token to authorize client
 func (c *Client) AuthPrompt() error {
 	if au, _ := c.IsAuthorized(); au {
@@ -39,14 +44,12 @@ func (c *Client) AuthPrompt() error {
 		fmt.Printf("Enter phone number (with country code [+42xxx]) or bot token: ")
 		fmt.Scanln(&input)
 		if input != "" {
-			botTokenRegex := regexp.MustCompile(`^\d+:[\w\d_-]+$`)
 			if botTokenRegex.MatchString(input) {
 				err := c.LoginBot(input)
 				if err != nil {
 					return err
 				}
 			} else {
-				phoneRegex := regexp.MustCompile(`^\+?\d+$`)
 				if phoneRegex.MatchString(strings.TrimSpace(input)) {
 					_, err := c.Login(input)
 					if err != nil {
