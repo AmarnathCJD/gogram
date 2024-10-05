@@ -132,32 +132,48 @@ func init() {
 	mimeTypes.addMime(".tgs", "application/x-tgsticker")
 }
 
+var (
+	regexDataCenter = regexp.MustCompile(`DC (\d+)`)
+	regexCode       = regexp.MustCompile(`code (\d+)`)
+)
+
 func getErrorCode(err error) (int, int) {
 	datacenter := 0
 	code := 0
-	if err != nil {
-		if re := regexp.MustCompile(`DC (\d+)`); re.MatchString(err.Error()) {
-			datacenter, _ = strconv.Atoi(re.FindStringSubmatch(err.Error())[1])
-		}
-		if re := regexp.MustCompile(`code (\d+)`); re.MatchString(err.Error()) {
-			code, _ = strconv.Atoi(re.FindStringSubmatch(err.Error())[1])
-		}
+	if err == nil {
+		return datacenter, code
 	}
+
+	if regexDataCenter.MatchString(err.Error()) {
+		datacenter, _ = strconv.Atoi(regexDataCenter.FindStringSubmatch(err.Error())[1])
+	}
+	if regexCode.MatchString(err.Error()) {
+		code, _ = strconv.Atoi(regexCode.FindStringSubmatch(err.Error())[1])
+	}
+
 	return datacenter, code
 }
 
+var (
+	regexFloodWait        = regexp.MustCompile(`A wait of (\d+) seconds is required`)
+	regexFloodWaitBasic   = regexp.MustCompile(`FLOOD_WAIT_(\d+)`)
+	regexFloodWaitPremium = regexp.MustCompile(`FLOOD_PREMIUM_WAIT_(\d+)`)
+)
+
 func getFloodWait(err error) int {
-	if err != nil {
-		if re := regexp.MustCompile(`A wait of (\d+) seconds is required`); re.MatchString(err.Error()) {
-			wait, _ := strconv.Atoi(re.FindStringSubmatch(err.Error())[1])
-			return wait
-		} else if re := regexp.MustCompile(`FLOOD_WAIT_(\d+)`); re.MatchString(err.Error()) {
-			wait, _ := strconv.Atoi(re.FindStringSubmatch(err.Error())[1])
-			return wait
-		} else if re := regexp.MustCompile(`FLOOD_PREMIUM_WAIT_(\d+)`); re.MatchString(err.Error()) {
-			wait, _ := strconv.Atoi(re.FindStringSubmatch(err.Error())[1])
-			return wait
-		}
+	if err == nil {
+		return 0
+	}
+
+	if regexFloodWait.MatchString(err.Error()) {
+		wait, _ := strconv.Atoi(regexFloodWait.FindStringSubmatch(err.Error())[1])
+		return wait
+	} else if regexFloodWaitBasic.MatchString(err.Error()) {
+		wait, _ := strconv.Atoi(regexFloodWaitBasic.FindStringSubmatch(err.Error())[1])
+		return wait
+	} else if regexFloodWaitPremium.MatchString(err.Error()) {
+		wait, _ := strconv.Atoi(regexFloodWaitPremium.FindStringSubmatch(err.Error())[1])
+		return wait
 	}
 
 	return 0
@@ -265,13 +281,13 @@ func getMax(a []int32) int32 {
 	if len(a) == 0 {
 		return 0
 	}
-	var max = a[0]
+	var maximum = a[0]
 	for _, v := range a {
-		if v > max {
-			max = v
+		if v > maximum {
+			maximum = v
 		}
 	}
-	return max
+	return maximum
 }
 
 func PathIsDir(path string) bool {
@@ -417,9 +433,10 @@ func IsURL(str string) bool {
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
+var regexPhone = regexp.MustCompile(`^\+?[0-9]{10,13}$`)
+
 func IsPhone(phone string) bool {
-	phoneRe := regexp.MustCompile(`^\+?[0-9]{10,13}$`)
-	return phoneRe.MatchString(phone)
+	return regexPhone.MatchString(phone)
 }
 
 func getValue[T comparable](val, def T) T {

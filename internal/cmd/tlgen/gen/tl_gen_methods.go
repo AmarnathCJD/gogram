@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -86,9 +85,8 @@ func (g *Generator) generateComment(name, _type string) (string, []string) {
 	}
 
 	ack := string(body)
-	re := regexp.MustCompile(`<td style="text-align: center;">.*?</td>\s*<td>(.*?)</td>`)
 
-	matches := re.FindAllStringSubmatch(ack, -1)
+	matches := regexTableTag.FindAllStringSubmatch(ack, -1)
 
 	var descs []string
 
@@ -100,11 +98,9 @@ func (g *Generator) generateComment(name, _type string) (string, []string) {
 	ack = strings.Split(ack, "</p>")[0]
 	ack = strings.ReplaceAll(ack, "<p>", "")
 	//ack = strings.ReplaceAll(ack, "see .", "")
-	a_tag_regex := regexp.MustCompile(`<a href="([^"]*)">([^<]*)</a>`)
-	ack = a_tag_regex.ReplaceAllString(ack, "[$2](https://core.telegram.org$1)")
+	ack = regexLinkTag.ReplaceAllString(ack, "[$2](https://core.telegram.org$1)")
 
-	code_tag_regex := regexp.MustCompile(`<code>([^<]*)</code>`)
-	ack = code_tag_regex.ReplaceAllString(ack, "`$1`")
+	ack = regexCodeTag.ReplaceAllString(ack, "`$1`")
 
 	ack = strings.TrimSpace(ack)
 
