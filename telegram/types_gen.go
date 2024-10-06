@@ -2833,15 +2833,6 @@ func (*PaymentsExportedInvoice) CRC() uint32 {
 	return 0xaed0cbd9
 }
 
-type PaymentsPaymentFormStarGift struct {
-	FormID  int64
-	Invoice *Invoice
-}
-
-func (*PaymentsPaymentFormStarGift) CRC() uint32 {
-	return 0xb425cfe1
-}
-
 // Saved server-side order information
 type PaymentsSavedInfo struct {
 	HasSavedCredentials bool                  `tl:"flag:1,encoded_in_bitflags"`
@@ -2902,6 +2893,21 @@ func (*PaymentsStarsStatus) CRC() uint32 {
 }
 
 func (*PaymentsStarsStatus) FlagIndex() int {
+	return 0
+}
+
+type PaymentsUserStarGifts struct {
+	Count      int32
+	Gifts      []*UserStarGift
+	NextOffset string `tl:"flag:0"`
+	Users      []User
+}
+
+func (*PaymentsUserStarGifts) CRC() uint32 {
+	return 0x6b65b517
+}
+
+func (*PaymentsUserStarGifts) FlagIndex() int {
 	return 0
 }
 
@@ -4360,21 +4366,6 @@ func (*UserStarGift) CRC() uint32 {
 }
 
 func (*UserStarGift) FlagIndex() int {
-	return 0
-}
-
-type UserStarGifts struct {
-	Count      int32
-	Gifts      []*UserStarGift
-	NextOffset string `tl:"flag:0"`
-	Users      []User
-}
-
-func (*UserStarGifts) CRC() uint32 {
-	return 0x6b65b517
-}
-
-func (*UserStarGifts) FlagIndex() int {
 	return 0
 }
 

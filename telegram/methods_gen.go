@@ -7688,31 +7688,6 @@ func (c *Client) MessagesClearRecentStickers(attached bool) (bool, error) {
 	return resp, nil
 }
 
-type MessagesConvertStarGiftParams struct {
-	UserID InputUser
-	MsgID  int32
-}
-
-func (*MessagesConvertStarGiftParams) CRC() uint32 {
-	return 0x421e027
-}
-
-func (c *Client) MessagesConvertStarGift(userID InputUser, msgID int32) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesConvertStarGiftParams{
-		MsgID:  msgID,
-		UserID: userID,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesConvertStarGift")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesCreateChatParams struct {
 	Users     []InputUser
 	Title     string
@@ -9080,16 +9055,16 @@ func (c *Client) MessagesGetDiscussionMessage(peer InputPeer, msgID int32) (*Mes
 
 type MessagesGetDocumentByHashParams struct {
 	SHA256   []byte
-	Size     int32
+	Size     int64
 	MimeType string
 }
 
 func (*MessagesGetDocumentByHashParams) CRC() uint32 {
-	return 0x338e2464
+	return 0xb1f2061f
 }
 
 // Get a document by its SHA256 hash, mainly used for gifs
-func (c *Client) MessagesGetDocumentByHash(sha256 []byte, size int32, mimeType string) (Document, error) {
+func (c *Client) MessagesGetDocumentByHash(sha256 []byte, size int64, mimeType string) (Document, error) {
 	responseData, err := c.MakeRequest(&MessagesGetDocumentByHashParams{
 		MimeType: mimeType,
 		SHA256:   sha256,
@@ -10507,27 +10482,6 @@ func (c *Client) MessagesGetSplitRanges() ([]*MessageRange, error) {
 	return resp, nil
 }
 
-type MessagesGetStarGiftsParams struct {
-	Hash int32
-}
-
-func (*MessagesGetStarGiftsParams) CRC() uint32 {
-	return 0xc4563590
-}
-
-func (c *Client) MessagesGetStarGifts(hash int32) (StarGifts, error) {
-	responseData, err := c.MakeRequest(&MessagesGetStarGiftsParams{Hash: hash})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetStarGifts")
-	}
-
-	resp, ok := responseData.(StarGifts)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesGetStatsURLParams struct {
 	Dark   bool `tl:"flag:0,encoded_in_bitflags"`
 	Peer   InputPeer
@@ -10716,33 +10670,6 @@ func (c *Client) MessagesGetUnreadReactions(params *MessagesGetUnreadReactionsPa
 	}
 
 	resp, ok := responseData.(MessagesMessages)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesGetUserStarGiftsParams struct {
-	UserID InputUser
-	Offset string
-	Limit  int32
-}
-
-func (*MessagesGetUserStarGiftsParams) CRC() uint32 {
-	return 0x5e72c7e1
-}
-
-func (c *Client) MessagesGetUserStarGifts(userID InputUser, offset string, limit int32) (*UserStarGifts, error) {
-	responseData, err := c.MakeRequest(&MessagesGetUserStarGiftsParams{
-		Limit:  limit,
-		Offset: offset,
-		UserID: userID,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetUserStarGifts")
-	}
-
-	resp, ok := responseData.(*UserStarGifts)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -11466,7 +11393,7 @@ func (*MessagesReportParams) CRC() uint32 {
 }
 
 // Report a message in a chat for violation of telegram's Terms of Service
-func (c *Client) MessagesReport(peer InputPeer, id []int32, option []byte, message string) (bool, error) {
+func (c *Client) MessagesReport(peer InputPeer, id []int32, option []byte, message string) (ReportResult, error) {
 	responseData, err := c.MakeRequest(&MessagesReportParams{
 		ID:      id,
 		Message: message,
@@ -11474,10 +11401,10 @@ func (c *Client) MessagesReport(peer InputPeer, id []int32, option []byte, messa
 		Peer:    peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesReport")
+		return nil, errors.Wrap(err, "sending MessagesReport")
 	}
 
-	resp, ok := responseData.(bool)
+	resp, ok := responseData.(ReportResult)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -11858,37 +11785,6 @@ func (c *Client) MessagesSaveRecentSticker(attached bool, id InputDocument, unsa
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending MessagesSaveRecentSticker")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesSaveStarGiftParams struct {
-	Unsave bool `tl:"flag:0,encoded_in_bitflags"`
-	UserID InputUser
-	MsgID  int32
-}
-
-func (*MessagesSaveStarGiftParams) CRC() uint32 {
-	return 0x87acf08e
-}
-
-func (*MessagesSaveStarGiftParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesSaveStarGift(unsave bool, userID InputUser, msgID int32) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesSaveStarGiftParams{
-		MsgID:  msgID,
-		Unsave: unsave,
-		UserID: userID,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSaveStarGift")
 	}
 
 	resp, ok := responseData.(bool)
@@ -12596,16 +12492,20 @@ func (c *Client) MessagesSendWebViewData(bot InputUser, randomID int64, buttonTe
 }
 
 type MessagesSendWebViewResultMessageParams struct {
-	QueryID int64
+	BotQueryID string
+	Result     InputBotInlineResult
 }
 
 func (*MessagesSendWebViewResultMessageParams) CRC() uint32 {
-	return 0xddcf50eb
+	return 0xa4314f5
 }
 
 // Terminate webview interaction started with [messages.requestWebView](https://core.telegram.org/method/messages.requestWebView), sending the specified message to the chat on behalf of the user.
-func (c *Client) MessagesSendWebViewResultMessage(queryID int64) (*WebViewMessageSent, error) {
-	responseData, err := c.MakeRequest(&MessagesSendWebViewResultMessageParams{QueryID: queryID})
+func (c *Client) MessagesSendWebViewResultMessage(botQueryID string, result InputBotInlineResult) (*WebViewMessageSent, error) {
+	responseData, err := c.MakeRequest(&MessagesSendWebViewResultMessageParams{
+		BotQueryID: botQueryID,
+		Result:     result,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesSendWebViewResultMessage")
 	}
@@ -13830,6 +13730,31 @@ func (c *Client) PaymentsClearSavedInfo(credentials, info bool) (bool, error) {
 	return resp, nil
 }
 
+type PaymentsConvertStarGiftParams struct {
+	UserID InputUser
+	MsgID  int32
+}
+
+func (*PaymentsConvertStarGiftParams) CRC() uint32 {
+	return 0x421e027
+}
+
+func (c *Client) PaymentsConvertStarGift(userID InputUser, msgID int32) (bool, error) {
+	responseData, err := c.MakeRequest(&PaymentsConvertStarGiftParams{
+		MsgID:  msgID,
+		UserID: userID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending PaymentsConvertStarGift")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsExportInvoiceParams struct {
 	InvoiceMedia InputMedia
 }
@@ -14021,6 +13946,27 @@ func (c *Client) PaymentsGetSavedInfo() (*PaymentsSavedInfo, error) {
 	}
 
 	resp, ok := responseData.(*PaymentsSavedInfo)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsGetStarGiftsParams struct {
+	Hash int32
+}
+
+func (*PaymentsGetStarGiftsParams) CRC() uint32 {
+	return 0xc4563590
+}
+
+func (c *Client) PaymentsGetStarGifts(hash int32) (PaymentsStarGifts, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarGiftsParams{Hash: hash})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetStarGifts")
+	}
+
+	resp, ok := responseData.(PaymentsStarGifts)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -14283,6 +14229,33 @@ func (c *Client) PaymentsGetStarsTransactionsByID(peer InputPeer, id []*InputSta
 	return resp, nil
 }
 
+type PaymentsGetUserStarGiftsParams struct {
+	UserID InputUser
+	Offset string
+	Limit  int32
+}
+
+func (*PaymentsGetUserStarGiftsParams) CRC() uint32 {
+	return 0x5e72c7e1
+}
+
+func (c *Client) PaymentsGetUserStarGifts(userID InputUser, offset string, limit int32) (*PaymentsUserStarGifts, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetUserStarGiftsParams{
+		Limit:  limit,
+		Offset: offset,
+		UserID: userID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetUserStarGifts")
+	}
+
+	resp, ok := responseData.(*PaymentsUserStarGifts)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsLaunchPrepaidGiveawayParams struct {
 	Peer       InputPeer
 	GiveawayID int64
@@ -14375,6 +14348,37 @@ func (c *Client) PaymentsRequestRecurringPayment(userID InputUser, recurringInit
 	}
 
 	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsSaveStarGiftParams struct {
+	Unsave bool `tl:"flag:0,encoded_in_bitflags"`
+	UserID InputUser
+	MsgID  int32
+}
+
+func (*PaymentsSaveStarGiftParams) CRC() uint32 {
+	return 0x87acf08e
+}
+
+func (*PaymentsSaveStarGiftParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsSaveStarGift(unsave bool, userID InputUser, msgID int32) (bool, error) {
+	responseData, err := c.MakeRequest(&PaymentsSaveStarGiftParams{
+		MsgID:  msgID,
+		Unsave: unsave,
+		UserID: userID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending PaymentsSaveStarGift")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -16829,7 +16833,7 @@ func (*StoriesReportParams) CRC() uint32 {
 }
 
 // Report a story.
-func (c *Client) StoriesReport(peer InputPeer, id []int32, option []byte, message string) (bool, error) {
+func (c *Client) StoriesReport(peer InputPeer, id []int32, option []byte, message string) (ReportResult, error) {
 	responseData, err := c.MakeRequest(&StoriesReportParams{
 		ID:      id,
 		Message: message,
@@ -16837,10 +16841,10 @@ func (c *Client) StoriesReport(peer InputPeer, id []int32, option []byte, messag
 		Peer:    peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending StoriesReport")
+		return nil, errors.Wrap(err, "sending StoriesReport")
 	}
 
-	resp, ok := responseData.(bool)
+	resp, ok := responseData.(ReportResult)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -17222,15 +17226,15 @@ func (c *Client) UploadGetFile(params *UploadGetFileParams) (UploadFile, error) 
 
 type UploadGetFileHashesParams struct {
 	Location InputFileLocation
-	Offset   int32
+	Offset   int64
 }
 
 func (*UploadGetFileHashesParams) CRC() uint32 {
-	return 0xc7025931
+	return 0x9156982a
 }
 
 // Get SHA256 hashes for verifying downloaded files
-func (c *Client) UploadGetFileHashes(location InputFileLocation, offset int32) ([]*FileHash, error) {
+func (c *Client) UploadGetFileHashes(location InputFileLocation, offset int64) ([]*FileHash, error) {
 	responseData, err := c.MakeRequest(&UploadGetFileHashesParams{
 		Location: location,
 		Offset:   offset,
