@@ -165,7 +165,7 @@ func (c *Client) getMultiMedia(m interface{}, attrs *MediaMetadata) ([]*InputSin
 	for _, m := range inputMedia {
 		switch m := m.(type) {
 		case *InputMediaUploadedPhoto, *InputMediaUploadedDocument, *InputMediaPhotoExternal, *InputMediaDocumentExternal:
-			uploadedMedia, err := c.MessagesUploadMedia(attrs.BuissnessConnectionId, &InputPeerSelf{}, m) // Upload if not already cached
+			uploadedMedia, err := c.MessagesUploadMedia(attrs.BusinessConnectionId, &InputPeerSelf{}, m) // Upload if not already cached
 			if err != nil {
 				return nil, err
 			}
@@ -689,7 +689,7 @@ func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 		var (
 			performer string
 			title     string
-		//	waveform  []byte
+			//	waveform  []byte
 		)
 
 		cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format_tags=artist,title", "-of", "json", path)
