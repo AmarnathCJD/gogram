@@ -48,22 +48,22 @@ func (b *InlineBuilder) Results() []InputBotInlineResult {
 }
 
 type ArticleOptions struct {
-	ID                    string                             `json:"id,omitempty"`
-	Title                 string                             `json:"title,omitempty"`
-	Description           string                             `json:"description,omitempty"`
-	ExcludeMedia          bool                               `json:"exclude_media,omitempty"`
-	Thumb                 InputWebDocument                   `json:"thumb,omitempty"`
-	Content               InputWebDocument                   `json:"content,omitempty"`
-	LinkPreview           bool                               `json:"link_preview,omitempty"`
-	ReplyMarkup           ReplyMarkup                        `json:"reply_markup,omitempty"`
-	Entities              []MessageEntity                    `json:"entities,omitempty"`
-	ParseMode             string                             `json:"parse_mode,omitempty"`
-	Caption               string                             `json:"caption,omitempty"`
-	Venue                 *InputBotInlineMessageMediaVenue   `json:"venue,omitempty"`
-	Location              *InputBotInlineMessageMediaGeo     `json:"location,omitempty"`
-	Contact               *InputBotInlineMessageMediaContact `json:"contact,omitempty"`
-	Invoice               *InputBotInlineMessageMediaInvoice `json:"invoice,omitempty"`
-	BuissnessConnectionId string                             `json:"buissness_connection_id,omitempty"`
+	ID                   string                             `json:"id,omitempty"`
+	Title                string                             `json:"title,omitempty"`
+	Description          string                             `json:"description,omitempty"`
+	ExcludeMedia         bool                               `json:"exclude_media,omitempty"`
+	Thumb                InputWebDocument                   `json:"thumb,omitempty"`
+	Content              InputWebDocument                   `json:"content,omitempty"`
+	LinkPreview          bool                               `json:"link_preview,omitempty"`
+	ReplyMarkup          ReplyMarkup                        `json:"reply_markup,omitempty"`
+	Entities             []MessageEntity                    `json:"entities,omitempty"`
+	ParseMode            string                             `json:"parse_mode,omitempty"`
+	Caption              string                             `json:"caption,omitempty"`
+	Venue                *InputBotInlineMessageMediaVenue   `json:"venue,omitempty"`
+	Location             *InputBotInlineMessageMediaGeo     `json:"location,omitempty"`
+	Contact              *InputBotInlineMessageMediaContact `json:"contact,omitempty"`
+	Invoice              *InputBotInlineMessageMediaInvoice `json:"invoice,omitempty"`
+	BusinessConnectionId string                             `json:"business_connection_id,omitempty"`
 }
 
 func (b *InlineBuilder) Article(title, description, text string, options ...*ArticleOptions) InputBotInlineResult {
@@ -121,7 +121,7 @@ PhotoTypeSwitch:
 	case *InputMediaPhoto:
 		image = p.ID
 	case *InputMediaUploadedPhoto:
-		media, _ := b.Client.MessagesUploadMedia(opts.BuissnessConnectionId, &InputPeerSelf{}, p)
+		media, _ := b.Client.MessagesUploadMedia(opts.BusinessConnectionId, &InputPeerSelf{}, p)
 
 		inputPhoto, err = b.Client.getSendableMedia(media, &MediaMetadata{})
 		if err != nil {
@@ -184,7 +184,7 @@ DocTypeSwitch:
 	case *InputMediaDocument:
 		document = p.ID
 	case *InputMediaUploadedDocument:
-		media, _ := b.Client.MessagesUploadMedia(opts.BuissnessConnectionId, &InputPeerSelf{}, p)
+		media, _ := b.Client.MessagesUploadMedia(opts.BusinessConnectionId, &InputPeerSelf{}, p)
 
 		inputDoc, _ = b.Client.getSendableMedia(media, &MediaMetadata{})
 		goto DocTypeSwitch
