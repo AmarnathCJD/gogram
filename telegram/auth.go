@@ -39,8 +39,8 @@ func (c *Client) AuthPrompt() error {
 		return nil
 	}
 	var input string
-	MAX_RETRIES := 3
-	for i := 0; i < MAX_RETRIES; i++ {
+	maxRetries := 3
+	for i := 0; i < maxRetries; i++ {
 		fmt.Printf("Enter phone number (with country code [+42xxx]) or bot token: ")
 		fmt.Scanln(&input)
 		if input != "" {
@@ -56,7 +56,7 @@ func (c *Client) AuthPrompt() error {
 						return err
 					}
 				} else {
-					fmt.Println("The input is not a valid phone number or bot token, try again [", i+1, "/", MAX_RETRIES, "]")
+					fmt.Println("The input is not a valid phone number or bot token, try again [", i+1, "/", maxRetries, "]")
 					continue
 				}
 			}

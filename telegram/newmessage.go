@@ -81,7 +81,7 @@ func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 		return nil, err
 	}
 	if len(messages) == 0 {
-		// if actual message got deleted, try again with actial reply id
+		// if actual message got deleted, try again with actual reply id
 		messages, err = m.Client.GetMessages(m.ChatID(), &SearchOption{IDs: []int32{m.ReplyToMsgID()}})
 		if err != nil {
 			return nil, err
