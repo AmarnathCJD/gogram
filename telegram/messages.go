@@ -13,7 +13,7 @@ type SendOptions struct {
 	MimeType         string              `json:"mime_type,omitempty"`
 	Caption          interface{}         `json:"caption,omitempty"`
 	ClearDraft       bool                `json:"clear_draft,omitempty"`
-	Entites          []MessageEntity     `json:"entites,omitempty"`
+	Entities         []MessageEntity     `json:"entities,omitempty"`
 	FileName         string              `json:"file_name,omitempty"`
 	ForceDocument    bool                `json:"force_document,omitempty"`
 	InvertMedia      bool                `json:"invert_media,omitempty"`
@@ -77,8 +77,8 @@ func (c *Client) SendMessage(peerID, message interface{}, opts ...*SendOptions) 
 	default:
 		return nil, fmt.Errorf("invalid message type: %s", reflect.TypeOf(message))
 	}
-	if opt.Entites != nil {
-		entities = opt.Entites
+	if opt.Entities != nil {
+		entities = opt.Entities
 	}
 	media = getValue(media, opt.Media)
 	if media != nil {
@@ -163,8 +163,8 @@ func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, 
 	default:
 		return nil, fmt.Errorf("invalid message type: %s", reflect.TypeOf(message))
 	}
-	if opt.Entites != nil {
-		entities = opt.Entites
+	if opt.Entities != nil {
+		entities = opt.Entities
 	}
 	media = getValue(media, opt.Media)
 	switch p := peerID.(type) {
@@ -287,7 +287,7 @@ type MediaOptions struct {
 	MimeType         string              `json:"mime_type,omitempty"`
 	Caption          interface{}         `json:"caption,omitempty"`
 	ClearDraft       bool                `json:"clear_draft,omitempty"`
-	Entites          []MessageEntity     `json:"entities,omitempty"`
+	Entities         []MessageEntity     `json:"entities,omitempty"`
 	FileName         string              `json:"file_name,omitempty"`
 	ForceDocument    bool                `json:"force_document,omitempty"`
 	InvertMedia      bool                `json:"invert_media,omitempty"`
@@ -308,18 +308,18 @@ type MediaOptions struct {
 }
 
 type MediaMetadata struct {
-	FileName              string              `json:"file_name,omitempty"`
-	BuissnessConnectionId string              `json:"buissness_connection_id,omitempty"`
-	Thumb                 interface{}         `json:"thumb,omitempty"`
-	Attributes            []DocumentAttribute `json:"attributes,omitempty"`
-	ForceDocument         bool                `json:"force_document,omitempty"`
-	TTL                   int32               `json:"ttl,omitempty"`
-	Spoiler               bool                `json:"spoiler,omitempty"`
-	DisableThumb          bool                `json:"gen_thumb,omitempty"`
-	MimeType              string              `json:"mime_type,omitempty"`
-	ProgressCallback      func(int64, int64)  `json:"-"`
-	UploadThreads         int                 `json:"-"`
-	FileAbsPath           string              `json:"-"`
+	FileName             string              `json:"file_name,omitempty"`
+	BusinessConnectionId string              `json:"business_connection_id,omitempty"`
+	Thumb                interface{}         `json:"thumb,omitempty"`
+	Attributes           []DocumentAttribute `json:"attributes,omitempty"`
+	ForceDocument        bool                `json:"force_document,omitempty"`
+	TTL                  int32               `json:"ttl,omitempty"`
+	Spoiler              bool                `json:"spoiler,omitempty"`
+	DisableThumb         bool                `json:"gen_thumb,omitempty"`
+	MimeType             string              `json:"mime_type,omitempty"`
+	ProgressCallback     func(int64, int64)  `json:"-"`
+	UploadThreads        int                 `json:"-"`
+	FileAbsPath          string              `json:"-"`
 }
 
 // SendMedia sends a media message.
@@ -337,7 +337,7 @@ type MediaMetadata struct {
 // Note:
 //   - If the caption in opts is a string, it will be parsed for entities based on the parse_mode in opts.
 //   - If the caption in opts is a pointer to a NewMessage, its entities will be used instead.
-//   - If the entites field in opts is not nil, it will override any entities parsed from the caption.
+//   - If the entities field in opts is not nil, it will override any entities parsed from the caption.
 //   - If send_as in opts is not nil, the message will be sent from the specified peer, otherwise it will be sent from the sender peer.
 func (c *Client) SendMedia(peerID, Media interface{}, opts ...*MediaOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{})
@@ -363,15 +363,15 @@ func (c *Client) SendMedia(peerID, Media interface{}, opts ...*MediaOptions) (*N
 	if err != nil {
 		return nil, err
 	}
-	switch cap := opt.Caption.(type) {
+	switch caption := opt.Caption.(type) {
 	case string:
-		entities, textMessage = parseEntities(cap, opt.ParseMode)
+		entities, textMessage = parseEntities(caption, opt.ParseMode)
 	case *NewMessage:
-		entities = cap.Message.Entities
-		textMessage = cap.MessageText()
+		entities = caption.Message.Entities
+		textMessage = caption.MessageText()
 	}
-	if opt.Entites != nil {
-		entities = opt.Entites
+	if opt.Entities != nil {
+		entities = opt.Entities
 	}
 	senderPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
@@ -434,7 +434,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 // Note:
 //   - If the caption in opts is a string, it will be parsed for entities based on the parse_mode in opts.
 //   - If the caption in opts is a pointer to a NewMessage, its entities will be used instead.
-//   - If the entites field in opts is not nil, it will override any entities parsed from the caption.
+//   - If the entities field in opts is not nil, it will override any entities parsed from the caption.
 //   - If send_as in opts is not nil, the messages will be sent from the specified peer, otherwise they will be sent from the sender peer.
 func (c *Client) SendAlbum(peerID, Album interface{}, opts ...*MediaOptions) ([]*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{})
@@ -448,15 +448,15 @@ func (c *Client) SendAlbum(peerID, Album interface{}, opts ...*MediaOptions) ([]
 		return nil, multiErr
 	}
 
-	switch cap := opt.Caption.(type) {
+	switch caption := opt.Caption.(type) {
 	case string:
-		entities, textMessage = parseEntities(cap, opt.ParseMode)
+		entities, textMessage = parseEntities(caption, opt.ParseMode)
 	case *NewMessage:
-		entities = cap.Message.Entities
-		textMessage = cap.MessageText()
+		entities = caption.Message.Entities
+		textMessage = caption.MessageText()
 	}
-	if opt.Entites != nil {
-		entities = opt.Entites
+	if opt.Entities != nil {
+		entities = opt.Entities
 	}
 	InputAlbum[len(InputAlbum)-1].Message = textMessage
 	InputAlbum[len(InputAlbum)-1].Entities = entities
@@ -553,9 +553,9 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 		}
 	}
 
-	var solnEntites []MessageEntity
+	var solnEntities []MessageEntity
 	if opt.Solution != "" {
-		solnEntites, opt.Solution = parseEntities(opt.Solution, c.ParseMode())
+		solnEntities, opt.Solution = parseEntities(opt.Solution, c.ParseMode())
 	}
 
 	poll := &InputMediaPoll{
@@ -575,7 +575,7 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 		},
 		CorrectAnswers:   correctAnswers,
 		Solution:         opt.Solution,
-		SolutionEntities: solnEntites,
+		SolutionEntities: solnEntities,
 	}
 
 	updateResp, err := c.MessagesSendMedia(&MessagesSendMediaParams{

@@ -25,5 +25,5 @@ type ErrorPartialWrite struct {
 }
 
 func (e *ErrorPartialWrite) Error() string {
-	return fmt.Sprintf("write failed: writed only %v bytes, expected %v", e.Has, e.Want)
+	return fmt.Sprintf("write failed: only %v bytes were written, expected %v", e.Has, e.Want)
 }
