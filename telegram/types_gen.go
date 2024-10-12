@@ -3626,16 +3626,19 @@ func (*SponsoredMessageReportOption) CRC() uint32 {
 
 type StarGift struct {
 	Limited             bool `tl:"flag:0,encoded_in_bitflags"`
+	SoldOut             bool `tl:"flag:1,encoded_in_bitflags"`
 	ID                  int64
 	Sticker             Document
 	Stars               int64
 	AvailabilityRemains int32 `tl:"flag:0"`
 	AvailabilityTotal   int32 `tl:"flag:0"`
 	ConvertStars        int64
+	FirstSaleDate       int32 `tl:"flag:1"`
+	LastSaleDate        int32 `tl:"flag:1"`
 }
 
 func (*StarGift) CRC() uint32 {
-	return 0xaea174ee
+	return 0x49c577cd
 }
 
 func (*StarGift) FlagIndex() int {
