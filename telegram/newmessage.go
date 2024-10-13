@@ -605,7 +605,7 @@ func (m *NewMessage) React(Reactions ...any) error {
 
 // Forward forwards the message to a chat
 func (m *NewMessage) ForwardTo(PeerID interface{}, Opts ...*ForwardOptions) (*NewMessage, error) {
-	resps, err := m.Client.Forward(m.ChatID(), PeerID, []int32{m.ID}, Opts...)
+	resps, err := m.Client.Forward(PeerID, m.Peer, []int32{m.ID}, Opts...)
 	if resps == nil {
 		return nil, err
 	}
