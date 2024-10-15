@@ -478,33 +478,31 @@ func (c *Client) createAndAppendSender(dcId int, senders []Sender, senderIndex i
 }
 
 func (c *Client) downloadParts(wg *sync.WaitGroup, mu *sync.Mutex, w []Sender, partSize int, doneArray []bool, numWorkers int, location InputFileLocation, fs *Destination, opts *DownloadOptions, parts int64, doneBytes *atomic.Int64) {
-	taskCh := make(chan int64, parts)
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func(workerIndex int) {
-			defer wg.Done()
-			for part := range taskCh {
-				var success bool
-				for !success {
-					mu.Lock()
-					if w[workerIndex].c == nil || w[workerIndex].buzy {
-						mu.Unlock()
-						time.Sleep(10 * time.Millisecond)
-						continue
-					}
-					w[workerIndex].buzy = true
-					mu.Unlock()
-					c.downloadPart(wg, mu, w, workerIndex, int(part), partSize, doneArray, location, fs, opts, doneBytes, parts*int64(partSize))
-					success = true
-				}
-			}
-		}(i)
-	}
 	for p := int64(0); p < parts; p++ {
 		wg.Add(1)
-		taskCh <- p
+		go func(p int64) {
+			for {
+				mu.Lock()
+				found, workerIndex := c.findAvailableWorker(w, numWorkers)
+				mu.Unlock()
+
+				if found {
+					go c.downloadPart(wg, mu, w, workerIndex, int(p), partSize, doneArray, location, fs, opts, doneBytes, parts*int64(partSize))
+					break
+				}
+			}
+		}(p)
 	}
-	close(taskCh)
+}
+
+func (c *Client) findAvailableWorker(w []Sender, numWorkers int) (bool, int) {
+	for i := 0; i < numWorkers; i++ {
+		if !w[i].buzy && w[i].c != nil {
+			w[i].buzy = true
+			return true, i
+		}
+	}
+	return false, -1
 }
 
 func (c *Client) downloadPart(wg *sync.WaitGroup, mu *sync.Mutex, w []Sender, workerIndex, p int, partSize int, doneArray []bool, location InputFileLocation, fs *Destination, opts *DownloadOptions, doneBytes *atomic.Int64, totalBytes int64) {
