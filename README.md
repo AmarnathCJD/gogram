@@ -183,9 +183,11 @@ For more examples, check the **[examples](examples)** directory.
 - [x] stabilize file downloading
 - [ ] secret chats support
 - [ ] cdn dc support
+- [ ] reimplement file downloads (more speed + less cpu usage)
 
 ## known issues
 
+- [ ] ~ file download, is cpu intensive
 - [x] ~ open issues if found :)
 
 ## contributing
