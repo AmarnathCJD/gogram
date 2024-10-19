@@ -364,6 +364,7 @@ func (mb *Destination) Close() error {
 	return nil
 }
 
+// TODO: Note to self, This speed can be improved much more, try to Impl Ayugram's method, Also reduce CPU usage #154
 func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (string, error) {
 	opts := getVariadic(Opts, &DownloadOptions{})
 	location, dc, size, fileName, err := GetFileLocation(file)
