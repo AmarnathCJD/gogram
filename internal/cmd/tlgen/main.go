@@ -164,12 +164,12 @@ func root(tlfile, outdir string, d bool) error {
 	}
 
 	err = g.Generate(d)
+	minorFixes(outdir, getAPILayerFromFile(tlfile))
 	if err != nil {
-		return fmt.Errorf("generate code: %w", err)
+		return fmt.Errorf("generate code: error (ignored)")
 	}
 
 	fmt.Println("Generated code in", outdir, "in", time.Since(startTime))
-	minorFixes(outdir, getAPILayerFromFile(tlfile))
 	return nil
 }
 
