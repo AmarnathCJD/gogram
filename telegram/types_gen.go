@@ -3765,6 +3765,7 @@ type StarsTransaction struct {
 	Gift               bool `tl:"flag:10,encoded_in_bitflags"`
 	Reaction           bool `tl:"flag:11,encoded_in_bitflags"`
 	Subscription       bool `tl:"flag:12,encoded_in_bitflags"`
+	Floodskip          bool `tl:"flag:15,encoded_in_bitflags"`
 	ID                 string
 	Stars              int64
 	Date               int32
@@ -3780,10 +3781,11 @@ type StarsTransaction struct {
 	SubscriptionPeriod int32          `tl:"flag:12"`
 	GiveawayPostID     int32          `tl:"flag:13"`
 	Stargift           *StarGift      `tl:"flag:14"`
+	FloodskipNumber    int32          `tl:"flag:15"`
 }
 
 func (*StarsTransaction) CRC() uint32 {
-	return 0xa9ee4c2
+	return 0x35d4f276
 }
 
 func (*StarsTransaction) FlagIndex() int {
@@ -4315,6 +4317,7 @@ type UserFull struct {
 	ContactRequirePremium   bool `tl:"flag:29,encoded_in_bitflags"`
 	ReadDatesPrivate        bool `tl:"flag:30,encoded_in_bitflags"`
 	SponsoredEnabled        bool `tl:"flag2:7,encoded_in_bitflags"`
+	CanViewRevenue          bool `tl:"flag2:9,encoded_in_bitflags"`
 	ID                      int64
 	About                   string `tl:"flag:1"`
 	Settings                *PeerSettings
