@@ -241,7 +241,7 @@ mediaMessageSwitch:
 			AccessHash:    l.AccessHash,
 			FileReference: l.FileReference,
 			ThumbSize:     "",
-		}, l.DcID, l.Size, getFileName(l), nil
+		}, l.DcID, l.Size, GetFileName(l), nil
 	case *PhotoObj:
 		size, sizeType := getPhotoSize(l.Sizes[len(l.Sizes)-1])
 		return &InputPhotoFileLocation{
@@ -249,7 +249,7 @@ mediaMessageSwitch:
 			AccessHash:    l.AccessHash,
 			FileReference: l.FileReference,
 			ThumbSize:     sizeType,
-		}, l.DcID, size, getFileName(l), nil
+		}, l.DcID, size, GetFileName(l), nil
 	case *InputPhotoFileLocation:
 		return l, dataCenter, fileSize, "", nil
 	default:
@@ -300,7 +300,7 @@ func PathIsDir(path string) bool {
 //	 *MessageMedia
 //	 *Document
 //	 *Photo
-func getFileName(f interface{}) string {
+func GetFileName(f interface{}) string {
 	getDocName := func(doc *DocumentObj) string {
 		for _, attr := range doc.Attributes {
 			switch attr := attr.(type) {
