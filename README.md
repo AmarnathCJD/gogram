@@ -81,12 +81,14 @@ func main() {
 }
 ```
 
+- **[sample modular bot](https://github.com/AmarnathCJD/JuliaBot.git)**: a simple modular bot built using gogram with plugins support.
+
 ## support dev
 
 If you'd like to support Gogram, you can consider:
 
-- <a href="https://github.com/sponsors/amarnathcjd" style="text-decoration: none; color: green;">become a github sponsor</a>
-- star this repo :)
+- <b><a href="https://github.com/sponsors/amarnathcjd" style="text-decoration: none; color: green;">become a github sponsor</a></b>
+- <b>star this repo :) ⭐</b>
 
 ## key features
 
@@ -170,7 +172,6 @@ client.On("callback:<pattern>", func(cb *telegram.CallbackQuery) error { // clie
 ```
 
 For more examples, check the **[examples](examples)** directory.
-- [x] **[sample modular bot](https://github.com/AmarnathCJD/JuliaBot)**: a simple modular with plugins bot example
 
 ## features
 
