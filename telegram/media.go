@@ -380,6 +380,9 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 
 	partSize := 2048 * 512 // 1MB
 	if opts.ChunkSize > 0 {
+		if opts.ChunkSize > 1048576 || (1048576%opts.ChunkSize) != 0 {
+			return "", errors.New("chunk size must be a multiple of 1048576 (1MB)")
+		}
 		partSize = int(opts.ChunkSize)
 	}
 
@@ -702,6 +705,55 @@ func (c *Client) retryFailedParts(totalParts int64, dc int32, w []Sender, doneAr
 			c.processDownloadedPart(upl, i, doneArray, fs, partSize, opts, doneBytes, totalParts*int64(partSize))
 		}
 	}
+}
+
+// DownloadChunk downloads a file in chunks, useful for downloading specific parts of a file.
+//
+// start and end are the byte offsets to download.
+// chunkSize is the size of each chunk to download.
+//
+// Note: chunkSize must be a multiple of 1048576 (1MB)
+func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]byte, string, error) {
+	var buf []byte
+	input, dc, size, name, err := GetFileLocation(media)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if chunkSize > 1048576 || (1048576%chunkSize) != 0 {
+		return nil, "", errors.New("chunk size must be a multiple of 1048576 (1MB)")
+	}
+
+	if end > int(size) {
+		end = int(size)
+	}
+
+	sender, err := c.CreateExportedSender(int(dc))
+	if err != nil {
+		return nil, "", err
+	}
+
+	for curr := start; curr < end; curr += chunkSize {
+		part, err := sender.UploadGetFile(&UploadGetFileParams{
+			Location:     input,
+			Limit:        int32(chunkSize),
+			Offset:       int64(curr),
+			CdnSupported: false,
+		})
+
+		if err != nil {
+			c.Logger.Error(err)
+		}
+
+		switch v := part.(type) {
+		case *UploadFileObj:
+			buf = append(buf, v.Bytes...)
+		case *UploadFileCdnRedirect:
+			panic("CDN redirect not implemented") // TODO
+		}
+	}
+
+	return buf, name, nil
 }
 
 // ----------------------- Progress Manager -----------------------
