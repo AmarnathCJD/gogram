@@ -39,10 +39,7 @@ framework. It enables you to easily interact with the main Telegram API through 
 identity (bot API alternative) using Go.</p>
 <br>
 
-> [!WARNING]
-> gogram is currently in beta stage: there may be a few bugs  
-> although its pretty stable and feature-rich.
-> feel free to try it out, though, any feedback is appreciated!
+> Gogram is currently in its stable release stage. While there may still be a few bugs, feel free to use it and provide feedback if you encounter any issues or rough edges. 😊
 
 ## setup
 
