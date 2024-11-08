@@ -15,22 +15,15 @@
 </p>
 
 <div align='center'>
-<a href="https://godoc.org/github.com/amarnathcjd/gogram" style='text-decoration: none'>
-    <img src="https://godoc.org/github.com/amarnathcjd/gogram?status.svg" alt="GoDoc">
-</a>
-<a href="https://goreportcard.com/report/github.com/amarnathcjd/gogram" style='text-decoration: none'>
-    <img src="https://goreportcard.com/badge/github.com/amarnathcjd/gogram" alt="Go Report Card">
-</a>
-<a href="https://img.shields.io/github/license/amarnathcjd/gogram.svg" style='text-decoration: none'>
-    <img src="https://img.shields.io/github/license/amarnathcjd/gogram.svg" alt="License">
-</a>
-<a href="https://img.shields.io/github/stars/amarnathcjd/gogram.svg?style=social&label=Stars" style='text-decoration: none'>
-    <img src="https://img.shields.io/github/stars/amarnathcjd/gogram.svg?style=social&label=Stars" alt="GitHub stars">
-</a>
-<a href="https://img.shields.io/github/forks/amarnathcjd/gogram.svg?style=social&label=Fork">
-    <img src="https://img.shields.io/github/forks/amarnathcjd/gogram.svg?style=social&label=Fork" alt="GitHub forks">
-</a>
+	
+[![GoDoc](https://godoc.org/github.com/amarnathcjd/gogram?status.svg)](https://godoc.org/github.com/amarnathcjd/gogram)
+[![Go Report Card](https://goreportcard.com/badge/github.com/amarnathcjd/gogram)](https://goreportcard.com/report/github.com/amarnathcjd/gogram)
+[![License](https://img.shields.io/github/license/amarnathcjd/gogram.svg)](https://img.shields.io/github/license/amarnathcjd/gogram.svg)
+[![GitHub stars](https://img.shields.io/github/stars/amarnathcjd/gogram.svg?style=social&label=Stars)](https://img.shields.io/github/stars/amarnathcjd/gogram.svg?style=social&label=Stars)
+[![GitHub forks](https://img.shields.io/github/forks/amarnathcjd/gogram.svg?style=social&label=Fork)](https://img.shields.io/github/forks/amarnathcjd/gogram.svg?style=social&label=Fork)
+
 </div>
+
 
 <br>
 
