@@ -36,7 +36,7 @@ const (
 
 const (
 	randombyteLen = 256
-	oneTimeMedia  = 2147483647
+	OneTimeMedia  = 2147483647
 )
 
 var (
