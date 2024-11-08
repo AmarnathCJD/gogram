@@ -25,26 +25,35 @@ type (
 		QueryID       int64
 		InlineResults []InputBotInlineResult
 	}
+
+	InlineSend struct {
+		OriginalUpdate *UpdateBotInlineSend
+		Sender         *UserObj
+		SenderID       int64
+		ID             string
+		MsgID          InputBotInlineMessageID
+		Client         *Client
+	}
 )
 
-func (b *InlineQuery) Answer(results []InputBotInlineResult, options ...InlineSendOptions) (bool, error) {
+func (i *InlineQuery) Answer(results []InputBotInlineResult, options ...InlineSendOptions) (bool, error) {
 	var opts InlineSendOptions
 	if len(options) > 0 {
 		opts = options[0]
 	}
-	return b.Client.AnswerInlineQuery(b.QueryID, results, &opts)
+	return i.Client.AnswerInlineQuery(i.QueryID, results, &opts)
 }
 
-func (b *InlineQuery) Builder() *InlineBuilder {
+func (i *InlineQuery) Builder() *InlineBuilder {
 	return &InlineBuilder{
-		Client:        b.Client,
-		QueryID:       b.QueryID,
+		Client:        i.Client,
+		QueryID:       i.QueryID,
 		InlineResults: []InputBotInlineResult{},
 	}
 }
 
-func (b *InlineBuilder) Results() []InputBotInlineResult {
-	return b.InlineResults
+func (i *InlineBuilder) Results() []InputBotInlineResult {
+	return i.InlineResults
 }
 
 type ArticleOptions struct {
@@ -66,14 +75,14 @@ type ArticleOptions struct {
 	BusinessConnectionId string                             `json:"business_connection_id,omitempty"`
 }
 
-func (b *InlineBuilder) Article(title, description, text string, options ...*ArticleOptions) InputBotInlineResult {
+func (i *InlineBuilder) Article(title, description, text string, options ...*ArticleOptions) InputBotInlineResult {
 	var opts ArticleOptions
 	if len(options) > 0 {
 		opts = *options[0]
 	} else {
 		opts = ArticleOptions{}
 	}
-	e, text := b.Client.FormatMessage(text, getValue(opts.ParseMode, b.Client.ParseMode()))
+	e, text := i.Client.FormatMessage(text, getValue(opts.ParseMode, i.Client.ParseMode()))
 	result := &InputBotInlineResultObj{
 		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())),
 		Type:        "article",
@@ -102,40 +111,29 @@ func (b *InlineBuilder) Article(title, description, text string, options ...*Art
 	if opts.Content.URL != "" {
 		result.Content = &opts.Content
 	}
-	b.InlineResults = append(b.InlineResults, result)
+	i.InlineResults = append(i.InlineResults, result)
 	return result
 }
 
-func (b *InlineBuilder) Photo(photo interface{}, options ...*ArticleOptions) InputBotInlineResult {
+func (i *InlineBuilder) Photo(photo interface{}, options ...*ArticleOptions) InputBotInlineResult {
 	var opts = getVariadic(options, &ArticleOptions{})
-	inputPhoto, err := b.Client.getSendableMedia(photo, &MediaMetadata{})
+	inputPhoto, err := i.Client.getSendableMedia(photo, &MediaMetadata{
+		Inline: true,
+	})
 	if err != nil {
-		b.Client.Logger.Error("InlineBuilder.Photo: Error getting sendable media:", err)
+		i.Client.Logger.Debug("InlineBuilder.Photo: Error getting sendable media:", err)
 		return nil
 	}
 
 	var image InputPhoto
-
-PhotoTypeSwitch:
-	switch p := inputPhoto.(type) {
-	case *InputMediaPhoto:
-		image = p.ID
-	case *InputMediaUploadedPhoto:
-		media, _ := b.Client.MessagesUploadMedia(opts.BusinessConnectionId, &InputPeerSelf{}, p)
-
-		inputPhoto, err = b.Client.getSendableMedia(media, &MediaMetadata{})
-		if err != nil {
-			b.Client.Logger.Error("InlineBuilder.Photo: Error getting sendable media:", err)
-			return nil
-		}
-
-		goto PhotoTypeSwitch
-	default:
-		b.Client.Logger.Warn("InlineBuilder.Photo: Photo is not a InputMediaPhoto but a", reflect.TypeOf(inputPhoto))
-		image = &InputPhotoEmpty{}
+	if im, ok := inputPhoto.(*InputMediaPhoto); !ok {
+		i.Client.Logger.Error("InlineBuilder.Photo: Photo is not a InputMediaPhoto")
+		return nil
+	} else {
+		image = im.ID
 	}
 
-	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()))
+	e, text := parseEntities(opts.Caption, getValue(opts.ParseMode, i.Client.ParseMode()))
 
 	result := &InputBotInlineResultPhoto{
 		ID:    getValue(opts.ID, fmt.Sprint(GenerateRandomLong())),
@@ -166,33 +164,29 @@ PhotoTypeSwitch:
 		result.SendMessage = opts.Invoice
 	}
 
-	b.InlineResults = append(b.InlineResults, result)
+	i.InlineResults = append(i.InlineResults, result)
 	return result
 }
 
-func (b *InlineBuilder) Document(document interface{}, options ...*ArticleOptions) InputBotInlineResult {
+func (i *InlineBuilder) Document(document interface{}, options ...*ArticleOptions) InputBotInlineResult {
 	var opts = getVariadic(options, &ArticleOptions{})
-	inputDoc, err := b.Client.getSendableMedia(document, &MediaMetadata{})
+	inputDoc, err := i.Client.getSendableMedia(document, &MediaMetadata{
+		Inline: true,
+	})
 	if err != nil {
-		b.Client.Logger.Error("InlineBuilder.Document: Error getting sendable media:", err)
+		i.Client.Logger.Debug("InlineBuilder.Document: Error getting sendable media:", err)
 		return nil
 	}
 
 	var doc InputDocument
-DocTypeSwitch:
-	switch p := inputDoc.(type) {
-	case *InputMediaDocument:
-		document = p.ID
-	case *InputMediaUploadedDocument:
-		media, _ := b.Client.MessagesUploadMedia(opts.BusinessConnectionId, &InputPeerSelf{}, p)
-
-		inputDoc, _ = b.Client.getSendableMedia(media, &MediaMetadata{})
-		goto DocTypeSwitch
-	default:
-		b.Client.Logger.Error("InlineBuilder.Document: Document is not a InputMediaDocument")
+	if dc, ok := inputDoc.(*InputMediaDocument); !ok {
+		i.Client.Logger.Warn("inlineBuilder.Document: (skip) Document is not a InputMediaDocument but a", reflect.TypeOf(inputDoc))
+		return nil
+	} else {
+		doc = dc.ID
 	}
 
-	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()))
+	e, text := parseEntities(opts.Caption, getValue(opts.ParseMode, i.Client.ParseMode()))
 
 	result := &InputBotInlineResultDocument{
 		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())),
@@ -225,18 +219,18 @@ DocTypeSwitch:
 		result.SendMessage = opts.Invoice
 	}
 
-	b.InlineResults = append(b.InlineResults, result)
+	i.InlineResults = append(i.InlineResults, result)
 	return result
 }
 
-func (b *InlineBuilder) Game(ID, ShortName string, options ...*ArticleOptions) InputBotInlineResult {
+func (i *InlineBuilder) Game(ID, ShortName string, options ...*ArticleOptions) InputBotInlineResult {
 	var opts ArticleOptions
 	if len(options) > 0 {
 		opts = *options[0]
 	} else {
 		opts = ArticleOptions{}
 	}
-	e, text := b.Client.FormatMessage(opts.Caption, getValue(opts.ParseMode, b.Client.ParseMode()))
+	e, text := parseEntities(opts.Caption, getValue(opts.ParseMode, i.Client.ParseMode()))
 	result := &InputBotInlineResultGame{
 		ID:        getValue(opts.ID, fmt.Sprint(GenerateRandomLong())),
 		ShortName: ShortName,
@@ -263,24 +257,24 @@ func (b *InlineBuilder) Game(ID, ShortName string, options ...*ArticleOptions) I
 	} else if opts.Invoice != nil {
 		result.SendMessage = opts.Invoice
 	}
-	b.InlineResults = append(b.InlineResults, result)
+	i.InlineResults = append(i.InlineResults, result)
 	return result
 }
 
-func (b *InlineQuery) IsChannel() bool {
-	return b.PeerType == InlineQueryPeerTypeBroadcast
+func (i *InlineQuery) IsChannel() bool {
+	return i.PeerType == InlineQueryPeerTypeBroadcast
 }
 
-func (b *InlineQuery) IsGroup() bool {
-	return b.PeerType == InlineQueryPeerTypeChat || b.PeerType == InlineQueryPeerTypeMegagroup
+func (i *InlineQuery) IsGroup() bool {
+	return i.PeerType == InlineQueryPeerTypeChat || i.PeerType == InlineQueryPeerTypeMegagroup
 }
 
-func (b *InlineQuery) IsPrivate() bool {
-	return b.PeerType == InlineQueryPeerTypePm || b.PeerType == InlineQueryPeerTypeSameBotPm
+func (i *InlineQuery) IsPrivate() bool {
+	return i.PeerType == InlineQueryPeerTypePm || i.PeerType == InlineQueryPeerTypeSameBotPm
 }
 
-func (b *InlineQuery) Marshal(nointent ...bool) string {
-	return b.Client.JSON(b.OriginalUpdate, nointent)
+func (i *InlineQuery) Marshal(nointent ...bool) string {
+	return i.Client.JSON(i.OriginalUpdate, nointent)
 }
 
 func (m *InlineQuery) Args() string {
@@ -290,3 +284,13 @@ func (m *InlineQuery) Args() string {
 	}
 	return strings.TrimSpace(strings.Join(Messages[1:], " ")) // Args()
 }
+
+func (i *InlineSend) Edit(message any, options ...SendOptions) (*NewMessage, error) {
+	var opts SendOptions
+	if len(options) > 0 {
+		opts = options[0]
+	}
+	return i.Client.EditMessage(i.MsgID, 0, message, &opts)
+}
+
+// TODO: Complete Implementation of InlineSend
