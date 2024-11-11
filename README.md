@@ -72,6 +72,7 @@ func main() {
 ```
 
 - **[sample modular bot](https://github.com/AmarnathCJD/JuliaBot.git)**: a simple modular bot built using gogram with plugins support.
+- **Try out Live Demo** at **[JuliaBot](https://t.me/rustyDbot)**. 
 
 ## support dev
 
