@@ -486,6 +486,22 @@ func (*Boost) FlagIndex() int {
 	return 0
 }
 
+type BotAppSettings struct {
+	PlaceholderPath     []byte `tl:"flag:0"`
+	BackgroundColor     int32  `tl:"flag:1"`
+	BackgroundDarkColor int32  `tl:"flag:2"`
+	HeaderColor         int32  `tl:"flag:3"`
+	HeaderDarkColor     int32  `tl:"flag:4"`
+}
+
+func (*BotAppSettings) CRC() uint32 {
+	return 0xc99b1950
+}
+
+func (*BotAppSettings) FlagIndex() int {
+	return 0
+}
+
 // Contains info about a [bot business connection](https://core.telegram.org/api/business#connected-bots).
 type BotBusinessConnection struct {
 	CanReply     bool `tl:"flag:0,encoded_in_bitflags"`
@@ -516,18 +532,19 @@ func (*BotCommand) CRC() uint32 {
 
 // Info about bots (available bot commands, etc)
 type BotInfo struct {
-	HasPreviewMedias    bool          `tl:"flag:6,encoded_in_bitflags"`
-	UserID              int64         `tl:"flag:0"`
-	Description         string        `tl:"flag:1"`
-	DescriptionPhoto    Photo         `tl:"flag:4"`
-	DescriptionDocument Document      `tl:"flag:5"`
-	Commands            []*BotCommand `tl:"flag:2"`
-	MenuButton          BotMenuButton `tl:"flag:3"`
-	PrivacyPolicyURL    string        `tl:"flag:7"`
+	HasPreviewMedias    bool            `tl:"flag:6,encoded_in_bitflags"`
+	UserID              int64           `tl:"flag:0"`
+	Description         string          `tl:"flag:1"`
+	DescriptionPhoto    Photo           `tl:"flag:4"`
+	DescriptionDocument Document        `tl:"flag:5"`
+	Commands            []*BotCommand   `tl:"flag:2"`
+	MenuButton          BotMenuButton   `tl:"flag:3"`
+	PrivacyPolicyURL    string          `tl:"flag:7"`
+	AppSettings         *BotAppSettings `tl:"flag:8"`
 }
 
 func (*BotInfo) CRC() uint32 {
-	return 0x82437e74
+	return 0x36607333
 }
 
 func (*BotInfo) FlagIndex() int {
@@ -1940,10 +1957,11 @@ type Invoice struct {
 	MaxTipAmount             int64   `tl:"flag:8"`
 	SuggestedTipAmounts      []int64 `tl:"flag:8"`
 	TermsURL                 string  `tl:"flag:10"`
+	SubscriptionPeriod       int32   `tl:"flag:11"`
 }
 
 func (*Invoice) CRC() uint32 {
-	return 0x5db95a15
+	return 0x49ee584
 }
 
 func (*Invoice) FlagIndex() int {
@@ -2506,6 +2524,18 @@ type MessagesPeerSettings struct {
 
 func (*MessagesPeerSettings) CRC() uint32 {
 	return 0x6880b94d
+}
+
+type MessagesPreparedInlineMessage struct {
+	QueryID   int64
+	Result    BotInlineResult
+	PeerTypes []InlineQueryPeerType
+	CacheTime int32
+	Users     []User
+}
+
+func (*MessagesPreparedInlineMessage) CRC() uint32 {
+	return 0xff57708d
 }
 
 // Indicates how many results would be found by a [messages.search](https://core.telegram.org/method/messages.search) call with the same parameters
@@ -3627,6 +3657,7 @@ func (*SponsoredMessageReportOption) CRC() uint32 {
 type StarGift struct {
 	Limited             bool `tl:"flag:0,encoded_in_bitflags"`
 	SoldOut             bool `tl:"flag:1,encoded_in_bitflags"`
+	Birthday            bool `tl:"flag:2,encoded_in_bitflags"`
 	ID                  int64
 	Sticker             Document
 	Stars               int64
@@ -3720,11 +3751,14 @@ type StarsSubscription struct {
 	Peer           Peer
 	UntilDate      int32
 	Pricing        *StarsSubscriptionPricing
-	ChatInviteHash string `tl:"flag:3"`
+	ChatInviteHash string      `tl:"flag:3"`
+	Title          string      `tl:"flag:4"`
+	Photo          WebDocument `tl:"flag:5"`
+	InvoiceSlug    string      `tl:"flag:6"`
 }
 
 func (*StarsSubscription) CRC() uint32 {
-	return 0x538ecf18
+	return 0x2e6eab1a
 }
 
 func (*StarsSubscription) FlagIndex() int {
@@ -4318,6 +4352,7 @@ type UserFull struct {
 	ReadDatesPrivate        bool `tl:"flag:30,encoded_in_bitflags"`
 	SponsoredEnabled        bool `tl:"flag2:7,encoded_in_bitflags"`
 	CanViewRevenue          bool `tl:"flag2:9,encoded_in_bitflags"`
+	BotCanManageEmojiStatus bool `tl:"flag2:10,encoded_in_bitflags"`
 	ID                      int64
 	About                   string `tl:"flag:1"`
 	Settings                *PeerSettings
@@ -4454,9 +4489,10 @@ func (*WebViewMessageSent) FlagIndex() int {
 
 // Contains the webview URL with appropriate theme and user info parameters added
 type WebViewResultURL struct {
-	Fullsize bool  `tl:"flag:1,encoded_in_bitflags"`
-	QueryID  int64 `tl:"flag:0"`
-	URL      string
+	Fullsize   bool  `tl:"flag:1,encoded_in_bitflags"`
+	Fullscreen bool  `tl:"flag:2,encoded_in_bitflags"`
+	QueryID    int64 `tl:"flag:0"`
+	URL        string
 }
 
 func (*WebViewResultURL) CRC() uint32 {
