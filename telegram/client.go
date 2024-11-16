@@ -3,6 +3,7 @@
 package telegram
 
 import (
+	"context"
 	"crypto/rsa"
 	"fmt"
 	"log"
@@ -130,7 +131,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 	if err := client.clientWarnings(config); err != nil {
 		return nil, err
 	}
-	go client.loopForCleaningExpiredSenders() // start the loop for cleaning expired senders
+	go client.cleanSendersRoutine() // start the loop for cleaning expired senders
 
 	return client, nil
 }
@@ -333,7 +334,7 @@ func (c *Client) IsAuthorized() (bool, error) {
 
 // Disconnect from telegram servers
 func (c *Client) Disconnect() error {
-	go c.cleanExportedSenders()
+	//go c.cleanExportedSenders()
 	return c.MTProto.Disconnect()
 }
 
@@ -362,6 +363,14 @@ func (c *Client) SetAppHash(appHash string) {
 // }
 
 func (c *Client) Me() *UserObj {
+	if c.clientData.me == nil {
+		me, err := c.GetMe()
+		if err != nil {
+			return &UserObj{}
+		}
+		c.clientData.me = me
+	}
+
 	return c.clientData.me
 }
 
@@ -374,7 +383,7 @@ func (c *Client) AddNewExportedSenderToMap(dcID int, sender *Client) {
 	c.exportedSenders.Unlock()
 }
 
-func (c *Client) loopForCleaningExpiredSenders() {
+func (c *Client) cleanSendersRoutine() {
 	for {
 		time.Sleep(DisconnectExportedAfter)
 		c.exportedSenders.Lock()
@@ -405,41 +414,73 @@ func (c *Client) GetCachedExportedSenders(dcID int) []*Client {
 	return senders
 }
 
-// createExportedSender creates a new exported sender
+// CreateExportedSender creates a new exported sender for the given DC
 func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
-	c.Log.Debug("creating exported sender for DC ", dcID)
-	exported, err := c.MTProto.ExportNewSender(dcID, true)
-	if err != nil {
-		return nil, errors.Wrap(err, "exporting new sender")
-	}
+	const retryLimit = 1 // Retry only once
+	var lastError error
 
-	exportedSender := &Client{MTProto: exported, Cache: NewCache(LogDisable, ""), Log: utils.NewLogger("gogram - sender").SetLevel(c.Log.Lev()), wg: sync.WaitGroup{}, clientData: c.clientData, stopCh: make(chan struct{})}
+	for retry := 0; retry <= retryLimit; retry++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 
-	initialReq := &InitConnectionParams{
-		ApiID:          c.clientData.appID,
-		DeviceModel:    c.clientData.deviceModel,
-		SystemVersion:  c.clientData.systemVersion,
-		AppVersion:     c.clientData.appVersion,
-		SystemLangCode: c.clientData.langCode,
-		LangCode:       c.clientData.langCode,
-		Query:          &HelpGetConfigParams{},
-	}
-
-	if c.MTProto.GetDC() != exported.GetDC() {
-		c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
-		auth, err := c.AuthExportAuthorization(int32(exported.GetDC()))
+		c.Log.Debug("creating exported sender for DC ", dcID)
+		exported, err := c.MTProto.ExportNewSender(dcID, true)
 		if err != nil {
-			return nil, errors.Wrap(err, "exporting auth")
+			lastError = errors.Wrap(err, "exporting new sender")
+			c.Log.Error("Error exporting new sender: ", lastError)
+			continue
 		}
 
-		initialReq.Query = &AuthImportAuthorizationParams{
-			ID:    auth.ID,
-			Bytes: auth.Bytes,
+		exportedSender := &Client{
+			MTProto:    exported,
+			Cache:      NewCache(LogDisable, ""),
+			Log:        utils.NewLogger("gogram - sender").SetLevel(c.Log.Lev()),
+			wg:         sync.WaitGroup{},
+			clientData: c.clientData,
+			stopCh:     make(chan struct{}),
 		}
+
+		initialReq := &InitConnectionParams{
+			ApiID:          c.clientData.appID,
+			DeviceModel:    c.clientData.deviceModel,
+			SystemVersion:  c.clientData.systemVersion,
+			AppVersion:     c.clientData.appVersion,
+			SystemLangCode: c.clientData.langCode,
+			LangCode:       c.clientData.langCode,
+			Query:          &HelpGetConfigParams{},
+		}
+
+		if c.MTProto.GetDC() != exported.GetDC() {
+			c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
+			auth, err := c.AuthExportAuthorization(int32(exported.GetDC()))
+			if err != nil {
+				lastError = errors.Wrap(err, "exporting auth")
+				c.Log.Error("Error exporting auth: ", lastError)
+				continue
+			}
+
+			initialReq.Query = &AuthImportAuthorizationParams{
+				ID:    auth.ID,
+				Bytes: auth.Bytes,
+			}
+		}
+
+		c.Log.Debug("Sending initial request...")
+		_, err = exportedSender.MakeRequestCtx(ctx, &InvokeWithLayerParams{
+			Layer: ApiVersion,
+			Query: initialReq,
+		})
+
+		if err != nil {
+			lastError = errors.Wrap(err, "making initial request")
+			c.Log.Error(fmt.Sprintf("Attempt %d: Error during initial request: %v", retry+1, lastError))
+			continue
+		}
+
+		return exportedSender, nil
 	}
 
-	_, err = exportedSender.InvokeWithLayer(ApiVersion, initialReq)
-	return exportedSender, err
+	return nil, lastError
 }
 
 // cleanExportedSenders terminates all exported senders and removes them from cache
@@ -448,7 +489,7 @@ func (c *Client) cleanExportedSenders() {
 	defer c.exportedSenders.Unlock()
 
 	for _, sender := range c.exportedSenders.senders {
-		sender.client.Terminate()
+		sender.client.Stop()
 	}
 	c.exportedSenders.senders = nil
 }
@@ -548,7 +589,7 @@ func (c *Client) ParseMode() string {
 
 // Terminate client and disconnect from telegram server
 func (c *Client) Terminate() error {
-	go c.cleanExportedSenders()
+	//go c.cleanExportedSenders()
 	return c.MTProto.Terminate()
 }
 
@@ -567,7 +608,14 @@ func (c *Client) Idle() {
 
 // Stop stops the client and disconnects from telegram server
 func (c *Client) Stop() error {
-	close(c.stopCh)
+	// close(c.stopCh)
+	// safe close it with a select
+	select {
+	case <-c.stopCh:
+	default:
+		close(c.stopCh)
+	}
+
 	go c.cleanExportedSenders()
 	return c.MTProto.Terminate()
 }

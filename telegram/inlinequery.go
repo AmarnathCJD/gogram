@@ -60,7 +60,9 @@ type ArticleOptions struct {
 	ID                   string                             `json:"id,omitempty"`
 	Title                string                             `json:"title,omitempty"`
 	Description          string                             `json:"description,omitempty"`
+	MimeType             string                             `json:"mime_type,omitempty"`
 	ExcludeMedia         bool                               `json:"exclude_media,omitempty"`
+	ForceDocument        bool                               `json:"force_document,omitempty"`
 	Thumb                InputWebDocument                   `json:"thumb,omitempty"`
 	Content              InputWebDocument                   `json:"content,omitempty"`
 	LinkPreview          bool                               `json:"link_preview,omitempty"`
@@ -73,6 +75,7 @@ type ArticleOptions struct {
 	Contact              *InputBotInlineMessageMediaContact `json:"contact,omitempty"`
 	Invoice              *InputBotInlineMessageMediaInvoice `json:"invoice,omitempty"`
 	BusinessConnectionId string                             `json:"business_connection_id,omitempty"`
+	VoiceNote            bool                               `json:"voice_note,omitempty"`
 }
 
 func (i *InlineBuilder) Article(title, description, text string, options ...*ArticleOptions) InputBotInlineResult {
@@ -171,7 +174,8 @@ func (i *InlineBuilder) Photo(photo interface{}, options ...*ArticleOptions) Inp
 func (i *InlineBuilder) Document(document interface{}, options ...*ArticleOptions) InputBotInlineResult {
 	var opts = getVariadic(options, &ArticleOptions{})
 	inputDoc, err := i.Client.getSendableMedia(document, &MediaMetadata{
-		Inline: true,
+		Inline:        true,
+		ForceDocument: true,
 	})
 	if err != nil {
 		i.Client.Logger.Debug("InlineBuilder.Document: Error getting sendable media:", err)
@@ -190,7 +194,7 @@ func (i *InlineBuilder) Document(document interface{}, options ...*ArticleOption
 
 	result := &InputBotInlineResultDocument{
 		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())),
-		Type:        "document",
+		Type:        getInlineDocumentType(opts.MimeType, opts.VoiceNote),
 		Document:    doc,
 		Title:       opts.Title,
 		Description: opts.Description,

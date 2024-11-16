@@ -333,7 +333,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 
 	m.startReadingResponses(ctx)
-	go m.longPing()
+	go m.longPing(ctx)
 	if !m.encrypted {
 		m.Logger.Debug("authKey not found, creating new one")
 		err = m.makeAuthKey()
@@ -370,7 +370,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	if !m.TcpActive() {
 		_ = m.CreateConnection(false)
 	}
-	resp, err := m.sendPacket(data, expectedTypes...)
+	resp, _, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
 		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") {
 			m.Logger.Info("connection closed due to broken tcp, reconnecting to [" + m.Addr + "]" + " - <Tcp> ...")
@@ -402,8 +402,51 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	return tl.UnwrapNativeTypes(response), nil
 }
 
+func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) (any, error) {
+	if !m.TcpActive() {
+		_ = m.CreateConnection(false)
+	}
+	resp, msgId, err := m.sendPacket(data, expectedTypes...)
+	if err != nil {
+		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") {
+			m.Logger.Info("connection closed due to broken tcp, reconnecting to [" + m.Addr + "]" + " - <Tcp> ...")
+			err = m.Reconnect(false)
+			if err != nil {
+				return nil, errors.Wrap(err, "reconnecting")
+			}
+			return m.makeRequestCtx(ctx, data, expectedTypes...)
+		}
+		return nil, errors.Wrap(err, "sending packet")
+	}
+
+	select {
+	case <-ctx.Done():
+		m.writeRPCResponse(int(msgId), &errorSessionConfigsChanged{})
+		fmt.Println("context done: writing null")
+		return nil, ctx.Err()
+	case response := <-resp:
+		switch r := response.(type) {
+		case *objects.RpcError:
+			if err := RpcErrorToNative(r).(*ErrResponseCode); strings.Contains(err.Message, "FLOOD_WAIT_") || strings.Contains(err.Message, "FLOOD_PREMIUM_WAIT_") {
+				if done := m.floodHandler(err); !done {
+					return nil, RpcErrorToNative(r)
+				} else {
+					return m.makeRequestCtx(ctx, data, expectedTypes...)
+				}
+			}
+			return nil, RpcErrorToNative(r)
+
+		case *errorSessionConfigsChanged:
+			m.Logger.Debug("session configs changed, resending request")
+			return m.makeRequestCtx(ctx, data, expectedTypes...)
+		}
+
+		return tl.UnwrapNativeTypes(response), nil
+	}
+}
+
 func (m *MTProto) InvokeRequestWithoutUpdate(data tl.Object, expectedTypes ...reflect.Type) error {
-	_, err := m.sendPacket(data, expectedTypes...)
+	_, _, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
 		return errors.Wrap(err, "sending packet")
 	}
@@ -424,7 +467,6 @@ func (m *MTProto) Disconnect() error {
 func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
-	m.Logger.Info("terminating connection to [" + m.Addr + "] - <Tcp> ...")
 	m.tcpActive = false
 	return nil
 }
@@ -442,28 +484,36 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 	if err == nil && WithLogs {
 		m.Logger.Info(fmt.Sprintf("reconnected to [%s] - <Tcp>", m.Addr))
 	}
-	m.InvokeRequestWithoutUpdate(&utils.PingParams{
-		PingID: 123456789,
-	})
+	m.Ping()
 
 	return errors.Wrap(err, "recreating connection")
 }
 
 // keep pinging to keep the connection alive
-func (m *MTProto) longPing() {
+func (m *MTProto) longPing(ctx context.Context) {
+	m.routineswg.Add(1)
+	defer m.routineswg.Done()
+
 	for {
-		time.Sleep(30 * time.Second)
-		pingId := time.Now().Unix()
-		m.InvokeRequestWithoutUpdate(&utils.PingParams{
-			PingID: pingId,
-		})
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			if !m.TcpActive() {
+				m.Logger.Warn("connection is not established with, stopping Ping routine")
+				return
+			}
+
+			time.Sleep(30 * time.Second)
+			m.Ping()
+		}
 	}
 }
 
 func (m *MTProto) Ping() time.Duration {
 	start := time.Now()
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
-		PingID: 123456789,
+		PingID: time.Now().Unix(),
 	})
 	return time.Since(start)
 }
@@ -486,7 +536,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 
 				if err != nil {
 					if strings.Contains(err.Error(), "unexpected error: unexpected EOF") {
-						m.Logger.Debug("unexpected EOF, reconnecting to [" + m.Addr + "] - <Tcp> ...") // TODO: beautify this
+						m.Logger.Debug("tcp connection closed, reconnecting to [" + m.Addr + "] - <Tcp> ...")
 						err = m.Reconnect(false)
 						if err != nil {
 							m.Logger.Error(errors.Wrap(err, "reconnecting"))
@@ -640,20 +690,14 @@ messageTypeSwitching:
 		respChannelsBackup = m.responseChannels
 
 		m.responseChannels = utils.NewSyncIntObjectChan()
-		//m.Reconnect(false)
-
-		sendToChannelWithTimeout := func(ch chan tl.Object, data tl.Object) {
-			timeout := time.After(1 * time.Millisecond)
-			select {
-			case ch <- data:
-			case <-timeout:
-			}
-		}
-
 		for _, k := range respChannelsBackup.Keys() {
-			v, _ := respChannelsBackup.Get(k)
-			respChannelsBackup.Delete(k)
-			sendToChannelWithTimeout(v, &errorSessionConfigsChanged{})
+			if v, ok := respChannelsBackup.Get(k); ok {
+				respChannelsBackup.Delete(k)
+				select {
+				case v <- &errorSessionConfigsChanged{}:
+				case <-time.After(1 * time.Millisecond):
+				}
+			}
 		}
 
 	case *objects.NewSessionCreated:
@@ -673,8 +717,11 @@ messageTypeSwitching:
 		m.pendingAcks.Add(message.AnswerMsgID)
 		return nil
 
-	case *objects.Pong, *objects.MsgsAck:
+	case *objects.Pong:
 		m.Logger.Debug("rpc - ping: " + fmt.Sprintf("%T", message))
+
+	case *objects.MsgsAck:
+		// do nothing
 
 	case *objects.BadMsgNotification:
 		badMsg := BadMsgErrorFromNative(message)

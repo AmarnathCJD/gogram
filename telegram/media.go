@@ -4,6 +4,7 @@ package telegram
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"fmt"
 	"hash"
@@ -433,13 +434,10 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	go c.allocateRemainingWorkers(dc, w, numWorkers, wPreallocated)
 
 	mu := sync.Mutex{}
-	wg := sync.WaitGroup{}
 	var doneArray = make([]bool, totalParts+1)
 	var doneBytes = atomic.Int64{}
 
 	c.downloadParts(&mu, w, partSize, doneArray, numWorkers, location, &fs, opts, parts, &doneBytes)
-
-	wg.Wait()
 
 	if partOver > 0 {
 		c.downloadLastPart(dc, w, location, partSize, totalParts, parts, &fs, opts, doneArray, partOver, &doneBytes)
@@ -456,6 +454,10 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	}
 
 	c.retryFailedParts(totalParts, dc, w, doneArray, &fs, opts, location, partSize, &doneBytes)
+	if opts.ProgressCallback != nil {
+		opts.ProgressCallback(size, doneBytes.Load())
+	}
+
 	return dest, nil
 }
 
@@ -480,7 +482,7 @@ func (c *Client) initializeWorkers(numWorkers int, dc int32) ([]Sender, int) {
 
 func (c *Client) allocateRemainingWorkers(dc int32, w []Sender, numWorkers, wPreallocated int) {
 	for i := wPreallocated; i < numWorkers; i++ {
-		c.createAndAppendSender(int(dc), w, i)
+		go c.createAndAppendSender(int(dc), w, i)
 	}
 }
 
@@ -494,23 +496,27 @@ func (c *Client) createAndAppendSender(dcId int, senders []Sender, senderIndex i
 
 func (c *Client) downloadParts(mu *sync.Mutex, w []Sender, partSize int, doneArray []bool, numWorkers int, location InputFileLocation, fs *Destination, opts *DownloadOptions, parts int64, doneBytes *atomic.Int64) {
 	wg := sync.WaitGroup{}
-	sem := make(chan struct{}, 1)
+	sem := make(chan struct{}, numWorkers)
 
 	for p := int64(0); p < parts; p++ {
 		sem <- struct{}{}
 		wg.Add(1)
+
 		go func(p int64) {
 			defer wg.Done()
 			defer func() { <-sem }()
+
 			for {
 				mu.Lock()
 				found, workerIndex := c.findAvailableWorker(w, numWorkers)
 				mu.Unlock()
 
 				if found {
-					go c.downloadPart(mu, w, workerIndex, int(p), partSize, doneArray, location, fs, opts, doneBytes, parts*int64(partSize))
+					c.downloadPart(mu, w, workerIndex, int(p), partSize, doneArray, location, fs, opts, doneBytes, parts*int64(partSize))
 					break
 				}
+
+				time.Sleep(2 * time.Millisecond)
 			}
 		}(p)
 	}
@@ -528,57 +534,65 @@ func (c *Client) findAvailableWorker(w []Sender, numWorkers int) (bool, int) {
 	return false, -1
 }
 
-func (c *Client) downloadPart(mu *sync.Mutex, w []Sender, workerIndex, p int, partSize int, doneArray []bool, location InputFileLocation, fs *Destination, opts *DownloadOptions, doneBytes *atomic.Int64, totalBytes int64) {
+func (c *Client) downloadPart(mu *sync.Mutex, workers []Sender, workerIndex, partIndex, partSize int, doneArray []bool, location InputFileLocation, fs *Destination, opts *DownloadOptions, doneBytes *atomic.Int64, totalBytes int64) {
 	defer func() {
 		mu.Lock()
-		w[workerIndex].buzy = false
+		workers[workerIndex].buzy = false
 		mu.Unlock()
 	}()
 
+	const maxRetries = 3
+	const reqTimeout = 4 * time.Second
 	retryCount := 0
-	reqTimeout := 4 * time.Second
 
-partDownloadStartPoint:
-	c.Logger.Debug(fmt.Sprintf("download part %d in chunks of %d", p, partSize/1024))
+	for retryCount < maxRetries {
+		c.Logger.Debug(fmt.Sprintf("Downloading part %d with chunk size %d KB", partIndex, partSize/1024))
 
-	resultChan := make(chan UploadFile, 1)
-	errorChan := make(chan error, 1)
+		ctx, cancel := context.WithTimeout(context.Background(), reqTimeout)
+		defer cancel()
 
-	go func() {
-		upl, err := w[workerIndex].c.UploadGetFile(&UploadGetFileParams{
-			Location:     location,
-			Offset:       int64(p * partSize),
-			Limit:        int32(partSize),
-			Precise:      true,
-			CdnSupported: false,
-		})
-		if err != nil {
-			errorChan <- err
+		resultChan := make(chan UploadFile, 1)
+		errorChan := make(chan error, 1)
+
+		go func() {
+			upl, err := workers[workerIndex].c.MakeRequestCtx(ctx, &UploadGetFileParams{
+				Location:     location,
+				Offset:       int64(partIndex * partSize),
+				Limit:        int32(partSize),
+				Precise:      true,
+				CdnSupported: false,
+			})
+			if err != nil {
+				errorChan <- err
+				return
+			}
+			resultChan <- upl.(UploadFile)
+		}()
+
+		select {
+		case upl := <-resultChan:
+			if upl == nil {
+				retryCount++
+				c.Logger.Debug(fmt.Sprintf("Retrying part %d due to nil response", partIndex))
+				continue
+			}
+			c.processDownloadedPart(upl, partIndex, doneArray, fs, partSize, opts, doneBytes, totalBytes)
 			return
-		}
-		resultChan <- upl
-	}()
-
-	select {
-	case upl := <-resultChan:
-		if upl == nil {
-			goto partDownloadStartPoint
-		}
-
-		c.processDownloadedPart(upl, p, doneArray, fs, partSize, opts, doneBytes, totalBytes)
-	case err := <-errorChan:
-		if handleIfFlood(err, c) {
-			goto partDownloadStartPoint
-		}
-		c.Logger.Error(err, " - ", p)
-	case <-time.After(reqTimeout):
-		retryCount++
-		if retryCount > 2 {
-			c.Logger.Debug(fmt.Errorf("upload part %d timed out - queuing for seq", p))
+		case err := <-errorChan:
+			c.Logger.Error(err, fmt.Sprintf("Error in part %d", partIndex))
+			if handleIfFlood(err, c) {
+				retryCount++
+				c.Logger.Debug(fmt.Sprintf("Flood wait detected, retrying part %d", partIndex))
+				continue
+			}
 			return
+		case <-ctx.Done():
+			retryCount++
+			c.Logger.Debug(fmt.Sprintf("Part %d download timed out, retrying", partIndex))
 		}
-		goto partDownloadStartPoint
 	}
+
+	c.Logger.Debug(fmt.Sprintf("part %d queued for seq", partIndex))
 }
 
 func (c *Client) processDownloadedPart(upl UploadFile, p int, doneArray []bool, fs *Destination, partSize int, opts *DownloadOptions, doneBytes *atomic.Int64, size int64) {
@@ -598,72 +612,86 @@ func (c *Client) processDownloadedPart(upl UploadFile, p int, doneArray []bool, 
 
 	doneBytes.Add(int64(len(buffer)))
 	if opts.ProgressCallback != nil {
-		go opts.ProgressCallback(size, doneBytes.Load())
+		opts.ProgressCallback(size, doneBytes.Load())
 	}
 }
 
 func (c *Client) downloadLastPart(dc int32, w []Sender, location InputFileLocation, partSize int, totalParts int64, parts int64, fs *Destination, opts *DownloadOptions, doneArray []bool, partOver int64, doneBytes *atomic.Int64) {
-downloadLastPartStartPoint:
-	if w[0].c == nil {
-		for i := 0; i < len(w); i++ {
-			if w[i].c != nil {
-				w[0].c = w[i].c
-				break
+	const retryLimit = 2
+	const reqTimeout = 4 * time.Second
+	var retryCount int
+
+	for retryCount <= retryLimit {
+		if w[0].c == nil {
+			for i := 0; i < len(w); i++ {
+				if w[i].c != nil {
+					w[0].c = w[i].c
+					break
+				}
 			}
 		}
-	}
 
-	if w[0].c == nil {
-		c.createAndAppendSender(int(dc), w, 0)
-	}
+		if w[0].c == nil {
+			c.createAndAppendSender(int(dc), w, 0)
+		}
 
-	if w[0].c == nil {
-		c.Logger.Warn(errors.Wrap(errors.New("failed to create sender for dc "+fmt.Sprint(dc)), "download failed"))
-		return
-	}
-
-	c.Logger.Debug(fmt.Sprintf("downloading last part %d in chunks of %d", totalParts-1, partOver/1024))
-
-	retryCount := 0
-	reqTimeout := 4 * time.Second
-
-	resultChan := make(chan UploadFile, 1)
-	errorChan := make(chan error, 1)
-
-	go func() {
-		upl, err := w[0].c.UploadGetFile(&UploadGetFileParams{
-			Location:     location,
-			Offset:       int64(int(parts) * partSize),
-			Limit:        int32(partSize),
-			Precise:      true,
-			CdnSupported: false,
-		})
-		if err != nil {
-			errorChan <- err
+		if w[0].c == nil {
+			c.Logger.Warn(errors.Wrap(errors.New("failed to create sender for dc "+fmt.Sprint(dc)), "download failed"))
 			return
 		}
-		resultChan <- upl
-	}()
 
-	select {
-	case upl := <-resultChan:
-		if upl == nil {
-			goto downloadLastPartStartPoint
+		c.Logger.Debug(fmt.Sprintf("downloading last part %d in chunks of %d", totalParts-1, partOver/1024))
+
+		ctx, cancel := context.WithTimeout(context.Background(), reqTimeout)
+		defer cancel()
+
+		resultChan := make(chan UploadFile, 1)
+		errorChan := make(chan error, 1)
+
+		go func() {
+			upl, err := w[0].c.MakeRequestCtx(ctx, &UploadGetFileParams{
+				Location:     location,
+				Offset:       int64(int(parts) * partSize),
+				Limit:        int32(partSize),
+				Precise:      true,
+				CdnSupported: false,
+			})
+			if err != nil {
+				errorChan <- err
+				return
+			}
+			resultChan <- upl.(UploadFile)
+		}()
+
+		select {
+		case upl := <-resultChan:
+			if upl == nil {
+				c.Logger.Warn("Received nil result, retrying...")
+				retryCount++
+				continue
+			}
+
+			c.processDownloadedPart(upl, int(parts), doneArray, fs, partSize, opts, doneBytes, parts*int64(partSize))
+			return
+
+		case err := <-errorChan:
+			if handleIfFlood(err, c) {
+				c.Logger.Warn("Flood detected, retrying...")
+				retryCount++
+				continue
+			}
+			c.Logger.Error(err, " - ", parts, " - (last part)")
+			return
+
+		case <-ctx.Done():
+			c.Logger.Warn(fmt.Sprintf("Timeout for part %d, retrying... (%d/%d)", parts, retryCount+1, retryLimit))
+			retryCount++
 		}
 
-		c.processDownloadedPart(upl, int(parts), doneArray, fs, partSize, opts, doneBytes, parts*int64(partSize))
-	case err := <-errorChan:
-		if handleIfFlood(err, c) {
-			goto downloadLastPartStartPoint
-		}
-		c.Logger.Error(err, " - ", parts, " - (last part)")
-	case <-time.After(reqTimeout):
-		retryCount++
-		if retryCount > 2 {
-			c.Logger.Debug(fmt.Errorf("upload part %d timed out - queuing for seq", parts))
+		if retryCount > retryLimit {
+			c.Logger.Debug(fmt.Sprintf("Max retries reached for part %d", parts))
 			return
 		}
-		goto downloadLastPartStartPoint
 	}
 }
 

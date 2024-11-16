@@ -3,6 +3,7 @@
 package gogram
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -15,10 +16,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (chan tl.Object, error) {
+func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (chan tl.Object, int64, error) {
 	msg, err := tl.Marshal(request)
 	if err != nil {
-		return nil, errors.Wrap(err, "marshaling request")
+		return nil, 0, errors.Wrap(err, "marshaling request")
 	}
 
 	var (
@@ -58,15 +59,17 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 	} else {
 		seqNo = m.UpdateSeqNo()
 	}
-
 	if m.transport == nil {
-		return nil, errors.New("transport is nil, please use SetTransport")
+		m.CreateConnection(false)
+		if m.transport == nil {
+			return nil, 0, errors.New("transport is nil, please use SetTransport")
+		}
 	}
 	errorSendPacket := m.transport.WriteMsg(data, seqNo)
 	if errorSendPacket != nil {
-		return nil, fmt.Errorf("writing message: %w", errorSendPacket)
+		return nil, msgID, fmt.Errorf("writing message: %w", errorSendPacket)
 	}
-	return resp, nil
+	return resp, msgID, nil
 }
 
 func (m *MTProto) writeRPCResponse(msgID int, data tl.Object) error {
@@ -138,6 +141,10 @@ func (m *MTProto) SetAuthKey(key []byte) {
 
 func (m *MTProto) MakeRequest(msg tl.Object) (any, error) {
 	return m.makeRequest(msg)
+}
+
+func (m *MTProto) MakeRequestCtx(ctx context.Context, msg tl.Object) (any, error) {
+	return m.makeRequestCtx(ctx, msg)
 }
 
 func (m *MTProto) MakeRequestWithHintToDecoder(msg tl.Object, expectedTypes ...reflect.Type) (any, error) {
