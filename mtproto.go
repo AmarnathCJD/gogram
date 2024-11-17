@@ -421,8 +421,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 
 	select {
 	case <-ctx.Done():
-		m.writeRPCResponse(int(msgId), &errorSessionConfigsChanged{})
-		fmt.Println("context done: writing null")
+		m.writeRPCResponse(int(msgId), &objects.Null{})
 		return nil, ctx.Err()
 	case response := <-resp:
 		switch r := response.(type) {
