@@ -30,11 +30,19 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 	if cfg.Socks != nil && cfg.Socks.Host != "" {
 		return newSocksTCP(cfg)
 	}
-	tcpAddr, err := net.ResolveTCPAddr("tcp", cfg.Host)
+
+	tcpPrefix := "tcp"
+	if cfg.IpV6 {
+		tcpPrefix = "tcp6"
+
+		cfg.Host, _ = formatIPv6WithPort(cfg.Host)
+	}
+
+	tcpAddr, err := net.ResolveTCPAddr(tcpPrefix, cfg.Host)
 	if err != nil {
 		return nil, errors.Wrap(err, "resolving tcp")
 	}
-	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	conn, err := net.DialTCP(tcpPrefix, nil, tcpAddr)
 	if err != nil {
 		return nil, errors.Wrap(err, "dialing tcp")
 	}
