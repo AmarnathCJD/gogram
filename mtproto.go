@@ -323,9 +323,9 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Info(fmt.Sprintf("connecting to [%s] - <Tcp> ...", m.Addr))
+		m.Logger.Info(fmt.Sprintf("connecting to [%s] - <%s> ...", utils.FmtIp(m.Addr), utils.Vtcp(m.IpV6)))
 	} else {
-		m.Logger.Debug("connecting to [" + m.Addr + "] - <Tcp> ...")
+		m.Logger.Debug(fmt.Sprintf("connecting to [%s] - <%s> ...", utils.FmtIp(m.Addr), utils.Vtcp(m.IpV6)))
 	}
 	err := m.connect(ctx)
 	if err != nil {
@@ -335,15 +335,15 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	m.tcpActive = true
 	if withLog {
 		if m.proxy != nil && m.proxy.Host != "" {
-			m.Logger.Info(fmt.Sprintf("connection to (~%s)[%s] - <Tcp> established", m.proxy.Host, m.Addr))
+			m.Logger.Info(fmt.Sprintf("connection to (~%s)[%s] - <%s> established", utils.FmtIp(m.proxy.Host), m.Addr, utils.Vtcp(m.IpV6)))
 		} else {
-			m.Logger.Info(fmt.Sprintf("connection to [%s] - <Tcp> established", m.Addr))
+			m.Logger.Info(fmt.Sprintf("connection to [%s] - <%s> established", utils.FmtIp(m.Addr), utils.Vtcp(m.IpV6)))
 		}
 	} else {
 		if m.proxy != nil && m.proxy.Host != "" {
-			m.Logger.Debug("connection to (~" + m.proxy.Host + ")[" + m.Addr + "] - <Tcp> established")
+			m.Logger.Debug(fmt.Sprintf("connection to (~%s)[%s] - <%s> established", utils.FmtIp(m.proxy.Host), m.Addr, utils.Vtcp(m.IpV6)))
 		} else {
-			m.Logger.Debug("connection to [" + m.Addr + "] - <Tcp> established")
+			m.Logger.Debug(fmt.Sprintf("connection to [%s] - <%s> established", utils.FmtIp(m.Addr), utils.Vtcp(m.IpV6)))
 		}
 	}
 
@@ -367,7 +367,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 		m,
 		transport.TCPConnConfig{
 			Ctx:     ctx,
-			Host:    m.Addr,
+			Host:    utils.FmtIp(m.Addr),
 			IpV6:    m.IpV6,
 			Timeout: defaultTimeout,
 			Socks:   m.proxy,

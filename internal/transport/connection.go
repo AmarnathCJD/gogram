@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -32,10 +33,8 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 	}
 
 	tcpPrefix := "tcp"
-	if cfg.IpV6 {
+	if cfg.IpV6 && !strings.Contains(cfg.Host, ".") {
 		tcpPrefix = "tcp6"
-
-		cfg.Host, _ = formatIPv6WithPort(cfg.Host)
 	}
 
 	tcpAddr, err := net.ResolveTCPAddr(tcpPrefix, cfg.Host)
