@@ -472,8 +472,11 @@ mediaTypeSwitch:
 				return photoExt, nil
 			}
 
+			if attr == nil {
+				return nil, errors.New("attributes cannot be nil")
+			}
 			documentExt := &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}
-			if attr != nil && attr.Inline {
+			if attr.Inline {
 				return c.uploadToSelf(documentExt)
 			}
 
@@ -481,8 +484,8 @@ mediaTypeSwitch:
 		} else {
 			if _, err := os.Stat(media); err == nil {
 				uploadOpts := &UploadOptions{}
-				if attr.ProgressCallback != nil {
-					uploadOpts.ProgressCallback = attr.ProgressCallback
+				if attr.ProgressManager != nil {
+					uploadOpts.ProgressManager = attr.ProgressManager
 				}
 				uploadOpts.Threads = attr.UploadThreads
 
@@ -596,7 +599,7 @@ mediaTypeSwitch:
 	case []byte, *io.Reader, *bytes.Buffer, *os.File:
 		var uopts *UploadOptions = &UploadOptions{}
 		if attr != nil {
-			uopts.ProgressCallback = attr.ProgressCallback
+			uopts.ProgressManager = attr.ProgressManager
 			if attr.FileName != "" {
 				uopts.FileName = attr.FileName
 			}
