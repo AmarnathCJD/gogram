@@ -97,7 +97,7 @@ func (*Generator) generateComment(name, _type string) (string, []string) {
 	ack = strings.Split(ack, "<div id=\"dev_page_content\">")[1]
 	ack = strings.Split(ack, "</p>")[0]
 	ack = strings.ReplaceAll(ack, "<p>", "")
-	//ack = strings.ReplaceAll(ack, "see .", "")
+	// ack = strings.ReplaceAll(ack, "see .", "")
 	ack = regexLinkTag.ReplaceAllString(ack, "[$2](https://core.telegram.org$1)")
 
 	ack = regexCodeTag.ReplaceAllString(ack, "`$1`")
