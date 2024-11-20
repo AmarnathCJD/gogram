@@ -3464,6 +3464,33 @@ func (c *Client) BotsCanSendMessage(bot InputUser) (bool, error) {
 	return resp, nil
 }
 
+type BotsCheckDownloadFileParamsParams struct {
+	Bot      InputUser
+	FileName string
+	URL      string
+}
+
+func (*BotsCheckDownloadFileParamsParams) CRC() uint32 {
+	return 0x50077589
+}
+
+func (c *Client) BotsCheckDownloadFileParams(bot InputUser, fileName, url string) (bool, error) {
+	responseData, err := c.MakeRequest(&BotsCheckDownloadFileParamsParams{
+		Bot:      bot,
+		FileName: fileName,
+		URL:      url,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending BotsCheckDownloadFileParams")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type BotsDeletePreviewMediaParams struct {
 	Bot      InputUser
 	LangCode string
@@ -3936,6 +3963,31 @@ func (c *Client) BotsSetBotMenuButton(userID InputUser, button BotMenuButton) (b
 	return resp, nil
 }
 
+type BotsToggleUserEmojiStatusPermissionParams struct {
+	Bot     InputUser
+	Enabled bool
+}
+
+func (*BotsToggleUserEmojiStatusPermissionParams) CRC() uint32 {
+	return 0x6de6392
+}
+
+func (c *Client) BotsToggleUserEmojiStatusPermission(bot InputUser, enabled bool) (bool, error) {
+	responseData, err := c.MakeRequest(&BotsToggleUserEmojiStatusPermissionParams{
+		Bot:     bot,
+		Enabled: enabled,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending BotsToggleUserEmojiStatusPermission")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type BotsToggleUsernameParams struct {
 	Bot      InputUser
 	Username string
@@ -3955,6 +4007,31 @@ func (c *Client) BotsToggleUsername(bot InputUser, username string, active bool)
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending BotsToggleUsername")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type BotsUpdateUserEmojiStatusParams struct {
+	UserID      InputUser
+	EmojiStatus EmojiStatus
+}
+
+func (*BotsUpdateUserEmojiStatusParams) CRC() uint32 {
+	return 0xed9f30c5
+}
+
+func (c *Client) BotsUpdateUserEmojiStatus(userID InputUser, emojiStatus EmojiStatus) (bool, error) {
+	responseData, err := c.MakeRequest(&BotsUpdateUserEmojiStatusParams{
+		EmojiStatus: emojiStatus,
+		UserID:      userID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending BotsUpdateUserEmojiStatus")
 	}
 
 	resp, ok := responseData.(bool)
@@ -5648,7 +5725,6 @@ func (c *Client) ChatlistsDeleteExportedInvite(chatlist *InputChatlistDialogFilt
 }
 
 type ChatlistsEditExportedInviteParams struct {
-	Revoked  bool `tl:"flag:0,encoded_in_bitflags"`
 	Chatlist *InputChatlistDialogFilter
 	Slug     string
 	Title    string      `tl:"flag:1"`
@@ -5664,8 +5740,13 @@ func (*ChatlistsEditExportedInviteParams) FlagIndex() int {
 }
 
 // Edit a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
-func (c *Client) ChatlistsEditExportedInvite(params *ChatlistsEditExportedInviteParams) (*ExportedChatlistInvite, error) {
-	responseData, err := c.MakeRequest(params)
+func (c *Client) ChatlistsEditExportedInvite(chatlist *InputChatlistDialogFilter, slug, title string, peers []InputPeer) (*ExportedChatlistInvite, error) {
+	responseData, err := c.MakeRequest(&ChatlistsEditExportedInviteParams{
+		Chatlist: chatlist,
+		Peers:    peers,
+		Slug:     slug,
+		Title:    title,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending ChatlistsEditExportedInvite")
 	}
@@ -6053,26 +6134,6 @@ func (c *Client) ContactsEditCloseFriends(id []int64) (bool, error) {
 	return resp, nil
 }
 
-type ContactsExportCardParams struct{}
-
-func (*ContactsExportCardParams) CRC() uint32 {
-	return 0x84e53737
-}
-
-// Returns the current user&#39;s card that can be later used to contact a Telegram user without knowing his phone number.
-func (c *Client) ContactsExportCard() ([]int32, error) {
-	responseData, err := c.MakeRequest(&ContactsExportCardParams{})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsExportCard")
-	}
-
-	resp, ok := responseData.([]int32)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type ContactsExportContactTokenParams struct{}
 
 func (*ContactsExportContactTokenParams) CRC() uint32 {
@@ -6295,28 +6356,6 @@ func (c *Client) ContactsGetTopPeers(params *ContactsGetTopPeersParams) (Contact
 	}
 
 	resp, ok := responseData.(ContactsTopPeers)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type ContactsImportCardParams struct {
-	ExportCard []int32
-}
-
-func (*ContactsImportCardParams) CRC() uint32 {
-	return 0x4fe196fe
-}
-
-// Returns general information on a user using his previously [exported card](https://core.telegram.orghttps://core.telegram.org/method/contacts.exportCard) as input.<br>The app may use it to open a conversation without knowing the user&#39;s phone number.
-func (c *Client) ContactsImportCard(exportCard []int32) (User, error) {
-	responseData, err := c.MakeRequest(&ContactsImportCardParams{ExportCard: exportCard})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsImportCard")
-	}
-
-	resp, ok := responseData.(User)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -6567,28 +6606,6 @@ func (c *Client) ContactsUnblock(myStoriesFrom bool, id InputPeer) (bool, error)
 	return resp, nil
 }
 
-type FoldersDeleteFolderParams struct {
-	FolderID int32
-}
-
-func (*FoldersDeleteFolderParams) CRC() uint32 {
-	return 0x1c295881
-}
-
-// Delete a [peer folder](https://core.telegram.org/api/folders#peer-folders)
-func (c *Client) FoldersDeleteFolder(folderID int32) (Updates, error) {
-	responseData, err := c.MakeRequest(&FoldersDeleteFolderParams{FolderID: folderID})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending FoldersDeleteFolder")
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type FoldersEditPeerFoldersParams struct {
 	FolderPeers []*InputFolderPeer
 }
@@ -6703,31 +6720,6 @@ func (c *Client) HelpEditUserInfo(userID InputUser, message string, entities []M
 	}
 
 	resp, ok := responseData.(HelpUserInfo)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type HelpGetAppChangelogParams struct {
-	PrevAppVersion string
-}
-
-func (*HelpGetAppChangelogParams) CRC() uint32 {
-	return 0x9010ef6f
-}
-
-/*
-Get changelog of current app.<br>
-Typically, an [updates](https://core.telegram.org/constructor/updates) constructor will be returned, containing one or more [updateServiceNotification](https://core.telegram.org/constructor/updateServiceNotification) updates with app-specific changelogs.
-*/
-func (c *Client) HelpGetAppChangelog(prevAppVersion string) (Updates, error) {
-	responseData, err := c.MakeRequest(&HelpGetAppChangelogParams{PrevAppVersion: prevAppVersion})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetAppChangelog")
-	}
-
-	resp, ok := responseData.(Updates)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -7440,33 +7432,6 @@ func (c *Client) MessagesCheckChatInvite(hash string) (ChatInvite, error) {
 	}
 
 	resp, ok := responseData.(ChatInvite)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesCheckDownloadFileParamsParams struct {
-	Bot      InputUser
-	FileName string
-	URL      string
-}
-
-func (*MessagesCheckDownloadFileParamsParams) CRC() uint32 {
-	return 0x50077589
-}
-
-func (c *Client) MessagesCheckDownloadFileParams(bot InputUser, fileName, url string) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesCheckDownloadFileParamsParams{
-		Bot:      bot,
-		FileName: fileName,
-		URL:      url,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesCheckDownloadFileParams")
-	}
-
-	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -8376,34 +8341,6 @@ func (c *Client) MessagesFaveSticker(id InputDocument, unfave bool) (bool, error
 	return resp, nil
 }
 
-type MessagesForwardMessageParams struct {
-	Peer     InputPeer
-	ID       int32
-	RandomID int64
-}
-
-func (*MessagesForwardMessageParams) CRC() uint32 {
-	return 0x33963bf9
-}
-
-// Forwards single messages.
-func (c *Client) MessagesForwardMessage(peer InputPeer, id int32, randomID int64) (Updates, error) {
-	responseData, err := c.MakeRequest(&MessagesForwardMessageParams{
-		ID:       id,
-		Peer:     peer,
-		RandomID: randomID,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesForwardMessage")
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesForwardMessagesParams struct {
 	Silent             bool `tl:"flag:5,encoded_in_bitflags"`
 	Background         bool `tl:"flag:6,encoded_in_bitflags"`
@@ -8460,28 +8397,6 @@ func (c *Client) MessagesGetAdminsWithInvites(peer InputPeer) (*MessagesChatAdmi
 	}
 
 	resp, ok := responseData.(*MessagesChatAdminsWithInvites)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesGetAllChatsParams struct {
-	ExceptIds []int64
-}
-
-func (*MessagesGetAllChatsParams) CRC() uint32 {
-	return 0x875f74be
-}
-
-// Get all chats, channels and supergroups
-func (c *Client) MessagesGetAllChats(exceptIds []int64) (MessagesChats, error) {
-	responseData, err := c.MakeRequest(&MessagesGetAllChatsParams{ExceptIds: exceptIds})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetAllChats")
-	}
-
-	resp, ok := responseData.(MessagesChats)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -10479,38 +10394,6 @@ func (c *Client) MessagesGetSponsoredMessages(peer InputPeer) (MessagesSponsored
 	return resp, nil
 }
 
-type MessagesGetStatsURLParams struct {
-	Dark   bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer   InputPeer
-	Params string
-}
-
-func (*MessagesGetStatsURLParams) CRC() uint32 {
-	return 0x812c2ae6
-}
-
-func (*MessagesGetStatsURLParams) FlagIndex() int {
-	return 0
-}
-
-// Returns URL with the chat statistics. Currently this method can be used only for channels
-func (c *Client) MessagesGetStatsURL(dark bool, peer InputPeer, params string) (*StatsURL, error) {
-	responseData, err := c.MakeRequest(&MessagesGetStatsURLParams{
-		Dark:   dark,
-		Params: params,
-		Peer:   peer,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetStatsURL")
-	}
-
-	resp, ok := responseData.(*StatsURL)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesGetStickerSetParams struct {
 	Stickerset InputStickerSet
 	Hash       int32
@@ -10723,33 +10606,6 @@ func (c *Client) MessagesGetWebPagePreview(message string, entities []MessageEnt
 	}
 
 	resp, ok := responseData.(MessageMedia)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesGetWebViewResultParams struct {
-	Peer    InputPeer
-	Bot     InputUser
-	QueryID int64
-}
-
-func (*MessagesGetWebViewResultParams) CRC() uint32 {
-	return 0x22b6c214
-}
-
-func (c *Client) MessagesGetWebViewResult(peer InputPeer, bot InputUser, queryID int64) (*MessagesWebViewResult, error) {
-	responseData, err := c.MakeRequest(&MessagesGetWebViewResultParams{
-		Bot:     bot,
-		Peer:    peer,
-		QueryID: queryID,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetWebViewResult")
-	}
-
-	resp, ok := responseData.(*MessagesWebViewResult)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -11790,6 +11646,37 @@ func (c *Client) MessagesSaveGif(id InputDocument, unsave bool) (bool, error) {
 	return resp, nil
 }
 
+type MessagesSavePreparedInlineMessageParams struct {
+	Result    InputBotInlineResult
+	UserID    InputUser
+	PeerTypes []InlineQueryPeerType `tl:"flag:0"`
+}
+
+func (*MessagesSavePreparedInlineMessageParams) CRC() uint32 {
+	return 0xf21f7f2f
+}
+
+func (*MessagesSavePreparedInlineMessageParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesSavePreparedInlineMessage(result InputBotInlineResult, userID InputUser, peerTypes []InlineQueryPeerType) (*MessagesBotPreparedInlineMessage, error) {
+	responseData, err := c.MakeRequest(&MessagesSavePreparedInlineMessageParams{
+		PeerTypes: peerTypes,
+		Result:    result,
+		UserID:    userID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesSavePreparedInlineMessage")
+	}
+
+	resp, ok := responseData.(*MessagesBotPreparedInlineMessage)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesSaveRecentStickerParams struct {
 	Attached bool `tl:"flag:0,encoded_in_bitflags"`
 	ID       InputDocument
@@ -12103,25 +11990,6 @@ func (c *Client) MessagesSendEncryptedFile(params *MessagesSendEncryptedFilePara
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesSendEncryptedFile")
-	}
-
-	resp, ok := responseData.(MessagesSentEncryptedMessage)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesSendEncryptedMultiMediaParams struct{}
-
-func (*MessagesSendEncryptedMultiMediaParams) CRC() uint32 {
-	return 0xcacacaca
-}
-
-func (c *Client) MessagesSendEncryptedMultiMedia() (MessagesSentEncryptedMessage, error) {
-	responseData, err := c.MakeRequest(&MessagesSendEncryptedMultiMediaParams{})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendEncryptedMultiMedia")
 	}
 
 	resp, ok := responseData.(MessagesSentEncryptedMessage)
@@ -12959,27 +12827,6 @@ func (c *Client) MessagesSetTyping(peer InputPeer, topMsgID int32, action SendMe
 	return resp, nil
 }
 
-type MessagesSetWebViewResultParams struct {
-	QueryID int64
-}
-
-func (*MessagesSetWebViewResultParams) CRC() uint32 {
-	return 0xe41cd11d
-}
-
-func (c *Client) MessagesSetWebViewResult(queryID int64) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesSetWebViewResultParams{QueryID: queryID})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSetWebViewResult")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesStartBotParams struct {
 	Bot        InputUser
 	Peer       InputPeer
@@ -13261,31 +13108,6 @@ func (c *Client) MessagesToggleStickerSets(uninstall, archive, unarchive bool, s
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending MessagesToggleStickerSets")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesToggleUserEmojiStatusPermissionParams struct {
-	Bot     InputUser
-	Enabled bool
-}
-
-func (*MessagesToggleUserEmojiStatusPermissionParams) CRC() uint32 {
-	return 0x6de6392
-}
-
-func (c *Client) MessagesToggleUserEmojiStatusPermission(bot InputUser, enabled bool) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesToggleUserEmojiStatusPermissionParams{
-		Bot:     bot,
-		Enabled: enabled,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesToggleUserEmojiStatusPermission")
 	}
 
 	resp, ok := responseData.(bool)
@@ -13700,6 +13522,37 @@ func (c *Client) PaymentsAssignPlayMarketTransaction(receipt *DataJson, purpose 
 	}
 
 	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsBotCancelStarsSubscriptionParams struct {
+	Restore  bool `tl:"flag:0,encoded_in_bitflags"`
+	UserID   InputUser
+	ChargeID string
+}
+
+func (*PaymentsBotCancelStarsSubscriptionParams) CRC() uint32 {
+	return 0x6dfa0622
+}
+
+func (*PaymentsBotCancelStarsSubscriptionParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsBotCancelStarsSubscription(restore bool, userID InputUser, chargeID string) (bool, error) {
+	responseData, err := c.MakeRequest(&PaymentsBotCancelStarsSubscriptionParams{
+		ChargeID: chargeID,
+		Restore:  restore,
+		UserID:   userID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending PaymentsBotCancelStarsSubscription")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -14382,50 +14235,6 @@ func (c *Client) PaymentsRefundStarsCharge(userID InputUser, chargeID string) (U
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending PaymentsRefundStarsCharge")
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type PaymentsRequestRecurringPaymentParams struct {
-	UserID              InputUser
-	RecurringInitCharge string
-	InvoiceMedia        InputMedia
-}
-
-func (*PaymentsRequestRecurringPaymentParams) CRC() uint32 {
-	return 0x146e958d
-}
-
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 185 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>[1 &ndash; Base layer](https://core.telegram.org?layer=1)</li><li>[2 &ndash; New userpic notifications](https://core.telegram.org?layer=2)</li><li>[3 &ndash; Send message can trigger link change](https://core.telegram.org?layer=3)</li><li>[4 &ndash; Check-in chats](https://core.telegram.org?layer=4)</li><li>[5 &ndash; Localized SMS, localized notifications](https://core.telegram.org?layer=5)</li><li>[6 &ndash; Foursquare integration](https://core.telegram.org?layer=6)</li><li>[7 &ndash; Added wallPaperSolid](https://core.telegram.org?layer=7)</li><li>[8 &ndash; Added end-to-end encryption](https://core.telegram.org?layer=8)</li><li>[9 &ndash; Improved big files upload perfomance](https://core.telegram.org?layer=9)</li><li>[10 &ndash; Improved chat participants updates](https://core.telegram.org?layer=10)</li><li>[11 &ndash; Improved secret chats](https://core.telegram.org?layer=11)</li><li>[12 &ndash; New dynamic support](https://core.telegram.org?layer=12)</li><li>[13 &ndash; Audio, video MIME; contacts import retry; new secret actions](https://core.telegram.org?layer=13)</li><li>[14 &ndash; Notify settings sync, blacklist sync](https://core.telegram.org?layer=14)</li><li>[15 &ndash; Modified getHistory offset behaviour](https://core.telegram.org?layer=15)</li><li>[16 &ndash; Split sendCode into 2 parts](https://core.telegram.org?layer=16)</li><li>[17 &ndash; Added custom typing, introduced message flags](https://core.telegram.org?layer=17)</li><li>[18 &ndash; Added usernames](https://core.telegram.org?layer=18)</li><li>[23 &ndash; Stickers for secret chats](https://core.telegram.org?layer=23)</li><li>[105 &ndash; Scheduled messages, Cloud themes](https://core.telegram.org?layer=105)</li><li>[108 &ndash; Login with QR code](https://core.telegram.org?layer=108)</li><li>[109 &ndash; Polls v2](https://core.telegram.org?layer=109)</li><li>[110 &ndash; People Nearby 2.0, Bank card entity](https://core.telegram.org?layer=110)</li><li>[111 &ndash; Folders, Broadcast Stats](https://core.telegram.org?layer=111)</li><li>[112 &ndash; Old featured stickers, generic dice, poll timer, poll solution](https://core.telegram.org?layer=112)</li><li>[113 &ndash; PSA](https://core.telegram.org?layer=113)</li><li>[114 &ndash; Video thumbs for GIFs](https://core.telegram.org?layer=114)</li><li>[115 &ndash; Peek Channel Invite](https://core.telegram.org?layer=115)</li><li>[116 &ndash; Group Stats, Profile Videos](https://core.telegram.org?layer=116)</li><li>[117 &ndash; WebRTC Phone Calls](https://core.telegram.org?layer=117)</li><li>[118 &ndash; Callback with 2FA, Countries list](https://core.telegram.org?layer=118)</li><li>[119 &ndash; Comments in channels, Threads, Anonymous Admins](https://core.telegram.org?layer=119)</li><li>[120 &ndash; Multipins, Message Stats, GeoLive v2](https://core.telegram.org?layer=120)</li><li>[121 &ndash; SVG-based Outlines for Stickers](https://core.telegram.org?layer=121)</li><li>[122 &ndash; Voice Chats](https://core.telegram.org?layer=122)</li><li>[123 &ndash; Voice Chat improvements](https://core.telegram.org?layer=123)</li><li>[124 &ndash; Expiring Invite links](https://core.telegram.org?layer=124)</li><li>[125 &ndash; Voice Chats in Broadcasts](https://core.telegram.org?layer=125)</li><li>[126 &ndash; Ban channels in channels](https://core.telegram.org?layer=126)</li><li>[127 &ndash; Payments in channels](https://core.telegram.org?layer=127)</li><li>[128 &ndash; Microthumbs for User/Chat profile photos](https://core.telegram.org?layer=128)</li><li>[129 &ndash; Video Chats](https://core.telegram.org?layer=129)</li><li>[130 &ndash; Custom placeholder for bot reply keyboards](https://core.telegram.org?layer=130)</li><li>[131 &ndash; Reset 2FA Password after a week](https://core.telegram.org?layer=131)</li><li>[132 &ndash; Chat themes](https://core.telegram.org?layer=132)</li><li>[133 &ndash; 64-bit IDs for User/Chat](https://core.telegram.org?layer=133)</li><li>[134 &ndash; Chat Requests, Shared Media Calendar](https://core.telegram.org?layer=134)</li><li>[135 &ndash; Send Message As a Channel](https://core.telegram.org?layer=135)</li><li>[136 &ndash; Reactions](https://core.telegram.org?layer=136)</li><li>[137 &ndash; Translations](https://core.telegram.org?layer=137)</li><li>[138 &ndash; GIF Sticker Packs](https://core.telegram.org?layer=138)</li><li>[139 &ndash; RTMP streaming](https://core.telegram.org?layer=139)</li><li>[140 &ndash; WebApps, Cloud Ringtones](https://core.telegram.org?layer=140)</li><li>[142 &ndash; TCP Reflectors](https://core.telegram.org?layer=142)</li><li>[143 &ndash; Premium Subscription, Cloud Invoices](https://core.telegram.org?layer=143)</li><li>[144 &ndash; Premium as a Gift, Custom Emoji](https://core.telegram.org?layer=144)</li><li>[145 &ndash; Custom Reactions, Statuses, Sign In with email](https://core.telegram.org?layer=145)</li><li>[147 &ndash; Keywords for stickers and emojis](https://core.telegram.org?layer=147)</li><li>[148 &ndash; Forums, collectible usernames](https://core.telegram.org?layer=148)</li><li>[150 &ndash; Pinned forum topics, general topic](https://core.telegram.org?layer=150)</li><li>[151 &ndash; Media spoilers, suggested profile photos](https://core.telegram.org?layer=151)</li><li>[152 &ndash; Real-time translations, Firebase SMS authentication](https://core.telegram.org?layer=152)</li><li>[153 &ndash; Modify created stickersets](https://core.telegram.org?layer=153)</li><li>[155 &ndash; Dates for reactions](https://core.telegram.org?layer=155)</li><li>[158 &ndash; Shared folders, per-chat wallpapers](https://core.telegram.org?layer=158)</li><li>[159 &ndash; Anonymous votes](https://core.telegram.org?layer=159)</li><li>[160 &ndash; Stories](https://core.telegram.org?layer=160)</li><li>[164 &ndash; Stories in Channels](https://core.telegram.org?layer=164)</li><li>[166 &ndash; Giveaways in channels](https://core.telegram.org?layer=166)</li><li>[167 &ndash; Similar channels](https://core.telegram.org?layer=167)</li><li>[168 &ndash; Channel colors](https://core.telegram.org?layer=168)</li><li>[169 &ndash; Multiselection of chats for bots](https://core.telegram.org?layer=169)</li><li>[170 &ndash; Saved Messages 2.0](https://core.telegram.org?layer=170)</li><li>[171 &ndash; Saved Messages 2.0](https://core.telegram.org?layer=171)</li><li>[174 &ndash; Group boosts](https://core.telegram.org?layer=174)</li><li>[176 &ndash; Business](https://core.telegram.org?layer=176)</li><li>[177 &ndash; Business Bots, Birthdays](https://core.telegram.org?layer=177)</li><li>[178 &ndash; Saved Personal channel, Reactions notifications](https://core.telegram.org?layer=178)</li><li>[179 &ndash; Channel revenue stats, phrases in SMS](https://core.telegram.org?layer=179)</li><li>[180 &ndash; Message Effects, Hashtags](https://core.telegram.org?layer=180)</li><li>[181 &ndash; Stars](https://core.telegram.org?layer=181)</li><li>[182 &ndash; Stars Revenue](https://core.telegram.org?layer=182)</li><li>[183 &ndash; Paid posts](https://core.telegram.org?layer=183)</li><li>[184 &ndash; Stars Refunds](https://core.telegram.org?layer=184)</li><li><a href="?layer=185"><strong>185 &ndash; MiniApp Store, Star Gifts</strong></a></li>
-	      <li class="divider"></li>
-	      <li>[More...](https://core.telegram.org/api/layers)</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"> `Method schema is available as of layer 143. [Switch »](https://core.telegram.org?layer=143)`</pre>
-*/
-func (c *Client) PaymentsRequestRecurringPayment(userID InputUser, recurringInitCharge string, invoiceMedia InputMedia) (Updates, error) {
-	responseData, err := c.MakeRequest(&PaymentsRequestRecurringPaymentParams{
-		InvoiceMedia:        invoiceMedia,
-		RecurringInitCharge: recurringInitCharge,
-		UserID:              userID,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsRequestRecurringPayment")
 	}
 
 	resp, ok := responseData.(Updates)
