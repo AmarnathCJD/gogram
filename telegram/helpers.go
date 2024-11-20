@@ -25,6 +25,10 @@ func FileExists(path string) bool {
 	return err == nil
 }
 
+func ResolveDataCenterIP(dc int, test, ipv6 bool) string {
+	return utils.GetHostIp(dc, test, ipv6)
+}
+
 func joinAbsWorkingDir(filename string) string {
 	if filename == "" {
 		filename = "session.dat" // default filename for session file
