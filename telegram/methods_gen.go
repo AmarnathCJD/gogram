@@ -194,7 +194,7 @@ func (*AccountConfirmPhoneParams) CRC() uint32 {
 	return 0x5f2178c3
 }
 
-// AccountConfirmPhone Confirm a phone number to cancel account deletion, for more info [click here »](https://core.telegram.org/api/account-deletion)
+// Confirm a phone number to cancel account deletion, for more info [click here »](https://core.telegram.org/api/account-deletion)
 func (c *Client) AccountConfirmPhone(phoneCodeHash, phoneCode string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountConfirmPhoneParams{
 		PhoneCode:     phoneCode,
@@ -219,7 +219,7 @@ func (*AccountCreateBusinessChatLinkParams) CRC() uint32 {
 	return 0x8851e68e
 }
 
-// AccountCreateBusinessChatLink Create a [business chat deep link »](https://core.telegram.org/api/business#business-chat-links).
+// Create a [business chat deep link »](https://core.telegram.org/api/business#business-chat-links).
 func (c *Client) AccountCreateBusinessChatLink(link *InputBusinessChatLink) (*BusinessChatLink, error) {
 	responseData, err := c.MakeRequest(&AccountCreateBusinessChatLinkParams{Link: link})
 	if err != nil {
@@ -1080,7 +1080,7 @@ func (*AccountGetSecureValueParams) CRC() uint32 {
 func (c *Client) AccountGetSecureValue(types []SecureValueType) ([]*SecureValue, error) {
 	responseData, err := c.MakeRequest(&AccountGetSecureValueParams{Types: types})
 	if err != nil {
-		return nil, fmt.Errorf("sending AccountGetSecureValue")
+		return nil, fmt.Errorf("sending AccountGetSecureValue: %w", err)
 	}
 
 	resp, ok := responseData.([]*SecureValue)
@@ -1158,7 +1158,7 @@ func (c *Client) AccountGetTmpPassword(password InputCheckPasswordSRP, period in
 		Period:   period,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("sending AccountGetTmpPassword: %w ", err)
+		return nil, fmt.Errorf("sending AccountGetTmpPassword: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountTmpPassword)
@@ -1389,7 +1389,7 @@ func (*AccountReorderUsernamesParams) CRC() uint32 {
 func (c *Client) AccountReorderUsernames(order []string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountReorderUsernamesParams{Order: order})
 	if err != nil {
-		return false, fmt.Errorf("sending AccountReorderUsernames: ")
+		return false, fmt.Errorf("sending AccountReorderUsernames: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3106,7 +3106,7 @@ func (c *Client) AuthRecoverPassword(code string, newSettings *AccountPasswordIn
 		NewSettings: newSettings,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("sending AuthRecoverPassword %w", err)
+		return nil, fmt.Errorf("sending AuthRecoverPassword: %w", err)
 	}
 
 	resp, ok := responseData.(AuthAuthorization)
@@ -3356,7 +3356,7 @@ func (*AuthSignUpParams) FlagIndex() int {
 func (c *Client) AuthSignUp(params *AuthSignUpParams) (AuthAuthorization, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, fmt.Errorf("sending AuthSignUp")
+		return nil, fmt.Errorf("sending AuthSignUp: %w", err)
 	}
 
 	resp, ok := responseData.(AuthAuthorization)
@@ -3594,7 +3594,6 @@ func (c *Client) BotsGetBotInfo(bot InputUser, langCode string) (*BotsBotInfo, e
 		Bot:      bot,
 		LangCode: langCode,
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("sending BotsGetBotInfo: %w", err)
 	}
@@ -3799,7 +3798,6 @@ func (c *Client) BotsResetBotCommands(scope BotCommandScope, langCode string) (b
 		LangCode: langCode,
 		Scope:    scope,
 	})
-
 	if err != nil {
 		return false, fmt.Errorf("sending BotsResetBotCommands: %w", err)
 	}
@@ -4784,7 +4782,7 @@ func (*ChannelsGetLeftChannelsParams) CRC() uint32 {
 func (c *Client) ChannelsGetLeftChannels(offset int32) (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetLeftChannelsParams{Offset: offset})
 	if err != nil {
-		return nil, fmt.Errorf("sending ChannelsGetLeftChannels: %w")
+		return nil, fmt.Errorf("sending ChannelsGetLeftChannels: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesChats)
