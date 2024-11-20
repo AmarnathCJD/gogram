@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,7 +23,8 @@ const (
 
 var (
 	API_SOURCES = []string{
-		"https://raw.githubusercontent.com/TGScheme/Schema/main/main_api.tl", "https://raw.githubusercontent.com/null-nick/TL-Schema/main/api.tl",
+		"https://raw.githubusercontent.com/tdlib/td/refs/heads/master/td/generate/scheme/telegram_api.tl",
+		//	"https://raw.githubusercontent.com/TGScheme/Schema/main/main_api.tl", "https://raw.githubusercontent.com/null-nick/TL-Schema/main/api.tl",
 		"https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/Telegram/SourceFiles/mtproto/scheme/api.tl",
 	}
 )
@@ -32,6 +34,7 @@ const helpMsg = `welcome to gogram's TL generator (c) @amarnathcjd`
 type AEQ struct {
 	Force bool
 	D     bool
+	Gen   bool
 }
 
 func main() {
@@ -44,9 +47,22 @@ func main() {
 		if arg == "-d" || arg == "--doc" {
 			aeq.D = true
 		}
+
+		if arg == "-g" || arg == "--gen" {
+			aeq.Gen = true
+		}
 	}
 
 	if len(os.Args) == 0 || len(os.Args) == 1 || len(os.Args) == 2 || aeq.D || aeq.Force {
+		if aeq.Gen {
+			if err := root(tlLOC, desLOC, aeq.D, getAPILayerFromFile(tlLOC)); err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err)
+			} else {
+				fmt.Println("Generation completed - Generated code in", desLOC)
+			}
+			return
+		}
+
 		currentLocalAPIVersionFile := filepath.Join(desLOC, "const.go")
 		currentLocalAPIVersion, err := os.ReadFile(currentLocalAPIVersionFile)
 		if err != nil {
@@ -79,7 +95,7 @@ func main() {
 			file.Seek(0, 0)
 			file.WriteString(string(remoteAPIVersion))
 
-			if err := root(tlLOC, desLOC, aeq.D); err != nil {
+			if err := root(tlLOC, desLOC, aeq.D, rlayer); err != nil {
 				fmt.Fprintf(os.Stderr, "%s\n", err)
 			} else {
 				fmt.Println("Update completed - Generated code in", desLOC)
@@ -98,7 +114,7 @@ func main() {
 		return
 	}
 
-	if err := root(os.Args[1], os.Args[2], aeq.D); err != nil {
+	if err := root(os.Args[1], os.Args[2], aeq.D, getAPILayerFromFile(tlLOC)); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
@@ -120,6 +136,25 @@ func getSourceLAYER(llayer string, force bool) ([]byte, string, error) {
 
 		rlayer := reg.FindString(string(remoteAPIVersion))
 		rlayer = strings.TrimPrefix(rlayer, "// LAYER ")
+
+		if rlayer == "" {
+			// https://raw.githubusercontent.com/tdlib/td/refs/heads/master/td/telegram/Version.h
+			// constexpr int32 MTPROTO_LAYER = 194;
+			reg = regexp.MustCompile(`constexpr int32 MTPROTO_LAYER = \d+;`)
+			req, err := http.Get("https://raw.githubusercontent.com/tdlib/td/refs/heads/master/td/telegram/Version.h")
+			if err != nil {
+				return nil, "", err
+			}
+
+			versionH, err := io.ReadAll(req.Body)
+			if err != nil {
+				return nil, "", err
+			}
+
+			rlayer = reg.FindString(string(versionH))
+			rlayer = strings.TrimPrefix(rlayer, "constexpr int32 MTPROTO_LAYER = ")
+			rlayer = strings.TrimSuffix(rlayer, ";")
+		}
 
 		if !strings.EqualFold(llayer, rlayer) || force {
 			rlayer_int, err := strconv.Atoi(rlayer)
@@ -146,7 +181,7 @@ func getSourceLAYER(llayer string, force bool) ([]byte, string, error) {
 	return nil, "", fmt.Errorf("no update required ~")
 }
 
-func root(tlfile, outdir string, d bool) error {
+func root(tlfile, outdir string, d bool, rlayer string) error {
 	startTime := time.Now()
 	b, err := os.ReadFile(tlfile)
 	if err != nil {
@@ -164,7 +199,7 @@ func root(tlfile, outdir string, d bool) error {
 	}
 
 	err = g.Generate(d)
-	minorFixes(outdir, getAPILayerFromFile(tlfile))
+	minorFixes(outdir, rlayer)
 	if err != nil {
 		return fmt.Errorf("generate code: error (ignored)")
 	}
@@ -419,6 +454,26 @@ func cleanComments(b []byte) []byte {
 	b = []byte(strings.Join(clean, "\n"))
 
 	// add some bytes to its start
+
+	b = bytes.ReplaceAll(b, []byte(`ipPort#d433ad73 ipv4:int port:int = IpPort;
+ipPortSecret#37982646 ipv4:int port:int secret:bytes = IpPort;
+accessPointRule#4679b65f phone_prefix_rules:string dc_id:int ips:vector<IpPort> = AccessPointRule;
+help.configSimple#5a592a6c date:int expires:int rules:vector<AccessPointRule> = help.ConfigSimple;
+
+inputPeerPhotoFileLocationLegacy#27d69997 flags:# big:flags.0?true peer:InputPeer volume_id:long local_id:int = InputFileLocation;
+inputStickerSetThumbLegacy#dbaeae9 stickerset:InputStickerSet volume_id:long local_id:int = InputFileLocation;
+
+---functions---
+
+test.useConfigSimple = help.ConfigSimple;
+test.parseInputAppEvent = InputAppEvent;
+
+invokeWithBusinessConnectionPrefix#dd289f8e connection_id:string = Error;
+invokeWithGooglePlayIntegrityPrefix#1df92984 nonce:string token:string = Error;
+invokeWithApnsSecretPrefix#0dae54f8 nonce:string secret:string = Error;
+
+---types---`), []byte(`null#56730bcc = Null;
+true#3fedd339 = True;`))
 
 	if parsedManually {
 
