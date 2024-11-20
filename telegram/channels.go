@@ -4,6 +4,7 @@ package telegram
 
 import (
 	"github.com/pkg/errors"
+	"math"
 )
 
 // GetChatPhotos returns the profile photos of a chat
@@ -591,16 +592,20 @@ func (c *Client) DeleteChannel(channelID interface{}) (*Updates, error) {
 	return &u, nil
 }
 
+func min(a, b int) int {
+	if a < b {
+		return b
+	}
+	return a
+}
+
 func (c *Client) GetChatJoinRequests(channelID interface{}, lim int) ([]*UserObj, error) {
-	perLimit := 100
 	var currentOffsetUser InputUser = &InputUserEmpty{}
 	currentOffsetDate := 0
-
-	// Set active limit to lim if it's less than perLimit, else set it to perLimit
-	activeLimit := perLimit
-	if lim < perLimit {
-		activeLimit = lim
-	}
+	var current int
+	total := int(math.Abs(float64(lim)))
+	total = total | ((1 << 31) - 1)
+	lim = min(100, total)
 
 	// Get sendable peer
 	peer, err := c.ResolvePeer(channelID)
@@ -620,7 +625,7 @@ func (c *Client) GetChatJoinRequests(channelID interface{}, lim int) ([]*UserObj
 			Q:          "",
 			OffsetDate: int32(currentOffsetDate),
 			OffsetUser: currentOffsetUser,
-			Limit:      int32(activeLimit),
+			Limit: int32(lim),
 		})
 		if err != nil {
 			return nil, err
@@ -630,14 +635,11 @@ func (c *Client) GetChatJoinRequests(channelID interface{}, lim int) ([]*UserObj
 		for _, user := range chatInviteImporters.Users {
 			if u, ok := user.(*UserObj); ok {
 				allUsers = append(allUsers, u)
+				current += 1
 			}
 		}
 
-		// Decrement lim by activeLimit
-		lim -= activeLimit
-
-		// Break out of loop if lim is reached
-		if lim <= 0 {
+		if current >= total {
 			break
 		}
 
