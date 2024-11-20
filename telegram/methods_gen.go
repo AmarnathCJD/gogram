@@ -3481,7 +3481,7 @@ func (c *Client) BotsCheckDownloadFileParams(bot InputUser, fileName, url string
 		URL:      url,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsCheckDownloadFileParams")
+		return false, fmt.Errorf("sending BotsCheckDownloadFileParams: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3980,7 +3980,7 @@ func (c *Client) BotsToggleUserEmojiStatusPermission(bot InputUser, enabled bool
 		Enabled: enabled,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsToggleUserEmojiStatusPermission")
+		return false, fmt.Errorf("sending BotsToggleUserEmojiStatusPermission: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -4033,7 +4033,7 @@ func (c *Client) BotsUpdateUserEmojiStatus(userID InputUser, emojiStatus EmojiSt
 		UserID:      userID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsUpdateUserEmojiStatus")
+		return false, fmt.Errorf("sending BotsUpdateUserEmojiStatus: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -11669,7 +11669,7 @@ func (c *Client) MessagesSavePreparedInlineMessage(result InputBotInlineResult, 
 		UserID:    userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSavePreparedInlineMessage")
+		return nil, fmt.Errorf("sending MessagesSavePreparedInlineMessage: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesBotPreparedInlineMessage)
@@ -13551,7 +13551,7 @@ func (c *Client) PaymentsBotCancelStarsSubscription(restore bool, userID InputUs
 		UserID:   userID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending PaymentsBotCancelStarsSubscription")
+		return false, fmt.Errorf("sending PaymentsBotCancelStarsSubscription: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
