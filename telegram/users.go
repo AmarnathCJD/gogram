@@ -81,7 +81,7 @@ func (p *UserPhoto) InputLocation() (*InputPhotoFileLocation, error) {
 //	 - Offset: The offset to start from
 //	 - Limit: The number of photos to return
 //	 - MaxID: The maximum ID of the photo to return
-func (c *Client) GetProfilePhotos(userID interface{}, Opts ...*PhotosOptions) ([]UserPhoto, error) {
+func (c *Client) GetProfilePhotos(userID any, Opts ...*PhotosOptions) ([]UserPhoto, error) {
 	Options := getVariadic(Opts, &PhotosOptions{})
 	if Options.Limit > 80 {
 		Options.Limit = 80
@@ -184,7 +184,7 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 //
 //	Params:
 //	 - userID: The user Identifier
-func (c *Client) GetCommonChats(userID interface{}) ([]Chat, error) {
+func (c *Client) GetCommonChats(userID any) ([]Chat, error) {
 	peer, err := c.ResolvePeer(userID)
 	if err != nil {
 		return nil, err
@@ -213,7 +213,7 @@ func (c *Client) GetCommonChats(userID interface{}) ([]Chat, error) {
 //
 //	Params:
 //	 - emoji: The emoji status to set
-func (c *Client) SetEmojiStatus(emoji ...interface{}) (bool, error) {
+func (c *Client) SetEmojiStatus(emoji ...any) (bool, error) {
 	var status EmojiStatus
 	if len(emoji) == 0 {
 		status = &EmojiStatusEmpty{}

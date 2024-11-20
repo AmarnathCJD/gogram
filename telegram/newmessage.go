@@ -474,7 +474,7 @@ func (m *NewMessage) Conv(timeout ...int32) (*Conversation, error) {
 }
 
 // Ask starts new conversation with the user
-func (m *NewMessage) Ask(Text interface{}, Opts ...*SendOptions) (*NewMessage, error) {
+func (m *NewMessage) Ask(Text any, Opts ...*SendOptions) (*NewMessage, error) {
 	var opt = getVariadic(Opts, &SendOptions{})
 	if opt.Timeouts == 0 {
 		opt.Timeouts = 120 // default timeout
@@ -496,7 +496,7 @@ func (m *NewMessage) Ask(Text interface{}, Opts ...*SendOptions) (*NewMessage, e
 }
 
 // Client.SendMessage ReplyID set to messageID
-func (m *NewMessage) Reply(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
+func (m *NewMessage) Reply(Text any, Opts ...SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, SendOptions{ReplyID: m.ID})
 	} else {
@@ -512,7 +512,7 @@ func (m *NewMessage) Reply(Text interface{}, Opts ...SendOptions) (*NewMessage, 
 }
 
 // ReplyWithoutError calls message.Reply and wraps the error to error channel of the client
-func (m *NewMessage) ReplyWithoutError(Text interface{}, Opts ...SendOptions) *NewMessage {
+func (m *NewMessage) ReplyWithoutError(Text any, Opts ...SendOptions) *NewMessage {
 	resp, err := m.Reply(Text, Opts...)
 	if err != nil {
 		m.Client.WrapError(err)
@@ -520,7 +520,7 @@ func (m *NewMessage) ReplyWithoutError(Text interface{}, Opts ...SendOptions) *N
 	return resp
 }
 
-func (m *NewMessage) Respond(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
+func (m *NewMessage) Respond(Text any, Opts ...SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, SendOptions{})
 	}
@@ -537,11 +537,11 @@ func (m *NewMessage) SendDice(Emoticon string) (*NewMessage, error) {
 	return m.Client.SendDice(m.ChatID(), Emoticon)
 }
 
-func (m *NewMessage) SendAction(Action interface{}) (*ActionResult, error) {
+func (m *NewMessage) SendAction(Action any) (*ActionResult, error) {
 	return m.Client.SendAction(m.ChatID(), Action)
 }
 
-func (m *NewMessage) Edit(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
+func (m *NewMessage) Edit(Text any, Opts ...SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, SendOptions{})
 	}
@@ -554,7 +554,7 @@ func (m *NewMessage) Edit(Text interface{}, Opts ...SendOptions) (*NewMessage, e
 	return &response, err
 }
 
-func (m *NewMessage) ReplyMedia(Media interface{}, Opts ...MediaOptions) (*NewMessage, error) {
+func (m *NewMessage) ReplyMedia(Media any, Opts ...MediaOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, MediaOptions{ReplyID: m.ID})
 	} else {
@@ -578,7 +578,7 @@ func (m *NewMessage) ReplyAlbum(Album any, Opts ...*MediaOptions) ([]*NewMessage
 	return m.Client.SendAlbum(m.ChatID(), Album, Opts...)
 }
 
-func (m *NewMessage) RespondMedia(Media interface{}, Opts ...MediaOptions) (*NewMessage, error) {
+func (m *NewMessage) RespondMedia(Media any, Opts ...MediaOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, MediaOptions{})
 	}
@@ -609,7 +609,7 @@ func (m *NewMessage) React(Reactions ...any) error {
 }
 
 // Forward forwards the message to a chat
-func (m *NewMessage) ForwardTo(PeerID interface{}, Opts ...*ForwardOptions) (*NewMessage, error) {
+func (m *NewMessage) ForwardTo(PeerID any, Opts ...*ForwardOptions) (*NewMessage, error) {
 	resps, err := m.Client.Forward(PeerID, m.Peer, []int32{m.ID}, Opts...)
 	if resps == nil {
 		return nil, err
@@ -676,7 +676,7 @@ func (a *Album) Delete() (*MessagesAffectedMessages, error) {
 	return a.Client.DeleteMessages(a.Messages[0].ChatID(), ids)
 }
 
-func (a *Album) ForwardTo(PeerID interface{}, Opts ...*ForwardOptions) ([]NewMessage, error) {
+func (a *Album) ForwardTo(PeerID any, Opts ...*ForwardOptions) ([]NewMessage, error) {
 	var ids []int32
 	for _, m := range a.Messages {
 		ids = append(ids, m.ID)
@@ -696,23 +696,23 @@ func (a *Album) GetReplyMessage() (*NewMessage, error) {
 	return a.Messages[0].GetReplyMessage()
 }
 
-func (a *Album) Respond(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
+func (a *Album) Respond(Text any, Opts ...SendOptions) (*NewMessage, error) {
 	return a.Messages[0].Respond(Text, Opts...)
 }
 
-func (a *Album) RespondMedia(Media interface{}, Opts ...MediaOptions) (*NewMessage, error) {
+func (a *Album) RespondMedia(Media any, Opts ...MediaOptions) (*NewMessage, error) {
 	return a.Messages[0].RespondMedia(Media, Opts...)
 }
 
-func (a *Album) Reply(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
+func (a *Album) Reply(Text any, Opts ...SendOptions) (*NewMessage, error) {
 	return a.Messages[0].Reply(Text, Opts...)
 }
 
-func (a *Album) ReplyMedia(Media interface{}, Opts ...MediaOptions) (*NewMessage, error) {
+func (a *Album) ReplyMedia(Media any, Opts ...MediaOptions) (*NewMessage, error) {
 	return a.Messages[0].ReplyMedia(Media, Opts...)
 }
 
-func (a *Album) Edit(Text interface{}, Opts ...SendOptions) (*NewMessage, error) {
+func (a *Album) Edit(Text any, Opts ...SendOptions) (*NewMessage, error) {
 	return a.Messages[0].Edit(Text, Opts...)
 }
 

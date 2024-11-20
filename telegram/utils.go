@@ -187,9 +187,9 @@ func matchError(err error, str string) bool {
 }
 
 // GetFileLocation returns file location, datacenter, file size and file name
-func GetFileLocation(file interface{}) (InputFileLocation, int32, int64, string, error) {
+func GetFileLocation(file any) (InputFileLocation, int32, int64, string, error) {
 	var (
-		location   interface{}
+		location   any
 		dataCenter int32 = 4
 		fileSize   int64
 	)
@@ -300,7 +300,7 @@ func PathIsDir(path string) bool {
 //	 *MessageMedia
 //	 *Document
 //	 *Photo
-func GetFileName(f interface{}) string {
+func GetFileName(f any) string {
 	getDocName := func(doc *DocumentObj) string {
 		for _, attr := range doc.Attributes {
 			switch attr := attr.(type) {
@@ -346,7 +346,7 @@ func GetFileName(f interface{}) string {
 //
 //	Accepted types:
 //	 *MessageMedia
-func getFileSize(f interface{}) int64 {
+func getFileSize(f any) int64 {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
 		return f.Document.(*DocumentObj).Size
@@ -371,7 +371,7 @@ func getFileSize(f interface{}) int64 {
 //	 *MessageMedia
 //	 *Document
 //	 *Photo
-func getFileExt(f interface{}) string {
+func getFileExt(f any) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
 		doc := f.Document.(*DocumentObj)

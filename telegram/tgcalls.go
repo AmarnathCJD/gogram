@@ -4,7 +4,7 @@ package telegram
 
 import "fmt"
 
-func (c *Client) StartGroupCallMedia(peer interface{}) (PhoneCall, error) {
+func (c *Client) StartGroupCallMedia(peer any) (PhoneCall, error) {
 	peerDialog, err := c.ResolvePeer(peer)
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func (c *Client) StartGroupCallMedia(peer interface{}) (PhoneCall, error) {
 	return nil, fmt.Errorf("StartGroupCallMedia: failed to start group call")
 }
 
-func (c *Client) GetGroupCall(chatId interface{}) (*InputGroupCall, error) {
+func (c *Client) GetGroupCall(chatId any) (*InputGroupCall, error) {
 	resolvedPeer, err := c.ResolvePeer(chatId)
 	if err != nil {
 		return nil, err

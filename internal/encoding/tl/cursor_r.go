@@ -47,7 +47,7 @@ func NewDecoder(r io.Reader) (*Decoder, error) {
 // If you have predictions deeper than the first unknown type, you can tell the decoder to use those
 // predicted values.
 //
-// So, next time you have a structure with an `interface{}` field that expects to contain `[]float64`
+// So, next time you have a structure with an `any` field that expects to contain `[]float64`
 // or similar, use this feature via `d.ExpectTypesInInterface()`.
 func (d *Decoder) ExpectTypesInInterface(types ...reflect.Type) {
 	d.expectedTypes = types

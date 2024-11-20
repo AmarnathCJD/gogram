@@ -65,7 +65,7 @@ func pemBytesToRsa(data []byte) (*rsa.PublicKey, error) {
 	}
 
 	if err.Error() == "x509: failed to parse public key (use ParsePKIXPublicKey instead for this key format)" {
-		var k interface{}
+		var k any
 		k, err = x509.ParsePKIXPublicKey(data)
 		if err == nil {
 			return k.(*rsa.PublicKey), nil

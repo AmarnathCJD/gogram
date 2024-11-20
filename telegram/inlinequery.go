@@ -118,7 +118,7 @@ func (i *InlineBuilder) Article(title, description, text string, options ...*Art
 	return result
 }
 
-func (i *InlineBuilder) Photo(photo interface{}, options ...*ArticleOptions) InputBotInlineResult {
+func (i *InlineBuilder) Photo(photo any, options ...*ArticleOptions) InputBotInlineResult {
 	var opts = getVariadic(options, &ArticleOptions{})
 	inputPhoto, err := i.Client.getSendableMedia(photo, &MediaMetadata{
 		Inline: true,
@@ -171,7 +171,7 @@ func (i *InlineBuilder) Photo(photo interface{}, options ...*ArticleOptions) Inp
 	return result
 }
 
-func (i *InlineBuilder) Document(document interface{}, options ...*ArticleOptions) InputBotInlineResult {
+func (i *InlineBuilder) Document(document any, options ...*ArticleOptions) InputBotInlineResult {
 	var opts = getVariadic(options, &ArticleOptions{})
 	inputDoc, err := i.Client.getSendableMedia(document, &MediaMetadata{
 		Inline:        true,
