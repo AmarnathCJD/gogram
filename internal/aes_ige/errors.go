@@ -2,9 +2,11 @@
 
 package ige
 
-import "github.com/pkg/errors"
+import (
+	"fmt"
+)
 
 var (
-	ErrDataTooSmall     = errors.New("AES256IGE: data too small")
-	ErrDataNotDivisible = errors.New("AES256IGE: data not divisible by block size")
+	ErrDataTooSmall     = fmt.Errorf("AES256IGE: data too small")
+	ErrDataNotDivisible = fmt.Errorf("AES256IGE: data not divisible by block size")
 )

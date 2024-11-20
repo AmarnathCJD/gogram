@@ -6,8 +6,7 @@ package objects
 import (
 	"bytes"
 	"compress/gzip"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/mtproto/messages"
@@ -248,11 +247,9 @@ func (*NewSessionCreated) CRC() uint32 {
 	return 0x9ec20908
 }
 
-// This is an exception to the usual vector handling rules.
-//
+// MessageContainer This is an exception to the usual vector handling rules.
 // The data is encoded as `msg_container#73f1f8dc messages:vector<%Message> = MessageContainer;`.
 // It appears that `<%Type>` indicates a possible implicit vector, but this behavior is not fully understood.
-//
 // It's possible that the developers were not thinking clearly at this point, but it's difficult to say for sure.
 type MessageContainer []*messages.Encrypted
 
@@ -328,7 +325,7 @@ func (t *GzipPacked) UnmarshalTL(d *tl.Decoder) error {
 
 	t.Obj, err = tl.DecodeUnknownObject(obj)
 	if err != nil {
-		return errors.Wrap(err, "parsing gzipped object")
+		return fmt.Errorf("parsing gzipped object: %w", err)
 	}
 
 	return nil
@@ -349,7 +346,7 @@ func (*GzipPacked) popMessageAsBytes(d *tl.Decoder) ([]byte, error) {
 	_, _ = buf.Write(d.PopMessage())
 	gz, err := gzip.NewReader(&buf)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating gzip reader")
+		return nil, fmt.Errorf("creating gzip reader: %w", err)
 	}
 
 	b := make([]byte, 4096)

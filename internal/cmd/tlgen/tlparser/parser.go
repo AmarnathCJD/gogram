@@ -118,7 +118,7 @@ func ParseSchema(source string) (*Schema, error) {
 		}
 
 		if def.IsEqVector {
-			return nil, errors.New("type can't be a vector")
+			return nil, fmt.Errorf("type can't be a vector")
 		}
 
 		objects = append(objects, Object{

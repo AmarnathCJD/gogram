@@ -1,20 +1,19 @@
 package telegram
 
 import (
+	"fmt"
 	"reflect"
-
-	"github.com/pkg/errors"
 )
 
 // GetMe returns the current user
 func (c *Client) GetMe() (*UserObj, error) {
 	resp, err := c.UsersGetFullUser(&InputUserSelf{})
 	if err != nil {
-		return nil, errors.Wrap(err, "getting user")
+		return nil, fmt.Errorf("getting user: %w", err)
 	}
 	user, ok := resp.Users[0].(*UserObj)
 	if !ok {
-		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
+		return nil, fmt.Errorf("got wrong response: " + reflect.TypeOf(resp).String())
 	}
 	c.clientData.me = user
 
@@ -71,7 +70,7 @@ func (p *UserPhoto) InputLocation() (*InputPhotoFileLocation, error) {
 			ThumbSize:     thumbSize,
 		}, nil
 	}
-	return nil, errors.New("could not convert photo: " + reflect.TypeOf(p.Photo).String())
+	return nil, fmt.Errorf("could not convert photo: " + reflect.TypeOf(p.Photo).String())
 }
 
 // GetProfilePhotos returns the profile photos of a user
@@ -94,7 +93,7 @@ func (c *Client) GetProfilePhotos(userID interface{}, Opts ...*PhotosOptions) ([
 	}
 	User, ok := peer.(*InputPeerUser)
 	if !ok {
-		return nil, errors.New("given peer is not a user")
+		return nil, fmt.Errorf("given peer is not a user")
 	}
 	resp, err := c.PhotosGetUserPhotos(
 		&InputUserObj{UserID: User.UserID, AccessHash: User.AccessHash},
@@ -121,7 +120,7 @@ func (c *Client) GetProfilePhotos(userID interface{}, Opts ...*PhotosOptions) ([
 		}
 		return photos, nil
 	default:
-		return nil, errors.New("could not convert photos: " + reflect.TypeOf(resp).String())
+		return nil, fmt.Errorf("could not convert photos: " + reflect.TypeOf(resp).String())
 	}
 }
 
@@ -176,7 +175,7 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 		c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 		return p.Dialogs, nil
 	default:
-		return nil, errors.New("could not convert dialogs: " + reflect.TypeOf(resp).String())
+		return nil, fmt.Errorf("could not convert dialogs: " + reflect.TypeOf(resp).String())
 	}
 }
 
@@ -191,7 +190,7 @@ func (c *Client) GetCommonChats(userID interface{}) ([]Chat, error) {
 	}
 	user, ok := peer.(*InputPeerUser)
 	if !ok {
-		return nil, errors.New("peer is not a user")
+		return nil, fmt.Errorf("peer is not a user")
 	}
 	resp, err := c.MessagesGetCommonChats(&InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, 0, 100)
 	if err != nil {
@@ -205,7 +204,7 @@ func (c *Client) GetCommonChats(userID interface{}) ([]Chat, error) {
 		c.Cache.UpdatePeersToCache([]User{}, p.Chats)
 		return p.Chats, nil
 	default:
-		return nil, errors.New("could not convert chats: " + reflect.TypeOf(resp).String())
+		return nil, fmt.Errorf("could not convert chats: " + reflect.TypeOf(resp).String())
 	}
 }
 
@@ -221,7 +220,7 @@ func (c *Client) SetEmojiStatus(emoji ...interface{}) (bool, error) {
 		em := emoji[0]
 		_, ok := em.(EmojiStatus)
 		if !ok {
-			return false, errors.New("emoji is not an EmojiStatus")
+			return false, fmt.Errorf("emoji is not an EmojiStatus")
 		}
 		status = em.(EmojiStatus)
 	}

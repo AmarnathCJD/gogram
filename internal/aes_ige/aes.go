@@ -7,10 +7,10 @@ import (
 	"crypto/aes"
 	"crypto/rand"
 	"crypto/sha256"
+	"fmt"
 	"math/big"
 
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 type AesBlock [aes.BlockSize]byte
@@ -132,7 +132,7 @@ func DecryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) (
 		}
 	}
 
-	return nil, errors.New("couldn't trim message: hashes incompatible on more than 16 tries")
+	return nil, fmt.Errorf("couldn't trim message: hashes incompatible on more than 16 tries")
 }
 
 // EncryptMessageWithTempKeys encrypts a message using temporary keys obtained during the Diffie-Hellman key exchange.
@@ -167,10 +167,10 @@ func encryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) (
 // generateTempKeys generates temporary keys for encryption during the key exchange process.
 func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte, err error) {
 	if nonceSecond == nil {
-		return nil, nil, errors.New("nonceSecond is nil")
+		return nil, nil, fmt.Errorf("nonceSecond is nil")
 	}
 	if nonceServer == nil {
-		return nil, nil, errors.New("nonceServer is nil")
+		return nil, nil, fmt.Errorf("nonceServer is nil")
 	}
 
 	// nonceSecond + nonceServer

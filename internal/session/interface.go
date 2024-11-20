@@ -2,7 +2,7 @@
 
 package session
 
-import "errors"
+import "fmt"
 
 // SessionLoader is the interface which allows you to access sessions from different storages (like
 // filesystem, database, s3 storage, etc.)
@@ -24,7 +24,7 @@ type Session struct {
 }
 
 var (
-	ErrSessionNotFound = errors.New("session not found")
+	ErrSessionNotFound = fmt.Errorf("session not found")
 	ErrPathNotFound    = "file not found"
 	ErrFileNotExists   = "no such file or directory"
 )

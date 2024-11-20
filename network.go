@@ -13,13 +13,12 @@ import (
 	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
 	"github.com/amarnathcjd/gogram/internal/session"
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (chan tl.Object, int64, error) {
 	msg, err := tl.Marshal(request)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "marshaling request")
+		return nil, 0, fmt.Errorf("marshaling request: %w", err)
 	}
 
 	var (
@@ -62,7 +61,7 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 	if m.transport == nil {
 		m.CreateConnection(false)
 		if m.transport == nil {
-			return nil, 0, errors.New("transport is nil, please use SetTransport")
+			return nil, 0, fmt.Errorf("transport is nil, please use SetTransport")
 		}
 	}
 	errorSendPacket := m.transport.WriteMsg(data, seqNo)
@@ -75,7 +74,7 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 func (m *MTProto) writeRPCResponse(msgID int, data tl.Object) error {
 	v, ok := m.responseChannels.Get(msgID)
 	if !ok {
-		return errors.New("no response channel found for messageId " + fmt.Sprint(msgID))
+		return fmt.Errorf("no response channel found for messageId " + fmt.Sprint(msgID))
 	}
 	v <- data
 	m.responseChannels.Delete(msgID)
@@ -149,7 +148,7 @@ func (m *MTProto) MakeRequestCtx(ctx context.Context, msg tl.Object) (any, error
 
 func (m *MTProto) MakeRequestWithHintToDecoder(msg tl.Object, expectedTypes ...reflect.Type) (any, error) {
 	if len(expectedTypes) == 0 {
-		return nil, errors.New("expected a few hints. If you don't need it, use m.MakeRequest")
+		return nil, fmt.Errorf("expected a few hints. If you don't need it, use m.MakeRequest")
 	}
 	return m.makeRequest(msg, expectedTypes...)
 }

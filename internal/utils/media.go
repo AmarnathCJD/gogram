@@ -5,7 +5,6 @@ package utils
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -644,7 +643,7 @@ func (bi *BoxInfo) SeekToEnd(s io.Seeker) (int64, error) {
 	return s.Seek(int64(bi.Offset+bi.Size), io.SeekStart)
 }
 
-var ErrUnsupportedBoxVersion = errors.New("unsupported box version")
+var ErrUnsupportedBoxVersion = fmt.Errorf("unsupported box version")
 
 type unmarshaller struct {
 	reader ReadSeeker
@@ -738,7 +737,7 @@ func (u *unmarshaller) unmarshalStructInternal(v reflect.Value, fi *fieldInstanc
 		}
 		u.rbits += u2.rbits
 		if u2.rbits != uint64(fi.size) {
-			return errors.New("invalid alignment")
+			return fmt.Errorf("invalid alignment")
 		}
 		return nil
 	}
@@ -799,7 +798,7 @@ func (u *unmarshaller) unmarshalSlice(v reflect.Value, fi *fieldInstance) error 
 		if fi.size != 0 {
 			left := (u.size)*8 - u.rbits
 			if left%uint64(fi.size) != 0 {
-				return errors.New("invalid alignment")
+				return fmt.Errorf("invalid alignment")
 			}
 			length = left / uint64(fi.size)
 		} else {

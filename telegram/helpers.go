@@ -17,7 +17,6 @@ import (
 
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 func FileExists(path string) bool {
@@ -248,7 +247,7 @@ func (c *Client) GetSendablePeer(PeerID interface{}) (InputPeer, error) {
 PeerSwitch:
 	switch Peer := PeerID.(type) {
 	case nil:
-		return nil, errors.New("PeerID is nil")
+		return nil, fmt.Errorf("PeerID is nil")
 	case *PeerUser:
 		peerEntity, err := c.GetPeerUser(Peer.UserID)
 		if err != nil {
@@ -317,7 +316,7 @@ PeerSwitch:
 		case *UserObj:
 			return &InputPeerUser{UserID: peerEntity.ID, AccessHash: peerEntity.AccessHash}, nil
 		default:
-			return nil, errors.New(fmt.Sprintf("unknown peer type %s", reflect.TypeOf(peerEntity).String()))
+			return nil, fmt.Errorf(fmt.Sprintf("unknown peer type %s", reflect.TypeOf(peerEntity).String()))
 		}
 	case *ChannelForbidden:
 		return &InputPeerChannel{ChannelID: Peer.ID, AccessHash: Peer.AccessHash}, nil
@@ -328,7 +327,7 @@ PeerSwitch:
 	case *InputChannelFromMessage:
 		return &InputPeerChannelFromMessage{Peer: Peer.Peer, MsgID: Peer.MsgID, ChannelID: Peer.ChannelID}, nil
 	default:
-		return nil, errors.New("Failed to get sendable peer, unknown type " + reflect.TypeOf(PeerID).String())
+		return nil, fmt.Errorf("Failed to get sendable peer, unknown type " + reflect.TypeOf(PeerID).String())
 	}
 }
 
@@ -349,9 +348,9 @@ func (c *Client) GetSendableChannel(PeerID interface{}) (InputChannel, error) {
 	case *InputPeerChannelFromMessage:
 		return &InputChannelFromMessage{Peer: rawPeer.Peer, MsgID: rawPeer.MsgID, ChannelID: rawPeer.ChannelID}, nil
 	case *InputPeerChat, *InputPeerUser:
-		return nil, errors.New("given peer is not a channel")
+		return nil, fmt.Errorf("given peer is not a channel")
 	default:
-		return nil, errors.New("failed to get sendable channel, unknown type " + reflect.TypeOf(rawPeer).String())
+		return nil, fmt.Errorf("failed to get sendable channel, unknown type " + reflect.TypeOf(rawPeer).String())
 	}
 }
 
@@ -367,9 +366,9 @@ func (c *Client) GetSendableUser(PeerID interface{}) (InputUser, error) {
 	case *InputPeerUserFromMessage:
 		return &InputUserFromMessage{Peer: rawPeer.Peer, MsgID: rawPeer.MsgID, UserID: rawPeer.UserID}, nil
 	case *InputPeerChat, *InputPeerChannel:
-		return nil, errors.New("given peer is not a user")
+		return nil, fmt.Errorf("given peer is not a user")
 	default:
-		return nil, errors.New("failed to get sendable user, unknown type " + reflect.TypeOf(rawPeer).String())
+		return nil, fmt.Errorf("failed to get sendable user, unknown type " + reflect.TypeOf(rawPeer).String())
 	}
 }
 
@@ -450,7 +449,7 @@ mediaTypeSwitch:
 			}
 
 			if attr == nil {
-				return nil, errors.New("attributes cannot be nil")
+				return nil, fmt.Errorf("attributes cannot be nil")
 			}
 			documentExt := &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}
 			if attr.Inline {
@@ -506,9 +505,9 @@ mediaTypeSwitch:
 		case *MessageMediaPoll:
 			return convertPoll(media), nil
 		case *MessageMediaUnsupported:
-			return nil, errors.New("unsupported media type: MessageMediaUnsupported")
+			return nil, fmt.Errorf("unsupported media type: MessageMediaUnsupported")
 		default:
-			return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(media).String()))
+			return nil, fmt.Errorf(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(media).String()))
 		}
 	case InputFile, *InputFile:
 		var (
@@ -544,7 +543,7 @@ mediaTypeSwitch:
 			hasFileName := false
 			mediaAttributes, dur, err := gatherVideoMetadata(getValue(attr.FileAbsPath, fileName), mediaAttributes)
 			if err != nil {
-				c.Logger.Debug(errors.Wrap(err, "gathering video metadata"))
+				c.Logger.Debug(fmt.Errorf("gathering video metadata: %w", err))
 			}
 
 			for _, at := range mediaAttributes {
@@ -556,7 +555,7 @@ mediaTypeSwitch:
 			if attr.Thumb == nil && !attr.DisableThumb {
 				thumbFile, err := c.gatherVideoThumb(getValue(attr.FileAbsPath, fileName), dur)
 				if err != nil {
-					c.Logger.Debug(errors.Wrap(err, "gathering video thumb"))
+					c.Logger.Debug(fmt.Errorf("gathering video thumb: %w", err))
 				} else {
 					attr.Thumb = thumbFile
 				}
@@ -588,9 +587,9 @@ mediaTypeSwitch:
 		}
 		goto mediaTypeSwitch
 	case nil:
-		return nil, errors.New("media given is nil, cannot send nil media")
+		return nil, fmt.Errorf("media given is nil, cannot send nil media")
 	}
-	return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(mediaFile).String()))
+	return nil, fmt.Errorf(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(mediaFile).String()))
 }
 
 func (c *Client) uploadToSelf(mediaFile InputMedia) (InputMedia, error) {
@@ -616,7 +615,7 @@ func (c *Client) uploadToSelf(mediaFile InputMedia) (InputMedia, error) {
 		}
 	}
 
-	return nil, errors.New("failed to upload media")
+	return nil, fmt.Errorf("failed to upload media")
 }
 
 func convertPoll(poll *MessageMediaPoll) *InputMediaPoll {
@@ -676,7 +675,7 @@ func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 		out, err := cmd.Output()
 
 		if err != nil {
-			return attrs, 0, errors.Wrap(err, "gathering video metadata")
+			return attrs, 0, fmt.Errorf("gathering video metadata: %w", err)
 		}
 
 		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
@@ -818,7 +817,7 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 		_, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return nil, errors.Wrap(err, "gathering audio thumb")
+			return nil, fmt.Errorf("gathering audio thumb: %w", err)
 		}
 
 		defer os.Remove(path + ".png")
@@ -840,7 +839,7 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 	_, err := cmd.Output()
 
 	if err != nil {
-		return nil, errors.Wrap(err, "gathering video thumb")
+		return nil, fmt.Errorf("gathering video thumb: %w", err)
 	}
 
 	defer os.Remove(path + ".png")
@@ -852,7 +851,7 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 func (c *Client) ResolveUsername(username string) (interface{}, error) {
 	resp, err := c.ContactsResolveUsername(strings.TrimPrefix(username, "@"))
 	if err != nil {
-		return nil, errors.Wrap(err, "resolving username")
+		return nil, fmt.Errorf("resolving username: %w", err)
 	}
 	c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
 	if len(resp.Users) != 0 {
@@ -1145,7 +1144,7 @@ func GetInputCheckPassword(password string, accountPassword *AccountPassword) (I
 	current, ok := alg.(*PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow)
 
 	if !ok {
-		return nil, errors.New("invalid CurrentAlgo type")
+		return nil, fmt.Errorf("invalid CurrentAlgo type")
 	}
 
 	mp := &ige.ModPow{
@@ -1157,7 +1156,7 @@ func GetInputCheckPassword(password string, accountPassword *AccountPassword) (I
 
 	res, err := GetInputCheckPasswordAlgo(password, accountPassword.SRPB, mp)
 	if err != nil {
-		return nil, errors.Wrap(err, "processing password")
+		return nil, fmt.Errorf("processing password: %w", err)
 	}
 
 	if res == nil {
@@ -1171,7 +1170,7 @@ func GetInputCheckPassword(password string, accountPassword *AccountPassword) (I
 	}, nil
 }
 
-// GetInputCheckPassword returns the input check password for the given password and salt.
+// GetInputCheckPasswordAlgo GetInputCheckPassword returns the input check password for the given password and salt.
 // all the internal functions are in internal/ige, send pr if you want to use them directly
 // https://core.telegram.org/api/srp#checking-the-password-with-srp
 func GetInputCheckPasswordAlgo(password string, srpB []byte, mp *ige.ModPow) (*ige.SrpAnswer, error) {

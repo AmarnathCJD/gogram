@@ -4,13 +4,13 @@ package session
 
 import (
 	"encoding/base64"
-	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
 
 var (
-	ErrInvalidSession = errors.New("the session string is invalid/has been tampered with")
+	ErrInvalidSession = fmt.Errorf("the session string is invalid/has been tampered with")
 )
 
 type StringSession struct {

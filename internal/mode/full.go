@@ -2,14 +2,13 @@ package mode
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
 )
 
 var (
-	ErrChecksumMismatch = errors.New("checksum mismatch")
+	ErrChecksumMismatch = fmt.Errorf("checksum mismatch")
 )
 
 type full struct {

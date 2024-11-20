@@ -6,13 +6,11 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
-
-	"github.com/pkg/errors"
 )
 
 func Decode(data []byte, res any) error {
 	if res == nil {
-		return errors.New("can't unmarshal to nil value")
+		return fmt.Errorf("can't unmarshal to nil value")
 	}
 	if reflect.TypeOf(res).Kind() != reflect.Ptr {
 		return fmt.Errorf("res value is not pointer as expected. got %v", reflect.TypeOf(res))
@@ -25,7 +23,7 @@ func Decode(data []byte, res any) error {
 
 	d.decodeValue(reflect.ValueOf(res))
 	if d.err != nil {
-		return errors.Wrapf(d.err, "decode %T", res)
+		return fmt.Errorf("decode %T: %w", res, d.err)
 	}
 
 	return nil
@@ -43,7 +41,7 @@ func DecodeUnknownObject(data []byte, expectNextTypes ...reflect.Type) (Object, 
 	obj := d.decodeRegisteredObject()
 
 	if d.err != nil {
-		return obj, errors.Wrap(d.err, "decoding predicted object")
+		return obj, fmt.Errorf("decoding predicted object: %w", d.err)
 	}
 	return obj, nil
 }
@@ -56,7 +54,7 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 	if !ignoreCRC {
 		crcCode := d.PopCRC()
 		if d.err != nil {
-			d.err = errors.Wrap(d.err, "read crc")
+			d.err = fmt.Errorf("read crc: %w", d.err)
 			return
 		}
 
@@ -115,7 +113,7 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 		if flagsetIndex == i && !isBitsetAParsed {
 			optionalBitSetA = d.PopUint()
 			if d.err != nil {
-				d.err = errors.Wrap(d.err, "reading bitset("+vtyp.Name()+")")
+				d.err = fmt.Errorf("reading bitset("+vtyp.Name()+"): %w", d.err)
 				return
 			}
 			isBitsetAParsed = true
@@ -132,7 +130,7 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 		if _, found := vtyp.Field(fieldIndex).Tag.Lookup(tagName); found {
 			info, err := parseTag(vtyp.Field(fieldIndex).Tag)
 			if err != nil {
-				d.err = errors.Wrap(err, "parse tag")
+				d.err = fmt.Errorf("parse tag: %w", err)
 				return
 			}
 			if info.version == 1 {
@@ -143,7 +141,7 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 				if (!isBitsetBParsed) && isBitsetAParsed {
 					optionalBitSetB = d.PopUint()
 					if d.err != nil {
-						d.err = errors.Wrap(d.err, "read bitset")
+						d.err = fmt.Errorf("read bitset: %w", d.err)
 						return
 					}
 					isBitsetBParsed = true
@@ -170,7 +168,7 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 		}
 
 		if d.err != nil {
-			d.err = errors.Wrap(d.err, "decode object: "+vtyp.Name()+"."+vtyp.Field(fieldIndex).Name)
+			d.err = fmt.Errorf("decode object: "+vtyp.Name()+"."+vtyp.Field(fieldIndex).Name+": %w", d.err)
 			break
 		}
 	}
@@ -217,7 +215,7 @@ func (d *Decoder) decodeValue(value reflect.Value) {
 		val = d.decodeRegisteredObject()
 
 		if d.err != nil {
-			d.err = errors.Wrap(d.err, "decode interface")
+			d.err = fmt.Errorf("decode interface: %w", d.err)
 			return
 		}
 
@@ -266,10 +264,10 @@ func (d *Decoder) decodeValueGeneral(value reflect.Value) any {
 		d.err = fmt.Errorf("%v must implement tl.Object for decoding (also it must be pointer)", value.Type())
 
 	case reflect.Map:
-		d.err = errors.New("map is not ordered object (must order like structs)")
+		d.err = fmt.Errorf("map is not ordered object (must order like structs)")
 
 	case reflect.Array:
-		d.err = errors.New("array must be slice")
+		d.err = fmt.Errorf("array must be slice")
 
 	case reflect.Int, reflect.Int8, reflect.Int16,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint64:
@@ -290,7 +288,7 @@ func (d *Decoder) decodeValueGeneral(value reflect.Value) any {
 func (d *Decoder) decodeRegisteredObject() Object {
 	crc := d.PopCRC()
 	if d.err != nil {
-		d.err = errors.Wrap(d.err, "reading crc")
+		d.err = fmt.Errorf("reading crc: %w", d.err)
 	}
 
 	var _typ reflect.Type
@@ -397,7 +395,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 	if _, isEnum := enumCrcs[crc]; !isEnum {
 		d.decodeObject(o, true)
 		if d.err != nil {
-			d.err = errors.Wrapf(d.err, "decode registered object %T", o)
+			d.err = fmt.Errorf("decode registered object %T: %w", o, d.err)
 			return o
 		}
 	}

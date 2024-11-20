@@ -27,7 +27,6 @@ import (
 	"github.com/amarnathcjd/gogram/internal/session"
 	"github.com/amarnathcjd/gogram/internal/transport"
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -114,9 +113,9 @@ func NewMTProto(c Config) (*MTProto, error) {
 			// else, continue with the execution
 			// check if have write permission in the directory
 			if _, err := os.OpenFile(filepath.Dir(c.AuthKeyFile), os.O_WRONLY, 0222); err != nil {
-				return nil, errors.Wrap(err, "check if you have write permission in the directory")
+				return nil, fmt.Errorf("check if you have write permission in the directory: %w", err)
 			}
-			return nil, errors.Wrap(err, "loading session")
+			return nil, fmt.Errorf("loading session: %w", err)
 		}
 	}
 
@@ -148,7 +147,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		mtproto.encrypted = true
 	}
 	if err := mtproto.loadAuth(c.StringSession, loaded); err != nil {
-		return nil, errors.Wrap(err, "loading auth")
+		return nil, fmt.Errorf("loading auth: %w", err)
 	}
 
 	if c.FloodHandler != nil {
@@ -176,7 +175,7 @@ func (m *MTProto) LoadSession(sess *session.Session) error {
 	m.Logger.Debug("importing Auth from session...")
 	if !m.memorySession {
 		if err := m.SaveSession(); err != nil {
-			return errors.Wrap(err, "saving session")
+			return fmt.Errorf("saving session: %w", err)
 		}
 	}
 	return nil
@@ -186,7 +185,7 @@ func (m *MTProto) loadAuth(stringSession string, sess *session.Session) error {
 	if stringSession != "" {
 		_, err := m.ImportAuth(stringSession)
 		if err != nil {
-			return errors.Wrap(err, "importing string session")
+			return fmt.Errorf("importing string session: %w", err)
 		}
 	} else if sess != nil {
 		m._loadSession(sess)
@@ -209,11 +208,11 @@ func (m *MTProto) ImportRawAuth(authKey, authKeyHash []byte, addr string, appID 
 	m.Logger.Debug("imported auth key, auth key hash, addr, dc, appID")
 	if !m.memorySession {
 		if err := m.SaveSession(); err != nil {
-			return false, errors.Wrap(err, "saving session")
+			return false, fmt.Errorf("saving session: %w", err)
 		}
 	}
 	if err := m.Reconnect(false); err != nil {
-		return false, errors.Wrap(err, "reconnecting")
+		return false, fmt.Errorf("reconnecting: %w", err)
 	}
 	return true, nil
 }
@@ -254,7 +253,7 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 	}
 	newAddr := utils.GetHostIp(dc, false, m.IpV6)
 	if newAddr == "" {
-		return nil, errors.New("dc_id not found")
+		return nil, fmt.Errorf("dc_id not found")
 	}
 
 	m.Logger.Debug("migrating to new DC... dc-" + strconv.Itoa(dc))
@@ -273,7 +272,7 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 	}
 	sender, err := NewMTProto(cfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating new MTProto")
+		return nil, fmt.Errorf("creating new MTProto: %w", err)
 	}
 	sender.serverRequestHandlers = m.serverRequestHandlers
 	m.stopRoutines()
@@ -281,7 +280,7 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 	m.Logger.Debug("reconnecting to new DC with new auth key")
 	errConn := sender.CreateConnection(true)
 	if errConn != nil {
-		return nil, errors.Wrap(errConn, "creating connection")
+		return nil, fmt.Errorf("creating connection: %w", errConn)
 	}
 	return sender, nil
 }
@@ -290,7 +289,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 	newAddr := utils.GetHostIp(dcID, false, m.IpV6)
 	execWorkDir, err := os.Executable()
 	if err != nil {
-		return nil, errors.Wrap(err, "getting executable directory")
+		return nil, fmt.Errorf("getting executable directory: %w", err)
 	}
 	wd := filepath.Dir(execWorkDir)
 	cfg := Config{
@@ -313,7 +312,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 	sender.noRedirect = true
 	err = sender.CreateConnection(true)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating connection")
+		return nil, fmt.Errorf("creating connection: %w", err)
 	}
 
 	return sender, nil
@@ -329,7 +328,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 	err := m.connect(ctx)
 	if err != nil {
-		m.Logger.Error(errors.Wrap(err, "creating connection"))
+		m.Logger.Error(fmt.Errorf("creating connection: %w", err))
 		return err
 	}
 	m.tcpActive = true
@@ -392,11 +391,11 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 			m.Logger.Info("connection closed due to broken tcp, reconnecting to [" + m.Addr + "]" + " - <Tcp> ...")
 			err = m.Reconnect(false)
 			if err != nil {
-				return nil, errors.Wrap(err, "reconnecting")
+				return nil, fmt.Errorf("reconnecting: %w", err)
 			}
 			return m.makeRequest(data, expectedTypes...)
 		}
-		return nil, errors.Wrap(err, "sending packet")
+		return nil, fmt.Errorf("sending packet: %w", err)
 	}
 	response := <-resp
 	switch r := response.(type) {
@@ -428,11 +427,11 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 			m.Logger.Info("connection closed due to broken tcp, reconnecting to [" + m.Addr + "]" + " - <Tcp> ...")
 			err = m.Reconnect(false)
 			if err != nil {
-				return nil, errors.Wrap(err, "reconnecting")
+				return nil, fmt.Errorf("reconnecting: %w", err)
 			}
 			return m.makeRequestCtx(ctx, data, expectedTypes...)
 		}
-		return nil, errors.Wrap(err, "sending packet")
+		return nil, fmt.Errorf("sending packet: %w", err)
 	}
 
 	select {
@@ -463,7 +462,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 func (m *MTProto) InvokeRequestWithoutUpdate(data tl.Object, expectedTypes ...reflect.Type) error {
 	_, _, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
-		return errors.Wrap(err, "sending packet")
+		return fmt.Errorf("sending packet: %w", err)
 	}
 	return err
 }
@@ -489,7 +488,7 @@ func (m *MTProto) Terminate() error {
 func (m *MTProto) Reconnect(WithLogs bool) error {
 	err := m.Disconnect()
 	if err != nil {
-		return errors.Wrap(err, "disconnecting")
+		return fmt.Errorf("disconnecting: %w", err)
 	}
 	if WithLogs {
 		m.Logger.Info(fmt.Sprintf("reconnecting to [%s] - <Tcp> ...", m.Addr))
@@ -501,7 +500,7 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 	}
 	m.Ping()
 
-	return errors.Wrap(err, "recreating connection")
+	return fmt.Errorf("recreating connection: %w", err)
 }
 
 // keep pinging to keep the connection alive
@@ -554,13 +553,13 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						m.Logger.Debug("tcp connection closed, reconnecting to [" + m.Addr + "] - <Tcp> ...")
 						err = m.Reconnect(false)
 						if err != nil {
-							m.Logger.Error(errors.Wrap(err, "reconnecting"))
+							m.Logger.Error(fmt.Errorf("reconnecting: %w", err))
 						}
 					} else if strings.Contains(err.Error(), "required to reconnect!") { // network is not stable
 						m.Logger.Debug("packet read error, reconnecting to [" + m.Addr + "] - <Tcp> ...")
 						err = m.Reconnect(false)
 						if err != nil {
-							m.Logger.Error(errors.Wrap(err, "reconnecting"))
+							m.Logger.Error(fmt.Errorf("reconnecting: %w", err))
 						}
 					}
 				}
@@ -573,7 +572,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					m.Logger.Debug("EOF error, reconnecting to [" + m.Addr + "] - <Tcp> ...")
 					err = m.Reconnect(false)
 					if err != nil {
-						m.Logger.Error(errors.Wrap(err, "reconnecting"))
+						m.Logger.Error(fmt.Errorf("reconnecting: %w", err))
 					}
 					return
 				default:
@@ -582,16 +581,16 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						if e.Code == 4294966892 {
 							m.handle404Error()
 						} else {
-							m.Logger.Debug(errors.New("[RESPONSE_ERROR_CODE] - " + e.Error()))
+							m.Logger.Debug(fmt.Errorf("[RESPONSE_ERROR_CODE] - " + e.Error()))
 						}
 					case *transport.ErrCode:
-						m.Logger.Error(errors.New("[TRANSPORT_ERROR_CODE] - " + e.Error()))
+						m.Logger.Error(fmt.Errorf("[TRANSPORT_ERROR_CODE] - " + e.Error()))
 					}
 
-					m.Logger.Debug(errors.Wrap(err, "reading message"))
+					m.Logger.Debug(fmt.Errorf("reading message: %w", err))
 
 					if err := m.Reconnect(false); err != nil {
-						m.Logger.Error(errors.Wrap(err, "reconnecting"))
+						m.Logger.Error(fmt.Errorf("reconnecting: %w", err))
 					}
 				}
 			}
@@ -615,7 +614,7 @@ func (m *MTProto) handle404Error() {
 		m.Logger.Debug("-404 (x4), refreshing connection pipline")
 		err := m.Reconnect(false)
 		if err != nil {
-			m.Logger.Error(errors.Wrap(err, "reconnecting"))
+			m.Logger.Error(fmt.Errorf("reconnecting: %w", err))
 		}
 	} else if m.authKey404[0] > 8 {
 		panic("[AUTH_KEY_INVALID] (code -404)")
@@ -624,7 +623,7 @@ func (m *MTProto) handle404Error() {
 
 func (m *MTProto) readMsg() error {
 	if m.transport == nil {
-		return errors.New("must setup connection before reading messages")
+		return fmt.Errorf("must setup connection before reading messages")
 	}
 
 	response, err := m.transport.ReadMsg()
@@ -636,7 +635,7 @@ func (m *MTProto) readMsg() error {
 		case io.EOF, context.Canceled:
 			return err
 		default:
-			return errors.Wrap(err, "reading message")
+			return fmt.Errorf("reading message: %w", err)
 		}
 	}
 
@@ -644,7 +643,7 @@ func (m *MTProto) readMsg() error {
 		var obj tl.Object
 		obj, err = tl.DecodeUnknownObject(response.GetMsg())
 		if err != nil {
-			return errors.Wrap(err, "parsing object")
+			return fmt.Errorf("parsing object: %w", err)
 		}
 		m.serviceChannel <- obj
 		return nil
@@ -652,8 +651,8 @@ func (m *MTProto) readMsg() error {
 
 	err = m.processResponse(response)
 	if err != nil {
-		m.Logger.Debug(errors.Wrap(err, "decoding unknown object"))
-		return errors.Wrap(err, "incoming update")
+		m.Logger.Debug(fmt.Errorf("decoding unknown object: %w", err))
+		return fmt.Errorf("incoming update: %w", err)
 	}
 	return nil
 }
@@ -686,7 +685,7 @@ messageTypeSwitching:
 		for _, v := range *message {
 			err := m.processResponse(v)
 			if err != nil {
-				return errors.Wrap(err, "processing item in container")
+				return fmt.Errorf("processing item in container: %w", err)
 			}
 		}
 
@@ -695,7 +694,7 @@ messageTypeSwitching:
 		if !m.memorySession {
 			err := m.SaveSession()
 			if err != nil {
-				return errors.Wrap(err, "saving session")
+				return fmt.Errorf("saving session: %w", err)
 			}
 		}
 
@@ -720,7 +719,7 @@ messageTypeSwitching:
 		if !m.memorySession {
 			err := m.SaveSession()
 			if err != nil {
-				m.Logger.Error(errors.Wrap(err, "saving session"))
+				m.Logger.Error(fmt.Errorf("saving session, %w", err))
 			}
 		}
 
@@ -755,9 +754,9 @@ messageTypeSwitching:
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			if strings.Contains(err.Error(), "no response channel found") {
-				m.Logger.Debug(errors.Wrap(err, "writing rpc response"))
+				m.Logger.Debug(fmt.Errorf("writing rpc response: %w", err))
 			} else {
-				return errors.Wrap(err, "writing rpc response")
+				return fmt.Errorf("writing rpc response: %w", err)
 			}
 		}
 
@@ -785,7 +784,7 @@ messageTypeSwitching:
 
 		_, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: m.pendingAcks.Keys()})
 		if err != nil {
-			return errors.Wrap(err, "sending acks")
+			return fmt.Errorf("sending acks: %w", err)
 		}
 
 		m.pendingAcks.Clear()
@@ -819,7 +818,7 @@ func (m *MTProto) offsetTime() {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&timeResponse); err != nil {
-		m.Logger.Error(errors.Wrap(err, "off-setting time"))
+		m.Logger.Error(fmt.Errorf("off-setting time: %w", err))
 		return
 	}
 

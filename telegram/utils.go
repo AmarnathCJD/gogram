@@ -16,8 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 type mimeTypeManager struct {
@@ -209,7 +207,7 @@ mediaMessageSwitch:
 		location = f.Photo
 	case *NewMessage:
 		if !f.IsMedia() {
-			return nil, 0, 0, "", errors.New("message is not media")
+			return nil, 0, 0, "", fmt.Errorf("message is not media")
 		}
 		file = f.Media()
 		goto mediaMessageSwitch
@@ -232,7 +230,7 @@ mediaMessageSwitch:
 			}
 		}
 	default:
-		return nil, 0, 0, "", errors.New("unsupported file type")
+		return nil, 0, 0, "", fmt.Errorf("unsupported file type")
 	}
 	switch l := location.(type) {
 	case *DocumentObj:
@@ -253,7 +251,7 @@ mediaMessageSwitch:
 	case *InputPhotoFileLocation:
 		return l, dataCenter, fileSize, "", nil
 	default:
-		return nil, 0, 0, "", errors.New("unsupported file type")
+		return nil, 0, 0, "", fmt.Errorf("unsupported file type")
 	}
 }
 
@@ -615,7 +613,7 @@ func UnpackBotFileID(fileID string) (int64, int64, int32, int32) {
 func ResolveBotFileID(fileId string) (MessageMedia, error) {
 	fID, accessHash, fileType, dcID := UnpackBotFileID(fileId)
 	if fID == 0 || accessHash == 0 || fileType == 0 || dcID == 0 {
-		return nil, errors.New("failed to resolve file id: unrecognized format")
+		return nil, fmt.Errorf("failed to resolve file id: unrecognized format")
 	}
 	switch fileType {
 	case 2:
@@ -657,7 +655,7 @@ func ResolveBotFileID(fileId string) (MessageMedia, error) {
 			},
 		}, nil
 	}
-	return nil, errors.New("failed to resolve file id: unknown file type")
+	return nil, fmt.Errorf("failed to resolve file id: unknown file type")
 }
 
 func doesSessionFileExist(filePath string) bool {

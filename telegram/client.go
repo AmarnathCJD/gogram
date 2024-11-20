@@ -18,7 +18,6 @@ import (
 	"time"
 
 	mtproto "github.com/amarnathcjd/gogram"
-	"github.com/pkg/errors"
 
 	"github.com/amarnathcjd/gogram/internal/keys"
 	"github.com/amarnathcjd/gogram/internal/session"
@@ -172,14 +171,14 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		Ipv6:          config.ForceIPv6,
 	})
 	if err != nil {
-		return errors.Wrap(err, "creating mtproto client")
+		return fmt.Errorf("creating mtproto client: %w", err)
 	}
 	c.MTProto = mtproto
 	c.clientData.appID = mtproto.AppID() // in case the appId was not provided in the config but was in the session
 
 	if config.StringSession != "" {
 		if err := c.Connect(); err != nil {
-			return errors.Wrap(err, "connecting to telegram servers")
+			return fmt.Errorf("connecting to telegram servers failed: %w", err)
 		}
 	}
 
@@ -194,12 +193,12 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 		if c.AppID() == 0 {
 			log.Print("app id is empty, fetch from api.telegram.org? (y/n): ")
 			if !utils.AskForConfirmation() {
-				return errors.New("your app id is empty, please provide it")
+				return fmt.Errorf("your app id is empty, please provide it")
 			} else {
 				c.ScrapeAppConfig()
 			}
 		} else {
-			return errors.New("your app id or app hash is empty, please provide them")
+			return fmt.Errorf("your app id or app hash is empty, please provide them")
 		}
 	}
 	if config.AppHash == "" {
@@ -261,7 +260,7 @@ func (c *Client) InitialRequest() error {
 	})
 
 	if err != nil {
-		return errors.Wrap(err, "sending invokeWithLayer")
+		return fmt.Errorf("sending invokeWithLayer: %w", err)
 	}
 
 	c.Log.Debug("received initial invokeWithLayer response")
@@ -295,18 +294,18 @@ func (c *Client) Connect() error {
 
 	err := c.MTProto.CreateConnection(true)
 	if err != nil {
-		return errors.Wrap(err, "connecting to telegram servers")
+		return fmt.Errorf("connecting to telegram servers: %w", err)
 	}
 	// Initial request (invokeWithLayer) must be sent after connection is established
 	return c.InitialRequest()
 }
 
-// Wrapper for Connect()
+// Conn Wrapper for Connect()
 func (c *Client) Conn() (*Client, error) {
 	return c, c.Connect()
 }
 
-// Returns true if the client is connected to telegram servers
+// IsConnected Returns true if the client is connected to telegram servers
 func (c *Client) IsConnected() bool {
 	return c.MTProto.TcpActive()
 }
@@ -345,12 +344,12 @@ func (c *Client) Disconnect() error {
 	return c.MTProto.Disconnect()
 }
 
-// switchDC permanently switches the data center
+// SwitchDc permanently switches the data center
 func (c *Client) SwitchDc(dcID int) error {
 	c.Log.Debug("switching data center to (" + strconv.Itoa(dcID) + ")")
 	newDcSender, err := c.MTProto.SwitchDc(dcID)
 	if err != nil {
-		return errors.Wrap(err, "reconnecting to new dc")
+		return fmt.Errorf("reconnecting to new dc: %w", err)
 	}
 	c.MTProto = newDcSender
 	return c.InitialRequest()
@@ -433,7 +432,7 @@ func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
 		c.Log.Debug("creating exported sender for DC ", dcID)
 		exported, err := c.MTProto.ExportNewSender(dcID, true)
 		if err != nil {
-			lastError = errors.Wrap(err, "exporting new sender")
+			lastError = fmt.Errorf("exporting new sender: %w", err)
 			c.Log.Error("Error exporting new sender: ", lastError)
 			continue
 		}
@@ -461,7 +460,7 @@ func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
 			c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
 			auth, err := c.AuthExportAuthorization(int32(exported.GetDC()))
 			if err != nil {
-				lastError = errors.Wrap(err, "exporting auth")
+				lastError = fmt.Errorf("exporting auth: %w", err)
 				c.Log.Error("Error exporting auth: ", lastError)
 				continue
 			}
@@ -479,7 +478,7 @@ func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
 		})
 
 		if err != nil {
-			lastError = errors.Wrap(err, "making initial request")
+			lastError = fmt.Errorf("making initial request: %w", err)
 			c.Log.Error(fmt.Sprintf("Attempt %d: Error during initial request: %v", retry+1, lastError))
 			continue
 		}

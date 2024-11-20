@@ -4,13 +4,12 @@ package transport
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 type tcpConn struct {
@@ -39,11 +38,11 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 
 	tcpAddr, err := net.ResolveTCPAddr(tcpPrefix, cfg.Host)
 	if err != nil {
-		return nil, errors.Wrap(err, "resolving tcp")
+		return nil, fmt.Errorf("resolving tcp: %w", err)
 	}
 	conn, err := net.DialTCP(tcpPrefix, nil, tcpAddr)
 	if err != nil {
-		return nil, errors.Wrap(err, "dialing tcp")
+		return nil, fmt.Errorf("dialing tcp: %w", err)
 	}
 
 	return &tcpConn{
@@ -77,7 +76,7 @@ func (t *tcpConn) Read(b []byte) (int, error) {
 	if t.timeout > 0 {
 		err := t.conn.SetReadDeadline(time.Now().Add(t.timeout))
 		if err != nil {
-			return 0, errors.Wrap(err, "setting read deadline")
+			return 0, fmt.Errorf("setting read deadline: %w", err)
 		}
 	}
 
@@ -85,14 +84,14 @@ func (t *tcpConn) Read(b []byte) (int, error) {
 	if err != nil {
 		if e, ok := err.(*net.OpError); ok || err == io.ErrClosedPipe {
 			if e.Err.Error() == "i/o timeout" || err == io.ErrClosedPipe {
-				return 0, errors.Wrap(err, "required to reconnect!")
+				return 0, fmt.Errorf("required to reconnect!: %w", err)
 			}
 		}
 		switch err {
 		case io.EOF, context.Canceled:
 			return 0, err
 		default:
-			return 0, errors.Wrap(err, "unexpected error")
+			return 0, fmt.Errorf("unexpected error: %w", err)
 		}
 	}
 	return n, nil

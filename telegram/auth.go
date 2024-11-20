@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -16,8 +17,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // ConnectBot connects to telegram using bot token
@@ -33,7 +32,7 @@ var (
 	phoneRegex    = regexp.MustCompile(`^\+?\d+$`)
 )
 
-// AuthPromt will prompt user to enter phone number or bot token to authorize client
+// AuthPrompt will prompt user to enter phone number or bot token to authorize client
 func (c *Client) AuthPrompt() error {
 	if au, _ := c.IsAuthorized(); au {
 		return nil
@@ -68,7 +67,7 @@ func (c *Client) AuthPrompt() error {
 	return nil
 }
 
-// Authorize client with bot token
+// LoginBot Authorize client with bot token
 func (c *Client) LoginBot(botToken string) error {
 	if !c.IsConnected() {
 		if err := c.Connect(); err != nil {
@@ -95,7 +94,7 @@ func (c *Client) LoginBot(botToken string) error {
 	return err
 }
 
-// sendCode and return phoneCodeHash
+// SendCode and return phoneCodeHash
 func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
 	resp, err := c.AuthSendCode(phoneNumber, c.AppID(), c.AppHash(), &CodeSettings{
 		AllowAppHash:  true,
@@ -135,7 +134,7 @@ type LoginOptions struct {
 	LastName         string `json:"last_name,omitempty"`
 }
 
-// Authorize client with phone number, code and phone code hash,
+// Login Authorize client with phone number, code and phone code hash,
 // If phone code hash is empty, it will be requested from telegram server
 func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, error) {
 	if !c.IsConnected() {
@@ -182,7 +181,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 		}
 	} else {
 		if opts.CodeHash == "" {
-			return false, errors.New("Code hash is empty, but code is not")
+			return false, fmt.Errorf("code hash is empty, but code is not")
 		}
 		auth, err = c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
 		if err != nil {
@@ -193,14 +192,14 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 	c.SaveSession()
 	switch auth := auth.(type) {
 	case *AuthAuthorizationSignUpRequired:
-		return false, errors.New("SignUp using official Telegram app is required")
+		return false, fmt.Errorf("SignUp using official Telegram app is required")
 	case *AuthAuthorizationObj:
 		switch u := auth.User.(type) {
 		case *UserObj:
 			c.clientData.botAcc = u.Bot
 			go c.Cache.UpdateUser(u)
 		case *UserEmpty:
-			return false, errors.New("user is empty")
+			return false, fmt.Errorf("user is empty")
 		}
 	case nil:
 		return false, nil // need not mean error
@@ -221,7 +220,7 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 			}
 
 			if matchError(err, "PHONE_CODE_INVALID") {
-				c.Log.Error(errors.Wrap(err, "invalid phone code"))
+				c.Log.Error(fmt.Errorf("invalid phone code: %w", err))
 				continue
 			} else if matchError(err, "SESSION_PASSWORD_NEEDED") {
 			acceptPasswordInput:
@@ -232,11 +231,11 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 							return nil, err
 						}
 
-						if passwordInput != "" {
+						if passwordInput == "cancel" || passwordInput == "exit" {
+							return nil, fmt.Errorf("login canceled")
+						} else if passwordInput != "" {
 							opts.Password = passwordInput
 							break
-						} else if passwordInput == "cancel" || passwordInput == "exit" {
-							return nil, errors.New("login canceled")
 						} else {
 							fmt.Println("Invalid password, try again")
 						}
@@ -263,15 +262,15 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 				}
 				break
 			} else if matchError(err, "The code is valid but no user with the given number") {
-				return nil, errors.New("SignUp using official Telegram app is required")
+				return nil, fmt.Errorf("SignUp using official Telegram app is required")
 			} else {
 				return nil, err
 			}
 		} else if opts.Code == "cancel" || opts.Code == "exit" {
-			return nil, errors.New("login canceled")
+			return nil, fmt.Errorf("login canceled")
 		} else {
-			if err, ok := err.(syscall.Errno); ok && err == syscall.EINTR {
-				return nil, errors.New("login canceled")
+			if err, ok := err.(syscall.Errno); ok && errors.Is(err, syscall.EINTR) {
+				return nil, fmt.Errorf("login canceled")
 			}
 			fmt.Println("Invalid code, try again")
 		}
@@ -326,7 +325,7 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 	}
 
 	if err := json.NewDecoder(respCode.Body).Decode(&result); err != nil {
-		return 0, "", false, errors.Wrap(err, "Too many requests, try again later")
+		return 0, "", false, fmt.Errorf("too many requests, try again later: %w", err)
 	}
 
 	code, err := conf.WebCodeCallback()
@@ -347,7 +346,7 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 	}
 
 	cookies := respLogin.Cookies()
-	ALREDY_TRIED_CREATION := false
+	AlreadyTriedCreation := false
 
 BackToAppsPage:
 	reqScrape, err := http.NewRequest("GET", "https://my.telegram.org/apps", nil)
@@ -375,13 +374,13 @@ BackToAppsPage:
 	appID := appIDRegex.FindStringSubmatch(string(body))
 	appHash := appHashRegex.FindStringSubmatch(string(body))
 
-	if len(appID) < 2 || len(appHash) < 2 || strings.Contains(string(body), "Create new application") && !ALREDY_TRIED_CREATION {
-		ALREDY_TRIED_CREATION = true
+	if len(appID) < 2 || len(appHash) < 2 || strings.Contains(string(body), "Create new application") && !AlreadyTriedCreation {
+		AlreadyTriedCreation = true
 		// assume app is not created, create app
 		hiddenHashRegex := regexp.MustCompile(`<input type="hidden" name="hash" value="([a-fA-F0-9]+)"\/>`)
 		hiddenHash := hiddenHashRegex.FindStringSubmatch(string(body))
 		if len(hiddenHash) < 2 {
-			return 0, "", false, errors.New("creation hash not found, try manual creation")
+			return 0, "", false, fmt.Errorf("creation hash not found, try manual creation")
 		}
 
 		appRandomSuffix := make([]byte, 8)
@@ -416,7 +415,7 @@ BackToAppsPage:
 	}
 
 	if appIdNum > math.MaxInt32 || appIdNum < math.MinInt32 {
-		return 0, "", false, errors.New("app id is out of range")
+		return 0, "", false, fmt.Errorf("app id is out of range")
 	}
 
 	return int32(appIdNum), appHash[1], true, nil
@@ -452,7 +451,7 @@ type PasswordOptions struct {
 // if 2fa is already enabled, should provide the current password.
 func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool, error) {
 	if currPwd == "" && newPwd == "" {
-		return false, errors.New("current password and new password both cannot be empty")
+		return false, fmt.Errorf("current password and new password both cannot be empty")
 	}
 	opt := &PasswordOptions{}
 	if len(opts) > 0 {
@@ -508,7 +507,7 @@ func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool
 	if err != nil {
 		if matchError(err, "EMAIL_UNCONFIRMED") {
 			if opt.EmailCodeCallback == nil {
-				return false, errors.New("email_code_callback is nil")
+				return false, fmt.Errorf("email_code_callback is nil")
 			}
 			code := opt.EmailCodeCallback()
 			_, err = c.AccountConfirmPasswordEmail(code)
@@ -587,14 +586,14 @@ func (q *QrToken) Wait(timeout ...int32) error {
 				case *UserObj:
 					q.client.Cache.UpdateUser(u)
 				case *UserEmpty:
-					return errors.New("authorization user is empty")
+					return fmt.Errorf("authorization user is empty")
 				}
 			}
 		}
 		return nil
 	case <-time.After(time.Duration(q.Timeout) * time.Second):
 		go q.client.removeHandle(ev)
-		return errors.New("qr login timed out")
+		return fmt.Errorf("qr login timed out")
 	}
 }
 
@@ -629,7 +628,7 @@ func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 	}, nil
 }
 
-// Logs out from the current account
+// LogOut logs out from the current account
 func (c *Client) LogOut() error {
 	_, err := c.AuthLogOut()
 	// c.bot = false

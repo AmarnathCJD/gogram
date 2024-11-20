@@ -3,8 +3,7 @@
 package telegram
 
 import (
-	"github.com/pkg/errors"
-
+	"fmt"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
@@ -35,7 +34,7 @@ func (*InitConnectionParams) FlagIndex() int {
 func (c *Client) InitConnection(params *InitConnectionParams) (tl.Object, error) {
 	data, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending InitConnection")
+		return nil, fmt.Errorf("sending InitConnection: %w", err)
 	}
 
 	return data.(tl.Object), nil
@@ -56,7 +55,7 @@ func (m *Client) InvokeWithLayer(layer int, query tl.Object) (tl.Object, error) 
 		Query: query,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending InvokeWithLayer")
+		return nil, fmt.Errorf("sending InvokeWithLayer, %w", err)
 	}
 
 	return data.(tl.Object), nil
@@ -80,7 +79,7 @@ func (m *Client) InvokeWithTakeout(takeoutID int, query tl.Object) (tl.Object, e
 		Query:     query,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending InvokeWithLayer")
+		return nil, fmt.Errorf("sending InvokeWithLayer: %w", err)
 	}
 
 	return data.(tl.Object), nil

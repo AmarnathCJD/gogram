@@ -127,7 +127,7 @@ func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 
 	//	data, err := c.MakeRequest(params)
 	//	if err != nil {
-	//		return nil, errors.Wrap(err, "sedning AuthSendCode")
+	//		return nil, fmt.Errorf("sedning AuthSendCode: %w", err)
 	//	}
 	//
 	//	resp, ok := data.(*AuthSentCode)

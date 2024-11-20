@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +15,6 @@ import (
 
 	aes "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
-	"github.com/pkg/errors"
 )
 
 type genericFileSessionLoader struct {
@@ -38,7 +38,7 @@ func (l *genericFileSessionLoader) Load() (*Session, error) {
 	switch {
 	case err == nil:
 	case errors.Is(err, syscall.ENOENT):
-		return nil, errors.Wrap(err, "file not found")
+		return nil, fmt.Errorf("file not found: %w", err)
 	default:
 		return nil, err
 	}
@@ -50,13 +50,13 @@ func (l *genericFileSessionLoader) Load() (*Session, error) {
 	data, err := os.ReadFile(l.path)
 	data = decodeBytes(data)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading file")
+		return nil, fmt.Errorf("reading file: %w", err)
 	}
 
 	file := new(tokenStorageFormat)
 	err = json.Unmarshal(data, file)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing file")
+		return nil, fmt.Errorf("parsing file: %w", err)
 	}
 
 	s, err := file.readSession()
@@ -110,15 +110,15 @@ func (t *tokenStorageFormat) readSession() (*Session, error) {
 
 	s.Key, err = base64.StdEncoding.DecodeString(t.Key)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid binary data of 'key'")
+		return nil, fmt.Errorf("invalid binary data of 'key': %w", err)
 	}
 	s.Hash, err = base64.StdEncoding.DecodeString(t.Hash)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid binary data of 'hash'")
+		return nil, fmt.Errorf("invalid binary data of 'hash': %w", err)
 	}
 	s.Salt, err = decodeInt64ToBase64(t.Salt)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid binary data of 'salt'")
+		return nil, fmt.Errorf("invalid binary data of 'salt': %w", err)
 	}
 	s.Hostname = t.Hostname
 	s.AppID = t.AppID

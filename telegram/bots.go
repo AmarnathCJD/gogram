@@ -2,7 +2,7 @@
 
 package telegram
 
-import "github.com/pkg/errors"
+import "fmt"
 
 type InlineSendOptions struct {
 	Gallery      bool   `json:"gallery,omitempty"`
@@ -90,7 +90,7 @@ func (c *Client) SetChatMenuButton(userID int64, button *BotMenuButton) (bool, e
 	}
 	peerUser, ok := peer.(*InputPeerUser)
 	if !ok {
-		return false, errors.New("invalid user")
+		return false, fmt.Errorf("invalid user")
 	}
 	resp, err := c.BotsSetBotMenuButton(&InputUserObj{AccessHash: peerUser.AccessHash, UserID: peerUser.UserID}, *button)
 	if err != nil {

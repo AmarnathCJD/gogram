@@ -3,13 +3,13 @@
 package telegram
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 type Handle interface {
@@ -27,7 +27,7 @@ type InlineCallbackHandler func(m *InlineCallbackQuery) error
 type ParticipantHandler func(m *ParticipantUpdate) error
 type RawHandler func(m Update, c *Client) error
 
-var EndGroup = errors.New("end-group-trigger")
+var EndGroup = fmt.Errorf("end-group-trigger")
 
 type messageHandle struct {
 	Pattern     interface{}
@@ -299,7 +299,7 @@ func (d *UpdateDispatcher) SortTrigger() {
 
 func (c *Client) RemoveHandle(handle Handle) error {
 	if c.dispatcher == nil {
-		return errors.New("dispatcher not initialized")
+		return fmt.Errorf("dispatcher not initialized")
 	}
 
 	if err := c.removeHandle(handle); err != nil {
@@ -332,7 +332,7 @@ func (c *Client) removeHandle(handle Handle) error {
 	case *rawHandle:
 		removeHandleFromMap(h, c.dispatcher.rawHandles)
 	default:
-		return errors.New("invalid handle type")
+		return fmt.Errorf("invalid handle type")
 	}
 
 	return nil
@@ -371,7 +371,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 									if errors.Is(err, EndGroup) {
 										return err
 									}
-									c.Log.Error(errors.Wrap(err, "updates.dispatcher.message"))
+									c.Log.Error(fmt.Errorf("updates.dispatcher.message: %w", err))
 								}
 							}
 							return nil
@@ -399,7 +399,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "updates.dispatcher.action"))
+						c.Log.Error(fmt.Errorf("updates.dispatcher.action: %w", err))
 					}
 
 					return nil
@@ -444,7 +444,7 @@ func (c *Client) handleAlbum(message MessageObj) {
 							if errors.Is(err, EndGroup) {
 								return err
 							}
-							c.Log.Error(errors.Wrap(err, "updates.dispatcher.album"))
+							c.Log.Error(fmt.Errorf("updates.dispatcher.album: %w", err))
 						}
 						return nil
 					}
@@ -477,7 +477,7 @@ func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
 	}
 	updatedMessage, err := c.GetDifference(pts, 1)
 	if err != nil {
-		c.Log.Error(errors.Wrap(err, "updates.dispatcher.getDifference"))
+		c.Log.Error(fmt.Errorf("updates.dispatcher.getDifference: %w", err))
 	}
 	if updatedMessage != nil {
 		c.handleMessageUpdate(updatedMessage)
@@ -497,7 +497,7 @@ func (c *Client) handleEditUpdate(update Message) {
 								if errors.Is(err, EndGroup) {
 									return err
 								}
-								c.Log.Error(errors.Wrap(err, "updates.dispatcher.editMessage"))
+								c.Log.Error(fmt.Errorf("updates.dispatcher.editMessage: %w", err))
 							}
 						}
 						return nil
@@ -527,7 +527,7 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "updates.dispatcher.callbackQuery"))
+						c.Log.Error(fmt.Errorf("updates.dispatcher.callbackQuery: %w", err))
 					}
 					return nil
 				}
@@ -555,7 +555,7 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "updates.dispatcher.inlineCallbackQuery"))
+						c.Log.Error(fmt.Errorf("updates.dispatcher.inlineCallbackQuery: %w", err))
 					}
 					return nil
 				}
@@ -582,7 +582,7 @@ func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 					if errors.Is(err, EndGroup) {
 						return err
 					}
-					c.Log.Error(errors.Wrap(err, "updates.dispatcher.participant"))
+					c.Log.Error(fmt.Errorf("updates.dispatcher.participant: %w", err))
 				}
 				return nil
 			}
@@ -609,7 +609,7 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "updates.dispatcher.inlineQuery"))
+						c.Log.Error(fmt.Errorf("updates.dispatcher.inlineQuery: %w", err))
 					}
 					return nil
 				}
@@ -636,7 +636,7 @@ func (c *Client) handleDeleteUpdate(update Update) {
 					if errors.Is(err, EndGroup) {
 						return err
 					}
-					c.Log.Error(errors.Wrap(err, "updates.dispatcher.deleteMessage"))
+					c.Log.Error(fmt.Errorf("updates.dispatcher.deleteMessage: %w", err))
 				}
 				return nil
 			}
@@ -662,7 +662,7 @@ func (c *Client) handleRawUpdate(update Update) {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "updates.dispatcher.rawUpdate"))
+						c.Log.Error(fmt.Errorf("updates.dispatcher.rawUpdate: %w", err))
 					}
 					return nil
 				}

@@ -2,9 +2,8 @@ package telegram
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 type NewMessage struct {
@@ -73,7 +72,7 @@ func (a *NewMessage) Unpin() (err error) {
 
 func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 	if !m.IsReply() {
-		return nil, errors.New("message is not a reply")
+		return nil, fmt.Errorf("message is not a reply")
 	}
 	// switch rep := m.Message.ReplyTo.(type) {
 	// case *MessageReplyHeaderObj:
@@ -92,7 +91,7 @@ func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 			return nil, err
 		}
 		if len(messages) == 0 {
-			return nil, errors.New("message not found")
+			return nil, fmt.Errorf("message not found")
 		}
 	}
 	return &messages[0], nil

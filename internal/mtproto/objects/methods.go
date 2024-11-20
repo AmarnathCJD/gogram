@@ -3,9 +3,8 @@
 package objects
 
 import (
+	"fmt"
 	"reflect"
-
-	"github.com/pkg/errors"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
@@ -25,12 +24,12 @@ func (*ReqPQParams) CRC() uint32 {
 func ReqPQ(m requester, nonce *tl.Int128) (*ResPQ, error) {
 	data, err := m.MakeRequest(&ReqPQParams{Nonce: nonce})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ReqPQ")
+		return nil, fmt.Errorf("sending ReqPQ: %w", err)
 	}
 
 	resp, ok := data.(*ResPQ)
 	if !ok {
-		return nil, errors.New("got invalid response type: " + reflect.TypeOf(data).String())
+		return nil, fmt.Errorf("got invalid response type: " + reflect.TypeOf(data).String())
 	}
 
 	return resp, nil
@@ -62,12 +61,12 @@ func ReqDHParams(
 		EncryptedData:        encryptedData,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ReqDHParams")
+		return nil, fmt.Errorf("sending ReqDHParams: %w", err)
 	}
 
 	resp, ok := data.(ServerDHParams)
 	if !ok {
-		return nil, errors.New("got invalid response type: " + reflect.TypeOf(data).String())
+		return nil, fmt.Errorf("got invalid response type: " + reflect.TypeOf(data).String())
 	}
 
 	return resp, nil
@@ -90,12 +89,12 @@ func SetClientDHParams(m requester, nonce, serverNonce *tl.Int128, encryptedData
 		EncryptedData: encryptedData,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending Ping")
+		return nil, fmt.Errorf("sending Ping: %w", err)
 	}
 
 	resp, ok := data.(SetClientDHParamsAnswer)
 	if !ok {
-		return nil, errors.New("got invalid response type: " + reflect.TypeOf(data).String())
+		return nil, fmt.Errorf("got invalid response type: " + reflect.TypeOf(data).String())
 	}
 
 	return resp, nil
@@ -116,13 +115,14 @@ func Ping(m requester, pingID int64) (*Pong, error) {
 	data, err := m.MakeRequest(&PingParams{
 		PingID: pingID,
 	})
+	
 	if err != nil {
-		return nil, errors.Wrap(err, "sending Ping")
+		return nil, fmt.Errorf("sending Ping: %w", err)
 	}
 
 	resp, ok := data.(*Pong)
 	if !ok {
-		return nil, errors.New("got invalid response type: " + reflect.TypeOf(data).String())
+		return nil, fmt.Errorf("got invalid response type: " + reflect.TypeOf(data).String())
 	}
 
 	return resp, nil

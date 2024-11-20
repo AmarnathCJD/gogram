@@ -3,7 +3,7 @@
 package telegram
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 )
 
 // GetChatPhotos returns the profile photos of a chat
@@ -77,7 +77,7 @@ func (c *Client) JoinChannel(Channel interface{}) error {
 				return err
 			}
 		} else {
-			return errors.New("peer is not a channel or chat")
+			return fmt.Errorf("peer is not a channel or chat")
 		}
 	}
 	return nil
@@ -105,7 +105,7 @@ func (c *Client) LeaveChannel(Channel interface{}, Revoke ...bool) error {
 			return err
 		}
 	} else {
-		return errors.New("peer is not a channel or chat")
+		return fmt.Errorf("peer is not a channel or chat")
 	}
 	return nil
 }
@@ -143,7 +143,7 @@ func (c *Client) GetChatMember(chatID, userID interface{}) (*Participant, error)
 	}
 	chat, ok := channel.(*InputPeerChannel)
 	if !ok {
-		return nil, errors.New("peer is not a channel")
+		return nil, fmt.Errorf("peer is not a channel")
 	}
 	participant, err := c.ChannelsGetParticipant(&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash}, user)
 	if err != nil {
@@ -214,7 +214,7 @@ func (c *Client) GetChatMembers(chatID interface{}, Opts ...*ParticipantOptions)
 	}
 	chat, ok := channel.(*InputPeerChannel)
 	if !ok {
-		return nil, 0, errors.New("peer is not a channel")
+		return nil, 0, fmt.Errorf("peer is not a channel")
 	}
 	opts := getVariadic(Opts, &ParticipantOptions{Filter: &ChannelParticipantsSearch{}, Limit: 1})
 	if opts.Query != "" {
@@ -226,7 +226,7 @@ func (c *Client) GetChatMembers(chatID interface{}, Opts ...*ParticipantOptions)
 	}
 	cParts, ok := participants.(*ChannelsChannelParticipantsObj)
 	if !ok {
-		return nil, 0, errors.New("could not get participants")
+		return nil, 0, fmt.Errorf("could not get participants")
 	}
 	c.Cache.UpdatePeersToCache(cParts.Users, cParts.Chats)
 	var (
@@ -305,7 +305,7 @@ func (c *Client) EditAdmin(PeerID, UserID interface{}, Opts ...*AdminOptions) (b
 	}
 	user, ok := u.(*InputPeerUser)
 	if !ok {
-		return false, errors.New("peer is not a user")
+		return false, fmt.Errorf("peer is not a user")
 	}
 	switch p := peer.(type) {
 	case *InputPeerChannel:
@@ -326,7 +326,7 @@ func (c *Client) EditAdmin(PeerID, UserID interface{}, Opts ...*AdminOptions) (b
 			return false, err
 		}
 	default:
-		return false, errors.New("peer is not a chat or channel")
+		return false, fmt.Errorf("peer is not a chat or channel")
 	}
 	return true, nil
 }
@@ -374,7 +374,7 @@ func (c *Client) EditBanned(PeerID, UserID interface{}, opts ...*BannedOptions) 
 	case *InputPeerChat:
 		return handleChatBan(c, p, u, o)
 	default:
-		return false, errors.New("peer is not a chat or channel")
+		return false, fmt.Errorf("peer is not a chat or channel")
 	}
 }
 
@@ -396,7 +396,7 @@ func handleChatBan(c *Client, p *InputPeerChat, u InputPeer, o *BannedOptions) (
 			return err == nil, err
 		}
 	}
-	return false, errors.New("user is not a valid InputPeerUser")
+	return false, fmt.Errorf("user is not a valid InputPeerUser")
 }
 
 func (c *Client) KickParticipant(PeerID, UserID interface{}) (bool, error) {
@@ -421,14 +421,14 @@ func (c *Client) KickParticipant(PeerID, UserID interface{}) (bool, error) {
 	case *InputPeerChat:
 		user, ok := u.(*InputPeerUser)
 		if !ok {
-			return false, errors.New("peer is not a user")
+			return false, fmt.Errorf("peer is not a user")
 		}
 		_, err := c.MessagesDeleteChatUser(false, c.GetPeerID(p), &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash})
 		if err != nil {
 			return false, err
 		}
 	default:
-		return false, errors.New("peer is not a chat or channel")
+		return false, fmt.Errorf("peer is not a chat or channel")
 	}
 	return true, nil
 }
@@ -438,7 +438,7 @@ type TitleOptions struct {
 	About    string `json:"about,omitempty"`
 }
 
-// Edit the title of a chat, channel or self,
+// EditTitle Edit the title of a chat, channel or self,
 // returns true if successful
 func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...*TitleOptions) (bool, error) {
 	opts := getVariadic(Opts, &TitleOptions{})
@@ -463,7 +463,7 @@ func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...*TitleOptio
 			return false, err
 		}
 	default:
-		return false, errors.New("peer is not a chat or channel or self")
+		return false, fmt.Errorf("peer is not a chat or channel or self")
 	}
 	return true, nil
 }
@@ -480,7 +480,7 @@ func (c *Client) GetStats(channelID interface{}, messageID ...interface{}) (*Sta
 	}
 	channelPeer, ok := peerID.(*InputPeerChannel)
 	if !ok {
-		return nil, nil, errors.New("could not convert peer to channel")
+		return nil, nil, fmt.Errorf("could not convert peer to channel")
 	}
 	var MessageID int32 = getVariadic(messageID, 0).(int32)
 	if MessageID > 0 {
@@ -565,7 +565,7 @@ func (c *Client) CreateChannel(title string, opts ...*ChannelOptions) (*Channel,
 			return ch, nil
 		}
 	}
-	return nil, errors.New("empty reply from server")
+	return nil, fmt.Errorf("empty reply from server")
 }
 
 func (c *Client) DeleteChannel(channelID interface{}) (*Updates, error) {
@@ -576,7 +576,7 @@ func (c *Client) DeleteChannel(channelID interface{}) (*Updates, error) {
 
 	channelPeer, ok := peer.(*InputPeerChannel)
 	if !ok {
-		return nil, errors.New("could not convert peer to channel")
+		return nil, fmt.Errorf("could not convert peer to channel")
 	}
 
 	u, err := c.ChannelsDeleteChannel(&InputChannelObj{
@@ -666,7 +666,7 @@ func (c *Client) TransferChatOwnership(chatID interface{}, userID interface{}, p
 	}
 
 	if channel, ok := peer.(*InputPeerChannel); !ok {
-		return errors.New("chat peer is not a channel")
+		return fmt.Errorf("chat peer is not a channel")
 	} else {
 		inputChannel = &InputChannelObj{
 			ChannelID:  channel.ChannelID,
@@ -680,7 +680,7 @@ func (c *Client) TransferChatOwnership(chatID interface{}, userID interface{}, p
 	}
 
 	if inpUser, ok := user.(*InputPeerUser); !ok {
-		return errors.New("user peer is not a user")
+		return fmt.Errorf("user peer is not a user")
 	} else {
 		inputUser = &InputUserObj{
 			UserID:     inpUser.UserID,

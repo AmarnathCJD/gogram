@@ -2,7 +2,9 @@
 
 package telegram
 
-import "errors"
+import (
+	"fmt"
+)
 
 type ParticipantUpdate struct {
 	Client         *Client
@@ -153,11 +155,11 @@ func (pu *ParticipantUpdate) Marshal(nointent ...bool) string {
 
 func (pu *ParticipantUpdate) Ban() (bool, error) {
 	if pu.User == nil {
-		return false, errors.New("ParticipantUpdate.Ban: User is nil")
+		return false, fmt.Errorf("ParticipantUpdate.Ban: User is nil")
 	}
 
 	if pu.Channel == nil {
-		return false, errors.New("ParticipantUpdate.Ban: Channel is nil")
+		return false, fmt.Errorf("ParticipantUpdate.Ban: Channel is nil")
 	}
 
 	_, err := pu.Client.EditBanned(pu.Channel, pu.User, &BannedOptions{
@@ -169,11 +171,11 @@ func (pu *ParticipantUpdate) Ban() (bool, error) {
 
 func (pu *ParticipantUpdate) Unban() (bool, error) {
 	if pu.User == nil {
-		return false, errors.New("ParticipantUpdate.Unban: User is nil")
+		return false, fmt.Errorf("ParticipantUpdate.Unban: User is nil")
 	}
 
 	if pu.Channel == nil {
-		return false, errors.New("ParticipantUpdate.Unban: Channel is nil")
+		return false, fmt.Errorf("ParticipantUpdate.Unban: Channel is nil")
 	}
 
 	_, err := pu.Client.EditBanned(pu.Channel, pu.User, &BannedOptions{
@@ -185,11 +187,11 @@ func (pu *ParticipantUpdate) Unban() (bool, error) {
 
 func (pu *ParticipantUpdate) Kick() (bool, error) {
 	if pu.User == nil {
-		return false, errors.New("ParticipantUpdate.Kick: User is nil")
+		return false, fmt.Errorf("ParticipantUpdate.Kick: User is nil")
 	}
 
 	if pu.Channel == nil {
-		return false, errors.New("ParticipantUpdate.Kick: Channel is nil")
+		return false, fmt.Errorf("ParticipantUpdate.Kick: Channel is nil")
 	}
 
 	_, err := pu.Client.KickParticipant(pu.Channel, pu.User)
@@ -198,11 +200,11 @@ func (pu *ParticipantUpdate) Kick() (bool, error) {
 
 func (pu *ParticipantUpdate) Promote() (bool, error) {
 	if pu.User == nil {
-		return false, errors.New("ParticipantUpdate.Promote: User is nil")
+		return false, fmt.Errorf("ParticipantUpdate.Promote: User is nil")
 	}
 
 	if pu.Channel == nil {
-		return false, errors.New("ParticipantUpdate.Promote: Channel is nil")
+		return false, fmt.Errorf("ParticipantUpdate.Promote: Channel is nil")
 	}
 
 	_, err := pu.Client.EditAdmin(pu.Channel, pu.User, &AdminOptions{
@@ -214,11 +216,11 @@ func (pu *ParticipantUpdate) Promote() (bool, error) {
 
 func (pu *ParticipantUpdate) Demote() (bool, error) {
 	if pu.User == nil {
-		return false, errors.New("ParticipantUpdate.Demote: User is nil")
+		return false, fmt.Errorf("ParticipantUpdate.Demote: User is nil")
 	}
 
 	if pu.Channel == nil {
-		return false, errors.New("ParticipantUpdate.Demote: Channel is nil")
+		return false, fmt.Errorf("ParticipantUpdate.Demote: Channel is nil")
 	}
 
 	_, err := pu.Client.EditAdmin(pu.Channel, pu.User, &AdminOptions{

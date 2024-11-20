@@ -4,14 +4,12 @@ package mode
 
 import (
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 var (
-	ErrInterfaceIsNil        = errors.New("interface is nil")
-	ErrModeNotSupported      = errors.New("mode is not supported")
-	ErrAmbiguousModeAnnounce = errors.New("ambiguous mode announce, expected other byte sequence")
+	ErrInterfaceIsNil        = fmt.Errorf("interface is nil")
+	ErrModeNotSupported      = fmt.Errorf("mode is not supported")
+	ErrAmbiguousModeAnnounce = fmt.Errorf("ambiguous mode announce, expected other byte sequence")
 )
 
 type ErrNotMultiple struct {

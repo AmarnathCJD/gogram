@@ -3,7 +3,7 @@
 package telegram
 
 import (
-	errors "github.com/pkg/errors"
+	"fmt"
 	"reflect"
 )
 
@@ -29,7 +29,7 @@ func (c *Client) AccountAcceptAuthorization(botID int64, scope, publicKey string
 		ValueHashes: valueHashes,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountAcceptAuthorization")
+		return false, fmt.Errorf("sending AccountAcceptAuthorization: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -49,7 +49,7 @@ func (*AccountCancelPasswordEmailParams) CRC() uint32 {
 func (c *Client) AccountCancelPasswordEmail() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountCancelPasswordEmailParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountCancelPasswordEmail")
+		return false, fmt.Errorf("sending AccountCancelPasswordEmail: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -83,7 +83,7 @@ func (c *Client) AccountChangeAuthorizationSettings(confirmed bool, hash int64, 
 		Hash:                      hash,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountChangeAuthorizationSettings")
+		return false, fmt.Errorf("sending AccountChangeAuthorizationSettings: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -111,7 +111,7 @@ func (c *Client) AccountChangePhone(phoneNumber, phoneCodeHash, phoneCode string
 		PhoneNumber:   phoneNumber,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountChangePhone")
+		return nil, fmt.Errorf("sending AccountChangePhone: %w", err)
 	}
 
 	resp, ok := responseData.(User)
@@ -133,7 +133,7 @@ func (*AccountCheckUsernameParams) CRC() uint32 {
 func (c *Client) AccountCheckUsername(username string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountCheckUsernameParams{Username: username})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountCheckUsername")
+		return false, fmt.Errorf("sending AccountCheckUsername: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -153,7 +153,7 @@ func (*AccountClearRecentEmojiStatusesParams) CRC() uint32 {
 func (c *Client) AccountClearRecentEmojiStatuses() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountClearRecentEmojiStatusesParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountClearRecentEmojiStatuses")
+		return false, fmt.Errorf("sending AccountClearRecentEmojiStatuses: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -175,7 +175,7 @@ func (*AccountConfirmPasswordEmailParams) CRC() uint32 {
 func (c *Client) AccountConfirmPasswordEmail(code string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountConfirmPasswordEmailParams{Code: code})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountConfirmPasswordEmail")
+		return false, fmt.Errorf("sending AccountConfirmPasswordEmail: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -194,14 +194,14 @@ func (*AccountConfirmPhoneParams) CRC() uint32 {
 	return 0x5f2178c3
 }
 
-// Confirm a phone number to cancel account deletion, for more info [click here »](https://core.telegram.org/api/account-deletion)
+// AccountConfirmPhone Confirm a phone number to cancel account deletion, for more info [click here »](https://core.telegram.org/api/account-deletion)
 func (c *Client) AccountConfirmPhone(phoneCodeHash, phoneCode string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountConfirmPhoneParams{
 		PhoneCode:     phoneCode,
 		PhoneCodeHash: phoneCodeHash,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountConfirmPhone")
+		return false, fmt.Errorf("sending AccountConfirmPhone: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -219,11 +219,11 @@ func (*AccountCreateBusinessChatLinkParams) CRC() uint32 {
 	return 0x8851e68e
 }
 
-// Create a [business chat deep link »](https://core.telegram.org/api/business#business-chat-links).
+// AccountCreateBusinessChatLink Create a [business chat deep link »](https://core.telegram.org/api/business#business-chat-links).
 func (c *Client) AccountCreateBusinessChatLink(link *InputBusinessChatLink) (*BusinessChatLink, error) {
 	responseData, err := c.MakeRequest(&AccountCreateBusinessChatLinkParams{Link: link})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountCreateBusinessChatLink")
+		return nil, fmt.Errorf("sending AccountCreateBusinessChatLink: %w", err)
 	}
 
 	resp, ok := responseData.(*BusinessChatLink)
@@ -257,7 +257,7 @@ func (c *Client) AccountCreateTheme(slug, title string, document InputDocument, 
 		Title:    title,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountCreateTheme")
+		return nil, fmt.Errorf("sending AccountCreateTheme: %w", err)
 	}
 
 	resp, ok := responseData.(*Theme)
@@ -277,7 +277,7 @@ func (*AccountDeclinePasswordResetParams) CRC() uint32 {
 func (c *Client) AccountDeclinePasswordReset() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountDeclinePasswordResetParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountDeclinePasswordReset")
+		return false, fmt.Errorf("sending AccountDeclinePasswordReset: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -307,7 +307,7 @@ func (c *Client) AccountDeleteAccount(reason string, password InputCheckPassword
 		Reason:   reason,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountDeleteAccount")
+		return false, fmt.Errorf("sending AccountDeleteAccount: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -327,7 +327,7 @@ func (*AccountDeleteAutoSaveExceptionsParams) CRC() uint32 {
 func (c *Client) AccountDeleteAutoSaveExceptions() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountDeleteAutoSaveExceptionsParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountDeleteAutoSaveExceptions")
+		return false, fmt.Errorf("sending AccountDeleteAutoSaveExceptions: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -349,7 +349,7 @@ func (*AccountDeleteBusinessChatLinkParams) CRC() uint32 {
 func (c *Client) AccountDeleteBusinessChatLink(slug string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountDeleteBusinessChatLinkParams{Slug: slug})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountDeleteBusinessChatLink")
+		return false, fmt.Errorf("sending AccountDeleteBusinessChatLink: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -371,7 +371,7 @@ func (*AccountDeleteSecureValueParams) CRC() uint32 {
 func (c *Client) AccountDeleteSecureValue(types []SecureValueType) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountDeleteSecureValueParams{Types: types})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountDeleteSecureValue")
+		return false, fmt.Errorf("sending AccountDeleteSecureValue: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -393,7 +393,7 @@ func (*AccountDisablePeerConnectedBotParams) CRC() uint32 {
 func (c *Client) AccountDisablePeerConnectedBot(peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountDisablePeerConnectedBotParams{Peer: peer})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountDisablePeerConnectedBot")
+		return false, fmt.Errorf("sending AccountDisablePeerConnectedBot: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -419,7 +419,7 @@ func (c *Client) AccountEditBusinessChatLink(slug string, link *InputBusinessCha
 		Slug: slug,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountEditBusinessChatLink")
+		return nil, fmt.Errorf("sending AccountEditBusinessChatLink: %w", err)
 	}
 
 	resp, ok := responseData.(*BusinessChatLink)
@@ -445,7 +445,7 @@ func (*AccountFinishTakeoutSessionParams) FlagIndex() int {
 func (c *Client) AccountFinishTakeoutSession(success bool) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountFinishTakeoutSessionParams{Success: success})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountFinishTakeoutSession")
+		return false, fmt.Errorf("sending AccountFinishTakeoutSession: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -465,7 +465,7 @@ func (*AccountGetAccountTtlParams) CRC() uint32 {
 func (c *Client) AccountGetAccountTtl() (*AccountDaysTtl, error) {
 	responseData, err := c.MakeRequest(&AccountGetAccountTtlParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetAccountTtl")
+		return nil, fmt.Errorf("sending AccountGetAccountTtl: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountDaysTtl)
@@ -485,7 +485,7 @@ func (*AccountGetAllSecureValuesParams) CRC() uint32 {
 func (c *Client) AccountGetAllSecureValues() ([]*SecureValue, error) {
 	responseData, err := c.MakeRequest(&AccountGetAllSecureValuesParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetAllSecureValues")
+		return nil, fmt.Errorf("sending AccountGetAllSecureValues: %w", err)
 	}
 
 	resp, ok := responseData.([]*SecureValue)
@@ -513,7 +513,7 @@ func (c *Client) AccountGetAuthorizationForm(botID int64, scope, publicKey strin
 		Scope:     scope,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetAuthorizationForm")
+		return nil, fmt.Errorf("sending AccountGetAuthorizationForm: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountAuthorizationForm)
@@ -533,7 +533,7 @@ func (*AccountGetAuthorizationsParams) CRC() uint32 {
 func (c *Client) AccountGetAuthorizations() (*AccountAuthorizations, error) {
 	responseData, err := c.MakeRequest(&AccountGetAuthorizationsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetAuthorizations")
+		return nil, fmt.Errorf("sending AccountGetAuthorizations: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountAuthorizations)
@@ -553,7 +553,7 @@ func (*AccountGetAutoDownloadSettingsParams) CRC() uint32 {
 func (c *Client) AccountGetAutoDownloadSettings() (*AccountAutoDownloadSettings, error) {
 	responseData, err := c.MakeRequest(&AccountGetAutoDownloadSettingsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetAutoDownloadSettings")
+		return nil, fmt.Errorf("sending AccountGetAutoDownloadSettings: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountAutoDownloadSettings)
@@ -573,7 +573,7 @@ func (*AccountGetAutoSaveSettingsParams) CRC() uint32 {
 func (c *Client) AccountGetAutoSaveSettings() (*AccountAutoSaveSettings, error) {
 	responseData, err := c.MakeRequest(&AccountGetAutoSaveSettingsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetAutoSaveSettings")
+		return nil, fmt.Errorf("sending AccountGetAutoSaveSettings: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountAutoSaveSettings)
@@ -600,7 +600,7 @@ This method can be used to fetch info about a not-yet-cached business connection
 func (c *Client) AccountGetBotBusinessConnection(connectionID string) (Updates, error) {
 	responseData, err := c.MakeRequest(&AccountGetBotBusinessConnectionParams{ConnectionID: connectionID})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetBotBusinessConnection")
+		return nil, fmt.Errorf("sending AccountGetBotBusinessConnection: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -620,7 +620,7 @@ func (*AccountGetBusinessChatLinksParams) CRC() uint32 {
 func (c *Client) AccountGetBusinessChatLinks() (*AccountBusinessChatLinks, error) {
 	responseData, err := c.MakeRequest(&AccountGetBusinessChatLinksParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetBusinessChatLinks")
+		return nil, fmt.Errorf("sending AccountGetBusinessChatLinks: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountBusinessChatLinks)
@@ -642,7 +642,7 @@ func (*AccountGetChannelDefaultEmojiStatusesParams) CRC() uint32 {
 func (c *Client) AccountGetChannelDefaultEmojiStatuses(hash int64) (AccountEmojiStatuses, error) {
 	responseData, err := c.MakeRequest(&AccountGetChannelDefaultEmojiStatusesParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetChannelDefaultEmojiStatuses")
+		return nil, fmt.Errorf("sending AccountGetChannelDefaultEmojiStatuses: %w", err)
 	}
 
 	resp, ok := responseData.(AccountEmojiStatuses)
@@ -664,7 +664,7 @@ func (*AccountGetChannelRestrictedStatusEmojisParams) CRC() uint32 {
 func (c *Client) AccountGetChannelRestrictedStatusEmojis(hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&AccountGetChannelRestrictedStatusEmojisParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetChannelRestrictedStatusEmojis")
+		return nil, fmt.Errorf("sending AccountGetChannelRestrictedStatusEmojis: %w", err)
 	}
 
 	resp, ok := responseData.(EmojiList)
@@ -686,7 +686,7 @@ func (*AccountGetChatThemesParams) CRC() uint32 {
 func (c *Client) AccountGetChatThemes(hash int64) (AccountThemes, error) {
 	responseData, err := c.MakeRequest(&AccountGetChatThemesParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetChatThemes")
+		return nil, fmt.Errorf("sending AccountGetChatThemes: %w", err)
 	}
 
 	resp, ok := responseData.(AccountThemes)
@@ -706,7 +706,7 @@ func (*AccountGetConnectedBotsParams) CRC() uint32 {
 func (c *Client) AccountGetConnectedBots() (*AccountConnectedBots, error) {
 	responseData, err := c.MakeRequest(&AccountGetConnectedBotsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetConnectedBots")
+		return nil, fmt.Errorf("sending AccountGetConnectedBots: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountConnectedBots)
@@ -726,7 +726,7 @@ func (*AccountGetContactSignUpNotificationParams) CRC() uint32 {
 func (c *Client) AccountGetContactSignUpNotification() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountGetContactSignUpNotificationParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountGetContactSignUpNotification")
+		return false, fmt.Errorf("sending AccountGetContactSignUpNotification: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -746,7 +746,7 @@ func (*AccountGetContentSettingsParams) CRC() uint32 {
 func (c *Client) AccountGetContentSettings() (*AccountContentSettings, error) {
 	responseData, err := c.MakeRequest(&AccountGetContentSettingsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetContentSettings")
+		return nil, fmt.Errorf("sending AccountGetContentSettings: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountContentSettings)
@@ -768,7 +768,7 @@ func (*AccountGetDefaultBackgroundEmojisParams) CRC() uint32 {
 func (c *Client) AccountGetDefaultBackgroundEmojis(hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&AccountGetDefaultBackgroundEmojisParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetDefaultBackgroundEmojis")
+		return nil, fmt.Errorf("sending AccountGetDefaultBackgroundEmojis: %w", err)
 	}
 
 	resp, ok := responseData.(EmojiList)
@@ -790,7 +790,7 @@ func (*AccountGetDefaultEmojiStatusesParams) CRC() uint32 {
 func (c *Client) AccountGetDefaultEmojiStatuses(hash int64) (AccountEmojiStatuses, error) {
 	responseData, err := c.MakeRequest(&AccountGetDefaultEmojiStatusesParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetDefaultEmojiStatuses")
+		return nil, fmt.Errorf("sending AccountGetDefaultEmojiStatuses: %w", err)
 	}
 
 	resp, ok := responseData.(AccountEmojiStatuses)
@@ -812,7 +812,7 @@ func (*AccountGetDefaultGroupPhotoEmojisParams) CRC() uint32 {
 func (c *Client) AccountGetDefaultGroupPhotoEmojis(hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&AccountGetDefaultGroupPhotoEmojisParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetDefaultGroupPhotoEmojis")
+		return nil, fmt.Errorf("sending AccountGetDefaultGroupPhotoEmojis: %w", err)
 	}
 
 	resp, ok := responseData.(EmojiList)
@@ -834,7 +834,7 @@ func (*AccountGetDefaultProfilePhotoEmojisParams) CRC() uint32 {
 func (c *Client) AccountGetDefaultProfilePhotoEmojis(hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&AccountGetDefaultProfilePhotoEmojisParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetDefaultProfilePhotoEmojis")
+		return nil, fmt.Errorf("sending AccountGetDefaultProfilePhotoEmojis: %w", err)
 	}
 
 	resp, ok := responseData.(EmojiList)
@@ -854,7 +854,7 @@ func (*AccountGetGlobalPrivacySettingsParams) CRC() uint32 {
 func (c *Client) AccountGetGlobalPrivacySettings() (*GlobalPrivacySettings, error) {
 	responseData, err := c.MakeRequest(&AccountGetGlobalPrivacySettingsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetGlobalPrivacySettings")
+		return nil, fmt.Errorf("sending AccountGetGlobalPrivacySettings: %w", err)
 	}
 
 	resp, ok := responseData.(*GlobalPrivacySettings)
@@ -876,7 +876,7 @@ func (*AccountGetMultiWallPapersParams) CRC() uint32 {
 func (c *Client) AccountGetMultiWallPapers(wallpapers []InputWallPaper) ([]WallPaper, error) {
 	responseData, err := c.MakeRequest(&AccountGetMultiWallPapersParams{Wallpapers: wallpapers})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetMultiWallPapers")
+		return nil, fmt.Errorf("sending AccountGetMultiWallPapers: %w", err)
 	}
 
 	resp, ok := responseData.([]WallPaper)
@@ -908,7 +908,7 @@ func (c *Client) AccountGetNotifyExceptions(compareSound, compareStories bool, p
 		Peer:           peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetNotifyExceptions")
+		return nil, fmt.Errorf("sending AccountGetNotifyExceptions: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -930,7 +930,7 @@ func (*AccountGetNotifySettingsParams) CRC() uint32 {
 func (c *Client) AccountGetNotifySettings(peer InputNotifyPeer) (*PeerNotifySettings, error) {
 	responseData, err := c.MakeRequest(&AccountGetNotifySettingsParams{Peer: peer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetNotifySettings")
+		return nil, fmt.Errorf("sending AccountGetNotifySettings: %w", err)
 	}
 
 	resp, ok := responseData.(*PeerNotifySettings)
@@ -950,7 +950,7 @@ func (*AccountGetPasswordParams) CRC() uint32 {
 func (c *Client) AccountGetPassword() (*AccountPassword, error) {
 	responseData, err := c.MakeRequest(&AccountGetPasswordParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetPassword")
+		return nil, fmt.Errorf("sending AccountGetPassword: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountPassword)
@@ -972,7 +972,7 @@ func (*AccountGetPasswordSettingsParams) CRC() uint32 {
 func (c *Client) AccountGetPasswordSettings(password InputCheckPasswordSRP) (*AccountPasswordSettings, error) {
 	responseData, err := c.MakeRequest(&AccountGetPasswordSettingsParams{Password: password})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetPasswordSettings")
+		return nil, fmt.Errorf("sending AccountGetPasswordSettings: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountPasswordSettings)
@@ -994,7 +994,7 @@ func (*AccountGetPrivacyParams) CRC() uint32 {
 func (c *Client) AccountGetPrivacy(key InputPrivacyKey) (*AccountPrivacyRules, error) {
 	responseData, err := c.MakeRequest(&AccountGetPrivacyParams{Key: key})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetPrivacy")
+		return nil, fmt.Errorf("sending AccountGetPrivacy: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountPrivacyRules)
@@ -1014,7 +1014,7 @@ func (*AccountGetReactionsNotifySettingsParams) CRC() uint32 {
 func (c *Client) AccountGetReactionsNotifySettings() (*ReactionsNotifySettings, error) {
 	responseData, err := c.MakeRequest(&AccountGetReactionsNotifySettingsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetReactionsNotifySettings")
+		return nil, fmt.Errorf("sending AccountGetReactionsNotifySettings: %w", err)
 	}
 
 	resp, ok := responseData.(*ReactionsNotifySettings)
@@ -1036,7 +1036,7 @@ func (*AccountGetRecentEmojiStatusesParams) CRC() uint32 {
 func (c *Client) AccountGetRecentEmojiStatuses(hash int64) (AccountEmojiStatuses, error) {
 	responseData, err := c.MakeRequest(&AccountGetRecentEmojiStatusesParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetRecentEmojiStatuses")
+		return nil, fmt.Errorf("sending AccountGetRecentEmojiStatuses: %w", err)
 	}
 
 	resp, ok := responseData.(AccountEmojiStatuses)
@@ -1058,7 +1058,7 @@ func (*AccountGetSavedRingtonesParams) CRC() uint32 {
 func (c *Client) AccountGetSavedRingtones(hash int64) (AccountSavedRingtones, error) {
 	responseData, err := c.MakeRequest(&AccountGetSavedRingtonesParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetSavedRingtones")
+		return nil, fmt.Errorf("sending AccountGetSavedRingtones: %w", err)
 	}
 
 	resp, ok := responseData.(AccountSavedRingtones)
@@ -1080,7 +1080,7 @@ func (*AccountGetSecureValueParams) CRC() uint32 {
 func (c *Client) AccountGetSecureValue(types []SecureValueType) ([]*SecureValue, error) {
 	responseData, err := c.MakeRequest(&AccountGetSecureValueParams{Types: types})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetSecureValue")
+		return nil, fmt.Errorf("sending AccountGetSecureValue")
 	}
 
 	resp, ok := responseData.([]*SecureValue)
@@ -1106,7 +1106,7 @@ func (c *Client) AccountGetTheme(format string, theme InputTheme) (*Theme, error
 		Theme:  theme,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetTheme")
+		return nil, fmt.Errorf("sending AccountGetTheme: %w", err)
 	}
 
 	resp, ok := responseData.(*Theme)
@@ -1132,7 +1132,7 @@ func (c *Client) AccountGetThemes(format string, hash int64) (AccountThemes, err
 		Hash:   hash,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetThemes")
+		return nil, fmt.Errorf("sending AccountGetThemes: %w", err)
 	}
 
 	resp, ok := responseData.(AccountThemes)
@@ -1158,7 +1158,7 @@ func (c *Client) AccountGetTmpPassword(password InputCheckPasswordSRP, period in
 		Period:   period,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetTmpPassword")
+		return nil, fmt.Errorf("sending AccountGetTmpPassword: %w ", err)
 	}
 
 	resp, ok := responseData.(*AccountTmpPassword)
@@ -1180,7 +1180,7 @@ func (*AccountGetWallPaperParams) CRC() uint32 {
 func (c *Client) AccountGetWallPaper(wallpaper InputWallPaper) (WallPaper, error) {
 	responseData, err := c.MakeRequest(&AccountGetWallPaperParams{Wallpaper: wallpaper})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetWallPaper")
+		return nil, fmt.Errorf("sending AccountGetWallPaper: %w", err)
 	}
 
 	resp, ok := responseData.(WallPaper)
@@ -1202,7 +1202,7 @@ func (*AccountGetWallPapersParams) CRC() uint32 {
 func (c *Client) AccountGetWallPapers(hash int64) (AccountWallPapers, error) {
 	responseData, err := c.MakeRequest(&AccountGetWallPapersParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetWallPapers")
+		return nil, fmt.Errorf("sending AccountGetWallPapers: %w", err)
 	}
 
 	resp, ok := responseData.(AccountWallPapers)
@@ -1222,7 +1222,7 @@ func (*AccountGetWebAuthorizationsParams) CRC() uint32 {
 func (c *Client) AccountGetWebAuthorizations() (*AccountWebAuthorizations, error) {
 	responseData, err := c.MakeRequest(&AccountGetWebAuthorizationsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountGetWebAuthorizations")
+		return nil, fmt.Errorf("sending AccountGetWebAuthorizations: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountWebAuthorizations)
@@ -1254,7 +1254,7 @@ func (*AccountInitTakeoutSessionParams) FlagIndex() int {
 func (c *Client) AccountInitTakeoutSession(params *AccountInitTakeoutSessionParams) (*AccountTakeout, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountInitTakeoutSession")
+		return nil, fmt.Errorf("sending AccountInitTakeoutSession: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountTakeout)
@@ -1288,7 +1288,7 @@ func (c *Client) AccountInstallTheme(dark bool, theme InputTheme, format string,
 		Theme:     theme,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountInstallTheme")
+		return false, fmt.Errorf("sending AccountInstallTheme: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1314,7 +1314,7 @@ func (c *Client) AccountInstallWallPaper(wallpaper InputWallPaper, settings *Wal
 		Wallpaper: wallpaper,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountInstallWallPaper")
+		return false, fmt.Errorf("sending AccountInstallWallPaper: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1336,7 +1336,7 @@ func (*AccountInvalidateSignInCodesParams) CRC() uint32 {
 func (c *Client) AccountInvalidateSignInCodes(codes []string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountInvalidateSignInCodesParams{Codes: codes})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountInvalidateSignInCodes")
+		return false, fmt.Errorf("sending AccountInvalidateSignInCodes: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1367,7 +1367,7 @@ func (*AccountRegisterDeviceParams) FlagIndex() int {
 func (c *Client) AccountRegisterDevice(params *AccountRegisterDeviceParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountRegisterDevice")
+		return false, fmt.Errorf("sending AccountRegisterDevice: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1389,7 +1389,7 @@ func (*AccountReorderUsernamesParams) CRC() uint32 {
 func (c *Client) AccountReorderUsernames(order []string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountReorderUsernamesParams{Order: order})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountReorderUsernames")
+		return false, fmt.Errorf("sending AccountReorderUsernames: ")
 	}
 
 	resp, ok := responseData.(bool)
@@ -1417,7 +1417,7 @@ func (c *Client) AccountReportPeer(peer InputPeer, reason ReportReason, message 
 		Reason:  reason,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountReportPeer")
+		return false, fmt.Errorf("sending AccountReportPeer: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1447,7 +1447,7 @@ func (c *Client) AccountReportProfilePhoto(peer InputPeer, photoID InputPhoto, r
 		Reason:  reason,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountReportProfilePhoto")
+		return false, fmt.Errorf("sending AccountReportProfilePhoto: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1467,7 +1467,7 @@ func (*AccountResendPasswordEmailParams) CRC() uint32 {
 func (c *Client) AccountResendPasswordEmail() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResendPasswordEmailParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountResendPasswordEmail")
+		return false, fmt.Errorf("sending AccountResendPasswordEmail: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1489,7 +1489,7 @@ func (*AccountResetAuthorizationParams) CRC() uint32 {
 func (c *Client) AccountResetAuthorization(hash int64) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetAuthorizationParams{Hash: hash})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountResetAuthorization")
+		return false, fmt.Errorf("sending AccountResetAuthorization: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1509,7 +1509,7 @@ func (*AccountResetNotifySettingsParams) CRC() uint32 {
 func (c *Client) AccountResetNotifySettings() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetNotifySettingsParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountResetNotifySettings")
+		return false, fmt.Errorf("sending AccountResetNotifySettings: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1529,7 +1529,7 @@ func (*AccountResetPasswordParams) CRC() uint32 {
 func (c *Client) AccountResetPassword() (AccountResetPasswordResult, error) {
 	responseData, err := c.MakeRequest(&AccountResetPasswordParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountResetPassword")
+		return nil, fmt.Errorf("sending AccountResetPassword: %w", err)
 	}
 
 	resp, ok := responseData.(AccountResetPasswordResult)
@@ -1549,7 +1549,7 @@ func (*AccountResetWallPapersParams) CRC() uint32 {
 func (c *Client) AccountResetWallPapers() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetWallPapersParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountResetWallPapers")
+		return false, fmt.Errorf("sending AccountResetWallPapers: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1571,7 +1571,7 @@ func (*AccountResetWebAuthorizationParams) CRC() uint32 {
 func (c *Client) AccountResetWebAuthorization(hash int64) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetWebAuthorizationParams{Hash: hash})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountResetWebAuthorization")
+		return false, fmt.Errorf("sending AccountResetWebAuthorization: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1591,7 +1591,7 @@ func (*AccountResetWebAuthorizationsParams) CRC() uint32 {
 func (c *Client) AccountResetWebAuthorizations() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetWebAuthorizationsParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountResetWebAuthorizations")
+		return false, fmt.Errorf("sending AccountResetWebAuthorizations: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1613,7 +1613,7 @@ func (*AccountResolveBusinessChatLinkParams) CRC() uint32 {
 func (c *Client) AccountResolveBusinessChatLink(slug string) (*AccountResolvedBusinessChatLinks, error) {
 	responseData, err := c.MakeRequest(&AccountResolveBusinessChatLinkParams{Slug: slug})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountResolveBusinessChatLink")
+		return nil, fmt.Errorf("sending AccountResolveBusinessChatLink: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountResolvedBusinessChatLinks)
@@ -1645,7 +1645,7 @@ func (c *Client) AccountSaveAutoDownloadSettings(low, high bool, settings *AutoD
 		Settings: settings,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountSaveAutoDownloadSettings")
+		return false, fmt.Errorf("sending AccountSaveAutoDownloadSettings: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1675,7 +1675,7 @@ func (*AccountSaveAutoSaveSettingsParams) FlagIndex() int {
 func (c *Client) AccountSaveAutoSaveSettings(params *AccountSaveAutoSaveSettingsParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountSaveAutoSaveSettings")
+		return false, fmt.Errorf("sending AccountSaveAutoSaveSettings: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1701,7 +1701,7 @@ func (c *Client) AccountSaveRingtone(id InputDocument, unsave bool) (AccountSave
 		Unsave: unsave,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountSaveRingtone")
+		return nil, fmt.Errorf("sending AccountSaveRingtone: %w", err)
 	}
 
 	resp, ok := responseData.(AccountSavedRingtone)
@@ -1727,7 +1727,7 @@ func (c *Client) AccountSaveSecureValue(value *InputSecureValue, secureSecretID 
 		Value:          value,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountSaveSecureValue")
+		return nil, fmt.Errorf("sending AccountSaveSecureValue: %w", err)
 	}
 
 	resp, ok := responseData.(*SecureValue)
@@ -1753,7 +1753,7 @@ func (c *Client) AccountSaveTheme(theme InputTheme, unsave bool) (bool, error) {
 		Unsave: unsave,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountSaveTheme")
+		return false, fmt.Errorf("sending AccountSaveTheme: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1781,7 +1781,7 @@ func (c *Client) AccountSaveWallPaper(wallpaper InputWallPaper, unsave bool, set
 		Wallpaper: wallpaper,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountSaveWallPaper")
+		return false, fmt.Errorf("sending AccountSaveWallPaper: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1807,7 +1807,7 @@ func (c *Client) AccountSendChangePhoneCode(phoneNumber string, settings *CodeSe
 		Settings:    settings,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountSendChangePhoneCode")
+		return nil, fmt.Errorf("sending AccountSendChangePhoneCode: %w", err)
 	}
 
 	resp, ok := responseData.(AuthSentCode)
@@ -1833,7 +1833,7 @@ func (c *Client) AccountSendConfirmPhoneCode(hash string, settings *CodeSettings
 		Settings: settings,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountSendConfirmPhoneCode")
+		return nil, fmt.Errorf("sending AccountSendConfirmPhoneCode: %w", err)
 	}
 
 	resp, ok := responseData.(AuthSentCode)
@@ -1859,7 +1859,7 @@ func (c *Client) AccountSendVerifyEmailCode(purpose EmailVerifyPurpose, email st
 		Purpose: purpose,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountSendVerifyEmailCode")
+		return nil, fmt.Errorf("sending AccountSendVerifyEmailCode: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountSentEmailCode)
@@ -1885,7 +1885,7 @@ func (c *Client) AccountSendVerifyPhoneCode(phoneNumber string, settings *CodeSe
 		Settings:    settings,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountSendVerifyPhoneCode")
+		return nil, fmt.Errorf("sending AccountSendVerifyPhoneCode: %w", err)
 	}
 
 	resp, ok := responseData.(AuthSentCode)
@@ -1907,7 +1907,7 @@ func (*AccountSetAccountTtlParams) CRC() uint32 {
 func (c *Client) AccountSetAccountTtl(ttl *AccountDaysTtl) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountSetAccountTtlParams{Ttl: ttl})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountSetAccountTtl")
+		return false, fmt.Errorf("sending AccountSetAccountTtl: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1929,7 +1929,7 @@ func (*AccountSetAuthorizationTtlParams) CRC() uint32 {
 func (c *Client) AccountSetAuthorizationTtl(authorizationTtlDays int32) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountSetAuthorizationTtlParams{AuthorizationTtlDays: authorizationTtlDays})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountSetAuthorizationTtl")
+		return false, fmt.Errorf("sending AccountSetAuthorizationTtl: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1951,7 +1951,7 @@ func (*AccountSetContactSignUpNotificationParams) CRC() uint32 {
 func (c *Client) AccountSetContactSignUpNotification(silent bool) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountSetContactSignUpNotificationParams{Silent: silent})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountSetContactSignUpNotification")
+		return false, fmt.Errorf("sending AccountSetContactSignUpNotification: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1977,7 +1977,7 @@ func (*AccountSetContentSettingsParams) FlagIndex() int {
 func (c *Client) AccountSetContentSettings(sensitiveEnabled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountSetContentSettingsParams{SensitiveEnabled: sensitiveEnabled})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountSetContentSettings")
+		return false, fmt.Errorf("sending AccountSetContentSettings: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -1999,7 +1999,7 @@ func (*AccountSetGlobalPrivacySettingsParams) CRC() uint32 {
 func (c *Client) AccountSetGlobalPrivacySettings(settings *GlobalPrivacySettings) (*GlobalPrivacySettings, error) {
 	responseData, err := c.MakeRequest(&AccountSetGlobalPrivacySettingsParams{Settings: settings})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountSetGlobalPrivacySettings")
+		return nil, fmt.Errorf("sending AccountSetGlobalPrivacySettings: %w", err)
 	}
 
 	resp, ok := responseData.(*GlobalPrivacySettings)
@@ -2025,7 +2025,7 @@ func (c *Client) AccountSetPrivacy(key InputPrivacyKey, rules []InputPrivacyRule
 		Rules: rules,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountSetPrivacy")
+		return nil, fmt.Errorf("sending AccountSetPrivacy: %w", err)
 	}
 
 	resp, ok := responseData.(*AccountPrivacyRules)
@@ -2047,7 +2047,7 @@ func (*AccountSetReactionsNotifySettingsParams) CRC() uint32 {
 func (c *Client) AccountSetReactionsNotifySettings(settings *ReactionsNotifySettings) (*ReactionsNotifySettings, error) {
 	responseData, err := c.MakeRequest(&AccountSetReactionsNotifySettingsParams{Settings: settings})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountSetReactionsNotifySettings")
+		return nil, fmt.Errorf("sending AccountSetReactionsNotifySettings: %w", err)
 	}
 
 	resp, ok := responseData.(*ReactionsNotifySettings)
@@ -2073,7 +2073,7 @@ func (c *Client) AccountToggleConnectedBotPaused(peer InputPeer, paused bool) (b
 		Peer:   peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountToggleConnectedBotPaused")
+		return false, fmt.Errorf("sending AccountToggleConnectedBotPaused: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2095,7 +2095,7 @@ func (*AccountToggleSponsoredMessagesParams) CRC() uint32 {
 func (c *Client) AccountToggleSponsoredMessages(enabled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountToggleSponsoredMessagesParams{Enabled: enabled})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountToggleSponsoredMessages")
+		return false, fmt.Errorf("sending AccountToggleSponsoredMessages: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2121,7 +2121,7 @@ func (c *Client) AccountToggleUsername(username string, active bool) (bool, erro
 		Username: username,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountToggleUsername")
+		return false, fmt.Errorf("sending AccountToggleUsername: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2149,7 +2149,7 @@ func (c *Client) AccountUnregisterDevice(tokenType int32, token string, otherUid
 		TokenType: tokenType,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUnregisterDevice")
+		return false, fmt.Errorf("sending AccountUnregisterDevice: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2175,7 +2175,7 @@ func (*AccountUpdateBirthdayParams) FlagIndex() int {
 func (c *Client) AccountUpdateBirthday(birthday *Birthday) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateBirthdayParams{Birthday: birthday})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdateBirthday")
+		return false, fmt.Errorf("sending AccountUpdateBirthday: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2201,7 +2201,7 @@ func (*AccountUpdateBusinessAwayMessageParams) FlagIndex() int {
 func (c *Client) AccountUpdateBusinessAwayMessage(message *InputBusinessAwayMessage) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateBusinessAwayMessageParams{Message: message})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdateBusinessAwayMessage")
+		return false, fmt.Errorf("sending AccountUpdateBusinessAwayMessage: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2227,7 +2227,7 @@ func (*AccountUpdateBusinessGreetingMessageParams) FlagIndex() int {
 func (c *Client) AccountUpdateBusinessGreetingMessage(message *InputBusinessGreetingMessage) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateBusinessGreetingMessageParams{Message: message})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdateBusinessGreetingMessage")
+		return false, fmt.Errorf("sending AccountUpdateBusinessGreetingMessage: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2253,7 +2253,7 @@ func (*AccountUpdateBusinessIntroParams) FlagIndex() int {
 func (c *Client) AccountUpdateBusinessIntro(intro *InputBusinessIntro) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateBusinessIntroParams{Intro: intro})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdateBusinessIntro")
+		return false, fmt.Errorf("sending AccountUpdateBusinessIntro: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2283,7 +2283,7 @@ func (c *Client) AccountUpdateBusinessLocation(geoPoint InputGeoPoint, address s
 		GeoPoint: geoPoint,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdateBusinessLocation")
+		return false, fmt.Errorf("sending AccountUpdateBusinessLocation: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2312,7 +2312,7 @@ This info will be contained in [userFull](https://core.telegram.org/constructor/
 func (c *Client) AccountUpdateBusinessWorkHours(businessWorkHours *BusinessWorkHours) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateBusinessWorkHoursParams{BusinessWorkHours: businessWorkHours})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdateBusinessWorkHours")
+		return false, fmt.Errorf("sending AccountUpdateBusinessWorkHours: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2344,7 +2344,7 @@ func (c *Client) AccountUpdateColor(forProfile bool, color int32, backgroundEmoj
 		ForProfile:        forProfile,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdateColor")
+		return false, fmt.Errorf("sending AccountUpdateColor: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2378,7 +2378,7 @@ func (c *Client) AccountUpdateConnectedBot(canReply, deleted bool, bot InputUser
 		Recipients: recipients,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountUpdateConnectedBot")
+		return nil, fmt.Errorf("sending AccountUpdateConnectedBot: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -2400,7 +2400,7 @@ func (*AccountUpdateDeviceLockedParams) CRC() uint32 {
 func (c *Client) AccountUpdateDeviceLocked(period int32) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateDeviceLockedParams{Period: period})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdateDeviceLocked")
+		return false, fmt.Errorf("sending AccountUpdateDeviceLocked: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2422,7 +2422,7 @@ func (*AccountUpdateEmojiStatusParams) CRC() uint32 {
 func (c *Client) AccountUpdateEmojiStatus(emojiStatus EmojiStatus) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateEmojiStatusParams{EmojiStatus: emojiStatus})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdateEmojiStatus")
+		return false, fmt.Errorf("sending AccountUpdateEmojiStatus: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2448,7 +2448,7 @@ func (c *Client) AccountUpdateNotifySettings(peer InputNotifyPeer, settings *Inp
 		Settings: settings,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdateNotifySettings")
+		return false, fmt.Errorf("sending AccountUpdateNotifySettings: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2474,7 +2474,7 @@ func (c *Client) AccountUpdatePasswordSettings(password InputCheckPasswordSRP, n
 		Password:    password,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdatePasswordSettings")
+		return false, fmt.Errorf("sending AccountUpdatePasswordSettings: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2496,7 +2496,7 @@ func (*AccountUpdatePersonalChannelParams) CRC() uint32 {
 func (c *Client) AccountUpdatePersonalChannel(channel InputChannel) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdatePersonalChannelParams{Channel: channel})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdatePersonalChannel")
+		return false, fmt.Errorf("sending AccountUpdatePersonalChannel: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2528,7 +2528,7 @@ func (c *Client) AccountUpdateProfile(firstName, lastName, about string) (User, 
 		LastName:  lastName,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountUpdateProfile")
+		return nil, fmt.Errorf("sending AccountUpdateProfile: %w", err)
 	}
 
 	resp, ok := responseData.(User)
@@ -2550,7 +2550,7 @@ func (*AccountUpdateStatusParams) CRC() uint32 {
 func (c *Client) AccountUpdateStatus(offline bool) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateStatusParams{Offline: offline})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountUpdateStatus")
+		return false, fmt.Errorf("sending AccountUpdateStatus: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2581,7 +2581,7 @@ func (*AccountUpdateThemeParams) FlagIndex() int {
 func (c *Client) AccountUpdateTheme(params *AccountUpdateThemeParams) (*Theme, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountUpdateTheme")
+		return nil, fmt.Errorf("sending AccountUpdateTheme: %w", err)
 	}
 
 	resp, ok := responseData.(*Theme)
@@ -2603,7 +2603,7 @@ func (*AccountUpdateUsernameParams) CRC() uint32 {
 func (c *Client) AccountUpdateUsername(username string) (User, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateUsernameParams{Username: username})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountUpdateUsername")
+		return nil, fmt.Errorf("sending AccountUpdateUsername: %w", err)
 	}
 
 	resp, ok := responseData.(User)
@@ -2631,7 +2631,7 @@ func (c *Client) AccountUploadRingtone(file InputFile, fileName, mimeType string
 		MimeType: mimeType,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountUploadRingtone")
+		return nil, fmt.Errorf("sending AccountUploadRingtone: %w", err)
 	}
 
 	resp, ok := responseData.(Document)
@@ -2665,7 +2665,7 @@ func (c *Client) AccountUploadTheme(file, thumb InputFile, fileName, mimeType st
 		Thumb:    thumb,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountUploadTheme")
+		return nil, fmt.Errorf("sending AccountUploadTheme: %w", err)
 	}
 
 	resp, ok := responseData.(Document)
@@ -2699,7 +2699,7 @@ func (c *Client) AccountUploadWallPaper(forChat bool, file InputFile, mimeType s
 		Settings: settings,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountUploadWallPaper")
+		return nil, fmt.Errorf("sending AccountUploadWallPaper: %w", err)
 	}
 
 	resp, ok := responseData.(WallPaper)
@@ -2725,7 +2725,7 @@ func (c *Client) AccountVerifyEmail(purpose EmailVerifyPurpose, verification Ema
 		Verification: verification,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AccountVerifyEmail")
+		return nil, fmt.Errorf("sending AccountVerifyEmail: %w", err)
 	}
 
 	resp, ok := responseData.(AccountEmailVerified)
@@ -2753,7 +2753,7 @@ func (c *Client) AccountVerifyPhone(phoneNumber, phoneCodeHash, phoneCode string
 		PhoneNumber:   phoneNumber,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AccountVerifyPhone")
+		return false, fmt.Errorf("sending AccountVerifyPhone: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2775,7 +2775,7 @@ func (*AuthAcceptLoginTokenParams) CRC() uint32 {
 func (c *Client) AuthAcceptLoginToken(token []byte) (*Authorization, error) {
 	responseData, err := c.MakeRequest(&AuthAcceptLoginTokenParams{Token: token})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthAcceptLoginToken")
+		return nil, fmt.Errorf("sending AuthAcceptLoginToken: %w", err)
 	}
 
 	resp, ok := responseData.(*Authorization)
@@ -2805,7 +2805,7 @@ func (c *Client) AuthBindTempAuthKey(permAuthKeyID, nonce int64, expiresAt int32
 		PermAuthKeyID:    permAuthKeyID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AuthBindTempAuthKey")
+		return false, fmt.Errorf("sending AuthBindTempAuthKey: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2831,7 +2831,7 @@ func (c *Client) AuthCancelCode(phoneNumber, phoneCodeHash string) (bool, error)
 		PhoneNumber:   phoneNumber,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AuthCancelCode")
+		return false, fmt.Errorf("sending AuthCancelCode: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2853,7 +2853,7 @@ func (*AuthCheckPasswordParams) CRC() uint32 {
 func (c *Client) AuthCheckPassword(password InputCheckPasswordSRP) (AuthAuthorization, error) {
 	responseData, err := c.MakeRequest(&AuthCheckPasswordParams{Password: password})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthCheckPassword")
+		return nil, fmt.Errorf("sending AuthCheckPassword: %w", err)
 	}
 
 	resp, ok := responseData.(AuthAuthorization)
@@ -2875,7 +2875,7 @@ func (*AuthCheckRecoveryPasswordParams) CRC() uint32 {
 func (c *Client) AuthCheckRecoveryPassword(code string) (bool, error) {
 	responseData, err := c.MakeRequest(&AuthCheckRecoveryPasswordParams{Code: code})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AuthCheckRecoveryPassword")
+		return false, fmt.Errorf("sending AuthCheckRecoveryPassword: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2897,7 +2897,7 @@ func (*AuthDropTempAuthKeysParams) CRC() uint32 {
 func (c *Client) AuthDropTempAuthKeys(exceptAuthKeys []int64) (bool, error) {
 	responseData, err := c.MakeRequest(&AuthDropTempAuthKeysParams{ExceptAuthKeys: exceptAuthKeys})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AuthDropTempAuthKeys")
+		return false, fmt.Errorf("sending AuthDropTempAuthKeys: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -2919,7 +2919,7 @@ func (*AuthExportAuthorizationParams) CRC() uint32 {
 func (c *Client) AuthExportAuthorization(dcID int32) (*AuthExportedAuthorization, error) {
 	responseData, err := c.MakeRequest(&AuthExportAuthorizationParams{DcID: dcID})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthExportAuthorization")
+		return nil, fmt.Errorf("sending AuthExportAuthorization: %w", err)
 	}
 
 	resp, ok := responseData.(*AuthExportedAuthorization)
@@ -2950,7 +2950,7 @@ func (c *Client) AuthExportLoginToken(apiID int32, apiHash string, exceptIds []i
 		ExceptIds: exceptIds,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthExportLoginToken")
+		return nil, fmt.Errorf("sending AuthExportLoginToken: %w", err)
 	}
 
 	resp, ok := responseData.(AuthLoginToken)
@@ -2976,7 +2976,7 @@ func (c *Client) AuthImportAuthorization(id int64, bytes []byte) (AuthAuthorizat
 		ID:    id,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthImportAuthorization")
+		return nil, fmt.Errorf("sending AuthImportAuthorization: %w", err)
 	}
 
 	resp, ok := responseData.(AuthAuthorization)
@@ -3006,7 +3006,7 @@ func (c *Client) AuthImportBotAuthorization(flags, apiID int32, apiHash, botAuth
 		Flags:        flags,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthImportBotAuthorization")
+		return nil, fmt.Errorf("sending AuthImportBotAuthorization: %w", err)
 	}
 
 	resp, ok := responseData.(AuthAuthorization)
@@ -3028,7 +3028,7 @@ func (*AuthImportLoginTokenParams) CRC() uint32 {
 func (c *Client) AuthImportLoginToken(token []byte) (AuthLoginToken, error) {
 	responseData, err := c.MakeRequest(&AuthImportLoginTokenParams{Token: token})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthImportLoginToken")
+		return nil, fmt.Errorf("sending AuthImportLoginToken: %w", err)
 	}
 
 	resp, ok := responseData.(AuthLoginToken)
@@ -3056,7 +3056,7 @@ func (c *Client) AuthImportWebTokenAuthorization(apiID int32, apiHash, webAuthTo
 		WebAuthToken: webAuthToken,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthImportWebTokenAuthorization")
+		return nil, fmt.Errorf("sending AuthImportWebTokenAuthorization: %w", err)
 	}
 
 	resp, ok := responseData.(AuthAuthorization)
@@ -3076,7 +3076,7 @@ func (*AuthLogOutParams) CRC() uint32 {
 func (c *Client) AuthLogOut() (*AuthLoggedOut, error) {
 	responseData, err := c.MakeRequest(&AuthLogOutParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthLogOut")
+		return nil, fmt.Errorf("sending AuthLogOut: %w", err)
 	}
 
 	resp, ok := responseData.(*AuthLoggedOut)
@@ -3106,7 +3106,7 @@ func (c *Client) AuthRecoverPassword(code string, newSettings *AccountPasswordIn
 		NewSettings: newSettings,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthRecoverPassword")
+		return nil, fmt.Errorf("sending AuthRecoverPassword %w", err)
 	}
 
 	resp, ok := responseData.(AuthAuthorization)
@@ -3134,7 +3134,7 @@ func (c *Client) AuthReportMissingCode(phoneNumber, phoneCodeHash, mnc string) (
 		PhoneNumber:   phoneNumber,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AuthReportMissingCode")
+		return false, fmt.Errorf("sending AuthReportMissingCode: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3164,7 +3164,7 @@ func (*AuthRequestFirebaseSmsParams) FlagIndex() int {
 func (c *Client) AuthRequestFirebaseSms(params *AuthRequestFirebaseSmsParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return false, errors.Wrap(err, "sending AuthRequestFirebaseSms")
+		return false, fmt.Errorf("sending AuthRequestFirebaseSms: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3184,7 +3184,7 @@ func (*AuthRequestPasswordRecoveryParams) CRC() uint32 {
 func (c *Client) AuthRequestPasswordRecovery() (*AuthPasswordRecovery, error) {
 	responseData, err := c.MakeRequest(&AuthRequestPasswordRecoveryParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthRequestPasswordRecovery")
+		return nil, fmt.Errorf("sending AuthRequestPasswordRecovery: %w", err)
 	}
 
 	resp, ok := responseData.(*AuthPasswordRecovery)
@@ -3216,7 +3216,7 @@ func (c *Client) AuthResendCode(phoneNumber, phoneCodeHash, reason string) (Auth
 		Reason:        reason,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthResendCode")
+		return nil, fmt.Errorf("sending AuthResendCode: %w", err)
 	}
 
 	resp, ok := responseData.(AuthSentCode)
@@ -3236,7 +3236,7 @@ func (*AuthResetAuthorizationsParams) CRC() uint32 {
 func (c *Client) AuthResetAuthorizations() (bool, error) {
 	responseData, err := c.MakeRequest(&AuthResetAuthorizationsParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending AuthResetAuthorizations")
+		return false, fmt.Errorf("sending AuthResetAuthorizations: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3262,7 +3262,7 @@ func (c *Client) AuthResetLoginEmail(phoneNumber, phoneCodeHash string) (AuthSen
 		PhoneNumber:   phoneNumber,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthResetLoginEmail")
+		return nil, fmt.Errorf("sending AuthResetLoginEmail: %w", err)
 	}
 
 	resp, ok := responseData.(AuthSentCode)
@@ -3292,7 +3292,7 @@ func (c *Client) AuthSendCode(phoneNumber string, apiID int32, apiHash string, s
 		Settings:    settings,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthSendCode")
+		return nil, fmt.Errorf("sending AuthSendCode: %w", err)
 	}
 
 	resp, ok := responseData.(AuthSentCode)
@@ -3326,7 +3326,7 @@ func (c *Client) AuthSignIn(phoneNumber, phoneCodeHash, phoneCode string, emailV
 		PhoneNumber:       phoneNumber,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthSignIn")
+		return nil, fmt.Errorf("sending AuthSignIn: %w", err)
 	}
 
 	resp, ok := responseData.(AuthAuthorization)
@@ -3356,7 +3356,7 @@ func (*AuthSignUpParams) FlagIndex() int {
 func (c *Client) AuthSignUp(params *AuthSignUpParams) (AuthAuthorization, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending AuthSignUp")
+		return nil, fmt.Errorf("sending AuthSignUp")
 	}
 
 	resp, ok := responseData.(AuthAuthorization)
@@ -3384,7 +3384,7 @@ func (c *Client) BotsAddPreviewMedia(bot InputUser, langCode string, media Input
 		Media:    media,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending BotsAddPreviewMedia")
+		return nil, fmt.Errorf("sending BotsAddPreviewMedia: %w", err)
 	}
 
 	resp, ok := responseData.(*BotPreviewMedia)
@@ -3406,7 +3406,7 @@ func (*BotsAllowSendMessageParams) CRC() uint32 {
 func (c *Client) BotsAllowSendMessage(bot InputUser) (Updates, error) {
 	responseData, err := c.MakeRequest(&BotsAllowSendMessageParams{Bot: bot})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending BotsAllowSendMessage")
+		return nil, fmt.Errorf("sending BotsAllowSendMessage: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -3432,7 +3432,7 @@ func (c *Client) BotsAnswerWebhookJsonQuery(queryID int64, data *DataJson) (bool
 		QueryID: queryID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsAnswerWebhookJsonQuery")
+		return false, fmt.Errorf("sending BotsAnswerWebhookJsonQuery: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3454,7 +3454,7 @@ func (*BotsCanSendMessageParams) CRC() uint32 {
 func (c *Client) BotsCanSendMessage(bot InputUser) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsCanSendMessageParams{Bot: bot})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsCanSendMessage")
+		return false, fmt.Errorf("sending BotsCanSendMessage: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3509,7 +3509,7 @@ func (c *Client) BotsDeletePreviewMedia(bot InputUser, langCode string, media []
 		Media:    media,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsDeletePreviewMedia")
+		return false, fmt.Errorf("sending BotsDeletePreviewMedia: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3539,7 +3539,7 @@ func (c *Client) BotsEditPreviewMedia(bot InputUser, langCode string, media, new
 		NewMedia: newMedia,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending BotsEditPreviewMedia")
+		return nil, fmt.Errorf("sending BotsEditPreviewMedia: %w", err)
 	}
 
 	resp, ok := responseData.(*BotPreviewMedia)
@@ -3565,7 +3565,7 @@ func (c *Client) BotsGetBotCommands(scope BotCommandScope, langCode string) ([]*
 		Scope:    scope,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending BotsGetBotCommands")
+		return nil, fmt.Errorf("sending BotsGetBotCommands: %w", err)
 	}
 
 	resp, ok := responseData.([]*BotCommand)
@@ -3594,8 +3594,9 @@ func (c *Client) BotsGetBotInfo(bot InputUser, langCode string) (*BotsBotInfo, e
 		Bot:      bot,
 		LangCode: langCode,
 	})
+
 	if err != nil {
-		return nil, errors.Wrap(err, "sending BotsGetBotInfo")
+		return nil, fmt.Errorf("sending BotsGetBotInfo: %w", err)
 	}
 
 	resp, ok := responseData.(*BotsBotInfo)
@@ -3617,7 +3618,7 @@ func (*BotsGetBotMenuButtonParams) CRC() uint32 {
 func (c *Client) BotsGetBotMenuButton(userID InputUser) (BotMenuButton, error) {
 	responseData, err := c.MakeRequest(&BotsGetBotMenuButtonParams{UserID: userID})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending BotsGetBotMenuButton")
+		return nil, fmt.Errorf("sending BotsGetBotMenuButton: %w", err)
 	}
 
 	resp, ok := responseData.(BotMenuButton)
@@ -3643,7 +3644,7 @@ func (c *Client) BotsGetPopularAppBots(offset string, limit int32) (*BotsPopular
 		Offset: offset,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending BotsGetPopularAppBots")
+		return nil, fmt.Errorf("sending BotsGetPopularAppBots: %w", err)
 	}
 
 	resp, ok := responseData.(*BotsPopularAppBots)
@@ -3669,7 +3670,7 @@ func (c *Client) BotsGetPreviewInfo(bot InputUser, langCode string) (*BotsPrevie
 		LangCode: langCode,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending BotsGetPreviewInfo")
+		return nil, fmt.Errorf("sending BotsGetPreviewInfo: %w", err)
 	}
 
 	resp, ok := responseData.(*BotsPreviewInfo)
@@ -3691,7 +3692,7 @@ func (*BotsGetPreviewMediasParams) CRC() uint32 {
 func (c *Client) BotsGetPreviewMedias(bot InputUser) ([]*BotPreviewMedia, error) {
 	responseData, err := c.MakeRequest(&BotsGetPreviewMediasParams{Bot: bot})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending BotsGetPreviewMedias")
+		return nil, fmt.Errorf("sending BotsGetPreviewMedias: %w", err)
 	}
 
 	resp, ok := responseData.([]*BotPreviewMedia)
@@ -3719,7 +3720,7 @@ func (c *Client) BotsInvokeWebViewCustomMethod(bot InputUser, customMethod strin
 		Params:       params,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending BotsInvokeWebViewCustomMethod")
+		return nil, fmt.Errorf("sending BotsInvokeWebViewCustomMethod: %w", err)
 	}
 
 	resp, ok := responseData.(*DataJson)
@@ -3747,7 +3748,7 @@ func (c *Client) BotsReorderPreviewMedias(bot InputUser, langCode string, order 
 		Order:    order,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsReorderPreviewMedias")
+		return false, fmt.Errorf("sending BotsReorderPreviewMedias: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3773,7 +3774,7 @@ func (c *Client) BotsReorderUsernames(bot InputUser, order []string) (bool, erro
 		Order: order,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsReorderUsernames")
+		return false, fmt.Errorf("sending BotsReorderUsernames: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3798,8 +3799,9 @@ func (c *Client) BotsResetBotCommands(scope BotCommandScope, langCode string) (b
 		LangCode: langCode,
 		Scope:    scope,
 	})
+
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsResetBotCommands")
+		return false, fmt.Errorf("sending BotsResetBotCommands: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3825,7 +3827,7 @@ func (c *Client) BotsSendCustomRequest(customMethod string, params *DataJson) (*
 		Params:       params,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending BotsSendCustomRequest")
+		return nil, fmt.Errorf("sending BotsSendCustomRequest: %w", err)
 	}
 
 	resp, ok := responseData.(*DataJson)
@@ -3847,7 +3849,7 @@ func (*BotsSetBotBroadcastDefaultAdminRightsParams) CRC() uint32 {
 func (c *Client) BotsSetBotBroadcastDefaultAdminRights(adminRights *ChatAdminRights) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsSetBotBroadcastDefaultAdminRightsParams{AdminRights: adminRights})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsSetBotBroadcastDefaultAdminRights")
+		return false, fmt.Errorf("sending BotsSetBotBroadcastDefaultAdminRights: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3875,7 +3877,7 @@ func (c *Client) BotsSetBotCommands(scope BotCommandScope, langCode string, comm
 		Scope:    scope,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsSetBotCommands")
+		return false, fmt.Errorf("sending BotsSetBotCommands: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3897,7 +3899,7 @@ func (*BotsSetBotGroupDefaultAdminRightsParams) CRC() uint32 {
 func (c *Client) BotsSetBotGroupDefaultAdminRights(adminRights *ChatAdminRights) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsSetBotGroupDefaultAdminRightsParams{AdminRights: adminRights})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsSetBotGroupDefaultAdminRights")
+		return false, fmt.Errorf("sending BotsSetBotGroupDefaultAdminRights: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3927,7 +3929,7 @@ func (*BotsSetBotInfoParams) FlagIndex() int {
 func (c *Client) BotsSetBotInfo(params *BotsSetBotInfoParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsSetBotInfo")
+		return false, fmt.Errorf("sending BotsSetBotInfo: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -3953,7 +3955,7 @@ func (c *Client) BotsSetBotMenuButton(userID InputUser, button BotMenuButton) (b
 		UserID: userID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsSetBotMenuButton")
+		return false, fmt.Errorf("sending BotsSetBotMenuButton: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -4006,7 +4008,7 @@ func (c *Client) BotsToggleUsername(bot InputUser, username string, active bool)
 		Username: username,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending BotsToggleUsername")
+		return false, fmt.Errorf("sending BotsToggleUsername: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -4057,7 +4059,7 @@ func (c *Client) ChannelsCheckUsername(channel InputChannel, username string) (b
 		Username: username,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsCheckUsername")
+		return false, fmt.Errorf("sending ChannelsCheckUsername: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -4079,7 +4081,7 @@ func (*ChannelsConvertToGigagroupParams) CRC() uint32 {
 func (c *Client) ChannelsConvertToGigagroup(channel InputChannel) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsConvertToGigagroupParams{Channel: channel})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsConvertToGigagroup")
+		return nil, fmt.Errorf("sending ChannelsConvertToGigagroup: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4113,7 +4115,7 @@ func (*ChannelsCreateChannelParams) FlagIndex() int {
 func (c *Client) ChannelsCreateChannel(params *ChannelsCreateChannelParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsCreateChannel")
+		return nil, fmt.Errorf("sending ChannelsCreateChannel: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4144,7 +4146,7 @@ func (*ChannelsCreateForumTopicParams) FlagIndex() int {
 func (c *Client) ChannelsCreateForumTopic(params *ChannelsCreateForumTopicParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsCreateForumTopic")
+		return nil, fmt.Errorf("sending ChannelsCreateForumTopic: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4166,7 +4168,7 @@ func (*ChannelsDeactivateAllUsernamesParams) CRC() uint32 {
 func (c *Client) ChannelsDeactivateAllUsernames(channel InputChannel) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsDeactivateAllUsernamesParams{Channel: channel})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsDeactivateAllUsernames")
+		return false, fmt.Errorf("sending ChannelsDeactivateAllUsernames: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -4188,7 +4190,7 @@ func (*ChannelsDeleteChannelParams) CRC() uint32 {
 func (c *Client) ChannelsDeleteChannel(channel InputChannel) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsDeleteChannelParams{Channel: channel})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsDeleteChannel")
+		return nil, fmt.Errorf("sending ChannelsDeleteChannel: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4220,7 +4222,7 @@ func (c *Client) ChannelsDeleteHistory(forEveryone bool, channel InputChannel, m
 		MaxID:       maxID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsDeleteHistory")
+		return nil, fmt.Errorf("sending ChannelsDeleteHistory: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4246,7 +4248,7 @@ func (c *Client) ChannelsDeleteMessages(channel InputChannel, id []int32) (*Mess
 		ID:      id,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsDeleteMessages")
+		return nil, fmt.Errorf("sending ChannelsDeleteMessages: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesAffectedMessages)
@@ -4272,7 +4274,7 @@ func (c *Client) ChannelsDeleteParticipantHistory(channel InputChannel, particip
 		Participant: participant,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsDeleteParticipantHistory")
+		return nil, fmt.Errorf("sending ChannelsDeleteParticipantHistory: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
@@ -4298,7 +4300,7 @@ func (c *Client) ChannelsDeleteTopicHistory(channel InputChannel, topMsgID int32
 		TopMsgID: topMsgID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsDeleteTopicHistory")
+		return nil, fmt.Errorf("sending ChannelsDeleteTopicHistory: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
@@ -4328,7 +4330,7 @@ func (c *Client) ChannelsEditAdmin(channel InputChannel, userID InputUser, admin
 		UserID:      userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsEditAdmin")
+		return nil, fmt.Errorf("sending ChannelsEditAdmin: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4356,7 +4358,7 @@ func (c *Client) ChannelsEditBanned(channel InputChannel, participant InputPeer,
 		Participant:  participant,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsEditBanned")
+		return nil, fmt.Errorf("sending ChannelsEditBanned: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4384,7 +4386,7 @@ func (c *Client) ChannelsEditCreator(channel InputChannel, userID InputUser, pas
 		UserID:   userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsEditCreator")
+		return nil, fmt.Errorf("sending ChannelsEditCreator: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4415,7 +4417,7 @@ func (*ChannelsEditForumTopicParams) FlagIndex() int {
 func (c *Client) ChannelsEditForumTopic(params *ChannelsEditForumTopicParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsEditForumTopic")
+		return nil, fmt.Errorf("sending ChannelsEditForumTopic: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4443,7 +4445,7 @@ func (c *Client) ChannelsEditLocation(channel InputChannel, geoPoint InputGeoPoi
 		GeoPoint: geoPoint,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsEditLocation")
+		return false, fmt.Errorf("sending ChannelsEditLocation: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -4469,7 +4471,7 @@ func (c *Client) ChannelsEditPhoto(channel InputChannel, photo InputChatPhoto) (
 		Photo:   photo,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsEditPhoto")
+		return nil, fmt.Errorf("sending ChannelsEditPhoto: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4495,7 +4497,7 @@ func (c *Client) ChannelsEditTitle(channel InputChannel, title string) (Updates,
 		Title:   title,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsEditTitle")
+		return nil, fmt.Errorf("sending ChannelsEditTitle: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4529,7 +4531,7 @@ func (c *Client) ChannelsExportMessageLink(grouped, thread bool, channel InputCh
 		Thread:  thread,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsExportMessageLink")
+		return nil, fmt.Errorf("sending ChannelsExportMessageLink: %w", err)
 	}
 
 	resp, ok := responseData.(*ExportedMessageLink)
@@ -4561,7 +4563,7 @@ func (*ChannelsGetAdminLogParams) FlagIndex() int {
 func (c *Client) ChannelsGetAdminLog(params *ChannelsGetAdminLogParams) (*ChannelsAdminLogResults, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetAdminLog")
+		return nil, fmt.Errorf("sending ChannelsGetAdminLog: %w", err)
 	}
 
 	resp, ok := responseData.(*ChannelsAdminLogResults)
@@ -4593,7 +4595,7 @@ func (c *Client) ChannelsGetAdminedPublicChannels(byLocation, checkLimit, forPer
 		ForPersonal: forPersonal,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetAdminedPublicChannels")
+		return nil, fmt.Errorf("sending ChannelsGetAdminedPublicChannels: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesChats)
@@ -4619,7 +4621,7 @@ func (*ChannelsGetChannelRecommendationsParams) FlagIndex() int {
 func (c *Client) ChannelsGetChannelRecommendations(channel InputChannel) (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetChannelRecommendationsParams{Channel: channel})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetChannelRecommendations")
+		return nil, fmt.Errorf("sending ChannelsGetChannelRecommendations: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesChats)
@@ -4641,7 +4643,7 @@ func (*ChannelsGetChannelsParams) CRC() uint32 {
 func (c *Client) ChannelsGetChannels(id []InputChannel) (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetChannelsParams{ID: id})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetChannels")
+		return nil, fmt.Errorf("sending ChannelsGetChannels: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesChats)
@@ -4672,7 +4674,7 @@ func (*ChannelsGetForumTopicsParams) FlagIndex() int {
 func (c *Client) ChannelsGetForumTopics(params *ChannelsGetForumTopicsParams) (*MessagesForumTopics, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetForumTopics")
+		return nil, fmt.Errorf("sending ChannelsGetForumTopics: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesForumTopics)
@@ -4698,7 +4700,7 @@ func (c *Client) ChannelsGetForumTopicsByID(channel InputChannel, topics []int32
 		Topics:  topics,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetForumTopicsByID")
+		return nil, fmt.Errorf("sending ChannelsGetForumTopicsByID: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesForumTopics)
@@ -4720,7 +4722,7 @@ func (*ChannelsGetFullChannelParams) CRC() uint32 {
 func (c *Client) ChannelsGetFullChannel(channel InputChannel) (*MessagesChatFull, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetFullChannelParams{Channel: channel})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetFullChannel")
+		return nil, fmt.Errorf("sending ChannelsGetFullChannel: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesChatFull)
@@ -4740,7 +4742,7 @@ func (*ChannelsGetGroupsForDiscussionParams) CRC() uint32 {
 func (c *Client) ChannelsGetGroupsForDiscussion() (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetGroupsForDiscussionParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetGroupsForDiscussion")
+		return nil, fmt.Errorf("sending ChannelsGetGroupsForDiscussion: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesChats)
@@ -4760,7 +4762,7 @@ func (*ChannelsGetInactiveChannelsParams) CRC() uint32 {
 func (c *Client) ChannelsGetInactiveChannels() (*MessagesInactiveChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetInactiveChannelsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetInactiveChannels")
+		return nil, fmt.Errorf("sending ChannelsGetInactiveChannels: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesInactiveChats)
@@ -4782,7 +4784,7 @@ func (*ChannelsGetLeftChannelsParams) CRC() uint32 {
 func (c *Client) ChannelsGetLeftChannels(offset int32) (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetLeftChannelsParams{Offset: offset})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetLeftChannels")
+		return nil, fmt.Errorf("sending ChannelsGetLeftChannels: %w")
 	}
 
 	resp, ok := responseData.(MessagesChats)
@@ -4808,7 +4810,7 @@ func (c *Client) ChannelsGetMessages(channel InputChannel, id []InputMessage) (M
 		ID:      id,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetMessages")
+		return nil, fmt.Errorf("sending ChannelsGetMessages: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -4834,7 +4836,7 @@ func (c *Client) ChannelsGetParticipant(channel InputChannel, participant InputP
 		Participant: participant,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetParticipant")
+		return nil, fmt.Errorf("sending ChannelsGetParticipant: %w", err)
 	}
 
 	resp, ok := responseData.(*ChannelsChannelParticipant)
@@ -4866,7 +4868,7 @@ func (c *Client) ChannelsGetParticipants(channel InputChannel, filter ChannelPar
 		Offset:  offset,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetParticipants")
+		return nil, fmt.Errorf("sending ChannelsGetParticipants: %w", err)
 	}
 
 	resp, ok := responseData.(ChannelsChannelParticipants)
@@ -4888,7 +4890,7 @@ func (*ChannelsGetSendAsParams) CRC() uint32 {
 func (c *Client) ChannelsGetSendAs(peer InputPeer) (*ChannelsSendAsPeers, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetSendAsParams{Peer: peer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetSendAs")
+		return nil, fmt.Errorf("sending ChannelsGetSendAs: %w", err)
 	}
 
 	resp, ok := responseData.(*ChannelsSendAsPeers)
@@ -4914,7 +4916,7 @@ func (c *Client) ChannelsInviteToChannel(channel InputChannel, users []InputUser
 		Users:   users,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsInviteToChannel")
+		return nil, fmt.Errorf("sending ChannelsInviteToChannel: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesInvitedUsers)
@@ -4936,7 +4938,7 @@ func (*ChannelsJoinChannelParams) CRC() uint32 {
 func (c *Client) ChannelsJoinChannel(channel InputChannel) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsJoinChannelParams{Channel: channel})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsJoinChannel")
+		return nil, fmt.Errorf("sending ChannelsJoinChannel: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4958,7 +4960,7 @@ func (*ChannelsLeaveChannelParams) CRC() uint32 {
 func (c *Client) ChannelsLeaveChannel(channel InputChannel) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsLeaveChannelParams{Channel: channel})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsLeaveChannel")
+		return nil, fmt.Errorf("sending ChannelsLeaveChannel: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4984,7 +4986,7 @@ func (c *Client) ChannelsReadHistory(channel InputChannel, maxID int32) (bool, e
 		MaxID:   maxID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsReadHistory")
+		return false, fmt.Errorf("sending ChannelsReadHistory: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -5010,7 +5012,7 @@ func (c *Client) ChannelsReadMessageContents(channel InputChannel, id []int32) (
 		ID:      id,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsReadMessageContents")
+		return false, fmt.Errorf("sending ChannelsReadMessageContents: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -5042,7 +5044,7 @@ func (c *Client) ChannelsReorderPinnedForumTopics(force bool, channel InputChann
 		Order:   order,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsReorderPinnedForumTopics")
+		return nil, fmt.Errorf("sending ChannelsReorderPinnedForumTopics: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5068,7 +5070,7 @@ func (c *Client) ChannelsReorderUsernames(channel InputChannel, order []string) 
 		Order:   order,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsReorderUsernames")
+		return false, fmt.Errorf("sending ChannelsReorderUsernames: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -5094,7 +5096,7 @@ func (c *Client) ChannelsReportAntiSpamFalsePositive(channel InputChannel, msgID
 		MsgID:   msgID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsReportAntiSpamFalsePositive")
+		return false, fmt.Errorf("sending ChannelsReportAntiSpamFalsePositive: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -5122,7 +5124,7 @@ func (c *Client) ChannelsReportSpam(channel InputChannel, participant InputPeer,
 		Participant: participant,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsReportSpam")
+		return false, fmt.Errorf("sending ChannelsReportSpam: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -5148,7 +5150,7 @@ func (c *Client) ChannelsRestrictSponsoredMessages(channel InputChannel, restric
 		Restricted: restricted,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsRestrictSponsoredMessages")
+		return nil, fmt.Errorf("sending ChannelsRestrictSponsoredMessages: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5180,7 +5182,7 @@ func (c *Client) ChannelsSearchPosts(hashtag string, offsetRate int32, offsetPee
 		OffsetRate: offsetRate,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsSearchPosts")
+		return nil, fmt.Errorf("sending ChannelsSearchPosts: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -5206,7 +5208,7 @@ func (c *Client) ChannelsSetBoostsToUnblockRestrictions(channel InputChannel, bo
 		Channel: channel,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsSetBoostsToUnblockRestrictions")
+		return nil, fmt.Errorf("sending ChannelsSetBoostsToUnblockRestrictions: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5232,7 +5234,7 @@ func (c *Client) ChannelsSetDiscussionGroup(broadcast, group InputChannel) (bool
 		Group:     group,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsSetDiscussionGroup")
+		return false, fmt.Errorf("sending ChannelsSetDiscussionGroup: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -5258,7 +5260,7 @@ func (c *Client) ChannelsSetEmojiStickers(channel InputChannel, stickerset Input
 		Stickerset: stickerset,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsSetEmojiStickers")
+		return false, fmt.Errorf("sending ChannelsSetEmojiStickers: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -5284,7 +5286,7 @@ func (c *Client) ChannelsSetStickers(channel InputChannel, stickerset InputStick
 		Stickerset: stickerset,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsSetStickers")
+		return false, fmt.Errorf("sending ChannelsSetStickers: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -5310,7 +5312,7 @@ func (c *Client) ChannelsToggleAntiSpam(channel InputChannel, enabled bool) (Upd
 		Enabled: enabled,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsToggleAntiSpam")
+		return nil, fmt.Errorf("sending ChannelsToggleAntiSpam: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5336,7 +5338,7 @@ func (c *Client) ChannelsToggleForum(channel InputChannel, enabled bool) (Update
 		Enabled: enabled,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsToggleForum")
+		return nil, fmt.Errorf("sending ChannelsToggleForum: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5362,7 +5364,7 @@ func (c *Client) ChannelsToggleJoinRequest(channel InputChannel, enabled bool) (
 		Enabled: enabled,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsToggleJoinRequest")
+		return nil, fmt.Errorf("sending ChannelsToggleJoinRequest: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5388,7 +5390,7 @@ func (c *Client) ChannelsToggleJoinToSend(channel InputChannel, enabled bool) (U
 		Enabled: enabled,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsToggleJoinToSend")
+		return nil, fmt.Errorf("sending ChannelsToggleJoinToSend: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5414,7 +5416,7 @@ func (c *Client) ChannelsToggleParticipantsHidden(channel InputChannel, enabled 
 		Enabled: enabled,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsToggleParticipantsHidden")
+		return nil, fmt.Errorf("sending ChannelsToggleParticipantsHidden: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5440,7 +5442,7 @@ func (c *Client) ChannelsTogglePreHistoryHidden(channel InputChannel, enabled bo
 		Enabled: enabled,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsTogglePreHistoryHidden")
+		return nil, fmt.Errorf("sending ChannelsTogglePreHistoryHidden: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5472,7 +5474,7 @@ func (c *Client) ChannelsToggleSignatures(signaturesEnabled, profilesEnabled boo
 		SignaturesEnabled: signaturesEnabled,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsToggleSignatures")
+		return nil, fmt.Errorf("sending ChannelsToggleSignatures: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5498,7 +5500,7 @@ func (c *Client) ChannelsToggleSlowMode(channel InputChannel, seconds int32) (Up
 		Seconds: seconds,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsToggleSlowMode")
+		return nil, fmt.Errorf("sending ChannelsToggleSlowMode: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5526,7 +5528,7 @@ func (c *Client) ChannelsToggleUsername(channel InputChannel, username string, a
 		Username: username,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsToggleUsername")
+		return false, fmt.Errorf("sending ChannelsToggleUsername: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -5552,7 +5554,7 @@ func (c *Client) ChannelsToggleViewForumAsMessages(channel InputChannel, enabled
 		Enabled: enabled,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsToggleViewForumAsMessages")
+		return nil, fmt.Errorf("sending ChannelsToggleViewForumAsMessages: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5586,7 +5588,7 @@ func (c *Client) ChannelsUpdateColor(forProfile bool, channel InputChannel, colo
 		ForProfile:        forProfile,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsUpdateColor")
+		return nil, fmt.Errorf("sending ChannelsUpdateColor: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5612,7 +5614,7 @@ func (c *Client) ChannelsUpdateEmojiStatus(channel InputChannel, emojiStatus Emo
 		EmojiStatus: emojiStatus,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsUpdateEmojiStatus")
+		return nil, fmt.Errorf("sending ChannelsUpdateEmojiStatus: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5640,7 +5642,7 @@ func (c *Client) ChannelsUpdatePinnedForumTopic(channel InputChannel, topicID in
 		TopicID: topicID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsUpdatePinnedForumTopic")
+		return nil, fmt.Errorf("sending ChannelsUpdatePinnedForumTopic: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5666,7 +5668,7 @@ func (c *Client) ChannelsUpdateUsername(channel InputChannel, username string) (
 		Username: username,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsUpdateUsername")
+		return false, fmt.Errorf("sending ChannelsUpdateUsername: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -5688,7 +5690,7 @@ func (*ChatlistsCheckChatlistInviteParams) CRC() uint32 {
 func (c *Client) ChatlistsCheckChatlistInvite(slug string) (ChatlistsChatlistInvite, error) {
 	responseData, err := c.MakeRequest(&ChatlistsCheckChatlistInviteParams{Slug: slug})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChatlistsCheckChatlistInvite")
+		return nil, fmt.Errorf("sending ChatlistsCheckChatlistInvite: %w", err)
 	}
 
 	resp, ok := responseData.(ChatlistsChatlistInvite)
@@ -5714,7 +5716,7 @@ func (c *Client) ChatlistsDeleteExportedInvite(chatlist *InputChatlistDialogFilt
 		Slug:     slug,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChatlistsDeleteExportedInvite")
+		return false, fmt.Errorf("sending ChatlistsDeleteExportedInvite: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -5748,7 +5750,7 @@ func (c *Client) ChatlistsEditExportedInvite(chatlist *InputChatlistDialogFilter
 		Title:    title,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChatlistsEditExportedInvite")
+		return nil, fmt.Errorf("sending ChatlistsEditExportedInvite: %w", err)
 	}
 
 	resp, ok := responseData.(*ExportedChatlistInvite)
@@ -5776,7 +5778,7 @@ func (c *Client) ChatlistsExportChatlistInvite(chatlist *InputChatlistDialogFilt
 		Title:    title,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChatlistsExportChatlistInvite")
+		return nil, fmt.Errorf("sending ChatlistsExportChatlistInvite: %w", err)
 	}
 
 	resp, ok := responseData.(*ChatlistsExportedChatlistInvite)
@@ -5798,7 +5800,7 @@ func (*ChatlistsGetChatlistUpdatesParams) CRC() uint32 {
 func (c *Client) ChatlistsGetChatlistUpdates(chatlist *InputChatlistDialogFilter) (*ChatlistsChatlistUpdates, error) {
 	responseData, err := c.MakeRequest(&ChatlistsGetChatlistUpdatesParams{Chatlist: chatlist})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChatlistsGetChatlistUpdates")
+		return nil, fmt.Errorf("sending ChatlistsGetChatlistUpdates: %w", err)
 	}
 
 	resp, ok := responseData.(*ChatlistsChatlistUpdates)
@@ -5820,7 +5822,7 @@ func (*ChatlistsGetExportedInvitesParams) CRC() uint32 {
 func (c *Client) ChatlistsGetExportedInvites(chatlist *InputChatlistDialogFilter) (*ChatlistsExportedInvites, error) {
 	responseData, err := c.MakeRequest(&ChatlistsGetExportedInvitesParams{Chatlist: chatlist})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChatlistsGetExportedInvites")
+		return nil, fmt.Errorf("sending ChatlistsGetExportedInvites: %w", err)
 	}
 
 	resp, ok := responseData.(*ChatlistsExportedInvites)
@@ -5842,7 +5844,7 @@ func (*ChatlistsGetLeaveChatlistSuggestionsParams) CRC() uint32 {
 func (c *Client) ChatlistsGetLeaveChatlistSuggestions(chatlist *InputChatlistDialogFilter) ([]Peer, error) {
 	responseData, err := c.MakeRequest(&ChatlistsGetLeaveChatlistSuggestionsParams{Chatlist: chatlist})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChatlistsGetLeaveChatlistSuggestions")
+		return nil, fmt.Errorf("sending ChatlistsGetLeaveChatlistSuggestions: %w", err)
 	}
 
 	resp, ok := responseData.([]Peer)
@@ -5864,7 +5866,7 @@ func (*ChatlistsHideChatlistUpdatesParams) CRC() uint32 {
 func (c *Client) ChatlistsHideChatlistUpdates(chatlist *InputChatlistDialogFilter) (bool, error) {
 	responseData, err := c.MakeRequest(&ChatlistsHideChatlistUpdatesParams{Chatlist: chatlist})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ChatlistsHideChatlistUpdates")
+		return false, fmt.Errorf("sending ChatlistsHideChatlistUpdates: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -5890,7 +5892,7 @@ func (c *Client) ChatlistsJoinChatlistInvite(slug string, peers []InputPeer) (Up
 		Slug:  slug,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChatlistsJoinChatlistInvite")
+		return nil, fmt.Errorf("sending ChatlistsJoinChatlistInvite: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5916,7 +5918,7 @@ func (c *Client) ChatlistsJoinChatlistUpdates(chatlist *InputChatlistDialogFilte
 		Peers:    peers,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChatlistsJoinChatlistUpdates")
+		return nil, fmt.Errorf("sending ChatlistsJoinChatlistUpdates: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5942,7 +5944,7 @@ func (c *Client) ChatlistsLeaveChatlist(chatlist *InputChatlistDialogFilter, pee
 		Peers:    peers,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ChatlistsLeaveChatlist")
+		return nil, fmt.Errorf("sending ChatlistsLeaveChatlist: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5964,7 +5966,7 @@ func (*ContactsAcceptContactParams) CRC() uint32 {
 func (c *Client) ContactsAcceptContact(id InputUser) (Updates, error) {
 	responseData, err := c.MakeRequest(&ContactsAcceptContactParams{ID: id})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsAcceptContact")
+		return nil, fmt.Errorf("sending ContactsAcceptContact: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -5994,7 +5996,7 @@ func (*ContactsAddContactParams) FlagIndex() int {
 func (c *Client) ContactsAddContact(params *ContactsAddContactParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsAddContact")
+		return nil, fmt.Errorf("sending ContactsAddContact: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -6024,7 +6026,7 @@ func (c *Client) ContactsBlock(myStoriesFrom bool, id InputPeer) (bool, error) {
 		MyStoriesFrom: myStoriesFrom,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ContactsBlock")
+		return false, fmt.Errorf("sending ContactsBlock: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -6058,7 +6060,7 @@ func (c *Client) ContactsBlockFromReplies(deleteMessage, deleteHistory, reportSp
 		ReportSpam:    reportSpam,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsBlockFromReplies")
+		return nil, fmt.Errorf("sending ContactsBlockFromReplies: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -6080,7 +6082,7 @@ func (*ContactsDeleteByPhonesParams) CRC() uint32 {
 func (c *Client) ContactsDeleteByPhones(phones []string) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsDeleteByPhonesParams{Phones: phones})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ContactsDeleteByPhones")
+		return false, fmt.Errorf("sending ContactsDeleteByPhones: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -6102,7 +6104,7 @@ func (*ContactsDeleteContactsParams) CRC() uint32 {
 func (c *Client) ContactsDeleteContacts(id []InputUser) (Updates, error) {
 	responseData, err := c.MakeRequest(&ContactsDeleteContactsParams{ID: id})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsDeleteContacts")
+		return nil, fmt.Errorf("sending ContactsDeleteContacts: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -6124,7 +6126,7 @@ func (*ContactsEditCloseFriendsParams) CRC() uint32 {
 func (c *Client) ContactsEditCloseFriends(id []int64) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsEditCloseFriendsParams{ID: id})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ContactsEditCloseFriends")
+		return false, fmt.Errorf("sending ContactsEditCloseFriends: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -6134,6 +6136,29 @@ func (c *Client) ContactsEditCloseFriends(id []int64) (bool, error) {
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type ContactsExportCardParams struct{}
+
+func (*ContactsExportCardParams) CRC() uint32 {
+	return 0x84e53737
+}
+
+// Returns the current user&#39;s card that can be later used to contact a Telegram user without knowing his phone number.
+func (c *Client) ContactsExportCard() ([]int32, error) {
+	responseData, err := c.MakeRequest(&ContactsExportCardParams{})
+	if err != nil {
+		return nil, fmt.Errorf("sending ContactsExportCard: %w", err)
+	}
+
+	resp, ok := responseData.([]int32)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type ContactsExportContactTokenParams struct{}
 
 func (*ContactsExportContactTokenParams) CRC() uint32 {
@@ -6144,7 +6169,7 @@ func (*ContactsExportContactTokenParams) CRC() uint32 {
 func (c *Client) ContactsExportContactToken() (*ExportedContactToken, error) {
 	responseData, err := c.MakeRequest(&ContactsExportContactTokenParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsExportContactToken")
+		return nil, fmt.Errorf("sending ContactsExportContactToken: %w", err)
 	}
 
 	resp, ok := responseData.(*ExportedContactToken)
@@ -6164,7 +6189,7 @@ func (*ContactsGetBirthdaysParams) CRC() uint32 {
 func (c *Client) ContactsGetBirthdays() (*ContactsContactBirthdays, error) {
 	responseData, err := c.MakeRequest(&ContactsGetBirthdaysParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsGetBirthdays")
+		return nil, fmt.Errorf("sending ContactsGetBirthdays: %w", err)
 	}
 
 	resp, ok := responseData.(*ContactsContactBirthdays)
@@ -6196,7 +6221,7 @@ func (c *Client) ContactsGetBlocked(myStoriesFrom bool, offset, limit int32) (Co
 		Offset:        offset,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsGetBlocked")
+		return nil, fmt.Errorf("sending ContactsGetBlocked: %w", err)
 	}
 
 	resp, ok := responseData.(ContactsBlocked)
@@ -6221,7 +6246,7 @@ Returns an array of Telegram user IDs for all contacts (0 if a contact does not 
 func (c *Client) ContactsGetContactIDs(hash int64) ([]int32, error) {
 	responseData, err := c.MakeRequest(&ContactsGetContactIDsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsGetContactIDs")
+		return nil, fmt.Errorf("sending ContactsGetContactIDs: %w", err)
 	}
 
 	resp, ok := responseData.([]int32)
@@ -6243,7 +6268,7 @@ func (*ContactsGetContactsParams) CRC() uint32 {
 func (c *Client) ContactsGetContacts(hash int64) (ContactsContacts, error) {
 	responseData, err := c.MakeRequest(&ContactsGetContactsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsGetContacts")
+		return nil, fmt.Errorf("sending ContactsGetContacts: %w", err)
 	}
 
 	resp, ok := responseData.(ContactsContacts)
@@ -6275,7 +6300,7 @@ func (c *Client) ContactsGetLocated(background bool, geoPoint InputGeoPoint, sel
 		SelfExpires: selfExpires,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsGetLocated")
+		return nil, fmt.Errorf("sending ContactsGetLocated: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -6295,7 +6320,7 @@ func (*ContactsGetSavedParams) CRC() uint32 {
 func (c *Client) ContactsGetSaved() ([]*SavedPhoneContact, error) {
 	responseData, err := c.MakeRequest(&ContactsGetSavedParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsGetSaved")
+		return nil, fmt.Errorf("sending ContactsGetSaved: %w", err)
 	}
 
 	resp, ok := responseData.([]*SavedPhoneContact)
@@ -6315,7 +6340,7 @@ func (*ContactsGetStatusesParams) CRC() uint32 {
 func (c *Client) ContactsGetStatuses() ([]*ContactStatus, error) {
 	responseData, err := c.MakeRequest(&ContactsGetStatusesParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsGetStatuses")
+		return nil, fmt.Errorf("sending ContactsGetStatuses: %w", err)
 	}
 
 	resp, ok := responseData.([]*ContactStatus)
@@ -6352,7 +6377,7 @@ func (*ContactsGetTopPeersParams) FlagIndex() int {
 func (c *Client) ContactsGetTopPeers(params *ContactsGetTopPeersParams) (ContactsTopPeers, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsGetTopPeers")
+		return nil, fmt.Errorf("sending ContactsGetTopPeers: %w", err)
 	}
 
 	resp, ok := responseData.(ContactsTopPeers)
@@ -6362,6 +6387,31 @@ func (c *Client) ContactsGetTopPeers(params *ContactsGetTopPeersParams) (Contact
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type ContactsImportCardParams struct {
+	ExportCard []int32
+}
+
+func (*ContactsImportCardParams) CRC() uint32 {
+	return 0x4fe196fe
+}
+
+// Returns general information on a user using his previously [exported card](https://core.telegram.orghttps://core.telegram.org/method/contacts.exportCard) as input.<br>The app may use it to open a conversation without knowing the user&#39;s phone number.
+func (c *Client) ContactsImportCard(exportCard []int32) (User, error) {
+	responseData, err := c.MakeRequest(&ContactsImportCardParams{ExportCard: exportCard})
+	if err != nil {
+		return nil, fmt.Errorf("sending ContactsImportCard: %w", err)
+	}
+
+	resp, ok := responseData.(User)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type ContactsImportContactTokenParams struct {
 	Token string
 }
@@ -6374,7 +6424,7 @@ func (*ContactsImportContactTokenParams) CRC() uint32 {
 func (c *Client) ContactsImportContactToken(token string) (User, error) {
 	responseData, err := c.MakeRequest(&ContactsImportContactTokenParams{Token: token})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsImportContactToken")
+		return nil, fmt.Errorf("sending ContactsImportContactToken: %w", err)
 	}
 
 	resp, ok := responseData.(User)
@@ -6396,7 +6446,7 @@ func (*ContactsImportContactsParams) CRC() uint32 {
 func (c *Client) ContactsImportContacts(contacts []*InputPhoneContact) (*ContactsImportedContacts, error) {
 	responseData, err := c.MakeRequest(&ContactsImportContactsParams{Contacts: contacts})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsImportContacts")
+		return nil, fmt.Errorf("sending ContactsImportContacts: %w", err)
 	}
 
 	resp, ok := responseData.(*ContactsImportedContacts)
@@ -6416,7 +6466,7 @@ func (*ContactsResetSavedParams) CRC() uint32 {
 func (c *Client) ContactsResetSaved() (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsResetSavedParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ContactsResetSaved")
+		return false, fmt.Errorf("sending ContactsResetSaved: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -6442,7 +6492,7 @@ func (c *Client) ContactsResetTopPeerRating(category TopPeerCategory, peer Input
 		Peer:     peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ContactsResetTopPeerRating")
+		return false, fmt.Errorf("sending ContactsResetTopPeerRating: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -6464,7 +6514,7 @@ func (*ContactsResolvePhoneParams) CRC() uint32 {
 func (c *Client) ContactsResolvePhone(phone string) (*ContactsResolvedPeer, error) {
 	responseData, err := c.MakeRequest(&ContactsResolvePhoneParams{Phone: phone})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsResolvePhone")
+		return nil, fmt.Errorf("sending ContactsResolvePhone: %w", err)
 	}
 
 	resp, ok := responseData.(*ContactsResolvedPeer)
@@ -6486,7 +6536,7 @@ func (*ContactsResolveUsernameParams) CRC() uint32 {
 func (c *Client) ContactsResolveUsername(username string) (*ContactsResolvedPeer, error) {
 	responseData, err := c.MakeRequest(&ContactsResolveUsernameParams{Username: username})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsResolveUsername")
+		return nil, fmt.Errorf("sending ContactsResolveUsername: %w", err)
 	}
 
 	resp, ok := responseData.(*ContactsResolvedPeer)
@@ -6512,7 +6562,7 @@ func (c *Client) ContactsSearch(q string, limit int32) (*ContactsFound, error) {
 		Q:     q,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsSearch")
+		return nil, fmt.Errorf("sending ContactsSearch: %w", err)
 	}
 
 	resp, ok := responseData.(*ContactsFound)
@@ -6544,7 +6594,7 @@ func (c *Client) ContactsSetBlocked(myStoriesFrom bool, id []InputPeer, limit in
 		MyStoriesFrom: myStoriesFrom,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ContactsSetBlocked")
+		return false, fmt.Errorf("sending ContactsSetBlocked: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -6566,7 +6616,7 @@ func (*ContactsToggleTopPeersParams) CRC() uint32 {
 func (c *Client) ContactsToggleTopPeers(enabled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsToggleTopPeersParams{Enabled: enabled})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ContactsToggleTopPeers")
+		return false, fmt.Errorf("sending ContactsToggleTopPeers: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -6596,7 +6646,7 @@ func (c *Client) ContactsUnblock(myStoriesFrom bool, id InputPeer) (bool, error)
 		MyStoriesFrom: myStoriesFrom,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending ContactsUnblock")
+		return false, fmt.Errorf("sending ContactsUnblock: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -6606,6 +6656,31 @@ func (c *Client) ContactsUnblock(myStoriesFrom bool, id InputPeer) (bool, error)
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type FoldersDeleteFolderParams struct {
+	FolderID int32
+}
+
+func (*FoldersDeleteFolderParams) CRC() uint32 {
+	return 0x1c295881
+}
+
+// Delete a [peer folder](https://core.telegram.org/api/folders#peer-folders)
+func (c *Client) FoldersDeleteFolder(folderID int32) (Updates, error) {
+	responseData, err := c.MakeRequest(&FoldersDeleteFolderParams{FolderID: folderID})
+	if err != nil {
+		return nil, fmt.Errorf("sending FoldersDeleteFolder: %w", err)
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type FoldersEditPeerFoldersParams struct {
 	FolderPeers []*InputFolderPeer
 }
@@ -6618,7 +6693,7 @@ func (*FoldersEditPeerFoldersParams) CRC() uint32 {
 func (c *Client) FoldersEditPeerFolders(folderPeers []*InputFolderPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&FoldersEditPeerFoldersParams{FolderPeers: folderPeers})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending FoldersEditPeerFolders")
+		return nil, fmt.Errorf("sending FoldersEditPeerFolders: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -6640,7 +6715,7 @@ func (*FragmentGetCollectibleInfoParams) CRC() uint32 {
 func (c *Client) FragmentGetCollectibleInfo(collectible InputCollectible) (*FragmentCollectibleInfo, error) {
 	responseData, err := c.MakeRequest(&FragmentGetCollectibleInfoParams{Collectible: collectible})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending FragmentGetCollectibleInfo")
+		return nil, fmt.Errorf("sending FragmentGetCollectibleInfo: %w", err)
 	}
 
 	resp, ok := responseData.(*FragmentCollectibleInfo)
@@ -6662,7 +6737,7 @@ func (*HelpAcceptTermsOfServiceParams) CRC() uint32 {
 func (c *Client) HelpAcceptTermsOfService(id *DataJson) (bool, error) {
 	responseData, err := c.MakeRequest(&HelpAcceptTermsOfServiceParams{ID: id})
 	if err != nil {
-		return false, errors.Wrap(err, "sending HelpAcceptTermsOfService")
+		return false, fmt.Errorf("sending HelpAcceptTermsOfService: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -6688,7 +6763,7 @@ func (c *Client) HelpDismissSuggestion(peer InputPeer, suggestion string) (bool,
 		Suggestion: suggestion,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending HelpDismissSuggestion")
+		return false, fmt.Errorf("sending HelpDismissSuggestion: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -6716,7 +6791,7 @@ func (c *Client) HelpEditUserInfo(userID InputUser, message string, entities []M
 		UserID:   userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpEditUserInfo")
+		return nil, fmt.Errorf("sending HelpEditUserInfo: %w", err)
 	}
 
 	resp, ok := responseData.(HelpUserInfo)
@@ -6726,6 +6801,34 @@ func (c *Client) HelpEditUserInfo(userID InputUser, message string, entities []M
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type HelpGetAppChangelogParams struct {
+	PrevAppVersion string
+}
+
+func (*HelpGetAppChangelogParams) CRC() uint32 {
+	return 0x9010ef6f
+}
+
+/*
+Get changelog of current app.<br>
+Typically, an [updates](https://core.telegram.org/constructor/updates) constructor will be returned, containing one or more [updateServiceNotification](https://core.telegram.org/constructor/updateServiceNotification) updates with app-specific changelogs.
+*/
+func (c *Client) HelpGetAppChangelog(prevAppVersion string) (Updates, error) {
+	responseData, err := c.MakeRequest(&HelpGetAppChangelogParams{PrevAppVersion: prevAppVersion})
+	if err != nil {
+		return nil, fmt.Errorf("sending HelpGetAppChangelog: %w", err)
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type HelpGetAppConfigParams struct {
 	Hash int32
 }
@@ -6738,7 +6841,7 @@ func (*HelpGetAppConfigParams) CRC() uint32 {
 func (c *Client) HelpGetAppConfig(hash int32) (HelpAppConfig, error) {
 	responseData, err := c.MakeRequest(&HelpGetAppConfigParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetAppConfig")
+		return nil, fmt.Errorf("sending HelpGetAppConfig: %w", err)
 	}
 
 	resp, ok := responseData.(HelpAppConfig)
@@ -6760,7 +6863,7 @@ func (*HelpGetAppUpdateParams) CRC() uint32 {
 func (c *Client) HelpGetAppUpdate(source string) (HelpAppUpdate, error) {
 	responseData, err := c.MakeRequest(&HelpGetAppUpdateParams{Source: source})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetAppUpdate")
+		return nil, fmt.Errorf("sending HelpGetAppUpdate: %w", err)
 	}
 
 	resp, ok := responseData.(HelpAppUpdate)
@@ -6780,7 +6883,7 @@ func (*HelpGetCdnConfigParams) CRC() uint32 {
 func (c *Client) HelpGetCdnConfig() (*CdnConfig, error) {
 	responseData, err := c.MakeRequest(&HelpGetCdnConfigParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetCdnConfig")
+		return nil, fmt.Errorf("sending HelpGetCdnConfig: %w", err)
 	}
 
 	resp, ok := responseData.(*CdnConfig)
@@ -6800,7 +6903,7 @@ func (*HelpGetConfigParams) CRC() uint32 {
 func (c *Client) HelpGetConfig() (*Config, error) {
 	responseData, err := c.MakeRequest(&HelpGetConfigParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetConfig")
+		return nil, fmt.Errorf("sending HelpGetConfig: %w", err)
 	}
 
 	resp, ok := responseData.(*Config)
@@ -6826,7 +6929,7 @@ func (c *Client) HelpGetCountriesList(langCode string, hash int32) (HelpCountrie
 		LangCode: langCode,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetCountriesList")
+		return nil, fmt.Errorf("sending HelpGetCountriesList: %w", err)
 	}
 
 	resp, ok := responseData.(HelpCountriesList)
@@ -6848,7 +6951,7 @@ func (*HelpGetDeepLinkInfoParams) CRC() uint32 {
 func (c *Client) HelpGetDeepLinkInfo(path string) (HelpDeepLinkInfo, error) {
 	responseData, err := c.MakeRequest(&HelpGetDeepLinkInfoParams{Path: path})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetDeepLinkInfo")
+		return nil, fmt.Errorf("sending HelpGetDeepLinkInfo: %w", err)
 	}
 
 	resp, ok := responseData.(HelpDeepLinkInfo)
@@ -6868,7 +6971,7 @@ func (*HelpGetInviteTextParams) CRC() uint32 {
 func (c *Client) HelpGetInviteText() (*HelpInviteText, error) {
 	responseData, err := c.MakeRequest(&HelpGetInviteTextParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetInviteText")
+		return nil, fmt.Errorf("sending HelpGetInviteText: %w", err)
 	}
 
 	resp, ok := responseData.(*HelpInviteText)
@@ -6888,7 +6991,7 @@ func (*HelpGetNearestDcParams) CRC() uint32 {
 func (c *Client) HelpGetNearestDc() (*NearestDc, error) {
 	responseData, err := c.MakeRequest(&HelpGetNearestDcParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetNearestDc")
+		return nil, fmt.Errorf("sending HelpGetNearestDc: %w", err)
 	}
 
 	resp, ok := responseData.(*NearestDc)
@@ -6910,7 +7013,7 @@ func (*HelpGetPassportConfigParams) CRC() uint32 {
 func (c *Client) HelpGetPassportConfig(hash int32) (HelpPassportConfig, error) {
 	responseData, err := c.MakeRequest(&HelpGetPassportConfigParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetPassportConfig")
+		return nil, fmt.Errorf("sending HelpGetPassportConfig: %w", err)
 	}
 
 	resp, ok := responseData.(HelpPassportConfig)
@@ -6932,7 +7035,7 @@ func (*HelpGetPeerColorsParams) CRC() uint32 {
 func (c *Client) HelpGetPeerColors(hash int32) (HelpPeerColors, error) {
 	responseData, err := c.MakeRequest(&HelpGetPeerColorsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetPeerColors")
+		return nil, fmt.Errorf("sending HelpGetPeerColors: %w", err)
 	}
 
 	resp, ok := responseData.(HelpPeerColors)
@@ -6954,7 +7057,7 @@ func (*HelpGetPeerProfileColorsParams) CRC() uint32 {
 func (c *Client) HelpGetPeerProfileColors(hash int32) (HelpPeerColors, error) {
 	responseData, err := c.MakeRequest(&HelpGetPeerProfileColorsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetPeerProfileColors")
+		return nil, fmt.Errorf("sending HelpGetPeerProfileColors: %w", err)
 	}
 
 	resp, ok := responseData.(HelpPeerColors)
@@ -6974,7 +7077,7 @@ func (*HelpGetPremiumPromoParams) CRC() uint32 {
 func (c *Client) HelpGetPremiumPromo() (*HelpPremiumPromo, error) {
 	responseData, err := c.MakeRequest(&HelpGetPremiumPromoParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetPremiumPromo")
+		return nil, fmt.Errorf("sending HelpGetPremiumPromo: %w", err)
 	}
 
 	resp, ok := responseData.(*HelpPremiumPromo)
@@ -6994,7 +7097,7 @@ func (*HelpGetPromoDataParams) CRC() uint32 {
 func (c *Client) HelpGetPromoData() (HelpPromoData, error) {
 	responseData, err := c.MakeRequest(&HelpGetPromoDataParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetPromoData")
+		return nil, fmt.Errorf("sending HelpGetPromoData: %w", err)
 	}
 
 	resp, ok := responseData.(HelpPromoData)
@@ -7016,7 +7119,7 @@ func (*HelpGetRecentMeUrlsParams) CRC() uint32 {
 func (c *Client) HelpGetRecentMeUrls(referer string) (*HelpRecentMeUrls, error) {
 	responseData, err := c.MakeRequest(&HelpGetRecentMeUrlsParams{Referer: referer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetRecentMeUrls")
+		return nil, fmt.Errorf("sending HelpGetRecentMeUrls: %w", err)
 	}
 
 	resp, ok := responseData.(*HelpRecentMeUrls)
@@ -7036,7 +7139,7 @@ func (*HelpGetSupportParams) CRC() uint32 {
 func (c *Client) HelpGetSupport() (*HelpSupport, error) {
 	responseData, err := c.MakeRequest(&HelpGetSupportParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetSupport")
+		return nil, fmt.Errorf("sending HelpGetSupport: %w", err)
 	}
 
 	resp, ok := responseData.(*HelpSupport)
@@ -7056,7 +7159,7 @@ func (*HelpGetSupportNameParams) CRC() uint32 {
 func (c *Client) HelpGetSupportName() (*HelpSupportName, error) {
 	responseData, err := c.MakeRequest(&HelpGetSupportNameParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetSupportName")
+		return nil, fmt.Errorf("sending HelpGetSupportName: %w", err)
 	}
 
 	resp, ok := responseData.(*HelpSupportName)
@@ -7076,7 +7179,7 @@ func (*HelpGetTermsOfServiceUpdateParams) CRC() uint32 {
 func (c *Client) HelpGetTermsOfServiceUpdate() (HelpTermsOfServiceUpdate, error) {
 	responseData, err := c.MakeRequest(&HelpGetTermsOfServiceUpdateParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetTermsOfServiceUpdate")
+		return nil, fmt.Errorf("sending HelpGetTermsOfServiceUpdate: %w", err)
 	}
 
 	resp, ok := responseData.(HelpTermsOfServiceUpdate)
@@ -7098,7 +7201,7 @@ func (*HelpGetTimezonesListParams) CRC() uint32 {
 func (c *Client) HelpGetTimezonesList(hash int32) (HelpTimezonesList, error) {
 	responseData, err := c.MakeRequest(&HelpGetTimezonesListParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetTimezonesList")
+		return nil, fmt.Errorf("sending HelpGetTimezonesList: %w", err)
 	}
 
 	resp, ok := responseData.(HelpTimezonesList)
@@ -7120,7 +7223,7 @@ func (*HelpGetUserInfoParams) CRC() uint32 {
 func (c *Client) HelpGetUserInfo(userID InputUser) (HelpUserInfo, error) {
 	responseData, err := c.MakeRequest(&HelpGetUserInfoParams{UserID: userID})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetUserInfo")
+		return nil, fmt.Errorf("sending HelpGetUserInfo: %w", err)
 	}
 
 	resp, ok := responseData.(HelpUserInfo)
@@ -7142,7 +7245,7 @@ func (*HelpHidePromoDataParams) CRC() uint32 {
 func (c *Client) HelpHidePromoData(peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&HelpHidePromoDataParams{Peer: peer})
 	if err != nil {
-		return false, errors.Wrap(err, "sending HelpHidePromoData")
+		return false, fmt.Errorf("sending HelpHidePromoData: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -7164,7 +7267,7 @@ func (*HelpSaveAppLogParams) CRC() uint32 {
 func (c *Client) HelpSaveAppLog(events []*InputAppEvent) (bool, error) {
 	responseData, err := c.MakeRequest(&HelpSaveAppLogParams{Events: events})
 	if err != nil {
-		return false, errors.Wrap(err, "sending HelpSaveAppLog")
+		return false, fmt.Errorf("sending HelpSaveAppLog: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -7190,7 +7293,7 @@ func (c *Client) HelpSetBotUpdatesStatus(pendingUpdatesCount int32, message stri
 		PendingUpdatesCount: pendingUpdatesCount,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending HelpSetBotUpdatesStatus")
+		return false, fmt.Errorf("sending HelpSetBotUpdatesStatus: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -7218,7 +7321,7 @@ func (c *Client) LangpackGetDifference(langPack, langCode string, fromVersion in
 		LangPack:    langPack,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending LangpackGetDifference")
+		return nil, fmt.Errorf("sending LangpackGetDifference: %w", err)
 	}
 
 	resp, ok := responseData.(*LangPackDifference)
@@ -7244,7 +7347,7 @@ func (c *Client) LangpackGetLangPack(langPack, langCode string) (*LangPackDiffer
 		LangPack: langPack,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending LangpackGetLangPack")
+		return nil, fmt.Errorf("sending LangpackGetLangPack: %w", err)
 	}
 
 	resp, ok := responseData.(*LangPackDifference)
@@ -7270,7 +7373,7 @@ func (c *Client) LangpackGetLanguage(langPack, langCode string) (*LangPackLangua
 		LangPack: langPack,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending LangpackGetLanguage")
+		return nil, fmt.Errorf("sending LangpackGetLanguage: %w", err)
 	}
 
 	resp, ok := responseData.(*LangPackLanguage)
@@ -7292,7 +7395,7 @@ func (*LangpackGetLanguagesParams) CRC() uint32 {
 func (c *Client) LangpackGetLanguages(langPack string) ([]*LangPackLanguage, error) {
 	responseData, err := c.MakeRequest(&LangpackGetLanguagesParams{LangPack: langPack})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending LangpackGetLanguages")
+		return nil, fmt.Errorf("sending LangpackGetLanguages: %w", err)
 	}
 
 	resp, ok := responseData.([]*LangPackLanguage)
@@ -7320,7 +7423,7 @@ func (c *Client) LangpackGetStrings(langPack, langCode string, keys []string) ([
 		LangPack: langPack,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending LangpackGetStrings")
+		return nil, fmt.Errorf("sending LangpackGetStrings: %w", err)
 	}
 
 	resp, ok := responseData.([]LangPackString)
@@ -7348,7 +7451,7 @@ func (c *Client) MessagesAcceptEncryption(peer *InputEncryptedChat, gB []byte, k
 		Peer:           peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesAcceptEncryption")
+		return nil, fmt.Errorf("sending MessagesAcceptEncryption: %w", err)
 	}
 
 	resp, ok := responseData.(EncryptedChat)
@@ -7378,7 +7481,7 @@ func (*MessagesAcceptURLAuthParams) FlagIndex() int {
 func (c *Client) MessagesAcceptURLAuth(params *MessagesAcceptURLAuthParams) (URLAuthResult, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesAcceptURLAuth")
+		return nil, fmt.Errorf("sending MessagesAcceptURLAuth: %w", err)
 	}
 
 	resp, ok := responseData.(URLAuthResult)
@@ -7406,7 +7509,7 @@ func (c *Client) MessagesAddChatUser(chatID int64, userID InputUser, fwdLimit in
 		UserID:   userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesAddChatUser")
+		return nil, fmt.Errorf("sending MessagesAddChatUser: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesInvitedUsers)
@@ -7428,7 +7531,7 @@ func (*MessagesCheckChatInviteParams) CRC() uint32 {
 func (c *Client) MessagesCheckChatInvite(hash string) (ChatInvite, error) {
 	responseData, err := c.MakeRequest(&MessagesCheckChatInviteParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesCheckChatInvite")
+		return nil, fmt.Errorf("sending MessagesCheckChatInvite: %w", err)
 	}
 
 	resp, ok := responseData.(ChatInvite)
@@ -7438,6 +7541,36 @@ func (c *Client) MessagesCheckChatInvite(hash string) (ChatInvite, error) {
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type MessagesCheckDownloadFileParamsParams struct {
+	Bot      InputUser
+	FileName string
+	URL      string
+}
+
+func (*MessagesCheckDownloadFileParamsParams) CRC() uint32 {
+	return 0x50077589
+}
+
+func (c *Client) MessagesCheckDownloadFileParams(bot InputUser, fileName, url string) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesCheckDownloadFileParamsParams{
+		Bot:      bot,
+		FileName: fileName,
+		URL:      url,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending MessagesCheckDownloadFileParams: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type MessagesCheckHistoryImportParams struct {
 	ImportHead string
 }
@@ -7450,7 +7583,7 @@ func (*MessagesCheckHistoryImportParams) CRC() uint32 {
 func (c *Client) MessagesCheckHistoryImport(importHead string) (*MessagesHistoryImportParsed, error) {
 	responseData, err := c.MakeRequest(&MessagesCheckHistoryImportParams{ImportHead: importHead})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesCheckHistoryImport")
+		return nil, fmt.Errorf("sending MessagesCheckHistoryImport: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesHistoryImportParsed)
@@ -7472,7 +7605,7 @@ func (*MessagesCheckHistoryImportPeerParams) CRC() uint32 {
 func (c *Client) MessagesCheckHistoryImportPeer(peer InputPeer) (*MessagesCheckedHistoryImportPeer, error) {
 	responseData, err := c.MakeRequest(&MessagesCheckHistoryImportPeerParams{Peer: peer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesCheckHistoryImportPeer")
+		return nil, fmt.Errorf("sending MessagesCheckHistoryImportPeer: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesCheckedHistoryImportPeer)
@@ -7494,7 +7627,7 @@ func (*MessagesCheckQuickReplyShortcutParams) CRC() uint32 {
 func (c *Client) MessagesCheckQuickReplyShortcut(shortcut string) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesCheckQuickReplyShortcutParams{Shortcut: shortcut})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesCheckQuickReplyShortcut")
+		return false, fmt.Errorf("sending MessagesCheckQuickReplyShortcut: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -7514,7 +7647,7 @@ func (*MessagesClearAllDraftsParams) CRC() uint32 {
 func (c *Client) MessagesClearAllDrafts() (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesClearAllDraftsParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesClearAllDrafts")
+		return false, fmt.Errorf("sending MessagesClearAllDrafts: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -7534,7 +7667,7 @@ func (*MessagesClearRecentReactionsParams) CRC() uint32 {
 func (c *Client) MessagesClearRecentReactions() (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesClearRecentReactionsParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesClearRecentReactions")
+		return false, fmt.Errorf("sending MessagesClearRecentReactions: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -7560,7 +7693,7 @@ func (*MessagesClearRecentStickersParams) FlagIndex() int {
 func (c *Client) MessagesClearRecentStickers(attached bool) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesClearRecentStickersParams{Attached: attached})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesClearRecentStickers")
+		return false, fmt.Errorf("sending MessagesClearRecentStickers: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -7593,7 +7726,7 @@ func (c *Client) MessagesClickSponsoredMessage(media, fullscreen bool, peer Inpu
 		RandomID:   randomID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesClickSponsoredMessage")
+		return false, fmt.Errorf("sending MessagesClickSponsoredMessage: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -7625,7 +7758,7 @@ func (c *Client) MessagesCreateChat(users []InputUser, title string, ttlPeriod i
 		Users:     users,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesCreateChat")
+		return nil, fmt.Errorf("sending MessagesCreateChat: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesInvitedUsers)
@@ -7647,7 +7780,7 @@ func (*MessagesDeleteChatParams) CRC() uint32 {
 func (c *Client) MessagesDeleteChat(chatID int64) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesDeleteChatParams{ChatID: chatID})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesDeleteChat")
+		return false, fmt.Errorf("sending MessagesDeleteChat: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -7679,7 +7812,7 @@ func (c *Client) MessagesDeleteChatUser(revokeHistory bool, chatID int64, userID
 		UserID:        userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesDeleteChatUser")
+		return nil, fmt.Errorf("sending MessagesDeleteChatUser: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -7705,7 +7838,7 @@ func (c *Client) MessagesDeleteExportedChatInvite(peer InputPeer, link string) (
 		Peer: peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesDeleteExportedChatInvite")
+		return false, fmt.Errorf("sending MessagesDeleteExportedChatInvite: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -7731,7 +7864,7 @@ func (c *Client) MessagesDeleteFactCheck(peer InputPeer, msgID int32) (Updates, 
 		Peer:  peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesDeleteFactCheck")
+		return nil, fmt.Errorf("sending MessagesDeleteFactCheck: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -7762,7 +7895,7 @@ func (*MessagesDeleteHistoryParams) FlagIndex() int {
 func (c *Client) MessagesDeleteHistory(params *MessagesDeleteHistoryParams) (*MessagesAffectedHistory, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesDeleteHistory")
+		return nil, fmt.Errorf("sending MessagesDeleteHistory: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
@@ -7792,7 +7925,7 @@ func (c *Client) MessagesDeleteMessages(revoke bool, id []int32) (*MessagesAffec
 		Revoke: revoke,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesDeleteMessages")
+		return nil, fmt.Errorf("sending MessagesDeleteMessages: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesAffectedMessages)
@@ -7818,7 +7951,7 @@ func (*MessagesDeletePhoneCallHistoryParams) FlagIndex() int {
 func (c *Client) MessagesDeletePhoneCallHistory(revoke bool) (*MessagesAffectedFoundMessages, error) {
 	responseData, err := c.MakeRequest(&MessagesDeletePhoneCallHistoryParams{Revoke: revoke})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesDeletePhoneCallHistory")
+		return nil, fmt.Errorf("sending MessagesDeletePhoneCallHistory: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesAffectedFoundMessages)
@@ -7844,7 +7977,7 @@ func (c *Client) MessagesDeleteQuickReplyMessages(shortcutID int32, id []int32) 
 		ShortcutID: shortcutID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesDeleteQuickReplyMessages")
+		return nil, fmt.Errorf("sending MessagesDeleteQuickReplyMessages: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -7869,7 +8002,7 @@ This will also emit an [updateDeleteQuickReply](https://core.telegram.org/constr
 func (c *Client) MessagesDeleteQuickReplyShortcut(shortcutID int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesDeleteQuickReplyShortcutParams{ShortcutID: shortcutID})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesDeleteQuickReplyShortcut")
+		return false, fmt.Errorf("sending MessagesDeleteQuickReplyShortcut: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -7895,7 +8028,7 @@ func (c *Client) MessagesDeleteRevokedExportedChatInvites(peer InputPeer, adminI
 		Peer:    peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesDeleteRevokedExportedChatInvites")
+		return false, fmt.Errorf("sending MessagesDeleteRevokedExportedChatInvites: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -7929,7 +8062,7 @@ func (c *Client) MessagesDeleteSavedHistory(peer InputPeer, maxID, minDate, maxD
 		Peer:    peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesDeleteSavedHistory")
+		return nil, fmt.Errorf("sending MessagesDeleteSavedHistory: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
@@ -7955,7 +8088,7 @@ func (c *Client) MessagesDeleteScheduledMessages(peer InputPeer, id []int32) (Up
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesDeleteScheduledMessages")
+		return nil, fmt.Errorf("sending MessagesDeleteScheduledMessages: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -7985,7 +8118,7 @@ func (c *Client) MessagesDiscardEncryption(deleteHistory bool, chatID int32) (bo
 		DeleteHistory: deleteHistory,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesDiscardEncryption")
+		return false, fmt.Errorf("sending MessagesDiscardEncryption: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -8011,7 +8144,7 @@ func (c *Client) MessagesEditChatAbout(peer InputPeer, about string) (bool, erro
 		Peer:  peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesEditChatAbout")
+		return false, fmt.Errorf("sending MessagesEditChatAbout: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -8039,7 +8172,7 @@ func (c *Client) MessagesEditChatAdmin(chatID int64, userID InputUser, isAdmin b
 		UserID:  userID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesEditChatAdmin")
+		return false, fmt.Errorf("sending MessagesEditChatAdmin: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -8065,7 +8198,7 @@ func (c *Client) MessagesEditChatDefaultBannedRights(peer InputPeer, bannedRight
 		Peer:         peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesEditChatDefaultBannedRights")
+		return nil, fmt.Errorf("sending MessagesEditChatDefaultBannedRights: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -8091,7 +8224,7 @@ func (c *Client) MessagesEditChatPhoto(chatID int64, photo InputChatPhoto) (Upda
 		Photo:  photo,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesEditChatPhoto")
+		return nil, fmt.Errorf("sending MessagesEditChatPhoto: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -8117,7 +8250,7 @@ func (c *Client) MessagesEditChatTitle(chatID int64, title string) (Updates, err
 		Title:  title,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesEditChatTitle")
+		return nil, fmt.Errorf("sending MessagesEditChatTitle: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -8149,7 +8282,7 @@ func (*MessagesEditExportedChatInviteParams) FlagIndex() int {
 func (c *Client) MessagesEditExportedChatInvite(params *MessagesEditExportedChatInviteParams) (MessagesExportedChatInvite, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesEditExportedChatInvite")
+		return nil, fmt.Errorf("sending MessagesEditExportedChatInvite: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesExportedChatInvite)
@@ -8177,7 +8310,7 @@ func (c *Client) MessagesEditFactCheck(peer InputPeer, msgID int32, text *TextWi
 		Text:  text,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesEditFactCheck")
+		return nil, fmt.Errorf("sending MessagesEditFactCheck: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -8209,7 +8342,7 @@ func (*MessagesEditInlineBotMessageParams) FlagIndex() int {
 func (c *Client) MessagesEditInlineBotMessage(params *MessagesEditInlineBotMessageParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesEditInlineBotMessage")
+		return false, fmt.Errorf("sending MessagesEditInlineBotMessage: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -8244,7 +8377,7 @@ func (*MessagesEditMessageParams) FlagIndex() int {
 func (c *Client) MessagesEditMessage(params *MessagesEditMessageParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesEditMessage")
+		return nil, fmt.Errorf("sending MessagesEditMessage: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -8273,7 +8406,7 @@ func (c *Client) MessagesEditQuickReplyShortcut(shortcutID int32, shortcut strin
 		ShortcutID: shortcutID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesEditQuickReplyShortcut")
+		return false, fmt.Errorf("sending MessagesEditQuickReplyShortcut: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -8305,7 +8438,7 @@ func (*MessagesExportChatInviteParams) FlagIndex() int {
 func (c *Client) MessagesExportChatInvite(params *MessagesExportChatInviteParams) (ExportedChatInvite, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesExportChatInvite")
+		return nil, fmt.Errorf("sending MessagesExportChatInvite: %w", err)
 	}
 
 	resp, ok := responseData.(ExportedChatInvite)
@@ -8331,7 +8464,7 @@ func (c *Client) MessagesFaveSticker(id InputDocument, unfave bool) (bool, error
 		Unfave: unfave,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesFaveSticker")
+		return false, fmt.Errorf("sending MessagesFaveSticker: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -8341,6 +8474,37 @@ func (c *Client) MessagesFaveSticker(id InputDocument, unfave bool) (bool, error
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type MessagesForwardMessageParams struct {
+	Peer     InputPeer
+	ID       int32
+	RandomID int64
+}
+
+func (*MessagesForwardMessageParams) CRC() uint32 {
+	return 0x33963bf9
+}
+
+// Forwards single messages.
+func (c *Client) MessagesForwardMessage(peer InputPeer, id int32, randomID int64) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesForwardMessageParams{
+		ID:       id,
+		Peer:     peer,
+		RandomID: randomID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesForwardMessage: %w", err)
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type MessagesForwardMessagesParams struct {
 	Silent             bool `tl:"flag:5,encoded_in_bitflags"`
 	Background         bool `tl:"flag:6,encoded_in_bitflags"`
@@ -8371,7 +8535,7 @@ func (*MessagesForwardMessagesParams) FlagIndex() int {
 func (c *Client) MessagesForwardMessages(params *MessagesForwardMessagesParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesForwardMessages")
+		return nil, fmt.Errorf("sending MessagesForwardMessages: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -8393,7 +8557,7 @@ func (*MessagesGetAdminsWithInvitesParams) CRC() uint32 {
 func (c *Client) MessagesGetAdminsWithInvites(peer InputPeer) (*MessagesChatAdminsWithInvites, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAdminsWithInvitesParams{Peer: peer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetAdminsWithInvites")
+		return nil, fmt.Errorf("sending MessagesGetAdminsWithInvites: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesChatAdminsWithInvites)
@@ -8403,6 +8567,31 @@ func (c *Client) MessagesGetAdminsWithInvites(peer InputPeer) (*MessagesChatAdmi
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type MessagesGetAllChatsParams struct {
+	ExceptIds []int64
+}
+
+func (*MessagesGetAllChatsParams) CRC() uint32 {
+	return 0x875f74be
+}
+
+// Get all chats, channels and supergroups
+func (c *Client) MessagesGetAllChats(exceptIds []int64) (MessagesChats, error) {
+	responseData, err := c.MakeRequest(&MessagesGetAllChatsParams{ExceptIds: exceptIds})
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesGetAllChats: %w", err)
+	}
+
+	resp, ok := responseData.(MessagesChats)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type MessagesGetAllDraftsParams struct{}
 
 func (*MessagesGetAllDraftsParams) CRC() uint32 {
@@ -8416,7 +8605,7 @@ Returns all the latest [updateDraftMessage](https://core.telegram.org/constructo
 func (c *Client) MessagesGetAllDrafts() (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAllDraftsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetAllDrafts")
+		return nil, fmt.Errorf("sending MessagesGetAllDrafts: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -8438,7 +8627,7 @@ func (*MessagesGetAllStickersParams) CRC() uint32 {
 func (c *Client) MessagesGetAllStickers(hash int64) (MessagesAllStickers, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAllStickersParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetAllStickers")
+		return nil, fmt.Errorf("sending MessagesGetAllStickers: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesAllStickers)
@@ -8472,7 +8661,7 @@ func (c *Client) MessagesGetArchivedStickers(masks, emojis bool, offsetID int64,
 		OffsetID: offsetID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetArchivedStickers")
+		return nil, fmt.Errorf("sending MessagesGetArchivedStickers: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesArchivedStickers)
@@ -8494,7 +8683,7 @@ func (*MessagesGetAttachMenuBotParams) CRC() uint32 {
 func (c *Client) MessagesGetAttachMenuBot(bot InputUser) (*AttachMenuBotsBot, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAttachMenuBotParams{Bot: bot})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetAttachMenuBot")
+		return nil, fmt.Errorf("sending MessagesGetAttachMenuBot: %w", err)
 	}
 
 	resp, ok := responseData.(*AttachMenuBotsBot)
@@ -8516,7 +8705,7 @@ func (*MessagesGetAttachMenuBotsParams) CRC() uint32 {
 func (c *Client) MessagesGetAttachMenuBots(hash int64) (AttachMenuBots, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAttachMenuBotsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetAttachMenuBots")
+		return nil, fmt.Errorf("sending MessagesGetAttachMenuBots: %w", err)
 	}
 
 	resp, ok := responseData.(AttachMenuBots)
@@ -8538,7 +8727,7 @@ func (*MessagesGetAttachedStickersParams) CRC() uint32 {
 func (c *Client) MessagesGetAttachedStickers(media InputStickeredMedia) ([]StickerSetCovered, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAttachedStickersParams{Media: media})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetAttachedStickers")
+		return nil, fmt.Errorf("sending MessagesGetAttachedStickers: %w", err)
 	}
 
 	resp, ok := responseData.([]StickerSetCovered)
@@ -8560,7 +8749,7 @@ func (*MessagesGetAvailableEffectsParams) CRC() uint32 {
 func (c *Client) MessagesGetAvailableEffects(hash int32) (MessagesAvailableEffects, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAvailableEffectsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetAvailableEffects")
+		return nil, fmt.Errorf("sending MessagesGetAvailableEffects: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesAvailableEffects)
@@ -8582,7 +8771,7 @@ func (*MessagesGetAvailableReactionsParams) CRC() uint32 {
 func (c *Client) MessagesGetAvailableReactions(hash int32) (MessagesAvailableReactions, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAvailableReactionsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetAvailableReactions")
+		return nil, fmt.Errorf("sending MessagesGetAvailableReactions: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesAvailableReactions)
@@ -8608,7 +8797,7 @@ func (c *Client) MessagesGetBotApp(app InputBotApp, hash int64) (*MessagesBotApp
 		Hash: hash,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetBotApp")
+		return nil, fmt.Errorf("sending MessagesGetBotApp: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesBotApp)
@@ -8638,7 +8827,7 @@ func (*MessagesGetBotCallbackAnswerParams) FlagIndex() int {
 func (c *Client) MessagesGetBotCallbackAnswer(params *MessagesGetBotCallbackAnswerParams) (*MessagesBotCallbackAnswer, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetBotCallbackAnswer")
+		return nil, fmt.Errorf("sending MessagesGetBotCallbackAnswer: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesBotCallbackAnswer)
@@ -8671,7 +8860,7 @@ func (*MessagesGetChatInviteImportersParams) FlagIndex() int {
 func (c *Client) MessagesGetChatInviteImporters(params *MessagesGetChatInviteImportersParams) (*MessagesChatInviteImporters, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetChatInviteImporters")
+		return nil, fmt.Errorf("sending MessagesGetChatInviteImporters: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesChatInviteImporters)
@@ -8693,7 +8882,7 @@ func (*MessagesGetChatsParams) CRC() uint32 {
 func (c *Client) MessagesGetChats(id []int64) (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&MessagesGetChatsParams{ID: id})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetChats")
+		return nil, fmt.Errorf("sending MessagesGetChats: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesChats)
@@ -8721,7 +8910,7 @@ func (c *Client) MessagesGetCommonChats(userID InputUser, maxID int64, limit int
 		UserID: userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetCommonChats")
+		return nil, fmt.Errorf("sending MessagesGetCommonChats: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesChats)
@@ -8743,7 +8932,7 @@ func (*MessagesGetCustomEmojiDocumentsParams) CRC() uint32 {
 func (c *Client) MessagesGetCustomEmojiDocuments(documentID []int64) ([]Document, error) {
 	responseData, err := c.MakeRequest(&MessagesGetCustomEmojiDocumentsParams{DocumentID: documentID})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetCustomEmojiDocuments")
+		return nil, fmt.Errorf("sending MessagesGetCustomEmojiDocuments: %w", err)
 	}
 
 	resp, ok := responseData.([]Document)
@@ -8763,7 +8952,7 @@ func (*MessagesGetDefaultHistoryTtlParams) CRC() uint32 {
 func (c *Client) MessagesGetDefaultHistoryTtl() (*DefaultHistoryTtl, error) {
 	responseData, err := c.MakeRequest(&MessagesGetDefaultHistoryTtlParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetDefaultHistoryTtl")
+		return nil, fmt.Errorf("sending MessagesGetDefaultHistoryTtl: %w", err)
 	}
 
 	resp, ok := responseData.(*DefaultHistoryTtl)
@@ -8785,7 +8974,7 @@ func (*MessagesGetDefaultTagReactionsParams) CRC() uint32 {
 func (c *Client) MessagesGetDefaultTagReactions(hash int64) (MessagesReactions, error) {
 	responseData, err := c.MakeRequest(&MessagesGetDefaultTagReactionsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetDefaultTagReactions")
+		return nil, fmt.Errorf("sending MessagesGetDefaultTagReactions: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesReactions)
@@ -8811,7 +9000,7 @@ func (c *Client) MessagesGetDhConfig(version, randomLength int32) (MessagesDhCon
 		Version:      version,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetDhConfig")
+		return nil, fmt.Errorf("sending MessagesGetDhConfig: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesDhConfig)
@@ -8831,7 +9020,7 @@ func (*MessagesGetDialogFiltersParams) CRC() uint32 {
 func (c *Client) MessagesGetDialogFilters() (*MessagesDialogFilters, error) {
 	responseData, err := c.MakeRequest(&MessagesGetDialogFiltersParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetDialogFilters")
+		return nil, fmt.Errorf("sending MessagesGetDialogFilters: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesDialogFilters)
@@ -8851,7 +9040,7 @@ func (*MessagesGetDialogUnreadMarksParams) CRC() uint32 {
 func (c *Client) MessagesGetDialogUnreadMarks() ([]DialogPeer, error) {
 	responseData, err := c.MakeRequest(&MessagesGetDialogUnreadMarksParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetDialogUnreadMarks")
+		return nil, fmt.Errorf("sending MessagesGetDialogUnreadMarks: %w", err)
 	}
 
 	resp, ok := responseData.([]DialogPeer)
@@ -8883,7 +9072,7 @@ func (*MessagesGetDialogsParams) FlagIndex() int {
 func (c *Client) MessagesGetDialogs(params *MessagesGetDialogsParams) (MessagesDialogs, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetDialogs")
+		return nil, fmt.Errorf("sending MessagesGetDialogs: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesDialogs)
@@ -8909,7 +9098,7 @@ func (c *Client) MessagesGetDiscussionMessage(peer InputPeer, msgID int32) (*Mes
 		Peer:  peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetDiscussionMessage")
+		return nil, fmt.Errorf("sending MessagesGetDiscussionMessage: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesDiscussionMessage)
@@ -8937,7 +9126,7 @@ func (c *Client) MessagesGetDocumentByHash(sha256 []byte, size int64, mimeType s
 		Size:     size,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetDocumentByHash")
+		return nil, fmt.Errorf("sending MessagesGetDocumentByHash: %w", err)
 	}
 
 	resp, ok := responseData.(Document)
@@ -8959,7 +9148,7 @@ func (*MessagesGetEmojiGroupsParams) CRC() uint32 {
 func (c *Client) MessagesGetEmojiGroups(hash int32) (MessagesEmojiGroups, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiGroupsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetEmojiGroups")
+		return nil, fmt.Errorf("sending MessagesGetEmojiGroups: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesEmojiGroups)
@@ -8981,7 +9170,7 @@ func (*MessagesGetEmojiKeywordsParams) CRC() uint32 {
 func (c *Client) MessagesGetEmojiKeywords(langCode string) (*EmojiKeywordsDifference, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiKeywordsParams{LangCode: langCode})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetEmojiKeywords")
+		return nil, fmt.Errorf("sending MessagesGetEmojiKeywords: %w", err)
 	}
 
 	resp, ok := responseData.(*EmojiKeywordsDifference)
@@ -9007,7 +9196,7 @@ func (c *Client) MessagesGetEmojiKeywordsDifference(langCode string, fromVersion
 		LangCode:    langCode,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetEmojiKeywordsDifference")
+		return nil, fmt.Errorf("sending MessagesGetEmojiKeywordsDifference: %w", err)
 	}
 
 	resp, ok := responseData.(*EmojiKeywordsDifference)
@@ -9029,7 +9218,7 @@ func (*MessagesGetEmojiKeywordsLanguagesParams) CRC() uint32 {
 func (c *Client) MessagesGetEmojiKeywordsLanguages(langCodes []string) ([]*EmojiLanguage, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiKeywordsLanguagesParams{LangCodes: langCodes})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetEmojiKeywordsLanguages")
+		return nil, fmt.Errorf("sending MessagesGetEmojiKeywordsLanguages: %w", err)
 	}
 
 	resp, ok := responseData.([]*EmojiLanguage)
@@ -9051,7 +9240,7 @@ func (*MessagesGetEmojiProfilePhotoGroupsParams) CRC() uint32 {
 func (c *Client) MessagesGetEmojiProfilePhotoGroups(hash int32) (MessagesEmojiGroups, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiProfilePhotoGroupsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetEmojiProfilePhotoGroups")
+		return nil, fmt.Errorf("sending MessagesGetEmojiProfilePhotoGroups: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesEmojiGroups)
@@ -9073,7 +9262,7 @@ func (*MessagesGetEmojiStatusGroupsParams) CRC() uint32 {
 func (c *Client) MessagesGetEmojiStatusGroups(hash int32) (MessagesEmojiGroups, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiStatusGroupsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetEmojiStatusGroups")
+		return nil, fmt.Errorf("sending MessagesGetEmojiStatusGroups: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesEmojiGroups)
@@ -9095,7 +9284,7 @@ func (*MessagesGetEmojiStickerGroupsParams) CRC() uint32 {
 func (c *Client) MessagesGetEmojiStickerGroups(hash int32) (MessagesEmojiGroups, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiStickerGroupsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetEmojiStickerGroups")
+		return nil, fmt.Errorf("sending MessagesGetEmojiStickerGroups: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesEmojiGroups)
@@ -9117,7 +9306,7 @@ func (*MessagesGetEmojiStickersParams) CRC() uint32 {
 func (c *Client) MessagesGetEmojiStickers(hash int64) (MessagesAllStickers, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiStickersParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetEmojiStickers")
+		return nil, fmt.Errorf("sending MessagesGetEmojiStickers: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesAllStickers)
@@ -9139,7 +9328,7 @@ func (*MessagesGetEmojiURLParams) CRC() uint32 {
 func (c *Client) MessagesGetEmojiURL(langCode string) (*EmojiURL, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiURLParams{LangCode: langCode})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetEmojiURL")
+		return nil, fmt.Errorf("sending MessagesGetEmojiURL: %w", err)
 	}
 
 	resp, ok := responseData.(*EmojiURL)
@@ -9165,7 +9354,7 @@ func (c *Client) MessagesGetExportedChatInvite(peer InputPeer, link string) (Mes
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetExportedChatInvite")
+		return nil, fmt.Errorf("sending MessagesGetExportedChatInvite: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesExportedChatInvite)
@@ -9196,7 +9385,7 @@ func (*MessagesGetExportedChatInvitesParams) FlagIndex() int {
 func (c *Client) MessagesGetExportedChatInvites(params *MessagesGetExportedChatInvitesParams) (*MessagesExportedChatInvites, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetExportedChatInvites")
+		return nil, fmt.Errorf("sending MessagesGetExportedChatInvites: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesExportedChatInvites)
@@ -9222,7 +9411,7 @@ func (c *Client) MessagesGetExtendedMedia(peer InputPeer, id []int32) (Updates, 
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetExtendedMedia")
+		return nil, fmt.Errorf("sending MessagesGetExtendedMedia: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -9248,7 +9437,7 @@ func (c *Client) MessagesGetFactCheck(peer InputPeer, msgID []int32) ([]*FactChe
 		Peer:  peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetFactCheck")
+		return nil, fmt.Errorf("sending MessagesGetFactCheck: %w", err)
 	}
 
 	resp, ok := responseData.([]*FactCheck)
@@ -9270,7 +9459,7 @@ func (*MessagesGetFavedStickersParams) CRC() uint32 {
 func (c *Client) MessagesGetFavedStickers(hash int64) (MessagesFavedStickers, error) {
 	responseData, err := c.MakeRequest(&MessagesGetFavedStickersParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetFavedStickers")
+		return nil, fmt.Errorf("sending MessagesGetFavedStickers: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesFavedStickers)
@@ -9292,7 +9481,7 @@ func (*MessagesGetFeaturedEmojiStickersParams) CRC() uint32 {
 func (c *Client) MessagesGetFeaturedEmojiStickers(hash int64) (MessagesFeaturedStickers, error) {
 	responseData, err := c.MakeRequest(&MessagesGetFeaturedEmojiStickersParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetFeaturedEmojiStickers")
+		return nil, fmt.Errorf("sending MessagesGetFeaturedEmojiStickers: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesFeaturedStickers)
@@ -9314,7 +9503,7 @@ func (*MessagesGetFeaturedStickersParams) CRC() uint32 {
 func (c *Client) MessagesGetFeaturedStickers(hash int64) (MessagesFeaturedStickers, error) {
 	responseData, err := c.MakeRequest(&MessagesGetFeaturedStickersParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetFeaturedStickers")
+		return nil, fmt.Errorf("sending MessagesGetFeaturedStickers: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesFeaturedStickers)
@@ -9336,7 +9525,7 @@ func (*MessagesGetFullChatParams) CRC() uint32 {
 func (c *Client) MessagesGetFullChat(chatID int64) (*MessagesChatFull, error) {
 	responseData, err := c.MakeRequest(&MessagesGetFullChatParams{ChatID: chatID})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetFullChat")
+		return nil, fmt.Errorf("sending MessagesGetFullChat: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesChatFull)
@@ -9364,7 +9553,7 @@ func (c *Client) MessagesGetGameHighScores(peer InputPeer, id int32, userID Inpu
 		UserID: userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetGameHighScores")
+		return nil, fmt.Errorf("sending MessagesGetGameHighScores: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesHighScores)
@@ -9393,7 +9582,7 @@ func (*MessagesGetHistoryParams) CRC() uint32 {
 func (c *Client) MessagesGetHistory(params *MessagesGetHistoryParams) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetHistory")
+		return nil, fmt.Errorf("sending MessagesGetHistory: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -9423,7 +9612,7 @@ func (*MessagesGetInlineBotResultsParams) FlagIndex() int {
 func (c *Client) MessagesGetInlineBotResults(params *MessagesGetInlineBotResultsParams) (*MessagesBotResults, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetInlineBotResults")
+		return nil, fmt.Errorf("sending MessagesGetInlineBotResults: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesBotResults)
@@ -9449,7 +9638,7 @@ func (c *Client) MessagesGetInlineGameHighScores(id InputBotInlineMessageID, use
 		UserID: userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetInlineGameHighScores")
+		return nil, fmt.Errorf("sending MessagesGetInlineGameHighScores: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesHighScores)
@@ -9471,7 +9660,7 @@ func (*MessagesGetMaskStickersParams) CRC() uint32 {
 func (c *Client) MessagesGetMaskStickers(hash int64) (MessagesAllStickers, error) {
 	responseData, err := c.MakeRequest(&MessagesGetMaskStickersParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetMaskStickers")
+		return nil, fmt.Errorf("sending MessagesGetMaskStickers: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesAllStickers)
@@ -9497,7 +9686,7 @@ func (c *Client) MessagesGetMessageEditData(peer InputPeer, id int32) (*Messages
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetMessageEditData")
+		return nil, fmt.Errorf("sending MessagesGetMessageEditData: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesMessageEditData)
@@ -9527,7 +9716,7 @@ func (*MessagesGetMessageReactionsListParams) FlagIndex() int {
 func (c *Client) MessagesGetMessageReactionsList(params *MessagesGetMessageReactionsListParams) (*MessagesMessageReactionsList, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetMessageReactionsList")
+		return nil, fmt.Errorf("sending MessagesGetMessageReactionsList: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesMessageReactionsList)
@@ -9553,7 +9742,7 @@ func (c *Client) MessagesGetMessageReadParticipants(peer InputPeer, msgID int32)
 		Peer:  peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetMessageReadParticipants")
+		return nil, fmt.Errorf("sending MessagesGetMessageReadParticipants: %w", err)
 	}
 
 	resp, ok := responseData.([]*ReadParticipantDate)
@@ -9575,7 +9764,7 @@ func (*MessagesGetMessagesParams) CRC() uint32 {
 func (c *Client) MessagesGetMessages(id []InputMessage) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(&MessagesGetMessagesParams{ID: id})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetMessages")
+		return nil, fmt.Errorf("sending MessagesGetMessages: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -9601,7 +9790,7 @@ func (c *Client) MessagesGetMessagesReactions(peer InputPeer, id []int32) (Updat
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetMessagesReactions")
+		return nil, fmt.Errorf("sending MessagesGetMessagesReactions: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -9629,7 +9818,7 @@ func (c *Client) MessagesGetMessagesViews(peer InputPeer, id []int32, increment 
 		Peer:      peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetMessagesViews")
+		return nil, fmt.Errorf("sending MessagesGetMessagesViews: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesMessageViews)
@@ -9655,7 +9844,7 @@ func (c *Client) MessagesGetMyStickers(offsetID int64, limit int32) (*MessagesMy
 		OffsetID: offsetID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetMyStickers")
+		return nil, fmt.Errorf("sending MessagesGetMyStickers: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesMyStickers)
@@ -9683,7 +9872,7 @@ func (c *Client) MessagesGetOldFeaturedStickers(offset, limit int32, hash int64)
 		Offset: offset,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetOldFeaturedStickers")
+		return nil, fmt.Errorf("sending MessagesGetOldFeaturedStickers: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesFeaturedStickers)
@@ -9705,7 +9894,7 @@ func (*MessagesGetOnlinesParams) CRC() uint32 {
 func (c *Client) MessagesGetOnlines(peer InputPeer) (*ChatOnlines, error) {
 	responseData, err := c.MakeRequest(&MessagesGetOnlinesParams{Peer: peer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetOnlines")
+		return nil, fmt.Errorf("sending MessagesGetOnlines: %w", err)
 	}
 
 	resp, ok := responseData.(*ChatOnlines)
@@ -9731,7 +9920,7 @@ func (c *Client) MessagesGetOutboxReadDate(peer InputPeer, msgID int32) (*Outbox
 		Peer:  peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetOutboxReadDate")
+		return nil, fmt.Errorf("sending MessagesGetOutboxReadDate: %w", err)
 	}
 
 	resp, ok := responseData.(*OutboxReadDate)
@@ -9750,7 +9939,7 @@ func (*MessagesGetPaidReactionPrivacyParams) CRC() uint32 {
 func (c *Client) MessagesGetPaidReactionPrivacy() (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesGetPaidReactionPrivacyParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetPaidReactionPrivacy")
+		return nil, fmt.Errorf("sending MessagesGetPaidReactionPrivacy: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -9772,7 +9961,7 @@ func (*MessagesGetPeerDialogsParams) CRC() uint32 {
 func (c *Client) MessagesGetPeerDialogs(peers []InputDialogPeer) (*MessagesPeerDialogs, error) {
 	responseData, err := c.MakeRequest(&MessagesGetPeerDialogsParams{Peers: peers})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetPeerDialogs")
+		return nil, fmt.Errorf("sending MessagesGetPeerDialogs: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesPeerDialogs)
@@ -9794,7 +9983,7 @@ func (*MessagesGetPeerSettingsParams) CRC() uint32 {
 func (c *Client) MessagesGetPeerSettings(peer InputPeer) (*MessagesPeerSettings, error) {
 	responseData, err := c.MakeRequest(&MessagesGetPeerSettingsParams{Peer: peer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetPeerSettings")
+		return nil, fmt.Errorf("sending MessagesGetPeerSettings: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesPeerSettings)
@@ -9816,7 +10005,7 @@ func (*MessagesGetPinnedDialogsParams) CRC() uint32 {
 func (c *Client) MessagesGetPinnedDialogs(folderID int32) (*MessagesPeerDialogs, error) {
 	responseData, err := c.MakeRequest(&MessagesGetPinnedDialogsParams{FolderID: folderID})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetPinnedDialogs")
+		return nil, fmt.Errorf("sending MessagesGetPinnedDialogs: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesPeerDialogs)
@@ -9836,7 +10025,7 @@ func (*MessagesGetPinnedSavedDialogsParams) CRC() uint32 {
 func (c *Client) MessagesGetPinnedSavedDialogs() (MessagesSavedDialogs, error) {
 	responseData, err := c.MakeRequest(&MessagesGetPinnedSavedDialogsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetPinnedSavedDialogs")
+		return nil, fmt.Errorf("sending MessagesGetPinnedSavedDialogs: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesSavedDialogs)
@@ -9862,7 +10051,7 @@ func (c *Client) MessagesGetPollResults(peer InputPeer, msgID int32) (Updates, e
 		Peer:  peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetPollResults")
+		return nil, fmt.Errorf("sending MessagesGetPollResults: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -9892,7 +10081,7 @@ func (*MessagesGetPollVotesParams) FlagIndex() int {
 func (c *Client) MessagesGetPollVotes(params *MessagesGetPollVotesParams) (*MessagesVotesList, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetPollVotes")
+		return nil, fmt.Errorf("sending MessagesGetPollVotes: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesVotesList)
@@ -9917,7 +10106,7 @@ func (c *Client) MessagesGetPreparedInlineMessage(bot InputUser, id string) (*Me
 		ID:  id,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetPreparedInlineMessage")
+		return nil, fmt.Errorf("sending MessagesGetPreparedInlineMessage: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesPreparedInlineMessage)
@@ -9939,7 +10128,7 @@ func (*MessagesGetQuickRepliesParams) CRC() uint32 {
 func (c *Client) MessagesGetQuickReplies(hash int64) (MessagesQuickReplies, error) {
 	responseData, err := c.MakeRequest(&MessagesGetQuickRepliesParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetQuickReplies")
+		return nil, fmt.Errorf("sending MessagesGetQuickReplies: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesQuickReplies)
@@ -9971,7 +10160,7 @@ func (c *Client) MessagesGetQuickReplyMessages(shortcutID int32, id []int32, has
 		ShortcutID: shortcutID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetQuickReplyMessages")
+		return nil, fmt.Errorf("sending MessagesGetQuickReplyMessages: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -9999,7 +10188,7 @@ func (c *Client) MessagesGetRecentLocations(peer InputPeer, limit int32, hash in
 		Peer:  peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetRecentLocations")
+		return nil, fmt.Errorf("sending MessagesGetRecentLocations: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -10025,7 +10214,7 @@ func (c *Client) MessagesGetRecentReactions(limit int32, hash int64) (MessagesRe
 		Limit: limit,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetRecentReactions")
+		return nil, fmt.Errorf("sending MessagesGetRecentReactions: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesReactions)
@@ -10055,7 +10244,7 @@ func (c *Client) MessagesGetRecentStickers(attached bool, hash int64) (MessagesR
 		Hash:     hash,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetRecentStickers")
+		return nil, fmt.Errorf("sending MessagesGetRecentStickers: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesRecentStickers)
@@ -10085,7 +10274,7 @@ func (*MessagesGetRepliesParams) CRC() uint32 {
 func (c *Client) MessagesGetReplies(params *MessagesGetRepliesParams) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetReplies")
+		return nil, fmt.Errorf("sending MessagesGetReplies: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -10116,7 +10305,7 @@ func (*MessagesGetSavedDialogsParams) FlagIndex() int {
 func (c *Client) MessagesGetSavedDialogs(params *MessagesGetSavedDialogsParams) (MessagesSavedDialogs, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetSavedDialogs")
+		return nil, fmt.Errorf("sending MessagesGetSavedDialogs: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesSavedDialogs)
@@ -10138,7 +10327,7 @@ func (*MessagesGetSavedGifsParams) CRC() uint32 {
 func (c *Client) MessagesGetSavedGifs(hash int64) (MessagesSavedGifs, error) {
 	responseData, err := c.MakeRequest(&MessagesGetSavedGifsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetSavedGifs")
+		return nil, fmt.Errorf("sending MessagesGetSavedGifs: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesSavedGifs)
@@ -10167,7 +10356,7 @@ func (*MessagesGetSavedHistoryParams) CRC() uint32 {
 func (c *Client) MessagesGetSavedHistory(params *MessagesGetSavedHistoryParams) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetSavedHistory")
+		return nil, fmt.Errorf("sending MessagesGetSavedHistory: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -10197,7 +10386,7 @@ func (c *Client) MessagesGetSavedReactionTags(peer InputPeer, hash int64) (Messa
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetSavedReactionTags")
+		return nil, fmt.Errorf("sending MessagesGetSavedReactionTags: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesSavedReactionTags)
@@ -10223,7 +10412,7 @@ func (c *Client) MessagesGetScheduledHistory(peer InputPeer, hash int64) (Messag
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetScheduledHistory")
+		return nil, fmt.Errorf("sending MessagesGetScheduledHistory: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -10249,7 +10438,7 @@ func (c *Client) MessagesGetScheduledMessages(peer InputPeer, id []int32) (Messa
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetScheduledMessages")
+		return nil, fmt.Errorf("sending MessagesGetScheduledMessages: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -10283,7 +10472,7 @@ func (c *Client) MessagesGetSearchCounters(peer, savedPeerID InputPeer, topMsgID
 		TopMsgID:    topMsgID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetSearchCounters")
+		return nil, fmt.Errorf("sending MessagesGetSearchCounters: %w", err)
 	}
 
 	resp, ok := responseData.([]*MessagesSearchCounter)
@@ -10313,7 +10502,7 @@ func (*MessagesGetSearchResultsCalendarParams) FlagIndex() int {
 func (c *Client) MessagesGetSearchResultsCalendar(params *MessagesGetSearchResultsCalendarParams) (*MessagesSearchResultsCalendar, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetSearchResultsCalendar")
+		return nil, fmt.Errorf("sending MessagesGetSearchResultsCalendar: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesSearchResultsCalendar)
@@ -10343,7 +10532,7 @@ func (*MessagesGetSearchResultsPositionsParams) FlagIndex() int {
 func (c *Client) MessagesGetSearchResultsPositions(params *MessagesGetSearchResultsPositionsParams) (*MessagesSearchResultsPositions, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetSearchResultsPositions")
+		return nil, fmt.Errorf("sending MessagesGetSearchResultsPositions: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesSearchResultsPositions)
@@ -10363,7 +10552,7 @@ func (*MessagesGetSplitRangesParams) CRC() uint32 {
 func (c *Client) MessagesGetSplitRanges() ([]*MessageRange, error) {
 	responseData, err := c.MakeRequest(&MessagesGetSplitRangesParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetSplitRanges")
+		return nil, fmt.Errorf("sending MessagesGetSplitRanges: %w", err)
 	}
 
 	resp, ok := responseData.([]*MessageRange)
@@ -10384,7 +10573,7 @@ func (*MessagesGetSponsoredMessagesParams) CRC() uint32 {
 func (c *Client) MessagesGetSponsoredMessages(peer InputPeer) (MessagesSponsoredMessages, error) {
 	responseData, err := c.MakeRequest(&MessagesGetSponsoredMessagesParams{Peer: peer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetSponsoredMessages")
+		return nil, fmt.Errorf("sending MessagesGetSponsoredMessages: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesSponsoredMessages)
@@ -10394,6 +10583,41 @@ func (c *Client) MessagesGetSponsoredMessages(peer InputPeer) (MessagesSponsored
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type MessagesGetStatsURLParams struct {
+	Dark   bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer   InputPeer
+	Params string
+}
+
+func (*MessagesGetStatsURLParams) CRC() uint32 {
+	return 0x812c2ae6
+}
+
+func (*MessagesGetStatsURLParams) FlagIndex() int {
+	return 0
+}
+
+// Returns URL with the chat statistics. Currently this method can be used only for channels
+func (c *Client) MessagesGetStatsURL(dark bool, peer InputPeer, params string) (*StatsURL, error) {
+	responseData, err := c.MakeRequest(&MessagesGetStatsURLParams{
+		Dark:   dark,
+		Params: params,
+		Peer:   peer,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesGetStatsURL: %w", err)
+	}
+
+	resp, ok := responseData.(*StatsURL)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type MessagesGetStickerSetParams struct {
 	Stickerset InputStickerSet
 	Hash       int32
@@ -10410,7 +10634,7 @@ func (c *Client) MessagesGetStickerSet(stickerset InputStickerSet, hash int32) (
 		Stickerset: stickerset,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetStickerSet")
+		return nil, fmt.Errorf("sending MessagesGetStickerSet: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesStickerSet)
@@ -10436,7 +10660,7 @@ func (c *Client) MessagesGetStickers(emoticon string, hash int64) (MessagesStick
 		Hash:     hash,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetStickers")
+		return nil, fmt.Errorf("sending MessagesGetStickers: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesStickers)
@@ -10456,7 +10680,7 @@ func (*MessagesGetSuggestedDialogFiltersParams) CRC() uint32 {
 func (c *Client) MessagesGetSuggestedDialogFilters() ([]*DialogFilterSuggested, error) {
 	responseData, err := c.MakeRequest(&MessagesGetSuggestedDialogFiltersParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetSuggestedDialogFilters")
+		return nil, fmt.Errorf("sending MessagesGetSuggestedDialogFilters: %w", err)
 	}
 
 	resp, ok := responseData.([]*DialogFilterSuggested)
@@ -10482,7 +10706,7 @@ func (c *Client) MessagesGetTopReactions(limit int32, hash int64) (MessagesReact
 		Limit: limit,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetTopReactions")
+		return nil, fmt.Errorf("sending MessagesGetTopReactions: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesReactions)
@@ -10514,7 +10738,7 @@ func (*MessagesGetUnreadMentionsParams) FlagIndex() int {
 func (c *Client) MessagesGetUnreadMentions(params *MessagesGetUnreadMentionsParams) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetUnreadMentions")
+		return nil, fmt.Errorf("sending MessagesGetUnreadMentions: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -10546,7 +10770,7 @@ func (*MessagesGetUnreadReactionsParams) FlagIndex() int {
 func (c *Client) MessagesGetUnreadReactions(params *MessagesGetUnreadReactionsParams) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetUnreadReactions")
+		return nil, fmt.Errorf("sending MessagesGetUnreadReactions: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -10572,7 +10796,7 @@ func (c *Client) MessagesGetWebPage(url string, hash int32) (*MessagesWebPage, e
 		URL:  url,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetWebPage")
+		return nil, fmt.Errorf("sending MessagesGetWebPage: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesWebPage)
@@ -10602,7 +10826,7 @@ func (c *Client) MessagesGetWebPagePreview(message string, entities []MessageEnt
 		Message:  message,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetWebPagePreview")
+		return nil, fmt.Errorf("sending MessagesGetWebPagePreview: %w", err)
 	}
 
 	resp, ok := responseData.(MessageMedia)
@@ -10612,6 +10836,36 @@ func (c *Client) MessagesGetWebPagePreview(message string, entities []MessageEnt
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type MessagesGetWebViewResultParams struct {
+	Peer    InputPeer
+	Bot     InputUser
+	QueryID int64
+}
+
+func (*MessagesGetWebViewResultParams) CRC() uint32 {
+	return 0x22b6c214
+}
+
+func (c *Client) MessagesGetWebViewResult(peer InputPeer, bot InputUser, queryID int64) (*MessagesWebViewResult, error) {
+	responseData, err := c.MakeRequest(&MessagesGetWebViewResultParams{
+		Bot:     bot,
+		Peer:    peer,
+		QueryID: queryID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesGetWebViewResult: %w", err)
+	}
+
+	resp, ok := responseData.(*MessagesWebViewResult)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type MessagesHideAllChatJoinRequestsParams struct {
 	Approved bool `tl:"flag:0,encoded_in_bitflags"`
 	Peer     InputPeer
@@ -10634,7 +10888,7 @@ func (c *Client) MessagesHideAllChatJoinRequests(approved bool, peer InputPeer, 
 		Peer:     peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesHideAllChatJoinRequests")
+		return nil, fmt.Errorf("sending MessagesHideAllChatJoinRequests: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -10666,7 +10920,7 @@ func (c *Client) MessagesHideChatJoinRequest(approved bool, peer InputPeer, user
 		UserID:   userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesHideChatJoinRequest")
+		return nil, fmt.Errorf("sending MessagesHideChatJoinRequest: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -10688,7 +10942,7 @@ func (*MessagesHidePeerSettingsBarParams) CRC() uint32 {
 func (c *Client) MessagesHidePeerSettingsBar(peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesHidePeerSettingsBarParams{Peer: peer})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesHidePeerSettingsBar")
+		return false, fmt.Errorf("sending MessagesHidePeerSettingsBar: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -10710,7 +10964,7 @@ func (*MessagesImportChatInviteParams) CRC() uint32 {
 func (c *Client) MessagesImportChatInvite(hash string) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesImportChatInviteParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesImportChatInvite")
+		return nil, fmt.Errorf("sending MessagesImportChatInvite: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -10738,7 +10992,7 @@ func (c *Client) MessagesInitHistoryImport(peer InputPeer, file InputFile, media
 		Peer:       peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesInitHistoryImport")
+		return nil, fmt.Errorf("sending MessagesInitHistoryImport: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesHistoryImport)
@@ -10764,7 +11018,7 @@ func (c *Client) MessagesInstallStickerSet(stickerset InputStickerSet, archived 
 		Stickerset: stickerset,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesInstallStickerSet")
+		return nil, fmt.Errorf("sending MessagesInstallStickerSet: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesStickerSetInstallResult)
@@ -10794,7 +11048,7 @@ func (c *Client) MessagesMarkDialogUnread(unread bool, peer InputDialogPeer) (bo
 		Unread: unread,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesMarkDialogUnread")
+		return false, fmt.Errorf("sending MessagesMarkDialogUnread: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -10816,7 +11070,7 @@ func (*MessagesMigrateChatParams) CRC() uint32 {
 func (c *Client) MessagesMigrateChat(chatID int64) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesMigrateChatParams{ChatID: chatID})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesMigrateChat")
+		return nil, fmt.Errorf("sending MessagesMigrateChat: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -10847,7 +11101,7 @@ func (*MessagesProlongWebViewParams) FlagIndex() int {
 func (c *Client) MessagesProlongWebView(params *MessagesProlongWebViewParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesProlongWebView")
+		return false, fmt.Errorf("sending MessagesProlongWebView: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -10877,7 +11131,7 @@ func (c *Client) MessagesRateTranscribedAudio(peer InputPeer, msgID int32, trans
 		TranscriptionID: transcriptionID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesRateTranscribedAudio")
+		return false, fmt.Errorf("sending MessagesRateTranscribedAudio: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -10905,7 +11159,7 @@ func (c *Client) MessagesReadDiscussion(peer InputPeer, msgID, readMaxID int32) 
 		ReadMaxID: readMaxID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesReadDiscussion")
+		return false, fmt.Errorf("sending MessagesReadDiscussion: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -10931,7 +11185,7 @@ func (c *Client) MessagesReadEncryptedHistory(peer *InputEncryptedChat, maxDate 
 		Peer:    peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesReadEncryptedHistory")
+		return false, fmt.Errorf("sending MessagesReadEncryptedHistory: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -10953,7 +11207,7 @@ func (*MessagesReadFeaturedStickersParams) CRC() uint32 {
 func (c *Client) MessagesReadFeaturedStickers(id []int64) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReadFeaturedStickersParams{ID: id})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesReadFeaturedStickers")
+		return false, fmt.Errorf("sending MessagesReadFeaturedStickers: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -10979,7 +11233,7 @@ func (c *Client) MessagesReadHistory(peer InputPeer, maxID int32) (*MessagesAffe
 		Peer:  peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesReadHistory")
+		return nil, fmt.Errorf("sending MessagesReadHistory: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesAffectedMessages)
@@ -11009,7 +11263,7 @@ func (c *Client) MessagesReadMentions(peer InputPeer, topMsgID int32) (*Messages
 		TopMsgID: topMsgID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesReadMentions")
+		return nil, fmt.Errorf("sending MessagesReadMentions: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
@@ -11031,7 +11285,7 @@ func (*MessagesReadMessageContentsParams) CRC() uint32 {
 func (c *Client) MessagesReadMessageContents(id []int32) (*MessagesAffectedMessages, error) {
 	responseData, err := c.MakeRequest(&MessagesReadMessageContentsParams{ID: id})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesReadMessageContents")
+		return nil, fmt.Errorf("sending MessagesReadMessageContents: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesAffectedMessages)
@@ -11061,7 +11315,7 @@ func (c *Client) MessagesReadReactions(peer InputPeer, topMsgID int32) (*Message
 		TopMsgID: topMsgID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesReadReactions")
+		return nil, fmt.Errorf("sending MessagesReadReactions: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
@@ -11083,7 +11337,7 @@ func (*MessagesReceivedMessagesParams) CRC() uint32 {
 func (c *Client) MessagesReceivedMessages(maxID int32) ([]*ReceivedNotifyMessage, error) {
 	responseData, err := c.MakeRequest(&MessagesReceivedMessagesParams{MaxID: maxID})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesReceivedMessages")
+		return nil, fmt.Errorf("sending MessagesReceivedMessages: %w", err)
 	}
 
 	resp, ok := responseData.([]*ReceivedNotifyMessage)
@@ -11108,7 +11362,7 @@ The method returns a list of <strong>random_id</strong>s of messages for which p
 func (c *Client) MessagesReceivedQueue(maxQts int32) ([]int64, error) {
 	responseData, err := c.MakeRequest(&MessagesReceivedQueueParams{MaxQts: maxQts})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesReceivedQueue")
+		return nil, fmt.Errorf("sending MessagesReceivedQueue: %w", err)
 	}
 
 	resp, ok := responseData.([]int64)
@@ -11140,7 +11394,7 @@ func (c *Client) MessagesReorderPinnedDialogs(force bool, folderID int32, order 
 		Order:    order,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesReorderPinnedDialogs")
+		return false, fmt.Errorf("sending MessagesReorderPinnedDialogs: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -11170,7 +11424,7 @@ func (c *Client) MessagesReorderPinnedSavedDialogs(force bool, order []InputDial
 		Order: order,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesReorderPinnedSavedDialogs")
+		return false, fmt.Errorf("sending MessagesReorderPinnedSavedDialogs: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -11192,7 +11446,7 @@ func (*MessagesReorderQuickRepliesParams) CRC() uint32 {
 func (c *Client) MessagesReorderQuickReplies(order []int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReorderQuickRepliesParams{Order: order})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesReorderQuickReplies")
+		return false, fmt.Errorf("sending MessagesReorderQuickReplies: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -11224,7 +11478,7 @@ func (c *Client) MessagesReorderStickerSets(masks, emojis bool, order []int64) (
 		Order:  order,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesReorderStickerSets")
+		return false, fmt.Errorf("sending MessagesReorderStickerSets: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -11254,7 +11508,7 @@ func (c *Client) MessagesReport(peer InputPeer, id []int32, option []byte, messa
 		Peer:    peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesReport")
+		return nil, fmt.Errorf("sending MessagesReport: %w", err)
 	}
 
 	resp, ok := responseData.(ReportResult)
@@ -11276,7 +11530,7 @@ func (*MessagesReportEncryptedSpamParams) CRC() uint32 {
 func (c *Client) MessagesReportEncryptedSpam(peer *InputEncryptedChat) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReportEncryptedSpamParams{Peer: peer})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesReportEncryptedSpam")
+		return false, fmt.Errorf("sending MessagesReportEncryptedSpam: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -11304,7 +11558,7 @@ func (c *Client) MessagesReportReaction(peer InputPeer, id int32, reactionPeer I
 		ReactionPeer: reactionPeer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesReportReaction")
+		return false, fmt.Errorf("sending MessagesReportReaction: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -11326,7 +11580,7 @@ func (*MessagesReportSpamParams) CRC() uint32 {
 func (c *Client) MessagesReportSpam(peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReportSpamParams{Peer: peer})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesReportSpam")
+		return false, fmt.Errorf("sending MessagesReportSpam: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -11353,7 +11607,7 @@ func (c *Client) MessagesReportSponsoredMessage(peer InputPeer, randomID, option
 		RandomID: randomID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesReportSponsoredMessage")
+		return nil, fmt.Errorf("sending MessagesReportSponsoredMessage: %w", err)
 	}
 
 	resp, ok := responseData.(ChannelsSponsoredMessageReportResult)
@@ -11386,7 +11640,7 @@ func (*MessagesRequestAppWebViewParams) FlagIndex() int {
 func (c *Client) MessagesRequestAppWebView(params *MessagesRequestAppWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesRequestAppWebView")
+		return nil, fmt.Errorf("sending MessagesRequestAppWebView: %w", err)
 	}
 
 	resp, ok := responseData.(*WebViewResultURL)
@@ -11414,7 +11668,7 @@ func (c *Client) MessagesRequestEncryption(userID InputUser, randomID int32, gA 
 		UserID:   userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesRequestEncryption")
+		return nil, fmt.Errorf("sending MessagesRequestEncryption: %w", err)
 	}
 
 	resp, ok := responseData.(EncryptedChat)
@@ -11446,7 +11700,7 @@ func (*MessagesRequestMainWebViewParams) FlagIndex() int {
 func (c *Client) MessagesRequestMainWebView(params *MessagesRequestMainWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesRequestMainWebView")
+		return nil, fmt.Errorf("sending MessagesRequestMainWebView: %w", err)
 	}
 
 	resp, ok := responseData.(*WebViewResultURL)
@@ -11480,7 +11734,7 @@ func (*MessagesRequestSimpleWebViewParams) FlagIndex() int {
 func (c *Client) MessagesRequestSimpleWebView(params *MessagesRequestSimpleWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesRequestSimpleWebView")
+		return nil, fmt.Errorf("sending MessagesRequestSimpleWebView: %w", err)
 	}
 
 	resp, ok := responseData.(*WebViewResultURL)
@@ -11514,7 +11768,7 @@ func (c *Client) MessagesRequestURLAuth(peer InputPeer, msgID, buttonID int32, u
 		URL:      url,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesRequestURLAuth")
+		return nil, fmt.Errorf("sending MessagesRequestURLAuth: %w", err)
 	}
 
 	resp, ok := responseData.(URLAuthResult)
@@ -11551,7 +11805,7 @@ func (*MessagesRequestWebViewParams) FlagIndex() int {
 func (c *Client) MessagesRequestWebView(params *MessagesRequestWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesRequestWebView")
+		return nil, fmt.Errorf("sending MessagesRequestWebView: %w", err)
 	}
 
 	resp, ok := responseData.(*WebViewResultURL)
@@ -11577,7 +11831,7 @@ func (c *Client) MessagesSaveDefaultSendAs(peer, sendAs InputPeer) (bool, error)
 		SendAs: sendAs,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSaveDefaultSendAs")
+		return false, fmt.Errorf("sending MessagesSaveDefaultSendAs: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -11610,7 +11864,7 @@ func (*MessagesSaveDraftParams) FlagIndex() int {
 func (c *Client) MessagesSaveDraft(params *MessagesSaveDraftParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSaveDraft")
+		return false, fmt.Errorf("sending MessagesSaveDraft: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -11636,7 +11890,7 @@ func (c *Client) MessagesSaveGif(id InputDocument, unsave bool) (bool, error) {
 		Unsave: unsave,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSaveGif")
+		return false, fmt.Errorf("sending MessagesSaveGif: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -11699,7 +11953,7 @@ func (c *Client) MessagesSaveRecentSticker(attached bool, id InputDocument, unsa
 		Unsave:   unsave,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSaveRecentSticker")
+		return false, fmt.Errorf("sending MessagesSaveRecentSticker: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -11739,7 +11993,7 @@ func (*MessagesSearchParams) FlagIndex() int {
 func (c *Client) MessagesSearch(params *MessagesSearchParams) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSearch")
+		return nil, fmt.Errorf("sending MessagesSearch: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -11765,7 +12019,7 @@ func (c *Client) MessagesSearchCustomEmoji(emoticon string, hash int64) (EmojiLi
 		Hash:     hash,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSearchCustomEmoji")
+		return nil, fmt.Errorf("sending MessagesSearchCustomEmoji: %w", err)
 	}
 
 	resp, ok := responseData.(EmojiList)
@@ -11797,7 +12051,7 @@ func (c *Client) MessagesSearchEmojiStickerSets(excludeFeatured bool, q string, 
 		Q:               q,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSearchEmojiStickerSets")
+		return nil, fmt.Errorf("sending MessagesSearchEmojiStickerSets: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesFoundStickerSets)
@@ -11832,7 +12086,7 @@ func (*MessagesSearchGlobalParams) FlagIndex() int {
 func (c *Client) MessagesSearchGlobal(params *MessagesSearchGlobalParams) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSearchGlobal")
+		return nil, fmt.Errorf("sending MessagesSearchGlobal: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -11863,7 +12117,7 @@ func (c *Client) MessagesSearchSentMedia(q string, filter MessagesFilter, limit 
 		Q:      q,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSearchSentMedia")
+		return nil, fmt.Errorf("sending MessagesSearchSentMedia: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesMessages)
@@ -11895,7 +12149,7 @@ func (c *Client) MessagesSearchStickerSets(excludeFeatured bool, q string, hash 
 		Q:               q,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSearchStickerSets")
+		return nil, fmt.Errorf("sending MessagesSearchStickerSets: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesFoundStickerSets)
@@ -11925,7 +12179,7 @@ func (c *Client) MessagesSendBotRequestedPeer(peer InputPeer, msgID, buttonID in
 		RequestedPeers: requestedPeers,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendBotRequestedPeer")
+		return nil, fmt.Errorf("sending MessagesSendBotRequestedPeer: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -11959,7 +12213,7 @@ func (c *Client) MessagesSendEncrypted(silent bool, peer *InputEncryptedChat, ra
 		Silent:   silent,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendEncrypted")
+		return nil, fmt.Errorf("sending MessagesSendEncrypted: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesSentEncryptedMessage)
@@ -11989,7 +12243,7 @@ func (*MessagesSendEncryptedFileParams) FlagIndex() int {
 func (c *Client) MessagesSendEncryptedFile(params *MessagesSendEncryptedFileParams) (MessagesSentEncryptedMessage, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendEncryptedFile")
+		return nil, fmt.Errorf("sending MessagesSendEncryptedFile: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesSentEncryptedMessage)
@@ -11999,6 +12253,28 @@ func (c *Client) MessagesSendEncryptedFile(params *MessagesSendEncryptedFilePara
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type MessagesSendEncryptedMultiMediaParams struct{}
+
+func (*MessagesSendEncryptedMultiMediaParams) CRC() uint32 {
+	return 0xcacacaca
+}
+
+func (c *Client) MessagesSendEncryptedMultiMedia() (MessagesSentEncryptedMessage, error) {
+	responseData, err := c.MakeRequest(&MessagesSendEncryptedMultiMediaParams{})
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesSendEncryptedMultiMedia: %w", err)
+	}
+
+	resp, ok := responseData.(MessagesSentEncryptedMessage)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type MessagesSendEncryptedServiceParams struct {
 	Peer     *InputEncryptedChat
 	RandomID int64
@@ -12017,7 +12293,7 @@ func (c *Client) MessagesSendEncryptedService(peer *InputEncryptedChat, randomID
 		RandomID: randomID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendEncryptedService")
+		return nil, fmt.Errorf("sending MessagesSendEncryptedService: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesSentEncryptedMessage)
@@ -12054,7 +12330,7 @@ func (*MessagesSendInlineBotResultParams) FlagIndex() int {
 func (c *Client) MessagesSendInlineBotResult(params *MessagesSendInlineBotResultParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendInlineBotResult")
+		return nil, fmt.Errorf("sending MessagesSendInlineBotResult: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12097,7 +12373,7 @@ func (*MessagesSendMediaParams) FlagIndex() int {
 func (c *Client) MessagesSendMedia(params *MessagesSendMediaParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendMedia")
+		return nil, fmt.Errorf("sending MessagesSendMedia: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12140,7 +12416,7 @@ func (*MessagesSendMessageParams) FlagIndex() int {
 func (c *Client) MessagesSendMessage(params *MessagesSendMessageParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendMessage")
+		return nil, fmt.Errorf("sending MessagesSendMessage: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12179,7 +12455,7 @@ func (*MessagesSendMultiMediaParams) FlagIndex() int {
 func (c *Client) MessagesSendMultiMedia(params *MessagesSendMultiMediaParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendMultiMedia")
+		return nil, fmt.Errorf("sending MessagesSendMultiMedia: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12208,7 +12484,7 @@ func (*MessagesSendPaidReactionParams) FlagIndex() int {
 func (c *Client) MessagesSendPaidReaction(params *MessagesSendPaidReactionParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendPaidReaction")
+		return nil, fmt.Errorf("sending MessagesSendPaidReaction: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12238,7 +12514,7 @@ func (c *Client) MessagesSendQuickReplyMessages(peer InputPeer, shortcutID int32
 		ShortcutID: shortcutID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendQuickReplyMessages")
+		return nil, fmt.Errorf("sending MessagesSendQuickReplyMessages: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12268,7 +12544,7 @@ func (*MessagesSendReactionParams) FlagIndex() int {
 func (c *Client) MessagesSendReaction(params *MessagesSendReactionParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendReaction")
+		return nil, fmt.Errorf("sending MessagesSendReaction: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12294,7 +12570,7 @@ func (c *Client) MessagesSendScheduledMessages(peer InputPeer, id []int32) (Upda
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendScheduledMessages")
+		return nil, fmt.Errorf("sending MessagesSendScheduledMessages: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12322,7 +12598,7 @@ func (c *Client) MessagesSendScreenshotNotification(peer InputPeer, replyTo Inpu
 		ReplyTo:  replyTo,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendScreenshotNotification")
+		return nil, fmt.Errorf("sending MessagesSendScreenshotNotification: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12350,7 +12626,7 @@ func (c *Client) MessagesSendVote(peer InputPeer, msgID int32, options [][]byte)
 		Peer:    peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendVote")
+		return nil, fmt.Errorf("sending MessagesSendVote: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12380,7 +12656,7 @@ func (c *Client) MessagesSendWebViewData(bot InputUser, randomID int64, buttonTe
 		RandomID:   randomID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendWebViewData")
+		return nil, fmt.Errorf("sending MessagesSendWebViewData: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12406,7 +12682,7 @@ func (c *Client) MessagesSendWebViewResultMessage(botQueryID string, result Inpu
 		Result:     result,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendWebViewResultMessage")
+		return nil, fmt.Errorf("sending MessagesSendWebViewResultMessage: %w", err)
 	}
 
 	resp, ok := responseData.(*WebViewMessageSent)
@@ -12436,7 +12712,7 @@ func (*MessagesSetBotCallbackAnswerParams) FlagIndex() int {
 func (c *Client) MessagesSetBotCallbackAnswer(params *MessagesSetBotCallbackAnswerParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSetBotCallbackAnswer")
+		return false, fmt.Errorf("sending MessagesSetBotCallbackAnswer: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12472,7 +12748,7 @@ func (c *Client) MessagesSetBotPrecheckoutResults(success bool, queryID int64, e
 		Success: success,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSetBotPrecheckoutResults")
+		return false, fmt.Errorf("sending MessagesSetBotPrecheckoutResults: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12504,7 +12780,7 @@ func (c *Client) MessagesSetBotShippingResults(queryID int64, error string, ship
 		ShippingOptions: shippingOptions,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSetBotShippingResults")
+		return false, fmt.Errorf("sending MessagesSetBotShippingResults: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12538,7 +12814,7 @@ func (c *Client) MessagesSetChatAvailableReactions(peer InputPeer, availableReac
 		ReactionsLimit:     reactionsLimit,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSetChatAvailableReactions")
+		return nil, fmt.Errorf("sending MessagesSetChatAvailableReactions: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12564,7 +12840,7 @@ func (c *Client) MessagesSetChatTheme(peer InputPeer, emoticon string) (Updates,
 		Peer:     peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSetChatTheme")
+		return nil, fmt.Errorf("sending MessagesSetChatTheme: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12595,7 +12871,7 @@ func (*MessagesSetChatWallPaperParams) FlagIndex() int {
 func (c *Client) MessagesSetChatWallPaper(params *MessagesSetChatWallPaperParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSetChatWallPaper")
+		return nil, fmt.Errorf("sending MessagesSetChatWallPaper: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12617,7 +12893,7 @@ func (*MessagesSetDefaultHistoryTtlParams) CRC() uint32 {
 func (c *Client) MessagesSetDefaultHistoryTtl(period int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesSetDefaultHistoryTtlParams{Period: period})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSetDefaultHistoryTtl")
+		return false, fmt.Errorf("sending MessagesSetDefaultHistoryTtl: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12639,7 +12915,7 @@ func (*MessagesSetDefaultReactionParams) CRC() uint32 {
 func (c *Client) MessagesSetDefaultReaction(reaction Reaction) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesSetDefaultReactionParams{Reaction: reaction})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSetDefaultReaction")
+		return false, fmt.Errorf("sending MessagesSetDefaultReaction: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12665,7 +12941,7 @@ func (c *Client) MessagesSetEncryptedTyping(peer *InputEncryptedChat, typing boo
 		Typing: typing,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSetEncryptedTyping")
+		return false, fmt.Errorf("sending MessagesSetEncryptedTyping: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12696,7 +12972,7 @@ func (*MessagesSetGameScoreParams) FlagIndex() int {
 func (c *Client) MessagesSetGameScore(params *MessagesSetGameScoreParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSetGameScore")
+		return nil, fmt.Errorf("sending MessagesSetGameScore: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12722,7 +12998,7 @@ func (c *Client) MessagesSetHistoryTtl(peer InputPeer, period int32) (Updates, e
 		Period: period,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSetHistoryTtl")
+		return nil, fmt.Errorf("sending MessagesSetHistoryTtl: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12755,7 +13031,7 @@ func (*MessagesSetInlineBotResultsParams) FlagIndex() int {
 func (c *Client) MessagesSetInlineBotResults(params *MessagesSetInlineBotResultsParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSetInlineBotResults")
+		return false, fmt.Errorf("sending MessagesSetInlineBotResults: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12785,7 +13061,7 @@ func (*MessagesSetInlineGameScoreParams) FlagIndex() int {
 func (c *Client) MessagesSetInlineGameScore(params *MessagesSetInlineGameScoreParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSetInlineGameScore")
+		return false, fmt.Errorf("sending MessagesSetInlineGameScore: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12817,7 +13093,7 @@ func (c *Client) MessagesSetTyping(peer InputPeer, topMsgID int32, action SendMe
 		TopMsgID: topMsgID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSetTyping")
+		return false, fmt.Errorf("sending MessagesSetTyping: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12827,6 +13103,30 @@ func (c *Client) MessagesSetTyping(peer InputPeer, topMsgID int32, action SendMe
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type MessagesSetWebViewResultParams struct {
+	QueryID int64
+}
+
+func (*MessagesSetWebViewResultParams) CRC() uint32 {
+	return 0xe41cd11d
+}
+
+func (c *Client) MessagesSetWebViewResult(queryID int64) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesSetWebViewResultParams{QueryID: queryID})
+	if err != nil {
+		return false, fmt.Errorf("sending MessagesSetWebViewResult: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type MessagesStartBotParams struct {
 	Bot        InputUser
 	Peer       InputPeer
@@ -12847,7 +13147,7 @@ func (c *Client) MessagesStartBot(bot InputUser, peer InputPeer, randomID int64,
 		StartParam: startParam,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesStartBot")
+		return nil, fmt.Errorf("sending MessagesStartBot: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -12876,7 +13176,7 @@ func (c *Client) MessagesStartHistoryImport(peer InputPeer, importID int64) (boo
 		Peer:     peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesStartHistoryImport")
+		return false, fmt.Errorf("sending MessagesStartHistoryImport: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12908,7 +13208,7 @@ func (c *Client) MessagesToggleBotInAttachMenu(writeAllowed bool, bot InputUser,
 		WriteAllowed: writeAllowed,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesToggleBotInAttachMenu")
+		return false, fmt.Errorf("sending MessagesToggleBotInAttachMenu: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12930,7 +13230,7 @@ func (*MessagesToggleDialogFilterTagsParams) CRC() uint32 {
 func (c *Client) MessagesToggleDialogFilterTags(enabled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesToggleDialogFilterTagsParams{Enabled: enabled})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesToggleDialogFilterTags")
+		return false, fmt.Errorf("sending MessagesToggleDialogFilterTags: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12960,7 +13260,7 @@ func (c *Client) MessagesToggleDialogPin(pinned bool, peer InputDialogPeer) (boo
 		Pinned: pinned,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesToggleDialogPin")
+		return false, fmt.Errorf("sending MessagesToggleDialogPin: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12986,7 +13286,7 @@ func (c *Client) MessagesToggleNoForwards(peer InputPeer, enabled bool) (Updates
 		Peer:    peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesToggleNoForwards")
+		return nil, fmt.Errorf("sending MessagesToggleNoForwards: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -13013,7 +13313,7 @@ func (c *Client) MessagesTogglePaidReactionPrivacy(peer InputPeer, msgID int32, 
 		Private: private,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesTogglePaidReactionPrivacy")
+		return false, fmt.Errorf("sending MessagesTogglePaidReactionPrivacy: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13043,7 +13343,7 @@ func (c *Client) MessagesTogglePeerTranslations(disabled bool, peer InputPeer) (
 		Peer:     peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesTogglePeerTranslations")
+		return false, fmt.Errorf("sending MessagesTogglePeerTranslations: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13073,7 +13373,7 @@ func (c *Client) MessagesToggleSavedDialogPin(pinned bool, peer InputDialogPeer)
 		Pinned: pinned,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesToggleSavedDialogPin")
+		return false, fmt.Errorf("sending MessagesToggleSavedDialogPin: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13107,7 +13407,7 @@ func (c *Client) MessagesToggleStickerSets(uninstall, archive, unarchive bool, s
 		Uninstall:   uninstall,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesToggleStickerSets")
+		return false, fmt.Errorf("sending MessagesToggleStickerSets: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13117,6 +13417,34 @@ func (c *Client) MessagesToggleStickerSets(uninstall, archive, unarchive bool, s
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type MessagesToggleUserEmojiStatusPermissionParams struct {
+	Bot     InputUser
+	Enabled bool
+}
+
+func (*MessagesToggleUserEmojiStatusPermissionParams) CRC() uint32 {
+	return 0x6de6392
+}
+
+func (c *Client) MessagesToggleUserEmojiStatusPermission(bot InputUser, enabled bool) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesToggleUserEmojiStatusPermissionParams{
+		Bot:     bot,
+		Enabled: enabled,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending MessagesToggleUserEmojiStatusPermission: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type MessagesTranscribeAudioParams struct {
 	Peer  InputPeer
 	MsgID int32
@@ -13133,7 +13461,7 @@ func (c *Client) MessagesTranscribeAudio(peer InputPeer, msgID int32) (*Messages
 		Peer:  peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesTranscribeAudio")
+		return nil, fmt.Errorf("sending MessagesTranscribeAudio: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesTranscribedAudio)
@@ -13167,7 +13495,7 @@ func (c *Client) MessagesTranslateText(peer InputPeer, id []int32, text []*TextW
 		ToLang: toLang,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesTranslateText")
+		return nil, fmt.Errorf("sending MessagesTranslateText: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesTranslateResult)
@@ -13189,7 +13517,7 @@ func (*MessagesUninstallStickerSetParams) CRC() uint32 {
 func (c *Client) MessagesUninstallStickerSet(stickerset InputStickerSet) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesUninstallStickerSetParams{Stickerset: stickerset})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesUninstallStickerSet")
+		return false, fmt.Errorf("sending MessagesUninstallStickerSet: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13219,7 +13547,7 @@ func (c *Client) MessagesUnpinAllMessages(peer InputPeer, topMsgID int32) (*Mess
 		TopMsgID: topMsgID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesUnpinAllMessages")
+		return nil, fmt.Errorf("sending MessagesUnpinAllMessages: %w", err)
 	}
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
@@ -13249,7 +13577,7 @@ func (c *Client) MessagesUpdateDialogFilter(id int32, filter DialogFilter) (bool
 		ID:     id,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesUpdateDialogFilter")
+		return false, fmt.Errorf("sending MessagesUpdateDialogFilter: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13271,7 +13599,7 @@ func (*MessagesUpdateDialogFiltersOrderParams) CRC() uint32 {
 func (c *Client) MessagesUpdateDialogFiltersOrder(order []int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesUpdateDialogFiltersOrderParams{Order: order})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesUpdateDialogFiltersOrder")
+		return false, fmt.Errorf("sending MessagesUpdateDialogFiltersOrder: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13301,7 +13629,7 @@ func (*MessagesUpdatePinnedMessageParams) FlagIndex() int {
 func (c *Client) MessagesUpdatePinnedMessage(params *MessagesUpdatePinnedMessageParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesUpdatePinnedMessage")
+		return nil, fmt.Errorf("sending MessagesUpdatePinnedMessage: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -13331,7 +13659,7 @@ func (c *Client) MessagesUpdateSavedReactionTag(reaction Reaction, title string)
 		Title:    title,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesUpdateSavedReactionTag")
+		return false, fmt.Errorf("sending MessagesUpdateSavedReactionTag: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13357,7 +13685,7 @@ func (c *Client) MessagesUploadEncryptedFile(peer *InputEncryptedChat, file Inpu
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesUploadEncryptedFile")
+		return nil, fmt.Errorf("sending MessagesUploadEncryptedFile: %w", err)
 	}
 
 	resp, ok := responseData.(EncryptedFile)
@@ -13387,7 +13715,7 @@ func (c *Client) MessagesUploadImportedMedia(peer InputPeer, importID int64, fil
 		Peer:     peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesUploadImportedMedia")
+		return nil, fmt.Errorf("sending MessagesUploadImportedMedia: %w", err)
 	}
 
 	resp, ok := responseData.(MessageMedia)
@@ -13419,7 +13747,7 @@ func (c *Client) MessagesUploadMedia(businessConnectionID string, peer InputPeer
 		Peer:                 peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesUploadMedia")
+		return nil, fmt.Errorf("sending MessagesUploadMedia: %w", err)
 	}
 
 	resp, ok := responseData.(MessageMedia)
@@ -13444,7 +13772,7 @@ func (c *Client) MessagesViewSponsoredMessage(peer InputPeer, randomID []byte) (
 		RandomID: randomID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesViewSponsoredMessage")
+		return false, fmt.Errorf("sending MessagesViewSponsoredMessage: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13466,7 +13794,7 @@ func (*PaymentsApplyGiftCodeParams) CRC() uint32 {
 func (c *Client) PaymentsApplyGiftCode(slug string) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsApplyGiftCodeParams{Slug: slug})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsApplyGiftCode")
+		return nil, fmt.Errorf("sending PaymentsApplyGiftCode: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -13492,7 +13820,7 @@ func (c *Client) PaymentsAssignAppStoreTransaction(receipt []byte, purpose Input
 		Receipt: receipt,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsAssignAppStoreTransaction")
+		return nil, fmt.Errorf("sending PaymentsAssignAppStoreTransaction: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -13518,7 +13846,7 @@ func (c *Client) PaymentsAssignPlayMarketTransaction(receipt *DataJson, purpose 
 		Receipt: receipt,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsAssignPlayMarketTransaction")
+		return nil, fmt.Errorf("sending PaymentsAssignPlayMarketTransaction: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -13571,7 +13899,7 @@ func (*PaymentsCanPurchasePremiumParams) CRC() uint32 {
 func (c *Client) PaymentsCanPurchasePremium(purpose InputStorePaymentPurpose) (bool, error) {
 	responseData, err := c.MakeRequest(&PaymentsCanPurchasePremiumParams{Purpose: purpose})
 	if err != nil {
-		return false, errors.Wrap(err, "sending PaymentsCanPurchasePremium")
+		return false, fmt.Errorf("sending PaymentsCanPurchasePremium: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13602,7 +13930,7 @@ func (c *Client) PaymentsChangeStarsSubscription(peer InputPeer, subscriptionID 
 		SubscriptionID: subscriptionID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending PaymentsChangeStarsSubscription")
+		return false, fmt.Errorf("sending PaymentsChangeStarsSubscription: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13624,7 +13952,7 @@ func (*PaymentsCheckGiftCodeParams) CRC() uint32 {
 func (c *Client) PaymentsCheckGiftCode(slug string) (*PaymentsCheckedGiftCode, error) {
 	responseData, err := c.MakeRequest(&PaymentsCheckGiftCodeParams{Slug: slug})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsCheckGiftCode")
+		return nil, fmt.Errorf("sending PaymentsCheckGiftCode: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsCheckedGiftCode)
@@ -13654,7 +13982,7 @@ func (c *Client) PaymentsClearSavedInfo(credentials, info bool) (bool, error) {
 		Info:        info,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending PaymentsClearSavedInfo")
+		return false, fmt.Errorf("sending PaymentsClearSavedInfo: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13679,7 +14007,7 @@ func (c *Client) PaymentsConvertStarGift(userID InputUser, msgID int32) (bool, e
 		UserID: userID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending PaymentsConvertStarGift")
+		return false, fmt.Errorf("sending PaymentsConvertStarGift: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13701,7 +14029,7 @@ func (*PaymentsExportInvoiceParams) CRC() uint32 {
 func (c *Client) PaymentsExportInvoice(invoiceMedia InputMedia) (*PaymentsExportedInvoice, error) {
 	responseData, err := c.MakeRequest(&PaymentsExportInvoiceParams{InvoiceMedia: invoiceMedia})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsExportInvoice")
+		return nil, fmt.Errorf("sending PaymentsExportInvoice: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsExportedInvoice)
@@ -13726,7 +14054,7 @@ func (c *Client) PaymentsFulfillStarsSubscription(peer InputPeer, subscriptionID
 		SubscriptionID: subscriptionID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending PaymentsFulfillStarsSubscription")
+		return false, fmt.Errorf("sending PaymentsFulfillStarsSubscription: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -13748,7 +14076,7 @@ func (*PaymentsGetBankCardDataParams) CRC() uint32 {
 func (c *Client) PaymentsGetBankCardData(number string) (*PaymentsBankCardData, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetBankCardDataParams{Number: number})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetBankCardData")
+		return nil, fmt.Errorf("sending PaymentsGetBankCardData: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsBankCardData)
@@ -13774,7 +14102,7 @@ func (c *Client) PaymentsGetGiveawayInfo(peer InputPeer, msgID int32) (PaymentsG
 		Peer:  peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetGiveawayInfo")
+		return nil, fmt.Errorf("sending PaymentsGetGiveawayInfo: %w", err)
 	}
 
 	resp, ok := responseData.(PaymentsGiveawayInfo)
@@ -13804,7 +14132,7 @@ func (c *Client) PaymentsGetPaymentForm(invoice InputInvoice, themeParams *DataJ
 		ThemeParams: themeParams,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetPaymentForm")
+		return nil, fmt.Errorf("sending PaymentsGetPaymentForm: %w", err)
 	}
 
 	resp, ok := responseData.(PaymentsPaymentForm)
@@ -13830,7 +14158,7 @@ func (c *Client) PaymentsGetPaymentReceipt(peer InputPeer, msgID int32) (Payment
 		Peer:  peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetPaymentReceipt")
+		return nil, fmt.Errorf("sending PaymentsGetPaymentReceipt: %w", err)
 	}
 
 	resp, ok := responseData.(PaymentsPaymentReceipt)
@@ -13856,7 +14184,7 @@ func (*PaymentsGetPremiumGiftCodeOptionsParams) FlagIndex() int {
 func (c *Client) PaymentsGetPremiumGiftCodeOptions(boostPeer InputPeer) ([]*PremiumGiftCodeOption, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetPremiumGiftCodeOptionsParams{BoostPeer: boostPeer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetPremiumGiftCodeOptions")
+		return nil, fmt.Errorf("sending PaymentsGetPremiumGiftCodeOptions: %w", err)
 	}
 
 	resp, ok := responseData.([]*PremiumGiftCodeOption)
@@ -13876,7 +14204,7 @@ func (*PaymentsGetSavedInfoParams) CRC() uint32 {
 func (c *Client) PaymentsGetSavedInfo() (*PaymentsSavedInfo, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetSavedInfoParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetSavedInfo")
+		return nil, fmt.Errorf("sending PaymentsGetSavedInfo: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsSavedInfo)
@@ -13897,7 +14225,7 @@ func (*PaymentsGetStarGiftsParams) CRC() uint32 {
 func (c *Client) PaymentsGetStarGifts(hash int32) (PaymentsStarGifts, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarGiftsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetStarGifts")
+		return nil, fmt.Errorf("sending PaymentsGetStarGifts: %w", err)
 	}
 
 	resp, ok := responseData.(PaymentsStarGifts)
@@ -13923,7 +14251,7 @@ func (*PaymentsGetStarsGiftOptionsParams) FlagIndex() int {
 func (c *Client) PaymentsGetStarsGiftOptions(userID InputUser) ([]*StarsGiftOption, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsGiftOptionsParams{UserID: userID})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetStarsGiftOptions")
+		return nil, fmt.Errorf("sending PaymentsGetStarsGiftOptions: %w", err)
 	}
 
 	resp, ok := responseData.([]*StarsGiftOption)
@@ -13942,7 +14270,7 @@ func (*PaymentsGetStarsGiveawayOptionsParams) CRC() uint32 {
 func (c *Client) PaymentsGetStarsGiveawayOptions() ([]*StarsGiveawayOption, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsGiveawayOptionsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetStarsGiveawayOptions")
+		return nil, fmt.Errorf("sending PaymentsGetStarsGiveawayOptions: %w", err)
 	}
 
 	resp, ok := responseData.([]*StarsGiveawayOption)
@@ -13964,7 +14292,7 @@ func (*PaymentsGetStarsRevenueAdsAccountURLParams) CRC() uint32 {
 func (c *Client) PaymentsGetStarsRevenueAdsAccountURL(peer InputPeer) (*PaymentsStarsRevenueAdsAccountURL, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsRevenueAdsAccountURLParams{Peer: peer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetStarsRevenueAdsAccountURL")
+		return nil, fmt.Errorf("sending PaymentsGetStarsRevenueAdsAccountURL: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsStarsRevenueAdsAccountURL)
@@ -13994,7 +14322,7 @@ func (c *Client) PaymentsGetStarsRevenueStats(dark bool, peer InputPeer) (*Payme
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetStarsRevenueStats")
+		return nil, fmt.Errorf("sending PaymentsGetStarsRevenueStats: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsStarsRevenueStats)
@@ -14022,7 +14350,7 @@ func (c *Client) PaymentsGetStarsRevenueWithdrawalURL(peer InputPeer, stars int6
 		Stars:    stars,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetStarsRevenueWithdrawalURL")
+		return nil, fmt.Errorf("sending PaymentsGetStarsRevenueWithdrawalURL: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsStarsRevenueWithdrawalURL)
@@ -14044,7 +14372,7 @@ func (*PaymentsGetStarsStatusParams) CRC() uint32 {
 func (c *Client) PaymentsGetStarsStatus(peer InputPeer) (*PaymentsStarsStatus, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsStatusParams{Peer: peer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetStarsStatus")
+		return nil, fmt.Errorf("sending PaymentsGetStarsStatus: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsStarsStatus)
@@ -14075,7 +14403,7 @@ func (c *Client) PaymentsGetStarsSubscriptions(missingBalance bool, peer InputPe
 		Peer:           peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetStarsSubscriptions")
+		return nil, fmt.Errorf("sending PaymentsGetStarsSubscriptions: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsStarsStatus)
@@ -14095,7 +14423,7 @@ func (*PaymentsGetStarsTopupOptionsParams) CRC() uint32 {
 func (c *Client) PaymentsGetStarsTopupOptions() ([]*StarsTopupOption, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsTopupOptionsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetStarsTopupOptions")
+		return nil, fmt.Errorf("sending PaymentsGetStarsTopupOptions: %w", err)
 	}
 
 	resp, ok := responseData.([]*StarsTopupOption)
@@ -14127,7 +14455,7 @@ func (*PaymentsGetStarsTransactionsParams) FlagIndex() int {
 func (c *Client) PaymentsGetStarsTransactions(params *PaymentsGetStarsTransactionsParams) (*PaymentsStarsStatus, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetStarsTransactions")
+		return nil, fmt.Errorf("sending PaymentsGetStarsTransactions: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsStarsStatus)
@@ -14153,7 +14481,7 @@ func (c *Client) PaymentsGetStarsTransactionsByID(peer InputPeer, id []*InputSta
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetStarsTransactionsByID")
+		return nil, fmt.Errorf("sending PaymentsGetStarsTransactionsByID: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsStarsStatus)
@@ -14180,7 +14508,7 @@ func (c *Client) PaymentsGetUserStarGifts(userID InputUser, offset string, limit
 		UserID: userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetUserStarGifts")
+		return nil, fmt.Errorf("sending PaymentsGetUserStarGifts: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsUserStarGifts)
@@ -14208,7 +14536,7 @@ func (c *Client) PaymentsLaunchPrepaidGiveaway(peer InputPeer, giveawayID int64,
 		Purpose:    purpose,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsLaunchPrepaidGiveaway")
+		return nil, fmt.Errorf("sending PaymentsLaunchPrepaidGiveaway: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -14234,7 +14562,7 @@ func (c *Client) PaymentsRefundStarsCharge(userID InputUser, chargeID string) (U
 		UserID:   userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsRefundStarsCharge")
+		return nil, fmt.Errorf("sending PaymentsRefundStarsCharge: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -14244,6 +14572,53 @@ func (c *Client) PaymentsRefundStarsCharge(userID InputUser, chargeID string) (U
 	return resp, nil
 }
 
+<<<<<<< HEAD
+=======
+type PaymentsRequestRecurringPaymentParams struct {
+	UserID              InputUser
+	RecurringInitCharge string
+	InvoiceMedia        InputMedia
+}
+
+func (*PaymentsRequestRecurringPaymentParams) CRC() uint32 {
+	return 0x146e958d
+}
+
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 185 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>[1 &ndash; Base layer](https://core.telegram.org?layer=1)</li><li>[2 &ndash; New userpic notifications](https://core.telegram.org?layer=2)</li><li>[3 &ndash; Send message can trigger link change](https://core.telegram.org?layer=3)</li><li>[4 &ndash; Check-in chats](https://core.telegram.org?layer=4)</li><li>[5 &ndash; Localized SMS, localized notifications](https://core.telegram.org?layer=5)</li><li>[6 &ndash; Foursquare integration](https://core.telegram.org?layer=6)</li><li>[7 &ndash; Added wallPaperSolid](https://core.telegram.org?layer=7)</li><li>[8 &ndash; Added end-to-end encryption](https://core.telegram.org?layer=8)</li><li>[9 &ndash; Improved big files upload perfomance](https://core.telegram.org?layer=9)</li><li>[10 &ndash; Improved chat participants updates](https://core.telegram.org?layer=10)</li><li>[11 &ndash; Improved secret chats](https://core.telegram.org?layer=11)</li><li>[12 &ndash; New dynamic support](https://core.telegram.org?layer=12)</li><li>[13 &ndash; Audio, video MIME; contacts import retry; new secret actions](https://core.telegram.org?layer=13)</li><li>[14 &ndash; Notify settings sync, blacklist sync](https://core.telegram.org?layer=14)</li><li>[15 &ndash; Modified getHistory offset behaviour](https://core.telegram.org?layer=15)</li><li>[16 &ndash; Split sendCode into 2 parts](https://core.telegram.org?layer=16)</li><li>[17 &ndash; Added custom typing, introduced message flags](https://core.telegram.org?layer=17)</li><li>[18 &ndash; Added usernames](https://core.telegram.org?layer=18)</li><li>[23 &ndash; Stickers for secret chats](https://core.telegram.org?layer=23)</li><li>[105 &ndash; Scheduled messages, Cloud themes](https://core.telegram.org?layer=105)</li><li>[108 &ndash; Login with QR code](https://core.telegram.org?layer=108)</li><li>[109 &ndash; Polls v2](https://core.telegram.org?layer=109)</li><li>[110 &ndash; People Nearby 2.0, Bank card entity](https://core.telegram.org?layer=110)</li><li>[111 &ndash; Folders, Broadcast Stats](https://core.telegram.org?layer=111)</li><li>[112 &ndash; Old featured stickers, generic dice, poll timer, poll solution](https://core.telegram.org?layer=112)</li><li>[113 &ndash; PSA](https://core.telegram.org?layer=113)</li><li>[114 &ndash; Video thumbs for GIFs](https://core.telegram.org?layer=114)</li><li>[115 &ndash; Peek Channel Invite](https://core.telegram.org?layer=115)</li><li>[116 &ndash; Group Stats, Profile Videos](https://core.telegram.org?layer=116)</li><li>[117 &ndash; WebRTC Phone Calls](https://core.telegram.org?layer=117)</li><li>[118 &ndash; Callback with 2FA, Countries list](https://core.telegram.org?layer=118)</li><li>[119 &ndash; Comments in channels, Threads, Anonymous Admins](https://core.telegram.org?layer=119)</li><li>[120 &ndash; Multipins, Message Stats, GeoLive v2](https://core.telegram.org?layer=120)</li><li>[121 &ndash; SVG-based Outlines for Stickers](https://core.telegram.org?layer=121)</li><li>[122 &ndash; Voice Chats](https://core.telegram.org?layer=122)</li><li>[123 &ndash; Voice Chat improvements](https://core.telegram.org?layer=123)</li><li>[124 &ndash; Expiring Invite links](https://core.telegram.org?layer=124)</li><li>[125 &ndash; Voice Chats in Broadcasts](https://core.telegram.org?layer=125)</li><li>[126 &ndash; Ban channels in channels](https://core.telegram.org?layer=126)</li><li>[127 &ndash; Payments in channels](https://core.telegram.org?layer=127)</li><li>[128 &ndash; Microthumbs for User/Chat profile photos](https://core.telegram.org?layer=128)</li><li>[129 &ndash; Video Chats](https://core.telegram.org?layer=129)</li><li>[130 &ndash; Custom placeholder for bot reply keyboards](https://core.telegram.org?layer=130)</li><li>[131 &ndash; Reset 2FA Password after a week](https://core.telegram.org?layer=131)</li><li>[132 &ndash; Chat themes](https://core.telegram.org?layer=132)</li><li>[133 &ndash; 64-bit IDs for User/Chat](https://core.telegram.org?layer=133)</li><li>[134 &ndash; Chat Requests, Shared Media Calendar](https://core.telegram.org?layer=134)</li><li>[135 &ndash; Send Message As a Channel](https://core.telegram.org?layer=135)</li><li>[136 &ndash; Reactions](https://core.telegram.org?layer=136)</li><li>[137 &ndash; Translations](https://core.telegram.org?layer=137)</li><li>[138 &ndash; GIF Sticker Packs](https://core.telegram.org?layer=138)</li><li>[139 &ndash; RTMP streaming](https://core.telegram.org?layer=139)</li><li>[140 &ndash; WebApps, Cloud Ringtones](https://core.telegram.org?layer=140)</li><li>[142 &ndash; TCP Reflectors](https://core.telegram.org?layer=142)</li><li>[143 &ndash; Premium Subscription, Cloud Invoices](https://core.telegram.org?layer=143)</li><li>[144 &ndash; Premium as a Gift, Custom Emoji](https://core.telegram.org?layer=144)</li><li>[145 &ndash; Custom Reactions, Statuses, Sign In with email](https://core.telegram.org?layer=145)</li><li>[147 &ndash; Keywords for stickers and emojis](https://core.telegram.org?layer=147)</li><li>[148 &ndash; Forums, collectible usernames](https://core.telegram.org?layer=148)</li><li>[150 &ndash; Pinned forum topics, general topic](https://core.telegram.org?layer=150)</li><li>[151 &ndash; Media spoilers, suggested profile photos](https://core.telegram.org?layer=151)</li><li>[152 &ndash; Real-time translations, Firebase SMS authentication](https://core.telegram.org?layer=152)</li><li>[153 &ndash; Modify created stickersets](https://core.telegram.org?layer=153)</li><li>[155 &ndash; Dates for reactions](https://core.telegram.org?layer=155)</li><li>[158 &ndash; Shared folders, per-chat wallpapers](https://core.telegram.org?layer=158)</li><li>[159 &ndash; Anonymous votes](https://core.telegram.org?layer=159)</li><li>[160 &ndash; Stories](https://core.telegram.org?layer=160)</li><li>[164 &ndash; Stories in Channels](https://core.telegram.org?layer=164)</li><li>[166 &ndash; Giveaways in channels](https://core.telegram.org?layer=166)</li><li>[167 &ndash; Similar channels](https://core.telegram.org?layer=167)</li><li>[168 &ndash; Channel colors](https://core.telegram.org?layer=168)</li><li>[169 &ndash; Multiselection of chats for bots](https://core.telegram.org?layer=169)</li><li>[170 &ndash; Saved Messages 2.0](https://core.telegram.org?layer=170)</li><li>[171 &ndash; Saved Messages 2.0](https://core.telegram.org?layer=171)</li><li>[174 &ndash; Group boosts](https://core.telegram.org?layer=174)</li><li>[176 &ndash; Business](https://core.telegram.org?layer=176)</li><li>[177 &ndash; Business Bots, Birthdays](https://core.telegram.org?layer=177)</li><li>[178 &ndash; Saved Personal channel, Reactions notifications](https://core.telegram.org?layer=178)</li><li>[179 &ndash; Channel revenue stats, phrases in SMS](https://core.telegram.org?layer=179)</li><li>[180 &ndash; Message Effects, Hashtags](https://core.telegram.org?layer=180)</li><li>[181 &ndash; Stars](https://core.telegram.org?layer=181)</li><li>[182 &ndash; Stars Revenue](https://core.telegram.org?layer=182)</li><li>[183 &ndash; Paid posts](https://core.telegram.org?layer=183)</li><li>[184 &ndash; Stars Refunds](https://core.telegram.org?layer=184)</li><li><a href="?layer=185"><strong>185 &ndash; MiniApp Store, Star Gifts</strong></a></li>
+	      <li class="divider"></li>
+	      <li>[More...](https://core.telegram.org/api/layers)</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"> `Method schema is available as of layer 143. [Switch »](https://core.telegram.org?layer=143)`</pre>
+*/
+func (c *Client) PaymentsRequestRecurringPayment(userID InputUser, recurringInitCharge string, invoiceMedia InputMedia) (Updates, error) {
+	responseData, err := c.MakeRequest(&PaymentsRequestRecurringPaymentParams{
+		InvoiceMedia:        invoiceMedia,
+		RecurringInitCharge: recurringInitCharge,
+		UserID:              userID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending PaymentsRequestRecurringPayment: %w", err)
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+>>>>>>> 3df55ab (Replace `github.com/pkg/errors` with `fmt.Errorf ` for error handling)
 type PaymentsSaveStarGiftParams struct {
 	Unsave bool `tl:"flag:0,encoded_in_bitflags"`
 	UserID InputUser
@@ -14265,7 +14640,7 @@ func (c *Client) PaymentsSaveStarGift(unsave bool, userID InputUser, msgID int32
 		UserID: userID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending PaymentsSaveStarGift")
+		return false, fmt.Errorf("sending PaymentsSaveStarGift: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -14296,7 +14671,7 @@ func (*PaymentsSendPaymentFormParams) FlagIndex() int {
 func (c *Client) PaymentsSendPaymentForm(params *PaymentsSendPaymentFormParams) (PaymentsPaymentResult, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsSendPaymentForm")
+		return nil, fmt.Errorf("sending PaymentsSendPaymentForm: %w", err)
 	}
 
 	resp, ok := responseData.(PaymentsPaymentResult)
@@ -14322,7 +14697,7 @@ func (c *Client) PaymentsSendStarsForm(formID int64, invoice InputInvoice) (Paym
 		Invoice: invoice,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsSendStarsForm")
+		return nil, fmt.Errorf("sending PaymentsSendStarsForm: %w", err)
 	}
 
 	resp, ok := responseData.(PaymentsPaymentResult)
@@ -14354,7 +14729,7 @@ func (c *Client) PaymentsValidateRequestedInfo(save bool, invoice InputInvoice, 
 		Save:    save,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsValidateRequestedInfo")
+		return nil, fmt.Errorf("sending PaymentsValidateRequestedInfo: %w", err)
 	}
 
 	resp, ok := responseData.(*PaymentsValidatedRequestedInfo)
@@ -14382,7 +14757,7 @@ func (c *Client) PhoneAcceptCall(peer *InputPhoneCall, gB []byte, protocol *Phon
 		Protocol: protocol,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneAcceptCall")
+		return nil, fmt.Errorf("sending PhoneAcceptCall: %w", err)
 	}
 
 	resp, ok := responseData.(*PhonePhoneCall)
@@ -14411,7 +14786,7 @@ func (c *Client) PhoneCheckGroupCall(call *InputGroupCall, sources []int32) ([]i
 		Sources: sources,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneCheckGroupCall")
+		return nil, fmt.Errorf("sending PhoneCheckGroupCall: %w", err)
 	}
 
 	resp, ok := responseData.([]int32)
@@ -14441,7 +14816,7 @@ func (c *Client) PhoneConfirmCall(peer *InputPhoneCall, gA []byte, keyFingerprin
 		Protocol:       protocol,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneConfirmCall")
+		return nil, fmt.Errorf("sending PhoneConfirmCall: %w", err)
 	}
 
 	resp, ok := responseData.(*PhonePhoneCall)
@@ -14471,7 +14846,7 @@ func (*PhoneCreateGroupCallParams) FlagIndex() int {
 func (c *Client) PhoneCreateGroupCall(params *PhoneCreateGroupCallParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneCreateGroupCall")
+		return nil, fmt.Errorf("sending PhoneCreateGroupCall: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -14501,7 +14876,7 @@ func (*PhoneDiscardCallParams) FlagIndex() int {
 func (c *Client) PhoneDiscardCall(params *PhoneDiscardCallParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneDiscardCall")
+		return nil, fmt.Errorf("sending PhoneDiscardCall: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -14523,7 +14898,7 @@ func (*PhoneDiscardGroupCallParams) CRC() uint32 {
 func (c *Client) PhoneDiscardGroupCall(call *InputGroupCall) (Updates, error) {
 	responseData, err := c.MakeRequest(&PhoneDiscardGroupCallParams{Call: call})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneDiscardGroupCall")
+		return nil, fmt.Errorf("sending PhoneDiscardGroupCall: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -14556,7 +14931,7 @@ func (*PhoneEditGroupCallParticipantParams) FlagIndex() int {
 func (c *Client) PhoneEditGroupCallParticipant(params *PhoneEditGroupCallParticipantParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneEditGroupCallParticipant")
+		return nil, fmt.Errorf("sending PhoneEditGroupCallParticipant: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -14582,7 +14957,7 @@ func (c *Client) PhoneEditGroupCallTitle(call *InputGroupCall, title string) (Up
 		Title: title,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneEditGroupCallTitle")
+		return nil, fmt.Errorf("sending PhoneEditGroupCallTitle: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -14612,7 +14987,7 @@ func (c *Client) PhoneExportGroupCallInvite(canSelfUnmute bool, call *InputGroup
 		CanSelfUnmute: canSelfUnmute,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneExportGroupCallInvite")
+		return nil, fmt.Errorf("sending PhoneExportGroupCallInvite: %w", err)
 	}
 
 	resp, ok := responseData.(*PhoneExportedGroupCallInvite)
@@ -14632,7 +15007,7 @@ func (*PhoneGetCallConfigParams) CRC() uint32 {
 func (c *Client) PhoneGetCallConfig() (*DataJson, error) {
 	responseData, err := c.MakeRequest(&PhoneGetCallConfigParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneGetCallConfig")
+		return nil, fmt.Errorf("sending PhoneGetCallConfig: %w", err)
 	}
 
 	resp, ok := responseData.(*DataJson)
@@ -14658,7 +15033,7 @@ func (c *Client) PhoneGetGroupCall(call *InputGroupCall, limit int32) (*PhoneGro
 		Limit: limit,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneGetGroupCall")
+		return nil, fmt.Errorf("sending PhoneGetGroupCall: %w", err)
 	}
 
 	resp, ok := responseData.(*PhoneGroupCall)
@@ -14680,7 +15055,7 @@ func (*PhoneGetGroupCallJoinAsParams) CRC() uint32 {
 func (c *Client) PhoneGetGroupCallJoinAs(peer InputPeer) (*PhoneJoinAsPeers, error) {
 	responseData, err := c.MakeRequest(&PhoneGetGroupCallJoinAsParams{Peer: peer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneGetGroupCallJoinAs")
+		return nil, fmt.Errorf("sending PhoneGetGroupCallJoinAs: %w", err)
 	}
 
 	resp, ok := responseData.(*PhoneJoinAsPeers)
@@ -14706,7 +15081,7 @@ As usual, the media DC is preferred, if available.
 func (c *Client) PhoneGetGroupCallStreamChannels(call *InputGroupCall) (*PhoneGroupCallStreamChannels, error) {
 	responseData, err := c.MakeRequest(&PhoneGetGroupCallStreamChannelsParams{Call: call})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneGetGroupCallStreamChannels")
+		return nil, fmt.Errorf("sending PhoneGetGroupCallStreamChannels: %w", err)
 	}
 
 	resp, ok := responseData.(*PhoneGroupCallStreamChannels)
@@ -14732,7 +15107,7 @@ func (c *Client) PhoneGetGroupCallStreamRtmpURL(peer InputPeer, revoke bool) (*P
 		Revoke: revoke,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneGetGroupCallStreamRtmpURL")
+		return nil, fmt.Errorf("sending PhoneGetGroupCallStreamRtmpURL: %w", err)
 	}
 
 	resp, ok := responseData.(*PhoneGroupCallStreamRtmpURL)
@@ -14764,7 +15139,7 @@ func (c *Client) PhoneGetGroupParticipants(call *InputGroupCall, ids []InputPeer
 		Sources: sources,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneGetGroupParticipants")
+		return nil, fmt.Errorf("sending PhoneGetGroupParticipants: %w", err)
 	}
 
 	resp, ok := responseData.(*PhoneGroupParticipants)
@@ -14790,7 +15165,7 @@ func (c *Client) PhoneInviteToGroupCall(call *InputGroupCall, users []InputUser)
 		Users: users,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneInviteToGroupCall")
+		return nil, fmt.Errorf("sending PhoneInviteToGroupCall: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -14821,7 +15196,7 @@ func (*PhoneJoinGroupCallParams) FlagIndex() int {
 func (c *Client) PhoneJoinGroupCall(params *PhoneJoinGroupCallParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneJoinGroupCall")
+		return nil, fmt.Errorf("sending PhoneJoinGroupCall: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -14847,7 +15222,7 @@ func (c *Client) PhoneJoinGroupCallPresentation(call *InputGroupCall, params *Da
 		Params: params,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneJoinGroupCallPresentation")
+		return nil, fmt.Errorf("sending PhoneJoinGroupCallPresentation: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -14873,7 +15248,7 @@ func (c *Client) PhoneLeaveGroupCall(call *InputGroupCall, source int32) (Update
 		Source: source,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneLeaveGroupCall")
+		return nil, fmt.Errorf("sending PhoneLeaveGroupCall: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -14895,7 +15270,7 @@ func (*PhoneLeaveGroupCallPresentationParams) CRC() uint32 {
 func (c *Client) PhoneLeaveGroupCallPresentation(call *InputGroupCall) (Updates, error) {
 	responseData, err := c.MakeRequest(&PhoneLeaveGroupCallPresentationParams{Call: call})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneLeaveGroupCallPresentation")
+		return nil, fmt.Errorf("sending PhoneLeaveGroupCallPresentation: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -14917,7 +15292,7 @@ func (*PhoneReceivedCallParams) CRC() uint32 {
 func (c *Client) PhoneReceivedCall(peer *InputPhoneCall) (bool, error) {
 	responseData, err := c.MakeRequest(&PhoneReceivedCallParams{Peer: peer})
 	if err != nil {
-		return false, errors.Wrap(err, "sending PhoneReceivedCall")
+		return false, fmt.Errorf("sending PhoneReceivedCall: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -14947,7 +15322,7 @@ func (*PhoneRequestCallParams) FlagIndex() int {
 func (c *Client) PhoneRequestCall(params *PhoneRequestCallParams) (*PhonePhoneCall, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneRequestCall")
+		return nil, fmt.Errorf("sending PhoneRequestCall: %w", err)
 	}
 
 	resp, ok := responseData.(*PhonePhoneCall)
@@ -14973,7 +15348,7 @@ func (c *Client) PhoneSaveCallDebug(peer *InputPhoneCall, debug *DataJson) (bool
 		Peer:  peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending PhoneSaveCallDebug")
+		return false, fmt.Errorf("sending PhoneSaveCallDebug: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -14999,7 +15374,7 @@ func (c *Client) PhoneSaveCallLog(peer *InputPhoneCall, file InputFile) (bool, e
 		Peer: peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending PhoneSaveCallLog")
+		return false, fmt.Errorf("sending PhoneSaveCallLog: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -15025,7 +15400,7 @@ func (c *Client) PhoneSaveDefaultGroupCallJoinAs(peer, joinAs InputPeer) (bool, 
 		Peer:   peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending PhoneSaveDefaultGroupCallJoinAs")
+		return false, fmt.Errorf("sending PhoneSaveDefaultGroupCallJoinAs: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -15051,7 +15426,7 @@ func (c *Client) PhoneSendSignalingData(peer *InputPhoneCall, data []byte) (bool
 		Peer: peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending PhoneSendSignalingData")
+		return false, fmt.Errorf("sending PhoneSendSignalingData: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -15085,7 +15460,7 @@ func (c *Client) PhoneSetCallRating(userInitiative bool, peer *InputPhoneCall, r
 		UserInitiative: userInitiative,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneSetCallRating")
+		return nil, fmt.Errorf("sending PhoneSetCallRating: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -15107,7 +15482,7 @@ func (*PhoneStartScheduledGroupCallParams) CRC() uint32 {
 func (c *Client) PhoneStartScheduledGroupCall(call *InputGroupCall) (Updates, error) {
 	responseData, err := c.MakeRequest(&PhoneStartScheduledGroupCallParams{Call: call})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneStartScheduledGroupCall")
+		return nil, fmt.Errorf("sending PhoneStartScheduledGroupCall: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -15137,7 +15512,7 @@ func (*PhoneToggleGroupCallRecordParams) FlagIndex() int {
 func (c *Client) PhoneToggleGroupCallRecord(params *PhoneToggleGroupCallRecordParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneToggleGroupCallRecord")
+		return nil, fmt.Errorf("sending PhoneToggleGroupCallRecord: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -15169,7 +15544,7 @@ func (c *Client) PhoneToggleGroupCallSettings(resetInviteHash bool, call *InputG
 		ResetInviteHash: resetInviteHash,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneToggleGroupCallSettings")
+		return nil, fmt.Errorf("sending PhoneToggleGroupCallSettings: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -15195,7 +15570,7 @@ func (c *Client) PhoneToggleGroupCallStartSubscription(call *InputGroupCall, sub
 		Subscribed: subscribed,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhoneToggleGroupCallStartSubscription")
+		return nil, fmt.Errorf("sending PhoneToggleGroupCallStartSubscription: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -15217,7 +15592,7 @@ func (*PhotosDeletePhotosParams) CRC() uint32 {
 func (c *Client) PhotosDeletePhotos(id []InputPhoto) ([]int64, error) {
 	responseData, err := c.MakeRequest(&PhotosDeletePhotosParams{ID: id})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhotosDeletePhotos")
+		return nil, fmt.Errorf("sending PhotosDeletePhotos: %w", err)
 	}
 
 	resp, ok := responseData.([]int64)
@@ -15247,7 +15622,7 @@ func (c *Client) PhotosGetUserPhotos(userID InputUser, offset int32, maxID int64
 		UserID: userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhotosGetUserPhotos")
+		return nil, fmt.Errorf("sending PhotosGetUserPhotos: %w", err)
 	}
 
 	resp, ok := responseData.(PhotosPhotos)
@@ -15279,7 +15654,7 @@ func (c *Client) PhotosUpdateProfilePhoto(fallback bool, bot InputUser, id Input
 		ID:       id,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhotosUpdateProfilePhoto")
+		return nil, fmt.Errorf("sending PhotosUpdateProfilePhoto: %w", err)
 	}
 
 	resp, ok := responseData.(*PhotosPhoto)
@@ -15311,7 +15686,7 @@ func (*PhotosUploadContactProfilePhotoParams) FlagIndex() int {
 func (c *Client) PhotosUploadContactProfilePhoto(params *PhotosUploadContactProfilePhotoParams) (*PhotosPhoto, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhotosUploadContactProfilePhoto")
+		return nil, fmt.Errorf("sending PhotosUploadContactProfilePhoto: %w", err)
 	}
 
 	resp, ok := responseData.(*PhotosPhoto)
@@ -15342,7 +15717,7 @@ func (*PhotosUploadProfilePhotoParams) FlagIndex() int {
 func (c *Client) PhotosUploadProfilePhoto(params *PhotosUploadProfilePhotoParams) (*PhotosPhoto, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PhotosUploadProfilePhoto")
+		return nil, fmt.Errorf("sending PhotosUploadProfilePhoto: %w", err)
 	}
 
 	resp, ok := responseData.(*PhotosPhoto)
@@ -15372,7 +15747,7 @@ func (c *Client) PremiumApplyBoost(slots []int32, peer InputPeer) (*PremiumMyBoo
 		Slots: slots,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PremiumApplyBoost")
+		return nil, fmt.Errorf("sending PremiumApplyBoost: %w", err)
 	}
 
 	resp, ok := responseData.(*PremiumMyBoosts)
@@ -15406,7 +15781,7 @@ func (c *Client) PremiumGetBoostsList(gifts bool, peer InputPeer, offset string,
 		Peer:   peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PremiumGetBoostsList")
+		return nil, fmt.Errorf("sending PremiumGetBoostsList: %w", err)
 	}
 
 	resp, ok := responseData.(*PremiumBoostsList)
@@ -15428,7 +15803,7 @@ func (*PremiumGetBoostsStatusParams) CRC() uint32 {
 func (c *Client) PremiumGetBoostsStatus(peer InputPeer) (*PremiumBoostsStatus, error) {
 	responseData, err := c.MakeRequest(&PremiumGetBoostsStatusParams{Peer: peer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PremiumGetBoostsStatus")
+		return nil, fmt.Errorf("sending PremiumGetBoostsStatus: %w", err)
 	}
 
 	resp, ok := responseData.(*PremiumBoostsStatus)
@@ -15448,7 +15823,7 @@ func (*PremiumGetMyBoostsParams) CRC() uint32 {
 func (c *Client) PremiumGetMyBoosts() (*PremiumMyBoosts, error) {
 	responseData, err := c.MakeRequest(&PremiumGetMyBoostsParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PremiumGetMyBoosts")
+		return nil, fmt.Errorf("sending PremiumGetMyBoosts: %w", err)
 	}
 
 	resp, ok := responseData.(*PremiumMyBoosts)
@@ -15474,7 +15849,7 @@ func (c *Client) PremiumGetUserBoosts(peer InputPeer, userID InputUser) (*Premiu
 		UserID: userID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PremiumGetUserBoosts")
+		return nil, fmt.Errorf("sending PremiumGetUserBoosts: %w", err)
 	}
 
 	resp, ok := responseData.(*PremiumBoostsList)
@@ -15504,7 +15879,7 @@ func (c *Client) SmsjobsFinishJob(jobID, error string) (bool, error) {
 		JobID: jobID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending SmsjobsFinishJob")
+		return false, fmt.Errorf("sending SmsjobsFinishJob: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -15526,7 +15901,7 @@ func (*SmsjobsGetSmsJobParams) CRC() uint32 {
 func (c *Client) SmsjobsGetSmsJob(jobID string) (*SmsJob, error) {
 	responseData, err := c.MakeRequest(&SmsjobsGetSmsJobParams{JobID: jobID})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending SmsjobsGetSmsJob")
+		return nil, fmt.Errorf("sending SmsjobsGetSmsJob: %w", err)
 	}
 
 	resp, ok := responseData.(*SmsJob)
@@ -15546,7 +15921,7 @@ func (*SmsjobsGetStatusParams) CRC() uint32 {
 func (c *Client) SmsjobsGetStatus() (*SmsjobsStatus, error) {
 	responseData, err := c.MakeRequest(&SmsjobsGetStatusParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending SmsjobsGetStatus")
+		return nil, fmt.Errorf("sending SmsjobsGetStatus: %w", err)
 	}
 
 	resp, ok := responseData.(*SmsjobsStatus)
@@ -15566,7 +15941,7 @@ func (*SmsjobsIsEligibleToJoinParams) CRC() uint32 {
 func (c *Client) SmsjobsIsEligibleToJoin() (*SmsjobsEligibleToJoin, error) {
 	responseData, err := c.MakeRequest(&SmsjobsIsEligibleToJoinParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending SmsjobsIsEligibleToJoin")
+		return nil, fmt.Errorf("sending SmsjobsIsEligibleToJoin: %w", err)
 	}
 
 	resp, ok := responseData.(*SmsjobsEligibleToJoin)
@@ -15586,7 +15961,7 @@ func (*SmsjobsJoinParams) CRC() uint32 {
 func (c *Client) SmsjobsJoin() (bool, error) {
 	responseData, err := c.MakeRequest(&SmsjobsJoinParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending SmsjobsJoin")
+		return false, fmt.Errorf("sending SmsjobsJoin: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -15606,7 +15981,7 @@ func (*SmsjobsLeaveParams) CRC() uint32 {
 func (c *Client) SmsjobsLeave() (bool, error) {
 	responseData, err := c.MakeRequest(&SmsjobsLeaveParams{})
 	if err != nil {
-		return false, errors.Wrap(err, "sending SmsjobsLeave")
+		return false, fmt.Errorf("sending SmsjobsLeave: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -15632,7 +16007,7 @@ func (*SmsjobsUpdateSettingsParams) FlagIndex() int {
 func (c *Client) SmsjobsUpdateSettings(allowInternational bool) (bool, error) {
 	responseData, err := c.MakeRequest(&SmsjobsUpdateSettingsParams{AllowInternational: allowInternational})
 	if err != nil {
-		return false, errors.Wrap(err, "sending SmsjobsUpdateSettings")
+		return false, fmt.Errorf("sending SmsjobsUpdateSettings: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -15662,7 +16037,7 @@ func (c *Client) StatsGetBroadcastRevenueStats(dark bool, peer InputPeer) (*Stat
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsGetBroadcastRevenueStats")
+		return nil, fmt.Errorf("sending StatsGetBroadcastRevenueStats: %w", err)
 	}
 
 	resp, ok := responseData.(*StatsBroadcastRevenueStats)
@@ -15690,7 +16065,7 @@ func (c *Client) StatsGetBroadcastRevenueTransactions(peer InputPeer, offset, li
 		Peer:   peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsGetBroadcastRevenueTransactions")
+		return nil, fmt.Errorf("sending StatsGetBroadcastRevenueTransactions: %w", err)
 	}
 
 	resp, ok := responseData.(*StatsBroadcastRevenueTransactions)
@@ -15716,7 +16091,7 @@ func (c *Client) StatsGetBroadcastRevenueWithdrawalURL(peer InputPeer, password 
 		Peer:     peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsGetBroadcastRevenueWithdrawalURL")
+		return nil, fmt.Errorf("sending StatsGetBroadcastRevenueWithdrawalURL: %w", err)
 	}
 
 	resp, ok := responseData.(*StatsBroadcastRevenueWithdrawalURL)
@@ -15746,7 +16121,7 @@ func (c *Client) StatsGetBroadcastStats(dark bool, channel InputChannel) (*Stats
 		Dark:    dark,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsGetBroadcastStats")
+		return nil, fmt.Errorf("sending StatsGetBroadcastStats: %w", err)
 	}
 
 	resp, ok := responseData.(*StatsBroadcastStats)
@@ -15776,7 +16151,7 @@ func (c *Client) StatsGetMegagroupStats(dark bool, channel InputChannel) (*Stats
 		Dark:    dark,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsGetMegagroupStats")
+		return nil, fmt.Errorf("sending StatsGetMegagroupStats: %w", err)
 	}
 
 	resp, ok := responseData.(*StatsMegagroupStats)
@@ -15809,7 +16184,7 @@ func (c *Client) StatsGetMessagePublicForwards(channel InputChannel, msgID int32
 		Offset:  offset,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsGetMessagePublicForwards")
+		return nil, fmt.Errorf("sending StatsGetMessagePublicForwards: %w", err)
 	}
 
 	resp, ok := responseData.(*StatsPublicForwards)
@@ -15841,7 +16216,7 @@ func (c *Client) StatsGetMessageStats(dark bool, channel InputChannel, msgID int
 		MsgID:   msgID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsGetMessageStats")
+		return nil, fmt.Errorf("sending StatsGetMessageStats: %w", err)
 	}
 
 	resp, ok := responseData.(*StatsMessageStats)
@@ -15871,7 +16246,7 @@ func (c *Client) StatsGetStoryPublicForwards(peer InputPeer, id int32, offset st
 		Peer:   peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsGetStoryPublicForwards")
+		return nil, fmt.Errorf("sending StatsGetStoryPublicForwards: %w", err)
 	}
 
 	resp, ok := responseData.(*StatsPublicForwards)
@@ -15903,7 +16278,7 @@ func (c *Client) StatsGetStoryStats(dark bool, peer InputPeer, id int32) (*Stats
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsGetStoryStats")
+		return nil, fmt.Errorf("sending StatsGetStoryStats: %w", err)
 	}
 
 	resp, ok := responseData.(*StatsStoryStats)
@@ -15933,7 +16308,7 @@ func (c *Client) StatsLoadAsyncGraph(token string, x int64) (StatsGraph, error) 
 		X:     x,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsLoadAsyncGraph")
+		return nil, fmt.Errorf("sending StatsLoadAsyncGraph: %w", err)
 	}
 
 	resp, ok := responseData.(StatsGraph)
@@ -15959,7 +16334,7 @@ func (c *Client) StickersAddStickerToSet(stickerset InputStickerSet, sticker *In
 		Stickerset: stickerset,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StickersAddStickerToSet")
+		return nil, fmt.Errorf("sending StickersAddStickerToSet: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesStickerSet)
@@ -15993,7 +16368,7 @@ func (c *Client) StickersChangeSticker(sticker InputDocument, emoji string, mask
 		Sticker:    sticker,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StickersChangeSticker")
+		return nil, fmt.Errorf("sending StickersChangeSticker: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesStickerSet)
@@ -16019,7 +16394,7 @@ func (c *Client) StickersChangeStickerPosition(sticker InputDocument, position i
 		Sticker:  sticker,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StickersChangeStickerPosition")
+		return nil, fmt.Errorf("sending StickersChangeStickerPosition: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesStickerSet)
@@ -16041,7 +16416,7 @@ func (*StickersCheckShortNameParams) CRC() uint32 {
 func (c *Client) StickersCheckShortName(shortName string) (bool, error) {
 	responseData, err := c.MakeRequest(&StickersCheckShortNameParams{ShortName: shortName})
 	if err != nil {
-		return false, errors.Wrap(err, "sending StickersCheckShortName")
+		return false, fmt.Errorf("sending StickersCheckShortName: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -16075,7 +16450,7 @@ func (*StickersCreateStickerSetParams) FlagIndex() int {
 func (c *Client) StickersCreateStickerSet(params *StickersCreateStickerSetParams) (MessagesStickerSet, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StickersCreateStickerSet")
+		return nil, fmt.Errorf("sending StickersCreateStickerSet: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesStickerSet)
@@ -16097,7 +16472,7 @@ func (*StickersDeleteStickerSetParams) CRC() uint32 {
 func (c *Client) StickersDeleteStickerSet(stickerset InputStickerSet) (bool, error) {
 	responseData, err := c.MakeRequest(&StickersDeleteStickerSetParams{Stickerset: stickerset})
 	if err != nil {
-		return false, errors.Wrap(err, "sending StickersDeleteStickerSet")
+		return false, fmt.Errorf("sending StickersDeleteStickerSet: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -16119,7 +16494,7 @@ func (*StickersRemoveStickerFromSetParams) CRC() uint32 {
 func (c *Client) StickersRemoveStickerFromSet(sticker InputDocument) (MessagesStickerSet, error) {
 	responseData, err := c.MakeRequest(&StickersRemoveStickerFromSetParams{Sticker: sticker})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StickersRemoveStickerFromSet")
+		return nil, fmt.Errorf("sending StickersRemoveStickerFromSet: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesStickerSet)
@@ -16145,7 +16520,7 @@ func (c *Client) StickersRenameStickerSet(stickerset InputStickerSet, title stri
 		Title:      title,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StickersRenameStickerSet")
+		return nil, fmt.Errorf("sending StickersRenameStickerSet: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesStickerSet)
@@ -16171,7 +16546,7 @@ func (c *Client) StickersReplaceSticker(sticker InputDocument, newSticker *Input
 		Sticker:    sticker,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StickersReplaceSticker")
+		return nil, fmt.Errorf("sending StickersReplaceSticker: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesStickerSet)
@@ -16203,7 +16578,7 @@ func (c *Client) StickersSetStickerSetThumb(stickerset InputStickerSet, thumb In
 		ThumbDocumentID: thumbDocumentID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StickersSetStickerSetThumb")
+		return nil, fmt.Errorf("sending StickersSetStickerSetThumb: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesStickerSet)
@@ -16225,7 +16600,7 @@ func (*StickersSuggestShortNameParams) CRC() uint32 {
 func (c *Client) StickersSuggestShortName(title string) (*StickersSuggestedShortName, error) {
 	responseData, err := c.MakeRequest(&StickersSuggestShortNameParams{Title: title})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StickersSuggestShortName")
+		return nil, fmt.Errorf("sending StickersSuggestShortName: %w", err)
 	}
 
 	resp, ok := responseData.(*StickersSuggestedShortName)
@@ -16255,7 +16630,7 @@ func (c *Client) StoriesActivateStealthMode(past, future bool) (Updates, error) 
 		Past:   past,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesActivateStealthMode")
+		return nil, fmt.Errorf("sending StoriesActivateStealthMode: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -16277,7 +16652,7 @@ func (*StoriesCanSendStoryParams) CRC() uint32 {
 func (c *Client) StoriesCanSendStory(peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&StoriesCanSendStoryParams{Peer: peer})
 	if err != nil {
-		return false, errors.Wrap(err, "sending StoriesCanSendStory")
+		return false, fmt.Errorf("sending StoriesCanSendStory: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -16303,7 +16678,7 @@ func (c *Client) StoriesDeleteStories(peer InputPeer, id []int32) ([]int32, erro
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesDeleteStories")
+		return nil, fmt.Errorf("sending StoriesDeleteStories: %w", err)
 	}
 
 	resp, ok := responseData.([]int32)
@@ -16335,7 +16710,7 @@ func (*StoriesEditStoryParams) FlagIndex() int {
 func (c *Client) StoriesEditStory(params *StoriesEditStoryParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesEditStory")
+		return nil, fmt.Errorf("sending StoriesEditStory: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -16361,7 +16736,7 @@ func (c *Client) StoriesExportStoryLink(peer InputPeer, id int32) (*ExportedStor
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesExportStoryLink")
+		return nil, fmt.Errorf("sending StoriesExportStoryLink: %w", err)
 	}
 
 	resp, ok := responseData.(*ExportedStoryLink)
@@ -16381,7 +16756,7 @@ func (*StoriesGetAllReadPeerStoriesParams) CRC() uint32 {
 func (c *Client) StoriesGetAllReadPeerStories() (Updates, error) {
 	responseData, err := c.MakeRequest(&StoriesGetAllReadPeerStoriesParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesGetAllReadPeerStories")
+		return nil, fmt.Errorf("sending StoriesGetAllReadPeerStories: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -16413,7 +16788,7 @@ func (c *Client) StoriesGetAllStories(next, hidden bool, state string) (StoriesA
 		State:  state,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesGetAllStories")
+		return nil, fmt.Errorf("sending StoriesGetAllStories: %w", err)
 	}
 
 	resp, ok := responseData.(StoriesAllStories)
@@ -16433,7 +16808,7 @@ func (*StoriesGetChatsToSendParams) CRC() uint32 {
 func (c *Client) StoriesGetChatsToSend() (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&StoriesGetChatsToSendParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesGetChatsToSend")
+		return nil, fmt.Errorf("sending StoriesGetChatsToSend: %w", err)
 	}
 
 	resp, ok := responseData.(MessagesChats)
@@ -16455,7 +16830,7 @@ func (*StoriesGetPeerMaxIDsParams) CRC() uint32 {
 func (c *Client) StoriesGetPeerMaxIDs(id []InputPeer) ([]int32, error) {
 	responseData, err := c.MakeRequest(&StoriesGetPeerMaxIDsParams{ID: id})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesGetPeerMaxIDs")
+		return nil, fmt.Errorf("sending StoriesGetPeerMaxIDs: %w", err)
 	}
 
 	resp, ok := responseData.([]int32)
@@ -16477,7 +16852,7 @@ func (*StoriesGetPeerStoriesParams) CRC() uint32 {
 func (c *Client) StoriesGetPeerStories(peer InputPeer) (*StoriesPeerStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetPeerStoriesParams{Peer: peer})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesGetPeerStories")
+		return nil, fmt.Errorf("sending StoriesGetPeerStories: %w", err)
 	}
 
 	resp, ok := responseData.(*StoriesPeerStories)
@@ -16505,7 +16880,7 @@ func (c *Client) StoriesGetPinnedStories(peer InputPeer, offsetID, limit int32) 
 		Peer:     peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesGetPinnedStories")
+		return nil, fmt.Errorf("sending StoriesGetPinnedStories: %w", err)
 	}
 
 	resp, ok := responseData.(*StoriesStories)
@@ -16533,7 +16908,7 @@ func (c *Client) StoriesGetStoriesArchive(peer InputPeer, offsetID, limit int32)
 		Peer:     peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesGetStoriesArchive")
+		return nil, fmt.Errorf("sending StoriesGetStoriesArchive: %w", err)
 	}
 
 	resp, ok := responseData.(*StoriesStories)
@@ -16559,7 +16934,7 @@ func (c *Client) StoriesGetStoriesByID(peer InputPeer, id []int32) (*StoriesStor
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesGetStoriesByID")
+		return nil, fmt.Errorf("sending StoriesGetStoriesByID: %w", err)
 	}
 
 	resp, ok := responseData.(*StoriesStories)
@@ -16585,7 +16960,7 @@ func (c *Client) StoriesGetStoriesViews(peer InputPeer, id []int32) (*StoriesSto
 		Peer: peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesGetStoriesViews")
+		return nil, fmt.Errorf("sending StoriesGetStoriesViews: %w", err)
 	}
 
 	resp, ok := responseData.(*StoriesStoryViews)
@@ -16616,7 +16991,7 @@ func (*StoriesGetStoryReactionsListParams) FlagIndex() int {
 func (c *Client) StoriesGetStoryReactionsList(params *StoriesGetStoryReactionsListParams) (*StoriesStoryReactionsList, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesGetStoryReactionsList")
+		return nil, fmt.Errorf("sending StoriesGetStoryReactionsList: %w", err)
 	}
 
 	resp, ok := responseData.(*StoriesStoryReactionsList)
@@ -16649,7 +17024,7 @@ func (*StoriesGetStoryViewsListParams) FlagIndex() int {
 func (c *Client) StoriesGetStoryViewsList(params *StoriesGetStoryViewsListParams) (*StoriesStoryViewsList, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesGetStoryViewsList")
+		return nil, fmt.Errorf("sending StoriesGetStoryViewsList: %w", err)
 	}
 
 	resp, ok := responseData.(*StoriesStoryViewsList)
@@ -16675,7 +17050,7 @@ func (c *Client) StoriesIncrementStoryViews(peer InputPeer, id []int32) (bool, e
 		Peer: peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending StoriesIncrementStoryViews")
+		return false, fmt.Errorf("sending StoriesIncrementStoryViews: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -16701,7 +17076,7 @@ func (c *Client) StoriesReadStories(peer InputPeer, maxID int32) ([]int32, error
 		Peer:  peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesReadStories")
+		return nil, fmt.Errorf("sending StoriesReadStories: %w", err)
 	}
 
 	resp, ok := responseData.([]int32)
@@ -16731,7 +17106,7 @@ func (c *Client) StoriesReport(peer InputPeer, id []int32, option []byte, messag
 		Peer:    peer,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesReport")
+		return nil, fmt.Errorf("sending StoriesReport: %w", err)
 	}
 
 	resp, ok := responseData.(ReportResult)
@@ -16761,7 +17136,7 @@ func (*StoriesSearchPostsParams) FlagIndex() int {
 func (c *Client) StoriesSearchPosts(params *StoriesSearchPostsParams) (*StoriesFoundStories, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesSearchPosts")
+		return nil, fmt.Errorf("sending StoriesSearchPosts: %w", err)
 	}
 
 	resp, ok := responseData.(*StoriesFoundStories)
@@ -16795,7 +17170,7 @@ func (c *Client) StoriesSendReaction(addToRecent bool, peer InputPeer, storyID i
 		StoryID:     storyID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesSendReaction")
+		return nil, fmt.Errorf("sending StoriesSendReaction: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -16833,7 +17208,7 @@ func (*StoriesSendStoryParams) FlagIndex() int {
 func (c *Client) StoriesSendStory(params *StoriesSendStoryParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesSendStory")
+		return nil, fmt.Errorf("sending StoriesSendStory: %w", err)
 	}
 
 	resp, ok := responseData.(Updates)
@@ -16855,7 +17230,7 @@ func (*StoriesToggleAllStoriesHiddenParams) CRC() uint32 {
 func (c *Client) StoriesToggleAllStoriesHidden(hidden bool) (bool, error) {
 	responseData, err := c.MakeRequest(&StoriesToggleAllStoriesHiddenParams{Hidden: hidden})
 	if err != nil {
-		return false, errors.Wrap(err, "sending StoriesToggleAllStoriesHidden")
+		return false, fmt.Errorf("sending StoriesToggleAllStoriesHidden: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -16881,7 +17256,7 @@ func (c *Client) StoriesTogglePeerStoriesHidden(peer InputPeer, hidden bool) (bo
 		Peer:   peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending StoriesTogglePeerStoriesHidden")
+		return false, fmt.Errorf("sending StoriesTogglePeerStoriesHidden: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -16909,7 +17284,7 @@ func (c *Client) StoriesTogglePinned(peer InputPeer, id []int32, pinned bool) ([
 		Pinned: pinned,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending StoriesTogglePinned")
+		return nil, fmt.Errorf("sending StoriesTogglePinned: %w", err)
 	}
 
 	resp, ok := responseData.([]int32)
@@ -16935,7 +17310,7 @@ func (c *Client) StoriesTogglePinnedToTop(peer InputPeer, id []int32) (bool, err
 		Peer: peer,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending StoriesTogglePinnedToTop")
+		return false, fmt.Errorf("sending StoriesTogglePinnedToTop: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -16965,7 +17340,7 @@ func (*UpdatesGetChannelDifferenceParams) FlagIndex() int {
 func (c *Client) UpdatesGetChannelDifference(params *UpdatesGetChannelDifferenceParams) (UpdatesChannelDifference, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending UpdatesGetChannelDifference")
+		return nil, fmt.Errorf("sending UpdatesGetChannelDifference: %w", err)
 	}
 
 	resp, ok := responseData.(UpdatesChannelDifference)
@@ -16996,7 +17371,7 @@ func (*UpdatesGetDifferenceParams) FlagIndex() int {
 func (c *Client) UpdatesGetDifference(params *UpdatesGetDifferenceParams) (UpdatesDifference, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending UpdatesGetDifference")
+		return nil, fmt.Errorf("sending UpdatesGetDifference: %w", err)
 	}
 
 	resp, ok := responseData.(UpdatesDifference)
@@ -17016,7 +17391,7 @@ func (*UpdatesGetStateParams) CRC() uint32 {
 func (c *Client) UpdatesGetState() (*UpdatesState, error) {
 	responseData, err := c.MakeRequest(&UpdatesGetStateParams{})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending UpdatesGetState")
+		return nil, fmt.Errorf("sending UpdatesGetState: %w", err)
 	}
 
 	resp, ok := responseData.(*UpdatesState)
@@ -17044,7 +17419,7 @@ func (c *Client) UploadGetCdnFile(fileToken []byte, offset int64, limit int32) (
 		Offset:    offset,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending UploadGetCdnFile")
+		return nil, fmt.Errorf("sending UploadGetCdnFile: %w", err)
 	}
 
 	resp, ok := responseData.(UploadCdnFile)
@@ -17070,7 +17445,7 @@ func (c *Client) UploadGetCdnFileHashes(fileToken []byte, offset int64) ([]*File
 		Offset:    offset,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending UploadGetCdnFileHashes")
+		return nil, fmt.Errorf("sending UploadGetCdnFileHashes: %w", err)
 	}
 
 	resp, ok := responseData.([]*FileHash)
@@ -17100,7 +17475,7 @@ func (*UploadGetFileParams) FlagIndex() int {
 func (c *Client) UploadGetFile(params *UploadGetFileParams) (UploadFile, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending UploadGetFile")
+		return nil, fmt.Errorf("sending UploadGetFile: %w", err)
 	}
 
 	resp, ok := responseData.(UploadFile)
@@ -17126,7 +17501,7 @@ func (c *Client) UploadGetFileHashes(location InputFileLocation, offset int64) (
 		Offset:   offset,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending UploadGetFileHashes")
+		return nil, fmt.Errorf("sending UploadGetFileHashes: %w", err)
 	}
 
 	resp, ok := responseData.([]*FileHash)
@@ -17154,7 +17529,7 @@ func (c *Client) UploadGetWebFile(location InputWebFileLocation, offset, limit i
 		Offset:   offset,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending UploadGetWebFile")
+		return nil, fmt.Errorf("sending UploadGetWebFile: %w", err)
 	}
 
 	resp, ok := responseData.(*UploadWebFile)
@@ -17180,7 +17555,7 @@ func (c *Client) UploadReuploadCdnFile(fileToken, requestToken []byte) ([]*FileH
 		RequestToken: requestToken,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending UploadReuploadCdnFile")
+		return nil, fmt.Errorf("sending UploadReuploadCdnFile: %w", err)
 	}
 
 	resp, ok := responseData.([]*FileHash)
@@ -17210,7 +17585,7 @@ func (c *Client) UploadSaveBigFilePart(fileID int64, filePart, fileTotalParts in
 		FileTotalParts: fileTotalParts,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending UploadSaveBigFilePart")
+		return false, fmt.Errorf("sending UploadSaveBigFilePart: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -17238,7 +17613,7 @@ func (c *Client) UploadSaveFilePart(fileID int64, filePart int32, bytes []byte) 
 		FilePart: filePart,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending UploadSaveFilePart")
+		return false, fmt.Errorf("sending UploadSaveFilePart: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -17260,7 +17635,7 @@ func (*UsersGetFullUserParams) CRC() uint32 {
 func (c *Client) UsersGetFullUser(id InputUser) (*UsersUserFull, error) {
 	responseData, err := c.MakeRequest(&UsersGetFullUserParams{ID: id})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending UsersGetFullUser")
+		return nil, fmt.Errorf("sending UsersGetFullUser: %w", err)
 	}
 
 	resp, ok := responseData.(*UsersUserFull)
@@ -17282,7 +17657,7 @@ func (*UsersGetIsPremiumRequiredToContactParams) CRC() uint32 {
 func (c *Client) UsersGetIsPremiumRequiredToContact(id []InputUser) (bool, error) {
 	responseData, err := c.MakeRequest(&UsersGetIsPremiumRequiredToContactParams{ID: id})
 	if err != nil {
-		return false, errors.Wrap(err, "sending UsersGetIsPremiumRequiredToContact")
+		return false, fmt.Errorf("sending UsersGetIsPremiumRequiredToContact: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -17304,13 +17679,13 @@ func (*UsersGetUsersParams) CRC() uint32 {
 func (c *Client) UsersGetUsers(id []InputUser) ([]User, error) {
 	responseData, err := c.MakeRequest(&UsersGetUsersParams{ID: id})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending UsersGetUsers")
+		return nil, fmt.Errorf("sending UsersGetUsers: %w", err)
 	}
 
 	resp, ok := responseData.([]User)
 	if !ok {
 		if responseData == nil {
-			return nil, errors.New("[USER_ID_INVALID] The user ID is invalid")
+			return nil, fmt.Errorf("[USER_ID_INVALID] The user ID is invalid")
 		}
 
 		if _, ok := responseData.([]*UserObj); ok { // Temp Fix till Problem is Identified
@@ -17343,7 +17718,7 @@ func (c *Client) UsersSetSecureValueErrors(id InputUser, errorsw []SecureValueEr
 		ID:     id,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending UsersSetSecureValueErrors")
+		return false, fmt.Errorf("sending UsersSetSecureValueErrors: %w", err)
 	}
 
 	resp, ok := responseData.(bool)

@@ -4,9 +4,8 @@ package telegram
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 type Button struct{}
@@ -181,18 +180,18 @@ func (m *NewMessage) Click(options ...any) (*MessagesBotCallbackAnswer, error) {
 	}
 
 	if m.ReplyMarkup() == nil {
-		return nil, errors.New("replyMarkup: message has no buttons")
+		return nil, fmt.Errorf("replyMarkup: message has no buttons")
 	}
 
 	if messageButtons, ok := (*m.ReplyMarkup()).(*ReplyInlineMarkup); ok {
 		if len(messageButtons.Rows) == 0 {
-			return nil, errors.New("replyMarkup: rows are empty")
+			return nil, fmt.Errorf("replyMarkup: rows are empty")
 		}
 
 		switch len(options) {
 		case 0:
 			if len(messageButtons.Rows[0].Buttons) == 0 {
-				return nil, errors.New("replyMarkup: row(0) has no buttons")
+				return nil, fmt.Errorf("replyMarkup: row(0) has no buttons")
 			}
 
 			if button, ok := messageButtons.Rows[0].Buttons[0].(*KeyboardButtonCallback); ok {
@@ -230,7 +229,7 @@ func (m *NewMessage) Click(options ...any) (*MessagesBotCallbackAnswer, error) {
 						}
 
 					default:
-						return nil, errors.New("replyMarkup: invalid argument type (expected string, []byte, int, or []int)")
+						return nil, fmt.Errorf("replyMarkup: invalid argument type (expected string, []byte, int, or []int)")
 					}
 					currentY++
 				}
@@ -241,7 +240,7 @@ func (m *NewMessage) Click(options ...any) (*MessagesBotCallbackAnswer, error) {
 	}
 
 	if requestParams.Data == nil {
-		return nil, errors.New("replyMarkup: button with given (text, data, or coordinates) not found")
+		return nil, fmt.Errorf("replyMarkup: button with given (text, data, or coordinates) not found")
 	}
 
 	return m.Client.MessagesGetBotCallbackAnswer(requestParams)

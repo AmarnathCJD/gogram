@@ -241,20 +241,20 @@ func minorFixes(outdir, layer string) {
 
 	replace(filepath.Join(execWorkDir, "methods_gen.go"), "return bool", "return false")
 	replace(filepath.Join(execWorkDir, "methods_gen.go"), `if err != nil {
-		return nil, errors.Wrap(err, "sending UsersGetUsers")
+		return nil, fmt.Errorf("sending UsersGetUsers: %w", err)
 	}
 
 	resp, ok := responseData.([]User)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}`, `if err != nil {
-		return nil, errors.Wrap(err, "sending UsersGetUsers")
+		return nil, fmt.Errorf("sending UsersGetUsers: %w", err)
 	}
 
 	resp, ok := responseData.([]User)
 	if !ok {
 		if responseData == nil {
-			return nil, errors.New("[USER_ID_INVALID] The user ID is invalid")
+			return nil, fmt.Errorf("[USER_ID_INVALID] The user ID is invalid")
 		}
 
 		if _, ok := responseData.([]*UserObj); ok { // Temp Fix till Problem is Identified

@@ -14,8 +14,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 type UploadOptions struct {
@@ -122,7 +120,7 @@ func (s *Source) GetReader() io.Reader {
 func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile, error) {
 	opts := getVariadic(Opts, &UploadOptions{})
 	if src == nil {
-		return nil, errors.New("file can not be nil")
+		return nil, fmt.Errorf("file can not be nil")
 	}
 
 	source := &Source{Source: src}
@@ -130,7 +128,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 
 	file := source.GetReader()
 	if file == nil {
-		return nil, errors.New("failed to convert source to io.Reader")
+		return nil, fmt.Errorf("failed to convert source to io.Reader")
 	}
 
 	partSize := 1024 * 512 // 512KB
@@ -429,7 +427,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	partSize := chunkSizeCalc(size)
 	if opts.ChunkSize > 0 {
 		if opts.ChunkSize > 1048576 || (1048576%opts.ChunkSize) != 0 {
-			return "", errors.New("chunk size must be a multiple of 1048576 (1MB)")
+			return "", fmt.Errorf("chunk size must be a multiple of 1048576 (1MB)")
 		}
 		partSize = int(opts.ChunkSize)
 	}
@@ -643,7 +641,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 	}
 
 	if chunkSize > 1048576 || (1048576%chunkSize) != 0 {
-		return nil, "", errors.New("chunk size must be a multiple of 1048576 (1MB)")
+		return nil, "", fmt.Errorf("chunk size must be a multiple of 1048576 (1MB)")
 	}
 
 	if end > int(size) {

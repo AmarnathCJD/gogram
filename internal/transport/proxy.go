@@ -4,7 +4,6 @@ package transport
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -65,10 +64,10 @@ func dialHTTP(s *url.URL, addr string) (net.Conn, error) {
 
 	// Check the response status code
 	if string(buf[:9]) != "HTTP/1.1 " {
-		return nil, errors.New("HTTP connect failed")
+		return nil, fmt.Errorf("HTTP connect failed")
 	}
 	if string(buf[9:12]) != "200" {
-		return nil, errors.New("HTTP connect failed")
+		return nil, fmt.Errorf("HTTP connect failed")
 	}
 
 	return conn, nil
@@ -101,7 +100,7 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 		}
 
 		if buf[0] != 5 {
-			return nil, errors.New("socks version not supported")
+			return nil, fmt.Errorf("socks version not supported")
 		}
 
 		if buf[1] == 0 {
@@ -124,13 +123,13 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 			}
 
 			if buf[0] != 1 {
-				return nil, errors.New("socks version not supported")
+				return nil, fmt.Errorf("socks version not supported")
 			}
 			if buf[1] != 0 {
-				return nil, errors.New("socks authentication failed")
+				return nil, fmt.Errorf("socks authentication failed")
 			}
 		} else {
-			return nil, errors.New("socks authentication method not supported")
+			return nil, fmt.Errorf("socks authentication method not supported")
 		}
 	} else {
 		// No authentication required
@@ -146,10 +145,10 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 		}
 
 		if buf[0] != 5 {
-			return nil, errors.New("socks version not supported")
+			return nil, fmt.Errorf("socks version not supported")
 		}
 		if buf[1] != 0 {
-			return nil, errors.New("socks authentication failed")
+			return nil, fmt.Errorf("socks authentication failed")
 		}
 	}
 
@@ -195,10 +194,10 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 	}
 
 	if buf[0] != 5 {
-		return nil, errors.New("socks version not supported")
+		return nil, fmt.Errorf("socks version not supported")
 	}
 	if buf[1] != 0 {
-		return nil, errors.New("socks connection failed")
+		return nil, fmt.Errorf("socks connection failed")
 	}
 
 	switch buf[3] {
@@ -223,7 +222,7 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 			return nil, err
 		}
 	default:
-		return nil, errors.New("socks address type not supported")
+		return nil, fmt.Errorf("socks address type not supported")
 	}
 
 	_, err = io.ReadFull(conn, buf[:2])
@@ -248,12 +247,12 @@ func dialSocks4(s *url.URL, addr string) (net.Conn, error) {
 
 	ip := net.ParseIP(host)
 	if ip == nil {
-		return nil, errors.New("SOCKS4 only supports IP addresses")
+		return nil, fmt.Errorf("SOCKS4 only supports IP addresses")
 	}
 
 	ip4 := ip.To4()
 	if ip4 == nil {
-		return nil, errors.New("SOCKS4 only supports IPv4 addresses")
+		return nil, fmt.Errorf("SOCKS4 only supports IPv4 addresses")
 	}
 
 	p, err := strconv.Atoi(port)
@@ -275,10 +274,10 @@ func dialSocks4(s *url.URL, addr string) (net.Conn, error) {
 	}
 
 	if buf[0] != 0 {
-		return nil, errors.New("SOCKS version not supported")
+		return nil, fmt.Errorf("SOCKS version not supported")
 	}
 	if buf[1] != 90 {
-		return nil, errors.New("SOCKS connection failed")
+		return nil, fmt.Errorf("SOCKS connection failed")
 	}
 
 	return conn, nil

@@ -15,7 +15,6 @@ import (
 	"github.com/amarnathcjd/gogram/internal/math"
 	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 // https://core.telegram.org/mtproto/auth_key
@@ -139,12 +138,12 @@ func (m *MTProto) makeAuthKey() error {
 
 	encryptedMessage, err = ige.EncryptMessageWithTempKeys(clientDHData, nonceSecond.Int, nonceServer.Int)
 	if err != nil {
-		return errors.New("dh: " + err.Error())
+		return fmt.Errorf("dh: " + err.Error())
 	}
 
 	dhGenStatus, err := m.setClientDHParams(nonceFirst, nonceServer, encryptedMessage)
 	if err != nil {
-		return errors.New("dh: " + err.Error())
+		return fmt.Errorf("dh: " + err.Error())
 	}
 
 	dhg, ok := dhGenStatus.(*objects.DHGenOk)

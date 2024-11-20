@@ -5,10 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
+	"fmt"
 	"hash"
 	"math/big"
-
-	"github.com/pkg/errors"
 )
 
 func GetInputCheckPassword(password string, srpB []byte, mp *ModPow, random []byte) (*SrpAnswer, error) {
@@ -17,7 +16,7 @@ func GetInputCheckPassword(password string, srpB []byte, mp *ModPow, random []by
 	}
 	err := validateCurrentAlgo(srpB, mp)
 	if err != nil {
-		return nil, errors.Wrap(err, "validating CurrentAlgo")
+		return nil, fmt.Errorf("validating CurrentAlgo: %w", err)
 	}
 	p := BytesToBig(mp.P)
 	g := big.NewInt(int64(mp.G))
@@ -68,14 +67,14 @@ type SrpAnswer struct {
 
 func validateCurrentAlgo(srpB []byte, mp *ModPow) error {
 	if dhHandshakeCheckConfigIsError(mp.G, mp.P) {
-		return errors.New("receive invalid config g")
+		return fmt.Errorf("receive invalid config g")
 	}
 
 	p := BytesToBig(mp.P)
 	gb := BytesToBig(srpB)
 
 	if big.NewInt(0).Cmp(gb) != -1 || gb.Cmp(p) != -1 || len(srpB) < 248 || len(srpB) > 256 {
-		return errors.New("receive invalid value of B")
+		return fmt.Errorf("receive invalid value of B")
 	}
 
 	return nil

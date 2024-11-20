@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
-
-	"github.com/pkg/errors"
 )
 
 type SendOptions struct {
@@ -129,7 +127,7 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 		return packMessage(c, processed), nil
 	}
 
-	return nil, errors.New("no response for sendMessage")
+	return nil, fmt.Errorf("no response for sendMessage")
 }
 
 // EditMessage edits a message. This method is a wrapper for messages.editMessage.
@@ -220,7 +218,7 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 		return packMessage(c, processed), nil
 	}
 
-	return nil, errors.New("no response for editMessage")
+	return nil, fmt.Errorf("no response for editMessage")
 }
 
 func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string, entities []MessageEntity, Media interface{}, options *SendOptions) (*NewMessage, error) {
@@ -279,7 +277,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 	if editTrue {
 		return &NewMessage{ID: 0}, nil
 	}
-	return nil, errors.New("request failed")
+	return nil, fmt.Errorf("request failed")
 }
 
 type MediaOptions struct {
@@ -417,7 +415,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 		return packMessage(c, processed), nil
 	}
 
-	return nil, errors.New("no response for sendMedia")
+	return nil, fmt.Errorf("no response for sendMedia")
 }
 
 // SendAlbum sends a media album.
@@ -501,7 +499,7 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 			m = append(m, packMessage(c, update))
 		}
 	} else {
-		return nil, errors.New("no response for sendAlbum")
+		return nil, fmt.Errorf("no response for sendAlbum")
 	}
 	return m, nil
 }
@@ -599,7 +597,7 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 		return packMessage(c, processed), nil
 	}
 
-	return nil, errors.New("no response for sendPoll")
+	return nil, fmt.Errorf("no response for sendPoll")
 }
 
 // SendReaction sends a reaction to a message, which can be an emoji or a custom emoji.
@@ -648,11 +646,11 @@ func convertReaction(reaction interface{}) ([]Reaction, error) {
 			case ReactionCustomEmoji:
 				r = append(r, &iv)
 			default:
-				return nil, errors.New("invalid reaction type in array")
+				return nil, fmt.Errorf("invalid reaction type in array")
 			}
 		}
 	default:
-		return nil, errors.New("invalid reaction type")
+		return nil, fmt.Errorf("invalid reaction type")
 	}
 	return r, nil
 }
@@ -701,12 +699,12 @@ func (c *Client) SendAction(PeerID, Action interface{}, topMsgID ...int32) (*Act
 		if action, ok := Actions[a]; ok {
 			_, err = c.MessagesSetTyping(peerChat, TopMsgID, action)
 		} else {
-			return nil, errors.New("unknown action")
+			return nil, fmt.Errorf("unknown action")
 		}
 	case *SendMessageAction:
 		_, err = c.MessagesSetTyping(peerChat, TopMsgID, *a)
 	default:
-		return nil, errors.New("unknown action type")
+		return nil, fmt.Errorf("unknown action type")
 	}
 	return &ActionResult{Peer: peerChat, Client: c}, err
 }
@@ -801,7 +799,7 @@ func (c *Client) DeleteMessages(peerID interface{}, msgIDs []int32, noRevoke ...
 	case *InputPeerChat, *InputPeerUser:
 		return c.MessagesDeleteMessages(!shouldRevoke, msgIDs)
 	default:
-		return nil, errors.New("invalid peer type")
+		return nil, fmt.Errorf("invalid peer type")
 	}
 }
 
@@ -885,7 +883,7 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 		case *InputPeerChat, *InputPeerUser, *InputPeerSelf:
 			result, err = c.MessagesGetMessages(inputIDs)
 		default:
-			return nil, errors.New("invalid peer type to get messages")
+			return nil, fmt.Errorf("invalid peer type to get messages")
 		}
 		if err != nil {
 			return nil, err
@@ -951,7 +949,7 @@ func (c *Client) GetMessageByID(PeerID interface{}, MsgID int32) (*NewMessage, e
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errors.New("no messages found")
+		return nil, fmt.Errorf("no messages found")
 	}
 	return &resp[0], nil
 }
@@ -999,7 +997,7 @@ func (c *Client) GetHistory(PeerID interface{}, opts ...*HistoryOption) ([]NewMe
 			messages = append(messages, *packMessage(c, msg))
 		}
 	case *MessagesMessagesNotModified:
-		return nil, errors.New("messages not modified")
+		return nil, fmt.Errorf("messages not modified")
 	}
 
 	return messages, nil
@@ -1048,7 +1046,7 @@ func (c *Client) GetPinnedMessage(PeerID interface{}) (*NewMessage, error) {
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errors.New("no pinned message")
+		return nil, fmt.Errorf("no pinned message")
 	}
 	return &resp[0], nil
 }
@@ -1083,7 +1081,7 @@ func (c *Client) InlineQuery(peerID interface{}, Options ...*InlineOptions) (*Me
 	}
 	bot, ok := peer.(*InputPeerUser)
 	if !ok {
-		return nil, errors.New("peer is not a bot")
+		return nil, fmt.Errorf("peer is not a bot")
 	}
 	resp, err := c.MessagesGetInlineBotResults(&MessagesGetInlineBotResultsParams{
 		Bot:      &InputUserObj{UserID: bot.UserID, AccessHash: bot.AccessHash},
@@ -1109,7 +1107,7 @@ func (c *Client) GetMediaGroup(PeerID interface{}, MsgID int32) ([]NewMessage, e
 		return nil, err
 	}
 	if MsgID <= 0 {
-		return nil, errors.New("invalid message ID")
+		return nil, fmt.Errorf("invalid message ID")
 	}
 	fetchIDs := func(id int32) []int32 {
 		pref := id - 9
@@ -1139,7 +1137,7 @@ func (c *Client) GetMediaGroup(PeerID interface{}, MsgID int32) ([]NewMessage, e
 	}
 	groupID := getMediaGroupID(resp)
 	if groupID == 0 {
-		return nil, errors.New("The message is not part of a media group")
+		return nil, fmt.Errorf("The message is not part of a media group")
 	}
 	sameGroup := func(m []NewMessage, groupID int64) []NewMessage {
 		var msgs []NewMessage

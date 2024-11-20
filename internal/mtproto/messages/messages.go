@@ -12,7 +12,6 @@ import (
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 // Common is a message (either encrypted or unencrypted) used for communication between the client and server.
@@ -37,7 +36,7 @@ func (msg *Encrypted) Serialize(client MessageInformator, seqNo int32) ([]byte, 
 	obj := serializePacket(client, msg.Msg, msg.MsgID, seqNo)
 	encryptedData, msgKey, err := ige.Encrypt(obj, client.GetAuthKey())
 	if err != nil {
-		return nil, errors.Wrap(err, "encrypting")
+		return nil, fmt.Errorf("encrypting: %w", err)
 	}
 
 	buf := bytes.NewBuffer(nil)
@@ -60,14 +59,14 @@ func DeserializeEncrypted(data, authKey []byte) (*Encrypted, error) {
 	}
 	keyHash := d.PopRawBytes(tl.LongLen)
 	if !bytes.Equal(keyHash, utils.AuthKeyHash(authKey)) {
-		return nil, errors.New("wrong encryption key")
+		return nil, fmt.Errorf("wrong encryption key")
 	}
 	msg.MsgKey = d.PopRawBytes(tl.Int128Len)
 	encryptedData := d.PopRawBytes(len(data) - (tl.LongLen + tl.Int128Len))
 
 	decrypted, err := ige.Decrypt(encryptedData, authKey, msg.MsgKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "decrypting message")
+		return nil, fmt.Errorf("decrypting message: %w", err)
 	}
 	buf = bytes.NewBuffer(decrypted)
 	d, err = tl.NewDecoder(buf)
@@ -91,7 +90,7 @@ func DeserializeEncrypted(data, authKey []byte) (*Encrypted, error) {
 
 	msgKey := ige.MessageKey(authKey, decrypted, true)
 	if !bytes.Equal(msgKey, msg.MsgKey) {
-		return nil, errors.New("wrong message key, can't trust to sender")
+		return nil, fmt.Errorf("wrong message key, can't trust to sender")
 	}
 	msg.Msg = d.PopRawBytes(int(messageLen))
 
@@ -147,7 +146,7 @@ func DeserializeUnencrypted(data []byte) (*Unencrypted, error) {
 	var err error
 	msg.Msg, err = d.GetRestOfMessage()
 	if err != nil {
-		return nil, errors.Wrap(err, "getting real message")
+		return nil, fmt.Errorf("getting real message: %w", err)
 	}
 
 	return msg, nil
@@ -166,7 +165,7 @@ func (msg *Unencrypted) GetSeqNo() int {
 }
 
 // ------------------------------------------------------------------------------------------
-//
+
 // MessageInformator is used to provide information about the current session for message serialization.
 // It is essentially an MTProto data structure.
 type MessageInformator interface {

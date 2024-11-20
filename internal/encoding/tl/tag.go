@@ -7,8 +7,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 const tagName = "tl"
@@ -24,7 +22,7 @@ type fieldTag struct {
 func parseTag(s reflect.StructTag) (*fieldTag, error) {
 	tags, err := parseFunc(string(s))
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing field tags")
+		return nil, fmt.Errorf("parsing field tags: %w", err)
 	}
 
 	tag, err := tags.Get(tagName)
@@ -45,7 +43,7 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 		index, err := parseUintMax32(num)
 		info.index = int(index)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing index number '%s'", num)
+			return nil, fmt.Errorf("parsing index number '%s': %w", num, err)
 		}
 
 		info.optional = true
@@ -57,7 +55,7 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 		index, err := parseUintMax32(num)
 		info.index = int(index)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing index number '%s'", num)
+			return nil, fmt.Errorf("parsing index number '%s': %w", num, err)
 		}
 
 		info.optional = true
@@ -68,7 +66,7 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 
 	if haveInSlice("encoded_in_bitflags", tag.Options) {
 		if !flagIndexSet {
-			return nil, errors.New("have 'encoded_in_bitflag' option without flag index")
+			return nil, fmt.Errorf("have 'encoded_in_bitflag' option without flag index")
 		}
 
 		info.encodedInBitflag = true
@@ -93,12 +91,12 @@ func haveInSlice(s string, slice []string) bool {
 }
 
 var (
-	errTagSyntax      = errors.New("bad syntax for struct tag pair")
-	errTagKeySyntax   = errors.New("bad syntax for struct tag key")
-	errTagValueSyntax = errors.New("bad syntax for struct tag value")
+	errTagSyntax      = fmt.Errorf("bad syntax for struct tag pair")
+	errTagKeySyntax   = fmt.Errorf("bad syntax for struct tag key")
+	errTagValueSyntax = fmt.Errorf("bad syntax for struct tag value")
 
-	errKeyNotSet   = errors.New("tag key does not exist")
-	errTagNotExist = errors.New("tag does not exist")
+	errKeyNotSet   = fmt.Errorf("tag key does not exist")
+	errTagNotExist = fmt.Errorf("tag does not exist")
 )
 
 // Tags represent a set of tags from a single struct field

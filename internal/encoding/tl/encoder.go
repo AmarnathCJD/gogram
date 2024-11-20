@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-
-	"github.com/pkg/errors"
 )
 
 var bufferPool = sync.Pool{
@@ -64,7 +62,7 @@ func (c *Encoder) encodeValue(value reflect.Value) {
 
 	case reflect.Ptr, reflect.Interface:
 		if value.IsNil() {
-			c.err = errors.New("value can't be nil")
+			c.err = fmt.Errorf("value can't be nil")
 			break
 		}
 
@@ -98,7 +96,7 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 
 	o, ok := v.Interface().(Object)
 	if !ok {
-		c.err = errors.New(v.Type().String() + " doesn't implement tl.Object interface")
+		c.err = fmt.Errorf(v.Type().String() + " doesn't implement tl.Object interface")
 		return
 	}
 
@@ -131,7 +129,7 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 
 		info, err := parseTag(vtyp.Field(i).Tag)
 		if err != nil {
-			c.err = errors.Wrapf(err, "parsing tag of field %v", vtyp.Field(i).Name)
+			c.err = fmt.Errorf("parsing tag of field %v: %w", vtyp.Field(i).Name, err)
 			return
 		}
 
@@ -186,7 +184,7 @@ func (c *Encoder) encodeVector(slice ...any) {
 	for i, item := range slice {
 		c.encodeValue(reflect.ValueOf(item))
 		if c.CheckErr() != nil {
-			c.err = errors.Wrapf(c.err, "[%v]", i)
+			c.err = fmt.Errorf("[%v]: %w", i, c.err)
 		}
 	}
 }
