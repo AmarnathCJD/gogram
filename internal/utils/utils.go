@@ -22,7 +22,7 @@ var DcList = DCOptions{
 		2: {{"149.154.167.50:443", false}},
 		3: {{"149.154.175.100:443", false}},
 		4: {{"149.154.167.91:443", false},
-			{"[2001:067c:04e8:f002::a]:443", true}},
+			{"[2001:067c:04e8:f002::a]:443", true}}, // THIS IS DC2 IPv6
 		5: {{"91.108.56.151:443", false}},
 	},
 	TestDCs: map[int]string{
@@ -31,6 +31,8 @@ var DcList = DCOptions{
 		3: "149.154.175.117:443",
 	},
 }
+
+// TODO: Fix DC4 Ipv6 is Unreachable
 
 type DC struct {
 	Addr string
