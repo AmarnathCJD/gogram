@@ -883,6 +883,14 @@ func (c *Client) AddMessageHandler(pattern interface{}, handler MessageHandler, 
 	return c.dispatcher.messageHandles["default"][len(c.dispatcher.messageHandles["default"])-1]
 }
 
+func (c *Client) AddCommandHandler(pattern string, handler MessageHandler, filters ...Filter) Handle {
+	if !strings.HasPrefix(pattern, "cmd:") {
+		pattern = "cmd:" + pattern
+	}
+
+	return c.AddMessageHandler(pattern, handler, filters...)
+}
+
 func (c *Client) AddDeleteHandler(pattern interface{}, handler func(d *DeleteMessage) error) Handle {
 	handle := messageDeleteHandle{
 		Pattern:     pattern,
