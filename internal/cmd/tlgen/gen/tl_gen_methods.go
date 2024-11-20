@@ -65,7 +65,7 @@ func (g *Generator) generateMethods(f *jen.File, d bool) {
 	//	}
 }
 
-func (g *Generator) generateComment(name, _type string) (string, []string) {
+func (*Generator) generateComment(name, _type string) (string, []string) {
 	var base = "https://core.telegram.org/" + _type + "/"
 	fmt.Println(base + name)
 	req, _ := http.NewRequest("GET", base+name, http.NoBody)
@@ -182,7 +182,7 @@ func (g *Generator) generateArgumentsForMethod(obj *tlparser.Method) []jen.Code 
 	return items
 }
 
-func (g *Generator) generateMethodArgumentForMakingRequest(obj *tlparser.Method) *jen.Statement {
+func (*Generator) generateMethodArgumentForMakingRequest(obj *tlparser.Method) *jen.Statement {
 	if len(obj.Parameters) > maximumPositionalArguments {
 		return jen.Id("params")
 	}

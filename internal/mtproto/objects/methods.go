@@ -115,7 +115,7 @@ func Ping(m requester, pingID int64) (*Pong, error) {
 	data, err := m.MakeRequest(&PingParams{
 		PingID: pingID,
 	})
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("sending Ping: %w", err)
 	}
