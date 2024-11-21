@@ -58,7 +58,7 @@ func (c *Client) JoinChannel(Channel any) error {
 	switch p := Channel.(type) {
 	case string:
 		if TG_JOIN_RE.MatchString(p) {
-			_, err := c.MessagesImportChatInvite(TG_JOIN_RE.FindStringSubmatch(p)[2])
+			_, err := c.MessagesImportChatInvite(TG_JOIN_RE.FindStringSubmatch(p)[1])
 			if err != nil {
 				return err
 			}
