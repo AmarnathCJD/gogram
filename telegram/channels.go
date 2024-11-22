@@ -593,7 +593,16 @@ func (c *Client) DeleteChannel(channelID any) (*Updates, error) {
 	return &u, nil
 }
 
-func (c *Client) GetChatJoinRequests(channelID any, lim int, query ...string) ([]*UserObj, error) {
+type JoinRequest struct {
+	User        *UserObj
+	Date        int32
+	ApprovedBy  int64
+	Requested   bool
+	About       string
+	ViaChatlist bool
+}
+
+func (c *Client) GetChatJoinRequests(channelID any, lim int, query ...string) ([]*JoinRequest, error) {
 	var currentOffsetUser InputUser = &InputUserEmpty{}
 	currentOffsetDate := 0
 
@@ -609,7 +618,7 @@ func (c *Client) GetChatJoinRequests(channelID any, lim int, query ...string) ([
 		return nil, err
 	}
 
-	var allUsers []*UserObj
+	var allUsers []*JoinRequest
 
 	// Loop until lim is reached
 	for {
@@ -630,12 +639,20 @@ func (c *Client) GetChatJoinRequests(channelID any, lim int, query ...string) ([
 			break
 		}
 
+		c.Cache.UpdatePeersToCache(chatInviteImporters.Users, []Chat{})
 		// Add all UserObj objects to allUsers slice
-		for _, user := range chatInviteImporters.Users {
-			u, ok := user.(*UserObj)
-			if !ok {
-				c.Logger.Debug("user is not a UserObj")
-				continue
+		for _, user := range chatInviteImporters.Importers {
+			userObj, err := c.GetUser(user.UserID)
+			if err != nil {
+				userObj = &UserObj{ID: user.UserID}
+			}
+			u := &JoinRequest{
+				User:        userObj,
+				Date:        user.Date,
+				ApprovedBy:  user.ApprovedBy,
+				Requested:   user.Requested,
+				About:       user.About,
+				ViaChatlist: user.ViaChatlist,
 			}
 			allUsers = append(allUsers, u)
 			current++

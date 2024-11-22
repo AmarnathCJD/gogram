@@ -62,7 +62,7 @@ func (wp *WorkerPool) FreeWorker(s *Sender) {
 }
 
 type Source struct {
-	Source any
+	Source interface{}
 }
 
 func (s *Source) GetSizeAndName() (int64, string) {
@@ -119,7 +119,7 @@ func (s *Source) GetReader() io.Reader {
 	return nil
 }
 
-func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) {
+func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile, error) {
 	opts := getVariadic(Opts, &UploadOptions{})
 	if src == nil {
 		return nil, errors.New("file can not be nil")
@@ -413,7 +413,7 @@ func (mb *Destination) Close() error {
 	return nil
 }
 
-func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, error) {
+func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (string, error) {
 	opts := getVariadic(Opts, &DownloadOptions{})
 	location, dc, size, fileName, err := GetFileLocation(file)
 	if err != nil {
@@ -485,6 +485,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				case <-progressTicker:
 					return
 				case <-ticker.C:
+					fmt.Println(opts.ProgressManager.GetStats(doneBytes.Load()))
 					opts.ProgressManager.editFunc(size, doneBytes.Load())
 				}
 			}
@@ -694,6 +695,7 @@ func NewProgressManager(editInterval int) *ProgressManager {
 	}
 }
 
+// a: total size, b: current size
 func (pm *ProgressManager) Edit(editFunc func(a, b int64)) {
 	pm.editFunc = editFunc
 }
