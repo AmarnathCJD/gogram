@@ -434,6 +434,8 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		partSize = int(opts.ChunkSize)
 	}
 
+	dest = sanitizePath(dest, fileName)
+
 	var fs Destination
 	if opts.Buffer == nil {
 		file, err := os.OpenFile(dest, os.O_CREATE|os.O_RDWR, 0666)
