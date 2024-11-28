@@ -684,7 +684,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 type ProgressManager struct {
 	startTime    int64
 	editInterval int
-	editFunc     func(a, b int64)
+	editFunc     func(totalSize, currentSize int64)
 	totalSize    int64
 	lastPerc     float64
 }
@@ -696,8 +696,13 @@ func NewProgressManager(editInterval int) *ProgressManager {
 	}
 }
 
-// a: total size, b: current size
-func (pm *ProgressManager) Edit(editFunc func(a, b int64)) {
+// WithEdit sets the edit function for the progress manager.
+func (pm *ProgressManager) WithEdit(editFunc func(totalSize, currentSize int64)) *ProgressManager {
+	pm.editFunc = editFunc
+	return pm
+}
+
+func (pm *ProgressManager) Edit(editFunc func(totalSize, currentSize int64)) {
 	pm.editFunc = editFunc
 }
 
@@ -711,9 +716,10 @@ func (pm *ProgressManager) PrintFunc() func(a, b int64) {
 	}
 }
 
-func (pm *ProgressManager) EditFunc(msg *NewMessage) func(a, b int64) {
+// specify the message to edit
+func (pm *ProgressManager) WithMessage(msg *NewMessage) func(a, b int64) {
 	return func(a, b int64) {
-		_, _ = msg.Client.EditMessage(msg.Peer, msg.ID, pm.GetStats(b))
+		msg.Edit(pm.GetStats(b))
 	}
 }
 
@@ -756,7 +762,7 @@ func (pm *ProgressManager) GetStats(currentBytes int64) string {
 }
 
 func (pm *ProgressManager) GenProgressBar(b int64) string {
-	barLength := 50
+	barLength := 20
 	progress := int((pm.GetProgress(b) / 100) * float64(barLength))
 	bar := "["
 
