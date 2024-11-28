@@ -92,7 +92,7 @@ type Config struct {
 	ServerHost string
 	PublicKey  *rsa.PublicKey
 	DataCenter int
-	LogLevel   string
+	LogLevel   utils.LogLevel
 	Proxy      *url.URL
 	Mode       string
 	Ipv6       bool
@@ -297,9 +297,9 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		DataCenter:    dcID,
 		PublicKey:     m.publicKey,
 		ServerHost:    newAddr,
-		AuthKeyFile:   filepath.Join(wd, "exported_sender"),
+		AuthKeyFile:   filepath.Join(wd, "__exp_key.dat"),
 		MemorySession: mem,
-		LogLevel:      "disabled",
+		LogLevel:      utils.NoLevel,
 		Proxy:         m.proxy,
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,

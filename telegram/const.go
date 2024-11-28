@@ -1,16 +1,21 @@
 package telegram
 
-import "regexp"
+import (
+	"regexp"
+
+	"github.com/amarnathcjd/gogram/internal/utils"
+)
 
 const (
 	ApiVersion = 194
-	Version    = "v1.4.2"
+	Version    = "v1.4.3"
 
-	LogDebug   = "debug"
-	LogInfo    = "info"
-	LogWarn    = "warn"
-	LogError   = "error"
-	LogDisable = "disabled"
+	LogDebug   = utils.DebugLevel
+	LogInfo    = utils.InfoLevel
+	LogWarn    = utils.WarnLevel
+	LogError   = utils.ErrorLevel
+	LogTrace   = utils.TraceLevel
+	LogDisable = utils.NoLevel
 
 	ModeAbridged     = "modeAbridged"
 	ModeFull         = "modeFull"
@@ -41,7 +46,7 @@ const (
 
 var (
 	USERNAME_RE = regexp.MustCompile(`(?i)@|(?:https?://)?(?:www\.)?(?:telegram\.(?:me|dog)|t\.me)/(@|\+|joinchat/)?`)
-	TG_JOIN_RE  = regexp.MustCompile(`^(?:https?://)?(?:www\.)?t(?:elegram)?\.(?:org|me|dog)/(?:joinchat/|\+)([\w-]+)$`)
+	TG_JOIN_RE  = regexp.MustCompile(`(?i)tg://join\?invite=([a-z0-9_\-]{22})`)
 )
 
 var (
@@ -55,7 +60,7 @@ var (
 		"upload_document": &SendMessageUploadDocumentAction{},
 		"game":            &SendMessageGamePlayAction{},
 		"cancel":          &SendMessageCancelAction{},
-		"upload_round":    &SendMessageUploadRoundAction{},
+		"round_video":     &SendMessageUploadRoundAction{},
 		"call":            &SpeakingInGroupCallAction{},
 		"record_round":    &SendMessageRecordRoundAction{},
 		"history_import":  &SendMessageHistoryImportAction{},

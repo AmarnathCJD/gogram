@@ -39,7 +39,7 @@ type clientData struct {
 	appVersion    string
 	langCode      string
 	parseMode     string
-	logLevel      string
+	logLevel      utils.LogLevel
 	botAcc        bool
 	me            *UserObj
 }
@@ -88,9 +88,10 @@ type ClientConfig struct {
 	NoUpdates     bool
 	DisableCache  bool
 	TestMode      bool
-	LogLevel      string
+	LogLevel      utils.LogLevel
 	Proxy         *url.URL
 	ForceIPv6     bool
+	Cache         *CACHE
 	TransportMode string
 	FloodHandler  func(err error) bool
 }
@@ -120,9 +121,17 @@ func NewClient(config ClientConfig) (*Client, error) {
 	config = client.cleanClientConfig(config)
 	client.setupClientData(config)
 
-	client.Cache = NewCache(config.LogLevel, genCacheFileName(config.StringSession))
+	if config.Cache == nil {
+		client.Cache = NewCache("cache.db", &CacheConfig{
+			Memory:   config.DisableCache,
+			LogLevel: config.LogLevel,
+		})
+	} else {
+		client.Cache = config.Cache
+	}
+
+	client.Cache.memory = config.DisableCache
 	if !config.DisableCache {
-		client.Cache.writeFile = true
 		client.Cache.ReadFile()
 	}
 
@@ -140,14 +149,6 @@ func NewClient(config ClientConfig) (*Client, error) {
 	go client.cleanSendersRoutine() // start the loop for cleaning expired senders
 
 	return client, nil
-}
-
-func genCacheFileName(stringSession string) string {
-	if stringSession != "" {
-		// return middle 10 characters of the string session
-		return "cache_" + stringSession[len(stringSession)/2-1:len(stringSession)/2+1]
-	}
-	return "cache"
 }
 
 func (c *Client) setupMTProto(config ClientConfig) error {
@@ -439,8 +440,11 @@ func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
 		}
 
 		exportedSender := &Client{
-			MTProto:    exported,
-			Cache:      NewCache(LogDisable, ""),
+			MTProto: exported,
+			Cache: NewCache("", &CacheConfig{
+				Memory:   true,
+				LogLevel: c.Log.Lev(),
+			}),
 			Log:        utils.NewLogger("gogram - sender").SetLevel(c.Log.Lev()),
 			wg:         sync.WaitGroup{},
 			clientData: c.clientData,
@@ -502,7 +506,7 @@ func (c *Client) cleanExportedSenders() {
 }
 
 // setLogLevel sets the log level for all loggers
-func (c *Client) SetLogLevel(level string) {
+func (c *Client) SetLogLevel(level utils.LogLevel) {
 	c.Log.Debug("setting library log level to ", level)
 	c.Log.SetLevel(level)
 }
