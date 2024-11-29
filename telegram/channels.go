@@ -639,11 +639,20 @@ func (c *Client) GetChatJoinRequests(channelID any, lim int, query ...string) ([
 			break
 		}
 
-		c.Cache.UpdatePeersToCache(chatInviteImporters.Users, []Chat{})
+		var users = chatInviteImporters.Users
+
+		//c.Cache.UpdatePeersToCache(chatInviteImporters.Users, []Chat{})
 		// Add all UserObj objects to allUsers slice
 		for _, user := range chatInviteImporters.Importers {
-			userObj, err := c.GetUser(user.UserID)
-			if err != nil {
+			var userObj *UserObj
+			for _, u := range users {
+				if u, ok := u.(*UserObj); ok && u.ID == user.UserID {
+					userObj = u
+					break
+				}
+			}
+
+			if userObj == nil {
 				userObj = &UserObj{ID: user.UserID}
 			}
 			u := &JoinRequest{
