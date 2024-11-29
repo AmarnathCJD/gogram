@@ -43,13 +43,19 @@ type Logger struct {
 }
 
 // NoColor disables colorized output.
-func (l *Logger) NoColor() {
-	l.nocolor = true
+func (l *Logger) NoColor(nocolor ...bool) *Logger {
+	if len(nocolor) > 0 {
+		l.nocolor = nocolor[0]
+	} else {
+		l.nocolor = true
+	}
+
+	return l
 }
 
 // Color enables colorized output. (default)
-func (l *Logger) Color() {
-	l.nocolor = false
+func (l *Logger) Color() bool {
+	return !l.nocolor
 }
 
 func (l *Logger) colorize(color []byte, s string) string {
