@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -269,7 +270,15 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 		if borrowError != nil {
 			return nil, borrowError
 		}
-		editTrue, err = borrowedSender.MessagesEditInlineBotMessage(editRequest)
+		editTrueAny, err := borrowedSender.MakeRequestCtx(context.Background(), editRequest)
+		if err != nil {
+			return nil, err
+		}
+
+		switch editTrueAny := editTrueAny.(type) {
+		case bool:
+			editTrue = editTrueAny
+		}
 	} else {
 		editTrue, err = c.MessagesEditInlineBotMessage(editRequest)
 	}

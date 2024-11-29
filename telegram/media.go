@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/pkg/errors"
 )
 
@@ -29,35 +30,31 @@ type UploadOptions struct {
 	ProgressManager *ProgressManager `json:"-"`
 }
 
-type Sender struct {
-	c *Client // Holds client information
-}
-
 type WorkerPool struct {
 	sync.Mutex
-	workers []*Sender
-	free    chan *Sender
+	workers []*mtproto.MTProto
+	free    chan *mtproto.MTProto
 }
 
 func NewWorkerPool(size int) *WorkerPool {
 	return &WorkerPool{
-		workers: make([]*Sender, 0, size),
-		free:    make(chan *Sender, size),
+		workers: make([]*mtproto.MTProto, 0, size),
+		free:    make(chan *mtproto.MTProto, size),
 	}
 }
 
-func (wp *WorkerPool) AddWorker(s *Sender) {
+func (wp *WorkerPool) AddWorker(s *mtproto.MTProto) {
 	wp.Lock()
 	defer wp.Unlock()
 	wp.workers = append(wp.workers, s)
 	wp.free <- s // Mark the worker as free immediately
 }
 
-func (wp *WorkerPool) Next() *Sender {
+func (wp *WorkerPool) Next() *mtproto.MTProto {
 	return <-wp.free
 }
 
-func (wp *WorkerPool) FreeWorker(s *Sender) {
+func (wp *WorkerPool) FreeWorker(s *mtproto.MTProto) {
 	wp.free <- s
 }
 
@@ -214,13 +211,13 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 			for i := 0; i < MAX_RETRIES; i++ {
 				sender := w.Next()
 				if !IsFsBig {
-					_, err = sender.c.MakeRequestCtx(context.Background(), &UploadSaveFilePartParams{
+					_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveFilePartParams{
 						FileID:   fileId,
 						FilePart: int32(p),
 						Bytes:    part,
 					})
 				} else {
-					_, err = sender.c.MakeRequestCtx(context.Background(), &UploadSaveBigFilePartParams{
+					_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveBigFilePartParams{
 						FileID:         fileId,
 						FilePart:       int32(p),
 						FileTotalParts: int32(totalParts),
@@ -262,13 +259,13 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		for i := 0; i < MAX_RETRIES; i++ {
 			sender := w.Next()
 			if !IsFsBig {
-				_, err = sender.c.MakeRequestCtx(context.Background(), &UploadSaveFilePartParams{
+				_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveFilePartParams{
 					FileID:   fileId,
 					FilePart: int32(totalParts - 1),
 					Bytes:    part,
 				})
 			} else {
-				_, err = sender.c.MakeRequestCtx(context.Background(), &UploadSaveBigFilePartParams{
+				_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveBigFilePartParams{
 					FileID:         fileId,
 					FilePart:       int32(totalParts - 1),
 					FileTotalParts: int32(totalParts),
@@ -299,6 +296,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 	if opts.ProgressManager != nil {
 		opts.ProgressManager.editFunc(size, size)
+	}
+
+	// destroy created workers
+	for _, worker := range w.workers {
+		worker.Terminate()
 	}
 
 	if opts.FileName != "" {
@@ -509,7 +511,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 
-				part, err := sender.c.MakeRequestCtx(ctx, &UploadGetFileParams{
+				part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
 					Location:     location,
 					Offset:       int64(p * partSize),
 					Limit:        int32(partSize),
@@ -557,7 +559,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 				defer cancel()
 
-				part, err := sender.c.MakeRequestCtx(ctx, &UploadGetFileParams{
+				part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
 					Location:     location,
 					Offset:       int64(p * partSize),
 					Limit:        int32(partSize),
@@ -597,6 +599,11 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		opts.ProgressManager.editFunc(size, size)
 	}
 
+	// destroy created workers
+	for _, worker := range w.workers {
+		worker.Terminate()
+	}
+
 	return dest, nil
 }
 
@@ -611,22 +618,10 @@ func getUndoneParts(doneMap *sync.Map, totalParts int) []int {
 }
 
 func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) {
-	wPreallocated := 0
-
-	if pre := c.GetCachedExportedSenders(int(dc)); len(pre) > 0 {
-		for i := 0; i < len(pre) && wPreallocated < numWorkers; i++ {
-			if pre[i] != nil {
-				w.AddWorker(&Sender{c: pre[i]})
-				wPreallocated++
-			}
-		}
-	}
-
-	for i := wPreallocated; i < numWorkers; i++ {
+	for i := 0; i < numWorkers; i++ {
 		conn, err := c.CreateExportedSender(int(dc))
 		if conn != nil && err == nil {
-			w.AddWorker(&Sender{c: conn})
-			c.AddNewExportedSenderToMap(int(dc), conn)
+			w.AddWorker(conn)
 		}
 	}
 }
@@ -658,7 +653,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 	}
 
 	for curr := start; curr < end; curr += chunkSize {
-		part, err := sender.UploadGetFile(&UploadGetFileParams{
+		part, err := sender.MakeRequest(&UploadGetFileParams{
 			Location:     input,
 			Limit:        int32(chunkSize),
 			Offset:       int64(curr),

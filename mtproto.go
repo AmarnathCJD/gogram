@@ -36,11 +36,12 @@ const (
 )
 
 type MTProto struct {
-	Addr          string
-	appID         int32
-	proxy         *url.URL
-	transport     transport.Transport
-	stopRoutines  context.CancelFunc
+	Addr      string
+	appID     int32
+	proxy     *url.URL
+	transport transport.Transport
+
+	ctxCancel     []context.CancelFunc
 	routineswg    sync.WaitGroup
 	memorySession bool
 	tcpActive     bool
@@ -79,6 +80,7 @@ type MTProto struct {
 
 	serverRequestHandlers []func(i any) bool
 	floodHandler          func(err error) bool
+	exported              bool
 }
 
 type Config struct {
@@ -206,7 +208,7 @@ func (m *MTProto) ExportAuth() (*session.Session, int) {
 
 func (m *MTProto) ImportRawAuth(authKey, authKeyHash []byte, addr string, appID int32) (bool, error) {
 	m.authKey, m.authKeyHash, m.Addr, m.appID = authKey, authKeyHash, addr, appID
-	m.Logger.Debug("imported auth key, auth key hash, addr, dc, appID")
+	m.Logger.Debug("imported authKey, authKeyHash, addr, appId")
 	if !m.memorySession {
 		if err := m.SaveSession(); err != nil {
 			return false, errors.Wrap(err, "saving session")
@@ -260,6 +262,7 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 	m.Logger.Debug("migrating to new DC... dc-" + strconv.Itoa(dc))
 	m.sessionStorage.Delete()
 	m.Logger.Debug("deleted old auth key file")
+
 	cfg := Config{
 		DataCenter:    dc,
 		PublicKey:     m.publicKey,
@@ -271,14 +274,15 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,
 	}
+
 	sender, err := NewMTProto(cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating new MTProto")
 	}
 	sender.serverRequestHandlers = m.serverRequestHandlers
 	m.stopRoutines()
-	m.Logger.Info(fmt.Sprintf("user migrated to DC %s - %s", strconv.Itoa(dc), newAddr))
-	m.Logger.Debug("reconnecting to new DC with new auth key")
+	m.Logger.Info(fmt.Sprintf("user migrated to new dc (%s) - %s", strconv.Itoa(dc), newAddr))
+	m.Logger.Debug("reconnecting to new dc... dc-" + strconv.Itoa(dc))
 	errConn := sender.CreateConnection(true)
 	if errConn != nil {
 		return nil, errors.Wrap(errConn, "creating connection")
@@ -288,16 +292,12 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 
 func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 	newAddr := utils.GetHostIp(dcID, false, m.IpV6)
-	execWorkDir, err := os.Executable()
-	if err != nil {
-		return nil, errors.Wrap(err, "getting executable directory")
-	}
-	wd := filepath.Dir(execWorkDir)
+
 	cfg := Config{
 		DataCenter:    dcID,
 		PublicKey:     m.publicKey,
 		ServerHost:    newAddr,
-		AuthKeyFile:   filepath.Join(wd, "__exp_key.dat"),
+		AuthKeyFile:   "__exp_" + strconv.Itoa(dcID) + ".dat",
 		MemorySession: mem,
 		LogLevel:      utils.NoLevel,
 		Proxy:         m.proxy,
@@ -309,19 +309,26 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		cfg.SessionStorage = m.sessionStorage
 	}
 
-	sender, _ := NewMTProto(cfg)
-	sender.noRedirect = true
-	err = sender.CreateConnection(true)
+	sender, err := NewMTProto(cfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating connection")
+		return nil, errors.Wrap(err, "creating new MTProto")
+	}
+
+	sender.noRedirect = true
+	sender.exported = true
+
+	if err := sender.CreateConnection(true); err != nil {
+		return nil, errors.Wrap(err, "creating connection: exporting")
 	}
 
 	return sender, nil
 }
 
 func (m *MTProto) CreateConnection(withLog bool) error {
+	m.stopRoutines()
+
 	ctx, cancelfunc := context.WithCancel(context.Background())
-	m.stopRoutines = cancelfunc
+	m.ctxCancel = append(m.ctxCancel, cancelfunc)
 	if withLog {
 		m.Logger.Info(fmt.Sprintf("connecting to [%s] - <%s> ...", utils.FmtIp(m.Addr), utils.Vtcp(m.IpV6)))
 	} else {
@@ -348,7 +355,11 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 
 	m.startReadingResponses(ctx)
-	go m.longPing(ctx)
+
+	if !m.exported {
+		go m.longPing(ctx)
+	}
+
 	if !m.encrypted {
 		m.Logger.Debug("authKey not found, creating new one")
 		err = m.makeAuthKey()
@@ -378,7 +389,6 @@ func (m *MTProto) connect(ctx context.Context) error {
 		return fmt.Errorf("creating transport: %w", err)
 	}
 
-	go closeOnCancel(ctx, m.transport)
 	return nil
 }
 
@@ -472,6 +482,15 @@ func (m *MTProto) TcpActive() bool {
 	return m.tcpActive
 }
 
+func (m *MTProto) stopRoutines() {
+	newCtxCancel := m.ctxCancel[:0]
+	for _, f := range m.ctxCancel {
+		f() // Call the function
+	}
+
+	m.ctxCancel = newCtxCancel
+}
+
 func (m *MTProto) Disconnect() error {
 	m.stopRoutines()
 	m.tcpActive = false
@@ -482,6 +501,7 @@ func (m *MTProto) Disconnect() error {
 func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
+	m.transport.Close()
 	m.tcpActive = false
 	return nil
 }
@@ -829,12 +849,4 @@ func (m *MTProto) offsetTime() {
 
 	m.timeOffset = timeResponse.Unixtime - currentLocalTime
 	m.Logger.Info("system time is out of sync, offsetting time by " + strconv.FormatInt(m.timeOffset, 10) + " seconds")
-}
-
-func closeOnCancel(ctx context.Context, c io.Closer) {
-	<-ctx.Done()
-	go func() {
-		defer func() { recover() }()
-		c.Close()
-	}()
 }

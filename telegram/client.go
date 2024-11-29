@@ -27,8 +27,7 @@ import (
 
 const (
 	// The Initial DC to connect to, before auth
-	DefaultDataCenter       = 4
-	DisconnectExportedAfter = 15 * time.Minute
+	DefaultDataCenter = 4
 )
 
 type clientData struct {
@@ -44,27 +43,15 @@ type clientData struct {
 	me            *UserObj
 }
 
-type exportedSender struct {
-	client *Client
-	dcID   int
-	added  time.Time
-}
-
-type cachedExportedSenders struct {
-	sync.RWMutex
-	senders []exportedSender
-}
-
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
-	Cache           *CACHE
-	exportedSenders cachedExportedSenders
-	clientData      clientData
-	dispatcher      *UpdateDispatcher
-	wg              sync.WaitGroup
-	stopCh          chan struct{}
-	Log             *utils.Logger
+	Cache      *CACHE
+	clientData clientData
+	dispatcher *UpdateDispatcher
+	wg         sync.WaitGroup
+	stopCh     chan struct{}
+	Log        *utils.Logger
 }
 
 type DeviceConfig struct {
@@ -146,7 +133,6 @@ func NewClient(config ClientConfig) (*Client, error) {
 	if err := client.clientWarnings(config); err != nil {
 		return nil, err
 	}
-	go client.cleanSendersRoutine() // start the loop for cleaning expired senders
 
 	return client, nil
 }
@@ -382,48 +368,8 @@ func (c *Client) Me() *UserObj {
 	return c.clientData.me
 }
 
-func (c *Client) AddNewExportedSenderToMap(dcID int, sender *Client) {
-	c.exportedSenders.Lock()
-	c.exportedSenders.senders = append(
-		c.exportedSenders.senders,
-		exportedSender{client: sender, dcID: dcID, added: time.Now()},
-	)
-	c.exportedSenders.Unlock()
-}
-
-func (c *Client) cleanSendersRoutine() {
-	for {
-		time.Sleep(DisconnectExportedAfter)
-		c.exportedSenders.Lock()
-		newSenders := c.exportedSenders.senders[:0]
-		for _, s := range c.exportedSenders.senders {
-			if time.Since(s.added) > DisconnectExportedAfter {
-				s.client.Terminate()
-			} else {
-				newSenders = append(newSenders, s)
-			}
-		}
-		c.exportedSenders.senders = newSenders
-		c.exportedSenders.Unlock()
-	}
-}
-
-func (c *Client) GetCachedExportedSenders(dcID int) []*Client {
-	c.exportedSenders.RLock()
-	defer c.exportedSenders.RUnlock()
-
-	var senders []*Client
-	for _, sender := range c.exportedSenders.senders {
-		if sender.dcID == dcID {
-			senders = append(senders, sender.client)
-		}
-	}
-
-	return senders
-}
-
 // CreateExportedSender creates a new exported sender for the given DC
-func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
+func (c *Client) CreateExportedSender(dcID int) (*mtproto.MTProto, error) {
 	const retryLimit = 1 // Retry only once
 	var lastError error
 
@@ -437,18 +383,6 @@ func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
 			lastError = errors.Wrap(err, "exporting new sender")
 			c.Log.Error("Error exporting new sender: ", lastError)
 			continue
-		}
-
-		exportedSender := &Client{
-			MTProto: exported,
-			Cache: NewCache("", &CacheConfig{
-				Memory:   true,
-				LogLevel: c.Log.Lev(),
-			}),
-			Log:        utils.NewLogger("gogram - sender").SetLevel(c.Log.Lev()),
-			wg:         sync.WaitGroup{},
-			clientData: c.clientData,
-			stopCh:     make(chan struct{}),
 		}
 
 		initialReq := &InitConnectionParams{
@@ -466,7 +400,7 @@ func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
 			auth, err := c.AuthExportAuthorization(int32(exported.GetDC()))
 			if err != nil {
 				lastError = errors.Wrap(err, "exporting auth")
-				c.Log.Error("Error exporting auth: ", lastError)
+				c.Log.Error("error exporting auth: ", lastError)
 				continue
 			}
 
@@ -477,10 +411,14 @@ func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
 		}
 
 		c.Log.Debug("Sending initial request...")
-		_, err = exportedSender.MakeRequestCtx(ctx, &InvokeWithLayerParams{
+		_, err = exported.MakeRequestCtx(ctx, &InvokeWithLayerParams{
 			Layer: ApiVersion,
 			Query: initialReq,
 		})
+		// _, err = exportedSender.MakeRequestCtx(ctx, &InvokeWithLayerParams{
+		// 	Layer: ApiVersion,
+		// 	Query: initialReq,
+		// })
 
 		if err != nil {
 			lastError = errors.Wrap(err, "making initial request")
@@ -488,21 +426,10 @@ func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
 			continue
 		}
 
-		return exportedSender, nil
+		return exported, nil
 	}
 
 	return nil, lastError
-}
-
-// cleanExportedSenders terminates all exported senders and removes them from cache
-func (c *Client) cleanExportedSenders() {
-	c.exportedSenders.Lock()
-	defer c.exportedSenders.Unlock()
-
-	for _, sender := range c.exportedSenders.senders {
-		sender.client.Stop()
-	}
-	c.exportedSenders.senders = nil
 }
 
 // setLogLevel sets the log level for all loggers
@@ -620,14 +547,12 @@ func (c *Client) Idle() {
 // Stop stops the client and disconnects from telegram server
 func (c *Client) Stop() error {
 	// close(c.stopCh)
-	// safe close it with a select
 	select {
 	case <-c.stopCh:
 	default:
 		close(c.stopCh)
 	}
 
-	go c.cleanExportedSenders()
 	return c.MTProto.Terminate()
 }
 

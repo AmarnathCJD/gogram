@@ -849,8 +849,11 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 	return fi, err
 }
 
-func (c *Client) ResolveUsername(username string) (any, error) {
-	resp, err := c.ContactsResolveUsername(strings.TrimPrefix(username, "@"))
+// ResolveUsername resolves a username to a user or chat Peer
+func (c *Client) ResolveUsername(username string, ref ...string) (any, error) {
+	var referer = getVariadic(ref, "")
+
+	resp, err := c.ContactsResolveUsername(strings.TrimPrefix(username, "@"), referer)
 	if err != nil {
 		return nil, errors.Wrap(err, "resolving username")
 	}

@@ -77,10 +77,29 @@ func (m *MTProto) writeRPCResponse(msgID int, data tl.Object) error {
 	if !ok {
 		return errors.New("no response channel found for messageId " + fmt.Sprint(msgID))
 	}
-	v <- data
+
+	if err := safeSend(v, data); err != nil {
+		return errors.Wrap(err, "sending response")
+	}
+
 	m.responseChannels.Delete(msgID)
 	m.expectedTypes.Delete(msgID)
 	return nil
+}
+
+func safeSend(ch chan tl.Object, obj tl.Object) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("channel closed: %v", r)
+		}
+	}()
+
+	select {
+	case ch <- obj:
+		return nil // Successfully sent
+	default:
+		return fmt.Errorf("channel is full or closed")
+	}
 }
 
 func (m *MTProto) getRespChannel() chan tl.Object {
