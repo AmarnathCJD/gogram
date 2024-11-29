@@ -376,7 +376,7 @@ func (c *Client) CreateExportedSender(dcID int) (*mtproto.MTProto, error) {
 	var lastError error
 
 	for retry := 0; retry <= retryLimit; retry++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
 		c.Log.Debug("creating exported sender for DC ", dcID)
