@@ -58,6 +58,11 @@ func (l *Logger) Color() bool {
 	return !l.nocolor
 }
 
+func (l *Logger) SetPrefix(prefix string) *Logger {
+	l.Prefix = prefix
+	return l
+}
+
 func (l *Logger) colorize(color []byte, s string) string {
 	if l.nocolor {
 		return s

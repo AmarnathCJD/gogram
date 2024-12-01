@@ -66,6 +66,7 @@ type ClientConfig struct {
 	DeviceConfig  DeviceConfig
 	Session       string
 	StringSession string
+	SessionName   string
 	LangCode      string
 	ParseMode     string
 	MemorySession bool
@@ -76,6 +77,7 @@ type ClientConfig struct {
 	DisableCache  bool
 	TestMode      bool
 	LogLevel      utils.LogLevel
+	Logger        *utils.Logger
 	Proxy         *url.URL
 	ForceIPv6     bool
 	Cache         *CACHE
@@ -101,17 +103,26 @@ func (s *Session) Encode() string {
 func NewClient(config ClientConfig) (*Client, error) {
 	client := &Client{
 		wg:     sync.WaitGroup{},
-		Log:    utils.NewLogger("gogram [client]"),
 		stopCh: make(chan struct{}),
+	}
+
+	if config.Logger != nil {
+		client.Log = config.Logger
+		client.Log.Prefix = "gogram " + getLogPrefix("client ", config.SessionName)
+		config.LogLevel = config.Logger.Lev()
+	} else {
+		client.Log = utils.NewLogger("gogram " + getLogPrefix("client ", config.SessionName))
 	}
 
 	config = client.cleanClientConfig(config)
 	client.setupClientData(config)
 
 	if config.Cache == nil {
-		client.Cache = NewCache("cache.db", &CacheConfig{
-			Disabled: config.DisableCache,
-			LogLevel: config.LogLevel,
+		client.Cache = NewCache(fmt.Sprintf("cache%s.db", config.SessionName), &CacheConfig{
+			Disabled:   config.DisableCache,
+			LogLevel:   config.LogLevel,
+			LogName:    config.SessionName,
+			LogNoColor: !client.Log.Color(),
 		})
 	} else {
 		client.Cache = config.Cache
@@ -149,7 +160,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		ServerHost:  toIpAddr(),
 		PublicKey:   config.PublicKeys[0],
 		DataCenter:  config.DataCenter,
-		Logger: utils.NewLogger("gogram [mtproto]").
+		Logger: utils.NewLogger("gogram " + getLogPrefix("mtproto", config.SessionName)).
 			SetLevel(config.LogLevel).
 			NoColor(!c.Log.Color()),
 		StringSession: config.StringSession,
