@@ -310,20 +310,29 @@ func sanitizePath(path string, filename string) string {
 //	 *Photo
 func GetFileName(f any) string {
 	getDocName := func(doc *DocumentObj) string {
+		var name string
 		for _, attr := range doc.Attributes {
 			switch attr := attr.(type) {
 			case *DocumentAttributeFilename:
-				return attr.FileName
+				if attr.FileName != "" {
+					return attr.FileName
+				}
 			case *DocumentAttributeAudio:
-				return attr.Title + ".mp3"
+				if attr.Title != "" {
+					name = attr.Title + ".mp3"
+				}
 			case *DocumentAttributeVideo:
-				return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+				name = fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 			case *DocumentAttributeAnimated:
-				return fmt.Sprintf("animation_%s_%d.gif", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+				name = fmt.Sprintf("animation_%s_%d.gif", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 			case *DocumentAttributeSticker:
 				return fmt.Sprintf("sticker_%s_%d.webp", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 			}
 		}
+		if name != "" {
+			return name
+		}
+
 		if doc.MimeType != "" {
 			return fmt.Sprintf("file_%s_%d%s", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000), mimeTypes.Ext(doc.MimeType))
 		}
