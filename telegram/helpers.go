@@ -305,6 +305,20 @@ PeerSwitch:
 		if Peer == "me" || Peer == "self" {
 			return &InputPeerSelf{}, nil
 		}
+
+		// search in cache first
+		for _, peer := range c.Cache.channels {
+			if peer.Username == Peer {
+				return &InputPeerChannel{ChannelID: peer.ID, AccessHash: peer.AccessHash}, nil
+			}
+		}
+
+		for _, peer := range c.Cache.users {
+			if peer.Username == Peer {
+				return &InputPeerUser{UserID: peer.ID, AccessHash: peer.AccessHash}, nil
+			}
+		}
+
 		peerEntity, err := c.ResolveUsername(Peer)
 		if err != nil {
 			return nil, err
