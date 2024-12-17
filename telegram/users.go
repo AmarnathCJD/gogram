@@ -135,7 +135,12 @@ type DialogOptions struct {
 	Hash          int64     `json:"hash,omitempty"`
 }
 
-type CustomDialog struct{} // TODO
+type CustomDialog struct {
+	Dialog   Dialog
+	Peer     Peer
+	PeerType string
+}
+
 // GetDialogs returns the dialogs of the user
 //
 //	Params:
@@ -147,36 +152,76 @@ type CustomDialog struct{} // TODO
 //	 - FolderID: The folder ID to get dialogs from
 func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 	Options := getVariadic(Opts, &DialogOptions{})
-	if Options.Limit > 1000 {
-		Options.Limit = 1000
-	} else if Options.Limit < 1 {
+	if Options.Limit < 0 {
 		Options.Limit = 1
 	}
 	if Options.OffsetPeer == nil {
 		Options.OffsetPeer = &InputPeerEmpty{}
 	}
-	resp, err := c.MessagesGetDialogs(&MessagesGetDialogsParams{
+
+	var req = &MessagesGetDialogsParams{
 		OffsetDate:    Options.OffsetDate,
 		OffsetID:      Options.OffsetID,
 		OffsetPeer:    Options.OffsetPeer,
-		Limit:         Options.Limit,
-		FolderID:      Options.FolderID,
+		Limit:         100,
 		ExcludePinned: Options.ExcludePinned,
+		FolderID:      Options.FolderID,
 		Hash:          Options.Hash,
-	})
-
-	if err != nil {
-		return nil, err
 	}
-	switch p := resp.(type) {
-	case *MessagesDialogsObj:
-		c.Cache.UpdatePeersToCache(p.Users, p.Chats)
-		return p.Dialogs, nil
-	case *MessagesDialogsSlice:
-		c.Cache.UpdatePeersToCache(p.Users, p.Chats)
-		return p.Dialogs, nil
-	default:
-		return nil, errors.New("could not convert dialogs: " + reflect.TypeOf(resp).String())
+
+	var dialogs []Dialog
+
+	for {
+		if len(dialogs) >= int(Options.Limit) && Options.Limit > 0 {
+			return dialogs, nil
+		}
+
+		resp, err := c.MessagesGetDialogs(req)
+		if handleIfFlood(err, c) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		switch p := resp.(type) {
+		case *MessagesDialogsObj:
+			c.Cache.UpdatePeersToCache(p.Users, p.Chats)
+			dialogs = append(dialogs, p.Dialogs...)
+			if len(p.Dialogs) < 100 {
+				return dialogs, nil
+			}
+			if len(p.Messages) > 0 {
+				if m, ok := p.Messages[len(p.Messages)-1].(*MessageObj); ok {
+					req.OffsetID = m.ID
+					req.OffsetDate = m.Date
+				}
+			}
+
+			if lastPeer, err := c.GetSendablePeer(p.Dialogs[len(p.Dialogs)-1].(*DialogObj).Peer); err == nil {
+				req.OffsetPeer = lastPeer
+			}
+
+		case *MessagesDialogsSlice:
+			c.Cache.UpdatePeersToCache(p.Users, p.Chats)
+			dialogs = append(dialogs, p.Dialogs...)
+			if len(p.Dialogs) < 100 {
+				return dialogs, nil
+			}
+
+			if len(p.Messages) > 0 {
+				if m, ok := p.Messages[len(p.Messages)-1].(*MessageObj); ok {
+					req.OffsetID = m.ID
+					req.OffsetDate = m.Date
+				}
+			}
+
+			if lastPeer, err := c.GetSendablePeer(p.Dialogs[len(p.Dialogs)-1].(*DialogObj).Peer); err == nil {
+				req.OffsetPeer = lastPeer
+			}
+
+		default:
+			return nil, errors.New("could not convert dialogs: " + reflect.TypeOf(resp).String())
+		}
 	}
 }
 
