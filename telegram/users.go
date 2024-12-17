@@ -139,7 +139,7 @@ type CustomDialog struct {
 	Dialog   Dialog
 	Peer     Peer
 	PeerType string
-}
+} // TODO
 
 // GetDialogs returns the dialogs of the user
 //
@@ -223,6 +223,8 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 			if lastPeer, err := c.GetSendablePeer(p.Dialogs[len(p.Dialogs)-1].(*DialogObj).Peer); err == nil {
 				req.OffsetPeer = lastPeer
 			}
+		case *MessagesDialogsNotModified:
+			return dialogs, nil
 
 		default:
 			return nil, errors.New("could not convert dialogs: " + reflect.TypeOf(resp).String())
