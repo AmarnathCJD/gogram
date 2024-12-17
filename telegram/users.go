@@ -159,11 +159,16 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 		Options.OffsetPeer = &InputPeerEmpty{}
 	}
 
+	var reqLimit int32 = 100
+	if Options.Limit > 0 && Options.Limit < 100 {
+		reqLimit = Options.Limit
+	}
+
 	var req = &MessagesGetDialogsParams{
 		OffsetDate:    Options.OffsetDate,
 		OffsetID:      Options.OffsetID,
 		OffsetPeer:    Options.OffsetPeer,
-		Limit:         100,
+		Limit:         reqLimit,
 		ExcludePinned: Options.ExcludePinned,
 		FolderID:      Options.FolderID,
 		Hash:          Options.Hash,
