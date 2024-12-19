@@ -73,8 +73,9 @@ type MTProto struct {
 	serviceChannel       chan tl.Object
 	serviceModeActivated bool
 
-	authKey404 [2]int64
-	IpV6       bool
+	authKey404    [2]int64
+	IpV6          bool
+	sessionBackup *session.Session
 
 	Logger *utils.Logger
 
@@ -191,10 +192,8 @@ func parseTransportMode(sMode string) mode.Variant {
 func (m *MTProto) LoadSession(sess *session.Session) error {
 	m.authKey, m.authKeyHash, m.Addr, m.appID = sess.Key, sess.Hash, sess.Hostname, sess.AppID
 	m.Logger.Debug("importing auth from session...")
-	if !m.memorySession {
-		if err := m.SaveSession(); err != nil {
-			return errors.Wrap(err, "saving session")
-		}
+	if err := m.SaveSession(m.memorySession); err != nil {
+		return errors.Wrap(err, "saving session")
 	}
 	return nil
 }
@@ -224,10 +223,8 @@ func (m *MTProto) ExportAuth() (*session.Session, int) {
 func (m *MTProto) ImportRawAuth(authKey, authKeyHash []byte, addr string, appID int32) (bool, error) {
 	m.authKey, m.authKeyHash, m.Addr, m.appID = authKey, authKeyHash, addr, appID
 	m.Logger.Debug("imported authKey, authKeyHash, addr, appId")
-	if !m.memorySession {
-		if err := m.SaveSession(); err != nil {
-			return false, errors.Wrap(err, "saving session")
-		}
+	if err := m.SaveSession(m.memorySession); err != nil {
+		return false, errors.Wrap(err, "saving session")
 	}
 	if err := m.Reconnect(false); err != nil {
 		return false, errors.Wrap(err, "reconnecting")
@@ -245,10 +242,8 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 		m.appID = sessionString.AppID()
 	}
 	m.Logger.Debug("importing - auth from stringSession...")
-	if !m.memorySession {
-		if err := m.SaveSession(); err != nil {
-			return false, fmt.Errorf("saving session: %w", err)
-		}
+	if err := m.SaveSession(m.memorySession); err != nil {
+		return false, fmt.Errorf("saving session: %w", err)
 	}
 	return true, nil
 }
@@ -456,7 +451,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 
 	resp, msgId, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
-		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") {
+		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") || strings.Contains(err.Error(), "connection was forcibly closed") || strings.Contains(err.Error(), "connection reset by peer") || strings.Contains(err.Error(), "broken pipe") {
 			m.Logger.Info("connection closed due to broken tcp, reconnecting to [" + m.Addr + "]" + " - <Tcp> ...")
 			err = m.Reconnect(false)
 			if err != nil {
@@ -656,8 +651,17 @@ func (m *MTProto) handle404Error() {
 		if err != nil {
 			m.Logger.Error(errors.Wrap(err, "reconnecting"))
 		}
+	} else if m.authKey404[0] > 8 && m.authKey404[0] < 16 {
+		m.Logger.Debug("-404 (x8), reloading session")
+		m.LoadSession(m.sessionBackup)
+		if err := m.SaveSession(m.memorySession); err != nil {
+			m.Logger.Error(errors.Wrap(err, "saving session"))
+		}
+		if err := m.Reconnect(false); err != nil {
+			m.Logger.Error(errors.Wrap(err, "reconnecting"))
+		}
 	} else if m.authKey404[0] > 16 {
-		panic("[AUTH_KEY_INVALID] (code -404)")
+		panic("[AUTH_KEY_INVALID] (code -404) - too many failures")
 	}
 }
 
@@ -731,11 +735,8 @@ messageTypeSwitching:
 
 	case *objects.BadServerSalt:
 		m.serverSalt = message.NewSalt
-		if !m.memorySession {
-			err := m.SaveSession()
-			if err != nil {
-				return errors.Wrap(err, "saving session")
-			}
+		if err := m.SaveSession(m.memorySession); err != nil {
+			return errors.Wrap(err, "saving session")
 		}
 
 		var respChannelsBackup *utils.SyncIntObjectChan
@@ -756,11 +757,8 @@ messageTypeSwitching:
 
 	case *objects.NewSessionCreated:
 		m.serverSalt = message.ServerSalt
-		if !m.memorySession {
-			err := m.SaveSession()
-			if err != nil {
-				m.Logger.Error(errors.Wrap(err, "saving session"))
-			}
+		if err := m.SaveSession(m.memorySession); err != nil {
+			m.Logger.Error(errors.Wrap(err, "saving session"))
 		}
 
 	case *objects.MsgsNewDetailedInfo:

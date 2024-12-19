@@ -177,15 +177,22 @@ func (m *MTProto) AddCustomServerRequestHandler(handler func(i any) bool) {
 	m.serverRequestHandlers = append(m.serverRequestHandlers, handler)
 }
 
-func (m *MTProto) SaveSession() (err error) {
-	m.Logger.Debug("saving session -> ", filepath.Base(m.sessionStorage.Path()))
-	return m.sessionStorage.Store(&session.Session{
+func (m *MTProto) SaveSession(mem bool) (err error) {
+	sess := &session.Session{
 		Key:      m.authKey,
 		Hash:     m.authKeyHash,
 		Salt:     m.serverSalt,
 		Hostname: m.Addr,
 		AppID:    m.appID,
-	})
+	}
+
+	m.sessionBackup = sess
+	if !mem {
+		m.Logger.Debug("saving session to `", filepath.Base(m.sessionStorage.Path()), "`")
+		return m.sessionStorage.Store(sess)
+	}
+
+	return nil
 }
 
 func (m *MTProto) DeleteSession() (err error) {

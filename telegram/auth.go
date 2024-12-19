@@ -190,7 +190,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 		}
 	}
 
-	c.SaveSession()
+	c.SaveSession(true)
 	switch auth := auth.(type) {
 	case *AuthAuthorizationSignUpRequired:
 		return false, errors.New("SignUp using official Telegram app is required")
@@ -200,7 +200,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 			c.clientData.botAcc = u.Bot
 			go c.Cache.UpdateUser(u)
 		case *UserEmpty:
-			return false, errors.New("user is empty")
+			return false, errors.New("user is empty, authorization failed")
 		}
 	case nil:
 		return false, nil // need not mean error
