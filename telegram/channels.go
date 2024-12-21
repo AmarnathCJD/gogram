@@ -252,6 +252,7 @@ func (c *Client) GetChatMembers(chatID any, Opts ...*ParticipantOptions) ([]*Par
 			UserID = p.UserID
 		case *ChannelParticipantObj:
 			status = Member
+			UserID = p.UserID
 		case *ChannelParticipantSelf:
 			status = Member
 			UserID = p.UserID
