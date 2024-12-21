@@ -406,7 +406,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 }
 
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	if !m.TcpActive() {
+	for !m.TcpActive() {
 		time.Sleep(20 * time.Millisecond)
 	}
 
