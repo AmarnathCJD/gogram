@@ -30,6 +30,7 @@ var DcList = DCOptions{
 		2: "149.154.167.40:443",
 		3: "149.154.175.117:443",
 	},
+	CdnDCs: map[int][]DC{},
 }
 
 // TODO: Fix DC4 Ipv6 is Unreachable
@@ -42,14 +43,26 @@ type DC struct {
 type DCOptions struct {
 	DCS     map[int][]DC
 	TestDCs map[int]string
+	CdnDCs  map[int][]DC
 }
 
 func SetDCs(dcs map[int][]DC) {
 	DcList.DCS = dcs
 }
 
+func SetCdnDCs(dcs map[int][]DC) {
+	DcList.CdnDCs = dcs
+}
+
 func GetAddr(dc int) (string, bool) {
 	if addrs, ok := DcList.DCS[dc]; ok {
+		return addrs[0].Addr, addrs[0].V
+	}
+	return "", false
+}
+
+func GetCdnAddr(dc int) (string, bool) {
+	if addrs, ok := DcList.CdnDCs[dc]; ok {
 		return addrs[0].Addr, addrs[0].V
 	}
 	return "", false

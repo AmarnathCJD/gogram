@@ -274,6 +274,7 @@ func (c *Client) InitialRequest() error {
 	c.Log.Debug("received initial invokeWithLayer response")
 	if config, ok := serverConfig.(*Config); ok {
 		var dcs = make(map[int][]utils.DC)
+		var cdnDcs = make(map[int][]utils.DC)
 		for _, dc := range config.DcOptions {
 			if !dc.MediaOnly && !dc.Cdn {
 				if _, ok := dcs[int(dc.ID)]; !ok {
@@ -281,10 +282,17 @@ func (c *Client) InitialRequest() error {
 				}
 
 				dcs[int(dc.ID)] = append(dcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), V: dc.Ipv6})
+			} else if dc.Cdn {
+				if _, ok := cdnDcs[int(dc.ID)]; !ok {
+					cdnDcs[int(dc.ID)] = []utils.DC{}
+				}
+
+				cdnDcs[int(dc.ID)] = append(cdnDcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), V: dc.Ipv6})
 			}
 		}
 
 		utils.SetDCs(dcs)
+		utils.SetCdnDCs(cdnDcs)
 	}
 
 	return nil
