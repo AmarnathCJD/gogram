@@ -37,7 +37,6 @@ type clientData struct {
 	systemVersion string
 	appVersion    string
 	langCode      string
-	langPack      string
 	parseMode     string
 	logLevel      utils.LogLevel
 	botAcc        bool
@@ -59,7 +58,6 @@ type DeviceConfig struct {
 	DeviceModel   string
 	SystemVersion string
 	AppVersion    string
-	LangPack      string
 	LangCode      string
 }
 
@@ -246,7 +244,6 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.systemVersion = getValue(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH)
 	c.clientData.appVersion = getValue(cnf.DeviceConfig.AppVersion, Version)
 	c.clientData.langCode = getValue(cnf.DeviceConfig.LangCode, "en")
-	c.clientData.langPack = getValue(cnf.DeviceConfig.LangPack, "tdesktop")
 	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
 	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
 
@@ -267,7 +264,6 @@ func (c *Client) InitialRequest() error {
 		AppVersion:     c.clientData.appVersion,
 		SystemLangCode: c.clientData.langCode,
 		LangCode:       c.clientData.langCode,
-		LangPack:       c.clientData.langPack,
 		Query:          &HelpGetConfigParams{},
 	})
 
