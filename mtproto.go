@@ -634,15 +634,15 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 }
 
 func (m *MTProto) handle404Error() {
-	if len(m.authKey404) == 0 {
+	if m.authKey404[0] == 0 && m.authKey404[1] == 0 {
 		m.authKey404 = [2]int64{1, time.Now().Unix()}
 	} else {
-		if time.Now().Unix()-m.authKey404[1] < 2 { // repeated failures
+		currentTime := time.Now().Unix()
+		if currentTime-m.authKey404[1] < 2 { // time frame to check if the error is repeating
 			m.authKey404[0]++
 		} else {
-			m.authKey404[0] = 1
+			m.authKey404 = [2]int64{1, currentTime}
 		}
-		m.authKey404[1] = time.Now().Unix()
 	}
 
 	if m.authKey404[0] == 4 {
