@@ -22,7 +22,17 @@ import (
 func (m *MTProto) makeAuthKey() error {
 	m.serviceModeActivated = true
 	nonceFirst := tl.RandomInt128()
-	res, err := m.reqPQ(nonceFirst)
+	var (
+		res *objects.ResPQ
+		err error
+	)
+
+	if m.cdn {
+		res, err = m.reqPQMulti(nonceFirst)
+	} else {
+		res, err = m.reqPQ(nonceFirst)
+	}
+
 	if err != nil {
 		return fmt.Errorf("reqPQ: %w", err)
 	}
@@ -32,6 +42,15 @@ func (m *MTProto) makeAuthKey() error {
 	}
 	found := false
 	for _, b := range res.Fingerprints {
+		if m.cdn {
+			for _, key := range m.cdnKeys {
+				if uint64(b) == binary.LittleEndian.Uint64(keys.RSAFingerprint(key)) {
+					found = true
+					m.publicKey = key
+					break
+				}
+			}
+		}
 		if uint64(b) == binary.LittleEndian.Uint64(keys.RSAFingerprint(m.publicKey)) {
 			found = true
 			break

@@ -36,6 +36,20 @@ func RSAFingerprint(key *rsa.PublicKey) []byte {
 	return []byte(fingerprint)[12:]
 }
 
+func ParsePublicKey(data string) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode([]byte(data))
+	if block == nil {
+		return nil, fmt.Errorf("failed to parse PEM block containing the public key")
+	}
+
+	key, err := pemBytesToRsa(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key: %s", err)
+	}
+
+	return key, nil
+}
+
 func GetRSAKeys() ([]*rsa.PublicKey, error) {
 	data := []byte(RsaKeys)
 	keys := make([]*rsa.PublicKey, 0)

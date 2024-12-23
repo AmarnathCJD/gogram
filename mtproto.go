@@ -69,13 +69,13 @@ type MTProto struct {
 	sessionStorage session.SessionLoader
 
 	publicKey *rsa.PublicKey
+	cdnKeys   map[int32]*rsa.PublicKey
 
 	serviceChannel       chan tl.Object
 	serviceModeActivated bool
 
-	authKey404    [2]int64
-	IpV6          bool
-	sessionBackup *session.Session
+	authKey404 [2]int64
+	IpV6       bool
 
 	Logger *utils.Logger
 
@@ -83,6 +83,7 @@ type MTProto struct {
 	floodHandler          func(err error) bool
 	errorHandler          func(err error)
 	exported              bool
+	cdn                   bool
 }
 
 type Config struct {
@@ -260,6 +261,15 @@ func (m *MTProto) SetAppID(appID int32) {
 	m.appID = appID
 }
 
+func (m *MTProto) SetCdnKeys(keys map[int32]*rsa.PublicKey) {
+	m.cdnKeys = keys
+}
+
+func (m *MTProto) HasCdnKey(dc int32) (*rsa.PublicKey, bool) {
+	key, ok := m.cdnKeys[dc]
+	return key, ok
+}
+
 func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 	if m.noRedirect {
 		return m, nil
@@ -300,8 +310,14 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 	return sender, nil
 }
 
-func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
+func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, error) {
 	newAddr := utils.GetHostIp(dcID, false, m.IpV6)
+	logger := utils.NewLogger("gogram [mtproto-exp]").SetLevel(utils.InfoLevel)
+
+	if len(cdn) > 0 && cdn[0] {
+		newAddr, _ = utils.GetCdnAddr(dcID)
+		logger.SetPrefix("gogram [mtproto-cdn]")
+	}
 
 	cfg := Config{
 		DataCenter:    dcID,
@@ -309,7 +325,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		ServerHost:    newAddr,
 		AuthKeyFile:   "__exp_" + strconv.Itoa(dcID) + ".dat",
 		MemorySession: mem,
-		Logger:        m.Logger,
+		Logger:        logger,
 		Proxy:         m.proxy,
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,
@@ -329,6 +345,9 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 
 	sender.noRedirect = true
 	sender.exported = true
+	if len(cdn) > 0 && cdn[0] {
+		sender.cdn = true
+	}
 
 	if err := sender.CreateConnection(false); err != nil {
 		return nil, errors.Wrap(err, "creating connection: exporting")
@@ -369,7 +388,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 
 	m.startReadingResponses(ctx)
 
-	if !m.exported {
+	if !m.exported && !m.cdn {
 		go m.longPing(ctx)
 	}
 
@@ -623,10 +642,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					}
 
 					m.Logger.Debug(errors.Wrap(err, "reading message"))
-
-					if err := m.Reconnect(false); err != nil {
-						m.Logger.Error(errors.Wrap(err, "reconnecting"))
-					}
+					// is reconnect required here?
 				}
 			}
 		}
@@ -645,22 +661,13 @@ func (m *MTProto) handle404Error() {
 		}
 	}
 
-	if m.authKey404[0] == 4 {
-		m.Logger.Debug("-404 (x4), refreshing connection pipline")
+	if m.authKey404[0] > 4 && m.authKey404[0] < 16 {
+		m.Logger.Debug(fmt.Sprintf("-404 error occurred %d times, attempting to reconnect", m.authKey404[0]))
 		err := m.Reconnect(false)
 		if err != nil {
 			m.Logger.Error(errors.Wrap(err, "reconnecting"))
 		}
-	} else if m.authKey404[0] > 8 && m.authKey404[0] < 16 {
-		m.Logger.Debug("-404 (x8), reloading session")
-		m.LoadSession(m.sessionBackup)
-		if err := m.SaveSession(m.memorySession); err != nil {
-			m.Logger.Error(errors.Wrap(err, "saving session"))
-		}
-		if err := m.Reconnect(false); err != nil {
-			m.Logger.Error(errors.Wrap(err, "reconnecting"))
-		}
-	} else if m.authKey404[0] > 16 {
+	} else if m.authKey404[0] >= 16 {
 		panic("[AUTH_KEY_INVALID] (code -404) - too many failures")
 	}
 }

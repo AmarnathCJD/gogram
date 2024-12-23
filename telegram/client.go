@@ -291,8 +291,7 @@ func (c *Client) InitialRequest() error {
 			}
 		}
 
-		utils.SetDCs(dcs)
-		utils.SetCdnDCs(cdnDcs)
+		utils.SetDCs(dcs, cdnDcs) // set the upto-date DC configuration for the library
 	}
 
 	return nil
@@ -396,7 +395,7 @@ func (c *Client) Me() *UserObj {
 }
 
 // CreateExportedSender creates a new exported sender for the given DC
-func (c *Client) CreateExportedSender(dcID int) (*mtproto.MTProto, error) {
+func (c *Client) CreateExportedSender(dcID int, cdn ...bool) (*mtproto.MTProto, error) {
 	const retryLimit = 1 // Retry only once
 	var lastError error
 
@@ -405,10 +404,24 @@ func (c *Client) CreateExportedSender(dcID int) (*mtproto.MTProto, error) {
 		defer cancel()
 
 		c.Log.Debug("creating exported sender for DC ", dcID)
-		exported, err := c.MTProto.ExportNewSender(dcID, true)
+		if len(cdn) > 0 && cdn[0] {
+			if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
+				cdnKeysResp, err := c.HelpGetCdnConfig()
+				if err != nil {
+					return nil, errors.Wrap(err, "getting cdn config")
+				}
+
+				var cdnKeys = make(map[int32]*rsa.PublicKey)
+				for _, key := range cdnKeysResp.PublicKeys {
+					cdnKeys[key.DcID], _ = keys.ParsePublicKey(key.PublicKey)
+				}
+			}
+		}
+
+		exported, err := c.MTProto.ExportNewSender(dcID, true, cdn...)
 		if err != nil {
 			lastError = errors.Wrap(err, "exporting new sender")
-			c.Log.Error("Error exporting new sender: ", lastError)
+			c.Log.Error("error exporting new sender: ", lastError)
 			continue
 		}
 
