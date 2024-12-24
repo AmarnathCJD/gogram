@@ -1,9 +1,10 @@
 package gen
 
 import (
-	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -66,9 +67,9 @@ func (g *Generator) generateMethods(f *jen.File, d bool) {
 }
 
 func (g *Generator) generateComment(name, _type string) (string, []string) {
-	var base = "https://core.telegram.org/" + _type + "/"
-	fmt.Println(base + name)
+	var base = "https://corefork.telegram.org/" + _type + "/"
 	req, _ := http.NewRequest("GET", base+name, http.NoBody)
+	log.Println("tlgen: fetching", req.URL.String())
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -98,7 +99,8 @@ func (g *Generator) generateComment(name, _type string) (string, []string) {
 	ack = strings.Split(ack, "</p>")[0]
 	ack = strings.ReplaceAll(ack, "<p>", "")
 	//ack = strings.ReplaceAll(ack, "see .", "")
-	ack = regexLinkTag.ReplaceAllString(ack, "[$2](https://core.telegram.org$1)")
+	ack = regexLinkTag.ReplaceAllString(ack, "[$2](https://corefork.telegram.org$1)")
+	ack = regexp.MustCompile(`\[(.*?)\]\(.*?\)`).ReplaceAllString(ack, "$1")
 
 	ack = regexCodeTag.ReplaceAllString(ack, "`$1`")
 
