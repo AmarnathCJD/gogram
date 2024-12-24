@@ -2,7 +2,17 @@
 
 package telegram
 
-// [Telegram Passport](https://core.telegram.org/passport) authorization form
+type AccessPointRule struct {
+	PhonePrefixRules string
+	DcID             int32
+	Ips              []IpPort
+}
+
+func (*AccessPointRule) CRC() uint32 {
+	return 0x4679b65f
+}
+
+// Telegram Passport authorization form
 type AccountAuthorizationForm struct {
 	RequiredTypes    []SecureRequiredType
 	Values           []*SecureValue
@@ -54,7 +64,7 @@ func (*AccountAutoSaveSettings) CRC() uint32 {
 	return 0x4c3e069d
 }
 
-// Contains info about [business chat deep links »](https://core.telegram.org/api/business#business-chat-links) created by the current account.
+// Contains info about business chat deep links » created by the current account.
 type AccountBusinessChatLinks struct {
 	Links []*BusinessChatLink
 	Chats []Chat
@@ -65,7 +75,7 @@ func (*AccountBusinessChatLinks) CRC() uint32 {
 	return 0xec43a2d1
 }
 
-// Info about currently connected [business bots](https://core.telegram.org/api/business#connected-bots).
+// Info about currently connected business bots.
 type AccountConnectedBots struct {
 	ConnectedBots []*ConnectedBot
 	Users         []User
@@ -131,7 +141,7 @@ func (*AccountPasswordInputSettings) FlagIndex() int {
 	return 0
 }
 
-// Private info associated to the password info (recovery email, telegram [passport](https://core.telegram.org/passport) info &amp; so on)
+// Private info associated to the password info (recovery email, telegram passport info &amp; so on)
 type AccountPasswordSettings struct {
 	Email          string                `tl:"flag:0"`
 	SecureSettings *SecureSecretSettings `tl:"flag:1"`
@@ -156,7 +166,7 @@ func (*AccountPrivacyRules) CRC() uint32 {
 	return 0x50a04e45
 }
 
-// Contains info about a single resolved [business chat deep link »](https://core.telegram.org/api/business#business-chat-links).
+// Contains info about a single resolved business chat deep link ».
 type AccountResolvedBusinessChatLinks struct {
 	Peer     Peer
 	Message  string
@@ -221,16 +231,7 @@ func (*AccountDaysTtl) CRC() uint32 {
 	return 0xb8d0afdf
 }
 
-// Contains the link that must be used to open a [direct link Mini App](https://core.telegram.org/api/bots/webapps#direct-link-mini-apps).
-type AppWebViewResultURL struct {
-	URL string
-}
-
-func (*AppWebViewResultURL) CRC() uint32 {
-	return 0x3c1b4f0d
-}
-
-// Represents a [bot mini app that can be launched from the attachment/side menu »](https://core.telegram.org/api/bots/attach)
+// Represents a bot mini app that can be launched from the attachment/side menu »
 type AttachMenuBot struct {
 	Inactive                 bool `tl:"flag:0,encoded_in_bitflags"`
 	HasSettings              bool `tl:"flag:1,encoded_in_bitflags"`
@@ -252,7 +253,7 @@ func (*AttachMenuBot) FlagIndex() int {
 	return 0
 }
 
-// Represents an attachment menu icon for [bot mini apps »](https://core.telegram.org/api/bots/attach)
+// Represents an attachment menu icon for bot mini apps »
 type AttachMenuBotIcon struct {
 	Name   string
 	Icon   Document
@@ -267,7 +268,7 @@ func (*AttachMenuBotIcon) FlagIndex() int {
 	return 0
 }
 
-// Represents an attachment menu icon color for [bot mini apps »](https://core.telegram.org/api/bots/attach)
+// Represents an attachment menu icon color for bot mini apps »
 type AttachMenuBotIconColor struct {
 	Name  string
 	Color int32
@@ -277,7 +278,7 @@ func (*AttachMenuBotIconColor) CRC() uint32 {
 	return 0x4576f3f0
 }
 
-// Represents a [bot mini app that can be launched from the attachment menu »](https://core.telegram.org/api/bots/attach)
+// Represents a bot mini app that can be launched from the attachment menu »
 type AttachMenuBotsBot struct {
 	Bot   *AttachMenuBot
 	Users []User
@@ -297,7 +298,7 @@ func (*AuthExportedAuthorization) CRC() uint32 {
 	return 0xb434e2b8
 }
 
-// [Future auth token »](https://core.telegram.org/api/auth#future-auth-tokens) to be used on subsequent authorizations
+// Future auth token » to be used on subsequent authorizations
 type AuthLoggedOut struct {
 	FutureAuthToken []byte `tl:"flag:0"`
 }
@@ -310,7 +311,7 @@ func (*AuthLoggedOut) FlagIndex() int {
 	return 0
 }
 
-// Recovery info of a [2FA password](https://core.telegram.org/api/srp), only for accounts with a [recovery email configured](https://core.telegram.org/api/srp#email-verification).
+// Recovery info of a 2FA password, only for accounts with a recovery email configured.
 type AuthPasswordRecovery struct {
 	EmailPattern string
 }
@@ -397,7 +398,7 @@ func (*AutoSaveSettings) FlagIndex() int {
 	return 0
 }
 
-// Represents a [message effect »](https://core.telegram.org/api/effects).
+// Represents a message effect ».
 type AvailableEffect struct {
 	PremiumRequired   bool `tl:"flag:2,encoded_in_bitflags"`
 	ID                int64
@@ -448,7 +449,7 @@ func (*BankCardOpenURL) CRC() uint32 {
 	return 0xf568028a
 }
 
-// [Birthday](https://core.telegram.org/api/profile#birthday) information for a user.
+// Birthday information for a user.
 type Birthday struct {
 	Day   int32
 	Month int32
@@ -463,7 +464,7 @@ func (*Birthday) FlagIndex() int {
 	return 0
 }
 
-// Info about one or more [boosts](https://core.telegram.org/api/boost) applied by a specific user.
+// Info about one or more boosts applied by a specific user.
 type Boost struct {
 	Gift          bool `tl:"flag:1,encoded_in_bitflags"`
 	Giveaway      bool `tl:"flag:2,encoded_in_bitflags"`
@@ -486,6 +487,21 @@ func (*Boost) FlagIndex() int {
 	return 0
 }
 
+/*
+<div class="clearfix">
+  <ul class="dev_layer_select slightly-pull-right nav nav-pills">
+    <li class="dropdown">
+      <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+      <ul class="dropdown-menu">
+        <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+        <li class="divider"></li>
+        <li>More...</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+<pre class="page_scheme"><code><a  href="/constructor/botAppSettings"  class="current_page_link" >botAppSettings</a>#c99b1950 flags:# placeholder_path:flags.0?bytes background_color:flags.1?int background_dark_color:flags.2?int header_color:flags.3?int header_dark_color:flags.4?int = BotAppSettings;</code></pre>
+*/
 type BotAppSettings struct {
 	PlaceholderPath     []byte `tl:"flag:0"`
 	BackgroundColor     int32  `tl:"flag:1"`
@@ -502,7 +518,7 @@ func (*BotAppSettings) FlagIndex() int {
 	return 0
 }
 
-// Contains info about a [bot business connection](https://core.telegram.org/api/business#connected-bots).
+// Contains info about a bot business connection.
 type BotBusinessConnection struct {
 	CanReply     bool `tl:"flag:0,encoded_in_bitflags"`
 	Disabled     bool `tl:"flag:1,encoded_in_bitflags"`
@@ -551,7 +567,7 @@ func (*BotInfo) FlagIndex() int {
 	return 0
 }
 
-// Represents a [Main Mini App preview media, see here »](https://core.telegram.org/api/bots/webapps#main-mini-app-previews) for more info.
+// Represents a Main Mini App preview media, see here » for more info.
 type BotPreviewMedia struct {
 	Date  int32
 	Media MessageMedia
@@ -572,7 +588,7 @@ func (*BotsBotInfo) CRC() uint32 {
 	return 0xe8a775b0
 }
 
-// Popular [Main Mini Apps](https://core.telegram.org/api/bots/webapps#main-mini-apps), to be used in the [apps tab of global search »](https://core.telegram.org/api/search#apps-tab).
+// Popular Main Mini Apps, to be used in the apps tab of global search ».
 type BotsPopularAppBots struct {
 	NextOffset string `tl:"flag:0"`
 	Users      []User
@@ -586,7 +602,7 @@ func (*BotsPopularAppBots) FlagIndex() int {
 	return 0
 }
 
-// Contains info about [Main Mini App previews, see here »](https://core.telegram.org/api/bots/webapps#main-mini-app-previews) for more info.
+// Contains info about Main Mini App previews, see here » for more info.
 type BotsPreviewInfo struct {
 	Media     []*BotPreviewMedia
 	LangCodes []string
@@ -596,7 +612,7 @@ func (*BotsPreviewInfo) CRC() uint32 {
 	return 0xca71d64
 }
 
-// Describes [channel ad revenue balances »](https://core.telegram.org/api/revenue).
+// Describes channel ad revenue balances ».
 type BroadcastRevenueBalances struct {
 	WithdrawalEnabled bool `tl:"flag:0,encoded_in_bitflags"`
 	CurrentBalance    int64
@@ -612,7 +628,7 @@ func (*BroadcastRevenueBalances) FlagIndex() int {
 	return 0
 }
 
-// Describes a [Telegram Business away message](https://core.telegram.org/api/business#away-messages), automatically sent to users writing to us when we're offline, during closing hours, while we're on vacation, or in some other custom time period when we cannot immediately answer to the user.
+// Describes a Telegram Business away message, automatically sent to users writing to us when we're offline, during closing hours, while we're on vacation, or in some other custom time period when we cannot immediately answer to the user.
 type BusinessAwayMessage struct {
 	OfflineOnly bool `tl:"flag:0,encoded_in_bitflags"`
 	ShortcutID  int32
@@ -628,7 +644,7 @@ func (*BusinessAwayMessage) FlagIndex() int {
 	return 0
 }
 
-// Specifies the private chats that a [connected business bot »](https://core.telegram.org/api/business#connected-bots) may receive messages and interact with.
+// Specifies the private chats that a connected business bot » may receive messages and interact with.
 type BusinessBotRecipients struct {
 	ExistingChats   bool    `tl:"flag:0,encoded_in_bitflags"`
 	NewChats        bool    `tl:"flag:1,encoded_in_bitflags"`
@@ -647,7 +663,7 @@ func (*BusinessBotRecipients) FlagIndex() int {
 	return 0
 }
 
-// Contains info about a [business chat deep link »](https://core.telegram.org/api/business#business-chat-links) created by the current account.
+// Contains info about a business chat deep link » created by the current account.
 type BusinessChatLink struct {
 	Link     string
 	Message  string
@@ -664,7 +680,7 @@ func (*BusinessChatLink) FlagIndex() int {
 	return 0
 }
 
-// Describes a [Telegram Business greeting](https://core.telegram.org/api/business#greeting-messages), automatically sent to new users writing to us in private for the first time, or after a certain inactivity period.
+// Describes a Telegram Business greeting, automatically sent to new users writing to us in private for the first time, or after a certain inactivity period.
 type BusinessGreetingMessage struct {
 	ShortcutID     int32
 	Recipients     *BusinessRecipients
@@ -675,7 +691,7 @@ func (*BusinessGreetingMessage) CRC() uint32 {
 	return 0xe519abab
 }
 
-// [Telegram Business introduction »](https://core.telegram.org/api/business#business-introduction).
+// Telegram Business introduction ».
 type BusinessIntro struct {
 	Title       string
 	Description string
@@ -690,7 +706,7 @@ func (*BusinessIntro) FlagIndex() int {
 	return 0
 }
 
-// Represents the location of a [Telegram Business »](https://core.telegram.org/api/business#location).
+// Represents the location of a Telegram Business ».
 type BusinessLocation struct {
 	GeoPoint GeoPoint `tl:"flag:0"`
 	Address  string
@@ -704,7 +720,7 @@ func (*BusinessLocation) FlagIndex() int {
 	return 0
 }
 
-// Specifies the chats that <strong>can</strong> receive Telegram Business [away »](https://core.telegram.org/api/business#away-messages) and [greeting »](https://core.telegram.org/api/business#greeting-messages) messages.
+// Specifies the chats that <strong>can</strong> receive Telegram Business away » and greeting » messages.
 type BusinessRecipients struct {
 	ExistingChats   bool    `tl:"flag:0,encoded_in_bitflags"`
 	NewChats        bool    `tl:"flag:1,encoded_in_bitflags"`
@@ -732,7 +748,7 @@ func (*BusinessWeeklyOpen) CRC() uint32 {
 	return 0x120b1ab9
 }
 
-// Specifies a set of [Telegram Business opening hours](https://core.telegram.org/api/business#opening-hours).
+// Specifies a set of Telegram Business opening hours.
 type BusinessWorkHours struct {
 	OpenNow    bool `tl:"flag:0,encoded_in_bitflags"`
 	TimezoneID string
@@ -747,7 +763,7 @@ func (*BusinessWorkHours) FlagIndex() int {
 	return 0
 }
 
-// Configuration for [CDN](https://core.telegram.org/cdn) file downloads.
+// Configuration for CDN file downloads.
 type CdnConfig struct {
 	PublicKeys []*CdnPublicKey
 }
@@ -756,7 +772,7 @@ func (*CdnConfig) CRC() uint32 {
 	return 0x5725e40a
 }
 
-// Public key to use <strong>only</strong> during handshakes to [CDN](https://core.telegram.org/cdn) DCs.
+// Public key to use <strong>only</strong> during handshakes to CDN DCs.
 type CdnPublicKey struct {
 	DcID      int32
 	PublicKey string
@@ -842,7 +858,7 @@ func (*ChannelsSendAsPeers) CRC() uint32 {
 	return 0xf496b0c6
 }
 
-// Represents the rights of an admin in a [channel/supergroup](https://core.telegram.org/api/channel).
+// Represents the rights of an admin in a channel/supergroup.
 type ChatAdminRights struct {
 	ChangeInfo     bool `tl:"flag:0,encoded_in_bitflags"`
 	PostMessages   bool `tl:"flag:1,encoded_in_bitflags"`
@@ -880,7 +896,7 @@ func (*ChatAdminWithInvites) CRC() uint32 {
 	return 0xf2ecef23
 }
 
-// Represents the rights of a normal user in a [supergroup/channel/chat](https://core.telegram.org/api/channel). In this case, the flags are inverted: if set, a flag <strong>does not allow</strong> a user to do X.
+// Represents the rights of a normal user in a supergroup/channel/chat. In this case, the flags are inverted: if set, a flag <strong>does not allow</strong> a user to do X.
 type ChatBannedRights struct {
 	ViewMessages    bool `tl:"flag:0,encoded_in_bitflags"`
 	SendMessages    bool `tl:"flag:1,encoded_in_bitflags"`
@@ -940,7 +956,7 @@ func (*ChatOnlines) CRC() uint32 {
 	return 0xf041e250
 }
 
-// Updated information about a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
+// Updated information about a chat folder deep link ».
 type ChatlistsChatlistUpdates struct {
 	MissingPeers []Peer
 	Chats        []Chat
@@ -951,7 +967,7 @@ func (*ChatlistsChatlistUpdates) CRC() uint32 {
 	return 0x93bd878d
 }
 
-// Info about an exported [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
+// Info about an exported chat folder deep link ».
 type ChatlistsExportedChatlistInvite struct {
 	Filter DialogFilter
 	Invite *ExportedChatlistInvite
@@ -961,7 +977,7 @@ func (*ChatlistsExportedChatlistInvite) CRC() uint32 {
 	return 0x10e6e3a6
 }
 
-// Info about multiple [chat folder deep links »](https://core.telegram.org/api/links#chat-folder-links).
+// Info about multiple chat folder deep links ».
 type ChatlistsExportedInvites struct {
 	Invites []*ExportedChatlistInvite
 	Chats   []Chat
@@ -1052,7 +1068,7 @@ func (*Config) FlagIndex() int {
 	return 0
 }
 
-// Contains info about a [connected business bot »](https://core.telegram.org/api/business#connected-bots).
+// Contains info about a connected business bot ».
 type ConnectedBot struct {
 	CanReply   bool `tl:"flag:0,encoded_in_bitflags"`
 	BotID      int64
@@ -1067,6 +1083,21 @@ func (*ConnectedBot) FlagIndex() int {
 	return 0
 }
 
+/*
+<div class="clearfix">
+  <ul class="dev_layer_select slightly-pull-right nav nav-pills">
+    <li class="dropdown">
+      <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+      <ul class="dropdown-menu">
+        <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+        <li class="divider"></li>
+        <li>More...</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+<pre class="page_scheme"><code><a  href="/constructor/connectedBotStarRef"  class="current_page_link" >connectedBotStarRef</a>#19a13f71 flags:# revoked:flags.1?true url:string date:int bot_id:long commission_permille:int duration_months:flags.0?int participants:long revenue:long = ConnectedBotStarRef;</code></pre>
+*/
 type ConnectedBotStarRef struct {
 	Revoked            bool `tl:"flag:1,encoded_in_bitflags"`
 	URL                string
@@ -1084,16 +1115,6 @@ func (*ConnectedBotStarRef) CRC() uint32 {
 
 func (*ConnectedBotStarRef) FlagIndex() int {
 	return 0
-}
-
-type ConnectedStarRefBots struct {
-	Count         int32
-	ConnectedBots []*ConnectedBotStarRef
-	Users         []User
-}
-
-func (*ConnectedStarRefBots) CRC() uint32 {
-	return 0x98d5ea1d
 }
 
 // A contact of the current user that is registered in the system.
@@ -1211,7 +1232,7 @@ func (*DefaultHistoryTtl) CRC() uint32 {
 	return 0x43b46b20
 }
 
-// Suggested [folders](https://core.telegram.org/api/folders)
+// Suggested folders
 type DialogFilterSuggested struct {
 	Filter      DialogFilter
 	Description string
@@ -1261,7 +1282,7 @@ func (*Error) CRC() uint32 {
 	return 0xc4b9f9bb
 }
 
-// Exported [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
+// Exported chat folder deep link ».
 type ExportedChatlistInvite struct {
 	Revoked bool `tl:"flag:0,encoded_in_bitflags"`
 	Title   string
@@ -1277,7 +1298,7 @@ func (*ExportedChatlistInvite) FlagIndex() int {
 	return 0
 }
 
-// Describes a [temporary profile link](https://core.telegram.org/api/links#temporary-profile-links).
+// Describes a temporary profile link.
 type ExportedContactToken struct {
 	URL     string
 	Expires int32
@@ -1297,7 +1318,7 @@ func (*ExportedMessageLink) CRC() uint32 {
 	return 0x5dab1af4
 }
 
-// Represents a [story deep link](https://core.telegram.org/api/stories#story-links).
+// Represents a story deep link.
 type ExportedStoryLink struct {
 	Link string
 }
@@ -1306,7 +1327,7 @@ func (*ExportedStoryLink) CRC() uint32 {
 	return 0x3fc9053b
 }
 
-// Represents a [fact-check »](https://core.telegram.org/api/factcheck) created by an independent fact-checker.
+// Represents a fact-check » created by an independent fact-checker.
 type FactCheck struct {
 	NeedCheck bool              `tl:"flag:0,encoded_in_bitflags"`
 	Country   string            `tl:"flag:1"`
@@ -1331,17 +1352,6 @@ type FileHash struct {
 
 func (*FileHash) CRC() uint32 {
 	return 0xf39b035c
-}
-
-// File is currently unavailable.
-type FileLocationUnavailable struct {
-	VolumeID int64
-	LocalID  int32
-	Secret   int64
-}
-
-func (*FileLocationUnavailable) CRC() uint32 {
-	return 0x7c596b46
 }
 
 // Folder
@@ -1372,7 +1382,7 @@ func (*FolderPeer) CRC() uint32 {
 	return 0xe9baa668
 }
 
-// A story found using [global story search »](https://core.telegram.org/api/stories#searching-stories).
+// A story found using global story search ».
 type FoundStory struct {
 	Peer  Peer
 	Story StoryItem
@@ -1382,7 +1392,7 @@ func (*FoundStory) CRC() uint32 {
 	return 0xe87acbc0
 }
 
-// Info about a [fragment collectible](https://core.telegram.org/api/fragment).
+// Info about a fragment collectible.
 type FragmentCollectibleInfo struct {
 	PurchaseDate   int32
 	Currency       string
@@ -1415,7 +1425,7 @@ func (*Game) FlagIndex() int {
 	return 0
 }
 
-// Address optionally associated to a [geoPoint](https://core.telegram.org/constructor/geoPoint).
+// Address optionally associated to a geoPoint.
 type GeoPointAddress struct {
 	CountryIso2 string
 	State       string `tl:"flag:0"`
@@ -1516,6 +1526,16 @@ func (*GroupCallStreamChannel) CRC() uint32 {
 	return 0x80eb48af
 }
 
+type HelpConfigSimple struct {
+	Date    int32
+	Expires int32
+	Rules   []*AccessPointRule
+}
+
+func (*HelpConfigSimple) CRC() uint32 {
+	return 0x5a592a6c
+}
+
 // Name, ISO code, localized name and phone codes/patterns of a specific country
 type HelpCountry struct {
 	Hidden       bool `tl:"flag:0,encoded_in_bitflags"`
@@ -1557,7 +1577,7 @@ func (*HelpInviteText) CRC() uint32 {
 	return 0x18cb9f78
 }
 
-// Contains info about a [color palette »](https://core.telegram.org/api/colors).
+// Contains info about a color palette ».
 type HelpPeerColorOption struct {
 	Hidden          bool `tl:"flag:0,encoded_in_bitflags"`
 	ColorID         int32
@@ -1667,7 +1687,7 @@ func (*InlineBotSwitchPm) CRC() uint32 {
 	return 0x3c20629f
 }
 
-// Specifies an [inline mode mini app](https://core.telegram.org/api/bots/webapps#inline-mode-mini-apps) button, shown on top of the inline query results list.
+// Specifies an inline mode mini app button, shown on top of the inline query results list.
 type InlineBotWebView struct {
 	Text string
 	URL  string
@@ -1689,7 +1709,7 @@ func (*InputAppEvent) CRC() uint32 {
 	return 0x1d1b1245
 }
 
-// Describes a [Telegram Business away message](https://core.telegram.org/api/business#away-messages), automatically sent to users writing to us when we're offline, during closing hours, while we're on vacation, or in some other custom time period when we cannot immediately answer to the user.
+// Describes a Telegram Business away message, automatically sent to users writing to us when we're offline, during closing hours, while we're on vacation, or in some other custom time period when we cannot immediately answer to the user.
 type InputBusinessAwayMessage struct {
 	OfflineOnly bool `tl:"flag:0,encoded_in_bitflags"`
 	ShortcutID  int32
@@ -1705,7 +1725,7 @@ func (*InputBusinessAwayMessage) FlagIndex() int {
 	return 0
 }
 
-// Specifies the private chats that a [connected business bot »](https://core.telegram.org/api/business#connected-bots) may interact with.
+// Specifies the private chats that a connected business bot » may interact with.
 type InputBusinessBotRecipients struct {
 	ExistingChats   bool        `tl:"flag:0,encoded_in_bitflags"`
 	NewChats        bool        `tl:"flag:1,encoded_in_bitflags"`
@@ -1724,7 +1744,7 @@ func (*InputBusinessBotRecipients) FlagIndex() int {
 	return 0
 }
 
-// Contains info about a [business chat deep link »](https://core.telegram.org/api/business#business-chat-links) to be created by the current account.
+// Contains info about a business chat deep link » to be created by the current account.
 type InputBusinessChatLink struct {
 	Message  string
 	Entities []MessageEntity `tl:"flag:0"`
@@ -1739,7 +1759,7 @@ func (*InputBusinessChatLink) FlagIndex() int {
 	return 0
 }
 
-// Describes a [Telegram Business greeting](https://core.telegram.org/api/business#greeting-messages), automatically sent to new users writing to us in private for the first time, or after a certain inactivity period.
+// Describes a Telegram Business greeting, automatically sent to new users writing to us in private for the first time, or after a certain inactivity period.
 type InputBusinessGreetingMessage struct {
 	ShortcutID     int32
 	Recipients     *InputBusinessRecipients
@@ -1750,7 +1770,7 @@ func (*InputBusinessGreetingMessage) CRC() uint32 {
 	return 0x194cb3b
 }
 
-// [Telegram Business introduction »](https://core.telegram.org/api/business#business-introduction).
+// Telegram Business introduction ».
 type InputBusinessIntro struct {
 	Title       string
 	Description string
@@ -1765,7 +1785,7 @@ func (*InputBusinessIntro) FlagIndex() int {
 	return 0
 }
 
-// Specifies the chats that <strong>can</strong> receive Telegram Business [away »](https://core.telegram.org/api/business#away-messages) and [greeting »](https://core.telegram.org/api/business#greeting-messages) messages.
+// Specifies the chats that <strong>can</strong> receive Telegram Business away » and greeting » messages.
 type InputBusinessRecipients struct {
 	ExistingChats   bool        `tl:"flag:0,encoded_in_bitflags"`
 	NewChats        bool        `tl:"flag:1,encoded_in_bitflags"`
@@ -1792,7 +1812,7 @@ func (*InputChatlistDialogFilter) CRC() uint32 {
 	return 0xf3e0da33
 }
 
-// Info about an [MTProxy](https://core.telegram.org/mtproto/mtproto-transports#transport-obfuscation) used to connect.
+// Info about an MTProxy used to connect.
 type InputClientProxy struct {
 	Address string
 	Port    int32
@@ -1873,7 +1893,7 @@ func (*InputPhoneContact) CRC() uint32 {
 	return 0xf392b7f4
 }
 
-// Secure value, [for more info see the passport docs »](https://core.telegram.org/passport/encryption#encryption)
+// Secure value, for more info see the passport docs »
 type InputSecureValue struct {
 	Type        SecureValueType
 	Data        *SecureData       `tl:"flag:0"`
@@ -1893,7 +1913,7 @@ func (*InputSecureValue) FlagIndex() int {
 	return 0
 }
 
-// A single media in an [album or grouped media](https://core.telegram.org/api/files#albums-grouped-media) sent with [messages.sendMultiMedia](https://core.telegram.org/method/messages.sendMultiMedia).
+// A single media in an album or grouped media sent with messages.sendMultiMedia.
 type InputSingleMedia struct {
 	Media    InputMedia
 	RandomID int64
@@ -1909,7 +1929,7 @@ func (*InputSingleMedia) FlagIndex() int {
 	return 0
 }
 
-// Used to fetch info about a [Telegram Star transaction »](https://core.telegram.org/api/stars#balance-and-transaction-history).
+// Used to fetch info about a Telegram Star transaction ».
 type InputStarsTransaction struct {
 	Refund bool `tl:"flag:0,encoded_in_bitflags"`
 	ID     string
@@ -2061,7 +2081,7 @@ func (*LangPackLanguage) FlagIndex() int {
 	return 0
 }
 
-// Position on a photo where a mask should be placed when [attaching stickers to media »](https://core.telegram.org/api/stickers#attached-stickers)
+// Position on a photo where a mask should be placed when attaching stickers to media »
 type MaskCoords struct {
 	N    int32
 	X    float64
@@ -2144,7 +2164,7 @@ func (*MessageRange) CRC() uint32 {
 	return 0xae30253
 }
 
-// [Message reactions »](https://core.telegram.org/api/reactions)
+// Message reactions »
 type MessageReactions struct {
 	Min             bool `tl:"flag:0,encoded_in_bitflags"`
 	CanSeeList      bool `tl:"flag:2,encoded_in_bitflags"`
@@ -2162,6 +2182,7 @@ func (*MessageReactions) FlagIndex() int {
 	return 0
 }
 
+// Info about a user in the paid Star reactions leaderboard for a message.
 type MessageReactor struct {
 	Top       bool `tl:"flag:0,encoded_in_bitflags"`
 	My        bool `tl:"flag:1,encoded_in_bitflags"`
@@ -2178,7 +2199,7 @@ func (*MessageReactor) FlagIndex() int {
 	return 0
 }
 
-// Info about [the comment section of a channel post, or a simple message thread](https://core.telegram.org/api/threads)
+// Info about the comment section of a channel post, or a simple message thread
 type MessageReplies struct {
 	Comments       bool `tl:"flag:0,encoded_in_bitflags"`
 	Replies        int32
@@ -2197,6 +2218,7 @@ func (*MessageReplies) FlagIndex() int {
 	return 0
 }
 
+// Report menu option
 type MessageReportOption struct {
 	Text   string
 	Option []byte
@@ -2264,7 +2286,7 @@ func (*MessagesArchivedStickers) CRC() uint32 {
 	return 0x4fcba9c8
 }
 
-// Contains information about a [direct link Mini App](https://core.telegram.org/api/bots/webapps#direct-link-mini-apps)
+// Contains information about a direct link Mini App
 type MessagesBotApp struct {
 	Inactive           bool `tl:"flag:0,encoded_in_bitflags"`
 	RequestWriteAccess bool `tl:"flag:1,encoded_in_bitflags"`
@@ -2298,6 +2320,21 @@ func (*MessagesBotCallbackAnswer) FlagIndex() int {
 	return 0
 }
 
+/*
+<div class="clearfix">
+  <ul class="dev_layer_select slightly-pull-right nav nav-pills">
+    <li class="dropdown">
+      <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+      <ul class="dropdown-menu">
+        <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+        <li class="divider"></li>
+        <li>More...</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+<pre class="page_scheme"><code><a  href="/constructor/messages.botPreparedInlineMessage"  class="current_page_link" >messages.botPreparedInlineMessage</a>#8ecf0511 id:string expire_date:int = messages.BotPreparedInlineMessage;</code></pre>
+*/
 type MessagesBotPreparedInlineMessage struct {
 	ID         string
 	ExpireDate int32
@@ -2337,7 +2374,7 @@ func (*MessagesChatAdminsWithInvites) CRC() uint32 {
 	return 0xb69b72d7
 }
 
-// Full info about a [channel](https://core.telegram.org/api/channel#channels), [supergroup](https://core.telegram.org/api/channel#supergroups), [gigagroup](https://core.telegram.org/api/channel#gigagroups) or [basic group](https://core.telegram.org/api/channel#basic-groups).
+// Full info about a channel, supergroup, gigagroup or basic group.
 type MessagesChatFull struct {
 	FullChat ChatFull
 	Chats    []Chat
@@ -2359,7 +2396,7 @@ func (*MessagesChatInviteImporters) CRC() uint32 {
 	return 0x81b6b00a
 }
 
-// Contains a confirmation text to be shown to the user, upon [importing chat history, click here for more info »](https://core.telegram.org/api/import).
+// Contains a confirmation text to be shown to the user, upon importing chat history, click here for more info ».
 type MessagesCheckedHistoryImportPeer struct {
 	ConfirmText string
 }
@@ -2368,7 +2405,7 @@ func (*MessagesCheckedHistoryImportPeer) CRC() uint32 {
 	return 0xa24de717
 }
 
-// [Folder and folder tags](https://core.telegram.org/api/folders) information
+// Folder and folder tags information
 type MessagesDialogFilters struct {
 	TagsEnabled bool `tl:"flag:0,encoded_in_bitflags"`
 	Filters     []DialogFilter
@@ -2382,7 +2419,7 @@ func (*MessagesDialogFilters) FlagIndex() int {
 	return 0
 }
 
-// Information about a [message thread](https://core.telegram.org/api/threads)
+// Information about a message thread
 type MessagesDiscussionMessage struct {
 	Messages        []Message
 	MaxID           int32 `tl:"flag:0"`
@@ -2412,7 +2449,7 @@ func (*MessagesExportedChatInvites) CRC() uint32 {
 	return 0xbdc62dcc
 }
 
-// Contains information about multiple [forum topics](https://core.telegram.org/api/forum#forum-topics)
+// Contains information about multiple forum topics
 type MessagesForumTopics struct {
 	OrderByCreateDate bool `tl:"flag:0,encoded_in_bitflags"`
 	Count             int32
@@ -2441,7 +2478,7 @@ func (*MessagesHighScores) CRC() uint32 {
 	return 0x9a3bfd99
 }
 
-// ID of a specific [chat import session, click here for more info »](https://core.telegram.org/api/import).
+// ID of a specific chat import session, click here for more info ».
 type MessagesHistoryImport struct {
 	ID int64
 }
@@ -2451,7 +2488,7 @@ func (*MessagesHistoryImport) CRC() uint32 {
 }
 
 /*
-Contains information about a chat export file [generated by a foreign chat app, click here for more info](https://core.telegram.org/api/import).<br>
+Contains information about a chat export file generated by a foreign chat app, click here for more info.<br>
 If neither the `pm` or `group` flags are set, the specified chat export was generated from a chat of unknown type.
 */
 type MessagesHistoryImportParsed struct {
@@ -2479,7 +2516,7 @@ func (*MessagesInactiveChats) CRC() uint32 {
 	return 0xa927fec5
 }
 
-// Contains info about successfully or unsuccessfully [invited »](https://core.telegram.org/api/invites#direct-invites) users.
+// Contains info about successfully or unsuccessfully invited » users.
 type MessagesInvitedUsers struct {
 	Updates         Updates
 	MissingInvitees []*MissingInvitee
@@ -2530,7 +2567,7 @@ func (*MessagesMessageViews) CRC() uint32 {
 	return 0xb6c4f543
 }
 
-// The list of [stickersets owned by the current account »](https://core.telegram.org/api/stickers).
+// The list of stickersets owned by the current account ».
 type MessagesMyStickers struct {
 	Count int32
 	Sets  []StickerSetCovered
@@ -2564,6 +2601,21 @@ func (*MessagesPeerSettings) CRC() uint32 {
 	return 0x6880b94d
 }
 
+/*
+<div class="clearfix">
+  <ul class="dev_layer_select slightly-pull-right nav nav-pills">
+    <li class="dropdown">
+      <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+      <ul class="dropdown-menu">
+        <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+        <li class="divider"></li>
+        <li>More...</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+<pre class="page_scheme"><code><a  href="/constructor/messages.preparedInlineMessage"  class="current_page_link" >messages.preparedInlineMessage</a>#ff57708d query_id:long result:BotInlineResult peer_types:Vector&lt;InlineQueryPeerType&gt; cache_time:int users:Vector&lt;User&gt; = messages.PreparedInlineMessage;</code></pre>
+*/
 type MessagesPreparedInlineMessage struct {
 	QueryID   int64
 	Result    BotInlineResult
@@ -2576,7 +2628,7 @@ func (*MessagesPreparedInlineMessage) CRC() uint32 {
 	return 0xff57708d
 }
 
-// Indicates how many results would be found by a [messages.search](https://core.telegram.org/method/messages.search) call with the same parameters
+// Indicates how many results would be found by a messages.search call with the same parameters
 type MessagesSearchCounter struct {
 	Inexact bool `tl:"flag:1,encoded_in_bitflags"`
 	Filter  MessagesFilter
@@ -2622,7 +2674,7 @@ func (*MessagesSearchResultsPositions) CRC() uint32 {
 	return 0x53b22baf
 }
 
-// [Transcribed text from a voice message »](https://core.telegram.org/api/transcribe)
+// Transcribed text from a voice message »
 type MessagesTranscribedAudio struct {
 	Pending               bool `tl:"flag:0,encoded_in_bitflags"`
 	TranscriptionID       int64
@@ -2639,7 +2691,7 @@ func (*MessagesTranscribedAudio) FlagIndex() int {
 	return 0
 }
 
-// Translated text with [entities](https://core.telegram.org/api/entities)
+// Translated text with entities
 type MessagesTranslateResult struct {
 	Result []*TextWithEntities
 }
@@ -2685,7 +2737,7 @@ func (*MessagesWebViewResult) CRC() uint32 {
 	return 0xaadf159b
 }
 
-// Info about why a specific user could not be [invited »](https://core.telegram.org/api/invites#direct-invites).
+// Info about why a specific user could not be invited ».
 type MissingInvitee struct {
 	PremiumWouldAllowInvite bool `tl:"flag:0,encoded_in_bitflags"`
 	PremiumRequiredForPm    bool `tl:"flag:1,encoded_in_bitflags"`
@@ -2700,7 +2752,7 @@ func (*MissingInvitee) FlagIndex() int {
 	return 0
 }
 
-// Contains information about a single [boost slot »](https://core.telegram.org/api/boost).
+// Contains information about a single boost slot ».
 type MyBoost struct {
 	Slot              int32
 	Peer              Peer `tl:"flag:0"`
@@ -2737,7 +2789,7 @@ func (*OutboxReadDate) CRC() uint32 {
 	return 0x3bb842ac
 }
 
-// [Instant view](https://core.telegram.orghttps://instantview.telegram.org) page
+// Instant view page
 type Page struct {
 	Part      bool `tl:"flag:0,encoded_in_bitflags"`
 	Rtl       bool `tl:"flag:1,encoded_in_bitflags"`
@@ -2871,7 +2923,7 @@ func (*PaymentsBankCardData) CRC() uint32 {
 	return 0x3e24e573
 }
 
-// Contains info about a [Telegram Premium giftcode link](https://core.telegram.org/api/links#premium-giftcode-links).
+// Contains info about a Telegram Premium giftcode link.
 type PaymentsCheckedGiftCode struct {
 	ViaGiveaway   bool  `tl:"flag:2,encoded_in_bitflags"`
 	FromID        Peer  `tl:"flag:4"`
@@ -2892,7 +2944,32 @@ func (*PaymentsCheckedGiftCode) FlagIndex() int {
 	return 0
 }
 
-// Exported [invoice deep link](https://core.telegram.org/api/links#invoice-links)
+/*
+<div class="clearfix">
+  <ul class="dev_layer_select slightly-pull-right nav nav-pills">
+    <li class="dropdown">
+      <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+      <ul class="dropdown-menu">
+        <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+        <li class="divider"></li>
+        <li>More...</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+<pre class="page_scheme"><code><a  href="/constructor/payments.connectedStarRefBots"  class="current_page_link" >payments.connectedStarRefBots</a>#98d5ea1d count:int connected_bots:Vector&lt;ConnectedBotStarRef&gt; users:Vector&lt;User&gt; = payments.ConnectedStarRefBots;</code></pre>
+*/
+type PaymentsConnectedStarRefBots struct {
+	Count         int32
+	ConnectedBots []*ConnectedBotStarRef
+	Users         []User
+}
+
+func (*PaymentsConnectedStarRefBots) CRC() uint32 {
+	return 0x98d5ea1d
+}
+
+// Exported invoice deep link
 type PaymentsExportedInvoice struct {
 	URL string
 }
@@ -2915,7 +2992,7 @@ func (*PaymentsSavedInfo) FlagIndex() int {
 	return 0
 }
 
-// Contains a URL leading to a page where the user will be able to place ads for the channel/bot, paying using [Telegram Stars](https://core.telegram.org/api/stars#paying-for-ads).
+// Contains a URL leading to a page where the user will be able to place ads for the channel/bot, paying using Telegram Stars.
 type PaymentsStarsRevenueAdsAccountURL struct {
 	URL string
 }
@@ -2924,7 +3001,7 @@ func (*PaymentsStarsRevenueAdsAccountURL) CRC() uint32 {
 	return 0x394e7f21
 }
 
-// [Star revenue statistics, see here »](https://core.telegram.org/api/stars) for more info.
+// Star revenue statistics, see here » for more info.
 type PaymentsStarsRevenueStats struct {
 	RevenueGraph StatsGraph
 	Status       *StarsRevenueStatus
@@ -2935,7 +3012,7 @@ func (*PaymentsStarsRevenueStats) CRC() uint32 {
 	return 0xc92bb73b
 }
 
-// Contains the URL to use to [withdraw Telegram Star revenue](https://core.telegram.org/api/stars#withdrawing-revenue).
+// Contains the URL to use to withdraw Telegram Star revenue.
 type PaymentsStarsRevenueWithdrawalURL struct {
 	URL string
 }
@@ -2944,7 +3021,7 @@ func (*PaymentsStarsRevenueWithdrawalURL) CRC() uint32 {
 	return 0x1dab80b7
 }
 
-// Info about the current [Telegram Star balance and transaction history »](https://core.telegram.org/api/stars#balance-and-transaction-history).
+// Info about the current Telegram Star subscriptions, balance and transaction history ».
 type PaymentsStarsStatus struct {
 	Balance                     *StarsAmount
 	Subscriptions               []*StarsSubscription `tl:"flag:1"`
@@ -2964,6 +3041,37 @@ func (*PaymentsStarsStatus) FlagIndex() int {
 	return 0
 }
 
+/*
+<div class="clearfix">
+  <ul class="dev_layer_select slightly-pull-right nav nav-pills">
+    <li class="dropdown">
+      <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+      <ul class="dropdown-menu">
+        <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+        <li class="divider"></li>
+        <li>More...</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+<pre class="page_scheme"><code><a  href="/constructor/payments.suggestedStarRefBots"  class="current_page_link" >payments.suggestedStarRefBots</a>#b4d5d859 flags:# count:int suggested_bots:Vector&lt;StarRefProgram&gt; users:Vector&lt;User&gt; next_offset:flags.0?string = payments.SuggestedStarRefBots;</code></pre>
+*/
+type PaymentsSuggestedStarRefBots struct {
+	Count         int32
+	SuggestedBots []*StarRefProgram
+	Users         []User
+	NextOffset    string `tl:"flag:0"`
+}
+
+func (*PaymentsSuggestedStarRefBots) CRC() uint32 {
+	return 0xb4d5d859
+}
+
+func (*PaymentsSuggestedStarRefBots) FlagIndex() int {
+	return 0
+}
+
+// Gifts displayed on a user's profile.
 type PaymentsUserStarGifts struct {
 	Count      int32
 	Gifts      []*UserStarGift
@@ -3003,7 +3111,7 @@ func (*PeerBlocked) CRC() uint32 {
 	return 0xe8fd8014
 }
 
-// Represents a [color palette »](https://core.telegram.org/api/colors).
+// Represents a color palette ».
 type PeerColor struct {
 	Color             int32 `tl:"flag:0"`
 	BackgroundEmojiID int64 `tl:"flag:1"`
@@ -3040,7 +3148,7 @@ func (*PeerNotifySettings) FlagIndex() int {
 	return 0
 }
 
-// List of actions that are possible when interacting with this user, to be shown as suggested actions in the [chat action bar »](https://core.telegram.org/api/action-bar), see [here »](https://core.telegram.org/api/action-bar) for more info.
+// List of actions that are possible when interacting with this user, to be shown as suggested actions in the chat action bar », see here » for more info.
 type PeerSettings struct {
 	ReportSpam            bool   `tl:"flag:0,encoded_in_bitflags"`
 	AddContact            bool   `tl:"flag:1,encoded_in_bitflags"`
@@ -3068,7 +3176,7 @@ func (*PeerSettings) FlagIndex() int {
 	return 0
 }
 
-// [Stories](https://core.telegram.org/api/stories) associated to a peer
+// Stories associated to a peer
 type PeerStories struct {
 	Peer      Peer
 	MaxReadID int32 `tl:"flag:0"`
@@ -3275,7 +3383,7 @@ func (*PostAddress) CRC() uint32 {
 	return 0x1e8caaeb
 }
 
-// List of [boosts](https://core.telegram.org/api/boost) that were applied to a peer by multiple users.
+// List of boosts that were applied to a peer by multiple users.
 type PremiumBoostsList struct {
 	Count      int32
 	Boosts     []*Boost
@@ -3291,7 +3399,7 @@ func (*PremiumBoostsList) FlagIndex() int {
 	return 0
 }
 
-// Contains info about the current [boost status](https://core.telegram.org/api/boost) of a peer.
+// Contains info about the current boost status of a peer.
 type PremiumBoostsStatus struct {
 	MyBoost            bool `tl:"flag:2,encoded_in_bitflags"`
 	Level              int32
@@ -3313,7 +3421,7 @@ func (*PremiumBoostsStatus) FlagIndex() int {
 	return 0
 }
 
-// A list of peers we are currently [boosting](https://core.telegram.org/api/boost), and how many [boost slots](https://core.telegram.org/api/boost) we have left.
+// A list of peers we are currently boosting, and how many boost slots we have left.
 type PremiumMyBoosts struct {
 	MyBoosts []*MyBoost
 	Chats    []Chat
@@ -3324,7 +3432,7 @@ func (*PremiumMyBoosts) CRC() uint32 {
 	return 0x9ae228e2
 }
 
-// Contains info about a [giveaway/gift](https://core.telegram.org/api/giveaways) option.
+// Contains info about a giveaway/gift option.
 type PremiumGiftCodeOption struct {
 	Users         int32
 	Months        int32
@@ -3379,7 +3487,7 @@ func (*PremiumSubscriptionOption) FlagIndex() int {
 	return 0
 }
 
-// A [quick reply shortcut](https://core.telegram.org/api/business#quick-reply-shortcuts).
+// A quick reply shortcut.
 type QuickReply struct {
 	ShortcutID int32
 	Shortcut   string
@@ -3406,7 +3514,7 @@ func (*ReactionCount) FlagIndex() int {
 	return 0
 }
 
-// Reaction notification settings, see [here »](https://core.telegram.org/api/reactions#notifications-about-reactions) for more info.
+// Reaction notification settings, see here » for more info.
 type ReactionsNotifySettings struct {
 	MessagesNotifyFrom ReactionNotificationsFrom `tl:"flag:0"`
 	StoriesNotifyFrom  ReactionNotificationsFrom `tl:"flag:1"`
@@ -3453,7 +3561,7 @@ func (*RestrictionReason) CRC() uint32 {
 	return 0xd072acb4
 }
 
-// Represents a [saved dialog »](https://core.telegram.org/api/saved-messages).
+// Represents a saved dialog ».
 type SavedDialog struct {
 	Pinned     bool `tl:"flag:2,encoded_in_bitflags"`
 	Peer       Peer
@@ -3480,7 +3588,7 @@ func (*SavedPhoneContact) CRC() uint32 {
 	return 0x1142bd56
 }
 
-// Info about a [saved message reaction tag »](https://core.telegram.org/api/saved-messages#tags).
+// Info about a saved message reaction tag ».
 type SavedReactionTag struct {
 	Reaction Reaction
 	Title    string `tl:"flag:0"`
@@ -3506,7 +3614,7 @@ func (*SearchResultPosition) CRC() uint32 {
 	return 0x7f648b67
 }
 
-// Information about found messages sent on a specific day, used to split the `messages` in [messages.searchResultsCalendar](https://core.telegram.org/constructor/messages.searchResultsCalendar) constructors by days.
+// Information about found messages sent on a specific day, used to split the `messages` in messages.searchResultsCalendar constructors by days.
 type SearchResultsCalendarPeriod struct {
 	Date     int32
 	MinMsgID int32
@@ -3518,7 +3626,7 @@ func (*SearchResultsCalendarPeriod) CRC() uint32 {
 	return 0xc9b0539f
 }
 
-// Encrypted credentials required to decrypt [telegram passport](https://core.telegram.org/passport) data.
+// Encrypted credentials required to decrypt telegram passport data.
 type SecureCredentialsEncrypted struct {
 	Data   []byte
 	Hash   []byte
@@ -3529,7 +3637,7 @@ func (*SecureCredentialsEncrypted) CRC() uint32 {
 	return 0x33f0ea47
 }
 
-// Secure [passport](https://core.telegram.org/passport) data, for more info [see the passport docs »](https://core.telegram.org/passport/encryption#securedata)
+// Secure passport data, for more info see the passport docs »
 type SecureData struct {
 	Data     []byte
 	DataHash []byte
@@ -3607,15 +3715,6 @@ func (*ShippingOption) CRC() uint32 {
 	return 0xb6213cdf
 }
 
-// Contains the webview URL with appropriate theme parameters added
-type SimpleWebViewResultURL struct {
-	URL string
-}
-
-func (*SimpleWebViewResultURL) CRC() uint32 {
-	return 0x882f76bb
-}
-
 // Info about an SMS job.
 type SmsJob struct {
 	JobID       string
@@ -3657,7 +3756,7 @@ func (*SmsjobsStatus) FlagIndex() int {
 	return 0
 }
 
-// A [sponsored message](https://core.telegram.org/api/sponsored-messages).
+// A sponsored message.
 type SponsoredMessage struct {
 	Recommended    bool `tl:"flag:5,encoded_in_bitflags"`
 	CanReport      bool `tl:"flag:12,encoded_in_bitflags"`
@@ -3682,7 +3781,7 @@ func (*SponsoredMessage) FlagIndex() int {
 	return 0
 }
 
-// A [report option for a sponsored message »](https://core.telegram.org/api/sponsored-messages#reporting-sponsored-messages).
+// A report option for a sponsored message ».
 type SponsoredMessageReportOption struct {
 	Text   string
 	Option []byte
@@ -3692,6 +3791,7 @@ func (*SponsoredMessageReportOption) CRC() uint32 {
 	return 0x430d3150
 }
 
+// Represents a star gift, see here » for more info.
 type StarGift struct {
 	Limited             bool `tl:"flag:0,encoded_in_bitflags"`
 	SoldOut             bool `tl:"flag:1,encoded_in_bitflags"`
@@ -3714,6 +3814,21 @@ func (*StarGift) FlagIndex() int {
 	return 0
 }
 
+/*
+<div class="clearfix">
+  <ul class="dev_layer_select slightly-pull-right nav nav-pills">
+    <li class="dropdown">
+      <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+      <ul class="dropdown-menu">
+        <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+        <li class="divider"></li>
+        <li>More...</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+<pre class="page_scheme"><code><a  href="/constructor/starRefProgram"  class="current_page_link" >starRefProgram</a>#dd0c66f2 flags:# bot_id:long commission_permille:int duration_months:flags.0?int end_date:flags.1?int daily_revenue_per_user:flags.2?StarsAmount = StarRefProgram;</code></pre>
+*/
 type StarRefProgram struct {
 	BotID               int64
 	CommissionPermille  int32
@@ -3730,6 +3845,21 @@ func (*StarRefProgram) FlagIndex() int {
 	return 0
 }
 
+/*
+<div class="clearfix">
+  <ul class="dev_layer_select slightly-pull-right nav nav-pills">
+    <li class="dropdown">
+      <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+      <ul class="dropdown-menu">
+        <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+        <li class="divider"></li>
+        <li>More...</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+<pre class="page_scheme"><code><a  href="/constructor/starsAmount"  class="current_page_link" >starsAmount</a>#bbb6b4a3 amount:long nanos:int = StarsAmount;</code></pre>
+*/
 type StarsAmount struct {
 	Amount int64
 	Nanos  int32
@@ -3739,7 +3869,7 @@ func (*StarsAmount) CRC() uint32 {
 	return 0xbbb6b4a3
 }
 
-// [Telegram Stars gift option](https://core.telegram.org/api/stars#buying-or-gifting-stars).
+// Telegram Stars gift option.
 type StarsGiftOption struct {
 	Extended     bool `tl:"flag:1,encoded_in_bitflags"`
 	Stars        int64
@@ -3756,6 +3886,7 @@ func (*StarsGiftOption) FlagIndex() int {
 	return 0
 }
 
+// Contains info about a Telegram Star giveaway option.
 type StarsGiveawayOption struct {
 	Extended     bool `tl:"flag:0,encoded_in_bitflags"`
 	Default      bool `tl:"flag:1,encoded_in_bitflags"`
@@ -3775,6 +3906,7 @@ func (*StarsGiveawayOption) FlagIndex() int {
 	return 0
 }
 
+// Allowed options for the number of giveaway winners.
 type StarsGiveawayWinnersOption struct {
 	Default      bool `tl:"flag:0,encoded_in_bitflags"`
 	Users        int32
@@ -3789,23 +3921,24 @@ func (*StarsGiveawayWinnersOption) FlagIndex() int {
 	return 0
 }
 
-// Describes [Telegram Star revenue balances »](https://core.telegram.org/api/stars).
+// Describes Telegram Star revenue balances ».
 type StarsRevenueStatus struct {
 	WithdrawalEnabled bool `tl:"flag:0,encoded_in_bitflags"`
-	CurrentBalance    int64
-	AvailableBalance  int64
-	OverallRevenue    int64
+	CurrentBalance    *StarsAmount
+	AvailableBalance  *StarsAmount
+	OverallRevenue    *StarsAmount
 	NextWithdrawalAt  int32 `tl:"flag:1"`
 }
 
 func (*StarsRevenueStatus) CRC() uint32 {
-	return 0x79342946
+	return 0xfebe5491
 }
 
 func (*StarsRevenueStatus) FlagIndex() int {
 	return 0
 }
 
+// Represents a Telegram Star subscription ».
 type StarsSubscription struct {
 	Canceled       bool `tl:"flag:0,encoded_in_bitflags"`
 	CanRefulfill   bool `tl:"flag:1,encoded_in_bitflags"`
@@ -3829,6 +3962,7 @@ func (*StarsSubscription) FlagIndex() int {
 	return 0
 }
 
+// Pricing of a Telegram Star subscription ».
 type StarsSubscriptionPricing struct {
 	Period int32
 	Amount int64
@@ -3838,7 +3972,7 @@ func (*StarsSubscriptionPricing) CRC() uint32 {
 	return 0x5416d58
 }
 
-// [Telegram Stars topup option](https://core.telegram.org/api/stars).
+// Telegram Stars topup option.
 type StarsTopupOption struct {
 	Extended     bool `tl:"flag:1,encoded_in_bitflags"`
 	Stars        int64
@@ -3855,7 +3989,7 @@ func (*StarsTopupOption) FlagIndex() int {
 	return 0
 }
 
-// Represents a [Telegram Stars transaction »](https://core.telegram.org/api/stars).
+// Represents a Telegram Stars transaction ».
 type StarsTransaction struct {
 	Refund                    bool `tl:"flag:3,encoded_in_bitflags"`
 	Pending                   bool `tl:"flag:4,encoded_in_bitflags"`
@@ -3893,7 +4027,7 @@ func (*StarsTransaction) FlagIndex() int {
 	return 0
 }
 
-// [Channel revenue ad statistics, see here »](https://core.telegram.org/api/revenue) for more info.
+// Channel revenue ad statistics, see here » for more info.
 type StatsBroadcastRevenueStats struct {
 	TopHoursGraph StatsGraph
 	RevenueGraph  StatsGraph
@@ -3905,7 +4039,7 @@ func (*StatsBroadcastRevenueStats) CRC() uint32 {
 	return 0x5407e297
 }
 
-// [Channel ad revenue transactions »](https://core.telegram.org/api/revenue).
+// Channel ad revenue transactions ».
 type StatsBroadcastRevenueTransactions struct {
 	Count        int32
 	Transactions []BroadcastRevenueTransaction
@@ -3915,7 +4049,7 @@ func (*StatsBroadcastRevenueTransactions) CRC() uint32 {
 	return 0x87158466
 }
 
-// Contains the URL to use to [withdraw channel ad revenue](https://core.telegram.org/api/revenue#withdrawing-revenue).
+// Contains the URL to use to withdraw channel ad revenue.
 type StatsBroadcastRevenueWithdrawalURL struct {
 	URL string
 }
@@ -3924,7 +4058,7 @@ func (*StatsBroadcastRevenueWithdrawalURL) CRC() uint32 {
 	return 0xec659737
 }
 
-// [Channel statistics](https://core.telegram.org/api/stats).
+// Channel statistics.
 type StatsBroadcastStats struct {
 	Period                       *StatsDateRangeDays
 	Followers                    *StatsAbsValueAndPrev
@@ -3954,7 +4088,7 @@ func (*StatsBroadcastStats) CRC() uint32 {
 	return 0x396ca5fc
 }
 
-// Supergroup [statistics](https://core.telegram.org/api/stats)
+// Supergroup statistics
 type StatsMegagroupStats struct {
 	Period                  *StatsDateRangeDays
 	Members                 *StatsAbsValueAndPrev
@@ -3989,7 +4123,7 @@ func (*StatsMessageStats) CRC() uint32 {
 	return 0x7fe91c14
 }
 
-// Contains info about the forwards of a [story](https://core.telegram.org/api/stories) as a message to public chats and reposts by public channels.
+// Contains info about the forwards of a story as a message to public chats and reposts by public channels.
 type StatsPublicForwards struct {
 	Count      int32
 	Forwards   []PublicForward
@@ -4006,7 +4140,7 @@ func (*StatsPublicForwards) FlagIndex() int {
 	return 0
 }
 
-// Contains [statistics](https://core.telegram.org/api/stats) about a [story](https://core.telegram.org/api/stories).
+// Contains statistics about a story.
 type StatsStoryStats struct {
 	ViewsGraph              StatsGraph
 	ReactionsByEmotionGraph StatsGraph
@@ -4026,7 +4160,7 @@ func (*StatsAbsValueAndPrev) CRC() uint32 {
 	return 0xcb43acde
 }
 
-// [Channel statistics](https://core.telegram.org/api/stats) date range
+// Channel statistics date range
 type StatsDateRangeDays struct {
 	MinDate int32
 	MaxDate int32
@@ -4070,7 +4204,7 @@ func (*StatsGroupTopPoster) CRC() uint32 {
 }
 
 /*
-[Channel statistics percentage](https://core.telegram.org/api/stats).<br>
+Channel statistics percentage.<br>
 Compute the percentage simply by doing `part * total / 100`
 */
 type StatsPercentValue struct {
@@ -4103,7 +4237,7 @@ func (*StickerKeyword) CRC() uint32 {
 
 /*
 A stickerpack is a group of stickers associated to the same emoji.<br>
-It is <strong>not</strong> a sticker pack the way it is usually intended, you may be looking for a [StickerSet](https://core.telegram.org/type/StickerSet).
+It is <strong>not</strong> a sticker pack the way it is usually intended, you may be looking for a StickerSet.
 */
 type StickerPack struct {
 	Emoticon  string
@@ -4153,7 +4287,7 @@ func (*StickersSuggestedShortName) CRC() uint32 {
 	return 0x85fea03f
 }
 
-// Stories found using [global story search »](https://core.telegram.org/api/stories#searching-stories).
+// Stories found using global story search ».
 type StoriesFoundStories struct {
 	Count      int32
 	Stories    []*FoundStory
@@ -4170,7 +4304,7 @@ func (*StoriesFoundStories) FlagIndex() int {
 	return 0
 }
 
-// [Active story list](https://core.telegram.org/api/stories#watching-stories) of a specific peer.
+// Active story list of a specific peer.
 type StoriesPeerStories struct {
 	Stories *PeerStories
 	Chats   []Chat
@@ -4181,7 +4315,7 @@ func (*StoriesPeerStories) CRC() uint32 {
 	return 0xcae68768
 }
 
-// List of [stories](https://core.telegram.org/api/stories#pinned-or-archived-stories)
+// List of stories
 type StoriesStories struct {
 	Count       int32
 	Stories     []StoryItem
@@ -4198,7 +4332,7 @@ func (*StoriesStories) FlagIndex() int {
 	return 0
 }
 
-// List of peers that reacted to or intercated with a specific [story](https://core.telegram.org/api/stories)
+// List of peers that reacted to or intercated with a specific story
 type StoriesStoryReactionsList struct {
 	Count      int32
 	Reactions  []StoryReaction
@@ -4215,7 +4349,7 @@ func (*StoriesStoryReactionsList) FlagIndex() int {
 	return 0
 }
 
-// Reaction and view counters for a list of [stories](https://core.telegram.org/api/stories)
+// Reaction and view counters for a list of stories
 type StoriesStoryViews struct {
 	Views []*StoryViews
 	Users []User
@@ -4225,7 +4359,7 @@ func (*StoriesStoryViews) CRC() uint32 {
 	return 0xde9eed1d
 }
 
-// Reaction and view counters for a [story](https://core.telegram.org/api/stories)
+// Reaction and view counters for a story
 type StoriesStoryViewsList struct {
 	Count          int32
 	ViewsCount     int32
@@ -4245,7 +4379,7 @@ func (*StoriesStoryViewsList) FlagIndex() int {
 	return 0
 }
 
-// Information about the current [stealth mode](https://core.telegram.org/api/stories#stealth-mode) session.
+// Information about the current stealth mode session.
 type StoriesStealthMode struct {
 	ActiveUntilDate   int32 `tl:"flag:0"`
 	CooldownUntilDate int32 `tl:"flag:1"`
@@ -4275,7 +4409,7 @@ func (*StoryFwdHeader) FlagIndex() int {
 	return 0
 }
 
-// Aggregated view and reaction information of a [story](https://core.telegram.org/api/stories).
+// Aggregated view and reaction information of a story.
 type StoryViews struct {
 	HasViewers     bool `tl:"flag:1,encoded_in_bitflags"`
 	ViewsCount     int32
@@ -4293,22 +4427,7 @@ func (*StoryViews) FlagIndex() int {
 	return 0
 }
 
-type SuggestedStarRefBots struct {
-	Count         int32
-	SuggestedBots []*StarRefProgram
-	Users         []User
-	NextOffset    string `tl:"flag:0"`
-}
-
-func (*SuggestedStarRefBots) CRC() uint32 {
-	return 0xb4d5d859
-}
-
-func (*SuggestedStarRefBots) FlagIndex() int {
-	return 0
-}
-
-// Styled text with [message entities](https://core.telegram.org/api/entities)
+// Styled text with message entities
 type TextWithEntities struct {
 	Text     string
 	Entities []MessageEntity
@@ -4404,7 +4523,7 @@ func (*UpdatesState) CRC() uint32 {
 	return 0xa56c2a3e
 }
 
-// Represents a chunk of an [HTTP webfile](https://core.telegram.org/api/files) downloaded through telegram's secure MTProto servers
+// Represents a chunk of an HTTP webfile downloaded through telegram's secure MTProto servers
 type UploadWebFile struct {
 	Size     int32
 	MimeType string
@@ -4474,6 +4593,7 @@ func (*UserFull) FlagIndex() int {
 	return 14
 }
 
+// Represents a gift, displayed on a user's profile page.
 type UserStarGift struct {
 	NameHidden   bool  `tl:"flag:0,encoded_in_bitflags"`
 	Unsaved      bool  `tl:"flag:5,encoded_in_bitflags"`
@@ -4519,7 +4639,7 @@ func (*UsersUserFull) CRC() uint32 {
 	return 0x3b6d152e
 }
 
-// [Wallpaper](https://core.telegram.org/api/wallpapers) rendering information.
+// Wallpaper rendering information.
 type WallPaperSettings struct {
 	Blur                  bool   `tl:"flag:1,encoded_in_bitflags"`
 	Motion                bool   `tl:"flag:2,encoded_in_bitflags"`
@@ -4540,7 +4660,7 @@ func (*WallPaperSettings) FlagIndex() int {
 	return 0
 }
 
-// Represents a bot logged in using the [Telegram login widget](https://core.telegram.org/widgets/login)
+// Represents a bot logged in using the Telegram login widget
 type WebAuthorization struct {
 	Hash        int64
 	BotID       int64
