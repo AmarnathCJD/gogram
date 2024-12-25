@@ -499,6 +499,13 @@ mediaTypeSwitch:
 		return media, nil
 	case *InputMedia:
 		return *media, nil
+	case Document:
+		switch media := media.(type) {
+		case *DocumentObj:
+			return &InputMediaDocument{ID: &InputDocumentObj{ID: media.ID, AccessHash: media.AccessHash, FileReference: media.FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+		case *DocumentEmpty:
+			return &InputMediaDocument{ID: &InputDocumentEmpty{}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+		}
 	case Photo:
 		switch media := media.(type) {
 		case *PhotoObj:
@@ -584,7 +591,7 @@ mediaTypeSwitch:
 				mediaAttributes = append(mediaAttributes, &DocumentAttributeFilename{FileName: fileName})
 			}
 
-			uploadedDoc := &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValueAny(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false), ForceFile: false}
+			uploadedDoc := &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValueAny(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false), ForceFile: getValue(attr.ForceDocument, false)}
 			if attr.Inline {
 				return c.uploadToSelf(uploadedDoc)
 			}
