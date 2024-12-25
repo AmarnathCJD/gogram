@@ -175,7 +175,7 @@ func (i *InlineBuilder) Document(document any, options ...*ArticleOptions) Input
 	var opts = getVariadic(options, &ArticleOptions{})
 	inputDoc, err := i.Client.getSendableMedia(document, &MediaMetadata{
 		Inline:        true,
-		ForceDocument: true,
+		ForceDocument: opts.ForceDocument,
 	})
 	if err != nil {
 		i.Client.Logger.Debug("InlineBuilder.Document: Error getting sendable media:", err)
