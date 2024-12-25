@@ -1328,47 +1328,47 @@ type Channel struct {
 	Broadcast bool `tl:"flag:5,encoded_in_bitflags"` // Is this a channel?
 	Verified  bool `tl:"flag:7,encoded_in_bitflags"` // Is this channel verified by telegram?
 	Megagroup bool `tl:"flag:8,encoded_in_bitflags"` /*
-		Is this a supergroup?
-		Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
+	Is this a supergroup?
+	Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
 	*/
 	Restricted bool `tl:"flag:9,encoded_in_bitflags"`  // Whether viewing/writing in this channel for a reason (see restriction_reason)
 	Signatures bool `tl:"flag:11,encoded_in_bitflags"` // Whether signatures are enabled (channels)
 	Min        bool `tl:"flag:12,encoded_in_bitflags"` // See min
 	Scam       bool `tl:"flag:19,encoded_in_bitflags"` /*
-		This channel/supergroup is probably a scam
-		Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
+	This channel/supergroup is probably a scam
+	Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
 	*/
 	HasLink bool `tl:"flag:20,encoded_in_bitflags"` /*
-		Whether this channel has a linked discussion group  (or this supergroup is a channel's discussion group). The actual ID of the linked channel/supergroup is contained in channelFull.linked_chat_id.
-		Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
+	Whether this channel has a linked discussion group  (or this supergroup is a channel's discussion group). The actual ID of the linked channel/supergroup is contained in channelFull.linked_chat_id.
+	Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
 	*/
 	HasGeo          bool `tl:"flag:21,encoded_in_bitflags"` // Whether this chanel has a geoposition
 	SlowmodeEnabled bool `tl:"flag:22,encoded_in_bitflags"` /*
-		Whether slow mode is enabled for groups to prevent flood in chat.
-		Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
+	Whether slow mode is enabled for groups to prevent flood in chat.
+	Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
 	*/
 	CallActive   bool `tl:"flag:23,encoded_in_bitflags"` // Whether a group call or livestream is currently active
 	CallNotEmpty bool `tl:"flag:24,encoded_in_bitflags"` // Whether there's anyone in the group call or livestream
 	Fake         bool `tl:"flag:25,encoded_in_bitflags"` /*
-		If set, this supergroup/channel was reported by many users as a fake or scam: be careful when interacting with it.
-		Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
+	If set, this supergroup/channel was reported by many users as a fake or scam: be careful when interacting with it.
+	Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
 	*/
 	Gigagroup bool `tl:"flag:26,encoded_in_bitflags"` /*
-		Whether this supergroup is a gigagroup
-		Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
+	Whether this supergroup is a gigagroup
+	Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
 	*/
 	Noforwards bool `tl:"flag:27,encoded_in_bitflags"` // Whether this channel or group is protected, thus does not allow forwarding messages from it
 	JoinToSend bool `tl:"flag:28,encoded_in_bitflags"` /*
-		Whether a user needs to join the supergroup before they can send messages: can be false only for discussion groups , toggle using channels.toggleJoinToSend
-		Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
+	Whether a user needs to join the supergroup before they can send messages: can be false only for discussion groups , toggle using channels.toggleJoinToSend
+	Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
 	*/
 	JoinRequest bool `tl:"flag:29,encoded_in_bitflags"` /*
-		Whether a user's join request will have to be approved by administrators, toggle using channels.toggleJoinToSend
-		Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
+	Whether a user's join request will have to be approved by administrators, toggle using channels.toggleJoinToSend
+	Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
 	*/
 	Forum bool `tl:"flag:30,encoded_in_bitflags"` /*
-		Whether this supergroup is a forum.
-		Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
+	Whether this supergroup is a forum.
+	Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
 	*/
 	StoriesHidden      bool                 `tl:"flag2:1,encoded_in_bitflags"`  // Whether we have hidden all stories posted by this channel.
 	StoriesHiddenMin   bool                 `tl:"flag2:2,encoded_in_bitflags"`  // If set, indicates that the stories_hidden flag was not populated, and its value must cannot be relied on; use the previously cached value, or re-fetch the constructor using channels.getChannels to obtain the latest value of the stories_hidden flag.
@@ -1381,8 +1381,8 @@ type Channel struct {
 	Photo              ChatPhoto            // Profile photo
 	Date               int32                // Date when the user joined the supergroup/channel, or if the user isn't a member, its creation date
 	RestrictionReason  []*RestrictionReason `tl:"flag:9"` /*
-		Contains the reason why access to this channel must be restricted.
-		Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
+	Contains the reason why access to this channel must be restricted.
+	Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
 	*/
 	AdminRights         *ChatAdminRights  `tl:"flag:14"`  // Admin rights of the user in this channel (see rights)
 	BannedRights        *ChatBannedRights `tl:"flag:15"`  // Banned rights of the user in this channel (see rights)
@@ -1394,8 +1394,8 @@ type Channel struct {
 	ProfileColor        *PeerColor        `tl:"flag2:8"`  // The channel's profile color.
 	EmojiStatus         EmojiStatus       `tl:"flag2:9"`  // Emoji status
 	Level               int32             `tl:"flag2:10"` /*
-		Boost level.
-		Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
+	Boost level.
+	Changes to this flag should invalidate the local channelFull cache for this channel/supergroup ID,.
 	*/
 	SubscriptionUntilDate int32 `tl:"flag2:11"` // Expiration date of the Telegram Star subscription  the current user has bought to gain access to this channel.
 }
@@ -1504,8 +1504,8 @@ type ChannelFull struct {
 	TranslationsDisabled   bool `tl:"flag2:3,encoded_in_bitflags"` // Whether the real-time chat translation popup should be hidden.
 	StoriesPinnedAvailable bool `tl:"flag2:5,encoded_in_bitflags"` // Whether this user has some pinned stories.
 	ViewForumAsMessages    bool `tl:"flag2:6,encoded_in_bitflags"` /*
-		Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client.
-		This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
+	Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client.
+	This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
 	*/
 	RestrictedSponsored    bool                `tl:"flag2:11,encoded_in_bitflags"` // Whether ads on this channel were disabled as specified here  (this flag is only visible to the owner of the channel).
 	CanViewRevenue         bool                `tl:"flag2:12,encoded_in_bitflags"` // If set, this user can view ad revenue statistics  for this channel.
@@ -1816,8 +1816,8 @@ type DialogObj struct {
 	Pinned              bool `tl:"flag:2,encoded_in_bitflags"` // Is the dialog pinned
 	UnreadMark          bool `tl:"flag:3,encoded_in_bitflags"` // Whether the chat was manually marked as unread
 	ViewForumAsMessages bool `tl:"flag:6,encoded_in_bitflags"` /*
-		Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client.
-		This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
+	Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client.
+	This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
 	*/
 	Peer                 Peer                // The chat
 	TopMessage           int32               // The latest message ID
@@ -2017,8 +2017,8 @@ type DocumentAttributeAudio struct {
 	Title     string `tl:"flag:0"` // Name of song
 	Performer string `tl:"flag:1"` // Performer
 	Waveform  []byte `tl:"flag:2"` /*
-		Waveform: consists in a series of bitpacked 5-bit values.
-		Example implementation: android.
+	Waveform: consists in a series of bitpacked 5-bit values.
+	Example implementation: android.
 	*/
 }
 
@@ -2386,9 +2386,9 @@ type EncryptedChatObj struct {
 	AdminID       int64  // Chat creator ID
 	ParticipantID int64  // ID of the second chat participant
 	GAOrB         []byte /*
-		B = g ^ b mod p, if the currently authorized user is the chat's creator,
-		or A = g ^ a mod p otherwise
-		See Wikipedia for more info
+	B = g ^ b mod p, if the currently authorized user is the chat's creator,
+	or A = g ^ a mod p otherwise
+	See Wikipedia for more info
 	*/
 	KeyFingerprint int64 // 64-bit fingerprint of received key
 }
@@ -2578,9 +2578,9 @@ type ForumTopicObj struct {
 	Closed bool `tl:"flag:2,encoded_in_bitflags"` // Whether the topic is closed (no messages can be sent to it)
 	Pinned bool `tl:"flag:3,encoded_in_bitflags"` // Whether the topic is pinned
 	Short  bool `tl:"flag:5,encoded_in_bitflags"` /*
-		Whether this constructor is a reduced version of the full topic information.
-		If set, only the my, closed, id, date, title, icon_color, icon_emoji_id and from_id parameters will contain valid information.
-		Reduced info is usually only returned in topic-related admin log events  and in the messages.channelMessages constructor: if needed, full information can be fetched using channels.getForumTopicsByID.
+	Whether this constructor is a reduced version of the full topic information.
+	If set, only the my, closed, id, date, title, icon_color, icon_emoji_id and from_id parameters will contain valid information.
+	Reduced info is usually only returned in topic-related admin log events  and in the messages.channelMessages constructor: if needed, full information can be fetched using channels.getForumTopicsByID.
 	*/
 	Hidden               bool                `tl:"flag:6,encoded_in_bitflags"` // Whether the topic is hidden (only valid for the "General" topic, id=1)
 	ID                   int32               // Topic ID
@@ -3544,8 +3544,8 @@ type InputInvoiceStarGift struct {
 	UserID   InputUser         // Identifier of the user that will receive the gift
 	GiftID   int64             // Identifier of the gift, from starGift.id
 	Message  *TextWithEntities `tl:"flag:1"` /*
-		Optional message, attached with the gift.
-		The maximum length for this field is specified in the stargifts_message_length_max client configuration value.
+	Optional message, attached with the gift.
+	The maximum length for this field is specified in the stargifts_message_length_max client configuration value.
 	*/
 }
 
@@ -4147,23 +4147,7 @@ func (*InputPrivacyValueAllowAll) CRC() uint32 {
 
 func (*InputPrivacyValueAllowAll) ImplementsInputPrivacyRule() {}
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code><a  href="/constructor/inputPrivacyValueAllowBots"  class="current_page_link" >inputPrivacyValueAllowBots</a>#5a4fcce5 = InputPrivacyRule;</code></pre>
-*/
+// Allow bots and mini apps
 type InputPrivacyValueAllowBots struct{}
 
 func (*InputPrivacyValueAllowBots) CRC() uint32 {
@@ -4230,23 +4214,7 @@ func (*InputPrivacyValueDisallowAll) CRC() uint32 {
 
 func (*InputPrivacyValueDisallowAll) ImplementsInputPrivacyRule() {}
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code><a  href="/constructor/inputPrivacyValueDisallowBots"  class="current_page_link" >inputPrivacyValueDisallowBots</a>#c4e57915 = InputPrivacyRule;</code></pre>
-*/
+// Disallow bots and mini apps
 type InputPrivacyValueDisallowBots struct{}
 
 func (*InputPrivacyValueDisallowBots) CRC() uint32 {
@@ -4322,8 +4290,8 @@ type InputReplyTo interface {
 type InputReplyToMessage struct {
 	ReplyToMsgID int32 // The message ID to reply to.
 	TopMsgID     int32 `tl:"flag:0"` /*
-		This field must contain the topic ID only when replying to messages in forum topics different from the "General" topic (i.e. reply_to_msg_id is set and reply_to_msg_id != topicID and topicID != 1).
-		If the replied-to message is deleted before the method finishes execution, the value in this field will be used to send the message to the correct topic, instead of the "General" topic.
+	This field must contain the topic ID only when replying to messages in forum topics different from the "General" topic (i.e. reply_to_msg_id is set and reply_to_msg_id != topicID and topicID != 1).
+	If the replied-to message is deleted before the method finishes execution, the value in this field will be used to send the message to the correct topic, instead of the "General" topic.
 	*/
 	ReplyToPeerID InputPeer       `tl:"flag:1"` // Used to reply to messages sent to another chat (specified here), can only be used for non-protected chats and messages.
 	QuoteText     string          `tl:"flag:2"` // Used to quote-reply to only a certain section (specified here) of the original message. The maximum UTF-8 length for quotes is specified in the quote_length_max config key.
@@ -4928,8 +4896,8 @@ type InputKeyboardButtonRequestPeer struct {
 	Text              string          // Button text
 	ButtonID          int32           // Button ID, to be passed to messages.sendBotRequestedPeer.
 	PeerType          RequestPeerType /*
-		Filtering criteria to use for the peer selection list shown to the user.
-		The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to max_quantity) peers of the specified type, if needed.
+	Filtering criteria to use for the peer selection list shown to the user.
+	The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to max_quantity) peers of the specified type, if needed.
 	*/
 	MaxQuantity int32 // Maximum number of peers that can be chosen.
 }
@@ -4950,8 +4918,8 @@ type InputKeyboardButtonURLAuth struct {
 	Text               string // Button text
 	FwdText            string `tl:"flag:1"` // New text of the button in forwarded messages.
 	URL                string /*
-		An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
-		NOTE: You must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
+	An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
+	NOTE: You must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
 	*/
 	Bot InputUser // Username of a bot, which will be used for user authorization. See Setting up a bot for more details. If not specified, the current bot's username will be assumed. The url's domain must be the same as the domain linked with the bot. See Linking your domain to the bot for more details.
 }
@@ -5056,8 +5024,8 @@ type KeyboardButtonRequestPeer struct {
 	Text     string          // Button text
 	ButtonID int32           // Button ID, to be passed to messages.sendBotRequestedPeer.
 	PeerType RequestPeerType /*
-		Filtering criteria to use for the peer selection list shown to the user.
-		The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to max_quantity) peers of the specified type, if needed.
+	Filtering criteria to use for the peer selection list shown to the user.
+	The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to max_quantity) peers of the specified type, if needed.
 	*/
 	MaxQuantity int32 // Maximum number of peers that can be chosen.
 }
@@ -5142,9 +5110,9 @@ type KeyboardButtonURLAuth struct {
 	Text    string // Button label
 	FwdText string `tl:"flag:0"` // New text of the button in forwarded messages.
 	URL     string /*
-		An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
+	An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
 
-		NOTE: Services must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
+	NOTE: Services must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
 	*/
 	ButtonID int32 // ID of the button to pass to messages.requestUrlAuth
 }
@@ -5377,13 +5345,13 @@ type MessageObj struct {
 	ID                     int32 // ID of the message
 	FromID                 Peer  `tl:"flag:8"`  // ID of the sender of the message
 	FromBoostsApplied      int32 `tl:"flag:29"` /*
-		Supergroups only, contains the number of boosts this user has given the current supergroup, and should be shown in the UI in the header of the message.
-		Only present for incoming messages from non-anonymous supergroup members that have boosted the supergroup.
-		Note that this counter should be locally overridden for non-anonymous <em>outgoing</em> messages, according to the current value of channelFull.boosts_applied, to ensure the value is correct even for messages sent by the current user before a supergroup was boosted (or after a boost has expired or the number of boosts has changed); do not update this value for incoming messages from other users, even if their boosts have changed.
+	Supergroups only, contains the number of boosts this user has given the current supergroup, and should be shown in the UI in the header of the message.
+	Only present for incoming messages from non-anonymous supergroup members that have boosted the supergroup.
+	Note that this counter should be locally overridden for non-anonymous <em>outgoing</em> messages, according to the current value of channelFull.boosts_applied, to ensure the value is correct even for messages sent by the current user before a supergroup was boosted (or after a boost has expired or the number of boosts has changed); do not update this value for incoming messages from other users, even if their boosts have changed.
 	*/
 	PeerID      Peer // Peer ID, the chat where this message was sent
 	SavedPeerID Peer `tl:"flag:28"` /*
-		Messages fetched from a saved messages dialog  will have peer=inputPeerSelf and the saved_peer_id flag set to the ID of the saved dialog.
+	Messages fetched from a saved messages dialog  will have peer=inputPeerSelf and the saved_peer_id flag set to the ID of the saved dialog.
 	*/
 	FwdFrom              *MessageFwdHeader    `tl:"flag:2"`  // Info about forwarded messages
 	ViaBotID             int64                `tl:"flag:11"` // ID of the inline bot that generated the message
@@ -5858,7 +5826,7 @@ type MessageActionPaymentSent struct {
 	Currency              string // Three-letter ISO 4217 currency code, or XTR for Telegram Stars.
 	TotalAmount           int64  // Price of the product in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 	InvoiceSlug           string `tl:"flag:0"` // An invoice slug taken from an invoice deep link or from the <a href="/api/config#premium-invoice-slug">premium_invoice_slug app config parameter </a>
-	SubscriptionUntilDate int32  `tl:"flag:4"` //
+	SubscriptionUntilDate int32  `tl:"flag:4"` // Expiration date of the Telegram Star subscription.
 }
 
 func (*MessageActionPaymentSent) CRC() uint32 {
@@ -5881,7 +5849,7 @@ type MessageActionPaymentSentMe struct {
 	Info                  *PaymentRequestedInfo `tl:"flag:0"` // Order info provided by the user
 	ShippingOptionID      string                `tl:"flag:1"` // Identifier of the shipping option chosen by the user
 	Charge                *PaymentCharge        // Provider payment identifier
-	SubscriptionUntilDate int32                 `tl:"flag:4"` //
+	SubscriptionUntilDate int32                 `tl:"flag:4"` // Expiration date of the Telegram Star subscription.
 }
 
 func (*MessageActionPaymentSentMe) CRC() uint32 {
@@ -6019,8 +5987,8 @@ func (*MessageActionSetChatTheme) ImplementsMessageAction() {}
 type MessageActionSetChatWallPaper struct {
 	Same    bool `tl:"flag:0,encoded_in_bitflags"` // If set, indicates the user applied a wallpaper  previously sent by the other user in a messageActionSetChatWallPaper message.
 	ForBoth bool `tl:"flag:1,encoded_in_bitflags"` /*
-		If set, indicates the wallpaper was forcefully applied for both sides, without explicit confirmation from the other side.
-		If the message is incoming, and we did not like the new wallpaper the other user has chosen for us, we can re-set our previous wallpaper just on our side, by invoking messages.setChatWallPaper, providing only the revert flag (and obviously the peer parameter).
+	If set, indicates the wallpaper was forcefully applied for both sides, without explicit confirmation from the other side.
+	If the message is incoming, and we did not like the new wallpaper the other user has chosen for us, we can re-set our previous wallpaper just on our side, by invoking messages.setChatWallPaper, providing only the revert flag (and obviously the peer parameter).
 	*/
 	Wallpaper WallPaper // New wallpaper
 }
@@ -6059,8 +6027,8 @@ type MessageActionStarGift struct {
 	Gift         *StarGift         // Info about the gift
 	Message      *TextWithEntities `tl:"flag:1"` // Additional message from the sender of the gift
 	ConvertStars int64             `tl:"flag:4"` /*
-		The receiver of this gift may convert it to this many Telegram Stars, instead of displaying it on their profile page.
-		convert_stars will be equal to stars only if the gift was bought using recently bought Telegram Stars, otherwise it will be less than stars.
+	The receiver of this gift may convert it to this many Telegram Stars, instead of displaying it on their profile page.
+	convert_stars will be equal to stars only if the gift was bought using recently bought Telegram Stars, otherwise it will be less than stars.
 	*/
 }
 
@@ -8017,23 +7985,7 @@ func (*PrivacyValueAllowAll) CRC() uint32 {
 
 func (*PrivacyValueAllowAll) ImplementsPrivacyRule() {}
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code><a  href="/constructor/privacyValueAllowBots"  class="current_page_link" >privacyValueAllowBots</a>#21461b5d = PrivacyRule;</code></pre>
-*/
+// Allow bots and mini apps
 type PrivacyValueAllowBots struct{}
 
 func (*PrivacyValueAllowBots) CRC() uint32 {
@@ -8100,23 +8052,7 @@ func (*PrivacyValueDisallowAll) CRC() uint32 {
 
 func (*PrivacyValueDisallowAll) ImplementsPrivacyRule() {}
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code><a  href="/constructor/privacyValueDisallowBots"  class="current_page_link" >privacyValueDisallowBots</a>#f6a5f82f = PrivacyRule;</code></pre>
-*/
+// Disallow bots and mini apps
 type PrivacyValueDisallowBots struct{}
 
 func (*PrivacyValueDisallowBots) CRC() uint32 {
@@ -8313,8 +8249,8 @@ func (*ReplyInlineMarkup) ImplementsReplyMarkup() {}
 type ReplyKeyboardForceReply struct {
 	SingleUse bool `tl:"flag:1,encoded_in_bitflags"` // Requests clients to hide the keyboard as soon as it's been used. The keyboard will still be available, but clients will automatically display the usual letter-keyboard in the chat – the user can press a special button in the input field to see the custom keyboard again.
 	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
-		Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
-		Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
+	Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+	Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
 	*/
 	Placeholder string `tl:"flag:3"` // The placeholder to be shown in the input field when the keyboard is active; 1-64 characters.
 }
@@ -8332,9 +8268,9 @@ func (*ReplyKeyboardForceReply) ImplementsReplyMarkup() {}
 // Hide sent bot keyboard
 type ReplyKeyboardHide struct {
 	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
-		Use this flag if you want to remove the keyboard for specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+	Use this flag if you want to remove the keyboard for specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
 
-		Example: A user votes in a poll, bot returns confirmation message in reply to the vote and removes the keyboard for that user, while still showing the keyboard with poll options to users who haven't voted yet
+	Example: A user votes in a poll, bot returns confirmation message in reply to the vote and removes the keyboard for that user, while still showing the keyboard with poll options to users who haven't voted yet
 	*/
 }
 
@@ -8353,9 +8289,9 @@ type ReplyKeyboardMarkup struct {
 	Resize    bool `tl:"flag:0,encoded_in_bitflags"` // Requests clients to resize the keyboard vertically for optimal fit (e.g., make the keyboard smaller if there are just two rows of buttons). If not set, the custom keyboard is always of the same height as the app's standard keyboard.
 	SingleUse bool `tl:"flag:1,encoded_in_bitflags"` // Requests clients to hide the keyboard as soon as it's been used. The keyboard will still be available, but clients will automatically display the usual letter-keyboard in the chat – the user can press a special button in the input field to see the custom keyboard again.
 	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
-		Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+	Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
 
-		Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
+	Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
 	*/
 	Persistent  bool                 `tl:"flag:4,encoded_in_bitflags"` // Requests clients to always show the keyboard when the regular keyboard is hidden.
 	Rows        []*KeyboardButtonRow // Button row
@@ -10249,8 +10185,8 @@ type UpdateDeleteScheduledMessages struct {
 	Peer         Peer    // Peer
 	Messages     []int32 // Deleted scheduled messages
 	SentMessages []int32 `tl:"flag:0"` /*
-		If set, this update indicates that some scheduled messages were sent (not simply deleted from the schedule queue).
-		In this case, the messages field will contain the scheduled message IDs for the sent messages (initially returned in updateNewScheduledMessage), and sent_messages will contain the real message IDs for the sent messages.
+	If set, this update indicates that some scheduled messages were sent (not simply deleted from the schedule queue).
+	In this case, the messages field will contain the scheduled message IDs for the sent messages (initially returned in updateNewScheduledMessage), and sent_messages will contain the real message IDs for the sent messages.
 	*/
 }
 
@@ -11209,8 +11145,8 @@ type UpdateServiceNotification struct {
 	Popup       bool  `tl:"flag:0,encoded_in_bitflags"` // If set, the message must be displayed in a popup.
 	InvertMedia bool  `tl:"flag:2,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
 	InboxDate   int32 `tl:"flag:1"`                     /*
-		When was the notification received
-		The message must also be stored locally as part of the message history with the user id 777000 (Telegram Notifications).
+	When was the notification received
+	The message must also be stored locally as part of the message history with the user id 777000 (Telegram Notifications).
 	*/
 	Type     string          // String, identical in format and contents to the <a href="/api/errors#error-type">type</a> field in API errors. Describes type of service message. It is acceptable to ignore repeated messages of the same type within a short period of time (15 minutes).
 	Message  string          // Message text
@@ -11662,20 +11598,20 @@ type User interface {
 type UserObj struct {
 	Self    bool `tl:"flag:10,encoded_in_bitflags"` // Whether this user indicates the currently logged in user
 	Contact bool `tl:"flag:11,encoded_in_bitflags"` /*
-		Whether this user is a contact
-		When updating the local peer database, do not apply changes to this field if the min flag is set.
+	Whether this user is a contact
+	When updating the local peer database, do not apply changes to this field if the min flag is set.
 	*/
 	MutualContact bool `tl:"flag:12,encoded_in_bitflags"` /*
-		Whether this user is a mutual contact.
-		When updating the local peer database, do not apply changes to this field if the min flag is set.
+	Whether this user is a mutual contact.
+	When updating the local peer database, do not apply changes to this field if the min flag is set.
 	*/
 	Deleted bool `tl:"flag:13,encoded_in_bitflags"` /*
-		Whether the account of this user was deleted.
-		Changes to this flag should invalidate the local userFull cache for this user ID,.
+	Whether the account of this user was deleted.
+	Changes to this flag should invalidate the local userFull cache for this user ID,.
 	*/
 	Bot bool `tl:"flag:14,encoded_in_bitflags"` /*
-		Is this user a bot?
-		Changes to this flag should invalidate the local userFull cache for this user ID,.
+	Is this user a bot?
+	Changes to this flag should invalidate the local userFull cache for this user ID,.
 	*/
 	BotChatHistory bool `tl:"flag:15,encoded_in_bitflags"` // Can the bot see all messages in groups?
 	BotNochats     bool `tl:"flag:16,encoded_in_bitflags"` // Can the bot be added to groups?
@@ -11689,120 +11625,120 @@ type UserObj struct {
 	Fake           bool `tl:"flag:26,encoded_in_bitflags"` // If set, this user was reported by many users as a fake or scam user: be careful when interacting with them.
 	BotAttachMenu  bool `tl:"flag:27,encoded_in_bitflags"` // Whether this bot offers an attachment menu web app
 	Premium        bool `tl:"flag:28,encoded_in_bitflags"` /*
-		Whether this user is a Telegram Premium user
-		Changes to this flag should invalidate the local userFull cache for this user ID,.
-		Changes to this flag if the self flag is set should also trigger the following calls, to refresh the respective caches:
-		- The help.getConfig cache
-		- The messages.getTopReactions cache if the bot flag is not set
+	Whether this user is a Telegram Premium user
+	Changes to this flag should invalidate the local userFull cache for this user ID,.
+	Changes to this flag if the self flag is set should also trigger the following calls, to refresh the respective caches:
+	- The help.getConfig cache
+	- The messages.getTopReactions cache if the bot flag is not set
 	*/
 	AttachMenuEnabled bool `tl:"flag:29,encoded_in_bitflags"` /*
-		Whether we installed the attachment menu web app offered by this bot.
-		When updating the local peer database, do not apply changes to this field if the min flag is set.
+	Whether we installed the attachment menu web app offered by this bot.
+	When updating the local peer database, do not apply changes to this field if the min flag is set.
 	*/
 	BotCanEdit bool `tl:"flag2:1,encoded_in_bitflags"` /*
-		Whether we can edit the profile picture, name, about text and description of this bot because we own it.
-		When updating the local peer database, do not apply changes to this field if the min flag is set.
-		Changes to this flag (if min is not set) should invalidate the local userFull cache for this user ID.
+	Whether we can edit the profile picture, name, about text and description of this bot because we own it.
+	When updating the local peer database, do not apply changes to this field if the min flag is set.
+	Changes to this flag (if min is not set) should invalidate the local userFull cache for this user ID.
 	*/
 	CloseFriend bool `tl:"flag2:2,encoded_in_bitflags"` /*
-		Whether we marked this user as a close friend,.
-		When updating the local peer database, do not apply changes to this field if the min flag is set.
+	Whether we marked this user as a close friend,.
+	When updating the local peer database, do not apply changes to this field if the min flag is set.
 	*/
 	StoriesHidden bool `tl:"flag2:3,encoded_in_bitflags"` /*
-		Whether we have hidden  all active stories of this user.
-		When updating the local peer database, do not apply changes to this field if the min flag is set.
+	Whether we have hidden  all active stories of this user.
+	When updating the local peer database, do not apply changes to this field if the min flag is set.
 	*/
 	StoriesUnavailable    bool `tl:"flag2:4,encoded_in_bitflags"`  // No stories from this user are visible.
 	ContactRequirePremium bool `tl:"flag2:10,encoded_in_bitflags"` /*
-		If set, we can only write to this user if they have already sent some messages to us, if we are subscribed to Telegram Premium, or if they're a mutual contact (user.mutual_contact).
-		All the secondary conditions listed above must be checked separately to verify whether we can still write to the user, even if this flag is set (i.e. a mutual contact will have this flag set even if we can still write to them, and so on...); to avoid doing these extra checks if we haven't yet cached all the required information (for example while displaying the chat list in the sharing UI) the users.getIsPremiumRequiredToContact method may be invoked instead, passing the list of users currently visible in the UI, returning a list of booleans that directly specify whether we can or cannot write to each user; alternatively, the userFull.contact_require_premium flag contains the same (fully checked, i.e. it's not just a copy of this flag) info returned by users.getIsPremiumRequiredToContact.
-		To set this flag for ourselves invoke account.setGlobalPrivacySettings, setting the settings.new_noncontact_peers_require_premium flag.
+	If set, we can only write to this user if they have already sent some messages to us, if we are subscribed to Telegram Premium, or if they're a mutual contact (user.mutual_contact).
+	All the secondary conditions listed above must be checked separately to verify whether we can still write to the user, even if this flag is set (i.e. a mutual contact will have this flag set even if we can still write to them, and so on...); to avoid doing these extra checks if we haven't yet cached all the required information (for example while displaying the chat list in the sharing UI) the users.getIsPremiumRequiredToContact method may be invoked instead, passing the list of users currently visible in the UI, returning a list of booleans that directly specify whether we can or cannot write to each user; alternatively, the userFull.contact_require_premium flag contains the same (fully checked, i.e. it's not just a copy of this flag) info returned by users.getIsPremiumRequiredToContact.
+	To set this flag for ourselves invoke account.setGlobalPrivacySettings, setting the settings.new_noncontact_peers_require_premium flag.
 	*/
 	BotBusiness   bool  `tl:"flag2:11,encoded_in_bitflags"` // Whether this bot can be connected to a user as specified here.
 	BotHasMainApp bool  `tl:"flag2:13,encoded_in_bitflags"` // If set, this bot has configured a Main Mini App.
 	ID            int64 // ID of the user,.
 	AccessHash    int64 `tl:"flag:0"` /*
-		Access hash of the user,.
-		If this flag is set, when updating the local peer database, generate a virtual flag called min_access_hash, which is:
-		- Set to true if min is set AND
-		-- The phone flag is not set OR
-		-- The phone flag is set and the associated phone number string is non-empty
-		- Set to false otherwise.
+	Access hash of the user,.
+	If this flag is set, when updating the local peer database, generate a virtual flag called min_access_hash, which is:
+	- Set to true if min is set AND
+	-- The phone flag is not set OR
+	-- The phone flag is set and the associated phone number string is non-empty
+	- Set to false otherwise.
 
-		Then, apply both access_hash and min_access_hash to the local database if:
-		- min_access_hash is false OR
-		- min_access_hash is true AND
-		-- There is no locally cached object for this user OR
-		-- There is no access_hash in the local cache OR
-		-- The cached object's min_access_hash is also true
+	Then, apply both access_hash and min_access_hash to the local database if:
+	- min_access_hash is false OR
+	- min_access_hash is true AND
+	-- There is no locally cached object for this user OR
+	-- There is no access_hash in the local cache OR
+	-- The cached object's min_access_hash is also true
 
-		If the final merged object stored to the database has the min_access_hash field set to true, the related access_hash is only suitable to use in <a href="/constructor/inputPeerPhotoFileLocation">inputPeerPhotoFileLocation </a>, to directly download the profile pictures of users, everywhere else a inputPeer*FromMessage constructor will have to be generated as specified here.
-		Bots can also use min access hashes in some conditions, by passing 0 instead of the min access hash.
+	If the final merged object stored to the database has the min_access_hash field set to true, the related access_hash is only suitable to use in <a href="/constructor/inputPeerPhotoFileLocation">inputPeerPhotoFileLocation </a>, to directly download the profile pictures of users, everywhere else a inputPeer*FromMessage constructor will have to be generated as specified here.
+	Bots can also use min access hashes in some conditions, by passing 0 instead of the min access hash.
 	*/
 	FirstName string `tl:"flag:1"` /*
-		First name.
-		When updating the local peer database, apply changes to this field only if:
-		- The min flag is not set OR
-		- The min flag is set AND
-		-- The min flag of the locally cached user entry is set.
+	First name.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	-- The min flag of the locally cached user entry is set.
 	*/
 	LastName string `tl:"flag:2"` /*
-		Last name.
-		When updating the local peer database, apply changes to this field only if:
-		- The min flag is not set OR
-		- The min flag is set AND
-		-- The min flag of the locally cached user entry is set.
+	Last name.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	-- The min flag of the locally cached user entry is set.
 	*/
 	Username string `tl:"flag:3"` /*
-		Main active username.
-		When updating the local peer database, apply changes to this field only if:
-		- The min flag is not set OR
-		- The min flag is set AND
-		-- The min flag of the locally cached user entry is set.
-		Changes to this flag should invalidate the local userFull cache for this user ID if the above conditions are respected and the bot_can_edit flag is also set.
+	Main active username.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	-- The min flag of the locally cached user entry is set.
+	Changes to this flag should invalidate the local userFull cache for this user ID if the above conditions are respected and the bot_can_edit flag is also set.
 	*/
 	Phone string `tl:"flag:4"` /*
-		Phone number.
-		When updating the local peer database, apply changes to this field only if:
-		- The min flag is not set OR
-		- The min flag is set AND
-		-- The min flag of the locally cached user entry is set.
+	Phone number.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	-- The min flag of the locally cached user entry is set.
 	*/
 	Photo UserProfilePhoto `tl:"flag:5"` /*
-		Profile picture of user.
-		When updating the local peer database, apply changes to this field only if:
-		- The min flag is not set OR
-		- The min flag is set AND
-		-- The apply_min_photo flag is set OR
-		-- The min flag of the locally cached user entry is set.
+	Profile picture of user.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	-- The apply_min_photo flag is set OR
+	-- The min flag of the locally cached user entry is set.
 	*/
 	Status UserStatus `tl:"flag:6"` /*
-		Online status of user.
-		When updating the local peer database, apply changes to this field only if:
-		- The min flag is not set OR
-		- The min flag is set AND
-		-- The min flag of the locally cached user entry is set OR
-		-- The locally cached user entry is equal to userStatusEmpty.
+	Online status of user.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	-- The min flag of the locally cached user entry is set OR
+	-- The locally cached user entry is equal to userStatusEmpty.
 	*/
 	BotInfoVersion int32 `tl:"flag:14"` /*
-		Version of the bot_info field in userFull, incremented every time it changes.
-		Changes to this flag should invalidate the local userFull cache for this user ID,.
+	Version of the bot_info field in userFull, incremented every time it changes.
+	Changes to this flag should invalidate the local userFull cache for this user ID,.
 	*/
 	RestrictionReason    []*RestrictionReason `tl:"flag:18"` // Contains the reason why access to this user must be restricted.
 	BotInlinePlaceholder string               `tl:"flag:19"` // Inline placeholder for this inline bot
 	LangCode             string               `tl:"flag:22"` // Language code of the user
 	EmojiStatus          EmojiStatus          `tl:"flag:30"` // Emoji status
 	Usernames            []*Username          `tl:"flag2:0"` /*
-		Additional usernames.
-		When updating the local peer database, apply changes to this field only if:
-		- The min flag is not set OR
-		- The min flag is set AND
-		-- The min flag of the locally cached user entry is set.
-		Changes to this flag (if the above conditions are respected) should invalidate the local userFull cache for this user ID.
+	Additional usernames.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	-- The min flag of the locally cached user entry is set.
+	Changes to this flag (if the above conditions are respected) should invalidate the local userFull cache for this user ID.
 	*/
 	StoriesMaxID int32 `tl:"flag2:5"` /*
-		ID of the maximum read story.
-		When updating the local peer database, do not apply changes to this field if the min flag of the incoming constructor is set.
+	ID of the maximum read story.
+	When updating the local peer database, do not apply changes to this field if the min flag of the incoming constructor is set.
 	*/
 	Color          *PeerColor `tl:"flag2:8"`  // The user's accent color.
 	ProfileColor   *PeerColor `tl:"flag2:9"`  // The user's profile color.
@@ -13547,27 +13483,11 @@ type MessagesFoundStickers interface {
 	ImplementsMessagesFoundStickers()
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code><a  href="/constructor/messages.foundStickers"  class="current_page_link" >messages.foundStickers</a>#82c9e290 flags:# next_offset:flags.0?int hash:long stickers:Vector&lt;Document&gt; = messages.FoundStickers;</code></pre>
-*/
+// Found stickers
 type MessagesFoundStickersObj struct {
-	NextOffset int32      `tl:"flag:0"` //
+	NextOffset int32      `tl:"flag:0"` // Offset for pagination
 	Hash       int64      // Hash used for caching, for more info click here
-	Stickers   []Document //
+	Stickers   []Document // Found stickers
 }
 
 func (*MessagesFoundStickersObj) CRC() uint32 {
@@ -13580,25 +13500,9 @@ func (*MessagesFoundStickersObj) FlagIndex() int {
 
 func (*MessagesFoundStickersObj) ImplementsMessagesFoundStickers() {}
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code><a  href="/constructor/messages.foundStickersNotModified"  class="current_page_link" >messages.foundStickersNotModified</a>#6010c534 flags:# next_offset:flags.0?int = messages.FoundStickers;</code></pre>
-*/
+// No new stickers were found for the specified query
 type MessagesFoundStickersNotModified struct {
-	NextOffset int32 `tl:"flag:0"` //
+	NextOffset int32 `tl:"flag:0"` // Offset for pagination
 }
 
 func (*MessagesFoundStickersNotModified) CRC() uint32 {
@@ -13622,8 +13526,8 @@ type MessagesChannelMessages struct {
 	Pts            int32 // Event count after generation
 	Count          int32 // Total number of results were found server-side (may not be all included here)
 	OffsetIDOffset int32 `tl:"flag:2"` /*
-		Indicates the absolute position of messages[0] within the total result set with count count.
-		This is useful, for example, if the result was fetched using offset_id, and we need to display a progress/total counter (like photo 134 of 200, for all media in a chat, we could simply use photo ${offset_id_offset} of ${count}.
+	Indicates the absolute position of messages[0] within the total result set with count count.
+	This is useful, for example, if the result was fetched using offset_id, and we need to display a progress/total counter (like photo 134 of 200, for all media in a chat, we could simply use photo ${offset_id_offset} of ${count}.
 	*/
 	Messages []Message    // Found messages
 	Topics   []ForumTopic // Forum topic information
@@ -13671,8 +13575,8 @@ type MessagesMessagesSlice struct {
 	Count          int32 // Total number of messages in the list
 	NextRate       int32 `tl:"flag:0"` // Rate to use in the offset_rate parameter in the next call to messages.searchGlobal
 	OffsetIDOffset int32 `tl:"flag:2"` /*
-		Indicates the absolute position of messages[0] within the total result set with count count.
-		This is useful, for example, if the result was fetched using offset_id, and we need to display a progress/total counter (like photo 134 of 200, for all media in a chat, we could simply use photo ${offset_id_offset} of ${count}.
+	Indicates the absolute position of messages[0] within the total result set with count count.
+	This is useful, for example, if the result was fetched using offset_id, and we need to display a progress/total counter (like photo 134 of 200, for all media in a chat, we could simply use photo ${offset_id_offset} of ${count}.
 	*/
 	Messages []Message // List of messages
 	Chats    []Chat    // List of chats mentioned in messages
@@ -14072,19 +13976,19 @@ type PaymentsPaymentFormObj struct {
 	ProviderID         int64       // Payment provider ID.
 	URL                string      // Payment form URL
 	NativeProvider     string      `tl:"flag:4"` /*
-		Payment provider name.
-		One of the following:
-		- stripe
+	Payment provider name.
+	One of the following:
+	- stripe
 	*/
 	NativeParams *DataJson `tl:"flag:4"` /*
-		Contains information about the payment provider, if available, to support it natively without the need for opening the URL.
-		A JSON object that can contain the following fields:
+	Contains information about the payment provider, if available, to support it natively without the need for opening the URL.
+	A JSON object that can contain the following fields:
 
-		- apple_pay_merchant_id: Apple Pay merchant ID
-		- google_pay_public_key: Google Pay public key
-		- need_country: True, if the user country must be provided,
-		- need_zip: True, if the user ZIP/postal code must be provided,
-		- need_cardholder_name: True, if the cardholder name must be provided
+	- apple_pay_merchant_id: Apple Pay merchant ID
+	- google_pay_public_key: Google Pay public key
+	- need_country: True, if the user country must be provided,
+	- need_zip: True, if the user ZIP/postal code must be provided,
+	- need_cardholder_name: True, if the cardholder name must be provided
 	*/
 	AdditionalMethods []*PaymentFormMethod           `tl:"flag:6"` // Additional payment methods
 	SavedInfo         *PaymentRequestedInfo          `tl:"flag:0"` // Saved server-side order information
