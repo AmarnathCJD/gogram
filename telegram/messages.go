@@ -1017,15 +1017,13 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 	return messages, nil
 }
 
-func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMessage, <-chan bool, <-chan error) {
+func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMessage, <-chan error) {
 	ch := make(chan NewMessage)
-	doneCh := make(chan bool)
 	errCh := make(chan error)
 
 	go func() {
 		defer close(ch)
 		defer close(errCh)
-		defer close(doneCh)
 
 		opt := getVariadic(Opts, &SearchOption{
 			Filter:           &InputMessagesFilterEmpty{},
@@ -1096,20 +1094,17 @@ func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMess
 				case *MessagesChannelMessages:
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
-						select {
-						case ch <- *packMessage(c, msg):
-						case <-doneCh:
-							return
-						}
+						ch <- *packMessage(c, msg)
 					}
 				case *MessagesMessagesObj:
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
-						select {
-						case ch <- *packMessage(c, msg):
-						case <-doneCh:
-							return
-						}
+						ch <- *packMessage(c, msg)
+					}
+				case *MessagesMessagesSlice:
+					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+					for _, msg := range result.Messages {
+						ch <- *packMessage(c, msg)
 					}
 				}
 
@@ -1176,6 +1171,10 @@ func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMess
 					}
 				}
 
+				for _, msg := range messages {
+					ch <- msg
+				}
+
 				if (len(messages) >= int(opt.Limit) || len(messages) == 0) && opt.Limit > 0 {
 					break
 				}
@@ -1183,21 +1182,12 @@ func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMess
 				params.OffsetID = messages[len(messages)-1].ID
 				params.MaxDate = messages[len(messages)-1].Date()
 
-				for _, msg := range messages {
-					select {
-					case ch <- msg:
-					case <-doneCh:
-						return
-					}
-				}
-
 				time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
 			}
 		}
-		doneCh <- true
 	}()
 
-	return ch, doneCh, errCh
+	return ch, errCh
 }
 
 func (c *Client) GetMessageByID(PeerID any, MsgID int32) (*NewMessage, error) {
@@ -1305,15 +1295,13 @@ func (c *Client) GetHistory(PeerID any, opts ...*HistoryOption) ([]NewMessage, e
 	}
 }
 
-func (c *Client) IterHistory(PeerID any, opts ...*HistoryOption) (<-chan NewMessage, <-chan bool, <-chan error) {
+func (c *Client) IterHistory(PeerID any, opts ...*HistoryOption) (<-chan NewMessage, <-chan error) {
 	ch := make(chan NewMessage)
-	doneCh := make(chan bool)
 	errCh := make(chan error)
 
 	go func() {
 		defer close(ch)
 		defer close(errCh)
-		defer close(doneCh)
 
 		var opt = getVariadic(opts, &HistoryOption{
 			Limit:            1,
@@ -1361,8 +1349,11 @@ func (c *Client) IterHistory(PeerID any, opts ...*HistoryOption) (<-chan NewMess
 					messages = append(messages, *packMessage(c, msg))
 				}
 				fetched += len(resp.Messages)
+
+				for _, msg := range messages {
+					ch <- msg
+				}
 				if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
-					doneCh <- true
 					return
 				}
 
@@ -1375,8 +1366,11 @@ func (c *Client) IterHistory(PeerID any, opts ...*HistoryOption) (<-chan NewMess
 					messages = append(messages, *packMessage(c, msg))
 				}
 				fetched += len(resp.Messages)
+
+				for _, msg := range messages {
+					ch <- msg
+				}
 				if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
-					doneCh <- true
 					return
 				}
 
@@ -1388,8 +1382,11 @@ func (c *Client) IterHistory(PeerID any, opts ...*HistoryOption) (<-chan NewMess
 					messages = append(messages, *packMessage(c, msg))
 				}
 				fetched += len(resp.Messages)
+
+				for _, msg := range messages {
+					ch <- msg
+				}
 				if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
-					doneCh <- true
 					return
 				}
 
@@ -1400,19 +1397,11 @@ func (c *Client) IterHistory(PeerID any, opts ...*HistoryOption) (<-chan NewMess
 				return
 			}
 
-			for _, msg := range messages {
-				select {
-				case ch <- msg:
-				case <-doneCh:
-					return
-				}
-			}
-
 			time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
 		}
 	}()
 
-	return ch, doneCh, errCh
+	return ch, errCh
 }
 
 type PinOptions struct {

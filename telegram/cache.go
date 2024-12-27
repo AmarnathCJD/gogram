@@ -184,16 +184,19 @@ func (c *CACHE) ReadFile() {
 				break
 			}
 			c.logger.Error("error reading from cache file: ", err)
+			c.Unlock()
 			return
 		}
 
 		var id, accessHash int64
 		if err := binary.Read(file, binary.BigEndian, &id); err != nil {
 			c.logger.Error("cache file corrupted: ", err)
+			c.Unlock()
 			return
 		}
 		if err := binary.Read(file, binary.BigEndian, &accessHash); err != nil {
 			c.logger.Error("cache file corrupted: ", err)
+			c.Unlock()
 			return
 		}
 

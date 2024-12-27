@@ -247,7 +247,7 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 	}
 }
 
-func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan bool, <-chan error) {
+func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan error) {
 	options := getVariadic(Opts, &DialogOptions{
 		Limit:            1,
 		OffsetPeer:       &InputPeerEmpty{},
@@ -272,12 +272,10 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan bool
 	}
 
 	dialogs := make(chan Dialog)
-	done := make(chan bool)
 	errs := make(chan error)
 
 	go func() {
 		defer close(dialogs)
-		defer close(done)
 		defer close(errs)
 
 		var fetched int
@@ -319,7 +317,6 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan bool
 
 				fetched += len(p.Dialogs)
 				if len(p.Dialogs) < int(perReqLimit) || fetched >= int(options.Limit) && options.Limit > 0 {
-					done <- true
 					return
 				}
 
@@ -342,12 +339,10 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan bool
 
 				fetched += len(p.Dialogs)
 				if len(p.Dialogs) < int(perReqLimit) || fetched >= int(options.Limit) && options.Limit > 0 {
-					done <- true
 					return
 				}
 
 			case *MessagesDialogsNotModified:
-				done <- true
 				return
 
 			default:
@@ -359,7 +354,7 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan bool
 		}
 	}()
 
-	return dialogs, done, errs
+	return dialogs, errs
 }
 
 // GetCommonChats returns the common chats of a user
