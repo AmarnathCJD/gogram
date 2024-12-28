@@ -534,19 +534,20 @@ func (*BotCommand) CRC() uint32 {
 
 // Info about bots (available bot commands, etc)
 type BotInfo struct {
-	HasPreviewMedias    bool            `tl:"flag:6,encoded_in_bitflags"`
-	UserID              int64           `tl:"flag:0"`
-	Description         string          `tl:"flag:1"`
-	DescriptionPhoto    Photo           `tl:"flag:4"`
-	DescriptionDocument Document        `tl:"flag:5"`
-	Commands            []*BotCommand   `tl:"flag:2"`
-	MenuButton          BotMenuButton   `tl:"flag:3"`
-	PrivacyPolicyURL    string          `tl:"flag:7"`
-	AppSettings         *BotAppSettings `tl:"flag:8"`
+	HasPreviewMedias    bool                 `tl:"flag:6,encoded_in_bitflags"`
+	UserID              int64                `tl:"flag:0"`
+	Description         string               `tl:"flag:1"`
+	DescriptionPhoto    Photo                `tl:"flag:4"`
+	DescriptionDocument Document             `tl:"flag:5"`
+	Commands            []*BotCommand        `tl:"flag:2"`
+	MenuButton          BotMenuButton        `tl:"flag:3"`
+	PrivacyPolicyURL    string               `tl:"flag:7"`
+	AppSettings         *BotAppSettings      `tl:"flag:8"`
+	VerifierSettings    *BotVerifierSettings `tl:"flag:9"`
 }
 
 func (*BotInfo) CRC() uint32 {
-	return 0x36607333
+	return 0x4d8a0299
 }
 
 func (*BotInfo) FlagIndex() int {
@@ -561,6 +562,30 @@ type BotPreviewMedia struct {
 
 func (*BotPreviewMedia) CRC() uint32 {
 	return 0x23e91ba3
+}
+
+type BotVerification struct {
+	BotID       int64
+	Icon        int64
+	Description string
+}
+
+func (*BotVerification) CRC() uint32 {
+	return 0xf93cd45c
+}
+
+type BotVerifierSettings struct {
+	CanModifyCustomDescription bool `tl:"flag:1,encoded_in_bitflags"`
+	Company                    string
+	CustomDescription          string `tl:"flag:0"`
+}
+
+func (*BotVerifierSettings) CRC() uint32 {
+	return 0xb0cd6617
+}
+
+func (*BotVerifierSettings) FlagIndex() int {
+	return 0
 }
 
 // Localized information about a bot.
@@ -904,7 +929,6 @@ type ChatBannedRights struct {
 	SendVoices      bool `tl:"flag:23,encoded_in_bitflags"`
 	SendDocs        bool `tl:"flag:24,encoded_in_bitflags"`
 	SendPlain       bool `tl:"flag:25,encoded_in_bitflags"`
-	UntilDate       int32
 }
 
 func (*ChatBannedRights) CRC() uint32 {
@@ -2292,6 +2316,7 @@ func (*MessagesBotCallbackAnswer) FlagIndex() int {
 	return 0
 }
 
+// Represents a prepared inline message saved by a bot, to be sent to the user via a web app »
 type MessagesBotPreparedInlineMessage struct {
 	ID         string
 	ExpireDate int32
@@ -2558,6 +2583,7 @@ func (*MessagesPeerSettings) CRC() uint32 {
 	return 0x6880b94d
 }
 
+// Represents a prepared inline message received via a bot's mini app, that can be sent to some chats »
 type MessagesPreparedInlineMessage struct {
 	QueryID   int64
 	Result    BotInlineResult
@@ -2672,7 +2698,7 @@ func (*MessagesWebPage) CRC() uint32 {
 
 type MessagesWebViewResult struct {
 	Result BotInlineResult
-	Users  []User
+	Users  User
 }
 
 func (*MessagesWebViewResult) CRC() uint32 {
@@ -3705,27 +3731,12 @@ func (*SponsoredMessageReportOption) CRC() uint32 {
 	return 0x430d3150
 }
 
-// Represents a star gift, see here » for more info.
-type StarGift struct {
-	Limited             bool `tl:"flag:0,encoded_in_bitflags"`
-	SoldOut             bool `tl:"flag:1,encoded_in_bitflags"`
-	Birthday            bool `tl:"flag:2,encoded_in_bitflags"`
-	ID                  int64
-	Sticker             Document
-	Stars               int64
-	AvailabilityRemains int32 `tl:"flag:0"`
-	AvailabilityTotal   int32 `tl:"flag:0"`
-	ConvertStars        int64
-	FirstSaleDate       int32 `tl:"flag:1"`
-	LastSaleDate        int32 `tl:"flag:1"`
+type StarGiftUpgradePreview struct {
+	SampleAttributes StarGiftAttribute
 }
 
-func (*StarGift) CRC() uint32 {
-	return 0x49c577cd
-}
-
-func (*StarGift) FlagIndex() int {
-	return 0
+func (*StarGiftUpgradePreview) CRC() uint32 {
+	return 0x167bd90b
 }
 
 // Indo about an affiliate program offered by a bot
@@ -3884,7 +3895,7 @@ type StarsTransaction struct {
 	Reaction                  bool `tl:"flag:11,encoded_in_bitflags"`
 	Subscription              bool `tl:"flag:12,encoded_in_bitflags"`
 	Floodskip                 bool `tl:"flag:15,encoded_in_bitflags"`
-	ID                        string
+	StargiftUpgrade           bool `tl:"flag:18,encoded_in_bitflags"`
 	Stars                     *StarsAmount
 	Date                      int32
 	Peer                      StarsTransactionPeer
@@ -3898,7 +3909,7 @@ type StarsTransaction struct {
 	ExtendedMedia             []MessageMedia `tl:"flag:9"`
 	SubscriptionPeriod        int32          `tl:"flag:12"`
 	GiveawayPostID            int32          `tl:"flag:13"`
-	Stargift                  *StarGift      `tl:"flag:14"`
+	Stargift                  StarGift       `tl:"flag:14"`
 	FloodskipNumber           int32          `tl:"flag:15"`
 	StarrefCommissionPermille int32          `tl:"flag:16"`
 	StarrefPeer               Peer           `tl:"flag:17"`
@@ -4456,7 +4467,7 @@ type UserFull struct {
 	PrivateForwardName      string                   `tl:"flag:16"`
 	BotGroupAdminRights     *ChatAdminRights         `tl:"flag:17"`
 	BotBroadcastAdminRights *ChatAdminRights         `tl:"flag:18"`
-	PremiumGifts            []*PremiumGiftOption     `tl:"flag:19"`
+	PremiumGifts            *PremiumGiftOption       `tl:"flag:19"`
 	Wallpaper               WallPaper                `tl:"flag:24"`
 	Stories                 *PeerStories             `tl:"flag:25"`
 	BusinessWorkHours       *BusinessWorkHours       `tl:"flag2:0"`
@@ -4469,10 +4480,11 @@ type UserFull struct {
 	PersonalChannelMessage  int32                    `tl:"flag2:6"`
 	StargiftsCount          int32                    `tl:"flag2:8"`
 	StarrefProgram          *StarRefProgram          `tl:"flag2:11"`
+	BotVerification         *BotVerification         `tl:"flag2:12"`
 }
 
 func (*UserFull) CRC() uint32 {
-	return 0x979d2376
+	return 0x4d975bbc
 }
 
 func (*UserFull) FlagIndex() int {
@@ -4481,18 +4493,23 @@ func (*UserFull) FlagIndex() int {
 
 // Represents a gift, displayed on a user's profile page.
 type UserStarGift struct {
-	NameHidden   bool  `tl:"flag:0,encoded_in_bitflags"`
-	Unsaved      bool  `tl:"flag:5,encoded_in_bitflags"`
-	FromID       int64 `tl:"flag:1"`
-	Date         int32
-	Gift         *StarGift
-	Message      *TextWithEntities `tl:"flag:2"`
-	MsgID        int32             `tl:"flag:3"`
-	ConvertStars int64             `tl:"flag:4"`
+	NameHidden    bool  `tl:"flag:0,encoded_in_bitflags"`
+	Unsaved       bool  `tl:"flag:5,encoded_in_bitflags"`
+	Refunded      bool  `tl:"flag:9,encoded_in_bitflags"`
+	CanUpgrade    bool  `tl:"flag:10,encoded_in_bitflags"`
+	FromID        int64 `tl:"flag:1"`
+	Date          int32
+	Gift          StarGift
+	Message       *TextWithEntities `tl:"flag:2"`
+	MsgID         int32             `tl:"flag:3"`
+	ConvertStars  int64             `tl:"flag:4"`
+	UpgradeStars  int64             `tl:"flag:6"`
+	CanExportAt   int32             `tl:"flag:7"`
+	TransferStars int64             `tl:"flag:8"`
 }
 
 func (*UserStarGift) CRC() uint32 {
-	return 0xeea49a6e
+	return 0x325835e1
 }
 
 func (*UserStarGift) FlagIndex() int {
