@@ -1474,8 +1474,8 @@ type ChannelFull struct {
 	ViewForumAsMessages    bool `tl:"flag2:6,encoded_in_bitflags"`
 	RestrictedSponsored    bool `tl:"flag2:11,encoded_in_bitflags"`
 	CanViewRevenue         bool `tl:"flag2:12,encoded_in_bitflags"`
-	CanViewStarsRevenue    bool `tl:"flag2:15,encoded_in_bitflags"`
 	PaidMediaAllowed       bool `tl:"flag2:14,encoded_in_bitflags"`
+	CanViewStarsRevenue    bool `tl:"flag2:15,encoded_in_bitflags"`
 	PaidReactionsAvailable bool `tl:"flag2:16,encoded_in_bitflags"`
 	ID                     int64
 	About                  string
@@ -2628,28 +2628,29 @@ type GroupCall interface {
 
 // Info about a group call or livestream
 type GroupCallObj struct {
-	JoinMuted               bool   `tl:"flag:1,encoded_in_bitflags"`  // Whether the user should be muted upon joining the call
-	CanChangeJoinMuted      bool   `tl:"flag:2,encoded_in_bitflags"`  // Whether the current user can change the value of the join_muted flag using phone.toggleGroupCallSettings
-	JoinDateAsc             bool   `tl:"flag:6,encoded_in_bitflags"`  // Specifies the ordering to use when locally sorting by date and displaying in the UI group call participants.
-	ScheduleStartSubscribed bool   `tl:"flag:8,encoded_in_bitflags"`  // Whether we subscribed to the scheduled call
-	CanStartVideo           bool   `tl:"flag:9,encoded_in_bitflags"`  // Whether you can start streaming video into the call
-	RecordVideoActive       bool   `tl:"flag:11,encoded_in_bitflags"` // Whether the group call is currently being recorded
-	RtmpStream              bool   `tl:"flag:12,encoded_in_bitflags"` // Whether RTMP streams are allowed
-	ListenersHidden         bool   `tl:"flag:13,encoded_in_bitflags"` // Whether the listeners list is hidden and cannot be fetched using phone.getGroupParticipants. The phone.groupParticipants.count and groupCall.participants_count counters will still include listeners.
-	ID                      int64  // Group call ID
-	AccessHash              int64  // Group call access hash
-	ParticipantsCount       int32  // Participant count
-	Title                   string `tl:"flag:3"`  // Group call title
-	StreamDcID              int32  `tl:"flag:4"`  // DC ID to be used for livestream chunks
-	RecordStartDate         int32  `tl:"flag:5"`  // When was the recording started
-	ScheduleDate            int32  `tl:"flag:7"`  // When is the call scheduled to start
-	UnmutedVideoCount       int32  `tl:"flag:10"` // Number of people currently streaming video into the call
-	UnmutedVideoLimit       int32  // Maximum number of people allowed to stream video into the call
-	Version                 int32  // Version
+	JoinMuted               bool `tl:"flag:1,encoded_in_bitflags"`
+	CanChangeJoinMuted      bool `tl:"flag:2,encoded_in_bitflags"`
+	JoinDateAsc             bool `tl:"flag:6,encoded_in_bitflags"`
+	ScheduleStartSubscribed bool `tl:"flag:8,encoded_in_bitflags"`
+	CanStartVideo           bool `tl:"flag:9,encoded_in_bitflags"`
+	RecordVideoActive       bool `tl:"flag:11,encoded_in_bitflags"`
+	RtmpStream              bool `tl:"flag:12,encoded_in_bitflags"`
+	ListenersHidden         bool `tl:"flag:13,encoded_in_bitflags"`
+	ID                      int64
+	AccessHash              int64
+	ParticipantsCount       int32
+	Title                   string `tl:"flag:3"`
+	StreamDcID              int32  `tl:"flag:4"`
+	RecordStartDate         int32  `tl:"flag:5"`
+	ScheduleDate            int32  `tl:"flag:7"`
+	UnmutedVideoCount       int32  `tl:"flag:10"`
+	UnmutedVideoLimit       int32
+	Version                 int32
+	ConferenceFromCall      int64 `tl:"flag:14"`
 }
 
 func (*GroupCallObj) CRC() uint32 {
-	return 0xd597650c
+	return 0xcdf8d3e3
 }
 
 func (*GroupCallObj) FlagIndex() int {
@@ -3511,7 +3512,7 @@ func (*InputInvoiceSlug) ImplementsInputInvoice() {}
 type InputInvoiceStarGift struct {
 	HideName       bool `tl:"flag:0,encoded_in_bitflags"`
 	IncludeUpgrade bool `tl:"flag:2,encoded_in_bitflags"`
-	UserID         InputPeer
+	UserID         InputUser
 	GiftID         int64
 	Message        *TextWithEntities `tl:"flag:1"`
 }
@@ -4780,33 +4781,6 @@ func (*InputWebFileLocationObj) CRC() uint32 {
 
 func (*InputWebFileLocationObj) ImplementsInputWebFileLocation() {}
 
-type IpPort interface {
-	tl.Object
-	ImplementsIpPort()
-}
-type IpPortObj struct {
-	Ipv4 int32
-	Port int32
-}
-
-func (*IpPortObj) CRC() uint32 {
-	return 0xd433ad73
-}
-
-func (*IpPortObj) ImplementsIpPort() {}
-
-type IpPortSecret struct {
-	Ipv4   int32
-	Port   int32
-	Secret []byte
-}
-
-func (*IpPortSecret) CRC() uint32 {
-	return 0x37982646
-}
-
-func (*IpPortSecret) ImplementsIpPort() {}
-
 type JsonValue interface {
 	tl.Object
 	ImplementsJsonValue()
@@ -5254,6 +5228,17 @@ func (*MediaAreaGeoPoint) FlagIndex() int {
 
 func (*MediaAreaGeoPoint) ImplementsMediaArea() {}
 
+type MediaAreaStarGift struct {
+	Coordinates *MediaAreaCoordinates
+	Slug        string
+}
+
+func (*MediaAreaStarGift) CRC() uint32 {
+	return 0x5787686d
+}
+
+func (*MediaAreaStarGift) ImplementsMediaArea() {}
+
 // Represents a reaction bubble.
 type MediaAreaSuggestedReaction struct {
 	Dark        bool                  `tl:"flag:0,encoded_in_bitflags"` // Whether the reaction bubble has a dark background.
@@ -5395,10 +5380,10 @@ type MessageService struct {
 	Out                  bool `tl:"flag:1,encoded_in_bitflags"`
 	Mentioned            bool `tl:"flag:4,encoded_in_bitflags"`
 	MediaUnread          bool `tl:"flag:5,encoded_in_bitflags"`
+	ReactionsArePossible bool `tl:"flag:9,encoded_in_bitflags"`
 	Silent               bool `tl:"flag:13,encoded_in_bitflags"`
 	Post                 bool `tl:"flag:14,encoded_in_bitflags"`
 	Legacy               bool `tl:"flag:19,encoded_in_bitflags"`
-	ReactionsArePossible bool `tl:"flag:9,encoded_in_bitflags"`
 	ID                   int32
 	FromID               Peer `tl:"flag:8"`
 	PeerID               Peer
@@ -6016,8 +6001,8 @@ type MessageActionStarGift struct {
 	Converted    bool `tl:"flag:3,encoded_in_bitflags"`
 	Upgraded     bool `tl:"flag:5,encoded_in_bitflags"`
 	Transferred  bool `tl:"flag:6,encoded_in_bitflags"`
-	Refunded     bool `tl:"flag:9,encoded_in_bitflags"`
 	CanUpgrade   bool `tl:"flag:10,encoded_in_bitflags"`
+	Refunded     bool `tl:"flag:9,encoded_in_bitflags"`
 	Gift         StarGift
 	Message      *TextWithEntities `tl:"flag:1"`
 	ConvertStars int64             `tl:"flag:4"`
@@ -7628,23 +7613,24 @@ type PhoneCall interface {
 
 // Phone call
 type PhoneCallObj struct {
-	P2PAllowed       bool               `tl:"flag:5,encoded_in_bitflags"` // Whether P2P connection to the other peer is allowed
-	Video            bool               `tl:"flag:6,encoded_in_bitflags"` // Whether this is a video call
-	ID               int64              // Call ID
-	AccessHash       int64              // Access hash
-	Date             int32              // Date of creation of the call
-	AdminID          int64              // User ID of the creator of the call
-	ParticipantID    int64              // User ID of the other participant in the call
-	GAOrB            []byte             // Parameter for key exchange
-	KeyFingerprint   int64              // Key fingerprint
-	Protocol         *PhoneCallProtocol // Call protocol info to be passed to libtgvoip
-	Connections      []PhoneConnection  // List of endpoints the user can connect to exchange call data
-	StartDate        int32              // When was the call actually started
-	CustomParameters *DataJson          `tl:"flag:7"` // Custom JSON-encoded call parameters to be passed to tgcalls.
+	P2PAllowed       bool `tl:"flag:5,encoded_in_bitflags"`
+	Video            bool `tl:"flag:6,encoded_in_bitflags"`
+	ID               int64
+	AccessHash       int64
+	Date             int32
+	AdminID          int64
+	ParticipantID    int64
+	GAOrB            []byte
+	KeyFingerprint   int64
+	Protocol         *PhoneCallProtocol
+	Connections      []PhoneConnection
+	StartDate        int32
+	CustomParameters *DataJson       `tl:"flag:7"`
+	ConferenceCall   *InputGroupCall `tl:"flag:8"`
 }
 
 func (*PhoneCallObj) CRC() uint32 {
-	return 0x30535af5
+	return 0x3ba5940c
 }
 
 func (*PhoneCallObj) FlagIndex() int {
@@ -9192,15 +9178,21 @@ func (*StarGiftObj) ImplementsStarGift() {}
 type StarGiftUnique struct {
 	ID                 int64
 	Title              string
+	Slug               string
 	Num                int32
-	OwnerID            int64
+	OwnerID            int64  `tl:"flag:0"`
+	OwnerName          string `tl:"flag:1"`
 	Attributes         []StarGiftAttribute
 	AvailabilityIssued int32
 	AvailabilityTotal  int32
 }
 
 func (*StarGiftUnique) CRC() uint32 {
-	return 0x6a1407cd
+	return 0x3482f322
+}
+
+func (*StarGiftUnique) FlagIndex() int {
+	return 0
 }
 
 func (*StarGiftUnique) ImplementsStarGift() {}
@@ -10559,12 +10551,16 @@ func (*UpdateGeoLiveViewed) ImplementsUpdate() {}
 
 // A new groupcall was started
 type UpdateGroupCall struct {
-	ChatID int64     // The channel/supergroup where this group call or livestream takes place
-	Call   GroupCall // Info about the group call or livestream
+	ChatID int64 `tl:"flag:0"`
+	Call   GroupCall
 }
 
 func (*UpdateGroupCall) CRC() uint32 {
-	return 0x14b24500
+	return 0x97d64341
+}
+
+func (*UpdateGroupCall) FlagIndex() int {
+	return 0
 }
 
 func (*UpdateGroupCall) ImplementsUpdate() {}
@@ -12280,6 +12276,16 @@ func (*WebPageAttributeTheme) FlagIndex() int {
 }
 
 func (*WebPageAttributeTheme) ImplementsWebPageAttribute() {}
+
+type WebPageAttributeUniqueStarGift struct {
+	Gift StarGift
+}
+
+func (*WebPageAttributeUniqueStarGift) CRC() uint32 {
+	return 0xcf6f6db8
+}
+
+func (*WebPageAttributeUniqueStarGift) ImplementsWebPageAttribute() {}
 
 type AccountEmailVerified interface {
 	tl.Object
@@ -14135,9 +14141,9 @@ func (*PaymentsPaymentFormStarGift) ImplementsPaymentsPaymentForm() {}
 // Represents a payment form, for payments to be using Telegram Stars, see here » for more info.
 type PaymentsPaymentFormStars struct {
 	CanSaveCredentials bool `tl:"flag:2,encoded_in_bitflags"`
+	PasswordMissing    bool `tl:"flag:3,encoded_in_bitflags"`
 	FormID             int64
 	BotID              int64
-	PasswordMissing    bool `tl:"flag:3,encoded_in_bitflags"`
 	Title              string
 	Description        string
 	Photo              WebDocument `tl:"flag:5"`
