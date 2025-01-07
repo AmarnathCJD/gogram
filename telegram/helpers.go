@@ -2,10 +2,10 @@ package telegram
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math/big"
 	"math/rand"
 	"os"
@@ -60,10 +60,14 @@ func GenRandInt() int64 {
 }
 
 func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
+	var signatures = make([]string, 0)
+
 	var media []*InputSingleMedia
 	if attrs == nil {
 		attrs = &MediaMetadata{}
 	}
+
+	attrs.Inline = true // force to call media.uploadToSelf
 	var inputMedia []InputMedia
 	switch m := m.(type) {
 	case *InputSingleMedia:
@@ -116,6 +120,26 @@ func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia
 		}
 	case []string:
 		for _, m := range m {
+			if !IsURL(m) && !attrs.SkipHash {
+				signature, err := calculateSha256Hash(m)
+				if err != nil {
+					return nil, err
+				}
+
+				var found bool
+				for i, sig := range signatures {
+					if sig == signature {
+						inputMedia = append(inputMedia, inputMedia[i])
+						found = true
+						break
+					}
+				}
+
+				signatures = append(signatures, signature)
+				if found {
+					continue
+				}
+			}
 			mediaObj, err := c.getSendableMedia(m, attrs)
 			if err != nil {
 				return nil, err
@@ -140,28 +164,38 @@ func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia
 		inputMedia = append(inputMedia, &InputMediaEmpty{})
 	}
 	for _, m := range inputMedia {
-		switch m := m.(type) {
-		case *InputMediaUploadedPhoto, *InputMediaUploadedDocument, *InputMediaPhotoExternal, *InputMediaDocumentExternal:
-			uploadedMedia, err := c.MessagesUploadMedia(attrs.BusinessConnectionId, &InputPeerSelf{}, m) // Upload if not already cached
-			if err != nil {
-				return nil, err
-			}
-			inputUploadedMedia, err := c.getSendableMedia(uploadedMedia, attrs)
-			if err != nil {
-				return nil, err
-			}
-			media = append(media, &InputSingleMedia{
-				Media:    inputUploadedMedia,
-				RandomID: GenRandInt(),
-			})
-		default:
-			media = append(media, &InputSingleMedia{
-				Media:    m,
-				RandomID: GenRandInt(),
-			})
-		}
+		media = append(media, &InputSingleMedia{
+			Media:    m,
+			RandomID: GenRandInt(),
+		})
 	}
 	return media, nil
+}
+
+func calculateSha256Hash(localFile string) (string, error) {
+	file, err := os.Open(localFile)
+	if err != nil {
+		return "", err
+	}
+
+	defer file.Close()
+	// calculate sha256 hash
+	// if file is too large take a hash of the first 10MB
+
+	if stat, err := file.Stat(); err == nil && stat.Size() > 50*1024*200 {
+		hash := sha256.New()
+		if _, err := io.CopyN(hash, file, 50*1024*200); err != nil {
+			return "", err
+		}
+
+		return fmt.Sprintf("%x", hash.Sum(nil)), nil
+	}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func processUpdates(updates Updates) []*MessageObj {
@@ -220,15 +254,17 @@ updateTypeSwitch:
 			return upd.Message.(*MessageObj)
 		case *UpdateEditChannelMessage:
 			return upd.Message.(*MessageObj)
+		case *UpdateBotEditBusinessMessage:
+			return upd.Message.(*MessageObj)
 		case *UpdateMessageID:
 			return &MessageObj{
 				ID: upd.ID,
 			}
 		default:
-			log.Println("unknown update type", reflect.TypeOf(upd).String())
+			c.Log.Debug("unknown update type", reflect.TypeOf(upd).String())
 		}
 	case *UpdateShortMessage:
-		return &MessageObj{Out: update.Out, ID: update.ID, PeerID: &PeerUser{}, Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod}
+		return &MessageObj{Out: update.Out, ID: update.ID, PeerID: &PeerUser{}, Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod, ReplyTo: update.ReplyTo, FromID: &PeerUser{UserID: update.UserID}, ViaBotID: update.ViaBotID, Message: update.Message, MediaUnread: update.MediaUnread, Silent: update.Silent, FwdFrom: update.FwdFrom}
 	case *UpdateShortChatMessage:
 		chat, err := c.GetPeer(update.ChatID)
 		if err != nil {
@@ -239,7 +275,7 @@ updateTypeSwitch:
 		upd = &UpdatesObj{Updates: []Update{update.Update}}
 		goto updateTypeSwitch
 	default:
-		log.Println("unknown update type", reflect.TypeOf(upd).String())
+		c.Log.Debug("unknown update type", reflect.TypeOf(upd).String())
 	}
 	return nil
 }
@@ -248,7 +284,7 @@ func (c *Client) GetSendablePeer(PeerID any) (InputPeer, error) {
 PeerSwitch:
 	switch Peer := PeerID.(type) {
 	case nil:
-		return nil, errors.New("PeerID is nil")
+		return nil, errors.New("peer is nil, cannot send nil peer")
 	case *PeerUser:
 		peerEntity, err := c.GetPeerUser(Peer.UserID)
 		if err != nil {
@@ -531,7 +567,7 @@ mediaTypeSwitch:
 		case *MessageMediaPoll:
 			return convertPoll(media), nil
 		case *MessageMediaUnsupported:
-			return nil, errors.New("unsupported media type: MessageMediaUnsupported")
+			return nil, errors.New("unsupported media type: MessageMediaUnsupported (Maybe you need to update the library)")
 		default:
 			return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(media).String()))
 		}
@@ -569,7 +605,7 @@ mediaTypeSwitch:
 			hasFileName := false
 			mediaAttributes, dur, err := gatherVideoMetadata(getValue(attr.FileAbsPath, fileName), mediaAttributes)
 			if err != nil {
-				c.Logger.Debug(errors.Wrap(err, "gathering video metadata"))
+				c.Log.Debug(errors.Wrap(err, "gathering video metadata"))
 			}
 
 			for _, at := range mediaAttributes {
@@ -581,7 +617,7 @@ mediaTypeSwitch:
 			if attr.Thumb == nil && !attr.DisableThumb {
 				thumbFile, err := c.gatherVideoThumb(getValue(attr.FileAbsPath, fileName), dur)
 				if err != nil {
-					c.Logger.Debug(errors.Wrap(err, "gathering video thumb"))
+					c.Log.Debug(errors.Wrap(err, "gathering video thumb"))
 				} else {
 					attr.Thumb = thumbFile
 				}
@@ -906,6 +942,18 @@ func (c *Client) ResolveUsername(username string, ref ...string) (any, error) {
 	} else {
 		return nil, fmt.Errorf("no user or chat has username %s", username)
 	}
+}
+
+func packMessages(c *Client, messages []*MessageObj) []*NewMessage {
+	var (
+		packedMessages []*NewMessage
+	)
+
+	for _, message := range messages {
+		packedMessages = append(packedMessages, packMessage(c, message))
+	}
+
+	return packedMessages
 }
 
 func packMessage(c *Client, message Message) *NewMessage {
