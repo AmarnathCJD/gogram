@@ -296,5 +296,3 @@ func (i *InlineSend) Edit(message any, options ...SendOptions) (*NewMessage, err
 	}
 	return i.Client.EditMessage(i.MsgID, 0, message, &opts)
 }
-
-// TODO: Complete Implementation of InlineSend

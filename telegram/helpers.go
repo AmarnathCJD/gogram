@@ -1087,6 +1087,21 @@ func packInlineQuery(c *Client, query *UpdateBotInlineQuery) *InlineQuery {
 	return iq
 }
 
+func packInlineSend(c *Client, query *UpdateBotInlineSend) *InlineSend {
+	var (
+		is = &InlineSend{}
+	)
+
+	is.ID = query.ID
+	is.MsgID = query.MsgID
+	is.Client = c
+	is.Sender, _ = c.GetUser(query.UserID)
+	is.SenderID = query.UserID
+	is.OriginalUpdate = query
+
+	return is
+}
+
 func packCallbackQuery(c *Client, query *UpdateBotCallbackQuery) *CallbackQuery {
 	var (
 		cq = &CallbackQuery{}

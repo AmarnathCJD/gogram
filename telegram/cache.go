@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
@@ -25,6 +27,8 @@ type CACHE struct {
 	disabled   bool
 	InputPeers *InputPeerCache `json:"input_peers,omitempty"`
 	logger     *utils.Logger
+
+	wipeScheduled atomic.Bool
 }
 
 type InputPeerCache struct {
@@ -283,11 +287,14 @@ func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 	c.Cache.RUnlock()
 
 	userPeer, err := c.Cache.getUserPeer(userID)
-	if err != nil {
-		return nil, err
+
+	// if user is not in cache and if the bot is participant in the user, try with access hash = 0
+	var inputPeerUser InputUser = &InputUserObj{UserID: userID, AccessHash: 0}
+	if err == nil {
+		inputPeerUser = userPeer
 	}
 
-	users, err := c.UsersGetUsers([]InputUser{userPeer})
+	users, err := c.UsersGetUsers([]InputUser{inputPeerUser})
 	if err != nil {
 		return nil, err
 	}
@@ -313,11 +320,14 @@ func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 	c.Cache.RUnlock()
 
 	channelPeer, err := c.Cache.getChannelPeer(channelID)
-	if err != nil {
-		return nil, err
+
+	// if channel is not in cache and if the bot is participant in the channel, try with access hash = 0
+	var inputChannel InputChannel = &InputChannelObj{ChannelID: channelID, AccessHash: 0}
+	if err == nil {
+		inputChannel = channelPeer
 	}
 
-	channels, err := c.ChannelsGetChannels([]InputChannel{channelPeer})
+	channels, err := c.ChannelsGetChannels([]InputChannel{inputChannel})
 	if err != nil {
 		return nil, err
 	}
@@ -490,8 +500,14 @@ func (c *CACHE) UpdateChat(chat *ChatObj) bool {
 }
 
 func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
-	if cache.disabled {
-		return
+	if cache.disabled && !cache.wipeScheduled.Load() {
+		// schedule a wipe of the cache after 20 seconds
+		cache.wipeScheduled.Store(true)
+		go func() {
+			<-time.After(20 * time.Second)
+			cache.Clear()
+			cache.wipeScheduled.Store(false)
+		}()
 	}
 
 	totalUpdates := [2]int{0, 0}
@@ -543,12 +559,13 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 	}
 
 	if totalUpdates[0] > 0 || totalUpdates[1] > 0 {
-		if !cache.memory {
+		if !cache.memory && !cache.disabled {
 			go cache.WriteFile() // write to file asynchronously
 		}
 		cache.logger.Debug(
-			fmt.Sprintf("updated %d users %d chats and %d channels in cache (u: %d, c: %d)",
+			fmt.Sprintf("updated %d users %d chats and %d channels in cache (u: %d, c: %dm ut: %d, ct: %d, cc: %d)",
 				totalUpdates[0], totalUpdates[1], totalUpdates[1], len(users), len(chats),
+				len(cache.InputPeers.InputUsers), len(cache.InputPeers.InputChats), len(cache.InputPeers.InputChannels),
 			),
 		)
 	}
