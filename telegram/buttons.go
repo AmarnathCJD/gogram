@@ -79,6 +79,27 @@ func (kb *KeyboardBuilder) Build() *ReplyInlineMarkup {
 	return &ReplyInlineMarkup{Rows: kb.rows}
 }
 
+type BuildReplyOptions struct {
+	ResizeKeyboard bool
+	OneTime        bool
+	Selective      bool
+	Persistent     bool
+	Placeholder    string
+}
+
+// BuildReply finalizes the keyboard and returns the reply keyboard markup.
+func (kb *KeyboardBuilder) BuildReply(opts ...BuildReplyOptions) *ReplyKeyboardMarkup {
+	opt := getVariadic(opts, BuildReplyOptions{})
+	return &ReplyKeyboardMarkup{
+		Resize:      opt.ResizeKeyboard,
+		SingleUse:   opt.OneTime,
+		Selective:   opt.Selective,
+		Placeholder: opt.Placeholder,
+		Rows:        kb.rows,
+		Persistent:  opt.Persistent,
+	}
+}
+
 func (ButtonBuilder) Text(text string) *KeyboardButtonObj {
 	return &KeyboardButtonObj{Text: text}
 }
