@@ -135,6 +135,10 @@ func (ButtonBuilder) Mention(text string, userID int64) *KeyboardButtonUserProfi
 	return &KeyboardButtonUserProfile{Text: text, UserID: userID}
 }
 
+func (ButtonBuilder) Copy(text string, copyText string) *KeyboardButtonCopy {
+	return &KeyboardButtonCopy{Text: text, CopyText: copyText}
+}
+
 func (ButtonBuilder) Row(Buttons ...KeyboardButton) *KeyboardButtonRow {
 	return &KeyboardButtonRow{Buttons: Buttons}
 }
