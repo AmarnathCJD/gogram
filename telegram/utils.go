@@ -187,8 +187,13 @@ func matchError(err error, str string) bool {
 	return false
 }
 
+type FileLocationOptions struct {
+	ThumbOnly bool
+	ThumbSize PhotoSize
+}
+
 // GetFileLocation returns file location, datacenter, file size and file name
-func GetFileLocation(file any) (InputFileLocation, int32, int64, string, error) {
+func GetFileLocation(file any, opts ...FileLocationOptions) (InputFileLocation, int32, int64, string, error) {
 	var (
 		location   any
 		dataCenter int32 = 4
@@ -237,6 +242,21 @@ mediaMessageSwitch:
 	}
 	switch l := location.(type) {
 	case *DocumentObj:
+		if len(opts) > 0 && opts[0].ThumbOnly {
+			var selectedThumb = l.Thumbs[0]
+			if opts[0].ThumbSize != nil {
+				selectedThumb = opts[0].ThumbSize
+			}
+
+			size, sizeType := getPhotoSize(selectedThumb)
+			return &InputDocumentFileLocation{
+				ID:            l.ID,
+				AccessHash:    l.AccessHash,
+				FileReference: l.FileReference,
+				ThumbSize:     sizeType,
+			}, l.DcID, size, GetFileName(l), nil
+		}
+
 		return &InputDocumentFileLocation{
 			ID:            l.ID,
 			AccessHash:    l.AccessHash,
@@ -244,7 +264,16 @@ mediaMessageSwitch:
 			ThumbSize:     "",
 		}, l.DcID, l.Size, GetFileName(l), nil
 	case *PhotoObj:
-		size, sizeType := getPhotoSize(l.Sizes[len(l.Sizes)-1])
+		var selectedThumb = l.Sizes[len(l.Sizes)-1]
+		if len(opts) > 0 && opts[0].ThumbOnly {
+			if opts[0].ThumbSize != nil {
+				selectedThumb = opts[0].ThumbSize
+			} else {
+				selectedThumb = l.Sizes[0]
+			}
+		}
+
+		size, sizeType := getPhotoSize(selectedThumb)
 		return &InputPhotoFileLocation{
 			ID:            l.ID,
 			AccessHash:    l.AccessHash,
