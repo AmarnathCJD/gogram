@@ -300,9 +300,9 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	}
 
 	// destroy created workers
-	// for _, worker := range w.workers {
-	// 	worker.Terminate()
-	// }
+	for _, worker := range w.workers {
+		worker.Terminate()
+	}
 
 	if opts.FileName != "" {
 		fileName = opts.FileName
@@ -636,9 +636,9 @@ retrySinglePart:
 	}
 
 	// destroy created workers
-	// for _, worker := range w.workers {
-	// 	worker.Terminate()
-	// }
+	for _, worker := range w.workers {
+		worker.Terminate()
+	}
 
 	return dest, nil
 }
@@ -669,14 +669,14 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) {
 	}
 
 	numCreate := 0
-	for dcId, workers := range c.exSenders {
-		if int(dc) == dcId {
-			for _, worker := range workers {
-				w.AddWorker(worker)
-				numCreate++
-			}
-		}
-	}
+	// for dcId, workers := range c.exSenders {
+	// 	if int(dc) == dcId {
+	// 		for _, worker := range workers {
+	// 			w.AddWorker(worker)
+	// 			numCreate++
+	// 		}
+	// 	}
+	// }
 
 	for i := numCreate; i < numWorkers; i++ {
 		conn, err := c.CreateExportedSender(int(dc), false, authParams)
@@ -711,7 +711,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		end = int(size)
 	}
 
-	sender, err := c.CreateExportedSender(int(dc), false)
+	sender, err := c.CreateExportedSender(int(dc), false) // cache this for efficiency, TODO
 	if err != nil {
 		return nil, "", err
 	}
