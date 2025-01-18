@@ -31,16 +31,17 @@ const (
 )
 
 type clientData struct {
-	appID         int32
-	appHash       string
-	deviceModel   string
-	systemVersion string
-	appVersion    string
-	langCode      string
-	parseMode     string
-	logLevel      utils.LogLevel
-	botAcc        bool
-	me            *UserObj
+	appID            int32
+	appHash          string
+	deviceModel      string
+	systemVersion    string
+	appVersion       string
+	langCode         string
+	parseMode        string
+	logLevel         utils.LogLevel
+	sleepThresholdMs int
+	botAcc           bool
+	me               *UserObj
 }
 
 // Client is the main struct of the library
@@ -55,43 +56,44 @@ type Client struct {
 }
 
 type DeviceConfig struct {
-	DeviceModel   string
-	SystemVersion string
-	AppVersion    string
-	LangCode      string
+	DeviceModel   string // The device model to use
+	SystemVersion string // The version of the system
+	AppVersion    string // The version of the app
+	LangCode      string // The language code
 }
 
 type ClientConfig struct {
-	AppID         int32
-	AppHash       string
-	DeviceConfig  DeviceConfig
-	Session       string
-	StringSession string
-	SessionName   string
-	ParseMode     string
-	MemorySession bool
-	DataCenter    int
-	IpAddr        string
-	PublicKeys    []*rsa.PublicKey
-	NoUpdates     bool
-	DisableCache  bool
-	TestMode      bool
-	LogLevel      utils.LogLevel
-	Logger        *utils.Logger
-	Proxy         *url.URL
-	ForceIPv6     bool
-	Cache         *CACHE
-	TransportMode string
-	FloodHandler  func(err error) bool
-	ErrorHandler  func(err error)
+	AppID            int32                // The App ID from my.telegram.org
+	AppHash          string               // The App Hash from my.telegram.org
+	DeviceConfig     DeviceConfig         // Device configuration
+	Session          string               // The session file to use
+	StringSession    string               // The string session to use
+	SessionName      string               // The name of the session
+	ParseMode        string               // The parse mode to use (HTML, Markdown)
+	MemorySession    bool                 // Don't save the session to a file
+	DataCenter       int                  // The data center to connect to (default: 4)
+	IpAddr           string               // The IP address of the DC to connect to
+	PublicKeys       []*rsa.PublicKey     // The public keys to verify the server with
+	NoUpdates        bool                 // Don't handle updates
+	DisableCache     bool                 // Disable caching peer and chat information
+	TestMode         bool                 // Use the test data centers
+	LogLevel         utils.LogLevel       // The library log level
+	Logger           *utils.Logger        // The logger to use
+	Proxy            *url.URL             // The proxy to use (SOCKS5, HTTP)
+	ForceIPv6        bool                 // Force to use IPv6
+	Cache            *CACHE               // The cache to use
+	TransportMode    string               // The transport mode to use (Abridged, Intermediate, Full)
+	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
+	FloodHandler     func(err error) bool // The flood handler to use
+	ErrorHandler     func(err error)      // The error handler to use
 }
 
 type Session struct {
-	Key      []byte `json:"key,omitempty"`
-	Hash     []byte `json:"hash,omitempty"`
-	Salt     int64  `json:"salt,omitempty"`
-	Hostname string `json:"hostname,omitempty"`
-	AppID    int32  `json:"app_id,omitempty"`
+	Key      []byte `json:"key,omitempty"`      // AUTH_KEY
+	Hash     []byte `json:"hash,omitempty"`     // AUTH_KEY_HASH (SHA1 of AUTH_KEY)
+	Salt     int64  `json:"salt,omitempty"`     // SERVER_SALT
+	Hostname string `json:"hostname,omitempty"` // HOSTNAME (IP address of the DC)
+	AppID    int32  `json:"app_id,omitempty"`   // APP_ID
 }
 
 func (s *Session) Encode() string {
@@ -246,6 +248,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.langCode = getValue(cnf.DeviceConfig.LangCode, "en")
 	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
 	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
+	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
