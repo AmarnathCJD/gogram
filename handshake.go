@@ -104,7 +104,7 @@ func (m *MTProto) makeAuthKey() error {
 	// check of hash, random bytes trail removing occurs in this func already
 	decodedMessage, err := ige.DecryptMessageWithTempKeys(dhParams.EncryptedAnswer, nonceSecond.Int, nonceServer.Int)
 	if err != nil {
-		m.Logger.Warn(err.Error() + " - <retrying>")
+		m.Logger.Debug(err.Error() + " - retrying")
 		return m.makeAuthKey()
 	}
 

@@ -394,8 +394,13 @@ func (c *Client) Me() *UserObj {
 	return c.clientData.me
 }
 
+type ExportedAuthParams struct {
+	ID    int64
+	Bytes []byte
+}
+
 // CreateExportedSender creates a new exported sender for the given DC
-func (c *Client) CreateExportedSender(dcID int, cdn ...bool) (*mtproto.MTProto, error) {
+func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...ExportedAuthParams) (*mtproto.MTProto, error) {
 	const retryLimit = 1 // Retry only once
 	var lastError error
 
@@ -404,7 +409,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn ...bool) (*mtproto.MTProto, 
 		defer cancel()
 
 		c.Log.Debug("creating exported sender for DC ", dcID)
-		if len(cdn) > 0 && cdn[0] {
+		if cdn {
 			if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
 				cdnKeysResp, err := c.HelpGetCdnConfig()
 				if err != nil {
@@ -418,7 +423,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn ...bool) (*mtproto.MTProto, 
 			}
 		}
 
-		exported, err := c.MTProto.ExportNewSender(dcID, true, cdn...)
+		exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
 		if err != nil {
 			lastError = errors.Wrap(err, "exporting new sender")
 			c.Log.Error("error exporting new sender: ", lastError)
@@ -437,11 +442,19 @@ func (c *Client) CreateExportedSender(dcID int, cdn ...bool) (*mtproto.MTProto, 
 
 		if c.MTProto.GetDC() != exported.GetDC() {
 			c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
-			auth, err := c.AuthExportAuthorization(int32(exported.GetDC()))
-			if err != nil {
-				lastError = errors.Wrap(err, "exporting auth")
-				c.Log.Error("error exporting auth: ", lastError)
-				continue
+			var auth *AuthExportedAuthorization
+			if len(authParams) > 0 && authParams[0].ID != 0 && len(authParams[0].Bytes) > 0 {
+				auth = &AuthExportedAuthorization{
+					ID:    authParams[0].ID,
+					Bytes: authParams[0].Bytes,
+				}
+			} else {
+				auth, err = c.AuthExportAuthorization(int32(exported.GetDC()))
+				if err != nil {
+					lastError = errors.Wrap(err, "exporting auth")
+					c.Log.Error("error exporting auth: ", lastError)
+					continue
+				}
 			}
 
 			initialReq.Query = &AuthImportAuthorizationParams{

@@ -271,7 +271,7 @@ type openChat struct { // TODO: Implement this
 }
 
 type UpdateDispatcher struct {
-	sync.Mutex
+	sync.RWMutex
 	messageHandles        map[string][]*messageHandle
 	inlineHandles         map[string][]*inlineHandle
 	inlineSendHandles     map[string][]*inlineSendHandle
@@ -478,17 +478,22 @@ func (c *Client) handleMessageUpdate(update Message) {
 }
 
 func (c *Client) handleAlbum(message MessageObj) {
+	c.dispatcher.RLock()
 	if group, ok := c.dispatcher.activeAlbums[message.GroupedID]; ok {
+		c.dispatcher.RUnlock()
 		group.Add(packMessage(c, &message))
 	} else {
+		c.dispatcher.RUnlock()
 		albBox := &albumBox{
 			messages:  []*NewMessage{packMessage(c, &message)},
 			groupedId: message.GroupedID,
 		}
+		c.dispatcher.Lock()
 		if c.dispatcher.activeAlbums == nil {
 			c.dispatcher.activeAlbums = make(map[int64]*albumBox)
 		}
 		c.dispatcher.activeAlbums[message.GroupedID] = albBox
+		c.dispatcher.Unlock()
 		albBox.WaitAndTrigger(c.dispatcher, c)
 	}
 }
