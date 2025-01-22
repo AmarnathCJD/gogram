@@ -494,7 +494,7 @@ mediaTypeSwitch:
 	switch media := mediaFile.(type) {
 	case string:
 		if IsURL(media) {
-			if _, isImage := mimeTypes.MIME(media); isImage && !attr.ForceDocument {
+			if _, isImage := MimeTypes.MIME(media); isImage && !attr.ForceDocument {
 				photoExt := &InputMediaPhotoExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}
 				if attr.Inline {
 					return c.uploadToSelf(photoExt)
@@ -580,11 +580,11 @@ mediaTypeSwitch:
 		)
 		switch media := media.(type) {
 		case *InputFileObj:
-			mimeType, IsPhoto = mimeTypes.MIME(getValue(attr.FileName, media.Name))
+			mimeType, IsPhoto = MimeTypes.MIME(getValue(attr.FileName, media.Name))
 			fileName = getValue(attr.FileName, media.Name)
 			mediaFile = media
 		case *InputFileBig:
-			mimeType, IsPhoto = mimeTypes.MIME(getValue(attr.FileName, media.Name))
+			mimeType, IsPhoto = MimeTypes.MIME(getValue(attr.FileName, media.Name))
 			fileName = getValue(attr.FileName, media.Name)
 			mediaFile = media
 		}
