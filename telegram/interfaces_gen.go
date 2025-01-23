@@ -1477,6 +1477,7 @@ type ChannelFull struct {
 	PaidMediaAllowed       bool `tl:"flag2:14,encoded_in_bitflags"`
 	CanViewStarsRevenue    bool `tl:"flag2:15,encoded_in_bitflags"`
 	PaidReactionsAvailable bool `tl:"flag2:16,encoded_in_bitflags"`
+	StargiftsAvailable     bool `tl:"flag2:19,encoded_in_bitflags"`
 	ID                     int64
 	About                  string
 	ParticipantsCount      int32 `tl:"flag:0"`
@@ -1519,10 +1520,11 @@ type ChannelFull struct {
 	BoostsUnrestrict       int32            `tl:"flag2:9"`
 	Emojiset               *StickerSet      `tl:"flag2:10"`
 	BotVerification        *BotVerification `tl:"flag2:17"`
+	StargiftsCount         int32            `tl:"flag2:18"`
 }
 
 func (*ChannelFull) CRC() uint32 {
-	return 0x9ff3b858
+	return 0x52d6806b
 }
 
 func (*ChannelFull) FlagIndex() int {
@@ -2312,14 +2314,42 @@ type EmojiStatus interface {
 
 // An emoji status
 type EmojiStatusObj struct {
-	DocumentID int64 // Custom emoji document ID
+	DocumentID int64
+	Until      int32 `tl:"flag:0"`
 }
 
 func (*EmojiStatusObj) CRC() uint32 {
-	return 0x929b619d
+	return 0xe7ff068a
+}
+
+func (*EmojiStatusObj) FlagIndex() int {
+	return 0
 }
 
 func (*EmojiStatusObj) ImplementsEmojiStatus() {}
+
+type EmojiStatusCollectible struct {
+	CollectibleID     int64
+	DocumentID        int64
+	Title             string
+	Slug              string
+	PatternDocumentID int64
+	CenterColor       int32
+	EdgeColor         int32
+	PatternColor      int32
+	TextColor         int32
+	Until             int32 `tl:"flag:0"`
+}
+
+func (*EmojiStatusCollectible) CRC() uint32 {
+	return 0x7184603b
+}
+
+func (*EmojiStatusCollectible) FlagIndex() int {
+	return 0
+}
+
+func (*EmojiStatusCollectible) ImplementsEmojiStatus() {}
 
 // No emoji status is set
 type EmojiStatusEmpty struct{}
@@ -2330,17 +2360,20 @@ func (*EmojiStatusEmpty) CRC() uint32 {
 
 func (*EmojiStatusEmpty) ImplementsEmojiStatus() {}
 
-// An emoji status valid until the specified date
-type EmojiStatusUntil struct {
-	DocumentID int64 // Custom emoji document ID
-	Until      int32 // This status is valid until this date
+type InputEmojiStatusCollectible struct {
+	CollectibleID int64
+	Until         int32 `tl:"flag:0"`
 }
 
-func (*EmojiStatusUntil) CRC() uint32 {
-	return 0xfa30a8c7
+func (*InputEmojiStatusCollectible) CRC() uint32 {
+	return 0x7141dbf
 }
 
-func (*EmojiStatusUntil) ImplementsEmojiStatus() {}
+func (*InputEmojiStatusCollectible) FlagIndex() int {
+	return 0
+}
+
+func (*InputEmojiStatusCollectible) ImplementsEmojiStatus() {}
 
 type EncryptedChat interface {
 	tl.Object
@@ -3512,13 +3545,13 @@ func (*InputInvoiceSlug) ImplementsInputInvoice() {}
 type InputInvoiceStarGift struct {
 	HideName       bool `tl:"flag:0,encoded_in_bitflags"`
 	IncludeUpgrade bool `tl:"flag:2,encoded_in_bitflags"`
-	UserID         InputUser
+	Peer           InputPeer
 	GiftID         int64
 	Message        *TextWithEntities `tl:"flag:1"`
 }
 
 func (*InputInvoiceStarGift) CRC() uint32 {
-	return 0x25d8c1d8
+	return 0xe8625e92
 }
 
 func (*InputInvoiceStarGift) FlagIndex() int {
@@ -3528,23 +3561,23 @@ func (*InputInvoiceStarGift) FlagIndex() int {
 func (*InputInvoiceStarGift) ImplementsInputInvoice() {}
 
 type InputInvoiceStarGiftTransfer struct {
-	MsgID int32
-	ToID  InputUser
+	Stargift InputSavedStarGift
+	ToID     InputPeer
 }
 
 func (*InputInvoiceStarGiftTransfer) CRC() uint32 {
-	return 0xae3ba9ed
+	return 0x4a5f5bd9
 }
 
 func (*InputInvoiceStarGiftTransfer) ImplementsInputInvoice() {}
 
 type InputInvoiceStarGiftUpgrade struct {
 	KeepOriginalDetails bool `tl:"flag:0,encoded_in_bitflags"`
-	MsgID               int32
+	Stargift            InputSavedStarGift
 }
 
 func (*InputInvoiceStarGiftUpgrade) CRC() uint32 {
-	return 0x5ebe7262
+	return 0x4d818d5d
 }
 
 func (*InputInvoiceStarGiftUpgrade) FlagIndex() int {
@@ -3596,14 +3629,16 @@ func (*InputMediaDice) ImplementsInputMedia() {}
 
 // Forwarded document
 type InputMediaDocument struct {
-	Spoiler    bool          `tl:"flag:2,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
-	ID         InputDocument // The document to be forwarded.
-	TtlSeconds int32         `tl:"flag:0"` // Time to live of self-destructing document
-	Query      string        `tl:"flag:1"` // Text query or emoji that was used by the user to find this sticker or GIF: used to improve search result relevance.
+	Spoiler        bool `tl:"flag:2,encoded_in_bitflags"`
+	ID             InputDocument
+	VideoCover     InputPhoto `tl:"flag:3"`
+	VideoTimestamp int32      `tl:"flag:4"`
+	TtlSeconds     int32      `tl:"flag:0"`
+	Query          string     `tl:"flag:1"`
 }
 
 func (*InputMediaDocument) CRC() uint32 {
-	return 0x33473058
+	return 0xa8763ab5
 }
 
 func (*InputMediaDocument) FlagIndex() int {
@@ -3614,13 +3649,15 @@ func (*InputMediaDocument) ImplementsInputMedia() {}
 
 // Document that will be downloaded by the telegram servers
 type InputMediaDocumentExternal struct {
-	Spoiler    bool   `tl:"flag:1,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
-	URL        string // URL of the document
-	TtlSeconds int32  `tl:"flag:0"` // Self-destruct time to live of document
+	Spoiler        bool `tl:"flag:1,encoded_in_bitflags"`
+	URL            string
+	TtlSeconds     int32      `tl:"flag:0"`
+	VideoCover     InputPhoto `tl:"flag:2"`
+	VideoTimestamp int32      `tl:"flag:3"`
 }
 
 func (*InputMediaDocumentExternal) CRC() uint32 {
-	return 0xfb52dc99
+	return 0x779600f9
 }
 
 func (*InputMediaDocumentExternal) FlagIndex() int {
@@ -3785,19 +3822,21 @@ func (*InputMediaStory) ImplementsInputMedia() {}
 
 // New document
 type InputMediaUploadedDocument struct {
-	NosoundVideo bool                `tl:"flag:3,encoded_in_bitflags"` // Whether the specified document is a video file with no audio tracks (a GIF animation (even as MPEG4), for example)
-	ForceFile    bool                `tl:"flag:4,encoded_in_bitflags"` // Force the media file to be uploaded as document
-	Spoiler      bool                `tl:"flag:5,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
-	File         InputFile           // The uploaded file
-	Thumb        InputFile           `tl:"flag:2"` // Thumbnail of the document, uploaded as for the file
-	MimeType     string              // MIME type of document
-	Attributes   []DocumentAttribute // Attributes that specify the type of the document (video, audio, voice, sticker, etc.)
-	Stickers     []InputDocument     `tl:"flag:0"` // Attached stickers
-	TtlSeconds   int32               `tl:"flag:1"` // Time to live in seconds of self-destructing document
+	NosoundVideo   bool `tl:"flag:3,encoded_in_bitflags"`
+	ForceFile      bool `tl:"flag:4,encoded_in_bitflags"`
+	Spoiler        bool `tl:"flag:5,encoded_in_bitflags"`
+	File           InputFile
+	Thumb          InputFile `tl:"flag:2"`
+	MimeType       string
+	Attributes     []DocumentAttribute
+	Stickers       []InputDocument `tl:"flag:0"`
+	VideoCover     InputPhoto      `tl:"flag:6"`
+	VideoTimestamp int32           `tl:"flag:7"`
+	TtlSeconds     int32           `tl:"flag:1"`
 }
 
 func (*InputMediaUploadedDocument) CRC() uint32 {
-	return 0x5b38c6c1
+	return 0x37c9330
 }
 
 func (*InputMediaUploadedDocument) FlagIndex() int {
@@ -4314,6 +4353,31 @@ func (*InputReplyToStory) CRC() uint32 {
 }
 
 func (*InputReplyToStory) ImplementsInputReplyTo() {}
+
+type InputSavedStarGift interface {
+	tl.Object
+	ImplementsInputSavedStarGift()
+}
+type InputSavedStarGiftChat struct {
+	Peer    InputPeer
+	SavedID int64
+}
+
+func (*InputSavedStarGiftChat) CRC() uint32 {
+	return 0xf101aa7f
+}
+
+func (*InputSavedStarGiftChat) ImplementsInputSavedStarGift() {}
+
+type InputSavedStarGiftUser struct {
+	MsgID int32
+}
+
+func (*InputSavedStarGiftUser) CRC() uint32 {
+	return 0x69279795
+}
+
+func (*InputSavedStarGiftUser) ImplementsInputSavedStarGift() {}
 
 type InputSecureFile interface {
 	tl.Object
@@ -6008,10 +6072,13 @@ type MessageActionStarGift struct {
 	ConvertStars int64             `tl:"flag:4"`
 	UpgradeMsgID int32             `tl:"flag:5"`
 	UpgradeStars int64             `tl:"flag:8"`
+	FromID       Peer              `tl:"flag:11"`
+	Peer         Peer              `tl:"flag:12"`
+	SavedID      int64             `tl:"flag:12"`
 }
 
 func (*MessageActionStarGift) CRC() uint32 {
-	return 0xd8f4f0a7
+	return 0x4717e8a4
 }
 
 func (*MessageActionStarGift) FlagIndex() int {
@@ -6028,10 +6095,13 @@ type MessageActionStarGiftUnique struct {
 	Gift          StarGift
 	CanExportAt   int32 `tl:"flag:3"`
 	TransferStars int64 `tl:"flag:4"`
+	FromID        Peer  `tl:"flag:6"`
+	Peer          Peer  `tl:"flag:7"`
+	SavedID       int64 `tl:"flag:7"`
 }
 
 func (*MessageActionStarGiftUnique) CRC() uint32 {
-	return 0x26077b99
+	return 0xacdfcb81
 }
 
 func (*MessageActionStarGiftUnique) FlagIndex() int {
@@ -6475,18 +6545,20 @@ func (*MessageMediaDice) ImplementsMessageMedia() {}
 
 // Document (video, audio, voice, sticker, any media type except photo)
 type MessageMediaDocument struct {
-	Nopremium    bool       `tl:"flag:3,encoded_in_bitflags"` // Whether this is a normal sticker, if not set this is a premium sticker and a premium sticker animation must be played.
-	Spoiler      bool       `tl:"flag:4,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
-	Video        bool       `tl:"flag:6,encoded_in_bitflags"` // Whether this is a video.
-	Round        bool       `tl:"flag:7,encoded_in_bitflags"` // Whether this is a round video.
-	Voice        bool       `tl:"flag:8,encoded_in_bitflags"` // Whether this is a voice message.
-	Document     Document   `tl:"flag:0"`                     // Attached document
-	AltDocuments []Document `tl:"flag:5"`                     // Videos only, contains alternative qualities of the video.
-	TtlSeconds   int32      `tl:"flag:2"`                     // Time to live of self-destructing document
+	Nopremium      bool       `tl:"flag:3,encoded_in_bitflags"`
+	Spoiler        bool       `tl:"flag:4,encoded_in_bitflags"`
+	Video          bool       `tl:"flag:6,encoded_in_bitflags"`
+	Round          bool       `tl:"flag:7,encoded_in_bitflags"`
+	Voice          bool       `tl:"flag:8,encoded_in_bitflags"`
+	Document       Document   `tl:"flag:0"`
+	AltDocuments   []Document `tl:"flag:5"`
+	VideoCover     Photo      `tl:"flag:9"`
+	VideoTimestamp int32      `tl:"flag:10"`
+	TtlSeconds     int32      `tl:"flag:2"`
 }
 
 func (*MessageMediaDocument) CRC() uint32 {
-	return 0xdd570bd5
+	return 0x52d8ccd9
 }
 
 func (*MessageMediaDocument) FlagIndex() int {
@@ -9180,15 +9252,16 @@ type StarGiftUnique struct {
 	Title              string
 	Slug               string
 	Num                int32
-	OwnerID            int64  `tl:"flag:0"`
+	OwnerID            Peer   `tl:"flag:0"`
 	OwnerName          string `tl:"flag:1"`
+	OwnerAddress       string `tl:"flag:2"`
 	Attributes         []StarGiftAttribute
 	AvailabilityIssued int32
 	AvailabilityTotal  int32
 }
 
 func (*StarGiftUnique) CRC() uint32 {
-	return 0x3482f322
+	return 0xf2fe7e4a
 }
 
 func (*StarGiftUnique) FlagIndex() int {
@@ -9229,14 +9302,14 @@ func (*StarGiftAttributeModel) CRC() uint32 {
 func (*StarGiftAttributeModel) ImplementsStarGiftAttribute() {}
 
 type StarGiftAttributeOriginalDetails struct {
-	SenderID    int64 `tl:"flag:0"`
-	RecipientID int64
+	SenderID    Peer `tl:"flag:0"`
+	RecipientID Peer
 	Date        int32
 	Message     *TextWithEntities `tl:"flag:1"`
 }
 
 func (*StarGiftAttributeOriginalDetails) CRC() uint32 {
-	return 0xc02c4f4b
+	return 0xe0bff26c
 }
 
 func (*StarGiftAttributeOriginalDetails) FlagIndex() int {
@@ -11347,8 +11420,8 @@ func (*UpdateSmsJob) CRC() uint32 {
 func (*UpdateSmsJob) ImplementsUpdate() {}
 
 type UpdateStarGiftUpgraded struct {
-	Gift   *UserStarGift
-	ToGift *UserStarGift
+	Gift   *SavedStarGift
+	ToGift *SavedStarGift
 }
 
 func (*UpdateStarGiftUpgraded) CRC() uint32 {

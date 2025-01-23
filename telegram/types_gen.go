@@ -2678,6 +2678,15 @@ func (*MessagesWebPage) CRC() uint32 {
 	return 0xfd5e12bd
 }
 
+type MessagesWebPagePreview struct {
+	Media MessageMedia
+	Users []User
+}
+
+func (*MessagesWebPagePreview) CRC() uint32 {
+	return 0xb53e8b21
+}
+
 type MessagesWebViewResult struct {
 	Result BotInlineResult
 	Users  []User
@@ -2928,12 +2937,37 @@ func (*PaymentsSavedInfo) FlagIndex() int {
 	return 0
 }
 
+type PaymentsSavedStarGifts struct {
+	Count                    int32
+	ChatNotificationsEnabled bool `tl:"flag:1"`
+	Gifts                    []*SavedStarGift
+	NextOffset               string `tl:"flag:0"`
+	Chats                    []Chat
+	Users                    []User
+}
+
+func (*PaymentsSavedStarGifts) CRC() uint32 {
+	return 0x95f389b1
+}
+
+func (*PaymentsSavedStarGifts) FlagIndex() int {
+	return 0
+}
+
 type PaymentsStarGiftUpgradePreview struct {
 	SampleAttributes []StarGiftAttribute
 }
 
 func (*PaymentsStarGiftUpgradePreview) CRC() uint32 {
 	return 0x167bd90b
+}
+
+type PaymentsStarGiftWithdrawalURL struct {
+	URL string
+}
+
+func (*PaymentsStarGiftWithdrawalURL) CRC() uint32 {
+	return 0x84aa3a9c
 }
 
 // Contains a URL leading to a page where the user will be able to place ads for the channel/bot, paying using Telegram Stars.
@@ -3008,22 +3042,6 @@ type PaymentsUniqueStarGift struct {
 
 func (*PaymentsUniqueStarGift) CRC() uint32 {
 	return 0xcaa2f60b
-}
-
-// Gifts displayed on a user's profile.
-type PaymentsUserStarGifts struct {
-	Count      int32
-	Gifts      []*UserStarGift
-	NextOffset string `tl:"flag:0"`
-	Users      []User
-}
-
-func (*PaymentsUserStarGifts) CRC() uint32 {
-	return 0x6b65b517
-}
-
-func (*PaymentsUserStarGifts) FlagIndex() int {
-	return 0
 }
 
 // Validated user-provided info
@@ -3539,6 +3557,31 @@ func (*SavedReactionTag) CRC() uint32 {
 }
 
 func (*SavedReactionTag) FlagIndex() int {
+	return 0
+}
+
+type SavedStarGift struct {
+	NameHidden    bool `tl:"flag:0,encoded_in_bitflags"`
+	Unsaved       bool `tl:"flag:5,encoded_in_bitflags"`
+	Refunded      bool `tl:"flag:9,encoded_in_bitflags"`
+	CanUpgrade    bool `tl:"flag:10,encoded_in_bitflags"`
+	FromID        Peer `tl:"flag:1"`
+	Date          int32
+	Gift          StarGift
+	Message       *TextWithEntities `tl:"flag:2"`
+	MsgID         int32             `tl:"flag:3"`
+	SavedID       int64             `tl:"flag:11"`
+	ConvertStars  int64             `tl:"flag:4"`
+	UpgradeStars  int64             `tl:"flag:6"`
+	CanExportAt   int32             `tl:"flag:7"`
+	TransferStars int64             `tl:"flag:8"`
+}
+
+func (*SavedStarGift) CRC() uint32 {
+	return 0x6056dba5
+}
+
+func (*SavedStarGift) FlagIndex() int {
 	return 0
 }
 
@@ -4483,31 +4526,6 @@ func (*UserFull) FlagIndex() int {
 	return 14
 }
 
-// Represents a gift, displayed on a user's profile page.
-type UserStarGift struct {
-	NameHidden    bool  `tl:"flag:0,encoded_in_bitflags"`
-	Unsaved       bool  `tl:"flag:5,encoded_in_bitflags"`
-	Refunded      bool  `tl:"flag:9,encoded_in_bitflags"`
-	CanUpgrade    bool  `tl:"flag:10,encoded_in_bitflags"`
-	FromID        int64 `tl:"flag:1"`
-	Date          int32
-	Gift          StarGift
-	Message       *TextWithEntities `tl:"flag:2"`
-	MsgID         int32             `tl:"flag:3"`
-	ConvertStars  int64             `tl:"flag:4"`
-	UpgradeStars  int64             `tl:"flag:6"`
-	CanExportAt   int32             `tl:"flag:7"`
-	TransferStars int64             `tl:"flag:8"`
-}
-
-func (*UserStarGift) CRC() uint32 {
-	return 0x325835e1
-}
-
-func (*UserStarGift) FlagIndex() int {
-	return 0
-}
-
 // Contains information about a username.
 type Username struct {
 	Editable bool `tl:"flag:0,encoded_in_bitflags"`
@@ -4570,15 +4588,6 @@ type WebAuthorization struct {
 
 func (*WebAuthorization) CRC() uint32 {
 	return 0xa6f8f452
-}
-
-type WebPagePreview struct {
-	Media MessageMedia
-	Users []User
-}
-
-func (*WebPagePreview) CRC() uint32 {
-	return 0xb53e8b21
 }
 
 // Info about a sent inline webview message
