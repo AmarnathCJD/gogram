@@ -478,6 +478,7 @@ func (c *Client) GetSendableMedia(mediaFile any, attr *MediaMetadata) (InputMedi
 
 func (c *Client) getSendableMedia(mediaFile any, attributes *MediaMetadata) (InputMedia, error) {
 	attr := getValue(attributes, &MediaMetadata{})
+	var thumbnail InputFile
 
 	switch thumb := attr.Thumb.(type) {
 	case InputFile, *InputFile, nil:
@@ -487,7 +488,7 @@ func (c *Client) getSendableMedia(mediaFile any, attributes *MediaMetadata) (Inp
 		if err != nil {
 			return nil, err
 		}
-		attr.Thumb = fi
+		thumbnail = fi
 	}
 
 mediaTypeSwitch:
@@ -614,12 +615,12 @@ mediaTypeSwitch:
 				}
 			}
 
-			if attr.Thumb == nil && !attr.DisableThumb {
+			if thumbnail == nil && !attr.DisableThumb {
 				thumbFile, err := c.gatherVideoThumb(getValue(attr.FileAbsPath, fileName), dur)
 				if err != nil {
 					c.Log.Debug(errors.Wrap(err, "gathering video thumb"))
 				} else {
-					attr.Thumb = thumbFile
+					thumbnail = thumbFile
 				}
 			}
 
@@ -627,7 +628,7 @@ mediaTypeSwitch:
 				mediaAttributes = append(mediaAttributes, &DocumentAttributeFilename{FileName: fileName})
 			}
 
-			uploadedDoc := &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValueAny(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false), ForceFile: getValue(attr.ForceDocument, false)}
+			uploadedDoc := &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValueAny(thumbnail, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false), ForceFile: getValue(attr.ForceDocument, false)}
 			if attr.Inline {
 				return c.uploadToSelf(uploadedDoc)
 			}
