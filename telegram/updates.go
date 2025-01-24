@@ -714,7 +714,7 @@ func (c *Client) handleDeleteUpdate(update Update) {
 func (c *Client) handleRawUpdate(update Update) {
 	for group, handlers := range c.dispatcher.rawHandles {
 		for _, handler := range handlers {
-			if reflect.TypeOf(update) == reflect.TypeOf(handler.updateType) {
+			if reflect.TypeOf(update) == reflect.TypeOf(handler.updateType) || handler.updateType == nil {
 				handle := func(h *rawHandle) error {
 					defer c.NewRecovery()()
 					if err := h.Handler(update, c); err != nil {
@@ -741,7 +741,7 @@ func (c *Client) handleRawUpdate(update Update) {
 func (h *inlineHandle) IsMatch(text string) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
-		if pattern == OnInlineQuery {
+		if pattern == OnInlineQuery || pattern == OnInline {
 			return true
 		}
 		if !strings.HasPrefix(pattern, "^") {
@@ -758,7 +758,7 @@ func (h *inlineHandle) IsMatch(text string) bool {
 func (e *messageEditHandle) IsMatch(text string) bool {
 	switch pattern := e.Pattern.(type) {
 	case string:
-		if pattern == OnEditMessage {
+		if pattern == OnEditMessage || pattern == OnEdit {
 			return true
 		}
 		p := regexp.MustCompile("^" + pattern)
@@ -773,7 +773,7 @@ func (e *messageEditHandle) IsMatch(text string) bool {
 func (h *callbackHandle) IsMatch(data []byte) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
-		if pattern == OnCallbackQuery {
+		if pattern == OnCallbackQuery || pattern == OnCallback {
 			return true
 		}
 		p := regexp.MustCompile(pattern)
@@ -788,7 +788,7 @@ func (h *callbackHandle) IsMatch(data []byte) bool {
 func (h *inlineCallbackHandle) IsMatch(data []byte) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
-		if pattern == OnInlineCallbackQuery {
+		if pattern == OnInlineCallbackQuery || pattern == OnInlineCallback {
 			return true
 		}
 		p := regexp.MustCompile(pattern)
@@ -803,7 +803,7 @@ func (h *inlineCallbackHandle) IsMatch(data []byte) bool {
 func (h *messageHandle) IsMatch(text string, c *Client) bool {
 	switch Pattern := h.Pattern.(type) {
 	case string:
-		if Pattern == OnNewMessage {
+		if Pattern == OnNewMessage || Pattern == OnMessage {
 			return true
 		}
 
@@ -1180,8 +1180,8 @@ UpdateTypeSwitching:
 
 		goto UpdateTypeSwitching
 	case *UpdatesTooLong:
-		c.Log.Debug("update gap is too long, requesting getState")
-		c.UpdatesGetState()
+		c.Log.Debug("too many updates, forcing getDifference")
+		c.UpdatesGetState() //state, err := c.UpdatesGetState() // TODO: figure out the pts to call here
 	default:
 		c.Log.Debug("skipping unhanded update type: ", reflect.TypeOf(u), " with value: ", c.JSON(u))
 	}
