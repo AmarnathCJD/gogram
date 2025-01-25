@@ -51,7 +51,7 @@ type exSenders struct {
 }
 
 func (e *exSenders) setTTL() {
-	e.idleTTL = time.Now().Add(5 * time.Minute)
+	e.idleTTL = time.Now().Add(CleanExportedSendersDelay)
 }
 
 // Client is the main struct of the library
@@ -269,7 +269,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 
 	c.exSenders = &exSenders{
 		senders: make(map[int][]*mtproto.MTProto),
-		idleTTL: time.Now().Add(5 * time.Minute),
+		idleTTL: time.Now().Add(CleanExportedSendersDelay),
 	}
 	go func() {
 
