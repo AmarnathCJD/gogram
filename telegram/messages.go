@@ -222,7 +222,11 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 		return packMessage(c, processed), nil
 	}
 
-	return nil, errors.New("no response for editMessage")
+	return packMessage(c, &MessageObj{
+		ID:     id,
+		PeerID: c.getPeer(Peer),
+		FromID: &PeerUser{UserID: c.Me().ID},
+	}), nil
 }
 
 func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string, entities []MessageEntity, Media any, options *SendOptions) (*NewMessage, error) {

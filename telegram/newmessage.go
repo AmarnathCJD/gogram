@@ -115,7 +115,7 @@ func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 }
 
 func (m *NewMessage) ChatID() int64 {
-	if m.Message.PeerID != nil {
+	if m.Message != nil && m.Message.PeerID != nil {
 		switch Peer := m.Message.PeerID.(type) {
 		case *PeerUser:
 			return Peer.UserID
