@@ -45,6 +45,15 @@ type clientData struct {
 	me               *UserObj
 }
 
+type exSenders struct {
+	senders map[int][]*mtproto.MTProto
+	idleTTL time.Time
+}
+
+func (e *exSenders) setTTL() {
+	e.idleTTL = time.Now().Add(5 * time.Minute)
+}
+
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
@@ -53,7 +62,7 @@ type Client struct {
 	dispatcher *UpdateDispatcher
 	wg         sync.WaitGroup
 	stopCh     chan struct{}
-	exSenders  map[int][]*mtproto.MTProto
+	exSenders  *exSenders
 	Log        *utils.Logger
 }
 
@@ -258,7 +267,12 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 		c.Log.SetLevel(c.clientData.logLevel)
 	}
 
+	c.exSenders = &exSenders{
+		senders: make(map[int][]*mtproto.MTProto),
+		idleTTL: time.Now().Add(5 * time.Minute),
+	}
 	go func() {
+
 		for {
 			select {
 			case <-c.stopCh:
@@ -394,10 +408,6 @@ func (c *Client) SetAppHash(appHash string) {
 	c.clientData.appHash = appHash
 }
 
-// func (c *Client) SetTcpConnection(conn *net.TCPConn) {
-// 	c.MTProto.SetTcpConnection(conn)
-// }
-
 func (c *Client) Me() *UserObj {
 	if c.clientData.me == nil {
 		me, err := c.GetMe()
@@ -416,14 +426,18 @@ type ExportedAuthParams struct {
 }
 
 func (c *Client) cleanExportedSenders() {
-	c.Log.Debug("cleaning exported senders")
-	for dcID, sender := range c.exSenders {
+	if time.Now().Before(c.exSenders.idleTTL) {
+		return
+	}
+
+	c.Log.Debug("cleaning exported senders, idle time reached")
+	for dcID, sender := range c.exSenders.senders {
 		for _, s := range sender {
 			if s != nil {
-				s.Terminate()
+				s.Terminate() // Terminate each sender
 			}
 		}
-		delete(c.exSenders, dcID)
+		delete(c.exSenders.senders, dcID) // Remove the sender from the map
 	}
 }
 
