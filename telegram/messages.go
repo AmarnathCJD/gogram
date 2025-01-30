@@ -24,6 +24,7 @@ type SendOptions struct {
 	NoForwards      bool                // to disable forwarding (restrict saving)
 	ParseMode       string              // parse mode for the caption (markdown or html)
 	ReplyID         int32               // reply to message ID
+	TopicID         int32               // topic ID for the message to be sent
 	ReplyMarkup     ReplyMarkup         // keyboard to send with the message
 	ScheduleDate    int32               // schedule date for the message
 	SendAs          any                 // to send the message as a different peer
@@ -102,6 +103,17 @@ func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMes
 }
 
 func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageEntity, sendAs InputPeer, opt *SendOptions) (*NewMessage, error) {
+	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
+	if opt.ReplyID != 0 {
+		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	} else {
+		if opt.TopicID != 0 && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	}
+
 	updateResp, err := c.MessagesSendMessage(&MessagesSendMessageParams{
 		NoWebpage:              !opt.LinkPreview,
 		Silent:                 opt.Silent,
@@ -111,16 +123,14 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 		UpdateStickersetsOrder: false,
 		InvertMedia:            opt.InvertMedia,
 		Peer:                   Peer,
-		ReplyTo: &InputReplyToMessage{
-			ReplyToMsgID: opt.ReplyID,
-		},
-		Message:      Message,
-		RandomID:     GenRandInt(),
-		ReplyMarkup:  opt.ReplyMarkup,
-		Entities:     entities,
-		ScheduleDate: opt.ScheduleDate,
-		SendAs:       sendAs,
-		Effect:       opt.Effect,
+		ReplyTo:                replyTo,
+		Message:                Message,
+		RandomID:               GenRandInt(),
+		ReplyMarkup:            opt.ReplyMarkup,
+		Entities:               entities,
+		ScheduleDate:           opt.ScheduleDate,
+		SendAs:                 sendAs,
+		Effect:                 opt.Effect,
 	})
 	if err != nil {
 		return nil, err
@@ -315,6 +325,7 @@ type MediaOptions struct {
 	NoSoundVideo     bool                // to send the video without sound
 	ParseMode        string              // parse mode for the caption (markdown or html)
 	ReplyID          int32               //	reply to message ID
+	TopicID          int32               // topic ID for the message to be sent
 	ReplyMarkup      ReplyMarkup         // keyboard to send with the message
 	ScheduleDate     int32               // schedule date for the message
 	SendAs           any                 // to send the message as a different peer
@@ -412,6 +423,17 @@ func (c *Client) SendMedia(peerID, Media any, opts ...*MediaOptions) (*NewMessag
 }
 
 func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, entities []MessageEntity, sendAs InputPeer, opt *MediaOptions) (*NewMessage, error) {
+	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
+	if opt.ReplyID != 0 {
+		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	} else {
+		if opt.TopicID != 0 && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	}
+
 	result, err := c.MessagesSendMedia(&MessagesSendMediaParams{
 		Silent:                 opt.Silent,
 		Background:             false,
@@ -420,16 +442,14 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 		UpdateStickersetsOrder: false,
 		InvertMedia:            opt.InvertMedia,
 		Peer:                   Peer,
-		ReplyTo: &InputReplyToMessage{
-			ReplyToMsgID: opt.ReplyID,
-		},
-		Media:        Media,
-		RandomID:     GenRandInt(),
-		ReplyMarkup:  opt.ReplyMarkup,
-		Message:      Caption,
-		Entities:     entities,
-		ScheduleDate: opt.ScheduleDate,
-		SendAs:       sendAs,
+		ReplyTo:                replyTo,
+		Media:                  Media,
+		RandomID:               GenRandInt(),
+		ReplyMarkup:            opt.ReplyMarkup,
+		Message:                Caption,
+		Entities:               entities,
+		ScheduleDate:           opt.ScheduleDate,
+		SendAs:                 sendAs,
 	})
 	if err != nil {
 		return nil, err
@@ -530,6 +550,17 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 }
 
 func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs InputPeer, opt *MediaOptions) ([]*NewMessage, error) {
+	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
+	if opt.ReplyID != 0 {
+		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	} else {
+		if opt.TopicID != 0 && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	}
+
 	req := &MessagesSendMultiMediaParams{
 		Silent:                 opt.Silent,
 		Background:             false,
@@ -537,11 +568,9 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 		Noforwards:             opt.NoForwards,
 		UpdateStickersetsOrder: false,
 		Peer:                   Peer,
-		ReplyTo: &InputReplyToMessage{
-			ReplyToMsgID: opt.ReplyID,
-		},
-		ScheduleDate: opt.ScheduleDate,
-		SendAs:       sendAs,
+		ReplyTo:                replyTo,
+		ScheduleDate:           opt.ScheduleDate,
+		SendAs:                 sendAs,
 	}
 
 	// split into chunks of 10
@@ -584,6 +613,7 @@ type PollOptions struct {
 	Solution       string // Solution for the poll
 	CorrectAnswers []int  // Correct answers for the poll
 	ReplyID        int32  // Reply to message ID
+	TopicID        int32  // Topic ID for the message to be sent
 	NoForwards     bool   // Disable forwarding
 	ScheduleDate   int32  // Schedule date for the message
 }
@@ -648,11 +678,22 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 		SolutionEntities: solnEntities,
 	}
 
+	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
+	if opt.ReplyID != 0 {
+		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	} else {
+		if opt.TopicID != 0 && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	}
+
 	updateResp, err := c.MessagesSendMedia(&MessagesSendMediaParams{
 		ClearDraft:   false,
 		Noforwards:   opt.NoForwards,
 		Peer:         Peer,
-		ReplyTo:      &InputReplyToMessage{ReplyToMsgID: opt.ReplyID},
+		ReplyTo:      replyTo,
 		Media:        poll,
 		RandomID:     GenRandInt(),
 		ScheduleDate: opt.ScheduleDate,
