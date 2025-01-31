@@ -157,7 +157,7 @@ func (c *CACHE) ReadFile() {
 	c.Unlock()
 
 	if !c.memory {
-		c.logger.Debug("loaded ", len(c.InputPeers.InputUsers), " users, ", len(c.InputPeers.InputChannels), " channels from cache")
+		c.logger.Debug(fmt.Sprintf("loaded %d users, %d channels from cache", len(c.InputPeers.InputUsers), len(c.InputPeers.InputChannels)))
 	}
 }
 
@@ -500,7 +500,7 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 			go cache.WriteFile() // write to file asynchronously
 		}
 		cache.logger.Debug(
-			fmt.Sprintf("updated %d users %d chats and %d channels in cache (u: %d, c: %dm ut: %d, ct: %d, cc: %d)",
+			fmt.Sprintf("updated %d users %d chats and %d channels in cache (u: %d, c: %d ut: %d, ct: %d, cc: %d)",
 				totalUpdates[0], totalUpdates[1], totalUpdates[1], len(users), len(chats),
 				len(cache.InputPeers.InputUsers), len(cache.chats), len(cache.InputPeers.InputChannels),
 			),
