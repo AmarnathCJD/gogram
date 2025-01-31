@@ -10861,7 +10861,7 @@ func (*MessagesGetWebPagePreviewParams) FlagIndex() int {
 }
 
 // Get preview of webpage
-func (c *Client) MessagesGetWebPagePreview(message string, entities []MessageEntity) (MessageMedia, error) {
+func (c *Client) MessagesGetWebPagePreview(message string, entities []MessageEntity) (*MessagesWebPagePreview, error) {
 	responseData, err := c.MakeRequest(&MessagesGetWebPagePreviewParams{
 		Entities: entities,
 		Message:  message,
@@ -10870,7 +10870,7 @@ func (c *Client) MessagesGetWebPagePreview(message string, entities []MessageEnt
 		return nil, errors.Wrap(err, "sending MessagesGetWebPagePreview")
 	}
 
-	resp, ok := responseData.(MessageMedia)
+	resp, ok := responseData.(*MessagesWebPagePreview)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -12602,18 +12602,18 @@ type MessagesSendPaidReactionParams struct {
 	MsgID    int32
 	Count    int32
 	RandomID int64
-	Private  bool `tl:"flag:0"`
+	Privacy  PaidReactionPrivacy `tl:"flag:0"`
 }
 
 func (*MessagesSendPaidReactionParams) CRC() uint32 {
-	return 0x9dd6a67b
+	return 0x58bbcb50
 }
 
 func (*MessagesSendPaidReactionParams) FlagIndex() int {
 	return 0
 }
 
-// Sends one or more paid Telegram Star reactions », transferring Telegram Stars » to a channel's balance.
+// Sends one or more paid Telegram Star reactions », transferring Telegram Stars » to a channel&#39;s balance.
 func (c *Client) MessagesSendPaidReaction(params *MessagesSendPaidReactionParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -13429,19 +13429,19 @@ func (c *Client) MessagesToggleNoForwards(peer InputPeer, enabled bool) (Updates
 type MessagesTogglePaidReactionPrivacyParams struct {
 	Peer    InputPeer
 	MsgID   int32
-	Private bool
+	Privacy PaidReactionPrivacy
 }
 
 func (*MessagesTogglePaidReactionPrivacyParams) CRC() uint32 {
-	return 0x849ad397
+	return 0x435885b5
 }
 
 // Changes the privacy of already sent paid reactions on a specific message.
-func (c *Client) MessagesTogglePaidReactionPrivacy(peer InputPeer, msgID int32, private bool) (bool, error) {
+func (c *Client) MessagesTogglePaidReactionPrivacy(peer InputPeer, msgID int32, privacy PaidReactionPrivacy) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesTogglePaidReactionPrivacyParams{
 		MsgID:   msgID,
 		Peer:    peer,
-		Private: private,
+		Privacy: privacy,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending MessagesTogglePaidReactionPrivacy")
