@@ -258,7 +258,8 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 				_, err = c.AuthCheckPassword(inputPassword)
 				if err != nil {
 					if strings.Contains(err.Error(), "PASSWORD_HASH_INVALID") {
-						fmt.Println("Password is incorrect, please try again!")
+						opts.Password = ""
+						fmt.Println("password is incorrect, please try again!")
 						goto acceptPasswordInput
 					}
 					return nil, err
