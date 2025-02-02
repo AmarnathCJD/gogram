@@ -453,8 +453,13 @@ func (m *NewMessage) Text() string {
 	return m.MessageText()
 }
 
-func (m *NewMessage) RawText() string {
-	return m.MessageText()
+func (m *NewMessage) RawText(markdown ...bool) string {
+	var md = getVariadic(markdown, false)
+	if parsedText := InsertTagsIntoText(m.Text(), ParseEntitiesToTags(m.Message.Entities)); md {
+		return ToMarkdown(parsedText)
+	} else {
+		return parsedText
+	}
 }
 
 func (m *NewMessage) Args() string {
