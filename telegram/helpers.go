@@ -600,7 +600,7 @@ mediaTypeSwitch:
 		} else {
 			mediaAttributes := getValueSlice(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}})
 			hasFileName := false
-			mediaAttributes, dur, err := gatherVideoMetadata(getValue(attr.FileAbsPath, fileName), mediaAttributes)
+			mediaAttributes, dur, err := GatherVideoMetadata(getValue(attr.FileAbsPath, fileName), mediaAttributes)
 			if err != nil {
 				c.Log.Debug(errors.Wrap(err, "gathering video metadata"))
 			}
@@ -695,7 +695,7 @@ func convertPoll(poll *MessageMediaPoll) *InputMediaPoll {
 	return newPoll
 }
 
-func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttribute, int64, error) {
+func GatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttribute, int64, error) {
 	var dur float64
 
 	if !IsFfmpegInstalled() {
