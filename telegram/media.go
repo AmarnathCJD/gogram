@@ -309,7 +309,9 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	// destroy created workers
 	if !c.clientData.cacheSenders {
 		for _, worker := range w.workers {
-			worker.Terminate()
+			if worker != c.MTProto {
+				worker.Terminate()
+			}
 		}
 	}
 
@@ -664,7 +666,9 @@ retrySinglePart:
 	// destroy created workers
 	if !c.clientData.cacheSenders {
 		for _, worker := range w.workers {
-			worker.Terminate()
+			if worker != c.MTProto {
+				worker.Terminate()
+			}
 		}
 	}
 
