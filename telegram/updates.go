@@ -420,11 +420,13 @@ func (c *Client) handleMessageUpdate(update Message) {
 			c.handleAlbum(*msg)
 		}
 
+		wg := sync.WaitGroup{}
 		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 
 		for group, handlers := range c.dispatcher.messageHandles {
+			wg.Add(1)
 			go func(group string, handlers []*messageHandle) {
+				defer wg.Done()
 				for _, handler := range handlers {
 					if handler.IsMatch(msg.Message, c) {
 						handle := func(h *messageHandle) error {
@@ -459,6 +461,9 @@ func (c *Client) handleMessageUpdate(update Message) {
 				}
 			}(group, handlers)
 		}
+
+		wg.Wait()
+		cancel()
 
 	case *MessageService:
 		for group, handler := range c.dispatcher.actionHandles {
