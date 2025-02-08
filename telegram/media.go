@@ -164,7 +164,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 	w := NewWorkerPool(numWorkers)
 
-	c.Log.Info(fmt.Sprintf("file - upload: (%s) - (%s) - (%d)", source.GetName(), sizetoHuman(size), parts))
+	c.Log.Info(fmt.Sprintf("file - upload: (%s) - (%s) - (%d)", source.GetName(), SizetoHuman(size), parts))
 
 	doneBytes := atomic.Int64{}
 	doneArray := sync.Map{}
@@ -493,7 +493,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		c.Log.Warn("downloading to buffer (memory) - use with caution (memory usage)")
 	}
 
-	c.Log.Info(fmt.Sprintf("file - download: (%s) - (%s) - (%d)", dest, sizetoHuman(size), parts))
+	c.Log.Info(fmt.Sprintf("file - download: (%s) - (%s) - (%d)", dest, SizetoHuman(size), parts))
 	c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers))
 
 	if c.clientData.cacheSenders {
