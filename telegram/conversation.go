@@ -96,6 +96,7 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 	}
 
 	h := c.Client.On(OnMessage, waitFunc, filters...)
+	h.SetGroup("conversation")
 
 	c.openH = append(c.openH, h)
 	select {
@@ -129,6 +130,7 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 	}
 
 	h := c.Client.On(OnEdit, waitFunc, filters...)
+	h.SetGroup("conversation")
 	c.openH = append(c.openH, h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
@@ -163,6 +165,7 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 	filters = append(filters, FilterReply)
 
 	h := c.Client.On(OnMessage, waitFunc, filters...)
+	h.SetGroup("conversation")
 	c.openH = append(c.openH, h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
