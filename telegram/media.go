@@ -635,7 +635,7 @@ retrySinglePart:
 					doneBytes.Add(int64(len(v.Bytes)))
 					doneArray.Store(p, true)
 				case *UploadFileCdnRedirect:
-					panic("cdn redirect not implemented") // TODO
+					cdnRedirect.Store(true) // TODO
 				case nil:
 					continue
 				default:
@@ -646,13 +646,16 @@ retrySinglePart:
 		}(p)
 	}
 
-	if len(getUndoneParts(&doneArray, int(totalParts))) > 0 { // Loop through failed parts
+	if !cdnRedirect.Load() && len(getUndoneParts(&doneArray, int(totalParts))) > 0 { // Loop through failed parts
 		goto retrySinglePart
 	}
 
 	wg.Wait()
 	close(sem)
 	close(progressTicker)
+	if cdnRedirect.Load() {
+		return "", errors.New("cdn redirect not implemented")
+	}
 
 	if opts.ProgressManager != nil {
 		opts.ProgressManager.editFunc(size, size)
