@@ -80,7 +80,7 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 	waitFunc := func(m *NewMessage) error {
 		resp <- m
 		c.lastMsg = m
-		return nil
+		return EndGroup
 	}
 
 	var filters []Filter
@@ -114,7 +114,7 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 	waitFunc := func(m *NewMessage) error {
 		resp <- m
 		c.lastMsg = m
-		return nil
+		return EndGroup
 	}
 
 	var filters []Filter
@@ -147,7 +147,7 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 	waitFunc := func(m *NewMessage) error {
 		resp <- m
 		c.lastMsg = m
-		return nil
+		return EndGroup
 	}
 
 	var filters []Filter
