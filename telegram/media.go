@@ -169,7 +169,9 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	doneBytes := atomic.Int64{}
 	doneArray := sync.Map{}
 
-	c.exSenders.setTTL()
+	if c.clientData.cacheSenders {
+		c.exSenders.setTTL()
+	}
 	go initializeWorkers(numWorkers, int32(c.GetDC()), c, w)
 
 	var progressTicker = make(chan struct{}, 1)
@@ -305,9 +307,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	}
 
 	// destroy created workers
-	// for _, worker := range w.workers {
-	// 	worker.Terminate()
-	// }
+	if !c.clientData.cacheSenders {
+		for _, worker := range w.workers {
+			worker.Terminate()
+		}
+	}
 
 	if opts.FileName != "" {
 		fileName = opts.FileName
@@ -489,7 +493,9 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	c.Log.Info(fmt.Sprintf("file - download: (%s) - (%s) - (%d)", dest, sizetoHuman(size), parts))
 	c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers))
 
-	c.exSenders.setTTL()
+	if c.clientData.cacheSenders {
+		c.exSenders.setTTL()
+	}
 	go initializeWorkers(numWorkers, dc, c, w)
 
 	var sem = make(chan struct{}, numWorkers)
@@ -653,9 +659,11 @@ retrySinglePart:
 	}
 
 	// destroy created workers
-	// for _, worker := range w.workers {
-	// 	worker.Terminate()
-	// }
+	if !c.clientData.cacheSenders {
+		for _, worker := range w.workers {
+			worker.Terminate()
+		}
+	}
 
 	return dest, nil
 }
@@ -691,11 +699,13 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) {
 	}
 
 	numCreate := 0
-	for dcId, workers := range c.exSenders.senders {
-		if int(dc) == dcId {
-			for _, worker := range workers {
-				w.AddWorker(worker)
-				numCreate++
+	if c.clientData.cacheSenders {
+		for dcId, workers := range c.exSenders.senders {
+			if int(dc) == dcId {
+				for _, worker := range workers {
+					w.AddWorker(worker)
+					numCreate++
+				}
 			}
 		}
 	}
@@ -703,7 +713,9 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) {
 	for i := numCreate; i < numWorkers; i++ {
 		conn, err := c.CreateExportedSender(int(dc), false, authParams)
 		if conn != nil && err == nil {
-			c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], conn)
+			if c.clientData.cacheSenders {
+				c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], conn)
+			}
 			w.AddWorker(conn)
 		}
 	}
@@ -730,11 +742,13 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		end = int(size)
 	}
 	var sender *mtproto.MTProto
-	for dcId, workers := range c.exSenders.senders {
-		if int(dc) == dcId {
-			for _, worker := range workers {
-				sender = worker
-				break
+	if c.clientData.cacheSenders {
+		for dcId, workers := range c.exSenders.senders {
+			if int(dc) == dcId {
+				for _, worker := range workers {
+					sender = worker
+					break
+				}
 			}
 		}
 	}
@@ -745,7 +759,9 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 			return nil, "", err
 		}
 
-		c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], sender)
+		if c.clientData.cacheSenders {
+			c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], sender)
+		}
 	}
 
 	for curr := start; curr < end; curr += chunkSize {
