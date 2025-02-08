@@ -164,7 +164,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 	w := NewWorkerPool(numWorkers)
 
-	c.Log.Info(fmt.Sprintf("file - upload: (%s) - (%d) - (%d)", source.GetName(), size, parts))
+	c.Log.Info(fmt.Sprintf("file - upload: (%s) - (%s) - (%d)", source.GetName(), sizetoHuman(size), parts))
 
 	doneBytes := atomic.Int64{}
 	doneArray := sync.Map{}

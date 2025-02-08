@@ -471,7 +471,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 	resp, msgId, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
 		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") || strings.Contains(err.Error(), "connection was forcibly closed") || strings.Contains(err.Error(), "connection reset by peer") || strings.Contains(err.Error(), "broken pipe") {
-			m.Logger.Info("connection closed due to broken tcp, reconnecting to [" + m.Addr + "]" + " - <Tcp> ...")
+			m.Logger.Debug("connection closed due to broken tcp, reconnecting to [" + m.Addr + "]" + " - <Tcp> ...")
 			err = m.Reconnect(false)
 			if err != nil {
 				return nil, errors.Wrap(err, "reconnecting")
