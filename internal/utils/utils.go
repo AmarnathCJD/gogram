@@ -111,6 +111,8 @@ func SearchAddr(addr string) int {
 		return 5
 	} else if strings.Contains(addr, "149.154.175") {
 		return 1
+	} else if strings.Contains(addr, "149.154.167") {
+		return 2
 	}
 	return 4
 }
