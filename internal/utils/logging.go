@@ -12,9 +12,9 @@ import (
 type LogLevel int
 
 const (
-	// DebugLevel is the lowest level of logging
-	DebugLevel LogLevel = iota
-	// InfoLevel is the second lowest level of logging
+	// InfoLevel is the lowest level of logging
+	DebugLevel LogLevel = iota + 1
+	// DebugLevel is the second lowest level of logging
 	InfoLevel
 	// WarnLevel is the third highest level of logging
 	WarnLevel
@@ -58,7 +58,6 @@ func (l *Logger) Color() bool {
 	return !l.nocolor
 }
 
-// SetPrefix sets the prefix of the logger.
 func (l *Logger) SetPrefix(prefix string) *Logger {
 	l.Prefix = prefix
 	return l
@@ -81,7 +80,7 @@ func (l *Logger) SetLevel(level LogLevel) *Logger {
 	return l
 }
 
-// Logs a message with level ERROR
+// Log logs a message at the given level.
 func (l *Logger) Error(v ...any) {
 	// TODO: runtime.Caller(1)
 	if l.Level <= ErrorLevel {
@@ -89,28 +88,24 @@ func (l *Logger) Error(v ...any) {
 	}
 }
 
-// Logs a message with level WARN
 func (l *Logger) Warn(v ...any) {
 	if l.Level <= WarnLevel {
 		log.Println(l.colorize(colorOrange, "[warn] "), l.Prefix, "-", getVariable(v...))
 	}
 }
 
-// Logs a message with level INFO
 func (l *Logger) Info(v ...any) {
 	if l.Level <= InfoLevel {
 		log.Println(l.colorize(colorGreen, "[info] "), l.Prefix, "-", getVariable(v...))
 	}
 }
 
-// Logs a message with level DEBUG
 func (l *Logger) Debug(v ...any) {
 	if l.Level <= DebugLevel {
 		log.Println(l.colorize(colorPurple, "[debug]"), l.Prefix, "-", getVariable(v...))
 	}
 }
 
-// Logs a message with level TRACE
 func (l *Logger) Trace(v ...any) {
 	if l.Level <= TraceLevel {
 		log.Println(l.colorize(colorCyan, "[trace]"), l.Prefix, "-", getVariable(v...))
