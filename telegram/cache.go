@@ -244,6 +244,7 @@ func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected UserObj for id '%d', but got different type", userID)
 	}
+	c.Cache.UpdateUser(user)
 
 	return user, nil
 }
@@ -282,6 +283,7 @@ func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected Channel for id '%d', but got different type", channelID)
 	}
+	c.Cache.UpdateChannel(channel)
 
 	return channel, nil
 }
@@ -312,6 +314,7 @@ func (c *Client) getChatFromCache(chatID int64) (*ChatObj, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected ChatObj for id '%d', but got different type", chatID)
 	}
+	c.Cache.UpdateChat(chatObj)
 
 	return chatObj, nil
 }
