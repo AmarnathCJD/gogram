@@ -171,7 +171,7 @@ func (m *NewMessage) E(obj any, err error) error {
 }
 
 func (m *NewMessage) IsEmpty() bool {
-        _, isEmpty := m.OriginalUpdate.(*MessageEmpty)
+	 _, isEmpty := m.OriginalUpdate.(*MessageEmpty)
 	return isEmpty
 }
 
