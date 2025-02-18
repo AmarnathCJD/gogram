@@ -170,6 +170,11 @@ func (m *NewMessage) E(obj any, err error) error {
 	return err
 }
 
+func (m *NewMessage) IsEmpty() bool {
+	 _, isEmpty := m.OriginalUpdate.(*MessageEmpty)
+	return isEmpty
+}
+
 func (m *NewMessage) IsGroup() bool {
 	return m.ChatType() == EntityChat
 }
