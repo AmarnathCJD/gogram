@@ -185,8 +185,6 @@ func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
 
 func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	// if peerID is negative, it is a channel or a chat (botAPILike)
-	c.Cache.RLock()
-	defer c.Cache.RUnlock()
 	if peerID < 0 {
 		peerIdStr := strconv.Itoa(int(peerID))
 		if strings.HasPrefix(peerIdStr, "-100") {
