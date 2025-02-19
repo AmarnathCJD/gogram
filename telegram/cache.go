@@ -185,32 +185,36 @@ func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
 
 func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	// if peerID is negative, it is a channel or a chat (botAPILike)
-	peerIdStr := strconv.Itoa(int(peerID))
-	if strings.HasPrefix(peerIdStr, "-100") {
-		peerIdStr = strings.TrimPrefix(peerIdStr, "-100")
-
-		if peerIdInt, err := strconv.Atoi(peerIdStr); err == nil {
-			peerID = int64(peerIdInt)
-		} else {
-			return nil, err
-		}
-	}
 	c.Cache.RLock()
 	defer c.Cache.RUnlock()
-
-	if userHash, ok := c.Cache.InputPeers.InputUsers[peerID]; ok {
-		return &InputPeerUser{peerID, userHash}, nil
+	if peerID < 0 {
+		peerIdStr := strconv.Itoa(int(peerID))
+		if strings.HasPrefix(peerIdStr, "-100") {
+			peerIdStr = strings.TrimPrefix(peerIdStr, "-100")
+			if peerIdInt, err := strconv.Atoi(peerIdStr); err == nil {
+				peerID = int64(peerIdInt)
+				
+				if channel, err := c.getChannelFromCache(peerID); err != nil {
+					return nil, err
+				} else {
+					return &InputPeerChannel{peerID, channel.AccessHash}, nil
+				}
+			} else {
+				return nil, err
+			}
+		} else {
+			if _, err := c.getChatFromCache(peerID); err != nil {
+				return nil, err
+			}
+			return &InputPeerChat{peerID}, nil
+		}
+	} else {
+		if user, err := c.getUserFromCache(peerID); err != nil {
+			return nil, err
+		} else {
+			return &InputPeerUser{peerID, user.AccessHash}, nil
+		}
 	}
-
-	if channelHash, ok := c.Cache.InputPeers.InputChannels[peerID]; ok {
-		return &InputPeerChannel{peerID, channelHash}, nil
-	}
-
-	if _, err := c.getChatFromCache(peerID); err == nil {
-		return &InputPeerChat{peerID}, nil
-	}
-
-	return nil, fmt.Errorf("there is no peer with id '%d' or missing from cache", peerID)
 }
 
 // ------------------ Get Chat/Channel/User From Cache/Telgram ------------------
