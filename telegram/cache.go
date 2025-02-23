@@ -188,17 +188,10 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	if peerID < 0 {
 		peerIdStr := strconv.Itoa(int(peerID))
 		if strings.HasPrefix(peerIdStr, "-100") {
-			peerIdStr = strings.TrimPrefix(peerIdStr, "-100")
-			if peerIdInt, err := strconv.Atoi(peerIdStr); err == nil {
-				peerID = int64(peerIdInt)
-				
-				if channel, err := c.getChannelFromCache(peerID); err != nil {
-					return nil, err
-				} else {
-					return &InputPeerChannel{peerID, channel.AccessHash}, nil
-				}
-			} else {
+			if channel, err := c.getChannelFromCache(peerID); err != nil {
 				return nil, err
+			} else {
+				return &InputPeerChannel{peerID, channel.AccessHash}, nil
 			}
 		} else {
 			if _, err := c.getChatFromCache(peerID); err != nil {
@@ -261,8 +254,18 @@ func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 
 	channelPeer, err := c.Cache.getChannelPeer(channelID)
 
+	// convert botApiLikeChannelID to normal
+	peerID := channelID
+	peerIdStr := strconv.Itoa(int(channelID))
+	if strings.HasPrefix(peerIdStr, "-100") {
+		peerIdStr = strings.TrimPrefix(peerIdStr, "-100")
+		if peerIdInt, err := strconv.Atoi(peerIdStr); err == nil {
+			peerID = int64(peerIdInt)
+		}
+	}
+		
 	// if channel is not in cache and if the bot is participant in the channel, try with access hash = 0
-	var inputChannel InputChannel = &InputChannelObj{ChannelID: channelID, AccessHash: 0}
+	var inputChannel InputChannel = &InputChannelObj{ChannelID: peerID, AccessHash: 0}
 	if err == nil {
 		inputChannel = channelPeer
 	}
@@ -286,6 +289,7 @@ func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 		return nil, fmt.Errorf("expected Channel for id '%d', but got different type", channelID)
 	}
 	c.Cache.UpdateChannel(channel)
+	channel.ID = channelID // return botApiLikeChannelID
 
 	return channel, nil
 }
@@ -405,7 +409,7 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 		c.usernameMap[channel.Username] = channel.ID
 	}
 
-    // botApiLike channel id conversion :')
+    // normal -> botApiLike channel id conversion :')
     peerIdStr := strconv.Itoa(int(channel.ID))
     if !strings.HasPrefix(peerIdStr, "-100") {
         channel.ID, _ = strconv.ParseInt("-100" + peerIdStr, 10, 64) // channel.ID was already an int64, so ignored err
