@@ -1008,6 +1008,14 @@ func packMessage(c *Client, message Message) *NewMessage {
 		c.Cache.UpdateChannel(m.Channel)
 	}
 
+	// botApiLike channel id conversion :')
+	if m.Channel != nil {
+		peerIdStr := strconv.Itoa(int(m.Channel.ID))
+		if !strings.HasPrefix(peerIdStr, "-100") {
+			m.Channel.ID, _ = strconv.ParseInt("-100" + peerIdStr, 10, 64) // m.Channel.ID was already an int64, so ignored err
+		}
+	}
+
 	if m.Message.Out {
 		m.Sender = c.Me()
 	} else {

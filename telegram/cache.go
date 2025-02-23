@@ -405,6 +405,12 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 		c.usernameMap[channel.Username] = channel.ID
 	}
 
+    // botApiLike channel id conversion :')
+    peerIdStr := strconv.Itoa(int(channel.ID))
+    if !strings.HasPrefix(peerIdStr, "-100") {
+        channel.ID, _ = strconv.ParseInt("-100" + peerIdStr, 10, 64) // channel.ID was already an int64, so ignored err
+    }
+
 	if _, ok := c.channels[channel.ID]; !ok {
 		c.channels[channel.ID] = channel
 	}
