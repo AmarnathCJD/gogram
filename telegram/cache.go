@@ -185,32 +185,27 @@ func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
 
 func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	// if peerID is negative, it is a channel or a chat (botAPILike)
-	peerIdStr := strconv.Itoa(int(peerID))
-	if strings.HasPrefix(peerIdStr, "-100") {
-		peerIdStr = strings.TrimPrefix(peerIdStr, "-100")
-
-		if peerIdInt, err := strconv.Atoi(peerIdStr); err == nil {
-			peerID = int64(peerIdInt)
+	if peerID < 0 {
+		peerIdStr := strconv.Itoa(int(peerID))
+		if strings.HasPrefix(peerIdStr, "-100") {
+			if channel, err := c.getChannelFromCache(peerID); err != nil {
+				return nil, err
+			} else {
+				return &InputPeerChannel{channel.ID, channel.AccessHash}, nil
+			}
 		} else {
+			if _, err := c.getChatFromCache(peerID); err != nil {
+				return nil, err
+			}
+			return &InputPeerChat{peerID}, nil
+		}
+	} else {
+		if user, err := c.getUserFromCache(peerID); err != nil {
 			return nil, err
+		} else {
+			return &InputPeerUser{peerID, user.AccessHash}, nil
 		}
 	}
-	c.Cache.RLock()
-	defer c.Cache.RUnlock()
-
-	if userHash, ok := c.Cache.InputPeers.InputUsers[peerID]; ok {
-		return &InputPeerUser{peerID, userHash}, nil
-	}
-
-	if channelHash, ok := c.Cache.InputPeers.InputChannels[peerID]; ok {
-		return &InputPeerChannel{peerID, channelHash}, nil
-	}
-
-	if _, err := c.getChatFromCache(peerID); err == nil {
-		return &InputPeerChat{peerID}, nil
-	}
-
-	return nil, fmt.Errorf("there is no peer with id '%d' or missing from cache", peerID)
 }
 
 // ------------------ Get Chat/Channel/User From Cache/Telgram ------------------
@@ -251,6 +246,7 @@ func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 
 func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 	c.Cache.RLock()
+    _, channelID = c.Cache.ConvertChannelID(channelID)
 	if channel, found := c.Cache.channels[channelID]; found {
 		c.Cache.RUnlock()
 		return channel, nil
@@ -403,6 +399,9 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 		c.usernameMap[channel.Username] = channel.ID
 	}
 
+    // normal -> botApiLike channel id conversion :')
+    _, channel.ID = c.ConvertChannelID(channel.ID)
+
 	if _, ok := c.channels[channel.ID]; !ok {
 		c.channels[channel.ID] = channel
 	}
@@ -543,4 +542,22 @@ func (c *Client) IdInCache(id int64) bool {
 	}
 
 	return false
+}
+
+
+// Convert a botApilike or mtprotoLike channel ID to (botApiLikeID, mtprotoLikeID)
+// returns (botApiLikeID, mtprotoLikeID)
+func (cache *CACHE) ConvertChannelID(chatId int64) (int64, int64) {
+	var mtprotoLikeID int64
+	var botApiLikeID int64
+    peerIdStr := strconv.Itoa(int(chatId))
+    if strings.HasPrefix(peerIdStr, "-100") {
+		botApiLikeID = chatId
+		peerIdStr = strings.TrimPrefix(peerIdStr, "-100")
+		mtprotoLikeID, _ = strconv.ParseInt(peerIdStr, 10, 64) // id was already an int64, so ignored err
+    } else {
+		mtprotoLikeID = chatId
+		botApiLikeID, _ = strconv.ParseInt("-100" + peerIdStr, 10, 64) // id was already an int64, so ignored err
+	}
+	return botApiLikeID, mtprotoLikeID
 }

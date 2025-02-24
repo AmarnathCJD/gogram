@@ -1008,6 +1008,11 @@ func packMessage(c *Client, message Message) *NewMessage {
 		c.Cache.UpdateChannel(m.Channel)
 	}
 
+	// botApiLike channel id conversion :')
+	if m.Channel != nil {
+		m.Channel.ID, _ = c.Cache.ConvertChannelID(m.Channel.ID)
+	}
+
 	if m.Message.Out {
 		m.Sender = c.Me()
 	} else {
