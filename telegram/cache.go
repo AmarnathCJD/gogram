@@ -249,6 +249,7 @@ func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
     _, channelID = c.Cache.ConvertChannelID(channelID)
 	if channel, found := c.Cache.channels[channelID]; found {
 		c.Cache.RUnlock()
+		channel.ID = channelID
 		return channel, nil
 	}
 	c.Cache.RUnlock()
