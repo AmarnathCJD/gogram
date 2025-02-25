@@ -184,30 +184,44 @@ func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
 }
 
 func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
-	// if peerID is negative, it is a channel or a chat (botAPILike)
-	peerIdStr := strconv.Itoa(int(peerID))
-	if strings.HasPrefix(peerIdStr, "-100") {
-		peerIdStr = strings.TrimPrefix(peerIdStr, "-100")
-
-		if peerIdInt, err := strconv.Atoi(peerIdStr); err == nil {
-			peerID = int64(peerIdInt)
-		} else {
-			return nil, err
+	if strings.HasPrefix(strconv.Itoa(int(peerID)), "-100") {
+		c.Cache.Lock()
+		if channelHash, ok := c.Cache.InputPeers.InputChannels[trimSuffixHundred(peerID)]; ok {
+			c.Cache.Unlock()
+			return &InputPeerChannel{trimSuffixHundred(peerID), channelHash}, nil
 		}
-	}
-	c.Cache.RLock()
-	defer c.Cache.RUnlock()
+		c.Cache.Unlock()
 
+		if channel, err := c.getChannelFromCache(trimSuffixHundred(peerID)); err == nil {
+			return &InputPeerChannel{trimSuffixHundred(peerID), channel.AccessHash}, nil
+		}
+
+		return nil, fmt.Errorf("there is no channel with id '%d' or missing from cache", peerID)
+	} else if peerID < 0 {
+		if _, err := c.getChatFromCache(peerID * -1); err == nil {
+			return &InputPeerChat{peerID * -1}, nil
+		}
+
+		return nil, fmt.Errorf("there is no chat with id '%d' or missing from cache", peerID)
+	}
+
+	c.Cache.RLock()
 	if userHash, ok := c.Cache.InputPeers.InputUsers[peerID]; ok {
+		c.Cache.RUnlock()
 		return &InputPeerUser{peerID, userHash}, nil
+	}
+	c.Cache.RUnlock()
+
+	if user, err := c.getUserFromCache(peerID); err == nil {
+		return &InputPeerUser{peerID, user.AccessHash}, nil
 	}
 
 	if channelHash, ok := c.Cache.InputPeers.InputChannels[peerID]; ok {
 		return &InputPeerChannel{peerID, channelHash}, nil
 	}
 
-	if _, err := c.getChatFromCache(peerID); err == nil {
-		return &InputPeerChat{peerID}, nil
+	if chat, err := c.getChatFromCache(peerID); err == nil {
+		return &InputPeerChat{chat.ID}, nil
 	}
 
 	return nil, fmt.Errorf("there is no peer with id '%d' or missing from cache", peerID)
@@ -525,6 +539,8 @@ func (c *Client) GetPeerChannel(channelID int64) (*InputPeerChannel, error) {
 	c.Cache.RLock()
 	defer c.Cache.RUnlock()
 
+	channelID = trimSuffixHundred(channelID)
+
 	if peer, ok := c.Cache.InputPeers.InputChannels[channelID]; ok {
 		return &InputPeerChannel{ChannelID: channelID, AccessHash: peer}, nil
 	}
@@ -543,4 +559,16 @@ func (c *Client) IdInCache(id int64) bool {
 	}
 
 	return false
+}
+
+func trimSuffixHundred(id int64) int64 {
+	if id > 0 {
+		return id
+	}
+
+	idStr := strconv.Itoa(int(id))
+	idStr = strings.TrimPrefix(idStr, "-100")
+
+	idInt, _ := strconv.Atoi(idStr)
+	return int64(idInt)
 }

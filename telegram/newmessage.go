@@ -73,7 +73,7 @@ func (m *NewMessage) ReplySenderID() int64 {
 }
 
 func (m *NewMessage) MarkRead() (err error) {
-	_, err = m.Client.SendReadAck(m.ChatID(), m.ID)
+	_, err = m.Client.SendReadAck(m.ChannelID(), m.ID)
 	return
 }
 
@@ -97,13 +97,13 @@ func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 	// } TODO: Menakked Ahh, So Pinne Nokam, Reply Thingies.
 
 	// try to get message by reply id, cuz if reply is by bot other bots can't get it otherwise
-	messages, err := m.Client.GetMessages(m.ChatID(), &SearchOption{IDs: &InputMessageReplyTo{ID: m.ID}})
+	messages, err := m.Client.GetMessages(m.ChannelID(), &SearchOption{IDs: &InputMessageReplyTo{ID: m.ID}})
 	if err != nil {
 		return nil, err
 	}
 	if len(messages) == 0 {
 		// if actual message got deleted, try again with actual reply id
-		messages, err = m.Client.GetMessages(m.ChatID(), &SearchOption{IDs: []int32{m.ReplyToMsgID()}})
+		messages, err = m.Client.GetMessages(m.ChannelID(), &SearchOption{IDs: []int32{m.ReplyToMsgID()}})
 		if err != nil {
 			return nil, err
 		}
@@ -123,6 +123,20 @@ func (m *NewMessage) ChatID() int64 {
 			return Peer.ChatID
 		case *PeerChannel:
 			return Peer.ChannelID
+		}
+	}
+	return 0
+}
+
+func (m *NewMessage) ChannelID() int64 {
+	if m.Message != nil && m.Message.PeerID != nil {
+		switch Peer := m.Message.PeerID.(type) {
+		case *PeerChannel:
+			return -100_000_000_0000 - Peer.ChannelID
+		case *PeerChat:
+			return -Peer.ChatID
+		case *PeerUser:
+			return Peer.UserID
 		}
 	}
 	return 0
@@ -207,6 +221,10 @@ func (m *NewMessage) GetChat() (*ChatObj, error) {
 	return m.Client.GetChat(m.ChatID())
 }
 
+func (m *NewMessage) GetChannel() (*Channel, error) {
+	return m.Client.GetChannel(m.ChannelID())
+}
+
 func (m *NewMessage) GetSender() (*UserObj, error) {
 	return m.Client.GetUser(m.SenderID())
 }
@@ -225,10 +243,10 @@ func (m *NewMessage) GetPeer() (int64, int64) {
 		User, _ := m.Client.GetPeerUser(m.ChatID())
 		return User.UserID, User.AccessHash
 	} else if m.IsGroup() {
-		Chat, _ := m.Client.GetChat(m.ChatID())
+		Chat, _ := m.Client.GetChat(m.ChannelID())
 		return Chat.ID, 0
 	} else if m.IsChannel() {
-		Channel, _ := m.Client.GetPeerChannel(m.ChatID())
+		Channel, _ := m.Client.GetPeerChannel(m.ChannelID())
 		return Channel.ChannelID, Channel.AccessHash
 	}
 	return 0, 0
@@ -532,7 +550,7 @@ func (m *NewMessage) Reply(Text any, Opts ...SendOptions) (*NewMessage, error) {
 	} else {
 		Opts[0].ReplyID = m.ID
 	}
-	resp, err := m.Client.SendMessage(m.ChatID(), Text, &Opts[0])
+	resp, err := m.Client.SendMessage(m.ChannelID(), Text, &Opts[0])
 	if resp == nil {
 		return nil, err
 	}
@@ -554,7 +572,7 @@ func (m *NewMessage) Respond(Text any, Opts ...SendOptions) (*NewMessage, error)
 	if len(Opts) == 0 {
 		Opts = append(Opts, SendOptions{})
 	}
-	resp, err := m.Client.SendMessage(m.ChatID(), Text, &Opts[0])
+	resp, err := m.Client.SendMessage(m.ChannelID(), Text, &Opts[0])
 	if resp == nil {
 		return nil, err
 	}
@@ -564,18 +582,18 @@ func (m *NewMessage) Respond(Text any, Opts ...SendOptions) (*NewMessage, error)
 }
 
 func (m *NewMessage) SendDice(Emoticon string) (*NewMessage, error) {
-	return m.Client.SendDice(m.ChatID(), Emoticon)
+	return m.Client.SendDice(m.ChannelID(), Emoticon)
 }
 
 func (m *NewMessage) SendAction(Action any) (*ActionResult, error) {
-	return m.Client.SendAction(m.ChatID(), Action)
+	return m.Client.SendAction(m.ChannelID(), Action)
 }
 
 func (m *NewMessage) Edit(Text any, Opts ...SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, SendOptions{})
 	}
-	resp, err := m.Client.EditMessage(m.ChatID(), m.ID, Text, &Opts[0])
+	resp, err := m.Client.EditMessage(m.ChannelID(), m.ID, Text, &Opts[0])
 	if resp == nil {
 		return nil, err
 	}
@@ -591,7 +609,7 @@ func (m *NewMessage) ReplyMedia(Media any, Opts ...MediaOptions) (*NewMessage, e
 		Opts[0].ReplyID = m.ID
 	}
 
-	resp, err := m.Client.SendMedia(m.ChatID(), Media, &Opts[0])
+	resp, err := m.Client.SendMedia(m.ChannelID(), Media, &Opts[0])
 	if err != nil {
 		return nil, err
 	}
@@ -605,14 +623,14 @@ func (m *NewMessage) ReplyAlbum(Album any, Opts ...*MediaOptions) ([]*NewMessage
 		Opts = append(Opts, &MediaOptions{})
 	}
 	Opts[0].ReplyID = m.ID
-	return m.Client.SendAlbum(m.ChatID(), Album, Opts...)
+	return m.Client.SendAlbum(m.ChannelID(), Album, Opts...)
 }
 
 func (m *NewMessage) RespondMedia(Media any, Opts ...MediaOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, MediaOptions{})
 	}
-	resp, err := m.Client.SendMedia(m.ChatID(), Media, &Opts[0])
+	resp, err := m.Client.SendMedia(m.ChannelID(), Media, &Opts[0])
 	if err != nil {
 		return nil, err
 	}
@@ -625,7 +643,7 @@ func (m *NewMessage) RespondAlbum(Album any, Opts ...*MediaOptions) ([]*NewMessa
 	if len(Opts) == 0 {
 		Opts = append(Opts, &MediaOptions{})
 	}
-	return m.Client.SendAlbum(m.ChatID(), Album, Opts...)
+	return m.Client.SendAlbum(m.ChannelID(), Album, Opts...)
 }
 
 // Delete deletes the message
@@ -635,7 +653,7 @@ func (m *NewMessage) Delete() (*MessagesAffectedMessages, error) {
 
 // React to a message
 func (m *NewMessage) React(Reactions ...any) error {
-	return m.Client.SendReaction(m.ChatID(), m.ID, Reactions, true)
+	return m.Client.SendReaction(m.ChannelID(), m.ID, Reactions, true)
 }
 
 // Forward forwards the message to a chat
@@ -650,7 +668,7 @@ func (m *NewMessage) ForwardTo(PeerID any, Opts ...*ForwardOptions) (*NewMessage
 
 // Fact checks the message for facts
 func (m *NewMessage) Fact() ([]*FactCheck, error) {
-	peer, err := m.Client.ResolvePeer(m.ChatID())
+	peer, err := m.Client.ResolvePeer(m.ChannelID())
 	if err != nil {
 		return nil, err
 	}
@@ -660,7 +678,7 @@ func (m *NewMessage) Fact() ([]*FactCheck, error) {
 
 // GetMediaGroup returns the media group of the message
 func (m *NewMessage) GetMediaGroup() ([]NewMessage, error) {
-	return m.Client.GetMediaGroup(m.ChatID(), m.ID)
+	return m.Client.GetMediaGroup(m.ChannelID(), m.ID)
 }
 
 // Download Media to Disk,
