@@ -47,15 +47,6 @@ type clientData struct {
 	me               *UserObj
 }
 
-type exSenders struct {
-	senders map[int][]*mtproto.MTProto
-	idleTTL time.Time
-}
-
-func (e *exSenders) setTTL() {
-	e.idleTTL = time.Now().Add(CleanExportedSendersDelay)
-}
-
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
@@ -64,8 +55,8 @@ type Client struct {
 	dispatcher   *UpdateDispatcher
 	wg           sync.WaitGroup
 	stopCh       chan struct{}
-	exSenders    *exSenders
-	exportedKeys map[int]*ExportedAuthParams
+	exSenders    *ExSenders
+	exportedKeys map[int]*AuthExportedAuthorization
 	Log          *utils.Logger
 }
 
@@ -161,6 +152,8 @@ func NewClient(config ClientConfig) (*Client, error) {
 	if err := client.clientWarnings(config); err != nil {
 		return nil, err
 	}
+
+	client.exSenders = NewExSenders()
 
 	return client, nil
 }
@@ -271,25 +264,6 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 		c.Log.SetLevel(LogDebug)
 	} else {
 		c.Log.SetLevel(c.clientData.logLevel)
-	}
-
-	if cnf.CacheSenders {
-		c.clientData.cacheSenders = true
-		c.exSenders = &exSenders{
-			senders: make(map[int][]*mtproto.MTProto),
-			idleTTL: time.Now().Add(CleanExportedSendersDelay),
-		}
-		go func() {
-
-			for {
-				select {
-				case <-c.stopCh:
-					return
-				case <-time.After(CleanExportedSendersDelay):
-					c.cleanExportedSenders()
-				}
-			}
-		}()
 	}
 }
 
@@ -429,36 +403,75 @@ func (c *Client) Me() *UserObj {
 	return c.clientData.me
 }
 
-type ExportedAuthParams struct {
-	ID    int64
-	Bytes []byte
+type ExSenders struct {
+	sync.Mutex
+	senders     map[int][]*ExSender
+	cleanupDone chan struct{}
 }
 
-func (c *Client) cleanExportedSenders() {
-	if time.Now().Before(c.exSenders.idleTTL) {
-		return
-	}
+type ExSender struct {
+	*mtproto.MTProto
+	lastUsed time.Time
+}
 
-	c.Log.Debug("cleaning exported senders, idle time reached")
-	for dcID, sender := range c.exSenders.senders {
-		for _, s := range sender {
-			if s != nil {
-				s.Terminate() // Terminate each sender
+func NewExSenders() *ExSenders {
+	es := &ExSenders{
+		senders: make(map[int][]*ExSender),
+	}
+	go es.cleanupLoop()
+	return es
+}
+
+func (es *ExSenders) cleanupLoop() {
+	ticker := time.NewTicker(30 * time.Minute)
+	es.cleanupDone = make(chan struct{})
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			es.cleanupIdleSenders()
+		case <-es.cleanupDone:
+			return
+		}
+	}
+}
+
+func (es *ExSenders) cleanupIdleSenders() {
+	es.Lock()
+	defer es.Unlock()
+
+	for _, senders := range es.senders {
+		for i, sender := range senders {
+			if time.Since(sender.lastUsed) > 30*time.Minute {
+				sender.Terminate()
+				senders[i] = nil
 			}
 		}
-		delete(c.exSenders.senders, dcID) // Remove the sender from the map
 	}
+
+	// Remove nil senders
+	for dcID, senders := range es.senders {
+		var newSenders []*ExSender
+		for _, sender := range senders {
+			if sender != nil {
+				newSenders = append(newSenders, sender)
+			}
+		}
+		es.senders[dcID] = newSenders
+	}
+}
+
+func (es *ExSenders) Close() {
+	close(es.cleanupDone)
 }
 
 // CreateExportedSender creates a new exported sender for the given DC
-func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...ExportedAuthParams) (*mtproto.MTProto, error) {
+func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...AuthExportedAuthorization) (*mtproto.MTProto, error) {
 	const retryLimit = 1 // Retry only once
 	var lastError error
 
 	for retry := 0; retry <= retryLimit; retry++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-
 		c.Log.Debug("creating exported sender for DC ", dcID)
 		if cdn {
 			if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
@@ -515,10 +528,13 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...Exported
 		}
 
 		c.Log.Debug("sending initial request...")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 		_, err = exported.MakeRequestCtx(ctx, &InvokeWithLayerParams{
 			Layer: ApiVersion,
 			Query: initialReq,
 		})
+		c.Log.Debug(fmt.Sprintf("initial request for exported sender %d sent", dcID))
 
 		if err != nil {
 			lastError = errors.Wrap(err, "making initial request")
@@ -670,7 +686,7 @@ func (c *Client) Idle() {
 		<-sigchan
 		c.Stop()
 	}()
-	go func() { defer c.wg.Done(); <-c.stopCh }()
+	go func() { defer c.wg.Done(); <-c.stopCh; c.exSenders.Close() }()
 	c.wg.Wait()
 }
 
