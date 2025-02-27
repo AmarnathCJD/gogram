@@ -695,15 +695,25 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) {
 
 	var authParams = ExportedAuthParams{}
 	if dc != int32(c.GetDC()) {
-		auth, err := c.AuthExportAuthorization(dc)
-		if err != nil {
-			c.Log.Error(err)
-			return
+		if c.exportedKeys == nil {
+			c.exportedKeys = make(map[int]*ExportedAuthParams)
 		}
 
-		authParams = ExportedAuthParams{
-			ID:    auth.ID,
-			Bytes: auth.Bytes,
+		if exportedKey, ok := c.exportedKeys[int(dc)]; ok {
+			authParams = *exportedKey
+		} else {
+			auth, err := c.AuthExportAuthorization(dc)
+			if err != nil {
+				c.Log.Error(err)
+				return
+			}
+
+			authParams = ExportedAuthParams{
+				ID:    auth.ID,
+				Bytes: auth.Bytes,
+			}
+
+			c.exportedKeys[int(dc)] = &authParams
 		}
 	}
 
