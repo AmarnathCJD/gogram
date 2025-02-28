@@ -1431,15 +1431,16 @@ func (*GeoPointAddress) FlagIndex() int {
 
 // Global privacy settings
 type GlobalPrivacySettings struct {
-	ArchiveAndMuteNewNoncontactPeers bool `tl:"flag:0,encoded_in_bitflags"`
-	KeepArchivedUnmuted              bool `tl:"flag:1,encoded_in_bitflags"`
-	KeepArchivedFolders              bool `tl:"flag:2,encoded_in_bitflags"`
-	HideReadMarks                    bool `tl:"flag:3,encoded_in_bitflags"`
-	NewNoncontactPeersRequirePremium bool `tl:"flag:4,encoded_in_bitflags"`
+	ArchiveAndMuteNewNoncontactPeers bool  `tl:"flag:0,encoded_in_bitflags"`
+	KeepArchivedUnmuted              bool  `tl:"flag:1,encoded_in_bitflags"`
+	KeepArchivedFolders              bool  `tl:"flag:2,encoded_in_bitflags"`
+	HideReadMarks                    bool  `tl:"flag:3,encoded_in_bitflags"`
+	NewNoncontactPeersRequirePremium bool  `tl:"flag:4,encoded_in_bitflags"`
+	NoncontactPeersPaidStars         int64 `tl:"flag:5"`
 }
 
 func (*GlobalPrivacySettings) CRC() uint32 {
-	return 0x734c4ccb
+	return 0xc9d8df1c
 }
 
 func (*GlobalPrivacySettings) FlagIndex() int {
@@ -2826,6 +2827,14 @@ func (*PageTableRow) CRC() uint32 {
 	return 0xe0c0c5e5
 }
 
+type PaidMessagesRevenue struct {
+	StarsAmount int64
+}
+
+func (*PaidMessagesRevenue) CRC() uint32 {
+	return 0x1e109708
+}
+
 // Payment identifier
 type PaymentCharge struct {
 	ID               string
@@ -3107,26 +3116,31 @@ func (*PeerNotifySettings) FlagIndex() int {
 
 // List of actions that are possible when interacting with this user, to be shown as suggested actions in the chat action bar », see here » for more info.
 type PeerSettings struct {
-	ReportSpam            bool   `tl:"flag:0,encoded_in_bitflags"`
-	AddContact            bool   `tl:"flag:1,encoded_in_bitflags"`
-	BlockContact          bool   `tl:"flag:2,encoded_in_bitflags"`
-	ShareContact          bool   `tl:"flag:3,encoded_in_bitflags"`
-	NeedContactsException bool   `tl:"flag:4,encoded_in_bitflags"`
-	ReportGeo             bool   `tl:"flag:5,encoded_in_bitflags"`
-	Autoarchived          bool   `tl:"flag:7,encoded_in_bitflags"`
-	InviteMembers         bool   `tl:"flag:8,encoded_in_bitflags"`
-	RequestChatBroadcast  bool   `tl:"flag:10,encoded_in_bitflags"`
-	BusinessBotPaused     bool   `tl:"flag:11,encoded_in_bitflags"`
-	BusinessBotCanReply   bool   `tl:"flag:12,encoded_in_bitflags"`
-	GeoDistance           int32  `tl:"flag:6"`
-	RequestChatTitle      string `tl:"flag:9"`
-	RequestChatDate       int32  `tl:"flag:9"`
-	BusinessBotID         int64  `tl:"flag:13"`
-	BusinessBotManageURL  string `tl:"flag:13"`
+	ReportSpam             bool   `tl:"flag:0,encoded_in_bitflags"`
+	AddContact             bool   `tl:"flag:1,encoded_in_bitflags"`
+	BlockContact           bool   `tl:"flag:2,encoded_in_bitflags"`
+	ShareContact           bool   `tl:"flag:3,encoded_in_bitflags"`
+	NeedContactsException  bool   `tl:"flag:4,encoded_in_bitflags"`
+	ReportGeo              bool   `tl:"flag:5,encoded_in_bitflags"`
+	Autoarchived           bool   `tl:"flag:7,encoded_in_bitflags"`
+	InviteMembers          bool   `tl:"flag:8,encoded_in_bitflags"`
+	RequestChatBroadcast   bool   `tl:"flag:10,encoded_in_bitflags"`
+	BusinessBotPaused      bool   `tl:"flag:11,encoded_in_bitflags"`
+	BusinessBotCanReply    bool   `tl:"flag:12,encoded_in_bitflags"`
+	GeoDistance            int32  `tl:"flag:6"`
+	RequestChatTitle       string `tl:"flag:9"`
+	RequestChatDate        int32  `tl:"flag:9"`
+	BusinessBotID          int64  `tl:"flag:13"`
+	BusinessBotManageURL   string `tl:"flag:13"`
+	ChargePaidMessageStars int64  `tl:"flag:14"`
+	RegistrationMonth      string `tl:"flag:15"`
+	PhoneCountry           string `tl:"flag:16"`
+	NameChangeDate         int32  `tl:"flag:17"`
+	PhotoChangeDate        int32  `tl:"flag:18"`
 }
 
 func (*PeerSettings) CRC() uint32 {
-	return 0xacd66c5e
+	return 0xf47741f7
 }
 
 func (*PeerSettings) FlagIndex() int {
@@ -3412,12 +3426,12 @@ type PremiumGiftOption struct {
 	Months       int32
 	Currency     string
 	Amount       int64
-	BotURL       string
+	BotURL       string `tl:"flag:1"`
 	StoreProduct string `tl:"flag:0"`
 }
 
 func (*PremiumGiftOption) CRC() uint32 {
-	return 0x74c34319
+	return 0x79c059f7
 }
 
 func (*PremiumGiftOption) FlagIndex() int {
@@ -3565,6 +3579,7 @@ type SavedStarGift struct {
 	Unsaved       bool `tl:"flag:5,encoded_in_bitflags"`
 	Refunded      bool `tl:"flag:9,encoded_in_bitflags"`
 	CanUpgrade    bool `tl:"flag:10,encoded_in_bitflags"`
+	PinnedToTop   bool `tl:"flag:12,encoded_in_bitflags"`
 	FromID        Peer `tl:"flag:1"`
 	Date          int32
 	Gift          StarGift
@@ -3927,9 +3942,11 @@ type StarsTransaction struct {
 	Failed                    bool `tl:"flag:6,encoded_in_bitflags"`
 	Gift                      bool `tl:"flag:10,encoded_in_bitflags"`
 	Reaction                  bool `tl:"flag:11,encoded_in_bitflags"`
-	StargiftUpgrade           bool `tl:"flag:18,encoded_in_bitflags"`
 	Subscription              bool `tl:"flag:12,encoded_in_bitflags"`
 	Floodskip                 bool `tl:"flag:15,encoded_in_bitflags"`
+	StargiftUpgrade           bool `tl:"flag:18,encoded_in_bitflags"`
+	PaidMessage               bool `tl:"flag:19,encoded_in_bitflags"`
+	PremiumGift               bool `tl:"flag:20,encoded_in_bitflags"`
 	ID                        string
 	Stars                     *StarsAmount
 	Date                      int32
@@ -3949,10 +3966,12 @@ type StarsTransaction struct {
 	StarrefCommissionPermille int32          `tl:"flag:16"`
 	StarrefPeer               Peer           `tl:"flag:17"`
 	StarrefAmount             *StarsAmount   `tl:"flag:17"`
+	PaidMessages              int32          `tl:"flag:19"`
+	PremiumGiftMonths         int32          `tl:"flag:20"`
 }
 
 func (*StarsTransaction) CRC() uint32 {
-	return 0x64dfc926
+	return 0xa39fd94a
 }
 
 func (*StarsTransaction) FlagIndex() int {
@@ -4502,7 +4521,6 @@ type UserFull struct {
 	PrivateForwardName      string                   `tl:"flag:16"`
 	BotGroupAdminRights     *ChatAdminRights         `tl:"flag:17"`
 	BotBroadcastAdminRights *ChatAdminRights         `tl:"flag:18"`
-	PremiumGifts            []*PremiumGiftOption     `tl:"flag:19"`
 	Wallpaper               WallPaper                `tl:"flag:24"`
 	Stories                 *PeerStories             `tl:"flag:25"`
 	BusinessWorkHours       *BusinessWorkHours       `tl:"flag2:0"`
@@ -4516,10 +4534,11 @@ type UserFull struct {
 	StargiftsCount          int32                    `tl:"flag2:8"`
 	StarrefProgram          *StarRefProgram          `tl:"flag2:11"`
 	BotVerification         *BotVerification         `tl:"flag2:12"`
+	SendPaidMessagesStars   int64                    `tl:"flag2:14"`
 }
 
 func (*UserFull) CRC() uint32 {
-	return 0x4d975bbc
+	return 0xd2234ea0
 }
 
 func (*UserFull) FlagIndex() int {
