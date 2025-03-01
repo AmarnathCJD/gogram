@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/amarnathcjd/gogram"
 	"github.com/pkg/errors"
 )
 
@@ -212,7 +213,11 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 			return nil, err
 		}
 	}
-	result, err := c.MessagesEditMessage(&MessagesEditMessageParams{
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := c.MakeRequestCtx(ctx, &MessagesEditMessageParams{
 		Peer:         Peer,
 		ID:           id,
 		Message:      Message,
@@ -227,7 +232,7 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 		return nil, err
 	}
 	if result != nil {
-		processed := c.processUpdate(result)
+		processed := c.processUpdate(result.(Updates))
 		processed.PeerID = c.getPeer(Peer)
 		return packMessage(c, processed), nil
 	}
@@ -272,8 +277,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 	}
 
 	var (
-		editTrue bool
-		dcID     int32
+		dcID int32
 	)
 	switch id := ID.(type) {
 	case *InputBotInlineMessageID64:
@@ -281,27 +285,27 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 	case *InputBotInlineMessageIDObj:
 		dcID = id.DcID
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var sender *gogram.MTProto = c.MTProto
 	if dcID != int32(c.GetDC()) {
 		borrowedSender, borrowError := c.CreateExportedSender(int(dcID), false)
 		if borrowError != nil {
 			return nil, borrowError
 		}
-		editTrueAny, err := borrowedSender.MakeRequestCtx(context.Background(), editRequest)
-		if err != nil {
-			return nil, err
-		}
-
-		switch editTrueAny := editTrueAny.(type) {
-		case bool:
-			editTrue = editTrueAny
-		}
-	} else {
-		editTrue, err = c.MessagesEditInlineBotMessage(editRequest)
+		sender = borrowedSender
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 	}
+
+	editTrueAny, err := sender.MakeRequestCtx(ctx, editRequest)
 	if err != nil {
 		return nil, err
 	}
-	if editTrue {
+
+	if editTrue, ok := editTrueAny.(bool); ok && editTrue {
 		return &NewMessage{ID: 0, Message: &MessageObj{
 			ID:          0,
 			Message:     Message,
@@ -309,6 +313,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 			Entities:    entities,
 		}}, nil
 	}
+
 	return nil, errors.New("no response for editBotInlineMessage")
 }
 
