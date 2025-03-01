@@ -468,7 +468,7 @@ func (es *ExSenders) Close() {
 
 // CreateExportedSender creates a new exported sender for the given DC
 func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...AuthExportedAuthorization) (*mtproto.MTProto, error) {
-	const retryLimit = 1 // Retry only once
+	const retryLimit = 3 // Retry only once
 	var lastError error
 
 	for retry := 0; retry <= retryLimit; retry++ {
@@ -543,6 +543,8 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...AuthExpo
 			} else {
 				c.Log.Error("error making initial request, retry limit reached")
 			}
+
+			time.Sleep(200 * time.Millisecond)
 			continue
 		}
 
