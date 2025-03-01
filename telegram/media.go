@@ -230,14 +230,17 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 			for range MAX_RETRIES {
 				sender := w.Next()
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
 				if !IsFsBig {
-					_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveFilePartParams{
+					_, err = sender.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
 						FileID:   fileId,
 						FilePart: int32(p),
 						Bytes:    part,
 					})
 				} else {
-					_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveBigFilePartParams{
+					_, err = sender.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
 						FileID:         fileId,
 						FilePart:       int32(p),
 						FileTotalParts: int32(totalParts),
@@ -276,7 +279,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 			return nil, err
 		}
 
-		for i := 0; i < MAX_RETRIES; i++ {
+		for range MAX_RETRIES {
 			sender := w.Next()
 			if !IsFsBig {
 				_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveFilePartParams{
