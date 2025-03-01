@@ -1373,7 +1373,7 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 
 	if patternStr, ok := pattern.(string); ok {
 		if strings.Contains(patternStr, ":") {
-			parts := strings.SplitN(patternStr, ":", 2)
+			parts := strings.SplitN(patternStr, ":", 1)
 			patternKey = strings.TrimSpace(parts[0])
 			args = strings.TrimSpace(parts[1])
 		} else {
