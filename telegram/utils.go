@@ -195,10 +195,13 @@ func MatchError(err error, str string) bool {
 type FileLocationOptions struct {
 	ThumbOnly bool
 	ThumbSize PhotoSize
+	Video     bool
 }
 
 // GetFileLocation returns file location, datacenter, file size and file name
 func GetFileLocation(file any, opts ...FileLocationOptions) (InputFileLocation, int32, int64, string, error) {
+	var opt = getVariadic(opts, FileLocationOptions{})
+
 	var (
 		location   any
 		dataCenter int32 = 4
@@ -247,10 +250,10 @@ mediaMessageSwitch:
 	}
 	switch l := location.(type) {
 	case *DocumentObj:
-		if len(opts) > 0 && opts[0].ThumbOnly {
+		if opt.ThumbOnly {
 			var selectedThumb = l.Thumbs[0]
-			if opts[0].ThumbSize != nil {
-				selectedThumb = opts[0].ThumbSize
+			if opt.ThumbSize != nil {
+				selectedThumb = opt.ThumbSize
 			}
 
 			size, sizeType := getPhotoSize(selectedThumb)
@@ -269,6 +272,17 @@ mediaMessageSwitch:
 			ThumbSize:     "",
 		}, l.DcID, l.Size, GetFileName(l), nil
 	case *PhotoObj:
+		if len(l.VideoSizes) > 0 && opt.Video {
+			var selectedThumb = l.VideoSizes[len(l.VideoSizes)-1]
+			size, sizeType := getVideoSize(selectedThumb)
+			return &InputPhotoFileLocation{
+				ID:            l.ID,
+				AccessHash:    l.AccessHash,
+				FileReference: l.FileReference,
+				ThumbSize:     sizeType,
+			}, l.DcID, size, GetFileName(l, true), nil
+		}
+
 		var selectedThumb = l.Sizes[len(l.Sizes)-1]
 		if len(opts) > 0 && opts[0].ThumbOnly {
 			if opts[0].ThumbSize != nil {
@@ -312,6 +326,15 @@ func getPhotoSize(sizes PhotoSize) (int64, string) {
 	}
 }
 
+func getVideoSize(sizes VideoSize) (int64, string) {
+	switch s := sizes.(type) {
+	case *VideoSizeObj:
+		return int64(s.Size), s.Type
+	}
+
+	return 0, ""
+}
+
 func getMax(a []int32) int32 {
 	if len(a) == 0 {
 		return 0
@@ -342,7 +365,9 @@ func sanitizePath(path string, filename string) string {
 //	 *MessageMedia
 //	 *Document
 //	 *Photo
-func GetFileName(f any) string {
+func GetFileName(f any, video ...bool) string {
+	var isVid = getVariadic(video, false)
+
 	getDocName := func(doc *DocumentObj) string {
 		var name string
 		for _, attr := range doc.Attributes {
@@ -377,12 +402,18 @@ func GetFileName(f any) string {
 	case *MessageMediaDocument:
 		return getDocName(f.Document.(*DocumentObj))
 	case *MessageMediaPhoto:
+		if isVid {
+			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		}
 		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 	case *MessageMediaContact:
 		return fmt.Sprintf("contact_%s_%d.vcf", f.FirstName, rand.Intn(1000))
 	case *DocumentObj:
 		return getDocName(f)
 	case *PhotoObj:
+		if isVid {
+			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		}
 		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 	case *InputPeerPhotoFileLocation:
 		return fmt.Sprintf("profile_photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
