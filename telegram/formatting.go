@@ -263,7 +263,7 @@ func InsertTagsIntoText(text string, tags []Tag) string {
 		closeTags[int(tag.Offset+tag.Length)] = append(closeTags[int(tag.Offset+tag.Length)], tag)
 	}
 
-	result := make([]uint16, len(utf16Text))
+	result := make([]uint16, 0, len(utf16Text)*2)
 	for i := 0; i < len(utf16Text); i++ {
 		if opening, exists := openTags[i]; exists {
 			for _, tag := range opening {
