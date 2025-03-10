@@ -108,8 +108,8 @@ func (ButtonBuilder) Force(placeHolder string) *ReplyKeyboardForceReply {
 	return &ReplyKeyboardForceReply{Placeholder: placeHolder}
 }
 
-func (ButtonBuilder) Auth(text, url, forwardText string, buttonID int32) *KeyboardButtonURLAuth {
-	return &KeyboardButtonURLAuth{Text: text, URL: url, FwdText: forwardText, ButtonID: buttonID}
+func (ButtonBuilder) Auth(text, url, forwardText string, bot InputUser, requestWriteAccess ...bool) *InputKeyboardButtonURLAuth {
+	return &InputKeyboardButtonURLAuth{Text: text, URL: url, FwdText: forwardText, Bot: bot, RequestWriteAccess: getVariadic(requestWriteAccess, false)}
 }
 
 func (ButtonBuilder) URL(text, url string) *KeyboardButtonURL {
@@ -136,8 +136,16 @@ func (ButtonBuilder) RequestPhone(text string) *KeyboardButtonRequestPhone {
 	return &KeyboardButtonRequestPhone{Text: text}
 }
 
-func (ButtonBuilder) RequestPeer(text string, buttonID int32, peerType RequestPeerType, max ...int32) *KeyboardButtonRequestPeer {
-	return &KeyboardButtonRequestPeer{Text: text, ButtonID: buttonID, PeerType: peerType, MaxQuantity: getVariadic(max, int32(0))}
+type RequestPeerOptions struct {
+	NameRquested      bool
+	UsernameRequested bool
+	PhotoRequested    bool
+	MaxQuantity       int32
+}
+
+func (ButtonBuilder) RequestPeer(text string, buttonID int32, peerType RequestPeerType, options ...RequestPeerOptions) *InputKeyboardButtonRequestPeer {
+	opt := getVariadic(options, RequestPeerOptions{})
+	return &InputKeyboardButtonRequestPeer{Text: text, ButtonID: buttonID, PeerType: peerType, NameRequested: opt.NameRquested, UsernameRequested: opt.UsernameRequested, PhotoRequested: opt.PhotoRequested, MaxQuantity: opt.MaxQuantity}
 }
 
 func (ButtonBuilder) RequestPoll(text string, quiz bool) *KeyboardButtonRequestPoll {
@@ -152,8 +160,8 @@ func (ButtonBuilder) WebView(text, url string) *KeyboardButtonSimpleWebView {
 	return &KeyboardButtonSimpleWebView{Text: text, URL: url}
 }
 
-func (ButtonBuilder) Mention(text string, userID int64) *KeyboardButtonUserProfile {
-	return &KeyboardButtonUserProfile{Text: text, UserID: userID}
+func (ButtonBuilder) Mention(text string, user InputUser) *InputKeyboardButtonUserProfile {
+	return &InputKeyboardButtonUserProfile{Text: text, UserID: user}
 }
 
 func (ButtonBuilder) Copy(text string, copyText string) *KeyboardButtonCopy {
