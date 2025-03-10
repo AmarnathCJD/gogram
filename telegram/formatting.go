@@ -246,7 +246,6 @@ func ParseEntitiesToTags(entities []MessageEntity) []Tag {
 
 func InsertTagsIntoText(text string, tags []Tag) string {
 	utf16Text := utf16.Encode([]rune(text))
-	var result strings.Builder
 	openTags := make(map[int][]Tag)
 	closeTags := make(map[int][]Tag)
 
@@ -255,30 +254,36 @@ func InsertTagsIntoText(text string, tags []Tag) string {
 		closeTags[int(tag.Offset+tag.Length)] = append(closeTags[int(tag.Offset+tag.Length)], tag)
 	}
 
+	result := make([]uint16, len(utf16Text))
 	for i := 0; i < len(utf16Text); i++ {
 		if opening, exists := openTags[i]; exists {
 			for _, tag := range opening {
+				var utf16tag []uint16
+
 				if len(tag.Attrs) > 0 {
 					attrStr := ""
 					for k, v := range tag.Attrs {
 						attrStr += fmt.Sprintf(" %s=\"%s\"", k, v)
 					}
-					result.WriteString(fmt.Sprintf("<%s%s>", tag.Type, attrStr))
+
+					utf16tag = utf16.Encode([]rune(fmt.Sprintf("<%s%s>", tag.Type, attrStr)))
 				} else {
-					result.WriteString(fmt.Sprintf("<%s>", tag.Type))
+					utf16tag = utf16.Encode([]rune(fmt.Sprintf("<%s>", tag.Type)))
 				}
+
+				result = append(result, utf16tag...)
 			}
 		}
-		result.WriteString(string(utf16.Decode([]uint16{utf16Text[i]})))
+		result = append(result, utf16Text[i])
 
 		if closing, exists := closeTags[i+1]; exists {
 			for j := len(closing) - 1; j >= 0; j-- {
-				result.WriteString(fmt.Sprintf("</%s>", closing[j].Type))
+				utf16tag := utf16.Encode([]rune(fmt.Sprintf("</%s>", closing[j].Type)))
+				result = append(result, utf16tag...)
 			}
 		}
 	}
-
-	return result.String()
+	return string(utf16.Decode(result))
 }
 
 func ToMarkdown(htmlStr string) string {
