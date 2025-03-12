@@ -1363,6 +1363,8 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 
 	if currentPts+ptsCount < pts {
 		c.Log.Debug("update gap detected - filling - pts (", currentPts, ") - ptsCount (", ptsCount, ") - pts (", pts, ")")
+		c.dispatcher.SetPts(pts)
+		return true // remaining parts have some issues it seems, I'll address later
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
