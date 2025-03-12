@@ -1405,7 +1405,7 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 
 		c.dispatcher.SetPts(pts)
 	} else {
-		return false
+		return true
 	}
 
 	return true
