@@ -541,7 +541,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...AuthExpo
 			if retry < retryLimit {
 				c.Log.Debug(fmt.Sprintf("error making initial request, retrying (%d/%d)", retry+1, retryLimit))
 			} else {
-				c.Log.Error("error making initial request, retry limit reached")
+				c.Log.Error(fmt.Sprintf("error making initial request, retry limit reached: %s", lastError.Error()))
 			}
 
 			time.Sleep(200 * time.Millisecond)
