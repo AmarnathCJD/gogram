@@ -44,7 +44,7 @@ type MTProto struct {
 	ctxCancel     context.CancelFunc
 	routineswg    sync.WaitGroup
 	memorySession bool
-	tcpActive     atomic.Bool
+	tcpState      *TcpState
 	timeOffset    int64
 	mode          mode.Variant
 
@@ -150,6 +150,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		errorHandler:          func(err error) {},
 		mode:                  parseTransportMode(c.Mode),
 		IpV6:                  c.Ipv6,
+		tcpState:              NewTcpState(),
 	}
 
 	mtproto.Logger.Debug("initializing mtproto...")
@@ -370,7 +371,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 		m.Logger.Error(errors.Wrap(err, "creating connection"))
 		return err
 	}
-	m.tcpActive.Store(true)
+	m.tcpState.SetActive(true)
 	if withLog {
 		if m.proxy != nil && m.proxy.Host != "" {
 			m.Logger.Info(fmt.Sprintf("connection to (~%s)[%s] - <%s> established", utils.FmtIp(m.proxy.Host), m.Addr, utils.Vtcp(m.IpV6)))
@@ -424,9 +425,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 }
 
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	for !m.TcpActive() {
-		time.Sleep(20 * time.Millisecond)
-	}
+	m.tcpState.WaitForActive()
 
 	resp, _, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
@@ -463,9 +462,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 }
 
 func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	for !m.TcpActive() {
-		time.Sleep(20 * time.Millisecond)
-	}
+	m.tcpState.WaitForActive()
 
 	resp, msgId, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
@@ -513,8 +510,8 @@ func (m *MTProto) InvokeRequestWithoutUpdate(data tl.Object, expectedTypes ...re
 	return err
 }
 
-func (m *MTProto) TcpActive() bool {
-	return m.tcpActive.Load()
+func (m *MTProto) IsTcpActive() bool {
+	return m.tcpState.Active.Load()
 }
 
 func (m *MTProto) stopRoutines() {
@@ -524,7 +521,7 @@ func (m *MTProto) stopRoutines() {
 }
 
 func (m *MTProto) Disconnect() error {
-	m.tcpActive.Store(false)
+	m.tcpState.SetActive(false)
 	m.stopRoutines()
 
 	return nil
@@ -536,7 +533,7 @@ func (m *MTProto) Terminate() error {
 	if m.transport != nil {
 		m.transport.Close()
 	}
-	m.tcpActive.Store(false)
+	m.tcpState.SetActive(false)
 	return nil
 }
 
@@ -568,10 +565,7 @@ func (m *MTProto) longPing(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			if !m.TcpActive() {
-				m.Logger.Warn("connection is not established with, stopping Ping routine")
-				return
-			}
+			m.tcpState.WaitForActive()
 
 			time.Sleep(30 * time.Second)
 			m.Ping()
@@ -581,6 +575,7 @@ func (m *MTProto) longPing(ctx context.Context) {
 
 func (m *MTProto) Ping() time.Duration {
 	start := time.Now()
+	m.Logger.Debug("rpc - pinging server ...")
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: time.Now().Unix(),
 	})
@@ -597,10 +592,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			default:
-				if !m.tcpActive.Load() {
-					m.Logger.Warn("connection is not established with, stopping Updates Queue")
-					return
-				}
+				m.TcpState().WaitForActive()
 				err := m.readMsg()
 
 				if err != nil {
@@ -786,6 +778,7 @@ messageTypeSwitching:
 	case *objects.BadMsgNotification:
 		badMsg := BadMsgErrorFromNative(message)
 		if badMsg.Code == 16 || badMsg.Code == 17 {
+			m.Logger.Warn("Your system date and time are possibly incorrect, please adjust them")
 			m.offsetTime()
 		}
 		m.Logger.Debug("bad-msg-notification: " + badMsg.Error())
@@ -845,6 +838,38 @@ func MessageRequireToAck(msg tl.Object) bool {
 		return false
 	default:
 		return true
+	}
+}
+
+type TcpState struct {
+	Active atomic.Bool
+	Cond   *sync.Cond
+}
+
+func (m *MTProto) TcpState() *TcpState {
+	return m.tcpState
+}
+
+func (m *TcpState) SetActive(active bool) {
+	m.Cond.L.Lock()
+	m.Active.Store(active)
+	m.Cond.Broadcast()
+	m.Cond.L.Unlock()
+}
+
+func (m *TcpState) WaitForActive() {
+	m.Cond.L.Lock()
+	defer m.Cond.L.Unlock()
+
+	for !m.Active.Load() {
+		m.Cond.Wait()
+	}
+}
+
+func NewTcpState() *TcpState {
+	return &TcpState{
+		Active: atomic.Bool{},
+		Cond:   sync.NewCond(&sync.Mutex{}),
 	}
 }
 
