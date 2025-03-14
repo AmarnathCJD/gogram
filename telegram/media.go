@@ -689,26 +689,26 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 		return nil
 	}
 
-	var authParams = AuthExportedAuthorization{}
+	var authParams = &AuthExportedAuthorization{}
 	if dc != int32(c.GetDC()) {
 		if c.exportedKeys == nil {
 			c.exportedKeys = make(map[int]*AuthExportedAuthorization)
 		}
 
 		if exportedKey, ok := c.exportedKeys[int(dc)]; ok {
-			authParams = *exportedKey
+			authParams = exportedKey
 		} else {
 			auth, err := c.AuthExportAuthorization(dc)
 			if err != nil {
 				return err
 			}
 
-			authParams = AuthExportedAuthorization{
+			authParams = &AuthExportedAuthorization{
 				ID:    auth.ID,
 				Bytes: auth.Bytes,
 			}
 
-			c.exportedKeys[int(dc)] = &authParams
+			c.exportedKeys[int(dc)] = authParams
 		}
 	}
 
