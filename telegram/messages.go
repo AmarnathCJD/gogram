@@ -1052,10 +1052,7 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 
 		for {
 			remaining := opt.Limit - int32(len(messages))
-			perReqLimit := int32(100)
-			if remaining < perReqLimit {
-				perReqLimit = remaining
-			}
+			perReqLimit := min(remaining, int32(100))
 			params.Limit = perReqLimit
 
 			result, err = c.MessagesSearch(params)
@@ -1067,16 +1064,28 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 			}
 			switch result := result.(type) {
 			case *MessagesChannelMessages:
+				if result.Count == 0 {
+					return messages, nil
+				}
+
 				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 				for _, msg := range result.Messages {
 					messages = append(messages, *packMessage(c, msg))
 				}
 			case *MessagesMessagesObj:
+				if len(result.Messages) == 0 {
+					return messages, nil
+				}
+
 				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 				for _, msg := range result.Messages {
 					messages = append(messages, *packMessage(c, msg))
 				}
 			case *MessagesMessagesSlice:
+				if result.Count == 0 {
+					return messages, nil
+				}
+
 				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 				for _, msg := range result.Messages {
 					messages = append(messages, *packMessage(c, msg))
@@ -1218,10 +1227,7 @@ func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMess
 
 			for {
 				remaining := opt.Limit - int32(len(messages))
-				perReqLimit := int32(100)
-				if remaining < perReqLimit {
-					perReqLimit = remaining
-				}
+				perReqLimit := min(remaining, int32(100))
 				params.Limit = perReqLimit
 
 				result, err = c.MessagesSearch(params)
@@ -1234,16 +1240,28 @@ func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMess
 				}
 				switch result := result.(type) {
 				case *MessagesChannelMessages:
+					if result.Count == 0 {
+						return
+					}
+
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
 						messages = append(messages, *packMessage(c, msg))
 					}
 				case *MessagesMessagesObj:
+					if len(result.Messages) == 0 {
+						return
+					}
+
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
 						messages = append(messages, *packMessage(c, msg))
 					}
 				case *MessagesMessagesSlice:
+					if result.Count == 0 {
+						return
+					}
+
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
 						messages = append(messages, *packMessage(c, msg))
@@ -1670,10 +1688,7 @@ func getVariadic[T comparable](opts []T, def T) T {
 func splitIDsIntoChunks(ids []InputMessage, chunkSize int) [][]InputMessage {
 	var chunks [][]InputMessage
 	for i := 0; i < len(ids); i += chunkSize {
-		end := i + chunkSize
-		if end > len(ids) {
-			end = len(ids)
-		}
+		end := min(i+chunkSize, len(ids))
 		chunks = append(chunks, ids[i:end])
 	}
 	return chunks
