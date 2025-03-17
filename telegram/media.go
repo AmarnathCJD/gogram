@@ -760,28 +760,14 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 	if end > int(size) {
 		end = int(size)
 	}
-	var sender *ExSender
-	if c.clientData.cacheSenders {
-		for dcId, workers := range c.exSenders.senders {
-			if int(dc) == dcId {
-				for _, worker := range workers {
-					sender = worker
-					break
-				}
-			}
-		}
+
+	w := NewWorkerPool(1)
+	if err := initializeWorkers(1, int32(dc), c, w); err != nil {
+		return nil, "", err
 	}
 
-	if sender == nil {
-		mtp, err := c.CreateExportedSender(int(dc), false)
-		if err != nil {
-			return nil, "", err
-		}
-
-		if c.clientData.cacheSenders {
-			c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], &ExSender{mtp, time.Now()})
-		}
-	}
+	sender := w.Next()
+	defer w.FreeWorker(sender)
 
 	for curr := start; curr < end; curr += chunkSize {
 		part, err := sender.MakeRequest(&UploadGetFileParams{

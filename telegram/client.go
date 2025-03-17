@@ -40,7 +40,6 @@ type clientData struct {
 	appVersion       string
 	langCode         string
 	parseMode        string
-	cacheSenders     bool
 	logLevel         utils.LogLevel
 	sleepThresholdMs int
 	botAcc           bool
