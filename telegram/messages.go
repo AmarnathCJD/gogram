@@ -939,6 +939,7 @@ type SearchOption struct {
 	IDs              any            // IDs of the messages to get (bots can use)
 	Query            string         // query to search for
 	FromUser         any            // ID of the user to search from
+	AddOffset        int32          // Sequential number of the first message to be returned
 	Offset           int32          // offset of the message to search from
 	Limit            int32          // limit of the messages to get
 	Filter           MessagesFilter // filter to use
@@ -1035,16 +1036,17 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 		}
 
 		params := &MessagesSearchParams{
-			Peer:     peer,
-			Q:        opt.Query,
-			OffsetID: opt.Offset,
-			Filter:   opt.Filter,
-			MinDate:  opt.MinDate,
-			MaxDate:  opt.MaxDate,
-			MinID:    opt.MinID,
-			MaxID:    opt.MaxID,
-			Limit:    opt.Limit,
-			TopMsgID: opt.TopMsgID,
+			Peer:      peer,
+			Q:         opt.Query,
+			OffsetID:  opt.Offset,
+			AddOffset: opt.AddOffset,
+			Filter:    opt.Filter,
+			MinDate:   opt.MinDate,
+			MaxDate:   opt.MaxDate,
+			MinID:     opt.MinID,
+			MaxID:     opt.MaxID,
+			Limit:     opt.Limit,
+			TopMsgID:  opt.TopMsgID,
 		}
 
 		if opt.FromUser != nil {
