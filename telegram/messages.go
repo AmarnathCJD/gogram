@@ -956,7 +956,6 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 		SleepThresholdMs: 20,
 	})
 	peer, err := c.ResolvePeer(PeerID)
-
 	if err != nil {
 		return nil, err
 	}
@@ -1025,7 +1024,9 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 					messages = append(messages, *packMessage(c, msg))
 				}
 			}
-
+			if len(messages) >= int(opt.Limit) {
+				return messages[:opt.Limit], nil
+			}
 			time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
 		}
 	} else {
@@ -1055,8 +1056,12 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 		}
 
 		for {
-			remaining := opt.Limit - int32(len(messages))
-			perReqLimit := min(remaining, int32(100))
+			remaining := int(opt.Limit) - len(messages)
+			if remaining <= 0 {
+				break
+			}
+
+			perReqLimit := min(int32(remaining), 100)
 			params.Limit = perReqLimit
 
 			result, err = c.MessagesSearch(params)
@@ -1091,8 +1096,8 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 			}
 
 			messages = append(messages, fetchedMessages...)
-
-			if len(messages) >= int(opt.Limit) || len(fetchedMessages) < 100 {
+			if len(messages) >= int(opt.Limit) {
+				messages = messages[:opt.Limit]
 				break
 			}
 
