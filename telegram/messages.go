@@ -835,7 +835,24 @@ func (c *Client) SendReadAck(PeerID any, MaxID ...int32) (*MessagesAffectedMessa
 		return nil, err
 	}
 	maxID := getVariadic(MaxID, int32(0))
-	return c.MessagesReadHistory(peerChat, maxID)
+	switch peer := peerChat.(type) {
+	case *InputPeerChannel:
+		done, err := c.ChannelsReadHistory(&InputChannelObj{
+			ChannelID:  peer.ChannelID,
+			AccessHash: peer.AccessHash,
+		}, maxID)
+		if err != nil {
+			return nil, err
+		} else if !done {
+			return nil, errors.New("failed to read history")
+		}
+
+		return &MessagesAffectedMessages{Pts: 0, PtsCount: 0}, nil
+	case *InputPeerChat, *InputPeerUser:
+		return c.MessagesReadHistory(peerChat, maxID)
+	default:
+		return nil, errors.New("invalid peer type")
+	}
 }
 
 // SendPoll sends a poll. TODO
