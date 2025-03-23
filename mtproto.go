@@ -636,6 +636,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 
 					m.Logger.Debug(errors.Wrap(err, "reading message"))
 					// is reconnect required here?
+					m.Reconnect(false)
 				}
 			}
 		}
