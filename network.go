@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/mtproto/messages"
@@ -59,14 +60,23 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 	} else {
 		seqNo = m.UpdateSeqNo()
 	}
-	if m.transport == nil {
+
+	if m.transport == nil || !m.IsTcpActive() {
 		m.CreateConnection(false)
 		if m.transport == nil {
 			return nil, 0, errors.New("transport is nil, please use SetTransport")
 		}
 	}
+
+	maxRetries := 2
+sendPacket:
 	errorSendPacket := m.transport.WriteMsg(data, seqNo)
 	if errorSendPacket != nil {
+		if maxRetries > 0 && strings.Contains(errorSendPacket.Error(), "connection was aborted") {
+			maxRetries--
+			m.CreateConnection(false)
+			goto sendPacket
+		}
 		return nil, msgID, fmt.Errorf("writing message: %w", errorSendPacket)
 	}
 	return resp, msgID, nil

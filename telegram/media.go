@@ -11,11 +11,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/pkg/errors"
 )
 
@@ -32,30 +32,38 @@ type UploadOptions struct {
 
 type WorkerPool struct {
 	sync.Mutex
-	workers []*mtproto.MTProto
-	free    chan *mtproto.MTProto
+	workers []*ExSender
+	free    chan *ExSender
 }
 
 func NewWorkerPool(size int) *WorkerPool {
 	return &WorkerPool{
-		workers: make([]*mtproto.MTProto, 0, size),
-		free:    make(chan *mtproto.MTProto, size),
+		workers: make([]*ExSender, 0, size),
+		free:    make(chan *ExSender, size),
 	}
 }
 
-func (wp *WorkerPool) AddWorker(s *mtproto.MTProto) {
+func (wp *WorkerPool) AddWorker(s *ExSender) {
 	wp.Lock()
 	defer wp.Unlock()
 	wp.workers = append(wp.workers, s)
 	wp.free <- s // Mark the worker as free immediately
 }
 
-func (wp *WorkerPool) Next() *mtproto.MTProto {
-	return <-wp.free
+func (wp *WorkerPool) Next() *ExSender {
+	next := <-wp.free
+	if !next.MTProto.IsTcpActive() {
+		next.MTProto.Reconnect(false)
+	}
+	next.lastUsed = time.Now()
+	return next
 }
 
-func (wp *WorkerPool) FreeWorker(s *mtproto.MTProto) {
-	wp.free <- s
+func (wp *WorkerPool) FreeWorker(s *ExSender) {
+	select {
+	case wp.free <- s:
+	default:
+	}
 }
 
 type Source struct {
@@ -163,27 +171,38 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 	w := NewWorkerPool(numWorkers)
 
-	c.Logger.Info(fmt.Sprintf("file - upload: (%s) - (%d) - (%d)", source.GetName(), size, parts))
+	c.Log.Info(fmt.Sprintf("file - upload: (%s) - (%s) - (%d)", source.GetName(), SizetoHuman(size), parts))
 
 	doneBytes := atomic.Int64{}
 	doneArray := sync.Map{}
 
-	go initializeWorkers(numWorkers, int32(c.GetDC()), c, w)
+	if err := initializeWorkers(numWorkers, int32(c.GetDC()), c, w); err != nil {
+		return nil, err
+	}
 
-	var progressTicker = make(chan struct{}, 1)
+	stopProgress := make(chan struct{})
+	defer close(stopProgress)
 
 	if opts.ProgressManager != nil {
+		opts.ProgressManager.SetFileName(source.GetName())
+		opts.ProgressManager.lastPerc = 0
+		opts.ProgressManager.IncCount()
 		opts.ProgressManager.SetTotalSize(size)
+		opts.ProgressManager.SetMeta(c.GetDC(), numWorkers)
+
+		opts.ProgressManager.editFunc(size, 0) // Initial edit
+
 		go func() {
 			ticker := time.NewTicker(time.Duration(opts.ProgressManager.editInterval) * time.Second)
 			defer ticker.Stop()
 
 			for {
 				select {
-				case <-progressTicker:
+				case <-stopProgress:
 					return
 				case <-ticker.C:
-					opts.ProgressManager.editFunc(size, doneBytes.Load())
+					current := min(doneBytes.Load(), size)
+					opts.ProgressManager.editFunc(size, current)
 				}
 			}
 		}()
@@ -191,13 +210,14 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 	MAX_RETRIES := 3
 	sem := make(chan struct{}, numWorkers)
+	defer close(sem)
 
 	for p := int64(0); p < parts; p++ {
 		sem <- struct{}{}
 		part := make([]byte, partSize)
 		_, err := file.Read(part)
 		if err != nil {
-			c.Logger.Error(err)
+			c.Log.Error(err)
 			return nil, err
 		}
 
@@ -208,16 +228,19 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 				wg.Done()
 			}()
 
-			for i := 0; i < MAX_RETRIES; i++ {
+			for range MAX_RETRIES {
 				sender := w.Next()
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
 				if !IsFsBig {
-					_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveFilePartParams{
+					_, err = sender.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
 						FileID:   fileId,
 						FilePart: int32(p),
 						Bytes:    part,
 					})
 				} else {
-					_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveBigFilePartParams{
+					_, err = sender.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
 						FileID:         fileId,
 						FilePart:       int32(p),
 						FileTotalParts: int32(totalParts),
@@ -230,11 +253,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					if handleIfFlood(err, c) {
 						continue
 					}
-					c.Logger.Debug(err)
+					c.Log.Debug(err)
 					continue
 				}
 
-				c.Logger.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
+				c.Log.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
 
 				doneBytes.Add(int64(len(part)))
 				if !IsFsBig {
@@ -252,11 +275,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		part := make([]byte, partOver)
 		_, err := file.Read(part)
 		if err != nil {
-			c.Logger.Error(err)
+			c.Log.Error(err)
 			return nil, err
 		}
 
-		for i := 0; i < MAX_RETRIES; i++ {
+		for range MAX_RETRIES {
 			sender := w.Next()
 			if !IsFsBig {
 				_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveFilePartParams{
@@ -277,7 +300,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 				if handleIfFlood(err, c) {
 					continue
 				}
-				c.Logger.Debug(err)
+				c.Log.Debug(err)
 				continue
 			}
 
@@ -291,16 +314,8 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		}
 	}
 
-	close(sem)
-	close(progressTicker)
-
 	if opts.ProgressManager != nil {
 		opts.ProgressManager.editFunc(size, size)
-	}
-
-	// destroy created workers
-	for _, worker := range w.workers {
-		worker.Terminate()
 	}
 
 	if opts.FileName != "" {
@@ -323,11 +338,16 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	}, nil
 }
 
+// Internal flood sleep handler
 func handleIfFlood(err error, c *Client) bool {
-	if matchError(err, "FLOOD_WAIT_") || matchError(err, "FLOOD_PREMIUM_WAIT_") {
-		if waitTime := getFloodWait(err); waitTime > 0 {
-			c.Logger.Debug("flood wait ", waitTime, "(s), waiting...")
+	if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
+		if waitTime := GetFloodWait(err); waitTime > 0 {
+			c.Log.Debug("flood wait ", waitTime, "(s), waiting...")
 			time.Sleep(time.Duration(waitTime) * time.Second)
+
+			if c.clientData.sleepThresholdMs > 0 {
+				time.Sleep(time.Duration(c.clientData.sleepThresholdMs) * time.Millisecond)
+			}
 			return true
 		}
 	}
@@ -383,6 +403,12 @@ type DownloadOptions struct {
 	DCId int32 `json:"dc_id,omitempty"`
 	// Destination Writer
 	Buffer io.Writer `json:"-"`
+	// Weather to download the thumb only
+	ThumbOnly bool `json:"thumb_only,omitempty"`
+	// Thumb size to download
+	ThumbSize PhotoSize `json:"thumb_size,omitempty"`
+	// Weather to download video file (profile photo, etc)
+	IsVideo bool `json:"is_video,omitempty"`
 }
 
 type Destination struct {
@@ -417,7 +443,12 @@ func (mb *Destination) Close() error {
 
 func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, error) {
 	opts := getVariadic(Opts, &DownloadOptions{})
-	location, dc, size, fileName, err := GetFileLocation(file)
+
+	location, dc, size, fileName, err := GetFileLocation(file, FileLocationOptions{
+		ThumbOnly: opts.ThumbOnly,
+		ThumbSize: opts.ThumbSize,
+		Video:     opts.IsVideo,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -464,41 +495,53 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 	if opts.Buffer != nil {
 		dest = ":mem-buffer:"
-		c.Logger.Warn("downloading to buffer (memory) - use with caution (memory usage)")
+		c.Log.Warn("downloading to buffer (memory) - use with caution (memory usage)")
 	}
 
-	c.Logger.Info(fmt.Sprintf("file - download: (%s) - (%s) - (%d)", dest, sizetoHuman(size), parts))
-	c.Logger.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers))
+	c.Log.Info(fmt.Sprintf("file - download: (%s) - (%s) - (%d)", dest, SizetoHuman(size), parts))
 
-	go initializeWorkers(numWorkers, dc, c, w)
+	if err := initializeWorkers(numWorkers, dc, c, w); err != nil {
+		return "", err
+	}
 
 	var sem = make(chan struct{}, numWorkers)
+	defer close(sem)
+
 	var wg sync.WaitGroup
 	var doneBytes atomic.Int64
 	var doneArray sync.Map
 
-	var progressTicker = make(chan struct{}, 1)
+	stopProgress := make(chan struct{})
+	defer close(stopProgress)
 
 	if opts.ProgressManager != nil {
+		opts.ProgressManager.SetFileName(dest)
+		opts.ProgressManager.lastPerc = 0
+		opts.ProgressManager.IncCount()
 		opts.ProgressManager.SetTotalSize(size)
+		opts.ProgressManager.SetMeta(int(dc), numWorkers)
+
+		opts.ProgressManager.editFunc(size, 0) // Initial edit
+
 		go func() {
 			ticker := time.NewTicker(time.Duration(opts.ProgressManager.editInterval) * time.Second)
 			defer ticker.Stop()
 
 			for {
 				select {
-				case <-progressTicker:
+				case <-stopProgress:
 					return
 				case <-ticker.C:
-					opts.ProgressManager.editFunc(size, doneBytes.Load())
+					current := min(doneBytes.Load(), size)
+					opts.ProgressManager.editFunc(size, current)
 				}
 			}
 		}()
 	}
 
 	MAX_RETRIES := 3
-
-	for p := int64(0); p < parts; p++ {
+	var cdnRedirect atomic.Bool
+	for p := int64(0); p < totalParts; p++ {
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(p int) {
@@ -507,7 +550,10 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				wg.Done()
 			}()
 
-			for i := 0; i < MAX_RETRIES; i++ {
+			for range MAX_RETRIES {
+				if cdnRedirect.Load() {
+					return
+				}
 				sender := w.Next()
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
@@ -520,11 +566,16 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					CdnSupported: false,
 				})
 				w.FreeWorker(sender)
-
 				if err != nil {
 					if handleIfFlood(err, c) {
 						continue
 					}
+
+					if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
+						c.Log.Debug(err)
+						return // File reference expired
+					}
+
 					c.Log.Debug(errors.Wrap(err, fmt.Sprintf("part - (%d) - retrying...", p)))
 					continue
 				}
@@ -536,7 +587,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					doneBytes.Add(int64(len(v.Bytes)))
 					doneArray.Store(p, true)
 				case *UploadFileCdnRedirect:
-					panic("cdn redirect not implemented") // TODO
+					cdnRedirect.Store(true)
 				case nil:
 					continue
 				default:
@@ -547,6 +598,9 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		}(int(p))
 	}
 	wg.Wait()
+	if cdnRedirect.Load() {
+		return "", errors.New("cdn redirect not implemented")
+	}
 
 retrySinglePart:
 	for _, p := range getUndoneParts(&doneArray, int(totalParts)) {
@@ -558,7 +612,7 @@ retrySinglePart:
 				wg.Done()
 			}()
 
-			for i := 0; i < MAX_RETRIES; i++ {
+			for range MAX_RETRIES {
 				sender := w.Next()
 				ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 				defer cancel()
@@ -576,18 +630,23 @@ retrySinglePart:
 					if handleIfFlood(err, c) {
 						continue
 					}
+					if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
+						c.Log.Debug(err)
+						return // File reference expired
+					}
+
 					c.Log.Debug(errors.Wrap(err, fmt.Sprintf("part - (%d) - retrying...", p)))
 					continue
 				}
 
 				switch v := part.(type) {
 				case *UploadFileObj:
-					c.Log.Debug("seq-downloaded part ", p, "/", totalParts, " len: ", len(v.Bytes)/1024, "KB")
+					c.Log.Debug("downloaded part ", p, "/", totalParts, " len: ", len(v.Bytes)/1024, "KB")
 					fs.WriteAt(v.Bytes, int64(p)*int64(partSize))
 					doneBytes.Add(int64(len(v.Bytes)))
 					doneArray.Store(p, true)
 				case *UploadFileCdnRedirect:
-					panic("cdn redirect not implemented") // TODO
+					cdnRedirect.Store(true) // TODO
 				case nil:
 					continue
 				default:
@@ -598,21 +657,17 @@ retrySinglePart:
 		}(p)
 	}
 
-	if len(getUndoneParts(&doneArray, int(totalParts))) > 0 { // Loop through failed parts
+	if !cdnRedirect.Load() && len(getUndoneParts(&doneArray, int(totalParts))) > 0 { // Loop through failed parts
 		goto retrySinglePart
 	}
 
 	wg.Wait()
-	close(sem)
-	close(progressTicker)
+	if cdnRedirect.Load() {
+		return "", errors.New("cdn redirect not implemented")
+	}
 
 	if opts.ProgressManager != nil {
 		opts.ProgressManager.editFunc(size, size)
-	}
-
-	// destroy created workers
-	for _, worker := range w.workers {
-		worker.Terminate()
 	}
 
 	return dest, nil
@@ -620,7 +675,7 @@ retrySinglePart:
 
 func getUndoneParts(doneMap *sync.Map, totalParts int) []int {
 	undoneSet := make([]int, 0, totalParts)
-	for i := 0; i < totalParts; i++ {
+	for i := range totalParts {
 		if _, found := doneMap.Load(i); !found {
 			undoneSet = append(undoneSet, i)
 		}
@@ -628,13 +683,61 @@ func getUndoneParts(doneMap *sync.Map, totalParts int) []int {
 	return undoneSet
 }
 
-func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) {
-	for i := 0; i < numWorkers; i++ {
-		conn, err := c.CreateExportedSender(int(dc))
-		if conn != nil && err == nil {
-			w.AddWorker(conn)
+func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error {
+	if numWorkers == 1 && dc == int32(c.GetDC()) {
+		w.AddWorker(&ExSender{c.MTProto, time.Now()})
+		return nil
+	}
+
+	var authParams = &AuthExportedAuthorization{}
+	if dc != int32(c.GetDC()) {
+		if c.exportedKeys == nil {
+			c.exportedKeys = make(map[int]*AuthExportedAuthorization)
+		}
+
+		if exportedKey, ok := c.exportedKeys[int(dc)]; ok {
+			authParams = exportedKey
+		} else {
+			auth, err := c.AuthExportAuthorization(dc)
+			if err != nil {
+				return err
+			}
+
+			authParams = &AuthExportedAuthorization{
+				ID:    auth.ID,
+				Bytes: auth.Bytes,
+			}
+
+			c.exportedKeys[int(dc)] = authParams
 		}
 	}
+
+	go func() {
+		numCreate := 0
+		for dcId, workers := range c.exSenders.senders {
+			if int(dc) == dcId {
+				for _, worker := range workers {
+					w.AddWorker(worker)
+					numCreate++
+				}
+			}
+		}
+
+		if numCreate < numWorkers {
+			c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers-numCreate))
+		}
+
+		for i := numCreate; i < numWorkers; i++ {
+			conn, err := c.CreateExportedSender(int(dc), false, authParams)
+			if conn != nil && err == nil {
+				sender := &ExSender{conn, time.Now()}
+				c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], sender)
+				w.AddWorker(sender)
+			}
+		}
+	}()
+
+	return nil
 }
 
 // DownloadChunk downloads a file in chunks, useful for downloading specific parts of a file.
@@ -658,10 +761,13 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		end = int(size)
 	}
 
-	sender, err := c.CreateExportedSender(int(dc))
-	if err != nil {
+	w := NewWorkerPool(1)
+	if err := initializeWorkers(1, int32(dc), c, w); err != nil {
 		return nil, "", err
 	}
+
+	sender := w.Next()
+	defer w.FreeWorker(sender)
 
 	for curr := start; curr < end; curr += chunkSize {
 		part, err := sender.MakeRequest(&UploadGetFileParams{
@@ -672,14 +778,14 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		})
 
 		if err != nil {
-			c.Logger.Error(err)
+			c.Log.Error(err)
 		}
 
 		switch v := part.(type) {
 		case *UploadFileObj:
 			buf = append(buf, v.Bytes...)
 		case *UploadFileCdnRedirect:
-			panic("cdn redirect not implemented") // TODO
+			return nil, "", errors.New("cdn redirect not implemented")
 		}
 	}
 
@@ -693,13 +799,37 @@ type ProgressManager struct {
 	editFunc     func(totalSize, currentSize int64)
 	totalSize    int64
 	lastPerc     float64
+	fileName     string
+	fileCount    int
+	meta         struct {
+		dataCenter int
+		numWorkers int
+	}
 }
 
-func NewProgressManager(editInterval int) *ProgressManager {
-	return &ProgressManager{
+func NewProgressManager(editInterval int, editFunc ...func(totalSize, currentSize int64)) *ProgressManager {
+	var pm = &ProgressManager{
 		startTime:    time.Now().Unix(),
 		editInterval: editInterval,
 	}
+
+	if len(editFunc) > 0 {
+		pm.editFunc = editFunc[0]
+	}
+
+	return pm
+}
+
+func (pm *ProgressManager) SetMessage(msg *NewMessage) *ProgressManager {
+	pm.editFunc = MediaDownloadProgress(msg, pm)
+	return pm
+}
+
+func (pm *ProgressManager) SetInlineMessage(client *Client, inline *InputBotInlineMessageID) *ProgressManager {
+	pm.editFunc = MediaDownloadProgress(&NewMessage{
+		Client: client,
+	}, pm, inline)
+	return pm
 }
 
 // WithEdit sets the edit function for the progress manager.
@@ -716,6 +846,11 @@ func (pm *ProgressManager) SetTotalSize(totalSize int64) {
 	pm.totalSize = totalSize
 }
 
+func (pm *ProgressManager) SetMeta(dataCenter, numWorkers int) {
+	pm.meta.dataCenter = dataCenter
+	pm.meta.numWorkers = numWorkers
+}
+
 func (pm *ProgressManager) PrintFunc() func(a, b int64) {
 	return func(a, b int64) {
 		fmt.Println(pm.GetStats(b))
@@ -727,6 +862,22 @@ func (pm *ProgressManager) WithMessage(msg *NewMessage) func(a, b int64) {
 	return func(a, b int64) {
 		msg.Edit(pm.GetStats(b))
 	}
+}
+
+func (pm *ProgressManager) SetFileName(fileName string) {
+	pm.fileName = fileName
+}
+
+func (pm *ProgressManager) GetFileName() string {
+	return pm.fileName
+}
+
+func (pm *ProgressManager) IncCount() {
+	pm.fileCount++
+}
+
+func (pm *ProgressManager) GetCount() int {
+	return pm.fileCount
 }
 
 func (pm *ProgressManager) GetProgress(currentBytes int64) float64 {
@@ -772,7 +923,7 @@ func (pm *ProgressManager) GenProgressBar(b int64) string {
 	progress := int((pm.GetProgress(b) / 100) * float64(barLength))
 	bar := "["
 
-	for i := 0; i < barLength; i++ {
+	for i := range barLength {
 		if i < progress {
 			bar += "="
 		} else {
@@ -782,4 +933,30 @@ func (pm *ProgressManager) GenProgressBar(b int64) string {
 	bar += "]"
 
 	return fmt.Sprintf("\r%s %d%%", bar, int(pm.GetProgress(b)))
+}
+
+func MediaDownloadProgress(editMsg *NewMessage, pm *ProgressManager, inline ...*InputBotInlineMessageID) func(totalBytes, currentBytes int64) {
+	return func(totalBytes int64, currentBytes int64) {
+		text := ""
+		text += "<b>📄 Name:</b> <code>%s</code>\n"
+		text += "<b>🈂️ DC ID:</b> <code>%d</code> <b>|</b> <b>⚡Workers:</b> <code>%d</code>\n\n"
+		text += "<b>💾 File Size:</b> <code>%.2f MiB</code>\n"
+		text += "<b>⌛️ ETA:</b> <code>%s</code>\n"
+		text += "<b>⏱ Speed:</b> <code>%s</code>\n"
+		text += "<b>⚙️ Progress:</b> %s <code>%.2f%%</code>"
+
+		size := float64(totalBytes) / 1024 / 1024
+		eta := pm.GetETA(currentBytes)
+		speed := pm.GetSpeed(currentBytes)
+		percent := pm.GetProgress(currentBytes)
+
+		progressbar := strings.Repeat("■", int(percent/10)) + strings.Repeat("□", 10-int(percent/10))
+
+		message := fmt.Sprintf(text, pm.GetFileName(), pm.meta.dataCenter, pm.meta.numWorkers, size, eta, speed, progressbar, percent)
+		if len(inline) > 0 {
+			editMsg.Client.EditMessage(inline[0], 0, message)
+		} else {
+			editMsg.Edit(message)
+		}
+	}
 }

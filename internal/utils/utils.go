@@ -51,8 +51,32 @@ type DCOptions struct {
 }
 
 func SetDCs(dcs map[int][]DC, cdnDcs map[int][]DC) {
-	DcList.DCS = dcs
-	DcList.CdnDCs = cdnDcs
+	for key, newDCs := range dcs {
+		DcList.DCS[key] = mergeUnique(DcList.DCS[key], newDCs)
+	}
+
+	for key, newCDNs := range cdnDcs {
+		DcList.CdnDCs[key] = mergeUnique(DcList.CdnDCs[key], newCDNs)
+	}
+}
+
+func mergeUnique(existing, new []DC) []DC {
+	uniqueMap := make(map[DC]struct{})
+
+	for _, dc := range existing {
+		uniqueMap[dc] = struct{}{}
+	}
+
+	for _, dc := range new {
+		uniqueMap[dc] = struct{}{}
+	}
+
+	result := make([]DC, 0, len(uniqueMap))
+	for dc := range uniqueMap {
+		result = append(result, dc)
+	}
+
+	return result
 }
 
 func GetAddr(dc int) (string, bool) {
@@ -111,6 +135,8 @@ func SearchAddr(addr string) int {
 		return 5
 	} else if strings.Contains(addr, "149.154.175") {
 		return 1
+	} else if strings.Contains(addr, "149.154.167") {
+		return 2
 	}
 	return 4
 }

@@ -2,10 +2,10 @@ package telegram
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math/big"
 	"math/rand"
 	"os"
@@ -60,10 +60,14 @@ func GenRandInt() int64 {
 }
 
 func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
+	var signatures = make([]string, 0)
+
 	var media []*InputSingleMedia
 	if attrs == nil {
 		attrs = &MediaMetadata{}
 	}
+
+	attrs.Inline = true // force to call media.uploadToSelf
 	var inputMedia []InputMedia
 	switch m := m.(type) {
 	case *InputSingleMedia:
@@ -116,6 +120,26 @@ func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia
 		}
 	case []string:
 		for _, m := range m {
+			if !IsURL(m) && !attrs.SkipHash {
+				signature, err := calculateSha256Hash(m)
+				if err != nil {
+					return nil, err
+				}
+
+				var found bool
+				for i, sig := range signatures {
+					if sig == signature {
+						inputMedia = append(inputMedia, inputMedia[i])
+						found = true
+						break
+					}
+				}
+
+				signatures = append(signatures, signature)
+				if found {
+					continue
+				}
+			}
 			mediaObj, err := c.getSendableMedia(m, attrs)
 			if err != nil {
 				return nil, err
@@ -140,28 +164,38 @@ func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia
 		inputMedia = append(inputMedia, &InputMediaEmpty{})
 	}
 	for _, m := range inputMedia {
-		switch m := m.(type) {
-		case *InputMediaUploadedPhoto, *InputMediaUploadedDocument, *InputMediaPhotoExternal, *InputMediaDocumentExternal:
-			uploadedMedia, err := c.MessagesUploadMedia(attrs.BusinessConnectionId, &InputPeerSelf{}, m) // Upload if not already cached
-			if err != nil {
-				return nil, err
-			}
-			inputUploadedMedia, err := c.getSendableMedia(uploadedMedia, attrs)
-			if err != nil {
-				return nil, err
-			}
-			media = append(media, &InputSingleMedia{
-				Media:    inputUploadedMedia,
-				RandomID: GenRandInt(),
-			})
-		default:
-			media = append(media, &InputSingleMedia{
-				Media:    m,
-				RandomID: GenRandInt(),
-			})
-		}
+		media = append(media, &InputSingleMedia{
+			Media:    m,
+			RandomID: GenRandInt(),
+		})
 	}
 	return media, nil
+}
+
+func calculateSha256Hash(localFile string) (string, error) {
+	file, err := os.Open(localFile)
+	if err != nil {
+		return "", err
+	}
+
+	defer file.Close()
+	// calculate sha256 hash
+	// if file is too large take a hash of the first 10MB
+
+	if stat, err := file.Stat(); err == nil && stat.Size() > 50*1024*200 {
+		hash := sha256.New()
+		if _, err := io.CopyN(hash, file, 50*1024*200); err != nil {
+			return "", err
+		}
+
+		return fmt.Sprintf("%x", hash.Sum(nil)), nil
+	}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func processUpdates(updates Updates) []*MessageObj {
@@ -220,15 +254,17 @@ updateTypeSwitch:
 			return upd.Message.(*MessageObj)
 		case *UpdateEditChannelMessage:
 			return upd.Message.(*MessageObj)
+		case *UpdateBotEditBusinessMessage:
+			return upd.Message.(*MessageObj)
 		case *UpdateMessageID:
 			return &MessageObj{
 				ID: upd.ID,
 			}
 		default:
-			log.Println("unknown update type", reflect.TypeOf(upd).String())
+			c.Log.Debug("unknown update type", reflect.TypeOf(upd).String())
 		}
 	case *UpdateShortMessage:
-		return &MessageObj{Out: update.Out, ID: update.ID, PeerID: &PeerUser{}, Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod}
+		return &MessageObj{Out: update.Out, ID: update.ID, PeerID: &PeerUser{}, Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod, ReplyTo: update.ReplyTo, FromID: &PeerUser{UserID: update.UserID}, ViaBotID: update.ViaBotID, Message: update.Message, MediaUnread: update.MediaUnread, Silent: update.Silent, FwdFrom: update.FwdFrom}
 	case *UpdateShortChatMessage:
 		chat, err := c.GetPeer(update.ChatID)
 		if err != nil {
@@ -239,7 +275,7 @@ updateTypeSwitch:
 		upd = &UpdatesObj{Updates: []Update{update.Update}}
 		goto updateTypeSwitch
 	default:
-		log.Println("unknown update type", reflect.TypeOf(upd).String())
+		c.Log.Debug("unknown update type", reflect.TypeOf(upd).String())
 	}
 	return nil
 }
@@ -248,7 +284,7 @@ func (c *Client) GetSendablePeer(PeerID any) (InputPeer, error) {
 PeerSwitch:
 	switch Peer := PeerID.(type) {
 	case nil:
-		return nil, errors.New("PeerID is nil")
+		return nil, errors.New("peer is nil, cannot send nil peer")
 	case *PeerUser:
 		peerEntity, err := c.GetPeerUser(Peer.UserID)
 		if err != nil {
@@ -292,11 +328,11 @@ PeerSwitch:
 	case *UserObj:
 		return &InputPeerUser{UserID: Peer.ID, AccessHash: Peer.AccessHash}, nil
 	case int64, int32, int:
-		PeerEntity, err := c.Cache.GetInputPeer(getAnyInt(PeerID))
-		if PeerEntity == nil {
+		peerEntity, err := c.GetInputPeer(getAnyInt(PeerID))
+		if peerEntity == nil || err != nil {
 			return nil, err
 		}
-		return PeerEntity, nil
+		return peerEntity, nil
 	case string:
 		if i, err := strconv.ParseInt(Peer, 10, 64); err == nil {
 			PeerID = i
@@ -306,16 +342,12 @@ PeerSwitch:
 			return &InputPeerSelf{}, nil
 		}
 
-		// search in cache first
-		for _, peer := range c.Cache.channels {
-			if peer.Username == Peer {
-				return &InputPeerChannel{ChannelID: peer.ID, AccessHash: peer.AccessHash}, nil
+		if peerMap, ok := c.Cache.usernameMap[strings.TrimPrefix(Peer, "@")]; ok {
+			if peerHash, ok := c.Cache.InputPeers.InputChannels[peerMap]; ok {
+				return &InputPeerChannel{ChannelID: peerMap, AccessHash: peerHash}, nil
 			}
-		}
-
-		for _, peer := range c.Cache.users {
-			if peer.Username == Peer {
-				return &InputPeerUser{UserID: peer.ID, AccessHash: peer.AccessHash}, nil
+			if peerHash, ok := c.Cache.InputPeers.InputUsers[peerMap]; ok {
+				return &InputPeerUser{UserID: peerMap, AccessHash: peerHash}, nil
 			}
 		}
 
@@ -442,6 +474,7 @@ func (c *Client) GetSendableMedia(mediaFile any, attr *MediaMetadata) (InputMedi
 
 func (c *Client) getSendableMedia(mediaFile any, attributes *MediaMetadata) (InputMedia, error) {
 	attr := getValue(attributes, &MediaMetadata{})
+	var thumbnail InputFile
 
 	switch thumb := attr.Thumb.(type) {
 	case InputFile, *InputFile, nil:
@@ -451,14 +484,14 @@ func (c *Client) getSendableMedia(mediaFile any, attributes *MediaMetadata) (Inp
 		if err != nil {
 			return nil, err
 		}
-		attr.Thumb = fi
+		thumbnail = fi
 	}
 
 mediaTypeSwitch:
 	switch media := mediaFile.(type) {
 	case string:
 		if IsURL(media) {
-			if _, isImage := mimeTypes.MIME(media); isImage && !attr.ForceDocument {
+			if _, isImage := MimeTypes.MIME(media); isImage && !attr.ForceDocument {
 				photoExt := &InputMediaPhotoExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}
 				if attr.Inline {
 					return c.uploadToSelf(photoExt)
@@ -531,7 +564,7 @@ mediaTypeSwitch:
 		case *MessageMediaPoll:
 			return convertPoll(media), nil
 		case *MessageMediaUnsupported:
-			return nil, errors.New("unsupported media type: MessageMediaUnsupported")
+			return nil, errors.New("unsupported media type: MessageMediaUnsupported (Maybe you need to update the library)")
 		default:
 			return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(media).String()))
 		}
@@ -544,11 +577,11 @@ mediaTypeSwitch:
 		)
 		switch media := media.(type) {
 		case *InputFileObj:
-			mimeType, IsPhoto = mimeTypes.MIME(getValue(attr.FileName, media.Name))
+			mimeType, IsPhoto = MimeTypes.MIME(getValue(attr.FileName, media.Name))
 			fileName = getValue(attr.FileName, media.Name)
 			mediaFile = media
 		case *InputFileBig:
-			mimeType, IsPhoto = mimeTypes.MIME(getValue(attr.FileName, media.Name))
+			mimeType, IsPhoto = MimeTypes.MIME(getValue(attr.FileName, media.Name))
 			fileName = getValue(attr.FileName, media.Name)
 			mediaFile = media
 		}
@@ -567,9 +600,9 @@ mediaTypeSwitch:
 		} else {
 			mediaAttributes := getValueSlice(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}})
 			hasFileName := false
-			mediaAttributes, dur, err := gatherVideoMetadata(getValue(attr.FileAbsPath, fileName), mediaAttributes)
+			mediaAttributes, dur, err := GatherVideoMetadata(getValue(attr.FileAbsPath, fileName), mediaAttributes)
 			if err != nil {
-				c.Logger.Debug(errors.Wrap(err, "gathering video metadata"))
+				c.Log.Debug(errors.Wrap(err, "gathering video metadata"))
 			}
 
 			for _, at := range mediaAttributes {
@@ -578,12 +611,12 @@ mediaTypeSwitch:
 				}
 			}
 
-			if attr.Thumb == nil && !attr.DisableThumb {
+			if thumbnail == nil && !attr.DisableThumb {
 				thumbFile, err := c.gatherVideoThumb(getValue(attr.FileAbsPath, fileName), dur)
 				if err != nil {
-					c.Logger.Debug(errors.Wrap(err, "gathering video thumb"))
+					c.Log.Debug(errors.Wrap(err, "gathering video thumb"))
 				} else {
-					attr.Thumb = thumbFile
+					thumbnail = thumbFile
 				}
 			}
 
@@ -591,7 +624,7 @@ mediaTypeSwitch:
 				mediaAttributes = append(mediaAttributes, &DocumentAttributeFilename{FileName: fileName})
 			}
 
-			uploadedDoc := &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValueAny(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false), ForceFile: getValue(attr.ForceDocument, false)}
+			uploadedDoc := &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValueAny(thumbnail, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false), ForceFile: getValue(attr.ForceDocument, false)}
 			if attr.Inline {
 				return c.uploadToSelf(uploadedDoc)
 			}
@@ -662,7 +695,7 @@ func convertPoll(poll *MessageMediaPoll) *InputMediaPoll {
 	return newPoll
 }
 
-func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttribute, int64, error) {
+func GatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttribute, int64, error) {
 	var dur float64
 
 	if !IsFfmpegInstalled() {
@@ -908,6 +941,18 @@ func (c *Client) ResolveUsername(username string, ref ...string) (any, error) {
 	}
 }
 
+func packMessages(c *Client, messages []*MessageObj) []*NewMessage {
+	var (
+		packedMessages []*NewMessage
+	)
+
+	for _, message := range messages {
+		packedMessages = append(packedMessages, packMessage(c, message))
+	}
+
+	return packedMessages
+}
+
 func packMessage(c *Client, message Message) *NewMessage {
 	var (
 		m = &NewMessage{}
@@ -1037,6 +1082,21 @@ func packInlineQuery(c *Client, query *UpdateBotInlineQuery) *InlineQuery {
 	iq.SenderID = query.UserID
 	iq.OriginalUpdate = query
 	return iq
+}
+
+func packInlineSend(c *Client, query *UpdateBotInlineSend) *InlineSend {
+	var (
+		is = &InlineSend{}
+	)
+
+	is.ID = query.ID
+	is.MsgID = query.MsgID
+	is.Client = c
+	is.Sender, _ = c.GetUser(query.UserID)
+	is.SenderID = query.UserID
+	is.OriginalUpdate = query
+
+	return is
 }
 
 func packCallbackQuery(c *Client, query *UpdateBotCallbackQuery) *CallbackQuery {

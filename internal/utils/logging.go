@@ -13,8 +13,8 @@ type LogLevel int
 
 const (
 	// DebugLevel is the lowest level of logging
-	DebugLevel LogLevel = iota
-	// InfoLevel is the second lowest level of logging
+	DebugLevel LogLevel = iota + 1
+	// InfoLevel is the second lowest level of logging (default)
 	InfoLevel
 	// WarnLevel is the third highest level of logging
 	WarnLevel
@@ -113,7 +113,7 @@ func (l *Logger) Trace(v ...any) {
 }
 
 func (l *Logger) Panic(v ...any) {
-	stack := make([]byte, 1536)
+	stack := make([]byte, 2048)
 	runtime.Stack(stack, false)
 
 	log.Println(l.colorize(colorCyan, "[panic]"), l.Prefix, "-", getVariable(v...), "\n", l.colorize(colorOrange, string(stack)))

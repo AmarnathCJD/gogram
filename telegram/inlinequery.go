@@ -289,12 +289,10 @@ func (m *InlineQuery) Args() string {
 	return strings.TrimSpace(strings.Join(Messages[1:], " ")) // Args()
 }
 
-func (i *InlineSend) Edit(message any, options ...SendOptions) (*NewMessage, error) {
-	var opts SendOptions
-	if len(options) > 0 {
-		opts = options[0]
-	}
-	return i.Client.EditMessage(i.MsgID, 0, message, &opts)
+func (i *InlineSend) Edit(message any, options ...*SendOptions) (*NewMessage, error) {
+	return i.Client.EditMessage(&i.MsgID, 0, message, options...)
 }
 
-// TODO: Complete Implementation of InlineSend
+func (i *InlineSend) Marshal(nointent ...bool) string {
+	return i.Client.JSON(i.OriginalUpdate, nointent)
+}

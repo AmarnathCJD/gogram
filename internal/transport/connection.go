@@ -46,6 +46,8 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 		return nil, errors.Wrap(err, "dialing tcp")
 	}
 
+	conn.SetKeepAlive(true)
+
 	return &tcpConn{
 		reader:  NewReader(cfg.Ctx, conn),
 		conn:    conn,

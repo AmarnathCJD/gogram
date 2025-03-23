@@ -490,6 +490,7 @@ null#56730bcc = Null;`}
 	}
 
 	b = bytes.ReplaceAll(b, []byte(`vector<`), []byte(`Vector<`))
+	b = bytes.ReplaceAll(b, []byte(`= Users;`), []byte(`= users.Users;`))
 
 	clean = append(clean, string(b))
 
