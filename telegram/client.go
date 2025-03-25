@@ -770,6 +770,10 @@ func (c *Client) ToRpcError(err error) *RpcError {
 	}
 }
 
+func (c *Client) TypeOf(obj any) string {
+	return fmt.Sprintf("%T", obj)
+}
+
 func (c *Client) MatchRPCError(err error, message string) bool {
 	rpcErr := c.ToRpcError(err)
 	if rpcErr == nil {
