@@ -956,6 +956,7 @@ type SearchOption struct {
 	IDs              any            // IDs of the messages to get (bots can use)
 	Query            string         // query to search for
 	FromUser         any            // ID of the user to search from
+	AddOffset        int32          // Sequential number of the first message to be returned
 	Offset           int32          // offset of the message to search from
 	Limit            int32          // limit of the messages to get
 	Filter           MessagesFilter // filter to use
@@ -973,15 +974,16 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 		SleepThresholdMs: 20,
 	})
 	peer, err := c.ResolvePeer(PeerID)
-
 	if err != nil {
 		return nil, err
 	}
+
 	var (
 		messages []NewMessage
 		inputIDs []InputMessage
 		result   MessagesMessages
 	)
+
 	switch i := opt.IDs.(type) {
 	case []int32, []int64, []int:
 		var ids []int32
@@ -1009,9 +1011,11 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 	case *InputMessageCallbackQuery:
 		inputIDs = append(inputIDs, &InputMessageCallbackQuery{ID: i.ID})
 	}
+
 	if len(inputIDs) == 0 && opt.Query == "" && opt.Limit == 0 {
 		opt.Limit = 1
 	}
+
 	if len(inputIDs) > 0 {
 		var chunkedIds = splitIDsIntoChunks(inputIDs, 100)
 		for _, ids := range chunkedIds {
@@ -1038,7 +1042,9 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 					messages = append(messages, *packMessage(c, msg))
 				}
 			}
-
+			if len(messages) >= int(opt.Limit) {
+				return messages[:opt.Limit], nil
+			}
 			time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
 		}
 	} else {
@@ -1047,16 +1053,17 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 		}
 
 		params := &MessagesSearchParams{
-			Peer:     peer,
-			Q:        opt.Query,
-			OffsetID: opt.Offset,
-			Filter:   opt.Filter,
-			MinDate:  opt.MinDate,
-			MaxDate:  opt.MaxDate,
-			MinID:    opt.MinID,
-			MaxID:    opt.MaxID,
-			Limit:    opt.Limit,
-			TopMsgID: opt.TopMsgID,
+			Peer:      peer,
+			Q:         opt.Query,
+			OffsetID:  opt.Offset,
+			AddOffset: opt.AddOffset,
+			Filter:    opt.Filter,
+			MinDate:   opt.MinDate,
+			MaxDate:   opt.MaxDate,
+			MinID:     opt.MinID,
+			MaxID:     opt.MaxID,
+			Limit:     opt.Limit,
+			TopMsgID:  opt.TopMsgID,
 		}
 
 		if opt.FromUser != nil {
@@ -1068,8 +1075,12 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 		}
 
 		for {
-			remaining := opt.Limit - int32(len(messages))
-			perReqLimit := min(remaining, int32(100))
+			remaining := int(opt.Limit) - len(messages)
+			if remaining <= 0 {
+				break
+			}
+
+			perReqLimit := min(int32(remaining), 100)
 			params.Limit = perReqLimit
 
 			result, err = c.MessagesSearch(params)
@@ -1079,46 +1090,43 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 				}
 				return nil, err
 			}
+
+			var fetchedMessages []NewMessage
 			switch result := result.(type) {
 			case *MessagesChannelMessages:
-				if result.Count == 0 {
-					return messages, nil
-				}
-
 				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 				for _, msg := range result.Messages {
-					messages = append(messages, *packMessage(c, msg))
+					fetchedMessages = append(fetchedMessages, *packMessage(c, msg))
 				}
 			case *MessagesMessagesObj:
-				if len(result.Messages) == 0 {
-					return messages, nil
-				}
-
 				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 				for _, msg := range result.Messages {
-					messages = append(messages, *packMessage(c, msg))
+					fetchedMessages = append(fetchedMessages, *packMessage(c, msg))
 				}
 			case *MessagesMessagesSlice:
-				if result.Count == 0 {
-					return messages, nil
-				}
-
 				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 				for _, msg := range result.Messages {
-					messages = append(messages, *packMessage(c, msg))
+					fetchedMessages = append(fetchedMessages, *packMessage(c, msg))
 				}
 			}
 
-			if (len(messages) >= int(opt.Limit) || len(messages) == 0) && opt.Limit > 0 {
+			if len(fetchedMessages) == 0 {
 				break
 			}
 
-			params.OffsetID = messages[len(messages)-1].ID
-			params.MaxDate = messages[len(messages)-1].Date()
+			messages = append(messages, fetchedMessages...)
+			if len(messages) >= int(opt.Limit) {
+				messages = messages[:opt.Limit]
+				break
+			}
+
+			params.OffsetID = fetchedMessages[len(fetchedMessages)-1].ID
+			params.MaxDate = fetchedMessages[len(fetchedMessages)-1].Date()
 
 			time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
 		}
 	}
+
 	return messages, nil
 }
 
