@@ -311,6 +311,8 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 			SetLevel(c.Log.Lev()),
 	}
 	c.dispatcher.SortTrigger()
+	//go c.fetchChannelGap()
+	c.dispatcher.logger.Debug("dispatcher initialized")
 }
 
 // ---------------------------- Dispatcher Functions ----------------------------
@@ -1537,6 +1539,7 @@ var (
 	OnRaw            ev = "raw"
 )
 
+// On is a helper function to add a handler for a specific event type (handler: func(m *NewMessage) error, etc.)
 func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 	var patternKey string
 	var args string

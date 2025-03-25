@@ -634,8 +634,9 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						m.Logger.Error(errors.New("[TRANSPORT_ERROR_CODE] - " + e.Error()))
 					}
 
-					m.Logger.Debug(errors.Wrap(err, "reading message"))
+					m.Logger.Debug(errors.Wrap(err, "reading message >>"))
 					// is reconnect required here?
+					m.Reconnect(false)
 				}
 			}
 		}
