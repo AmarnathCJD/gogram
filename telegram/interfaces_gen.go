@@ -702,7 +702,7 @@ func (*ChannelAdminLogEventActionDeleteTopic) ImplementsChannelAdminLogEventActi
 
 // A group call was terminated
 type ChannelAdminLogEventActionDiscardGroupCall struct {
-	Call *InputGroupCall // The group call that was terminated
+	Call InputGroupCall // The group call that was terminated
 }
 
 func (*ChannelAdminLogEventActionDiscardGroupCall) CRC() uint32 {
@@ -924,7 +924,7 @@ func (*ChannelAdminLogEventActionSendMessage) ImplementsChannelAdminLogEventActi
 
 // A group call was started
 type ChannelAdminLogEventActionStartGroupCall struct {
-	Call *InputGroupCall // Group call
+	Call InputGroupCall // Group call
 }
 
 func (*ChannelAdminLogEventActionStartGroupCall) CRC() uint32 {
@@ -1475,8 +1475,8 @@ type ChannelFull struct {
 	ViewForumAsMessages    bool `tl:"flag2:6,encoded_in_bitflags"`
 	RestrictedSponsored    bool `tl:"flag2:11,encoded_in_bitflags"`
 	CanViewRevenue         bool `tl:"flag2:12,encoded_in_bitflags"`
-	CanViewStarsRevenue    bool `tl:"flag2:15,encoded_in_bitflags"`
 	PaidMediaAllowed       bool `tl:"flag2:14,encoded_in_bitflags"`
+	CanViewStarsRevenue    bool `tl:"flag2:15,encoded_in_bitflags"`
 	PaidReactionsAvailable bool `tl:"flag2:16,encoded_in_bitflags"`
 	StargiftsAvailable     bool `tl:"flag2:19,encoded_in_bitflags"`
 	PaidMessagesAvailable  bool `tl:"flag2:20,encoded_in_bitflags"`
@@ -1506,7 +1506,7 @@ type ChannelFull struct {
 	SlowmodeNextSendDate   int32           `tl:"flag:18"`
 	StatsDc                int32           `tl:"flag:12"`
 	Pts                    int32
-	Call                   *InputGroupCall  `tl:"flag:21"`
+	Call                   InputGroupCall   `tl:"flag:21"`
 	TtlPeriod              int32            `tl:"flag:24"`
 	PendingSuggestions     []string         `tl:"flag:25"`
 	GroupcallDefaultJoinAs Peer             `tl:"flag:26"`
@@ -1549,7 +1549,7 @@ type ChatFullObj struct {
 	BotInfo                []*BotInfo          `tl:"flag:3"`  // Info about bots that are in this chat
 	PinnedMsgID            int32               `tl:"flag:6"`  // Message ID of the last pinned message
 	FolderID               int32               `tl:"flag:11"` // Peer folder ID, for more info click here
-	Call                   *InputGroupCall     `tl:"flag:12"` // Group call information
+	Call                   InputGroupCall      `tl:"flag:12"` // Group call information
 	TtlPeriod              int32               `tl:"flag:14"` // Time-To-Live of messages sent by the current user to this chat
 	GroupcallDefaultJoinAs Peer                `tl:"flag:15"` // When using phone.getGroupCallJoinAs to get a list of peers that can be used to join a group call, this field indicates the peer that should be selected by default.
 	ThemeEmoticon          string              `tl:"flag:16"` // Emoji representing a specific chat theme
@@ -2671,6 +2671,8 @@ type GroupCallObj struct {
 	RecordVideoActive       bool `tl:"flag:11,encoded_in_bitflags"`
 	RtmpStream              bool `tl:"flag:12,encoded_in_bitflags"`
 	ListenersHidden         bool `tl:"flag:13,encoded_in_bitflags"`
+	Conference              bool `tl:"flag:14,encoded_in_bitflags"`
+	Creator                 bool `tl:"flag:15,encoded_in_bitflags"`
 	ID                      int64
 	AccessHash              int64
 	ParticipantsCount       int32
@@ -2681,11 +2683,11 @@ type GroupCallObj struct {
 	UnmutedVideoCount       int32  `tl:"flag:10"`
 	UnmutedVideoLimit       int32
 	Version                 int32
-	ConferenceFromCall      int64 `tl:"flag:14"`
+	InviteLink              string `tl:"flag:16"`
 }
 
 func (*GroupCallObj) CRC() uint32 {
-	return 0xcdf8d3e3
+	return 0x553b0ba1
 }
 
 func (*GroupCallObj) FlagIndex() int {
@@ -3335,11 +3337,11 @@ func (*InputFileLocationObj) ImplementsInputFileLocation() {}
 
 // Chunk of a livestream
 type InputGroupCallStream struct {
-	Call         *InputGroupCall // Livestream info
-	TimeMs       int64           // Timestamp in milliseconds
-	Scale        int32           // Specifies the duration of the video segment to fetch in milliseconds, by bitshifting 1000 to the right scale times: duration_ms := 1000 &gt;&gt; scale
-	VideoChannel int32           `tl:"flag:0"` // Selected video channel
-	VideoQuality int32           `tl:"flag:0"` // Selected video quality (0 = lowest, 1 = medium, 2 = best)
+	Call         InputGroupCall // Livestream info
+	TimeMs       int64          // Timestamp in milliseconds
+	Scale        int32          // Specifies the duration of the video segment to fetch in milliseconds, by bitshifting 1000 to the right scale times: duration_ms := 1000 &gt;&gt; scale
+	VideoChannel int32          `tl:"flag:0"` // Selected video channel
+	VideoQuality int32          `tl:"flag:0"` // Selected video quality (0 = lowest, 1 = medium, 2 = best)
 }
 
 func (*InputGroupCallStream) CRC() uint32 {
@@ -3491,6 +3493,43 @@ func (*InputGeoPointEmpty) CRC() uint32 {
 }
 
 func (*InputGeoPointEmpty) ImplementsInputGeoPoint() {}
+
+type InputGroupCall interface {
+	tl.Object
+	ImplementsInputGroupCall()
+}
+
+// Points to a specific group call
+type InputGroupCallObj struct {
+	ID         int64 // Group call ID
+	AccessHash int64 // Group call access hash
+}
+
+func (*InputGroupCallObj) CRC() uint32 {
+	return 0xd8aa840f
+}
+
+func (*InputGroupCallObj) ImplementsInputGroupCall() {}
+
+type InputGroupCallInviteMessage struct {
+	MsgID int32
+}
+
+func (*InputGroupCallInviteMessage) CRC() uint32 {
+	return 0x8c10603f
+}
+
+func (*InputGroupCallInviteMessage) ImplementsInputGroupCall() {}
+
+type InputGroupCallSlug struct {
+	Slug string
+}
+
+func (*InputGroupCallSlug) CRC() uint32 {
+	return 0xfe06823f
+}
+
+func (*InputGroupCallSlug) ImplementsInputGroupCall() {}
 
 type InputInvoice interface {
 	tl.Object
@@ -4571,6 +4610,23 @@ type InputStorePaymentPurpose interface {
 	tl.Object
 	ImplementsInputStorePaymentPurpose()
 }
+type InputStorePaymentAuthCode struct {
+	Restore       bool `tl:"flag:0,encoded_in_bitflags"`
+	PhoneNumber   string
+	PhoneCodeHash string
+	Currency      string
+	Amount        int64
+}
+
+func (*InputStorePaymentAuthCode) CRC() uint32 {
+	return 0x9bb2636d
+}
+
+func (*InputStorePaymentAuthCode) FlagIndex() int {
+	return 0
+}
+
+func (*InputStorePaymentAuthCode) ImplementsInputStorePaymentPurpose() {}
 
 // Info about a gifted Telegram Premium purchase
 type InputStorePaymentGiftPremium struct {
@@ -5640,6 +5696,25 @@ func (*MessageActionChatMigrateTo) CRC() uint32 {
 
 func (*MessageActionChatMigrateTo) ImplementsMessageAction() {}
 
+type MessageActionConferenceCall struct {
+	Missed            bool `tl:"flag:0,encoded_in_bitflags"`
+	Active            bool `tl:"flag:1,encoded_in_bitflags"`
+	Video             bool `tl:"flag:4,encoded_in_bitflags"`
+	CallID            int64
+	Duration          int32  `tl:"flag:2"`
+	OtherParticipants []Peer `tl:"flag:3"`
+}
+
+func (*MessageActionConferenceCall) CRC() uint32 {
+	return 0x2ffe2f7a
+}
+
+func (*MessageActionConferenceCall) FlagIndex() int {
+	return 0
+}
+
+func (*MessageActionConferenceCall) ImplementsMessageAction() {}
+
 // A contact just signed up to telegram
 type MessageActionContactSignUp struct{}
 
@@ -5705,7 +5780,7 @@ func (*MessageActionGeoProximityReached) ImplementsMessageAction() {}
 // Contains a Telegram Premium giftcode link.
 type MessageActionGiftCode struct {
 	ViaGiveaway    bool              `tl:"flag:0,encoded_in_bitflags"` // If set, this gift code was received from a giveaway  started by a channel/supergroup we're subscribed to.
-	Unclaimed      bool              `tl:"flag:2,encoded_in_bitflags"` // If set, the link was not redeemed yet.
+	Unclaimed      bool              `tl:"flag:5,encoded_in_bitflags"` // If set, the link was not redeemed yet.
 	BoostPeer      Peer              `tl:"flag:1"`                     // Identifier of the channel/supergroup that created the gift code either directly or through a giveaway: if we import this giftcode link, we will also automatically boost this channel/supergroup.
 	Months         int32             // Duration in months of the gifted Telegram Premium subscription.
 	Slug           string            // Slug of the Telegram Premium giftcode link
@@ -5800,8 +5875,8 @@ func (*MessageActionGiveawayResults) ImplementsMessageAction() {}
 
 // The group call has ended
 type MessageActionGroupCall struct {
-	Call     *InputGroupCall // Group call
-	Duration int32           `tl:"flag:0"` // Group call duration
+	Call     InputGroupCall // Group call
+	Duration int32          `tl:"flag:0"` // Group call duration
 }
 
 func (*MessageActionGroupCall) CRC() uint32 {
@@ -5816,8 +5891,8 @@ func (*MessageActionGroupCall) ImplementsMessageAction() {}
 
 // A group call was scheduled
 type MessageActionGroupCallScheduled struct {
-	Call         *InputGroupCall // The group call
-	ScheduleDate int32           // When is this group call scheduled to start
+	Call         InputGroupCall // The group call
+	ScheduleDate int32          // When is this group call scheduled to start
 }
 
 func (*MessageActionGroupCallScheduled) CRC() uint32 {
@@ -5837,8 +5912,8 @@ func (*MessageActionHistoryClear) ImplementsMessageAction() {}
 
 // A set of users was invited to the group call
 type MessageActionInviteToGroupCall struct {
-	Call  *InputGroupCall // The group call
-	Users []int64         // The invited users
+	Call  InputGroupCall // The group call
+	Users []int64        // The invited users
 }
 
 func (*MessageActionInviteToGroupCall) CRC() uint32 {
@@ -5858,15 +5933,26 @@ func (*MessageActionLoginUnknownLocation) CRC() uint32 {
 
 func (*MessageActionLoginUnknownLocation) ImplementsMessageAction() {}
 
-type MessageActionPaidMessage struct {
+type MessageActionPaidMessagesPrice struct {
 	Stars int64
 }
 
-func (*MessageActionPaidMessage) CRC() uint32 {
-	return 0x5cd2501f
+func (*MessageActionPaidMessagesPrice) CRC() uint32 {
+	return 0xbcd71419
 }
 
-func (*MessageActionPaidMessage) ImplementsMessageAction() {}
+func (*MessageActionPaidMessagesPrice) ImplementsMessageAction() {}
+
+type MessageActionPaidMessagesRefunded struct {
+	Count int32
+	Stars int64
+}
+
+func (*MessageActionPaidMessagesRefunded) CRC() uint32 {
+	return 0xac1f1fcd
+}
+
+func (*MessageActionPaidMessagesRefunded) ImplementsMessageAction() {}
 
 // Describes a payment refund (service message received by both users and bots).
 type MessageActionPaymentRefunded struct {
@@ -7744,24 +7830,24 @@ type PhoneCall interface {
 
 // Phone call
 type PhoneCallObj struct {
-	P2PAllowed       bool `tl:"flag:5,encoded_in_bitflags"`
-	Video            bool `tl:"flag:6,encoded_in_bitflags"`
-	ID               int64
-	AccessHash       int64
-	Date             int32
-	AdminID          int64
-	ParticipantID    int64
-	GAOrB            []byte
-	KeyFingerprint   int64
-	Protocol         *PhoneCallProtocol
-	Connections      []PhoneConnection
-	StartDate        int32
-	CustomParameters *DataJson       `tl:"flag:7"`
-	ConferenceCall   *InputGroupCall `tl:"flag:8"`
+	P2PAllowed          bool `tl:"flag:5,encoded_in_bitflags"`
+	Video               bool `tl:"flag:6,encoded_in_bitflags"`
+	ConferenceSupported bool `tl:"flag:8,encoded_in_bitflags"`
+	ID                  int64
+	AccessHash          int64
+	Date                int32
+	AdminID             int64
+	ParticipantID       int64
+	GAOrB               []byte
+	KeyFingerprint      int64
+	Protocol            *PhoneCallProtocol
+	Connections         []PhoneConnection
+	StartDate           int32
+	CustomParameters    *DataJson `tl:"flag:7"`
 }
 
 func (*PhoneCallObj) CRC() uint32 {
-	return 0x3ba5940c
+	return 0x30535af5
 }
 
 func (*PhoneCallObj) FlagIndex() int {
@@ -7772,19 +7858,18 @@ func (*PhoneCallObj) ImplementsPhoneCall() {}
 
 // An accepted phone call
 type PhoneCallAccepted struct {
-	Video          bool `tl:"flag:6,encoded_in_bitflags"`
-	ID             int64
-	AccessHash     int64
-	Date           int32
-	AdminID        int64
-	ParticipantID  int64
-	GB             []byte
-	Protocol       *PhoneCallProtocol
-	ConferenceCall *InputGroupCall `tl:"flag:8"`
+	Video         bool               `tl:"flag:6,encoded_in_bitflags"` // Whether this is a video call
+	ID            int64              // ID of accepted phone call
+	AccessHash    int64              // Access hash of phone call
+	Date          int32              // When was the call accepted
+	AdminID       int64              // ID of the call creator
+	ParticipantID int64              // ID of the other user in the call
+	GB            []byte             // B parameter for secure E2E phone call key exchange
+	Protocol      *PhoneCallProtocol // Protocol to use for phone call
 }
 
 func (*PhoneCallAccepted) CRC() uint32 {
-	return 0x22fd7181
+	return 0x3660c311
 }
 
 func (*PhoneCallAccepted) FlagIndex() int {
@@ -7795,17 +7880,16 @@ func (*PhoneCallAccepted) ImplementsPhoneCall() {}
 
 // Indicates a discarded phone call
 type PhoneCallDiscarded struct {
-	NeedRating     bool `tl:"flag:2,encoded_in_bitflags"`
-	NeedDebug      bool `tl:"flag:3,encoded_in_bitflags"`
-	Video          bool `tl:"flag:6,encoded_in_bitflags"`
-	ID             int64
-	Reason         PhoneCallDiscardReason `tl:"flag:0"`
-	Duration       int32                  `tl:"flag:1"`
-	ConferenceCall *InputGroupCall        `tl:"flag:8"`
+	NeedRating bool                   `tl:"flag:2,encoded_in_bitflags"` // Whether the server required the user to rate the call
+	NeedDebug  bool                   `tl:"flag:3,encoded_in_bitflags"` // Whether the server required the client to send the libtgvoip call debug data
+	Video      bool                   `tl:"flag:6,encoded_in_bitflags"` // Whether the call was a video call
+	ID         int64                  // Call ID
+	Reason     PhoneCallDiscardReason `tl:"flag:0"` // Why was the phone call discarded
+	Duration   int32                  `tl:"flag:1"` // Duration of the phone call in seconds
 }
 
 func (*PhoneCallDiscarded) CRC() uint32 {
-	return 0xf9d25503
+	return 0x50ca4de1
 }
 
 func (*PhoneCallDiscarded) FlagIndex() int {
@@ -7827,19 +7911,18 @@ func (*PhoneCallEmpty) ImplementsPhoneCall() {}
 
 // Requested phone call
 type PhoneCallRequested struct {
-	Video          bool `tl:"flag:6,encoded_in_bitflags"`
-	ID             int64
-	AccessHash     int64
-	Date           int32
-	AdminID        int64
-	ParticipantID  int64
-	GAHash         []byte
-	Protocol       *PhoneCallProtocol
-	ConferenceCall *InputGroupCall `tl:"flag:8"`
+	Video         bool               `tl:"flag:6,encoded_in_bitflags"` // Whether this is a video call
+	ID            int64              // Phone call ID
+	AccessHash    int64              // Access hash
+	Date          int32              // When was the phone call created
+	AdminID       int64              // ID of the creator of the phone call
+	ParticipantID int64              // ID of the other participant of the phone call
+	GAHash        []byte             // Parameter for key exchange
+	Protocol      *PhoneCallProtocol // Call protocol info to be passed to libtgvoip
 }
 
 func (*PhoneCallRequested) CRC() uint32 {
-	return 0x45361c63
+	return 0x14b0ed0c
 }
 
 func (*PhoneCallRequested) FlagIndex() int {
@@ -7850,19 +7933,18 @@ func (*PhoneCallRequested) ImplementsPhoneCall() {}
 
 // Incoming phone call
 type PhoneCallWaiting struct {
-	Video          bool `tl:"flag:6,encoded_in_bitflags"`
-	ID             int64
-	AccessHash     int64
-	Date           int32
-	AdminID        int64
-	ParticipantID  int64
-	Protocol       *PhoneCallProtocol
-	ReceiveDate    int32           `tl:"flag:0"`
-	ConferenceCall *InputGroupCall `tl:"flag:8"`
+	Video         bool               `tl:"flag:6,encoded_in_bitflags"` // Is this a video call
+	ID            int64              // Call ID
+	AccessHash    int64              // Access hash
+	Date          int32              // Date
+	AdminID       int64              // Admin ID
+	ParticipantID int64              // Participant ID
+	Protocol      *PhoneCallProtocol // Phone call protocol info
+	ReceiveDate   int32              `tl:"flag:0"` // When was the phone call received
 }
 
 func (*PhoneCallWaiting) CRC() uint32 {
-	return 0xeed42858
+	return 0xc5226f17
 }
 
 func (*PhoneCallWaiting) FlagIndex() int {
@@ -7911,6 +7993,16 @@ func (*PhoneCallDiscardReasonHangup) CRC() uint32 {
 }
 
 func (*PhoneCallDiscardReasonHangup) ImplementsPhoneCallDiscardReason() {}
+
+type PhoneCallDiscardReasonMigrateConferenceCall struct {
+	Slug string
+}
+
+func (*PhoneCallDiscardReasonMigrateConferenceCall) CRC() uint32 {
+	return 0x9fbbf1f7
+}
+
+func (*PhoneCallDiscardReasonMigrateConferenceCall) ImplementsPhoneCallDiscardReason() {}
 
 // The phone call was missed
 type PhoneCallDiscardReasonMissed struct{}
@@ -10728,6 +10820,19 @@ func (*UpdateGroupCall) FlagIndex() int {
 
 func (*UpdateGroupCall) ImplementsUpdate() {}
 
+type UpdateGroupCallChainBlocks struct {
+	Call       InputGroupCall
+	SubChainID int32
+	Blocks     [][]byte
+	NextOffset int32
+}
+
+func (*UpdateGroupCallChainBlocks) CRC() uint32 {
+	return 0xa477288f
+}
+
+func (*UpdateGroupCallChainBlocks) ImplementsUpdate() {}
+
 // New WebRTC parameters
 type UpdateGroupCallConnection struct {
 	Presentation bool      `tl:"flag:0,encoded_in_bitflags"` // Are these parameters related to the screen capture session currently in progress?
@@ -10746,7 +10851,7 @@ func (*UpdateGroupCallConnection) ImplementsUpdate() {}
 
 // The participant list of a certain group call has changed
 type UpdateGroupCallParticipants struct {
-	Call         *InputGroupCall         // Group call
+	Call         InputGroupCall          // Group call
 	Participants []*GroupCallParticipant // New participant list
 	Version      int32                   // Version
 }
@@ -11461,6 +11566,16 @@ func (*UpdateSavedRingtones) CRC() uint32 {
 
 func (*UpdateSavedRingtones) ImplementsUpdate() {}
 
+type UpdateSentPhoneCode struct {
+	SentCode AuthSentCode
+}
+
+func (*UpdateSentPhoneCode) CRC() uint32 {
+	return 0x504aa18f
+}
+
+func (*UpdateSentPhoneCode) ImplementsUpdate() {}
+
 // Indicates we reacted to a story ».
 type UpdateSentStoryReaction struct {
 	Peer     Peer     // The peer that sent the story
@@ -11508,17 +11623,6 @@ func (*UpdateSmsJob) CRC() uint32 {
 }
 
 func (*UpdateSmsJob) ImplementsUpdate() {}
-
-type UpdateStarGiftUpgraded struct {
-	Gift   *SavedStarGift
-	ToGift *SavedStarGift
-}
-
-func (*UpdateStarGiftUpgraded) CRC() uint32 {
-	return 0x767cde44
-}
-
-func (*UpdateStarGiftUpgraded) ImplementsUpdate() {}
 
 // The current account's Telegram Stars balance » has changed.
 type UpdateStarsBalance struct {
@@ -12717,6 +12821,17 @@ func (*AuthSentCodeObj) FlagIndex() int {
 
 func (*AuthSentCodeObj) ImplementsAuthSentCode() {}
 
+type AuthSentCodePaymentRequired struct {
+	StoreProduct  string
+	PhoneCodeHash string
+}
+
+func (*AuthSentCodePaymentRequired) CRC() uint32 {
+	return 0xd7cef980
+}
+
+func (*AuthSentCodePaymentRequired) ImplementsAuthSentCode() {}
+
 // The user successfully authorized using future auth tokens
 type AuthSentCodeSuccess struct {
 	Authorization AuthAuthorization // Authorization info
@@ -13051,6 +13166,30 @@ func (*ContactsContactsNotModified) CRC() uint32 {
 }
 
 func (*ContactsContactsNotModified) ImplementsContactsContacts() {}
+
+type ContactsSponsoredPeers interface {
+	tl.Object
+	ImplementsContactsSponsoredPeers()
+}
+type ContactsSponsoredPeersObj struct {
+	Peers []*SponsoredPeer
+	Chats []Chat
+	Users []User
+}
+
+func (*ContactsSponsoredPeersObj) CRC() uint32 {
+	return 0xeb032884
+}
+
+func (*ContactsSponsoredPeersObj) ImplementsContactsSponsoredPeers() {}
+
+type ContactsSponsoredPeersEmpty struct{}
+
+func (*ContactsSponsoredPeersEmpty) CRC() uint32 {
+	return 0xea32b4b1
+}
+
+func (*ContactsSponsoredPeersEmpty) ImplementsContactsSponsoredPeers() {}
 
 type ContactsTopPeers interface {
 	tl.Object

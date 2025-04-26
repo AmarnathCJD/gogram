@@ -89,6 +89,14 @@ func (*AccountContentSettings) FlagIndex() int {
 	return 0
 }
 
+type AccountPaidMessagesRevenue struct {
+	StarsAmount int64
+}
+
+func (*AccountPaidMessagesRevenue) CRC() uint32 {
+	return 0x1e109708
+}
+
 // Configuration for two-factor authorization
 type AccountPassword struct {
 	HasRecovery             bool            `tl:"flag:0,encoded_in_bitflags"`
@@ -496,16 +504,16 @@ func (*BotAppSettings) FlagIndex() int {
 
 // Contains info about a bot business connection.
 type BotBusinessConnection struct {
-	CanReply     bool `tl:"flag:0,encoded_in_bitflags"`
 	Disabled     bool `tl:"flag:1,encoded_in_bitflags"`
 	ConnectionID string
 	UserID       int64
 	DcID         int32
 	Date         int32
+	Rights       *BusinessBotRights `tl:"flag:2"`
 }
 
 func (*BotBusinessConnection) CRC() uint32 {
-	return 0x896433b4
+	return 0x8f34b2f5
 }
 
 func (*BotBusinessConnection) FlagIndex() int {
@@ -662,6 +670,31 @@ func (*BusinessBotRecipients) CRC() uint32 {
 }
 
 func (*BusinessBotRecipients) FlagIndex() int {
+	return 0
+}
+
+type BusinessBotRights struct {
+	Reply                   bool `tl:"flag:0,encoded_in_bitflags"`
+	ReadMessages            bool `tl:"flag:1,encoded_in_bitflags"`
+	DeleteSentMessages      bool `tl:"flag:2,encoded_in_bitflags"`
+	DeleteReceivedMessages  bool `tl:"flag:3,encoded_in_bitflags"`
+	EditName                bool `tl:"flag:4,encoded_in_bitflags"`
+	EditBio                 bool `tl:"flag:5,encoded_in_bitflags"`
+	EditProfilePhoto        bool `tl:"flag:6,encoded_in_bitflags"`
+	EditUsername            bool `tl:"flag:7,encoded_in_bitflags"`
+	ViewGifts               bool `tl:"flag:8,encoded_in_bitflags"`
+	SellGifts               bool `tl:"flag:9,encoded_in_bitflags"`
+	ChangeGiftSettings      bool `tl:"flag:10,encoded_in_bitflags"`
+	TransferAndUpgradeGifts bool `tl:"flag:11,encoded_in_bitflags"`
+	TransferStars           bool `tl:"flag:12,encoded_in_bitflags"`
+	ManageStories           bool `tl:"flag:13,encoded_in_bitflags"`
+}
+
+func (*BusinessBotRights) CRC() uint32 {
+	return 0xa0624cf7
+}
+
+func (*BusinessBotRights) FlagIndex() int {
 	return 0
 }
 
@@ -1072,17 +1105,13 @@ func (*Config) FlagIndex() int {
 
 // Contains info about a connected business bot ».
 type ConnectedBot struct {
-	CanReply   bool `tl:"flag:0,encoded_in_bitflags"`
 	BotID      int64
 	Recipients *BusinessBotRecipients
+	Rights     *BusinessBotRights
 }
 
 func (*ConnectedBot) CRC() uint32 {
-	return 0xbd068601
-}
-
-func (*ConnectedBot) FlagIndex() int {
-	return 0
+	return 0xcd64636c
 }
 
 // Info about an active affiliate program we have with a Mini App
@@ -1228,6 +1257,21 @@ type DialogFilterSuggested struct {
 
 func (*DialogFilterSuggested) CRC() uint32 {
 	return 0x77744d4a
+}
+
+type DisallowedGiftsSettings struct {
+	DisallowUnlimitedStargifts bool `tl:"flag:0,encoded_in_bitflags"`
+	DisallowLimitedStargifts   bool `tl:"flag:1,encoded_in_bitflags"`
+	DisallowUniqueStargifts    bool `tl:"flag:2,encoded_in_bitflags"`
+	DisallowPremiumGifts       bool `tl:"flag:3,encoded_in_bitflags"`
+}
+
+func (*DisallowedGiftsSettings) CRC() uint32 {
+	return 0x71f276c4
+}
+
+func (*DisallowedGiftsSettings) FlagIndex() int {
+	return 0
 }
 
 // Changes to emoji keywords
@@ -1431,16 +1475,18 @@ func (*GeoPointAddress) FlagIndex() int {
 
 // Global privacy settings
 type GlobalPrivacySettings struct {
-	ArchiveAndMuteNewNoncontactPeers bool  `tl:"flag:0,encoded_in_bitflags"`
-	KeepArchivedUnmuted              bool  `tl:"flag:1,encoded_in_bitflags"`
-	KeepArchivedFolders              bool  `tl:"flag:2,encoded_in_bitflags"`
-	HideReadMarks                    bool  `tl:"flag:3,encoded_in_bitflags"`
-	NewNoncontactPeersRequirePremium bool  `tl:"flag:4,encoded_in_bitflags"`
-	NoncontactPeersPaidStars         int64 `tl:"flag:5"`
+	ArchiveAndMuteNewNoncontactPeers bool                     `tl:"flag:0,encoded_in_bitflags"`
+	KeepArchivedUnmuted              bool                     `tl:"flag:1,encoded_in_bitflags"`
+	KeepArchivedFolders              bool                     `tl:"flag:2,encoded_in_bitflags"`
+	HideReadMarks                    bool                     `tl:"flag:3,encoded_in_bitflags"`
+	NewNoncontactPeersRequirePremium bool                     `tl:"flag:4,encoded_in_bitflags"`
+	DisplayGiftsButton               bool                     `tl:"flag:7,encoded_in_bitflags"`
+	NoncontactPeersPaidStars         int64                    `tl:"flag:5"`
+	DisallowedGifts                  *DisallowedGiftsSettings `tl:"flag:6"`
 }
 
 func (*GlobalPrivacySettings) CRC() uint32 {
-	return 0xc9d8df1c
+	return 0xfe41b34f
 }
 
 func (*GlobalPrivacySettings) FlagIndex() int {
@@ -1819,16 +1865,6 @@ type InputFolderPeer struct {
 
 func (*InputFolderPeer) CRC() uint32 {
 	return 0xfbd2c296
-}
-
-// Points to a specific group call
-type InputGroupCall struct {
-	ID         int64
-	AccessHash int64
-}
-
-func (*InputGroupCall) CRC() uint32 {
-	return 0xd8aa840f
 }
 
 // Notification settings.
@@ -2827,14 +2863,6 @@ func (*PageTableRow) CRC() uint32 {
 	return 0xe0c0c5e5
 }
 
-type PaidMessagesRevenue struct {
-	StarsAmount int64
-}
-
-func (*PaidMessagesRevenue) CRC() uint32 {
-	return 0x1e109708
-}
-
 // Payment identifier
 type PaymentCharge struct {
 	ID               string
@@ -3788,6 +3816,21 @@ func (*SponsoredMessageReportOption) CRC() uint32 {
 	return 0x430d3150
 }
 
+type SponsoredPeer struct {
+	RandomID       []byte
+	Peer           Peer
+	SponsorInfo    string `tl:"flag:0"`
+	AdditionalInfo string `tl:"flag:1"`
+}
+
+func (*SponsoredPeer) CRC() uint32 {
+	return 0xc69708d3
+}
+
+func (*SponsoredPeer) FlagIndex() int {
+	return 0
+}
+
 // Indo about an affiliate program offered by a bot
 type StarRefProgram struct {
 	BotID               int64
@@ -3943,6 +3986,7 @@ type StarsTransaction struct {
 	Gift                      bool `tl:"flag:10,encoded_in_bitflags"`
 	Reaction                  bool `tl:"flag:11,encoded_in_bitflags"`
 	Subscription              bool `tl:"flag:12,encoded_in_bitflags"`
+	BusinessTransfer          bool `tl:"flag:21,encoded_in_bitflags"`
 	Floodskip                 bool `tl:"flag:15,encoded_in_bitflags"`
 	StargiftUpgrade           bool `tl:"flag:18,encoded_in_bitflags"`
 	PaidMessage               bool `tl:"flag:19,encoded_in_bitflags"`
@@ -4505,6 +4549,7 @@ type UserFull struct {
 	SponsoredEnabled        bool `tl:"flag2:7,encoded_in_bitflags"`
 	CanViewRevenue          bool `tl:"flag2:9,encoded_in_bitflags"`
 	BotCanManageEmojiStatus bool `tl:"flag2:10,encoded_in_bitflags"`
+	DisplayGiftsButton      bool `tl:"flag2:16,encoded_in_bitflags"`
 	ID                      int64
 	About                   string `tl:"flag:1"`
 	Settings                *PeerSettings
@@ -4535,10 +4580,11 @@ type UserFull struct {
 	StarrefProgram          *StarRefProgram          `tl:"flag2:11"`
 	BotVerification         *BotVerification         `tl:"flag2:12"`
 	SendPaidMessagesStars   int64                    `tl:"flag2:14"`
+	DisallowedGifts         *DisallowedGiftsSettings `tl:"flag2:15"`
 }
 
 func (*UserFull) CRC() uint32 {
-	return 0xd2234ea0
+	return 0x99e78045
 }
 
 func (*UserFull) FlagIndex() int {
