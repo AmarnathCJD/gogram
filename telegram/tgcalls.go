@@ -65,6 +65,6 @@ func (c *Client) GetGroupCall(chatId any) (*InputGroupCall, error) {
 			return nil, fmt.Errorf("GetGroupCall: No active group call")
 		}
 
-		return fullChat.Call, nil
+		return &fullChat.Call, nil
 	}
 }
