@@ -798,6 +798,14 @@ func (*BusinessWorkHours) FlagIndex() int {
 	return 0
 }
 
+type CanSendStoryCount struct {
+	CountRemains int32
+}
+
+func (*CanSendStoryCount) CRC() uint32 {
+	return 0xc387c04e
+}
+
 // Configuration for CDN file downloads.
 type CdnConfig struct {
 	PublicKeys []*CdnPublicKey
@@ -3190,6 +3198,17 @@ func (*PeerStories) FlagIndex() int {
 	return 0
 }
 
+type PendingSuggestion struct {
+	Suggestion  string
+	Title       *TextWithEntities
+	Description *TextWithEntities
+	URL         string
+}
+
+func (*PendingSuggestion) CRC() uint32 {
+	return 0xe7e82e12
+}
+
 // An invite to a group call or livestream
 type PhoneExportedGroupCallInvite struct {
 	Link string
@@ -3549,6 +3568,25 @@ func (*ReceivedNotifyMessage) CRC() uint32 {
 	return 0xa384b779
 }
 
+type ResaleStarGifts struct {
+	Count          int32
+	Gifts          []StarGift
+	NextOffset     string              `tl:"flag:0"`
+	Attributes     []StarGiftAttribute `tl:"flag:1"`
+	AttributesHash int64               `tl:"flag:1"`
+	Chats          []Chat
+	Counters       []*StarGiftAttributeCounter `tl:"flag:2"`
+	Users          []User
+}
+
+func (*ResaleStarGifts) CRC() uint32 {
+	return 0x947a12df
+}
+
+func (*ResaleStarGifts) FlagIndex() int {
+	return 0
+}
+
 // Restriction reason.
 type RestrictionReason struct {
 	Platform string
@@ -3618,10 +3656,12 @@ type SavedStarGift struct {
 	UpgradeStars  int64             `tl:"flag:6"`
 	CanExportAt   int32             `tl:"flag:7"`
 	TransferStars int64             `tl:"flag:8"`
+	CanTransferAt int32             `tl:"flag:13"`
+	CanResellAt   int32             `tl:"flag:14"`
 }
 
 func (*SavedStarGift) CRC() uint32 {
-	return 0x6056dba5
+	return 0xdfda0499
 }
 
 func (*SavedStarGift) FlagIndex() int {
@@ -3831,6 +3871,15 @@ func (*SponsoredPeer) FlagIndex() int {
 	return 0
 }
 
+type StarGiftAttributeCounter struct {
+	Attribute StarGiftAttributeID
+	Count     int32
+}
+
+func (*StarGiftAttributeCounter) CRC() uint32 {
+	return 0x2eb1b658
+}
+
 // Indo about an affiliate program offered by a bot
 type StarRefProgram struct {
 	BotID               int64
@@ -3991,6 +4040,7 @@ type StarsTransaction struct {
 	StargiftUpgrade           bool `tl:"flag:18,encoded_in_bitflags"`
 	PaidMessage               bool `tl:"flag:19,encoded_in_bitflags"`
 	PremiumGift               bool `tl:"flag:20,encoded_in_bitflags"`
+	StargiftResale            bool `tl:"flag:22,encoded_in_bitflags"`
 	ID                        string
 	Stars                     *StarsAmount
 	Date                      int32
