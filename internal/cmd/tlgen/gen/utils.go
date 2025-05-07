@@ -72,6 +72,8 @@ func (g *Generator) typeIdFromSchemaType(t string) *jen.Statement {
 		item = jen.Bool()
 	case "long":
 		item = jen.Int64()
+	case "int256":
+		item = jen.Qual(tlPackagePath, "Int256")
 	case "double":
 		item = jen.Float64()
 	case "int":
