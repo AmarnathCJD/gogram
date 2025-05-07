@@ -1347,6 +1347,7 @@ type Channel struct {
 	StoriesHiddenMin      bool `tl:"flag2:2,encoded_in_bitflags"`
 	StoriesUnavailable    bool `tl:"flag2:3,encoded_in_bitflags"`
 	SignatureProfiles     bool `tl:"flag2:12,encoded_in_bitflags"`
+	Autotranslation       bool `tl:"flag2:15,encoded_in_bitflags"`
 	ID                    int64
 	AccessHash            int64 `tl:"flag:13"`
 	Title                 string
@@ -3535,6 +3536,16 @@ type InputInvoice interface {
 	tl.Object
 	ImplementsInputInvoice()
 }
+type InputInvoiceBusinessBotTransferStars struct {
+	Bot   InputUser
+	Stars int64
+}
+
+func (*InputInvoiceBusinessBotTransferStars) CRC() uint32 {
+	return 0xf4997e42
+}
+
+func (*InputInvoiceBusinessBotTransferStars) ImplementsInputInvoice() {}
 
 // Used to pay for a Telegram Star subscription ».
 type InputInvoiceChatInviteSubscription struct {
@@ -3616,6 +3627,17 @@ func (*InputInvoiceStarGift) FlagIndex() int {
 }
 
 func (*InputInvoiceStarGift) ImplementsInputInvoice() {}
+
+type InputInvoiceStarGiftResale struct {
+	Slug string
+	ToID InputPeer
+}
+
+func (*InputInvoiceStarGiftResale) CRC() uint32 {
+	return 0x63cbc38c
+}
+
+func (*InputInvoiceStarGiftResale) ImplementsInputInvoice() {}
 
 type InputInvoiceStarGiftTransfer struct {
 	Stargift InputSavedStarGift
@@ -4425,6 +4447,16 @@ func (*InputSavedStarGiftChat) CRC() uint32 {
 }
 
 func (*InputSavedStarGiftChat) ImplementsInputSavedStarGift() {}
+
+type InputSavedStarGiftSlug struct {
+	Slug string
+}
+
+func (*InputSavedStarGiftSlug) CRC() uint32 {
+	return 0x2085c238
+}
+
+func (*InputSavedStarGiftSlug) ImplementsInputSavedStarGift() {}
 
 type InputSavedStarGiftUser struct {
 	MsgID int32
@@ -6213,10 +6245,13 @@ type MessageActionStarGiftUnique struct {
 	FromID        Peer  `tl:"flag:6"`
 	Peer          Peer  `tl:"flag:7"`
 	SavedID       int64 `tl:"flag:7"`
+	ResaleStars   int64 `tl:"flag:8"`
+	CanTransferAt int32 `tl:"flag:9"`
+	CanResellAt   int32 `tl:"flag:10"`
 }
 
 func (*MessageActionStarGiftUnique) CRC() uint32 {
-	return 0xacdfcb81
+	return 0x2e3ae60e
 }
 
 func (*MessageActionStarGiftUnique) FlagIndex() int {
@@ -7957,15 +7992,6 @@ type PhoneCallDiscardReason interface {
 	tl.Object
 	ImplementsPhoneCallDiscardReason()
 }
-type PhoneCallDiscardReasonAllowGroupCall struct {
-	EncryptedKey []byte
-}
-
-func (*PhoneCallDiscardReasonAllowGroupCall) CRC() uint32 {
-	return 0xafe2b839
-}
-
-func (*PhoneCallDiscardReasonAllowGroupCall) ImplementsPhoneCallDiscardReason() {}
 
 // The phone call was discarded because the user is busy in another call
 type PhoneCallDiscardReasonBusy struct{}
@@ -9412,14 +9438,17 @@ type StarGiftObj struct {
 	Stars               int64
 	AvailabilityRemains int32 `tl:"flag:0"`
 	AvailabilityTotal   int32 `tl:"flag:0"`
+	AvailabilityResale  int64 `tl:"flag:4"`
 	ConvertStars        int64
-	FirstSaleDate       int32 `tl:"flag:1"`
-	LastSaleDate        int32 `tl:"flag:1"`
-	UpgradeStars        int64 `tl:"flag:3"`
+	FirstSaleDate       int32  `tl:"flag:1"`
+	LastSaleDate        int32  `tl:"flag:1"`
+	UpgradeStars        int64  `tl:"flag:3"`
+	ResellMinStars      int64  `tl:"flag:4"`
+	Title               string `tl:"flag:5"`
 }
 
 func (*StarGiftObj) CRC() uint32 {
-	return 0x2cc73c8
+	return 0xc62aca28
 }
 
 func (*StarGiftObj) FlagIndex() int {
@@ -9440,10 +9469,11 @@ type StarGiftUnique struct {
 	AvailabilityIssued int32
 	AvailabilityTotal  int32
 	GiftAddress        string `tl:"flag:3"`
+	ResellStars        int64  `tl:"flag:4"`
 }
 
 func (*StarGiftUnique) CRC() uint32 {
-	return 0x5c62d151
+	return 0x6411db89
 }
 
 func (*StarGiftUnique) FlagIndex() int {
@@ -9458,6 +9488,7 @@ type StarGiftAttribute interface {
 }
 type StarGiftAttributeBackdrop struct {
 	Name           string
+	BackdropID     int32
 	CenterColor    int32
 	EdgeColor      int32
 	PatternColor   int32
@@ -9466,7 +9497,7 @@ type StarGiftAttributeBackdrop struct {
 }
 
 func (*StarGiftAttributeBackdrop) CRC() uint32 {
-	return 0x94271762
+	return 0xd93d859c
 }
 
 func (*StarGiftAttributeBackdrop) ImplementsStarGiftAttribute() {}
@@ -9511,6 +9542,40 @@ func (*StarGiftAttributePattern) CRC() uint32 {
 }
 
 func (*StarGiftAttributePattern) ImplementsStarGiftAttribute() {}
+
+type StarGiftAttributeID interface {
+	tl.Object
+	ImplementsStarGiftAttributeID()
+}
+type StarGiftAttributeIDBackdrop struct {
+	BackdropID int32
+}
+
+func (*StarGiftAttributeIDBackdrop) CRC() uint32 {
+	return 0x1f01c757
+}
+
+func (*StarGiftAttributeIDBackdrop) ImplementsStarGiftAttributeID() {}
+
+type StarGiftAttributeIDModel struct {
+	DocumentID int64
+}
+
+func (*StarGiftAttributeIDModel) CRC() uint32 {
+	return 0x48aaae3c
+}
+
+func (*StarGiftAttributeIDModel) ImplementsStarGiftAttributeID() {}
+
+type StarGiftAttributeIDPattern struct {
+	DocumentID int64
+}
+
+func (*StarGiftAttributeIDPattern) CRC() uint32 {
+	return 0x4a162433
+}
+
+func (*StarGiftAttributeIDPattern) ImplementsStarGiftAttributeID() {}
 
 type StarsTransactionPeer interface {
 	tl.Object
@@ -13434,17 +13499,20 @@ type HelpPromoData interface {
 
 // MTProxy/Public Service Announcement information
 type HelpPromoDataObj struct {
-	Proxy      bool   `tl:"flag:0,encoded_in_bitflags"` // MTProxy-related channel
-	Expires    int32  // Expiry of PSA/MTProxy info
-	Peer       Peer   // MTProxy/PSA peer
-	Chats      []Chat // Chat info
-	Users      []User // User info
-	PsaType    string `tl:"flag:1"` // PSA type
-	PsaMessage string `tl:"flag:2"` // PSA message
+	Proxy                   bool `tl:"flag:0,encoded_in_bitflags"`
+	Expires                 int32
+	Peer                    Peer   `tl:"flag:3"`
+	PsaType                 string `tl:"flag:1"`
+	PsaMessage              string `tl:"flag:2"`
+	PendingSuggestions      []string
+	DismissedSuggestions    []string
+	CustomPendingSuggestion *PendingSuggestion `tl:"flag:4"`
+	Chats                   []Chat
+	Users                   []User
 }
 
 func (*HelpPromoDataObj) CRC() uint32 {
-	return 0x8c39793f
+	return 0x8a4d87a
 }
 
 func (*HelpPromoDataObj) FlagIndex() int {
