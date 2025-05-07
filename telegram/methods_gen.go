@@ -3,6 +3,7 @@
 package telegram
 
 import (
+	tl "github.com/amarnathcjd/gogram/internal/encoding/tl"
 	errors "github.com/pkg/errors"
 	"reflect"
 )
@@ -15418,7 +15419,7 @@ type PhoneCreateConferenceCallParams struct {
 	VideoStopped bool `tl:"flag:2,encoded_in_bitflags"`
 	Join         bool `tl:"flag:3,encoded_in_bitflags"`
 	RandomID     int32
-	PublicKey    `tl:"flag:3"`
+	PublicKey    tl.Int256 `tl:"flag:3"`
 	Block        []byte    `tl:"flag:3"`
 	Params       *DataJson `tl:"flag:3"`
 }
@@ -15908,9 +15909,9 @@ type PhoneJoinGroupCallParams struct {
 	VideoStopped bool `tl:"flag:2,encoded_in_bitflags"`
 	Call         InputGroupCall
 	JoinAs       InputPeer
-	InviteHash   string `tl:"flag:1"`
-	PublicKey    `tl:"flag:3"`
-	Block        []byte `tl:"flag:3"`
+	InviteHash   string    `tl:"flag:1"`
+	PublicKey    tl.Int256 `tl:"flag:3"`
+	Block        []byte    `tl:"flag:3"`
 	Params       *DataJson
 }
 
