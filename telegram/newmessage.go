@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -693,6 +694,36 @@ func (m *NewMessage) GetMediaGroup() ([]NewMessage, error) {
 func (m *NewMessage) Download(opts ...*DownloadOptions) (string, error) {
 	return m.Client.DownloadMedia(m.Media(), opts...)
 }
+
+// Link returns the URL to the message
+// Format: https://t.me/username/msgID for public chats
+// Format: https://t.me/c/channelID/msgID for private chats
+func (m *NewMessage) Link() string {
+    channelID := m.ChannelID()
+    
+    // Check if the chat is a channel or group with username
+    if m.IsChannel() || m.IsGroup() {
+		chat, err := m.GetChannel()
+        if err != nil && chat != nil && chat.Username != "" {
+			// For public channels/groups, we can use the username
+            return fmt.Sprintf("https://t.me/%s/%d", chat.Username, m.ID)
+        }
+        
+        // For private channels/groups, we need to use the c/channelID format
+        // Remove the -100 prefix for channel IDs in the URL
+        if channelID < 0 {
+            channelID = -channelID
+            if channelID > 1000000000000 {
+                channelID -= 1000000000000
+            }
+        }
+        return fmt.Sprintf("https://t.me/c/%d/%d", channelID, m.ID)
+    }
+    
+    // For private chats, no links are available
+    return ""
+}
+
 
 // Album Type for MediaGroup
 type Album struct {
