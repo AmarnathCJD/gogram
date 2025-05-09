@@ -1301,8 +1301,8 @@ func fetchUpdates(c *Client) {
 
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
 		updates, err := c.MTProto.MakeRequestCtx(ctx, req)
+		cancel()
 		if err != nil {
 			c.Log.Error(errors.Wrap(err, "updates.dispatcher.getDifference"))
 			return
@@ -1366,47 +1366,6 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 	if currentPts+ptsCount < pts {
 		c.Log.Debug("update gap detected - filling - pts (", currentPts, ") - ptsCount (", ptsCount, ") - pts (", pts, ")")
 		c.dispatcher.SetPts(pts)
-		return true // remaining parts have some issues it seems, I'll address later
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		updates, err := c.MTProto.MakeRequestCtx(ctx, &UpdatesGetDifferenceParams{
-			Pts:           currentPts,
-			PtsLimit:      pts - currentPts,
-			PtsTotalLimit: pts - currentPts,
-			Date:          int32(time.Now().Unix()),
-			Qts:           0,
-			QtsLimit:      0,
-		})
-
-		if err != nil {
-			c.Log.Error(errors.Wrap(err, "updates.dispatcher.getDifference"))
-			return true
-		}
-
-		switch u := updates.(type) {
-		case *UpdatesDifferenceObj:
-			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
-			for _, update := range u.NewMessages {
-				switch update.(type) {
-				case *MessageObj:
-					c.handleMessageUpdate(update)
-				}
-			}
-
-		case *UpdatesDifferenceSlice:
-			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
-			for _, update := range u.NewMessages {
-				switch update.(type) {
-				case *MessageObj:
-					c.handleMessageUpdate(update)
-				}
-			}
-		}
-
-		c.dispatcher.SetPts(pts)
-	} else {
 		return true
 	}
 

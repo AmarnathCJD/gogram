@@ -10,6 +10,7 @@ type SessionLoader interface {
 	Load() (*Session, error)
 	Store(*Session) error
 	Path() string
+	Key() string
 	Delete() error
 }
 

@@ -88,6 +88,7 @@ type MTProto struct {
 
 type Config struct {
 	AuthKeyFile    string
+	AuthAESKey     string
 	StringSession  string
 	SessionStorage session.SessionLoader
 	MemorySession  bool
@@ -111,7 +112,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		if c.MemorySession {
 			c.SessionStorage = session.NewInMemory()
 		} else {
-			c.SessionStorage = session.NewFromFile(c.AuthKeyFile)
+			c.SessionStorage = session.NewFromFile(c.AuthKeyFile, c.AuthAESKey)
 		}
 	}
 
@@ -288,6 +289,7 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 		PublicKey:     m.publicKey,
 		ServerHost:    newAddr,
 		AuthKeyFile:   m.sessionStorage.Path(),
+		AuthAESKey:    m.sessionStorage.Key(),
 		MemorySession: m.memorySession,
 		Logger:        m.Logger,
 		Proxy:         m.proxy,
