@@ -68,3 +68,109 @@ func (c *Client) GetGroupCall(chatId any) (*InputGroupCall, error) {
 		return &fullChat.Call, nil
 	}
 }
+
+type GroupCallStream struct {
+	Channels        []*GroupCallStreamChannel
+	call            *InputGroupCall
+	currentTs       int64
+	selectedChannel int32
+	scale           int32
+	client          *Client
+	dcId            int32
+}
+
+func (s *GroupCallStream) SetTS(ts int64) {
+	s.currentTs = ts
+}
+
+func (s *GroupCallStream) GetTS() int64 {
+	return s.currentTs
+}
+
+func (s *GroupCallStream) GetScale() int32 {
+	return s.scale
+}
+
+func (s *GroupCallStream) SetScale(scale int32) {
+	s.scale = scale
+}
+
+func (s *GroupCallStream) GetChannel() *GroupCallStreamChannel {
+	if s.selectedChannel < 0 || s.selectedChannel >= int32(len(s.Channels)) {
+		return nil
+	}
+	return s.Channels[s.selectedChannel]
+}
+
+func (s *GroupCallStream) SetChannel(channel int32) {
+	if channel < 0 || channel >= int32(len(s.Channels)) {
+		return
+	}
+	s.selectedChannel = channel
+	s.scale = s.Channels[channel].Scale
+	s.currentTs = s.Channels[channel].LastTimestampMs
+}
+
+func (s *GroupCallStream) NextChunk() ([]byte, error) {
+	if s.selectedChannel < 0 || s.selectedChannel >= int32(len(s.Channels)) {
+		return nil, fmt.Errorf("GetGroupCallStream: selected channel is out of range")
+	}
+
+	channel := s.GetChannel()
+	if channel == nil {
+		return nil, fmt.Errorf("GetGroupCallStream: channel is nil")
+	}
+
+	input := &InputGroupCallStream{
+		Call:         *s.call,
+		TimeMs:       s.currentTs,
+		Scale:        s.scale,
+		VideoChannel: channel.Channel,
+		VideoQuality: 2,
+	}
+
+	fi, err := s.client.UploadGetFile(&UploadGetFileParams{
+		Location: input,
+		Offset:   0,
+		Limit:    512 * 1024,
+	})
+
+	if err != nil {
+		fmt.Printf("GetGroupCallStream: UploadGetFile error: %v\n", err)
+		return nil, err
+	}
+
+	if fi == nil {
+		return nil, fmt.Errorf("GetGroupCallStream: file info is nil")
+	}
+
+	switch fi := fi.(type) {
+	case *UploadFileObj:
+		s.currentTs += 1000 >> s.scale
+		return fi.Bytes, nil
+	case *UploadFileCdnRedirect:
+		return nil, fmt.Errorf("GetGroupCallStream: CDN redirect error")
+	}
+
+	return nil, fmt.Errorf("GetGroupCallStream: unknown file info type")
+}
+
+func (c *Client) GetGroupCallStream(chatId any) (*GroupCallStream, error) {
+	call, err := c.GetGroupCall(chatId)
+	if err != nil {
+		return nil, err
+	}
+
+	stream, err := c.PhoneGetGroupCallStreamChannels(*call)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GroupCallStream{
+		Channels: stream.Channels,
+		scale:    stream.Channels[0].Scale,
+		call:     call,
+		client:   c,
+		dcId:     int32(c.GetDC()),
+	}, nil
+}
