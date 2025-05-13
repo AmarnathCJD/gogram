@@ -6,18 +6,16 @@ import (
 	"context"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"slices"
+
 	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/pkg/errors"
 )
-
-type Handle interface {
-	SetGroup(group string) Handle
-	GetGroup() string
-}
 
 type MessageHandler func(m *NewMessage) error
 type EditHandler func(m *NewMessage) error
@@ -30,40 +28,104 @@ type InlineCallbackHandler func(m *InlineCallbackQuery) error
 type ParticipantHandler func(m *ParticipantUpdate) error
 type RawHandler func(m Update, c *Client) error
 
-var EndGroup = errors.New("end-group-trigger")
+var EndGroup = errors.New("[END_GROUP_ERROR] handler propagation ended")
 
-type messageHandle struct {
-	Pattern     any
-	Handler     MessageHandler
-	Filters     []Filter
+type Handle interface {
+	SetGroup(group string) Handle
+	GetGroup() string
+	SetPriority(priority int) Handle
+	GetPriority() int
+}
+
+type baseHandle struct {
 	Group       string
+	priority    int
 	sortTrigger chan any
 }
 
-func (h *messageHandle) SetGroup(group string) Handle {
+func (h *baseHandle) SetGroup(group string) Handle {
 	h.Group = group
 	h.sortTrigger <- h
 	return h
 }
 
-func (h *messageHandle) GetGroup() string {
+func (h *baseHandle) GetGroup() string {
 	return h.Group
+}
+
+func (h *baseHandle) SetPriority(priority int) Handle {
+	h.priority = priority
+	h.sortTrigger <- h
+	return h
+}
+
+func (h *baseHandle) GetPriority() int {
+	return h.priority
+}
+
+type messageHandle struct {
+	baseHandle
+	Pattern any
+	Handler MessageHandler
+	Filters []Filter
 }
 
 type albumHandle struct {
-	Handler     func(alb *Album) error
-	Group       string
-	sortTrigger chan any
+	baseHandle
+	Handler func(alb *Album) error
 }
 
-func (h *albumHandle) SetGroup(group string) Handle {
-	h.Group = group
-	h.sortTrigger <- h
-	return h
+type chatActionHandle struct {
+	baseHandle
+	Handler MessageHandler
 }
 
-func (h *albumHandle) GetGroup() string {
-	return h.Group
+type messageEditHandle struct {
+	baseHandle
+	Pattern any
+	Handler MessageHandler
+	Filters []Filter
+}
+
+type messageDeleteHandle struct {
+	baseHandle
+	Pattern any
+	Handler func(m *DeleteMessage) error
+}
+
+type inlineHandle struct {
+	baseHandle
+	Pattern any
+	Handler InlineHandler
+}
+
+type inlineSendHandle struct {
+	baseHandle
+	Handler InlineSendHandler
+}
+
+type callbackHandle struct {
+	baseHandle
+	Pattern any
+	Handler CallbackHandler
+	Filters []Filter
+}
+
+type inlineCallbackHandle struct {
+	baseHandle
+	Pattern any
+	Handler InlineCallbackHandler
+}
+
+type participantHandle struct {
+	baseHandle
+	Handler func(p *ParticipantUpdate) error
+}
+
+type rawHandle struct {
+	baseHandle
+	updateType Update
+	Handler    RawHandler
 }
 
 type albumBox struct {
@@ -86,7 +148,7 @@ func (a *albumBox) WaitAndTrigger(d *UpdateDispatcher, c *Client) {
 					if errors.Is(err, EndGroup) {
 						return err
 					}
-					c.Log.Error(errors.Wrap(err, "[newAlbum]"))
+					c.Log.Error(errors.Wrap(err, "[ALBUM_HANDLER_ERROR]"))
 				}
 				return nil
 			}
@@ -101,7 +163,6 @@ func (a *albumBox) WaitAndTrigger(d *UpdateDispatcher, c *Client) {
 		}
 	}
 
-	// delete(d.activeAlbums, a.groupedId)
 	d.Lock()
 	defer d.Unlock()
 	delete(d.activeAlbums, a.groupedId)
@@ -111,158 +172,6 @@ func (a *albumBox) Add(m *NewMessage) {
 	a.Lock()
 	defer a.Unlock()
 	a.messages = append(a.messages, m)
-}
-
-type chatActionHandle struct {
-	Handler     MessageHandler
-	Group       string
-	sortTrigger chan any
-}
-
-func (h *chatActionHandle) SetGroup(group string) Handle {
-	h.Group = group
-	h.sortTrigger <- h
-	return h
-}
-
-func (h *chatActionHandle) GetGroup() string {
-	return h.Group
-}
-
-type messageEditHandle struct {
-	Pattern     any
-	Handler     MessageHandler
-	Filters     []Filter
-	Group       string
-	sortTrigger chan any
-}
-
-func (h *messageEditHandle) SetGroup(group string) Handle {
-	h.Group = group
-	h.sortTrigger <- h
-	return h
-}
-
-func (h *messageEditHandle) GetGroup() string {
-	return h.Group
-}
-
-type messageDeleteHandle struct {
-	Pattern     any
-	Handler     func(m *DeleteMessage) error
-	Group       string
-	sortTrigger chan any
-}
-
-func (h *messageDeleteHandle) SetGroup(group string) Handle {
-	h.Group = group
-	h.sortTrigger <- h
-	return h
-}
-
-func (h *messageDeleteHandle) GetGroup() string {
-	return h.Group
-}
-
-type inlineHandle struct {
-	Pattern     any
-	Handler     InlineHandler
-	Group       string
-	sortTrigger chan any
-}
-
-func (h *inlineHandle) SetGroup(group string) Handle {
-	h.Group = group
-	h.sortTrigger <- h
-	return h
-}
-
-func (h *inlineHandle) GetGroup() string {
-	return h.Group
-}
-
-type inlineSendHandle struct {
-	Handler     InlineSendHandler
-	Group       string
-	sortTrigger chan any
-}
-
-func (h *inlineSendHandle) SetGroup(group string) Handle {
-	h.Group = group
-	h.sortTrigger <- h
-	return h
-}
-
-func (h *inlineSendHandle) GetGroup() string {
-	return h.Group
-}
-
-type callbackHandle struct {
-	Pattern     any
-	Handler     CallbackHandler
-	Filters     []Filter
-	Group       string
-	sortTrigger chan any
-}
-
-func (h *callbackHandle) SetGroup(group string) Handle {
-	h.Group = group
-	h.sortTrigger <- h
-	return h
-}
-
-func (h *callbackHandle) GetGroup() string {
-	return h.Group
-}
-
-type inlineCallbackHandle struct {
-	Pattern     any
-	Handler     InlineCallbackHandler
-	Group       string
-	sortTrigger chan any
-}
-
-func (h *inlineCallbackHandle) SetGroup(group string) Handle {
-	h.Group = group
-	h.sortTrigger <- h
-	return h
-}
-
-func (h *inlineCallbackHandle) GetGroup() string {
-	return h.Group
-}
-
-type participantHandle struct {
-	Handler     func(p *ParticipantUpdate) error
-	Group       string
-	sortTrigger chan any
-}
-
-func (h *participantHandle) SetGroup(group string) Handle {
-	h.Group = group
-	h.sortTrigger <- h
-	return h
-}
-
-func (h *participantHandle) GetGroup() string {
-	return h.Group
-}
-
-type rawHandle struct {
-	updateType  Update
-	Handler     RawHandler
-	Group       string
-	sortTrigger chan any
-}
-
-func (h *rawHandle) SetGroup(group string) Handle {
-	h.Group = group
-	h.sortTrigger <- h
-	return h
-}
-
-func (h *rawHandle) GetGroup() string {
-	return h.Group
 }
 
 type openChat struct { // TODO: Implement this
@@ -319,26 +228,26 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 
 // sortgeneric
 func sortGeneric[T Handle](handles map[string][]T) map[string][]T {
-	for group, h := range handles {
-		correctHandles := h[:0]
-		var toMove []T
+	result := make(map[string][]T)
 
+	for _, h := range handles {
 		for _, handle := range h {
-			if handle.GetGroup() == group {
-				correctHandles = append(correctHandles, handle)
-			} else {
-				toMove = append(toMove, handle)
+			group := handle.GetGroup()
+			if group == "" {
+				group = "default"
 			}
-		}
-
-		handles[group] = correctHandles
-
-		for _, handle := range toMove {
-			handles[handle.GetGroup()] = append(handles[handle.GetGroup()], handle)
+			result[group] = append(result[group], handle)
 		}
 	}
 
-	return handles
+	for group, h := range result {
+		sort.SliceStable(h, func(i, j int) bool {
+			return h[i].GetPriority() > h[j].GetPriority()
+		})
+		result[group] = h
+	}
+
+	return result
 }
 
 func (d *UpdateDispatcher) SortTrigger() {
@@ -347,36 +256,27 @@ func (d *UpdateDispatcher) SortTrigger() {
 	}
 
 	go func() {
-		for handle := range d.sortTrigger {
-			switch handle.(type) {
-			case *messageHandle:
-				sortGeneric(d.messageHandles)
-			case *albumHandle:
-				sortGeneric(d.albumHandles)
-			case *chatActionHandle:
-				sortGeneric(d.actionHandles)
-			case *messageEditHandle:
-				sortGeneric(d.messageEditHandles)
-			case *inlineHandle:
-				sortGeneric(d.inlineHandles)
-			case *callbackHandle:
-				sortGeneric(d.callbackHandles)
-			case *inlineCallbackHandle:
-				sortGeneric(d.inlineCallbackHandles)
-			case *participantHandle:
-				sortGeneric(d.participantHandles)
-			case *messageDeleteHandle:
-				sortGeneric(d.messageDeleteHandles)
-			case *rawHandle:
-				sortGeneric(d.rawHandles)
-			}
+		for range d.sortTrigger {
+			d.Lock()
+			d.messageHandles = sortGeneric(d.messageHandles)
+			d.albumHandles = sortGeneric(d.albumHandles)
+			d.actionHandles = sortGeneric(d.actionHandles)
+			d.messageEditHandles = sortGeneric(d.messageEditHandles)
+			d.inlineHandles = sortGeneric(d.inlineHandles)
+			d.inlineSendHandles = sortGeneric(d.inlineSendHandles)
+			d.callbackHandles = sortGeneric(d.callbackHandles)
+			d.inlineCallbackHandles = sortGeneric(d.inlineCallbackHandles)
+			d.participantHandles = sortGeneric(d.participantHandles)
+			d.messageDeleteHandles = sortGeneric(d.messageDeleteHandles)
+			d.rawHandles = sortGeneric(d.rawHandles)
+			d.Unlock()
 		}
 	}()
 }
 
 func (c *Client) RemoveHandle(handle Handle) error {
 	if c.dispatcher == nil {
-		return errors.New("dispatcher not initialized")
+		return errors.New("[DISPATCHER_NOT_INITIALIZED] dispatcher is not initialized")
 	}
 
 	if err := c.removeHandle(handle); err != nil {
@@ -409,7 +309,7 @@ func (c *Client) removeHandle(handle Handle) error {
 	case *rawHandle:
 		removeHandleFromMap(h, c.dispatcher.rawHandles)
 	default:
-		return errors.New("invalid handle type")
+		return errors.New("[INVALID_HANDLE] handle type not supported")
 	}
 
 	return nil
@@ -419,8 +319,7 @@ func removeHandleFromMap[T any](handle T, handlesMap map[string][]T) {
 	for key, handles := range handlesMap {
 		for i, h := range handles {
 			if reflect.DeepEqual(h, handle) {
-				// Remove the handle by appending the slice before and after the index
-				handlesMap[key] = append(handles[:i], handles[i+1:]...)
+				handlesMap[key] = slices.Delete(handles, i, i+1)
 				return
 			}
 		}
@@ -449,33 +348,47 @@ func (c *Client) handleMessageUpdate(update Message, pts ...int32) {
 
 		wg := sync.WaitGroup{}
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		packed := packMessage(c, msg)
+
+		handle := func(h *messageHandle) error {
+			if h.runFilterChain(packed, h.Filters) {
+				defer c.NewRecovery()()
+				if err := h.Handler(packed); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
 		groupFunc := func(group string, handlers []*messageHandle) {
 			defer wg.Done()
-			for _, handler := range handlers {
-				if handler.IsMatch(msg.Message, c) {
-					handle := func(h *messageHandle) error {
-						if handler.runFilterChain(packed, h.Filters) {
-							defer c.NewRecovery()()
-							if err := h.Handler(packed); err != nil {
-								if errors.Is(err, EndGroup) {
-									return err
-								}
-								c.dispatcher.logger.Error(errors.Wrap(err, "[newMessage]"))
+			if group == "" || strings.EqualFold(strings.TrimSpace(group), "default") {
+				var localWg sync.WaitGroup
+				for _, handler := range handlers {
+					if handler.IsMatch(msg.Message, c) {
+						localWg.Add(1)
+						go func(h *messageHandle) {
+							defer localWg.Done()
+							if err := handle(h); err != nil && !errors.Is(err, EndGroup) {
+								c.dispatcher.logger.Error(errors.Wrap(err, "[NEW_MESSAGE_HANDLER_ERROR]"))
 							}
-						}
-						return nil
+						}(handler)
 					}
-
-					if strings.EqualFold(group, "") || strings.EqualFold(strings.TrimSpace(group), "default") {
-						go handle(handler)
-					} else {
-						if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
-							if strings.EqualFold(group, "conversation") {
-								cancel()
+				}
+				localWg.Wait()
+			} else {
+				for _, handler := range handlers {
+					if handler.IsMatch(msg.Message, c) {
+						if err := handle(handler); err != nil {
+							if errors.Is(err, EndGroup) {
+								if strings.EqualFold(group, "conversation") {
+									cancel()
+								}
+								break
 							}
-							break
+							c.dispatcher.logger.Error(errors.Wrap(err, "[NEW_MESSAGE_HANDLER_ERROR]"))
 						}
 					}
 				}
@@ -491,17 +404,16 @@ func (c *Client) handleMessageUpdate(update Message, pts ...int32) {
 			if ctx.Err() != nil {
 				break
 			}
-
 			if strings.EqualFold(group, "conversation") {
 				continue
 			}
-
-			wg.Add(1)
-			go groupFunc(group, handlers)
+			if group == "" || strings.EqualFold(strings.TrimSpace(group), "default") {
+				wg.Add(1)
+				go groupFunc(group, handlers)
+			}
 		}
 
 		wg.Wait()
-		cancel()
 
 	case *MessageService:
 		packed := packMessage(c, msg)
@@ -514,7 +426,7 @@ func (c *Client) handleMessageUpdate(update Message, pts ...int32) {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "[chatAction]"))
+						c.Log.Error(errors.Wrap(err, "[CHAT_ACTION_HANDLER_ERROR]"))
 					}
 
 					return nil
@@ -571,7 +483,7 @@ func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
 	}
 	updatedMessage, err := c.GetDifference(pts, 1)
 	if err != nil {
-		c.Log.Error(errors.Wrap(err, "updates.dispatcher.getDifference"))
+		c.Log.Error(errors.Wrap(err, "[UPDATES_DISPATCHER_GET_DIFFERENCE]"))
 	}
 	if updatedMessage != nil {
 		c.handleMessageUpdate(updatedMessage)
@@ -598,7 +510,7 @@ func (c *Client) handleEditUpdate(update Message, pts ...int32) {
 								if errors.Is(err, EndGroup) {
 									return err
 								}
-								c.Log.Error(errors.Wrap(err, "[editMessage]"))
+								c.Log.Error(errors.Wrap(err, "[EDIT_MESSAGE_HANDLER_ERROR]"))
 							}
 						}
 						return nil
@@ -630,7 +542,7 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 							if errors.Is(err, EndGroup) {
 								return err
 							}
-							c.Log.Error(errors.Wrap(err, "[callbackQuery]"))
+							c.Log.Error(errors.Wrap(err, "[CALLBACK_QUERY_HANDLER_ERROR]"))
 						}
 					}
 					return nil
@@ -660,7 +572,7 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "[inlineCallbackQuery]"))
+						c.Log.Error(errors.Wrap(err, "[INLINE_CALLBACK_QUERY_HANDLER_ERROR]"))
 					}
 					return nil
 				}
@@ -688,7 +600,7 @@ func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 					if errors.Is(err, EndGroup) {
 						return err
 					}
-					c.Log.Error(errors.Wrap(err, "[participantUpdate]"))
+					c.Log.Error(errors.Wrap(err, "[PARTICIPANT_UPDATE_HANDLER_ERROR]"))
 				}
 				return nil
 			}
@@ -716,7 +628,7 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "[inlineQuery]"))
+						c.Log.Error(errors.Wrap(err, "[INLINE_QUERY_HANDLER_ERROR]"))
 					}
 					return nil
 				}
@@ -744,7 +656,7 @@ func (c *Client) handleInlineSendUpdate(update *UpdateBotInlineSend) {
 					if errors.Is(err, EndGroup) {
 						return err
 					}
-					c.Log.Error(errors.Wrap(err, "[inlineSend]"))
+					c.Log.Error(errors.Wrap(err, "[INLINE_SEND_HANDLER_ERROR]"))
 				}
 				return nil
 			}
@@ -777,7 +689,7 @@ func (c *Client) handleDeleteUpdate(update Update, pts ...int32) {
 					if errors.Is(err, EndGroup) {
 						return err
 					}
-					c.Log.Error(errors.Wrap(err, "[deleteMessage]"))
+					c.Log.Error(errors.Wrap(err, "[DELETE_MESSAGE_HANDLER_ERROR]"))
 				}
 				return nil
 			}
@@ -803,7 +715,7 @@ func (c *Client) handleRawUpdate(update Update) {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "[rawUpdate]"))
+						c.Log.Error(errors.Wrap(err, "[RAW_UPDATE_HANDLER_ERROR]"))
 					}
 					return nil
 				}
@@ -1061,7 +973,9 @@ func (c *Client) AddMessageHandler(pattern any, handler MessageHandler, filters 
 		c.dispatcher.messageHandles = make(map[string][]*messageHandle)
 	}
 
-	handle := messageHandle{Pattern: pattern, Handler: handler, Filters: messageFilters, sortTrigger: c.dispatcher.sortTrigger}
+	handle := messageHandle{Pattern: pattern, Handler: handler, Filters: messageFilters, baseHandle: baseHandle{
+		sortTrigger: c.dispatcher.sortTrigger,
+	}}
 	c.dispatcher.messageHandles["default"] = append(c.dispatcher.messageHandles["default"], &handle)
 	return c.dispatcher.messageHandles["default"][len(c.dispatcher.messageHandles["default"])-1]
 }
@@ -1076,9 +990,11 @@ func (c *Client) AddCommandHandler(pattern string, handler MessageHandler, filte
 
 func (c *Client) AddDeleteHandler(pattern any, handler func(d *DeleteMessage) error) Handle {
 	handle := messageDeleteHandle{
-		Pattern:     pattern,
-		Handler:     handler,
-		sortTrigger: c.dispatcher.sortTrigger,
+		Pattern: pattern,
+		Handler: handler,
+		baseHandle: baseHandle{
+			sortTrigger: c.dispatcher.sortTrigger,
+		},
 	}
 
 	if c.dispatcher.messageDeleteHandles == nil {
@@ -1094,7 +1010,9 @@ func (c *Client) AddAlbumHandler(handler func(m *Album) error) Handle {
 		c.dispatcher.albumHandles = make(map[string][]*albumHandle)
 	}
 
-	handle := albumHandle{Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
+	handle := albumHandle{Handler: handler, baseHandle: baseHandle{
+		sortTrigger: c.dispatcher.sortTrigger,
+	}}
 	c.dispatcher.albumHandles["default"] = append(c.dispatcher.albumHandles["default"], &handle)
 	return c.dispatcher.albumHandles["default"][len(c.dispatcher.albumHandles["default"])-1]
 }
@@ -1104,7 +1022,9 @@ func (c *Client) AddActionHandler(handler MessageHandler) Handle {
 		c.dispatcher.actionHandles = make(map[string][]*chatActionHandle)
 	}
 
-	handle := chatActionHandle{Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
+	handle := chatActionHandle{Handler: handler, baseHandle: baseHandle{
+		sortTrigger: c.dispatcher.sortTrigger,
+	}}
 	c.dispatcher.actionHandles["default"] = append(c.dispatcher.actionHandles["default"], &handle)
 	return c.dispatcher.actionHandles["default"][len(c.dispatcher.actionHandles["default"])-1]
 }
@@ -1124,7 +1044,9 @@ func (c *Client) AddEditHandler(pattern any, handler MessageHandler, filters ...
 		c.dispatcher.messageEditHandles = make(map[string][]*messageEditHandle)
 	}
 
-	handle := messageEditHandle{Pattern: pattern, Handler: handler, sortTrigger: c.dispatcher.sortTrigger, Filters: messageFilters}
+	handle := messageEditHandle{Pattern: pattern, Handler: handler, Filters: messageFilters, baseHandle: baseHandle{
+		sortTrigger: c.dispatcher.sortTrigger,
+	}}
 	c.dispatcher.messageEditHandles["default"] = append(c.dispatcher.messageEditHandles["default"], &handle)
 	return c.dispatcher.messageEditHandles["default"][len(c.dispatcher.messageEditHandles["default"])-1]
 }
@@ -1138,7 +1060,9 @@ func (c *Client) AddInlineHandler(pattern any, handler InlineHandler) Handle {
 		c.dispatcher.inlineHandles = make(map[string][]*inlineHandle)
 	}
 
-	handle := inlineHandle{Pattern: pattern, Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
+	handle := inlineHandle{Pattern: pattern, Handler: handler, baseHandle: baseHandle{
+		sortTrigger: c.dispatcher.sortTrigger,
+	}}
 	c.dispatcher.inlineHandles["default"] = append(c.dispatcher.inlineHandles["default"], &handle)
 	return c.dispatcher.inlineHandles["default"][len(c.dispatcher.inlineHandles["default"])-1]
 }
@@ -1149,7 +1073,9 @@ func (c *Client) AddInlineSendHandler(handler InlineSendHandler) Handle {
 		c.dispatcher.inlineSendHandles = make(map[string][]*inlineSendHandle)
 	}
 
-	handle := inlineSendHandle{Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
+	handle := inlineSendHandle{Handler: handler, baseHandle: baseHandle{
+		sortTrigger: c.dispatcher.sortTrigger,
+	}}
 	c.dispatcher.inlineSendHandles["default"] = append(c.dispatcher.inlineSendHandles["default"], &handle)
 	return c.dispatcher.inlineSendHandles["default"][len(c.dispatcher.inlineSendHandles["default"])-1]
 }
@@ -1168,7 +1094,9 @@ func (c *Client) AddCallbackHandler(pattern any, handler CallbackHandler, filter
 		c.dispatcher.callbackHandles = make(map[string][]*callbackHandle)
 	}
 
-	handle := callbackHandle{Pattern: pattern, Handler: handler, sortTrigger: c.dispatcher.sortTrigger, Filters: messageFilters}
+	handle := callbackHandle{Pattern: pattern, Handler: handler, baseHandle: baseHandle{
+		sortTrigger: c.dispatcher.sortTrigger,
+	}, Filters: messageFilters}
 	c.dispatcher.callbackHandles["default"] = append(c.dispatcher.callbackHandles["default"], &handle)
 	return c.dispatcher.callbackHandles["default"][len(c.dispatcher.callbackHandles["default"])-1]
 }
@@ -1182,7 +1110,9 @@ func (c *Client) AddInlineCallbackHandler(pattern any, handler InlineCallbackHan
 		c.dispatcher.inlineCallbackHandles = make(map[string][]*inlineCallbackHandle)
 	}
 
-	handle := inlineCallbackHandle{Pattern: pattern, Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
+	handle := inlineCallbackHandle{Pattern: pattern, Handler: handler, baseHandle: baseHandle{
+		sortTrigger: c.dispatcher.sortTrigger,
+	}}
 	c.dispatcher.inlineCallbackHandles["default"] = append(c.dispatcher.inlineCallbackHandles["default"], &handle)
 	return c.dispatcher.inlineCallbackHandles["default"][len(c.dispatcher.inlineCallbackHandles["default"])-1]
 }
@@ -1201,7 +1131,9 @@ func (c *Client) AddParticipantHandler(handler ParticipantHandler) Handle {
 		c.dispatcher.participantHandles = make(map[string][]*participantHandle)
 	}
 
-	handle := participantHandle{Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
+	handle := participantHandle{Handler: handler, baseHandle: baseHandle{
+		sortTrigger: c.dispatcher.sortTrigger,
+	}}
 	c.dispatcher.participantHandles["default"] = append(c.dispatcher.participantHandles["default"], &handle)
 	return c.dispatcher.participantHandles["default"][len(c.dispatcher.participantHandles["default"])-1]
 }
@@ -1211,7 +1143,9 @@ func (c *Client) AddRawHandler(updateType Update, handler RawHandler) Handle {
 		c.dispatcher.rawHandles = make(map[string][]*rawHandle)
 	}
 
-	handle := rawHandle{updateType: updateType, Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
+	handle := rawHandle{updateType: updateType, Handler: handler, baseHandle: baseHandle{
+		sortTrigger: c.dispatcher.sortTrigger,
+	}}
 	c.dispatcher.rawHandles["default"] = append(c.dispatcher.rawHandles["default"], &handle)
 	return c.dispatcher.rawHandles["default"][len(c.dispatcher.rawHandles["default"])-1]
 }
@@ -1273,10 +1207,10 @@ UpdateTypeSwitching:
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
 		goto UpdateTypeSwitching
 	case *UpdatesTooLong:
-		c.Log.Debug("too many updates, forcing getDifference")
+		c.Log.Debug("[TOO_MANY_UPDATES] - ", c.JSON(upd))
 		c.handleMessageUpdate(&MessageEmpty{}, -1) // updatesTooLong, too many updates, shall fetch manually
 	default:
-		c.Log.Debug("skipping unhanded update type: ", reflect.TypeOf(u), " with value: ", c.JSON(u))
+		c.Log.Debug("[UNKNOWN_UPDATE_SKIPPED] - ", c.JSON(upd), " - ", reflect.TypeOf(upd))
 	}
 	return true
 }
@@ -1296,7 +1230,7 @@ func fetchUpdates(c *Client) {
 	}
 
 	defer func() {
-		c.Log.Debug("force fetched ", totalFetched, " updates")
+		c.Log.Debug("[FORCE_GETDIFF] - ", totalFetched, " updates fetched")
 	}()
 
 	for {
@@ -1304,7 +1238,7 @@ func fetchUpdates(c *Client) {
 		updates, err := c.MTProto.MakeRequestCtx(ctx, req)
 		cancel()
 		if err != nil {
-			c.Log.Error(errors.Wrap(err, "updates.dispatcher.getDifference"))
+			c.Log.Error(errors.Wrap(err, "[UPDATES_DISPATCHER_GET_DIFFERENCE]"))
 			return
 		}
 
@@ -1349,7 +1283,7 @@ func fetchUpdates(c *Client) {
 		case *UpdatesDifferenceEmpty:
 			return
 		default:
-			c.Log.Debug("skipping unknown update type: ", reflect.TypeOf(u), " with value: ", c.JSON(u))
+			c.Log.Debug("[UNKNOWN_UPDATE_SKIPPED] - ", c.JSON(updates), " - ", reflect.TypeOf(updates))
 			return
 		}
 	}
@@ -1364,7 +1298,7 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 	}
 
 	if currentPts+ptsCount < pts {
-		c.Log.Debug("update gap detected - filling - pts (", currentPts, ") - ptsCount (", ptsCount, ") - pts (", pts, ")")
+		c.Log.Debug("[PTS_MISMATCH] - ", currentPts, " + ", ptsCount, " != ", pts)
 		c.dispatcher.SetPts(pts)
 		return true
 	}
@@ -1373,7 +1307,7 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 }
 
 func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
-	c.Log.Debug("getting difference with pts: ", Pts, " and limit: ", Limit)
+	c.Log.Debug("[GET_DIFFERENCE] - getting difference with pts: ", Pts, " and limit: ", Limit)
 
 	updates, err := c.UpdatesGetDifference(&UpdatesGetDifferenceParams{
 		Pts:           Pts - 1,
@@ -1455,13 +1389,13 @@ func (c *Client) FetchGap() {
 			})
 
 			if c.dispatcher.openChats[channelID].lastPts != chat.lastPts {
-				c.Log.Debug("channel pts changed, skipping fetch")
+				c.Log.Debug("[CHANNEL_PTS_CHANGED] - skipping fetch")
 			}
 
 			if chDiff != nil {
 				switch d := chDiff.(type) {
 				case *UpdatesChannelDifferenceEmpty:
-					c.Log.Info("channel difference is empty")
+					c.Log.Info("[CHANNEL_DIFFERENCE_EMPTY] - channel difference is empty")
 				case *UpdatesChannelDifferenceObj:
 					c.Cache.UpdatePeersToCache(d.Users, d.Chats)
 					for _, update := range d.NewMessages {
@@ -1471,9 +1405,9 @@ func (c *Client) FetchGap() {
 						}
 					}
 				case *UpdatesChannelDifferenceTooLong:
-					c.Log.Debug("channel difference is too long, requesting getState")
+					c.Log.Debug("[CHANNEL_DIFFERENCE_TOO_LONG] - channel difference is too long, requesting getState")
 				default:
-					c.Log.Error("unknown channel difference type: ", reflect.TypeOf(d))
+					c.Log.Error("[UNKNOWN_CHANNEL_DIFFERENCE_TYPE] - ", reflect.TypeOf(d))
 				}
 			}
 		}
@@ -1520,6 +1454,8 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 				return c.AddMessageHandler(args, h, filters...)
 			}
 			return c.AddMessageHandler(OnNewMessage, h, filters...)
+		} else {
+			c.Log.Error("[INVALID_HANDLER_SIGNATURE] - ", reflect.TypeOf(handler), " Expected: func(m *NewMessage) error")
 		}
 	case OnCommand:
 		if h, ok := handler.(func(m *NewMessage) error); ok {
@@ -1527,6 +1463,8 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 				return c.AddMessageHandler("cmd:"+args, h, filters...)
 			}
 			return c.AddMessageHandler(OnNewMessage, h, filters...)
+		} else {
+			c.Log.Error("[INVALID_HANDLER_SIGNATURE] - ", reflect.TypeOf(handler), " Expected: func(m *NewMessage) error")
 		}
 	case OnEdit, OnEditMessage:
 		if h, ok := handler.(func(m *NewMessage) error); ok {
@@ -1534,6 +1472,8 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 				return c.AddEditHandler(args, h)
 			}
 			return c.AddEditHandler(OnEditMessage, h)
+		} else {
+			c.Log.Error("[INVALID_HANDLER_SIGNATURE] - ", reflect.TypeOf(handler), " Expected: func(m *NewMessage) error")
 		}
 	case OnDelete, OnDeleteMessage:
 		if h, ok := handler.(func(m *DeleteMessage) error); ok {
@@ -1541,10 +1481,14 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 				return c.AddDeleteHandler(args, h)
 			}
 			return c.AddDeleteHandler(OnDeleteMessage, h)
+		} else {
+			c.Log.Error("[INVALID_HANDLER_SIGNATURE] - ", reflect.TypeOf(handler), " Expected: func(m *DeleteMessage) error")
 		}
 	case OnAlbum:
 		if h, ok := handler.(func(m *Album) error); ok {
 			return c.AddAlbumHandler(h)
+		} else {
+			c.Log.Error("[INVALID_HANDLER_SIGNATURE] - ", reflect.TypeOf(handler), " Expected: func(m *Album) error")
 		}
 	case OnInline, OnInlineQuery:
 		if h, ok := handler.(func(m *InlineQuery) error); ok {
@@ -1552,10 +1496,14 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 				return c.AddInlineHandler(args, h)
 			}
 			return c.AddInlineHandler(OnInlineQuery, h)
+		} else {
+			c.Log.Error("[INVALID_HANDLER_SIGNATURE] - ", reflect.TypeOf(handler), " Expected: func(m *InlineQuery) error")
 		}
 	case OnChoosenInline:
 		if h, ok := handler.(func(m *InlineSend) error); ok {
 			return c.AddInlineSendHandler(h)
+		} else {
+			c.Log.Error("[INVALID_HANDLER_SIGNATURE] - ", reflect.TypeOf(handler), " Expected: func(m *InlineSend) error")
 		}
 	case OnCallback, OnCallbackQuery:
 		if h, ok := handler.(func(m *CallbackQuery) error); ok {
@@ -1563,6 +1511,8 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 				return c.AddCallbackHandler(args, h)
 			}
 			return c.AddCallbackHandler(OnCallbackQuery, h)
+		} else {
+			c.Log.Error("[INVALID_HANDLER_SIGNATURE] - ", reflect.TypeOf(handler), " Expected: func(m *CallbackQuery) error")
 		}
 	case OnInlineCallback, OnInlineCallbackQuery, "inlinecallback":
 		if h, ok := handler.(func(m *InlineCallbackQuery) error); ok {
@@ -1570,20 +1520,28 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 				return c.AddInlineCallbackHandler(args, h)
 			}
 			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, h)
+		} else {
+			c.Log.Error("[INVALID_HANDLER_SIGNATURE] - ", reflect.TypeOf(handler), " Expected: func(m *InlineCallbackQuery) error")
 		}
 	case OnParticipant:
 		if h, ok := handler.(func(m *ParticipantUpdate) error); ok {
 			return c.AddParticipantHandler(h)
+		} else {
+			c.Log.Error("[INVALID_HANDLER_SIGNATURE] - ", reflect.TypeOf(handler), " Expected: func(m *ParticipantUpdate) error")
 		}
 	case OnRaw:
 		if h, ok := handler.(func(m Update, c *Client) error); ok {
 			return c.AddRawHandler(nil, h)
+		} else {
+			c.Log.Error("[INVALID_HANDLER_SIGNATURE] - ", reflect.TypeOf(handler), " Expected: func(m Update, c *Client) error")
 		}
 	default:
 		if update, ok := pattern.(Update); ok {
 			if h, ok := handler.(func(m Update, c *Client) error); ok {
 				return c.AddRawHandler(update, h)
 			}
+		} else {
+			c.Log.Error("[INVALID_HANDLER_SIGNATURE] - ", reflect.TypeOf(handler), " Expected: func(m Update, c *Client) error")
 		}
 	}
 

@@ -2,19 +2,21 @@ package telegram
 
 import (
 	"fmt"
+	"slices"
 	"time"
 )
 
-const ConvDefaultTimeOut = int32(60)
+const defaultConversationTimeout = 60
 
-// Conversation is a struct for conversation with user.
+// State Machine for conversation with users and in groups
 type Conversation struct {
-	Client    *Client
-	Peer      InputPeer
-	isPrivate bool
-	timeOut   int32
-	openH     []Handle
-	lastMsg   *NewMessage
+	Client          *Client
+	Peer            InputPeer
+	isPrivate       bool
+	timeout         int32
+	openHandlers    []Handle
+	lastMsg         *NewMessage
+	stopPropagation bool
 }
 
 func (c *Client) NewConversation(peer any, isPrivate bool, timeout ...int32) (*Conversation, error) {
@@ -23,25 +25,33 @@ func (c *Client) NewConversation(peer any, isPrivate bool, timeout ...int32) (*C
 		return nil, err
 	}
 	return &Conversation{
-		Client:    c,
-		Peer:      peerID,
-		isPrivate: isPrivate,
-		timeOut:   getVariadic(timeout, ConvDefaultTimeOut),
+		Client:          c,
+		Peer:            peerID,
+		isPrivate:       isPrivate,
+		timeout:         getVariadic(timeout, defaultConversationTimeout),
+		stopPropagation: false,
 	}, nil
 }
 
 // NewConversation creates a new conversation with user
 func NewConversation(client *Client, peer InputPeer, timeout ...int32) *Conversation {
 	return &Conversation{
-		Client:  client,
-		Peer:    peer,
-		timeOut: getVariadic(timeout, ConvDefaultTimeOut),
+		Client:          client,
+		Peer:            peer,
+		timeout:         getVariadic(timeout, defaultConversationTimeout),
+		stopPropagation: false,
 	}
 }
 
-// SetTimeOut sets the timeout for conversation
-func (c *Conversation) SetTimeOut(timeout int32) *Conversation {
-	c.timeOut = timeout
+// SetTimeout sets the timeout for conversation
+func (c *Conversation) SetTimeout(timeout int32) *Conversation {
+	c.timeout = timeout
+	return c
+}
+
+// when stopPropagation is set to true, the event handler blocks all other handlers
+func (c *Conversation) SetStopPropagation(stop bool) *Conversation {
+	c.stopPropagation = stop
 	return c
 }
 
@@ -80,7 +90,10 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 	waitFunc := func(m *NewMessage) error {
 		resp <- m
 		c.lastMsg = m
-		return EndGroup
+		if c.stopPropagation {
+			return EndGroup
+		}
+		return nil
 	}
 
 	var filters []Filter
@@ -98,11 +111,11 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 	h := c.Client.On(OnMessage, waitFunc, filters...)
 	h.SetGroup("conversation")
 
-	c.openH = append(c.openH, h)
+	c.openHandlers = append(c.openHandlers, h)
 	select {
-	case <-time.After(time.Duration(c.timeOut) * time.Second):
+	case <-time.After(time.Duration(c.timeout) * time.Second):
 		go c.removeHandle(h)
-		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
+		return nil, fmt.Errorf("conversation timeout: %d", c.timeout)
 	case m := <-resp:
 		go c.removeHandle(h)
 		return m, nil
@@ -114,7 +127,10 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 	waitFunc := func(m *NewMessage) error {
 		resp <- m
 		c.lastMsg = m
-		return EndGroup
+		if c.stopPropagation {
+			return EndGroup
+		}
+		return nil
 	}
 
 	var filters []Filter
@@ -131,11 +147,11 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 
 	h := c.Client.On(OnEdit, waitFunc, filters...)
 	h.SetGroup("conversation")
-	c.openH = append(c.openH, h)
+	c.openHandlers = append(c.openHandlers, h)
 	select {
-	case <-time.After(time.Duration(c.timeOut) * time.Second):
+	case <-time.After(time.Duration(c.timeout) * time.Second):
 		go c.removeHandle(h)
-		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
+		return nil, fmt.Errorf("conversation timeout: %d", c.timeout)
 	case m := <-resp:
 		go c.removeHandle(h)
 		return m, nil
@@ -147,7 +163,10 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 	waitFunc := func(m *NewMessage) error {
 		resp <- m
 		c.lastMsg = m
-		return EndGroup
+		if c.stopPropagation {
+			return EndGroup
+		}
+		return nil
 	}
 
 	var filters []Filter
@@ -166,11 +185,11 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 
 	h := c.Client.On(OnMessage, waitFunc, filters...)
 	h.SetGroup("conversation")
-	c.openH = append(c.openH, h)
+	c.openHandlers = append(c.openHandlers, h)
 	select {
-	case <-time.After(time.Duration(c.timeOut) * time.Second):
+	case <-time.After(time.Duration(c.timeout) * time.Second):
 		go c.removeHandle(h)
-		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
+		return nil, fmt.Errorf("conversation timeout: %d", c.timeout)
 	case m := <-resp:
 		go c.removeHandle(h)
 		return m, nil
@@ -193,11 +212,11 @@ func (c *Conversation) WaitEvent(ev Update) (Update, error) {
 	}
 
 	h := c.Client.On(ev, waitFunc)
-	c.openH = append(c.openH, h)
+	c.openHandlers = append(c.openHandlers, h)
 	select {
-	case <-time.After(time.Duration(c.timeOut) * time.Second):
+	case <-time.After(time.Duration(c.timeout) * time.Second):
 		go c.removeHandle(h)
-		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
+		return nil, fmt.Errorf("conversation timeout: %d", c.timeout)
 	case u := <-resp:
 		go c.removeHandle(h)
 		return u, nil
@@ -216,12 +235,12 @@ func (c *Conversation) WaitRead() (*UpdateReadChannelInbox, error) {
 	}
 
 	h := c.Client.On(&UpdateReadChannelInbox{}, waitFunc)
-	c.openH = append(c.openH, h)
+	c.openHandlers = append(c.openHandlers, h)
 
 	select {
-	case <-time.After(time.Duration(c.timeOut) * time.Second):
+	case <-time.After(time.Duration(c.timeout) * time.Second):
 		go c.removeHandle(h)
-		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
+		return nil, fmt.Errorf("conversation timeout: %d", c.timeout)
 	case u := <-resp:
 		go c.removeHandle(h)
 		return u, nil
@@ -229,9 +248,9 @@ func (c *Conversation) WaitRead() (*UpdateReadChannelInbox, error) {
 }
 
 func (c *Conversation) removeHandle(h Handle) {
-	for i, v := range c.openH {
+	for i, v := range c.openHandlers {
 		if v == h {
-			c.openH = append(c.openH[:i], c.openH[i+1:]...)
+			c.openHandlers = slices.Delete(c.openHandlers, i, i+1)
 			return
 		}
 	}
@@ -240,7 +259,7 @@ func (c *Conversation) removeHandle(h Handle) {
 
 // close closes the conversation, removing all open event handlers
 func (c *Conversation) Close() {
-	for _, h := range c.openH {
+	for _, h := range c.openHandlers {
 		c.Client.removeHandle(h)
 	}
 }

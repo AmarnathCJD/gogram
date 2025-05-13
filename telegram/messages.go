@@ -286,9 +286,6 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 		dcID = id.DcID
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	var sender *gogram.MTProto = c.MTProto
 	if dcID != int32(c.GetDC()) {
 		borrowedSender, borrowError := c.CreateExportedSender(int(dcID), false)
@@ -296,9 +293,10 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 			return nil, borrowError
 		}
 		sender = borrowedSender
-		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	editTrueAny, err := sender.MakeRequestCtx(ctx, editRequest)
 	if err != nil {
