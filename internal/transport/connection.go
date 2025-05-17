@@ -42,6 +42,12 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 		return nil, errors.Wrap(err, "resolving tcp")
 	}
 	conn, err := net.DialTCP(tcpPrefix, nil, tcpAddr)
+	// if there is a timeout error, wait 2 secs and retry (only once)
+	if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+		time.Sleep(2 * time.Second)
+		conn, err = net.DialTCP(tcpPrefix, nil, tcpAddr)
+	}
+
 	if err != nil {
 		return nil, errors.Wrap(err, "dialing tcp")
 	}
