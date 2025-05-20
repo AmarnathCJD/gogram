@@ -955,6 +955,16 @@ func (*ChannelAdminLogEventActionToggleAntiSpam) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionToggleAntiSpam) ImplementsChannelAdminLogEventAction() {}
 
+type ChannelAdminLogEventActionToggleAutotranslation struct {
+	NewValue bool
+}
+
+func (*ChannelAdminLogEventActionToggleAutotranslation) CRC() uint32 {
+	return 0xc517f77e
+}
+
+func (*ChannelAdminLogEventActionToggleAutotranslation) ImplementsChannelAdminLogEventAction() {}
+
 // Forum functionality was enabled or disabled.
 type ChannelAdminLogEventActionToggleForum struct {
 	NewValue bool // Whether forum functionality was enabled or disabled.
