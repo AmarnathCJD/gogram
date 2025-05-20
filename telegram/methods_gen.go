@@ -10456,37 +10456,6 @@ func (c *Client) MessagesGetReplies(params *MessagesGetRepliesParams) (MessagesM
 	return resp, nil
 }
 
-type MessagesGetResaleStarGiftsParams struct {
-	SortByPrice    bool  `tl:"flag:1,encoded_in_bitflags"`
-	SortByNum      bool  `tl:"flag:2,encoded_in_bitflags"`
-	AttributesHash int64 `tl:"flag:0"`
-	GiftID         int64
-	Attributes     []StarGiftAttributeID `tl:"flag:3"`
-	Offset         string
-	Limit          int32
-}
-
-func (*MessagesGetResaleStarGiftsParams) CRC() uint32 {
-	return 0x7a5fa236
-}
-
-func (*MessagesGetResaleStarGiftsParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesGetResaleStarGifts(params *MessagesGetResaleStarGiftsParams) (*ResaleStarGifts, error) {
-	responseData, err := c.MakeRequest(params)
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetResaleStarGifts")
-	}
-
-	resp, ok := responseData.(*ResaleStarGifts)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesGetSavedDialogsParams struct {
 	ExcludePinned bool `tl:"flag:0,encoded_in_bitflags"`
 	OffsetDate    int32
@@ -13904,31 +13873,6 @@ func (c *Client) MessagesUpdateSavedReactionTag(reaction Reaction, title string)
 	return resp, nil
 }
 
-type MessagesUpdateStarGiftPriceParams struct {
-	Stargift    InputSavedStarGift
-	ResellStars int64
-}
-
-func (*MessagesUpdateStarGiftPriceParams) CRC() uint32 {
-	return 0x3baea4e1
-}
-
-func (c *Client) MessagesUpdateStarGiftPrice(stargift InputSavedStarGift, resellStars int64) (Updates, error) {
-	responseData, err := c.MakeRequest(&MessagesUpdateStarGiftPriceParams{
-		ResellStars: resellStars,
-		Stargift:    stargift,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesUpdateStarGiftPrice")
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesUploadEncryptedFileParams struct {
 	Peer *InputEncryptedChat
 	File InputEncryptedFile
@@ -14562,6 +14506,37 @@ func (c *Client) PaymentsGetPremiumGiftCodeOptions(boostPeer InputPeer) ([]*Prem
 	}
 
 	resp, ok := responseData.([]*PremiumGiftCodeOption)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsGetResaleStarGiftsParams struct {
+	SortByPrice    bool  `tl:"flag:1,encoded_in_bitflags"`
+	SortByNum      bool  `tl:"flag:2,encoded_in_bitflags"`
+	AttributesHash int64 `tl:"flag:0"`
+	GiftID         int64
+	Attributes     []StarGiftAttributeID `tl:"flag:3"`
+	Offset         string
+	Limit          int32
+}
+
+func (*PaymentsGetResaleStarGiftsParams) CRC() uint32 {
+	return 0x7a5fa236
+}
+
+func (*PaymentsGetResaleStarGiftsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsGetResaleStarGifts(params *PaymentsGetResaleStarGiftsParams) (*PaymentsResaleStarGifts, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetResaleStarGifts")
+	}
+
+	resp, ok := responseData.(*PaymentsResaleStarGifts)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -15257,6 +15232,31 @@ func (c *Client) PaymentsTransferStarGift(stargift InputSavedStarGift, toID Inpu
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending PaymentsTransferStarGift")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsUpdateStarGiftPriceParams struct {
+	Stargift    InputSavedStarGift
+	ResellStars int64
+}
+
+func (*PaymentsUpdateStarGiftPriceParams) CRC() uint32 {
+	return 0x3baea4e1
+}
+
+func (c *Client) PaymentsUpdateStarGiftPrice(stargift InputSavedStarGift, resellStars int64) (Updates, error) {
+	responseData, err := c.MakeRequest(&PaymentsUpdateStarGiftPriceParams{
+		ResellStars: resellStars,
+		Stargift:    stargift,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsUpdateStarGiftPrice")
 	}
 
 	resp, ok := responseData.(Updates)
@@ -17405,13 +17405,13 @@ func (*StoriesCanSendStoryParams) CRC() uint32 {
 }
 
 // Check whether we can post stories as the specified peer.
-func (c *Client) StoriesCanSendStory(peer InputPeer) (bool, error) {
+func (c *Client) StoriesCanSendStory(peer InputPeer) (*StoriesCanSendStoryCount, error) {
 	responseData, err := c.MakeRequest(&StoriesCanSendStoryParams{Peer: peer})
 	if err != nil {
-		return false, errors.Wrap(err, "sending StoriesCanSendStory")
+		return nil, errors.Wrap(err, "sending StoriesCanSendStory")
 	}
 
-	resp, ok := responseData.(bool)
+	resp, ok := responseData.(*StoriesCanSendStoryCount)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
