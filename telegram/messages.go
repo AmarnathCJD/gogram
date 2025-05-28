@@ -884,7 +884,9 @@ type ForwardOptions struct {
 // Forward forwards a message.
 // This method is a wrapper for messages.forwardMessages.
 func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*ForwardOptions) ([]NewMessage, error) {
-	opt := getVariadic(opts, &ForwardOptions{})
+	opt := getVariadic(opts, &ForwardOptions{
+		ReplyTo: &InputReplyToMessage{},
+	})
 	toPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
@@ -905,7 +907,7 @@ func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*Forwar
 		}
 	}
 	updateResp, err := c.MessagesForwardMessages(&MessagesForwardMessagesParams{
-		ReplyTo:           opt.ReplyTo,
+		//ReplyTo:           opt.ReplyTo,
 		ToPeer:            toPeer,
 		FromPeer:          fromPeer,
 		ID:                msgIDs,
