@@ -5537,17 +5537,19 @@ func (c *Client) ChannelsToggleAutotranslation(channel InputChannel, enabled boo
 type ChannelsToggleForumParams struct {
 	Channel InputChannel
 	Enabled bool
+	Tabs    bool
 }
 
 func (*ChannelsToggleForumParams) CRC() uint32 {
-	return 0xa4298b29
+	return 0x3ff75734
 }
 
 // Enable or disable forum functionality in a supergroup.
-func (c *Client) ChannelsToggleForum(channel InputChannel, enabled bool) (Updates, error) {
+func (c *Client) ChannelsToggleForum(channel InputChannel, enabled, tabs bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleForumParams{
 		Channel: channel,
 		Enabled: enabled,
+		Tabs:    tabs,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending ChannelsToggleForum")
@@ -8213,14 +8215,15 @@ func (c *Client) MessagesDeleteRevokedExportedChatInvites(peer InputPeer, adminI
 }
 
 type MessagesDeleteSavedHistoryParams struct {
-	Peer    InputPeer
-	MaxID   int32
-	MinDate int32 `tl:"flag:2"`
-	MaxDate int32 `tl:"flag:3"`
+	ParentPeer InputPeer `tl:"flag:0"`
+	Peer       InputPeer
+	MaxID      int32
+	MinDate    int32 `tl:"flag:2"`
+	MaxDate    int32 `tl:"flag:3"`
 }
 
 func (*MessagesDeleteSavedHistoryParams) CRC() uint32 {
-	return 0x6e98102b
+	return 0x4dc5085f
 }
 
 func (*MessagesDeleteSavedHistoryParams) FlagIndex() int {
@@ -8228,13 +8231,8 @@ func (*MessagesDeleteSavedHistoryParams) FlagIndex() int {
 }
 
 // Deletes messages forwarded from a specific peer to saved messages ».
-func (c *Client) MessagesDeleteSavedHistory(peer InputPeer, maxID, minDate, maxDate int32) (*MessagesAffectedHistory, error) {
-	responseData, err := c.MakeRequest(&MessagesDeleteSavedHistoryParams{
-		MaxDate: maxDate,
-		MaxID:   maxID,
-		MinDate: minDate,
-		Peer:    peer,
-	})
+func (c *Client) MessagesDeleteSavedHistory(params *MessagesDeleteSavedHistoryParams) (*MessagesAffectedHistory, error) {
+	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesDeleteSavedHistory")
 	}
@@ -8677,27 +8675,23 @@ func (c *Client) MessagesForwardMessage(peer InputPeer, id int32, randomID int64
 }
 
 type MessagesForwardMessagesParams struct {
-	Silent             bool `tl:"flag:5,encoded_in_bitflags"`
-	Background         bool `tl:"flag:6,encoded_in_bitflags"`
-	WithMyScore        bool `tl:"flag:8,encoded_in_bitflags"`
-	DropAuthor         bool `tl:"flag:11,encoded_in_bitflags"`
-	DropMediaCaptions  bool `tl:"flag:12,encoded_in_bitflags"`
-	Noforwards         bool `tl:"flag:14,encoded_in_bitflags"`
-	AllowPaidFloodskip bool `tl:"flag:19,encoded_in_bitflags"`
-	FromPeer           InputPeer
-	ID                 []int32
-	RandomID           []int64
-	ToPeer             InputPeer
+	Silent             bool                    `tl:"flag:5,encoded_in_bitflags"`
+	Background         bool                    `tl:"flag:6,encoded_in_bitflags"`
+	WithMyScore        bool                    `tl:"flag:8,encoded_in_bitflags"`
+	DropAuthor         bool                    `tl:"flag:11,encoded_in_bitflags"`
+	DropMediaCaptions  bool                    `tl:"flag:12,encoded_in_bitflags"`
+	Noforwards         bool                    `tl:"flag:14,encoded_in_bitflags"`
 	TopMsgID           int32                   `tl:"flag:9"`
 	ScheduleDate       int32                   `tl:"flag:10"`
 	SendAs             InputPeer               `tl:"flag:13"`
 	QuickReplyShortcut InputQuickReplyShortcut `tl:"flag:17"`
 	VideoTimestamp     int32                   `tl:"flag:20"`
 	AllowPaidStars     int64                   `tl:"flag:21"`
+	ReplyTo            InputReplyTo            `tl:"flag:22"`
 }
 
 func (*MessagesForwardMessagesParams) CRC() uint32 {
-	return 0xbb9fa475
+	return 0x38f0188c
 }
 
 func (*MessagesForwardMessagesParams) FlagIndex() int {
@@ -9200,15 +9194,21 @@ func (c *Client) MessagesGetDialogFilters() (*MessagesDialogFilters, error) {
 	return resp, nil
 }
 
-type MessagesGetDialogUnreadMarksParams struct{}
+type MessagesGetDialogUnreadMarksParams struct {
+	ParentPeer InputPeer `tl:"flag:0"`
+}
 
 func (*MessagesGetDialogUnreadMarksParams) CRC() uint32 {
-	return 0x22e24e22
+	return 0x21202222
+}
+
+func (*MessagesGetDialogUnreadMarksParams) FlagIndex() int {
+	return 0
 }
 
 // Get dialogs manually marked as unread
-func (c *Client) MessagesGetDialogUnreadMarks() ([]DialogPeer, error) {
-	responseData, err := c.MakeRequest(&MessagesGetDialogUnreadMarksParams{})
+func (c *Client) MessagesGetDialogUnreadMarks(parentPeer InputPeer) ([]DialogPeer, error) {
+	responseData, err := c.MakeRequest(&MessagesGetDialogUnreadMarksParams{ParentPeer: parentPeer})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesGetDialogUnreadMarks")
 	}
@@ -10457,7 +10457,8 @@ func (c *Client) MessagesGetReplies(params *MessagesGetRepliesParams) (MessagesM
 }
 
 type MessagesGetSavedDialogsParams struct {
-	ExcludePinned bool `tl:"flag:0,encoded_in_bitflags"`
+	ExcludePinned bool      `tl:"flag:0,encoded_in_bitflags"`
+	ParentPeer    InputPeer `tl:"flag:1"`
 	OffsetDate    int32
 	OffsetID      int32
 	OffsetPeer    InputPeer
@@ -10466,7 +10467,7 @@ type MessagesGetSavedDialogsParams struct {
 }
 
 func (*MessagesGetSavedDialogsParams) CRC() uint32 {
-	return 0x5381d21a
+	return 0x1e91fc99
 }
 
 func (*MessagesGetSavedDialogsParams) FlagIndex() int {
@@ -10478,6 +10479,35 @@ func (c *Client) MessagesGetSavedDialogs(params *MessagesGetSavedDialogsParams) 
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesGetSavedDialogs")
+	}
+
+	resp, ok := responseData.(MessagesSavedDialogs)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesGetSavedDialogsByIDParams struct {
+	ParentPeer InputPeer `tl:"flag:1"`
+	Ids        []InputPeer
+}
+
+func (*MessagesGetSavedDialogsByIDParams) CRC() uint32 {
+	return 0x6f6f9c96
+}
+
+func (*MessagesGetSavedDialogsByIDParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesGetSavedDialogsByID(parentPeer InputPeer, ids []InputPeer) (MessagesSavedDialogs, error) {
+	responseData, err := c.MakeRequest(&MessagesGetSavedDialogsByIDParams{
+		Ids:        ids,
+		ParentPeer: parentPeer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetSavedDialogsByID")
 	}
 
 	resp, ok := responseData.(MessagesSavedDialogs)
@@ -10510,6 +10540,7 @@ func (c *Client) MessagesGetSavedGifs(hash int64) (MessagesSavedGifs, error) {
 }
 
 type MessagesGetSavedHistoryParams struct {
+	ParentPeer InputPeer `tl:"flag:0"`
 	Peer       InputPeer
 	OffsetID   int32
 	OffsetDate int32
@@ -10521,7 +10552,11 @@ type MessagesGetSavedHistoryParams struct {
 }
 
 func (*MessagesGetSavedHistoryParams) CRC() uint32 {
-	return 0x3d9a414d
+	return 0x998ab009
+}
+
+func (*MessagesGetSavedHistoryParams) FlagIndex() int {
+	return 0
 }
 
 // Returns saved messages » forwarded from a specific peer
@@ -10919,17 +10954,18 @@ func (c *Client) MessagesGetUnreadMentions(params *MessagesGetUnreadMentionsPara
 }
 
 type MessagesGetUnreadReactionsParams struct {
-	Peer      InputPeer
-	TopMsgID  int32 `tl:"flag:0"`
-	OffsetID  int32
-	AddOffset int32
-	Limit     int32
-	MaxID     int32
-	MinID     int32
+	Peer        InputPeer
+	TopMsgID    int32     `tl:"flag:0"`
+	SavedPeerID InputPeer `tl:"flag:1"`
+	OffsetID    int32
+	AddOffset   int32
+	Limit       int32
+	MaxID       int32
+	MinID       int32
 }
 
 func (*MessagesGetUnreadReactionsParams) CRC() uint32 {
-	return 0x3223495b
+	return 0xbd7f90ac
 }
 
 func (*MessagesGetUnreadReactionsParams) FlagIndex() int {
@@ -11196,12 +11232,13 @@ func (c *Client) MessagesInstallStickerSet(stickerset InputStickerSet, archived 
 }
 
 type MessagesMarkDialogUnreadParams struct {
-	Unread bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer   InputDialogPeer
+	Unread     bool      `tl:"flag:0,encoded_in_bitflags"`
+	ParentPeer InputPeer `tl:"flag:1"`
+	Peer       InputDialogPeer
 }
 
 func (*MessagesMarkDialogUnreadParams) CRC() uint32 {
-	return 0xc286d98f
+	return 0x8c5006f8
 }
 
 func (*MessagesMarkDialogUnreadParams) FlagIndex() int {
@@ -11209,10 +11246,11 @@ func (*MessagesMarkDialogUnreadParams) FlagIndex() int {
 }
 
 // Manually mark dialog as unread
-func (c *Client) MessagesMarkDialogUnread(unread bool, peer InputDialogPeer) (bool, error) {
+func (c *Client) MessagesMarkDialogUnread(unread bool, parentPeer InputPeer, peer InputDialogPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesMarkDialogUnreadParams{
-		Peer:   peer,
-		Unread: unread,
+		ParentPeer: parentPeer,
+		Peer:       peer,
+		Unread:     unread,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending MessagesMarkDialogUnread")
@@ -11463,12 +11501,13 @@ func (c *Client) MessagesReadMessageContents(id []int32) (*MessagesAffectedMessa
 }
 
 type MessagesReadReactionsParams struct {
-	Peer     InputPeer
-	TopMsgID int32 `tl:"flag:0"`
+	Peer        InputPeer
+	TopMsgID    int32     `tl:"flag:0"`
+	SavedPeerID InputPeer `tl:"flag:1"`
 }
 
 func (*MessagesReadReactionsParams) CRC() uint32 {
-	return 0x54aa7f8e
+	return 0x9ec44f93
 }
 
 func (*MessagesReadReactionsParams) FlagIndex() int {
@@ -11476,16 +11515,44 @@ func (*MessagesReadReactionsParams) FlagIndex() int {
 }
 
 // Mark message reactions » as read
-func (c *Client) MessagesReadReactions(peer InputPeer, topMsgID int32) (*MessagesAffectedHistory, error) {
+func (c *Client) MessagesReadReactions(peer InputPeer, topMsgID int32, savedPeerID InputPeer) (*MessagesAffectedHistory, error) {
 	responseData, err := c.MakeRequest(&MessagesReadReactionsParams{
-		Peer:     peer,
-		TopMsgID: topMsgID,
+		Peer:        peer,
+		SavedPeerID: savedPeerID,
+		TopMsgID:    topMsgID,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesReadReactions")
 	}
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesReadSavedHistoryParams struct {
+	ParentPeer InputPeer
+	Peer       InputPeer
+	MaxID      int32
+}
+
+func (*MessagesReadSavedHistoryParams) CRC() uint32 {
+	return 0xba4a3b5b
+}
+
+func (c *Client) MessagesReadSavedHistory(parentPeer, peer InputPeer, maxID int32) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesReadSavedHistoryParams{
+		MaxID:      maxID,
+		ParentPeer: parentPeer,
+		Peer:       peer,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesReadSavedHistory")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -13807,6 +13874,37 @@ func (c *Client) MessagesUpdateDialogFiltersOrder(order []int32) (bool, error) {
 	}
 
 	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesUpdatePaidMessagesPriceParams struct {
+	SuggestionsAllowed    bool `tl:"flag:0,encoded_in_bitflags"`
+	Channel               InputChannel
+	SendPaidMessagesStars int64
+}
+
+func (*MessagesUpdatePaidMessagesPriceParams) CRC() uint32 {
+	return 0x4b12327b
+}
+
+func (*MessagesUpdatePaidMessagesPriceParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesUpdatePaidMessagesPrice(suggestionsAllowed bool, channel InputChannel, sendPaidMessagesStars int64) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesUpdatePaidMessagesPriceParams{
+		Channel:               channel,
+		SendPaidMessagesStars: sendPaidMessagesStars,
+		SuggestionsAllowed:    suggestionsAllowed,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesUpdatePaidMessagesPrice")
+	}
+
+	resp, ok := responseData.(Updates)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
