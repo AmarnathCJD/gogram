@@ -3590,21 +3590,6 @@ func (*RestrictionReason) CRC() uint32 {
 	return 0xd072acb4
 }
 
-// Represents a saved dialog ».
-type SavedDialog struct {
-	Pinned     bool `tl:"flag:2,encoded_in_bitflags"`
-	Peer       Peer
-	TopMessage int32
-}
-
-func (*SavedDialog) CRC() uint32 {
-	return 0xbd87cb6c
-}
-
-func (*SavedDialog) FlagIndex() int {
-	return 0
-}
-
 // Saved contact
 type SavedPhoneContact struct {
 	Phone     string
