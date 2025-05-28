@@ -8681,6 +8681,11 @@ type MessagesForwardMessagesParams struct {
 	DropAuthor         bool                    `tl:"flag:11,encoded_in_bitflags"`
 	DropMediaCaptions  bool                    `tl:"flag:12,encoded_in_bitflags"`
 	Noforwards         bool                    `tl:"flag:14,encoded_in_bitflags"`
+	AllowPaidFloodskip bool                    `tl:"flag:19,encoded_in_bitflags"`
+	FromPeer           InputPeer
+	ID                 []int32
+	RandomID           []int64
+	ToPeer             InputPeer
 	TopMsgID           int32                   `tl:"flag:9"`
 	ScheduleDate       int32                   `tl:"flag:10"`
 	SendAs             InputPeer               `tl:"flag:13"`

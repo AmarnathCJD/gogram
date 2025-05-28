@@ -870,14 +870,15 @@ func (c *Client) SendReadAck(PeerID any, MaxID ...int32) (*MessagesAffectedMessa
 // SendPoll sends a poll. TODO
 
 type ForwardOptions struct {
-	HideCaption  bool  // whether to drop the original caption
-	HideAuthor   bool  // whether to drop the original author
-	Silent       bool  // whether to send the message silently
-	Noforwards   bool  // whether to disable forwarding
-	Background   bool  // send the message in the background
-	WithMyScore  bool  // whether to include the user's game score
-	SendAs       any   // send the message as a different peer
-	ScheduleDate int32 // schedule date for the message
+	HideCaption  bool                 // whether to drop the original caption
+	HideAuthor   bool                 // whether to drop the original author
+	Silent       bool                 // whether to send the message silently
+	Noforwards   bool                 // whether to disable forwarding
+	Background   bool                 // send the message in the background
+	WithMyScore  bool                 // whether to include the user's game score
+	SendAs       any                  // send the message as a different peer
+	ScheduleDate int32                // schedule date for the message
+	ReplyTo      *InputReplyToMessage // reply to message
 }
 
 // Forward forwards a message.
@@ -904,6 +905,7 @@ func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*Forwar
 		}
 	}
 	updateResp, err := c.MessagesForwardMessages(&MessagesForwardMessagesParams{
+		ReplyTo:           opt.ReplyTo,
 		ToPeer:            toPeer,
 		FromPeer:          fromPeer,
 		ID:                msgIDs,
