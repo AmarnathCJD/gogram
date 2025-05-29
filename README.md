@@ -24,6 +24,10 @@
 
 </div>
 
+<div align='center'>
+	<img src="https://count.getloli.com/get/@gogram-amarnathcdj?theme=moebooru" alt="Counter" />
+</div>
+
 
 <br>
 
