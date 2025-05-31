@@ -4,6 +4,7 @@ package telegram
 
 import (
 	"bufio"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -306,6 +307,7 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 		conf.WebCodeCallback = func() (string, error) {
 			reader := bufio.NewReader(os.Stdin)
 			fmt.Print("Enter received web login code: ")
+
 			code, err := reader.ReadString('\n')
 			if err != nil {
 				return "", fmt.Errorf("failed to read web code: %w", err)
@@ -439,8 +441,7 @@ func (c *Client) scrapeAppDetails(client *http.Client, cookies []*http.Cookie, c
 	appIdNum, err := strconv.Atoi(appID[1])
 	if err != nil {
 		return 0, "", fmt.Errorf("failed to parse app ID: %w", err)
-	}
-	if appIdNum > math.MaxInt32 || appIdNum < math.MinInt32 {
+	} else if appIdNum > math.MaxInt32 || appIdNum < math.MinInt32 {
 		return 0, "", errors.New("app ID is out of range")
 	}
 
@@ -456,11 +457,13 @@ func (c *Client) AcceptTOS() (bool, error) {
 	case *HelpTermsOfServiceUpdateObj:
 		fmt.Println(tos.TermsOfService.Text)
 		fmt.Println("Do you accept the TOS? (y/n)")
+
 		var input string
 		fmt.Scanln(&input)
 		if input != "y" {
 			return false, nil
 		}
+
 		return c.HelpAcceptTermsOfService(tos.TermsOfService.ID)
 	default:
 		return false, nil
@@ -581,14 +584,19 @@ func (q *QrToken) Recreate() (*QrToken, error) {
 	return q, err
 }
 
-func (q *QrToken) Wait(timeout ...int32) error {
-	const def int32 = 600 // 10 minutes
-	q.Timeout = getVariadic(timeout, def)
+func (q *QrToken) Wait(ctx context.Context, timeout ...int32) error {
+	const defaultTimeout int32 = 600 // 10 minutes
+	q.Timeout = getVariadic(timeout, defaultTimeout)
+
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(q.Timeout)*time.Second)
+	defer cancel()
+
 	ch := make(chan int)
 	ev := q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update, client *Client) error {
 		ch <- 1
 		return nil
 	})
+
 	select {
 	case <-ch:
 		go q.client.removeHandle(ev)
@@ -617,7 +625,7 @@ func (q *QrToken) Wait(timeout ...int32) error {
 			}
 		}
 		return nil
-	case <-time.After(time.Duration(q.Timeout) * time.Second):
+	case <-ctx.Done():
 		go q.client.removeHandle(ev)
 		return errors.New("qr login timed out")
 	}
@@ -625,12 +633,11 @@ func (q *QrToken) Wait(timeout ...int32) error {
 
 func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 	// Get QR code
-	var ignoreIDs []int64
-	ignoreIDs = append(ignoreIDs, IgnoreIDs...)
-	qr, err := c.AuthExportLoginToken(c.AppID(), c.AppHash(), ignoreIDs)
+	qr, err := c.AuthExportLoginToken(c.AppID(), c.AppHash(), IgnoreIDs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to export QR token: %v", err)
 	}
+
 	var (
 		qrToken   []byte
 		expiresIn int32 = 60
@@ -643,6 +650,7 @@ func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 		qrToken = qr.Token
 		expiresIn = qr.Expires
 	}
+
 	// Get QR code URL
 	qrURL := base64.RawURLEncoding.EncodeToString(qrToken)
 	return &QrToken{
@@ -650,7 +658,7 @@ func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 		Url:        fmt.Sprintf("tg://login?token=%s", qrURL),
 		ExpiresIn:  expiresIn,
 		client:     c,
-		IgnoredIDs: ignoreIDs,
+		IgnoredIDs: IgnoreIDs,
 	}, nil
 }
 
