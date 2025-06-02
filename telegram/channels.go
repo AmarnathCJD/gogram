@@ -16,15 +16,20 @@ import (
 //	 - chatID: The ID of the chat
 //	 - limit: The maximum number of photos to be returned
 func (c *Client) GetChatPhotos(chatID any, limit ...int32) ([]Photo, error) {
-	if limit == nil {
-		limit = []int32{1}
+	limitVal := int32(1)
+	if len(limit) > 0 && limit[0] > 0 {
+		limitVal = limit[0]
 	}
-	messages, err := c.GetMessages(chatID, &SearchOption{Limit: limit[0],
-		Filter: &InputMessagesFilterChatPhotos{}})
+
+	messages, err := c.GetMessages(chatID, &SearchOption{
+		Limit:  limitVal,
+		Filter: &InputMessagesFilterChatPhotos{},
+	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to fetch chat photos")
 	}
-	var photos []Photo
+
+	photos := make([]Photo, 0, len(messages))
 	for _, message := range messages {
 		if message.Action != nil {
 			switch action := message.Action.(type) {
@@ -42,13 +47,13 @@ func (c *Client) GetChatPhotos(chatID any, limit ...int32) ([]Photo, error) {
 //	Params:
 //	 - chatID: chat id
 func (c *Client) GetChatPhoto(chatID any) (Photo, error) {
-	photos, err := c.GetChatPhotos(chatID)
+	photos, err := c.GetChatPhotos(chatID, 1)
 	if err != nil {
-		return &PhotoObj{}, err
-	}
-	if len(photos) > 0 {
+		return &PhotoObj{}, errors.Wrap(err, "failed to get chat photo")
+	} else if len(photos) > 0 {
 		return photos[0], nil
 	}
+
 	return &PhotoObj{}, nil // GetFullChannel TODO
 }
 
@@ -62,7 +67,7 @@ func (c *Client) JoinChannel(Channel any) (bool, error) {
 		if TG_JOIN_RE.MatchString(p) {
 			result, err := c.MessagesImportChatInvite(TG_JOIN_RE.FindStringSubmatch(p)[1])
 			if err != nil {
-				return false, err
+				return false, errors.Wrap(err, "failed to import chat invite")
 			}
 
 			switch result := result.(type) {
@@ -79,9 +84,8 @@ func (c *Client) JoinChannel(Channel any) (bool, error) {
 	case *InputPeerChannel, *InputPeerChat, int, int32, int64:
 		return c.joinChannelByPeer(p)
 	case *ChatInviteExported:
-		_, err := c.MessagesImportChatInvite(p.Link)
-		if err != nil {
-			return false, err
+		if _, err := c.MessagesImportChatInvite(p.Link); err != nil {
+			return false, errors.Wrap(err, "failed to join via invite link")
 		}
 
 		return true, nil
@@ -93,21 +97,23 @@ func (c *Client) JoinChannel(Channel any) (bool, error) {
 func (c *Client) joinChannelByPeer(Channel any) (bool, error) {
 	channel, err := c.ResolvePeer(Channel)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "failed to resolve peer")
 	}
+
 	if chat, ok := channel.(*InputPeerChannel); ok {
-		_, err = c.ChannelsJoinChannel(&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash})
-		if err != nil {
-			return false, err
+		if _, err = c.ChannelsJoinChannel(
+			&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash},
+		); err != nil {
+			return false, errors.Wrap(err, "failed to join channel")
 		}
 	} else if chat, ok := channel.(*InputPeerChat); ok {
-		_, err = c.MessagesAddChatUser(chat.ChatID, &InputUserEmpty{}, 0)
-		if err != nil {
-			return false, err
+		if _, err = c.MessagesAddChatUser(chat.ChatID, &InputUserEmpty{}, 0); err != nil {
+			return false, errors.Wrap(err, "failed to join chat")
 		}
 	} else {
 		return false, errors.New("peer is not a channel or chat")
 	}
+
 	return true, nil
 }
 
@@ -120,24 +126,28 @@ func (c *Client) LeaveChannel(Channel any, Revoke ...bool) error {
 	revokeChat := getVariadic(Revoke, false)
 	channel, err := c.ResolvePeer(Channel)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to resolve peer")
 	}
-	if chat, ok := channel.(*InputPeerChannel); ok {
-		_, err = c.ChannelsLeaveChannel(&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash})
+
+	switch p := channel.(type) {
+	case *InputPeerChannel:
+		_, err = c.ChannelsLeaveChannel(&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash})
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to leave channel")
 		}
-	} else if chat, ok := channel.(*InputPeerChat); ok {
-		_, err = c.MessagesDeleteChatUser(revokeChat, chat.ChatID, &InputUserEmpty{})
+	case *InputPeerChat:
+		_, err = c.MessagesDeleteChatUser(revokeChat, p.ChatID, &InputUserEmpty{})
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to leave chat")
 		}
-	} else {
+	default:
 		return errors.New("peer is not a channel or chat")
 	}
+
 	return nil
 }
 
+// Constants for participant statuses
 const (
 	Admin      = "admin"
 	Creator    = "creator"
@@ -147,6 +157,7 @@ const (
 	Kicked     = "kicked"
 )
 
+// Participant represents a chat member with status and rights.
 type Participant struct {
 	User        *UserObj           `json:"user,omitempty"`
 	Participant ChannelParticipant `json:"participant,omitempty"`
@@ -165,53 +176,31 @@ func (c *Client) GetChatMember(chatID, userID any) (*Participant, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	user, err := c.ResolvePeer(userID)
 	if err != nil {
 		return nil, err
 	}
+
 	chat, ok := channel.(*InputPeerChannel)
 	if !ok {
 		return nil, errors.New("peer is not a channel")
 	}
-	participant, err := c.ChannelsGetParticipant(&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash}, user)
+
+	participant, err := c.ChannelsGetParticipant(
+		&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash}, user,
+	)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get participant")
 	}
 	c.Cache.UpdatePeersToCache(participant.Users, participant.Chats)
-	var (
-		status string           = Member
-		rights *ChatAdminRights = &ChatAdminRights{}
-		rank   string           = ""
-		UserID int64            = 0
-	)
-	switch p := participant.Participant.(type) {
-	case *ChannelParticipantCreator:
-		status = Creator
-		rights = p.AdminRights
-		rank = p.Rank
-		UserID = p.UserID
-	case *ChannelParticipantAdmin:
-		status = Admin
-		rights = p.AdminRights
-		rank = p.Rank
-		UserID = p.UserID
-	case *ChannelParticipantObj:
-		status = Member
-		UserID = p.UserID
-	case *ChannelParticipantSelf:
-		status = Member
-		UserID = p.UserID
-	case *ChannelParticipantBanned:
-		status = Restricted
-		UserID = c.GetPeerID(p.Peer)
-	case *ChannelParticipantLeft:
-		status = Left
-		UserID = c.GetPeerID(p.Peer)
-	}
-	partUser, err := c.GetUser(UserID)
+
+	status, rights, rank, userID := parseParticipant(participant.Participant, c)
+	partUser, err := c.GetUser(userID.(int64))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get user")
 	}
+
 	return &Participant{
 		User:        partUser,
 		Participant: participant.Participant,
@@ -221,6 +210,36 @@ func (c *Client) GetChatMember(chatID, userID any) (*Participant, error) {
 	}, nil
 }
 
+// parseParticipant extracts status, rights, rank, and user ID from a participant.]
+func parseParticipant(p ChannelParticipant, c *Client) (status string, rights *ChatAdminRights, rank string, userID int64) {
+	rights = &ChatAdminRights{}
+	status = Member
+
+	switch part := p.(type) {
+	case *ChannelParticipantCreator:
+		status = Creator
+		rights = part.AdminRights
+		rank = part.Rank
+		userID = part.UserID
+	case *ChannelParticipantAdmin:
+		status = Admin
+		rights = part.AdminRights
+		rank = part.Rank
+		userID = part.UserID
+	case *ChannelParticipantObj, *ChannelParticipantSelf:
+		userID = part.(*ChannelParticipantObj).UserID
+	case *ChannelParticipantBanned, *ChannelParticipantLeft:
+		status = Restricted
+		if banned, ok := part.(*ChannelParticipantBanned); ok {
+			userID = c.GetPeerID(banned.Peer)
+		} else {
+			userID = c.GetPeerID(part.(*ChannelParticipantLeft).Peer)
+		}
+	}
+	return
+}
+
+// ParticipantOptions configures chat member retrieval.
 type ParticipantOptions struct {
 	Query            string                    `json:"query,omitempty"`
 	Filter           ChannelParticipantsFilter `json:"filter,omitempty"`
@@ -236,80 +255,65 @@ type ParticipantOptions struct {
 //	 - filter: The filter to use
 //	 - offset: The offset to use
 //	 - limit: The limit to use
-func (c *Client) GetChatMembers(chatID any, Opts ...*ParticipantOptions) ([]*Participant, int32, error) {
+func (c *Client) GetChatMembers(chatID any, opts ...*ParticipantOptions) ([]*Participant, int32, error) {
 	channel, err := c.ResolvePeer(chatID)
 	if err != nil {
 		return nil, 0, err
 	}
+
 	chat, ok := channel.(*InputPeerChannel)
 	if !ok {
 		return nil, 0, errors.New("peer is not a channel")
 	}
-	opts := getVariadic(Opts, &ParticipantOptions{Filter: &ChannelParticipantsSearch{}, Limit: 1})
-	if opts.Query != "" {
-		opts.Filter = &ChannelParticipantsSearch{Q: opts.Query}
-	} else if opts.Filter == nil {
-		opts.Filter = &ChannelParticipantsSearch{}
+	opt := getVariadic(opts, &ParticipantOptions{Filter: &ChannelParticipantsSearch{}, Limit: 1})
+	if opt.Query != "" {
+		opt.Filter = &ChannelParticipantsSearch{Q: opt.Query}
+	}
+	if opt.Filter == nil {
+		opt.Filter = &ChannelParticipantsSearch{}
 	}
 
-	var fetched int32 = 0
-	var participantsList []*Participant
-	var reqLimit, reqOffset int32 = 200, opts.Offset
-	var totalCount int32
+	participantsList := make([]*Participant, 0, opt.Limit)
+	var fetched, totalCount int32
+	const batchSize int32 = 200
+
+	// var fetched int32 = 0
+	// var participantsList []*Participant
+	// var reqLimit, reqOffset int32 = 200, opts.Offset
+	// var totalCount int32
 
 	for {
-		remaning := opts.Limit - int32(fetched)
-		reqLimit = min(remaning, 200)
-
-		participants, err := c.ChannelsGetParticipants(&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash}, opts.Filter, reqOffset, reqLimit, 0)
-		if err != nil {
-			return nil, 0, err
+		remaining := opt.Limit - fetched
+		if remaining <= 0 && opt.Limit > 0 {
+			break
 		}
+
+		reqLimit := min(remaining, batchSize)
+		participants, err := c.ChannelsGetParticipants(
+			&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash},
+			opt.Filter, opt.Offset+fetched, reqLimit, 0,
+		)
+		if err != nil {
+			return nil, 0, errors.Wrap(err, "failed to get participants")
+		}
+
 		cParts, ok := participants.(*ChannelsChannelParticipantsObj)
-		if opts.Limit == -1 {
-			opts.Limit = cParts.Count
+		if !ok {
+			return nil, 0, errors.New("unexpected response type for participants")
+		}
+		if opt.Limit == -1 {
+			opt.Limit = cParts.Count
 			continue
 		}
 
-		if !ok {
-			return nil, 0, errors.New("could not get participants")
-		}
 		c.Cache.UpdatePeersToCache(cParts.Users, cParts.Chats)
-		var (
-			status string           = Member
-			rights *ChatAdminRights = &ChatAdminRights{}
-			rank   string           = ""
-			UserID int64            = 0
-		)
 		for _, p := range cParts.Participants {
-			switch p := p.(type) {
-			case *ChannelParticipantCreator:
-				status = Creator
-				rights = p.AdminRights
-				rank = p.Rank
-				UserID = p.UserID
-			case *ChannelParticipantAdmin:
-				status = Admin
-				rights = p.AdminRights
-				rank = p.Rank
-				UserID = p.UserID
-			case *ChannelParticipantObj:
-				status = Member
-				UserID = p.UserID
-			case *ChannelParticipantSelf:
-				status = Member
-				UserID = p.UserID
-			case *ChannelParticipantBanned:
-				status = Restricted
-				UserID = c.GetPeerID(p.Peer)
-			case *ChannelParticipantLeft:
-				status = Left
-				UserID = c.GetPeerID(p.Peer)
-			}
-			partUser, err := c.GetUser(UserID)
+			status, rights, rank, userID := parseParticipant(p, c)
+			partUser, err := c.GetUser(userID)
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, errors.Wrap(err, "failed to get user")
 			}
+
 			participantsList = append(participantsList, &Participant{
 				User:        partUser,
 				Participant: p,
@@ -317,37 +321,37 @@ func (c *Client) GetChatMembers(chatID any, Opts ...*ParticipantOptions) ([]*Par
 				Rights:      rights,
 				Rank:        rank,
 			})
-
 			fetched++
 		}
 
-		if fetched >= opts.Limit || len(cParts.Participants) == 0 {
+		totalCount = cParts.Count
+		if int32(len(cParts.Participants)) < reqLimit || (opt.Limit > 0 && fetched >= opt.Limit) {
 			break
 		}
-
-		reqOffset = fetched
-		totalCount = cParts.Count
-
-		time.Sleep(time.Duration(opts.SleepThresholdMs) * time.Millisecond)
+		if opt.SleepThresholdMs > 0 {
+			time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
+		}
 	}
 	return participantsList, totalCount, nil
 }
 
-func (c *Client) IterChatMembers(chatID any, Opts ...*ParticipantOptions) (<-chan *Participant, <-chan error) {
-	ch := make(chan *Participant)
-	errCh := make(chan error)
+func (c *Client) IterChatMembers(chatID any, opts ...*ParticipantOptions) (<-chan *Participant, <-chan error) {
+	ch := make(chan *Participant, 100) // Buffered channel for better throughput
+	errCh := make(chan error, 1)       // Buffered error channel
 
-	var peerToAct, err = c.ResolvePeer(chatID)
+	chat, err := c.ResolvePeer(chatID)
 	if err != nil {
-		errCh <- err
+		errCh <- errors.Wrap(err, "failed to resolve chat peer")
 		close(ch)
+		close(errCh)
 		return ch, errCh
 	}
 
-	var chat, ok = peerToAct.(*InputPeerChannel)
+	chatPeer, ok := chat.(*InputPeerChannel)
 	if !ok {
 		errCh <- errors.New("peer is not a channel")
 		close(ch)
+		close(errCh)
 		return ch, errCh
 	}
 
@@ -355,131 +359,88 @@ func (c *Client) IterChatMembers(chatID any, Opts ...*ParticipantOptions) (<-cha
 		defer close(ch)
 		defer close(errCh)
 
-		var opts = getVariadic(Opts, &ParticipantOptions{
+		opt := getVariadic(opts, &ParticipantOptions{
 			Limit:            1,
 			SleepThresholdMs: 20,
 			Filter:           &ChannelParticipantsSearch{},
 		})
-
-		if opts.Query != "" {
-			opts.Filter = &ChannelParticipantsSearch{Q: opts.Query}
-		} else if opts.Filter == nil {
-			opts.Filter = &ChannelParticipantsSearch{}
+		if opt.Query != "" {
+			opt.Filter = &ChannelParticipantsSearch{Q: opt.Query}
+		}
+		if opt.Filter == nil {
+			opt.Filter = &ChannelParticipantsSearch{}
 		}
 
-		var fetched int32 = 0
 		req := &ChannelsGetParticipantsParams{
-			Channel: &InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash},
-			Filter:  opts.Filter,
-			Offset:  opts.Offset,
+			Channel: &InputChannelObj{ChannelID: chatPeer.ChannelID, AccessHash: chatPeer.AccessHash},
+			Filter:  opt.Filter,
+			Offset:  opt.Offset,
 			Limit:   200,
 			Hash:    0,
 		}
+		var fetched int32
+		const batchSize int32 = 200
 
 		for {
-			if opts.Limit == -1 {
+			if opt.Limit > 0 && fetched >= opt.Limit {
+				return
+			}
+			req.Limit = min(opt.Limit-fetched, batchSize)
+			if opt.Limit == -1 {
 				req.Limit = 0
-				resp, err := c.MakeRequest(req)
-				if err != nil {
-					errCh <- err
-					return
-				}
-
-				switch resp := resp.(type) {
-				case *ChannelsChannelParticipantsObj:
-					if resp.Count == 0 {
-						return
-					}
-					opts.Limit = resp.Count
-				case *ChannelsChannelParticipantsNotModified:
-				default:
-				}
-
-				continue
 			}
-
-			remaining := opts.Limit - int32(fetched)
-			perReqLimit := int32(200)
-			if remaining < perReqLimit {
-				perReqLimit = remaining
-			}
-			req.Limit = perReqLimit
 
 			resp, err := c.MakeRequest(req)
 			if err != nil {
 				if handleIfFlood(err, c) {
 					continue
 				}
-				errCh <- err
+				errCh <- errors.Wrap(err, "failed to fetch participants")
 				return
 			}
 
-			switch resp := resp.(type) {
+			switch r := resp.(type) {
 			case *ChannelsChannelParticipantsObj:
-				c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
-				for _, participant := range resp.Participants {
-					var (
-						status string           = Member
-						rights *ChatAdminRights = &ChatAdminRights{}
-						rank   string           = ""
-						UserID int64            = 0
-					)
-					switch p := participant.(type) {
-					case *ChannelParticipantCreator:
-						status = Creator
-						rights = p.AdminRights
-						rank = p.Rank
-						UserID = p.UserID
-					case *ChannelParticipantAdmin:
-						status = Admin
-						rights = p.AdminRights
-						rank = p.Rank
-						UserID = p.UserID
-					case *ChannelParticipantObj:
-						status = Member
-						UserID = p.UserID
-					case *ChannelParticipantSelf:
-						status = Member
-						UserID = p.UserID
-					case *ChannelParticipantBanned:
-						status = Restricted
-						UserID = c.GetPeerID(p.Peer)
-					case *ChannelParticipantLeft:
-						status = Left
-						UserID = c.GetPeerID(p.Peer)
-					}
-					partUser, err := c.GetUser(UserID)
+				if opt.Limit == -1 {
+					opt.Limit = r.Count
+					continue
+				}
+				c.Cache.UpdatePeersToCache(r.Users, r.Chats)
+				for _, p := range r.Participants {
+					status, rights, rank, userID := parseParticipant(p, c)
+					partUser, err := c.GetUser(userID)
 					if err != nil {
-						errCh <- err
+						errCh <- errors.Wrap(err, "failed to get user")
 						return
 					}
 					ch <- &Participant{
 						User:        partUser,
-						Participant: participant,
+						Participant: p,
 						Status:      status,
 						Rights:      rights,
 						Rank:        rank,
 					}
-
 					fetched++
 				}
-				if len(resp.Participants) < int(perReqLimit) || fetched >= opts.Limit && opts.Limit > 0 {
+				if len(r.Participants) < int(req.Limit) || (opt.Limit > 0 && fetched >= opt.Limit) {
 					return
 				}
 
 				req.Offset = fetched
+				if opt.SleepThresholdMs > 0 {
+					time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
+				}
 			default:
 				errCh <- errors.New("unexpected response: " + reflect.TypeOf(resp).String())
 				return
 			}
-
-			time.Sleep(time.Duration(opts.SleepThresholdMs) * time.Millisecond)
 		}
 	}()
 
 	return ch, errCh
 }
 
+// AdminOptions configures admin rights for a user.
 type AdminOptions struct {
 	IsAdmin bool             `json:"is_admin,omitempty"`
 	Rights  *ChatAdminRights `json:"rights,omitempty"`
@@ -504,38 +465,48 @@ func (c *Client) EditAdmin(PeerID, UserID any, Opts ...*AdminOptions) (bool, err
 	if err != nil {
 		return false, err
 	}
+
 	u, err := c.ResolvePeer(UserID)
 	if err != nil {
 		return false, err
 	}
+
 	user, ok := u.(*InputPeerUser)
 	if !ok {
 		return false, errors.New("peer is not a user")
 	}
+
 	switch p := peer.(type) {
 	case *InputPeerChannel:
 		if opts.IsAdmin {
-			_, err := c.ChannelsEditAdmin(&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash}, &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, opts.Rights, opts.Rank)
-			if err != nil {
+			if _, err = c.ChannelsEditAdmin(
+				&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash},
+				&InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, opts.Rights, opts.Rank,
+			); err != nil {
 				return false, err
 			}
 		} else {
-			_, err := c.ChannelsEditAdmin(&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash}, &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, &ChatAdminRights{}, "")
-			if err != nil {
+			if _, err = c.ChannelsEditAdmin(
+				&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash},
+				&InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, &ChatAdminRights{}, "",
+			); err != nil {
 				return false, err
 			}
 		}
 	case *InputPeerChat:
-		_, err := c.MessagesEditChatAdmin(p.ChatID, &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, opts.IsAdmin)
-		if err != nil {
+		if _, err = c.MessagesEditChatAdmin(
+			p.ChatID, &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, opts.IsAdmin,
+		); err != nil {
 			return false, err
 		}
 	default:
 		return false, errors.New("peer is not a chat or channel")
 	}
+
 	return true, nil
 }
 
+// BannedOptions configures ban/mute settings for a user.
 type BannedOptions struct {
 	Ban    bool              `json:"ban,omitempty"`
 	Unban  bool              `json:"unban,omitempty"`
@@ -591,36 +562,47 @@ func handleChannelBan(c *Client, p *InputPeerChannel, u InputPeer, o *BannedOpti
 	return err == nil, err
 }
 
+// handleChatBan applies ban/mute settings for a chat user.
 func handleChatBan(c *Client, p *InputPeerChat, u InputPeer, o *BannedOptions) (bool, error) {
-	if u, ok := u.(*InputPeerUser); ok {
-		if o.Ban || o.Unban || o.Mute || o.Unmute {
-			_, err := c.MessagesDeleteChatUser(o.Revoke, p.ChatID, &InputUserObj{UserID: u.UserID, AccessHash: u.AccessHash})
-			return err == nil, err
-		} else {
-			_, err := c.MessagesAddChatUser(p.ChatID, &InputUserObj{UserID: u.UserID, AccessHash: u.AccessHash}, 0)
-			return err == nil, err
-		}
+	user, ok := u.(*InputPeerUser)
+	if !ok {
+		return false, errors.New("user is not a valid InputPeerUser")
 	}
-	return false, errors.New("user is not a valid InputPeerUser")
+
+	if o.Ban || o.Unban || o.Mute || o.Unmute {
+		_, err := c.MessagesDeleteChatUser(o.Revoke, p.ChatID, &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash})
+		if err != nil {
+			return false, errors.Wrap(err, "failed to delete chat user")
+		}
+		return true, nil
+	}
+
+	_, err := c.MessagesAddChatUser(p.ChatID, &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, 0)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to add chat user")
+	}
+	return true, nil
 }
 
+// KickParticipant removes a user from a chat or channel efficiently.
 func (c *Client) KickParticipant(PeerID, UserID any) (bool, error) {
 	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return false, err
 	}
+
 	u, err := c.ResolvePeer(UserID)
 	if err != nil {
 		return false, err
 	}
+
 	switch p := peer.(type) {
 	case *InputPeerChannel:
-		_, err := c.EditBanned(p, u, &BannedOptions{Ban: true})
-		if err != nil {
+		if _, err := c.EditBanned(p, u, &BannedOptions{Ban: true}); err != nil {
 			return false, err
 		}
-		_, err = c.EditBanned(p, u, &BannedOptions{Unban: true})
-		if err != nil {
+
+		if _, err = c.EditBanned(p, u, &BannedOptions{Unban: true}); err != nil {
 			return false, err
 		}
 	case *InputPeerChat:
@@ -628,8 +610,10 @@ func (c *Client) KickParticipant(PeerID, UserID any) (bool, error) {
 		if !ok {
 			return false, errors.New("peer is not a user")
 		}
-		_, err := c.MessagesDeleteChatUser(false, c.GetPeerID(p), &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash})
-		if err != nil {
+
+		if _, err := c.MessagesDeleteChatUser(
+			false, c.GetPeerID(p), &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash},
+		); err != nil {
 			return false, err
 		}
 	default:
@@ -638,6 +622,7 @@ func (c *Client) KickParticipant(PeerID, UserID any) (bool, error) {
 	return true, nil
 }
 
+// TitleOptions configures title and profile settings.
 type TitleOptions struct {
 	LastName string `json:"last_name,omitempty"`
 	About    string `json:"about,omitempty"`
@@ -651,20 +636,20 @@ func (c *Client) EditTitle(PeerID any, Title string, Opts ...*TitleOptions) (boo
 	if err != nil {
 		return false, err
 	}
+
 	switch p := peer.(type) {
 	case *InputPeerChannel:
-		_, err := c.ChannelsEditTitle(&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash}, Title)
-		if err != nil {
+		if _, err := c.ChannelsEditTitle(
+			&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash}, Title,
+		); err != nil {
 			return false, err
 		}
 	case *InputPeerChat:
-		_, err := c.MessagesEditChatTitle(p.ChatID, Title)
-		if err != nil {
+		if _, err = c.MessagesEditChatTitle(p.ChatID, Title); err != nil {
 			return false, err
 		}
 	case *InputPeerSelf:
-		_, err := c.AccountUpdateProfile(opts.LastName, Title, opts.About)
-		if err != nil {
+		if _, err := c.AccountUpdateProfile(opts.LastName, Title, opts.About); err != nil {
 			return false, err
 		}
 	default:
@@ -683,21 +668,24 @@ func (c *Client) GetStats(channelID any, messageID ...any) (*StatsBroadcastStats
 	if err != nil {
 		return nil, nil, err
 	}
+
 	channelPeer, ok := peerID.(*InputPeerChannel)
 	if !ok {
 		return nil, nil, errors.New("could not convert peer to channel")
 	}
+
 	var MessageID int32 = getVariadic(messageID, 0).(int32)
 	if MessageID > 0 {
-		resp, err := c.StatsGetMessageStats(true, &InputChannelObj{
+		stats, err := c.StatsGetMessageStats(true, &InputChannelObj{
 			ChannelID:  channelPeer.ChannelID,
 			AccessHash: channelPeer.AccessHash,
 		}, MessageID)
 		if err != nil {
 			return nil, nil, err
 		}
-		return nil, resp, nil
+		return nil, stats, nil
 	}
+
 	resp, err := c.StatsGetBroadcastStats(true, &InputChannelObj{
 		ChannelID:  channelPeer.ChannelID,
 		AccessHash: channelPeer.AccessHash,
@@ -708,6 +696,7 @@ func (c *Client) GetStats(channelID any, messageID ...any) (*StatsBroadcastStats
 	return resp, nil, nil
 }
 
+// InviteLinkOptions configures chat invite link settings.
 type InviteLinkOptions struct {
 	LegacyRevokePermanent bool   `json:"legacy_revoke_permanent,omitempty"`
 	Expire                int32  `json:"expire,omitempty"`
@@ -731,6 +720,7 @@ func (c *Client) GetChatInviteLink(peerID any, LinkOpts ...*InviteLinkOptions) (
 	if err != nil {
 		return nil, err
 	}
+
 	link, err := c.MessagesExportChatInvite(&MessagesExportChatInviteParams{
 		Peer:                  peer,
 		LegacyRevokePermanent: LinkOptions.LegacyRevokePermanent,
@@ -742,6 +732,7 @@ func (c *Client) GetChatInviteLink(peerID any, LinkOpts ...*InviteLinkOptions) (
 	return link, err
 }
 
+// ChannelOptions configures settings for creating a channel.
 type ChannelOptions struct {
 	About        string        `json:"about,omitempty"`
 	NotBroadcast bool          `json:"broadcast,omitempty"`
@@ -764,13 +755,13 @@ func (c *Client) CreateChannel(title string, opts ...*ChannelOptions) (*Channel,
 	if err != nil {
 		return nil, err
 	}
-	if u, ok := u.(*UpdatesObj); ok {
-		chat := u.Chats[0]
-		if ch, ok := chat.(*Channel); ok {
+
+	if updates, ok := u.(*UpdatesObj); ok && len(updates.Chats) > 0 {
+		if ch, ok := updates.Chats[0].(*Channel); ok {
 			return ch, nil
 		}
 	}
-	return nil, errors.New("empty reply from server")
+	return nil, errors.New("empty or invalid response from server")
 }
 
 func (c *Client) DeleteChannel(channelID any) (*Updates, error) {
@@ -781,21 +772,20 @@ func (c *Client) DeleteChannel(channelID any) (*Updates, error) {
 
 	channelPeer, ok := peer.(*InputPeerChannel)
 	if !ok {
-		return nil, errors.New("could not convert peer to channel")
+		return nil, errors.New("peer is not a channel")
 	}
 
 	u, err := c.ChannelsDeleteChannel(&InputChannelObj{
 		ChannelID:  channelPeer.ChannelID,
 		AccessHash: channelPeer.AccessHash,
 	})
-
 	if err != nil {
 		return nil, err
 	}
-
 	return &u, nil
 }
 
+// JoinRequest represents a chat join request.
 type JoinRequest struct {
 	User        *UserObj
 	Date        int32
@@ -805,88 +795,80 @@ type JoinRequest struct {
 	ViaChatlist bool
 }
 
+// GetChatJoinRequests fetches chat join requests with optimized batching.
+// Parameters:
+//   - channelID: The ID of the channel (any type, resolved to peer)
+//   - lim: Maximum number of requests to fetch
+//   - query: Optional search query for filtering requests
 func (c *Client) GetChatJoinRequests(channelID any, lim int, query ...string) ([]*JoinRequest, error) {
-	var currentOffsetUser InputUser = &InputUserEmpty{}
-	currentOffsetDate := 0
-
-	current := 0
+	peer, err := c.ResolvePeer(channelID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve channel peer")
+	}
 	if lim <= 0 {
 		lim = math.MaxInt32
 	}
 
-	limit := min(lim, 100)
+	const batchSize = 100
+	limit := min(lim, batchSize)
+	allUsers := make([]*JoinRequest, 0, limit)
+	currentOffsetUser := InputUser(&InputUserEmpty{})
+	currentOffsetDate := int32(0)
+	current := 0
 
-	peer, err := c.ResolvePeer(channelID)
-	if err != nil {
-		return nil, err
-	}
-
-	var allUsers []*JoinRequest
-
-	// Loop until lim is reached
 	for {
-		// Get chat invite importers
-		chatInviteImporters, err := c.MessagesGetChatInviteImporters(&MessagesGetChatInviteImportersParams{
+		importers, err := c.MessagesGetChatInviteImporters(&MessagesGetChatInviteImportersParams{
 			Requested:  true,
 			Peer:       peer,
 			Q:          getVariadic(query, ""),
-			OffsetDate: int32(currentOffsetDate),
+			OffsetDate: currentOffsetDate,
 			OffsetUser: currentOffsetUser,
 			Limit:      int32(limit),
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to get chat invite importers")
 		}
-
-		if len(chatInviteImporters.Importers) == 0 {
+		if len(importers.Importers) == 0 {
 			break
 		}
 
-		var users = chatInviteImporters.Users
-
-		//c.Cache.UpdatePeersToCache(chatInviteImporters.Users, []Chat{})
-		// Add all UserObj objects to allUsers slice
-		for _, user := range chatInviteImporters.Importers {
+		for _, user := range importers.Importers {
 			var userObj *UserObj
-			for _, u := range users {
-				if u, ok := u.(*UserObj); ok && u.ID == user.UserID {
-					userObj = u
+			for _, u := range importers.Users {
+				if uObj, ok := u.(*UserObj); ok && uObj.ID == user.UserID {
+					userObj = uObj
 					break
 				}
 			}
-
 			if userObj == nil {
 				userObj = &UserObj{ID: user.UserID}
 			}
-			u := &JoinRequest{
+
+			allUsers = append(allUsers, &JoinRequest{
 				User:        userObj,
 				Date:        user.Date,
 				ApprovedBy:  user.ApprovedBy,
 				Requested:   user.Requested,
 				About:       user.About,
 				ViaChatlist: user.ViaChatlist,
-			}
-			allUsers = append(allUsers, u)
+			})
 			current++
+			if current >= lim {
+				break
+			}
 		}
-
-		// Break if limit is reached
 		if current >= lim {
 			break
 		}
-
-		// Set current offset user and date for next iteration
-		if len(chatInviteImporters.Users) > 0 {
-			lastUser := chatInviteImporters.Users[len(chatInviteImporters.Users)-1]
-			if u, ok := lastUser.(*UserObj); ok {
+		if len(importers.Users) > 0 {
+			if u, ok := importers.Users[len(importers.Users)-1].(*UserObj); ok {
 				currentOffsetUser = &InputUserObj{UserID: u.ID, AccessHash: u.AccessHash}
 			}
 		}
-		if len(chatInviteImporters.Importers) > 0 {
-			currentOffsetDate = int(chatInviteImporters.Importers[len(chatInviteImporters.Importers)-1].Date)
+		if len(importers.Importers) > 0 {
+			currentOffsetDate = importers.Importers[len(importers.Importers)-1].Date
 		}
 	}
-
 	return allUsers, nil
 }
 
