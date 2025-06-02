@@ -125,39 +125,41 @@ func (c *CACHE) WriteFile() {
 	if c.disabled || c.memory {
 		return
 	}
+
 	file, err := os.OpenFile(c.fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		c.logger.Error("error opening cache file: ", err)
 		return
 	}
 	defer file.Close()
-	enc := gob.NewEncoder(file)
-	c.Lock()
-	defer c.Unlock()
-	if err := enc.Encode(c.InputPeers); err != nil {
+
+	c.RLock()
+	defer c.RUnlock()
+	if err = gob.NewEncoder(file).Encode(c.InputPeers); err != nil {
 		c.logger.Error("error encoding cache file: ", err)
 	}
 }
 
 func (c *CACHE) ReadFile() {
 	file, err := os.Open(c.fileName)
-	if err != nil && !os.IsNotExist(err) {
-		c.logger.Error("error opening cache file: ", err)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			c.logger.Error("error opening cache file: ", err)
+		}
 		return
 	}
-
-	if os.IsNotExist(err) {
-		return
-	}
-
 	defer file.Close()
-	dec := gob.NewDecoder(file)
+
 	c.Lock()
-	dec.Decode(&c.InputPeers)
-	c.Unlock()
+	defer c.Unlock()
+	if err := gob.NewDecoder(file).Decode(&c.InputPeers); err != nil {
+		c.logger.Error("error decoding cache file: ", err)
+		return
+	}
 
 	if !c.memory {
-		c.logger.Debug(fmt.Sprintf("loaded %d users, %d channels from cache", len(c.InputPeers.InputUsers), len(c.InputPeers.InputChannels)))
+		c.logger.Debug(fmt.Sprintf("loaded %d users, %d channels from cache",
+			len(c.InputPeers.InputUsers), len(c.InputPeers.InputChannels)))
 	}
 }
 
