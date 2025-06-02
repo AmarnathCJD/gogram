@@ -19,15 +19,10 @@ type InlineSendOptions struct {
 	SwitchPmText string `json:"switch_pm_text,omitempty"`
 }
 
-const (
-	defaultCacheTime  = 60
-	defaultStartParam = "start"
-)
-
 // AnswerInlineQuery responds to an inline query with results
 func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult, Options ...*InlineSendOptions) (bool, error) {
 	options := getVariadic(Options, &InlineSendOptions{})
-	options.CacheTime = getValue(options.CacheTime, defaultCacheTime)
+	options.CacheTime = getValue(options.CacheTime, 60)
 
 	request := &MessagesSetInlineBotResultsParams{
 		Gallery:    options.Gallery,
@@ -40,7 +35,7 @@ func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult
 	if options.SwitchPm != "" {
 		request.SwitchPm = &InlineBotSwitchPm{
 			Text:       options.SwitchPm,
-			StartParam: getValue(options.SwitchPmText, defaultStartParam),
+			StartParam: getValue(options.SwitchPmText, "start"),
 		}
 	}
 
