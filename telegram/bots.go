@@ -19,9 +19,16 @@ type InlineSendOptions struct {
 	SwitchPmText string `json:"switch_pm_text,omitempty"`
 }
 
+const (
+	defaultCacheTime  = 60
+	defaultStartParam = "start"
+)
+
+// AnswerInlineQuery responds to an inline query with results
 func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult, Options ...*InlineSendOptions) (bool, error) {
 	options := getVariadic(Options, &InlineSendOptions{})
-	options.CacheTime = getValue(options.CacheTime, 60)
+	options.CacheTime = getValue(options.CacheTime, defaultCacheTime)
+
 	request := &MessagesSetInlineBotResultsParams{
 		Gallery:    options.Gallery,
 		Private:    options.Private,
@@ -33,9 +40,10 @@ func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult
 	if options.SwitchPm != "" {
 		request.SwitchPm = &InlineBotSwitchPm{
 			Text:       options.SwitchPm,
-			StartParam: getValue(options.SwitchPmText, "start"),
+			StartParam: getValue(options.SwitchPmText, defaultStartParam),
 		}
 	}
+
 	resp, err := c.MessagesSetInlineBotResults(request)
 	if err != nil {
 		return false, err
@@ -49,6 +57,7 @@ type CallbackOptions struct {
 	URL       string `json:"url,omitempty"`
 }
 
+// AnswerCallbackQuery responds to a callback query
 func (c *Client) AnswerCallbackQuery(QueryID int64, Text string, Opts ...*CallbackOptions) (bool, error) {
 	options := getVariadic(Opts, &CallbackOptions{})
 	request := &MessagesSetBotCallbackAnswerParams{
@@ -69,40 +78,38 @@ func (c *Client) AnswerCallbackQuery(QueryID int64, Text string, Opts ...*Callba
 	return resp, nil
 }
 
-// BOT COMMANDS
-
+// SetBotCommands configures bot commands
 func (c *Client) SetBotCommands(commands []*BotCommand, scope *BotCommandScope, languageCode ...string) (bool, error) {
-	resp, err := c.BotsSetBotCommands(*scope, getVariadic(languageCode, "en"), commands)
-	if err != nil {
-		return false, err
-	}
-	return resp, nil
+	language := getVariadic(languageCode, "en")
+	return c.BotsSetBotCommands(*scope, language, commands)
 }
 
-func (c *Client) SetBotDefaultPrivileges(privileges *ChatAdminRights, ForChannels ...bool) (resp bool, err error) {
-	forCh := getVariadic(ForChannels, true)
-	if forCh {
-		resp, err = c.BotsSetBotBroadcastDefaultAdminRights(privileges)
-		return
+// SetBotDefaultPrivileges sets default admin rights for the bot
+func (c *Client) SetBotDefaultPrivileges(privileges *ChatAdminRights, forChannels ...bool) (resp bool, err error) {
+	if getVariadic(forChannels, true) {
+		return c.BotsSetBotBroadcastDefaultAdminRights(privileges)
 	}
-	resp, err = c.BotsSetBotGroupDefaultAdminRights(privileges)
-	return
+	return c.BotsSetBotGroupDefaultAdminRights(privileges)
 }
 
+// SetChatMenuButton sets the bot's menu button for a specific user
 func (c *Client) SetChatMenuButton(userID int64, button *BotMenuButton) (bool, error) {
 	peer, err := c.ResolvePeer(userID)
 	if err != nil {
 		return false, err
 	}
+
 	peerUser, ok := peer.(*InputPeerUser)
 	if !ok {
-		return false, errors.New("invalid user")
+		return false, errors.New("invalid user peer")
 	}
-	resp, err := c.BotsSetBotMenuButton(&InputUserObj{AccessHash: peerUser.AccessHash, UserID: peerUser.UserID}, *button)
-	if err != nil {
-		return false, err
+
+	inputUser := &InputUserObj{
+		AccessHash: peerUser.AccessHash,
+		UserID:     peerUser.UserID,
 	}
-	return resp, nil
+
+	return c.BotsSetBotMenuButton(inputUser, *button)
 }
 
 // In testing stage, TODO
@@ -115,18 +122,22 @@ func (c *Client) Broadcast(ctx ...context.Context) (chan User, chan Chat, error)
 		ctxC = context.Background()
 	}
 
-	s, err := c.UpdatesGetState()
+	state, err := c.UpdatesGetState()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	endPts := s.Pts
+	userChan := make(chan User, 100)
+	chatChan := make(chan Chat, 100)
 
-	var users = make(map[int64]User)
-	var chats = make(map[int64]Chat)
+	go c.broadcastWorker(ctxC, state.Pts, userChan, chatChan)
 
-	var userChan = make(chan User, 100)
-	var chatChan = make(chan Chat, 100)
+	return userChan, chatChan, nil
+}
+
+func (c *Client) broadcastWorker(ctx context.Context, endPts int32, userChan chan<- User, chatChan chan<- Chat) {
+	defer close(userChan)
+	defer close(chatChan)
 
 	req := &UpdatesGetDifferenceParams{
 		Pts:           1,
@@ -136,94 +147,102 @@ func (c *Client) Broadcast(ctx ...context.Context) (chan User, chan Chat, error)
 		Qts:           1,
 	}
 
-	go func() {
-		defer close(userChan)
-		defer close(chatChan)
+	users := make(map[int64]struct{})
+	chats := make(map[int64]struct{})
 
-		for req.Pts < endPts {
-			select {
-			case <-ctxC.Done():
-				return
-			default:
-			}
-
-			updates, err := c.MakeRequestCtx(ctxC, req)
-			if err != nil {
-				if handleIfFlood(err, c) {
-					continue
-				}
-				c.Logger.Error(err)
-				return
-			}
-
-			switch u := updates.(type) {
-			case *UpdatesDifferenceObj:
-				for _, user := range u.Users {
-					switch uz := user.(type) {
-					case *UserObj:
-						if _, ok := users[uz.ID]; !ok {
-							userChan <- uz
-						}
-						users[uz.ID] = uz
-					}
-				}
-				for _, chat := range u.Chats {
-					switch cz := chat.(type) {
-					case *ChatObj:
-						if _, ok := chats[cz.ID]; !ok {
-							chatChan <- cz
-						}
-						chats[cz.ID] = cz
-					case *Channel:
-						if _, ok := chats[cz.ID]; !ok {
-							chatChan <- cz
-						}
-						chats[cz.ID] = cz
-					}
-				}
-
-				req.Pts = u.State.Pts
-				req.Qts = u.State.Qts
-				req.Date = u.State.Date
-			case *UpdatesDifferenceSlice:
-				for _, user := range u.Users {
-					switch uz := user.(type) {
-					case *UserObj:
-						if _, ok := users[uz.ID]; !ok {
-							userChan <- uz
-						}
-						users[uz.ID] = uz
-					}
-				}
-				for _, chat := range u.Chats {
-					switch cz := chat.(type) {
-					case *ChatObj:
-						if _, ok := chats[cz.ID]; !ok {
-							chatChan <- cz
-						}
-						chats[cz.ID] = cz
-					case *Channel:
-						if _, ok := chats[cz.ID]; !ok {
-							chatChan <- cz
-						}
-						chats[cz.ID] = cz
-					}
-				}
-
-				req.Pts = u.IntermediateState.Pts
-				req.Qts = u.IntermediateState.Qts
-				req.Date = u.IntermediateState.Date
-			case *UpdatesDifferenceEmpty:
-				break
-			case *UpdatesDifferenceTooLong:
-				endPts = u.Pts
-			}
-
-			time.Sleep(150 * time.Millisecond)
+	for req.Pts < endPts {
+		select {
+		case <-ctx.Done():
+			return
+		default:
 		}
-	}()
 
-	return userChan, chatChan, nil
+		updates, err := c.MakeRequestCtx(ctx, req)
+		if err != nil {
+			if handleIfFlood(err, c) {
+				continue
+			}
+			c.Logger.Error(err)
+			return
+		}
+
+		switch u := updates.(type) {
+		case *UpdatesDifferenceObj:
+			c.processDifference(u, users, chats, userChan, chatChan)
+			req.Pts = u.State.Pts
+			req.Qts = u.State.Qts
+			req.Date = u.State.Date
+
+		case *UpdatesDifferenceSlice:
+			c.processDifferenceSlice(u, users, chats, userChan, chatChan)
+			req.Pts = u.IntermediateState.Pts
+			req.Qts = u.IntermediateState.Qts
+			req.Date = u.IntermediateState.Date
+
+		case *UpdatesDifferenceEmpty:
+			break
+
+		case *UpdatesDifferenceTooLong:
+			endPts = u.Pts
+		}
+
+		time.Sleep(150 * time.Millisecond)
+	}
+}
+
+func (c *Client) processDifference(diff *UpdatesDifferenceObj, users map[int64]struct{}, chats map[int64]struct{}, userChan chan<- User, chatChan chan<- Chat) {
+	for _, user := range diff.Users {
+		if uz, ok := user.(*UserObj); ok {
+			if _, exists := users[uz.ID]; !exists {
+				userChan <- uz
+				users[uz.ID] = struct{}{}
+			}
+		}
+	}
+
+	for _, chat := range diff.Chats {
+		switch cz := chat.(type) {
+		case *ChatObj, *Channel:
+			id := getChatID(cz)
+			if _, exists := chats[id]; !exists {
+				chatChan <- cz
+				chats[id] = struct{}{}
+			}
+		}
+	}
+}
+
+func (c *Client) processDifferenceSlice(diff *UpdatesDifferenceSlice, users map[int64]struct{}, chats map[int64]struct{}, userChan chan<- User, chatChan chan<- Chat) {
+	for _, user := range diff.Users {
+		if uz, ok := user.(*UserObj); ok {
+			if _, exists := users[uz.ID]; !exists {
+				userChan <- uz
+				users[uz.ID] = struct{}{}
+			}
+		}
+	}
+
+	for _, chat := range diff.Chats {
+		switch cz := chat.(type) {
+		case *ChatObj, *Channel:
+			id := getChatID(cz)
+			if _, exists := chats[id]; !exists {
+				chatChan <- cz
+				chats[id] = struct{}{}
+			}
+		}
+	}
+}
+
+func getChatID(chat interface{}) int64 {
+	switch c := chat.(type) {
+	case *ChatObj:
+		return c.ID
+	case *Channel:
+		return c.ID
+	default:
+		return 0
+	}
 }
 
 // Buy a gift for a user
@@ -257,41 +276,43 @@ func (c *Client) SendNewGift(toPeer any, giftId int64, message ...string) (Payme
 }
 
 // Transfer a saved gift to another user (must be a unique gift)
-func (c *Client) SendGift(toPeer any, giftId int64, message ...string) (PaymentsPaymentResult, error) {
-	mygifts, _ := c.PaymentsGetSavedStarGifts(&PaymentsGetSavedStarGiftsParams{
+func (c *Client) SendGift(toPeer any, giftID int64, message ...string) (PaymentsPaymentResult, error) {
+	mygifts, err := c.PaymentsGetSavedStarGifts(&PaymentsGetSavedStarGiftsParams{
 		Peer: &InputPeerSelf{},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	userPeer, err := c.ResolvePeer(toPeer)
 	if err != nil {
 		return nil, err
 	}
 
-	var toSend int32
-
+	var msgID int32
 	for _, vx := range mygifts.Gifts {
 		switch v := vx.Gift.(type) {
 		case *StarGiftObj:
-			if v.ID == giftId {
-				toSend = vx.MsgID
+			if v.ID == giftID {
+				msgID = vx.MsgID
 				break
 			}
 		case *StarGiftUnique:
-			if v.ID == giftId {
-				toSend = vx.MsgID
+			if v.ID == giftID {
+				msgID = vx.MsgID
 				break
 			}
 		}
 	}
 
-	if toSend == 0 {
+	if msgID == 0 {
 		return nil, fmt.Errorf("specified unique gift not found")
 	}
 
 	inv := &InputInvoiceStarGiftTransfer{
 		ToID: userPeer,
 		Stargift: &InputSavedStarGiftUser{
-			MsgID: toSend,
+			MsgID: msgID,
 		},
 	}
 
@@ -311,13 +332,12 @@ func (c *Client) GetMyGifts(unique ...bool) ([]*StarGift, error) {
 		return nil, err
 	}
 
-	var uq = getVariadic(unique, false)
-	if !uq {
-		var giftsArray []*StarGift
-		for _, v := range gifts.Gifts {
-			giftsArray = append(giftsArray, &v.Gift)
+	if !getVariadic(unique, false) {
+		result := make([]*StarGift, len(gifts.Gifts))
+		for i, v := range gifts.Gifts {
+			result[i] = &v.Gift
 		}
-		return giftsArray, nil
+		return result, nil
 	}
 
 	var uniqueGifts []*StarGift
