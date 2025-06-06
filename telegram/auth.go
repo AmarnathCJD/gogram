@@ -3,8 +3,6 @@
 package telegram
 
 import (
-	"bufio"
-	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -13,7 +11,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,8 +28,6 @@ func (c *Client) ConnectBot(botToken string) error {
 	return c.LoginBot(botToken)
 }
 
-const maxRetries = 3
-
 var (
 	botTokenRegex = regexp.MustCompile(`^\d+:[\w\d_-]+$`)
 	phoneRegex    = regexp.MustCompile(`^\+?\d+$`)
@@ -43,30 +38,34 @@ func (c *Client) AuthPrompt() error {
 	if au, _ := c.IsAuthorized(); au {
 		return nil
 	}
-
-	reader := bufio.NewReader(os.Stdin)
-	for i := range maxRetries {
-		fmt.Print("Enter phone number (with country code [+42xxx]) or bot token: ")
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			return fmt.Errorf("failed to read input: %w", err)
+	var input string
+	maxRetries := 3
+	for i := 0; i < maxRetries; i++ {
+		fmt.Printf("Enter phone number (with country code [+42xxx]) or bot token: ")
+		fmt.Scanln(&input)
+		if input != "" {
+			if botTokenRegex.MatchString(input) {
+				err := c.LoginBot(input)
+				if err != nil {
+					return err
+				}
+			} else {
+				if phoneRegex.MatchString(strings.TrimSpace(input)) {
+					_, err := c.Login(input)
+					if err != nil {
+						return err
+					}
+				} else {
+					fmt.Println("The input is not a valid phone number or bot token, try again [", i+1, "/", maxRetries, "]")
+					continue
+				}
+			}
+			break
+		} else {
+			fmt.Println("Invalid response, try again")
 		}
-		input = strings.TrimSpace(input)
-		if input == "" {
-			fmt.Printf("Invalid response, try again [%d/%d]\n", i+1, maxRetries)
-			continue
-		}
-
-		if botTokenRegex.MatchString(input) {
-			return c.LoginBot(input)
-		}
-		if phoneRegex.MatchString(input) {
-			_, err := c.Login(input)
-			return err
-		}
-		fmt.Printf("The input is not a valid phone number or bot token, try again [%d/%d]\n", i+1, maxRetries)
 	}
-	return fmt.Errorf("max retries exceeded for authentication")
+	return nil
 }
 
 // Authorize client with bot token
@@ -289,30 +288,21 @@ type ScrapeConfig struct {
 }
 
 func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, error) {
-	conf := getVariadic(config, &ScrapeConfig{
+	var conf = getVariadic(config, &ScrapeConfig{
 		CreateIfNotExists: true,
 	})
 
 	if conf.PhoneNum == "" {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter phone number (with country code [+1xxx]): ")
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			return 0, "", false, fmt.Errorf("failed to read phone number: %w", err)
-		}
-		conf.PhoneNum = strings.TrimSpace(input)
+		fmt.Printf("Enter phone number (with country code [+1xxx]): ")
+		fmt.Scanln(&conf.PhoneNum)
 	}
 
 	if conf.WebCodeCallback == nil {
 		conf.WebCodeCallback = func() (string, error) {
-			reader := bufio.NewReader(os.Stdin)
-			fmt.Print("Enter received web login code: ")
-
-			code, err := reader.ReadString('\n')
-			if err != nil {
-				return "", fmt.Errorf("failed to read web code: %w", err)
-			}
-			return strings.TrimSpace(code), nil
+			fmt.Printf("Enter received web login code: ")
+			var password string
+			fmt.Scanln(&password)
+			return password, nil
 		}
 	}
 
@@ -320,132 +310,117 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 		Timeout: time.Second * 10,
 	}
 
-	// Send code request
 	reqCode, err := http.NewRequest("POST", "https://my.telegram.org/auth/send_password", strings.NewReader("phone="+url.QueryEscape(conf.PhoneNum)))
 	if err != nil {
-		return 0, "", false, fmt.Errorf("failed to create code request: %w", err)
+		return 0, "", false, err
 	}
+
 	reqCode.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	respCode, err := customClient.Do(reqCode)
-	if err != nil {
-		return 0, "", false, fmt.Errorf("failed to send code request: %w", err)
-	}
-	defer respCode.Body.Close()
-	if respCode.StatusCode != 200 {
-		return 0, "", false, fmt.Errorf("code request failed with status: %d", respCode.StatusCode)
+	if err != nil || respCode.StatusCode != 200 {
+		return 0, "", false, err
 	}
 
 	var result struct {
 		RandomHash string `json:"random_hash"`
 	}
+
 	if err := json.NewDecoder(respCode.Body).Decode(&result); err != nil {
-		return 0, "", false, errors.Wrap(err, "failed to decode response, too many requests?")
+		return 0, "", false, errors.Wrap(err, "Too many requests, try again later")
 	}
 
 	code, err := conf.WebCodeCallback()
 	if err != nil {
-		return 0, "", false, fmt.Errorf("failed to get web code: %w", err)
+		return 0, "", false, err
 	}
 
-	// Login request
 	reqLogin, err := http.NewRequest("POST", "https://my.telegram.org/auth/login", strings.NewReader("phone="+url.QueryEscape(conf.PhoneNum)+"&random_hash="+result.RandomHash+"&password="+url.QueryEscape(code)))
-	if err != nil {
-		return 0, "", false, fmt.Errorf("failed to create login request: %w", err)
-	}
-	reqLogin.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	respLogin, err := customClient.Do(reqLogin)
-	if err != nil {
-		return 0, "", false, fmt.Errorf("failed to send login request: %w", err)
-	}
-	defer respLogin.Body.Close()
-	if respLogin.StatusCode != 200 {
-		return 0, "", false, fmt.Errorf("login request failed with status: %d", respLogin.StatusCode)
-	}
-
-	cookies := respLogin.Cookies()
-	appID, appHash, err := c.scrapeAppDetails(customClient, cookies, conf.CreateIfNotExists)
 	if err != nil {
 		return 0, "", false, err
 	}
 
-	return appID, appHash, true, nil
-}
+	reqLogin.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-func (c *Client) scrapeAppDetails(client *http.Client, cookies []*http.Cookie, createIfNotExists bool) (int32, string, error) {
-	appIDRegex := regexp.MustCompile(`<label for="app_id".*?>.*?</label>\s*<div.*?>\s*<span.*?><strong>(\d+)</strong></span>`)
-	appHashRegex := regexp.MustCompile(`<label for="app_hash".*?>.*?</label>\s*<div.*?>\s*<span.*?>([a-fA-F0-9]+)</span>`)
+	respLogin, err := customClient.Do(reqLogin)
+	if err != nil || respLogin.StatusCode != 200 {
+		return 0, "", false, err
+	}
 
+	cookies := respLogin.Cookies()
+	ALREDY_TRIED_CREATION := false
+
+BackToAppsPage:
 	reqScrape, err := http.NewRequest("GET", "https://my.telegram.org/apps", nil)
 	if err != nil {
-		return 0, "", fmt.Errorf("failed to create scrape request: %w", err)
+		return 0, "", false, err
 	}
+
 	for _, cookie := range cookies {
 		reqScrape.AddCookie(cookie)
 	}
 
-	respScrape, err := client.Do(reqScrape)
-	if err != nil {
-		return 0, "", fmt.Errorf("failed to send scrape request: %w", err)
-	}
-	defer respScrape.Body.Close()
-	if respScrape.StatusCode != 200 {
-		return 0, "", fmt.Errorf("scrape request failed with status: %d", respScrape.StatusCode)
+	respScrape, err := customClient.Do(reqScrape)
+	if err != nil || respScrape.StatusCode != 200 {
+		return 0, "", false, err
 	}
 
 	body, err := io.ReadAll(respScrape.Body)
 	if err != nil {
-		return 0, "", fmt.Errorf("failed to read scrape response: %w", err)
+		return 0, "", false, err
 	}
+
+	appIDRegex := regexp.MustCompile(`<label for="app_id".*?>.*?</label>\s*<div.*?>\s*<span.*?><strong>(\d+)</strong></span>`)
+	appHashRegex := regexp.MustCompile(`<label for="app_hash".*?>.*?</label>\s*<div.*?>\s*<span.*?>([a-fA-F0-9]+)</span>`)
 
 	appID := appIDRegex.FindStringSubmatch(string(body))
 	appHash := appHashRegex.FindStringSubmatch(string(body))
 
-	if len(appID) < 2 || len(appHash) < 2 {
-		if !createIfNotExists || strings.Contains(string(body), "Create new application") {
-			hiddenHashRegex := regexp.MustCompile(`<input type="hidden" name="hash" value="([a-fA-F0-9]+)"\/>`)
-			hiddenHash := hiddenHashRegex.FindStringSubmatch(string(body))
-			if len(hiddenHash) < 2 {
-				return 0, "", errors.New("creation hash not found, try manual creation")
-			}
-
-			appRandomSuffix := make([]byte, 8)
-			if _, err := rand.Read(appRandomSuffix); err != nil {
-				return 0, "", fmt.Errorf("failed to generate random suffix: %w", err)
-			}
-
-			reqCreateApp, err := http.NewRequest("POST", "https://my.telegram.org/apps/create", strings.NewReader("hash="+hiddenHash[1]+"&app_title=AppForGogram"+string(appRandomSuffix)+"&app_shortname=gogramapp"+string(appRandomSuffix)+"&app_platform=android&app_url=https%3A%2F%2Fgogram.vercel.app&app_desc=ForGoGram"+string(appRandomSuffix)))
-			if err != nil {
-				return 0, "", fmt.Errorf("failed to create app creation request: %w", err)
-			}
-			reqCreateApp.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			for _, cookie := range cookies {
-				reqCreateApp.AddCookie(cookie)
-			}
-
-			respCreateApp, err := client.Do(reqCreateApp)
-			if err != nil {
-				return 0, "", fmt.Errorf("failed to send app creation request: %w", err)
-			}
-			defer respCreateApp.Body.Close()
-			if respCreateApp.StatusCode != 200 {
-				return 0, "", fmt.Errorf("app creation request failed with status: %d", respCreateApp.StatusCode)
-			}
-
-			return c.scrapeAppDetails(client, cookies, false)
+	if len(appID) < 2 || len(appHash) < 2 || strings.Contains(string(body), "Create new application") && !ALREDY_TRIED_CREATION {
+		ALREDY_TRIED_CREATION = true
+		// assume app is not created, create app
+		hiddenHashRegex := regexp.MustCompile(`<input type="hidden" name="hash" value="([a-fA-F0-9]+)"\/>`)
+		hiddenHash := hiddenHashRegex.FindStringSubmatch(string(body))
+		if len(hiddenHash) < 2 {
+			return 0, "", false, errors.New("creation hash not found, try manual creation")
 		}
-		return 0, "", errors.New("failed to scrape app ID or hash")
+
+		appRandomSuffix := make([]byte, 8)
+		_, err := rand.Read(appRandomSuffix)
+
+		if err != nil {
+			return 0, "", false, err
+		}
+
+		reqCreateApp, err := http.NewRequest("POST", "https://my.telegram.org/apps/create", strings.NewReader("hash="+hiddenHash[1]+"&app_title=AppForGogram"+string(appRandomSuffix)+"&app_shortname=gogramapp"+string(appRandomSuffix)+"&app_platform=android&app_url=https%3A%2F%2Fgogram.vercel.app&app_desc=ForGoGram"+string(appRandomSuffix)))
+		if err != nil {
+			return 0, "", false, err
+		}
+
+		reqCreateApp.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		for _, cookie := range cookies {
+			reqCreateApp.AddCookie(cookie)
+		}
+
+		respCreateApp, err := customClient.Do(reqCreateApp)
+		if err != nil || respCreateApp.StatusCode != 200 {
+			return 0, "", false, err
+		}
+
+		goto BackToAppsPage
 	}
 
 	appIdNum, err := strconv.Atoi(appID[1])
 	if err != nil {
-		return 0, "", fmt.Errorf("failed to parse app ID: %w", err)
-	} else if appIdNum > math.MaxInt32 || appIdNum < math.MinInt32 {
-		return 0, "", errors.New("app ID is out of range")
+		return 0, "", false, err
 	}
 
-	return int32(appIdNum), appHash[1], nil
+	if appIdNum > math.MaxInt32 || appIdNum < math.MinInt32 {
+		return 0, "", false, errors.New("app id is out of range")
+	}
+
+	return int32(appIdNum), appHash[1], true, nil
 }
 
 func (c *Client) AcceptTOS() (bool, error) {
@@ -457,13 +432,11 @@ func (c *Client) AcceptTOS() (bool, error) {
 	case *HelpTermsOfServiceUpdateObj:
 		fmt.Println(tos.TermsOfService.Text)
 		fmt.Println("Do you accept the TOS? (y/n)")
-
 		var input string
 		fmt.Scanln(&input)
 		if input != "y" {
 			return false, nil
 		}
-
 		return c.HelpAcceptTermsOfService(tos.TermsOfService.ID)
 	default:
 		return false, nil
@@ -584,19 +557,14 @@ func (q *QrToken) Recreate() (*QrToken, error) {
 	return q, err
 }
 
-func (q *QrToken) Wait(ctx context.Context, timeout ...int32) error {
-	const defaultTimeout int32 = 600 // 10 minutes
-	q.Timeout = getVariadic(timeout, defaultTimeout)
-
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(q.Timeout)*time.Second)
-	defer cancel()
-
+func (q *QrToken) Wait(timeout ...int32) error {
+	const def int32 = 600 // 10 minutes
+	q.Timeout = getVariadic(timeout, def)
 	ch := make(chan int)
 	ev := q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update, client *Client) error {
 		ch <- 1
 		return nil
 	})
-
 	select {
 	case <-ch:
 		go q.client.removeHandle(ev)
@@ -625,7 +593,7 @@ func (q *QrToken) Wait(ctx context.Context, timeout ...int32) error {
 			}
 		}
 		return nil
-	case <-ctx.Done():
+	case <-time.After(time.Duration(q.Timeout) * time.Second):
 		go q.client.removeHandle(ev)
 		return errors.New("qr login timed out")
 	}
@@ -633,11 +601,12 @@ func (q *QrToken) Wait(ctx context.Context, timeout ...int32) error {
 
 func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 	// Get QR code
-	qr, err := c.AuthExportLoginToken(c.AppID(), c.AppHash(), IgnoreIDs)
+	var ignoreIDs []int64
+	ignoreIDs = append(ignoreIDs, IgnoreIDs...)
+	qr, err := c.AuthExportLoginToken(c.AppID(), c.AppHash(), ignoreIDs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to export QR token: %v", err)
+		return nil, err
 	}
-
 	var (
 		qrToken   []byte
 		expiresIn int32 = 60
@@ -650,7 +619,6 @@ func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 		qrToken = qr.Token
 		expiresIn = qr.Expires
 	}
-
 	// Get QR code URL
 	qrURL := base64.RawURLEncoding.EncodeToString(qrToken)
 	return &QrToken{
@@ -658,7 +626,7 @@ func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 		Url:        fmt.Sprintf("tg://login?token=%s", qrURL),
 		ExpiresIn:  expiresIn,
 		client:     c,
-		IgnoredIDs: IgnoreIDs,
+		IgnoredIDs: ignoreIDs,
 	}, nil
 }
 
