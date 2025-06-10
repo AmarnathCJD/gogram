@@ -471,6 +471,9 @@ func (es *ExSenders) Close() {
 
 // CreateExportedSender creates a new exported sender for the given DC
 func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
+	if dcID <= 0 {
+		return nil, errors.New("invalid data center ID")
+	}
 	const retryLimit = 3 // Retry only once
 	var lastError error
 
