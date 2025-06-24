@@ -477,7 +477,9 @@ func (c *Client) getSendableMedia(mediaFile any, attributes *MediaMetadata) (Inp
 	var thumbnail InputFile
 
 	switch thumb := attr.Thumb.(type) {
-	case InputFile, *InputFile, nil:
+	case InputFile, *InputFile:
+		thumbnail = getValueAny(thumb, &InputFileObj{}).(InputFile)
+	case nil:
 
 	default:
 		fi, err := c.UploadFile(thumb)
