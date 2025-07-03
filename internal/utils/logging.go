@@ -133,5 +133,5 @@ func getVariable(v ...any) string {
 	if len(v) == 1 {
 		return fmt.Sprint(v[0])
 	}
-	return strings.Trim(fmt.Sprint(v...), "[]")
+	return strings.Trim(fmt.Sprint(v...), "]")
 }
