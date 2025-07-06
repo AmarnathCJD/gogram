@@ -130,6 +130,140 @@ func Xor(dst, src []byte) {
 	}
 }
 
+type Random struct {
+	state uint64
+}
+
+func (r *Random) FastUint64() uint64 {
+	x := r.state
+	x ^= x >> 12
+	x ^= x << 25
+	x ^= x >> 27
+	r.state = x
+	return (x * 0x2545f4914f6cdd1d) & 0xffffffffffffffff
+}
+
+func randomInRange(r *Random, n uint64) uint64 {
+	return (r.FastUint64() % (n - 1)) + 1
+}
+
+func Factorize(pq *big.Int) (*big.Int, *big.Int) {
+	if pq.BitLen() <= 64 {
+		pqU64 := pq.Uint64()
+		p, q := factorizeU64(pqU64)
+		if p == 0 || q == 0 {
+			return nil, nil // Factorization failed
+		}
+		return big.NewInt(int64(p)), big.NewInt(int64(q))
+	}
+
+	p, q := Fac(pq)
+	if p.Cmp(q) > 0 {
+		p, q = q, p
+	}
+	return p, q
+}
+
+// factorizeU64 factors a 64-bit integer using Pollard's Rho algorithm with optimizations.
+func factorizeU64(pq uint64) (uint64, uint64) {
+	// Handle even numbers immediately
+	if pq%2 == 0 {
+		return 2, pq / 2
+	}
+
+	// Initialize PRNG with a fixed seed
+	rand := &Random{state: 0xdeadbeefcafebabe}
+
+	// Preallocate big.Int objects to avoid allocations in the loop
+	bigPQ := big.NewInt(0).SetUint64(pq)
+	bigY := big.NewInt(0)
+	bigC := big.NewInt(0)
+	bigQ := big.NewInt(1)
+	bigTemp := big.NewInt(0)
+	bigDiff := big.NewInt(0)
+
+	// Initialize constants
+	c := randomInRange(rand, pq)
+	bigC.SetUint64(c)
+	y := randomInRange(rand, pq)
+	bigY.SetUint64(y)
+
+	// Define the function f(y) = (y * y + c) % pq using big.Int
+	f := func() {
+		bigTemp.Mul(bigY, bigY)
+		bigTemp.Add(bigTemp, bigC)
+		bigY.Mod(bigTemp, bigPQ)
+	}
+
+	const M = 128
+	g := uint64(1)
+	r := uint64(1)
+	var x, ys uint64
+
+	// Main loop: continue until a factor is found
+	for g == 1 {
+		x = y
+		for i := uint64(0); i < r; i++ {
+			f()
+			y = bigY.Uint64()
+		}
+		k := uint64(0)
+		for k < r && g == 1 {
+			ys = y
+			iterations := M
+			if r-k < M {
+				iterations = int(r - k)
+			}
+			for i := 0; i < iterations; i++ {
+				f()
+				y = bigY.Uint64()
+				var diff uint64
+				if x >= y {
+					diff = x - y
+				} else {
+					diff = y - x
+				}
+				bigDiff.SetUint64(diff)
+				bigQ.Mul(bigQ, bigDiff)
+				bigQ.Mod(bigQ, bigPQ)
+			}
+			bigG := big.NewInt(0).GCD(nil, nil, bigQ, bigPQ)
+			g = bigG.Uint64()
+			k += M
+		}
+		r *= 2
+	}
+
+	// If g equals pq, try again with the saved ys value
+	if g == pq {
+		g = 1
+		y = ys
+		bigY.SetUint64(y)
+		for g == 1 {
+			f()
+			y = bigY.Uint64()
+			var diff uint64
+			if x >= y {
+				diff = x - y
+			} else {
+				diff = y - x
+			}
+			bigDiff.SetUint64(diff)
+			bigG := big.NewInt(0).GCD(nil, nil, bigDiff, bigPQ)
+			g = bigG.Uint64()
+		}
+	}
+
+	if g > 1 && g < pq {
+		other := pq / g
+		if g < other {
+			return g, other
+		}
+		return other, g
+	}
+	return 0, 0
+}
+
 // Fac splits a number into two primes, while p < q
 // Part of diffie hellman's algorithm
 // Uses Pollard's rho algorithm
