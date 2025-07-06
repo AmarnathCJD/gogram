@@ -877,6 +877,7 @@ func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 
 	var peerCheckUserPassed bool
 	var peerCheckGroupPassed bool
+	var peerCheckChannelPassed bool
 
 	if len(actUsers) > 0 && m.SenderID() != 0 {
 		if inSlice(m.SenderID(), actUsers) {
@@ -906,14 +907,14 @@ func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 				return false
 			}
 			// if the channel is in the blacklist, we should not pass the check
-			peerCheckGroupPassed = true
+			peerCheckChannelPassed = true
 		}
 	} else {
 		// if there are no channels in the filter, we should pass the check
-		peerCheckGroupPassed = true
+		peerCheckChannelPassed = true
 	}
 
-	if !actAsBlacklist && (len(actUsers) > 0 || len(actGroups) > 0 || len(actChannels) > 0) && !(peerCheckUserPassed && peerCheckGroupPassed) {
+	if !actAsBlacklist && (len(actUsers) > 0 || len(actGroups) > 0 || len(actChannels) > 0) && !(peerCheckUserPassed && peerCheckGroupPassed && peerCheckChannelPassed) {
 		return false
 	}
 
