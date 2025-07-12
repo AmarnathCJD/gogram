@@ -40,35 +40,6 @@ func (c *Client) AccountAcceptAuthorization(botID int64, scope, publicKey string
 	return resp, nil
 }
 
-type AccountAddNoPaidMessagesExceptionParams struct {
-	RefundCharged bool `tl:"flag:0,encoded_in_bitflags"`
-	UserID        InputUser
-}
-
-func (*AccountAddNoPaidMessagesExceptionParams) CRC() uint32 {
-	return 0x6f688aa7
-}
-
-func (*AccountAddNoPaidMessagesExceptionParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) AccountAddNoPaidMessagesException(refundCharged bool, userID InputUser) (bool, error) {
-	responseData, err := c.MakeRequest(&AccountAddNoPaidMessagesExceptionParams{
-		RefundCharged: refundCharged,
-		UserID:        userID,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending AccountAddNoPaidMessagesException")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type AccountCancelPasswordEmailParams struct{}
 
 func (*AccountCancelPasswordEmailParams) CRC() uint32 {
@@ -992,15 +963,23 @@ func (c *Client) AccountGetNotifySettings(peer InputNotifyPeer) (*PeerNotifySett
 }
 
 type AccountGetPaidMessagesRevenueParams struct {
-	UserID InputUser
+	ParentPeer InputPeer `tl:"flag:0"`
+	UserID     InputUser
 }
 
 func (*AccountGetPaidMessagesRevenueParams) CRC() uint32 {
-	return 0xf1266f38
+	return 0x19ba4a67
 }
 
-func (c *Client) AccountGetPaidMessagesRevenue(userID InputUser) (*AccountPaidMessagesRevenue, error) {
-	responseData, err := c.MakeRequest(&AccountGetPaidMessagesRevenueParams{UserID: userID})
+func (*AccountGetPaidMessagesRevenueParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AccountGetPaidMessagesRevenue(parentPeer InputPeer, userID InputUser) (*AccountPaidMessagesRevenue, error) {
+	responseData, err := c.MakeRequest(&AccountGetPaidMessagesRevenueParams{
+		ParentPeer: parentPeer,
+		UserID:     userID,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending AccountGetPaidMessagesRevenue")
 	}
@@ -2146,6 +2125,39 @@ func (c *Client) AccountToggleConnectedBotPaused(peer InputPeer, paused bool) (b
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending AccountToggleConnectedBotPaused")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type AccountToggleNoPaidMessagesExceptionParams struct {
+	RefundCharged  bool      `tl:"flag:0,encoded_in_bitflags"`
+	RequirePayment bool      `tl:"flag:2,encoded_in_bitflags"`
+	ParentPeer     InputPeer `tl:"flag:1"`
+	UserID         InputUser
+}
+
+func (*AccountToggleNoPaidMessagesExceptionParams) CRC() uint32 {
+	return 0xfe2eda76
+}
+
+func (*AccountToggleNoPaidMessagesExceptionParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AccountToggleNoPaidMessagesException(refundCharged, requirePayment bool, parentPeer InputPeer, userID InputUser) (bool, error) {
+	responseData, err := c.MakeRequest(&AccountToggleNoPaidMessagesExceptionParams{
+		ParentPeer:     parentPeer,
+		RefundCharged:  refundCharged,
+		RequirePayment: requirePayment,
+		UserID:         userID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending AccountToggleNoPaidMessagesException")
 	}
 
 	resp, ok := responseData.(bool)
@@ -5864,18 +5876,24 @@ func (c *Client) ChannelsUpdateEmojiStatus(channel InputChannel, emojiStatus Emo
 }
 
 type ChannelsUpdatePaidMessagesPriceParams struct {
-	Channel               InputChannel
-	SendPaidMessagesStars int64
+	BroadcastMessagesAllowed bool `tl:"flag:0,encoded_in_bitflags"`
+	Channel                  InputChannel
+	SendPaidMessagesStars    int64
 }
 
 func (*ChannelsUpdatePaidMessagesPriceParams) CRC() uint32 {
-	return 0xfc84653f
+	return 0x4b12327b
 }
 
-func (c *Client) ChannelsUpdatePaidMessagesPrice(channel InputChannel, sendPaidMessagesStars int64) (Updates, error) {
+func (*ChannelsUpdatePaidMessagesPriceParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) ChannelsUpdatePaidMessagesPrice(broadcastMessagesAllowed bool, channel InputChannel, sendPaidMessagesStars int64) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsUpdatePaidMessagesPriceParams{
-		Channel:               channel,
-		SendPaidMessagesStars: sendPaidMessagesStars,
+		BroadcastMessagesAllowed: broadcastMessagesAllowed,
+		Channel:                  channel,
+		SendPaidMessagesStars:    sendPaidMessagesStars,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending ChannelsUpdatePaidMessagesPrice")
@@ -7751,6 +7769,33 @@ func (c *Client) MessagesAddChatUser(chatID int64, userID InputUser, fwdLimit in
 	return resp, nil
 }
 
+type MessagesAppendTodoListParams struct {
+	Peer  InputPeer
+	MsgID int32
+	List  []*TodoItem
+}
+
+func (*MessagesAppendTodoListParams) CRC() uint32 {
+	return 0x21a61057
+}
+
+func (c *Client) MessagesAppendTodoList(peer InputPeer, msgID int32, list []*TodoItem) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesAppendTodoListParams{
+		List:  list,
+		MsgID: msgID,
+		Peer:  peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesAppendTodoList")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesCheckChatInviteParams struct {
 	Hash string
 }
@@ -8700,28 +8745,29 @@ func (c *Client) MessagesForwardMessage(peer InputPeer, id int32, randomID int64
 }
 
 type MessagesForwardMessagesParams struct {
-	Silent             bool                    `tl:"flag:5,encoded_in_bitflags"`
-	Background         bool                    `tl:"flag:6,encoded_in_bitflags"`
-	WithMyScore        bool                    `tl:"flag:8,encoded_in_bitflags"`
-	DropAuthor         bool                    `tl:"flag:11,encoded_in_bitflags"`
-	DropMediaCaptions  bool                    `tl:"flag:12,encoded_in_bitflags"`
-	Noforwards         bool                    `tl:"flag:14,encoded_in_bitflags"`
-	AllowPaidFloodskip bool                    `tl:"flag:19,encoded_in_bitflags"`
+	Silent             bool `tl:"flag:5,encoded_in_bitflags"`
+	Background         bool `tl:"flag:6,encoded_in_bitflags"`
+	WithMyScore        bool `tl:"flag:8,encoded_in_bitflags"`
+	DropAuthor         bool `tl:"flag:11,encoded_in_bitflags"`
+	DropMediaCaptions  bool `tl:"flag:12,encoded_in_bitflags"`
+	Noforwards         bool `tl:"flag:14,encoded_in_bitflags"`
+	AllowPaidFloodskip bool `tl:"flag:19,encoded_in_bitflags"`
 	FromPeer           InputPeer
 	ID                 []int32
 	RandomID           []int64
 	ToPeer             InputPeer
 	TopMsgID           int32                   `tl:"flag:9"`
+	ReplyTo            InputReplyTo            `tl:"flag:22"`
 	ScheduleDate       int32                   `tl:"flag:10"`
 	SendAs             InputPeer               `tl:"flag:13"`
 	QuickReplyShortcut InputQuickReplyShortcut `tl:"flag:17"`
 	VideoTimestamp     int32                   `tl:"flag:20"`
 	AllowPaidStars     int64                   `tl:"flag:21"`
-	ReplyTo            InputReplyTo            `tl:"flag:22"`
+	SuggestedPost      *SuggestedPost          `tl:"flag:23"`
 }
 
 func (*MessagesForwardMessagesParams) CRC() uint32 {
-	return 0x38f0188c
+	return 0x978928ca
 }
 
 func (*MessagesForwardMessagesParams) FlagIndex() int {
@@ -10800,16 +10846,24 @@ func (c *Client) MessagesGetSplitRanges() ([]*MessageRange, error) {
 }
 
 type MessagesGetSponsoredMessagesParams struct {
-	Peer InputPeer
+	Peer  InputPeer
+	MsgID int32 `tl:"flag:0"`
 }
 
 func (*MessagesGetSponsoredMessagesParams) CRC() uint32 {
-	return 0x9bd2f439
+	return 0x3d6ce850
+}
+
+func (*MessagesGetSponsoredMessagesParams) FlagIndex() int {
+	return 0
 }
 
 // Get a list of sponsored messages for a peer, see here » for more info.
-func (c *Client) MessagesGetSponsoredMessages(peer InputPeer) (MessagesSponsoredMessages, error) {
-	responseData, err := c.MakeRequest(&MessagesGetSponsoredMessagesParams{Peer: peer})
+func (c *Client) MessagesGetSponsoredMessages(peer InputPeer, msgID int32) (MessagesSponsoredMessages, error) {
+	responseData, err := c.MakeRequest(&MessagesGetSponsoredMessagesParams{
+		MsgID: msgID,
+		Peer:  peer,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesGetSponsoredMessages")
 	}
@@ -12136,18 +12190,19 @@ func (c *Client) MessagesSaveDefaultSendAs(peer, sendAs InputPeer) (bool, error)
 }
 
 type MessagesSaveDraftParams struct {
-	NoWebpage   bool         `tl:"flag:1,encoded_in_bitflags"`
-	InvertMedia bool         `tl:"flag:6,encoded_in_bitflags"`
-	ReplyTo     InputReplyTo `tl:"flag:4"`
-	Peer        InputPeer
-	Message     string
-	Entities    []MessageEntity `tl:"flag:3"`
-	Media       InputMedia      `tl:"flag:5"`
-	Effect      int64           `tl:"flag:7"`
+	NoWebpage     bool         `tl:"flag:1,encoded_in_bitflags"`
+	InvertMedia   bool         `tl:"flag:6,encoded_in_bitflags"`
+	ReplyTo       InputReplyTo `tl:"flag:4"`
+	Peer          InputPeer
+	Message       string
+	Entities      []MessageEntity `tl:"flag:3"`
+	Media         InputMedia      `tl:"flag:5"`
+	Effect        int64           `tl:"flag:7"`
+	SuggestedPost *SuggestedPost  `tl:"flag:8"`
 }
 
 func (*MessagesSaveDraftParams) CRC() uint32 {
-	return 0xd372c5ce
+	return 0x54ae308e
 }
 
 func (*MessagesSaveDraftParams) FlagIndex() int {
@@ -12687,10 +12742,11 @@ type MessagesSendMediaParams struct {
 	QuickReplyShortcut     InputQuickReplyShortcut `tl:"flag:17"`
 	Effect                 int64                   `tl:"flag:18"`
 	AllowPaidStars         int64                   `tl:"flag:21"`
+	SuggestedPost          *SuggestedPost          `tl:"flag:22"`
 }
 
 func (*MessagesSendMediaParams) CRC() uint32 {
-	return 0xa550cd78
+	return 0xac55d9c1
 }
 
 func (*MessagesSendMediaParams) FlagIndex() int {
@@ -12731,10 +12787,11 @@ type MessagesSendMessageParams struct {
 	QuickReplyShortcut     InputQuickReplyShortcut `tl:"flag:17"`
 	Effect                 int64                   `tl:"flag:18"`
 	AllowPaidStars         int64                   `tl:"flag:21"`
+	SuggestedPost          *SuggestedPost          `tl:"flag:22"`
 }
 
 func (*MessagesSendMessageParams) CRC() uint32 {
-	return 0xfbf2340a
+	return 0xfe05dc9a
 }
 
 func (*MessagesSendMessageParams) FlagIndex() int {
@@ -13746,6 +13803,64 @@ func (c *Client) MessagesToggleStickerSets(uninstall, archive, unarchive bool, s
 	return resp, nil
 }
 
+type MessagesToggleSuggestedPostApprovalParams struct {
+	Reject        bool `tl:"flag:1,encoded_in_bitflags"`
+	Peer          InputPeer
+	MsgID         int32
+	ScheduleDate  int32  `tl:"flag:0"`
+	RejectComment string `tl:"flag:2"`
+}
+
+func (*MessagesToggleSuggestedPostApprovalParams) CRC() uint32 {
+	return 0x8107455c
+}
+
+func (*MessagesToggleSuggestedPostApprovalParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesToggleSuggestedPostApproval(params *MessagesToggleSuggestedPostApprovalParams) (Updates, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesToggleSuggestedPostApproval")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesToggleTodoCompletedParams struct {
+	Peer        InputPeer
+	MsgID       int32
+	Completed   []int32
+	Incompleted []int32
+}
+
+func (*MessagesToggleTodoCompletedParams) CRC() uint32 {
+	return 0xd3e03124
+}
+
+func (c *Client) MessagesToggleTodoCompleted(peer InputPeer, msgID int32, completed, incompleted []int32) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesToggleTodoCompletedParams{
+		Completed:   completed,
+		Incompleted: incompleted,
+		MsgID:       msgID,
+		Peer:        peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesToggleTodoCompleted")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesTranscribeAudioParams struct {
 	Peer  InputPeer
 	MsgID int32
@@ -13828,36 +13943,6 @@ func (c *Client) MessagesUninstallStickerSet(stickerset InputStickerSet) (bool, 
 	return resp, nil
 }
 
-type MessagesUnpinAllMessagesParams struct {
-	Peer     InputPeer
-	TopMsgID int32 `tl:"flag:0"`
-}
-
-func (*MessagesUnpinAllMessagesParams) CRC() uint32 {
-	return 0xee22b9a8
-}
-
-func (*MessagesUnpinAllMessagesParams) FlagIndex() int {
-	return 0
-}
-
-// Unpin all pinned messages
-func (c *Client) MessagesUnpinAllMessages(peer InputPeer, topMsgID int32) (*MessagesAffectedHistory, error) {
-	responseData, err := c.MakeRequest(&MessagesUnpinAllMessagesParams{
-		Peer:     peer,
-		TopMsgID: topMsgID,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesUnpinAllMessages")
-	}
-
-	resp, ok := responseData.(*MessagesAffectedHistory)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesUpdateDialogFilterParams struct {
 	ID     int32
 	Filter DialogFilter `tl:"flag:0"`
@@ -13904,37 +13989,6 @@ func (c *Client) MessagesUpdateDialogFiltersOrder(order []int32) (bool, error) {
 	}
 
 	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesUpdatePaidMessagesPriceParams struct {
-	SuggestionsAllowed    bool `tl:"flag:0,encoded_in_bitflags"`
-	Channel               InputChannel
-	SendPaidMessagesStars int64
-}
-
-func (*MessagesUpdatePaidMessagesPriceParams) CRC() uint32 {
-	return 0x4b12327b
-}
-
-func (*MessagesUpdatePaidMessagesPriceParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesUpdatePaidMessagesPrice(suggestionsAllowed bool, channel InputChannel, sendPaidMessagesStars int64) (Updates, error) {
-	responseData, err := c.MakeRequest(&MessagesUpdatePaidMessagesPriceParams{
-		Channel:               channel,
-		SendPaidMessagesStars: sendPaidMessagesStars,
-		SuggestionsAllowed:    suggestionsAllowed,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesUpdatePaidMessagesPrice")
-	}
-
-	resp, ok := responseData.(Updates)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -14883,6 +14937,7 @@ func (c *Client) PaymentsGetStarsRevenueAdsAccountURL(peer InputPeer) (*Payments
 
 type PaymentsGetStarsRevenueStatsParams struct {
 	Dark bool `tl:"flag:0,encoded_in_bitflags"`
+	Ton  bool `tl:"flag:1,encoded_in_bitflags"`
 	Peer InputPeer
 }
 
@@ -14895,10 +14950,11 @@ func (*PaymentsGetStarsRevenueStatsParams) FlagIndex() int {
 }
 
 // Get Telegram Star revenue statistics ».
-func (c *Client) PaymentsGetStarsRevenueStats(dark bool, peer InputPeer) (*PaymentsStarsRevenueStats, error) {
+func (c *Client) PaymentsGetStarsRevenueStats(dark, ton bool, peer InputPeer) (*PaymentsStarsRevenueStats, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsRevenueStatsParams{
 		Dark: dark,
 		Peer: peer,
+		Ton:  ton,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending PaymentsGetStarsRevenueStats")
@@ -14912,21 +14968,27 @@ func (c *Client) PaymentsGetStarsRevenueStats(dark bool, peer InputPeer) (*Payme
 }
 
 type PaymentsGetStarsRevenueWithdrawalURLParams struct {
+	Ton      bool `tl:"flag:0,encoded_in_bitflags"`
 	Peer     InputPeer
-	Stars    int64
+	Amount   int64 `tl:"flag:1"`
 	Password InputCheckPasswordSRP
 }
 
 func (*PaymentsGetStarsRevenueWithdrawalURLParams) CRC() uint32 {
-	return 0x13bbe8b3
+	return 0x2433dc92
+}
+
+func (*PaymentsGetStarsRevenueWithdrawalURLParams) FlagIndex() int {
+	return 0
 }
 
 // Withdraw funds from a channel or bot's star balance ».
-func (c *Client) PaymentsGetStarsRevenueWithdrawalURL(peer InputPeer, stars int64, password InputCheckPasswordSRP) (*PaymentsStarsRevenueWithdrawalURL, error) {
+func (c *Client) PaymentsGetStarsRevenueWithdrawalURL(ton bool, peer InputPeer, amount int64, password InputCheckPasswordSRP) (*PaymentsStarsRevenueWithdrawalURL, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsRevenueWithdrawalURLParams{
+		Amount:   amount,
 		Password: password,
 		Peer:     peer,
-		Stars:    stars,
+		Ton:      ton,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending PaymentsGetStarsRevenueWithdrawalURL")
@@ -14940,16 +15002,24 @@ func (c *Client) PaymentsGetStarsRevenueWithdrawalURL(peer InputPeer, stars int6
 }
 
 type PaymentsGetStarsStatusParams struct {
+	Ton  bool `tl:"flag:0,encoded_in_bitflags"`
 	Peer InputPeer
 }
 
 func (*PaymentsGetStarsStatusParams) CRC() uint32 {
-	return 0x104fcfa7
+	return 0x4ea9b3bf
+}
+
+func (*PaymentsGetStarsStatusParams) FlagIndex() int {
+	return 0
 }
 
 // Get the current Telegram Stars balance of the current account (with peer=inputPeerSelf), or the stars balance of the bot specified in `peer`.
-func (c *Client) PaymentsGetStarsStatus(peer InputPeer) (*PaymentsStarsStatus, error) {
-	responseData, err := c.MakeRequest(&PaymentsGetStarsStatusParams{Peer: peer})
+func (c *Client) PaymentsGetStarsStatus(ton bool, peer InputPeer) (*PaymentsStarsStatus, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarsStatusParams{
+		Peer: peer,
+		Ton:  ton,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending PaymentsGetStarsStatus")
 	}
@@ -15017,6 +15087,7 @@ type PaymentsGetStarsTransactionsParams struct {
 	Inbound        bool   `tl:"flag:0,encoded_in_bitflags"`
 	Outbound       bool   `tl:"flag:1,encoded_in_bitflags"`
 	Ascending      bool   `tl:"flag:2,encoded_in_bitflags"`
+	Ton            bool   `tl:"flag:4,encoded_in_bitflags"`
 	SubscriptionID string `tl:"flag:3"`
 	Peer           InputPeer
 	Offset         string
@@ -15036,32 +15107,6 @@ func (c *Client) PaymentsGetStarsTransactions(params *PaymentsGetStarsTransactio
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending PaymentsGetStarsTransactions")
-	}
-
-	resp, ok := responseData.(*PaymentsStarsStatus)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type PaymentsGetStarsTransactionsByIDParams struct {
-	Peer InputPeer
-	ID   []*InputStarsTransaction
-}
-
-func (*PaymentsGetStarsTransactionsByIDParams) CRC() uint32 {
-	return 0x27842d2e
-}
-
-// Obtain info about Telegram Star transactions » using specific transaction IDs.
-func (c *Client) PaymentsGetStarsTransactionsByID(peer InputPeer, id []*InputStarsTransaction) (*PaymentsStarsStatus, error) {
-	responseData, err := c.MakeRequest(&PaymentsGetStarsTransactionsByIDParams{
-		ID:   id,
-		Peer: peer,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetStarsTransactionsByID")
 	}
 
 	resp, ok := responseData.(*PaymentsStarsStatus)
@@ -16895,90 +16940,6 @@ func (c *Client) SmsjobsUpdateSettings(allowInternational bool) (bool, error) {
 	}
 
 	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type StatsGetBroadcastRevenueStatsParams struct {
-	Dark bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer InputPeer
-}
-
-func (*StatsGetBroadcastRevenueStatsParams) CRC() uint32 {
-	return 0xf788ee19
-}
-
-func (*StatsGetBroadcastRevenueStatsParams) FlagIndex() int {
-	return 0
-}
-
-// Get channel ad revenue statistics ».
-func (c *Client) StatsGetBroadcastRevenueStats(dark bool, peer InputPeer) (*StatsBroadcastRevenueStats, error) {
-	responseData, err := c.MakeRequest(&StatsGetBroadcastRevenueStatsParams{
-		Dark: dark,
-		Peer: peer,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsGetBroadcastRevenueStats")
-	}
-
-	resp, ok := responseData.(*StatsBroadcastRevenueStats)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type StatsGetBroadcastRevenueTransactionsParams struct {
-	Peer   InputPeer
-	Offset int32
-	Limit  int32
-}
-
-func (*StatsGetBroadcastRevenueTransactionsParams) CRC() uint32 {
-	return 0x70990b6d
-}
-
-// Fetch channel ad revenue transaction history ».
-func (c *Client) StatsGetBroadcastRevenueTransactions(peer InputPeer, offset, limit int32) (*StatsBroadcastRevenueTransactions, error) {
-	responseData, err := c.MakeRequest(&StatsGetBroadcastRevenueTransactionsParams{
-		Limit:  limit,
-		Offset: offset,
-		Peer:   peer,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsGetBroadcastRevenueTransactions")
-	}
-
-	resp, ok := responseData.(*StatsBroadcastRevenueTransactions)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type StatsGetBroadcastRevenueWithdrawalURLParams struct {
-	Peer     InputPeer
-	Password InputCheckPasswordSRP
-}
-
-func (*StatsGetBroadcastRevenueWithdrawalURLParams) CRC() uint32 {
-	return 0x9df4faad
-}
-
-// Withdraw funds from a channel's ad revenue balance ».
-func (c *Client) StatsGetBroadcastRevenueWithdrawalURL(peer InputPeer, password InputCheckPasswordSRP) (*StatsBroadcastRevenueWithdrawalURL, error) {
-	responseData, err := c.MakeRequest(&StatsGetBroadcastRevenueWithdrawalURLParams{
-		Password: password,
-		Peer:     peer,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending StatsGetBroadcastRevenueWithdrawalURL")
-	}
-
-	resp, ok := responseData.(*StatsBroadcastRevenueWithdrawalURL)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
