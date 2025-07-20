@@ -5,6 +5,7 @@ package telegram
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strconv"
 
 	"strings"
@@ -432,26 +433,13 @@ func convertCodeBlockSyntax(markdown string) string {
 }
 
 func convertLinksSyntax(markdown string) string {
-	for {
-		start := strings.Index(markdown, "[")
-		if start == -1 {
-			break
-		}
-		middle := strings.Index(markdown[start:], "](")
-		if middle == -1 {
-			break
-		}
-		middle += start
-		end := strings.Index(markdown[middle:], ")")
-		if end == -1 {
-			break
-		}
-		end += middle
-		text := markdown[start+1 : middle]
-		url := html.EscapeString(markdown[middle+2 : end])
-		markdown = markdown[:start] + "<a href=\"" + url + "\">" + text + "</a>" + markdown[end+1:]
-	}
-	return markdown
+	re := regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
+	return re.ReplaceAllStringFunc(markdown, func(m string) string {
+		parts := re.FindStringSubmatch(m)
+		text := html.EscapeString(parts[1])
+		url := html.EscapeString(parts[2])
+		return fmt.Sprintf(`<a href="%s">%s</a>`, url, text)
+	})
 }
 
 func convertEmojiSyntax(markdown string) string {
