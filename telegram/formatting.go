@@ -5,6 +5,7 @@ package telegram
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strconv"
 
@@ -182,7 +183,37 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 			switch {
 			case tag.Attrs["href"] != "" && strings.HasPrefix(tag.Attrs["href"], "mailto:"):
 				entities = append(entities, &MessageEntityEmail{tag.Offset, tag.Length})
-
+			case tag.Attrs["href"] != "" && strings.HasPrefix(tag.Attrs["href"], "tg://user"):
+				u, err := url.Parse(tag.Attrs["href"])
+				if err == nil {
+					id := u.Query().Get("id")
+					if id != "" {
+						userID, _ := strconv.ParseInt(id, 10, 64)
+						if userID != 0 {
+							entities = append(entities, &MessageEntityMentionName{
+								Offset: tag.Offset,
+								Length: tag.Length,
+								UserID: userID,
+							})
+						}
+					}
+				}
+			case tag.Attrs["href"] != "" && strings.HasPrefix(tag.Attrs["href"], "tg://emoji"):
+				u, err := url.Parse(tag.Attrs["href"])
+				if err == nil {
+					id := u.Query().Get("id")
+					if id != "" {
+						emojiID, _ := strconv.ParseInt(id, 10, 64)
+						if emojiID != 0 {
+							entities = append(entities, &MessageEntityCustomEmoji{
+								Offset: tag.Offset,
+								Length: tag.Length,
+								DocumentID: emojiID,
+							})
+						}
+					}
+				}
+				
 			case tag.Attrs["href"] == "":
 				entities = append(entities, &MessageEntityURL{tag.Offset, tag.Length})
 			default:
