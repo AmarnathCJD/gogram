@@ -3,9 +3,11 @@
 package telegram
 
 import (
+	"fmt"
+	"reflect"
+
 	tl "github.com/amarnathcjd/gogram/internal/encoding/tl"
 	errors "github.com/pkg/errors"
-	"reflect"
 )
 
 type AccountAcceptAuthorizationParams struct {
@@ -18541,7 +18543,7 @@ func (c *Client) UsersGetUsers(id []InputUser) ([]User, error) {
 			return users, nil
 		}
 
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, errors.New(fmt.Sprintf("got invalid response type: %s", reflect.TypeOf(responseData).String()))
 	}
 	return resp, nil
 }
