@@ -37,6 +37,8 @@ var DcList = DCOptions{
 	},
 }
 
+var dcListMutex sync.RWMutex
+
 // TODO: Fix DC4 Ipv6 is Unreachable
 
 type DC struct {
@@ -51,6 +53,9 @@ type DCOptions struct {
 }
 
 func SetDCs(dcs map[int][]DC, cdnDcs map[int][]DC) {
+	dcListMutex.Lock()
+	defer dcListMutex.Unlock()
+
 	for key, newDCs := range dcs {
 		DcList.DCS[key] = mergeUnique(DcList.DCS[key], newDCs)
 	}
@@ -80,6 +85,9 @@ func mergeUnique(existing, new []DC) []DC {
 }
 
 func GetAddr(dc int) (string, bool) {
+	dcListMutex.Lock()
+	defer dcListMutex.Unlock()
+
 	if addrs, ok := DcList.DCS[dc]; ok {
 		return addrs[0].Addr, addrs[0].V
 	}
@@ -87,6 +95,9 @@ func GetAddr(dc int) (string, bool) {
 }
 
 func GetCdnAddr(dc int) (string, bool) {
+	dcListMutex.Lock()
+	defer dcListMutex.Unlock()
+
 	if addrs, ok := DcList.CdnDCs[dc]; ok {
 		return addrs[0].Addr, addrs[0].V
 	}
@@ -94,6 +105,9 @@ func GetCdnAddr(dc int) (string, bool) {
 }
 
 func GetHostIp(dc int, test bool, ipv6 bool) string {
+	dcListMutex.Lock()
+	defer dcListMutex.Unlock()
+
 	dcMap, ok := DcList.DCS[dc]
 	if !ok {
 		return ""
@@ -123,6 +137,9 @@ func GetHostIp(dc int, test bool, ipv6 bool) string {
 }
 
 func SearchAddr(addr string) int {
+	dcListMutex.Lock()
+	defer dcListMutex.Unlock()
+
 	for dc, addrs := range DcList.DCS {
 		for _, a := range addrs {
 			if a.Addr == addr {
