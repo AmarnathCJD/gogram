@@ -7079,6 +7079,31 @@ func (c *Client) HelpEditUserInfo(userID InputUser, message string, entities []M
 	return resp, nil
 }
 
+type HelpGetAppChangelogParams struct {
+	PrevAppVersion string
+}
+
+func (*HelpGetAppChangelogParams) CRC() uint32 {
+	return 0x9010ef6f
+}
+
+/*
+Get changelog of current app.<br>
+Typically, an updates constructor will be returned, containing one or more updateServiceNotification updates with app-specific changelogs.
+*/
+func (c *Client) HelpGetAppChangelog(prevAppVersion string) (Updates, error) {
+	responseData, err := c.MakeRequest(&HelpGetAppChangelogParams{PrevAppVersion: prevAppVersion})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending HelpGetAppChangelog")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type HelpGetAppConfigParams struct {
 	Hash int32
 }
@@ -8014,6 +8039,87 @@ func (c *Client) MessagesCreateChat(users []InputUser, title string, ttlPeriod i
 	return resp, nil
 }
 
+type MessagesCreateStarGiftCollectionParams struct {
+	Peer     InputPeer
+	Title    string
+	Stargift []InputSavedStarGift
+}
+
+func (*MessagesCreateStarGiftCollectionParams) CRC() uint32 {
+	return 0x1f4a0e87
+}
+
+func (c *Client) MessagesCreateStarGiftCollection(peer InputPeer, title string, stargift []InputSavedStarGift) (*StarGiftCollection, error) {
+	responseData, err := c.MakeRequest(&MessagesCreateStarGiftCollectionParams{
+		Peer:     peer,
+		Stargift: stargift,
+		Title:    title,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesCreateStarGiftCollection")
+	}
+
+	resp, ok := responseData.(*StarGiftCollection)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesCreateThemeParams struct {
+	Slug     string
+	Title    string
+	Document InputDocument       `tl:"flag:2"`
+	Settings *InputThemeSettings `tl:"flag:3"`
+}
+
+func (*MessagesCreateThemeParams) CRC() uint32 {
+	return 0x8432c21f
+}
+
+func (*MessagesCreateThemeParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesCreateTheme(slug, title string, document InputDocument, settings *InputThemeSettings) (*Theme, error) {
+	responseData, err := c.MakeRequest(&MessagesCreateThemeParams{
+		Document: document,
+		Settings: settings,
+		Slug:     slug,
+		Title:    title,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesCreateTheme")
+	}
+
+	resp, ok := responseData.(*Theme)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesDeleteAccountParams struct {
+	Reason string
+}
+
+func (*MessagesDeleteAccountParams) CRC() uint32 {
+	return 0x418d4e0b
+}
+
+func (c *Client) MessagesDeleteAccount(reason string) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesDeleteAccountParams{Reason: reason})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesDeleteAccount")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesDeleteChatParams struct {
 	ChatID int64
 }
@@ -8334,6 +8440,31 @@ func (c *Client) MessagesDeleteScheduledMessages(peer InputPeer, id []int32) (Up
 	}
 
 	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesDeleteStarGiftCollectionParams struct {
+	Peer         InputPeer
+	CollectionID int32
+}
+
+func (*MessagesDeleteStarGiftCollectionParams) CRC() uint32 {
+	return 0xad5648e8
+}
+
+func (c *Client) MessagesDeleteStarGiftCollection(peer InputPeer, collectionID int32) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesDeleteStarGiftCollectionParams{
+		CollectionID: collectionID,
+		Peer:         peer,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesDeleteStarGiftCollection")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -10679,6 +10810,40 @@ func (c *Client) MessagesGetSavedReactionTags(peer InputPeer, hash int64) (Messa
 	return resp, nil
 }
 
+type MessagesGetSavedStarGiftsParams struct {
+	ExcludeUnsaved   bool `tl:"flag:0,encoded_in_bitflags"`
+	ExcludeSaved     bool `tl:"flag:1,encoded_in_bitflags"`
+	ExcludeUnlimited bool `tl:"flag:2,encoded_in_bitflags"`
+	ExcludeLimited   bool `tl:"flag:3,encoded_in_bitflags"`
+	ExcludeUnique    bool `tl:"flag:4,encoded_in_bitflags"`
+	SortByValue      bool `tl:"flag:5,encoded_in_bitflags"`
+	Peer             InputPeer
+	CollectionID     int32 `tl:"flag:6"`
+	Offset           string
+	Limit            int32
+}
+
+func (*MessagesGetSavedStarGiftsParams) CRC() uint32 {
+	return 0xa319e569
+}
+
+func (*MessagesGetSavedStarGiftsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesGetSavedStarGifts(params *MessagesGetSavedStarGiftsParams) (*PaymentsSavedStarGifts, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetSavedStarGifts")
+	}
+
+	resp, ok := responseData.(*PaymentsSavedStarGifts)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesGetScheduledHistoryParams struct {
 	Peer InputPeer
 	Hash int64
@@ -10875,6 +11040,31 @@ func (c *Client) MessagesGetSponsoredMessages(peer InputPeer, msgID int32) (Mess
 	return resp, nil
 }
 
+type MessagesGetStarGiftCollectionsParams struct {
+	Peer InputPeer
+	Hash int64
+}
+
+func (*MessagesGetStarGiftCollectionsParams) CRC() uint32 {
+	return 0x981b91dd
+}
+
+func (c *Client) MessagesGetStarGiftCollections(peer InputPeer, hash int64) (StarGiftCollections, error) {
+	responseData, err := c.MakeRequest(&MessagesGetStarGiftCollectionsParams{
+		Hash: hash,
+		Peer: peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetStarGiftCollections")
+	}
+
+	resp, ok := responseData.(StarGiftCollections)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesGetStatsURLParams struct {
 	Dark   bool `tl:"flag:0,encoded_in_bitflags"`
 	Peer   InputPeer
@@ -10973,6 +11163,33 @@ func (c *Client) MessagesGetSuggestedDialogFilters() ([]*DialogFilterSuggested, 
 	}
 
 	resp, ok := responseData.([]*DialogFilterSuggested)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesGetThemeParams struct {
+	Format     string
+	Theme      InputTheme
+	DocumentID int64
+}
+
+func (*MessagesGetThemeParams) CRC() uint32 {
+	return 0x8d9d742b
+}
+
+func (c *Client) MessagesGetTheme(format string, theme InputTheme, documentID int64) (*Theme, error) {
+	responseData, err := c.MakeRequest(&MessagesGetThemeParams{
+		DocumentID: documentID,
+		Format:     format,
+		Theme:      theme,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetTheme")
+	}
+
+	resp, ok := responseData.(*Theme)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -11309,6 +11526,37 @@ func (c *Client) MessagesInstallStickerSet(stickerset InputStickerSet, archived 
 	}
 
 	resp, ok := responseData.(MessagesStickerSetInstallResult)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesInstallThemeParams struct {
+	Dark   bool       `tl:"flag:0,encoded_in_bitflags"`
+	Format string     `tl:"flag:1"`
+	Theme  InputTheme `tl:"flag:1"`
+}
+
+func (*MessagesInstallThemeParams) CRC() uint32 {
+	return 0x7ae43737
+}
+
+func (*MessagesInstallThemeParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesInstallTheme(dark bool, format string, theme InputTheme) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesInstallThemeParams{
+		Dark:   dark,
+		Format: format,
+		Theme:  theme,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesInstallTheme")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -11765,6 +12013,31 @@ func (c *Client) MessagesReorderQuickReplies(order []int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReorderQuickRepliesParams{Order: order})
 	if err != nil {
 		return false, errors.Wrap(err, "sending MessagesReorderQuickReplies")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesReorderStarGiftCollectionsParams struct {
+	Peer  InputPeer
+	Order []int32
+}
+
+func (*MessagesReorderStarGiftCollectionsParams) CRC() uint32 {
+	return 0xc32af4cc
+}
+
+func (c *Client) MessagesReorderStarGiftCollections(peer InputPeer, order []int32) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesReorderStarGiftCollectionsParams{
+		Order: order,
+		Peer:  peer,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesReorderStarGiftCollections")
 	}
 
 	resp, ok := responseData.(bool)
@@ -12868,7 +13141,7 @@ func (*MessagesSendPaidReactionParams) FlagIndex() int {
 	return 0
 }
 
-// Sends one or more paid Telegram Star reactions », transferring Telegram Stars » to a channel&#39;s balance.
+// Sends one or more paid Telegram Star reactions », transferring Telegram Stars » to a channel's balance.
 func (c *Client) MessagesSendPaidReaction(params *MessagesSendPaidReactionParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -13943,6 +14216,28 @@ func (c *Client) MessagesUninstallStickerSet(stickerset InputStickerSet) (bool, 
 	return resp, nil
 }
 
+type MessagesUnpinAllMessagesParams struct {
+	Peer InputPeer
+}
+
+func (*MessagesUnpinAllMessagesParams) CRC() uint32 {
+	return 0xf025bc8b
+}
+
+// Unpin all pinned messages
+func (c *Client) MessagesUnpinAllMessages(peer InputPeer) (*MessagesAffectedHistory, error) {
+	responseData, err := c.MakeRequest(&MessagesUnpinAllMessagesParams{Peer: peer})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesUnpinAllMessages")
+	}
+
+	resp, ok := responseData.(*MessagesAffectedHistory)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesUpdateDialogFilterParams struct {
 	ID     int32
 	Filter DialogFilter `tl:"flag:0"`
@@ -14055,6 +14350,66 @@ func (c *Client) MessagesUpdateSavedReactionTag(reaction Reaction, title string)
 	return resp, nil
 }
 
+type MessagesUpdateStarGiftCollectionParams struct {
+	Peer           InputPeer
+	CollectionID   int32
+	Title          string               `tl:"flag:0"`
+	DeleteStargift []InputSavedStarGift `tl:"flag:1"`
+	AddStargift    []InputSavedStarGift `tl:"flag:2"`
+	Order          []InputSavedStarGift `tl:"flag:3"`
+}
+
+func (*MessagesUpdateStarGiftCollectionParams) CRC() uint32 {
+	return 0x4fddbee7
+}
+
+func (*MessagesUpdateStarGiftCollectionParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesUpdateStarGiftCollection(params *MessagesUpdateStarGiftCollectionParams) (*StarGiftCollection, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesUpdateStarGiftCollection")
+	}
+
+	resp, ok := responseData.(*StarGiftCollection)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesUpdateThemeParams struct {
+	Format   string
+	Theme    InputTheme
+	Slug     string              `tl:"flag:0"`
+	Title    string              `tl:"flag:1"`
+	Document InputDocument       `tl:"flag:2"`
+	Settings *InputThemeSettings `tl:"flag:3"`
+}
+
+func (*MessagesUpdateThemeParams) CRC() uint32 {
+	return 0x5cb367d5
+}
+
+func (*MessagesUpdateThemeParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesUpdateTheme(params *MessagesUpdateThemeParams) (*Theme, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesUpdateTheme")
+	}
+
+	resp, ok := responseData.(*Theme)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesUploadEncryptedFileParams struct {
 	Peer *InputEncryptedChat
 	File InputEncryptedFile
@@ -14137,6 +14492,33 @@ func (c *Client) MessagesUploadMedia(businessConnectionID string, peer InputPeer
 	}
 
 	resp, ok := responseData.(MessageMedia)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesUploadWallPaperParams struct {
+	File     InputFile
+	MimeType string
+	Settings *WallPaperSettings
+}
+
+func (*MessagesUploadWallPaperParams) CRC() uint32 {
+	return 0xdd853661
+}
+
+func (c *Client) MessagesUploadWallPaper(file InputFile, mimeType string, settings *WallPaperSettings) (WallPaper, error) {
+	responseData, err := c.MakeRequest(&MessagesUploadWallPaperParams{
+		File:     file,
+		MimeType: mimeType,
+		Settings: settings,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesUploadWallPaper")
+	}
+
+	resp, ok := responseData.(WallPaper)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
