@@ -544,6 +544,10 @@ func (m *MTProto) Terminate() error {
 	return nil
 }
 
+func (m *MTProto) SetTerminated(val bool) {
+	m.terminated.Store(val)
+}
+
 func (m *MTProto) Reconnect(WithLogs bool) error {
 	if m.terminated.Load() {
 		return nil
