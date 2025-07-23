@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
-	tl "github.com/amarnathcjd/gogram/internal/encoding/tl"
+	tl "github.com/bs9/spread_service_gogram/internal/encoding/tl"
 	errors "github.com/pkg/errors"
 )
 

@@ -9,7 +9,7 @@ import (
 	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 
-	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
+	"github.com/bs9/spread_service_gogram/internal/cmd/tlgen/tlparser"
 )
 
 var capitalizePatterns = []string{

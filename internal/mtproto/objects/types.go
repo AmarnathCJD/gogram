@@ -9,8 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/amarnathcjd/gogram/internal/encoding/tl"
-	"github.com/amarnathcjd/gogram/internal/mtproto/messages"
+	"github.com/bs9/spread_service_gogram/internal/encoding/tl"
+	"github.com/bs9/spread_service_gogram/internal/mtproto/messages"
 )
 
 // TYPES

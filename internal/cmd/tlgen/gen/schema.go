@@ -3,7 +3,7 @@ package gen
 import (
 	"strings"
 
-	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
+	"github.com/bs9/spread_service_gogram/internal/cmd/tlgen/tlparser"
 )
 
 type goifiedName = string

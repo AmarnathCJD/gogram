@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	"github.com/bs9/spread_service_gogram/telegram"
 )
 
 // This function decodes the Telethon Session String to gogram's Session Format

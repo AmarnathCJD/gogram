@@ -9,7 +9,7 @@ import (
 	"github.com/dave/jennifer/jen"
 	"github.com/iancoleman/strcase"
 
-	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
+	"github.com/bs9/spread_service_gogram/internal/cmd/tlgen/tlparser"
 )
 
 func createParamsStructFromMethod(method tlparser.Method) tlparser.Object {

@@ -5,4 +5,4 @@ name = "go"
 enabled = true
 
   [analyzers.meta]
-  import_root = "github.com/AmarnathCJD/gogram"
+  import_root = "github.com/bs9/spread_service_gogram"

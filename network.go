@@ -9,11 +9,11 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/amarnathcjd/gogram/internal/encoding/tl"
-	"github.com/amarnathcjd/gogram/internal/mtproto/messages"
-	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
-	"github.com/amarnathcjd/gogram/internal/session"
-	"github.com/amarnathcjd/gogram/internal/utils"
+	"github.com/bs9/spread_service_gogram/internal/encoding/tl"
+	"github.com/bs9/spread_service_gogram/internal/mtproto/messages"
+	"github.com/bs9/spread_service_gogram/internal/mtproto/objects"
+	"github.com/bs9/spread_service_gogram/internal/session"
+	"github.com/bs9/spread_service_gogram/internal/utils"
 	"github.com/pkg/errors"
 )
 

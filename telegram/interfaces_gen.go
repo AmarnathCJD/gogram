@@ -2,7 +2,7 @@
 
 package telegram
 
-import tl "github.com/amarnathcjd/gogram/internal/encoding/tl"
+import tl "github.com/bs9/spread_service_gogram/internal/encoding/tl"
 
 type AttachMenuBots interface {
 	tl.Object

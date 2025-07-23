@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	"github.com/bs9/spread_service_gogram/telegram"
 )
 
 var appId = 6 // fill in your app id here

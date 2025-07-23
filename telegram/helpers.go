@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"strings"
 
-	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
-	"github.com/amarnathcjd/gogram/internal/utils"
+	ige "github.com/bs9/spread_service_gogram/internal/aes_ige"
+	"github.com/bs9/spread_service_gogram/internal/utils"
 	"github.com/pkg/errors"
 )
 
