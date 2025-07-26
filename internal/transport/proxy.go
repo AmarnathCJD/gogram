@@ -104,11 +104,21 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 			return nil, errors.New("socks version not supported")
 		}
 
-		if buf[1] == 0 {
+		switch buf[1] {
+		case 0:
 			// No authentication required
-		} else if buf[1] == 2 {
+			_, err = conn.Write([]byte{5, 0})
+			if err != nil {
+				return nil, err
+			}
+		case 2:
 			// Username/password authentication
-			_, err = conn.Write(append([]byte{1, byte(len(username))}, []byte(username)...))
+			_, err = conn.Write([]byte{5, 2, 0, 2})
+			if err != nil {
+				return nil, err
+			}
+			// Send username and password
+			_, err = conn.Write(append([]byte{byte(len(username))}, []byte(username)...))
 			if err != nil {
 				return nil, err
 			}
@@ -116,20 +126,18 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 			if err != nil {
 				return nil, err
 			}
-
 			buf = make([]byte, 2)
 			_, err = io.ReadFull(conn, buf)
 			if err != nil {
 				return nil, err
 			}
-
-			if buf[0] != 1 {
+			if buf[0] != 5 {
 				return nil, errors.New("socks version not supported")
 			}
 			if buf[1] != 0 {
 				return nil, errors.New("socks authentication failed")
 			}
-		} else {
+		default:
 			return nil, errors.New("socks authentication method not supported")
 		}
 	} else {

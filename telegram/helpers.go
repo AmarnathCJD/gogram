@@ -26,7 +26,7 @@ func FileExists(path string) bool {
 }
 
 func ResolveDataCenterIP(dc int, test, ipv6 bool) string {
-	return utils.GetHostIp(dc, test, ipv6)
+	return utils.GetDefaultHostIp(dc, test, ipv6)
 }
 
 func joinAbsWorkingDir(filename string) string {

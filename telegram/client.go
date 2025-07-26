@@ -166,7 +166,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 			customHost = true
 			return config.IpAddr
 		} else {
-			return utils.GetHostIp(config.DataCenter, config.TestMode, config.ForceIPv6)
+			return c.MTProto.DcList.GetHostIp(config.DataCenter, config.TestMode, config.ForceIPv6)
 		}
 	}
 
@@ -307,7 +307,7 @@ func (c *Client) InitialRequest() error {
 			}
 		}
 
-		utils.SetDCs(dcs, cdnDcs) // set the upto-date DC configuration for the library
+		c.DcList.SetDCs(dcs, cdnDcs) // set the upto-date DC configuration for the library
 	}
 
 	return nil

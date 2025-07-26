@@ -4723,7 +4723,7 @@ type UserFull struct {
 	BotVerification         *BotVerification         `tl:"flag2:12"`
 	SendPaidMessagesStars   int64                    `tl:"flag2:14"`
 	DisallowedStargifts     *DisallowedGiftsSettings `tl:"flag2:15"`
-	StarsRating             `tl:"flag2:17"`
+	StarsRating             TlStarsRating            `tl:"flag2:17"`
 }
 
 func (*UserFull) CRC() uint32 {
