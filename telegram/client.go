@@ -166,7 +166,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 			customHost = true
 			return config.IpAddr
 		} else {
-			return c.MTProto.DcList.GetHostIp(config.DataCenter, config.TestMode, config.ForceIPv6)
+			return utils.DcList.GetHostIp(config.DataCenter, config.TestMode, config.ForceIPv6)
 		}
 	}
 
