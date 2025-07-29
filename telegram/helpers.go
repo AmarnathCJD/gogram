@@ -1072,6 +1072,25 @@ func packDeleteMessage(c *Client, delete Update) *DeleteMessage {
 	return deleteMessage
 }
 
+func packJoinRequest(c *Client, update *UpdatePendingJoinRequests) *JoinRequestUpdate {
+	var (
+		jr = &JoinRequestUpdate{}
+	)
+	jr.Client = c
+	jr.OriginalUpdate = update
+	jr.Channel, _ = c.GetChannel(c.GetPeerID(update.Peer))
+	var users []InputPeerUser
+	for _, userID := range update.RecentRequesters {
+		if user, err := c.GetPeerUser(userID); err == nil {
+			users = append(users, *user)
+		} else {
+			c.Log.Debug(errors.Wrapf(err, "getting user %d for join request", userID))
+		}
+	}
+	jr.PendingCount = update.RequestsPending
+	return jr
+}
+
 func packInlineQuery(c *Client, query *UpdateBotInlineQuery) *InlineQuery {
 	var (
 		iq = &InlineQuery{}

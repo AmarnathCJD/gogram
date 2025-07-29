@@ -50,8 +50,8 @@ func (*InvokeWithLayerParams) CRC() uint32 {
 	return 0xda9b0d0d
 }
 
-func (m *Client) InvokeWithLayer(layer int, query tl.Object) (tl.Object, error) {
-	data, err := m.MakeRequest(&InvokeWithLayerParams{
+func (c *Client) InvokeWithLayer(layer int, query tl.Object) (tl.Object, error) {
+	data, err := c.MakeRequest(&InvokeWithLayerParams{
 		Layer: int32(layer),
 		Query: query,
 	})
@@ -74,8 +74,8 @@ func (*InvokeWithTakeoutParams) CRC() uint32 {
 	return 0xda9b0d0d
 }
 
-func (m *Client) InvokeWithTakeout(takeoutID int, query tl.Object) (tl.Object, error) {
-	data, err := m.MakeRequest(&InvokeWithTakeoutParams{
+func (c *Client) InvokeWithTakeout(takeoutID int, query tl.Object) (tl.Object, error) {
+	data, err := c.MakeRequest(&InvokeWithTakeoutParams{
 		TakeoutID: int64(takeoutID),
 		Query:     query,
 	})
