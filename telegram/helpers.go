@@ -1079,14 +1079,15 @@ func packJoinRequest(c *Client, update *UpdatePendingJoinRequests) *JoinRequestU
 	jr.Client = c
 	jr.OriginalUpdate = update
 	jr.Channel, _ = c.GetChannel(c.GetPeerID(update.Peer))
-	var users []InputPeerUser
+
 	for _, userID := range update.RecentRequesters {
-		if user, err := c.GetPeerUser(userID); err == nil {
-			users = append(users, *user)
+		if user, err := c.GetUser(userID); err == nil {
+			jr.Users = append(jr.Users, user)
 		} else {
 			c.Log.Debug(errors.Wrapf(err, "getting user %d for join request", userID))
 		}
 	}
+
 	jr.PendingCount = update.RequestsPending
 	return jr
 }
