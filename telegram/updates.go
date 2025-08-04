@@ -141,11 +141,15 @@ type albumBox struct {
 }
 
 func (a *albumBox) WaitAndTrigger(d *UpdateDispatcher, c *Client) {
-	time.Sleep(600 * time.Millisecond)
+	time.Sleep(time.Duration(c.clientData.albumWaitTime) * time.Millisecond)
 
 	for gp, handlers := range d.albumHandles {
 		for _, handler := range handlers {
 			handle := func(h *albumHandle) error {
+				sort.SliceStable(a.messages, func(i, j int) bool {
+					return a.messages[i].ID < a.messages[j].ID
+				})
+
 				return h.Handler(&Album{
 					GroupedID: a.groupedId,
 					Messages:  a.messages,

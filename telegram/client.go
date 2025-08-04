@@ -42,6 +42,7 @@ type clientData struct {
 	parseMode        string
 	logLevel         utils.LogLevel
 	sleepThresholdMs int
+	albumWaitTime    int64
 	botAcc           bool
 	me               *UserObj
 }
@@ -91,6 +92,7 @@ type ClientConfig struct {
 	CacheSenders     bool                 // cache the exported file op sender
 	TransportMode    string               // The transport mode to use (Abridged, Intermediate, Full)
 	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
+	AlbumWaitTime    int64                // The time to wait for album messages (in milliseconds)
 	FloodHandler     func(err error) bool // The flood handler to use
 	ErrorHandler     func(err error)      // The error handler to use
 }
@@ -262,6 +264,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
 	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
 	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
+	c.clientData.albumWaitTime = getValue(cnf.AlbumWaitTime, 600)
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
