@@ -20,11 +20,12 @@ type tcpConn struct {
 }
 
 type TCPConnConfig struct {
-	Ctx     context.Context
-	Host    string
-	IpV6    bool
-	Timeout time.Duration
-	Socks   *url.URL
+	Ctx       context.Context
+	Host      string
+	IpV6      bool
+	Timeout   time.Duration
+	Socks     *url.URL
+	LocalAddr string
 }
 
 func NewTCP(cfg TCPConnConfig) (Conn, error) {
@@ -43,11 +44,21 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "resolving tcp")
 	}
-	conn, err := net.DialTCP(tcpPrefix, nil, tcpAddr)
+
+	// Resolve a local address if provided
+	var localAddr *net.TCPAddr
+	if cfg.LocalAddr != "" {
+		localAddr, err = net.ResolveTCPAddr(tcpPrefix, cfg.LocalAddr)
+		if err != nil {
+			return nil, errors.Wrap(err, "resolving local tcp addr")
+		}
+	}
+
+	conn, err := net.DialTCP(tcpPrefix, localAddr, tcpAddr)
 	// if there is a timeout error, wait 2 secs and retry (only once)
 	if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 		time.Sleep(2 * time.Second)
-		conn, err = net.DialTCP(tcpPrefix, nil, tcpAddr)
+		conn, err = net.DialTCP(tcpPrefix, localAddr, tcpAddr)
 	}
 
 	if err != nil {
@@ -64,7 +75,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 }
 
 func newSocksTCP(cfg TCPConnConfig) (Conn, error) {
-	conn, err := dialProxy(cfg.Socks, cfg.Host)
+	conn, err := dialProxy(cfg.Socks, cfg.Host, cfg.LocalAddr)
 	if err != nil {
 		return nil, err
 	}
