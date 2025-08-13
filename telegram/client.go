@@ -320,8 +320,6 @@ func (c *Client) InitialRequest() error {
 
 // Establish connection to telegram servers
 func (c *Client) Connect() error {
-	defer c.GetMe()
-
 	if c.IsConnected() {
 		return nil
 	}
@@ -332,8 +330,15 @@ func (c *Client) Connect() error {
 	if err != nil {
 		return errors.Wrap(err, "connecting to telegram servers")
 	}
+
 	// Initial request (invokeWithLayer) must be sent after connection is established
-	return c.InitialRequest()
+	err = c.InitialRequest()
+	if err != nil {
+		return errors.Wrap(err, "sending initial request")
+	}
+
+	_, err = c.GetMe()
+	return err
 }
 
 // Wrapper for Connect()
