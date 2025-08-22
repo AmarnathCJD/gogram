@@ -10,76 +10,72 @@ import (
 	"net"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
 const DefaultTimeout = 5 * time.Second
 
-func dialProxy(s *url.URL, address string) (net.Conn, error) {
+func dialProxy(s *url.URL, address string, localAddr string) (net.Conn, error) {
 	switch s.Scheme {
 	case "socks5":
-		return dialSocks5(s, address)
+		return dialSocks5(s, address, localAddr)
 	case "socks4":
-		return dialSocks4(s, address)
+		return dialSocks4(s, address, localAddr)
 	case "http":
-		return dialHTTP(s, address)
+		return dialHTTP(s, address, localAddr)
 	default:
 		return nil, fmt.Errorf("unsupported proxy scheme: %s", s.Scheme)
 	}
 }
 
-func dialHTTP(s *url.URL, addr string) (net.Conn, error) {
-	conn, err := net.DialTimeout("tcp", s.Hostname()+":"+s.Port(), DefaultTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	// Send CONNECT request
-	_, err = fmt.Fprintf(conn, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n", addr, addr)
-	if err != nil {
-		return nil, err
-	}
-
-	// Add Proxy-Authorization header if credentials are provided
-	if s.User != nil && s.User.Username() != "" {
-		username := s.User.Username()
-		password, _ := s.User.Password()
-		_, err = fmt.Fprintf(conn, "Proxy-Authorization: Basic %s\r\n", basicAuth(username, password))
+func dialHTTP(s *url.URL, targetAddr string, localAddr string) (net.Conn, error) {
+	// Create dialer with optional local address
+	dialer := &net.Dialer{Timeout: DefaultTimeout}
+	if localAddr != "" {
+		addr, err := net.ResolveTCPAddr("tcp", localAddr)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid local address: %v", err)
 		}
+		dialer.LocalAddr = addr
 	}
 
-	// End the HTTP request
-	_, err = fmt.Fprint(conn, "\r\n")
+	conn, err := dialer.Dial("tcp", s.Host)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to proxy: %v", err)
 	}
 
-	// Read the HTTP response
-	buf := make([]byte, 12)
-	_, err = io.ReadFull(conn, buf)
+	passwd, _ := s.User.Password()
+
+	auth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", s.User.Username(), passwd)))
+	connectReq := fmt.Sprintf("CONNECT %s HTTP/1.1\r\nProxy-Authorization: Basic %s\r\n\r\n", targetAddr, auth)
+	_, err = conn.Write([]byte(connectReq))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to send CONNECT request: %v", err)
 	}
 
-	// Check the response status code
-	if string(buf[:9]) != "HTTP/1.1 " {
-		return nil, errors.New("HTTP connect failed")
-	}
-	if string(buf[9:12]) != "200" {
-		return nil, errors.New("HTTP connect failed")
+	buffer := make([]byte, 1024)
+	n, _ := conn.Read(buffer)
+	if !strings.Contains(string(buffer[:n]), "200") {
+		conn.Close()
+		return nil, fmt.Errorf("proxy tunnel failed: %s", strings.TrimSpace(string(buffer[:n])))
 	}
 
 	return conn, nil
 }
 
-func basicAuth(username, password string) string {
-	return base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
-}
+func dialSocks5(s *url.URL, addr string, localAddr string) (net.Conn, error) {
+	// Create dialer with optional local address
+	dialer := &net.Dialer{Timeout: DefaultTimeout}
+	if localAddr != "" {
+		laddr, err := net.ResolveTCPAddr("tcp", localAddr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid local address: %v", err)
+		}
+		dialer.LocalAddr = laddr
+	}
 
-func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
-	conn, err := net.DialTimeout("tcp", s.Hostname()+":"+s.Port(), DefaultTimeout)
+	conn, err := dialer.Dial("tcp", s.Hostname()+":"+s.Port())
 	if err != nil {
 		return nil, err
 	}
@@ -234,8 +230,18 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 	return conn, nil
 }
 
-func dialSocks4(s *url.URL, addr string) (net.Conn, error) {
-	conn, err := net.DialTimeout("tcp", s.Hostname()+":"+s.Port(), DefaultTimeout)
+func dialSocks4(s *url.URL, addr string, localAddr string) (net.Conn, error) {
+	// Create dialer with optional local address
+	dialer := &net.Dialer{Timeout: DefaultTimeout}
+	if localAddr != "" {
+		laddr, err := net.ResolveTCPAddr("tcp", localAddr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid local address: %v", err)
+		}
+		dialer.LocalAddr = laddr
+	}
+
+	conn, err := dialer.Dial("tcp", s.Hostname()+":"+s.Port())
 	if err != nil {
 		return nil, err
 	}

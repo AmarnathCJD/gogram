@@ -42,6 +42,7 @@ type clientData struct {
 	parseMode        string
 	logLevel         utils.LogLevel
 	sleepThresholdMs int
+	albumWaitTime    int64
 	botAcc           bool
 	me               *UserObj
 }
@@ -85,12 +86,14 @@ type ClientConfig struct {
 	LogLevel         utils.LogLevel       // The library log level
 	Logger           *utils.Logger        // The logger to use
 	Proxy            *url.URL             // The proxy to use (SOCKS5, HTTP)
+	LocalAddr        string               // Local address binding for multi-interface support (IP:port)
 	ForceIPv6        bool                 // Force to use IPv6
 	NoPreconnect     bool                 // Don't preconnect to the DC until Connect() is called
 	Cache            *CACHE               // The cache to use
 	CacheSenders     bool                 // cache the exported file op sender
 	TransportMode    string               // The transport mode to use (Abridged, Intermediate, Full)
 	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
+	AlbumWaitTime    int64                // The time to wait for album messages (in milliseconds)
 	FloodHandler     func(err error) bool // The flood handler to use
 	ErrorHandler     func(err error)      // The error handler to use
 }
@@ -166,7 +169,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 			customHost = true
 			return config.IpAddr
 		} else {
-			return utils.GetHostIp(config.DataCenter, config.TestMode, config.ForceIPv6)
+			return utils.DcList.GetHostIp(config.DataCenter, config.TestMode, config.ForceIPv6)
 		}
 	}
 
@@ -182,6 +185,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 			NoColor(!c.Log.Color()),
 		StringSession: config.StringSession,
 		Proxy:         config.Proxy,
+		LocalAddr:     config.LocalAddr,
 		MemorySession: config.MemorySession,
 		Ipv6:          config.ForceIPv6,
 		CustomHost:    customHost,
@@ -262,6 +266,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
 	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
 	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
+	c.clientData.albumWaitTime = getValue(cnf.AlbumWaitTime, 600)
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
@@ -307,7 +312,7 @@ func (c *Client) InitialRequest() error {
 			}
 		}
 
-		utils.SetDCs(dcs, cdnDcs) // set the upto-date DC configuration for the library
+		c.DcList.SetDCs(dcs, cdnDcs) // set the upto-date DC configuration for the library
 	}
 
 	return nil
@@ -864,6 +869,11 @@ func (b *ClientConfigBuilder) WithDataCenter(dc int) *ClientConfigBuilder {
 
 func (b *ClientConfigBuilder) WithProxy(proxyURL *url.URL) *ClientConfigBuilder {
 	b.config.Proxy = proxyURL
+	return b
+}
+
+func (b *ClientConfigBuilder) WithLocalAddr(localAddr string) *ClientConfigBuilder {
+	b.config.LocalAddr = localAddr
 	return b
 }
 
