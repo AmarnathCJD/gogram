@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"hash"
 	"io"
@@ -325,7 +326,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	if !IsFsBig {
 		return &InputFileObj{
 			ID:          fileId,
-			Md5Checksum: string(hash.Sum(nil)),
+			Md5Checksum: hex.EncodeToString(hash.Sum(nil)),
 			Name:        prettifyFileName(fileName),
 			Parts:       int32(totalParts),
 		}, nil
