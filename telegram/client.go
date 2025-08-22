@@ -86,6 +86,7 @@ type ClientConfig struct {
 	LogLevel         utils.LogLevel       // The library log level
 	Logger           *utils.Logger        // The logger to use
 	Proxy            *url.URL             // The proxy to use (SOCKS5, HTTP)
+	LocalAddr        string               // Local address binding for multi-interface support (IP:port)
 	ForceIPv6        bool                 // Force to use IPv6
 	NoPreconnect     bool                 // Don't preconnect to the DC until Connect() is called
 	Cache            *CACHE               // The cache to use
@@ -184,6 +185,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 			NoColor(!c.Log.Color()),
 		StringSession: config.StringSession,
 		Proxy:         config.Proxy,
+		LocalAddr:     config.LocalAddr,
 		MemorySession: config.MemorySession,
 		Ipv6:          config.ForceIPv6,
 		CustomHost:    customHost,
@@ -867,6 +869,11 @@ func (b *ClientConfigBuilder) WithDataCenter(dc int) *ClientConfigBuilder {
 
 func (b *ClientConfigBuilder) WithProxy(proxyURL *url.URL) *ClientConfigBuilder {
 	b.config.Proxy = proxyURL
+	return b
+}
+
+func (b *ClientConfigBuilder) WithLocalAddr(localAddr string) *ClientConfigBuilder {
+	b.config.LocalAddr = localAddr
 	return b
 }
 

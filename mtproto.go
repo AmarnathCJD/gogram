@@ -40,6 +40,7 @@ type MTProto struct {
 	appID     int32
 	proxy     *url.URL
 	transport transport.Transport
+	localAddr string
 
 	ctxCancel     context.CancelFunc
 	routineswg    sync.WaitGroup
@@ -107,6 +108,7 @@ type Config struct {
 	Mode       string
 	Ipv6       bool
 	CustomHost bool
+	LocalAddr  string
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -149,6 +151,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		memorySession:         c.MemorySession,
 		appID:                 c.AppID,
 		proxy:                 c.Proxy,
+		localAddr:             c.LocalAddr,
 		floodHandler:          func(err error) bool { return false },
 		errorHandler:          func(err error) {},
 		mode:                  parseTransportMode(c.Mode),
@@ -296,6 +299,7 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 		MemorySession: m.memorySession,
 		Logger:        m.Logger,
 		Proxy:         m.proxy,
+		LocalAddr:     m.localAddr,
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,
 	}
@@ -332,6 +336,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 		MemorySession: mem,
 		Logger:        logger,
 		Proxy:         m.proxy,
+		LocalAddr:     m.localAddr,
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,
 	}
@@ -380,18 +385,23 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 		return err
 	}
 	m.tcpState.SetActive(true)
+
+	var localAddrLabel string
+	if m.localAddr != "" {
+		localAddrLabel = fmt.Sprintf("(-%s)", utils.FmtIp(m.localAddr))
+	}
+
+	var proxyLabel string
+	if m.proxy != nil && m.proxy.Host != "" {
+		proxyLabel = fmt.Sprintf("(~%s)", utils.FmtIp(m.proxy.Host))
+	}
+
+	logMessage := fmt.Sprintf("connection to %s%s[%s] - <%s> established", localAddrLabel, proxyLabel, utils.FmtIp(m.Addr), utils.Vtcp(m.IpV6))
+
 	if withLog {
-		if m.proxy != nil && m.proxy.Host != "" {
-			m.Logger.Info(fmt.Sprintf("connection to (~%s)[%s] - <%s> established", utils.FmtIp(m.proxy.Host), m.Addr, utils.Vtcp(m.IpV6)))
-		} else {
-			m.Logger.Info(fmt.Sprintf("connection to [%s] - <%s> established", utils.FmtIp(m.Addr), utils.Vtcp(m.IpV6)))
-		}
+		m.Logger.Info(logMessage)
 	} else {
-		if m.proxy != nil && m.proxy.Host != "" {
-			m.Logger.Debug(fmt.Sprintf("connection to (~%s)[%s] - <%s> established", utils.FmtIp(m.proxy.Host), m.Addr, utils.Vtcp(m.IpV6)))
-		} else {
-			m.Logger.Debug(fmt.Sprintf("connection to [%s] - <%s> established", utils.FmtIp(m.Addr), utils.Vtcp(m.IpV6)))
-		}
+		m.Logger.Debug(logMessage)
 	}
 
 	m.startReadingResponses(ctx)
@@ -417,11 +427,12 @@ func (m *MTProto) connect(ctx context.Context) error {
 	m.transport, err = transport.NewTransport(
 		m,
 		transport.TCPConnConfig{
-			Ctx:     ctx,
-			Host:    utils.FmtIp(m.Addr),
-			IpV6:    m.IpV6,
-			Timeout: defaultTimeout,
-			Socks:   m.proxy,
+			Ctx:       ctx,
+			Host:      utils.FmtIp(m.Addr),
+			IpV6:      m.IpV6,
+			Timeout:   defaultTimeout,
+			Socks:     m.proxy,
+			LocalAddr: m.localAddr,
 		},
 		m.mode,
 	)
