@@ -227,3 +227,11 @@ func (pu *ParticipantUpdate) Demote() (bool, error) {
 
 	return err == nil, err
 }
+
+type JoinRequestUpdate struct {
+	Client         *Client
+	OriginalUpdate *UpdatePendingJoinRequests
+	Channel        *Channel
+	Users          []*UserObj
+	PendingCount   int32
+}
