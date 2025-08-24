@@ -337,7 +337,7 @@ func (c *Client) Connect() error {
 		return errors.Wrap(err, "sending initial request")
 	}
 
-	_, err = c.GetMe()
+	_, _ = c.GetMe()
 	return err
 }
 
