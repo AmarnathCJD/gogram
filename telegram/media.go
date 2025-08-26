@@ -144,16 +144,8 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		partSize = int(opts.ChunkSize)
 	}
 	fileId := GenerateRandomLong()
-	var hash hash.Hash
 
-	IsFsBig := false
-	if size > 10*1024*1024 { // 10MB
-		IsFsBig = true
-	}
-
-	if !IsFsBig {
-		hash = md5.New()
-	}
+	IsFsBig := size > 10*1024*1024 // 10MB
 
 	parts := size / int64(partSize)
 	partOver := size % int64(partSize)
@@ -164,12 +156,10 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	}
 
 	wg := sync.WaitGroup{}
-
-	numWorkers := countWorkers(parts)
+	numWorkers := countWorkers(int64(totalParts))
 	if opts.Threads > 0 {
 		numWorkers = opts.Threads
 	}
-
 	w := NewWorkerPool(numWorkers)
 
 	c.Log.Info(fmt.Sprintf("file - upload: (%s) - (%s) - (%d)", source.GetName(), SizetoHuman(size), parts))
@@ -196,7 +186,6 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		go func() {
 			ticker := time.NewTicker(time.Duration(opts.ProgressManager.editInterval) * time.Second)
 			defer ticker.Stop()
-
 			for {
 				select {
 				case <-stopProgress:
@@ -213,123 +202,115 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	sem := make(chan struct{}, numWorkers)
 	defer close(sem)
 
-	for p := int64(0); p < parts; p++ {
-		sem <- struct{}{}
-		part := make([]byte, partSize)
-		_, err := file.Read(part)
-		if err != nil {
-			c.Log.Error(err)
-			return nil, err
-		}
+	// Small file < 10MB
+	var hash hash.Hash
+	if !IsFsBig {
+		hash = md5.New()
+		file = io.TeeReader(file, hash)
 
-		wg.Add(1)
-		go func(p int, part []byte) {
-			defer func() {
-				<-sem
-				wg.Done()
-			}()
+		for p := int64(0); p < totalParts; p++ {
+			sem <- struct{}{}
+			part := make([]byte, partSize)
+			readBytes, err := io.ReadFull(file, part)
+			if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+				c.Log.Error(err)
+				return nil, err
+			}
+			part = part[:readBytes]
 
-			for range MAX_RETRIES {
-				sender := w.Next()
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
+			wg.Add(1)
+			go func(p int64, part []byte) {
+				defer func() { <-sem; wg.Done() }()
 
-				if !IsFsBig {
-					_, err = sender.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
+				for r := 0; r < MAX_RETRIES; r++ {
+					sender := w.Next()
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+
+					_, err := sender.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
 						FileID:   fileId,
 						FilePart: int32(p),
 						Bytes:    part,
 					})
-				} else {
-					_, err = sender.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
-						FileID:         fileId,
-						FilePart:       int32(p),
-						FileTotalParts: int32(totalParts),
-						Bytes:          part,
-					})
-				}
-				w.FreeWorker(sender)
+					w.FreeWorker(sender)
 
-				if err != nil {
-					if handleIfFlood(err, c) {
+					if err != nil {
+						if handleIfFlood(err, c) {
+							continue
+						}
+						c.Log.Debug(fmt.Sprintf("upload part %d error: %v", p, err))
 						continue
 					}
-					c.Log.Debug(err)
-					continue
+
+					c.Log.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
+					doneBytes.Add(int64(len(part)))
+					doneArray.Store(p, true)
+					break
 				}
-
-				c.Log.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
-
-				doneBytes.Add(int64(len(part)))
-				if !IsFsBig {
-					hash.Write(part)
-				}
-				doneArray.Store(p, true)
-				break
-			}
-		}(int(p), part)
-	}
-
-	wg.Wait()
-
-	if partOver > 0 {
-		part := make([]byte, partOver)
-		_, err := file.Read(part)
-		if err != nil {
-			c.Log.Error(err)
-			return nil, err
+			}(p, part)
 		}
 
-		for range MAX_RETRIES {
-			sender := w.Next()
-			if !IsFsBig {
-				_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveFilePartParams{
-					FileID:   fileId,
-					FilePart: int32(totalParts - 1),
-					Bytes:    part,
-				})
-			} else {
-				_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveBigFilePartParams{
-					FileID:         fileId,
-					FilePart:       int32(totalParts - 1),
-					FileTotalParts: int32(totalParts),
-					Bytes:          part,
-				})
-			}
-			w.FreeWorker(sender)
-			if err != nil {
-				if handleIfFlood(err, c) {
-					continue
-				}
-				c.Log.Debug(err)
-				continue
-			}
+		wg.Wait()
 
-			doneBytes.Add(int64(len(part)))
-			if !IsFsBig {
-				hash.Write(part)
-			}
-
-			doneArray.Store(int(totalParts-1), true)
-			break
+		if opts.FileName != "" {
+			fileName = opts.FileName
 		}
-	}
 
-	if opts.ProgressManager != nil {
-		opts.ProgressManager.editFunc(size, size)
-	}
-
-	if opts.FileName != "" {
-		fileName = opts.FileName
-	}
-
-	if !IsFsBig {
 		return &InputFileObj{
 			ID:          fileId,
 			Md5Checksum: hex.EncodeToString(hash.Sum(nil)),
 			Name:        prettifyFileName(fileName),
 			Parts:       int32(totalParts),
 		}, nil
+	}
+
+	for p := int64(0); p < totalParts; p++ { // Big file > 10MB
+		sem <- struct{}{}
+		part := make([]byte, partSize)
+		readBytes, err := io.ReadFull(file, part)
+		if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+			c.Log.Error(err)
+			return nil, err
+		}
+		part = part[:readBytes]
+
+		wg.Add(1)
+		go func(p int64, part []byte) {
+			defer func() { <-sem; wg.Done() }()
+
+			for r := 0; r < MAX_RETRIES; r++ {
+				sender := w.Next()
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
+				_, err := sender.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
+					FileID:         fileId,
+					FilePart:       int32(p),
+					FileTotalParts: int32(totalParts),
+					Bytes:          part,
+				})
+				w.FreeWorker(sender)
+
+				if err != nil {
+					if handleIfFlood(err, c) {
+						continue
+					}
+					c.Log.Debug(fmt.Sprintf("upload part %d error: %v", p, err))
+					continue
+				}
+
+				c.Log.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
+				doneBytes.Add(int64(len(part)))
+				doneArray.Store(p, true)
+				break
+			}
+		}(p, part)
+	}
+
+	wg.Wait()
+
+	if opts.FileName != "" {
+		fileName = opts.FileName
 	}
 
 	return &InputFileBig{
