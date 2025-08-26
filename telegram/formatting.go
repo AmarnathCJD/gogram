@@ -206,14 +206,14 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 						emojiID, _ := strconv.ParseInt(id, 10, 64)
 						if emojiID != 0 {
 							entities = append(entities, &MessageEntityCustomEmoji{
-								Offset:     tag.Offset,
-								Length:     tag.Length,
+								Offset: tag.Offset,
+								Length: tag.Length,
 								DocumentID: emojiID,
 							})
 						}
 					}
 				}
-
+				
 			case tag.Attrs["href"] == "":
 				entities = append(entities, &MessageEntityURL{tag.Offset, tag.Length})
 			default:
