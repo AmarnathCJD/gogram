@@ -3149,12 +3149,11 @@ func (*PaymentsSuggestedStarRefBots) FlagIndex() int {
 
 type PaymentsUniqueStarGift struct {
 	Gift  StarGift
-	Chats []Chat
 	Users []User
 }
 
 func (*PaymentsUniqueStarGift) CRC() uint32 {
-	return 0x416c56e8
+	return 0xcaa2f60b
 }
 
 // Validated user-provided info
@@ -3675,30 +3674,28 @@ func (*SavedReactionTag) FlagIndex() int {
 }
 
 type SavedStarGift struct {
-	NameHidden         bool `tl:"flag:0,encoded_in_bitflags"`
-	Unsaved            bool `tl:"flag:5,encoded_in_bitflags"`
-	Refunded           bool `tl:"flag:9,encoded_in_bitflags"`
-	CanUpgrade         bool `tl:"flag:10,encoded_in_bitflags"`
-	PinnedToTop        bool `tl:"flag:12,encoded_in_bitflags"`
-	UpgradeSeparate    bool `tl:"flag:17,encoded_in_bitflags"`
-	FromID             Peer `tl:"flag:1"`
-	Date               int32
-	Gift               StarGift
-	Message            *TextWithEntities `tl:"flag:2"`
-	MsgID              int32             `tl:"flag:3"`
-	SavedID            int64             `tl:"flag:11"`
-	ConvertStars       int64             `tl:"flag:4"`
-	UpgradeStars       int64             `tl:"flag:6"`
-	CanExportAt        int32             `tl:"flag:7"`
-	TransferStars      int64             `tl:"flag:8"`
-	CanTransferAt      int32             `tl:"flag:13"`
-	CanResellAt        int32             `tl:"flag:14"`
-	CollectionID       []int32           `tl:"flag:15"`
-	PrepaidUpgradeHash string            `tl:"flag:16"`
+	NameHidden    bool `tl:"flag:0,encoded_in_bitflags"`
+	Unsaved       bool `tl:"flag:5,encoded_in_bitflags"`
+	Refunded      bool `tl:"flag:9,encoded_in_bitflags"`
+	CanUpgrade    bool `tl:"flag:10,encoded_in_bitflags"`
+	PinnedToTop   bool `tl:"flag:12,encoded_in_bitflags"`
+	FromID        Peer `tl:"flag:1"`
+	Date          int32
+	Gift          StarGift
+	Message       *TextWithEntities `tl:"flag:2"`
+	MsgID         int32             `tl:"flag:3"`
+	SavedID       int64             `tl:"flag:11"`
+	ConvertStars  int64             `tl:"flag:4"`
+	UpgradeStars  int64             `tl:"flag:6"`
+	CanExportAt   int32             `tl:"flag:7"`
+	TransferStars int64             `tl:"flag:8"`
+	CanTransferAt int32             `tl:"flag:13"`
+	CanResellAt   int32             `tl:"flag:14"`
+	CollectionID  []int32           `tl:"flag:15"`
 }
 
 func (*SavedStarGift) CRC() uint32 {
-	return 0x19a9b572
+	return 0x1ea646df
 }
 
 func (*SavedStarGift) FlagIndex() int {
@@ -4127,7 +4124,6 @@ type StarsTransaction struct {
 	BusinessTransfer          bool `tl:"flag:21,encoded_in_bitflags"`
 	StargiftResale            bool `tl:"flag:22,encoded_in_bitflags"`
 	PostsSearch               bool `tl:"flag:24,encoded_in_bitflags"`
-	StargiftPrepaidUpgrade    bool `tl:"flag:25,encoded_in_bitflags"`
 	ID                        string
 	Amount                    StarsAmount
 	Date                      int32
@@ -4685,31 +4681,6 @@ func (*TopPeerCategoryPeers) CRC() uint32 {
 	return 0xfb834291
 }
 
-type UniqueStarGiftValueInfo struct {
-	LastSaleOnFragment  bool `tl:"flag:1,encoded_in_bitflags"`
-	ValueIsAverage      bool `tl:"flag:6,encoded_in_bitflags"`
-	Currency            string
-	Value               int64
-	InitialSaleDate     int32
-	InitialSaleStars    int64
-	InitialSalePrice    int64
-	LastSaleDate        int32  `tl:"flag:0"`
-	LastSalePrice       int64  `tl:"flag:0"`
-	FloorPrice          int64  `tl:"flag:2"`
-	AveragePrice        int64  `tl:"flag:3"`
-	ListedCount         int32  `tl:"flag:4"`
-	FragmentListedCount int32  `tl:"flag:5"`
-	FragmentListedURL   string `tl:"flag:5"`
-}
-
-func (*UniqueStarGiftValueInfo) CRC() uint32 {
-	return 0x512fe446
-}
-
-func (*UniqueStarGiftValueInfo) FlagIndex() int {
-	return 0
-}
-
 // Updates state.
 type UpdatesState struct {
 	Pts         int32
@@ -4785,16 +4756,14 @@ type UserFull struct {
 	StarrefProgram           *StarRefProgram          `tl:"flag2:11"`
 	BotVerification          *BotVerification         `tl:"flag2:12"`
 	SendPaidMessagesStars    int64                    `tl:"flag2:14"`
-	DisallowedStargifts      *DisallowedGiftsSettings `tl:"flag2:15"`
+	DisallowedGifts          *DisallowedGiftsSettings `tl:"flag2:15"`
 	StarsRating              *StarsRating             `tl:"flag2:17"`
 	StarsMyPendingRating     *StarsRating             `tl:"flag2:18"`
 	StarsMyPendingRatingDate int32                    `tl:"flag2:18"`
-	MainTab                  ProfileTab               `tl:"flag2:20"`
-	SavedMusic               Document                 `tl:"flag2:21"`
 }
 
 func (*UserFull) CRC() uint32 {
-	return 0x3fd81e28
+	return 0x7e63ce1f
 }
 
 func (*UserFull) FlagIndex() int {
@@ -4863,16 +4832,6 @@ type WebAuthorization struct {
 
 func (*WebAuthorization) CRC() uint32 {
 	return 0xa6f8f452
-}
-
-type WebPagePreview struct {
-	Media MessageMedia
-	Chats []Chat
-	Users []User
-}
-
-func (*WebPagePreview) CRC() uint32 {
-	return 0x8c9a88ac
 }
 
 // Info about a sent inline webview message

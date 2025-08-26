@@ -215,44 +215,6 @@ func (e PrivacyKey) String() string {
 
 func (e PrivacyKey) CRC() uint32 { return uint32(e) }
 
-type ProfileTab uint32
-
-const (
-	ProfileTabFiles ProfileTab = 0xab339c00
-	ProfileTabGifs  ProfileTab = 0xa2c0f695
-	ProfileTabGifts ProfileTab = 0x4d4bd46a
-	ProfileTabLinks ProfileTab = 0xd3656499
-	ProfileTabMedia ProfileTab = 0x72c64955
-	ProfileTabMusic ProfileTab = 0x9f27d26e
-	ProfileTabPosts ProfileTab = 0xb98cd696
-	ProfileTabVoice ProfileTab = 0xe477092e
-)
-
-func (e ProfileTab) String() string {
-	switch e {
-	case ProfileTab(0xab339c00):
-		return "profileTabFiles"
-	case ProfileTab(0xa2c0f695):
-		return "profileTabGifs"
-	case ProfileTab(0x4d4bd46a):
-		return "profileTabGifts"
-	case ProfileTab(0xd3656499):
-		return "profileTabLinks"
-	case ProfileTab(0x72c64955):
-		return "profileTabMedia"
-	case ProfileTab(0x9f27d26e):
-		return "profileTabMusic"
-	case ProfileTab(0xb98cd696):
-		return "profileTabPosts"
-	case ProfileTab(0xe477092e):
-		return "profileTabVoice"
-	default:
-		return "<UNKNOWN ProfileTab>"
-	}
-}
-
-func (e ProfileTab) CRC() uint32 { return uint32(e) }
-
 type ReactionNotificationsFrom uint32
 
 const (
