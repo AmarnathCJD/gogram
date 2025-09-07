@@ -65,6 +65,23 @@ func (*AccountBusinessChatLinks) CRC() uint32 {
 	return 0xec43a2d1
 }
 
+// Available chat themes
+type AccountChatThemes struct {
+	Hash       int64
+	Themes     []ChatTheme
+	Chats      []Chat
+	Users      []User
+	NextOffset int32 `tl:"flag:0"`
+}
+
+func (*AccountChatThemes) CRC() uint32 {
+	return 0x16484857
+}
+
+func (*AccountChatThemes) FlagIndex() int {
+	return 0
+}
+
 // Info about currently connected business bots.
 type AccountConnectedBots struct {
 	ConnectedBots []*ConnectedBot
@@ -228,15 +245,6 @@ type AccountDaysTtl struct {
 
 func (*AccountDaysTtl) CRC() uint32 {
 	return 0xb8d0afdf
-}
-
-// Contains the link that must be used to open a direct link Mini App.
-type AppWebViewResultURL struct {
-	URL string
-}
-
-func (*AppWebViewResultURL) CRC() uint32 {
-	return 0x3c1b4f0d
 }
 
 // Represents a bot mini app that can be launched from the attachment/side menu »
@@ -630,50 +638,6 @@ type BotsPreviewInfo struct {
 
 func (*BotsPreviewInfo) CRC() uint32 {
 	return 0xca71d64
-}
-
-// Describes channel ad revenue balances ».
-type BroadcastRevenueBalances struct {
-	WithdrawalEnabled bool `tl:"flag:0,encoded_in_bitflags"`
-	CurrentBalance    int64
-	AvailableBalance  int64
-	OverallRevenue    int64
-}
-
-func (*BroadcastRevenueBalances) CRC() uint32 {
-	return 0xc3ff71e7
-}
-
-func (*BroadcastRevenueBalances) FlagIndex() int {
-	return 0
-}
-
-type BroadcastRevenueStats struct {
-	TopHoursGraph StatsGraph
-	RevenueGraph  StatsGraph
-	Balances      *BroadcastRevenueBalances
-	UsdRate       float64
-}
-
-func (*BroadcastRevenueStats) CRC() uint32 {
-	return 0x5407e297
-}
-
-type BroadcastRevenueTransactions struct {
-	Count        int32
-	Transactions []BroadcastRevenueTransaction
-}
-
-func (*BroadcastRevenueTransactions) CRC() uint32 {
-	return 0x87158466
-}
-
-type BroadcastRevenueWithdrawalURL struct {
-	URL string
-}
-
-func (*BroadcastRevenueWithdrawalURL) CRC() uint32 {
-	return 0xec659737
 }
 
 // Describes a Telegram Business away message, automatically sent to users writing to us when we're offline, during closing hours, while we're on vacation, or in some other custom time period when we cannot immediately answer to the user.
@@ -1423,17 +1387,6 @@ type FileHash struct {
 
 func (*FileHash) CRC() uint32 {
 	return 0xf39b035c
-}
-
-// File is currently unavailable.
-type FileLocationUnavailable struct {
-	VolumeID int64
-	LocalID  int32
-	Secret   int64
-}
-
-func (*FileLocationUnavailable) CRC() uint32 {
-	return 0x7c596b46
 }
 
 // Folder
@@ -2767,11 +2720,12 @@ func (*MessagesWebPage) CRC() uint32 {
 
 type MessagesWebPagePreview struct {
 	Media MessageMedia
+	Chats []Chat
 	Users []User
 }
 
 func (*MessagesWebPagePreview) CRC() uint32 {
-	return 0xb53e8b21
+	return 0x8c9a88ac
 }
 
 type MessagesWebViewResult struct {
@@ -3149,11 +3103,37 @@ func (*PaymentsSuggestedStarRefBots) FlagIndex() int {
 
 type PaymentsUniqueStarGift struct {
 	Gift  StarGift
+	Chats []Chat
 	Users []User
 }
 
 func (*PaymentsUniqueStarGift) CRC() uint32 {
-	return 0xcaa2f60b
+	return 0x416c56e8
+}
+
+type PaymentsUniqueStarGiftValueInfo struct {
+	LastSaleOnFragment  bool `tl:"flag:1,encoded_in_bitflags"`
+	ValueIsAverage      bool `tl:"flag:6,encoded_in_bitflags"`
+	Currency            string
+	Value               int64
+	InitialSaleDate     int32
+	InitialSaleStars    int64
+	InitialSalePrice    int64
+	LastSaleDate        int32  `tl:"flag:0"`
+	LastSalePrice       int64  `tl:"flag:0"`
+	FloorPrice          int64  `tl:"flag:2"`
+	AveragePrice        int64  `tl:"flag:3"`
+	ListedCount         int32  `tl:"flag:4"`
+	FragmentListedCount int32  `tl:"flag:5"`
+	FragmentListedURL   string `tl:"flag:5"`
+}
+
+func (*PaymentsUniqueStarGiftValueInfo) CRC() uint32 {
+	return 0x512fe446
+}
+
+func (*PaymentsUniqueStarGiftValueInfo) FlagIndex() int {
+	return 0
 }
 
 // Validated user-provided info
@@ -3674,28 +3654,30 @@ func (*SavedReactionTag) FlagIndex() int {
 }
 
 type SavedStarGift struct {
-	NameHidden    bool `tl:"flag:0,encoded_in_bitflags"`
-	Unsaved       bool `tl:"flag:5,encoded_in_bitflags"`
-	Refunded      bool `tl:"flag:9,encoded_in_bitflags"`
-	CanUpgrade    bool `tl:"flag:10,encoded_in_bitflags"`
-	PinnedToTop   bool `tl:"flag:12,encoded_in_bitflags"`
-	FromID        Peer `tl:"flag:1"`
-	Date          int32
-	Gift          StarGift
-	Message       *TextWithEntities `tl:"flag:2"`
-	MsgID         int32             `tl:"flag:3"`
-	SavedID       int64             `tl:"flag:11"`
-	ConvertStars  int64             `tl:"flag:4"`
-	UpgradeStars  int64             `tl:"flag:6"`
-	CanExportAt   int32             `tl:"flag:7"`
-	TransferStars int64             `tl:"flag:8"`
-	CanTransferAt int32             `tl:"flag:13"`
-	CanResellAt   int32             `tl:"flag:14"`
-	CollectionID  []int32           `tl:"flag:15"`
+	NameHidden         bool `tl:"flag:0,encoded_in_bitflags"`
+	Unsaved            bool `tl:"flag:5,encoded_in_bitflags"`
+	Refunded           bool `tl:"flag:9,encoded_in_bitflags"`
+	CanUpgrade         bool `tl:"flag:10,encoded_in_bitflags"`
+	PinnedToTop        bool `tl:"flag:12,encoded_in_bitflags"`
+	UpgradeSeparate    bool `tl:"flag:17,encoded_in_bitflags"`
+	FromID             Peer `tl:"flag:1"`
+	Date               int32
+	Gift               StarGift
+	Message            *TextWithEntities `tl:"flag:2"`
+	MsgID              int32             `tl:"flag:3"`
+	SavedID            int64             `tl:"flag:11"`
+	ConvertStars       int64             `tl:"flag:4"`
+	UpgradeStars       int64             `tl:"flag:6"`
+	CanExportAt        int32             `tl:"flag:7"`
+	TransferStars      int64             `tl:"flag:8"`
+	CanTransferAt      int32             `tl:"flag:13"`
+	CanResellAt        int32             `tl:"flag:14"`
+	CollectionID       []int32           `tl:"flag:15"`
+	PrepaidUpgradeHash string            `tl:"flag:16"`
 }
 
 func (*SavedStarGift) CRC() uint32 {
-	return 0x1ea646df
+	return 0x19a9b572
 }
 
 func (*SavedStarGift) FlagIndex() int {
@@ -3828,15 +3810,6 @@ type ShippingOption struct {
 
 func (*ShippingOption) CRC() uint32 {
 	return 0xb6213cdf
-}
-
-// Contains the webview URL with appropriate theme parameters added
-type SimpleWebViewResultURL struct {
-	URL string
-}
-
-func (*SimpleWebViewResultURL) CRC() uint32 {
-	return 0x882f76bb
 }
 
 // Info about an SMS job.
@@ -4124,6 +4097,7 @@ type StarsTransaction struct {
 	BusinessTransfer          bool `tl:"flag:21,encoded_in_bitflags"`
 	StargiftResale            bool `tl:"flag:22,encoded_in_bitflags"`
 	PostsSearch               bool `tl:"flag:24,encoded_in_bitflags"`
+	StargiftPrepaidUpgrade    bool `tl:"flag:25,encoded_in_bitflags"`
 	ID                        string
 	Amount                    StarsAmount
 	Date                      int32
@@ -4738,7 +4712,7 @@ type UserFull struct {
 	CommonChatsCount         int32
 	FolderID                 int32                    `tl:"flag:11"`
 	TtlPeriod                int32                    `tl:"flag:14"`
-	ThemeEmoticon            string                   `tl:"flag:15"`
+	Theme                    ChatTheme                `tl:"flag:15"`
 	PrivateForwardName       string                   `tl:"flag:16"`
 	BotGroupAdminRights      *ChatAdminRights         `tl:"flag:17"`
 	BotBroadcastAdminRights  *ChatAdminRights         `tl:"flag:18"`
@@ -4760,10 +4734,12 @@ type UserFull struct {
 	StarsRating              *StarsRating             `tl:"flag2:17"`
 	StarsMyPendingRating     *StarsRating             `tl:"flag2:18"`
 	StarsMyPendingRatingDate int32                    `tl:"flag2:18"`
+	MainTab                  ProfileTab               `tl:"flag2:20"`
+	SavedMusic               Document                 `tl:"flag2:21"`
 }
 
 func (*UserFull) CRC() uint32 {
-	return 0x7e63ce1f
+	return 0xc577b5ad
 }
 
 func (*UserFull) FlagIndex() int {
