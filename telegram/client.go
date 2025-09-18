@@ -96,6 +96,7 @@ type ClientConfig struct {
 	AlbumWaitTime    int64                // The time to wait for album messages (in milliseconds)
 	FloodHandler     func(err error) bool // The flood handler to use
 	ErrorHandler     func(err error)      // The error handler to use
+	Timeout          time.Duration        // Request timeout (no timeout by default)
 }
 
 type Session struct {
@@ -191,6 +192,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		CustomHost:    customHost,
 		FloodHandler:  config.FloodHandler,
 		ErrorHandler:  config.ErrorHandler,
+		Timeout:       config.Timeout,
 	})
 	if err != nil {
 		return errors.Wrap(err, "creating mtproto client")
