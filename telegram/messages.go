@@ -309,7 +309,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 				return nil, err
 			}
 
-			c.exSenders.senders[int(dcID)] = append(c.exSenders.senders[int(dcID)], &ExSender{senderNew, time.Now()})
+			c.exSenders.senders[int(dcID)] = append(c.exSenders.senders[int(dcID)], NewExSender(senderNew))
 			sender = senderNew
 		}
 	}
