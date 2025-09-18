@@ -138,7 +138,7 @@ func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 	//
 	//	resp, ok := data.(*AuthSentCode)
 	//	if !ok {
-	//		panic("got invalid response type: " + reflect.TypeOf(data).String())
+	//		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(data))
 	//	}
 	//
 	//	return resp, nil
@@ -151,7 +151,13 @@ func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 		jen.Line(),
 		jen.List(jen.Id("resp"), jen.Id("ok")).Op(":=").Id("responseData").Assert(resp),
 		jen.If(jen.Op("!").Id("ok")).Block(
-			jen.Panic(jen.Lit("got invalid response type: ").Op("+").Qual("reflect", "TypeOf").Call(jen.Id("responseData")).Dot("String").Call()),
+			jen.Return(
+				nuk,
+				jen.Qual("fmt", "Errorf").Call(
+					jen.Lit("got invalid response type: %s"),
+					jen.Qual("reflect", "TypeOf").Call(jen.Id("responseData")),
+				),
+			),
 		),
 		jen.Return(jen.Id("resp"), jen.Nil()),
 	)
