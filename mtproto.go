@@ -881,8 +881,8 @@ func (m *MTProto) TcpState() *TcpState {
 func (m *TcpState) SetActive(active bool) {
 	m.Cond.L.Lock()
 	m.Active.Store(active)
-	m.Cond.L.Unlock()
 	m.Cond.Broadcast()
+	m.Cond.L.Unlock()
 }
 
 func (m *TcpState) WaitForActive() {
