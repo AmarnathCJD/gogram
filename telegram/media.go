@@ -200,7 +200,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		}()
 	}
 
-	MAX_RETRIES := 3
+	MaxRetries := 3
 	sem := make(chan struct{}, numWorkers)
 	defer close(sem)
 
@@ -224,10 +224,9 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 			go func(p int64, part []byte) {
 				defer func() { <-sem; wg.Done() }()
 
-				for r := 0; r < MAX_RETRIES; r++ {
+				for r := 0; r < MaxRetries; r++ {
 					sender := w.Next()
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					defer cancel()
 
 					_, err := sender.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
 						FileID:   fileId,
@@ -235,6 +234,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 						Bytes:    part,
 					})
 					w.FreeWorker(sender)
+					cancel()
 
 					if err != nil {
 						if handleIfFlood(err, c) {
@@ -280,10 +280,9 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		go func(p int64, part []byte) {
 			defer func() { <-sem; wg.Done() }()
 
-			for r := 0; r < MAX_RETRIES; r++ {
+			for r := 0; r < MaxRetries; r++ {
 				sender := w.Next()
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
 
 				_, err := sender.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
 					FileID:         fileId,
@@ -292,6 +291,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					Bytes:          part,
 				})
 				w.FreeWorker(sender)
+				cancel()
 
 				if err != nil {
 					if handleIfFlood(err, c) {
@@ -526,7 +526,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		}()
 	}
 
-	MAX_RETRIES := 3
+	MaxRetries := 3
 	var cdnRedirect atomic.Bool
 	for p := int64(0); p < totalParts; p++ {
 		wg.Add(1)
@@ -537,13 +537,12 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				wg.Done()
 			}()
 
-			for range MAX_RETRIES {
+			for range MaxRetries {
 				if cdnRedirect.Load() {
 					return
 				}
 				sender := w.Next()
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
 
 				part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
 					Location:     location,
@@ -553,6 +552,8 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					CdnSupported: false,
 				})
 				w.FreeWorker(sender)
+				cancel()
+
 				if err != nil {
 					if handleIfFlood(err, c) {
 						continue
@@ -599,10 +600,9 @@ retrySinglePart:
 				wg.Done()
 			}()
 
-			for range MAX_RETRIES {
+			for range MaxRetries {
 				sender := w.Next()
 				ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-				defer cancel()
 
 				part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
 					Location:     location,
@@ -612,6 +612,7 @@ retrySinglePart:
 					CdnSupported: false,
 				})
 				w.FreeWorker(sender)
+				cancel()
 
 				if err != nil {
 					if handleIfFlood(err, c) {
