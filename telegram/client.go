@@ -433,16 +433,32 @@ type ExSenders struct {
 	sync.Mutex
 	senders     map[int][]*ExSender
 	cleanupDone chan struct{}
+	closeOnce   sync.Once
 }
 
 type ExSender struct {
 	*mtproto.MTProto
-	lastUsed time.Time
+	lastUsed   time.Time
+	lastUsedMu sync.Mutex
+}
+
+func NewExSender(mtProto *mtproto.MTProto) *ExSender {
+	return &ExSender{
+		MTProto:  mtProto,
+		lastUsed: time.Now(),
+	}
+}
+
+func (es *ExSender) GetLastUsedTime() time.Time {
+	es.lastUsedMu.Lock()
+	defer es.lastUsedMu.Unlock()
+	return es.lastUsed
 }
 
 func NewExSenders() *ExSenders {
 	es := &ExSenders{
-		senders: make(map[int][]*ExSender),
+		senders:     make(map[int][]*ExSender),
+		cleanupDone: make(chan struct{}),
 	}
 	go es.cleanupLoop()
 	return es
@@ -450,7 +466,6 @@ func NewExSenders() *ExSenders {
 
 func (es *ExSenders) cleanupLoop() {
 	ticker := time.NewTicker(30 * time.Minute)
-	es.cleanupDone = make(chan struct{})
 	defer ticker.Stop()
 
 	for {
@@ -469,7 +484,7 @@ func (es *ExSenders) cleanupIdleSenders() {
 
 	for _, senders := range es.senders {
 		for i, sender := range senders {
-			if time.Since(sender.lastUsed) > 30*time.Minute {
+			if time.Since(sender.GetLastUsedTime()) > 30*time.Minute {
 				sender.Terminate()
 				senders[i] = nil
 			}
@@ -489,7 +504,9 @@ func (es *ExSenders) cleanupIdleSenders() {
 }
 
 func (es *ExSenders) Close() {
-	close(es.cleanupDone)
+	es.closeOnce.Do(func() {
+		close(es.cleanupDone)
+	})
 }
 
 // CreateExportedSender creates a new exported sender for the given DC
