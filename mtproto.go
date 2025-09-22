@@ -87,6 +87,7 @@ type MTProto struct {
 	exported              bool
 	cdn                   bool
 	terminated            atomic.Bool
+	timeout               time.Duration
 }
 
 type Config struct {
@@ -109,6 +110,7 @@ type Config struct {
 	Ipv6       bool
 	CustomHost bool
 	LocalAddr  string
+	Timeout    time.Duration
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -158,6 +160,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		IpV6:                  c.Ipv6,
 		tcpState:              NewTcpState(),
 		DcList:                utils.NewDCOptions(),
+		timeout:               c.Timeout,
 	}
 
 	mtproto.Logger.Debug("initializing mtproto...")
@@ -302,6 +305,7 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 		LocalAddr:     m.localAddr,
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,
+		Timeout:       m.timeout,
 	}
 
 	sender, err := NewMTProto(cfg)
@@ -339,6 +343,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 		LocalAddr:     m.localAddr,
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,
+		Timeout:       m.timeout,
 	}
 
 	if dcID == m.GetDC() {
