@@ -590,6 +590,7 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 		ClearDraft:             opt.ClearDraft,
 		Noforwards:             opt.NoForwards,
 		UpdateStickersetsOrder: false,
+		InvertMedia:            opt.InvertMedia,
 		Peer:                   Peer,
 		ReplyTo:                replyTo,
 		ScheduleDate:           opt.ScheduleDate,
