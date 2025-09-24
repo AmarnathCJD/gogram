@@ -51,7 +51,7 @@ func PathIsWritable(path string) bool {
 	if err != nil {
 		return false
 	}
-	defer file.Close()
+	file.Close()
 	return true
 }
 

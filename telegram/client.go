@@ -584,12 +584,11 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 
 		c.Log.Debug("sending initial request...")
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
 		_, err = exported.MakeRequestCtx(ctx, &InvokeWithLayerParams{
 			Layer: ApiVersion,
 			Query: initialReq,
 		})
+		cancel()
 		c.Log.Debug(fmt.Sprintf("initial request for exported sender %d sent", dcID))
 
 		if err != nil {
