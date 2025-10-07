@@ -449,7 +449,10 @@ func (m *MTProto) connect(ctx context.Context) error {
 }
 
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	m.tcpState.WaitForActive()
+	err := m.tcpState.WaitForActive(context.Background())
+	if err != nil {
+		return nil, errors.Wrap(err, "waiting for TCP active")
+	}
 
 	resp, _, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
@@ -486,7 +489,10 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 }
 
 func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	m.tcpState.WaitForActive()
+	err := m.tcpState.WaitForActive(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "waiting for TCP active")
+	}
 
 	resp, msgId, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
@@ -535,7 +541,7 @@ func (m *MTProto) InvokeRequestWithoutUpdate(data tl.Object, expectedTypes ...re
 }
 
 func (m *MTProto) IsTcpActive() bool {
-	return m.tcpState.Active.Load()
+	return m.tcpState.GetActive()
 }
 
 func (m *MTProto) stopRoutines() {
@@ -597,7 +603,10 @@ func (m *MTProto) longPing(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			m.tcpState.WaitForActive()
+			err := m.tcpState.WaitForActive(ctx)
+			if err != nil {
+				return
+			}
 			m.Ping()
 		}
 	}
@@ -622,7 +631,10 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			default:
-				m.TcpState().WaitForActive()
+				errCtx := m.tcpState.WaitForActive(ctx)
+				if errCtx != nil {
+					return
+				}
 				err := m.readMsg()
 
 				if err != nil {
@@ -874,35 +886,76 @@ func MessageRequireToAck(msg tl.Object) bool {
 	}
 }
 
+// TcpState represents a simple concurrency-safe state machine
+// that can be either active or inactive.
+// When the state becomes active, all goroutines waiting on WaitForActive()
+// are released (via channel close).
+// When the state becomes inactive again, a new channel is created for future waits.
 type TcpState struct {
-	Active atomic.Bool
-	Cond   *sync.Cond
+	mu     sync.RWMutex
+	active bool
+	ch     chan struct{}
 }
 
 func (m *MTProto) TcpState() *TcpState {
 	return m.tcpState
 }
 
-func (m *TcpState) SetActive(active bool) {
-	m.Cond.L.Lock()
-	m.Active.Store(active)
-	m.Cond.Broadcast()
-	m.Cond.L.Unlock()
+// GetActive safely returns the current active flag.
+// It can be called concurrently with other methods.
+func (m *TcpState) GetActive() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.active
 }
 
-func (m *TcpState) WaitForActive() {
-	m.Cond.L.Lock()
-	defer m.Cond.L.Unlock()
+// SetActive updates the active flag.
+// - If switching from false → true, the channel is closed to notify all waiters.
+// - If switching from true → false, a new channel is created for future waits.
+func (m *TcpState) SetActive(active bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	for !m.Active.Load() {
-		m.Cond.Wait()
+	// No state change → nothing to do
+	if m.active == active {
+		return
+	}
+
+	m.active = active
+
+	if active {
+		// Closing the channel releases all current waiters
+		close(m.ch)
+	} else {
+		// Create a new channel for the next waiting round
+		m.ch = make(chan struct{})
+	}
+}
+
+// WaitForActive blocks until the TcpState becomes active or
+// until the provided context is canceled.
+// Returns nil when the state is active, or ctx.Err() if canceled.
+func (m *TcpState) WaitForActive(ctx context.Context) error {
+	m.mu.RLock()
+	ch := m.ch
+	active := m.active
+	m.mu.RUnlock()
+
+	if active {
+		return nil
+	}
+
+	select {
+	case <-ch: // Unblocked when SetActive(true) closes the channel
+		return nil
+	case <-ctx.Done(): // Context canceled or timed out
+		return ctx.Err()
 	}
 }
 
 func NewTcpState() *TcpState {
 	return &TcpState{
-		Active: atomic.Bool{},
-		Cond:   sync.NewCond(&sync.Mutex{}),
+		ch: make(chan struct{}),
 	}
 }
 
