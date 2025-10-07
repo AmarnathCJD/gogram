@@ -39,6 +39,8 @@ type clientData struct {
 	systemVersion    string
 	appVersion       string
 	langCode         string
+	systemLangCode   string
+	langPack         string
 	parseMode        string
 	logLevel         utils.LogLevel
 	sleepThresholdMs int
@@ -61,10 +63,12 @@ type Client struct {
 }
 
 type DeviceConfig struct {
-	DeviceModel   string // The device model to use
-	SystemVersion string // The version of the system
-	AppVersion    string // The version of the app
-	LangCode      string // The language code
+	DeviceModel    string // The device model to use
+	SystemVersion  string // The version of the system
+	AppVersion     string // The version of the app
+	LangCode       string // The language code
+	SystemLangCode string // The system language code
+	LangPack       string // The language pack
 }
 
 type ClientConfig struct {
@@ -265,6 +269,8 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.systemVersion = getValue(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH)
 	c.clientData.appVersion = getValue(cnf.DeviceConfig.AppVersion, Version)
 	c.clientData.langCode = getValue(cnf.DeviceConfig.LangCode, "en")
+	c.clientData.systemLangCode = getValue(cnf.DeviceConfig.SystemLangCode, c.clientData.langCode) // backward compatibility
+	c.clientData.langPack = cnf.DeviceConfig.LangPack
 	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
 	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
 	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
@@ -277,7 +283,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	}
 }
 
-// initialRequest sends the initial initConnection request
+// InitialRequest sends the initial initConnection request
 func (c *Client) InitialRequest() error {
 	c.Log.Debug("sending initial invokeWithLayer request")
 	serverConfig, err := c.InvokeWithLayer(ApiVersion, &InitConnectionParams{
@@ -285,8 +291,9 @@ func (c *Client) InitialRequest() error {
 		DeviceModel:    c.clientData.deviceModel,
 		SystemVersion:  c.clientData.systemVersion,
 		AppVersion:     c.clientData.appVersion,
-		SystemLangCode: c.clientData.langCode,
+		SystemLangCode: c.clientData.systemLangCode,
 		LangCode:       c.clientData.langCode,
+		LangPack:       c.clientData.langPack,
 		Query:          &HelpGetConfigParams{},
 	})
 
@@ -549,8 +556,9 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 			DeviceModel:    c.clientData.deviceModel,
 			SystemVersion:  c.clientData.systemVersion,
 			AppVersion:     c.clientData.appVersion,
-			SystemLangCode: c.clientData.langCode,
+			SystemLangCode: c.clientData.systemLangCode,
 			LangCode:       c.clientData.langCode,
+			LangPack:       c.clientData.langPack,
 			Query:          &HelpGetConfigParams{},
 		}
 
@@ -857,12 +865,14 @@ func NewClientConfigBuilder(appID int32, appHash string) *ClientConfigBuilder {
 	}
 }
 
-func (b *ClientConfigBuilder) WithDeviceConfig(deviceModel, systemVersion, appVersion, langCode string) *ClientConfigBuilder {
+func (b *ClientConfigBuilder) WithDeviceConfig(deviceModel, systemVersion, appVersion, langCode, sysLangCode, langPack string) *ClientConfigBuilder {
 	b.config.DeviceConfig = DeviceConfig{
-		DeviceModel:   deviceModel,
-		SystemVersion: systemVersion,
-		AppVersion:    appVersion,
-		LangCode:      langCode,
+		DeviceModel:    deviceModel,
+		SystemVersion:  systemVersion,
+		AppVersion:     appVersion,
+		LangCode:       langCode,
+		SystemLangCode: sysLangCode,
+		LangPack:       langPack,
 	}
 	return b
 }

@@ -64,7 +64,7 @@ func (s *StringSession) Encode() string {
 		strconv.Itoa(s.dcID),
 		strconv.FormatInt(int64(s.appID), 10),
 	}
-	return stringPrefix + base64.RawURLEncoding.EncodeToString([]byte(strings.Join(sessionContents, "::")))
+	return stringPrefix + base64.RawURLEncoding.EncodeToString([]byte(strings.Join(sessionContents, ":_:")))
 }
 
 func (s *StringSession) Decode(encoded string) error {
@@ -73,7 +73,11 @@ func (s *StringSession) Decode(encoded string) error {
 		return err
 	}
 	decodedString := string(decoded)
-	split := strings.Split(decodedString, "::")
+	split := strings.Split(decodedString, ":_:")
+	if len(split) != 5 {
+		// try again with "::" as a separator (backward compatibility)
+		split = strings.Split(decodedString, "::")
+	}
 	if len(split) != 5 {
 		return ErrInvalidSession
 	}
