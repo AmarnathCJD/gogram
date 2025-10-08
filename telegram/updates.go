@@ -866,17 +866,13 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 			return true
 		}
 
-		if strings.HasPrefix(Pattern, "cmd:") {
+		if after, ok := strings.CutPrefix(Pattern, "cmd:"); ok {
 			//(?i)^[!/-?]ping(?: |$|@botusername)(.*)$
-			Pattern = "(?i)^[!\\/?]" + strings.TrimPrefix(Pattern, "cmd:")
+			Pattern = "(?i)^[!\\/?]" + after
 			if me := c.Me(); me != nil && me.Username != "" && me.Bot {
 				Pattern += "(?: |$|@" + me.Username + ")(.*)"
 			} else {
 				Pattern += "(?: |$)(.*)"
-			}
-		} else {
-			if !strings.HasPrefix(Pattern, "^") {
-				Pattern = "^" + Pattern
 			}
 		}
 
