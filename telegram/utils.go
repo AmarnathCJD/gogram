@@ -613,6 +613,7 @@ func PackBotFileID(file any) string {
 	var (
 		fID, accessHash int64
 		fileType, dcID  int32
+		fileSize        int64 = -1
 	)
 
 switchFileType:
@@ -622,6 +623,7 @@ switchFileType:
 		accessHash = f.AccessHash
 		fileType = 5
 		dcID = f.DcID
+		fileSize = f.Size
 		for _, attr := range f.Attributes {
 			switch attr := attr.(type) {
 			case *DocumentAttributeAudio:
@@ -665,47 +667,61 @@ switchFileType:
 		return ""
 	}
 
-	buf := make([]byte, 4+8+8)
+	bufSize := 4 + 8 + 8
+	hasSize := fileSize >= 0
+	if hasSize {
+		bufSize += 8
+	}
+
+	buf := make([]byte, bufSize)
 	binary.LittleEndian.PutUint32(buf[0:], uint32(fileType)|uint32(dcID)<<24)
 	binary.LittleEndian.PutUint64(buf[4:], uint64(fID))
 	binary.LittleEndian.PutUint64(buf[4+8:], uint64(accessHash))
+
+	// Only include file size if it's known (>= 0)
+	if hasSize {
+		binary.LittleEndian.PutUint64(buf[4+8+8:], uint64(fileSize))
+	}
+
 	return base64.RawURLEncoding.EncodeToString(buf)
 }
 
 // UnpackBotFileID unpacks a file id to its components
-func UnpackBotFileID(fileID string) (int64, int64, int32, int32) {
+func UnpackBotFileID(fileID string) (int64, int64, int32, int32, int64) {
 	data, err := base64.RawURLEncoding.DecodeString(fileID)
 	if err != nil {
-		return 0, 0, 0, 0
+		return 0, 0, 0, 0, 0
 	}
 
-	if len(data) == 20 {
+	if len(data) == 4+8+8+8 {
 		tmp := binary.LittleEndian.Uint32(data[0:])
 		fileType := int32(tmp & 0x00FFFFFF)
 		dcID := int32((tmp >> 24) & 0xFF)
 		fID := int64(binary.LittleEndian.Uint64(data[4:]))
 		accessHash := int64(binary.LittleEndian.Uint64(data[4+8:]))
-		return fID, accessHash, fileType, dcID
+		fileSize := int64(binary.LittleEndian.Uint64(data[4+8+8:]))
+		return fID, accessHash, fileType, dcID, fileSize
 	}
 
-	// Compatibility with old file ids
-	if parts := strings.SplitN(string(data), "_", 4); len(parts) == 4 {
-		fileType, _ := strconv.Atoi(parts[0])
-		dcID, _ := strconv.Atoi(parts[1])
-		fID, _ := strconv.ParseInt(parts[2], 10, 64)
-		accessHash, _ := strconv.ParseInt(parts[3], 10, 64)
-		return fID, accessHash, int32(fileType), int32(dcID)
+	if len(data) == 4+8+8 {
+		tmp := binary.LittleEndian.Uint32(data[0:])
+		fileType := int32(tmp & 0x00FFFFFF)
+		dcID := int32((tmp >> 24) & 0xFF)
+		fID := int64(binary.LittleEndian.Uint64(data[4:]))
+		accessHash := int64(binary.LittleEndian.Uint64(data[4+8:]))
+		return fID, accessHash, fileType, dcID, -1
 	}
 
-	return 0, 0, 0, 0
+	return 0, 0, 0, 0, 0
 }
 
 // ResolveBotFileID resolves a file id to a MessageMedia object
 func ResolveBotFileID(fileId string) (MessageMedia, error) {
-	fID, accessHash, fileType, dcID := UnpackBotFileID(fileId)
+	fID, accessHash, fileType, dcID, fileSize := UnpackBotFileID(fileId)
 	if fID == 0 || accessHash == 0 || fileType == 0 || dcID == 0 {
 		return nil, errors.New("failed to resolve file id: unrecognized format")
 	}
+
 	switch fileType {
 	case 2:
 		return &MessageMediaPhoto{
@@ -716,7 +732,7 @@ func ResolveBotFileID(fileId string) (MessageMedia, error) {
 			},
 		}, nil
 	case 3, 4, 5, 8, 9, 10, 13:
-		var attributes = []DocumentAttribute{}
+		var attributes []DocumentAttribute
 		switch fileType {
 		case 3:
 			attributes = append(attributes, &DocumentAttributeAudio{
@@ -737,11 +753,13 @@ func ResolveBotFileID(fileId string) (MessageMedia, error) {
 				RoundMessage: true,
 			})
 		}
+
 		return &MessageMediaDocument{
 			Document: &DocumentObj{
 				ID:         fID,
 				AccessHash: accessHash,
 				DcID:       dcID,
+				Size:       fileSize,
 				Attributes: attributes,
 			},
 		}, nil
