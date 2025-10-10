@@ -118,30 +118,42 @@ func (pu *ParticipantUpdate) IsKicked() bool {
 }
 
 func (pu *ParticipantUpdate) IsPromoted() bool {
-	if pu.Old != nil && pu.New != nil {
-		if _, ok := pu.Old.(*ChannelParticipantObj); ok {
-			if _, ok := pu.New.(*ChannelParticipantAdmin); ok {
-				return true
-			}
+	if pu.New == nil {
+		return false
+	}
+
+	switch pu.New.(type) {
+	case *ChannelParticipantAdmin, *ChannelParticipantCreator:
+		if pu.Old == nil {
+			return true
 		}
-		if _, ok := pu.Old.(*ChannelParticipantBanned); ok {
-			if _, ok := pu.New.(*ChannelParticipantAdmin); ok {
-				return true
-			}
+		
+		switch pu.Old.(type) {
+		case *ChannelParticipantAdmin, *ChannelParticipantCreator:
+			return false
+		default:
+			return true
 		}
 	}
+
 	return false
 }
 
 func (pu *ParticipantUpdate) IsDemoted() bool {
-	if pu.Old != nil && pu.New != nil {
-		if _, ok := pu.Old.(*ChannelParticipantAdmin); ok {
-			if _, ok := pu.New.(*ChannelParticipantObj); ok {
-				return true
-			}
-			if _, ok := pu.New.(*ChannelParticipantBanned); ok {
-				return true
-			}
+	if pu.Old == nil {
+		return false
+	}
+
+	if _, ok := pu.Old.(*ChannelParticipantAdmin); ok {
+		if pu.New == nil {
+			return true
+		}
+
+		switch pu.New.(type) {
+		case *ChannelParticipantAdmin, *ChannelParticipantCreator:
+			return false
+		default:
+			return true
 		}
 	}
 	return false
