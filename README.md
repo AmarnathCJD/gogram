@@ -40,7 +40,7 @@ identity (bot API alternative) using Go.</p>
 
 ## setup
 
-<p>please note that gogram requires Go <b>1.18</b> or later to support go-generics</p>
+<p>please note that gogram requires Go <b>1.24</b> or later to support go-generics</p>
 
 ```bash
 go get -u github.com/amarnathcjd/gogram/telegram
