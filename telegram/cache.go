@@ -134,7 +134,7 @@ func (c *CACHE) WriteFile() {
 	enc := gob.NewEncoder(file)
 	c.Lock()
 	defer c.Unlock()
-	if err := enc.Encode(c.InputPeers); err != nil {
+	if err = enc.Encode(c.InputPeers); err != nil {
 		c.logger.Error("error encoding cache file: ", err)
 	}
 }

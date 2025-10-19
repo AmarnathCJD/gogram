@@ -214,7 +214,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 			sem <- struct{}{}
 			part := make([]byte, partSize)
 			readBytes, err := io.ReadFull(file, part)
-			if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+			if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && err != io.EOF {
 				c.Log.Error(err)
 				return nil, err
 			}
@@ -270,7 +270,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		sem <- struct{}{}
 		part := make([]byte, partSize)
 		readBytes, err := io.ReadFull(file, part)
-		if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+		if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && err != io.EOF {
 			c.Log.Error(err)
 			return nil, err
 		}
@@ -754,7 +754,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 	}
 
 	w := NewWorkerPool(1)
-	if err := initializeWorkers(1, int32(dc), c, w); err != nil {
+	if err = initializeWorkers(1, int32(dc), c, w); err != nil {
 		return nil, "", err
 	}
 

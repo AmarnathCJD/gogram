@@ -15,6 +15,8 @@ import (
 	"golang.org/x/net/html"
 )
 
+var linksytaxre = regexp.MustCompile(`\[([^]]+)]\(([^)]+)\)`)
+
 func (c *Client) FormatMessage(message, mode string) ([]MessageEntity, string) {
 	return parseEntities(message, mode)
 }
@@ -77,7 +79,7 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 
 	// Convert the tree of nodes into a string with no HTML tags
 	var textBuf bytes.Buffer
-	tagOffsets := []Tag{}
+	var tagOffsets []Tag
 	var parseNode func(*html.Node, int32)
 	var openTags []Tag
 	parseNode = func(n *html.Node, offset int32) {
@@ -464,12 +466,11 @@ func convertCodeBlockSyntax(markdown string) string {
 }
 
 func convertLinksSyntax(markdown string) string {
-	re := regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
-	return re.ReplaceAllStringFunc(markdown, func(m string) string {
-		parts := re.FindStringSubmatch(m)
+	return linksytaxre.ReplaceAllStringFunc(markdown, func(m string) string {
+		parts := linksytaxre.FindStringSubmatch(m)
 		text := html.EscapeString(parts[1])
-		url := html.EscapeString(parts[2])
-		return fmt.Sprintf(`<a href="%s">%s</a>`, url, text)
+		urlpart := html.EscapeString(parts[2])
+		return fmt.Sprintf(`<a href="%s">%s</a>`, urlpart, text)
 	})
 }
 

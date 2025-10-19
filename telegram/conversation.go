@@ -118,10 +118,10 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 	c.openHandlers = append(c.openHandlers, h)
 	select {
 	case <-time.After(time.Duration(c.timeout) * time.Second):
-		go c.removeHandle(h)
+		c.removeHandle(h)
 		return nil, fmt.Errorf("conversation timeout: %d", c.timeout)
 	case m := <-resp:
-		go c.removeHandle(h)
+		c.removeHandle(h)
 		return m, nil
 	}
 }
@@ -158,10 +158,10 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 	c.openHandlers = append(c.openHandlers, h)
 	select {
 	case <-time.After(time.Duration(c.timeout) * time.Second):
-		go c.removeHandle(h)
+		c.removeHandle(h)
 		return nil, fmt.Errorf("conversation timeout: %d", c.timeout)
 	case m := <-resp:
-		go c.removeHandle(h)
+		c.removeHandle(h)
 		return m, nil
 	}
 }
@@ -200,10 +200,10 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 	c.openHandlers = append(c.openHandlers, h)
 	select {
 	case <-time.After(time.Duration(c.timeout) * time.Second):
-		go c.removeHandle(h)
+		c.removeHandle(h)
 		return nil, fmt.Errorf("conversation timeout: %d", c.timeout)
 	case m := <-resp:
-		go c.removeHandle(h)
+		c.removeHandle(h)
 		return m, nil
 	}
 }
@@ -231,10 +231,10 @@ func (c *Conversation) WaitEvent(ev Update) (Update, error) {
 	c.openHandlers = append(c.openHandlers, h)
 	select {
 	case <-time.After(time.Duration(c.timeout) * time.Second):
-		go c.removeHandle(h)
+		c.removeHandle(h)
 		return nil, fmt.Errorf("conversation timeout: %d", c.timeout)
 	case u := <-resp:
-		go c.removeHandle(h)
+		c.removeHandle(h)
 		return u, nil
 	}
 }
@@ -258,10 +258,10 @@ func (c *Conversation) WaitRead() (*UpdateReadChannelInbox, error) {
 
 	select {
 	case <-time.After(time.Duration(c.timeout) * time.Second):
-		go c.removeHandle(h)
+		c.removeHandle(h)
 		return nil, fmt.Errorf("conversation timeout: %d", c.timeout)
 	case u := <-resp:
-		go c.removeHandle(h)
+		c.removeHandle(h)
 		return u, nil
 	}
 }

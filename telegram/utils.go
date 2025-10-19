@@ -741,7 +741,7 @@ func ResolveBotFileID(fileId string) (MessageMedia, error) {
 			},
 		}, nil
 	case 3, 4, 5, 8, 9, 10, 13:
-		var attributes = []DocumentAttribute{}
+		var attributes []DocumentAttribute
 		switch fileType {
 		case 3:
 			attributes = append(attributes, &DocumentAttributeAudio{

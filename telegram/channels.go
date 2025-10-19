@@ -59,8 +59,8 @@ func (c *Client) GetChatPhoto(chatID any) (Photo, error) {
 func (c *Client) JoinChannel(Channel any) (bool, error) {
 	switch p := Channel.(type) {
 	case string:
-		if TG_JOIN_RE.MatchString(p) {
-			result, err := c.MessagesImportChatInvite(TG_JOIN_RE.FindStringSubmatch(p)[1])
+		if TgJoinRe.MatchString(p) {
+			result, err := c.MessagesImportChatInvite(TgJoinRe.FindStringSubmatch(p)[1])
 			if err != nil {
 				return false, err
 			}
@@ -71,8 +71,8 @@ func (c *Client) JoinChannel(Channel any) (bool, error) {
 			}
 
 			return true, nil
-		} else if USERNAME_RE.MatchString(p) {
-			return c.joinChannelByPeer(USERNAME_RE.FindStringSubmatch(p)[1])
+		} else if UsernameRe.MatchString(p) {
+			return c.joinChannelByPeer(UsernameRe.FindStringSubmatch(p)[1])
 		}
 
 		return false, errors.New("invalid channel or chat")
@@ -179,10 +179,10 @@ func (c *Client) GetChatMember(chatID, userID any) (*Participant, error) {
 	}
 	c.Cache.UpdatePeersToCache(participant.Users, participant.Chats)
 	var (
-		status string           = Member
-		rights *ChatAdminRights = &ChatAdminRights{}
-		rank   string           = ""
-		UserID int64            = 0
+		status       = Member
+		rights       = &ChatAdminRights{}
+		rank         = ""
+		UserID int64 = 0
 	)
 	switch p := participant.Participant.(type) {
 	case *ChannelParticipantCreator:
@@ -615,7 +615,7 @@ func (c *Client) KickParticipant(PeerID, UserID any) (bool, error) {
 	}
 	switch p := peer.(type) {
 	case *InputPeerChannel:
-		_, err := c.EditBanned(p, u, &BannedOptions{Ban: true})
+		_, err = c.EditBanned(p, u, &BannedOptions{Ban: true})
 		if err != nil {
 			return false, err
 		}
@@ -628,7 +628,7 @@ func (c *Client) KickParticipant(PeerID, UserID any) (bool, error) {
 		if !ok {
 			return false, errors.New("peer is not a user")
 		}
-		_, err := c.MessagesDeleteChatUser(false, c.GetPeerID(p), &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash})
+		_, err = c.MessagesDeleteChatUser(false, c.GetPeerID(p), &InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash})
 		if err != nil {
 			return false, err
 		}
@@ -653,17 +653,17 @@ func (c *Client) EditTitle(PeerID any, Title string, Opts ...*TitleOptions) (boo
 	}
 	switch p := peer.(type) {
 	case *InputPeerChannel:
-		_, err := c.ChannelsEditTitle(&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash}, Title)
+		_, err = c.ChannelsEditTitle(&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash}, Title)
 		if err != nil {
 			return false, err
 		}
 	case *InputPeerChat:
-		_, err := c.MessagesEditChatTitle(p.ChatID, Title)
+		_, err = c.MessagesEditChatTitle(p.ChatID, Title)
 		if err != nil {
 			return false, err
 		}
 	case *InputPeerSelf:
-		_, err := c.AccountUpdateProfile(opts.LastName, Title, opts.About)
+		_, err = c.AccountUpdateProfile(opts.LastName, Title, opts.About)
 		if err != nil {
 			return false, err
 		}

@@ -29,7 +29,7 @@ func (c *Client) ConnectBot(botToken string) error {
 }
 
 var (
-	botTokenRegex = regexp.MustCompile(`^\d+:[\w\d_-]+$`)
+	botTokenRegex = regexp.MustCompile(`^\d+:[\w_-]+$`)
 	phoneRegex    = regexp.MustCompile(`^\+?\d+$`)
 )
 

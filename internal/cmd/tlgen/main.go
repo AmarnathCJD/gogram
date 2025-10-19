@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	API_SOURCES = []string{
+	ApiSources = []string{
 		"https://raw.githubusercontent.com/TGScheme/Schema/main/main_api.tl",
 		"https://raw.githubusercontent.com/tdlib/td/refs/heads/master/td/generate/scheme/telegram_api.tl",
 
@@ -125,7 +125,7 @@ func main() {
 func getSourceLAYER(llayer string, force bool) ([]byte, string, error) {
 	reg := regexp.MustCompile(`// LAYER \d+`)
 
-	for _, source := range API_SOURCES {
+	for _, source := range ApiSources {
 		src, err := http.Get(source)
 		if err != nil {
 			return nil, "", err

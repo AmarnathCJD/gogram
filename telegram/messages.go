@@ -523,12 +523,12 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 			textMessage string
 		)
 
-		switch cap := caption.(type) {
+		switch capt := caption.(type) {
 		case string:
-			entities, textMessage = parseEntities(cap, opt.ParseMode)
+			entities, textMessage = parseEntities(capt, opt.ParseMode)
 		case *NewMessage:
-			entities = cap.Message.Entities
-			textMessage = cap.MessageText()
+			entities = capt.Message.Entities
+			textMessage = capt.MessageText()
 		}
 
 		if opt.Entities != nil {
@@ -542,17 +542,17 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 
 	case []string, []*NewMessage:
 		if len(InputAlbum) > 0 {
-			switch cap := caption.(type) {
+			switch capt := caption.(type) {
 			case []string:
-				for i, cap := range cap {
-					entities, textMessage := parseEntities(cap, opt.ParseMode)
+				for i, capti := range capt {
+					entities, textMessage := parseEntities(capti, opt.ParseMode)
 					InputAlbum[i].Message = textMessage
 					InputAlbum[i].Entities = entities
 				}
 			case []*NewMessage:
-				for i, cap := range cap {
-					InputAlbum[i].Message = cap.MessageText()
-					InputAlbum[i].Entities = cap.Message.Entities
+				for i, capti := range capt {
+					InputAlbum[i].Message = capti.MessageText()
+					InputAlbum[i].Entities = capti.Message.Entities
 				}
 			}
 		}
@@ -573,7 +573,7 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 }
 
 func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs InputPeer, opt *MediaOptions) ([]*NewMessage, error) {
-	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
+	var replyTo = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
 	if opt.ReplyID != 0 {
 		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
 			replyTo.TopMsgID = opt.TopicID
@@ -670,7 +670,7 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 		})
 	}
 
-	correctAnswers := [][]byte{}
+	var correctAnswers [][]byte
 	if len(opt.CorrectAnswers) > 0 {
 		for _, answer := range opt.CorrectAnswers {
 			correctAnswers = append(correctAnswers, []byte{byte(answer)})
@@ -702,7 +702,7 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 		SolutionEntities: solnEntities,
 	}
 
-	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
+	var replyTo = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
 	if opt.ReplyID != 0 {
 		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
 			replyTo.TopMsgID = opt.TopicID

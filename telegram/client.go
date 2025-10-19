@@ -815,7 +815,7 @@ func (r *RpcError) Error() string {
 }
 
 func (c *Client) ToRpcError(err error) *RpcError {
-	regex := regexp.MustCompile(`\[(.*)\] (.*) \(code (\d+)\)`)
+	regex := regexp.MustCompile(`\[(.*)] (.*) \(code (\d+)\)`)
 	matches := regex.FindStringSubmatch(err.Error())
 	if len(matches) != 4 {
 		return nil

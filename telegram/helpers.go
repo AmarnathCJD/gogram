@@ -634,7 +634,7 @@ mediaTypeSwitch:
 			return uploadedDoc, nil
 		}
 	case []byte, *io.Reader, *bytes.Buffer, *os.File:
-		var uopts *UploadOptions = &UploadOptions{}
+		var uopts = &UploadOptions{}
 		if attr != nil {
 			uopts.ProgressManager = attr.ProgressManager
 			if attr.FileName != "" {
@@ -786,8 +786,8 @@ func GatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 		cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format_tags=artist,title", "-of", "json", path)
 		out, err := cmd.Output()
 
-		cmd_duration := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path)
-		out_duration, err_duration := cmd_duration.Output()
+		cmdDuration := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path)
+		outDuration, errDuration := cmdDuration.Output()
 
 		if err == nil {
 			type ProbeMeta struct {
@@ -800,7 +800,7 @@ func GatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 			}
 
 			var meta ProbeMeta
-			if err := json.Unmarshal(out, &meta); err == nil {
+			if err = json.Unmarshal(out, &meta); err == nil {
 				performer = meta.Format.Tags.Artist
 				title = meta.Format.Tags.Title
 			}
@@ -814,8 +814,8 @@ func GatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 			}
 		}
 
-		if err_duration == nil {
-			dur, _ = strconv.ParseFloat(strings.TrimSpace(string(out_duration)), 64)
+		if errDuration == nil {
+			dur, _ = strconv.ParseFloat(strings.TrimSpace(string(outDuration)), 64)
 		}
 
 		for _, attr := range attrs {
@@ -1058,7 +1058,7 @@ func packMessage(c *Client, message Message) *NewMessage {
 }
 
 func packDeleteMessage(c *Client, delete Update) *DeleteMessage {
-	var deleteMessage *DeleteMessage = &DeleteMessage{}
+	var deleteMessage = &DeleteMessage{}
 	switch d := delete.(type) {
 	case *UpdateDeleteMessages:
 		deleteMessage.Messages = d.Messages
