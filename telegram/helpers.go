@@ -708,7 +708,7 @@ func GatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 					for _, attr := range attrs {
 						if att, ok := attr.(*DocumentAttributeVideo); ok {
 							att.Duration = getValue(att.Duration, float64(r/1000))
-							return attrs, int64(r / 1000), nil
+							return attrs, r / 1000, nil
 						}
 					}
 
@@ -721,7 +721,7 @@ func GatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 					})
 				}
 
-				return attrs, int64(r / 1000), nil
+				return attrs, r / 1000, nil
 			}
 		}
 	}
