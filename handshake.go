@@ -199,7 +199,7 @@ nonceCreate:
 
 	m.serviceModeActivated = false
 	m.encrypted = true
-	if err := m.SaveSession(m.memorySession); err != nil {
+	if err = m.SaveSession(m.memorySession); err != nil {
 		m.Logger.Error("saving session: ", err)
 	}
 	return err
