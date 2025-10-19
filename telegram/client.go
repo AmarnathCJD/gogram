@@ -32,6 +32,8 @@ const (
 	CleanExportedSendersDelay = 5 * time.Minute
 )
 
+var rcperr = regexp.MustCompile(`\[(.*)] (.*) \(code (\d+)\)`)
+
 type clientData struct {
 	appID            int32
 	appHash          string
@@ -815,12 +817,10 @@ func (r *RpcError) Error() string {
 }
 
 func (c *Client) ToRpcError(err error) *RpcError {
-	regex := regexp.MustCompile(`\[(.*)] (.*) \(code (\d+)\)`)
-	matches := regex.FindStringSubmatch(err.Error())
+	matches := rcperr.FindStringSubmatch(err.Error())
 	if len(matches) != 4 {
 		return nil
 	}
-
 	code, _ := strconv.Atoi(matches[3])
 	return &RpcError{
 		Code:        int32(code),
