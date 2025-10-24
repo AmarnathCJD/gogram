@@ -164,7 +164,7 @@ func (b *CallbackQuery) Reply(Text any, options ...*SendOptions) (*NewMessage, e
 	if err != nil {
 		return nil, err
 	}
-	opts.ReplyID = msg.ReplyToMsgID()
+	opts.ReplyID = msg.ID
 	return b.Client.SendMessage(b.Peer, Text, &opts)
 }
 
