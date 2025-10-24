@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
 // ------------------ Telegram Data Center Configs ------------------
@@ -287,4 +289,11 @@ func AskForConfirmation() bool {
 	var response string
 	_, _ = fmt.Scanln(&response)
 	return response == "y" || response == "Y"
+}
+
+func FmtMethod(data tl.Object) string {
+	if data == nil {
+		return "nil"
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(fmt.Sprintf("%T", data), "*telegram."), "Params")
 }
