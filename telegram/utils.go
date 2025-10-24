@@ -3,10 +3,10 @@
 package telegram
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,6 +20,20 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/pkg/errors"
 )
+
+// cryptoRandIntn returns a random int in [0, n) using crypto/rand
+func cryptoRandIntn(n int) int {
+	if n <= 0 {
+		return 0
+	}
+	b := make([]byte, 4)
+	rand.Read(b)
+	val := int(binary.BigEndian.Uint32(b))
+	if val < 0 {
+		val = -val
+	}
+	return val % n
+}
 
 type mimeTypeManager struct {
 	mimeTypes map[string]string
@@ -381,11 +395,11 @@ func GetFileName(f any, video ...bool) string {
 					name = attr.Title + ".mp3"
 				}
 			case *DocumentAttributeVideo:
-				name = fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+				name = fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 			case *DocumentAttributeAnimated:
-				name = fmt.Sprintf("animation_%s_%d.gif", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+				name = fmt.Sprintf("animation_%s_%d.gif", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 			case *DocumentAttributeSticker:
-				return fmt.Sprintf("sticker_%s_%d.webp", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+				return fmt.Sprintf("sticker_%s_%d.webp", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 			}
 		}
 		if name != "" {
@@ -393,9 +407,9 @@ func GetFileName(f any, video ...bool) string {
 		}
 
 		if doc.MimeType != "" {
-			return fmt.Sprintf("file_%s_%d%s", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000), MimeTypes.Ext(doc.MimeType))
+			return fmt.Sprintf("file_%s_%d%s", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000), MimeTypes.Ext(doc.MimeType))
 		}
-		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	}
 
 	switch f := f.(type) {
@@ -403,24 +417,24 @@ func GetFileName(f any, video ...bool) string {
 		return getDocName(f.Document.(*DocumentObj))
 	case *MessageMediaPhoto:
 		if isVid {
-			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 		}
-		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	case *MessageMediaContact:
-		return fmt.Sprintf("contact_%s_%d.vcf", f.FirstName, rand.Intn(1000))
+		return fmt.Sprintf("contact_%s_%d.vcf", f.FirstName, cryptoRandIntn(1000))
 	case *DocumentObj:
 		return getDocName(f)
 	case *PhotoObj:
 		if isVid {
-			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 		}
-		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	case *InputPeerPhotoFileLocation:
-		return fmt.Sprintf("profile_photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		return fmt.Sprintf("profile_photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	case *InputPhotoFileLocation:
-		return fmt.Sprintf("photo_file_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		return fmt.Sprintf("photo_file_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	default:
-		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	}
 }
 
@@ -501,7 +515,9 @@ func getFileExt(f any) string {
 }
 
 func GenerateRandomLong() int64 {
-	return int64(rand.Int31())<<32 | int64(rand.Int31())
+	b := make([]byte, 8)
+	rand.Read(b)
+	return int64(binary.BigEndian.Uint64(b))
 }
 
 func getPeerUser(userID int64) *PeerUser {
