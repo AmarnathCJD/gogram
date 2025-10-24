@@ -223,6 +223,10 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	if Message == "" {
+		Message = " "
+	}
+
 	result, err := c.MakeRequestCtx(ctx, &MessagesEditMessageParams{
 		Peer:         Peer,
 		ID:           id,
