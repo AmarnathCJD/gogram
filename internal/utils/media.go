@@ -1,1280 +1,967 @@
-// Copyright (c) 2024 RoseLoverX
-
 package utils
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
-	"reflect"
-	"sort"
-	"strconv"
-	"strings"
 )
 
-type ProbeInfo struct {
-	FastStart bool
+type MP4Info struct {
+	Duration  int64
+	Width     uint32
+	Height    uint32
 	Timescale uint32
-	Duration  uint64
 }
 
-const (
-	SmallHeaderSize = 8
-	LargeHeaderSize = 16
-	LengthUnlimited = math.MaxUint32
-)
-
-type Box struct {
-	BaseCustomFieldObject
+type MKVInfo struct {
+	Duration float64
+	Width    uint32
+	Height   uint32
 }
 
-// GetVersion returns the box version
-func (box *Box) GetVersion() uint8 {
-	return 0
+type AudioInfo struct {
+	Duration   int64
+	Bitrate    uint32
+	Channels   uint32
+	SampleRate uint32
 }
 
-// SetVersion sets the box version
-func (box *Box) SetVersion(uint8) {
-}
-
-// GetFlags returns the flags
-func (box *Box) GetFlags() uint32 {
-	return 0x000000
-}
-
-// CheckFlag checks the flag status
-func (box *Box) CheckFlag(_ uint32) bool {
-	return true
-}
-
-// SetFlags sets the flags
-func (box *Box) SetFlags(uint32) {
-}
-
-// AddFlag adds the flag
-func (box *Box) AddFlag(_ uint32) {
-}
-
-// RemoveFlag removes the flag
-func (box *Box) RemoveFlag(_ uint32) {
-}
-
-// GetVersion returns the box version
-func (box *FullBox) GetVersion() uint8 {
-	return box.Version
-}
-
-// SetVersion sets the box version
-func (box *FullBox) SetVersion(version uint8) {
-	box.Version = version
-}
-
-// GetFlags returns the flags
-func (box *FullBox) GetFlags() uint32 {
-	flag := uint32(box.Flags[0]) << 16
-	flag ^= uint32(box.Flags[1]) << 8
-	flag ^= uint32(box.Flags[2])
-	return flag
-}
-
-// CheckFlag checks the flag status
-func (box *FullBox) CheckFlag(flag uint32) bool {
-	return box.GetFlags()&flag != 0
-}
-
-// SetFlags sets the flags
-func (box *FullBox) SetFlags(flags uint32) {
-	box.Flags[0] = byte(flags >> 16)
-	box.Flags[1] = byte(flags >> 8)
-	box.Flags[2] = byte(flags)
-}
-
-// AddFlag adds the flag
-func (box *FullBox) AddFlag(flag uint32) {
-	box.SetFlags(box.GetFlags() | flag)
-}
-
-// RemoveFlag removes the flag
-func (box *FullBox) RemoveFlag(flag uint32) {
-	box.SetFlags(box.GetFlags() & (^flag))
-}
-
-type BoxType [4]byte
-
-func StrToBoxType(code string) BoxType {
-	if len(code) != 4 {
-		return BoxType{0x00, 0x00, 0x00, 0x00}
-	}
-	return BoxType{code[0], code[1], code[2], code[3]}
-}
-
-func (boxType BoxType) String() string {
-	if isPrintable(boxType[0]) && isPrintable(boxType[1]) && isPrintable(boxType[2]) && isPrintable(boxType[3]) {
-		s := string([]byte{boxType[0], boxType[1], boxType[2], boxType[3]})
-		s = strings.ReplaceAll(s, string([]byte{0xa9}), "(c)")
-		return s
-	}
-	return fmt.Sprintf("0x%02x%02x%02x%02x", boxType[0], boxType[1], boxType[2], boxType[3])
-}
-
-func isASCII(c byte) bool {
-	return c >= 0x20 && c <= 0x7e
-}
-
-func isPrintable(c byte) bool {
-	return isASCII(c) || c == 0xa9
-}
-
-var boxTypeAny = BoxType{0x00, 0x00, 0x00, 0x00}
-
-func BoxTypeAny() BoxType {
-	return boxTypeAny
-}
-
-type boxDef struct {
-	dataType reflect.Type
-	versions []uint8
-	isTarget func(Context) bool
-	fields   []*field
-}
-
-var boxMap = make(map[BoxType][]boxDef, 64)
-
-func (boxType BoxType) getBoxDef(ctx Context) *boxDef {
-	boxDefs := boxMap[boxType]
-	for i := len(boxDefs) - 1; i >= 0; i-- {
-		boxDef := &boxDefs[i]
-		if boxDef.isTarget == nil || boxDef.isTarget(ctx) {
-			return boxDef
-		}
-	}
-	return nil
-}
-
-func (boxType BoxType) IsSupportedVersion(ver uint8, ctx Context) bool {
-	boxDef := boxType.getBoxDef(ctx)
-	if boxDef == nil {
-		return false
-	}
-	if len(boxDef.versions) == 0 {
-		return true
-	}
-	for _, sver := range boxDef.versions {
-		if ver == sver {
-			return true
-		}
-	}
-	return false
-}
-
-func (boxType BoxType) New(ctx Context) (IBox, error) {
-	boxDef := boxType.getBoxDef(ctx)
-	if boxDef == nil {
-		return nil, fmt.Errorf("box type not found: %s", boxType.String())
-	}
-
-	box, ok := reflect.New(boxDef.dataType).Interface().(IBox)
-	if !ok {
-		return nil, fmt.Errorf("box type not implements IBox interface: %s", boxType.String())
-	}
-
-	anyTypeBox, ok := box.(IAnyType)
-	if ok {
-		anyTypeBox.SetType(boxType)
-	}
-
-	return box, nil
-}
-
-type IAnyType interface {
-	IBox
-	SetType(BoxType)
-}
-
-type BoxPath []BoxType
-
-func (lhs BoxPath) compareWith(rhs BoxPath) (forwardMatch, match bool) {
-	if len(lhs) > len(rhs) {
-		return false, false
-	}
-	for i := 0; i < len(lhs); i++ {
-		if !lhs[i].MatchWith(rhs[i]) {
-			return false, false
-		}
-	}
-	if len(lhs) < len(rhs) {
-		return true, false
-	}
-	return false, true
-}
-
-func (lhs BoxType) MatchWith(rhs BoxType) bool {
-	if lhs == boxTypeAny || rhs == boxTypeAny {
-		return true
-	}
-	return lhs == rhs
-}
-
-type Context struct {
-	IsQuickTimeCompatible bool
-	UnderWave             bool
-	UnderIlst             bool
-	UnderIlstMeta         bool
-	UnderIlstFreeMeta     bool
-	UnderUdta             bool
-}
-
-// BoxInfo has common infomations of box
-type BoxInfo struct {
-	Offset      uint64
-	Size        uint64
-	HeaderSize  uint64
-	Type        BoxType
-	ExtendToEOF bool
-	Context
-}
-
-func AddBoxDef(payload IBox, versions ...uint8) {
-	boxMap[payload.GetType()] = append(boxMap[payload.GetType()], boxDef{
-		dataType: reflect.TypeOf(payload).Elem(),
-		versions: versions,
-		fields:   buildFields(payload),
-	})
-}
-
-func init() {
-	AddBoxDef(&Mvhd{}, 0, 1)
-	AddBoxDef(&Moov{})
-}
-
-// Mvhd is ISOBMFF mvhd box type
-type Mvhd struct {
-	FullBox            `mp4:"0,extend"`
-	CreationTimeV0     uint32    `mp4:"1,size=32,ver=0"`
-	ModificationTimeV0 uint32    `mp4:"2,size=32,ver=0"`
-	CreationTimeV1     uint64    `mp4:"3,size=64,ver=1"`
-	ModificationTimeV1 uint64    `mp4:"4,size=64,ver=1"`
-	Timescale          uint32    `mp4:"5,size=32"`
-	DurationV0         uint32    `mp4:"6,size=32,ver=0"`
-	DurationV1         uint64    `mp4:"7,size=64,ver=1"`
-	Rate               int32     `mp4:"8,size=32"`
-	Volume             int16     `mp4:"9,size=16"`
-	Reserved           int16     `mp4:"10,size=16,const=0"`
-	Reserved2          [2]uint32 `mp4:"11,size=32,const=0"`
-	Matrix             [9]int32  `mp4:"12,size=32,hex"`
-	PreDefined         [6]int32  `mp4:"13,size=32"`
-	NextTrackID        uint32    `mp4:"14,size=32"`
-}
-
-func (*Mvhd) AddFlag(_ uint32) {}
-
-// GetType returns the BoxType
-func (*Mvhd) GetType() BoxType {
-	return BoxTypeMvhd()
-}
-
-func (mvhd *Mvhd) GetCreationTime() uint64 {
-	switch mvhd.GetVersion() {
-	case 0:
-		return uint64(mvhd.CreationTimeV0)
-	case 1:
-		return mvhd.CreationTimeV1
-	default:
-		return 0
-	}
-}
-
-func (mvhd *Mvhd) GetModificationTime() uint64 {
-	switch mvhd.GetVersion() {
-	case 0:
-		return uint64(mvhd.ModificationTimeV0)
-	case 1:
-		return mvhd.ModificationTimeV1
-	default:
-		return 0
-	}
-}
-
-func (mvhd *Mvhd) GetDuration() uint64 {
-	switch mvhd.GetVersion() {
-	case 0:
-		return uint64(mvhd.DurationV0)
-	case 1:
-		return mvhd.DurationV1
-	default:
-		return 0
-	}
-}
-
-// GetRate returns value of rate as float64
-func (mvhd *Mvhd) GetRate() float64 {
-	return float64(mvhd.Rate) / (1 << 16)
-}
-
-// GetRateInt returns value of rate as int16
-func (mvhd *Mvhd) GetRateInt() int16 {
-	return int16(mvhd.Rate >> 16)
-}
-
-type Moov struct {
-	Box
-}
-
-// GetType returns the BoxType
-func (*Moov) GetType() BoxType {
-	return BoxTypeMoov()
-}
-
-func ParseDuration(file string) (int64, error) {
-	f, err := os.Open(file)
+func ParseMP4(filename string) (*MP4Info, error) {
+	f, err := os.Open(filename)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer f.Close()
-	var r io.ReadSeeker = f
-	probeInfo := &ProbeInfo{}
-	bis, err := ExtractBoxes(r, nil, []BoxPath{
-		{BoxTypeMoov(), BoxTypeMvhd()},
-	})
+
+	info := &MP4Info{}
+
+	moovBox, err := findBox(f, "moov")
 	if err != nil {
-		return 0, err
-	}
-	for _, bi := range bis {
-		switch bi.Type {
-		case BoxTypeMvhd():
-			var mvhd Mvhd
-			if _, err := bi.SeekToPayload(r); err != nil {
-				return 0, err
-			}
-			if _, err := Unmarshal(r, bi.Size-bi.HeaderSize, &mvhd, bi.Context); err != nil {
-				return 0, err
-			}
-			if mvhd.GetVersion() == 0 {
-				probeInfo.Duration = uint64(mvhd.DurationV0)
-			} else {
-				probeInfo.Duration = mvhd.DurationV1
-			}
-		}
-	}
-	return int64(probeInfo.Duration), nil
-}
-
-type ReadHandle struct {
-	Params      []any
-	BoxInfo     BoxInfo
-	Path        BoxPath
-	ReadPayload func() (box IBox, n uint64, err error)
-	ReadData    func(io.Writer) (n uint64, err error)
-	Expand      func(params ...any) (vals []any, err error)
-}
-
-type ReadHandler func(handle *ReadHandle) (val any, err error)
-
-func ExtractBoxes(r io.ReadSeeker, parent *BoxInfo, paths []BoxPath) ([]*BoxInfo, error) {
-	if len(paths) == 0 {
-		return nil, nil
+		return nil, fmt.Errorf("moov box not found: %w", err)
 	}
 
-	for i := range paths {
-		if len(paths[i]) == 0 {
-			return nil, fmt.Errorf("invalid box path: %v", paths[i])
+	mvhdBox, err := findBoxInBox(f, moovBox, "mvhd")
+	if err == nil {
+		if err := parseMvhd(f, mvhdBox, info); err != nil {
+			return nil, fmt.Errorf("failed to parse mvhd: %w", err)
 		}
 	}
 
-	boxes := make([]*BoxInfo, 0, 8)
-
-	handler := func(handle *ReadHandle) (any, error) {
-		path := handle.Path
-		if parent != nil {
-			path = path[1:]
-		}
-		if handle.BoxInfo.Type == BoxTypeAny() {
-			return nil, nil
-		}
-		fm, m := matchPath(paths, path)
-		if m {
-			boxes = append(boxes, &handle.BoxInfo)
-		}
-
-		if fm {
-			if _, err := handle.Expand(); err != nil {
-				return nil, err
+	trakBox, err := findBoxInBox(f, moovBox, "trak")
+	if err == nil {
+		tkhdBox, err := findBoxInBox(f, trakBox, "tkhd")
+		if err == nil {
+			if err := parseTkhd(f, tkhdBox, info); err != nil {
+				return nil, fmt.Errorf("failed to parse tkhd: %w", err)
 			}
 		}
-		return nil, nil
 	}
 
-	if parent != nil {
-		_, err := ReadBoxStructureFromInternal(r, parent, handler)
-		return boxes, err
+	if info.Timescale > 0 {
+		info.Duration = (info.Duration * 1000) / int64(info.Timescale)
 	}
-	_, err := ReadBoxStructure(r, handler)
-	return boxes, err
+
+	return info, nil
 }
 
-func BoxTypeMoov() BoxType { return StrToBoxType("moov") }
-func BoxTypeMvhd() BoxType { return StrToBoxType("mvhd") }
-
-func matchPath(paths []BoxPath, path BoxPath) (forwardMatch, match bool) {
-	for i := range paths {
-		fm, m := path.compareWith(paths[i])
-		forwardMatch = forwardMatch || fm
-		match = match || m
-	}
-	return
+type boxInfo struct {
+	offset  uint64
+	size    uint64
+	boxType string
 }
 
-func ReadBoxStructure(r io.ReadSeeker, handler ReadHandler, params ...any) ([]any, error) {
+func findBox(r io.ReadSeeker, targetType string) (*boxInfo, error) {
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
-	return readBoxStructure(r, 0, true, nil, Context{}, handler, params)
-}
-
-func ReadBoxStructureFromInternal(r io.ReadSeeker, bi *BoxInfo, handler ReadHandler, params ...any) (any, error) {
-	return readBoxStructureFromInternal(r, bi, nil, handler, params)
-}
-
-type Ftyp struct {
-	Box
-	MajorBrand       [4]byte               `mp4:"0,size=8,string"`
-	MinorVersion     uint32                `mp4:"1,size=32"`
-	CompatibleBrands []CompatibleBrandElem `mp4:"2,size=32"` // reach to end of the box
-}
-
-type CompatibleBrandElem struct {
-	CompatibleBrand [4]byte `mp4:"0,size=8,string"`
-}
-
-func (ftyp *Ftyp) HasCompatibleBrand(cb [4]byte) bool {
-	for i := range ftyp.CompatibleBrands {
-		if ftyp.CompatibleBrands[i].CompatibleBrand == cb {
-			return true
+	for {
+		box, err := readBoxHeader(r)
+		if err == io.EOF {
+			return nil, errors.New("box not found")
 		}
-	}
-	return false
-}
-
-func (box *BaseCustomFieldObject) GetFieldLength(string, Context) uint { return 0 }
-
-func (box *BaseCustomFieldObject) GetFieldSize(string, Context) uint { return 0 }
-
-func (box *BaseCustomFieldObject) IsOptFieldEnabled(string, Context) bool {
-	return false
-}
-
-func (*BaseCustomFieldObject) BeforeUnmarshal(io.ReadSeeker, uint64, Context) (uint64, bool, error) {
-	return 0, false, nil
-}
-
-func (*BaseCustomFieldObject) OnReadField(string, ReadSeeker, uint64, Context) (uint64, bool, error) {
-	return 0, false, nil
-}
-
-func readBoxStructureFromInternal(r io.ReadSeeker, bi *BoxInfo, path BoxPath, handler ReadHandler, params []any) (any, error) {
-	if _, err := bi.SeekToPayload(r); err != nil {
-		return nil, err
-	}
-	// check comatible-brands
-
-	ctx := bi.Context
-
-	newPath := make(BoxPath, len(path)+1)
-	copy(newPath, path)
-	newPath[len(path)] = bi.Type
-
-	h := &ReadHandle{
-		Params:  params,
-		BoxInfo: *bi,
-		Path:    newPath,
-	}
-
-	var childrenOffset uint64
-
-	h.ReadPayload = func() (IBox, uint64, error) {
-		if _, err := bi.SeekToPayload(r); err != nil {
-			return nil, 0, err
-		}
-
-		box, n, err := UnmarshalAny(r, bi.Type, bi.Size-bi.HeaderSize, bi.Context)
-		if err != nil {
-			return nil, 0, err
-		}
-		childrenOffset = bi.Offset + bi.HeaderSize + n
-		return box, n, nil
-	}
-
-	h.ReadData = func(w io.Writer) (uint64, error) {
-		if _, err := bi.SeekToPayload(r); err != nil {
-			return 0, err
-		}
-
-		size := bi.Size - bi.HeaderSize
-		if _, err := io.CopyN(w, r, int64(size)); err != nil {
-			return 0, err
-		}
-		return size, nil
-	}
-
-	h.Expand = func(params ...any) ([]any, error) {
-		if childrenOffset == 0 {
-			if _, err := bi.SeekToPayload(r); err != nil {
-				return nil, err
-			}
-
-			_, n, err := UnmarshalAny(r, bi.Type, bi.Size-bi.HeaderSize, bi.Context)
-			if err != nil {
-				return nil, err
-			}
-			childrenOffset = bi.Offset + bi.HeaderSize + n
-		} else {
-			if _, err := r.Seek(int64(childrenOffset), io.SeekStart); err != nil {
-				return nil, err
-			}
-		}
-
-		childrenSize := bi.Offset + bi.Size - childrenOffset
-		return readBoxStructure(r, childrenSize, false, newPath, ctx, handler, params)
-	}
-
-	if val, err := handler(h); err != nil {
-		return nil, err
-	} else if _, err := bi.SeekToEnd(r); err != nil {
-		return nil, err
-	} else {
-		return val, nil
-	}
-}
-
-func readBoxStructure(r io.ReadSeeker, totalSize uint64, isRoot bool, path BoxPath, ctx Context, handler ReadHandler, params []any) ([]any, error) {
-	vals := make([]any, 0, 8)
-
-	for isRoot || totalSize >= SmallHeaderSize {
-		bi, err := ReadBoxInfo(r)
-		if isRoot && err == io.EOF {
-			return vals, nil
-		} else if err != nil {
-			return nil, err
-		}
-
-		if !isRoot && bi.Size > totalSize {
-			return nil, fmt.Errorf("too large box size: type=%s, size=%d, actualBufSize=%d", bi.Type.String(), bi.Size, totalSize)
-		}
-		totalSize -= bi.Size
-
-		bi.Context = ctx
-
-		val, err := readBoxStructureFromInternal(r, bi, path, handler, params)
 		if err != nil {
 			return nil, err
 		}
-		vals = append(vals, val)
-
-		if bi.IsQuickTimeCompatible {
-			ctx.IsQuickTimeCompatible = true
+		if box.boxType == targetType {
+			return box, nil
+		}
+		if _, err := r.Seek(int64(box.offset+box.size), io.SeekStart); err != nil {
+			return nil, err
 		}
 	}
-	if totalSize != 0 && !ctx.IsQuickTimeCompatible {
-		return nil, fmt.Errorf("invalid box size: actualBufSize=%d", totalSize)
-	}
-
-	return vals, nil
 }
 
-func ReadBoxInfo(r io.ReadSeeker) (*BoxInfo, error) {
+func findBoxInBox(r io.ReadSeeker, parent *boxInfo, targetType string) (*boxInfo, error) {
+	dataStart := parent.offset + 8
+	if _, err := r.Seek(int64(dataStart), io.SeekStart); err != nil {
+		return nil, err
+	}
+	parentEnd := parent.offset + parent.size
+	for {
+		currentPos, err := r.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return nil, err
+		}
+		if uint64(currentPos) >= parentEnd {
+			return nil, errors.New("box not found in parent")
+		}
+		box, err := readBoxHeader(r)
+		if err == io.EOF {
+			return nil, errors.New("box not found in parent")
+		}
+		if err != nil {
+			return nil, err
+		}
+		if box.boxType == targetType {
+			return box, nil
+		}
+		if _, err := r.Seek(int64(box.offset+box.size), io.SeekStart); err != nil {
+			return nil, err
+		}
+	}
+}
+
+func readBoxHeader(r io.ReadSeeker) (*boxInfo, error) {
 	offset, err := r.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return nil, err
 	}
-
-	bi := &BoxInfo{
-		Offset: uint64(offset),
-	}
-
-	// read 8 bytes
-	buf := bytes.NewBuffer(make([]byte, 0, SmallHeaderSize))
-	if _, err := io.CopyN(buf, r, SmallHeaderSize); err != nil {
+	header := make([]byte, 8)
+	if _, err := io.ReadFull(r, header); err != nil {
 		return nil, err
 	}
-	bi.HeaderSize += SmallHeaderSize
-
-	// pick size and type
-	data := buf.Bytes()
-	bi.Size = uint64(binary.BigEndian.Uint32(data))
-	bi.Type = BoxType{data[4], data[5], data[6], data[7]}
-
-	if bi.Size == 0 {
-		// box extends to end of file
-		offsetEOF, err := r.Seek(0, io.SeekEnd)
-		if err != nil {
+	size := uint64(binary.BigEndian.Uint32(header[0:4]))
+	boxType := string(header[4:8])
+	if size == 1 {
+		extSize := make([]byte, 8)
+		if _, err := io.ReadFull(r, extSize); err != nil {
 			return nil, err
 		}
-		bi.Size = uint64(offsetEOF) - bi.Offset
-		bi.ExtendToEOF = true
-		if _, err := bi.SeekToPayload(r); err != nil {
-			return nil, err
-		}
-
-	} else if bi.Size == 1 {
-		// read more 8 bytes
-		buf.Reset()
-		if _, err := io.CopyN(buf, r, LargeHeaderSize-SmallHeaderSize); err != nil {
-			return nil, err
-		}
-		bi.HeaderSize += LargeHeaderSize - SmallHeaderSize
-		bi.Size = binary.BigEndian.Uint64(buf.Bytes())
+		size = binary.BigEndian.Uint64(extSize)
 	}
-
-	return bi, nil
+	return &boxInfo{offset: uint64(offset), size: size, boxType: boxType}, nil
 }
 
-func (bi *BoxInfo) SeekToStart(s io.Seeker) (int64, error) {
-	return s.Seek(int64(bi.Offset), io.SeekStart)
-}
-
-func (bi *BoxInfo) SeekToPayload(s io.Seeker) (int64, error) {
-	return s.Seek(int64(bi.Offset+bi.HeaderSize), io.SeekStart)
-}
-
-func (bi *BoxInfo) SeekToEnd(s io.Seeker) (int64, error) {
-	return s.Seek(int64(bi.Offset+bi.Size), io.SeekStart)
-}
-
-var ErrUnsupportedBoxVersion = errors.New("unsupported box version")
-
-type unmarshaller struct {
-	reader ReadSeeker
-	dst    IBox
-	size   uint64
-	rbits  uint64
-	ctx    Context
-}
-
-func UnmarshalAny(r io.ReadSeeker, boxType BoxType, payloadSize uint64, ctx Context) (box IBox, n uint64, err error) {
-	dst, err := boxType.New(ctx)
-	if err != nil {
-		return nil, 0, err
-	}
-	n, err = Unmarshal(r, payloadSize, dst, ctx)
-	return dst, n, err
-}
-
-func Unmarshal(r io.ReadSeeker, payloadSize uint64, dst IBox, ctx Context) (n uint64, err error) {
-	boxDef := dst.GetType().getBoxDef(ctx)
-	if boxDef == nil {
-		return 0, fmt.Errorf("box type %s is not registered", dst.GetType())
-	}
-
-	v := reflect.ValueOf(dst).Elem()
-
-	dst.SetVersion(math.MaxUint8)
-
-	u := &unmarshaller{
-		reader: NewReadSeeker(r),
-		dst:    dst,
-		size:   payloadSize,
-		ctx:    ctx,
-	}
-
-	if n, override, err := dst.BeforeUnmarshal(r, payloadSize, u.ctx); err != nil {
-		return 0, err
-	} else if override {
-		return n, nil
-	} else {
-		u.rbits = n * 8
-	}
-
-	sn, err := r.Seek(0, io.SeekCurrent)
-	if err != nil {
-		return 0, err
-	}
-
-	if err := u.unmarshalStruct(v, boxDef.fields); err != nil {
-		if err == ErrUnsupportedBoxVersion {
-			r.Seek(sn, io.SeekStart)
-		}
-		return 0, err
-	}
-
-	if u.rbits%8 != 0 {
-		return 0, fmt.Errorf("box size is not multiple of 8 bits: type=%s, size=%d, bits=%d", dst.GetType().String(), u.size, u.rbits)
-	}
-
-	if u.rbits > u.size*8 {
-		return 0, fmt.Errorf("overrun error: type=%s, size=%d, bits=%d", dst.GetType().String(), u.size, u.rbits)
-	}
-
-	return u.rbits / 8, nil
-}
-
-func (u *unmarshaller) unmarshal(v reflect.Value, fi *fieldInstance) error {
-	switch v.Type().Kind() {
-	case reflect.Struct:
-		return u.unmarshalStructInternal(v, fi)
-	case reflect.Array:
-		return u.unmarshalArray(v, fi)
-	case reflect.Slice:
-		return u.unmarshalSlice(v, fi)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return u.unmarshalInt(v, fi)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return u.unmarshalUint(v, fi)
-	default:
-		return fmt.Errorf("unsupported type: %s", v.Type().Kind())
-	}
-}
-
-func (u *unmarshaller) unmarshalStructInternal(v reflect.Value, fi *fieldInstance) error {
-	if fi.size != 0 && fi.size%8 == 0 {
-		u2 := *u
-		u2.size = uint64(fi.size / 8)
-		u2.rbits = 0
-		if err := u2.unmarshalStruct(v, fi.children); err != nil {
-			return err
-		}
-		u.rbits += u2.rbits
-		if u2.rbits != uint64(fi.size) {
-			return errors.New("invalid alignment")
-		}
-		return nil
-	}
-	return u.unmarshalStruct(v, fi.children)
-}
-
-func (u *unmarshaller) unmarshalStruct(v reflect.Value, fs []*field) error {
-	for _, f := range fs {
-		fi := resolveFieldInstance(f, u.dst, v, u.ctx)
-		if !isTargetField(u.dst, fi, u.ctx) {
-			continue
-		}
-		rbits, override, err := fi.cfo.OnReadField(f.name, u.reader, u.size*8-u.rbits, u.ctx)
-		if err != nil {
-			return err
-		}
-		u.rbits += rbits
-		if override {
-			continue
-		}
-		err = u.unmarshal(v.FieldByName(f.name), fi)
-		if err != nil {
-			return err
-		}
-		if v.FieldByName(f.name).Type() == reflect.TypeOf(FullBox{}) && !u.dst.GetType().IsSupportedVersion(u.dst.GetVersion(), u.ctx) {
-			return ErrUnsupportedBoxVersion
-		}
-	}
-
-	return nil
-}
-
-type BaseCustomFieldObject struct{}
-
-type FullBox struct {
-	BaseCustomFieldObject
-	Version uint8   `mp4:"0,size=8"`
-	Flags   [3]byte `mp4:"1,size=8"`
-}
-
-func (u *unmarshaller) unmarshalArray(v reflect.Value, fi *fieldInstance) error {
-	size := v.Type().Size()
-	for i := 0; i < int(size)/int(v.Type().Elem().Size()); i++ {
-		err := u.unmarshal(v.Index(i), fi)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (u *unmarshaller) unmarshalSlice(v reflect.Value, fi *fieldInstance) error {
-	var slice reflect.Value
-	elemType := v.Type().Elem()
-
-	length := uint64(fi.length)
-	if fi.length == LengthUnlimited {
-		if fi.size != 0 {
-			left := (u.size)*8 - u.rbits
-			if left%uint64(fi.size) != 0 {
-				return errors.New("invalid alignment")
-			}
-			length = left / uint64(fi.size)
-		} else {
-			length = 0
-		}
-	}
-
-	if length > math.MaxInt32 {
-		return fmt.Errorf("out of memory: requestedSize=%d", length)
-	}
-
-	if fi.size != 0 && fi.size%8 == 0 && u.rbits%8 == 0 && elemType.Kind() == reflect.Uint8 && fi.size == 8 {
-		totalSize := length * uint64(fi.size) / 8
-		buf := bytes.NewBuffer(make([]byte, 0, totalSize))
-		if _, err := io.CopyN(buf, u.reader, int64(totalSize)); err != nil {
-			return err
-		}
-		slice = reflect.ValueOf(buf.Bytes())
-		u.rbits += uint64(totalSize) * 8
-
-	} else {
-		slice = reflect.MakeSlice(v.Type(), 0, int(length))
-		for i := 0; ; i++ {
-			if fi.length != LengthUnlimited && uint(i) >= fi.length {
-				break
-			}
-			if fi.length == LengthUnlimited && u.rbits >= u.size*8 {
-				break
-			}
-			slice = reflect.Append(slice, reflect.Zero(elemType))
-			if err := u.unmarshal(slice.Index(i), fi); err != nil {
-				return err
-			}
-			if u.rbits > u.size*8 {
-				return fmt.Errorf("failed to read array completely: fieldName=\"%s\"", fi.name)
-			}
-		}
-	}
-
-	v.Set(slice)
-	return nil
-}
-
-func (u *unmarshaller) unmarshalInt(v reflect.Value, fi *fieldInstance) error {
-	if fi.is(fieldVarint) {
-		return fmt.Errorf("unsupported type: %s", v.Type().Kind())
-	}
-
-	if fi.size == 0 {
-		return fmt.Errorf("size must not be zero: %s", fi.name)
-	}
-
-	data, err := u.reader.ReadBits(fi.size)
-	if err != nil {
+func parseMvhd(r io.ReadSeeker, box *boxInfo, info *MP4Info) error {
+	if _, err := r.Seek(int64(box.offset+8), io.SeekStart); err != nil {
 		return err
 	}
-	u.rbits += uint64(fi.size)
-
-	signBit := false
-	if len(data) > 0 {
-		signMask := byte(0x01) << ((fi.size - 1) % 8)
-		signBit = data[0]&signMask != 0
-		if signBit {
-			data[0] |= ^(signMask - 1)
-		}
-	}
-
-	var val uint64
-	if signBit {
-		val = ^uint64(0)
-	}
-	for i := range data {
-		val <<= 8
-		val |= uint64(data[i])
-	}
-	v.SetInt(int64(val))
-	return nil
-}
-
-func (u *unmarshaller) unmarshalUint(v reflect.Value, fi *fieldInstance) error {
-	if fi.is(fieldVarint) {
-		val, err := u.readUvarint()
-		if err != nil {
-			return err
-		}
-		v.SetUint(val)
-		return nil
-	}
-
-	if fi.size == 0 {
-		return fmt.Errorf("size must not be zero: %s", fi.name)
-	}
-
-	data, err := u.reader.ReadBits(fi.size)
-	if err != nil {
+	versionFlags := make([]byte, 4)
+	if _, err := io.ReadFull(r, versionFlags); err != nil {
 		return err
 	}
-	u.rbits += uint64(fi.size)
-
-	val := uint64(0)
-	for i := range data {
-		val <<= 8
-		val |= uint64(data[i])
+	version := versionFlags[0]
+	switch version {
+	case 0:
+		skip := make([]byte, 8)
+		if _, err := io.ReadFull(r, skip); err != nil {
+			return err
+		}
+		timescaleBuf := make([]byte, 4)
+		if _, err := io.ReadFull(r, timescaleBuf); err != nil {
+			return err
+		}
+		info.Timescale = binary.BigEndian.Uint32(timescaleBuf)
+		durationBuf := make([]byte, 4)
+		if _, err := io.ReadFull(r, durationBuf); err != nil {
+			return err
+		}
+		info.Duration = int64(binary.BigEndian.Uint32(durationBuf))
+	case 1:
+		skip := make([]byte, 16)
+		if _, err := io.ReadFull(r, skip); err != nil {
+			return err
+		}
+		timescaleBuf := make([]byte, 4)
+		if _, err := io.ReadFull(r, timescaleBuf); err != nil {
+			return err
+		}
+		info.Timescale = binary.BigEndian.Uint32(timescaleBuf)
+		durationBuf := make([]byte, 8)
+		if _, err := io.ReadFull(r, durationBuf); err != nil {
+			return err
+		}
+		info.Duration = int64(binary.BigEndian.Uint64(durationBuf))
 	}
-	v.SetUint(val)
-
 	return nil
 }
 
-func (u *unmarshaller) readUvarint() (uint64, error) {
-	var val uint64
-	for {
-		octet, err := u.reader.ReadBits(8)
-		if err != nil {
-			return 0, err
-		}
-		u.rbits += 8
-
-		val = (val << 7) + uint64(octet[0]&0x7f)
-
-		if octet[0]&0x80 == 0 {
-			return val, nil
-		}
+func parseTkhd(r io.ReadSeeker, box *boxInfo, info *MP4Info) error {
+	if _, err := r.Seek(int64(box.offset+8), io.SeekStart); err != nil {
+		return err
 	}
+	versionFlags := make([]byte, 4)
+	if _, err := io.ReadFull(r, versionFlags); err != nil {
+		return err
+	}
+	version := versionFlags[0]
+	var skipBytes int
+	if version == 0 {
+		skipBytes = 20
+	} else {
+		skipBytes = 32
+	}
+	skipBytes += 52
+	skip := make([]byte, skipBytes)
+	if _, err := io.ReadFull(r, skip); err != nil {
+		return err
+	}
+	widthBuf := make([]byte, 4)
+	if _, err := io.ReadFull(r, widthBuf); err != nil {
+		return err
+	}
+	widthFixed := binary.BigEndian.Uint32(widthBuf)
+	info.Width = widthFixed >> 16
+	heightBuf := make([]byte, 4)
+	if _, err := io.ReadFull(r, heightBuf); err != nil {
+		return err
+	}
+	heightFixed := binary.BigEndian.Uint32(heightBuf)
+	info.Height = heightFixed >> 16
+	return nil
 }
-
-type (
-	fieldFlag uint16
-)
 
 const (
-	fieldString        fieldFlag = 1 << iota // 0
-	fieldExtend                              // 1
-	fieldDec                                 // 2
-	fieldHex                                 // 3
-	fieldISO639_2                            // 4
-	fieldUUID                                // 5
-	fieldHidden                              // 6
-	fieldOptDynamic                          // 7
-	fieldVarint                              // 8
-	fieldSizeDynamic                         // 9
-	fieldLengthDynamic                       // 10
+	idEBML          = 0x1A45DFA3
+	idSegment       = 0x18538067
+	idInfo          = 0x1549A966
+	idTimecodeScale = 0x2AD7B1
+	idDuration      = 0x4489
+	idTracks        = 0x1654AE6B
+	idTrackEntry    = 0xAE
+	idTrackType     = 0x83
+	idVideo         = 0xE0
+	idPixelWidth    = 0xB0
+	idPixelHeight   = 0xBA
 )
 
-type field struct {
-	children []*field
-	name     string
-	order    int
-	optFlag  uint32
-	nOptFlag uint32
-	size     uint
-	length   uint
-	flags    fieldFlag
-	version  uint8
-	nVersion uint8
-}
-
-func (f *field) set(flag fieldFlag) {
-	f.flags |= flag
-}
-
-func (f *field) is(flag fieldFlag) bool {
-	return f.flags&flag != 0
-}
-
-func buildFields(box IImmutableBox) []*field {
-	t := reflect.TypeOf(box).Elem()
-	return buildFieldsStruct(t)
-}
-
-func buildFieldsStruct(t reflect.Type) []*field {
-	fs := make([]*field, 0, 8)
-	for i := 0; i < t.NumField(); i++ {
-		ft := t.Field(i).Type
-		tag, ok := t.Field(i).Tag.Lookup("mp4")
-		if !ok {
-			continue
-		}
-		f := buildField(t.Field(i).Name, tag)
-		f.children = buildFieldsAny(ft)
-		fs = append(fs, f)
+func ParseMKV(filename string) (*MKVInfo, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
 	}
-	sort.SliceStable(fs, func(i, j int) bool {
-		return fs[i].order < fs[j].order
-	})
-	return fs
+	defer f.Close()
+
+	info := &MKVInfo{}
+
+	if err := verifyEBMLHeader(f); err != nil {
+		return nil, fmt.Errorf("invalid MKV file: %w", err)
+	}
+
+	segmentDataOffset, segmentSize, err := findEBMLElementData(f, idSegment)
+	if err != nil {
+		return nil, fmt.Errorf("segment not found: %w", err)
+	}
+
+	_ = parseMKVInfo(f, segmentDataOffset, segmentSize, info)
+
+	if err := parseMKVTracks(f, segmentDataOffset, segmentSize, info); err != nil {
+		return nil, fmt.Errorf("failed to parse tracks: %w", err)
+	}
+
+	return info, nil
 }
 
-func buildFieldsAny(t reflect.Type) []*field {
-	switch t.Kind() {
-	case reflect.Struct:
-		return buildFieldsStruct(t)
-	case reflect.Ptr, reflect.Array, reflect.Slice:
-		return buildFieldsAny(t.Elem())
+func verifyEBMLHeader(r io.ReadSeeker) error {
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	elementID, _, err := readEBMLElementHeader(r)
+	if err != nil {
+		return err
+	}
+	if elementID != idEBML {
+		return errors.New("not a valid EBML file")
+	}
+	return nil
+}
+
+func findEBMLElementData(r io.ReadSeeker, targetID uint32) (uint64, uint64, error) {
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return 0, 0, err
+	}
+	for {
+		elementID, size, err := readEBMLElementHeader(r)
+		if err == io.EOF {
+			return 0, 0, errors.New("element not found")
+		}
+		if err != nil {
+			return 0, 0, err
+		}
+		dataOffset, err := r.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return 0, 0, err
+		}
+		if elementID == targetID {
+			return uint64(dataOffset), size, nil
+		}
+		if _, err := r.Seek(int64(size), io.SeekCurrent); err != nil {
+			return 0, 0, err
+		}
+	}
+}
+
+func findEBMLElementInRange(r io.ReadSeeker, startOffset, rangeSize uint64, targetID uint32) (uint64, uint64, error) {
+	if _, err := r.Seek(int64(startOffset), io.SeekStart); err != nil {
+		return 0, 0, err
+	}
+	endOffset := startOffset + rangeSize
+	for {
+		currentPos, err := r.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return 0, 0, err
+		}
+		if uint64(currentPos) >= endOffset {
+			return 0, 0, errors.New("element not found in range")
+		}
+		elementID, size, err := readEBMLElementHeader(r)
+		if err == io.EOF {
+			return 0, 0, errors.New("element not found in range")
+		}
+		if err != nil {
+			return 0, 0, err
+		}
+		dataOffset, _ := r.Seek(0, io.SeekCurrent)
+		if elementID == targetID {
+			return uint64(dataOffset), size, nil
+		}
+		if _, err := r.Seek(int64(size), io.SeekCurrent); err != nil {
+			return 0, 0, err
+		}
+	}
+}
+
+func readEBMLElementHeader(r io.Reader) (uint32, uint64, error) {
+	idByte, err := readByte(r)
+	if err != nil {
+		return 0, 0, err
+	}
+	var elementID uint32
+	var idSize int
+	if idByte&0x80 != 0 {
+		idSize = 1
+		elementID = uint32(idByte)
+	} else if idByte&0x40 != 0 {
+		idSize = 2
+		elementID = uint32(idByte)
+	} else if idByte&0x20 != 0 {
+		idSize = 3
+		elementID = uint32(idByte)
+	} else if idByte&0x10 != 0 {
+		idSize = 4
+		elementID = uint32(idByte)
+	} else {
+		return 0, 0, errors.New("invalid EBML element ID")
+	}
+	for i := 1; i < idSize; i++ {
+		b, err := readByte(r)
+		if err != nil {
+			return 0, 0, err
+		}
+		elementID = (elementID << 8) | uint32(b)
+	}
+	sizeByte, err := readByte(r)
+	if err != nil {
+		return 0, 0, err
+	}
+	var size uint64
+	var sizeLength int
+	switch {
+	case sizeByte&0x80 != 0:
+		sizeLength, size = 1, uint64(sizeByte&0x7F)
+	case sizeByte&0x40 != 0:
+		sizeLength, size = 2, uint64(sizeByte&0x3F)
+	case sizeByte&0x20 != 0:
+		sizeLength, size = 3, uint64(sizeByte&0x1F)
+	case sizeByte&0x10 != 0:
+		sizeLength, size = 4, uint64(sizeByte&0x0F)
+	case sizeByte&0x08 != 0:
+		sizeLength, size = 5, uint64(sizeByte&0x07)
+	case sizeByte&0x04 != 0:
+		sizeLength, size = 6, uint64(sizeByte&0x03)
+	case sizeByte&0x02 != 0:
+		sizeLength, size = 7, uint64(sizeByte&0x01)
+	case sizeByte&0x01 != 0:
+		sizeLength, size = 8, 0
 	default:
-		return nil
+		return 0, 0, errors.New("invalid EBML element size")
 	}
+	for i := 1; i < sizeLength; i++ {
+		b, err := readByte(r)
+		if err != nil {
+			return 0, 0, err
+		}
+		size = (size << 8) | uint64(b)
+	}
+	return elementID, size, nil
 }
 
-func buildField(fieldName, tag string) *field {
-	f := &field{
-		name: fieldName,
+func parseMKVInfo(r io.ReadSeeker, segmentOffset, segmentSize uint64, info *MKVInfo) error {
+	infoOffset, infoSize, err := findEBMLElementInRange(r, segmentOffset, segmentSize, idInfo)
+	if err != nil {
+		return err
 	}
-	tagMap := parseFieldTag(tag)
-	for key, val := range tagMap {
-		if val != "" {
+	timecodeScale := uint64(1000000)
+	if _, err := r.Seek(int64(infoOffset), io.SeekStart); err != nil {
+		return err
+	}
+	infoEnd := infoOffset + infoSize
+	for {
+		currentPos, err := r.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return err
+		}
+		if uint64(currentPos) >= infoEnd {
+			break
+		}
+		elementID, size, err := readEBMLElementHeader(r)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		switch elementID {
+		case idTimecodeScale:
+			data := make([]byte, size)
+			if _, err := io.ReadFull(r, data); err != nil {
+				return err
+			}
+			timecodeScale = readUInt(data)
+		case idDuration:
+			data := make([]byte, size)
+			if _, err := io.ReadFull(r, data); err != nil {
+				return err
+			}
+			duration := readFloat(data)
+			info.Duration = (duration * float64(timecodeScale)) / 1000000.0
+		default:
+			if _, err := r.Seek(int64(size), io.SeekCurrent); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func parseMKVTracks(r io.ReadSeeker, segmentOffset, segmentSize uint64, info *MKVInfo) error {
+	tracksOffset, tracksSize, err := findEBMLElementInRange(r, segmentOffset, segmentSize, idTracks)
+	if err != nil {
+		return err
+	}
+	if _, err := r.Seek(int64(tracksOffset), io.SeekStart); err != nil {
+		return err
+	}
+	tracksEnd := tracksOffset + tracksSize
+	for {
+		currentPos, err := r.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return err
+		}
+		if uint64(currentPos) >= tracksEnd {
+			break
+		}
+		elementID, size, err := readEBMLElementHeader(r)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if elementID == idTrackEntry {
+			if err := parseMKVTrackEntry(r, size, info); err == nil && info.Width > 0 {
+				return nil
+			}
+		} else {
+			if _, err := r.Seek(int64(size), io.SeekCurrent); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func parseMKVTrackEntry(r io.ReadSeeker, trackEntrySize uint64, info *MKVInfo) error {
+	startPos, err := r.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return err
+	}
+	trackEnd := uint64(startPos) + trackEntrySize
+	isVideoTrack := false
+	for {
+		currentPos, err := r.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return err
+		}
+		if uint64(currentPos) >= trackEnd {
+			break
+		}
+		elementID, size, err := readEBMLElementHeader(r)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if elementID == idTrackType {
+			data := make([]byte, size)
+			if _, err := io.ReadFull(r, data); err != nil {
+				return err
+			}
+			trackType := readUInt(data)
+			if trackType == 1 {
+				isVideoTrack = true
+			}
+		} else if elementID == idVideo && isVideoTrack {
+			return parseMKVVideo(r, size, info)
+		} else {
+			if _, err := r.Seek(int64(size), io.SeekCurrent); err != nil {
+				return err
+			}
+		}
+	}
+	if !isVideoTrack {
+		return errors.New("not a video track")
+	}
+	return nil
+}
+
+func parseMKVVideo(r io.ReadSeeker, videoSize uint64, info *MKVInfo) error {
+	startPos, err := r.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return err
+	}
+
+	videoEnd := uint64(startPos) + videoSize
+
+	for {
+		currentPos, err := r.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return err
+		}
+
+		if uint64(currentPos) >= videoEnd {
+			break
+		}
+
+		elementID, size, err := readEBMLElementHeader(r)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		switch elementID {
+		case idPixelWidth:
+			data := make([]byte, size)
+			if _, err := io.ReadFull(r, data); err != nil {
+				return err
+			}
+			info.Width = uint32(readUInt(data))
+
+		case idPixelHeight:
+			data := make([]byte, size)
+			if _, err := io.ReadFull(r, data); err != nil {
+				return err
+			}
+			info.Height = uint32(readUInt(data))
+
+		default:
+			// Skip unknown elements
+			if _, err := r.Seek(int64(size), io.SeekCurrent); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func readByte(r io.Reader) (byte, error) {
+	buf := make([]byte, 1)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return 0, err
+	}
+	return buf[0], nil
+}
+
+func readUInt(data []byte) uint64 {
+	var result uint64
+	for _, b := range data {
+		result = (result << 8) | uint64(b)
+	}
+	return result
+}
+
+// readFloat reads an EBML float (4 or 8 bytes)
+func readFloat(data []byte) float64 {
+	if len(data) == 4 {
+		bits := binary.BigEndian.Uint32(data)
+		return float64(math.Float32frombits(bits))
+	} else if len(data) == 8 {
+		bits := binary.BigEndian.Uint64(data)
+		return math.Float64frombits(bits)
+	}
+	return 0
+}
+
+func ParseM4A(filename string) (*AudioInfo, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	mp4Info, err := parseMP4Internal(f)
+	if err != nil {
+		return nil, err
+	}
+
+	audioInfo := &AudioInfo{
+		Duration: mp4Info.Duration,
+	}
+
+	moovBox, err := findBox(f, "moov")
+	if err == nil {
+		trakBox, err := findBoxInBox(f, moovBox, "trak")
+		if err == nil {
+			mdiaBox, err := findBoxInBox(f, trakBox, "mdia")
+			if err == nil {
+				mdhdBox, err := findBoxInBox(f, mdiaBox, "mdhd")
+				if err == nil {
+					parseMdhd(f, mdhdBox, audioInfo)
+				}
+			}
+		}
+	}
+
+	return audioInfo, nil
+}
+
+func parseMP4Internal(f *os.File) (*MP4Info, error) {
+	info := &MP4Info{}
+
+	moovBox, err := findBox(f, "moov")
+	if err != nil {
+		return nil, fmt.Errorf("moov box not found: %w", err)
+	}
+
+	mvhdBox, err := findBoxInBox(f, moovBox, "mvhd")
+	if err == nil {
+		if err := parseMvhd(f, mvhdBox, info); err != nil {
+			return nil, fmt.Errorf("failed to parse mvhd: %w", err)
+		}
+	}
+
+	if info.Timescale > 0 {
+		info.Duration = (info.Duration * 1000) / int64(info.Timescale)
+	}
+
+	return info, nil
+}
+
+func parseMdhd(r io.ReadSeeker, box *boxInfo, info *AudioInfo) error {
+	if _, err := r.Seek(int64(box.offset+8), io.SeekStart); err != nil {
+		return err
+	}
+
+	versionFlags := make([]byte, 4)
+	if _, err := io.ReadFull(r, versionFlags); err != nil {
+		return err
+	}
+
+	version := versionFlags[0]
+	var skipBytes int
+	if version == 0 {
+		skipBytes = 12
+	} else {
+		skipBytes = 20
+	}
+
+	skip := make([]byte, skipBytes)
+	if _, err := io.ReadFull(r, skip); err != nil {
+		return err
+	}
+
+	sampleRateBuf := make([]byte, 4)
+	if _, err := io.ReadFull(r, sampleRateBuf); err != nil {
+		return err
+	}
+	info.SampleRate = binary.BigEndian.Uint32(sampleRateBuf)
+
+	return nil
+}
+
+var mp3Bitrates = [5][16]int{
+	{0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 0},
+	{0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 0},
+	{0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0},
+	{0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256, 0},
+	{0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0},
+}
+
+var mp3Samplerates = [3][3]int{
+	{44100, 48000, 32000},
+	{22050, 24000, 16000},
+	{11025, 12000, 8000},
+}
+
+func ParseMP3(filename string) (*AudioInfo, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	info := &AudioInfo{}
+
+	id3Size := skipID3v2(f)
+	if _, err := f.Seek(int64(id3Size), io.SeekStart); err != nil {
+		return nil, err
+	}
+
+	header := make([]byte, 4)
+	frameCount := 0
+	totalBitrate := uint32(0)
+	var fileSize int64
+
+	stat, err := f.Stat()
+	if err == nil {
+		fileSize = stat.Size()
+	}
+
+	for frameCount < 100 {
+		if _, err := io.ReadFull(f, header); err != nil {
+			break
+		}
+
+		if header[0] != 0xFF || (header[1]&0xE0) != 0xE0 {
+			if _, err := f.Seek(-3, io.SeekCurrent); err != nil {
+				break
+			}
 			continue
 		}
-		if order, err := strconv.Atoi(key); err == nil {
-			f.order = order
+
+		version := (header[1] >> 3) & 0x03
+		layer := (header[1] >> 1) & 0x03
+		bitrateIndex := (header[2] >> 4) & 0x0F
+		samplerateIndex := (header[2] >> 2) & 0x03
+		padding := (header[2] >> 1) & 0x01
+
+		if version == 1 || layer == 0 || bitrateIndex == 0 || bitrateIndex == 15 || samplerateIndex == 3 {
+			if _, err := f.Seek(-3, io.SeekCurrent); err != nil {
+				break
+			}
+			continue
+		}
+
+		var bitrateTable int
+		if version == 3 {
+			switch layer {
+			case 3:
+				bitrateTable = 0
+			case 2:
+				bitrateTable = 1
+			default:
+				bitrateTable = 2
+			}
+		} else {
+			if layer == 3 {
+				bitrateTable = 3
+			} else {
+				bitrateTable = 4
+			}
+		}
+
+		bitrate := mp3Bitrates[bitrateTable][bitrateIndex]
+
+		var samplerateTable int
+		switch version {
+		case 3:
+			samplerateTable = 0
+		case 2:
+			samplerateTable = 1
+		default:
+			samplerateTable = 2
+		}
+
+		samplerate := mp3Samplerates[samplerateTable][samplerateIndex]
+
+		if frameCount == 0 {
+			info.Bitrate = uint32(bitrate)
+			info.SampleRate = uint32(samplerate)
+			if (header[3]>>6)&0x03 == 3 {
+				info.Channels = 1
+			} else {
+				info.Channels = 2
+			}
+		}
+
+		totalBitrate += uint32(bitrate)
+		frameCount++
+
+		var frameSize int
+		if layer == 3 {
+			frameSize = (144000*bitrate)/samplerate + int(padding)
+		} else {
+			frameSize = (144000*bitrate)/samplerate + int(padding)
+		}
+
+		if _, err := f.Seek(int64(frameSize-4), io.SeekCurrent); err != nil {
 			break
 		}
 	}
 
-	if val, contained := tagMap["string"]; contained {
-		f.set(fieldString)
-		if val == "c_p" {
-			fmt.Fprint(os.Stderr, "gogram: string=c_p tag is deprecated!!!")
-		}
-	}
-	if _, contained := tagMap["varint"]; contained {
-		f.set(fieldVarint)
-	}
-	f.version = math.MaxUint8
-	if val, contained := tagMap["ver"]; contained {
-		ver, err := strconv.Atoi(val)
-		if err != nil {
-			fmt.Fprint(os.Stderr, "gogram: MP4 tag ver is not a number!!!")
-		}
-		f.version = uint8(ver)
-	}
-	f.nVersion = math.MaxUint8
-	if val, contained := tagMap["nver"]; contained {
-		ver, err := strconv.Atoi(val)
-		if err != nil {
-			fmt.Fprint(os.Stderr, "gogram: MP4 tag nver is not a number!!!")
-		}
-		f.nVersion = uint8(ver)
-	}
-	if val, contained := tagMap["size"]; contained {
-		if val == "dynamic" {
-			f.set(fieldSizeDynamic)
-		} else {
-			size, err := strconv.ParseUint(val, 10, 32)
-			if err != nil {
-				fmt.Fprint(os.Stderr, "gogram: MP4 tag size is not a number!!!")
-			}
-			f.size = uint(size)
-		}
-	}
-	f.length = LengthUnlimited
-	if val, contained := tagMap["len"]; contained {
-		if val == "dynamic" {
-			f.set(fieldLengthDynamic)
-		} else {
-			l, err := strconv.ParseUint(val, 10, 32)
-			if err != nil {
-				fmt.Fprint(os.Stderr, "gogram: MP4 tag len is not a number!!!")
-			}
-			f.length = uint(l)
-		}
-	}
-	return f
-}
-
-func parseFieldTag(str string) map[string]string {
-	tag := make(map[string]string, 8)
-	list := strings.Split(str, ",")
-	for _, e := range list {
-		kv := strings.SplitN(e, "=", 2)
-		if len(kv) == 2 {
-			tag[strings.Trim(kv[0], " ")] = strings.Trim(kv[1], " ")
-		} else {
-			tag[strings.Trim(kv[0], " ")] = ""
+	if frameCount > 0 {
+		avgBitrate := totalBitrate / uint32(frameCount)
+		if fileSize > 0 && avgBitrate > 0 {
+			audioBytesSize := fileSize - int64(id3Size)
+			info.Duration = (audioBytesSize * 8 * 1000) / (int64(avgBitrate) * 1000)
 		}
 	}
 
-	return tag
+	return info, nil
 }
 
-type fieldInstance struct {
-	field
-	cfo ICustomFieldObject
-}
-
-func resolveFieldInstance(f *field, box IImmutableBox, parent reflect.Value, ctx Context) *fieldInstance {
-	fi := fieldInstance{
-		field: *f,
+func skipID3v2(r io.ReadSeeker) int {
+	header := make([]byte, 10)
+	if _, err := io.ReadFull(r, header); err != nil {
+		return 0
 	}
 
-	cfo, ok := parent.Addr().Interface().(ICustomFieldObject)
-	if ok {
-		fi.cfo = cfo
-	} else {
-		fi.cfo = box
+	if string(header[0:3]) != "ID3" {
+		r.Seek(0, io.SeekStart)
+		return 0
 	}
 
-	if fi.is(fieldSizeDynamic) {
-		fi.size = fi.cfo.GetFieldSize(f.name, ctx)
-	}
-
-	if fi.is(fieldLengthDynamic) {
-		fi.length = fi.cfo.GetFieldLength(f.name, ctx)
-	}
-
-	return &fi
+	size := int(header[6])<<21 | int(header[7])<<14 | int(header[8])<<7 | int(header[9])
+	return size + 10
 }
 
-func isTargetField(box IImmutableBox, fi *fieldInstance, ctx Context) bool {
-	if box.GetVersion() != math.MaxUint8 {
-		if fi.version != math.MaxUint8 && box.GetVersion() != fi.version {
-			return false
-		}
-
-		if fi.nVersion != math.MaxUint8 && box.GetVersion() == fi.nVersion {
-			return false
-		}
-	}
-	if fi.optFlag != 0 && box.GetFlags()&fi.optFlag == 0 {
-		return false
-	}
-	if fi.nOptFlag != 0 && box.GetFlags()&fi.nOptFlag != 0 {
-		return false
-	}
-	if fi.is(fieldOptDynamic) && !fi.cfo.IsOptFieldEnabled(fi.name, ctx) {
-		return false
-	}
-	return true
-}
-
-type ICustomFieldObject interface {
-	GetFieldSize(name string, ctx Context) uint
-	GetFieldLength(name string, ctx Context) uint
-	IsOptFieldEnabled(name string, ctx Context) bool
-	BeforeUnmarshal(r io.ReadSeeker, size uint64, ctx Context) (n uint64, override bool, err error)
-	OnReadField(name string, r ReadSeeker, leftBits uint64, ctx Context) (rbits uint64, override bool, err error)
-}
-
-type IImmutableBox interface {
-	ICustomFieldObject
-	GetVersion() uint8
-	GetFlags() uint32
-	CheckFlag(uint32) bool
-	GetType() BoxType
-}
-
-// IBox is common interface of box
-type IBox interface {
-	IImmutableBox
-	SetVersion(uint8)
-	SetFlags(uint32)
-	AddFlag(uint32)
-	RemoveFlag(uint32)
-}
-
-type Meta struct {
-	FullBox `mp4:"0,extend"`
-}
-
-func BoxTypeMeta() BoxType { return StrToBoxType("meta") }
-
-// GetType returns the BoxType
-func (*Meta) GetType() BoxType {
-	return BoxTypeMeta()
-}
-
-func (meta *Meta) BeforeUnmarshal(r io.ReadSeeker, _ uint64, _ Context) (n uint64, override bool, err error) {
-	// for Apple Quick Time
-	buf := make([]byte, 4)
-	if _, err := io.ReadFull(r, buf); err != nil {
-		return 0, false, err
-	}
-	if _, err := r.Seek(-int64(len(buf)), io.SeekCurrent); err != nil {
-		return 0, false, err
-	}
-	if buf[0]|buf[1]|buf[2]|buf[3] != 0x00 {
-		meta.Version = 0
-		meta.Flags = [3]byte{0, 0, 0}
-		return 0, true, nil
-	}
-	return 0, false, nil
-}
-
-// -------------------------- ReadSeeker --------------------------
-
-type Reader interface {
-	io.Reader
-
-	// alignment:
-	//  |-1-byte-block-|--------------|--------------|--------------|
-	//  |<-offset->|<-------------------width---------------------->|
-	ReadBits(width uint) (data []byte, err error)
-
-	ReadBit() (bit bool, err error)
-}
-
-type ReadSeeker interface {
-	Reader
-	io.Seeker
-}
-
-type reader struct {
-	reader io.Reader
-	octet  byte
-	width  uint
-}
-
-func NewReader(r io.Reader) Reader {
-	return &reader{reader: r}
-}
-
-func (r *reader) Read(p []byte) (n int, err error) {
-	if r.width != 0 {
-		return 0, fmt.Errorf("bitio: reader is not aligned")
-	}
-	return r.reader.Read(p)
-}
-
-func (r *reader) ReadBits(size uint) ([]byte, error) {
-	bytes := (size + 7) / 8
-	data := make([]byte, bytes)
-	offset := (bytes * 8) - (size)
-
-	for i := uint(0); i < size; i++ {
-		bit, err := r.ReadBit()
-		if err != nil {
-			return nil, err
-		}
-
-		byteIdx := (offset + i) / 8
-		bitIdx := 7 - (offset+i)%8
-		if bit {
-			data[byteIdx] |= 0x1 << bitIdx
-		}
-	}
-
-	return data, nil
-}
-
-func (r *reader) ReadBit() (bool, error) {
-	if r.width == 0 {
-		buf := make([]byte, 1)
-		if n, err := r.reader.Read(buf); err != nil {
-			return false, err
-		} else if n != 1 {
-			return false, io.EOF
-		}
-		r.octet = buf[0]
-		r.width = 8
-	}
-
-	r.width--
-	return (r.octet>>r.width)&0x01 != 0, nil
-}
-
-type readSeeker struct {
-	reader
-	seeker io.Seeker
-}
-
-func NewReadSeeker(r io.ReadSeeker) ReadSeeker {
-	return &readSeeker{
-		reader: reader{reader: r},
-		seeker: r,
-	}
-}
-
-func (r *readSeeker) Seek(offset int64, whence int) (int64, error) {
-	if whence == io.SeekCurrent && r.reader.width != 0 {
-		return 0, fmt.Errorf("bitio: reader is not aligned")
-	}
-	n, err := r.seeker.Seek(offset, whence)
+func ParseWAV(filename string) (*AudioInfo, error) {
+	f, err := os.Open(filename)
 	if err != nil {
-		return n, err
+		return nil, err
 	}
-	r.reader.width = 0
-	return n, nil
+	defer f.Close()
+
+	info := &AudioInfo{}
+
+	riffHeader := make([]byte, 12)
+	if _, err := io.ReadFull(f, riffHeader); err != nil {
+		return nil, err
+	}
+
+	if string(riffHeader[0:4]) != "RIFF" || string(riffHeader[8:12]) != "WAVE" {
+		return nil, errors.New("not a valid WAV file")
+	}
+
+	for {
+		chunkHeader := make([]byte, 8)
+		if _, err := io.ReadFull(f, chunkHeader); err != nil {
+			break
+		}
+
+		chunkID := string(chunkHeader[0:4])
+		chunkSize := binary.LittleEndian.Uint32(chunkHeader[4:8])
+
+		if chunkID == "fmt " {
+			fmtData := make([]byte, chunkSize)
+			if _, err := io.ReadFull(f, fmtData); err != nil {
+				return nil, err
+			}
+
+			if len(fmtData) >= 16 {
+				info.Channels = uint32(binary.LittleEndian.Uint16(fmtData[2:4]))
+				info.SampleRate = binary.LittleEndian.Uint32(fmtData[4:8])
+				byteRate := binary.LittleEndian.Uint32(fmtData[8:12])
+				info.Bitrate = (byteRate * 8) / 1000
+			}
+		} else if chunkID == "data" {
+			byteRate := (info.SampleRate * info.Channels * info.Bitrate) / 8
+			if byteRate > 0 {
+				info.Duration = int64(chunkSize) * 1000 / int64(byteRate)
+			}
+			break
+		} else {
+			if _, err := f.Seek(int64(chunkSize), io.SeekCurrent); err != nil {
+				break
+			}
+		}
+	}
+
+	return info, nil
+}
+
+func ParseFLAC(filename string) (*AudioInfo, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	info := &AudioInfo{}
+
+	header := make([]byte, 4)
+	if _, err := io.ReadFull(f, header); err != nil {
+		return nil, err
+	}
+
+	if string(header) != "fLaC" {
+		return nil, errors.New("not a valid FLAC file")
+	}
+
+	for {
+		blockHeader := make([]byte, 4)
+		if _, err := io.ReadFull(f, blockHeader); err != nil {
+			break
+		}
+
+		isLast := (blockHeader[0] & 0x80) != 0
+		blockType := blockHeader[0] & 0x7F
+		blockSize := int(blockHeader[1])<<16 | int(blockHeader[2])<<8 | int(blockHeader[3])
+
+		if blockType == 0 {
+			streamInfo := make([]byte, blockSize)
+			if _, err := io.ReadFull(f, streamInfo); err != nil {
+				return nil, err
+			}
+
+			if len(streamInfo) >= 18 {
+				info.SampleRate = (uint32(streamInfo[10])<<12 | uint32(streamInfo[11])<<4 | uint32(streamInfo[12])>>4)
+				info.Channels = ((uint32(streamInfo[12]) >> 1) & 0x07) + 1
+				bitsPerSample := ((uint32(streamInfo[12]) & 0x01) << 4) | (uint32(streamInfo[13]) >> 4)
+
+				totalSamples := uint64(streamInfo[13]&0x0F)<<32 |
+					uint64(streamInfo[14])<<24 |
+					uint64(streamInfo[15])<<16 |
+					uint64(streamInfo[16])<<8 |
+					uint64(streamInfo[17])
+
+				if info.SampleRate > 0 {
+					info.Duration = int64(totalSamples) * 1000 / int64(info.SampleRate)
+					info.Bitrate = uint32((bitsPerSample * info.Channels * info.SampleRate) / 1000)
+				}
+			}
+			break
+		}
+
+		if isLast {
+			break
+		}
+
+		if _, err := f.Seek(int64(blockSize), io.SeekCurrent); err != nil {
+			break
+		}
+	}
+
+	return info, nil
+}
+
+func ParseWebM(filename string) (*MKVInfo, error) {
+	return ParseMKV(filename)
 }
