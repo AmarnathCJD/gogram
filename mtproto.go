@@ -482,7 +482,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 
 	select {
 	case <-ctx.Done():
-		m.responseChannels.Delete(int(msgId))
+		go m.writeRPCResponse(int(msgId), &objects.Null{})
 		return nil, ctx.Err()
 	case response := <-resp:
 		switch r := response.(type) {
