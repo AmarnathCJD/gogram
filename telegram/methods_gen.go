@@ -3,6 +3,7 @@
 package telegram
 
 import (
+	"fmt"
 	tl "github.com/amarnathcjd/gogram/internal/encoding/tl"
 	errors "github.com/pkg/errors"
 	"reflect"
@@ -35,7 +36,7 @@ func (c *Client) AccountAcceptAuthorization(botID int64, scope, publicKey string
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -55,7 +56,7 @@ func (c *Client) AccountCancelPasswordEmail() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -89,7 +90,7 @@ func (c *Client) AccountChangeAuthorizationSettings(confirmed bool, hash int64, 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -117,7 +118,7 @@ func (c *Client) AccountChangePhone(phoneNumber, phoneCodeHash, phoneCode string
 
 	resp, ok := responseData.(User)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -139,7 +140,7 @@ func (c *Client) AccountCheckUsername(username string) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -159,7 +160,7 @@ func (c *Client) AccountClearRecentEmojiStatuses() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -181,7 +182,7 @@ func (c *Client) AccountConfirmPasswordEmail(code string) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -207,7 +208,7 @@ func (c *Client) AccountConfirmPhone(phoneCodeHash, phoneCode string) (bool, err
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -229,7 +230,7 @@ func (c *Client) AccountCreateBusinessChatLink(link *InputBusinessChatLink) (*Bu
 
 	resp, ok := responseData.(*BusinessChatLink)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -263,7 +264,7 @@ func (c *Client) AccountCreateTheme(slug, title string, document InputDocument, 
 
 	resp, ok := responseData.(*Theme)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -283,7 +284,7 @@ func (c *Client) AccountDeclinePasswordReset() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -313,7 +314,7 @@ func (c *Client) AccountDeleteAccount(reason string, password InputCheckPassword
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -333,7 +334,7 @@ func (c *Client) AccountDeleteAutoSaveExceptions() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -355,7 +356,7 @@ func (c *Client) AccountDeleteBusinessChatLink(slug string) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -377,7 +378,7 @@ func (c *Client) AccountDeleteSecureValue(types []SecureValueType) (bool, error)
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -399,7 +400,7 @@ func (c *Client) AccountDisablePeerConnectedBot(peer InputPeer) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -425,7 +426,7 @@ func (c *Client) AccountEditBusinessChatLink(slug string, link *InputBusinessCha
 
 	resp, ok := responseData.(*BusinessChatLink)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -451,7 +452,7 @@ func (c *Client) AccountFinishTakeoutSession(success bool) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -471,7 +472,7 @@ func (c *Client) AccountGetAccountTtl() (*AccountDaysTtl, error) {
 
 	resp, ok := responseData.(*AccountDaysTtl)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -491,7 +492,7 @@ func (c *Client) AccountGetAllSecureValues() ([]*SecureValue, error) {
 
 	resp, ok := responseData.([]*SecureValue)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -519,7 +520,7 @@ func (c *Client) AccountGetAuthorizationForm(botID int64, scope, publicKey strin
 
 	resp, ok := responseData.(*AccountAuthorizationForm)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -539,7 +540,7 @@ func (c *Client) AccountGetAuthorizations() (*AccountAuthorizations, error) {
 
 	resp, ok := responseData.(*AccountAuthorizations)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -559,7 +560,7 @@ func (c *Client) AccountGetAutoDownloadSettings() (*AccountAutoDownloadSettings,
 
 	resp, ok := responseData.(*AccountAutoDownloadSettings)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -579,7 +580,7 @@ func (c *Client) AccountGetAutoSaveSettings() (*AccountAutoSaveSettings, error) 
 
 	resp, ok := responseData.(*AccountAutoSaveSettings)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -593,7 +594,7 @@ func (*AccountGetBotBusinessConnectionParams) CRC() uint32 {
 }
 
 /*
-Bots may invoke this method to re-fetch the updateBotBusinessConnect constructor associated with a specific <a href="/api/business#connected-bots">business `connection_id`, see here »</a> for more info on connected business bots.<br>
+Bots may invoke this method to re-fetch the updateBotBusinessConnect constructor associated with a specific <a href="/api/bots/connected-business-bots">business `connection_id`, see here »</a> for more info on connected business bots.<br>
 This is needed for example for freshly logged in bots that are receiving some updateBotNewBusinessMessage, etc. updates because some users have already connected to the bot before it could login.<br>
 In this case, the bot is receiving messages from the business connection, but it hasn't cached the associated updateBotBusinessConnect with info about the connection (can it reply to messages? etc.) yet, and cannot receive the old ones because they were sent when the bot wasn't logged into the session yet.<br>
 This method can be used to fetch info about a not-yet-cached business connection, and should not be invoked if the info is already cached or to fetch changes, as eventual changes will automatically be sent as new updateBotBusinessConnect updates to the bot using the usual update delivery methods ».
@@ -606,7 +607,7 @@ func (c *Client) AccountGetBotBusinessConnection(connectionID string) (Updates, 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -626,7 +627,7 @@ func (c *Client) AccountGetBusinessChatLinks() (*AccountBusinessChatLinks, error
 
 	resp, ok := responseData.(*AccountBusinessChatLinks)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -648,7 +649,7 @@ func (c *Client) AccountGetChannelDefaultEmojiStatuses(hash int64) (AccountEmoji
 
 	resp, ok := responseData.(AccountEmojiStatuses)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -670,7 +671,7 @@ func (c *Client) AccountGetChannelRestrictedStatusEmojis(hash int64) (EmojiList,
 
 	resp, ok := responseData.(EmojiList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -692,7 +693,7 @@ func (c *Client) AccountGetChatThemes(hash int64) (AccountThemes, error) {
 
 	resp, ok := responseData.(AccountThemes)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -705,6 +706,7 @@ func (*AccountGetCollectibleEmojiStatusesParams) CRC() uint32 {
 	return 0x2e7b4543
 }
 
+// Obtain a list of emoji statuses » for owned collectible gifts.
 func (c *Client) AccountGetCollectibleEmojiStatuses(hash int64) (AccountEmojiStatuses, error) {
 	responseData, err := c.MakeRequest(&AccountGetCollectibleEmojiStatusesParams{Hash: hash})
 	if err != nil {
@@ -713,7 +715,7 @@ func (c *Client) AccountGetCollectibleEmojiStatuses(hash int64) (AccountEmojiSta
 
 	resp, ok := responseData.(AccountEmojiStatuses)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -733,7 +735,7 @@ func (c *Client) AccountGetConnectedBots() (*AccountConnectedBots, error) {
 
 	resp, ok := responseData.(*AccountConnectedBots)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -753,7 +755,7 @@ func (c *Client) AccountGetContactSignUpNotification() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -773,7 +775,7 @@ func (c *Client) AccountGetContentSettings() (*AccountContentSettings, error) {
 
 	resp, ok := responseData.(*AccountContentSettings)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -795,7 +797,7 @@ func (c *Client) AccountGetDefaultBackgroundEmojis(hash int64) (EmojiList, error
 
 	resp, ok := responseData.(EmojiList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -817,7 +819,7 @@ func (c *Client) AccountGetDefaultEmojiStatuses(hash int64) (AccountEmojiStatuse
 
 	resp, ok := responseData.(AccountEmojiStatuses)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -839,7 +841,7 @@ func (c *Client) AccountGetDefaultGroupPhotoEmojis(hash int64) (EmojiList, error
 
 	resp, ok := responseData.(EmojiList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -861,7 +863,7 @@ func (c *Client) AccountGetDefaultProfilePhotoEmojis(hash int64) (EmojiList, err
 
 	resp, ok := responseData.(EmojiList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -881,7 +883,7 @@ func (c *Client) AccountGetGlobalPrivacySettings() (*GlobalPrivacySettings, erro
 
 	resp, ok := responseData.(*GlobalPrivacySettings)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -903,7 +905,7 @@ func (c *Client) AccountGetMultiWallPapers(wallpapers []InputWallPaper) ([]WallP
 
 	resp, ok := responseData.([]WallPaper)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -935,7 +937,7 @@ func (c *Client) AccountGetNotifyExceptions(compareSound, compareStories bool, p
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -957,7 +959,7 @@ func (c *Client) AccountGetNotifySettings(peer InputNotifyPeer) (*PeerNotifySett
 
 	resp, ok := responseData.(*PeerNotifySettings)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -975,6 +977,7 @@ func (*AccountGetPaidMessagesRevenueParams) FlagIndex() int {
 	return 0
 }
 
+// Get the number of stars we have received from the specified user thanks to paid messages »; the received amount will be equal to the sent amount multiplied by stars_paid_message_commission_permille divided by 1000.
 func (c *Client) AccountGetPaidMessagesRevenue(parentPeer InputPeer, userID InputUser) (*AccountPaidMessagesRevenue, error) {
 	responseData, err := c.MakeRequest(&AccountGetPaidMessagesRevenueParams{
 		ParentPeer: parentPeer,
@@ -986,7 +989,7 @@ func (c *Client) AccountGetPaidMessagesRevenue(parentPeer InputPeer, userID Inpu
 
 	resp, ok := responseData.(*AccountPaidMessagesRevenue)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1006,7 +1009,7 @@ func (c *Client) AccountGetPassword() (*AccountPassword, error) {
 
 	resp, ok := responseData.(*AccountPassword)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1028,7 +1031,7 @@ func (c *Client) AccountGetPasswordSettings(password InputCheckPasswordSRP) (*Ac
 
 	resp, ok := responseData.(*AccountPasswordSettings)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1050,7 +1053,7 @@ func (c *Client) AccountGetPrivacy(key InputPrivacyKey) (*AccountPrivacyRules, e
 
 	resp, ok := responseData.(*AccountPrivacyRules)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1070,7 +1073,7 @@ func (c *Client) AccountGetReactionsNotifySettings() (*ReactionsNotifySettings, 
 
 	resp, ok := responseData.(*ReactionsNotifySettings)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1092,7 +1095,29 @@ func (c *Client) AccountGetRecentEmojiStatuses(hash int64) (AccountEmojiStatuses
 
 	resp, ok := responseData.(AccountEmojiStatuses)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AccountGetSavedMusicIdsParams struct {
+	Hash int64
+}
+
+func (*AccountGetSavedMusicIdsParams) CRC() uint32 {
+	return 0xe09d5faf
+}
+
+// Fetch the full list of only the IDs of songs currently added to the profile, see here » for more info.
+func (c *Client) AccountGetSavedMusicIds(hash int64) (AccountSavedMusicIds, error) {
+	responseData, err := c.MakeRequest(&AccountGetSavedMusicIdsParams{Hash: hash})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending AccountGetSavedMusicIds")
+	}
+
+	resp, ok := responseData.(AccountSavedMusicIds)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1114,7 +1139,7 @@ func (c *Client) AccountGetSavedRingtones(hash int64) (AccountSavedRingtones, er
 
 	resp, ok := responseData.(AccountSavedRingtones)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1136,7 +1161,7 @@ func (c *Client) AccountGetSecureValue(types []SecureValueType) ([]*SecureValue,
 
 	resp, ok := responseData.([]*SecureValue)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1162,7 +1187,7 @@ func (c *Client) AccountGetTheme(format string, theme InputTheme) (*Theme, error
 
 	resp, ok := responseData.(*Theme)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1188,7 +1213,7 @@ func (c *Client) AccountGetThemes(format string, hash int64) (AccountThemes, err
 
 	resp, ok := responseData.(AccountThemes)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1214,7 +1239,35 @@ func (c *Client) AccountGetTmpPassword(password InputCheckPasswordSRP, period in
 
 	resp, ok := responseData.(*AccountTmpPassword)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AccountGetUniqueGiftChatThemesParams struct {
+	Offset int32
+	Limit  int32
+	Hash   int64
+}
+
+func (*AccountGetUniqueGiftChatThemesParams) CRC() uint32 {
+	return 0xfe74ef9f
+}
+
+// Obtain all chat themes » associated to owned collectible gifts ».
+func (c *Client) AccountGetUniqueGiftChatThemes(offset, limit int32, hash int64) (*AccountChatThemes, error) {
+	responseData, err := c.MakeRequest(&AccountGetUniqueGiftChatThemesParams{
+		Hash:   hash,
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending AccountGetUniqueGiftChatThemes")
+	}
+
+	resp, ok := responseData.(*AccountChatThemes)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1236,7 +1289,7 @@ func (c *Client) AccountGetWallPaper(wallpaper InputWallPaper) (WallPaper, error
 
 	resp, ok := responseData.(WallPaper)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1258,7 +1311,7 @@ func (c *Client) AccountGetWallPapers(hash int64) (AccountWallPapers, error) {
 
 	resp, ok := responseData.(AccountWallPapers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1278,7 +1331,7 @@ func (c *Client) AccountGetWebAuthorizations() (*AccountWebAuthorizations, error
 
 	resp, ok := responseData.(*AccountWebAuthorizations)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1310,7 +1363,7 @@ func (c *Client) AccountInitTakeoutSession(params *AccountInitTakeoutSessionPara
 
 	resp, ok := responseData.(*AccountTakeout)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1344,7 +1397,7 @@ func (c *Client) AccountInstallTheme(dark bool, theme InputTheme, format string,
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1370,7 +1423,7 @@ func (c *Client) AccountInstallWallPaper(wallpaper InputWallPaper, settings *Wal
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1392,7 +1445,7 @@ func (c *Client) AccountInvalidateSignInCodes(codes []string) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1423,7 +1476,7 @@ func (c *Client) AccountRegisterDevice(params *AccountRegisterDeviceParams) (boo
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1445,7 +1498,7 @@ func (c *Client) AccountReorderUsernames(order []string) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1473,7 +1526,7 @@ func (c *Client) AccountReportPeer(peer InputPeer, reason ReportReason, message 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1503,7 +1556,7 @@ func (c *Client) AccountReportProfilePhoto(peer InputPeer, photoID InputPhoto, r
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1523,7 +1576,7 @@ func (c *Client) AccountResendPasswordEmail() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1545,7 +1598,7 @@ func (c *Client) AccountResetAuthorization(hash int64) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1565,7 +1618,7 @@ func (c *Client) AccountResetNotifySettings() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1585,7 +1638,7 @@ func (c *Client) AccountResetPassword() (AccountResetPasswordResult, error) {
 
 	resp, ok := responseData.(AccountResetPasswordResult)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1605,7 +1658,7 @@ func (c *Client) AccountResetWallPapers() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1627,7 +1680,7 @@ func (c *Client) AccountResetWebAuthorization(hash int64) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1647,7 +1700,7 @@ func (c *Client) AccountResetWebAuthorizations() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1669,7 +1722,7 @@ func (c *Client) AccountResolveBusinessChatLink(slug string) (*AccountResolvedBu
 
 	resp, ok := responseData.(*AccountResolvedBusinessChatLinks)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1701,7 +1754,7 @@ func (c *Client) AccountSaveAutoDownloadSettings(low, high bool, settings *AutoD
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1731,7 +1784,39 @@ func (c *Client) AccountSaveAutoSaveSettings(params *AccountSaveAutoSaveSettings
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AccountSaveMusicParams struct {
+	Unsave  bool `tl:"flag:0,encoded_in_bitflags"`
+	ID      InputDocument
+	AfterID InputDocument `tl:"flag:1"`
+}
+
+func (*AccountSaveMusicParams) CRC() uint32 {
+	return 0xb26732a9
+}
+
+func (*AccountSaveMusicParams) FlagIndex() int {
+	return 0
+}
+
+// Adds or removes a song from the current user's profile see here » for more info on the music tab of the profile page.
+func (c *Client) AccountSaveMusic(unsave bool, id, afterID InputDocument) (bool, error) {
+	responseData, err := c.MakeRequest(&AccountSaveMusicParams{
+		AfterID: afterID,
+		ID:      id,
+		Unsave:  unsave,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending AccountSaveMusic")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1757,7 +1842,7 @@ func (c *Client) AccountSaveRingtone(id InputDocument, unsave bool) (AccountSave
 
 	resp, ok := responseData.(AccountSavedRingtone)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1783,7 +1868,7 @@ func (c *Client) AccountSaveSecureValue(value *InputSecureValue, secureSecretID 
 
 	resp, ok := responseData.(*SecureValue)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1809,7 +1894,7 @@ func (c *Client) AccountSaveTheme(theme InputTheme, unsave bool) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1837,7 +1922,7 @@ func (c *Client) AccountSaveWallPaper(wallpaper InputWallPaper, unsave bool, set
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1863,7 +1948,7 @@ func (c *Client) AccountSendChangePhoneCode(phoneNumber string, settings *CodeSe
 
 	resp, ok := responseData.(AuthSentCode)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1889,7 +1974,7 @@ func (c *Client) AccountSendConfirmPhoneCode(hash string, settings *CodeSettings
 
 	resp, ok := responseData.(AuthSentCode)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1915,7 +2000,7 @@ func (c *Client) AccountSendVerifyEmailCode(purpose EmailVerifyPurpose, email st
 
 	resp, ok := responseData.(*AccountSentEmailCode)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1941,7 +2026,7 @@ func (c *Client) AccountSendVerifyPhoneCode(phoneNumber string, settings *CodeSe
 
 	resp, ok := responseData.(AuthSentCode)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1963,7 +2048,7 @@ func (c *Client) AccountSetAccountTtl(ttl *AccountDaysTtl) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -1985,7 +2070,7 @@ func (c *Client) AccountSetAuthorizationTtl(authorizationTtlDays int32) (bool, e
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2007,7 +2092,7 @@ func (c *Client) AccountSetContactSignUpNotification(silent bool) (bool, error) 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2033,7 +2118,7 @@ func (c *Client) AccountSetContentSettings(sensitiveEnabled bool) (bool, error) 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2055,7 +2140,29 @@ func (c *Client) AccountSetGlobalPrivacySettings(settings *GlobalPrivacySettings
 
 	resp, ok := responseData.(*GlobalPrivacySettings)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AccountSetMainProfileTabParams struct {
+	Tab ProfileTab
+}
+
+func (*AccountSetMainProfileTabParams) CRC() uint32 {
+	return 0x5dee78b0
+}
+
+// Changes the main profile tab of the current user, see here » for more info.
+func (c *Client) AccountSetMainProfileTab(tab ProfileTab) (bool, error) {
+	responseData, err := c.MakeRequest(&AccountSetMainProfileTabParams{Tab: tab})
+	if err != nil {
+		return false, errors.Wrap(err, "sending AccountSetMainProfileTab")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2081,7 +2188,7 @@ func (c *Client) AccountSetPrivacy(key InputPrivacyKey, rules []InputPrivacyRule
 
 	resp, ok := responseData.(*AccountPrivacyRules)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2103,7 +2210,7 @@ func (c *Client) AccountSetReactionsNotifySettings(settings *ReactionsNotifySett
 
 	resp, ok := responseData.(*ReactionsNotifySettings)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2129,7 +2236,7 @@ func (c *Client) AccountToggleConnectedBotPaused(peer InputPeer, paused bool) (b
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2149,6 +2256,7 @@ func (*AccountToggleNoPaidMessagesExceptionParams) FlagIndex() int {
 	return 0
 }
 
+// Allow a user to send us messages without paying if paid messages » are enabled.
 func (c *Client) AccountToggleNoPaidMessagesException(refundCharged, requirePayment bool, parentPeer InputPeer, userID InputUser) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountToggleNoPaidMessagesExceptionParams{
 		ParentPeer:     parentPeer,
@@ -2162,7 +2270,7 @@ func (c *Client) AccountToggleNoPaidMessagesException(refundCharged, requirePaym
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2184,7 +2292,7 @@ func (c *Client) AccountToggleSponsoredMessages(enabled bool) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2210,7 +2318,7 @@ func (c *Client) AccountToggleUsername(username string, active bool) (bool, erro
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2238,7 +2346,7 @@ func (c *Client) AccountUnregisterDevice(tokenType int32, token string, otherUid
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2264,7 +2372,7 @@ func (c *Client) AccountUpdateBirthday(birthday *Birthday) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2290,7 +2398,7 @@ func (c *Client) AccountUpdateBusinessAwayMessage(message *InputBusinessAwayMess
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2316,7 +2424,7 @@ func (c *Client) AccountUpdateBusinessGreetingMessage(message *InputBusinessGree
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2342,7 +2450,7 @@ func (c *Client) AccountUpdateBusinessIntro(intro *InputBusinessIntro) (bool, er
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2372,7 +2480,7 @@ func (c *Client) AccountUpdateBusinessLocation(geoPoint InputGeoPoint, address s
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2401,7 +2509,7 @@ func (c *Client) AccountUpdateBusinessWorkHours(businessWorkHours *BusinessWorkH
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2433,7 +2541,7 @@ func (c *Client) AccountUpdateColor(forProfile bool, color int32, backgroundEmoj
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2467,7 +2575,7 @@ func (c *Client) AccountUpdateConnectedBot(deleted bool, rights *BusinessBotRigh
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2489,7 +2597,7 @@ func (c *Client) AccountUpdateDeviceLocked(period int32) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2511,7 +2619,7 @@ func (c *Client) AccountUpdateEmojiStatus(emojiStatus EmojiStatus) (bool, error)
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2537,7 +2645,7 @@ func (c *Client) AccountUpdateNotifySettings(peer InputNotifyPeer, settings *Inp
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2563,7 +2671,7 @@ func (c *Client) AccountUpdatePasswordSettings(password InputCheckPasswordSRP, n
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2585,7 +2693,7 @@ func (c *Client) AccountUpdatePersonalChannel(channel InputChannel) (bool, error
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2617,7 +2725,7 @@ func (c *Client) AccountUpdateProfile(firstName, lastName, about string) (User, 
 
 	resp, ok := responseData.(User)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2639,7 +2747,7 @@ func (c *Client) AccountUpdateStatus(offline bool) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2670,7 +2778,7 @@ func (c *Client) AccountUpdateTheme(params *AccountUpdateThemeParams) (*Theme, e
 
 	resp, ok := responseData.(*Theme)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2692,7 +2800,7 @@ func (c *Client) AccountUpdateUsername(username string) (User, error) {
 
 	resp, ok := responseData.(User)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2720,7 +2828,7 @@ func (c *Client) AccountUploadRingtone(file InputFile, fileName, mimeType string
 
 	resp, ok := responseData.(Document)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2754,7 +2862,7 @@ func (c *Client) AccountUploadTheme(file, thumb InputFile, fileName, mimeType st
 
 	resp, ok := responseData.(Document)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2788,7 +2896,7 @@ func (c *Client) AccountUploadWallPaper(forChat bool, file InputFile, mimeType s
 
 	resp, ok := responseData.(WallPaper)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2814,7 +2922,7 @@ func (c *Client) AccountVerifyEmail(purpose EmailVerifyPurpose, verification Ema
 
 	resp, ok := responseData.(AccountEmailVerified)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2842,7 +2950,7 @@ func (c *Client) AccountVerifyPhone(phoneNumber, phoneCodeHash, phoneCode string
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2864,7 +2972,7 @@ func (c *Client) AuthAcceptLoginToken(token []byte) (*Authorization, error) {
 
 	resp, ok := responseData.(*Authorization)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2894,7 +3002,7 @@ func (c *Client) AuthBindTempAuthKey(permAuthKeyID, nonce int64, expiresAt int32
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2920,7 +3028,7 @@ func (c *Client) AuthCancelCode(phoneNumber, phoneCodeHash string) (bool, error)
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2942,7 +3050,7 @@ func (c *Client) AuthCheckPassword(password InputCheckPasswordSRP) (AuthAuthoriz
 
 	resp, ok := responseData.(AuthAuthorization)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2964,7 +3072,7 @@ func (c *Client) AuthCheckRecoveryPassword(code string) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -2986,7 +3094,7 @@ func (c *Client) AuthDropTempAuthKeys(exceptAuthKeys []int64) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3008,7 +3116,7 @@ func (c *Client) AuthExportAuthorization(dcID int32) (*AuthExportedAuthorization
 
 	resp, ok := responseData.(*AuthExportedAuthorization)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3039,7 +3147,7 @@ func (c *Client) AuthExportLoginToken(apiID int32, apiHash string, exceptIds []i
 
 	resp, ok := responseData.(AuthLoginToken)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3065,7 +3173,7 @@ func (c *Client) AuthImportAuthorization(id int64, bytes []byte) (AuthAuthorizat
 
 	resp, ok := responseData.(AuthAuthorization)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3095,7 +3203,7 @@ func (c *Client) AuthImportBotAuthorization(flags, apiID int32, apiHash, botAuth
 
 	resp, ok := responseData.(AuthAuthorization)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3117,7 +3225,7 @@ func (c *Client) AuthImportLoginToken(token []byte) (AuthLoginToken, error) {
 
 	resp, ok := responseData.(AuthLoginToken)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3145,7 +3253,7 @@ func (c *Client) AuthImportWebTokenAuthorization(apiID int32, apiHash, webAuthTo
 
 	resp, ok := responseData.(AuthAuthorization)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3165,7 +3273,7 @@ func (c *Client) AuthLogOut() (*AuthLoggedOut, error) {
 
 	resp, ok := responseData.(*AuthLoggedOut)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3195,7 +3303,7 @@ func (c *Client) AuthRecoverPassword(code string, newSettings *AccountPasswordIn
 
 	resp, ok := responseData.(AuthAuthorization)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3223,7 +3331,7 @@ func (c *Client) AuthReportMissingCode(phoneNumber, phoneCodeHash, mnc string) (
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3253,7 +3361,7 @@ func (c *Client) AuthRequestFirebaseSms(params *AuthRequestFirebaseSmsParams) (b
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3273,7 +3381,7 @@ func (c *Client) AuthRequestPasswordRecovery() (*AuthPasswordRecovery, error) {
 
 	resp, ok := responseData.(*AuthPasswordRecovery)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3305,7 +3413,7 @@ func (c *Client) AuthResendCode(phoneNumber, phoneCodeHash, reason string) (Auth
 
 	resp, ok := responseData.(AuthSentCode)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3325,7 +3433,7 @@ func (c *Client) AuthResetAuthorizations() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3351,7 +3459,7 @@ func (c *Client) AuthResetLoginEmail(phoneNumber, phoneCodeHash string) (AuthSen
 
 	resp, ok := responseData.(AuthSentCode)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3381,7 +3489,7 @@ func (c *Client) AuthSendCode(phoneNumber string, apiID int32, apiHash string, s
 
 	resp, ok := responseData.(AuthSentCode)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3415,7 +3523,7 @@ func (c *Client) AuthSignIn(phoneNumber, phoneCodeHash, phoneCode string, emailV
 
 	resp, ok := responseData.(AuthAuthorization)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3445,7 +3553,7 @@ func (c *Client) AuthSignUp(params *AuthSignUpParams) (AuthAuthorization, error)
 
 	resp, ok := responseData.(AuthAuthorization)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3473,7 +3581,7 @@ func (c *Client) BotsAddPreviewMedia(bot InputUser, langCode string, media Input
 
 	resp, ok := responseData.(*BotPreviewMedia)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3495,7 +3603,7 @@ func (c *Client) BotsAllowSendMessage(bot InputUser) (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3521,7 +3629,7 @@ func (c *Client) BotsAnswerWebhookJsonQuery(queryID int64, data *DataJson) (bool
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3543,7 +3651,7 @@ func (c *Client) BotsCanSendMessage(bot InputUser) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3571,7 +3679,7 @@ func (c *Client) BotsCheckDownloadFileParams(bot InputUser, fileName, url string
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3599,7 +3707,7 @@ func (c *Client) BotsDeletePreviewMedia(bot InputUser, langCode string, media []
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3629,7 +3737,7 @@ func (c *Client) BotsEditPreviewMedia(bot InputUser, langCode string, media, new
 
 	resp, ok := responseData.(*BotPreviewMedia)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3649,7 +3757,7 @@ func (c *Client) BotsGetAdminedBots() ([]User, error) {
 
 	resp, ok := responseData.([]User)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3675,7 +3783,7 @@ func (c *Client) BotsGetBotCommands(scope BotCommandScope, langCode string) ([]*
 
 	resp, ok := responseData.([]*BotCommand)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3705,7 +3813,7 @@ func (c *Client) BotsGetBotInfo(bot InputUser, langCode string) (*BotsBotInfo, e
 
 	resp, ok := responseData.(*BotsBotInfo)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3727,7 +3835,7 @@ func (c *Client) BotsGetBotMenuButton(userID InputUser) (BotMenuButton, error) {
 
 	resp, ok := responseData.(BotMenuButton)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3740,6 +3848,7 @@ func (*BotsGetBotRecommendationsParams) CRC() uint32 {
 	return 0xa1b70815
 }
 
+// Obtain a list of similarly themed bots, selected based on similarities in their subscriber bases, see here » for more info.
 func (c *Client) BotsGetBotRecommendations(bot InputUser) (UsersUsers, error) {
 	responseData, err := c.MakeRequest(&BotsGetBotRecommendationsParams{Bot: bot})
 	if err != nil {
@@ -3748,7 +3857,7 @@ func (c *Client) BotsGetBotRecommendations(bot InputUser) (UsersUsers, error) {
 
 	resp, ok := responseData.(UsersUsers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3774,7 +3883,7 @@ func (c *Client) BotsGetPopularAppBots(offset string, limit int32) (*BotsPopular
 
 	resp, ok := responseData.(*BotsPopularAppBots)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3800,7 +3909,7 @@ func (c *Client) BotsGetPreviewInfo(bot InputUser, langCode string) (*BotsPrevie
 
 	resp, ok := responseData.(*BotsPreviewInfo)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3822,7 +3931,7 @@ func (c *Client) BotsGetPreviewMedias(bot InputUser) ([]*BotPreviewMedia, error)
 
 	resp, ok := responseData.([]*BotPreviewMedia)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3850,7 +3959,7 @@ func (c *Client) BotsInvokeWebViewCustomMethod(bot InputUser, customMethod strin
 
 	resp, ok := responseData.(*DataJson)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3878,7 +3987,7 @@ func (c *Client) BotsReorderPreviewMedias(bot InputUser, langCode string, order 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3904,7 +4013,7 @@ func (c *Client) BotsReorderUsernames(bot InputUser, order []string) (bool, erro
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3930,7 +4039,7 @@ func (c *Client) BotsResetBotCommands(scope BotCommandScope, langCode string) (b
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3956,7 +4065,7 @@ func (c *Client) BotsSendCustomRequest(customMethod string, params *DataJson) (*
 
 	resp, ok := responseData.(*DataJson)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -3978,7 +4087,7 @@ func (c *Client) BotsSetBotBroadcastDefaultAdminRights(adminRights *ChatAdminRig
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4006,7 +4115,7 @@ func (c *Client) BotsSetBotCommands(scope BotCommandScope, langCode string, comm
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4028,7 +4137,7 @@ func (c *Client) BotsSetBotGroupDefaultAdminRights(adminRights *ChatAdminRights)
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4058,7 +4167,7 @@ func (c *Client) BotsSetBotInfo(params *BotsSetBotInfoParams) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4084,7 +4193,7 @@ func (c *Client) BotsSetBotMenuButton(userID InputUser, button BotMenuButton) (b
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4104,6 +4213,7 @@ func (*BotsSetCustomVerificationParams) FlagIndex() int {
 	return 0
 }
 
+// Verify a user or chat on behalf of an organization ».
 func (c *Client) BotsSetCustomVerification(enabled bool, bot InputUser, peer InputPeer, customDescription string) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsSetCustomVerificationParams{
 		Bot:               bot,
@@ -4117,7 +4227,7 @@ func (c *Client) BotsSetCustomVerification(enabled bool, bot InputUser, peer Inp
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4143,7 +4253,7 @@ func (c *Client) BotsToggleUserEmojiStatusPermission(bot InputUser, enabled bool
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4171,7 +4281,7 @@ func (c *Client) BotsToggleUsername(bot InputUser, username string, active bool)
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4203,7 +4313,7 @@ func (c *Client) BotsUpdateStarRefProgram(bot InputUser, commissionPermille, dur
 
 	resp, ok := responseData.(*StarRefProgram)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4229,7 +4339,33 @@ func (c *Client) BotsUpdateUserEmojiStatus(userID InputUser, emojiStatus EmojiSt
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type ChannelsCheckSearchPostsFloodParams struct {
+	Query string `tl:"flag:0"`
+}
+
+func (*ChannelsCheckSearchPostsFloodParams) CRC() uint32 {
+	return 0x22567115
+}
+
+func (*ChannelsCheckSearchPostsFloodParams) FlagIndex() int {
+	return 0
+}
+
+// Check if the specified global post search » requires payment.
+func (c *Client) ChannelsCheckSearchPostsFlood(query string) (*SearchPostsFlood, error) {
+	responseData, err := c.MakeRequest(&ChannelsCheckSearchPostsFloodParams{Query: query})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending ChannelsCheckSearchPostsFlood")
+	}
+
+	resp, ok := responseData.(*SearchPostsFlood)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4255,7 +4391,7 @@ func (c *Client) ChannelsCheckUsername(channel InputChannel, username string) (b
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4277,7 +4413,7 @@ func (c *Client) ChannelsConvertToGigagroup(channel InputChannel) (Updates, erro
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4311,7 +4447,7 @@ func (c *Client) ChannelsCreateChannel(params *ChannelsCreateChannelParams) (Upd
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4342,7 +4478,7 @@ func (c *Client) ChannelsCreateForumTopic(params *ChannelsCreateForumTopicParams
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4364,7 +4500,7 @@ func (c *Client) ChannelsDeactivateAllUsernames(channel InputChannel) (bool, err
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4386,7 +4522,7 @@ func (c *Client) ChannelsDeleteChannel(channel InputChannel) (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4418,7 +4554,7 @@ func (c *Client) ChannelsDeleteHistory(forEveryone bool, channel InputChannel, m
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4444,7 +4580,7 @@ func (c *Client) ChannelsDeleteMessages(channel InputChannel, id []int32) (*Mess
 
 	resp, ok := responseData.(*MessagesAffectedMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4470,7 +4606,7 @@ func (c *Client) ChannelsDeleteParticipantHistory(channel InputChannel, particip
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4496,7 +4632,7 @@ func (c *Client) ChannelsDeleteTopicHistory(channel InputChannel, topMsgID int32
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4526,7 +4662,7 @@ func (c *Client) ChannelsEditAdmin(channel InputChannel, userID InputUser, admin
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4554,7 +4690,7 @@ func (c *Client) ChannelsEditBanned(channel InputChannel, participant InputPeer,
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4582,7 +4718,7 @@ func (c *Client) ChannelsEditCreator(channel InputChannel, userID InputUser, pas
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4613,7 +4749,7 @@ func (c *Client) ChannelsEditForumTopic(params *ChannelsEditForumTopicParams) (U
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4641,7 +4777,7 @@ func (c *Client) ChannelsEditLocation(channel InputChannel, geoPoint InputGeoPoi
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4667,7 +4803,7 @@ func (c *Client) ChannelsEditPhoto(channel InputChannel, photo InputChatPhoto) (
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4693,7 +4829,7 @@ func (c *Client) ChannelsEditTitle(channel InputChannel, title string) (Updates,
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4727,7 +4863,7 @@ func (c *Client) ChannelsExportMessageLink(grouped, thread bool, channel InputCh
 
 	resp, ok := responseData.(*ExportedMessageLink)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4759,7 +4895,7 @@ func (c *Client) ChannelsGetAdminLog(params *ChannelsGetAdminLogParams) (*Channe
 
 	resp, ok := responseData.(*ChannelsAdminLogResults)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4791,7 +4927,7 @@ func (c *Client) ChannelsGetAdminedPublicChannels(byLocation, checkLimit, forPer
 
 	resp, ok := responseData.(MessagesChats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4817,7 +4953,7 @@ func (c *Client) ChannelsGetChannelRecommendations(channel InputChannel) (Messag
 
 	resp, ok := responseData.(MessagesChats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4839,7 +4975,7 @@ func (c *Client) ChannelsGetChannels(id []InputChannel) (MessagesChats, error) {
 
 	resp, ok := responseData.(MessagesChats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4870,7 +5006,7 @@ func (c *Client) ChannelsGetForumTopics(params *ChannelsGetForumTopicsParams) (*
 
 	resp, ok := responseData.(*MessagesForumTopics)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4896,7 +5032,7 @@ func (c *Client) ChannelsGetForumTopicsByID(channel InputChannel, topics []int32
 
 	resp, ok := responseData.(*MessagesForumTopics)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4918,7 +5054,7 @@ func (c *Client) ChannelsGetFullChannel(channel InputChannel) (*MessagesChatFull
 
 	resp, ok := responseData.(*MessagesChatFull)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4938,7 +5074,7 @@ func (c *Client) ChannelsGetGroupsForDiscussion() (MessagesChats, error) {
 
 	resp, ok := responseData.(MessagesChats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4958,7 +5094,7 @@ func (c *Client) ChannelsGetInactiveChannels() (*MessagesInactiveChats, error) {
 
 	resp, ok := responseData.(*MessagesInactiveChats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4980,7 +5116,7 @@ func (c *Client) ChannelsGetLeftChannels(offset int32) (MessagesChats, error) {
 
 	resp, ok := responseData.(MessagesChats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4994,6 +5130,7 @@ func (*ChannelsGetMessageAuthorParams) CRC() uint32 {
 	return 0xece2a0e6
 }
 
+// Can only be invoked by non-bot admins of a monoforum », obtains the original sender of a message sent by other monoforum admins to the monoforum, on behalf of the channel associated to the monoforum.
 func (c *Client) ChannelsGetMessageAuthor(channel InputChannel, id int32) (User, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetMessageAuthorParams{
 		Channel: channel,
@@ -5005,7 +5142,7 @@ func (c *Client) ChannelsGetMessageAuthor(channel InputChannel, id int32) (User,
 
 	resp, ok := responseData.(User)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5031,7 +5168,7 @@ func (c *Client) ChannelsGetMessages(channel InputChannel, id []InputMessage) (M
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5057,7 +5194,7 @@ func (c *Client) ChannelsGetParticipant(channel InputChannel, participant InputP
 
 	resp, ok := responseData.(*ChannelsChannelParticipant)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5089,7 +5226,7 @@ func (c *Client) ChannelsGetParticipants(channel InputChannel, filter ChannelPar
 
 	resp, ok := responseData.(ChannelsChannelParticipants)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5119,7 +5256,7 @@ func (c *Client) ChannelsGetSendAs(forPaidReactions bool, peer InputPeer) (*Chan
 
 	resp, ok := responseData.(*ChannelsSendAsPeers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5145,7 +5282,7 @@ func (c *Client) ChannelsInviteToChannel(channel InputChannel, users []InputUser
 
 	resp, ok := responseData.(*MessagesInvitedUsers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5167,7 +5304,7 @@ func (c *Client) ChannelsJoinChannel(channel InputChannel) (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5189,7 +5326,7 @@ func (c *Client) ChannelsLeaveChannel(channel InputChannel) (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5215,7 +5352,7 @@ func (c *Client) ChannelsReadHistory(channel InputChannel, maxID int32) (bool, e
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5229,7 +5366,7 @@ func (*ChannelsReadMessageContentsParams) CRC() uint32 {
 	return 0xeab5dc38
 }
 
-// Mark channel/supergroup message contents as read
+// Mark channel/supergroup message contents as read, emitting an updateChannelReadMessagesContents.
 func (c *Client) ChannelsReadMessageContents(channel InputChannel, id []int32) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsReadMessageContentsParams{
 		Channel: channel,
@@ -5241,7 +5378,7 @@ func (c *Client) ChannelsReadMessageContents(channel InputChannel, id []int32) (
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5273,7 +5410,7 @@ func (c *Client) ChannelsReorderPinnedForumTopics(force bool, channel InputChann
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5299,7 +5436,7 @@ func (c *Client) ChannelsReorderUsernames(channel InputChannel, order []string) 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5325,7 +5462,7 @@ func (c *Client) ChannelsReportAntiSpamFalsePositive(channel InputChannel, msgID
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5353,7 +5490,7 @@ func (c *Client) ChannelsReportSpam(channel InputChannel, participant InputPeer,
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5379,39 +5516,39 @@ func (c *Client) ChannelsRestrictSponsoredMessages(channel InputChannel, restric
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
 
 type ChannelsSearchPostsParams struct {
-	Hashtag    string
-	OffsetRate int32
-	OffsetPeer InputPeer
-	OffsetID   int32
-	Limit      int32
+	Hashtag        string `tl:"flag:0"`
+	Query          string `tl:"flag:1"`
+	OffsetRate     int32
+	OffsetPeer     InputPeer
+	OffsetID       int32
+	Limit          int32
+	AllowPaidStars int64 `tl:"flag:2"`
 }
 
 func (*ChannelsSearchPostsParams) CRC() uint32 {
-	return 0xd19f987b
+	return 0xf2c4f24d
 }
 
-// Globally search for posts from public channels » (<em>including</em> those we aren't a member of) containing a specific hashtag.
-func (c *Client) ChannelsSearchPosts(hashtag string, offsetRate int32, offsetPeer InputPeer, offsetID, limit int32) (MessagesMessages, error) {
-	responseData, err := c.MakeRequest(&ChannelsSearchPostsParams{
-		Hashtag:    hashtag,
-		Limit:      limit,
-		OffsetID:   offsetID,
-		OffsetPeer: offsetPeer,
-		OffsetRate: offsetRate,
-	})
+func (*ChannelsSearchPostsParams) FlagIndex() int {
+	return 0
+}
+
+// Globally search for posts from public channels » (<em>including</em> those we aren't a member of) containing either a specific hashtag, <em>or</em> a full text query.
+func (c *Client) ChannelsSearchPosts(params *ChannelsSearchPostsParams) (MessagesMessages, error) {
+	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending ChannelsSearchPosts")
 	}
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5437,7 +5574,7 @@ func (c *Client) ChannelsSetBoostsToUnblockRestrictions(channel InputChannel, bo
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5463,7 +5600,7 @@ func (c *Client) ChannelsSetDiscussionGroup(broadcast, group InputChannel) (bool
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5489,7 +5626,33 @@ func (c *Client) ChannelsSetEmojiStickers(channel InputChannel, stickerset Input
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type ChannelsSetMainProfileTabParams struct {
+	Channel InputChannel
+	Tab     ProfileTab
+}
+
+func (*ChannelsSetMainProfileTabParams) CRC() uint32 {
+	return 0x3583fcb1
+}
+
+// Changes the main profile tab of a channel, see here » for more info.
+func (c *Client) ChannelsSetMainProfileTab(channel InputChannel, tab ProfileTab) (bool, error) {
+	responseData, err := c.MakeRequest(&ChannelsSetMainProfileTabParams{
+		Channel: channel,
+		Tab:     tab,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending ChannelsSetMainProfileTab")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5515,7 +5678,7 @@ func (c *Client) ChannelsSetStickers(channel InputChannel, stickerset InputStick
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5541,7 +5704,7 @@ func (c *Client) ChannelsToggleAntiSpam(channel InputChannel, enabled bool) (Upd
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5555,6 +5718,7 @@ func (*ChannelsToggleAutotranslationParams) CRC() uint32 {
 	return 0x167fc0a1
 }
 
+// Toggle autotranslation in a channel, for all users: see here » for more info.
 func (c *Client) ChannelsToggleAutotranslation(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleAutotranslationParams{
 		Channel: channel,
@@ -5566,7 +5730,7 @@ func (c *Client) ChannelsToggleAutotranslation(channel InputChannel, enabled boo
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5594,7 +5758,7 @@ func (c *Client) ChannelsToggleForum(channel InputChannel, enabled, tabs bool) (
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5620,7 +5784,7 @@ func (c *Client) ChannelsToggleJoinRequest(channel InputChannel, enabled bool) (
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5646,7 +5810,7 @@ func (c *Client) ChannelsToggleJoinToSend(channel InputChannel, enabled bool) (U
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5672,7 +5836,7 @@ func (c *Client) ChannelsToggleParticipantsHidden(channel InputChannel, enabled 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5698,7 +5862,7 @@ func (c *Client) ChannelsTogglePreHistoryHidden(channel InputChannel, enabled bo
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5730,7 +5894,7 @@ func (c *Client) ChannelsToggleSignatures(signaturesEnabled, profilesEnabled boo
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5756,7 +5920,7 @@ func (c *Client) ChannelsToggleSlowMode(channel InputChannel, seconds int32) (Up
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5784,7 +5948,7 @@ func (c *Client) ChannelsToggleUsername(channel InputChannel, username string, a
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5810,7 +5974,7 @@ func (c *Client) ChannelsToggleViewForumAsMessages(channel InputChannel, enabled
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5844,7 +6008,7 @@ func (c *Client) ChannelsUpdateColor(forProfile bool, channel InputChannel, colo
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5870,7 +6034,7 @@ func (c *Client) ChannelsUpdateEmojiStatus(channel InputChannel, emojiStatus Emo
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5889,6 +6053,7 @@ func (*ChannelsUpdatePaidMessagesPriceParams) FlagIndex() int {
 	return 0
 }
 
+// Enable or disable paid messages » in this supergroup or monoforum.
 func (c *Client) ChannelsUpdatePaidMessagesPrice(broadcastMessagesAllowed bool, channel InputChannel, sendPaidMessagesStars int64) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsUpdatePaidMessagesPriceParams{
 		BroadcastMessagesAllowed: broadcastMessagesAllowed,
@@ -5901,7 +6066,7 @@ func (c *Client) ChannelsUpdatePaidMessagesPrice(broadcastMessagesAllowed bool, 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5929,7 +6094,7 @@ func (c *Client) ChannelsUpdatePinnedForumTopic(channel InputChannel, topicID in
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5955,7 +6120,7 @@ func (c *Client) ChannelsUpdateUsername(channel InputChannel, username string) (
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -5977,7 +6142,7 @@ func (c *Client) ChatlistsCheckChatlistInvite(slug string) (ChatlistsChatlistInv
 
 	resp, ok := responseData.(ChatlistsChatlistInvite)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6003,7 +6168,7 @@ func (c *Client) ChatlistsDeleteExportedInvite(chatlist *InputChatlistDialogFilt
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6033,7 +6198,7 @@ func (c *Client) ChatlistsEditExportedInvite(params *ChatlistsEditExportedInvite
 
 	resp, ok := responseData.(*ExportedChatlistInvite)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6061,7 +6226,7 @@ func (c *Client) ChatlistsExportChatlistInvite(chatlist *InputChatlistDialogFilt
 
 	resp, ok := responseData.(*ChatlistsExportedChatlistInvite)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6083,7 +6248,7 @@ func (c *Client) ChatlistsGetChatlistUpdates(chatlist *InputChatlistDialogFilter
 
 	resp, ok := responseData.(*ChatlistsChatlistUpdates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6105,7 +6270,7 @@ func (c *Client) ChatlistsGetExportedInvites(chatlist *InputChatlistDialogFilter
 
 	resp, ok := responseData.(*ChatlistsExportedInvites)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6127,7 +6292,7 @@ func (c *Client) ChatlistsGetLeaveChatlistSuggestions(chatlist *InputChatlistDia
 
 	resp, ok := responseData.([]Peer)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6149,7 +6314,7 @@ func (c *Client) ChatlistsHideChatlistUpdates(chatlist *InputChatlistDialogFilte
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6175,7 +6340,7 @@ func (c *Client) ChatlistsJoinChatlistInvite(slug string, peers []InputPeer) (Up
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6201,7 +6366,7 @@ func (c *Client) ChatlistsJoinChatlistUpdates(chatlist *InputChatlistDialogFilte
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6227,7 +6392,7 @@ func (c *Client) ChatlistsLeaveChatlist(chatlist *InputChatlistDialogFilter, pee
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6249,7 +6414,7 @@ func (c *Client) ContactsAcceptContact(id InputUser) (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6260,10 +6425,11 @@ type ContactsAddContactParams struct {
 	FirstName                string
 	LastName                 string
 	Phone                    string
+	Note                     *TextWithEntities `tl:"flag:1"`
 }
 
 func (*ContactsAddContactParams) CRC() uint32 {
-	return 0xe8f463d0
+	return 0xd9ba2e54
 }
 
 func (*ContactsAddContactParams) FlagIndex() int {
@@ -6279,7 +6445,7 @@ func (c *Client) ContactsAddContact(params *ContactsAddContactParams) (Updates, 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6309,7 +6475,7 @@ func (c *Client) ContactsBlock(myStoriesFrom bool, id InputPeer) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6343,7 +6509,7 @@ func (c *Client) ContactsBlockFromReplies(deleteMessage, deleteHistory, reportSp
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6365,7 +6531,7 @@ func (c *Client) ContactsDeleteByPhones(phones []string) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6387,7 +6553,7 @@ func (c *Client) ContactsDeleteContacts(id []InputUser) (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6409,7 +6575,7 @@ func (c *Client) ContactsEditCloseFriends(id []int64) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6429,7 +6595,7 @@ func (c *Client) ContactsExportContactToken() (*ExportedContactToken, error) {
 
 	resp, ok := responseData.(*ExportedContactToken)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6449,7 +6615,7 @@ func (c *Client) ContactsGetBirthdays() (*ContactsContactBirthdays, error) {
 
 	resp, ok := responseData.(*ContactsContactBirthdays)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6481,7 +6647,7 @@ func (c *Client) ContactsGetBlocked(myStoriesFrom bool, offset, limit int32) (Co
 
 	resp, ok := responseData.(ContactsBlocked)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6506,7 +6672,7 @@ func (c *Client) ContactsGetContactIDs(hash int64) ([]int32, error) {
 
 	resp, ok := responseData.([]int32)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6528,7 +6694,7 @@ func (c *Client) ContactsGetContacts(hash int64) (ContactsContacts, error) {
 
 	resp, ok := responseData.(ContactsContacts)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6560,7 +6726,7 @@ func (c *Client) ContactsGetLocated(background bool, geoPoint InputGeoPoint, sel
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6580,7 +6746,7 @@ func (c *Client) ContactsGetSaved() ([]*SavedPhoneContact, error) {
 
 	resp, ok := responseData.([]*SavedPhoneContact)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6593,6 +6759,7 @@ func (*ContactsGetSponsoredPeersParams) CRC() uint32 {
 	return 0xb6c8c393
 }
 
+// Obtain a list of sponsored peer search results for a given query
 func (c *Client) ContactsGetSponsoredPeers(q string) (ContactsSponsoredPeers, error) {
 	responseData, err := c.MakeRequest(&ContactsGetSponsoredPeersParams{Q: q})
 	if err != nil {
@@ -6601,7 +6768,7 @@ func (c *Client) ContactsGetSponsoredPeers(q string) (ContactsSponsoredPeers, er
 
 	resp, ok := responseData.(ContactsSponsoredPeers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6621,7 +6788,7 @@ func (c *Client) ContactsGetStatuses() ([]*ContactStatus, error) {
 
 	resp, ok := responseData.([]*ContactStatus)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6658,7 +6825,7 @@ func (c *Client) ContactsGetTopPeers(params *ContactsGetTopPeersParams) (Contact
 
 	resp, ok := responseData.(ContactsTopPeers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6680,7 +6847,7 @@ func (c *Client) ContactsImportCard(exportCard []int32) (User, error) {
 
 	resp, ok := responseData.(User)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6702,7 +6869,7 @@ func (c *Client) ContactsImportContactToken(token string) (User, error) {
 
 	resp, ok := responseData.(User)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6724,7 +6891,7 @@ func (c *Client) ContactsImportContacts(contacts []*InputPhoneContact) (*Contact
 
 	resp, ok := responseData.(*ContactsImportedContacts)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6744,7 +6911,7 @@ func (c *Client) ContactsResetSaved() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6770,7 +6937,7 @@ func (c *Client) ContactsResetTopPeerRating(category TopPeerCategory, peer Input
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6792,7 +6959,7 @@ func (c *Client) ContactsResolvePhone(phone string) (*ContactsResolvedPeer, erro
 
 	resp, ok := responseData.(*ContactsResolvedPeer)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6822,7 +6989,7 @@ func (c *Client) ContactsResolveUsername(username, referer string) (*ContactsRes
 
 	resp, ok := responseData.(*ContactsResolvedPeer)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6848,7 +7015,7 @@ func (c *Client) ContactsSearch(q string, limit int32) (*ContactsFound, error) {
 
 	resp, ok := responseData.(*ContactsFound)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6880,7 +7047,7 @@ func (c *Client) ContactsSetBlocked(myStoriesFrom bool, id []InputPeer, limit in
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6902,7 +7069,7 @@ func (c *Client) ContactsToggleTopPeers(enabled bool) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6932,7 +7099,7 @@ func (c *Client) ContactsUnblock(myStoriesFrom bool, id InputPeer) (bool, error)
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6954,7 +7121,7 @@ func (c *Client) FoldersDeleteFolder(folderID int32) (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6976,7 +7143,7 @@ func (c *Client) FoldersEditPeerFolders(folderPeers []*InputFolderPeer) (Updates
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6998,7 +7165,7 @@ func (c *Client) FragmentGetCollectibleInfo(collectible InputCollectible) (*Frag
 
 	resp, ok := responseData.(*FragmentCollectibleInfo)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7020,7 +7187,7 @@ func (c *Client) HelpAcceptTermsOfService(id *DataJson) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7046,7 +7213,7 @@ func (c *Client) HelpDismissSuggestion(peer InputPeer, suggestion string) (bool,
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7074,32 +7241,7 @@ func (c *Client) HelpEditUserInfo(userID InputUser, message string, entities []M
 
 	resp, ok := responseData.(HelpUserInfo)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type HelpGetAppChangelogParams struct {
-	PrevAppVersion string
-}
-
-func (*HelpGetAppChangelogParams) CRC() uint32 {
-	return 0x9010ef6f
-}
-
-/*
-Get changelog of current app.<br>
-Typically, an updates constructor will be returned, containing one or more updateServiceNotification updates with app-specific changelogs.
-*/
-func (c *Client) HelpGetAppChangelog(prevAppVersion string) (Updates, error) {
-	responseData, err := c.MakeRequest(&HelpGetAppChangelogParams{PrevAppVersion: prevAppVersion})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetAppChangelog")
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7121,7 +7263,7 @@ func (c *Client) HelpGetAppConfig(hash int32) (HelpAppConfig, error) {
 
 	resp, ok := responseData.(HelpAppConfig)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7143,7 +7285,7 @@ func (c *Client) HelpGetAppUpdate(source string) (HelpAppUpdate, error) {
 
 	resp, ok := responseData.(HelpAppUpdate)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7163,7 +7305,7 @@ func (c *Client) HelpGetCdnConfig() (*CdnConfig, error) {
 
 	resp, ok := responseData.(*CdnConfig)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7183,7 +7325,7 @@ func (c *Client) HelpGetConfig() (*Config, error) {
 
 	resp, ok := responseData.(*Config)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7209,7 +7351,7 @@ func (c *Client) HelpGetCountriesList(langCode string, hash int32) (HelpCountrie
 
 	resp, ok := responseData.(HelpCountriesList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7231,7 +7373,7 @@ func (c *Client) HelpGetDeepLinkInfo(path string) (HelpDeepLinkInfo, error) {
 
 	resp, ok := responseData.(HelpDeepLinkInfo)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7251,7 +7393,7 @@ func (c *Client) HelpGetInviteText() (*HelpInviteText, error) {
 
 	resp, ok := responseData.(*HelpInviteText)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7271,7 +7413,7 @@ func (c *Client) HelpGetNearestDc() (*NearestDc, error) {
 
 	resp, ok := responseData.(*NearestDc)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7293,7 +7435,7 @@ func (c *Client) HelpGetPassportConfig(hash int32) (HelpPassportConfig, error) {
 
 	resp, ok := responseData.(HelpPassportConfig)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7315,7 +7457,7 @@ func (c *Client) HelpGetPeerColors(hash int32) (HelpPeerColors, error) {
 
 	resp, ok := responseData.(HelpPeerColors)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7337,7 +7479,7 @@ func (c *Client) HelpGetPeerProfileColors(hash int32) (HelpPeerColors, error) {
 
 	resp, ok := responseData.(HelpPeerColors)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7357,7 +7499,7 @@ func (c *Client) HelpGetPremiumPromo() (*HelpPremiumPromo, error) {
 
 	resp, ok := responseData.(*HelpPremiumPromo)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7368,7 +7510,7 @@ func (*HelpGetPromoDataParams) CRC() uint32 {
 	return 0xc0977421
 }
 
-// Get MTProxy/Public Service Announcement information
+// Returns a set of useful suggestions and PSA/MTProxy sponsored peers, see here » for more info.
 func (c *Client) HelpGetPromoData() (HelpPromoData, error) {
 	responseData, err := c.MakeRequest(&HelpGetPromoDataParams{})
 	if err != nil {
@@ -7377,7 +7519,7 @@ func (c *Client) HelpGetPromoData() (HelpPromoData, error) {
 
 	resp, ok := responseData.(HelpPromoData)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7399,7 +7541,7 @@ func (c *Client) HelpGetRecentMeUrls(referer string) (*HelpRecentMeUrls, error) 
 
 	resp, ok := responseData.(*HelpRecentMeUrls)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7419,7 +7561,7 @@ func (c *Client) HelpGetSupport() (*HelpSupport, error) {
 
 	resp, ok := responseData.(*HelpSupport)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7439,7 +7581,7 @@ func (c *Client) HelpGetSupportName() (*HelpSupportName, error) {
 
 	resp, ok := responseData.(*HelpSupportName)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7459,7 +7601,7 @@ func (c *Client) HelpGetTermsOfServiceUpdate() (HelpTermsOfServiceUpdate, error)
 
 	resp, ok := responseData.(HelpTermsOfServiceUpdate)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7481,7 +7623,7 @@ func (c *Client) HelpGetTimezonesList(hash int32) (HelpTimezonesList, error) {
 
 	resp, ok := responseData.(HelpTimezonesList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7503,7 +7645,7 @@ func (c *Client) HelpGetUserInfo(userID InputUser) (HelpUserInfo, error) {
 
 	resp, ok := responseData.(HelpUserInfo)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7525,7 +7667,7 @@ func (c *Client) HelpHidePromoData(peer InputPeer) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7547,7 +7689,7 @@ func (c *Client) HelpSaveAppLog(events []*InputAppEvent) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7573,7 +7715,7 @@ func (c *Client) HelpSetBotUpdatesStatus(pendingUpdatesCount int32, message stri
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7601,7 +7743,7 @@ func (c *Client) LangpackGetDifference(langPack, langCode string, fromVersion in
 
 	resp, ok := responseData.(*LangPackDifference)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7627,7 +7769,7 @@ func (c *Client) LangpackGetLangPack(langPack, langCode string) (*LangPackDiffer
 
 	resp, ok := responseData.(*LangPackDifference)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7653,7 +7795,7 @@ func (c *Client) LangpackGetLanguage(langPack, langCode string) (*LangPackLangua
 
 	resp, ok := responseData.(*LangPackLanguage)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7675,7 +7817,7 @@ func (c *Client) LangpackGetLanguages(langPack string) ([]*LangPackLanguage, err
 
 	resp, ok := responseData.([]*LangPackLanguage)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7703,7 +7845,7 @@ func (c *Client) LangpackGetStrings(langPack, langCode string, keys []string) ([
 
 	resp, ok := responseData.([]LangPackString)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7731,7 +7873,7 @@ func (c *Client) MessagesAcceptEncryption(peer *InputEncryptedChat, gB []byte, k
 
 	resp, ok := responseData.(EncryptedChat)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7761,7 +7903,7 @@ func (c *Client) MessagesAcceptURLAuth(params *MessagesAcceptURLAuthParams) (URL
 
 	resp, ok := responseData.(URLAuthResult)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7789,7 +7931,7 @@ func (c *Client) MessagesAddChatUser(chatID int64, userID InputUser, fwdLimit in
 
 	resp, ok := responseData.(*MessagesInvitedUsers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7804,6 +7946,7 @@ func (*MessagesAppendTodoListParams) CRC() uint32 {
 	return 0x21a61057
 }
 
+// Appends one or more items to a todo list ».
 func (c *Client) MessagesAppendTodoList(peer InputPeer, msgID int32, list []*TodoItem) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesAppendTodoListParams{
 		List:  list,
@@ -7816,7 +7959,7 @@ func (c *Client) MessagesAppendTodoList(peer InputPeer, msgID int32, list []*Tod
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7838,7 +7981,7 @@ func (c *Client) MessagesCheckChatInvite(hash string) (ChatInvite, error) {
 
 	resp, ok := responseData.(ChatInvite)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7860,7 +8003,7 @@ func (c *Client) MessagesCheckHistoryImport(importHead string) (*MessagesHistory
 
 	resp, ok := responseData.(*MessagesHistoryImportParsed)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7882,7 +8025,34 @@ func (c *Client) MessagesCheckHistoryImportPeer(peer InputPeer) (*MessagesChecke
 
 	resp, ok := responseData.(*MessagesCheckedHistoryImportPeer)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesCheckPaidAuthParams struct {
+	PhoneNumber   string
+	PhoneCodeHash string
+	FormID        int64
+}
+
+func (*MessagesCheckPaidAuthParams) CRC() uint32 {
+	return 0x56e59f9c
+}
+
+func (c *Client) MessagesCheckPaidAuth(phoneNumber, phoneCodeHash string, formID int64) (AuthSentCode, error) {
+	responseData, err := c.MakeRequest(&MessagesCheckPaidAuthParams{
+		FormID:        formID,
+		PhoneCodeHash: phoneCodeHash,
+		PhoneNumber:   phoneNumber,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesCheckPaidAuth")
+	}
+
+	resp, ok := responseData.(AuthSentCode)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7904,7 +8074,7 @@ func (c *Client) MessagesCheckQuickReplyShortcut(shortcut string) (bool, error) 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7924,7 +8094,7 @@ func (c *Client) MessagesClearAllDrafts() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7944,7 +8114,7 @@ func (c *Client) MessagesClearRecentReactions() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7970,7 +8140,7 @@ func (c *Client) MessagesClearRecentStickers(attached bool) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8002,7 +8172,7 @@ func (c *Client) MessagesClickSponsoredMessage(media, fullscreen bool, randomID 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8034,88 +8204,38 @@ func (c *Client) MessagesCreateChat(users []InputUser, title string, ttlPeriod i
 
 	resp, ok := responseData.(*MessagesInvitedUsers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
 
-type MessagesCreateStarGiftCollectionParams struct {
-	Peer     InputPeer
-	Title    string
-	Stargift []InputSavedStarGift
+type MessagesCreateForumTopicParams struct {
+	TitleMissing bool `tl:"flag:4,encoded_in_bitflags"`
+	Peer         InputPeer
+	Title        string
+	IconColor    int32 `tl:"flag:0"`
+	IconEmojiID  int64 `tl:"flag:3"`
+	RandomID     int64
+	SendAs       InputPeer `tl:"flag:2"`
 }
 
-func (*MessagesCreateStarGiftCollectionParams) CRC() uint32 {
-	return 0x1f4a0e87
+func (*MessagesCreateForumTopicParams) CRC() uint32 {
+	return 0x2f98c3d5
 }
 
-func (c *Client) MessagesCreateStarGiftCollection(peer InputPeer, title string, stargift []InputSavedStarGift) (*StarGiftCollection, error) {
-	responseData, err := c.MakeRequest(&MessagesCreateStarGiftCollectionParams{
-		Peer:     peer,
-		Stargift: stargift,
-		Title:    title,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesCreateStarGiftCollection")
-	}
-
-	resp, ok := responseData.(*StarGiftCollection)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesCreateThemeParams struct {
-	Slug     string
-	Title    string
-	Document InputDocument       `tl:"flag:2"`
-	Settings *InputThemeSettings `tl:"flag:3"`
-}
-
-func (*MessagesCreateThemeParams) CRC() uint32 {
-	return 0x8432c21f
-}
-
-func (*MessagesCreateThemeParams) FlagIndex() int {
+func (*MessagesCreateForumTopicParams) FlagIndex() int {
 	return 0
 }
 
-func (c *Client) MessagesCreateTheme(slug, title string, document InputDocument, settings *InputThemeSettings) (*Theme, error) {
-	responseData, err := c.MakeRequest(&MessagesCreateThemeParams{
-		Document: document,
-		Settings: settings,
-		Slug:     slug,
-		Title:    title,
-	})
+func (c *Client) MessagesCreateForumTopic(params *MessagesCreateForumTopicParams) (Updates, error) {
+	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesCreateTheme")
+		return nil, errors.Wrap(err, "sending MessagesCreateForumTopic")
 	}
 
-	resp, ok := responseData.(*Theme)
+	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesDeleteAccountParams struct {
-	Reason string
-}
-
-func (*MessagesDeleteAccountParams) CRC() uint32 {
-	return 0x418d4e0b
-}
-
-func (c *Client) MessagesDeleteAccount(reason string) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesDeleteAccountParams{Reason: reason})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesDeleteAccount")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8137,7 +8257,7 @@ func (c *Client) MessagesDeleteChat(chatID int64) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8169,7 +8289,7 @@ func (c *Client) MessagesDeleteChatUser(revokeHistory bool, chatID int64, userID
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8195,7 +8315,7 @@ func (c *Client) MessagesDeleteExportedChatInvite(peer InputPeer, link string) (
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8221,7 +8341,7 @@ func (c *Client) MessagesDeleteFactCheck(peer InputPeer, msgID int32) (Updates, 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8252,7 +8372,7 @@ func (c *Client) MessagesDeleteHistory(params *MessagesDeleteHistoryParams) (*Me
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8282,7 +8402,7 @@ func (c *Client) MessagesDeleteMessages(revoke bool, id []int32) (*MessagesAffec
 
 	resp, ok := responseData.(*MessagesAffectedMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8308,7 +8428,7 @@ func (c *Client) MessagesDeletePhoneCallHistory(revoke bool) (*MessagesAffectedF
 
 	resp, ok := responseData.(*MessagesAffectedFoundMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8334,7 +8454,7 @@ func (c *Client) MessagesDeleteQuickReplyMessages(shortcutID int32, id []int32) 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8359,7 +8479,7 @@ func (c *Client) MessagesDeleteQuickReplyShortcut(shortcutID int32) (bool, error
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8385,7 +8505,7 @@ func (c *Client) MessagesDeleteRevokedExportedChatInvites(peer InputPeer, adminI
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8406,7 +8526,7 @@ func (*MessagesDeleteSavedHistoryParams) FlagIndex() int {
 	return 0
 }
 
-// Deletes messages forwarded from a specific peer to saved messages ».
+// Deletes messages from a monoforum topic », or deletes messages forwarded from a specific peer to saved messages ».
 func (c *Client) MessagesDeleteSavedHistory(params *MessagesDeleteSavedHistoryParams) (*MessagesAffectedHistory, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -8415,7 +8535,7 @@ func (c *Client) MessagesDeleteSavedHistory(params *MessagesDeleteSavedHistoryPa
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8441,32 +8561,32 @@ func (c *Client) MessagesDeleteScheduledMessages(peer InputPeer, id []int32) (Up
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
 
-type MessagesDeleteStarGiftCollectionParams struct {
-	Peer         InputPeer
-	CollectionID int32
+type MessagesDeleteTopicHistoryParams struct {
+	Peer     InputPeer
+	TopMsgID int32
 }
 
-func (*MessagesDeleteStarGiftCollectionParams) CRC() uint32 {
-	return 0xad5648e8
+func (*MessagesDeleteTopicHistoryParams) CRC() uint32 {
+	return 0xd2816f10
 }
 
-func (c *Client) MessagesDeleteStarGiftCollection(peer InputPeer, collectionID int32) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesDeleteStarGiftCollectionParams{
-		CollectionID: collectionID,
-		Peer:         peer,
+func (c *Client) MessagesDeleteTopicHistory(peer InputPeer, topMsgID int32) (*MessagesAffectedHistory, error) {
+	responseData, err := c.MakeRequest(&MessagesDeleteTopicHistoryParams{
+		Peer:     peer,
+		TopMsgID: topMsgID,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesDeleteStarGiftCollection")
+		return nil, errors.Wrap(err, "sending MessagesDeleteTopicHistory")
 	}
 
-	resp, ok := responseData.(bool)
+	resp, ok := responseData.(*MessagesAffectedHistory)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8496,7 +8616,7 @@ func (c *Client) MessagesDiscardEncryption(deleteHistory bool, chatID int32) (bo
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8522,7 +8642,7 @@ func (c *Client) MessagesEditChatAbout(peer InputPeer, about string) (bool, erro
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8550,7 +8670,7 @@ func (c *Client) MessagesEditChatAdmin(chatID int64, userID InputUser, isAdmin b
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8576,7 +8696,7 @@ func (c *Client) MessagesEditChatDefaultBannedRights(peer InputPeer, bannedRight
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8602,7 +8722,7 @@ func (c *Client) MessagesEditChatPhoto(chatID int64, photo InputChatPhoto) (Upda
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8628,7 +8748,7 @@ func (c *Client) MessagesEditChatTitle(chatID int64, title string) (Updates, err
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8660,7 +8780,7 @@ func (c *Client) MessagesEditExportedChatInvite(params *MessagesEditExportedChat
 
 	resp, ok := responseData.(MessagesExportedChatInvite)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8688,7 +8808,37 @@ func (c *Client) MessagesEditFactCheck(peer InputPeer, msgID int32, text *TextWi
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesEditForumTopicParams struct {
+	Peer        InputPeer
+	TopicID     int32
+	Title       string `tl:"flag:0"`
+	IconEmojiID int64  `tl:"flag:1"`
+	Closed      bool   `tl:"flag:2"`
+	Hidden      bool   `tl:"flag:3"`
+}
+
+func (*MessagesEditForumTopicParams) CRC() uint32 {
+	return 0xcecc1134
+}
+
+func (*MessagesEditForumTopicParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesEditForumTopic(params *MessagesEditForumTopicParams) (Updates, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesEditForumTopic")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8720,7 +8870,7 @@ func (c *Client) MessagesEditInlineBotMessage(params *MessagesEditInlineBotMessa
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8755,7 +8905,7 @@ func (c *Client) MessagesEditMessage(params *MessagesEditMessageParams) (Updates
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8784,7 +8934,7 @@ func (c *Client) MessagesEditQuickReplyShortcut(shortcutID int32, shortcut strin
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8816,7 +8966,7 @@ func (c *Client) MessagesExportChatInvite(params *MessagesExportChatInviteParams
 
 	resp, ok := responseData.(ExportedChatInvite)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8842,7 +8992,7 @@ func (c *Client) MessagesFaveSticker(id InputDocument, unfave bool) (bool, error
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8870,7 +9020,7 @@ func (c *Client) MessagesForwardMessage(peer InputPeer, id int32, randomID int64
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8914,7 +9064,7 @@ func (c *Client) MessagesForwardMessages(params *MessagesForwardMessagesParams) 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8936,7 +9086,7 @@ func (c *Client) MessagesGetAdminsWithInvites(peer InputPeer) (*MessagesChatAdmi
 
 	resp, ok := responseData.(*MessagesChatAdminsWithInvites)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8958,7 +9108,7 @@ func (c *Client) MessagesGetAllChats(exceptIds []int64) (MessagesChats, error) {
 
 	resp, ok := responseData.(MessagesChats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8981,7 +9131,7 @@ func (c *Client) MessagesGetAllDrafts() (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9003,7 +9153,7 @@ func (c *Client) MessagesGetAllStickers(hash int64) (MessagesAllStickers, error)
 
 	resp, ok := responseData.(MessagesAllStickers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9037,7 +9187,7 @@ func (c *Client) MessagesGetArchivedStickers(masks, emojis bool, offsetID int64,
 
 	resp, ok := responseData.(*MessagesArchivedStickers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9059,7 +9209,7 @@ func (c *Client) MessagesGetAttachMenuBot(bot InputUser) (*AttachMenuBotsBot, er
 
 	resp, ok := responseData.(*AttachMenuBotsBot)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9081,7 +9231,7 @@ func (c *Client) MessagesGetAttachMenuBots(hash int64) (AttachMenuBots, error) {
 
 	resp, ok := responseData.(AttachMenuBots)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9103,7 +9253,7 @@ func (c *Client) MessagesGetAttachedStickers(media InputStickeredMedia) ([]Stick
 
 	resp, ok := responseData.([]StickerSetCovered)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9125,7 +9275,7 @@ func (c *Client) MessagesGetAvailableEffects(hash int32) (MessagesAvailableEffec
 
 	resp, ok := responseData.(MessagesAvailableEffects)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9147,7 +9297,7 @@ func (c *Client) MessagesGetAvailableReactions(hash int32) (MessagesAvailableRea
 
 	resp, ok := responseData.(MessagesAvailableReactions)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9173,7 +9323,7 @@ func (c *Client) MessagesGetBotApp(app InputBotApp, hash int64) (*MessagesBotApp
 
 	resp, ok := responseData.(*MessagesBotApp)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9203,7 +9353,7 @@ func (c *Client) MessagesGetBotCallbackAnswer(params *MessagesGetBotCallbackAnsw
 
 	resp, ok := responseData.(*MessagesBotCallbackAnswer)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9236,7 +9386,7 @@ func (c *Client) MessagesGetChatInviteImporters(params *MessagesGetChatInviteImp
 
 	resp, ok := responseData.(*MessagesChatInviteImporters)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9258,7 +9408,7 @@ func (c *Client) MessagesGetChats(id []int64) (MessagesChats, error) {
 
 	resp, ok := responseData.(MessagesChats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9286,7 +9436,7 @@ func (c *Client) MessagesGetCommonChats(userID InputUser, maxID int64, limit int
 
 	resp, ok := responseData.(MessagesChats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9308,7 +9458,7 @@ func (c *Client) MessagesGetCustomEmojiDocuments(documentID []int64) ([]Document
 
 	resp, ok := responseData.([]Document)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9328,7 +9478,7 @@ func (c *Client) MessagesGetDefaultHistoryTtl() (*DefaultHistoryTtl, error) {
 
 	resp, ok := responseData.(*DefaultHistoryTtl)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9350,7 +9500,7 @@ func (c *Client) MessagesGetDefaultTagReactions(hash int64) (MessagesReactions, 
 
 	resp, ok := responseData.(MessagesReactions)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9376,7 +9526,7 @@ func (c *Client) MessagesGetDhConfig(version, randomLength int32) (MessagesDhCon
 
 	resp, ok := responseData.(MessagesDhConfig)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9396,7 +9546,7 @@ func (c *Client) MessagesGetDialogFilters() (*MessagesDialogFilters, error) {
 
 	resp, ok := responseData.(*MessagesDialogFilters)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9422,7 +9572,7 @@ func (c *Client) MessagesGetDialogUnreadMarks(parentPeer InputPeer) ([]DialogPee
 
 	resp, ok := responseData.([]DialogPeer)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9454,7 +9604,7 @@ func (c *Client) MessagesGetDialogs(params *MessagesGetDialogsParams) (MessagesD
 
 	resp, ok := responseData.(MessagesDialogs)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9480,7 +9630,7 @@ func (c *Client) MessagesGetDiscussionMessage(peer InputPeer, msgID int32) (*Mes
 
 	resp, ok := responseData.(*MessagesDiscussionMessage)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9508,7 +9658,7 @@ func (c *Client) MessagesGetDocumentByHash(sha256 []byte, size int64, mimeType s
 
 	resp, ok := responseData.(Document)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9530,7 +9680,7 @@ func (c *Client) MessagesGetEmojiGroups(hash int32) (MessagesEmojiGroups, error)
 
 	resp, ok := responseData.(MessagesEmojiGroups)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9552,7 +9702,7 @@ func (c *Client) MessagesGetEmojiKeywords(langCode string) (*EmojiKeywordsDiffer
 
 	resp, ok := responseData.(*EmojiKeywordsDifference)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9578,7 +9728,7 @@ func (c *Client) MessagesGetEmojiKeywordsDifference(langCode string, fromVersion
 
 	resp, ok := responseData.(*EmojiKeywordsDifference)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9600,7 +9750,7 @@ func (c *Client) MessagesGetEmojiKeywordsLanguages(langCodes []string) ([]*Emoji
 
 	resp, ok := responseData.([]*EmojiLanguage)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9622,7 +9772,7 @@ func (c *Client) MessagesGetEmojiProfilePhotoGroups(hash int32) (MessagesEmojiGr
 
 	resp, ok := responseData.(MessagesEmojiGroups)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9644,7 +9794,7 @@ func (c *Client) MessagesGetEmojiStatusGroups(hash int32) (MessagesEmojiGroups, 
 
 	resp, ok := responseData.(MessagesEmojiGroups)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9666,7 +9816,7 @@ func (c *Client) MessagesGetEmojiStickerGroups(hash int32) (MessagesEmojiGroups,
 
 	resp, ok := responseData.(MessagesEmojiGroups)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9688,7 +9838,7 @@ func (c *Client) MessagesGetEmojiStickers(hash int64) (MessagesAllStickers, erro
 
 	resp, ok := responseData.(MessagesAllStickers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9710,7 +9860,7 @@ func (c *Client) MessagesGetEmojiURL(langCode string) (*EmojiURL, error) {
 
 	resp, ok := responseData.(*EmojiURL)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9736,7 +9886,7 @@ func (c *Client) MessagesGetExportedChatInvite(peer InputPeer, link string) (Mes
 
 	resp, ok := responseData.(MessagesExportedChatInvite)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9767,7 +9917,7 @@ func (c *Client) MessagesGetExportedChatInvites(params *MessagesGetExportedChatI
 
 	resp, ok := responseData.(*MessagesExportedChatInvites)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9793,7 +9943,7 @@ func (c *Client) MessagesGetExtendedMedia(peer InputPeer, id []int32) (Updates, 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9819,7 +9969,7 @@ func (c *Client) MessagesGetFactCheck(peer InputPeer, msgID []int32) ([]*FactChe
 
 	resp, ok := responseData.([]*FactCheck)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9841,7 +9991,7 @@ func (c *Client) MessagesGetFavedStickers(hash int64) (MessagesFavedStickers, er
 
 	resp, ok := responseData.(MessagesFavedStickers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9863,7 +10013,7 @@ func (c *Client) MessagesGetFeaturedEmojiStickers(hash int64) (MessagesFeaturedS
 
 	resp, ok := responseData.(MessagesFeaturedStickers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9885,7 +10035,62 @@ func (c *Client) MessagesGetFeaturedStickers(hash int64) (MessagesFeaturedSticke
 
 	resp, ok := responseData.(MessagesFeaturedStickers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesGetForumTopicsParams struct {
+	Peer        InputPeer
+	Q           string `tl:"flag:0"`
+	OffsetDate  int32
+	OffsetID    int32
+	OffsetTopic int32
+	Limit       int32
+}
+
+func (*MessagesGetForumTopicsParams) CRC() uint32 {
+	return 0x3ba47bff
+}
+
+func (*MessagesGetForumTopicsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesGetForumTopics(params *MessagesGetForumTopicsParams) (*MessagesForumTopics, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetForumTopics")
+	}
+
+	resp, ok := responseData.(*MessagesForumTopics)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesGetForumTopicsByIDParams struct {
+	Peer   InputPeer
+	Topics []int32
+}
+
+func (*MessagesGetForumTopicsByIDParams) CRC() uint32 {
+	return 0xaf0a4a08
+}
+
+func (c *Client) MessagesGetForumTopicsByID(peer InputPeer, topics []int32) (*MessagesForumTopics, error) {
+	responseData, err := c.MakeRequest(&MessagesGetForumTopicsByIDParams{
+		Peer:   peer,
+		Topics: topics,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetForumTopicsByID")
+	}
+
+	resp, ok := responseData.(*MessagesForumTopics)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9907,7 +10112,7 @@ func (c *Client) MessagesGetFullChat(chatID int64) (*MessagesChatFull, error) {
 
 	resp, ok := responseData.(*MessagesChatFull)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9935,7 +10140,7 @@ func (c *Client) MessagesGetGameHighScores(peer InputPeer, id int32, userID Inpu
 
 	resp, ok := responseData.(*MessagesHighScores)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9964,7 +10169,7 @@ func (c *Client) MessagesGetHistory(params *MessagesGetHistoryParams) (MessagesM
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9994,7 +10199,7 @@ func (c *Client) MessagesGetInlineBotResults(params *MessagesGetInlineBotResults
 
 	resp, ok := responseData.(*MessagesBotResults)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10020,7 +10225,7 @@ func (c *Client) MessagesGetInlineGameHighScores(id InputBotInlineMessageID, use
 
 	resp, ok := responseData.(*MessagesHighScores)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10042,7 +10247,7 @@ func (c *Client) MessagesGetMaskStickers(hash int64) (MessagesAllStickers, error
 
 	resp, ok := responseData.(MessagesAllStickers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10068,7 +10273,7 @@ func (c *Client) MessagesGetMessageEditData(peer InputPeer, id int32) (*Messages
 
 	resp, ok := responseData.(*MessagesMessageEditData)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10098,7 +10303,7 @@ func (c *Client) MessagesGetMessageReactionsList(params *MessagesGetMessageReact
 
 	resp, ok := responseData.(*MessagesMessageReactionsList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10124,7 +10329,7 @@ func (c *Client) MessagesGetMessageReadParticipants(peer InputPeer, msgID int32)
 
 	resp, ok := responseData.([]*ReadParticipantDate)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10146,7 +10351,7 @@ func (c *Client) MessagesGetMessages(id []InputMessage) (MessagesMessages, error
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10172,7 +10377,7 @@ func (c *Client) MessagesGetMessagesReactions(peer InputPeer, id []int32) (Updat
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10200,7 +10405,7 @@ func (c *Client) MessagesGetMessagesViews(peer InputPeer, id []int32, increment 
 
 	resp, ok := responseData.(*MessagesMessageViews)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10226,7 +10431,7 @@ func (c *Client) MessagesGetMyStickers(offsetID int64, limit int32) (*MessagesMy
 
 	resp, ok := responseData.(*MessagesMyStickers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10254,7 +10459,7 @@ func (c *Client) MessagesGetOldFeaturedStickers(offset, limit int32, hash int64)
 
 	resp, ok := responseData.(MessagesFeaturedStickers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10276,7 +10481,7 @@ func (c *Client) MessagesGetOnlines(peer InputPeer) (*ChatOnlines, error) {
 
 	resp, ok := responseData.(*ChatOnlines)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10302,7 +10507,7 @@ func (c *Client) MessagesGetOutboxReadDate(peer InputPeer, msgID int32) (*Outbox
 
 	resp, ok := responseData.(*OutboxReadDate)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10322,7 +10527,7 @@ func (c *Client) MessagesGetPaidReactionPrivacy() (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10344,7 +10549,7 @@ func (c *Client) MessagesGetPeerDialogs(peers []InputDialogPeer) (*MessagesPeerD
 
 	resp, ok := responseData.(*MessagesPeerDialogs)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10366,7 +10571,7 @@ func (c *Client) MessagesGetPeerSettings(peer InputPeer) (*MessagesPeerSettings,
 
 	resp, ok := responseData.(*MessagesPeerSettings)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10388,7 +10593,7 @@ func (c *Client) MessagesGetPinnedDialogs(folderID int32) (*MessagesPeerDialogs,
 
 	resp, ok := responseData.(*MessagesPeerDialogs)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10408,7 +10613,7 @@ func (c *Client) MessagesGetPinnedSavedDialogs() (MessagesSavedDialogs, error) {
 
 	resp, ok := responseData.(MessagesSavedDialogs)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10434,7 +10639,7 @@ func (c *Client) MessagesGetPollResults(peer InputPeer, msgID int32) (Updates, e
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10464,7 +10669,7 @@ func (c *Client) MessagesGetPollVotes(params *MessagesGetPollVotesParams) (*Mess
 
 	resp, ok := responseData.(*MessagesVotesList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10490,7 +10695,7 @@ func (c *Client) MessagesGetPreparedInlineMessage(bot InputUser, id string) (*Me
 
 	resp, ok := responseData.(*MessagesPreparedInlineMessage)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10512,7 +10717,7 @@ func (c *Client) MessagesGetQuickReplies(hash int64) (MessagesQuickReplies, erro
 
 	resp, ok := responseData.(MessagesQuickReplies)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10544,7 +10749,7 @@ func (c *Client) MessagesGetQuickReplyMessages(shortcutID int32, id []int32, has
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10572,7 +10777,7 @@ func (c *Client) MessagesGetRecentLocations(peer InputPeer, limit int32, hash in
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10598,7 +10803,7 @@ func (c *Client) MessagesGetRecentReactions(limit int32, hash int64) (MessagesRe
 
 	resp, ok := responseData.(MessagesReactions)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10628,7 +10833,7 @@ func (c *Client) MessagesGetRecentStickers(attached bool, hash int64) (MessagesR
 
 	resp, ok := responseData.(MessagesRecentStickers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10658,7 +10863,7 @@ func (c *Client) MessagesGetReplies(params *MessagesGetRepliesParams) (MessagesM
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10681,7 +10886,7 @@ func (*MessagesGetSavedDialogsParams) FlagIndex() int {
 	return 0
 }
 
-// Returns the current saved dialog list, see here » for more info.
+// Returns the current saved dialog list » or monoforum topic list ».
 func (c *Client) MessagesGetSavedDialogs(params *MessagesGetSavedDialogsParams) (MessagesSavedDialogs, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -10690,7 +10895,7 @@ func (c *Client) MessagesGetSavedDialogs(params *MessagesGetSavedDialogsParams) 
 
 	resp, ok := responseData.(MessagesSavedDialogs)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10708,6 +10913,7 @@ func (*MessagesGetSavedDialogsByIDParams) FlagIndex() int {
 	return 0
 }
 
+// Obtain information about specific saved message dialogs » or monoforum topics ».
 func (c *Client) MessagesGetSavedDialogsByID(parentPeer InputPeer, ids []InputPeer) (MessagesSavedDialogs, error) {
 	responseData, err := c.MakeRequest(&MessagesGetSavedDialogsByIDParams{
 		Ids:        ids,
@@ -10719,7 +10925,7 @@ func (c *Client) MessagesGetSavedDialogsByID(parentPeer InputPeer, ids []InputPe
 
 	resp, ok := responseData.(MessagesSavedDialogs)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10741,7 +10947,7 @@ func (c *Client) MessagesGetSavedGifs(hash int64) (MessagesSavedGifs, error) {
 
 	resp, ok := responseData.(MessagesSavedGifs)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10766,7 +10972,7 @@ func (*MessagesGetSavedHistoryParams) FlagIndex() int {
 	return 0
 }
 
-// Returns saved messages » forwarded from a specific peer
+// Fetch saved messages » forwarded from a specific peer, or fetch messages from a monoforum topic ».
 func (c *Client) MessagesGetSavedHistory(params *MessagesGetSavedHistoryParams) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -10775,7 +10981,7 @@ func (c *Client) MessagesGetSavedHistory(params *MessagesGetSavedHistoryParams) 
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10805,41 +11011,7 @@ func (c *Client) MessagesGetSavedReactionTags(peer InputPeer, hash int64) (Messa
 
 	resp, ok := responseData.(MessagesSavedReactionTags)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesGetSavedStarGiftsParams struct {
-	ExcludeUnsaved   bool `tl:"flag:0,encoded_in_bitflags"`
-	ExcludeSaved     bool `tl:"flag:1,encoded_in_bitflags"`
-	ExcludeUnlimited bool `tl:"flag:2,encoded_in_bitflags"`
-	ExcludeLimited   bool `tl:"flag:3,encoded_in_bitflags"`
-	ExcludeUnique    bool `tl:"flag:4,encoded_in_bitflags"`
-	SortByValue      bool `tl:"flag:5,encoded_in_bitflags"`
-	Peer             InputPeer
-	CollectionID     int32 `tl:"flag:6"`
-	Offset           string
-	Limit            int32
-}
-
-func (*MessagesGetSavedStarGiftsParams) CRC() uint32 {
-	return 0xa319e569
-}
-
-func (*MessagesGetSavedStarGiftsParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesGetSavedStarGifts(params *MessagesGetSavedStarGiftsParams) (*PaymentsSavedStarGifts, error) {
-	responseData, err := c.MakeRequest(params)
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetSavedStarGifts")
-	}
-
-	resp, ok := responseData.(*PaymentsSavedStarGifts)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10865,7 +11037,7 @@ func (c *Client) MessagesGetScheduledHistory(peer InputPeer, hash int64) (Messag
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10891,7 +11063,7 @@ func (c *Client) MessagesGetScheduledMessages(peer InputPeer, id []int32) (Messa
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10925,7 +11097,7 @@ func (c *Client) MessagesGetSearchCounters(peer, savedPeerID InputPeer, topMsgID
 
 	resp, ok := responseData.([]*MessagesSearchCounter)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10955,7 +11127,7 @@ func (c *Client) MessagesGetSearchResultsCalendar(params *MessagesGetSearchResul
 
 	resp, ok := responseData.(*MessagesSearchResultsCalendar)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -10985,7 +11157,7 @@ func (c *Client) MessagesGetSearchResultsPositions(params *MessagesGetSearchResu
 
 	resp, ok := responseData.(*MessagesSearchResultsPositions)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11005,7 +11177,7 @@ func (c *Client) MessagesGetSplitRanges() ([]*MessageRange, error) {
 
 	resp, ok := responseData.([]*MessageRange)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11035,32 +11207,7 @@ func (c *Client) MessagesGetSponsoredMessages(peer InputPeer, msgID int32) (Mess
 
 	resp, ok := responseData.(MessagesSponsoredMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesGetStarGiftCollectionsParams struct {
-	Peer InputPeer
-	Hash int64
-}
-
-func (*MessagesGetStarGiftCollectionsParams) CRC() uint32 {
-	return 0x981b91dd
-}
-
-func (c *Client) MessagesGetStarGiftCollections(peer InputPeer, hash int64) (StarGiftCollections, error) {
-	responseData, err := c.MakeRequest(&MessagesGetStarGiftCollectionsParams{
-		Hash: hash,
-		Peer: peer,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetStarGiftCollections")
-	}
-
-	resp, ok := responseData.(StarGiftCollections)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11092,7 +11239,7 @@ func (c *Client) MessagesGetStatsURL(dark bool, peer InputPeer, params string) (
 
 	resp, ok := responseData.(*StatsURL)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11118,7 +11265,7 @@ func (c *Client) MessagesGetStickerSet(stickerset InputStickerSet, hash int32) (
 
 	resp, ok := responseData.(MessagesStickerSet)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11144,7 +11291,7 @@ func (c *Client) MessagesGetStickers(emoticon string, hash int64) (MessagesStick
 
 	resp, ok := responseData.(MessagesStickers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11164,34 +11311,7 @@ func (c *Client) MessagesGetSuggestedDialogFilters() ([]*DialogFilterSuggested, 
 
 	resp, ok := responseData.([]*DialogFilterSuggested)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesGetThemeParams struct {
-	Format     string
-	Theme      InputTheme
-	DocumentID int64
-}
-
-func (*MessagesGetThemeParams) CRC() uint32 {
-	return 0x8d9d742b
-}
-
-func (c *Client) MessagesGetTheme(format string, theme InputTheme, documentID int64) (*Theme, error) {
-	responseData, err := c.MakeRequest(&MessagesGetThemeParams{
-		DocumentID: documentID,
-		Format:     format,
-		Theme:      theme,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetTheme")
-	}
-
-	resp, ok := responseData.(*Theme)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11217,7 +11337,34 @@ func (c *Client) MessagesGetTopReactions(limit int32, hash int64) (MessagesReact
 
 	resp, ok := responseData.(MessagesReactions)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesGetUniqueGiftChatThemesParams struct {
+	Offset string
+	Limit  int32
+	Hash   int64
+}
+
+func (*MessagesGetUniqueGiftChatThemesParams) CRC() uint32 {
+	return 0xe42ce9c9
+}
+
+func (c *Client) MessagesGetUniqueGiftChatThemes(offset string, limit int32, hash int64) (*ChatThemes, error) {
+	responseData, err := c.MakeRequest(&MessagesGetUniqueGiftChatThemesParams{
+		Hash:   hash,
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetUniqueGiftChatThemes")
+	}
+
+	resp, ok := responseData.(*ChatThemes)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11249,7 +11396,7 @@ func (c *Client) MessagesGetUnreadMentions(params *MessagesGetUnreadMentionsPara
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11282,7 +11429,7 @@ func (c *Client) MessagesGetUnreadReactions(params *MessagesGetUnreadReactionsPa
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11308,7 +11455,7 @@ func (c *Client) MessagesGetWebPage(url string, hash int32) (*MessagesWebPage, e
 
 	resp, ok := responseData.(*MessagesWebPage)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11338,7 +11485,7 @@ func (c *Client) MessagesGetWebPagePreview(message string, entities []MessageEnt
 
 	resp, ok := responseData.(*MessagesWebPagePreview)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11365,7 +11512,7 @@ func (c *Client) MessagesGetWebViewResult(peer InputPeer, bot InputUser, queryID
 
 	resp, ok := responseData.(*MessagesWebViewResult)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11397,7 +11544,7 @@ func (c *Client) MessagesHideAllChatJoinRequests(approved bool, peer InputPeer, 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11429,7 +11576,7 @@ func (c *Client) MessagesHideChatJoinRequest(approved bool, peer InputPeer, user
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11451,7 +11598,7 @@ func (c *Client) MessagesHidePeerSettingsBar(peer InputPeer) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11473,7 +11620,7 @@ func (c *Client) MessagesImportChatInvite(hash string) (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11501,7 +11648,7 @@ func (c *Client) MessagesInitHistoryImport(peer InputPeer, file InputFile, media
 
 	resp, ok := responseData.(*MessagesHistoryImport)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11527,38 +11674,7 @@ func (c *Client) MessagesInstallStickerSet(stickerset InputStickerSet, archived 
 
 	resp, ok := responseData.(MessagesStickerSetInstallResult)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesInstallThemeParams struct {
-	Dark   bool       `tl:"flag:0,encoded_in_bitflags"`
-	Format string     `tl:"flag:1"`
-	Theme  InputTheme `tl:"flag:1"`
-}
-
-func (*MessagesInstallThemeParams) CRC() uint32 {
-	return 0x7ae43737
-}
-
-func (*MessagesInstallThemeParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesInstallTheme(dark bool, format string, theme InputTheme) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesInstallThemeParams{
-		Dark:   dark,
-		Format: format,
-		Theme:  theme,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesInstallTheme")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11590,7 +11706,7 @@ func (c *Client) MessagesMarkDialogUnread(unread bool, parentPeer InputPeer, pee
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11612,7 +11728,7 @@ func (c *Client) MessagesMigrateChat(chatID int64) (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11643,7 +11759,7 @@ func (c *Client) MessagesProlongWebView(params *MessagesProlongWebViewParams) (b
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11673,7 +11789,7 @@ func (c *Client) MessagesRateTranscribedAudio(peer InputPeer, msgID int32, trans
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11701,7 +11817,7 @@ func (c *Client) MessagesReadDiscussion(peer InputPeer, msgID, readMaxID int32) 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11727,7 +11843,7 @@ func (c *Client) MessagesReadEncryptedHistory(peer *InputEncryptedChat, maxDate 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11749,7 +11865,7 @@ func (c *Client) MessagesReadFeaturedStickers(id []int64) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11775,7 +11891,7 @@ func (c *Client) MessagesReadHistory(peer InputPeer, maxID int32) (*MessagesAffe
 
 	resp, ok := responseData.(*MessagesAffectedMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11805,7 +11921,7 @@ func (c *Client) MessagesReadMentions(peer InputPeer, topMsgID int32) (*Messages
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11818,7 +11934,7 @@ func (*MessagesReadMessageContentsParams) CRC() uint32 {
 	return 0x36a73f77
 }
 
-// Notifies the sender about the recipient having listened a voice message or watched a video.
+// Notifies the sender about the recipient having listened a voice message or watched a video, emitting an updateReadMessagesContents.
 func (c *Client) MessagesReadMessageContents(id []int32) (*MessagesAffectedMessages, error) {
 	responseData, err := c.MakeRequest(&MessagesReadMessageContentsParams{ID: id})
 	if err != nil {
@@ -11827,7 +11943,7 @@ func (c *Client) MessagesReadMessageContents(id []int32) (*MessagesAffectedMessa
 
 	resp, ok := responseData.(*MessagesAffectedMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11859,7 +11975,7 @@ func (c *Client) MessagesReadReactions(peer InputPeer, topMsgID int32, savedPeer
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11874,6 +11990,7 @@ func (*MessagesReadSavedHistoryParams) CRC() uint32 {
 	return 0xba4a3b5b
 }
 
+// Mark messages as read in a monoforum topic ».
 func (c *Client) MessagesReadSavedHistory(parentPeer, peer InputPeer, maxID int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReadSavedHistoryParams{
 		MaxID:      maxID,
@@ -11886,7 +12003,7 @@ func (c *Client) MessagesReadSavedHistory(parentPeer, peer InputPeer, maxID int3
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11908,7 +12025,7 @@ func (c *Client) MessagesReceivedMessages(maxID int32) ([]*ReceivedNotifyMessage
 
 	resp, ok := responseData.([]*ReceivedNotifyMessage)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11933,7 +12050,7 @@ func (c *Client) MessagesReceivedQueue(maxQts int32) ([]int64, error) {
 
 	resp, ok := responseData.([]int64)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11965,7 +12082,38 @@ func (c *Client) MessagesReorderPinnedDialogs(force bool, folderID int32, order 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesReorderPinnedForumTopicsParams struct {
+	Force int32 `tl:"flag:0"`
+	Peer  InputPeer
+	Order []int32
+}
+
+func (*MessagesReorderPinnedForumTopicsParams) CRC() uint32 {
+	return 0xe7841f0
+}
+
+func (*MessagesReorderPinnedForumTopicsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesReorderPinnedForumTopics(force int32, peer InputPeer, order []int32) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesReorderPinnedForumTopicsParams{
+		Force: force,
+		Order: order,
+		Peer:  peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesReorderPinnedForumTopics")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11995,7 +12143,7 @@ func (c *Client) MessagesReorderPinnedSavedDialogs(force bool, order []InputDial
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12017,32 +12165,7 @@ func (c *Client) MessagesReorderQuickReplies(order []int32) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesReorderStarGiftCollectionsParams struct {
-	Peer  InputPeer
-	Order []int32
-}
-
-func (*MessagesReorderStarGiftCollectionsParams) CRC() uint32 {
-	return 0xc32af4cc
-}
-
-func (c *Client) MessagesReorderStarGiftCollections(peer InputPeer, order []int32) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesReorderStarGiftCollectionsParams{
-		Order: order,
-		Peer:  peer,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesReorderStarGiftCollections")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12074,7 +12197,7 @@ func (c *Client) MessagesReorderStickerSets(masks, emojis bool, order []int64) (
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12104,7 +12227,7 @@ func (c *Client) MessagesReport(peer InputPeer, id []int32, option []byte, messa
 
 	resp, ok := responseData.(ReportResult)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12126,7 +12249,7 @@ func (c *Client) MessagesReportEncryptedSpam(peer *InputEncryptedChat) (bool, er
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12145,6 +12268,7 @@ func (*MessagesReportMessagesDeliveryParams) FlagIndex() int {
 	return 0
 }
 
+// Used for Telegram Gateway verification messages »: indicate to the server that one or more messages were received by the client, if requested by the message.<strong>report_delivery_until_date</strong> flag or the equivalent flag in push notifications.
 func (c *Client) MessagesReportMessagesDelivery(push bool, peer InputPeer, id []int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReportMessagesDeliveryParams{
 		ID:   id,
@@ -12157,7 +12281,7 @@ func (c *Client) MessagesReportMessagesDelivery(push bool, peer InputPeer, id []
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12185,7 +12309,7 @@ func (c *Client) MessagesReportReaction(peer InputPeer, id int32, reactionPeer I
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12207,7 +12331,7 @@ func (c *Client) MessagesReportSpam(peer InputPeer) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12233,7 +12357,7 @@ func (c *Client) MessagesReportSponsoredMessage(randomID, option []byte) (Channe
 
 	resp, ok := responseData.(ChannelsSponsoredMessageReportResult)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12266,7 +12390,7 @@ func (c *Client) MessagesRequestAppWebView(params *MessagesRequestAppWebViewPara
 
 	resp, ok := responseData.(*WebViewResultURL)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12294,7 +12418,7 @@ func (c *Client) MessagesRequestEncryption(userID InputUser, randomID int32, gA 
 
 	resp, ok := responseData.(EncryptedChat)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12326,7 +12450,7 @@ func (c *Client) MessagesRequestMainWebView(params *MessagesRequestMainWebViewPa
 
 	resp, ok := responseData.(*WebViewResultURL)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12360,7 +12484,7 @@ func (c *Client) MessagesRequestSimpleWebView(params *MessagesRequestSimpleWebVi
 
 	resp, ok := responseData.(*WebViewResultURL)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12394,7 +12518,7 @@ func (c *Client) MessagesRequestURLAuth(peer InputPeer, msgID, buttonID int32, u
 
 	resp, ok := responseData.(URLAuthResult)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12431,7 +12555,7 @@ func (c *Client) MessagesRequestWebView(params *MessagesRequestWebViewParams) (*
 
 	resp, ok := responseData.(*WebViewResultURL)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12457,7 +12581,7 @@ func (c *Client) MessagesSaveDefaultSendAs(peer, sendAs InputPeer) (bool, error)
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12491,7 +12615,7 @@ func (c *Client) MessagesSaveDraft(params *MessagesSaveDraftParams) (bool, error
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12517,7 +12641,7 @@ func (c *Client) MessagesSaveGif(id InputDocument, unsave bool) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12549,7 +12673,7 @@ func (c *Client) MessagesSavePreparedInlineMessage(result InputBotInlineResult, 
 
 	resp, ok := responseData.(*MessagesBotPreparedInlineMessage)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12581,7 +12705,7 @@ func (c *Client) MessagesSaveRecentSticker(attached bool, id InputDocument, unsa
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12621,7 +12745,7 @@ func (c *Client) MessagesSearch(params *MessagesSearchParams) (MessagesMessages,
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12647,7 +12771,7 @@ func (c *Client) MessagesSearchCustomEmoji(emoticon string, hash int64) (EmojiLi
 
 	resp, ok := responseData.(EmojiList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12679,7 +12803,7 @@ func (c *Client) MessagesSearchEmojiStickerSets(excludeFeatured bool, q string, 
 
 	resp, ok := responseData.(MessagesFoundStickerSets)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12716,7 +12840,7 @@ func (c *Client) MessagesSearchGlobal(params *MessagesSearchGlobalParams) (Messa
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12747,7 +12871,7 @@ func (c *Client) MessagesSearchSentMedia(q string, filter MessagesFilter, limit 
 
 	resp, ok := responseData.(MessagesMessages)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12779,7 +12903,7 @@ func (c *Client) MessagesSearchStickerSets(excludeFeatured bool, q string, hash 
 
 	resp, ok := responseData.(MessagesFoundStickerSets)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12811,7 +12935,7 @@ func (c *Client) MessagesSearchStickers(params *MessagesSearchStickersParams) (M
 
 	resp, ok := responseData.(MessagesFoundStickers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12841,7 +12965,7 @@ func (c *Client) MessagesSendBotRequestedPeer(peer InputPeer, msgID, buttonID in
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12875,7 +12999,7 @@ func (c *Client) MessagesSendEncrypted(silent bool, peer *InputEncryptedChat, ra
 
 	resp, ok := responseData.(MessagesSentEncryptedMessage)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12905,26 +13029,7 @@ func (c *Client) MessagesSendEncryptedFile(params *MessagesSendEncryptedFilePara
 
 	resp, ok := responseData.(MessagesSentEncryptedMessage)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesSendEncryptedMultiMediaParams struct{}
-
-func (*MessagesSendEncryptedMultiMediaParams) CRC() uint32 {
-	return 0xcacacaca
-}
-
-func (c *Client) MessagesSendEncryptedMultiMedia() (MessagesSentEncryptedMessage, error) {
-	responseData, err := c.MakeRequest(&MessagesSendEncryptedMultiMediaParams{})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesSendEncryptedMultiMedia")
-	}
-
-	resp, ok := responseData.(MessagesSentEncryptedMessage)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12952,7 +13057,59 @@ func (c *Client) MessagesSendEncryptedService(peer *InputEncryptedChat, randomID
 
 	resp, ok := responseData.(MessagesSentEncryptedMessage)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesSendGroupCallEncryptedMessageParams struct {
+	Call             InputGroupCall
+	EncryptedMessage []byte
+}
+
+func (*MessagesSendGroupCallEncryptedMessageParams) CRC() uint32 {
+	return 0xe5afa56d
+}
+
+func (c *Client) MessagesSendGroupCallEncryptedMessage(call InputGroupCall, encryptedMessage []byte) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesSendGroupCallEncryptedMessageParams{
+		Call:             call,
+		EncryptedMessage: encryptedMessage,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesSendGroupCallEncryptedMessage")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesSendGroupCallMessageParams struct {
+	Call     InputGroupCall
+	RandomID int64
+	Message  *TextWithEntities
+}
+
+func (*MessagesSendGroupCallMessageParams) CRC() uint32 {
+	return 0x87893014
+}
+
+func (c *Client) MessagesSendGroupCallMessage(call InputGroupCall, randomID int64, message *TextWithEntities) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesSendGroupCallMessageParams{
+		Call:     call,
+		Message:  message,
+		RandomID: randomID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesSendGroupCallMessage")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -12990,7 +13147,7 @@ func (c *Client) MessagesSendInlineBotResult(params *MessagesSendInlineBotResult
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13035,7 +13192,7 @@ func (c *Client) MessagesSendMedia(params *MessagesSendMediaParams) (Updates, er
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13080,7 +13237,7 @@ func (c *Client) MessagesSendMessage(params *MessagesSendMessageParams) (Updates
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13120,7 +13277,7 @@ func (c *Client) MessagesSendMultiMedia(params *MessagesSendMultiMediaParams) (U
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13150,7 +13307,7 @@ func (c *Client) MessagesSendPaidReaction(params *MessagesSendPaidReactionParams
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13180,7 +13337,7 @@ func (c *Client) MessagesSendQuickReplyMessages(peer InputPeer, shortcutID int32
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13210,7 +13367,7 @@ func (c *Client) MessagesSendReaction(params *MessagesSendReactionParams) (Updat
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13236,7 +13393,7 @@ func (c *Client) MessagesSendScheduledMessages(peer InputPeer, id []int32) (Upda
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13264,7 +13421,7 @@ func (c *Client) MessagesSendScreenshotNotification(peer InputPeer, replyTo Inpu
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13292,7 +13449,7 @@ func (c *Client) MessagesSendVote(peer InputPeer, msgID int32, options [][]byte)
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13322,7 +13479,7 @@ func (c *Client) MessagesSendWebViewData(bot InputUser, randomID int64, buttonTe
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13348,7 +13505,7 @@ func (c *Client) MessagesSendWebViewResultMessage(botQueryID string, result Inpu
 
 	resp, ok := responseData.(*WebViewMessageSent)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13378,7 +13535,7 @@ func (c *Client) MessagesSetBotCallbackAnswer(params *MessagesSetBotCallbackAnsw
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13414,7 +13571,7 @@ func (c *Client) MessagesSetBotPrecheckoutResults(success bool, queryID int64, e
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13446,7 +13603,7 @@ func (c *Client) MessagesSetBotShippingResults(queryID int64, error string, ship
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13480,25 +13637,25 @@ func (c *Client) MessagesSetChatAvailableReactions(peer InputPeer, availableReac
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
 
 type MessagesSetChatThemeParams struct {
-	Peer     InputPeer
-	Emoticon string
+	Peer  InputPeer
+	Theme InputChatTheme
 }
 
 func (*MessagesSetChatThemeParams) CRC() uint32 {
-	return 0xe63be13f
+	return 0x81202c9
 }
 
-// Change the chat theme of a certain chat
-func (c *Client) MessagesSetChatTheme(peer InputPeer, emoticon string) (Updates, error) {
+// Change the chat theme of a certain chat, see here » for more info.
+func (c *Client) MessagesSetChatTheme(peer InputPeer, theme InputChatTheme) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesSetChatThemeParams{
-		Emoticon: emoticon,
-		Peer:     peer,
+		Peer:  peer,
+		Theme: theme,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesSetChatTheme")
@@ -13506,7 +13663,7 @@ func (c *Client) MessagesSetChatTheme(peer InputPeer, emoticon string) (Updates,
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13537,7 +13694,7 @@ func (c *Client) MessagesSetChatWallPaper(params *MessagesSetChatWallPaperParams
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13559,7 +13716,7 @@ func (c *Client) MessagesSetDefaultHistoryTtl(period int32) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13581,7 +13738,7 @@ func (c *Client) MessagesSetDefaultReaction(reaction Reaction) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13607,7 +13764,7 @@ func (c *Client) MessagesSetEncryptedTyping(peer *InputEncryptedChat, typing boo
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13638,7 +13795,7 @@ func (c *Client) MessagesSetGameScore(params *MessagesSetGameScoreParams) (Updat
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13664,7 +13821,7 @@ func (c *Client) MessagesSetHistoryTtl(peer InputPeer, period int32) (Updates, e
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13697,7 +13854,7 @@ func (c *Client) MessagesSetInlineBotResults(params *MessagesSetInlineBotResults
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13727,7 +13884,7 @@ func (c *Client) MessagesSetInlineGameScore(params *MessagesSetInlineGameScorePa
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13759,7 +13916,7 @@ func (c *Client) MessagesSetTyping(peer InputPeer, topMsgID int32, action SendMe
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13780,7 +13937,7 @@ func (c *Client) MessagesSetWebViewResult(queryID int64) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13810,7 +13967,7 @@ func (c *Client) MessagesStartBot(bot InputUser, peer InputPeer, randomID int64,
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13839,7 +13996,7 @@ func (c *Client) MessagesStartHistoryImport(peer InputPeer, importID int64) (boo
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13871,7 +14028,7 @@ func (c *Client) MessagesToggleBotInAttachMenu(writeAllowed bool, bot InputUser,
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13893,7 +14050,7 @@ func (c *Client) MessagesToggleDialogFilterTags(enabled bool) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13923,7 +14080,38 @@ func (c *Client) MessagesToggleDialogPin(pinned bool, peer InputDialogPeer) (boo
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesToggleGroupCallSettingsParams struct {
+	Call            InputGroupCall
+	JoinMuted       bool `tl:"flag:0"`
+	MessagesEnabled bool `tl:"flag:2"`
+}
+
+func (*MessagesToggleGroupCallSettingsParams) CRC() uint32 {
+	return 0xe9723804
+}
+
+func (*MessagesToggleGroupCallSettingsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesToggleGroupCallSettings(call InputGroupCall, joinMuted, messagesEnabled bool) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesToggleGroupCallSettingsParams{
+		Call:            call,
+		JoinMuted:       joinMuted,
+		MessagesEnabled: messagesEnabled,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesToggleGroupCallSettings")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13949,7 +14137,7 @@ func (c *Client) MessagesToggleNoForwards(peer InputPeer, enabled bool) (Updates
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13977,7 +14165,7 @@ func (c *Client) MessagesTogglePaidReactionPrivacy(peer InputPeer, msgID int32, 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14007,7 +14195,7 @@ func (c *Client) MessagesTogglePeerTranslations(disabled bool, peer InputPeer) (
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14037,7 +14225,7 @@ func (c *Client) MessagesToggleSavedDialogPin(pinned bool, peer InputDialogPeer)
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14071,7 +14259,7 @@ func (c *Client) MessagesToggleStickerSets(uninstall, archive, unarchive bool, s
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14092,6 +14280,7 @@ func (*MessagesToggleSuggestedPostApprovalParams) FlagIndex() int {
 	return 0
 }
 
+// Approve or reject a suggested post ».
 func (c *Client) MessagesToggleSuggestedPostApproval(params *MessagesToggleSuggestedPostApprovalParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -14100,7 +14289,7 @@ func (c *Client) MessagesToggleSuggestedPostApproval(params *MessagesToggleSugge
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14116,6 +14305,7 @@ func (*MessagesToggleTodoCompletedParams) CRC() uint32 {
 	return 0xd3e03124
 }
 
+// Mark one or more items of a todo list » as completed or not completed.
 func (c *Client) MessagesToggleTodoCompleted(peer InputPeer, msgID int32, completed, incompleted []int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesToggleTodoCompletedParams{
 		Completed:   completed,
@@ -14129,7 +14319,7 @@ func (c *Client) MessagesToggleTodoCompleted(peer InputPeer, msgID int32, comple
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14155,7 +14345,7 @@ func (c *Client) MessagesTranscribeAudio(peer InputPeer, msgID int32) (*Messages
 
 	resp, ok := responseData.(*MessagesTranscribedAudio)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14189,7 +14379,7 @@ func (c *Client) MessagesTranslateText(peer InputPeer, id []int32, text []*TextW
 
 	resp, ok := responseData.(*MessagesTranslateResult)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14211,29 +14401,93 @@ func (c *Client) MessagesUninstallStickerSet(stickerset InputStickerSet) (bool, 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
 
 type MessagesUnpinAllMessagesParams struct {
-	Peer InputPeer
+	Peer        InputPeer
+	TopMsgID    int32     `tl:"flag:0"`
+	SavedPeerID InputPeer `tl:"flag:1"`
 }
 
 func (*MessagesUnpinAllMessagesParams) CRC() uint32 {
-	return 0xf025bc8b
+	return 0x62dd747
+}
+
+func (*MessagesUnpinAllMessagesParams) FlagIndex() int {
+	return 0
 }
 
 // Unpin all pinned messages
-func (c *Client) MessagesUnpinAllMessages(peer InputPeer) (*MessagesAffectedHistory, error) {
-	responseData, err := c.MakeRequest(&MessagesUnpinAllMessagesParams{Peer: peer})
+func (c *Client) MessagesUnpinAllMessages(peer InputPeer, topMsgID int32, savedPeerID InputPeer) (*MessagesAffectedHistory, error) {
+	responseData, err := c.MakeRequest(&MessagesUnpinAllMessagesParams{
+		Peer:        peer,
+		SavedPeerID: savedPeerID,
+		TopMsgID:    topMsgID,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesUnpinAllMessages")
 	}
 
 	resp, ok := responseData.(*MessagesAffectedHistory)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesUpdateColorParams struct {
+	ForProfile bool      `tl:"flag:1,encoded_in_bitflags"`
+	Color      PeerColor `tl:"flag:2"`
+}
+
+func (*MessagesUpdateColorParams) CRC() uint32 {
+	return 0x684d214e
+}
+
+func (*MessagesUpdateColorParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesUpdateColor(forProfile bool, color PeerColor) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesUpdateColorParams{
+		Color:      color,
+		ForProfile: forProfile,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesUpdateColor")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesUpdateContactNoteParams struct {
+	ID   InputUser
+	Note *TextWithEntities
+}
+
+func (*MessagesUpdateContactNoteParams) CRC() uint32 {
+	return 0x139f63fb
+}
+
+func (c *Client) MessagesUpdateContactNote(id InputUser, note *TextWithEntities) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesUpdateContactNoteParams{
+		ID:   id,
+		Note: note,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesUpdateContactNote")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14263,7 +14517,7 @@ func (c *Client) MessagesUpdateDialogFilter(id int32, filter DialogFilter) (bool
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14285,7 +14539,34 @@ func (c *Client) MessagesUpdateDialogFiltersOrder(order []int32) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesUpdatePinnedForumTopicParams struct {
+	Peer    InputPeer
+	TopicID int32
+	Pinned  bool
+}
+
+func (*MessagesUpdatePinnedForumTopicParams) CRC() uint32 {
+	return 0x175df251
+}
+
+func (c *Client) MessagesUpdatePinnedForumTopic(peer InputPeer, topicID int32, pinned bool) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesUpdatePinnedForumTopicParams{
+		Peer:    peer,
+		Pinned:  pinned,
+		TopicID: topicID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesUpdatePinnedForumTopic")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14315,7 +14596,7 @@ func (c *Client) MessagesUpdatePinnedMessage(params *MessagesUpdatePinnedMessage
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14345,67 +14626,7 @@ func (c *Client) MessagesUpdateSavedReactionTag(reaction Reaction, title string)
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesUpdateStarGiftCollectionParams struct {
-	Peer           InputPeer
-	CollectionID   int32
-	Title          string               `tl:"flag:0"`
-	DeleteStargift []InputSavedStarGift `tl:"flag:1"`
-	AddStargift    []InputSavedStarGift `tl:"flag:2"`
-	Order          []InputSavedStarGift `tl:"flag:3"`
-}
-
-func (*MessagesUpdateStarGiftCollectionParams) CRC() uint32 {
-	return 0x4fddbee7
-}
-
-func (*MessagesUpdateStarGiftCollectionParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesUpdateStarGiftCollection(params *MessagesUpdateStarGiftCollectionParams) (*StarGiftCollection, error) {
-	responseData, err := c.MakeRequest(params)
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesUpdateStarGiftCollection")
-	}
-
-	resp, ok := responseData.(*StarGiftCollection)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesUpdateThemeParams struct {
-	Format   string
-	Theme    InputTheme
-	Slug     string              `tl:"flag:0"`
-	Title    string              `tl:"flag:1"`
-	Document InputDocument       `tl:"flag:2"`
-	Settings *InputThemeSettings `tl:"flag:3"`
-}
-
-func (*MessagesUpdateThemeParams) CRC() uint32 {
-	return 0x5cb367d5
-}
-
-func (*MessagesUpdateThemeParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesUpdateTheme(params *MessagesUpdateThemeParams) (*Theme, error) {
-	responseData, err := c.MakeRequest(params)
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesUpdateTheme")
-	}
-
-	resp, ok := responseData.(*Theme)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14419,7 +14640,7 @@ func (*MessagesUploadEncryptedFileParams) CRC() uint32 {
 	return 0x5057c497
 }
 
-// Upload encrypted file and associate it to a secret chat
+// Upload encrypted file and associate it to a secret chat (without actually sending it to the chat).
 func (c *Client) MessagesUploadEncryptedFile(peer *InputEncryptedChat, file InputEncryptedFile) (EncryptedFile, error) {
 	responseData, err := c.MakeRequest(&MessagesUploadEncryptedFileParams{
 		File: file,
@@ -14431,7 +14652,7 @@ func (c *Client) MessagesUploadEncryptedFile(peer *InputEncryptedChat, file Inpu
 
 	resp, ok := responseData.(EncryptedFile)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14461,7 +14682,7 @@ func (c *Client) MessagesUploadImportedMedia(peer InputPeer, importID int64, fil
 
 	resp, ok := responseData.(MessageMedia)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14493,34 +14714,7 @@ func (c *Client) MessagesUploadMedia(businessConnectionID string, peer InputPeer
 
 	resp, ok := responseData.(MessageMedia)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesUploadWallPaperParams struct {
-	File     InputFile
-	MimeType string
-	Settings *WallPaperSettings
-}
-
-func (*MessagesUploadWallPaperParams) CRC() uint32 {
-	return 0xdd853661
-}
-
-func (c *Client) MessagesUploadWallPaper(file InputFile, mimeType string, settings *WallPaperSettings) (WallPaper, error) {
-	responseData, err := c.MakeRequest(&MessagesUploadWallPaperParams{
-		File:     file,
-		MimeType: mimeType,
-		Settings: settings,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesUploadWallPaper")
-	}
-
-	resp, ok := responseData.(WallPaper)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14542,7 +14736,7 @@ func (c *Client) MessagesViewSponsoredMessage(randomID []byte) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14564,7 +14758,7 @@ func (c *Client) PaymentsApplyGiftCode(slug string) (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14590,7 +14784,7 @@ func (c *Client) PaymentsAssignAppStoreTransaction(receipt []byte, purpose Input
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14616,7 +14810,7 @@ func (c *Client) PaymentsAssignPlayMarketTransaction(receipt *DataJson, purpose 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14648,7 +14842,7 @@ func (c *Client) PaymentsBotCancelStarsSubscription(restore bool, userID InputUs
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14661,6 +14855,7 @@ func (*PaymentsCanPurchaseStoreParams) CRC() uint32 {
 	return 0x4fdc5ea7
 }
 
+// Checks whether a purchase is possible. Must be called before in-store purchase, official apps only.
 func (c *Client) PaymentsCanPurchaseStore(purpose InputStorePaymentPurpose) (bool, error) {
 	responseData, err := c.MakeRequest(&PaymentsCanPurchaseStoreParams{Purpose: purpose})
 	if err != nil {
@@ -14669,7 +14864,7 @@ func (c *Client) PaymentsCanPurchaseStore(purpose InputStorePaymentPurpose) (boo
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14701,7 +14896,29 @@ func (c *Client) PaymentsChangeStarsSubscription(peer InputPeer, subscriptionID 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsCheckCanSendGiftParams struct {
+	GiftID int64
+}
+
+func (*PaymentsCheckCanSendGiftParams) CRC() uint32 {
+	return 0xc0c4edc9
+}
+
+// Check if the specified gift » can be sent.
+func (c *Client) PaymentsCheckCanSendGift(giftID int64) (PaymentsCheckCanSendGiftResult, error) {
+	responseData, err := c.MakeRequest(&PaymentsCheckCanSendGiftParams{GiftID: giftID})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsCheckCanSendGift")
+	}
+
+	resp, ok := responseData.(PaymentsCheckCanSendGiftResult)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14723,7 +14940,7 @@ func (c *Client) PaymentsCheckGiftCode(slug string) (*PaymentsCheckedGiftCode, e
 
 	resp, ok := responseData.(*PaymentsCheckedGiftCode)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14753,7 +14970,7 @@ func (c *Client) PaymentsClearSavedInfo(credentials, info bool) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14779,7 +14996,7 @@ func (c *Client) PaymentsConnectStarRefBot(peer InputPeer, bot InputUser) (*Paym
 
 	resp, ok := responseData.(*PaymentsConnectedStarRefBots)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14801,7 +15018,61 @@ func (c *Client) PaymentsConvertStarGift(stargift InputSavedStarGift) (bool, err
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsCreateStarGiftCollectionParams struct {
+	Peer     InputPeer
+	Title    string
+	Stargift []InputSavedStarGift
+}
+
+func (*PaymentsCreateStarGiftCollectionParams) CRC() uint32 {
+	return 0x1f4a0e87
+}
+
+// Create a star gift collection ».
+func (c *Client) PaymentsCreateStarGiftCollection(peer InputPeer, title string, stargift []InputSavedStarGift) (*StarGiftCollection, error) {
+	responseData, err := c.MakeRequest(&PaymentsCreateStarGiftCollectionParams{
+		Peer:     peer,
+		Stargift: stargift,
+		Title:    title,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsCreateStarGiftCollection")
+	}
+
+	resp, ok := responseData.(*StarGiftCollection)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsDeleteStarGiftCollectionParams struct {
+	Peer         InputPeer
+	CollectionID int32
+}
+
+func (*PaymentsDeleteStarGiftCollectionParams) CRC() uint32 {
+	return 0xad5648e8
+}
+
+// Delete a star gift collection ».
+func (c *Client) PaymentsDeleteStarGiftCollection(peer InputPeer, collectionID int32) (bool, error) {
+	responseData, err := c.MakeRequest(&PaymentsDeleteStarGiftCollectionParams{
+		CollectionID: collectionID,
+		Peer:         peer,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending PaymentsDeleteStarGiftCollection")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14833,7 +15104,7 @@ func (c *Client) PaymentsEditConnectedStarRefBot(revoked bool, peer InputPeer, l
 
 	resp, ok := responseData.(*PaymentsConnectedStarRefBots)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14855,7 +15126,7 @@ func (c *Client) PaymentsExportInvoice(invoiceMedia InputMedia) (*PaymentsExport
 
 	resp, ok := responseData.(*PaymentsExportedInvoice)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14881,7 +15152,7 @@ func (c *Client) PaymentsFulfillStarsSubscription(peer InputPeer, subscriptionID
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14903,7 +15174,7 @@ func (c *Client) PaymentsGetBankCardData(number string) (*PaymentsBankCardData, 
 
 	resp, ok := responseData.(*PaymentsBankCardData)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14929,7 +15200,7 @@ func (c *Client) PaymentsGetConnectedStarRefBot(peer InputPeer, bot InputUser) (
 
 	resp, ok := responseData.(*PaymentsConnectedStarRefBots)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14963,7 +15234,7 @@ func (c *Client) PaymentsGetConnectedStarRefBots(peer InputPeer, offsetDate int3
 
 	resp, ok := responseData.(*PaymentsConnectedStarRefBots)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14989,7 +15260,7 @@ func (c *Client) PaymentsGetGiveawayInfo(peer InputPeer, msgID int32) (PaymentsG
 
 	resp, ok := responseData.(PaymentsGiveawayInfo)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15019,7 +15290,7 @@ func (c *Client) PaymentsGetPaymentForm(invoice InputInvoice, themeParams *DataJ
 
 	resp, ok := responseData.(PaymentsPaymentForm)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15045,7 +15316,7 @@ func (c *Client) PaymentsGetPaymentReceipt(peer InputPeer, msgID int32) (Payment
 
 	resp, ok := responseData.(PaymentsPaymentReceipt)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15071,7 +15342,7 @@ func (c *Client) PaymentsGetPremiumGiftCodeOptions(boostPeer InputPeer) ([]*Prem
 
 	resp, ok := responseData.([]*PremiumGiftCodeOption)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15094,6 +15365,7 @@ func (*PaymentsGetResaleStarGiftsParams) FlagIndex() int {
 	return 0
 }
 
+// Get collectible gifts of a specific type currently on resale, see here » for more info.
 func (c *Client) PaymentsGetResaleStarGifts(params *PaymentsGetResaleStarGiftsParams) (*PaymentsResaleStarGifts, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -15102,7 +15374,7 @@ func (c *Client) PaymentsGetResaleStarGifts(params *PaymentsGetResaleStarGiftsPa
 
 	resp, ok := responseData.(*PaymentsResaleStarGifts)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15122,7 +15394,7 @@ func (c *Client) PaymentsGetSavedInfo() (*PaymentsSavedInfo, error) {
 
 	resp, ok := responseData.(*PaymentsSavedInfo)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15135,6 +15407,7 @@ func (*PaymentsGetSavedStarGiftParams) CRC() uint32 {
 	return 0xb455a106
 }
 
+// Fetch info about specific gifts owned by a peer we control.
 func (c *Client) PaymentsGetSavedStarGift(stargift []InputSavedStarGift) (*PaymentsSavedStarGifts, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetSavedStarGiftParams{Stargift: stargift})
 	if err != nil {
@@ -15143,31 +15416,35 @@ func (c *Client) PaymentsGetSavedStarGift(stargift []InputSavedStarGift) (*Payme
 
 	resp, ok := responseData.(*PaymentsSavedStarGifts)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
 
 type PaymentsGetSavedStarGiftsParams struct {
-	ExcludeUnsaved   bool `tl:"flag:0,encoded_in_bitflags"`
-	ExcludeSaved     bool `tl:"flag:1,encoded_in_bitflags"`
-	ExcludeUnlimited bool `tl:"flag:2,encoded_in_bitflags"`
-	ExcludeLimited   bool `tl:"flag:3,encoded_in_bitflags"`
-	ExcludeUnique    bool `tl:"flag:4,encoded_in_bitflags"`
-	SortByValue      bool `tl:"flag:5,encoded_in_bitflags"`
-	Peer             InputPeer
-	Offset           string
-	Limit            int32
+	ExcludeUnsaved      bool `tl:"flag:0,encoded_in_bitflags"`
+	ExcludeSaved        bool `tl:"flag:1,encoded_in_bitflags"`
+	ExcludeUnlimited    bool `tl:"flag:2,encoded_in_bitflags"`
+	ExcludeUnique       bool `tl:"flag:4,encoded_in_bitflags"`
+	SortByValue         bool `tl:"flag:5,encoded_in_bitflags"`
+	ExcludeUpgradable   bool `tl:"flag:7,encoded_in_bitflags"`
+	ExcludeUnupgradable bool `tl:"flag:8,encoded_in_bitflags"`
+	PeerColorAvailable  bool `tl:"flag:9,encoded_in_bitflags"`
+	Peer                InputPeer
+	CollectionID        int32 `tl:"flag:6"`
+	Offset              string
+	Limit               int32
 }
 
 func (*PaymentsGetSavedStarGiftsParams) CRC() uint32 {
-	return 0x23830de9
+	return 0xa319e569
 }
 
 func (*PaymentsGetSavedStarGiftsParams) FlagIndex() int {
 	return 0
 }
 
+// Fetch the full list of gifts owned by a peer.
 func (c *Client) PaymentsGetSavedStarGifts(params *PaymentsGetSavedStarGiftsParams) (*PaymentsSavedStarGifts, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -15176,7 +15453,33 @@ func (c *Client) PaymentsGetSavedStarGifts(params *PaymentsGetSavedStarGiftsPara
 
 	resp, ok := responseData.(*PaymentsSavedStarGifts)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsGetStarGiftCollectionsParams struct {
+	Peer InputPeer
+	Hash int64
+}
+
+func (*PaymentsGetStarGiftCollectionsParams) CRC() uint32 {
+	return 0x981b91dd
+}
+
+// Fetches all star gift collections » of a peer.
+func (c *Client) PaymentsGetStarGiftCollections(peer InputPeer, hash int64) (PaymentsStarGiftCollections, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarGiftCollectionsParams{
+		Hash: hash,
+		Peer: peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetStarGiftCollections")
+	}
+
+	resp, ok := responseData.(PaymentsStarGiftCollections)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15189,6 +15492,7 @@ func (*PaymentsGetStarGiftUpgradePreviewParams) CRC() uint32 {
 	return 0x9c9abcb1
 }
 
+// Obtain a preview of the possible attributes (chosen randomly) a gift » can receive after upgrading it to a collectible gift », see here » for more info.
 func (c *Client) PaymentsGetStarGiftUpgradePreview(giftID int64) (*PaymentsStarGiftUpgradePreview, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarGiftUpgradePreviewParams{GiftID: giftID})
 	if err != nil {
@@ -15197,7 +15501,7 @@ func (c *Client) PaymentsGetStarGiftUpgradePreview(giftID int64) (*PaymentsStarG
 
 	resp, ok := responseData.(*PaymentsStarGiftUpgradePreview)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15211,6 +15515,7 @@ func (*PaymentsGetStarGiftWithdrawalURLParams) CRC() uint32 {
 	return 0xd06e93a8
 }
 
+// Convert a collectible gift » to an NFT on the TON blockchain.
 func (c *Client) PaymentsGetStarGiftWithdrawalURL(stargift InputSavedStarGift, password InputCheckPasswordSRP) (*PaymentsStarGiftWithdrawalURL, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarGiftWithdrawalURLParams{
 		Password: password,
@@ -15222,7 +15527,7 @@ func (c *Client) PaymentsGetStarGiftWithdrawalURL(stargift InputSavedStarGift, p
 
 	resp, ok := responseData.(*PaymentsStarGiftWithdrawalURL)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15244,7 +15549,7 @@ func (c *Client) PaymentsGetStarGifts(hash int32) (PaymentsStarGifts, error) {
 
 	resp, ok := responseData.(PaymentsStarGifts)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15270,7 +15575,7 @@ func (c *Client) PaymentsGetStarsGiftOptions(userID InputUser) ([]*StarsGiftOpti
 
 	resp, ok := responseData.([]*StarsGiftOption)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15290,7 +15595,7 @@ func (c *Client) PaymentsGetStarsGiveawayOptions() ([]*StarsGiveawayOption, erro
 
 	resp, ok := responseData.([]*StarsGiveawayOption)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15312,7 +15617,7 @@ func (c *Client) PaymentsGetStarsRevenueAdsAccountURL(peer InputPeer) (*Payments
 
 	resp, ok := responseData.(*PaymentsStarsRevenueAdsAccountURL)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15344,7 +15649,7 @@ func (c *Client) PaymentsGetStarsRevenueStats(dark, ton bool, peer InputPeer) (*
 
 	resp, ok := responseData.(*PaymentsStarsRevenueStats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15378,7 +15683,7 @@ func (c *Client) PaymentsGetStarsRevenueWithdrawalURL(ton bool, peer InputPeer, 
 
 	resp, ok := responseData.(*PaymentsStarsRevenueWithdrawalURL)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15408,7 +15713,7 @@ func (c *Client) PaymentsGetStarsStatus(ton bool, peer InputPeer) (*PaymentsStar
 
 	resp, ok := responseData.(*PaymentsStarsStatus)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15440,7 +15745,7 @@ func (c *Client) PaymentsGetStarsSubscriptions(missingBalance bool, peer InputPe
 
 	resp, ok := responseData.(*PaymentsStarsStatus)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15460,7 +15765,7 @@ func (c *Client) PaymentsGetStarsTopupOptions() ([]*StarsTopupOption, error) {
 
 	resp, ok := responseData.([]*StarsTopupOption)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15493,7 +15798,39 @@ func (c *Client) PaymentsGetStarsTransactions(params *PaymentsGetStarsTransactio
 
 	resp, ok := responseData.(*PaymentsStarsStatus)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsGetStarsTransactionsByIDParams struct {
+	Ton  bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer InputPeer
+	ID   []*InputStarsTransaction
+}
+
+func (*PaymentsGetStarsTransactionsByIDParams) CRC() uint32 {
+	return 0x2dca16b8
+}
+
+func (*PaymentsGetStarsTransactionsByIDParams) FlagIndex() int {
+	return 0
+}
+
+// Obtain info about Telegram Star transactions » using specific transaction IDs.
+func (c *Client) PaymentsGetStarsTransactionsByID(ton bool, peer InputPeer, id []*InputStarsTransaction) (*PaymentsStarsStatus, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarsTransactionsByIDParams{
+		ID:   id,
+		Peer: peer,
+		Ton:  ton,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetStarsTransactionsByID")
+	}
+
+	resp, ok := responseData.(*PaymentsStarsStatus)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15523,7 +15860,7 @@ func (c *Client) PaymentsGetSuggestedStarRefBots(params *PaymentsGetSuggestedSta
 
 	resp, ok := responseData.(*PaymentsSuggestedStarRefBots)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15536,6 +15873,7 @@ func (*PaymentsGetUniqueStarGiftParams) CRC() uint32 {
 	return 0xa1974d72
 }
 
+// Obtain info about a collectible gift » using a slug obtained from a collectible gift link ».
 func (c *Client) PaymentsGetUniqueStarGift(slug string) (*PaymentsUniqueStarGift, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetUniqueStarGiftParams{Slug: slug})
 	if err != nil {
@@ -15544,7 +15882,29 @@ func (c *Client) PaymentsGetUniqueStarGift(slug string) (*PaymentsUniqueStarGift
 
 	resp, ok := responseData.(*PaymentsUniqueStarGift)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsGetUniqueStarGiftValueInfoParams struct {
+	Slug string
+}
+
+func (*PaymentsGetUniqueStarGiftValueInfoParams) CRC() uint32 {
+	return 0x4365af6b
+}
+
+// Get information about the value of a collectible gift ».
+func (c *Client) PaymentsGetUniqueStarGiftValueInfo(slug string) (*PaymentsUniqueStarGiftValueInfo, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetUniqueStarGiftValueInfoParams{Slug: slug})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetUniqueStarGiftValueInfo")
+	}
+
+	resp, ok := responseData.(*PaymentsUniqueStarGiftValueInfo)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15572,7 +15932,7 @@ func (c *Client) PaymentsLaunchPrepaidGiveaway(peer InputPeer, giveawayID int64,
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15598,7 +15958,33 @@ func (c *Client) PaymentsRefundStarsCharge(userID InputUser, chargeID string) (U
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsReorderStarGiftCollectionsParams struct {
+	Peer  InputPeer
+	Order []int32
+}
+
+func (*PaymentsReorderStarGiftCollectionsParams) CRC() uint32 {
+	return 0xc32af4cc
+}
+
+// Reorder the star gift collections » on an owned peer's profile.
+func (c *Client) PaymentsReorderStarGiftCollections(peer InputPeer, order []int32) (bool, error) {
+	responseData, err := c.MakeRequest(&PaymentsReorderStarGiftCollectionsParams{
+		Order: order,
+		Peer:  peer,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending PaymentsReorderStarGiftCollections")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15625,7 +16011,7 @@ func (c *Client) PaymentsRequestRecurringPayment(userID InputUser, recurringInit
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15655,7 +16041,7 @@ func (c *Client) PaymentsSaveStarGift(unsave bool, stargift InputSavedStarGift) 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15686,7 +16072,7 @@ func (c *Client) PaymentsSendPaymentForm(params *PaymentsSendPaymentFormParams) 
 
 	resp, ok := responseData.(PaymentsPaymentResult)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15712,7 +16098,7 @@ func (c *Client) PaymentsSendStarsForm(formID int64, invoice InputInvoice) (Paym
 
 	resp, ok := responseData.(PaymentsPaymentResult)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15730,6 +16116,7 @@ func (*PaymentsToggleChatStarGiftNotificationsParams) FlagIndex() int {
 	return 0
 }
 
+// Enables or disables the reception of notifications every time a gift » is received by the specified channel, can only be invoked by admins with `post_messages` admin rights.
 func (c *Client) PaymentsToggleChatStarGiftNotifications(enabled bool, peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&PaymentsToggleChatStarGiftNotificationsParams{
 		Enabled: enabled,
@@ -15741,7 +16128,7 @@ func (c *Client) PaymentsToggleChatStarGiftNotifications(enabled bool, peer Inpu
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15755,6 +16142,7 @@ func (*PaymentsToggleStarGiftsPinnedToTopParams) CRC() uint32 {
 	return 0x1513e7b0
 }
 
+// Pins a received gift on top of the profile of the user or owned channels by using payments.toggleStarGiftsPinnedToTop.
 func (c *Client) PaymentsToggleStarGiftsPinnedToTop(peer InputPeer, stargift []InputSavedStarGift) (bool, error) {
 	responseData, err := c.MakeRequest(&PaymentsToggleStarGiftsPinnedToTopParams{
 		Peer:     peer,
@@ -15766,7 +16154,7 @@ func (c *Client) PaymentsToggleStarGiftsPinnedToTop(peer InputPeer, stargift []I
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15780,6 +16168,7 @@ func (*PaymentsTransferStarGiftParams) CRC() uint32 {
 	return 0x7f18176a
 }
 
+// Transfer a collectible gift to another user or channel: can only be used if transfer is free (i.e. messageActionStarGiftUnique.`transfer_stars` is not set); see here » for more info on the full flow (including the different flow to use in case the transfer isn't free).
 func (c *Client) PaymentsTransferStarGift(stargift InputSavedStarGift, toID InputPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsTransferStarGiftParams{
 		Stargift: stargift,
@@ -15791,24 +16180,56 @@ func (c *Client) PaymentsTransferStarGift(stargift InputSavedStarGift, toID Inpu
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsUpdateStarGiftCollectionParams struct {
+	Peer           InputPeer
+	CollectionID   int32
+	Title          string               `tl:"flag:0"`
+	DeleteStargift []InputSavedStarGift `tl:"flag:1"`
+	AddStargift    []InputSavedStarGift `tl:"flag:2"`
+	Order          []InputSavedStarGift `tl:"flag:3"`
+}
+
+func (*PaymentsUpdateStarGiftCollectionParams) CRC() uint32 {
+	return 0x4fddbee7
+}
+
+func (*PaymentsUpdateStarGiftCollectionParams) FlagIndex() int {
+	return 0
+}
+
+// Add or remove gifts from a star gift collection », or rename the collection.
+func (c *Client) PaymentsUpdateStarGiftCollection(params *PaymentsUpdateStarGiftCollectionParams) (*StarGiftCollection, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsUpdateStarGiftCollection")
+	}
+
+	resp, ok := responseData.(*StarGiftCollection)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
 
 type PaymentsUpdateStarGiftPriceParams struct {
-	Stargift    InputSavedStarGift
-	ResellStars int64
+	Stargift     InputSavedStarGift
+	ResellAmount StarsAmount
 }
 
 func (*PaymentsUpdateStarGiftPriceParams) CRC() uint32 {
-	return 0x3baea4e1
+	return 0xedbe6ccb
 }
 
-func (c *Client) PaymentsUpdateStarGiftPrice(stargift InputSavedStarGift, resellStars int64) (Updates, error) {
+// A collectible gift we own » can be put up for sale on the gift marketplace » with this method, see here » for more info.
+func (c *Client) PaymentsUpdateStarGiftPrice(stargift InputSavedStarGift, resellAmount StarsAmount) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsUpdateStarGiftPriceParams{
-		ResellStars: resellStars,
-		Stargift:    stargift,
+		ResellAmount: resellAmount,
+		Stargift:     stargift,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending PaymentsUpdateStarGiftPrice")
@@ -15816,7 +16237,7 @@ func (c *Client) PaymentsUpdateStarGiftPrice(stargift InputSavedStarGift, resell
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15834,6 +16255,7 @@ func (*PaymentsUpgradeStarGiftParams) FlagIndex() int {
 	return 0
 }
 
+// Upgrade a gift to a collectible gift: can only be used if the upgrade was already paid by the gift sender; see here » for more info on the full flow (including the different flow to use in case the upgrade was not paid by the gift sender).
 func (c *Client) PaymentsUpgradeStarGift(keepOriginalDetails bool, stargift InputSavedStarGift) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsUpgradeStarGiftParams{
 		KeepOriginalDetails: keepOriginalDetails,
@@ -15845,7 +16267,7 @@ func (c *Client) PaymentsUpgradeStarGift(keepOriginalDetails bool, stargift Inpu
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15877,7 +16299,7 @@ func (c *Client) PaymentsValidateRequestedInfo(save bool, invoice InputInvoice, 
 
 	resp, ok := responseData.(*PaymentsValidatedRequestedInfo)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15905,7 +16327,7 @@ func (c *Client) PhoneAcceptCall(peer *InputPhoneCall, gB []byte, protocol *Phon
 
 	resp, ok := responseData.(*PhonePhoneCall)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15934,7 +16356,7 @@ func (c *Client) PhoneCheckGroupCall(call InputGroupCall, sources []int32) ([]in
 
 	resp, ok := responseData.([]int32)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15964,7 +16386,7 @@ func (c *Client) PhoneConfirmCall(peer *InputPhoneCall, gA []byte, keyFingerprin
 
 	resp, ok := responseData.(*PhonePhoneCall)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15987,6 +16409,7 @@ func (*PhoneCreateConferenceCallParams) FlagIndex() int {
 	return 0
 }
 
+// Create and optionally join a new conference call.
 func (c *Client) PhoneCreateConferenceCall(params *PhoneCreateConferenceCallParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -15995,7 +16418,7 @@ func (c *Client) PhoneCreateConferenceCall(params *PhoneCreateConferenceCallPara
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16025,7 +16448,7 @@ func (c *Client) PhoneCreateGroupCall(params *PhoneCreateGroupCallParams) (Updat
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16038,6 +16461,7 @@ func (*PhoneDeclineConferenceCallInviteParams) CRC() uint32 {
 	return 0x3c479971
 }
 
+// Declines a conference call invite.
 func (c *Client) PhoneDeclineConferenceCallInvite(msgID int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&PhoneDeclineConferenceCallInviteParams{MsgID: msgID})
 	if err != nil {
@@ -16046,7 +16470,7 @@ func (c *Client) PhoneDeclineConferenceCallInvite(msgID int32) (Updates, error) 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16067,6 +16491,7 @@ func (*PhoneDeleteConferenceCallParticipantsParams) FlagIndex() int {
 	return 0
 }
 
+// Remove participants from a conference call.
 func (c *Client) PhoneDeleteConferenceCallParticipants(params *PhoneDeleteConferenceCallParticipantsParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -16075,7 +16500,7 @@ func (c *Client) PhoneDeleteConferenceCallParticipants(params *PhoneDeleteConfer
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16105,7 +16530,7 @@ func (c *Client) PhoneDiscardCall(params *PhoneDiscardCallParams) (Updates, erro
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16127,7 +16552,7 @@ func (c *Client) PhoneDiscardGroupCall(call InputGroupCall) (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16160,7 +16585,7 @@ func (c *Client) PhoneEditGroupCallParticipant(params *PhoneEditGroupCallPartici
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16186,7 +16611,7 @@ func (c *Client) PhoneEditGroupCallTitle(call InputGroupCall, title string) (Upd
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16216,7 +16641,7 @@ func (c *Client) PhoneExportGroupCallInvite(canSelfUnmute bool, call InputGroupC
 
 	resp, ok := responseData.(*PhoneExportedGroupCallInvite)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16236,7 +16661,7 @@ func (c *Client) PhoneGetCallConfig() (*DataJson, error) {
 
 	resp, ok := responseData.(*DataJson)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16262,7 +16687,7 @@ func (c *Client) PhoneGetGroupCall(call InputGroupCall, limit int32) (*PhoneGrou
 
 	resp, ok := responseData.(*PhoneGroupCall)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16278,6 +16703,7 @@ func (*PhoneGetGroupCallChainBlocksParams) CRC() uint32 {
 	return 0xee9f88a6
 }
 
+// Fetch the blocks of a conference blockchain ».
 func (c *Client) PhoneGetGroupCallChainBlocks(call InputGroupCall, subChainID, offset, limit int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&PhoneGetGroupCallChainBlocksParams{
 		Call:       call,
@@ -16291,7 +16717,7 @@ func (c *Client) PhoneGetGroupCallChainBlocks(call InputGroupCall, subChainID, o
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16313,7 +16739,7 @@ func (c *Client) PhoneGetGroupCallJoinAs(peer InputPeer) (*PhoneJoinAsPeers, err
 
 	resp, ok := responseData.(*PhoneJoinAsPeers)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16339,7 +16765,7 @@ func (c *Client) PhoneGetGroupCallStreamChannels(call InputGroupCall) (*PhoneGro
 
 	resp, ok := responseData.(*PhoneGroupCallStreamChannels)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16365,7 +16791,7 @@ func (c *Client) PhoneGetGroupCallStreamRtmpURL(peer InputPeer, revoke bool) (*P
 
 	resp, ok := responseData.(*PhoneGroupCallStreamRtmpURL)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16397,7 +16823,7 @@ func (c *Client) PhoneGetGroupParticipants(call InputGroupCall, ids []InputPeer,
 
 	resp, ok := responseData.(*PhoneGroupParticipants)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16416,6 +16842,7 @@ func (*PhoneInviteConferenceCallParticipantParams) FlagIndex() int {
 	return 0
 }
 
+// Invite a user to a conference call.
 func (c *Client) PhoneInviteConferenceCallParticipant(video bool, call InputGroupCall, userID InputUser) (Updates, error) {
 	responseData, err := c.MakeRequest(&PhoneInviteConferenceCallParticipantParams{
 		Call:   call,
@@ -16428,7 +16855,7 @@ func (c *Client) PhoneInviteConferenceCallParticipant(video bool, call InputGrou
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16454,7 +16881,7 @@ func (c *Client) PhoneInviteToGroupCall(call InputGroupCall, users []InputUser) 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16487,7 +16914,7 @@ func (c *Client) PhoneJoinGroupCall(params *PhoneJoinGroupCallParams) (Updates, 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16513,7 +16940,7 @@ func (c *Client) PhoneJoinGroupCallPresentation(call InputGroupCall, params *Dat
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16539,7 +16966,7 @@ func (c *Client) PhoneLeaveGroupCall(call InputGroupCall, source int32) (Updates
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16561,7 +16988,7 @@ func (c *Client) PhoneLeaveGroupCallPresentation(call InputGroupCall) (Updates, 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16583,7 +17010,7 @@ func (c *Client) PhoneReceivedCall(peer *InputPhoneCall) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16613,7 +17040,7 @@ func (c *Client) PhoneRequestCall(params *PhoneRequestCallParams) (*PhonePhoneCa
 
 	resp, ok := responseData.(*PhonePhoneCall)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16639,7 +17066,7 @@ func (c *Client) PhoneSaveCallDebug(peer *InputPhoneCall, debug *DataJson) (bool
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16665,7 +17092,7 @@ func (c *Client) PhoneSaveCallLog(peer *InputPhoneCall, file InputFile) (bool, e
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16691,7 +17118,7 @@ func (c *Client) PhoneSaveDefaultGroupCallJoinAs(peer, joinAs InputPeer) (bool, 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16705,6 +17132,7 @@ func (*PhoneSendConferenceCallBroadcastParams) CRC() uint32 {
 	return 0xc6701900
 }
 
+// Broadcast a blockchain block to all members of a conference call, see here » for more info.
 func (c *Client) PhoneSendConferenceCallBroadcast(call InputGroupCall, block []byte) (Updates, error) {
 	responseData, err := c.MakeRequest(&PhoneSendConferenceCallBroadcastParams{
 		Block: block,
@@ -16716,7 +17144,7 @@ func (c *Client) PhoneSendConferenceCallBroadcast(call InputGroupCall, block []b
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16742,7 +17170,7 @@ func (c *Client) PhoneSendSignalingData(peer *InputPhoneCall, data []byte) (bool
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16776,7 +17204,7 @@ func (c *Client) PhoneSetCallRating(userInitiative bool, peer *InputPhoneCall, r
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16798,7 +17226,7 @@ func (c *Client) PhoneStartScheduledGroupCall(call InputGroupCall) (Updates, err
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16828,7 +17256,7 @@ func (c *Client) PhoneToggleGroupCallRecord(params *PhoneToggleGroupCallRecordPa
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16860,7 +17288,7 @@ func (c *Client) PhoneToggleGroupCallSettings(resetInviteHash bool, call InputGr
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16886,7 +17314,7 @@ func (c *Client) PhoneToggleGroupCallStartSubscription(call InputGroupCall, subs
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16908,7 +17336,7 @@ func (c *Client) PhotosDeletePhotos(id []InputPhoto) ([]int64, error) {
 
 	resp, ok := responseData.([]int64)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16938,7 +17366,7 @@ func (c *Client) PhotosGetUserPhotos(userID InputUser, offset int32, maxID int64
 
 	resp, ok := responseData.(PhotosPhotos)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16970,7 +17398,7 @@ func (c *Client) PhotosUpdateProfilePhoto(fallback bool, bot InputUser, id Input
 
 	resp, ok := responseData.(*PhotosPhoto)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17002,7 +17430,7 @@ func (c *Client) PhotosUploadContactProfilePhoto(params *PhotosUploadContactProf
 
 	resp, ok := responseData.(*PhotosPhoto)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17033,7 +17461,7 @@ func (c *Client) PhotosUploadProfilePhoto(params *PhotosUploadProfilePhotoParams
 
 	resp, ok := responseData.(*PhotosPhoto)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17063,7 +17491,7 @@ func (c *Client) PremiumApplyBoost(slots []int32, peer InputPeer) (*PremiumMyBoo
 
 	resp, ok := responseData.(*PremiumMyBoosts)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17097,7 +17525,7 @@ func (c *Client) PremiumGetBoostsList(gifts bool, peer InputPeer, offset string,
 
 	resp, ok := responseData.(*PremiumBoostsList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17119,7 +17547,7 @@ func (c *Client) PremiumGetBoostsStatus(peer InputPeer) (*PremiumBoostsStatus, e
 
 	resp, ok := responseData.(*PremiumBoostsStatus)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17139,7 +17567,7 @@ func (c *Client) PremiumGetMyBoosts() (*PremiumMyBoosts, error) {
 
 	resp, ok := responseData.(*PremiumMyBoosts)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17165,7 +17593,7 @@ func (c *Client) PremiumGetUserBoosts(peer InputPeer, userID InputUser) (*Premiu
 
 	resp, ok := responseData.(*PremiumBoostsList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17195,7 +17623,7 @@ func (c *Client) SmsjobsFinishJob(jobID, error string) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17217,7 +17645,7 @@ func (c *Client) SmsjobsGetSmsJob(jobID string) (*SmsJob, error) {
 
 	resp, ok := responseData.(*SmsJob)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17237,7 +17665,7 @@ func (c *Client) SmsjobsGetStatus() (*SmsjobsStatus, error) {
 
 	resp, ok := responseData.(*SmsjobsStatus)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17257,7 +17685,7 @@ func (c *Client) SmsjobsIsEligibleToJoin() (*SmsjobsEligibleToJoin, error) {
 
 	resp, ok := responseData.(*SmsjobsEligibleToJoin)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17277,7 +17705,7 @@ func (c *Client) SmsjobsJoin() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17297,7 +17725,7 @@ func (c *Client) SmsjobsLeave() (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17323,7 +17751,7 @@ func (c *Client) SmsjobsUpdateSettings(allowInternational bool) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17353,7 +17781,7 @@ func (c *Client) StatsGetBroadcastStats(dark bool, channel InputChannel) (*Stats
 
 	resp, ok := responseData.(*StatsBroadcastStats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17383,7 +17811,7 @@ func (c *Client) StatsGetMegagroupStats(dark bool, channel InputChannel) (*Stats
 
 	resp, ok := responseData.(*StatsMegagroupStats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17416,7 +17844,7 @@ func (c *Client) StatsGetMessagePublicForwards(channel InputChannel, msgID int32
 
 	resp, ok := responseData.(*StatsPublicForwards)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17448,7 +17876,7 @@ func (c *Client) StatsGetMessageStats(dark bool, channel InputChannel, msgID int
 
 	resp, ok := responseData.(*StatsMessageStats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17478,7 +17906,7 @@ func (c *Client) StatsGetStoryPublicForwards(peer InputPeer, id int32, offset st
 
 	resp, ok := responseData.(*StatsPublicForwards)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17510,7 +17938,7 @@ func (c *Client) StatsGetStoryStats(dark bool, peer InputPeer, id int32) (*Stats
 
 	resp, ok := responseData.(*StatsStoryStats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17540,7 +17968,7 @@ func (c *Client) StatsLoadAsyncGraph(token string, x int64) (StatsGraph, error) 
 
 	resp, ok := responseData.(StatsGraph)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17566,7 +17994,7 @@ func (c *Client) StickersAddStickerToSet(stickerset InputStickerSet, sticker *In
 
 	resp, ok := responseData.(MessagesStickerSet)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17600,7 +18028,7 @@ func (c *Client) StickersChangeSticker(sticker InputDocument, emoji string, mask
 
 	resp, ok := responseData.(MessagesStickerSet)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17626,7 +18054,7 @@ func (c *Client) StickersChangeStickerPosition(sticker InputDocument, position i
 
 	resp, ok := responseData.(MessagesStickerSet)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17648,7 +18076,7 @@ func (c *Client) StickersCheckShortName(shortName string) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17682,7 +18110,7 @@ func (c *Client) StickersCreateStickerSet(params *StickersCreateStickerSetParams
 
 	resp, ok := responseData.(MessagesStickerSet)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17704,7 +18132,7 @@ func (c *Client) StickersDeleteStickerSet(stickerset InputStickerSet) (bool, err
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17726,7 +18154,7 @@ func (c *Client) StickersRemoveStickerFromSet(sticker InputDocument) (MessagesSt
 
 	resp, ok := responseData.(MessagesStickerSet)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17752,7 +18180,7 @@ func (c *Client) StickersRenameStickerSet(stickerset InputStickerSet, title stri
 
 	resp, ok := responseData.(MessagesStickerSet)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17778,7 +18206,7 @@ func (c *Client) StickersReplaceSticker(sticker InputDocument, newSticker *Input
 
 	resp, ok := responseData.(MessagesStickerSet)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17810,7 +18238,7 @@ func (c *Client) StickersSetStickerSetThumb(stickerset InputStickerSet, thumb In
 
 	resp, ok := responseData.(MessagesStickerSet)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17832,7 +18260,7 @@ func (c *Client) StickersSuggestShortName(title string) (*StickersSuggestedShort
 
 	resp, ok := responseData.(*StickersSuggestedShortName)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17862,7 +18290,7 @@ func (c *Client) StoriesActivateStealthMode(past, future bool) (Updates, error) 
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17884,7 +18312,61 @@ func (c *Client) StoriesCanSendStory(peer InputPeer) (*StoriesCanSendStoryCount,
 
 	resp, ok := responseData.(*StoriesCanSendStoryCount)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type StoriesCreateAlbumParams struct {
+	Peer    InputPeer
+	Title   string
+	Stories []int32
+}
+
+func (*StoriesCreateAlbumParams) CRC() uint32 {
+	return 0xa36396e5
+}
+
+// Creates a story album.
+func (c *Client) StoriesCreateAlbum(peer InputPeer, title string, stories []int32) (*StoryAlbum, error) {
+	responseData, err := c.MakeRequest(&StoriesCreateAlbumParams{
+		Peer:    peer,
+		Stories: stories,
+		Title:   title,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending StoriesCreateAlbum")
+	}
+
+	resp, ok := responseData.(*StoryAlbum)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type StoriesDeleteAlbumParams struct {
+	Peer    InputPeer
+	AlbumID int32
+}
+
+func (*StoriesDeleteAlbumParams) CRC() uint32 {
+	return 0x8d3456d0
+}
+
+// Delete a story album.
+func (c *Client) StoriesDeleteAlbum(peer InputPeer, albumID int32) (bool, error) {
+	responseData, err := c.MakeRequest(&StoriesDeleteAlbumParams{
+		AlbumID: albumID,
+		Peer:    peer,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending StoriesDeleteAlbum")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17910,7 +18392,7 @@ func (c *Client) StoriesDeleteStories(peer InputPeer, id []int32) ([]int32, erro
 
 	resp, ok := responseData.([]int32)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17942,7 +18424,7 @@ func (c *Client) StoriesEditStory(params *StoriesEditStoryParams) (Updates, erro
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17968,7 +18450,63 @@ func (c *Client) StoriesExportStoryLink(peer InputPeer, id int32) (*ExportedStor
 
 	resp, ok := responseData.(*ExportedStoryLink)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type StoriesGetAlbumStoriesParams struct {
+	Peer    InputPeer
+	AlbumID int32
+	Offset  int32
+	Limit   int32
+}
+
+func (*StoriesGetAlbumStoriesParams) CRC() uint32 {
+	return 0xac806d61
+}
+
+// Get stories in a story album ».
+func (c *Client) StoriesGetAlbumStories(peer InputPeer, albumID, offset, limit int32) (*StoriesStories, error) {
+	responseData, err := c.MakeRequest(&StoriesGetAlbumStoriesParams{
+		AlbumID: albumID,
+		Limit:   limit,
+		Offset:  offset,
+		Peer:    peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending StoriesGetAlbumStories")
+	}
+
+	resp, ok := responseData.(*StoriesStories)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type StoriesGetAlbumsParams struct {
+	Peer InputPeer
+	Hash int64
+}
+
+func (*StoriesGetAlbumsParams) CRC() uint32 {
+	return 0x25b3eac7
+}
+
+// Get story albums created by a peer.
+func (c *Client) StoriesGetAlbums(peer InputPeer, hash int64) (StoriesAlbums, error) {
+	responseData, err := c.MakeRequest(&StoriesGetAlbumsParams{
+		Hash: hash,
+		Peer: peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending StoriesGetAlbums")
+	}
+
+	resp, ok := responseData.(StoriesAlbums)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -17988,7 +18526,7 @@ func (c *Client) StoriesGetAllReadPeerStories() (Updates, error) {
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18020,7 +18558,7 @@ func (c *Client) StoriesGetAllStories(next, hidden bool, state string) (StoriesA
 
 	resp, ok := responseData.(StoriesAllStories)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18040,7 +18578,7 @@ func (c *Client) StoriesGetChatsToSend() (MessagesChats, error) {
 
 	resp, ok := responseData.(MessagesChats)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18062,7 +18600,7 @@ func (c *Client) StoriesGetPeerMaxIDs(id []InputPeer) ([]int32, error) {
 
 	resp, ok := responseData.([]int32)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18084,7 +18622,7 @@ func (c *Client) StoriesGetPeerStories(peer InputPeer) (*StoriesPeerStories, err
 
 	resp, ok := responseData.(*StoriesPeerStories)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18112,7 +18650,7 @@ func (c *Client) StoriesGetPinnedStories(peer InputPeer, offsetID, limit int32) 
 
 	resp, ok := responseData.(*StoriesStories)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18140,7 +18678,7 @@ func (c *Client) StoriesGetStoriesArchive(peer InputPeer, offsetID, limit int32)
 
 	resp, ok := responseData.(*StoriesStories)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18166,7 +18704,7 @@ func (c *Client) StoriesGetStoriesByID(peer InputPeer, id []int32) (*StoriesStor
 
 	resp, ok := responseData.(*StoriesStories)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18192,7 +18730,7 @@ func (c *Client) StoriesGetStoriesViews(peer InputPeer, id []int32) (*StoriesSto
 
 	resp, ok := responseData.(*StoriesStoryViews)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18223,7 +18761,7 @@ func (c *Client) StoriesGetStoryReactionsList(params *StoriesGetStoryReactionsLi
 
 	resp, ok := responseData.(*StoriesStoryReactionsList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18256,7 +18794,7 @@ func (c *Client) StoriesGetStoryViewsList(params *StoriesGetStoryViewsListParams
 
 	resp, ok := responseData.(*StoriesStoryViewsList)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18282,7 +18820,7 @@ func (c *Client) StoriesIncrementStoryViews(peer InputPeer, id []int32) (bool, e
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18308,7 +18846,33 @@ func (c *Client) StoriesReadStories(peer InputPeer, maxID int32) ([]int32, error
 
 	resp, ok := responseData.([]int32)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type StoriesReorderAlbumsParams struct {
+	Peer  InputPeer
+	Order []int32
+}
+
+func (*StoriesReorderAlbumsParams) CRC() uint32 {
+	return 0x8535fbd9
+}
+
+// Reorder story albums on a profile ».
+func (c *Client) StoriesReorderAlbums(peer InputPeer, order []int32) (bool, error) {
+	responseData, err := c.MakeRequest(&StoriesReorderAlbumsParams{
+		Order: order,
+		Peer:  peer,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending StoriesReorderAlbums")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18338,7 +18902,7 @@ func (c *Client) StoriesReport(peer InputPeer, id []int32, option []byte, messag
 
 	resp, ok := responseData.(ReportResult)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18368,7 +18932,7 @@ func (c *Client) StoriesSearchPosts(params *StoriesSearchPostsParams) (*StoriesF
 
 	resp, ok := responseData.(*StoriesFoundStories)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18402,7 +18966,7 @@ func (c *Client) StoriesSendReaction(addToRecent bool, peer InputPeer, storyID i
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18421,10 +18985,11 @@ type StoriesSendStoryParams struct {
 	Period       int32     `tl:"flag:3"`
 	FwdFromID    InputPeer `tl:"flag:6"`
 	FwdFromStory int32     `tl:"flag:6"`
+	Albums       []int32   `tl:"flag:8"`
 }
 
 func (*StoriesSendStoryParams) CRC() uint32 {
-	return 0xe4e6694b
+	return 0x737fc2ec
 }
 
 func (*StoriesSendStoryParams) FlagIndex() int {
@@ -18440,7 +19005,7 @@ func (c *Client) StoriesSendStory(params *StoriesSendStoryParams) (Updates, erro
 
 	resp, ok := responseData.(Updates)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18462,7 +19027,7 @@ func (c *Client) StoriesToggleAllStoriesHidden(hidden bool) (bool, error) {
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18488,7 +19053,7 @@ func (c *Client) StoriesTogglePeerStoriesHidden(peer InputPeer, hidden bool) (bo
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18516,7 +19081,7 @@ func (c *Client) StoriesTogglePinned(peer InputPeer, id []int32, pinned bool) ([
 
 	resp, ok := responseData.([]int32)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18542,7 +19107,38 @@ func (c *Client) StoriesTogglePinnedToTop(peer InputPeer, id []int32) (bool, err
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type StoriesUpdateAlbumParams struct {
+	Peer          InputPeer
+	AlbumID       int32
+	Title         string  `tl:"flag:0"`
+	DeleteStories []int32 `tl:"flag:1"`
+	AddStories    []int32 `tl:"flag:2"`
+	Order         []int32 `tl:"flag:3"`
+}
+
+func (*StoriesUpdateAlbumParams) CRC() uint32 {
+	return 0x5e5259b6
+}
+
+func (*StoriesUpdateAlbumParams) FlagIndex() int {
+	return 0
+}
+
+// Rename a story albums », or add, delete or reorder stories in it.
+func (c *Client) StoriesUpdateAlbum(params *StoriesUpdateAlbumParams) (*StoryAlbum, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending StoriesUpdateAlbum")
+	}
+
+	resp, ok := responseData.(*StoryAlbum)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18572,7 +19168,7 @@ func (c *Client) UpdatesGetChannelDifference(params *UpdatesGetChannelDifference
 
 	resp, ok := responseData.(UpdatesChannelDifference)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18603,7 +19199,7 @@ func (c *Client) UpdatesGetDifference(params *UpdatesGetDifferenceParams) (Updat
 
 	resp, ok := responseData.(UpdatesDifference)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18623,7 +19219,7 @@ func (c *Client) UpdatesGetState() (*UpdatesState, error) {
 
 	resp, ok := responseData.(*UpdatesState)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18651,7 +19247,7 @@ func (c *Client) UploadGetCdnFile(fileToken []byte, offset int64, limit int32) (
 
 	resp, ok := responseData.(UploadCdnFile)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18677,7 +19273,7 @@ func (c *Client) UploadGetCdnFileHashes(fileToken []byte, offset int64) ([]*File
 
 	resp, ok := responseData.([]*FileHash)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18707,7 +19303,7 @@ func (c *Client) UploadGetFile(params *UploadGetFileParams) (UploadFile, error) 
 
 	resp, ok := responseData.(UploadFile)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18733,7 +19329,7 @@ func (c *Client) UploadGetFileHashes(location InputFileLocation, offset int64) (
 
 	resp, ok := responseData.([]*FileHash)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18761,7 +19357,7 @@ func (c *Client) UploadGetWebFile(location InputWebFileLocation, offset, limit i
 
 	resp, ok := responseData.(*UploadWebFile)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18787,7 +19383,7 @@ func (c *Client) UploadReuploadCdnFile(fileToken, requestToken []byte) ([]*FileH
 
 	resp, ok := responseData.([]*FileHash)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18817,7 +19413,7 @@ func (c *Client) UploadSaveBigFilePart(fileID int64, filePart, fileTotalParts in
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18845,7 +19441,7 @@ func (c *Client) UploadSaveFilePart(fileID int64, filePart int32, bytes []byte) 
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18867,7 +19463,7 @@ func (c *Client) UsersGetFullUser(id InputUser) (*UsersUserFull, error) {
 
 	resp, ok := responseData.(*UsersUserFull)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18880,6 +19476,7 @@ func (*UsersGetRequirementsToContactParams) CRC() uint32 {
 	return 0xd89a83a3
 }
 
+// Check whether we can write to the specified users, used to implement bulk checks for Premium-only messages » and paid messages ».
 func (c *Client) UsersGetRequirementsToContact(id []InputUser) ([]RequirementToContact, error) {
 	responseData, err := c.MakeRequest(&UsersGetRequirementsToContactParams{ID: id})
 	if err != nil {
@@ -18888,7 +19485,63 @@ func (c *Client) UsersGetRequirementsToContact(id []InputUser) ([]RequirementToC
 
 	resp, ok := responseData.([]RequirementToContact)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type UsersGetSavedMusicParams struct {
+	ID     InputUser
+	Offset int32
+	Limit  int32
+	Hash   int64
+}
+
+func (*UsersGetSavedMusicParams) CRC() uint32 {
+	return 0x788d7fe3
+}
+
+// Get songs pinned to the user's profile, see here » for more info.
+func (c *Client) UsersGetSavedMusic(id InputUser, offset, limit int32, hash int64) (UsersSavedMusic, error) {
+	responseData, err := c.MakeRequest(&UsersGetSavedMusicParams{
+		Hash:   hash,
+		ID:     id,
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending UsersGetSavedMusic")
+	}
+
+	resp, ok := responseData.(UsersSavedMusic)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type UsersGetSavedMusicByIDParams struct {
+	ID        InputUser
+	Documents []InputDocument
+}
+
+func (*UsersGetSavedMusicByIDParams) CRC() uint32 {
+	return 0x7573a4e9
+}
+
+// Check if the passed songs are still pinned to the user's profile, or refresh the file references of songs pinned on a user's profile see here » for more info.
+func (c *Client) UsersGetSavedMusicByID(id InputUser, documents []InputDocument) (UsersSavedMusic, error) {
+	responseData, err := c.MakeRequest(&UsersGetSavedMusicByIDParams{
+		Documents: documents,
+		ID:        id,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending UsersGetSavedMusicByID")
+	}
+
+	resp, ok := responseData.(UsersSavedMusic)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18910,20 +19563,7 @@ func (c *Client) UsersGetUsers(id []InputUser) ([]User, error) {
 
 	resp, ok := responseData.([]User)
 	if !ok {
-		if responseData == nil {
-			return nil, errors.New("[USER_ID_INVALID] The user ID is invalid")
-		}
-
-		if _, ok := responseData.([]*UserObj); ok { // Temp Fix till Problem is Identified
-			var users []User = make([]User, len(responseData.([]*UserObj)))
-			for i, user := range responseData.([]*UserObj) {
-				users[i] = user
-			}
-
-			return users, nil
-		}
-
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -18949,7 +19589,32 @@ func (c *Client) UsersSetSecureValueErrors(id InputUser, errorsw []SecureValueEr
 
 	resp, ok := responseData.(bool)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type UsersSuggestBirthdayParams struct {
+	ID       InputUser
+	Birthday *Birthday
+}
+
+func (*UsersSuggestBirthdayParams) CRC() uint32 {
+	return 0xfc533372
+}
+
+func (c *Client) UsersSuggestBirthday(id InputUser, birthday *Birthday) (Updates, error) {
+	responseData, err := c.MakeRequest(&UsersSuggestBirthdayParams{
+		Birthday: birthday,
+		ID:       id,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending UsersSuggestBirthday")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }

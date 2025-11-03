@@ -33,10 +33,11 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 		m.expectedTypes.Add(int(msgID), expectedTypes)
 	}
 
-	// dealing with response channel
 	resp := m.getRespChannel()
 	if isNullableResponse(request) {
-		go func() { resp <- &objects.Null{} }() // goroutine cuz we don't read from it RIGHT NOW
+		go func() {
+			resp <- &objects.Null{}
+		}()
 	} else {
 		m.responseChannels.Add(int(msgID), resp)
 	}
@@ -169,6 +170,11 @@ func (m *MTProto) SetAuthKey(key []byte) {
 }
 
 func (m *MTProto) MakeRequest(msg tl.Object) (any, error) {
+	if m.timeout > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), m.timeout)
+		defer cancel()
+		return m.makeRequestCtx(ctx, msg)
+	}
 	return m.makeRequest(msg)
 }
 

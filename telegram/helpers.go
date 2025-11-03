@@ -2,12 +2,13 @@ package telegram
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math/big"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,12 +52,14 @@ func PathIsWritable(path string) bool {
 	if err != nil {
 		return false
 	}
-	defer file.Close()
+	file.Close()
 	return true
 }
 
 func GenRandInt() int64 {
-	return int64(rand.Int31())
+	b := make([]byte, 4)
+	rand.Read(b)
+	return int64(int32(binary.BigEndian.Uint32(b)))
 }
 
 func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
@@ -602,7 +605,7 @@ mediaTypeSwitch:
 		} else {
 			mediaAttributes := getValueSlice(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}})
 			hasFileName := false
-			mediaAttributes, dur, err := GatherVideoMetadata(getValue(attr.FileAbsPath, fileName), mediaAttributes)
+			mediaAttributes, dur, err := GatherMediaMetadata(getValue(attr.FileAbsPath, fileName), mediaAttributes)
 			if err != nil {
 				c.Log.Debug(errors.Wrap(err, "gathering video metadata"))
 			}
@@ -697,33 +700,110 @@ func convertPoll(poll *MessageMediaPoll) *InputMediaPoll {
 	return newPoll
 }
 
-func GatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttribute, int64, error) {
+func GatherMediaMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttribute, int64, error) {
 	var dur float64
 
 	if !IsFfmpegInstalled() {
-		if strings.HasSuffix(path, "mp4") {
-			if r, err := utils.ParseDuration(path); err == nil {
-				if IsStreamableFile(path) {
+		ext := strings.ToLower(filepath.Ext(path))
 
-					for _, attr := range attrs {
-						if att, ok := attr.(*DocumentAttributeVideo); ok {
-							att.Duration = getValue(att.Duration, float64(r/1000))
-							return attrs, int64(r / 1000), nil
-						}
+		if IsStreamableFile(path) {
+			var width, height int64
+
+			switch ext {
+			case ".mp4", ".m4v", ".mov":
+				if info, err := utils.ParseMP4(path); err == nil {
+					dur = float64(info.Duration) / 1000.0
+					width = int64(info.Width)
+					height = int64(info.Height)
+				}
+			case ".mkv", ".webm":
+				var info *utils.MKVInfo
+				var err error
+				if ext == ".webm" {
+					info, err = utils.ParseWebM(path)
+				} else {
+					info, err = utils.ParseMKV(path)
+				}
+				if err == nil {
+					dur = info.Duration
+					width = int64(info.Width)
+					height = int64(info.Height)
+				}
+			}
+
+			if dur > 0 || width > 0 || height > 0 {
+				for _, attr := range attrs {
+					if att, ok := attr.(*DocumentAttributeVideo); ok {
+						att.W = getValue(att.W, int32(width))
+						att.H = getValue(att.H, int32(height))
+						att.Duration = getValue(att.Duration, dur)
+						return attrs, int64(getValue(att.Duration, float64(dur))), nil
 					}
-
-					attrs = append(attrs, &DocumentAttributeVideo{
-						RoundMessage:      false,
-						SupportsStreaming: true,
-						W:                 512,
-						H:                 512,
-						Duration:          float64(r / 1000),
-					})
 				}
 
-				return attrs, int64(r / 1000), nil
+				attrs = append(attrs, &DocumentAttributeVideo{
+					RoundMessage:      false,
+					SupportsStreaming: true,
+					W:                 int32(width),
+					H:                 int32(height),
+					Duration:          dur,
+				})
 			}
 		}
+
+		if IsAudioFile(path) {
+			var performer, title string
+			var audioDur int64
+
+			switch ext {
+			case ".mp3":
+				if info, err := utils.ParseMP3(path); err == nil {
+					audioDur = info.Duration
+					title = strings.Replace(filepath.Base(path), ext, "", 1)
+					performer = "Unknown"
+				}
+			case ".m4a":
+				if info, err := utils.ParseM4A(path); err == nil {
+					audioDur = info.Duration
+					title = strings.Replace(filepath.Base(path), ext, "", 1)
+					performer = "Unknown"
+				}
+			case ".wav":
+				if info, err := utils.ParseWAV(path); err == nil {
+					audioDur = info.Duration
+					title = strings.Replace(filepath.Base(path), ext, "", 1)
+					performer = "Unknown"
+				}
+			case ".flac":
+				if info, err := utils.ParseFLAC(path); err == nil {
+					audioDur = info.Duration
+					title = strings.Replace(filepath.Base(path), ext, "", 1)
+					performer = "Unknown"
+				}
+			}
+
+			if audioDur > 0 {
+				dur = float64(audioDur) / 1000.0
+
+				for _, attr := range attrs {
+					if att, ok := attr.(*DocumentAttributeAudio); ok {
+						att.Performer = getValue(att.Performer, performer)
+						att.Title = getValue(att.Title, title)
+						att.Duration = getValue(att.Duration, int32(dur))
+						return attrs, int64(getValue(att.Duration, int32(dur))), nil
+					}
+				}
+
+				attrs = append(attrs, &DocumentAttributeAudio{
+					Voice:     false,
+					Performer: performer,
+					Title:     title,
+					Duration:  int32(dur),
+				})
+			}
+		}
+
+		return attrs, int64(dur), nil
 	}
 
 	if IsStreamableFile(path) {
@@ -780,7 +860,6 @@ func GatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 		var (
 			performer string
 			title     string
-			//	waveform  []byte
 		)
 
 		cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format_tags=artist,title", "-of", "json", path)
@@ -823,6 +902,12 @@ func GatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 				att.Performer = getValue(att.Performer, performer)
 				att.Title = getValue(att.Title, title)
 				att.Duration = getValue(att.Duration, int32(dur))
+				if att.Voice {
+					wave, err := GenerateWaveformWithFFmpeg(path)
+					if err == nil {
+						att.Waveform = wave
+					}
+				}
 				return attrs, int64(getValue(att.Duration, int32(dur))), nil
 			}
 		}
@@ -836,6 +921,87 @@ func GatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 	}
 
 	return attrs, int64(dur), nil
+}
+
+func GenerateWaveformWithFFmpeg(filename string) ([]byte, error) {
+	cmd := exec.Command("ffmpeg",
+		"-i", filename,
+		"-f", "s16le",
+		"-ac", "1",
+		"-ar", "16000",
+		"-",
+	)
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+
+	samples := make([]int16, out.Len()/2)
+	if err := binary.Read(&out, binary.LittleEndian, &samples); err != nil {
+		return nil, err
+	}
+
+	waveform := generateWaveformData(samples, 100)
+	return packWaveform(waveform), nil
+}
+
+func generateWaveformData(samples []int16, bars int) []byte {
+	if len(samples) == 0 {
+		return make([]byte, bars)
+	}
+
+	samplesPerBar := max(len(samples)/bars, 1)
+
+	waveform := make([]byte, bars)
+
+	for i := range bars {
+		start := i * samplesPerBar
+		end := min(start+samplesPerBar, len(samples))
+
+		maxAmplitude := int16(0)
+		for j := start; j < end; j++ {
+			abs := samples[j]
+			if abs < 0 {
+				abs = -abs
+			}
+			if abs > maxAmplitude {
+				maxAmplitude = abs
+			}
+		}
+
+		normalized := min(int(float64(maxAmplitude)/32768.0*31.0), 31)
+		waveform[i] = byte(normalized)
+	}
+
+	return waveform
+}
+
+func packWaveform(waveform []byte) []byte {
+	bitPos := 0
+	bytePos := 0
+	result := make([]byte, (len(waveform)*5+7)/8)
+
+	for _, val := range waveform {
+		val &= 0x1F
+
+		for bitsLeft := 5; bitsLeft > 0; {
+			bitsInByte := min(8-(bitPos%8), bitsLeft)
+
+			result[bytePos] |= byte((val >> (bitsLeft - bitsInByte)) << (8 - (bitPos % 8) - bitsInByte))
+
+			bitPos += bitsInByte
+			bitsLeft -= bitsInByte
+
+			if bitPos%8 == 0 {
+				bytePos++
+			}
+		}
+	}
+
+	return result
 }
 
 func IsStreamable(mimeType string) bool {
@@ -892,7 +1058,13 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 		if duration <= 10 {
 			return (duration / 2) + 1
 		} else {
-			return int64(rand.Int31n(int32(duration)/2) + 1)
+			b := make([]byte, 4)
+			rand.Read(b)
+			n := int32(binary.BigEndian.Uint32(b))
+			if n < 0 {
+				n = -n
+			}
+			return int64(n%(int32(duration)/2) + 1)
 		}
 	}
 
@@ -1070,6 +1242,26 @@ func packDeleteMessage(c *Client, delete Update) *DeleteMessage {
 
 	deleteMessage.Client = c
 	return deleteMessage
+}
+
+func packJoinRequest(c *Client, update *UpdatePendingJoinRequests) *JoinRequestUpdate {
+	var (
+		jr = &JoinRequestUpdate{}
+	)
+	jr.Client = c
+	jr.OriginalUpdate = update
+	jr.Channel, _ = c.GetChannel(c.GetPeerID(update.Peer))
+
+	for _, userID := range update.RecentRequesters {
+		if user, err := c.GetUser(userID); err == nil {
+			jr.Users = append(jr.Users, user)
+		} else {
+			c.Log.Debug(errors.Wrapf(err, "getting user %d for join request", userID))
+		}
+	}
+
+	jr.PendingCount = update.RequestsPending
+	return jr
 }
 
 func packInlineQuery(c *Client, query *UpdateBotInlineQuery) *InlineQuery {

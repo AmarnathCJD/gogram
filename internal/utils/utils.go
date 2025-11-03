@@ -5,14 +5,16 @@ package utils
 import (
 	cr "crypto/rand"
 	"crypto/sha1"
+	"encoding/binary"
 	"fmt"
 	"maps"
-	"math/rand"
 	"os"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
 // ------------------ Telegram Data Center Configs ------------------
@@ -246,8 +248,9 @@ func AuthKeyHash(key []byte) []byte {
 }
 
 func GenerateSessionID() int64 {
-	source := rand.NewSource(time.Now().UnixNano())
-	return rand.New(source).Int63()
+	b := make([]byte, 8)
+	_, _ = cr.Read(b)
+	return int64(binary.BigEndian.Uint64(b))
 }
 
 func FullStack() {
@@ -287,4 +290,11 @@ func AskForConfirmation() bool {
 	var response string
 	_, _ = fmt.Scanln(&response)
 	return response == "y" || response == "Y"
+}
+
+func FmtMethod(data tl.Object) string {
+	if data == nil {
+		return "nil"
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(fmt.Sprintf("%T", data), "*telegram."), "Params")
 }

@@ -98,7 +98,7 @@ If you'd like to support Gogram, you can consider:
   <li><strong>up-to-date</strong>: 🔄 gogram is always in sync with the latest telegram api changes and additions (<code>tl-parser</code> is used to generate the api layer).</li>
 </ul>
 
-#### Current Layer - **210** (Updated on 2025-07-21)
+#### Current Layer - **216** (Updated on 2025-10-07)
 
 ## doing stuff
 
@@ -187,7 +187,7 @@ For more examples, check the **[examples](examples)** directory.
 
 - [x] ~ file download, is cpu intensive
 - [x] ~ open issues if found :)
-- [ ] ~ enhance peer caching.
+- [x] ~ enhance peer caching (Fixed: improved locking, username persistence, debounced writes, min entity handling)
 
 ## contributing
 

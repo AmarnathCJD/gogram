@@ -128,7 +128,7 @@ func (c *Client) LeaveChannel(Channel any, Revoke ...bool) error {
 			return err
 		}
 	} else if chat, ok := channel.(*InputPeerChat); ok {
-		_, err = c.MessagesDeleteChatUser(revokeChat, chat.ChatID, &InputUserEmpty{})
+		_, err = c.MessagesDeleteChatUser(revokeChat, chat.ChatID, &InputUserSelf{})
 		if err != nil {
 			return err
 		}

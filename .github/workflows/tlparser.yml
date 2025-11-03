@@ -1,5 +1,4 @@
 name: Go TL Parser
-runs-on: self-hosted
 
 on:
   push:

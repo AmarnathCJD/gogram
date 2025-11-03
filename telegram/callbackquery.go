@@ -128,6 +128,33 @@ func (b *CallbackQuery) Delete() (*MessagesAffectedMessages, error) {
 	return b.Client.DeleteMessages(b.Peer, []int32{b.MessageID})
 }
 
+// Conv starts a new conversation with the user
+func (b *CallbackQuery) Conv(timeout ...int32) (*Conversation, error) {
+	return b.Client.NewConversation(b.Peer, b.IsPrivate(), timeout...)
+}
+
+// Ask starts new conversation with the user
+func (b *CallbackQuery) Ask(Text any, Opts ...*SendOptions) (*NewMessage, error) {
+	var opt = getVariadic(Opts, &SendOptions{})
+	if opt.Timeouts == 0 {
+		opt.Timeouts = 120 // default timeout
+	}
+
+	conv, err := b.Conv(opt.Timeouts)
+	if err != nil {
+		return nil, err
+	}
+
+	defer conv.Close()
+
+	_, err = conv.Respond(Text, Opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return conv.GetResponse()
+}
+
 func (b *CallbackQuery) Reply(Text any, options ...*SendOptions) (*NewMessage, error) {
 	var opts SendOptions
 	if len(options) > 0 {
@@ -137,7 +164,7 @@ func (b *CallbackQuery) Reply(Text any, options ...*SendOptions) (*NewMessage, e
 	if err != nil {
 		return nil, err
 	}
-	opts.ReplyID = msg.ReplyToMsgID()
+	opts.ReplyID = msg.ID
 	return b.Client.SendMessage(b.Peer, Text, &opts)
 }
 
