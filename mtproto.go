@@ -85,10 +85,15 @@ type MTProto struct {
 	serverRequestHandlers []func(i any) bool
 	floodHandler          func(err error) bool
 	errorHandler          func(err error)
+	connectionHandler     func(err error) error
 	exported              bool
 	cdn                   bool
 	terminated            atomic.Bool
 	timeout               time.Duration
+
+	reconnectAttempts int
+	reconnectMutex    sync.Mutex
+	maxReconnectDelay time.Duration
 }
 
 type Config struct {
@@ -99,9 +104,10 @@ type Config struct {
 	MemorySession  bool
 	AppID          int32
 
-	FloodHandler func(err error) bool
-	ErrorHandler func(err error)
-	ReqTimeout   time.Duration
+	FloodHandler      func(err error) bool
+	ErrorHandler      func(err error)
+	ConnectionHandler func(err error) error
+	ReqTimeout        time.Duration
 
 	ServerHost string
 	PublicKey  *rsa.PublicKey
@@ -168,6 +174,8 @@ func NewMTProto(c Config) (*MTProto, error) {
 		tcpState:              NewTcpState(),
 		DcList:                utils.NewDCOptions(),
 		timeout:               c.Timeout,
+		reconnectAttempts:     0,
+		maxReconnectDelay:     15 * time.Minute,
 	}
 
 	mtproto.Logger.Debug("initializing mtproto...")
@@ -189,6 +197,10 @@ func NewMTProto(c Config) (*MTProto, error) {
 
 	if c.ErrorHandler != nil {
 		mtproto.errorHandler = c.ErrorHandler
+	}
+
+	if c.ConnectionHandler != nil {
+		mtproto.connectionHandler = c.ConnectionHandler
 	}
 
 	return mtproto, nil
@@ -379,6 +391,56 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 	return sender, nil
 }
 
+func (m *MTProto) connectWithRetry(ctx context.Context) error {
+	m.reconnectMutex.Lock()
+	defer m.reconnectMutex.Unlock()
+
+	err := m.connect(ctx)
+	if err == nil {
+		m.reconnectAttempts = 0
+		return nil
+	}
+
+	if m.connectionHandler != nil {
+		m.Logger.Debug("using custom connection handler for reconnection")
+		return m.connectionHandler(err)
+	}
+
+	maxAttempts := 999999
+	baseDelay := 2 * time.Second
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		err := m.connect(ctx)
+		if err == nil {
+			if attempt > 0 {
+				m.Logger.Info(fmt.Sprintf("successfully reconnected after %d attempts", attempt+1))
+			}
+			m.reconnectAttempts = 0
+			return nil
+		}
+
+		if m.terminated.Load() {
+			return errors.New("mtproto terminated during reconnection")
+		}
+
+		delay := time.Duration(1<<uint(attempt)) * baseDelay
+		if delay > m.maxReconnectDelay {
+			delay = m.maxReconnectDelay
+		}
+
+		m.Logger.Info(fmt.Sprintf("%v, retrying in %v...", err, delay))
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(delay):
+			continue
+		}
+	}
+
+	return errors.New("max reconnection attempts reached")
+}
+
 func (m *MTProto) CreateConnection(withLog bool) error {
 	if m.terminated.Load() {
 		return errors.New("mtproto is terminated, cannot create connection")
@@ -392,7 +454,8 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	} else {
 		m.Logger.Debug(fmt.Sprintf("connecting to [%s] - <%s> ...", utils.FmtIp(m.Addr), utils.Vtcp(m.IpV6)))
 	}
-	err := m.connect(ctx)
+
+	err := m.connectWithRetry(ctx)
 	if err != nil {
 		m.Logger.Error(errors.Wrap(err, "creating connection"))
 		return err
@@ -482,7 +545,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 
 	select {
 	case <-ctx.Done():
-		m.responseChannels.Delete(int(msgId))
+		go m.writeRPCResponse(int(msgId), &objects.Null{})
 		return nil, ctx.Err()
 	case response := <-resp:
 		switch r := response.(type) {
@@ -558,10 +621,14 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		m.Logger.Info(fmt.Sprintf("reconnecting to [%s] - <Tcp> ...", m.Addr))
 	}
 	err = m.CreateConnection(WithLogs)
-	if err == nil && WithLogs {
-		m.Logger.Info(fmt.Sprintf("reconnected to [%s] - <Tcp>", m.Addr))
+	if err == nil {
+		if WithLogs {
+			m.Logger.Info(fmt.Sprintf("reconnected to [%s] - <Tcp>", m.Addr))
+		}
+		if m.transport != nil {
+			m.Ping()
+		}
 	}
-	m.Ping()
 
 	return errors.Wrap(err, "recreating connection")
 }
@@ -587,6 +654,10 @@ func (m *MTProto) longPing(ctx context.Context) {
 }
 
 func (m *MTProto) Ping() time.Duration {
+	if m.transport == nil || !m.IsTcpActive() {
+		m.Logger.Debug("skipping ping: transport not available")
+		return 0
+	}
 	start := time.Now()
 	m.Logger.Debug("rpc - pinging server ...")
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
