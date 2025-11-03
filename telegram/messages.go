@@ -2,8 +2,9 @@ package telegram
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"reflect"
 	"time"
 
@@ -222,6 +223,10 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	if Message == "" {
+		Message = " "
+	}
+
 	result, err := c.MakeRequestCtx(ctx, &MessagesEditMessageParams{
 		Peer:         Peer,
 		ID:           id,
@@ -309,7 +314,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 				return nil, err
 			}
 
-			c.exSenders.senders[int(dcID)] = append(c.exSenders.senders[int(dcID)], &ExSender{senderNew, time.Now()})
+			c.exSenders.senders[int(dcID)] = append(c.exSenders.senders[int(dcID)], NewExSender(senderNew))
 			sender = senderNew
 		}
 	}
@@ -590,6 +595,7 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 		ClearDraft:             opt.ClearDraft,
 		Noforwards:             opt.NoForwards,
 		UpdateStickersetsOrder: false,
+		InvertMedia:            opt.InvertMedia,
 		Peer:                   Peer,
 		ReplyTo:                replyTo,
 		ScheduleDate:           opt.ScheduleDate,
@@ -902,7 +908,9 @@ func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*Forwar
 	}
 	randomIDs := make([]int64, len(msgIDs))
 	for i := range randomIDs {
-		randomIDs[i] = rand.Int63()
+		b := make([]byte, 8)
+		rand.Read(b)
+		randomIDs[i] = int64(binary.BigEndian.Uint64(b))
 	}
 	var sendAs InputPeer
 	if opt.SendAs != nil {

@@ -39,9 +39,12 @@ type clientData struct {
 	systemVersion    string
 	appVersion       string
 	langCode         string
+	systemLangCode   string
+	langPack         string
 	parseMode        string
 	logLevel         utils.LogLevel
 	sleepThresholdMs int
+	albumWaitTime    int64
 	botAcc           bool
 	me               *UserObj
 }
@@ -60,10 +63,12 @@ type Client struct {
 }
 
 type DeviceConfig struct {
-	DeviceModel   string // The device model to use
-	SystemVersion string // The version of the system
-	AppVersion    string // The version of the app
-	LangCode      string // The language code
+	DeviceModel    string // The device model to use
+	SystemVersion  string // The version of the system
+	AppVersion     string // The version of the app
+	LangCode       string // The language code
+	SystemLangCode string // The system language code
+	LangPack       string // The language pack
 }
 
 type ClientConfig struct {
@@ -85,14 +90,18 @@ type ClientConfig struct {
 	LogLevel         utils.LogLevel       // The library log level
 	Logger           *utils.Logger        // The logger to use
 	Proxy            *url.URL             // The proxy to use (SOCKS5, HTTP)
+	LocalAddr        string               // Local address binding for multi-interface support (IP:port)
 	ForceIPv6        bool                 // Force to use IPv6
 	NoPreconnect     bool                 // Don't preconnect to the DC until Connect() is called
 	Cache            *CACHE               // The cache to use
 	CacheSenders     bool                 // cache the exported file op sender
 	TransportMode    string               // The transport mode to use (Abridged, Intermediate, Full)
 	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
+	AlbumWaitTime    int64                // The time to wait for album messages (in milliseconds)
 	FloodHandler     func(err error) bool // The flood handler to use
 	ErrorHandler     func(err error)      // The error handler to use
+	Timeout          time.Duration        // Tcp connection timeout (default: 60s)
+	ReqTimeout       time.Duration        // Rpc request timeout (default: 60s)
 }
 
 type Session struct {
@@ -182,11 +191,14 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 			NoColor(!c.Log.Color()),
 		StringSession: config.StringSession,
 		Proxy:         config.Proxy,
+		LocalAddr:     config.LocalAddr,
 		MemorySession: config.MemorySession,
 		Ipv6:          config.ForceIPv6,
 		CustomHost:    customHost,
 		FloodHandler:  config.FloodHandler,
 		ErrorHandler:  config.ErrorHandler,
+		Timeout:       config.Timeout,
+		ReqTimeout:    config.ReqTimeout,
 	})
 	if err != nil {
 		return errors.Wrap(err, "creating mtproto client")
@@ -259,9 +271,12 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.systemVersion = getValue(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH)
 	c.clientData.appVersion = getValue(cnf.DeviceConfig.AppVersion, Version)
 	c.clientData.langCode = getValue(cnf.DeviceConfig.LangCode, "en")
+	c.clientData.systemLangCode = getValue(cnf.DeviceConfig.SystemLangCode, c.clientData.langCode) // backward compatibility
+	c.clientData.langPack = cnf.DeviceConfig.LangPack
 	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
 	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
 	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
+	c.clientData.albumWaitTime = getValue(cnf.AlbumWaitTime, 600)
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
@@ -270,7 +285,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	}
 }
 
-// initialRequest sends the initial initConnection request
+// InitialRequest sends the initial initConnection request
 func (c *Client) InitialRequest() error {
 	c.Log.Debug("sending initial invokeWithLayer request")
 	serverConfig, err := c.InvokeWithLayer(ApiVersion, &InitConnectionParams{
@@ -278,8 +293,9 @@ func (c *Client) InitialRequest() error {
 		DeviceModel:    c.clientData.deviceModel,
 		SystemVersion:  c.clientData.systemVersion,
 		AppVersion:     c.clientData.appVersion,
-		SystemLangCode: c.clientData.langCode,
+		SystemLangCode: c.clientData.systemLangCode,
 		LangCode:       c.clientData.langCode,
+		LangPack:       c.clientData.langPack,
 		Query:          &HelpGetConfigParams{},
 	})
 
@@ -315,8 +331,6 @@ func (c *Client) InitialRequest() error {
 
 // Establish connection to telegram servers
 func (c *Client) Connect() error {
-	defer c.GetMe()
-
 	if c.IsConnected() {
 		return nil
 	}
@@ -327,8 +341,15 @@ func (c *Client) Connect() error {
 	if err != nil {
 		return errors.Wrap(err, "connecting to telegram servers")
 	}
+
 	// Initial request (invokeWithLayer) must be sent after connection is established
-	return c.InitialRequest()
+	err = c.InitialRequest()
+	if err != nil {
+		return errors.Wrap(err, "sending initial request")
+	}
+
+	_, _ = c.GetMe()
+	return err
 }
 
 // Wrapper for Connect()
@@ -423,16 +444,32 @@ type ExSenders struct {
 	sync.Mutex
 	senders     map[int][]*ExSender
 	cleanupDone chan struct{}
+	closeOnce   sync.Once
 }
 
 type ExSender struct {
 	*mtproto.MTProto
-	lastUsed time.Time
+	lastUsed   time.Time
+	lastUsedMu sync.Mutex
+}
+
+func NewExSender(mtProto *mtproto.MTProto) *ExSender {
+	return &ExSender{
+		MTProto:  mtProto,
+		lastUsed: time.Now(),
+	}
+}
+
+func (es *ExSender) GetLastUsedTime() time.Time {
+	es.lastUsedMu.Lock()
+	defer es.lastUsedMu.Unlock()
+	return es.lastUsed
 }
 
 func NewExSenders() *ExSenders {
 	es := &ExSenders{
-		senders: make(map[int][]*ExSender),
+		senders:     make(map[int][]*ExSender),
+		cleanupDone: make(chan struct{}),
 	}
 	go es.cleanupLoop()
 	return es
@@ -440,7 +477,6 @@ func NewExSenders() *ExSenders {
 
 func (es *ExSenders) cleanupLoop() {
 	ticker := time.NewTicker(30 * time.Minute)
-	es.cleanupDone = make(chan struct{})
 	defer ticker.Stop()
 
 	for {
@@ -459,7 +495,7 @@ func (es *ExSenders) cleanupIdleSenders() {
 
 	for _, senders := range es.senders {
 		for i, sender := range senders {
-			if time.Since(sender.lastUsed) > 30*time.Minute {
+			if time.Since(sender.GetLastUsedTime()) > 30*time.Minute {
 				sender.Terminate()
 				senders[i] = nil
 			}
@@ -479,7 +515,9 @@ func (es *ExSenders) cleanupIdleSenders() {
 }
 
 func (es *ExSenders) Close() {
-	close(es.cleanupDone)
+	es.closeOnce.Do(func() {
+		close(es.cleanupDone)
+	})
 }
 
 // CreateExportedSender creates a new exported sender for the given DC
@@ -520,8 +558,9 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 			DeviceModel:    c.clientData.deviceModel,
 			SystemVersion:  c.clientData.systemVersion,
 			AppVersion:     c.clientData.appVersion,
-			SystemLangCode: c.clientData.langCode,
+			SystemLangCode: c.clientData.systemLangCode,
 			LangCode:       c.clientData.langCode,
+			LangPack:       c.clientData.langPack,
 			Query:          &HelpGetConfigParams{},
 		}
 
@@ -555,12 +594,11 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 
 		c.Log.Debug("sending initial request...")
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
 		_, err = exported.MakeRequestCtx(ctx, &InvokeWithLayerParams{
 			Layer: ApiVersion,
 			Query: initialReq,
 		})
+		cancel()
 		c.Log.Debug(fmt.Sprintf("initial request for exported sender %d sent", dcID))
 
 		if err != nil {
@@ -829,12 +867,14 @@ func NewClientConfigBuilder(appID int32, appHash string) *ClientConfigBuilder {
 	}
 }
 
-func (b *ClientConfigBuilder) WithDeviceConfig(deviceModel, systemVersion, appVersion, langCode string) *ClientConfigBuilder {
+func (b *ClientConfigBuilder) WithDeviceConfig(deviceModel, systemVersion, appVersion, langCode, sysLangCode, langPack string) *ClientConfigBuilder {
 	b.config.DeviceConfig = DeviceConfig{
-		DeviceModel:   deviceModel,
-		SystemVersion: systemVersion,
-		AppVersion:    appVersion,
-		LangCode:      langCode,
+		DeviceModel:    deviceModel,
+		SystemVersion:  systemVersion,
+		AppVersion:     appVersion,
+		LangCode:       langCode,
+		SystemLangCode: sysLangCode,
+		LangPack:       langPack,
 	}
 	return b
 }
@@ -864,6 +904,11 @@ func (b *ClientConfigBuilder) WithDataCenter(dc int) *ClientConfigBuilder {
 
 func (b *ClientConfigBuilder) WithProxy(proxyURL *url.URL) *ClientConfigBuilder {
 	b.config.Proxy = proxyURL
+	return b
+}
+
+func (b *ClientConfigBuilder) WithLocalAddr(localAddr string) *ClientConfigBuilder {
+	b.config.LocalAddr = localAddr
 	return b
 }
 
@@ -939,6 +984,16 @@ func (b *ClientConfigBuilder) WithTransportMode(mode string) *ClientConfigBuilde
 
 func (b *ClientConfigBuilder) WithLogger(logger *utils.Logger) *ClientConfigBuilder {
 	b.config.Logger = logger
+	return b
+}
+
+func (b *ClientConfigBuilder) WithTimeout(timeout time.Duration) *ClientConfigBuilder {
+	b.config.Timeout = timeout
+	return b
+}
+
+func (b *ClientConfigBuilder) WithReqTimeout(reqTimeout time.Duration) *ClientConfigBuilder {
+	b.config.ReqTimeout = reqTimeout
 	return b
 }
 

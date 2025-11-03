@@ -188,12 +188,12 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 				if err == nil {
 					id := u.Query().Get("id")
 					if id != "" {
-						userID, _ := strconv.ParseInt(id, 10, 64)
-						if userID != 0 {
-							entities = append(entities, &MessageEntityMentionName{
+						userID, err := strconv.ParseInt(id, 10, 64)
+						if err == nil {
+							entities = append(entities, &InputMessageEntityMentionName{
 								Offset: tag.Offset,
 								Length: tag.Length,
-								UserID: userID,
+								UserID: &InputUserObj{UserID: userID, AccessHash: 0},
 							})
 						}
 					}
@@ -203,17 +203,17 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 				if err == nil {
 					id := u.Query().Get("id")
 					if id != "" {
-						emojiID, _ := strconv.ParseInt(id, 10, 64)
-						if emojiID != 0 {
+						emojiID, err := strconv.ParseInt(id, 10, 64)
+						if err == nil {
 							entities = append(entities, &MessageEntityCustomEmoji{
-								Offset: tag.Offset,
-								Length: tag.Length,
+								Offset:     tag.Offset,
+								Length:     tag.Length,
 								DocumentID: emojiID,
 							})
 						}
 					}
 				}
-				
+
 			case tag.Attrs["href"] == "":
 				entities = append(entities, &MessageEntityURL{tag.Offset, tag.Length})
 			default:

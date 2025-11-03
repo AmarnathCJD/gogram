@@ -29,7 +29,7 @@ func (c *Client) NewConversation(peer any, isPrivate bool, timeout ...int32) (*C
 		Peer:            peerID,
 		isPrivate:       isPrivate,
 		timeout:         getVariadic(timeout, defaultConversationTimeout),
-		stopPropagation: false,
+		stopPropagation: true,
 	}, nil
 }
 

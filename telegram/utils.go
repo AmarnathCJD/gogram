@@ -3,10 +3,10 @@
 package telegram
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,6 +20,20 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/pkg/errors"
 )
+
+// cryptoRandIntn returns a random int in [0, n) using crypto/rand
+func cryptoRandIntn(n int) int {
+	if n <= 0 {
+		return 0
+	}
+	b := make([]byte, 4)
+	rand.Read(b)
+	val := int(binary.BigEndian.Uint32(b))
+	if val < 0 {
+		val = -val
+	}
+	return val % n
+}
 
 type mimeTypeManager struct {
 	mimeTypes map[string]string
@@ -381,11 +395,11 @@ func GetFileName(f any, video ...bool) string {
 					name = attr.Title + ".mp3"
 				}
 			case *DocumentAttributeVideo:
-				name = fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+				name = fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 			case *DocumentAttributeAnimated:
-				name = fmt.Sprintf("animation_%s_%d.gif", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+				name = fmt.Sprintf("animation_%s_%d.gif", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 			case *DocumentAttributeSticker:
-				return fmt.Sprintf("sticker_%s_%d.webp", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+				return fmt.Sprintf("sticker_%s_%d.webp", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 			}
 		}
 		if name != "" {
@@ -393,9 +407,9 @@ func GetFileName(f any, video ...bool) string {
 		}
 
 		if doc.MimeType != "" {
-			return fmt.Sprintf("file_%s_%d%s", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000), MimeTypes.Ext(doc.MimeType))
+			return fmt.Sprintf("file_%s_%d%s", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000), MimeTypes.Ext(doc.MimeType))
 		}
-		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	}
 
 	switch f := f.(type) {
@@ -403,24 +417,24 @@ func GetFileName(f any, video ...bool) string {
 		return getDocName(f.Document.(*DocumentObj))
 	case *MessageMediaPhoto:
 		if isVid {
-			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 		}
-		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	case *MessageMediaContact:
-		return fmt.Sprintf("contact_%s_%d.vcf", f.FirstName, rand.Intn(1000))
+		return fmt.Sprintf("contact_%s_%d.vcf", f.FirstName, cryptoRandIntn(1000))
 	case *DocumentObj:
 		return getDocName(f)
 	case *PhotoObj:
 		if isVid {
-			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 		}
-		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	case *InputPeerPhotoFileLocation:
-		return fmt.Sprintf("profile_photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		return fmt.Sprintf("profile_photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	case *InputPhotoFileLocation:
-		return fmt.Sprintf("photo_file_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		return fmt.Sprintf("photo_file_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	default:
-		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	}
 }
 
@@ -501,7 +515,9 @@ func getFileExt(f any) string {
 }
 
 func GenerateRandomLong() int64 {
-	return int64(rand.Int31())<<32 | int64(rand.Int31())
+	b := make([]byte, 8)
+	rand.Read(b)
+	return int64(binary.BigEndian.Uint64(b))
 }
 
 func getPeerUser(userID int64) *PeerUser {
@@ -608,11 +624,12 @@ func SizetoHuman(size int64) string {
 	}
 }
 
-// PackBotFileID packs a file object to a file-id
+// PackBotFileID packs a file object to a file-id, including file size (if available)
 func PackBotFileID(file any) string {
 	var (
 		fID, accessHash int64
 		fileType, dcID  int32
+		fileSize        int64
 	)
 
 switchFileType:
@@ -622,6 +639,7 @@ switchFileType:
 		accessHash = f.AccessHash
 		fileType = 5
 		dcID = f.DcID
+		fileSize = f.Size
 		for _, attr := range f.Attributes {
 			switch attr := attr.(type) {
 			case *DocumentAttributeAudio:
@@ -651,6 +669,7 @@ switchFileType:
 		accessHash = f.AccessHash
 		fileType = 2
 		dcID = f.DcID
+		fileSize = 0
 	case *MessageMediaDocument:
 		file = f.Document
 		goto switchFileType
@@ -665,18 +684,37 @@ switchFileType:
 		return ""
 	}
 
+	if fileSize > 0 {
+		buf := make([]byte, 4+8+8+8)
+		binary.LittleEndian.PutUint32(buf[0:], uint32(fileType)|uint32(dcID)<<24)
+		binary.LittleEndian.PutUint64(buf[4:], uint64(fID))
+		binary.LittleEndian.PutUint64(buf[12:], uint64(accessHash))
+		binary.LittleEndian.PutUint64(buf[20:], uint64(fileSize))
+		return base64.RawURLEncoding.EncodeToString(buf)
+	}
+
 	buf := make([]byte, 4+8+8)
 	binary.LittleEndian.PutUint32(buf[0:], uint32(fileType)|uint32(dcID)<<24)
 	binary.LittleEndian.PutUint64(buf[4:], uint64(fID))
-	binary.LittleEndian.PutUint64(buf[4+8:], uint64(accessHash))
+	binary.LittleEndian.PutUint64(buf[12:], uint64(accessHash))
 	return base64.RawURLEncoding.EncodeToString(buf)
 }
 
-// UnpackBotFileID unpacks a file id to its components
-func UnpackBotFileID(fileID string) (int64, int64, int32, int32) {
+// UnpackBotFileID unpacks a file id to its components, including file size if present
+func UnpackBotFileID(fileID string) (int64, int64, int32, int32, int64) {
 	data, err := base64.RawURLEncoding.DecodeString(fileID)
 	if err != nil {
-		return 0, 0, 0, 0
+		return 0, 0, 0, 0, 0
+	}
+
+	if len(data) == 28 {
+		tmp := binary.LittleEndian.Uint32(data[0:])
+		fileType := int32(tmp & 0x00FFFFFF)
+		dcID := int32((tmp >> 24) & 0xFF)
+		fID := int64(binary.LittleEndian.Uint64(data[4:]))
+		accessHash := int64(binary.LittleEndian.Uint64(data[12:]))
+		fileSize := int64(binary.LittleEndian.Uint64(data[20:]))
+		return fID, accessHash, fileType, dcID, fileSize
 	}
 
 	if len(data) == 20 {
@@ -684,25 +722,28 @@ func UnpackBotFileID(fileID string) (int64, int64, int32, int32) {
 		fileType := int32(tmp & 0x00FFFFFF)
 		dcID := int32((tmp >> 24) & 0xFF)
 		fID := int64(binary.LittleEndian.Uint64(data[4:]))
-		accessHash := int64(binary.LittleEndian.Uint64(data[4+8:]))
-		return fID, accessHash, fileType, dcID
+		accessHash := int64(binary.LittleEndian.Uint64(data[12:]))
+		return fID, accessHash, fileType, dcID, 0
 	}
 
-	// Compatibility with old file ids
-	if parts := strings.SplitN(string(data), "_", 4); len(parts) == 4 {
+	if parts := strings.SplitN(string(data), "_", 5); len(parts) >= 4 {
 		fileType, _ := strconv.Atoi(parts[0])
 		dcID, _ := strconv.Atoi(parts[1])
 		fID, _ := strconv.ParseInt(parts[2], 10, 64)
 		accessHash, _ := strconv.ParseInt(parts[3], 10, 64)
-		return fID, accessHash, int32(fileType), int32(dcID)
+		fileSize := int64(0)
+		if len(parts) == 5 {
+			fileSize, _ = strconv.ParseInt(parts[4], 10, 64)
+		}
+		return fID, accessHash, int32(fileType), int32(dcID), fileSize
 	}
 
-	return 0, 0, 0, 0
+	return 0, 0, 0, 0, 0
 }
 
 // ResolveBotFileID resolves a file id to a MessageMedia object
 func ResolveBotFileID(fileId string) (MessageMedia, error) {
-	fID, accessHash, fileType, dcID := UnpackBotFileID(fileId)
+	fID, accessHash, fileType, dcID, fileSize := UnpackBotFileID(fileId)
 	if fID == 0 || accessHash == 0 || fileType == 0 || dcID == 0 {
 		return nil, errors.New("failed to resolve file id: unrecognized format")
 	}
@@ -742,6 +783,7 @@ func ResolveBotFileID(fileId string) (MessageMedia, error) {
 				ID:         fID,
 				AccessHash: accessHash,
 				DcID:       dcID,
+				Size:       fileSize,
 				Attributes: attributes,
 			},
 		}, nil
