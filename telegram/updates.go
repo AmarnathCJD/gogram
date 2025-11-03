@@ -1921,6 +1921,7 @@ type ev any
 var (
 	OnMessage        ev = "message"
 	OnCommand        ev = "command"
+	OnCommandShort   ev = "cmd"
 	OnEdit           ev = "edit"
 	OnDelete         ev = "delete"
 	OnAlbum          ev = "album"
@@ -1957,7 +1958,7 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 		} else {
 			c.Log.Error("invalid handler signature - ", reflect.TypeOf(handler), " Expected: func(m *NewMessage) error")
 		}
-	case OnCommand, "cmd":
+	case OnCommand, OnCommandShort:
 		if h, ok := handler.(func(m *NewMessage) error); ok {
 			if args != "" {
 				return c.AddMessageHandler("cmd:"+args, h, filters...)
