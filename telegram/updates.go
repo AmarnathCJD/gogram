@@ -1017,7 +1017,7 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 
 		if after, ok := strings.CutPrefix(Pattern, "cmd:"); ok {
 			//(?i)^[!/-?]ping(?: |$|@botusername)(.*)$
-			Pattern = "(?i)^[!\\/?]" + after
+			Pattern = "(?i)^[!\\/?.]" + after
 			if me := c.Me(); me != nil && me.Username != "" && me.Bot {
 				Pattern += "(?: |$|@" + me.Username + ")(.*)"
 			} else {
