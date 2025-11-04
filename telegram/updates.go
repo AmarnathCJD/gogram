@@ -481,7 +481,7 @@ func removeHandleFromMap[T any](handle T, handlesMap map[string][]T) {
 func (c *Client) handleMessageUpdate(update Message, pts ...int32) {
 	if len(pts) > 0 {
 		if pts[0] == -1 {
-			fetchUpdates(c)
+			c.FetchCommonDifference(c.dispatcher.GetPts(), 5000)
 			return
 		} else {
 			if !c.managePts(pts[0], pts[1]) {
@@ -1484,7 +1484,6 @@ UpdateTypeSwitching:
 	return true
 }
 
-// Helper function to extract channel ID from message
 func getChannelIDFromMessage(msg Message) int64 {
 	if m, ok := msg.(*MessageObj); ok {
 		if peer, ok := m.PeerID.(*PeerChannel); ok {
@@ -1494,12 +1493,6 @@ func getChannelIDFromMessage(msg Message) int64 {
 	return 0
 }
 
-func fetchUpdates(c *Client) {
-	c.FetchCommonDifference(c.dispatcher.GetPts(), 5000)
-}
-
-// FetchCommonDifference fetches updates difference for common/secret state
-// Use limit 1000-10000 as recommended
 func (c *Client) FetchCommonDifference(fromPts int32, limit int32) {
 	if limit == 0 {
 		limit = 5000
@@ -1542,10 +1535,9 @@ func (c *Client) FetchCommonDifference(fromPts int32, limit int32) {
 
 		if err != nil {
 			if ctx.Err() == context.DeadlineExceeded {
-				c.Log.Warn(fmt.Sprintf("fetch difference timeout, retrying (iteration=%d, pts=%d)", iteration, req.Pts))
+				c.Log.Debug("fetch difference failed: context deadline exceeded")
 				continue
 			}
-			c.Log.Error(fmt.Sprintf("fetch difference failed (pts=%d): %v", req.Pts, err))
 			return
 		}
 
@@ -1622,7 +1614,7 @@ func (c *Client) FetchCommonDifference(fromPts int32, limit int32) {
 		}
 	}
 
-	c.Log.Warn(fmt.Sprintf("fetch difference max iterations (iterations=%d, pts=%d, fetched=%d)", maxIterations, req.Pts, totalFetched))
+	c.Log.Debug(fmt.Sprintf("fetch difference max iterations (iterations=%d, pts=%d, fetched=%d)", maxIterations, req.Pts, totalFetched))
 }
 
 func (c *Client) managePts(pts int32, ptsCount int32) bool {
