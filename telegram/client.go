@@ -47,6 +47,7 @@ type clientData struct {
 	albumWaitTime    int64
 	botAcc           bool
 	me               *UserObj
+	commandPrefixes  string
 }
 
 // Client is the main struct of the library
@@ -98,6 +99,7 @@ type ClientConfig struct {
 	TransportMode    string               // The transport mode to use (Abridged, Intermediate, Full)
 	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
 	AlbumWaitTime    int64                // The time to wait for album messages (in milliseconds)
+	CommandPrefixes  string               // Command prefixes to recognize (default: "/!"), can be multiple like ".?!-/"
 	FloodHandler     func(err error) bool // The flood handler to use
 	ErrorHandler     func(err error)      // The error handler to use
 	Timeout          time.Duration        // Tcp connection timeout (default: 60s)
@@ -277,6 +279,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
 	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
 	c.clientData.albumWaitTime = getValue(cnf.AlbumWaitTime, 600)
+	c.clientData.commandPrefixes = getValue(cnf.CommandPrefixes, "/!")
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
@@ -742,6 +745,16 @@ func (c *Client) AppHash() string {
 // returns the ParseMode of the client (HTML or Markdown)
 func (c *Client) ParseMode() string {
 	return c.clientData.parseMode
+}
+
+// CommandPrefixes returns the command prefixes configured for the client
+func (c *Client) CommandPrefixes() string {
+	return c.clientData.commandPrefixes
+}
+
+// SetCommandPrefixes sets the command prefixes for the client
+func (c *Client) SetCommandPrefixes(prefixes string) {
+	c.clientData.commandPrefixes = prefixes
 }
 
 // Terminate client and disconnect from telegram server

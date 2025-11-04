@@ -1016,8 +1016,12 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 		}
 
 		if after, ok := strings.CutPrefix(Pattern, "cmd:"); ok {
-			//(?i)^[!/-?]ping(?: |$|@botusername)(.*)$
-			Pattern = "(?i)^[!\\/?.]" + after
+			prefixes := c.CommandPrefixes()
+			if prefixes == "" {
+				prefixes = "/!"
+			}
+			escapedPrefixes := regexp.QuoteMeta(prefixes)
+			Pattern = "(?i)^[" + escapedPrefixes + "]" + regexp.QuoteMeta(after)
 			if me := c.Me(); me != nil && me.Username != "" && me.Bot {
 				Pattern += "(?: |$|@" + me.Username + ")(.*)"
 			} else {
@@ -1049,17 +1053,198 @@ func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 
 	if len(filters) > 0 {
 		for _, filter := range filters {
+			// Chat type filters
 			if filter.Private && !m.IsPrivate() || filter.Group && !m.IsGroup() || filter.Channel && !m.IsChannel() {
 				return false
 			}
+
+			// Message type filters
 			if filter.Media && !m.IsMedia() || filter.Command && !m.IsCommand() || filter.Reply && !m.IsReply() || filter.Forward && !m.IsForward() {
 				return false
 			}
+
+			// Direction filters
+			if filter.Outgoing && (m.Message == nil || !m.Message.Out) {
+				return false
+			}
+			if filter.Incoming && (m.Message == nil || m.Message.Out) {
+				return false
+			}
+
+			// Sender filters
 			if filter.FromBot {
 				if m.Sender == nil || !m.Sender.Bot {
 					return false
 				}
 			}
+
+			// Length filters
+			if filter.MinLength > 0 && len(m.Text()) < filter.MinLength {
+				return false
+			}
+			if filter.MaxLength > 0 && len(m.Text()) > filter.MaxLength {
+				return false
+			}
+
+			// Text content filter
+			if filter.HasText && m.Text() == "" {
+				return false
+			}
+
+			// Specific media type filters
+			if filter.HasPhoto && m.Photo() == nil {
+				return false
+			}
+			if filter.HasVideo && m.Video() == nil {
+				return false
+			}
+			if filter.HasDocument && m.Document() == nil {
+				return false
+			}
+			if filter.HasAudio && m.Audio() == nil {
+				return false
+			}
+			if filter.HasSticker && m.Sticker() == nil {
+				return false
+			}
+			if filter.HasAnimation {
+				doc := m.Document()
+				if doc == nil {
+					return false
+				}
+				isAnimation := false
+				for _, attr := range doc.Attributes {
+					if _, ok := attr.(*DocumentAttributeAnimated); ok {
+						isAnimation = true
+						break
+					}
+				}
+				if !isAnimation {
+					return false
+				}
+			}
+			if filter.HasVoice && m.Voice() == nil {
+				return false
+			}
+			if filter.HasVideoNote {
+				doc := m.Document()
+				if doc == nil {
+					return false
+				}
+				isVideoNote := false
+				for _, attr := range doc.Attributes {
+					if _, ok := attr.(*DocumentAttributeVideo); ok {
+						if videoAttr, okVideo := attr.(*DocumentAttributeVideo); okVideo && videoAttr.RoundMessage {
+							isVideoNote = true
+							break
+						}
+					}
+				}
+				if !isVideoNote {
+					return false
+				}
+			}
+			if filter.HasContact && m.Contact() == nil {
+				return false
+			}
+			if filter.HasLocation {
+				if msgMedia, ok := m.Media().(*MessageMediaGeo); !ok || msgMedia == nil {
+					return false
+				}
+			}
+			if filter.HasVenue {
+				if msgMedia, ok := m.Media().(*MessageMediaVenue); !ok || msgMedia == nil {
+					return false
+				}
+			}
+			if filter.HasPoll {
+				if msgMedia, ok := m.Media().(*MessageMediaPoll); !ok || msgMedia == nil {
+					return false
+				}
+			}
+
+			// Edited filter
+			if filter.Edited && (m.Message == nil || m.Message.EditDate == 0) {
+				return false
+			}
+
+			// Custom media types filter
+			if len(filter.MediaTypes) > 0 {
+				hasMatchingMedia := false
+				currentMediaType := m.MediaType()
+				for _, mediaType := range filter.MediaTypes {
+					mtLower := strings.ToLower(mediaType)
+					switch mtLower {
+					case "photo":
+						if m.Photo() != nil {
+							hasMatchingMedia = true
+						}
+					case "video":
+						if m.Video() != nil {
+							hasMatchingMedia = true
+						}
+					case "document":
+						if m.Document() != nil {
+							hasMatchingMedia = true
+						}
+					case "audio":
+						if m.Audio() != nil {
+							hasMatchingMedia = true
+						}
+					case "voice":
+						if m.Voice() != nil {
+							hasMatchingMedia = true
+						}
+					case "sticker":
+						if m.Sticker() != nil {
+							hasMatchingMedia = true
+						}
+					case "animation", "gif":
+						doc := m.Document()
+						if doc != nil {
+							for _, attr := range doc.Attributes {
+								if _, ok := attr.(*DocumentAttributeAnimated); ok {
+									hasMatchingMedia = true
+									break
+								}
+							}
+						}
+					case "videonote", "video_note":
+						doc := m.Document()
+						if doc != nil {
+							for _, attr := range doc.Attributes {
+								if videoAttr, ok := attr.(*DocumentAttributeVideo); ok && videoAttr.RoundMessage {
+									hasMatchingMedia = true
+									break
+								}
+							}
+						}
+					case "contact":
+						if m.Contact() != nil {
+							hasMatchingMedia = true
+						}
+					case "geo", "location":
+						if currentMediaType == "geo" || currentMediaType == "geo_live" {
+							hasMatchingMedia = true
+						}
+					case "venue":
+						if currentMediaType == "venue" {
+							hasMatchingMedia = true
+						}
+					case "poll":
+						if _, ok := m.Media().(*MessageMediaPoll); ok {
+							hasMatchingMedia = true
+						}
+					}
+					if hasMatchingMedia {
+						break
+					}
+				}
+				if !hasMatchingMedia {
+					return false
+				}
+			}
+
 			if len(filter.Users) > 0 {
 				actUsers = filter.Users
 			}
@@ -1163,7 +1348,52 @@ type Filter struct {
 	Users, Chats, Channels                                                               []int64
 	Func                                                                                 func(m *NewMessage) bool
 	FuncCallback                                                                         func(c *CallbackQuery) bool
+	// Advanced filters
+	Outgoing, Incoming                                 bool     // Outgoing or incoming messages
+	MinLength, MaxLength                               int      // Message text length constraints
+	HasText, HasPhoto, HasVideo, HasDocument, HasAudio bool     // Specific media type filters
+	HasSticker, HasAnimation, HasVoice, HasVideoNote   bool     // More media types
+	HasContact, HasLocation, HasVenue, HasPoll         bool     // Service message types
+	Edited                                             bool     // Only edited messages
+	MediaTypes                                         []string // Custom media type list (e.g., ["photo", "video"])
 }
+
+func (f Filter) IsPrivate() Filter                                    { f.Private = true; return f }
+func (f Filter) IsGroup() Filter                                      { f.Group = true; return f }
+func (f Filter) IsChannel() Filter                                    { f.Channel = true; return f }
+func (f Filter) IsMedia() Filter                                      { f.Media = true; return f }
+func (f Filter) IsCommand() Filter                                    { f.Command = true; return f }
+func (f Filter) IsReply() Filter                                      { f.Reply = true; return f }
+func (f Filter) IsForward() Filter                                    { f.Forward = true; return f }
+func (f Filter) IsFromBot() Filter                                    { f.FromBot = true; return f }
+func (f Filter) IsMention() Filter                                    { f.Mention = true; return f }
+func (f Filter) IsOutgoing() Filter                                   { f.Outgoing = true; return f }
+func (f Filter) IsIncoming() Filter                                   { f.Incoming = true; return f }
+func (f Filter) IsEdited() Filter                                     { f.Edited = true; return f }
+func (f Filter) WithPhoto() Filter                                    { f.HasPhoto = true; return f }
+func (f Filter) WithVideo() Filter                                    { f.HasVideo = true; return f }
+func (f Filter) WithDocument() Filter                                 { f.HasDocument = true; return f }
+func (f Filter) WithAudio() Filter                                    { f.HasAudio = true; return f }
+func (f Filter) WithSticker() Filter                                  { f.HasSticker = true; return f }
+func (f Filter) WithAnimation() Filter                                { f.HasAnimation = true; return f }
+func (f Filter) WithVoice() Filter                                    { f.HasVoice = true; return f }
+func (f Filter) WithVideoNote() Filter                                { f.HasVideoNote = true; return f }
+func (f Filter) WithContact() Filter                                  { f.HasContact = true; return f }
+func (f Filter) WithLocation() Filter                                 { f.HasLocation = true; return f }
+func (f Filter) WithVenue() Filter                                    { f.HasVenue = true; return f }
+func (f Filter) WithPoll() Filter                                     { f.HasPoll = true; return f }
+func (f Filter) WithText() Filter                                     { f.HasText = true; return f }
+func (f Filter) FromUsers(users ...int64) Filter                      { f.Users = users; return f }
+func (f Filter) FromChats(chats ...int64) Filter                      { f.Chats = chats; return f }
+func (f Filter) FromChannels(channels ...int64) Filter                { f.Channels = channels; return f }
+func (f Filter) MinLen(length int) Filter                             { f.MinLength = length; return f }
+func (f Filter) MaxLen(length int) Filter                             { f.MaxLength = length; return f }
+func (f Filter) WithMediaTypes(types ...string) Filter                { f.MediaTypes = types; return f }
+func (f Filter) AsBlacklist() Filter                                  { f.Blacklist = true; return f }
+func (f Filter) Custom(fn func(m *NewMessage) bool) Filter            { f.Func = fn; return f }
+func (f Filter) CustomCallback(fn func(c *CallbackQuery) bool) Filter { f.FuncCallback = fn; return f }
+
+func NewFilter() Filter { return Filter{} }
 
 var (
 	FilterPrivate   = Filter{Private: true}
@@ -1176,7 +1406,23 @@ var (
 	FilterFromBot   = Filter{FromBot: true}
 	FilterBlacklist = Filter{Blacklist: true}
 	FilterMention   = Filter{Mention: true}
-	FilterUsers     = func(users ...int64) Filter {
+	FilterOutgoing  = Filter{Outgoing: true}
+	FilterIncoming  = Filter{Incoming: true}
+	FilterEdited    = Filter{Edited: true}
+	FilterPhoto     = Filter{HasPhoto: true}
+	FilterVideo     = Filter{HasVideo: true}
+	FilterDocument  = Filter{HasDocument: true}
+	FilterAudio     = Filter{HasAudio: true}
+	FilterSticker   = Filter{HasSticker: true}
+	FilterAnimation = Filter{HasAnimation: true}
+	FilterVoice     = Filter{HasVoice: true}
+	FilterVideoNote = Filter{HasVideoNote: true}
+	FilterContact   = Filter{HasContact: true}
+	FilterLocation  = Filter{HasLocation: true}
+	FilterVenue     = Filter{HasVenue: true}
+	FilterPoll      = Filter{HasPoll: true}
+
+	FilterUsers = func(users ...int64) Filter {
 		return Filter{Users: users}
 	}
 	FilterChats = func(chats ...int64) Filter {
@@ -1189,10 +1435,56 @@ var (
 		return Filter{Func: f}
 	}
 	FilterFuncCallback = func(f func(c *CallbackQuery) bool) Filter {
-		return Filter{Func: func(m *NewMessage) bool { return true }}
+		return Filter{FuncCallback: f}
 	}
 	FilterFuncInline = func(f func(c *InlineQuery) bool) Filter {
 		return Filter{Func: func(m *NewMessage) bool { return true }}
+	}
+	FilterMinLength = func(length int) Filter {
+		return Filter{MinLength: length}
+	}
+	FilterMaxLength = func(length int) Filter {
+		return Filter{MaxLength: length}
+	}
+	FilterMediaTypes = func(types ...string) Filter {
+		return Filter{MediaTypes: types}
+	}
+	// Combine multiple filters with AND logic
+	FilterAnd = func(filters ...Filter) Filter {
+		return Filter{
+			Func: func(m *NewMessage) bool {
+				for _, f := range filters {
+					handle := &messageHandle{Filters: []Filter{f}}
+					if !handle.runFilterChain(m, []Filter{f}) {
+						return false
+					}
+				}
+				return true
+			},
+		}
+	}
+	// Combine multiple filters with OR logic
+	FilterOr = func(filters ...Filter) Filter {
+		return Filter{
+			Func: func(m *NewMessage) bool {
+				for _, f := range filters {
+					handle := &messageHandle{Filters: []Filter{f}}
+					if handle.runFilterChain(m, []Filter{f}) {
+						return true
+					}
+				}
+				return false
+			},
+		}
+	}
+	// Negate a filter
+	FilterNot = func(filter Filter) Filter {
+		return Filter{
+			Func: func(m *NewMessage) bool {
+				handle := &messageHandle{Filters: []Filter{filter}}
+				return !handle.runFilterChain(m, []Filter{filter})
+			},
+		}
 	}
 )
 
