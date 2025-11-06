@@ -546,7 +546,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 	select {
 	case <-ctx.Done():
 		go m.writeRPCResponse(int(msgId), &objects.Null{})
-		return nil, ctx.Err()
+		return nil, errors.Wrap(ctx.Err(), "makeRequestIsTheCulprit")
 	case response := <-resp:
 		switch r := response.(type) {
 		case *objects.RpcError:
