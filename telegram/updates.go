@@ -1910,7 +1910,7 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 			req.Date = u.IntermediateState.Date
 
 		case *UpdatesDifferenceTooLong:
-			c.Log.Warn(fmt.Sprintf("difference too long, refetching state (pts=%d)", u.Pts))
+			c.Log.Warn(fmt.Sprintf("difference too long, refetching state (pts=%d), tryied with limit=%d, fetched=%d, %v", u.Pts, limit, totalFetched, c.JSON(req)))
 			c.dispatcher.SetPts(u.Pts)
 
 			state, err := c.UpdatesGetState()
