@@ -481,18 +481,7 @@ func removeHandleFromMap[T any](handle T, handlesMap map[string][]T) {
 
 // ---------------------------- Handle Functions ----------------------------
 
-func (c *Client) handleMessageUpdate(update Message, pts ...int32) {
-	if len(pts) > 0 {
-		if pts[0] == -1 {
-			c.FetchDifference(c.dispatcher.GetPts(), 5000)
-			return
-		} else {
-			if !c.managePts(pts[0], pts[1]) {
-				return
-			}
-		}
-	}
-
+func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
 		updateID := int64(msg.ID)
@@ -665,13 +654,7 @@ func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
 	}
 }
 
-func (c *Client) handleEditUpdate(update Message, pts ...int32) {
-	if len(pts) > 0 {
-		if !c.managePts(pts[0], pts[1]) {
-			return
-		}
-	}
-
+func (c *Client) handleEditUpdate(update Message) {
 	if msg, ok := update.(*MessageObj); ok {
 		packed := packMessage(c, msg)
 
@@ -861,13 +844,7 @@ func (c *Client) handleInlineSendUpdate(update *UpdateBotInlineSend) {
 	}
 }
 
-func (c *Client) handleDeleteUpdate(update Update, pts ...int32) {
-	if len(pts) > 0 {
-		if !c.managePts(pts[0], pts[1]) {
-			return
-		}
-	}
-
+func (c *Client) handleDeleteUpdate(update Update) {
 	packed := packDeleteMessage(c, update)
 
 	for group, handlers := range c.dispatcher.messageDeleteHandles {
@@ -1690,7 +1667,9 @@ UpdateTypeSwitching:
 		for _, update := range upd.Updates {
 			switch update := update.(type) {
 			case *UpdateNewMessage:
-				go c.handleMessageUpdate(update.Message, update.Pts, update.PtsCount)
+				if c.managePts(update.Pts, update.PtsCount) {
+					go c.handleMessageUpdate(update.Message)
+				}
 			case *UpdateNewChannelMessage:
 				channelID := getChannelIDFromMessage(update.Message)
 				if channelID != 0 {
@@ -1698,14 +1677,53 @@ UpdateTypeSwitching:
 						go c.handleMessageUpdate(update.Message)
 					}
 				} else {
-					go c.handleMessageUpdate(update.Message)
+					if c.managePts(update.Pts, update.PtsCount) {
+						go c.handleMessageUpdate(update.Message)
+					}
 				}
 			case *UpdateNewScheduledMessage:
 				go c.handleMessageUpdate(update.Message)
 			case *UpdateEditMessage:
-				go c.handleEditUpdate(update.Message, update.Pts, update.PtsCount)
+				if c.managePts(update.Pts, update.PtsCount) {
+					go c.handleEditUpdate(update.Message)
+				}
 			case *UpdateEditChannelMessage:
-				go c.handleEditUpdate(update.Message)
+				channelID := getChannelIDFromMessage(update.Message)
+				if channelID != 0 {
+					if c.manageChannelPts(channelID, update.Pts, update.PtsCount) {
+						go c.handleEditUpdate(update.Message)
+					}
+				} else {
+					if c.managePts(update.Pts, update.PtsCount) {
+						go c.handleEditUpdate(update.Message)
+					}
+				}
+			case *UpdateDeleteMessages:
+				if c.managePts(update.Pts, update.PtsCount) {
+					go c.handleDeleteUpdate(update)
+				}
+			case *UpdateDeleteChannelMessages:
+				if c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount) {
+					go c.handleDeleteUpdate(update)
+				}
+			case *UpdateReadHistoryInbox:
+				c.managePts(update.Pts, update.PtsCount)
+			case *UpdateReadHistoryOutbox:
+				c.managePts(update.Pts, update.PtsCount)
+			case *UpdateWebPage:
+				c.managePts(update.Pts, update.PtsCount)
+			case *UpdateReadMessagesContents:
+				c.managePts(update.Pts, update.PtsCount)
+			case *UpdateReadChannelInbox:
+				c.manageChannelPts(update.ChannelID, update.Pts, 0)
+			case *UpdateChannelWebPage:
+				c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount)
+			case *UpdateFolderPeers:
+				c.managePts(update.Pts, update.PtsCount)
+			case *UpdatePinnedMessages:
+				c.managePts(update.Pts, update.PtsCount)
+			case *UpdatePinnedChannelMessages:
+				c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount)
 			case *UpdateBotInlineQuery:
 				go c.handleInlineUpdate(update)
 			case *UpdateBotCallbackQuery:
@@ -1716,10 +1734,6 @@ UpdateTypeSwitching:
 				go c.handleParticipantUpdate(update)
 			case *UpdatePendingJoinRequests:
 				go c.handleJoinRequestUpdate(update)
-			case *UpdateDeleteChannelMessages:
-				go c.handleDeleteUpdate(update)
-			case *UpdateDeleteMessages:
-				go c.handleDeleteUpdate(update, update.Pts, update.PtsCount)
 			case *UpdateBotInlineSend:
 				go c.handleInlineSendUpdate(update)
 			case *UpdateChannelTooLong:
@@ -1923,7 +1937,6 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 func (c *Client) managePts(pts int32, ptsCount int32) bool {
 	var currentPts = c.dispatcher.GetPts()
 
-	// First update, just set pts
 	if currentPts == 0 {
 		c.dispatcher.SetPts(pts)
 		return true
@@ -1931,51 +1944,21 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 
 	expectedPts := currentPts + ptsCount
 
-	// No gap, normal case
 	if expectedPts == pts {
 		c.dispatcher.SetPts(pts)
 		return true
 	}
 
-	if expectedPts < pts {
-		c.dispatcher.Lock()
-		if c.dispatcher.pendingGaps == nil {
-			c.dispatcher.pendingGaps = make(map[int32]time.Time)
-		}
-
-		if gapTime, exists := c.dispatcher.pendingGaps[pts]; exists {
-			if time.Since(gapTime) > 500*time.Millisecond {
-				delete(c.dispatcher.pendingGaps, pts)
-				c.dispatcher.Unlock()
-				c.Log.Warn(fmt.Sprintf("gap unfilled after 500ms, fetching difference (expected=%d, received=%d, gap=%d)", expectedPts, pts, pts-expectedPts))
-				c.dispatcher.SetPts(pts)
-				go c.FetchDifference(currentPts, pts-currentPts)
-				return true
-			}
-			c.dispatcher.Unlock()
-			return false
-		}
-
-		c.dispatcher.pendingGaps[pts] = time.Now()
-		c.dispatcher.Unlock()
-
-		time.AfterFunc(500*time.Millisecond, func() {
-			c.dispatcher.Lock()
-			if _, stillPending := c.dispatcher.pendingGaps[pts]; stillPending {
-				delete(c.dispatcher.pendingGaps, pts)
-				c.dispatcher.Unlock()
-				c.Log.Warn(fmt.Sprintf("gap unfilled, fetching difference in background (expected=%d, received=%d, gap=%d)", currentPts+ptsCount, pts, pts-currentPts-ptsCount))
-				go c.FetchDifference(currentPts, pts-currentPts)
-			} else {
-				c.dispatcher.Unlock()
-			}
-		})
-
+	if expectedPts > pts {
 		return false
 	}
 
-	if expectedPts > pts {
-		return false
+	if expectedPts < pts {
+		gap := pts - expectedPts
+		c.Log.Warn(fmt.Sprintf("pts gap detected, processing update and filling gap in background (current=%d, received=%d, gap=%d)", currentPts, pts, gap))
+		c.dispatcher.SetPts(pts)
+		go c.FetchDifference(currentPts, gap)
+		return true
 	}
 
 	return true
@@ -1996,45 +1979,16 @@ func (c *Client) managePtsFast(pts int32, ptsCount int32) bool {
 		return true
 	}
 
-	if expectedPts < pts {
-		c.dispatcher.Lock()
-		if c.dispatcher.pendingGaps == nil {
-			c.dispatcher.pendingGaps = make(map[int32]time.Time)
-		}
-
-		if gapTime, exists := c.dispatcher.pendingGaps[pts]; exists {
-			if time.Since(gapTime) > 50*time.Millisecond {
-				delete(c.dispatcher.pendingGaps, pts)
-				c.dispatcher.Unlock()
-				c.Log.Warn(fmt.Sprintf("short message gap unfilled after 50ms, fetching difference (expected=%d, received=%d, gap=%d)", expectedPts, pts, pts-expectedPts))
-				c.dispatcher.SetPts(pts)
-				go c.FetchDifference(currentPts, pts-currentPts)
-				return true
-			}
-			c.dispatcher.Unlock()
-			return false
-		}
-
-		c.dispatcher.pendingGaps[pts] = time.Now()
-		c.dispatcher.Unlock()
-
-		time.AfterFunc(50*time.Millisecond, func() {
-			c.dispatcher.Lock()
-			if _, stillPending := c.dispatcher.pendingGaps[pts]; stillPending {
-				delete(c.dispatcher.pendingGaps, pts)
-				c.dispatcher.Unlock()
-				c.Log.Warn(fmt.Sprintf("short message gap unfilled, fetching difference in background (expected=%d, received=%d, gap=%d)", currentPts+ptsCount, pts, pts-currentPts-ptsCount))
-				go c.FetchDifference(currentPts, pts-currentPts)
-			} else {
-				c.dispatcher.Unlock()
-			}
-		})
-
+	if expectedPts > pts {
 		return false
 	}
 
-	if expectedPts > pts {
-		return false
+	if expectedPts < pts {
+		gap := pts - expectedPts
+		c.Log.Warn(fmt.Sprintf("short message pts gap detected, processing and filling gap (current=%d, received=%d, gap=%d)", currentPts, pts, gap))
+		c.dispatcher.SetPts(pts)
+		go c.FetchDifference(currentPts, gap)
+		return true
 	}
 
 	return true
@@ -2075,7 +2029,6 @@ func (c *Client) manageSeq(seq int32, seqStart int32) bool {
 func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bool {
 	var currentPts = c.dispatcher.GetChannelPts(channelID)
 
-	// First update for this channel, just set pts
 	if currentPts == 0 {
 		c.dispatcher.SetChannelPts(channelID, pts)
 		return true
@@ -2083,56 +2036,21 @@ func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bo
 
 	expectedPts := currentPts + ptsCount
 
-	// No gap, normal case
 	if expectedPts == pts {
 		c.dispatcher.SetChannelPts(channelID, pts)
 		return true
 	}
 
-	if expectedPts < pts {
-		c.dispatcher.Lock()
-		if c.dispatcher.pendingChannelGaps == nil {
-			c.dispatcher.pendingChannelGaps = make(map[int64]map[int32]time.Time)
-		}
-		if c.dispatcher.pendingChannelGaps[channelID] == nil {
-			c.dispatcher.pendingChannelGaps[channelID] = make(map[int32]time.Time)
-		}
-
-		if gapTime, exists := c.dispatcher.pendingChannelGaps[channelID][pts]; exists {
-			if time.Since(gapTime) > 500*time.Millisecond {
-				delete(c.dispatcher.pendingChannelGaps[channelID], pts)
-				c.dispatcher.Unlock()
-				c.Log.Warn(fmt.Sprintf("channel gap unfilled after 500ms, fetching difference (channel=%d, expected=%d, received=%d, gap=%d)", channelID, expectedPts, pts, pts-expectedPts))
-				c.dispatcher.SetChannelPts(channelID, pts)
-				go c.FetchChannelDifference(channelID, currentPts, 100)
-				return true
-			}
-			c.dispatcher.Unlock()
-			return false
-		}
-
-		c.dispatcher.pendingChannelGaps[channelID][pts] = time.Now()
-		c.dispatcher.Unlock()
-
-		time.AfterFunc(500*time.Millisecond, func() {
-			c.dispatcher.Lock()
-			if channelGaps, ok := c.dispatcher.pendingChannelGaps[channelID]; ok {
-				if _, stillPending := channelGaps[pts]; stillPending {
-					delete(c.dispatcher.pendingChannelGaps[channelID], pts)
-					c.dispatcher.Unlock()
-					c.Log.Warn(fmt.Sprintf("channel gap unfilled, fetching difference in background (channel=%d, expected=%d, received=%d)", channelID, currentPts+ptsCount, pts))
-					go c.FetchChannelDifference(channelID, currentPts, 100)
-					return
-				}
-			}
-			c.dispatcher.Unlock()
-		})
-
+	if expectedPts > pts {
 		return false
 	}
 
-	if expectedPts > pts {
-		return false
+	if expectedPts < pts {
+		gap := pts - expectedPts
+		c.Log.Warn(fmt.Sprintf("channel pts gap detected, processing and filling gap (channel=%d, current=%d, received=%d, gap=%d)", channelID, currentPts, pts, gap))
+		c.dispatcher.SetChannelPts(channelID, pts)
+		go c.FetchChannelDifference(channelID, currentPts, 100)
+		return true
 	}
 
 	return true
