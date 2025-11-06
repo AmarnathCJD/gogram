@@ -1945,11 +1945,12 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 
 		if gapTime, exists := c.dispatcher.pendingGaps[pts]; exists {
 			if time.Since(gapTime) > 500*time.Millisecond {
-				c.dispatcher.Unlock()
 				delete(c.dispatcher.pendingGaps, pts)
+				c.dispatcher.Unlock()
 				c.Log.Warn(fmt.Sprintf("gap unfilled after 500ms, fetching difference (expected=%d, received=%d, gap=%d)", expectedPts, pts, pts-expectedPts))
+				c.dispatcher.SetPts(pts)
 				go c.FetchDifference(currentPts, pts-currentPts)
-				return false
+				return true
 			}
 			c.dispatcher.Unlock()
 			return false
@@ -1963,6 +1964,7 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 			if _, stillPending := c.dispatcher.pendingGaps[pts]; stillPending {
 				delete(c.dispatcher.pendingGaps, pts)
 				c.dispatcher.Unlock()
+				c.Log.Warn(fmt.Sprintf("gap unfilled, fetching difference in background (expected=%d, received=%d, gap=%d)", currentPts+ptsCount, pts, pts-currentPts-ptsCount))
 				go c.FetchDifference(currentPts, pts-currentPts)
 			} else {
 				c.dispatcher.Unlock()
@@ -2002,11 +2004,12 @@ func (c *Client) managePtsFast(pts int32, ptsCount int32) bool {
 
 		if gapTime, exists := c.dispatcher.pendingGaps[pts]; exists {
 			if time.Since(gapTime) > 50*time.Millisecond {
-				c.dispatcher.Unlock()
 				delete(c.dispatcher.pendingGaps, pts)
+				c.dispatcher.Unlock()
 				c.Log.Warn(fmt.Sprintf("short message gap unfilled after 50ms, fetching difference (expected=%d, received=%d, gap=%d)", expectedPts, pts, pts-expectedPts))
+				c.dispatcher.SetPts(pts)
 				go c.FetchDifference(currentPts, pts-currentPts)
-				return false
+				return true
 			}
 			c.dispatcher.Unlock()
 			return false
@@ -2020,6 +2023,7 @@ func (c *Client) managePtsFast(pts int32, ptsCount int32) bool {
 			if _, stillPending := c.dispatcher.pendingGaps[pts]; stillPending {
 				delete(c.dispatcher.pendingGaps, pts)
 				c.dispatcher.Unlock()
+				c.Log.Warn(fmt.Sprintf("short message gap unfilled, fetching difference in background (expected=%d, received=%d, gap=%d)", currentPts+ptsCount, pts, pts-currentPts-ptsCount))
 				go c.FetchDifference(currentPts, pts-currentPts)
 			} else {
 				c.dispatcher.Unlock()
@@ -2096,11 +2100,12 @@ func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bo
 
 		if gapTime, exists := c.dispatcher.pendingChannelGaps[channelID][pts]; exists {
 			if time.Since(gapTime) > 500*time.Millisecond {
-				c.dispatcher.Unlock()
 				delete(c.dispatcher.pendingChannelGaps[channelID], pts)
+				c.dispatcher.Unlock()
 				c.Log.Warn(fmt.Sprintf("channel gap unfilled after 500ms, fetching difference (channel=%d, expected=%d, received=%d, gap=%d)", channelID, expectedPts, pts, pts-expectedPts))
+				c.dispatcher.SetChannelPts(channelID, pts)
 				go c.FetchChannelDifference(channelID, currentPts, 100)
-				return false
+				return true
 			}
 			c.dispatcher.Unlock()
 			return false
@@ -2115,6 +2120,7 @@ func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bo
 				if _, stillPending := channelGaps[pts]; stillPending {
 					delete(c.dispatcher.pendingChannelGaps[channelID], pts)
 					c.dispatcher.Unlock()
+					c.Log.Warn(fmt.Sprintf("channel gap unfilled, fetching difference in background (channel=%d, expected=%d, received=%d)", channelID, currentPts+ptsCount, pts))
 					go c.FetchChannelDifference(channelID, currentPts, 100)
 					return
 				}
