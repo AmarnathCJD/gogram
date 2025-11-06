@@ -1955,9 +1955,15 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 
 	if expectedPts < pts {
 		gap := pts - expectedPts
-		c.Log.Warn(fmt.Sprintf("pts gap detected, processing update and filling gap in background (current=%d, received=%d, gap=%d)", currentPts, pts, gap))
+
+		if gap <= 2 {
+			c.dispatcher.SetPts(pts)
+			return true
+		}
+
+		c.Log.Debug(fmt.Sprintf("large pts gap detected, processing update and filling gap (current=%d, received=%d, gap=%d)", currentPts, pts, gap))
 		c.dispatcher.SetPts(pts)
-		go c.FetchDifference(currentPts, gap)
+		go c.FetchDifference(currentPts, gap+10)
 		return true
 	}
 
@@ -1985,9 +1991,15 @@ func (c *Client) managePtsFast(pts int32, ptsCount int32) bool {
 
 	if expectedPts < pts {
 		gap := pts - expectedPts
-		c.Log.Warn(fmt.Sprintf("short message pts gap detected, processing and filling gap (current=%d, received=%d, gap=%d)", currentPts, pts, gap))
+
+		if gap <= 2 {
+			c.dispatcher.SetPts(pts)
+			return true
+		}
+
+		c.Log.Debug(fmt.Sprintf("large short message pts gap detected, processing and filling gap (current=%d, received=%d, gap=%d)", currentPts, pts, gap))
 		c.dispatcher.SetPts(pts)
-		go c.FetchDifference(currentPts, gap)
+		go c.FetchDifference(currentPts, gap+10)
 		return true
 	}
 
@@ -2018,7 +2030,7 @@ func (c *Client) manageSeq(seq int32, seqStart int32) bool {
 	}
 
 	if expectedSeqStart < seqStart {
-		c.Log.Warn(fmt.Sprintf("seq gap detected (expected=%d, received=%d, gap=%d)", expectedSeqStart, seqStart, seqStart-expectedSeqStart))
+		c.Log.Debug(fmt.Sprintf("seq gap detected (expected=%d, received=%d, gap=%d)", expectedSeqStart, seqStart, seqStart-expectedSeqStart))
 		go c.FetchDifference(c.dispatcher.GetPts(), 5000)
 		return false
 	}
@@ -2047,7 +2059,13 @@ func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bo
 
 	if expectedPts < pts {
 		gap := pts - expectedPts
-		c.Log.Warn(fmt.Sprintf("channel pts gap detected, processing and filling gap (channel=%d, current=%d, received=%d, gap=%d)", channelID, currentPts, pts, gap))
+
+		if gap <= 2 {
+			c.dispatcher.SetChannelPts(channelID, pts)
+			return true
+		}
+
+		c.Log.Debug(fmt.Sprintf("large channel pts gap detected, processing and filling gap (channel=%d, current=%d, received=%d, gap=%d)", channelID, currentPts, pts, gap))
 		c.dispatcher.SetChannelPts(channelID, pts)
 		go c.FetchChannelDifference(channelID, currentPts, 100)
 		return true
