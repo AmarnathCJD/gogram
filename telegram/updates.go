@@ -2429,7 +2429,7 @@ func (c *Client) monitorNoUpdatesTimeout() {
 		select {
 		case <-ticker.C:
 			if time.Since(c.dispatcher.lastUpdateTime) > 15*time.Minute {
-				c.Log.Warn("no updates received for 15 minutes, reconnecting...")
+				c.Log.Debug("no updates received for 15 minutes, getting difference...")
 				c.FetchDifference(c.dispatcher.currentPts, 5000)
 			}
 		case <-c.dispatcher.stopChan:
