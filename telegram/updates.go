@@ -1837,7 +1837,7 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 
 	defer func() {
 		if totalFetched > 0 {
-			c.Log.Info(fmt.Sprintf("fetch difference complete (total=%d, duration=%v)", totalFetched, time.Since(startTime)))
+			c.Log.Debug(fmt.Sprintf("fetch difference complete (total=%d, duration=%v)", totalFetched, time.Since(startTime)))
 		}
 	}()
 
@@ -1956,7 +1956,7 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 	if expectedPts < pts {
 		gap := pts - expectedPts
 
-		if gap <= 2 {
+		if gap <= 5 {
 			c.dispatcher.SetPts(pts)
 			return true
 		}
@@ -1992,7 +1992,7 @@ func (c *Client) managePtsFast(pts int32, ptsCount int32) bool {
 	if expectedPts < pts {
 		gap := pts - expectedPts
 
-		if gap <= 2 {
+		if gap <= 5 {
 			c.dispatcher.SetPts(pts)
 			return true
 		}
@@ -2060,7 +2060,7 @@ func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bo
 	if expectedPts < pts {
 		gap := pts - expectedPts
 
-		if gap <= 2 {
+		if gap <= 5 {
 			c.dispatcher.SetChannelPts(channelID, pts)
 			return true
 		}
