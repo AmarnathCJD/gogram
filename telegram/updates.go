@@ -1673,9 +1673,8 @@ UpdateTypeSwitching:
 			case *UpdateNewChannelMessage:
 				channelID := getChannelIDFromMessage(update.Message)
 				if channelID != 0 {
-					if c.manageChannelPts(channelID, update.Pts, update.PtsCount) {
-						go c.handleMessageUpdate(update.Message)
-					}
+					go c.handleMessageUpdate(update.Message)
+					c.manageChannelPts(channelID, update.Pts, update.PtsCount)
 				} else {
 					if c.managePts(update.Pts, update.PtsCount) {
 						go c.handleMessageUpdate(update.Message)
@@ -1690,9 +1689,8 @@ UpdateTypeSwitching:
 			case *UpdateEditChannelMessage:
 				channelID := getChannelIDFromMessage(update.Message)
 				if channelID != 0 {
-					if c.manageChannelPts(channelID, update.Pts, update.PtsCount) {
-						go c.handleEditUpdate(update.Message)
-					}
+					go c.handleEditUpdate(update.Message)
+					c.manageChannelPts(channelID, update.Pts, update.PtsCount)
 				} else {
 					if c.managePts(update.Pts, update.PtsCount) {
 						go c.handleEditUpdate(update.Message)
@@ -1703,9 +1701,8 @@ UpdateTypeSwitching:
 					go c.handleDeleteUpdate(update)
 				}
 			case *UpdateDeleteChannelMessages:
-				if c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount) {
-					go c.handleDeleteUpdate(update)
-				}
+				go c.handleDeleteUpdate(update)
+				c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount)
 			case *UpdateReadHistoryInbox:
 				c.managePts(update.Pts, update.PtsCount)
 			case *UpdateReadHistoryOutbox:
@@ -1752,9 +1749,8 @@ UpdateTypeSwitching:
 		case *UpdateNewChannelMessage:
 			channelID := getChannelIDFromMessage(upd.Message)
 			if channelID != 0 {
-				if c.manageChannelPts(channelID, upd.Pts, upd.PtsCount) {
-					go c.handleMessageUpdate(upd.Message)
-				}
+				go c.handleMessageUpdate(upd.Message)
+				c.manageChannelPts(channelID, upd.Pts, upd.PtsCount)
 			} else {
 				go c.handleMessageUpdateWith(upd.Message, upd.Pts)
 			}
@@ -1820,7 +1816,6 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 	}
 
 	totalFetched := 0
-	startTime := time.Now()
 
 	req := &UpdatesGetDifferenceParams{
 		Pts:           fromPts,
@@ -1835,13 +1830,7 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 		req.Date = int32(time.Now().Unix())
 	}
 
-	defer func() {
-		if totalFetched > 0 {
-			c.Log.Debug(fmt.Sprintf("fetch difference complete (total=%d, duration=%v)", totalFetched, time.Since(startTime)))
-		}
-	}()
-
-	maxIterations := 50
+	maxIterations := 10
 	iteration := 0
 
 	for iteration < maxIterations {
@@ -1852,7 +1841,6 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 
 		if err != nil {
 			if ctx.Err() == context.DeadlineExceeded {
-				c.Log.Warn("fetch difference timeout, retrying")
 				continue
 			}
 			return
@@ -1910,7 +1898,7 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 			req.Date = u.IntermediateState.Date
 
 		case *UpdatesDifferenceTooLong:
-			c.Log.Warn(fmt.Sprintf("difference too long, refetching state (pts=%d), tryied with limit=%d, fetched=%d, %v", u.Pts, limit, totalFetched, c.JSON(req)))
+			c.Log.Debug(fmt.Sprintf("difference too long, refetching state (pts=%d), tried with limit=%d, fetched=%d, %v", u.Pts, limit, totalFetched, c.JSON(req)))
 			c.dispatcher.SetPts(u.Pts)
 
 			state, err := c.UpdatesGetState()
@@ -1926,12 +1914,12 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 			return
 
 		default:
-			c.Log.Warn(fmt.Sprintf("unknown difference type: %v", reflect.TypeOf(updates)))
+			c.Log.Debug(fmt.Sprintf("unknown difference type: %v", reflect.TypeOf(updates)))
 			return
 		}
 	}
 
-	c.Log.Warn(fmt.Sprintf("fetch difference max iterations (iterations=%d, pts=%d, fetched=%d)", maxIterations, req.Pts, totalFetched))
+	c.Log.Debug(fmt.Sprintf("fetch difference max iterations (iterations=%d, pts=%d, fetched=%d)", maxIterations, req.Pts, totalFetched))
 }
 
 func (c *Client) managePts(pts int32, ptsCount int32) bool {
@@ -1961,9 +1949,20 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 			return true
 		}
 
-		c.Log.Debug(fmt.Sprintf("large pts gap detected, processing update and filling gap (current=%d, received=%d, gap=%d)", currentPts, pts, gap))
 		c.dispatcher.SetPts(pts)
-		go c.FetchDifference(currentPts, gap+10)
+
+		gapPts := expectedPts
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+
+			newCurrentPts := c.dispatcher.GetPts()
+			if newCurrentPts >= pts {
+				return
+			}
+
+			c.FetchDifference(gapPts, gap+10)
+		}()
+
 		return true
 	}
 
@@ -1997,9 +1996,20 @@ func (c *Client) managePtsFast(pts int32, ptsCount int32) bool {
 			return true
 		}
 
-		c.Log.Debug(fmt.Sprintf("large short message pts gap detected, processing and filling gap (current=%d, received=%d, gap=%d)", currentPts, pts, gap))
 		c.dispatcher.SetPts(pts)
-		go c.FetchDifference(currentPts, gap+10)
+
+		gapPts := expectedPts
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+
+			newCurrentPts := c.dispatcher.GetPts()
+			if newCurrentPts >= pts {
+				return
+			}
+
+			c.FetchDifference(gapPts, gap+10)
+		}()
+
 		return true
 	}
 
@@ -2030,7 +2040,6 @@ func (c *Client) manageSeq(seq int32, seqStart int32) bool {
 	}
 
 	if expectedSeqStart < seqStart {
-		c.Log.Debug(fmt.Sprintf("seq gap detected (expected=%d, received=%d, gap=%d)", expectedSeqStart, seqStart, seqStart-expectedSeqStart))
 		go c.FetchDifference(c.dispatcher.GetPts(), 5000)
 		return false
 	}
@@ -2065,9 +2074,20 @@ func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bo
 			return true
 		}
 
-		c.Log.Debug(fmt.Sprintf("large channel pts gap detected, processing and filling gap (channel=%d, current=%d, received=%d, gap=%d)", channelID, currentPts, pts, gap))
 		c.dispatcher.SetChannelPts(channelID, pts)
-		go c.FetchChannelDifference(channelID, currentPts, 100)
+
+		gapPts := expectedPts
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+
+			newCurrentPts := c.dispatcher.GetChannelPts(channelID)
+			if newCurrentPts >= pts {
+				return
+			}
+
+			c.FetchChannelDifference(channelID, gapPts, 100)
+		}()
+
 		return true
 	}
 
@@ -2136,8 +2156,6 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 		limit = 100
 	}
 
-	startTime := time.Now()
-
 	c.dispatcher.RLock()
 	channelState, hasState := c.dispatcher.channelStates[channelID]
 	c.dispatcher.RUnlock()
@@ -2163,7 +2181,7 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 
 	defer func() {
 		if totalFetched > 0 {
-			c.Log.Info(fmt.Sprintf("fetch channel difference complete (channel=%d, total=%d, duration=%v)", channelID, totalFetched, time.Since(startTime)))
+			// Fetch channel difference complete
 		}
 	}()
 
@@ -2183,7 +2201,7 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 
 		if err != nil {
 			if ctx.Err() == context.DeadlineExceeded {
-				c.Log.Warn(fmt.Sprintf("channel difference timeout, retrying (channel=%d, iteration=%d, pts=%d)", channelID, iteration, req.Pts))
+				c.Log.Debug(fmt.Sprintf("channel difference timeout, retrying (channel=%d, iteration=%d, pts=%d)", channelID, iteration, req.Pts))
 			}
 			continue
 		}
@@ -2235,7 +2253,7 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 
 			if dialogChannel, ok := d.Dialog.(*DialogObj); ok {
 				c.dispatcher.SetChannelPts(channelID, dialogChannel.Pts)
-				c.Log.Warn(fmt.Sprintf("channel difference too long, refreshing state (channel=%d, pts=%d, final=%v)", channelID, dialogChannel.Pts, d.Final))
+				c.Log.Debug(fmt.Sprintf("channel difference too long, refreshing state (channel=%d, pts=%d, final=%v)", channelID, dialogChannel.Pts, d.Final))
 
 				if !d.Final {
 					c.dispatcher.RLock()
@@ -2252,12 +2270,12 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 			return
 
 		default:
-			c.Log.Warn(fmt.Sprintf("unknown channel difference type (channel=%d): %v", channelID, reflect.TypeOf(diff)))
+			c.Log.Debug(fmt.Sprintf("unknown channel difference type (channel=%d): %v", channelID, reflect.TypeOf(diff)))
 			return
 		}
 	}
 
-	c.Log.Warn(fmt.Sprintf("channel difference max iterations (channel=%d, iterations=%d, pts=%d, fetched=%d)", channelID, maxIterations, req.Pts, totalFetched))
+	c.Log.Debug(fmt.Sprintf("channel difference max iterations (channel=%d, iterations=%d, pts=%d, fetched=%d)", channelID, maxIterations, req.Pts, totalFetched))
 }
 
 func (c *Client) OpenChat(channel *InputChannelObj) {
