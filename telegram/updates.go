@@ -496,6 +496,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 		}
 
 		if c.dispatcher.IsUpdateProcessed(updateID) {
+			c.dispatcher.logger.Debug("Skipping already processed message update:", updateID)
 			return
 		}
 		c.dispatcher.MarkUpdateProcessed(updateID)
@@ -627,10 +628,6 @@ func (c *Client) handleAlbum(message MessageObj) {
 }
 
 func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
-	//if !c.managePtsFast(pts, 1) {
-		//return
-	//}
-
 	switch msg := m.(type) {
 	case *MessageObj:
 		if (c.IdInCache(c.GetPeerID(msg.FromID)) || func() bool {
@@ -644,7 +641,7 @@ func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
 			return
 		}
 
-		updatedMessage, err := c.GetDifference(pts-1, 1)
+		updatedMessage, err := c.GetDifference(pts, 1)
 		if err != nil {
 			c.Log.Error(errors.Wrap(err, "[GET_DIFF] failed to get difference"))
 		}
@@ -1667,39 +1664,34 @@ UpdateTypeSwitching:
 		for _, update := range upd.Updates {
 			switch update := update.(type) {
 			case *UpdateNewMessage:
-				if c.managePts(update.Pts, update.PtsCount) {
-					go c.handleMessageUpdate(update.Message)
-				}
+				go c.handleMessageUpdate(update.Message)
+				c.managePts(update.Pts, update.PtsCount)
 			case *UpdateNewChannelMessage:
 				channelID := getChannelIDFromMessage(update.Message)
 				if channelID != 0 {
 					go c.handleMessageUpdate(update.Message)
 					c.manageChannelPts(channelID, update.Pts, update.PtsCount)
 				} else {
-					if c.managePts(update.Pts, update.PtsCount) {
-						go c.handleMessageUpdate(update.Message)
-					}
+					go c.handleMessageUpdate(update.Message)
+					c.managePts(update.Pts, update.PtsCount)
 				}
 			case *UpdateNewScheduledMessage:
 				go c.handleMessageUpdate(update.Message)
 			case *UpdateEditMessage:
-				if c.managePts(update.Pts, update.PtsCount) {
-					go c.handleEditUpdate(update.Message)
-				}
+				go c.handleEditUpdate(update.Message)
+				c.managePts(update.Pts, update.PtsCount)
 			case *UpdateEditChannelMessage:
 				channelID := getChannelIDFromMessage(update.Message)
 				if channelID != 0 {
 					go c.handleEditUpdate(update.Message)
 					c.manageChannelPts(channelID, update.Pts, update.PtsCount)
 				} else {
-					if c.managePts(update.Pts, update.PtsCount) {
-						go c.handleEditUpdate(update.Message)
-					}
+					go c.handleEditUpdate(update.Message)
+					c.managePts(update.Pts, update.PtsCount)
 				}
 			case *UpdateDeleteMessages:
-				if c.managePts(update.Pts, update.PtsCount) {
-					go c.handleDeleteUpdate(update)
-				}
+				go c.handleDeleteUpdate(update)
+				c.managePts(update.Pts, update.PtsCount)
 			case *UpdateDeleteChannelMessages:
 				go c.handleDeleteUpdate(update)
 				c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount)
@@ -1969,53 +1961,6 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 	return true
 }
 
-func (c *Client) managePtsFast(pts int32, ptsCount int32) bool {
-	var currentPts = c.dispatcher.GetPts()
-
-	if currentPts == 0 {
-		c.dispatcher.SetPts(pts)
-		return true
-	}
-
-	expectedPts := currentPts + ptsCount
-
-	if expectedPts == pts {
-		c.dispatcher.SetPts(pts)
-		return true
-	}
-
-	if expectedPts > pts {
-		return false
-	}
-
-	if expectedPts < pts {
-		gap := pts - expectedPts
-
-		if gap <= 5 {
-			c.dispatcher.SetPts(pts)
-			return true
-		}
-
-		c.dispatcher.SetPts(pts)
-
-		gapPts := expectedPts
-		go func() {
-			time.Sleep(10 * time.Millisecond)
-
-			newCurrentPts := c.dispatcher.GetPts()
-			if newCurrentPts >= pts {
-				return
-			}
-
-			c.FetchDifference(gapPts, gap+10)
-		}()
-
-		return true
-	}
-
-	return true
-}
-
 func (c *Client) manageSeq(seq int32, seqStart int32) bool {
 	if seq == 0 && seqStart == 0 {
 		return true
@@ -2179,12 +2124,6 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 	maxIterations := 20
 	iteration := 0
 
-	defer func() {
-		if totalFetched > 0 {
-			// Fetch channel difference complete
-		}
-	}()
-
 	req := &UpdatesGetChannelDifferenceParams{
 		Force:   false,
 		Channel: &InputChannelObj{ChannelID: channelID, AccessHash: accessHash},
@@ -2201,9 +2140,9 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 
 		if err != nil {
 			if ctx.Err() == context.DeadlineExceeded {
-				c.Log.Debug(fmt.Sprintf("channel difference timeout, retrying (channel=%d, iteration=%d, pts=%d)", channelID, iteration, req.Pts))
+				continue
 			}
-			continue
+			return
 		}
 
 		switch d := diff.(type) {
