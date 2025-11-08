@@ -627,9 +627,9 @@ func (c *Client) handleAlbum(message MessageObj) {
 }
 
 func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
-	if !c.managePtsFast(pts, 1) {
-		return
-	}
+	//if !c.managePtsFast(pts, 1) {
+		//return
+	//}
 
 	switch msg := m.(type) {
 	case *MessageObj:
