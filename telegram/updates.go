@@ -225,11 +225,11 @@ type UpdateDispatcher struct {
 	currentDate           int32
 	channelStates         map[int64]*channelState
 	pendingGaps           map[int32]time.Time
-	pendingChannelGaps    map[int64]map[int32]time.Time
-	processedUpdates      map[int64]time.Time
-	recoveringDifference  bool
-	recoveringChannels    map[int64]bool
-	stopChan              chan struct{}
+	//pendingChannelGaps    map[int64]map[int32]time.Time
+	processedUpdates     map[int64]time.Time
+	recoveringDifference bool
+	recoveringChannels   map[int64]bool
+	stopChan             chan struct{}
 }
 
 func (d *UpdateDispatcher) SetPts(pts int32) {

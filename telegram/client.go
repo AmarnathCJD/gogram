@@ -102,8 +102,8 @@ type ClientConfig struct {
 	CommandPrefixes  string               // Command prefixes to recognize (default: "/!"), can be multiple like ".?!-/"
 	FloodHandler     func(err error) bool // The flood handler to use
 	ErrorHandler     func(err error)      // The error handler to use
-	Timeout          time.Duration        // Tcp connection timeout (default: 60s)
-	ReqTimeout       time.Duration        // Rpc request timeout (default: 60s)
+	Timeout          int                  // Tcp connection timeout in seconds (default: 60s)
+	ReqTimeout       int                  // Rpc request timeout in seconds (default: 60s)
 }
 
 type Session struct {
@@ -1000,12 +1000,12 @@ func (b *ClientConfigBuilder) WithLogger(logger *utils.Logger) *ClientConfigBuil
 	return b
 }
 
-func (b *ClientConfigBuilder) WithTimeout(timeout time.Duration) *ClientConfigBuilder {
+func (b *ClientConfigBuilder) WithTimeout(timeout int) *ClientConfigBuilder {
 	b.config.Timeout = timeout
 	return b
 }
 
-func (b *ClientConfigBuilder) WithReqTimeout(reqTimeout time.Duration) *ClientConfigBuilder {
+func (b *ClientConfigBuilder) WithReqTimeout(reqTimeout int) *ClientConfigBuilder {
 	b.config.ReqTimeout = reqTimeout
 	return b
 }

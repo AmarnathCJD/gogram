@@ -30,11 +30,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	defaultTimeout = 60 * time.Second // after 60 sec without any read/write, lib will try to reconnect
-	acksThreshold  = 10
-)
-
 type MTProto struct {
 	Addr      string
 	appID     int32
@@ -107,7 +102,6 @@ type Config struct {
 	FloodHandler      func(err error) bool
 	ErrorHandler      func(err error)
 	ConnectionHandler func(err error) error
-	ReqTimeout        time.Duration
 
 	ServerHost string
 	PublicKey  *rsa.PublicKey
@@ -118,7 +112,8 @@ type Config struct {
 	Ipv6       bool
 	CustomHost bool
 	LocalAddr  string
-	Timeout    time.Duration
+	Timeout    int
+	ReqTimeout int
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -145,9 +140,6 @@ func NewMTProto(c Config) (*MTProto, error) {
 	if c.Logger == nil {
 		c.Logger = utils.NewLogger("gogram [mtproto]").SetLevel(utils.InfoLevel)
 	}
-	if c.ReqTimeout < 100*time.Millisecond {
-		c.ReqTimeout = 60 * time.Second
-	}
 
 	mtproto := &MTProto{
 		sessionStorage:        c.SessionStorage,
@@ -168,12 +160,12 @@ func NewMTProto(c Config) (*MTProto, error) {
 		localAddr:             c.LocalAddr,
 		floodHandler:          func(err error) bool { return false },
 		errorHandler:          func(err error) {},
-		reqTimeout:            c.ReqTimeout,
+		reqTimeout:            utils.MinSafeDuration(c.ReqTimeout),
 		mode:                  parseTransportMode(c.Mode),
 		IpV6:                  c.Ipv6,
 		tcpState:              NewTcpState(),
 		DcList:                utils.NewDCOptions(),
-		timeout:               c.Timeout,
+		timeout:               utils.MinSafeDuration(c.Timeout),
 		reconnectAttempts:     0,
 		maxReconnectDelay:     15 * time.Minute,
 	}
@@ -324,8 +316,8 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 		LocalAddr:     m.localAddr,
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,
-		Timeout:       m.timeout,
-		ReqTimeout:    m.reqTimeout,
+		Timeout:       int(m.timeout.Seconds()),
+		ReqTimeout:    int(m.reqTimeout.Seconds()),
 	}
 
 	sender, err := NewMTProto(cfg)
@@ -363,7 +355,8 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 		LocalAddr:     m.localAddr,
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,
-		Timeout:       m.timeout,
+		Timeout:       int(m.timeout.Seconds()),
+		ReqTimeout:    int(m.reqTimeout.Seconds()),
 	}
 
 	if dcID == m.GetDC() {
@@ -406,10 +399,10 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 		return m.connectionHandler(err)
 	}
 
-	maxAttempts := 999999
+	maxAttempts := math.MaxInt16
 	baseDelay := 2 * time.Second
 
-	for attempt := 0; attempt < maxAttempts; attempt++ {
+	for attempt := range maxAttempts {
 		err := m.connect(ctx)
 		if err == nil {
 			if attempt > 0 {
@@ -506,7 +499,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 			Ctx:       ctx,
 			Host:      utils.FmtIp(m.Addr),
 			IpV6:      m.IpV6,
-			Timeout:   defaultTimeout,
+			Timeout:   m.timeout,
 			Socks:     m.proxy,
 			LocalAddr: m.localAddr,
 		},
@@ -908,7 +901,7 @@ messageTypeSwitching:
 		}
 	}
 
-	if m.pendingAcks.Len() >= acksThreshold {
+	if m.pendingAcks.Len() >= 10 {
 		m.Logger.Debug("Sending acks", m.pendingAcks.Len())
 
 		_, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: m.pendingAcks.Keys()})
