@@ -736,9 +736,10 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 //
 // start and end are the byte offsets to download.
 // chunkSize is the size of each chunk to download.
+// callback is an optional function that receives each chunk as it's downloaded.
 //
 // Note: chunkSize must be a multiple of 1048576 (1MB)
-func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]byte, string, error) {
+func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int, callback ...func([]byte)) ([]byte, string, error) {
 	var buf []byte
 	input, dc, size, name, err := GetFileLocation(media)
 	if err != nil {
@@ -761,6 +762,11 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 	sender := w.Next()
 	defer w.FreeWorker(sender)
 
+	var onChunk func([]byte)
+	if len(callback) > 0 {
+		onChunk = callback[0]
+	}
+
 	for curr := start; curr < end; curr += chunkSize {
 		part, err := sender.MakeRequest(&UploadGetFileParams{
 			Location:     input,
@@ -770,12 +776,18 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		})
 
 		if err != nil {
+			if handleIfFlood(err, c) {
+				continue
+			}
 			c.Log.Error(err)
 		}
 
 		switch v := part.(type) {
 		case *UploadFileObj:
 			buf = append(buf, v.Bytes...)
+			if onChunk != nil {
+				onChunk(v.Bytes)
+			}
 		case *UploadFileCdnRedirect:
 			return nil, "", errors.New("cdn redirect not implemented")
 		}
