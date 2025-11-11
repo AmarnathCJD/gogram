@@ -89,6 +89,9 @@ type MTProto struct {
 	reconnectAttempts int
 	reconnectMutex    sync.Mutex
 	maxReconnectDelay time.Duration
+
+	useWebSocket    bool
+	useWebSocketTLS bool
 }
 
 type Config struct {
@@ -103,17 +106,19 @@ type Config struct {
 	ErrorHandler      func(err error)
 	ConnectionHandler func(err error) error
 
-	ServerHost string
-	PublicKey  *rsa.PublicKey
-	DataCenter int
-	Logger     *utils.Logger
-	Proxy      *url.URL
-	Mode       string
-	Ipv6       bool
-	CustomHost bool
-	LocalAddr  string
-	Timeout    int
-	ReqTimeout int
+	ServerHost      string
+	PublicKey       *rsa.PublicKey
+	DataCenter      int
+	Logger          *utils.Logger
+	Proxy           *url.URL
+	Mode            string
+	Ipv6            bool
+	CustomHost      bool
+	LocalAddr       string
+	Timeout         int
+	ReqTimeout      int
+	UseWebSocket    bool
+	UseWebSocketTLS bool
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -168,6 +173,8 @@ func NewMTProto(c Config) (*MTProto, error) {
 		timeout:               utils.MinSafeDuration(c.Timeout),
 		reconnectAttempts:     0,
 		maxReconnectDelay:     15 * time.Minute,
+		useWebSocket:          c.UseWebSocket,
+		useWebSocketTLS:       c.UseWebSocketTLS,
 	}
 
 	mtproto.Logger.Debug("initializing mtproto...")
@@ -493,18 +500,41 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 
 func (m *MTProto) connect(ctx context.Context) error {
 	var err error
-	m.transport, err = transport.NewTransport(
-		m,
-		transport.TCPConnConfig{
-			Ctx:       ctx,
-			Host:      utils.FmtIp(m.Addr),
-			IpV6:      m.IpV6,
-			Timeout:   m.timeout,
-			Socks:     m.proxy,
-			LocalAddr: m.localAddr,
-		},
-		m.mode,
-	)
+
+	if m.useWebSocket {
+		dc := m.GetDC()
+
+		m.transport, err = transport.NewTransport(
+			m,
+			transport.WSConnConfig{
+				Ctx:         ctx,
+				Host:        utils.FmtIp(m.Addr),
+				TLS:         m.useWebSocketTLS,
+				DC:          dc,
+				TestMode:    false,
+				Timeout:     m.timeout,
+				Socks:       m.proxy,
+				LocalAddr:   m.localAddr,
+				ModeVariant: uint8(m.mode),
+			},
+			m.mode,
+		)
+	} else {
+		// Use TCP transport
+		m.transport, err = transport.NewTransport(
+			m,
+			transport.TCPConnConfig{
+				Ctx:       ctx,
+				Host:      utils.FmtIp(m.Addr),
+				IpV6:      m.IpV6,
+				Timeout:   m.timeout,
+				Socks:     m.proxy,
+				LocalAddr: m.localAddr,
+			},
+			m.mode,
+		)
+	}
+
 	if err != nil {
 		return fmt.Errorf("creating transport: %w", err)
 	}
