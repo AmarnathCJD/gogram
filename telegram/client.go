@@ -104,6 +104,8 @@ type ClientConfig struct {
 	ErrorHandler     func(err error)      // The error handler to use
 	Timeout          int                  // Tcp connection timeout in seconds (default: 60s)
 	ReqTimeout       int                  // Rpc request timeout in seconds (default: 60s)
+	UseWebSocket     bool                 // Use WebSocket transport instead of TCP
+	UseWebSocketTLS  bool                 // Use wss:// (WebSocket over TLS) instead of ws://
 }
 
 type Session struct {
@@ -191,16 +193,18 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		Logger: utils.NewLogger("gogram " + getLogPrefix("mtproto", config.SessionName)).
 			SetLevel(config.LogLevel).
 			NoColor(!c.Log.Color()),
-		StringSession: config.StringSession,
-		Proxy:         config.Proxy,
-		LocalAddr:     config.LocalAddr,
-		MemorySession: config.MemorySession,
-		Ipv6:          config.ForceIPv6,
-		CustomHost:    customHost,
-		FloodHandler:  config.FloodHandler,
-		ErrorHandler:  config.ErrorHandler,
-		Timeout:       config.Timeout,
-		ReqTimeout:    config.ReqTimeout,
+		StringSession:   config.StringSession,
+		Proxy:           config.Proxy,
+		LocalAddr:       config.LocalAddr,
+		MemorySession:   config.MemorySession,
+		Ipv6:            config.ForceIPv6,
+		CustomHost:      customHost,
+		FloodHandler:    config.FloodHandler,
+		ErrorHandler:    config.ErrorHandler,
+		Timeout:         config.Timeout,
+		ReqTimeout:      config.ReqTimeout,
+		UseWebSocket:    config.UseWebSocket,
+		UseWebSocketTLS: config.UseWebSocketTLS,
 	})
 	if err != nil {
 		return errors.Wrap(err, "creating mtproto client")
