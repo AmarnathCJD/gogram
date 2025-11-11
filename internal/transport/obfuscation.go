@@ -20,7 +20,7 @@ type obfuscatedConn struct {
 	decryptor cipher.Stream
 }
 
-func newObfuscatedConn(conn io.ReadWriteCloser, protocolID []byte) (*obfuscatedConn, error) {
+func NewObfuscatedConn(conn io.ReadWriteCloser, protocolID []byte) (*obfuscatedConn, error) {
 	if len(protocolID) > 4 {
 		return nil, errors.New("protocol ID must be 4 bytes or less")
 	}
