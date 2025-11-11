@@ -23,20 +23,30 @@ func (e *ErrNotMultiple) Error() string {
 func FormatWebSocketURI(host string, tls bool, dc int, testMode bool) string {
 	isIP := net.ParseIP(strings.Split(host, ":")[0]) != nil
 
-	if isIP {
-		scheme := "ws"
-		port := "80"
-		if tls {
-			scheme = "wss"
-			port = "443"
+	if tls {
+		if strings.Contains(host, "web.telegram.org") {
+			return fmt.Sprintf("wss://%s/apiws", host)
 		}
-		hostOnly := strings.Split(host, ":")[0]
-		return fmt.Sprintf("%s://%s:%s/apiws", scheme, hostOnly, port)
+
+		dcName := [...]string{"pluto", "venus", "aurora", "vesta", "flora"}
+		name := "vesta"
+		if dc >= 1 && dc <= 5 {
+			name = dcName[dc-1]
+		}
+		testSuffix := ""
+		if testMode {
+			testSuffix = "_test"
+		}
+		return fmt.Sprintf("wss://%s.web.telegram.org:443/apiws%s", name, testSuffix)
 	}
 
-	scheme, port := "wss", "443"
+	if isIP {
+		hostOnly := strings.Split(host, ":")[0]
+		return fmt.Sprintf("ws://%s:80/apiws", hostOnly)
+	}
+
 	if strings.Contains(host, "web.telegram.org") {
-		return fmt.Sprintf("%s://%s/apiws", scheme, host)
+		return fmt.Sprintf("ws://%s/apiws", host)
 	}
 
 	dcName := [...]string{"pluto", "venus", "aurora", "vesta", "flora"}
@@ -49,7 +59,7 @@ func FormatWebSocketURI(host string, tls bool, dc int, testMode bool) string {
 		testSuffix = "_test"
 	}
 
-	return fmt.Sprintf("%s://%s.web.telegram.org:%s/apiws%s", scheme, name, port, testSuffix)
+	return fmt.Sprintf("ws://%s.web.telegram.org:80/apiws%s", name, testSuffix)
 }
 
 func ProtocolID(variant uint8) []byte {
