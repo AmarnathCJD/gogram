@@ -772,6 +772,11 @@ func (c *Client) handleJoinRequestUpdate(update *UpdatePendingJoinRequests) {
 }
 
 func (c *Client) handleRawUpdate(update Update) {
+	defer func() {
+    if r := recover(); r != nil {
+        c.Logger.Errorf("Recovered in handleRawUpdate: %v", r)
+    }
+}()
 	for group, handlers := range c.dispatcher.rawHandles {
 		for _, handler := range handlers {
 			if reflect.TypeOf(update) == reflect.TypeOf(handler.updateType) || handler.updateType == nil {
