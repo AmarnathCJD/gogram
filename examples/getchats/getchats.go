@@ -39,9 +39,6 @@ func main() {
 		panic(err)
 	}
 	for _, dialog := range dialogs {
-		switch d := dialog.(type) {
-		case *telegram.DialogObj:
-			fmt.Println(d.TopMessage)
-		}
+		fmt.Printf("Dialog with ID: %d is a channel: %v, chat: %v, user: %v\n", dialog.GetID(), dialog.IsChannel(), dialog.IsChat(), dialog.IsUser())
 	}
 }

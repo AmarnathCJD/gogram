@@ -2,8 +2,9 @@ package telegram
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"reflect"
 	"time"
 
@@ -221,6 +222,10 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
+	if Message == "" {
+		Message = " "
+	}
 
 	result, err := c.MakeRequestCtx(ctx, &MessagesEditMessageParams{
 		Peer:         Peer,
@@ -903,7 +908,9 @@ func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*Forwar
 	}
 	randomIDs := make([]int64, len(msgIDs))
 	for i := range randomIDs {
-		randomIDs[i] = rand.Int63()
+		b := make([]byte, 8)
+		rand.Read(b)
+		randomIDs[i] = int64(binary.BigEndian.Uint64(b))
 	}
 	var sendAs InputPeer
 	if opt.SendAs != nil {

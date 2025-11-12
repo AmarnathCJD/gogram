@@ -39,12 +39,15 @@ type clientData struct {
 	systemVersion    string
 	appVersion       string
 	langCode         string
+	systemLangCode   string
+	langPack         string
 	parseMode        string
 	logLevel         utils.LogLevel
 	sleepThresholdMs int
 	albumWaitTime    int64
 	botAcc           bool
 	me               *UserObj
+	commandPrefixes  string
 }
 
 // Client is the main struct of the library
@@ -61,10 +64,12 @@ type Client struct {
 }
 
 type DeviceConfig struct {
-	DeviceModel   string // The device model to use
-	SystemVersion string // The version of the system
-	AppVersion    string // The version of the app
-	LangCode      string // The language code
+	DeviceModel    string // The device model to use
+	SystemVersion  string // The version of the system
+	AppVersion     string // The version of the app
+	LangCode       string // The language code
+	SystemLangCode string // The system language code
+	LangPack       string // The language pack
 }
 
 type ClientConfig struct {
@@ -94,9 +99,13 @@ type ClientConfig struct {
 	TransportMode    string               // The transport mode to use (Abridged, Intermediate, Full)
 	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
 	AlbumWaitTime    int64                // The time to wait for album messages (in milliseconds)
+	CommandPrefixes  string               // Command prefixes to recognize (default: "/!"), can be multiple like ".?!-/"
 	FloodHandler     func(err error) bool // The flood handler to use
 	ErrorHandler     func(err error)      // The error handler to use
-	Timeout          time.Duration        // Request timeout (no timeout by default)
+	Timeout          int                  // Tcp connection timeout in seconds (default: 60s)
+	ReqTimeout       int                  // Rpc request timeout in seconds (default: 60s)
+	UseWebSocket     bool                 // Use WebSocket transport instead of TCP
+	UseWebSocketTLS  bool                 // Use wss:// (WebSocket over TLS) instead of ws://
 }
 
 type Session struct {
@@ -184,15 +193,18 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		Logger: utils.NewLogger("gogram " + getLogPrefix("mtproto", config.SessionName)).
 			SetLevel(config.LogLevel).
 			NoColor(!c.Log.Color()),
-		StringSession: config.StringSession,
-		Proxy:         config.Proxy,
-		LocalAddr:     config.LocalAddr,
-		MemorySession: config.MemorySession,
-		Ipv6:          config.ForceIPv6,
-		CustomHost:    customHost,
-		FloodHandler:  config.FloodHandler,
-		ErrorHandler:  config.ErrorHandler,
-		Timeout:       config.Timeout,
+		StringSession:   config.StringSession,
+		Proxy:           config.Proxy,
+		LocalAddr:       config.LocalAddr,
+		MemorySession:   config.MemorySession,
+		Ipv6:            config.ForceIPv6,
+		CustomHost:      customHost,
+		FloodHandler:    config.FloodHandler,
+		ErrorHandler:    config.ErrorHandler,
+		Timeout:         config.Timeout,
+		ReqTimeout:      config.ReqTimeout,
+		UseWebSocket:    config.UseWebSocket,
+		UseWebSocketTLS: config.UseWebSocketTLS,
 	})
 	if err != nil {
 		return errors.Wrap(err, "creating mtproto client")
@@ -265,10 +277,13 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.systemVersion = getValue(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH)
 	c.clientData.appVersion = getValue(cnf.DeviceConfig.AppVersion, Version)
 	c.clientData.langCode = getValue(cnf.DeviceConfig.LangCode, "en")
+	c.clientData.systemLangCode = getValue(cnf.DeviceConfig.SystemLangCode, c.clientData.langCode) // backward compatibility
+	c.clientData.langPack = cnf.DeviceConfig.LangPack
 	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
 	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
 	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
 	c.clientData.albumWaitTime = getValue(cnf.AlbumWaitTime, 600)
+	c.clientData.commandPrefixes = getValue(cnf.CommandPrefixes, "/!")
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
@@ -277,7 +292,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	}
 }
 
-// initialRequest sends the initial initConnection request
+// InitialRequest sends the initial initConnection request
 func (c *Client) InitialRequest() error {
 	c.Log.Debug("sending initial invokeWithLayer request")
 	serverConfig, err := c.InvokeWithLayer(ApiVersion, &InitConnectionParams{
@@ -285,8 +300,9 @@ func (c *Client) InitialRequest() error {
 		DeviceModel:    c.clientData.deviceModel,
 		SystemVersion:  c.clientData.systemVersion,
 		AppVersion:     c.clientData.appVersion,
-		SystemLangCode: c.clientData.langCode,
+		SystemLangCode: c.clientData.systemLangCode,
 		LangCode:       c.clientData.langCode,
+		LangPack:       c.clientData.langPack,
 		Query:          &HelpGetConfigParams{},
 	})
 
@@ -549,8 +565,9 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 			DeviceModel:    c.clientData.deviceModel,
 			SystemVersion:  c.clientData.systemVersion,
 			AppVersion:     c.clientData.appVersion,
-			SystemLangCode: c.clientData.langCode,
+			SystemLangCode: c.clientData.systemLangCode,
 			LangCode:       c.clientData.langCode,
+			LangPack:       c.clientData.langPack,
 			Query:          &HelpGetConfigParams{},
 		}
 
@@ -734,6 +751,16 @@ func (c *Client) ParseMode() string {
 	return c.clientData.parseMode
 }
 
+// CommandPrefixes returns the command prefixes configured for the client
+func (c *Client) CommandPrefixes() string {
+	return c.clientData.commandPrefixes
+}
+
+// SetCommandPrefixes sets the command prefixes for the client
+func (c *Client) SetCommandPrefixes(prefixes string) {
+	c.clientData.commandPrefixes = prefixes
+}
+
 // Terminate client and disconnect from telegram server
 func (c *Client) Terminate() error {
 	//go c.cleanExportedSenders()
@@ -857,12 +884,14 @@ func NewClientConfigBuilder(appID int32, appHash string) *ClientConfigBuilder {
 	}
 }
 
-func (b *ClientConfigBuilder) WithDeviceConfig(deviceModel, systemVersion, appVersion, langCode string) *ClientConfigBuilder {
+func (b *ClientConfigBuilder) WithDeviceConfig(deviceModel, systemVersion, appVersion, langCode, sysLangCode, langPack string) *ClientConfigBuilder {
 	b.config.DeviceConfig = DeviceConfig{
-		DeviceModel:   deviceModel,
-		SystemVersion: systemVersion,
-		AppVersion:    appVersion,
-		LangCode:      langCode,
+		DeviceModel:    deviceModel,
+		SystemVersion:  systemVersion,
+		AppVersion:     appVersion,
+		LangCode:       langCode,
+		SystemLangCode: sysLangCode,
+		LangPack:       langPack,
 	}
 	return b
 }
@@ -972,6 +1001,16 @@ func (b *ClientConfigBuilder) WithTransportMode(mode string) *ClientConfigBuilde
 
 func (b *ClientConfigBuilder) WithLogger(logger *utils.Logger) *ClientConfigBuilder {
 	b.config.Logger = logger
+	return b
+}
+
+func (b *ClientConfigBuilder) WithTimeout(timeout int) *ClientConfigBuilder {
+	b.config.Timeout = timeout
+	return b
+}
+
+func (b *ClientConfigBuilder) WithReqTimeout(reqTimeout int) *ClientConfigBuilder {
+	b.config.ReqTimeout = reqTimeout
 	return b
 }
 
