@@ -30,11 +30,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	defaultTimeout = 60 * time.Second // after 60 sec without any read/write, lib will try to reconnect
-	acksThreshold  = 10
-)
-
 type MTProto struct {
 	Addr      string
 	appID     int32
@@ -47,6 +42,7 @@ type MTProto struct {
 	memorySession bool
 	tcpState      *TcpState
 	timeOffset    int64
+	reqTimeout    time.Duration
 	mode          mode.Variant
 	DcList        *utils.DCOptions
 
@@ -84,10 +80,18 @@ type MTProto struct {
 	serverRequestHandlers []func(i any) bool
 	floodHandler          func(err error) bool
 	errorHandler          func(err error)
+	connectionHandler     func(err error) error
 	exported              bool
 	cdn                   bool
 	terminated            atomic.Bool
 	timeout               time.Duration
+
+	reconnectAttempts int
+	reconnectMutex    sync.Mutex
+	maxReconnectDelay time.Duration
+
+	useWebSocket    bool
+	useWebSocketTLS bool
 }
 
 type Config struct {
@@ -98,19 +102,23 @@ type Config struct {
 	MemorySession  bool
 	AppID          int32
 
-	FloodHandler func(err error) bool
-	ErrorHandler func(err error)
+	FloodHandler      func(err error) bool
+	ErrorHandler      func(err error)
+	ConnectionHandler func(err error) error
 
-	ServerHost string
-	PublicKey  *rsa.PublicKey
-	DataCenter int
-	Logger     *utils.Logger
-	Proxy      *url.URL
-	Mode       string
-	Ipv6       bool
-	CustomHost bool
-	LocalAddr  string
-	Timeout    time.Duration
+	ServerHost      string
+	PublicKey       *rsa.PublicKey
+	DataCenter      int
+	Logger          *utils.Logger
+	Proxy           *url.URL
+	Mode            string
+	Ipv6            bool
+	CustomHost      bool
+	LocalAddr       string
+	Timeout         int
+	ReqTimeout      int
+	UseWebSocket    bool
+	UseWebSocketTLS bool
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -137,6 +145,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 	if c.Logger == nil {
 		c.Logger = utils.NewLogger("gogram [mtproto]").SetLevel(utils.InfoLevel)
 	}
+
 	mtproto := &MTProto{
 		sessionStorage:        c.SessionStorage,
 		Addr:                  c.ServerHost,
@@ -156,11 +165,16 @@ func NewMTProto(c Config) (*MTProto, error) {
 		localAddr:             c.LocalAddr,
 		floodHandler:          func(err error) bool { return false },
 		errorHandler:          func(err error) {},
+		reqTimeout:            utils.MinSafeDuration(c.ReqTimeout),
 		mode:                  parseTransportMode(c.Mode),
 		IpV6:                  c.Ipv6,
 		tcpState:              NewTcpState(),
 		DcList:                utils.NewDCOptions(),
-		timeout:               c.Timeout,
+		timeout:               utils.MinSafeDuration(c.Timeout),
+		reconnectAttempts:     0,
+		maxReconnectDelay:     15 * time.Minute,
+		useWebSocket:          c.UseWebSocket,
+		useWebSocketTLS:       c.UseWebSocketTLS,
 	}
 
 	mtproto.Logger.Debug("initializing mtproto...")
@@ -182,6 +196,10 @@ func NewMTProto(c Config) (*MTProto, error) {
 
 	if c.ErrorHandler != nil {
 		mtproto.errorHandler = c.ErrorHandler
+	}
+
+	if c.ConnectionHandler != nil {
+		mtproto.connectionHandler = c.ConnectionHandler
 	}
 
 	return mtproto, nil
@@ -305,7 +323,8 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 		LocalAddr:     m.localAddr,
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,
-		Timeout:       m.timeout,
+		Timeout:       int(m.timeout.Seconds()),
+		ReqTimeout:    int(m.reqTimeout.Seconds()),
 	}
 
 	sender, err := NewMTProto(cfg)
@@ -343,7 +362,8 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 		LocalAddr:     m.localAddr,
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,
-		Timeout:       m.timeout,
+		Timeout:       int(m.timeout.Seconds()),
+		ReqTimeout:    int(m.reqTimeout.Seconds()),
 	}
 
 	if dcID == m.GetDC() {
@@ -371,6 +391,56 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 	return sender, nil
 }
 
+func (m *MTProto) connectWithRetry(ctx context.Context) error {
+	m.reconnectMutex.Lock()
+	defer m.reconnectMutex.Unlock()
+
+	err := m.connect(ctx)
+	if err == nil {
+		m.reconnectAttempts = 0
+		return nil
+	}
+
+	if m.connectionHandler != nil {
+		m.Logger.Debug("using custom connection handler for reconnection")
+		return m.connectionHandler(err)
+	}
+
+	maxAttempts := math.MaxInt16
+	baseDelay := 2 * time.Second
+
+	for attempt := range maxAttempts {
+		err := m.connect(ctx)
+		if err == nil {
+			if attempt > 0 {
+				m.Logger.Info(fmt.Sprintf("successfully reconnected after %d attempts", attempt+1))
+			}
+			m.reconnectAttempts = 0
+			return nil
+		}
+
+		if m.terminated.Load() {
+			return errors.New("mtproto terminated during reconnection")
+		}
+
+		delay := time.Duration(1<<uint(attempt)) * baseDelay
+		if delay > m.maxReconnectDelay {
+			delay = m.maxReconnectDelay
+		}
+
+		m.Logger.Info(fmt.Sprintf("%v, retrying in %v...", err, delay))
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(delay):
+			continue
+		}
+	}
+
+	return errors.New("max reconnection attempts reached")
+}
+
 func (m *MTProto) CreateConnection(withLog bool) error {
 	if m.terminated.Load() {
 		return errors.New("mtproto is terminated, cannot create connection")
@@ -384,7 +454,8 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	} else {
 		m.Logger.Debug(fmt.Sprintf("connecting to [%s] - <%s> ...", utils.FmtIp(m.Addr), utils.Vtcp(m.IpV6)))
 	}
-	err := m.connect(ctx)
+
+	err := m.connectWithRetry(ctx)
 	if err != nil {
 		m.Logger.Error(errors.Wrap(err, "creating connection"))
 		return err
@@ -429,18 +500,41 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 
 func (m *MTProto) connect(ctx context.Context) error {
 	var err error
-	m.transport, err = transport.NewTransport(
-		m,
-		transport.TCPConnConfig{
-			Ctx:       ctx,
-			Host:      utils.FmtIp(m.Addr),
-			IpV6:      m.IpV6,
-			Timeout:   defaultTimeout,
-			Socks:     m.proxy,
-			LocalAddr: m.localAddr,
-		},
-		m.mode,
-	)
+
+	if m.useWebSocket {
+		dc := m.GetDC()
+
+		m.transport, err = transport.NewTransport(
+			m,
+			transport.WSConnConfig{
+				Ctx:         ctx,
+				Host:        utils.FmtIp(m.Addr),
+				TLS:         m.useWebSocketTLS,
+				DC:          dc,
+				TestMode:    false,
+				Timeout:     m.timeout,
+				Socks:       m.proxy,
+				LocalAddr:   m.localAddr,
+				ModeVariant: uint8(m.mode),
+			},
+			m.mode,
+		)
+	} else {
+		// Use TCP transport
+		m.transport, err = transport.NewTransport(
+			m,
+			transport.TCPConnConfig{
+				Ctx:       ctx,
+				Host:      utils.FmtIp(m.Addr),
+				IpV6:      m.IpV6,
+				Timeout:   m.timeout,
+				Socks:     m.proxy,
+				LocalAddr: m.localAddr,
+			},
+			m.mode,
+		)
+	}
+
 	if err != nil {
 		return fmt.Errorf("creating transport: %w", err)
 	}
@@ -449,44 +543,15 @@ func (m *MTProto) connect(ctx context.Context) error {
 }
 
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	m.tcpState.WaitForActive()
-
-	resp, _, err := m.sendPacket(data, expectedTypes...)
-	if err != nil {
-		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") || strings.Contains(err.Error(), "connection was forcibly closed") || strings.Contains(err.Error(), "connection reset by peer") || strings.Contains(err.Error(), "broken pipe") {
-			m.Logger.Info(fmt.Sprintf("connection closed due to broken tcp, reconnecting to [%s] - <%s> ...", m.Addr, utils.Vtcp(m.IpV6)))
-			err = m.Reconnect(false)
-			if err != nil {
-				return nil, errors.Wrap(err, "reconnecting")
-			}
-			return m.makeRequest(data, expectedTypes...)
-		}
-		return nil, errors.Wrap(err, "sending packet")
-	}
-	response := <-resp
-	switch r := response.(type) {
-	case *objects.RpcError:
-		if err := RpcErrorToNative(r).(*ErrResponseCode); strings.Contains(err.Message, "FLOOD_WAIT_") || strings.Contains(err.Message, "FLOOD_PREMIUM_WAIT_") {
-			if done := m.floodHandler(err); !done {
-				return nil, RpcErrorToNative(r)
-			} else {
-				return m.makeRequest(data, expectedTypes...)
-			}
-		}
-		m.errorHandler(RpcErrorToNative(r))
-
-		return nil, RpcErrorToNative(r)
-
-	case *errorSessionConfigsChanged:
-		m.Logger.Debug("session configs changed, resending request")
-		return m.makeRequest(data, expectedTypes...)
-	}
-
-	return tl.UnwrapNativeTypes(response), nil
+	ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
+	defer cancel()
+	return m.makeRequestCtx(ctx, data, expectedTypes...)
 }
 
 func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	m.tcpState.WaitForActive()
+	if err := m.tcpState.WaitForActive(ctx); err != nil {
+		return nil, errors.Wrap(err, "waiting for active tcp state")
+	}
 
 	resp, msgId, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
@@ -504,11 +569,12 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 	select {
 	case <-ctx.Done():
 		go m.writeRPCResponse(int(msgId), &objects.Null{})
-		return nil, ctx.Err()
+		return nil, errors.Wrap(ctx.Err(), "makeRequestIsTheCulprit")
 	case response := <-resp:
 		switch r := response.(type) {
 		case *objects.RpcError:
 			if err := RpcErrorToNative(r).(*ErrResponseCode); strings.Contains(err.Message, "FLOOD_WAIT_") || strings.Contains(err.Message, "FLOOD_PREMIUM_WAIT_") {
+				err.Message = fmt.Sprintf("{%s}", utils.FmtMethod(data))
 				if done := m.floodHandler(err); !done {
 					return nil, RpcErrorToNative(r)
 				} else {
@@ -535,7 +601,7 @@ func (m *MTProto) InvokeRequestWithoutUpdate(data tl.Object, expectedTypes ...re
 }
 
 func (m *MTProto) IsTcpActive() bool {
-	return m.tcpState.Active.Load()
+	return m.tcpState.GetActive()
 }
 
 func (m *MTProto) stopRoutines() {
@@ -578,10 +644,14 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		m.Logger.Info(fmt.Sprintf("reconnecting to [%s] - <Tcp> ...", m.Addr))
 	}
 	err = m.CreateConnection(WithLogs)
-	if err == nil && WithLogs {
-		m.Logger.Info(fmt.Sprintf("reconnected to [%s] - <Tcp>", m.Addr))
+	if err == nil {
+		if WithLogs {
+			m.Logger.Info(fmt.Sprintf("reconnected to [%s] - <Tcp>", m.Addr))
+		}
+		if m.transport != nil {
+			m.Ping()
+		}
 	}
-	m.Ping()
 
 	return errors.Wrap(err, "recreating connection")
 }
@@ -597,13 +667,20 @@ func (m *MTProto) longPing(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			m.tcpState.WaitForActive()
+			err := m.tcpState.WaitForActive(ctx)
+			if err != nil {
+				return
+			}
 			m.Ping()
 		}
 	}
 }
 
 func (m *MTProto) Ping() time.Duration {
+	if m.transport == nil || !m.IsTcpActive() {
+		m.Logger.Debug("skipping ping: transport not available")
+		return 0
+	}
 	start := time.Now()
 	m.Logger.Debug("rpc - pinging server ...")
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
@@ -622,7 +699,10 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			default:
-				m.TcpState().WaitForActive()
+				errCtx := m.tcpState.WaitForActive(ctx)
+				if errCtx != nil {
+					return
+				}
 				err := m.readMsg()
 
 				if err != nil {
@@ -851,7 +931,7 @@ messageTypeSwitching:
 		}
 	}
 
-	if m.pendingAcks.Len() >= acksThreshold {
+	if m.pendingAcks.Len() >= 10 {
 		m.Logger.Debug("Sending acks", m.pendingAcks.Len())
 
 		_, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: m.pendingAcks.Keys()})
@@ -874,35 +954,76 @@ func MessageRequireToAck(msg tl.Object) bool {
 	}
 }
 
+// TcpState represents a simple concurrency-safe state machine
+// that can be either active or inactive.
+// When the state becomes active, all goroutines waiting on WaitForActive()
+// are released (via channel close).
+// When the state becomes inactive again, a new channel is created for future waits.
 type TcpState struct {
-	Active atomic.Bool
-	Cond   *sync.Cond
+	mu     sync.RWMutex
+	active bool
+	ch     chan struct{}
 }
 
 func (m *MTProto) TcpState() *TcpState {
 	return m.tcpState
 }
 
-func (m *TcpState) SetActive(active bool) {
-	m.Cond.L.Lock()
-	m.Active.Store(active)
-	m.Cond.Broadcast()
-	m.Cond.L.Unlock()
+// GetActive safely returns the current active flag.
+// It can be called concurrently with other methods.
+func (m *TcpState) GetActive() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.active
 }
 
-func (m *TcpState) WaitForActive() {
-	m.Cond.L.Lock()
-	defer m.Cond.L.Unlock()
+// SetActive updates the active flag.
+// - If switching from false → true, the channel is closed to notify all waiters.
+// - If switching from true → false, a new channel is created for future waits.
+func (m *TcpState) SetActive(active bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	for !m.Active.Load() {
-		m.Cond.Wait()
+	// No state change → nothing to do
+	if m.active == active {
+		return
+	}
+
+	m.active = active
+
+	if active {
+		// Closing the channel releases all current waiters
+		close(m.ch)
+	} else {
+		// Create a new channel for the next waiting round
+		m.ch = make(chan struct{})
+	}
+}
+
+// WaitForActive blocks until the TcpState becomes active or
+// until the provided context is canceled.
+// Returns nil when the state is active, or ctx.Err() if canceled.
+func (m *TcpState) WaitForActive(ctx context.Context) error {
+	m.mu.RLock()
+	ch := m.ch
+	active := m.active
+	m.mu.RUnlock()
+
+	if active {
+		return nil
+	}
+
+	select {
+	case <-ch: // Unblocked when SetActive(true) closes the channel
+		return nil
+	case <-ctx.Done(): // Context canceled or timed out
+		return ctx.Err()
 	}
 }
 
 func NewTcpState() *TcpState {
 	return &TcpState{
-		Active: atomic.Bool{},
-		Cond:   sync.NewCond(&sync.Mutex{}),
+		ch: make(chan struct{}),
 	}
 }
 

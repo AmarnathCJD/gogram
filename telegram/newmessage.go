@@ -550,6 +550,19 @@ func (m *NewMessage) Ask(Text any, Opts ...*SendOptions) (*NewMessage, error) {
 	return conv.GetResponse()
 }
 
+func (m *NewMessage) WaitClick(timeout ...int32) (*CallbackQuery, error) {
+	conv, err := m.Conv(getVariadic(timeout, 60))
+	if err != nil {
+		return nil, err
+	}
+	defer conv.Close()
+	update, err := conv.WaitEvent(&UpdateBotCallbackQuery{})
+	if err != nil {
+		return nil, err
+	}
+	return packCallbackQuery(m.Client, update.(*UpdateBotCallbackQuery)), nil
+}
+
 // Client.SendMessage ReplyID set to messageID
 func (m *NewMessage) Reply(Text any, Opts ...SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {

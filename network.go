@@ -33,10 +33,11 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 		m.expectedTypes.Add(int(msgID), expectedTypes)
 	}
 
-	// dealing with response channel
 	resp := m.getRespChannel()
 	if isNullableResponse(request) {
-		go func() { resp <- &objects.Null{} }() // goroutine cuz we don't read from it RIGHT NOW
+		go func() {
+			resp <- &objects.Null{}
+		}()
 	} else {
 		m.responseChannels.Add(int(msgID), resp)
 	}
@@ -62,9 +63,9 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 	}
 
 	if m.transport == nil || !m.IsTcpActive() {
-		m.CreateConnection(false)
-		if m.transport == nil {
-			return nil, 0, errors.New("transport is nil, please use SetTransport")
+		err := m.CreateConnection(false)
+		if err != nil || m.transport == nil {
+			return nil, 0, errors.New("failed to establish connection, transport is nil")
 		}
 	}
 
@@ -72,10 +73,12 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 sendPacket:
 	errorSendPacket := m.transport.WriteMsg(data, seqNo)
 	if errorSendPacket != nil {
-		if maxRetries > 0 && strings.Contains(errorSendPacket.Error(), "connection was aborted") {
+		if maxRetries > 0 && (strings.Contains(errorSendPacket.Error(), "connection was aborted") || strings.Contains(errorSendPacket.Error(), "connection reset")) {
 			maxRetries--
-			m.CreateConnection(false)
-			goto sendPacket
+			err := m.CreateConnection(false)
+			if err == nil && m.transport != nil {
+				goto sendPacket
+			}
 		}
 		return nil, msgID, fmt.Errorf("writing message: %w", errorSendPacket)
 	}

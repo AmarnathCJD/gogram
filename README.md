@@ -187,7 +187,7 @@ For more examples, check the **[examples](examples)** directory.
 
 - [x] ~ file download, is cpu intensive
 - [x] ~ open issues if found :)
-- [ ] ~ enhance peer caching.
+- [x] ~ enhance peer caching (Fixed: improved locking, username persistence, debounced writes, min entity handling)
 
 ## contributing
 

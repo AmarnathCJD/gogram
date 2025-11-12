@@ -2,11 +2,10 @@
 package math
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
 	"math"
 	"math/big"
-	"math/rand"
-	"time"
 )
 
 var (
@@ -40,19 +39,21 @@ func DoRSAencrypt(block []byte, key *rsa.PublicKey) []byte {
 func SplitPQ(pq *big.Int) (p1, p2 *big.Int) {
 	// Benchmark: Fac 15x faster than SplitPQ
 	// TODO: test extensively for fail cases
-	rndmax := big.NewInt(0).SetBit(big.NewInt(0), 64, 1)
-
 	what := big.NewInt(0).Set(pq)
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	g := big.NewInt(0)
 	i := 0
 	for !(g.Cmp(big1) == 1 && g.Cmp(what) == -1) {
-		q := big.NewInt(0).Rand(rnd, rndmax)
+		q := big.NewInt(0)
+		randBytes := make([]byte, 8)
+		rand.Read(randBytes)
+		q.SetBytes(randBytes)
 		q = q.And(q, big15)
 		q = q.Add(q, big17)
 		q = q.Mod(q, what)
 
-		x := big.NewInt(0).Rand(rnd, rndmax)
+		x := big.NewInt(0)
+		rand.Read(randBytes)
+		x.SetBytes(randBytes)
 		whatnext := big.NewInt(0).Sub(what, big1)
 		x = x.Mod(x, whatnext)
 		x = x.Add(x, big1)
@@ -115,9 +116,12 @@ func SplitPQ(pq *big.Int) (p1, p2 *big.Int) {
 }
 
 func MakeGAB(g int32, g_a, dh_prime *big.Int) (b, g_b, g_ab *big.Int) {
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	rndmax := big.NewInt(0).SetBit(big.NewInt(0), 2048, 1)
-	b = big.NewInt(0).Rand(rnd, rndmax)
+	b = big.NewInt(0)
+	randBytes := make([]byte, 256)
+	rand.Read(randBytes)
+	b.SetBytes(randBytes)
+	b.Mod(b, rndmax)
 	g_b = big.NewInt(0).Exp(big.NewInt(int64(g)), b, dh_prime)
 	g_ab = big.NewInt(0).Exp(g_a, b, dh_prime)
 

@@ -137,24 +137,49 @@ type DialogOptions struct {
 	SleepThresholdMs int32     `json:"sleep_threshold_ms,omitempty"`
 }
 
-type CustomDialog struct {
-	Dialog   Dialog
-	Peer     Peer
-	PeerType string
-} // TODO
+type TLDialog struct {
+	Dialog     Dialog
+	Peer       Peer
+	TopMessage int32
+	PeerType   int
+}
 
-// GetDialogs returns the dialogs of the user
-//
-//	Params:
-//	 - OffsetID: The offset ID of the dialog
-//	 - OffsetDate: The offset date of the dialog
-//	 - OffsetPeer: The offset peer of the dialog
-//	 - Limit: The number of dialogs to return
-//	 - ExcludePinned: Whether to exclude pinned dialogs
-//	 - FolderID: The folder ID to get dialogs from
-//	 - Hash: The hash of the dialogs
-//	 - SleepThresholdMs: The sleep threshold in milliseconds, to avoid flooding
-func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
+func (d *TLDialog) IsUser() bool {
+	return d.PeerType == 1
+}
+
+func (d *TLDialog) IsChat() bool {
+	return d.PeerType == 2
+}
+
+func (d *TLDialog) IsChannel() bool {
+	return d.PeerType == 3
+}
+
+func (d *TLDialog) GetID() int64 {
+	switch p := d.Peer.(type) {
+	case *PeerUser:
+		return p.UserID
+	case *PeerChat:
+		return p.ChatID
+	case *PeerChannel:
+		return p.ChannelID
+	}
+	return 0
+}
+
+func (d *TLDialog) GetInputPeer(c *Client) (InputPeer, error) {
+	return c.GetSendablePeer(d.Peer)
+}
+
+// - OffsetDate: The offset date of the dialog
+// - OffsetPeer: The offset peer of the dialog
+// - Limit: The number of dialogs to return
+// - ExcludePinned: Whether to exclude pinned dialogs
+// - FolderID: The folder ID to get dialogs from
+// - Hash: The hash of the dialogs
+// - SleepThresholdMs: The sleep threshold in milliseconds, to avoid flooding
+func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]TLDialog, error) {
 	options := getVariadic(Opts, &DialogOptions{
 		Limit:            1,
 		OffsetPeer:       &InputPeerEmpty{},
@@ -177,7 +202,7 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 		Hash:          options.Hash,
 	}
 
-	var dialogs []Dialog
+	var dialogs []TLDialog
 	var fetched int
 
 	for {
@@ -205,7 +230,12 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 			}
 
 			c.Cache.UpdatePeersToCache(p.Users, p.Chats)
-			dialogs = append(dialogs, p.Dialogs...)
+			var newDialogs []TLDialog
+			for _, dialog := range p.Dialogs {
+				newDialogs = append(newDialogs, packDialog(dialog))
+			}
+
+			dialogs = append(dialogs, newDialogs...)
 			fetched += len(p.Dialogs)
 
 			if len(p.Messages) > 0 {
@@ -228,8 +258,13 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 			}
 
 			c.Cache.UpdatePeersToCache(p.Users, p.Chats)
-			dialogs = append(dialogs, p.Dialogs...)
-			fetched += len(p.Dialogs)
+			var newDialogs []TLDialog
+			for _, dialog := range p.Dialogs {
+				newDialogs = append(newDialogs, packDialog(dialog))
+			}
+
+			dialogs = append(dialogs, newDialogs...)
+			fetched += len(newDialogs)
 
 			if len(p.Messages) > 0 {
 				if m, ok := p.Messages[len(p.Messages)-1].(*MessageObj); ok {
@@ -262,7 +297,7 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 	return dialogs, nil
 }
 
-func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan error) {
+func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan TLDialog, <-chan error) {
 	options := getVariadic(Opts, &DialogOptions{
 		Limit:            1,
 		OffsetPeer:       &InputPeerEmpty{},
@@ -285,7 +320,7 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan erro
 		Hash:          options.Hash,
 	}
 
-	dialogs := make(chan Dialog)
+	dialogs := make(chan TLDialog)
 	errs := make(chan error)
 
 	go func() {
@@ -321,7 +356,7 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan erro
 
 				c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 				for _, dialog := range p.Dialogs {
-					dialogs <- dialog
+					dialogs <- packDialog(dialog)
 				}
 
 				if len(p.Messages) > 0 {
@@ -346,7 +381,7 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan erro
 
 				c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 				for _, dialog := range p.Dialogs {
-					dialogs <- dialog
+					dialogs <- packDialog(dialog)
 				}
 
 				if len(p.Messages) > 0 {
@@ -381,6 +416,27 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan erro
 	}()
 
 	return dialogs, errs
+}
+
+func packDialog(dialog Dialog) TLDialog {
+	switch d := dialog.(type) {
+	case *DialogObj:
+		var dl = TLDialog{
+			Dialog:     d,
+			Peer:       d.Peer,
+			TopMessage: d.TopMessage,
+		}
+		switch d.Peer.(type) {
+		case *PeerUser:
+			dl.PeerType = 1
+		case *PeerChat:
+			dl.PeerType = 2
+		case *PeerChannel:
+			dl.PeerType = 3
+		}
+		return dl
+	}
+	return TLDialog{}
 }
 
 // GetCommonChats returns the common chats of a user

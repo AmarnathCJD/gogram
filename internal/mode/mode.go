@@ -25,6 +25,23 @@ type Mode interface {
 	getModeAnnouncement() []byte
 }
 
+func GetProtocolID(v Variant) []byte {
+	switch v {
+	case Abridged:
+		return []byte{0xef}
+	case Intermediate:
+		return []byte{0xee, 0xee, 0xee, 0xee}
+	case PaddedIntermediate:
+		return []byte{0xdd, 0xdd, 0xdd, 0xdd}
+	case Full:
+		// Full transport uses 0x00000000 as initial seq but that's forbidden in obfuscation
+		// Use a different marker or handle separately
+		return []byte{0x00, 0x00, 0x00, 0x00}
+	default:
+		return []byte{0xef} // Default to abridged
+	}
+}
+
 type Variant uint8
 
 const (
@@ -50,6 +67,16 @@ func New(v Variant, conn io.ReadWriter) (Mode, error) {
 	}
 
 	return m, nil
+}
+
+// NewWithoutAnnouncement creates a mode without sending the announcement
+// Used for obfuscated connections where protocol ID is embedded in obfuscation handshake
+func NewWithoutAnnouncement(v Variant, conn io.ReadWriter) (Mode, error) {
+	if conn == nil {
+		return nil, ErrInterfaceIsNil
+	}
+
+	return initMode(v, conn)
 }
 
 func initMode(v Variant, conn io.ReadWriter) (Mode, error) {
