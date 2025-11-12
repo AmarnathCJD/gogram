@@ -3,7 +3,6 @@
 package transport
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
@@ -421,9 +420,9 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 	digest := mac.Sum(nil)
 
 	// print buffer
-	log.Printf("[MTProxy] Client Hello buffer before timestamp XOR: %x", buffer)
+	//log.Printf("[MTProxy] Client Hello buffer before timestamp XOR: %x", buffer)
 	// print digest
-	log.Printf("[MTProxy] HMAC Digest before timestamp XOR: %x", digest)
+	//log.Printf("[MTProxy] HMAC Digest before timestamp XOR: %x", digest)
 	// XOR the timestamp
 	oldValue := binary.LittleEndian.Uint32(digest[28:32])
 	newValue := oldValue ^ uint32(time.Now().Unix())
@@ -434,7 +433,7 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 
 	log.Printf("[MTProxy] Client random: %x", clientRandom[:8])
 	// print buffer to be sent
-	log.Printf("[MTProxy] Client Hello buffer: %x", buffer)
+	//log.Printf("[MTProxy] Client Hello buffer: %x", buffer)
 
 	_, err = conn.Write(buffer)
 	if err != nil {
@@ -443,17 +442,12 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 
 	log.Printf("[MTProxy] Client Hello sent successfully")
 
-	// Use TeeReader to capture all bytes read for HMAC verification
-	packetBuf := &bytes.Buffer{}
-	teeReader := io.TeeReader(conn, packetBuf)
-
-	// Read Server Hello
-	_, payload, err := readTLSRecordFrom(teeReader)
+	header, payload, err := readTLSRecord(conn)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading server hello")
+	} else {
+		log.Printf("[MTProxy] Server Hello received: %d bytes", len(payload))
 	}
-
-	log.Printf("[MTProxy] Server Hello received: %d bytes", len(payload))
 
 	if len(payload) < 38 {
 		return nil, errors.New("server hello too short")
@@ -463,6 +457,7 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 		return nil, fmt.Errorf("unexpected handshake type: %#x", payload[0])
 	}
 
+	// length = int.from_bytes(payload[1:4])
 	length := int(payload[1])<<16 | int(payload[2])<<8 | int(payload[3])
 	if length+4 != len(payload) {
 		return nil, errors.New("handshake length mismatch")
@@ -477,8 +472,14 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 	serverDigest := make([]byte, 32)
 	copy(serverDigest, payload[6:38])
 
-	// Read Change Cipher Spec
-	nextHeader, _, err := readTLSRecordFrom(teeReader)
+	var payloadZeroed = make([]byte, len(payload))
+	// payload_zeroed[6:38] = b'\x00' * 32
+	copy(payloadZeroed, payload)
+	for i := 6; i < 38; i++ {
+		payloadZeroed[i] = 0
+	}
+
+	nextHeader, nextPayload, err := readTLSRecord(conn)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading change cipher spec")
 	}
@@ -486,50 +487,44 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 	if nextHeader[0] != 0x14 {
 		return nil, fmt.Errorf("unexpected TLS record: %#x", nextHeader[0])
 	}
-
 	log.Printf("[MTProxy] Change Cipher Spec received")
+	// payload_zeroed.extend(next_header+next_payload)
+	payloadZeroed = append(payloadZeroed, nextHeader...)
+	payloadZeroed = append(payloadZeroed, nextPayload...)
 
-	// Read application data (random bytes)
-	nextHeader, nextPayload, err := readTLSRecordFrom(teeReader)
+	nextHeader, nextPayload, err = readTLSRecord(conn)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading random data")
 	}
-
 	if nextHeader[0] != 0x17 {
 		return nil, fmt.Errorf("unexpected TLS record: %#x", nextHeader[0])
 	}
 
-	log.Printf("[MTProxy] Random data received: %d bytes", len(nextPayload))
+	// payload_zeroed.extend(next_header+next_payload)
+	payloadZeroed = append(payloadZeroed, nextHeader...)
+	payloadZeroed = append(payloadZeroed, nextPayload...)
 
-	// Get all the bytes we read (including TLS record headers)
-	packet := packetBuf.Bytes()
+	/*
+		computed_digest = (
+			hmac.new(
+				key,
+				client_random + header + payload_zeroed,
+				digestmod=hashlib.sha256
+			).digest()
+		)
 
-	// `$record_header = type 1 byte + version 2 bytes + payload_length 2 bytes = 5 bytes`
-	// `$server_hello_header = type 1 bytes + version 2 bytes + length 3 bytes = 6 bytes`
-	// `$offset = $record_header + $server_hello_header = 11 bytes`
-	const serverRandomOffset = 11
+	*/
 
-	// Copy original digest and zero it out in the packet
-	var originalDigest [32]byte
-	copy(originalDigest[:], packet[serverRandomOffset:serverRandomOffset+32])
+	var computedDigest []byte
+	mac = hmac.New(sha256.New, key)
+	mac.Write(clientRandom)
+	mac.Write(header)
+	mac.Write(payloadZeroed)
+	computedDigest = mac.Sum(nil)
 
-	// Zero out the digest in the packet for HMAC computation
-	var zeros [32]byte
-	copy(packet[serverRandomOffset:serverRandomOffset+32], zeros[:])
-
-	// Verify HMAC
-	log.Printf("[MTProxy] HMAC verification:")
-	log.Printf("  - client_random (32 bytes): %x", clientRandom)
-	log.Printf("  - packet length: %d bytes", len(packet))
-	log.Printf("  - server_digest: %x", originalDigest)
-
-	verifyMac := hmac.New(sha256.New, key)
-	verifyMac.Write(clientRandom)
-	verifyMac.Write(packet)
-	computedDigest := verifyMac.Sum(nil)
-
-	log.Printf("  - computed_digest: %x", computedDigest)
-
+	originalDigest := serverDigest
+	fmt.Printf("[MTProxy] Server Digest: %x", originalDigest)
+	fmt.Printf("[MTProxy] Computed Digest: %x", computedDigest)
 	if !hmac.Equal(originalDigest[:], computedDigest) {
 		return nil, errors.New("TLS handshake verification failed: HMAC mismatch")
 	}
@@ -566,36 +561,6 @@ func readTLSRecord(conn net.Conn) (header []byte, payload []byte, err error) {
 
 	payload = make([]byte, length)
 	_, err = io.ReadFull(conn, payload)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return header, payload, nil
-}
-
-// readTLSRecordFrom reads a single TLS record from an io.Reader (like TeeReader)
-func readTLSRecordFrom(r io.Reader) (header []byte, payload []byte, err error) {
-	header = make([]byte, 5)
-	_, err = io.ReadFull(r, header)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if header[0] == 0x16 {
-		log.Printf("[MTProxy] TLS Handshake record received")
-	}
-	version := uint16(header[1])<<8 | uint16(header[2])
-	if version != 0x0303 {
-		return nil, nil, fmt.Errorf("unexpected TLS version: %#x", version)
-	}
-
-	length := int(header[3])<<8 | int(header[4])
-	if length > 64*1024-5 {
-		return nil, nil, fmt.Errorf("TLS record too large: %d", length)
-	}
-
-	payload = make([]byte, length)
-	_, err = io.ReadFull(r, payload)
 	if err != nil {
 		return nil, nil, err
 	}
