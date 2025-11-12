@@ -105,6 +105,7 @@ const (
 	InputPrivacyKeyPhoneNumber       InputPrivacyKey = 0x352dafa
 	InputPrivacyKeyPhoneP2P          InputPrivacyKey = 0xdb9e70d2
 	InputPrivacyKeyProfilePhoto      InputPrivacyKey = 0x5719bacc
+	InputPrivacyKeySavedMusic        InputPrivacyKey = 0x4dbe9226
 	InputPrivacyKeyStarGiftsAutoSave InputPrivacyKey = 0xe1732341
 	InputPrivacyKeyStatusTimestamp   InputPrivacyKey = 0x4f96cb18
 	InputPrivacyKeyVoiceMessages     InputPrivacyKey = 0xaee69d68
@@ -132,6 +133,8 @@ func (e InputPrivacyKey) String() string {
 		return "inputPrivacyKeyPhoneP2P"
 	case InputPrivacyKey(0x5719bacc):
 		return "inputPrivacyKeyProfilePhoto"
+	case InputPrivacyKey(0x4dbe9226):
+		return "inputPrivacyKeySavedMusic"
 	case InputPrivacyKey(0xe1732341):
 		return "inputPrivacyKeyStarGiftsAutoSave"
 	case InputPrivacyKey(0x4f96cb18):
@@ -175,6 +178,7 @@ const (
 	PrivacyKeyPhoneNumber       PrivacyKey = 0xd19ae46d
 	PrivacyKeyPhoneP2P          PrivacyKey = 0x39491cc8
 	PrivacyKeyProfilePhoto      PrivacyKey = 0x96151fed
+	PrivacyKeySavedMusic        PrivacyKey = 0xff7a571b
 	PrivacyKeyStarGiftsAutoSave PrivacyKey = 0x2ca4fdf8
 	PrivacyKeyStatusTimestamp   PrivacyKey = 0xbc2eab30
 	PrivacyKeyVoiceMessages     PrivacyKey = 0x697f414
@@ -202,6 +206,8 @@ func (e PrivacyKey) String() string {
 		return "privacyKeyPhoneP2P"
 	case PrivacyKey(0x96151fed):
 		return "privacyKeyProfilePhoto"
+	case PrivacyKey(0xff7a571b):
+		return "privacyKeySavedMusic"
 	case PrivacyKey(0x2ca4fdf8):
 		return "privacyKeyStarGiftsAutoSave"
 	case PrivacyKey(0xbc2eab30):
