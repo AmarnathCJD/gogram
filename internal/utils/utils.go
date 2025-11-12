@@ -298,3 +298,10 @@ func FmtMethod(data tl.Object) string {
 	}
 	return strings.TrimSuffix(strings.TrimPrefix(fmt.Sprintf("%T", data), "*telegram."), "Params")
 }
+
+func MinSafeDuration(d int) time.Duration {
+	if d == 0 {
+		return 60 * time.Second
+	}
+	return time.Duration(d) * time.Second
+}

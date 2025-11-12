@@ -47,6 +47,7 @@ type clientData struct {
 	albumWaitTime    int64
 	botAcc           bool
 	me               *UserObj
+	commandPrefixes  string
 }
 
 // Client is the main struct of the library
@@ -98,10 +99,13 @@ type ClientConfig struct {
 	TransportMode    string               // The transport mode to use (Abridged, Intermediate, Full)
 	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
 	AlbumWaitTime    int64                // The time to wait for album messages (in milliseconds)
+	CommandPrefixes  string               // Command prefixes to recognize (default: "/!"), can be multiple like ".?!-/"
 	FloodHandler     func(err error) bool // The flood handler to use
 	ErrorHandler     func(err error)      // The error handler to use
-	Timeout          time.Duration        // Tcp connection timeout (default: 60s)
-	ReqTimeout       time.Duration        // Rpc request timeout (default: 60s)
+	Timeout          int                  // Tcp connection timeout in seconds (default: 60s)
+	ReqTimeout       int                  // Rpc request timeout in seconds (default: 60s)
+	UseWebSocket     bool                 // Use WebSocket transport instead of TCP
+	UseWebSocketTLS  bool                 // Use wss:// (WebSocket over TLS) instead of ws://
 }
 
 type Session struct {
@@ -189,16 +193,18 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		Logger: utils.NewLogger("gogram " + getLogPrefix("mtproto", config.SessionName)).
 			SetLevel(config.LogLevel).
 			NoColor(!c.Log.Color()),
-		StringSession: config.StringSession,
-		Proxy:         config.Proxy,
-		LocalAddr:     config.LocalAddr,
-		MemorySession: config.MemorySession,
-		Ipv6:          config.ForceIPv6,
-		CustomHost:    customHost,
-		FloodHandler:  config.FloodHandler,
-		ErrorHandler:  config.ErrorHandler,
-		Timeout:       config.Timeout,
-		ReqTimeout:    config.ReqTimeout,
+		StringSession:   config.StringSession,
+		Proxy:           config.Proxy,
+		LocalAddr:       config.LocalAddr,
+		MemorySession:   config.MemorySession,
+		Ipv6:            config.ForceIPv6,
+		CustomHost:      customHost,
+		FloodHandler:    config.FloodHandler,
+		ErrorHandler:    config.ErrorHandler,
+		Timeout:         config.Timeout,
+		ReqTimeout:      config.ReqTimeout,
+		UseWebSocket:    config.UseWebSocket,
+		UseWebSocketTLS: config.UseWebSocketTLS,
 	})
 	if err != nil {
 		return errors.Wrap(err, "creating mtproto client")
@@ -277,6 +283,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
 	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
 	c.clientData.albumWaitTime = getValue(cnf.AlbumWaitTime, 600)
+	c.clientData.commandPrefixes = getValue(cnf.CommandPrefixes, "/!")
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
@@ -744,6 +751,16 @@ func (c *Client) ParseMode() string {
 	return c.clientData.parseMode
 }
 
+// CommandPrefixes returns the command prefixes configured for the client
+func (c *Client) CommandPrefixes() string {
+	return c.clientData.commandPrefixes
+}
+
+// SetCommandPrefixes sets the command prefixes for the client
+func (c *Client) SetCommandPrefixes(prefixes string) {
+	c.clientData.commandPrefixes = prefixes
+}
+
 // Terminate client and disconnect from telegram server
 func (c *Client) Terminate() error {
 	//go c.cleanExportedSenders()
@@ -987,12 +1004,12 @@ func (b *ClientConfigBuilder) WithLogger(logger *utils.Logger) *ClientConfigBuil
 	return b
 }
 
-func (b *ClientConfigBuilder) WithTimeout(timeout time.Duration) *ClientConfigBuilder {
+func (b *ClientConfigBuilder) WithTimeout(timeout int) *ClientConfigBuilder {
 	b.config.Timeout = timeout
 	return b
 }
 
-func (b *ClientConfigBuilder) WithReqTimeout(reqTimeout time.Duration) *ClientConfigBuilder {
+func (b *ClientConfigBuilder) WithReqTimeout(reqTimeout int) *ClientConfigBuilder {
 	b.config.ReqTimeout = reqTimeout
 	return b
 }
