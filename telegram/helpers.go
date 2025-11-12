@@ -38,7 +38,7 @@ func joinAbsWorkingDir(filename string) string {
 	if !filepath.IsAbs(filename) || !strings.Contains(filename, string(filepath.Separator)) {
 		workDir, err := os.Getwd()
 		if err != nil {
-			panic(err)
+			return filename
 		}
 
 		return filepath.Join(workDir, filename)
