@@ -773,6 +773,19 @@ const (
 	ErrBadMsgInvalidContainer    BadSystemMessageCode = 64
 )
 
+func AnyError(err error, errs ...string) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	for _, e := range errs {
+		if strings.Contains(errStr, e) {
+			return true
+		}
+	}
+	return false
+}
+
 // internal errors for internal purposes
 
 type errorSessionConfigsChanged struct{}

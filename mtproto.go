@@ -132,7 +132,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 
 	loaded, err := c.SessionStorage.Load()
 	if err != nil {
-		if !(strings.Contains(err.Error(), session.ErrFileNotExists) || strings.Contains(err.Error(), session.ErrPathNotFound)) {
+		if !AnyError(err, session.ErrFileNotExists, session.ErrPathNotFound, session.ErrNotImplementedInJS) {
 			// if the error is not because of file not found or path not found, return the error
 			// else, continue with the execution
 			// check if have write permission in the directory
