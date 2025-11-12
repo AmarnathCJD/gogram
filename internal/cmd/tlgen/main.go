@@ -248,7 +248,7 @@ func minorFixes(outdir, layer string) {
 
 	resp, ok := responseData.([]User)
 	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}`, `if err != nil {
 		return nil, errors.Wrap(err, "sending UsersGetUsers")
 	}
@@ -268,7 +268,6 @@ func minorFixes(outdir, layer string) {
 			return users, nil
 		}
 
-		c.Log.Error("got invalid response type: " + reflect.TypeOf(responseData).String())
 		return nil, errors.New("[USER_ID_INVALID] The user ID is invalid")
 	}`)
 

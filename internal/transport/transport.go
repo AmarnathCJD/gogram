@@ -33,9 +33,15 @@ func NewTransport(m messages.MessageInformator, conn ConnConfig, modeVariant mod
 	}
 
 	var err error
+	var isObfuscated bool
 	switch cfg := conn.(type) {
 	case TCPConnConfig:
 		t.conn, err = NewTCP(cfg)
+		isObfuscated = false
+	case WSConnConfig:
+		cfg.ModeVariant = uint8(modeVariant)
+		t.conn, err = NewWebSocket(cfg)
+		isObfuscated = true
 	default:
 		return nil, fmt.Errorf("unsupported connection type %v", reflect.TypeOf(conn).String())
 	}
@@ -43,7 +49,12 @@ func NewTransport(m messages.MessageInformator, conn ConnConfig, modeVariant mod
 		return nil, errors.Wrap(err, "setup connection")
 	}
 
-	t.mode, err = mode.New(modeVariant, t.conn)
+	// already sent in obfuscation handshake
+	if isObfuscated {
+		t.mode, err = mode.NewWithoutAnnouncement(modeVariant, t.conn)
+	} else {
+		t.mode, err = mode.New(modeVariant, t.conn)
+	}
 	if err != nil {
 		return nil, errors.Wrap(err, "setup mode")
 	}
