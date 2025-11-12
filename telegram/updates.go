@@ -47,7 +47,9 @@ type baseHandle struct {
 
 func (h *baseHandle) SetGroup(group string) Handle {
 	h.Group = group
-	h.sortTrigger <- h
+	if h.sortTrigger != nil {
+		h.sortTrigger <- h
+	}
 	return h
 }
 
@@ -57,7 +59,9 @@ func (h *baseHandle) GetGroup() string {
 
 func (h *baseHandle) SetPriority(priority int) Handle {
 	h.priority = priority
-	h.sortTrigger <- h
+	if h.sortTrigger != nil {
+		h.sortTrigger <- h
+	}
 	return h
 }
 
@@ -900,16 +904,26 @@ func (c *Client) handleJoinRequestUpdate(update *UpdatePendingJoinRequests) {
 }
 
 func (c *Client) handleRawUpdate(update Update) {
-	defer func() {
-    if r := recover(); r != nil {
-        c.Logger.Error("Recovered in handleRawUpdate")
-    }
-}()
+	if c.dispatcher.rawHandles == nil || update == nil {
+		return
+	}
 	for group, handlers := range c.dispatcher.rawHandles {
 		for _, handler := range handlers {
+			defer func() {
+				if r := recover(); r != nil {
+					c.Log.Error(fmt.Sprintf("[RAW_UPDATE_PANIC] Panic in raw update handler: %v, Update: %+v", r, update))
+				}
+			}()
+			if handler == nil || handler.Handler == nil {
+				continue
+			}
 			if reflect.TypeOf(update) == reflect.TypeOf(handler.updateType) || handler.updateType == nil {
 				handle := func(h *rawHandle) error {
-					defer c.NewRecovery()()
+					defer func() {
+						if r := recover(); r != nil {
+							c.Log.Error(fmt.Sprintf("[RAW_UPDATE_HANDLER_PANIC] Panic: %v, Update: %+v", r, update))
+						}
+					}()
 					return h.Handler(update, c)
 				}
 
@@ -1570,7 +1584,6 @@ func (c *Client) AddInlineHandler(pattern any, handler InlineHandler) Handle {
 	return c.dispatcher.inlineHandles["default"][len(c.dispatcher.inlineHandles["default"])-1]
 }
 
-// AddInlineSendHandler enable feedback updates from bot father, to receive these updates.
 func (c *Client) AddInlineSendHandler(handler InlineSendHandler) Handle {
 	if c.dispatcher.inlineSendHandles == nil {
 		c.dispatcher.inlineSendHandles = make(map[string][]*inlineSendHandle)
@@ -1583,7 +1596,6 @@ func (c *Client) AddInlineSendHandler(handler InlineSendHandler) Handle {
 	return c.dispatcher.inlineSendHandles["default"][len(c.dispatcher.inlineSendHandles["default"])-1]
 }
 
-// AddCallbackHandler Handle updates categorized as "UpdateBotCallbackQuery"
 func (c *Client) AddCallbackHandler(pattern any, handler CallbackHandler, filters ...Filter) Handle {
 	var messageFilters []Filter
 	if len(filters) > 0 {
@@ -1601,7 +1613,6 @@ func (c *Client) AddCallbackHandler(pattern any, handler CallbackHandler, filter
 	return c.dispatcher.callbackHandles["default"][len(c.dispatcher.callbackHandles["default"])-1]
 }
 
-// AddInlineCallbackHandler Handle updates categorized as "UpdateInlineBotCallbackQuery"
 func (c *Client) AddInlineCallbackHandler(pattern any, handler InlineCallbackHandler) Handle {
 	if c.dispatcher.inlineCallbackHandles == nil {
 		c.dispatcher.inlineCallbackHandles = make(map[string][]*inlineCallbackHandle)
@@ -1614,7 +1625,6 @@ func (c *Client) AddInlineCallbackHandler(pattern any, handler InlineCallbackHan
 	return c.dispatcher.inlineCallbackHandles["default"][len(c.dispatcher.inlineCallbackHandles["default"])-1]
 }
 
-// AddJoinRequestHandler Handle updates categorized as "UpdatePendingJoinRequests"
 func (c *Client) AddJoinRequestHandler(handler PendingJoinHandler) Handle {
 	if c.dispatcher.joinRequestHandles == nil {
 		c.dispatcher.joinRequestHandles = make(map[string][]*joinRequestHandle)
@@ -1627,7 +1637,6 @@ func (c *Client) AddJoinRequestHandler(handler PendingJoinHandler) Handle {
 	return c.dispatcher.joinRequestHandles["default"][len(c.dispatcher.joinRequestHandles["default"])-1]
 }
 
-// AddParticipantHandler Handle updates categorized as "UpdateChannelParticipant"
 func (c *Client) AddParticipantHandler(handler ParticipantHandler) Handle {
 	if c.dispatcher.participantHandles == nil {
 		c.dispatcher.participantHandles = make(map[string][]*participantHandle)
