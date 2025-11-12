@@ -6,6 +6,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/binary"
 	"io"
 
@@ -143,4 +144,106 @@ func (o *obfuscatedConn) Write(b []byte) (int, error) {
 
 func (o *obfuscatedConn) Close() error {
 	return o.conn.Close()
+}
+
+// NewObfuscatedConnWithSecret creates an obfuscated connection with MTProxy secret
+// This is for MTProxy support with secret-based authentication
+func NewObfuscatedConnWithSecret(conn io.ReadWriteCloser, protocolID []byte, secret []byte, dcID int16) (*obfuscatedConn, error) {
+	if len(protocolID) > 4 {
+		return nil, errors.New("protocol ID must be 4 bytes or less")
+	}
+
+	// Pad protocol ID to 4 bytes
+	paddedProtocol := make([]byte, 4)
+	for i := 0; i < 4; i++ {
+		paddedProtocol[i] = protocolID[i%len(protocolID)]
+	}
+
+	// Generate initialization payload with DC ID
+	init := make([]byte, 64)
+	for {
+		if _, err := rand.Read(init); err != nil {
+			return nil, errors.Wrap(err, "reading random bytes")
+		}
+
+		// Same validation as before
+		if init[0] == 0xef {
+			continue
+		}
+
+		firstInt := binary.LittleEndian.Uint32(init[0:4])
+		if firstInt == 0x44414548 || firstInt == 0x54534f50 || firstInt == 0x20544547 ||
+			firstInt == 0x4954504f || firstInt == 0x02010316 || firstInt == 0xdddddddd || firstInt == 0xeeeeeeee {
+			continue
+		}
+
+		secondInt := binary.LittleEndian.Uint32(init[4:8])
+		if secondInt == 0x00000000 {
+			continue
+		}
+
+		break
+	}
+
+	// Insert protocol at offset 56
+	copy(init[56:60], paddedProtocol)
+
+	// Insert DC ID at offset 60 (2 bytes, little-endian)
+	binary.LittleEndian.PutUint16(init[60:62], uint16(dcID))
+
+	// Reverse for decryption
+	initRev := make([]byte, 64)
+	for i := 0; i < 64; i++ {
+		initRev[i] = init[63-i]
+	}
+
+	// Extract keys
+	encryptKey := init[8:40]
+	encryptIV := init[40:56]
+	decryptKey := initRev[8:40]
+	decryptIV := initRev[40:56]
+
+	// Adjust secret (skip first byte if 17 bytes)
+	actualSecret := secret
+	if len(secret) == 17 {
+		actualSecret = secret[1:]
+	}
+
+	// Hash keys with secret for MTProxy
+	encryptKeyHash := sha256.Sum256(append(encryptKey, actualSecret...))
+	decryptKeyHash := sha256.Sum256(append(decryptKey, actualSecret...))
+
+	// Create ciphers
+	encryptBlock, err := aes.NewCipher(encryptKeyHash[:])
+	if err != nil {
+		return nil, errors.Wrap(err, "creating encrypt cipher")
+	}
+	encryptor := cipher.NewCTR(encryptBlock, encryptIV)
+
+	decryptBlock, err := aes.NewCipher(decryptKeyHash[:])
+	if err != nil {
+		return nil, errors.Wrap(err, "creating decrypt cipher")
+	}
+	decryptor := cipher.NewCTR(decryptBlock, decryptIV)
+
+	// Encrypt init and create final payload
+	encryptedInit := make([]byte, 64)
+	copy(encryptedInit, init)
+	encryptor.XORKeyStream(encryptedInit, encryptedInit)
+
+	finalInit := make([]byte, 64)
+	copy(finalInit, init[:56])
+	copy(finalInit[56:], encryptedInit[56:])
+
+	// Send init
+	_, err = conn.Write(finalInit)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending init payload")
+	}
+
+	return &obfuscatedConn{
+		conn:      conn,
+		encryptor: encryptor,
+		decryptor: decryptor,
+	}, nil
 }
