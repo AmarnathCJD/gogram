@@ -5,6 +5,7 @@ package transport
 import (
 	"context"
 	"io"
+	"log"
 	"net"
 	"net/url"
 	"strings"
@@ -20,16 +21,21 @@ type tcpConn struct {
 }
 
 type TCPConnConfig struct {
-	Ctx       context.Context
-	Host      string
-	IpV6      bool
-	Timeout   time.Duration
-	Socks     *url.URL
-	LocalAddr string
+	Ctx         context.Context
+	Host        string
+	IpV6        bool
+	Timeout     time.Duration
+	Socks       *url.URL
+	LocalAddr   string
+	ModeVariant uint8
+	DC          int
 }
 
 func NewTCP(cfg TCPConnConfig) (Conn, error) {
 	if cfg.Socks != nil && cfg.Socks.Host != "" {
+		if cfg.Socks.Scheme == "mtproxy" {
+			return newMTProxyTCP(cfg)
+		}
 		return newSocksTCP(cfg)
 	}
 
@@ -84,6 +90,23 @@ func newSocksTCP(cfg TCPConnConfig) (Conn, error) {
 		conn:    conn.(*net.TCPConn),
 		timeout: cfg.Timeout,
 	}, nil
+}
+
+func newMTProxyTCP(cfg TCPConnConfig) (Conn, error) {
+	log.Printf("[MTProxy] Setting up MTProxy connection for host: %s", cfg.Host)
+
+	dcID := int16(cfg.DC)
+	if dcID == 0 {
+		dcID = 2
+	}
+
+	conn, err := DialMTProxy(cfg.Socks, cfg.Host, dcID, cfg.ModeVariant, cfg.LocalAddr)
+	if err != nil {
+		return nil, errors.Wrap(err, "establishing MTProxy connection")
+	}
+
+	log.Printf("[MTProxy] MTProxy connection established successfully")
+	return conn, nil
 }
 
 func (t *tcpConn) Close() error {

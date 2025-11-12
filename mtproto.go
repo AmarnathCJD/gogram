@@ -521,15 +521,22 @@ func (m *MTProto) connect(ctx context.Context) error {
 		)
 	} else {
 		// Use TCP transport
+		dcID := m.GetDC()
+		if dcID == 0 {
+			dcID = 4
+		}
+
 		m.transport, err = transport.NewTransport(
 			m,
 			transport.TCPConnConfig{
-				Ctx:       ctx,
-				Host:      utils.FmtIp(m.Addr),
-				IpV6:      m.IpV6,
-				Timeout:   m.timeout,
-				Socks:     m.proxy,
-				LocalAddr: m.localAddr,
+				Ctx:         ctx,
+				Host:        utils.FmtIp(m.Addr),
+				IpV6:        m.IpV6,
+				Timeout:     m.timeout,
+				Socks:       m.proxy,
+				LocalAddr:   m.localAddr,
+				ModeVariant: uint8(m.mode),
+				DC:          dcID,
 			},
 			m.mode,
 		)
