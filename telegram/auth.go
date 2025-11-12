@@ -229,7 +229,7 @@ func CodeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions, maxRetri
 			} else if MatchError(err, "SESSION_PASSWORD_NEEDED") {
 			acceptPasswordInput:
 				if opts.Password == "" {
-					for {
+					for range maxRetries {
 						passwordInput, err := opts.PasswordCallback()
 						if err != nil {
 							return nil, err
@@ -240,8 +240,6 @@ func CodeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions, maxRetri
 							break
 						} else if passwordInput == "cancel" || passwordInput == "exit" {
 							return nil, errors.New("login canceled")
-						} else {
-							fmt.Println("Invalid password, try again")
 						}
 					}
 				}
