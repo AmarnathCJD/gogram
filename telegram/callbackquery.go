@@ -155,6 +155,16 @@ func (b *CallbackQuery) Ask(Text any, Opts ...*SendOptions) (*NewMessage, error)
 	return conv.GetResponse()
 }
 
+func (b *CallbackQuery) WaitClick(timeout ...int32) (*CallbackQuery, error) {
+	conv, err := b.Conv(getVariadic(timeout, 60))
+	if err != nil {
+		return nil, err
+	}
+	defer conv.Close()
+
+	return conv.WaitClick()
+}
+
 func (b *CallbackQuery) Reply(Text any, options ...*SendOptions) (*NewMessage, error) {
 	var opts SendOptions
 	if len(options) > 0 {

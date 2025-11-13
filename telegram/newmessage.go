@@ -556,11 +556,7 @@ func (m *NewMessage) WaitClick(timeout ...int32) (*CallbackQuery, error) {
 		return nil, err
 	}
 	defer conv.Close()
-	update, err := conv.WaitEvent(&UpdateBotCallbackQuery{})
-	if err != nil {
-		return nil, err
-	}
-	return packCallbackQuery(m.Client, update.(*UpdateBotCallbackQuery)), nil
+	return conv.WaitClick()
 }
 
 // Client.SendMessage ReplyID set to messageID

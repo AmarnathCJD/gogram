@@ -31,7 +31,7 @@ type ParticipantHandler func(m *ParticipantUpdate) error
 type PendingJoinHandler func(m *JoinRequestUpdate) error
 type RawHandler func(m Update, c *Client) error
 
-var EndGroup = errors.New("[END_GROUP_ERROR] handler propagation ended")
+var EndGroup = errors.New("[EndGroup] end of handler propagation")
 
 const (
 	ConversationGroup = -1
@@ -1543,14 +1543,17 @@ func addHandleToMap[T Handle](handleMap map[int][]T, handle T) T {
 	return handleMap[group][len(handleMap[group])-1]
 }
 
-func makePriorityChangeCallback[T Handle](handleMap map[int][]T, handle T) func() {
+func makePriorityChangeCallback[T Handle](handleMap map[int][]T, handle T, mu *sync.RWMutex) func() {
 	return func() {
+		mu.Lock()
+		defer mu.Unlock()
 		group := handle.GetGroup()
 		handlers := handleMap[group]
 
 		for i := range handlers {
-			if i == len(handlers)-1 {
-				handleMap[group] = append(handlers[:i], handlers[i+1:]...)
+			if reflect.DeepEqual(handlers[i], handle) {
+				handlers = append(handlers[:i], handlers[i+1:]...)
+				handleMap[group] = handlers
 				break
 			}
 		}
@@ -1571,11 +1574,13 @@ func makePriorityChangeCallback[T Handle](handleMap map[int][]T, handle T) func(
 	}
 }
 
-func makeGroupChangeCallback[T Handle](handleMap map[int][]T, handle T) func(int, int) {
+func makeGroupChangeCallback[T Handle](handleMap map[int][]T, handle T, mu *sync.RWMutex) func(int, int) {
 	return func(oldGroup, newGroup int) {
+		mu.Lock()
+		defer mu.Unlock()
 		if old, ok := handleMap[oldGroup]; ok {
 			for i := range old {
-				if i == len(old)-1 {
+				if reflect.DeepEqual(old[i], handle) {
 					handleMap[oldGroup] = append(old[:i], old[i+1:]...)
 					break
 				}
@@ -1586,6 +1591,8 @@ func makeGroupChangeCallback[T Handle](handleMap map[int][]T, handle T) func(int
 }
 
 func (c *Client) AddMessageHandler(pattern any, handler MessageHandler, filters ...Filter) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
 	var messageFilters []Filter
 	if len(filters) > 0 {
 		messageFilters = filters
@@ -1595,8 +1602,8 @@ func (c *Client) AddMessageHandler(pattern any, handler MessageHandler, filters 
 		Group: DefaultGroup,
 	}}
 
-	handle.onGroupChanged = makeGroupChangeCallback(c.dispatcher.messageHandles, handle)
-	handle.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.messageHandles, handle)
+	handle.onGroupChanged = makeGroupChangeCallback(c.dispatcher.messageHandles, handle, &c.dispatcher.RWMutex)
+	handle.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.messageHandles, handle, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.messageHandles, handle)
 }
 
@@ -1609,37 +1616,45 @@ func (c *Client) AddCommandHandler(pattern string, handler MessageHandler, filte
 }
 
 func (c *Client) AddDeleteHandler(pattern any, handler func(d *DeleteMessage) error) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
 	h := &messageDeleteHandle{
 		Pattern:    pattern,
 		Handler:    handler,
 		baseHandle: baseHandle{Group: DefaultGroup},
 	}
-	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.messageDeleteHandles, h)
-	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.messageDeleteHandles, h)
+	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.messageDeleteHandles, h, &c.dispatcher.RWMutex)
+	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.messageDeleteHandles, h, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.messageDeleteHandles, h)
 }
 
 func (c *Client) AddAlbumHandler(handler func(m *Album) error) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
 	h := &albumHandle{
 		Handler:    handler,
 		baseHandle: baseHandle{Group: DefaultGroup},
 	}
-	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.albumHandles, h)
-	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.albumHandles, h)
+	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.albumHandles, h, &c.dispatcher.RWMutex)
+	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.albumHandles, h, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.albumHandles, h)
 }
 
 func (c *Client) AddActionHandler(handler MessageHandler) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
 	h := &chatActionHandle{
 		Handler:    handler,
 		baseHandle: baseHandle{Group: DefaultGroup},
 	}
-	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.actionHandles, h)
-	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.actionHandles, h)
+	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.actionHandles, h, &c.dispatcher.RWMutex)
+	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.actionHandles, h, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.actionHandles, h)
 }
 
 func (c *Client) AddEditHandler(pattern any, handler MessageHandler, filters ...Filter) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
 	var messageFilters []Filter
 	if len(filters) > 0 {
 		messageFilters = filters
@@ -1650,33 +1665,39 @@ func (c *Client) AddEditHandler(pattern any, handler MessageHandler, filters ...
 		Filters:    messageFilters,
 		baseHandle: baseHandle{Group: DefaultGroup},
 	}
-	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.messageEditHandles, h)
-	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.messageEditHandles, h)
+	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.messageEditHandles, h, &c.dispatcher.RWMutex)
+	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.messageEditHandles, h, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.messageEditHandles, h)
 }
 
 func (c *Client) AddInlineHandler(pattern any, handler InlineHandler) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
 	h := &inlineHandle{
 		Pattern:    pattern,
 		Handler:    handler,
 		baseHandle: baseHandle{Group: DefaultGroup},
 	}
-	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.inlineHandles, h)
-	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.inlineHandles, h)
+	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.inlineHandles, h, &c.dispatcher.RWMutex)
+	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.inlineHandles, h, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.inlineHandles, h)
 }
 
 func (c *Client) AddInlineSendHandler(handler InlineSendHandler) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
 	h := &inlineSendHandle{
 		Handler:    handler,
 		baseHandle: baseHandle{Group: DefaultGroup},
 	}
-	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.inlineSendHandles, h)
-	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.inlineSendHandles, h)
+	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.inlineSendHandles, h, &c.dispatcher.RWMutex)
+	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.inlineSendHandles, h, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.inlineSendHandles, h)
 }
 
 func (c *Client) AddCallbackHandler(pattern any, handler CallbackHandler, filters ...Filter) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
 	var messageFilters []Filter
 	if len(filters) > 0 {
 		messageFilters = filters
@@ -1687,50 +1708,58 @@ func (c *Client) AddCallbackHandler(pattern any, handler CallbackHandler, filter
 		Filters:    messageFilters,
 		baseHandle: baseHandle{Group: DefaultGroup},
 	}
-	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.callbackHandles, h)
-	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.callbackHandles, h)
+	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.callbackHandles, h, &c.dispatcher.RWMutex)
+	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.callbackHandles, h, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.callbackHandles, h)
 }
 
 func (c *Client) AddInlineCallbackHandler(pattern any, handler InlineCallbackHandler) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
 	h := &inlineCallbackHandle{
 		Pattern:    pattern,
 		Handler:    handler,
 		baseHandle: baseHandle{Group: DefaultGroup},
 	}
-	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.inlineCallbackHandles, h)
-	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.inlineCallbackHandles, h)
+	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.inlineCallbackHandles, h, &c.dispatcher.RWMutex)
+	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.inlineCallbackHandles, h, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.inlineCallbackHandles, h)
 }
 
 func (c *Client) AddJoinRequestHandler(handler PendingJoinHandler) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
 	h := &joinRequestHandle{
 		Handler:    handler,
 		baseHandle: baseHandle{Group: DefaultGroup},
 	}
-	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.joinRequestHandles, h)
-	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.joinRequestHandles, h)
+	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.joinRequestHandles, h, &c.dispatcher.RWMutex)
+	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.joinRequestHandles, h, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.joinRequestHandles, h)
 }
 
 func (c *Client) AddParticipantHandler(handler ParticipantHandler) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
 	h := &participantHandle{
 		Handler:    handler,
 		baseHandle: baseHandle{Group: DefaultGroup},
 	}
-	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.participantHandles, h)
-	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.participantHandles, h)
+	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.participantHandles, h, &c.dispatcher.RWMutex)
+	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.participantHandles, h, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.participantHandles, h)
 }
 
 func (c *Client) AddRawHandler(updateType Update, handler RawHandler) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
 	h := &rawHandle{
 		updateType: updateType,
 		Handler:    handler,
 		baseHandle: baseHandle{Group: DefaultGroup},
 	}
-	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.rawHandles, h)
-	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.rawHandles, h)
+	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.rawHandles, h, &c.dispatcher.RWMutex)
+	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.rawHandles, h, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.rawHandles, h)
 }
 
@@ -2305,6 +2334,9 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 }
 
 func (c *Client) OpenChat(channel *InputChannelObj) {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
+
 	if c.dispatcher.openChats == nil {
 		c.dispatcher.openChats = make(map[int64]*openChat)
 	}
@@ -2321,6 +2353,9 @@ func (c *Client) OpenChat(channel *InputChannelObj) {
 }
 
 func (c *Client) CloseChat(channel *InputChannelObj) {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
+
 	if c.dispatcher.openChats == nil {
 		return
 	}
