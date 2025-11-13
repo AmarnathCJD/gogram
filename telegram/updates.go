@@ -5,6 +5,7 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"regexp"
 	"sort"
@@ -445,9 +446,10 @@ func (c *Client) removeHandle(handle Handle) error {
 }
 
 func removeHandleFromMap[T any](handle T, handlesMap map[int][]T) {
-	for key, handles := range handlesMap {
-		for i, h := range handles {
-			if reflect.DeepEqual(h, handle) {
+	for key := range handlesMap {
+		handles := handlesMap[key]
+		for i := len(handles) - 1; i >= 0; i-- {
+			if reflect.DeepEqual(handles[i], handle) {
 				handlesMap[key] = slices.Delete(handles, i, i+1)
 				return
 			}
@@ -492,7 +494,13 @@ func (c *Client) handleMessageUpdate(update Message) {
 			return nil
 		}
 
-		if convHandlers, ok := c.dispatcher.messageHandles[ConversationGroup]; ok {
+		c.dispatcher.RLock()
+		convHandlers := c.dispatcher.messageHandles[ConversationGroup]
+		allMessageHandles := make(map[int][]*messageHandle)
+		maps.Copy(allMessageHandles, c.dispatcher.messageHandles)
+		c.dispatcher.RUnlock()
+
+		if len(convHandlers) > 0 {
 			for _, handler := range convHandlers {
 				if handler.IsMatch(msg.Message, c) {
 					if err := handle(handler); err != nil {
@@ -512,8 +520,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 
 		var groupsToProcess []groupWithHandlers
 
-		c.dispatcher.RLock()
-		for group, handlers := range c.dispatcher.messageHandles {
+		for group, handlers := range allMessageHandles {
 			if group == ConversationGroup || group == DefaultGroup {
 				continue
 			}
@@ -523,7 +530,6 @@ func (c *Client) handleMessageUpdate(update Message) {
 				handlers: handlers,
 			})
 		}
-		c.dispatcher.RUnlock()
 
 		sort.Slice(groupsToProcess, func(i, j int) bool {
 			return groupsToProcess[i].group < groupsToProcess[j].group
@@ -542,7 +548,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 			}
 		}
 
-		if defaultHandlers, ok := c.dispatcher.messageHandles[DefaultGroup]; ok {
+		if defaultHandlers, ok := allMessageHandles[DefaultGroup]; ok {
 			var wg sync.WaitGroup
 			for _, handler := range defaultHandlers {
 				if handler.IsMatch(msg.Message, c) {
@@ -561,7 +567,12 @@ func (c *Client) handleMessageUpdate(update Message) {
 	case *MessageService:
 		packed := packMessage(c, msg)
 
-		for group, handler := range c.dispatcher.actionHandles {
+		c.dispatcher.RLock()
+		actionHandles := make(map[int][]*chatActionHandle)
+		maps.Copy(actionHandles, c.dispatcher.actionHandles)
+		c.dispatcher.RUnlock()
+
+		for group, handler := range actionHandles {
 			for _, h := range handler {
 				handle := func(h *chatActionHandle) error {
 					defer c.NewRecovery()()
@@ -639,7 +650,12 @@ func (c *Client) handleEditUpdate(update Message) {
 	if msg, ok := update.(*MessageObj); ok {
 		packed := packMessage(c, msg)
 
-		for group, handlers := range c.dispatcher.messageEditHandles {
+		c.dispatcher.RLock()
+		editHandles := make(map[int][]*messageEditHandle)
+		maps.Copy(editHandles, c.dispatcher.messageEditHandles)
+		c.dispatcher.RUnlock()
+
+		for group, handlers := range editHandles {
 			for _, handler := range handlers {
 				if handler.IsMatch(msg.Message) {
 					handle := func(h *messageEditHandle) error {
@@ -674,7 +690,12 @@ func (c *Client) handleEditUpdate(update Message) {
 func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 	packed := packCallbackQuery(c, update)
 
-	for group, handlers := range c.dispatcher.callbackHandles {
+	c.dispatcher.RLock()
+	callbackHandles := make(map[int][]*callbackHandle)
+	maps.Copy(callbackHandles, c.dispatcher.callbackHandles)
+	c.dispatcher.RUnlock()
+
+	for group, handlers := range callbackHandles {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Data) {
 				handle := func(h *callbackHandle) error {
@@ -708,7 +729,12 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery) {
 	packed := packInlineCallbackQuery(c, update)
 
-	for group, handlers := range c.dispatcher.inlineCallbackHandles {
+	c.dispatcher.RLock()
+	inlineCallbackHandles := make(map[int][]*inlineCallbackHandle)
+	maps.Copy(inlineCallbackHandles, c.dispatcher.inlineCallbackHandles)
+	c.dispatcher.RUnlock()
+
+	for group, handlers := range inlineCallbackHandles {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Data) {
 				handle := func(h *inlineCallbackHandle) error {
@@ -739,7 +765,12 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 	packed := packChannelParticipant(c, update)
 
-	for group, handlers := range c.dispatcher.participantHandles {
+	c.dispatcher.RLock()
+	participantHandles := make(map[int][]*participantHandle)
+	maps.Copy(participantHandles, c.dispatcher.participantHandles)
+	c.dispatcher.RUnlock()
+
+	for group, handlers := range participantHandles {
 		for _, handler := range handlers {
 			handle := func(h *participantHandle) error {
 				defer c.NewRecovery()()
@@ -768,7 +799,12 @@ func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 	packed := packInlineQuery(c, update)
 
-	for group, handlers := range c.dispatcher.inlineHandles {
+	c.dispatcher.RLock()
+	inlineHandles := make(map[int][]*inlineHandle)
+	maps.Copy(inlineHandles, c.dispatcher.inlineHandles)
+	c.dispatcher.RUnlock()
+
+	for group, handlers := range inlineHandles {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Query) {
 				handle := func(h *inlineHandle) error {
@@ -799,7 +835,12 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 func (c *Client) handleInlineSendUpdate(update *UpdateBotInlineSend) {
 	packed := packInlineSend(c, update)
 
-	for group, handlers := range c.dispatcher.inlineSendHandles {
+	c.dispatcher.RLock()
+	inlineSendHandles := make(map[int][]*inlineSendHandle)
+	maps.Copy(inlineSendHandles, c.dispatcher.inlineSendHandles)
+	c.dispatcher.RUnlock()
+
+	for group, handlers := range inlineSendHandles {
 		for _, handler := range handlers {
 			handle := func(h *inlineSendHandle) error {
 				defer c.NewRecovery()()
@@ -828,7 +869,12 @@ func (c *Client) handleInlineSendUpdate(update *UpdateBotInlineSend) {
 func (c *Client) handleDeleteUpdate(update Update) {
 	packed := packDeleteMessage(c, update)
 
-	for group, handlers := range c.dispatcher.messageDeleteHandles {
+	c.dispatcher.RLock()
+	messageDeleteHandles := make(map[int][]*messageDeleteHandle)
+	maps.Copy(messageDeleteHandles, c.dispatcher.messageDeleteHandles)
+	c.dispatcher.RUnlock()
+
+	for group, handlers := range messageDeleteHandles {
 		for _, handler := range handlers {
 			handle := func(h *messageDeleteHandle) error {
 				defer c.NewRecovery()()
@@ -857,7 +903,12 @@ func (c *Client) handleDeleteUpdate(update Update) {
 func (c *Client) handleJoinRequestUpdate(update *UpdatePendingJoinRequests) {
 	packed := packJoinRequest(c, update)
 
-	for group, handlers := range c.dispatcher.joinRequestHandles {
+	c.dispatcher.RLock()
+	joinRequestHandles := make(map[int][]*joinRequestHandle)
+	maps.Copy(joinRequestHandles, c.dispatcher.joinRequestHandles)
+	c.dispatcher.RUnlock()
+
+	for group, handlers := range joinRequestHandles {
 		for _, handler := range handlers {
 			handle := func(h *joinRequestHandle) error {
 				defer c.NewRecovery()()
@@ -884,10 +935,12 @@ func (c *Client) handleJoinRequestUpdate(update *UpdatePendingJoinRequests) {
 }
 
 func (c *Client) handleRawUpdate(update Update) {
-	if c.dispatcher.rawHandles == nil || update == nil {
-		return
-	}
-	for group, handlers := range c.dispatcher.rawHandles {
+	c.dispatcher.RLock()
+	rawHandles := make(map[int][]*rawHandle)
+	maps.Copy(rawHandles, c.dispatcher.rawHandles)
+	c.dispatcher.RUnlock()
+
+	for group, handlers := range rawHandles {
 		for _, handler := range handlers {
 			defer func() {
 				if r := recover(); r != nil {
@@ -990,6 +1043,9 @@ func (h *inlineCallbackHandle) IsMatch(data []byte) bool {
 }
 
 func (h *messageHandle) IsMatch(text string, c *Client) bool {
+	if h.Pattern == nil {
+		return false
+	}
 	switch Pattern := h.Pattern.(type) {
 	case string:
 		if Pattern == OnNewMessage || Pattern == OnMessage {
