@@ -1022,7 +1022,7 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 				prefixes = "/!"
 			}
 			escapedPrefixes := regexp.QuoteMeta(prefixes)
-			Pattern = "(?i)^[" + escapedPrefixes + "]" + regexp.QuoteMeta(after)
+			Pattern = "(?i)^[" + escapedPrefixes + "]" + after
 			if me := c.Me(); me != nil && me.Username != "" && me.Bot {
 				Pattern += "(?: |$|@" + me.Username + ")(.*)"
 			} else {
