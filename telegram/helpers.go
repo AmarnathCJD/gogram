@@ -458,6 +458,10 @@ func (c *Client) GetPeerID(Peer any) int64 {
 	}
 }
 
+func (c *Client) PeerEquals(a, b any) bool {
+	return c.GetPeerID(a) == c.GetPeerID(b)
+}
+
 func getAnyInt(v any) int64 {
 	switch v := v.(type) {
 	case int64:

@@ -216,6 +216,37 @@ func (c *Conversation) MarkRead() (*MessagesAffectedMessages, error) {
 	}
 }
 
+func (c *Conversation) WaitClick() (*CallbackQuery, error) {
+	resp := make(chan *CallbackQuery)
+	waitFunc := func(b *CallbackQuery) error {
+		select {
+		case resp <- b:
+		default:
+		}
+
+		if c.stopPropagation {
+			return EndGroup
+		}
+		return nil
+	}
+
+	h := c.Client.On(OnCallbackQuery, waitFunc, FilterFuncCallback(func(b *CallbackQuery) bool {
+		if c.Client.PeerEquals(b.Peer, c.Peer) {
+			return true
+		}
+		return false
+	}))
+	c.openHandlers = append(c.openHandlers, h)
+	select {
+	case <-time.After(time.Duration(c.timeout) * time.Second):
+		go c.removeHandle(h)
+		return nil, fmt.Errorf("conversation timeout: %d", c.timeout)
+	case b := <-resp:
+		go c.removeHandle(h)
+		return b, nil
+	}
+}
+
 func (c *Conversation) WaitEvent(ev Update) (Update, error) {
 	resp := make(chan Update)
 	waitFunc := func(u Update, c *Client) error {
