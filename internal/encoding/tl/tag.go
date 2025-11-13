@@ -22,9 +22,6 @@ type fieldTag struct {
 }
 
 func parseTag(s reflect.StructTag) (*fieldTag, error) {
-	if s == "" {
-		return nil, errors.New("empty struct tag")
-	}
 	tags, err := parseFunc(string(s))
 	if err != nil {
 		return nil, errors.Wrap(err, "parsing field tags")
