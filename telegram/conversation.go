@@ -231,10 +231,7 @@ func (c *Conversation) WaitClick() (*CallbackQuery, error) {
 	}
 
 	h := c.Client.On(OnCallbackQuery, waitFunc, FilterFuncCallback(func(b *CallbackQuery) bool {
-		if c.Client.PeerEquals(b.Peer, c.Peer) {
-			return true
-		}
-		return false
+		return c.Client.PeerEquals(b.Peer, c.Peer)
 	}))
 	c.openHandlers = append(c.openHandlers, h)
 	select {
