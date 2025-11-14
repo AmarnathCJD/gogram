@@ -1,4 +1,4 @@
-// Copyright (c) 2024 RoseLoverX
+// Copyright (c) 2025 RoseLoverX
 
 package telegram
 
@@ -8,18 +8,14 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
-
 	"strings"
 	"unicode/utf16"
-
-	"golang.org/x/net/html"
 )
 
 func (c *Client) FormatMessage(message, mode string) ([]MessageEntity, string) {
 	return parseEntities(message, mode)
 }
 
-// parseEntities parses the message and returns a list of MessageEntities and the cleaned text string
 func parseEntities(message, mode string) ([]MessageEntity, string) {
 	if strings.EqualFold(mode, HTML) {
 		return parseHTML(message)
@@ -29,33 +25,29 @@ func parseEntities(message, mode string) ([]MessageEntity, string) {
 	return []MessageEntity{}, message
 }
 
-// parseHTML parses HTML and returns a list of MessageEntities and the cleaned text string
 func parseHTML(text string) ([]MessageEntity, string) {
 	cleanedText, tags, err := parseHTMLToTags(text)
 	if err != nil {
 		return []MessageEntity{}, text
 	}
-
-	entities := parseTagsToEntity(tags)
-	return entities, cleanedText
+	return parseTagsToEntity(tags), cleanedText
 }
 
-// parseMarkdown parses Markdown and returns a list of MessageEntities and the cleaned text string
 func parseMarkdown(text string) ([]MessageEntity, string) {
 	htmlStr := HTMLToMarkdownV2(text)
 	return parseHTML(htmlStr)
 }
 
-// Tag represents a tag in the HTML string, including its type, length, and offset and whether it has nested tags, and its attrs
+// length in UTF-16 code units
 type Tag struct {
-	Type      string `json:"type"`
-	Length    int32  `json:"length"`
-	Offset    int32  `json:"offset"`
+	Type      string
+	Length    int32
+	Offset    int32
 	hasNested bool
 	Attrs     map[string]string
 }
 
-// supportedTag returns true if the tag is supported by the parser
+// supported tags by telegram, only parse these
 func supportedTag(tag string) bool {
 	switch tag {
 	case "b", "strong", "i", "em", "u", "s", "a", "code", "pre", "ins", "del", "spoiler", "quote", "blockquote", "emoji", "mention":
@@ -68,113 +60,176 @@ func ParseHTMLToTags(htmlStr string) (string, []Tag, error) {
 	return parseHTMLToTags(htmlStr)
 }
 
+type htmlToken struct {
+	isTag     bool
+	isClosing bool
+	tagName   string
+	attrs     map[string]string
+	text      string
+}
+
+func simpleHTMLTokenize(html string) []htmlToken {
+	var tokens []htmlToken
+	i := 0
+
+	for i < len(html) {
+		if html[i] == '<' {
+			tagEnd := i + 1
+			for tagEnd < len(html) && html[tagEnd] != '>' {
+				tagEnd++
+			}
+
+			if tagEnd >= len(html) {
+				tokens = append(tokens, htmlToken{isTag: false, text: html[i:]})
+				break
+			}
+
+			tagContent := html[i+1 : tagEnd]
+			isClosing := strings.HasPrefix(tagContent, "/")
+
+			if isClosing {
+				tagContent = tagContent[1:]
+			}
+
+			parts := strings.Fields(tagContent)
+			if len(parts) > 0 {
+				tagName := parts[0]
+				attrs := make(map[string]string)
+
+				for _, part := range parts[1:] {
+					if strings.Contains(part, "=") {
+						kv := strings.SplitN(part, "=", 2)
+						key := kv[0]
+						value := strings.Trim(kv[1], "\"'")
+						attrs[key] = value
+					} else {
+						attrs[part] = "true"
+					}
+				}
+
+				tokens = append(tokens, htmlToken{
+					isTag:     true,
+					isClosing: isClosing,
+					tagName:   tagName,
+					attrs:     attrs,
+				})
+			}
+
+			i = tagEnd + 1
+		} else {
+			textStart := i
+			for i < len(html) && html[i] != '<' {
+				i++
+			}
+			tokens = append(tokens, htmlToken{
+				isTag: false,
+				text:  html[textStart:i],
+			})
+		}
+	}
+
+	return tokens
+}
+
 func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
-	// Parse the HTML string into a tree of nodes
-	doc, err := html.Parse(strings.NewReader(htmlStr))
-	if err != nil {
-		return "", nil, err
+	tokens := simpleHTMLTokenize(htmlStr)
+
+	var textBuf strings.Builder
+	var tagOffsets []Tag
+	var openTags []struct {
+		tag    Tag
+		tagIdx int
 	}
 
-	// Convert the tree of nodes into a string with no HTML tags
-	var textBuf bytes.Buffer
-	tagOffsets := []Tag{}
-	var parseNode func(*html.Node, int32)
-	var openTags []Tag
-	parseNode = func(n *html.Node, offset int32) {
-		switch n.Type {
-		case html.ElementNode:
-			// Only record tag information for non-body, non-html, non-head, non-p tags
-			if supportedTag(n.Data) {
-				tagType := n.Data
-				tagLength := getTextLength(n)
-				TagAttrs := make(map[string]string)
-				for _, attr := range n.Attr {
-					TagAttrs[attr.Key] = attr.Val
-				}
-
-				tagOffset := utf16RuneCountInString(textBuf.String())
-				tagOffsets = append(tagOffsets, Tag{Type: tagType, Length: tagLength, Offset: tagOffset, Attrs: TagAttrs})
-
-				// if tag not closed, add to open tags
-				if n.FirstChild != nil && n.FirstChild.NextSibling == nil {
-					openTags = append(openTags, Tag{Type: tagType, Length: tagLength, Offset: tagOffset})
-				}
-
+	for _, token := range tokens {
+		if !token.isTag {
+			textBuf.WriteString(htmlUnescape(token.text))
+		} else if !token.isClosing && supportedTag(token.tagName) {
+			currentOffset := utf16RuneCountInString(textBuf.String())
+			tag := Tag{
+				Type:   token.tagName,
+				Offset: currentOffset,
+				Attrs:  token.attrs,
 			}
-		case html.TextNode:
-			// Write the text content of this node to the buffer
-			textBuf.WriteString(n.Data)
-			offset += utf16RuneCountInString(n.Data)
-		}
 
-		// Recursively process child nodes
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			parseNode(c, offset)
-		}
+			tagIdx := len(tagOffsets)
+			tagOffsets = append(tagOffsets, tag)
+			openTags = append(openTags, struct {
+				tag    Tag
+				tagIdx int
+			}{tag: tag, tagIdx: tagIdx})
 
-		// Check if any open tags are closed by this node
-		for i := len(openTags) - 1; i >= 0; i-- {
-			if openTags[i].Type == n.Data {
-				openTags[i].Length = utf16RuneCountInString(textBuf.String()) - openTags[i].Offset
-				openTags[i].hasNested = true
-				openTags = openTags[:i]
+		} else if token.isClosing {
+			for i := len(openTags) - 1; i >= 0; i-- {
+				if openTags[i].tag.Type == token.tagName {
+					currentOffset := utf16RuneCountInString(textBuf.String())
+					tagOffsets[openTags[i].tagIdx].Length = currentOffset - openTags[i].tag.Offset
+					openTags = append(openTags[:i], openTags[i+1:]...)
+					break
+				}
 			}
 		}
 	}
 
-	parseNode(doc, 0)
-
-	// Adjust the length of any unclosed tags at the end of the string
-	lastOffset := utf16RuneCountInString(textBuf.String())
-	for i := range openTags {
-		openTags[i].Length = lastOffset - openTags[i].Offset
+	// close unclosed tags
+	currentOffset := utf16RuneCountInString(textBuf.String())
+	for _, openTag := range openTags {
+		tagOffsets[openTag.tagIdx].Length = currentOffset - openTag.tag.Offset
 	}
 
-	// Return the cleaned text string and tag offsets list
-	cleanedText := strings.TrimSpace(textBuf.String())
-	// for any tag if length is 0, remove it
+	originalText := textBuf.String()
+	cleanedText := strings.TrimSpace(originalText)
+
+	leadingTrimmed := utf16RuneCountInString(originalText) - utf16RuneCountInString(strings.TrimLeft(originalText, " \t\n\r"))
+	cleanedTextLen := utf16RuneCountInString(cleanedText)
+
 	var newTagOffsets []Tag
 	for _, tag := range tagOffsets {
-		if tag.Length > 0 {
-			newTagOffsets = append(newTagOffsets, tag)
+		newOffset := max(tag.Offset-leadingTrimmed, 0)
+
+		endPos := tag.Offset + tag.Length - leadingTrimmed
+		if endPos > cleanedTextLen {
+			endPos = cleanedTextLen
+		}
+
+		newLength := endPos - newOffset
+		if newLength > 0 {
+			newTagOffsets = append(newTagOffsets, Tag{
+				Type:      tag.Type,
+				Length:    newLength,
+				Offset:    newOffset,
+				hasNested: tag.hasNested,
+				Attrs:     tag.Attrs,
+			})
 		}
 	}
-	tagOffsets = newTagOffsets
 
-	return cleanedText, tagOffsets, nil
+	return cleanedText, newTagOffsets, nil
 }
 
-func trimTrailing(input string) string {
-	lastNewlineIndex := strings.LastIndex(input, "\n")
-	if lastNewlineIndex != -1 && strings.TrimSpace(input[lastNewlineIndex:]) == "" {
-		return input[:lastNewlineIndex]
-	}
-
-	return input
+func htmlUnescape(s string) string {
+	s = strings.ReplaceAll(s, "&lt;", "<")
+	s = strings.ReplaceAll(s, "&gt;", ">")
+	s = strings.ReplaceAll(s, "&quot;", "\"")
+	s = strings.ReplaceAll(s, "&#39;", "'")
+	s = strings.ReplaceAll(s, "&#x27;", "'")
+	s = strings.ReplaceAll(s, "&amp;", "&")
+	return s
 }
 
-// getTextLength returns the length of the text content of a node, including its children
-func getTextLength(n *html.Node) int32 {
-	var tagLength int32 = 0
-	currentNode := n.FirstChild
-	for currentNode != nil {
-		switch currentNode.Type {
-		case html.TextNode:
-			tagLength += utf16RuneCountInString(trimTrailing(currentNode.Data))
-		case html.ElementNode:
-			tagLength += getTextLength(currentNode)
-		}
-		currentNode = currentNode.NextSibling
-	}
-	return tagLength
+func htmlEscape(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	s = strings.ReplaceAll(s, "'", "&#39;")
+	return s
 }
 
-// utf16RuneCountInString returns the number of UTF-16 code units in a string
 func utf16RuneCountInString(s string) int32 {
 	return int32(len(utf16.Encode([]rune(s))))
 }
 
-// parseTagsToEntity converts a list of tags to a list of MessageEntities
 func parseTagsToEntity(tags []Tag) []MessageEntity {
 	var entities []MessageEntity
 	for _, tag := range tags {
@@ -237,16 +292,19 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 			entities = append(entities, &MessageEntitySpoiler{tag.Offset, tag.Length})
 		case "quote", "blockquote":
 			isCollapsed := false
-			if parsed, err := strconv.ParseBool(tag.Attrs["collapsed"]); err == nil {
-				isCollapsed = parsed
+			if collapsed, err := strconv.ParseBool(tag.Attrs["collapsed"]); err == nil {
+				isCollapsed = collapsed
+			}
+			if _, hasExpandable := tag.Attrs["expandable"]; hasExpandable {
+				isCollapsed = true
 			}
 			entities = append(entities, &MessageEntityBlockquote{isCollapsed, tag.Offset, tag.Length})
 		case "emoji":
-			emoijiId, err := strconv.ParseInt(tag.Attrs["id"], 10, 64)
+			emojiID, err := strconv.ParseInt(tag.Attrs["id"], 10, 64)
 			if err != nil {
 				continue
 			}
-			entities = append(entities, &MessageEntityCustomEmoji{tag.Offset, tag.Length, emoijiId})
+			entities = append(entities, &MessageEntityCustomEmoji{tag.Offset, tag.Length, emojiID})
 		}
 	}
 	return entities
@@ -428,7 +486,7 @@ func convertCodeSyntax(markdown string) string {
 			break
 		}
 		end += start + 1
-		content := html.EscapeString(markdown[start+1 : end])
+		content := htmlEscape(markdown[start+1 : end])
 		markdown = markdown[:start] + "<code>" + content + "</code>" + markdown[end+1:]
 	}
 	return markdown
@@ -445,17 +503,17 @@ func convertCodeBlockSyntax(markdown string) string {
 			break
 		}
 		end += start + 3
-		// Extract the language if specified
+
 		codeBlock := markdown[start+3 : end]
 		var lang string
-		if strings.Contains(codeBlock, "\n") {
-			langEnd := strings.Index(codeBlock, "\n")
-			lang = codeBlock[:langEnd]
-			codeBlock = codeBlock[langEnd+1:]
+		if idx := strings.Index(codeBlock, "\n"); idx != -1 {
+			lang = strings.TrimSpace(codeBlock[:idx])
+			codeBlock = codeBlock[idx+1:]
 		}
-		content := html.EscapeString(codeBlock)
+
+		content := htmlEscape(codeBlock)
 		if lang != "" {
-			markdown = markdown[:start] + "<pre><code class=\"language-" + html.EscapeString(lang) + "\">" + content + "</code></pre>" + markdown[end+3:]
+			markdown = markdown[:start] + "<pre><code class=\"language-" + htmlEscape(lang) + "\">" + content + "</code></pre>" + markdown[end+3:]
 		} else {
 			markdown = markdown[:start] + "<pre><code>" + content + "</code></pre>" + markdown[end+3:]
 		}
@@ -467,8 +525,8 @@ func convertLinksSyntax(markdown string) string {
 	re := regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 	return re.ReplaceAllStringFunc(markdown, func(m string) string {
 		parts := re.FindStringSubmatch(m)
-		text := html.EscapeString(parts[1])
-		url := html.EscapeString(parts[2])
+		text := htmlEscape(parts[1])
+		url := htmlEscape(parts[2])
 		return fmt.Sprintf(`<a href="%s">%s</a>`, url, text)
 	})
 }
@@ -484,7 +542,8 @@ func convertEmojiSyntax(markdown string) string {
 			break
 		}
 		end += start + 2
-		markdown = markdown[:start] + "<emoji id=\"" + markdown[start+2:end] + "\">" + "</emoji>" + markdown[end+2:]
+		emojiID := markdown[start+2 : end]
+		markdown = markdown[:start] + "<emoji id=\"" + emojiID + "\"></emoji>" + markdown[end+2:]
 	}
 	return markdown
 }
@@ -493,47 +552,36 @@ func convertBlockquotesSyntax(markdown string) string {
 	var result strings.Builder
 	lines := strings.Split(markdown, "\n")
 	inBlockquote := false
-	collapsedBlockquote := false
+	isCollapsed := false
 
-	for i, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-		if inBlockquote && !strings.HasPrefix(trimmedLine, "> ") && !strings.HasPrefix(trimmedLine, ">> ") {
-			result.WriteString("</blockquote>\n")
-			inBlockquote = false
-			collapsedBlockquote = false
-		}
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
 
-		if strings.HasPrefix(trimmedLine, "> ") {
-			if !inBlockquote || collapsedBlockquote {
-				if i > 0 {
-					result.WriteString("")
-				}
-				if collapsedBlockquote {
-					result.WriteString("</blockquote>\n")
-					collapsedBlockquote = false
-				}
-				result.WriteString("<blockquote>")
-				inBlockquote = true
-			}
-			result.WriteString(strings.TrimPrefix(trimmedLine, "> ") + "\n")
-		} else if strings.HasPrefix(trimmedLine, ">> ") {
-			if !inBlockquote || !collapsedBlockquote {
-				if i > 0 {
-					result.WriteString("")
-				}
-				if inBlockquote && !collapsedBlockquote {
+		if strings.HasPrefix(trimmed, ">> ") {
+			if !inBlockquote || !isCollapsed {
+				if inBlockquote {
 					result.WriteString("</blockquote>\n")
 				}
 				result.WriteString("<blockquote collapsed=\"true\">")
 				inBlockquote = true
-				collapsedBlockquote = true
+				isCollapsed = true
 			}
-			result.WriteString(strings.TrimPrefix(trimmedLine, ">> ") + "\n")
+			result.WriteString(strings.TrimPrefix(trimmed, ">> ") + "\n")
+		} else if strings.HasPrefix(trimmed, "> ") {
+			if !inBlockquote || isCollapsed {
+				if inBlockquote {
+					result.WriteString("</blockquote>\n")
+				}
+				result.WriteString("<blockquote>")
+				inBlockquote = true
+				isCollapsed = false
+			}
+			result.WriteString(strings.TrimPrefix(trimmed, "> ") + "\n")
 		} else {
 			if inBlockquote {
 				result.WriteString("</blockquote>\n")
 				inBlockquote = false
-				collapsedBlockquote = false
+				isCollapsed = false
 			}
 			result.WriteString(line + "\n")
 		}

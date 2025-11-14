@@ -82,6 +82,8 @@ func (b *CallbackQuery) GetChatID() int64 {
 func (b *CallbackQuery) ChannelID() int64 {
 	if b.Channel != nil {
 		return -100_000_000_0000 - b.Channel.ID
+	} else if b.Chat != nil {
+		return -b.Chat.ID
 	}
 	return 0
 }
