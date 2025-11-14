@@ -38,7 +38,7 @@ func joinAbsWorkingDir(filename string) string {
 	if !filepath.IsAbs(filename) || !strings.Contains(filename, string(filepath.Separator)) {
 		workDir, err := os.Getwd()
 		if err != nil {
-			panic(err)
+			return filename
 		}
 
 		return filepath.Join(workDir, filename)
@@ -456,6 +456,10 @@ func (c *Client) GetPeerID(Peer any) int64 {
 	default:
 		return 0
 	}
+}
+
+func (c *Client) PeerEquals(a, b any) bool {
+	return c.GetPeerID(a) == c.GetPeerID(b)
 }
 
 func getAnyInt(v any) int64 {

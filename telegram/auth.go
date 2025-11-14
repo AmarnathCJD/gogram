@@ -33,14 +33,14 @@ var (
 	phoneRegex    = regexp.MustCompile(`^\+?\d+$`)
 )
 
-// AuthPromt will prompt user to enter phone number or bot token to authorize client
+// AuthPrompt will prompt user to enter phone number or bot token to authorize client
 func (c *Client) AuthPrompt() error {
 	if au, _ := c.IsAuthorized(); au {
 		return nil
 	}
 	var input string
 	maxRetries := 3
-	for i := 0; i < maxRetries; i++ {
+	for i := range maxRetries {
 		fmt.Printf("Enter phone number (with country code [+42xxx]) or bot token: ")
 		fmt.Scanln(&input)
 		if input != "" {
@@ -129,6 +129,7 @@ type LoginOptions struct {
 	Password         string `json:"password,omitempty"`
 	Code             string `json:"code,omitempty"`
 	CodeHash         string `json:"code_hash,omitempty"`
+	MaxRetries       int    `json:"max_retries,omitempty"`
 	CodeCallback     func() (string, error)
 	PasswordCallback func() (string, error)
 	FirstName        string `json:"first_name,omitempty"`
@@ -176,7 +177,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 			}
 		}
 
-		auth, err = codeAuthAttempt(c, phoneNumber, opts)
+		auth, err = CodeAuthAttempt(c, phoneNumber, opts, getValue(opts.MaxRetries, 3))
 		if err != nil {
 			return false, err
 		}
@@ -208,10 +209,10 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 	return true, nil
 }
 
-func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAuthorization, error) {
+func CodeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions, maxRetries int) (AuthAuthorization, error) {
 	var err error
 
-	for {
+	for range maxRetries {
 		opts.Code, err = opts.CodeCallback()
 
 		if opts.Code == "cancel" || opts.Code == "exit" {
@@ -228,7 +229,7 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 			} else if MatchError(err, "SESSION_PASSWORD_NEEDED") {
 			acceptPasswordInput:
 				if opts.Password == "" {
-					for {
+					for range maxRetries {
 						passwordInput, err := opts.PasswordCallback()
 						if err != nil {
 							return nil, err
@@ -239,8 +240,6 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 							break
 						} else if passwordInput == "cancel" || passwordInput == "exit" {
 							return nil, errors.New("login canceled")
-						} else {
-							fmt.Println("Invalid password, try again")
 						}
 					}
 				}
@@ -274,7 +273,6 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 			if err, ok := err.(syscall.Errno); ok && err == syscall.EINTR {
 				return nil, errors.New("login canceled")
 			}
-			fmt.Println("Invalid code, try again")
 		}
 	}
 
