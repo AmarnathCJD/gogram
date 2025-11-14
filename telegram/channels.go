@@ -765,6 +765,7 @@ func (c *Client) CreateChannel(title string, opts ...*ChannelOptions) (*Channel,
 		return nil, err
 	}
 	if u, ok := u.(*UpdatesObj); ok {
+		c.Cache.UpdatePeersToCache(u.Users, u.Chats)
 		chat := u.Chats[0]
 		if ch, ok := chat.(*Channel); ok {
 			return ch, nil

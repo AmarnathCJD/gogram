@@ -113,7 +113,7 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 	}
 
 	h := c.Client.On(OnMessage, waitFunc, filters...)
-	h.SetGroup("conversation")
+	h.SetGroup(-1)
 
 	c.openHandlers = append(c.openHandlers, h)
 	select {
@@ -154,7 +154,7 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 	}
 
 	h := c.Client.On(OnEdit, waitFunc, filters...)
-	h.SetGroup("conversation")
+	h.SetGroup(-1)
 	c.openHandlers = append(c.openHandlers, h)
 	select {
 	case <-time.After(time.Duration(c.timeout) * time.Second):
@@ -196,7 +196,7 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 	filters = append(filters, FilterReply)
 
 	h := c.Client.On(OnMessage, waitFunc, filters...)
-	h.SetGroup("conversation")
+	h.SetGroup(-1)
 	c.openHandlers = append(c.openHandlers, h)
 	select {
 	case <-time.After(time.Duration(c.timeout) * time.Second):
@@ -213,6 +213,34 @@ func (c *Conversation) MarkRead() (*MessagesAffectedMessages, error) {
 		return c.Client.SendReadAck(c.Peer, c.lastMsg.ID)
 	} else {
 		return c.Client.SendReadAck(c.Peer)
+	}
+}
+
+func (c *Conversation) WaitClick() (*CallbackQuery, error) {
+	resp := make(chan *CallbackQuery)
+	waitFunc := func(b *CallbackQuery) error {
+		select {
+		case resp <- b:
+		default:
+		}
+
+		if c.stopPropagation {
+			return EndGroup
+		}
+		return nil
+	}
+
+	h := c.Client.On(OnCallbackQuery, waitFunc, FilterFuncCallback(func(b *CallbackQuery) bool {
+		return c.Client.PeerEquals(b.Peer, c.Peer)
+	}))
+	c.openHandlers = append(c.openHandlers, h)
+	select {
+	case <-time.After(time.Duration(c.timeout) * time.Second):
+		go c.removeHandle(h)
+		return nil, fmt.Errorf("conversation timeout: %d", c.timeout)
+	case b := <-resp:
+		go c.removeHandle(h)
+		return b, nil
 	}
 }
 
