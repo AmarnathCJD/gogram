@@ -4,9 +4,9 @@ package transport
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
-	"net/url"
 	"strings"
 	"time"
 
@@ -19,23 +19,16 @@ type tcpConn struct {
 	timeout time.Duration
 }
 
-type TCPConnConfig struct {
-	Ctx         context.Context
-	Host        string
-	IpV6        bool
-	Timeout     time.Duration
-	Socks       *url.URL
-	LocalAddr   string
-	ModeVariant uint8
-	DC          int
-}
-
 func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 	if cfg.Socks != nil && cfg.Socks.Host != "" {
 		if cfg.Socks.Scheme == "mtproxy" {
 			return newMTProxyTCP(cfg)
 		}
 		return newSocksTCP(cfg)
+	}
+
+	if cfg.Logger != nil {
+		cfg.Logger.Debug(fmt.Sprintf("[tcp] connecting to %s", cfg.Host))
 	}
 
 	tcpPrefix := "tcp"
@@ -67,10 +60,17 @@ func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 	}
 
 	if err != nil {
+		if cfg.Logger != nil {
+			cfg.Logger.Error(fmt.Sprintf("[tcp] Connection failed: %v", err))
+		}
 		return nil, false, errors.Wrap(err, "dialing tcp")
 	}
 
 	conn.SetKeepAlive(true)
+
+	if cfg.Logger != nil {
+		cfg.Logger.Debug(fmt.Sprintf("[tcp] Connected to %s", cfg.Host))
+	}
 
 	return &tcpConn{
 		reader:  NewReader(cfg.Ctx, conn),
@@ -80,10 +80,22 @@ func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 }
 
 func newSocksTCP(cfg TCPConnConfig) (Conn, bool, error) {
+	if cfg.Logger != nil {
+		cfg.Logger.Debug(fmt.Sprintf("[socks5] connecting to %s via proxy %s", cfg.Host, cfg.Socks.Host))
+	}
+
 	conn, err := dialProxy(cfg.Socks, cfg.Host, cfg.LocalAddr)
 	if err != nil {
+		if cfg.Logger != nil {
+			cfg.Logger.Error(fmt.Sprintf("[socks5] connection failed: %v", err))
+		}
 		return nil, false, err
 	}
+
+	if cfg.Logger != nil {
+		cfg.Logger.Debug(fmt.Sprintf("[socks5] connected to %s", cfg.Host))
+	}
+
 	return &tcpConn{
 		reader:  NewReader(cfg.Ctx, conn),
 		conn:    conn.(*net.TCPConn),
@@ -97,9 +109,9 @@ func newMTProxyTCP(cfg TCPConnConfig) (Conn, bool, error) {
 		dcID = 2
 	}
 
-	conn, err := DialMTProxy(cfg.Socks, cfg.Host, dcID, cfg.ModeVariant, cfg.LocalAddr)
+	conn, err := DialMTProxy(cfg.Socks, cfg.Host, dcID, cfg.ModeVariant, cfg.LocalAddr, cfg.Logger)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "establishing MTProxy connection")
+		return nil, false, errors.Wrap(err, "establishing mtproxy connection")
 	}
 
 	return conn, true, nil
