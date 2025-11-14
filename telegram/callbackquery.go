@@ -79,6 +79,13 @@ func (b *CallbackQuery) GetChatID() int64 {
 	return b.ChatID
 }
 
+func (b *CallbackQuery) ChannelID() int64 {
+	if b.Channel != nil {
+		return -100_000_000_0000 - b.Channel.ID
+	}
+	return 0
+}
+
 func (b *CallbackQuery) ShortName() string {
 	return b.OriginalUpdate.GameShortName
 }

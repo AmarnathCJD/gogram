@@ -37,10 +37,10 @@ type (
 	}
 )
 
-func (i *InlineQuery) Answer(results []InputBotInlineResult, options ...InlineSendOptions) (bool, error) {
+func (i *InlineQuery) Answer(results []InputBotInlineResult, options ...*InlineSendOptions) (bool, error) {
 	var opts InlineSendOptions
 	if len(options) > 0 {
-		opts = options[0]
+		opts = *options[0]
 	}
 	return i.Client.AnswerInlineQuery(i.QueryID, results, &opts)
 }
@@ -287,7 +287,7 @@ func (m *InlineQuery) Args() string {
 	if len(Messages) < 2 {
 		return ""
 	}
-	return strings.TrimSpace(strings.Join(Messages[1:], " ")) // Args()
+	return strings.TrimSpace(strings.Join(Messages[1:], " "))
 }
 
 func (i *InlineSend) Edit(message any, options ...*SendOptions) (*NewMessage, error) {
@@ -300,6 +300,15 @@ func (i *InlineSend) ChatID() int64 {
 		return int64(math.Abs(float64(msg.ID >> 32)))
 	case *InputBotInlineMessageID64:
 		return int64(math.Abs(float64(msg.OwnerID)))
+	default:
+		return 0
+	}
+}
+
+func (i *InlineSend) ChannelID() int64 {
+	switch msg := i.MsgID.(type) {
+	case *InputBotInlineMessageIDObj:
+		return -100_000_000_0000 - int64(msg.ID>>32)
 	default:
 		return 0
 	}

@@ -16,9 +16,16 @@ type ParticipantUpdate struct {
 	Date           int32
 }
 
-func (pu *ParticipantUpdate) ChannelID() int64 {
+func (pu *ParticipantUpdate) ChatID() int64 {
 	if pu.Channel != nil {
 		return pu.Channel.ID
+	}
+	return 0
+}
+
+func (pu *ParticipantUpdate) ChannelID() int64 {
+	if pu.Channel != nil {
+		return -100_000_000_0000 - pu.Channel.ID
 	}
 	return 0
 }

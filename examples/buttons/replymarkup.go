@@ -28,7 +28,7 @@ func main() {
 	})
 
 	client.On("message:/start", func(message *telegram.NewMessage) error {
-		message.Reply("Hello:>", telegram.SendOptions{
+		message.Reply("Hello:>", &telegram.SendOptions{
 			ReplyMarkup: telegram.NewKeyboard().NewGrid(2, 3, // 2 rows, 3 columns format
 				telegram.Button.URL("Google", "https://www.google.com"),
 				telegram.Button.Data("Help", "help"),
