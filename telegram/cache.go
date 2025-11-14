@@ -278,7 +278,7 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	return nil, fmt.Errorf("there is no peer with id '%d' or missing from cache", peerID)
 }
 
-// ------------------ Get Chat/Channel/User From Cache/Telgram ------------------
+// ------------------ Get Chat/Channel/User From Cache/Telegram ------------------
 
 func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 	c.Cache.RLock()
