@@ -15,17 +15,15 @@ import (
 	"math/big"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 )
 
 const (
-	_MOD               = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFED
-	_POW               = 0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF6
 	_MAX_GREASE        = 8
 	_MAX_TLS_MSG       = 16 * 1024 // 16 KB
-	defaultSNI         = "media.steampered.com"
 	fakeTLSHandshakeID = 0xee
 )
 
@@ -42,74 +40,75 @@ var _TLS_HELLO_OPS = []tlsOp{
 	{"id", nil},
 	{"string", []byte("\x00\x20")},
 	{"grease", 0},
-	{
-		"string",
-		[]byte("\x13\x01\x13\x02\x13\x03\xc0\x2b\xc0\x2f\xc0" +
-			"\x2c\xc0\x30\xcc\xa9\xcc\xa8\xc0\x13\xc0\x14" +
-			"\x00\x9c\x00\x9d\x00\x2f\x00\x35\x01\x00\x01\x93"),
-	},
+	{"string", []byte("\x13\x01\x13\x02\x13\x03\xc0\x2b\xc0\x2f\xc0\x2c\xc0\x30\xcc\xa9\xcc\xa8\xc0\x13\xc0\x14\x00\x9c\x00\x9d\x00\x2f\x00\x35\x01\x00\x01\x93")},
 	{"grease", 2},
 	{"string", []byte("\x00\x00")},
-	{
-		"permutation",
-		[][]tlsOp{
-			{
-				{"string", []byte("\x00\x00")},
-				{"begin_scope", nil},
-				{"begin_scope", nil},
-				{"string", []byte("\x00")},
-				{"begin_scope", nil},
-				{"domain", nil},
-				{"end_scope", nil},
-				{"end_scope", nil},
-				{"end_scope", nil},
-			},
-			{{"string", []byte("\x00\x05\x00\x05\x01\x00\x00\x00\x00")}},
-			{
-				{"string", []byte("\x00\x0a\x00\x0a\x00\x08")},
-				{"grease", 4},
-				{"string", []byte("\x00\x1d\x00\x17\x00\x18")},
-			},
-			{{"string", []byte("\x00\x0b\x00\x02\x01\x00")}},
-			{
-				{
-					"string",
-					[]byte("\x00\x0d\x00\x12\x00\x10\x04\x03\x08\x04\x04" +
-						"\x01\x05\x03\x08\x05\x05\x01\x08\x06\x06\x01"),
-				},
-			},
-			{
-				{
-					"string",
-					[]byte("\x00\x10\x00\x0e\x00\x0c\x02\x68\x32\x08\x68" +
-						"\x74\x74\x70\x2f\x31\x2e\x31"),
-				},
-			},
-			{{"string", []byte("\x00\x12\x00\x00")}},
-			{{"string", []byte("\x00\x17\x00\x00")}},
-			{{"string", []byte("\x00\x1b\x00\x03\x02\x00\x02")}},
-			{{"string", []byte("\x00\x23\x00\x00")}},
-			{
-				{"string", []byte("\x00\x2b\x00\x07\x06")},
-				{"grease", 6},
-				{"string", []byte("\x03\x04\x03\x03")},
-			},
-			{{"string", []byte("\x00\x2d\x00\x02\x01\x01")}},
-			{
-				{"string", []byte("\x00\x33\x00\x2b\x00\x29")},
-				{"grease", 4},
-				{"string", []byte("\x00\x01\x00\x00\x1d\x00\x20")},
-				{"k", nil},
-			},
-			{{"string", []byte("\x44\x69\x00\x05\x00\x03\x02\x68\x32")}},
-			{{"string", []byte("\xff\x01\x00\x01\x00")}},
+	{"permutation", [][]tlsOp{
+		{
+			{"string", []byte("\x00\x00")},
+			{"begin_scope", nil},
+			{"begin_scope", nil},
+			{"string", []byte("\x00")},
+			{"begin_scope", nil},
+			{"domain", nil},
+			{"end_scope", nil},
+			{"end_scope", nil},
+			{"end_scope", nil},
 		},
-	},
+		{
+			{"string", []byte("\x00\x05\x00\x05\x01\x00\x00\x00\x00")},
+		},
+		{
+			{"string", []byte("\x00\x0a\x00\x0a\x00\x08")},
+			{"grease", 4},
+			{"string", []byte("\x00\x1d\x00\x17\x00\x18")},
+		},
+		{
+			{"string", []byte("\x00\x0b\x00\x02\x01\x00")},
+		},
+		{
+			{"string", []byte("\x00\x0d\x00\x12\x00\x10\x04\x03\x08\x04\x04\x01\x05\x03\x08\x05\x05\x01\x08\x06\x06\x01")},
+		},
+		{
+			{"string", []byte("\x00\x10\x00\x0e\x00\x0c\x02\x68\x32\x08\x68\x74\x74\x70\x2f\x31\x2e\x31")},
+		},
+		{
+			{"string", []byte("\x00\x12\x00\x00")},
+		},
+		{
+			{"string", []byte("\x00\x17\x00\x00")},
+		},
+		{
+			{"string", []byte("\x00\x1b\x00\x03\x02\x00\x02")},
+		},
+		{
+			{"string", []byte("\x00\x23\x00\x00")},
+		},
+		{
+			{"string", []byte("\x00\x2b\x00\x07\x06")},
+			{"grease", 6},
+			{"string", []byte("\x03\x04\x03\x03")},
+		},
+		{
+			{"string", []byte("\x00\x2d\x00\x02\x01\x01")},
+		},
+		{
+			{"string", []byte("\x00\x33\x00\x2b\x00\x29")},
+			{"grease", 4},
+			{"string", []byte("\x00\x01\x00\x00\x1d\x00\x20")},
+			{"k", nil},
+		},
+		{
+			{"string", []byte("\x44\x69\x00\x05\x00\x03\x02\x68\x32")},
+		},
+		{
+			{"string", []byte("\xff\x01\x00\x01\x00")},
+		},
+	}},
 	{"grease", 3},
 	{"string", []byte("\x00\x01\x00\x00\x15")},
 }
 
-// MTProxyConfig holds the configuration for MTProxy connection
 type MTProxyConfig struct {
 	ProxyURL    *url.URL
 	TargetAddr  string
@@ -118,21 +117,17 @@ type MTProxyConfig struct {
 	LocalAddr   string
 }
 
-// fakeTLSConn wraps a connection with Fake TLS handshake support
 type fakeTLSConn struct {
 	conn   net.Conn
 	reader io.Reader
 	buffer []byte
 }
 
-// Ensure fakeTLSConn implements net.Conn interface
 var _ net.Conn = (*fakeTLSConn)(nil)
 
-// DecodeMTProtoProxySecret decodes the MTProto proxy secret from hex or base64
 func DecodeMTProtoProxySecret(value string) (proto byte, secret []byte, serverHostname []byte, err error) {
 	var data []byte
 
-	// Try hex decode first
 	if len(value)%2 == 0 {
 		data, err = hexDecode(value)
 		if err != nil {
@@ -140,23 +135,18 @@ func DecodeMTProtoProxySecret(value string) (proto byte, secret []byte, serverHo
 		}
 	}
 
-	// If hex failed, try base64
 	if data == nil {
 		padding := len(value) % 4
 		if padding > 0 {
-			value += string(make([]byte, 4-padding))
-			for i := len(value) - (4 - padding); i < len(value); i++ {
-				value = value[:i] + "=" + value[i:]
-			}
+			value += strings.Repeat("=", 4-padding)
 		}
 
 		data, err = base64.URLEncoding.DecodeString(value)
 		if err != nil {
-			return 0, nil, nil, errors.Wrap(err, "invalid MTProto proxy secret")
+			return 0, nil, nil, errors.Wrap(err, "invalid mtproxy secret")
 		}
 	}
 
-	// Parse the secret
 	proto = 0
 	secret = data
 	serverHostname = nil
@@ -165,15 +155,16 @@ func DecodeMTProtoProxySecret(value string) (proto byte, secret []byte, serverHo
 		proto = data[0]
 		secret = data[1:17]
 		if proto == fakeTLSHandshakeID {
-			serverHostname = trimNullBytes(data[17:])
+			hostnameBytes := trimNullBytes(data[17:])
+			if len(hostnameBytes) > 0 {
+				serverHostname = make([]byte, len(hostnameBytes))
+				copy(serverHostname, hostnameBytes)
+			}
 		}
 	}
-	// print secret value
-	log.Printf("[MTProxy] Secret: %x", secret)
 	return proto, secret, serverHostname, nil
 }
 
-// hexDecode decodes a hex string
 func hexDecode(s string) ([]byte, error) {
 	result := make([]byte, len(s)/2)
 	for i := 0; i < len(s); i += 2 {
@@ -187,7 +178,6 @@ func hexDecode(s string) ([]byte, error) {
 	return result, nil
 }
 
-// trimNullBytes removes trailing null bytes
 func trimNullBytes(b []byte) []byte {
 	for i := len(b) - 1; i >= 0; i-- {
 		if b[i] != 0 {
@@ -197,7 +187,6 @@ func trimNullBytes(b []byte) []byte {
 	return b[:0]
 }
 
-// getY2 calculates y^2 for the elliptic curve
 func getY2(x *big.Int) *big.Int {
 	mod := new(big.Int)
 	mod.SetString("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFED", 16)
@@ -220,7 +209,6 @@ func getY2(x *big.Int) *big.Int {
 	return result
 }
 
-// getDoubleX calculates the x-coordinate doubling
 func getDoubleX(x *big.Int) *big.Int {
 	mod := new(big.Int)
 	mod.SetString("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFED", 16)
@@ -250,7 +238,6 @@ func getDoubleX(x *big.Int) *big.Int {
 	return result
 }
 
-// generatePublicKey generates a public key for TLS handshake
 func generatePublicKey() ([]byte, error) {
 	mod := new(big.Int)
 	mod.SetString("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFED", 16)
@@ -281,56 +268,38 @@ func generatePublicKey() ([]byte, error) {
 		}
 	}
 
-	// Double x three times
 	for i := 0; i < 3; i++ {
 		x = getDoubleX(x)
 	}
 
-	// Convert to bytes (big-endian)
 	keyBytes := x.Bytes()
 
-	// Pad to 32 bytes if needed
 	if len(keyBytes) < 32 {
 		padded := make([]byte, 32)
 		copy(padded[32-len(keyBytes):], keyBytes)
 		keyBytes = padded
 	}
 
-	// Reverse the bytes
 	result := make([]byte, 32)
-	for i := 0; i < 16; i++ {
-		result[i], result[31-i] = keyBytes[31-i], keyBytes[i]
+	for i := 0; i < 32; i++ {
+		result[i] = keyBytes[31-i]
 	}
 
 	return result, nil
 }
 
-// startFakeTLS performs the Fake TLS handshake
 func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSConn, error) {
-	log.Printf("[MTProxy] Starting Fake TLS handshake with SNI: %s", string(serverHostname))
-
-	if len(serverHostname) == 0 {
-		serverHostname = []byte(defaultSNI)
-	}
-
-	// Generate session ID
 	sessionID := make([]byte, 32)
 	if _, err := rand.Read(sessionID); err != nil {
 		return nil, errors.Wrap(err, "generating session ID")
 	}
 
-	// print sessionid, key and serverhostname
-	log.Printf("[MTProxy] Session ID: %x", sessionID)
-	log.Printf("[MTProxy] Key: %x", key)
-	log.Printf("[MTProxy] Server Hostname: %s", string(serverHostname))
-
-	// Generate grease values
 	grease := make([]byte, _MAX_GREASE)
 	if _, err := rand.Read(grease); err != nil {
-		return nil, errors.Wrap(err, "generating grease")
+		return nil, errors.Wrap(err, "generating grease for faketls")
 	}
 
-	for i := range _MAX_GREASE {
+	for i := range grease {
 		g := (grease[i] & 0xF0) + 0x0A
 		if i%2 == 1 && g == grease[i-1] {
 			g ^= 0x10
@@ -338,13 +307,11 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 		grease[i] = g
 	}
 
-	// Generate public key
 	publicKey, err := generatePublicKey()
 	if err != nil {
 		return nil, errors.Wrap(err, "generating public key")
 	}
 
-	// Build the TLS Client Hello
 	buffer := make([]byte, 0, 1024)
 	stack := make([]int, 0)
 
@@ -392,8 +359,19 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 				buffer[start+1] = byte(length & 0xFF)
 
 			case "permutation":
-				parts := op.value.([][]tlsOp)
-				// Shuffle parts (simplified - just use as-is for now)
+				parts := make([][]tlsOp, len(op.value.([][]tlsOp)))
+				for i, v := range op.value.([][]tlsOp) {
+					parts[i] = make([]tlsOp, len(v))
+					copy(parts[i], v)
+				}
+				for i := len(parts) - 1; i > 0; i-- {
+					jBig, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+					if err != nil {
+						break
+					}
+					j := int(jBig.Int64())
+					parts[i], parts[j] = parts[j], parts[i]
+				}
 				for _, part := range parts {
 					writeOps(part)
 				}
@@ -403,7 +381,6 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 
 	writeOps(_TLS_HELLO_OPS)
 
-	// Add padding
 	if len(buffer) > 515 {
 		return nil, errors.New("handshake buffer too large for padding")
 	}
@@ -412,18 +389,10 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 	buffer = append(buffer, byte(padSize>>8), byte(padSize&0xFF))
 	buffer = append(buffer, make([]byte, padSize)...)
 
-	log.Printf("[MTProxy] Client Hello buffer size: %d bytes (with %d bytes padding)", len(buffer), padSize)
-
-	// Compute client random using HMAC
 	mac := hmac.New(sha256.New, key)
 	mac.Write(buffer)
 	digest := mac.Sum(nil)
 
-	// print buffer
-	//log.Printf("[MTProxy] Client Hello buffer before timestamp XOR: %x", buffer)
-	// print digest
-	//log.Printf("[MTProxy] HMAC Digest before timestamp XOR: %x", digest)
-	// XOR the timestamp
 	oldValue := binary.LittleEndian.Uint32(digest[28:32])
 	newValue := oldValue ^ uint32(time.Now().Unix())
 	binary.LittleEndian.PutUint32(digest[28:32], newValue)
@@ -431,22 +400,14 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 	clientRandom := digest[:32]
 	copy(buffer[11:11+32], clientRandom)
 
-	log.Printf("[MTProxy] Client random: %x", clientRandom[:8])
-	// print buffer to be sent
-	//log.Printf("[MTProxy] Client Hello buffer: %x", buffer)
-
 	_, err = conn.Write(buffer)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending client hello")
 	}
 
-	log.Printf("[MTProxy] Client Hello sent successfully")
-
 	header, payload, err := readTLSRecord(conn)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading server hello")
-	} else {
-		log.Printf("[MTProxy] Server Hello received: %d bytes", len(payload))
 	}
 
 	if len(payload) < 38 {
@@ -457,7 +418,6 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 		return nil, fmt.Errorf("unexpected handshake type: %#x", payload[0])
 	}
 
-	// length = int.from_bytes(payload[1:4])
 	length := int(payload[1])<<16 | int(payload[2])<<8 | int(payload[3])
 	if length+4 != len(payload) {
 		return nil, errors.New("handshake length mismatch")
@@ -468,12 +428,10 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 		return nil, fmt.Errorf("unexpected TLS version: %#x", version)
 	}
 
-	// Extract server digest from server hello
 	serverDigest := make([]byte, 32)
 	copy(serverDigest, payload[6:38])
 
-	var payloadZeroed = make([]byte, len(payload))
-	// payload_zeroed[6:38] = b'\x00' * 32
+	payloadZeroed := make([]byte, len(payload))
 	copy(payloadZeroed, payload)
 	for i := 6; i < 38; i++ {
 		payloadZeroed[i] = 0
@@ -487,8 +445,6 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 	if nextHeader[0] != 0x14 {
 		return nil, fmt.Errorf("unexpected TLS record: %#x", nextHeader[0])
 	}
-	log.Printf("[MTProxy] Change Cipher Spec received")
-	// payload_zeroed.extend(next_header+next_payload)
 	payloadZeroed = append(payloadZeroed, nextHeader...)
 	payloadZeroed = append(payloadZeroed, nextPayload...)
 
@@ -500,36 +456,18 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 		return nil, fmt.Errorf("unexpected TLS record: %#x", nextHeader[0])
 	}
 
-	// payload_zeroed.extend(next_header+next_payload)
 	payloadZeroed = append(payloadZeroed, nextHeader...)
 	payloadZeroed = append(payloadZeroed, nextPayload...)
 
-	/*
-		computed_digest = (
-			hmac.new(
-				key,
-				client_random + header + payload_zeroed,
-				digestmod=hashlib.sha256
-			).digest()
-		)
-
-	*/
-
-	var computedDigest []byte
 	mac = hmac.New(sha256.New, key)
 	mac.Write(clientRandom)
 	mac.Write(header)
 	mac.Write(payloadZeroed)
-	computedDigest = mac.Sum(nil)
+	computedDigest := mac.Sum(nil)
 
-	originalDigest := serverDigest
-	fmt.Printf("[MTProxy] Server Digest: %x", originalDigest)
-	fmt.Printf("[MTProxy] Computed Digest: %x", computedDigest)
-	if !hmac.Equal(originalDigest[:], computedDigest) {
+	if !hmac.Equal(serverDigest, computedDigest) {
 		return nil, errors.New("TLS handshake verification failed: HMAC mismatch")
 	}
-
-	log.Printf("[MTProxy] Fake TLS handshake completed successfully")
 
 	return &fakeTLSConn{
 		conn:   conn,
@@ -538,7 +476,6 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 	}, nil
 }
 
-// readTLSRecord reads a single TLS record
 func readTLSRecord(conn net.Conn) (header []byte, payload []byte, err error) {
 	header = make([]byte, 5)
 	_, err = io.ReadFull(conn, header)
@@ -546,9 +483,6 @@ func readTLSRecord(conn net.Conn) (header []byte, payload []byte, err error) {
 		return nil, nil, err
 	}
 
-	if header[0] == 0x16 {
-		log.Printf("[MTProxy] TLS Handshake record received")
-	}
 	version := uint16(header[1])<<8 | uint16(header[2])
 	if version != 0x0303 {
 		return nil, nil, fmt.Errorf("unexpected TLS version: %#x", version)
@@ -568,43 +502,33 @@ func readTLSRecord(conn net.Conn) (header []byte, payload []byte, err error) {
 	return header, payload, nil
 }
 
-// Read reads data from the Fake TLS connection, handling TLS records
 func (f *fakeTLSConn) Read(b []byte) (int, error) {
-	// If we have buffered data, return it
 	if len(f.buffer) > 0 {
 		n := copy(b, f.buffer)
 		f.buffer = f.buffer[n:]
 		return n, nil
 	}
 
-	// Read the next TLS record
 	_, payload, err := readTLSRecord(f.conn)
 	if err != nil {
 		return 0, err
 	}
 
-	// Copy to output buffer
 	n := copy(b, payload)
 	if n < len(payload) {
-		// Store remaining data
 		f.buffer = append(f.buffer, payload[n:]...)
 	}
 
 	return n, nil
 }
 
-// Write writes data to the Fake TLS connection, wrapping in TLS records
 func (f *fakeTLSConn) Write(b []byte) (int, error) {
 	totalWritten := 0
 
 	for offset := 0; offset < len(b); offset += _MAX_TLS_MSG {
-		end := offset + _MAX_TLS_MSG
-		if end > len(b) {
-			end = len(b)
-		}
+		end := min(offset+_MAX_TLS_MSG, len(b))
 		chunk := b[offset:end]
 
-		// Build TLS application data record
 		record := make([]byte, 5+len(chunk))
 		record[0] = 0x17 // application data
 		record[1] = 0x03 // TLS 1.2
@@ -623,41 +547,74 @@ func (f *fakeTLSConn) Write(b []byte) (int, error) {
 	return totalWritten, nil
 }
 
-// Close closes the underlying connection
 func (f *fakeTLSConn) Close() error {
 	return f.conn.Close()
 }
 
-// LocalAddr returns the local network address
 func (f *fakeTLSConn) LocalAddr() net.Addr {
 	return f.conn.LocalAddr()
 }
 
-// RemoteAddr returns the remote network address
 func (f *fakeTLSConn) RemoteAddr() net.Addr {
 	return f.conn.RemoteAddr()
 }
 
-// SetDeadline sets the read and write deadlines
 func (f *fakeTLSConn) SetDeadline(t time.Time) error {
 	return f.conn.SetDeadline(t)
 }
 
-// SetReadDeadline sets the read deadline
 func (f *fakeTLSConn) SetReadDeadline(t time.Time) error {
 	return f.conn.SetReadDeadline(t)
 }
 
-// SetWriteDeadline sets the write deadline
 func (f *fakeTLSConn) SetWriteDeadline(t time.Time) error {
 	return f.conn.SetWriteDeadline(t)
 }
 
-// DialMTProxy establishes a connection through an MTProxy
-func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant uint8, localAddr string) (Conn, error) {
-	log.Printf("[MTProxy] Connecting to MTProxy: %s", proxyURL.Host)
+// mtproxyConn wraps an obfuscated connection for MTProxy
+type mtproxyConn struct {
+	reader  *Reader
+	conn    io.ReadWriteCloser
+	timeout time.Duration
+}
 
-	// Parse the secret from the URL
+func (m *mtproxyConn) Close() error {
+	return m.conn.Close()
+}
+
+func (m *mtproxyConn) Write(b []byte) (int, error) {
+	return m.conn.Write(b)
+}
+
+func (m *mtproxyConn) Read(b []byte) (int, error) {
+	if m.timeout > 0 {
+		if setter, ok := m.conn.(interface{ SetReadDeadline(time.Time) error }); ok {
+			err := setter.SetReadDeadline(time.Now().Add(m.timeout))
+			if err != nil {
+				return 0, errors.Wrap(err, "setting read deadline")
+			}
+		}
+	}
+
+	n, err := m.reader.Read(b)
+
+	if err != nil {
+		if e, ok := err.(*net.OpError); ok || err == io.ErrClosedPipe {
+			if e != nil && e.Err.Error() == "i/o timeout" || err == io.ErrClosedPipe {
+				return 0, errors.Wrap(err, "required to reconnect!")
+			}
+		}
+		switch err {
+		case io.EOF, context.Canceled:
+			return 0, err
+		default:
+			return 0, errors.Wrap(err, "unexpected error")
+		}
+	}
+	return n, nil
+}
+
+func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant uint8, localAddr string) (Conn, error) {
 	secret := proxyURL.User.Username()
 	if secret == "" {
 		return nil, errors.New("MTProxy secret is required")
@@ -665,12 +622,9 @@ func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant u
 
 	proto, secretBytes, serverHostname, err := DecodeMTProtoProxySecret(secret)
 	if err != nil {
-		return nil, errors.Wrap(err, "decoding MTProxy secret")
+		return nil, errors.Wrap(err, "decoding MTProto proxy secret")
 	}
 
-	log.Printf("[MTProxy] Secret decoded: proto=%#x, secret_len=%d, sni=%s", proto, len(secretBytes), string(serverHostname))
-
-	// Connect to the proxy
 	var dialer net.Dialer
 	if localAddr != "" {
 		addr, err := net.ResolveTCPAddr("tcp", localAddr)
@@ -693,10 +647,8 @@ func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant u
 
 	log.Printf("[MTProxy] Connected to proxy server")
 
-	// Wrap with appropriate connection type
 	var conn net.Conn = tcpConnection
 
-	// If Fake TLS is required, perform handshake
 	if proto == fakeTLSHandshakeID {
 		ftlsConn, err := startFakeTLS(tcpConnection, secretBytes, serverHostname)
 		if err != nil {
@@ -706,7 +658,6 @@ func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant u
 		conn = ftlsConn
 	}
 
-	// Create obfuscated connection
 	protocolID := ProtocolID(modeVariant)
 	obfConn, err := NewObfuscatedConnWithSecret(conn, protocolID, secretBytes, dcID)
 	if err != nil {
@@ -716,8 +667,13 @@ func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant u
 
 	log.Printf("[MTProxy] Obfuscated connection established")
 
-	return &tcpConn{
+	// The obfuscated connection handles:
+	// - TLS framing (if using fake TLS)
+	// - Obfuscation encryption/decryption
+	// - Protocol tag (embedded in handshake)
+
+	return &mtproxyConn{
 		reader: NewReader(context.TODO(), obfConn),
-		conn:   tcpConnection,
+		conn:   obfConn,
 	}, nil
 }

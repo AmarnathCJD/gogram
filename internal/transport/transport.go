@@ -36,8 +36,7 @@ func NewTransport(m messages.MessageInformator, conn ConnConfig, modeVariant mod
 	var isObfuscated bool
 	switch cfg := conn.(type) {
 	case TCPConnConfig:
-		t.conn, err = NewTCP(cfg)
-		isObfuscated = false
+		t.conn, isObfuscated, err = NewTCP(cfg)
 	case WSConnConfig:
 		cfg.ModeVariant = uint8(modeVariant)
 		t.conn, err = NewWebSocket(cfg)

@@ -5,7 +5,6 @@ package transport
 import (
 	"context"
 	"io"
-	"log"
 	"net"
 	"net/url"
 	"strings"
@@ -31,7 +30,7 @@ type TCPConnConfig struct {
 	DC          int
 }
 
-func NewTCP(cfg TCPConnConfig) (Conn, error) {
+func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 	if cfg.Socks != nil && cfg.Socks.Host != "" {
 		if cfg.Socks.Scheme == "mtproxy" {
 			return newMTProxyTCP(cfg)
@@ -48,7 +47,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 
 	tcpAddr, err := net.ResolveTCPAddr(tcpPrefix, cfg.Host)
 	if err != nil {
-		return nil, errors.Wrap(err, "resolving tcp")
+		return nil, false, errors.Wrap(err, "resolving tcp")
 	}
 
 	// Resolve a local address if provided
@@ -56,7 +55,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 	if cfg.LocalAddr != "" {
 		localAddr, err = net.ResolveTCPAddr(tcpPrefix, cfg.LocalAddr)
 		if err != nil {
-			return nil, errors.Wrap(err, "resolving local tcp addr")
+			return nil, false, errors.Wrap(err, "resolving local tcp addr")
 		}
 	}
 
@@ -68,7 +67,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 	}
 
 	if err != nil {
-		return nil, errors.Wrap(err, "dialing tcp")
+		return nil, false, errors.Wrap(err, "dialing tcp")
 	}
 
 	conn.SetKeepAlive(true)
@@ -77,24 +76,22 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 		reader:  NewReader(cfg.Ctx, conn),
 		conn:    conn,
 		timeout: cfg.Timeout,
-	}, nil
+	}, false, nil
 }
 
-func newSocksTCP(cfg TCPConnConfig) (Conn, error) {
+func newSocksTCP(cfg TCPConnConfig) (Conn, bool, error) {
 	conn, err := dialProxy(cfg.Socks, cfg.Host, cfg.LocalAddr)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	return &tcpConn{
 		reader:  NewReader(cfg.Ctx, conn),
 		conn:    conn.(*net.TCPConn),
 		timeout: cfg.Timeout,
-	}, nil
+	}, false, nil
 }
 
-func newMTProxyTCP(cfg TCPConnConfig) (Conn, error) {
-	log.Printf("[MTProxy] Setting up MTProxy connection for host: %s", cfg.Host)
-
+func newMTProxyTCP(cfg TCPConnConfig) (Conn, bool, error) {
 	dcID := int16(cfg.DC)
 	if dcID == 0 {
 		dcID = 2
@@ -102,11 +99,10 @@ func newMTProxyTCP(cfg TCPConnConfig) (Conn, error) {
 
 	conn, err := DialMTProxy(cfg.Socks, cfg.Host, dcID, cfg.ModeVariant, cfg.LocalAddr)
 	if err != nil {
-		return nil, errors.Wrap(err, "establishing MTProxy connection")
+		return nil, false, errors.Wrap(err, "establishing MTProxy connection")
 	}
 
-	log.Printf("[MTProxy] MTProxy connection established successfully")
-	return conn, nil
+	return conn, true, nil
 }
 
 func (t *tcpConn) Close() error {

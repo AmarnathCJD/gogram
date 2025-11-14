@@ -8,7 +8,11 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 	"io"
+	"net"
+	"slices"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -27,7 +31,7 @@ func NewObfuscatedConn(conn io.ReadWriteCloser, protocolID []byte) (*obfuscatedC
 	}
 
 	paddedProtocol := make([]byte, 4)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		paddedProtocol[i] = protocolID[i%len(protocolID)]
 	}
 
@@ -37,7 +41,7 @@ func NewObfuscatedConn(conn io.ReadWriteCloser, protocolID []byte) (*obfuscatedC
 	}
 
 	initRev := make([]byte, 64)
-	for i := 0; i < 64; i++ {
+	for i := range 64 {
 		initRev[i] = init[63-i]
 	}
 
@@ -77,7 +81,6 @@ func NewObfuscatedConn(conn io.ReadWriteCloser, protocolID []byte) (*obfuscatedC
 		decryptor: decryptor,
 	}, nil
 }
-
 func generateInitPayload(protocolID []byte) ([]byte, error) {
 
 	forbiddenFirst := []uint32{
@@ -102,13 +105,7 @@ func generateInitPayload(protocolID []byte) ([]byte, error) {
 		}
 
 		firstInt := binary.LittleEndian.Uint32(init[0:4])
-		forbidden := false
-		for _, f := range forbiddenFirst {
-			if firstInt == f {
-				forbidden = true
-				break
-			}
-		}
+		forbidden := slices.Contains(forbiddenFirst, firstInt)
 		if forbidden {
 			continue
 		}
@@ -131,11 +128,11 @@ func (o *obfuscatedConn) Read(b []byte) (int, error) {
 	}
 
 	o.decryptor.XORKeyStream(b[:n], b[:n])
+
 	return n, nil
 }
 
 func (o *obfuscatedConn) Write(b []byte) (int, error) {
-
 	encrypted := make([]byte, len(b))
 	o.encryptor.XORKeyStream(encrypted, b)
 
@@ -146,34 +143,66 @@ func (o *obfuscatedConn) Close() error {
 	return o.conn.Close()
 }
 
-// NewObfuscatedConnWithSecret creates an obfuscated connection with MTProxy secret
-// This is for MTProxy support with secret-based authentication
+func (o *obfuscatedConn) LocalAddr() net.Addr {
+	if c, ok := o.conn.(net.Conn); ok {
+		return c.LocalAddr()
+	}
+	return nil
+}
+
+func (o *obfuscatedConn) RemoteAddr() net.Addr {
+	if c, ok := o.conn.(net.Conn); ok {
+		return c.RemoteAddr()
+	}
+	return nil
+}
+
+func (o *obfuscatedConn) SetDeadline(t time.Time) error {
+	if c, ok := o.conn.(net.Conn); ok {
+		return c.SetDeadline(t)
+	}
+	return nil
+}
+
+func (o *obfuscatedConn) SetReadDeadline(t time.Time) error {
+	if c, ok := o.conn.(net.Conn); ok {
+		return c.SetReadDeadline(t)
+	}
+	return nil
+}
+
+func (o *obfuscatedConn) SetWriteDeadline(t time.Time) error {
+	if c, ok := o.conn.(net.Conn); ok {
+		return c.SetWriteDeadline(t)
+	}
+	return nil
+}
+
+// NewObfuscatedConnWithSecret creates an obfuscated connection with MTProxy secret.
 func NewObfuscatedConnWithSecret(conn io.ReadWriteCloser, protocolID []byte, secret []byte, dcID int16) (*obfuscatedConn, error) {
-	if len(protocolID) > 4 {
-		return nil, errors.New("protocol ID must be 4 bytes or less")
+	if len(protocolID) == 0 || len(protocolID) > 4 {
+		return nil, errors.New("protocol ID must be 1..4 bytes")
 	}
 
-	// Pad protocol ID to 4 bytes
 	paddedProtocol := make([]byte, 4)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		paddedProtocol[i] = protocolID[i%len(protocolID)]
 	}
 
-	// Generate initialization payload with DC ID
 	init := make([]byte, 64)
+
 	for {
-		if _, err := rand.Read(init); err != nil {
+		if _, err := io.ReadFull(rand.Reader, init[:56]); err != nil {
 			return nil, errors.Wrap(err, "reading random bytes")
 		}
 
-		// Same validation as before
-		if init[0] == 0xef {
+		if init[0] == 0xEF {
 			continue
 		}
 
 		firstInt := binary.LittleEndian.Uint32(init[0:4])
-		if firstInt == 0x44414548 || firstInt == 0x54534f50 || firstInt == 0x20544547 ||
-			firstInt == 0x4954504f || firstInt == 0x02010316 || firstInt == 0xdddddddd || firstInt == 0xeeeeeeee {
+		switch firstInt {
+		case 0x44414548, 0x54534f50, 0x20544547, 0x4954504f, 0x02010316, 0xdddddddd, 0xeeeeeeee:
 			continue
 		}
 
@@ -182,63 +211,69 @@ func NewObfuscatedConnWithSecret(conn io.ReadWriteCloser, protocolID []byte, sec
 			continue
 		}
 
+		copy(init[56:60], paddedProtocol)
+		binary.LittleEndian.PutUint16(init[60:62], uint16(dcID))
+
+		// last 2 bytes random
+		if _, err := io.ReadFull(rand.Reader, init[62:64]); err != nil {
+			return nil, errors.Wrap(err, "reading random tail bytes")
+		}
+
 		break
 	}
 
-	// Insert protocol at offset 56
-	copy(init[56:60], paddedProtocol)
-
-	// Insert DC ID at offset 60 (2 bytes, little-endian)
-	binary.LittleEndian.PutUint16(init[60:62], uint16(dcID))
-
-	// Reverse for decryption
 	initRev := make([]byte, 64)
-	for i := 0; i < 64; i++ {
+	for i := range 64 {
 		initRev[i] = init[63-i]
 	}
 
-	// Extract keys
-	encryptKey := init[8:40]
-	encryptIV := init[40:56]
-	decryptKey := initRev[8:40]
-	decryptIV := initRev[40:56]
+	encryptKey := make([]byte, 32)
+	copy(encryptKey, init[8:40])
+	encryptIV := make([]byte, 16)
+	copy(encryptIV, init[40:56])
 
-	// Adjust secret (skip first byte if 17 bytes)
+	decryptKey := make([]byte, 32)
+	copy(decryptKey, initRev[8:40])
+	decryptIV := make([]byte, 16)
+	copy(decryptIV, initRev[40:56])
+
+	// Adjust secret: if 17 bytes, skip first byte (prefix 0xee)
 	actualSecret := secret
 	if len(secret) == 17 {
 		actualSecret = secret[1:]
 	}
 
-	// Hash keys with secret for MTProxy
-	encryptKeyHash := sha256.Sum256(append(encryptKey, actualSecret...))
-	decryptKeyHash := sha256.Sum256(append(decryptKey, actualSecret...))
+	h := sha256.Sum256(append(encryptKey, actualSecret...))
+	encryptKey = h[:]
+	h2 := sha256.Sum256(append(decryptKey, actualSecret...))
+	decryptKey = h2[:]
 
-	// Create ciphers
-	encryptBlock, err := aes.NewCipher(encryptKeyHash[:])
+	encryptBlock, err := aes.NewCipher(encryptKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating encrypt cipher")
 	}
 	encryptor := cipher.NewCTR(encryptBlock, encryptIV)
 
-	decryptBlock, err := aes.NewCipher(decryptKeyHash[:])
+	decryptBlock, err := aes.NewCipher(decryptKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating decrypt cipher")
 	}
 	decryptor := cipher.NewCTR(decryptBlock, decryptIV)
 
-	// Encrypt init and create final payload
 	encryptedInit := make([]byte, 64)
 	copy(encryptedInit, init)
-	encryptor.XORKeyStream(encryptedInit, encryptedInit)
+	encryptor.XORKeyStream(encryptedInit, encryptedInit) // in-place
 
 	finalInit := make([]byte, 64)
-	copy(finalInit, init[:56])
-	copy(finalInit[56:], encryptedInit[56:])
+	copy(finalInit[:56], init[:56])
+	copy(finalInit[56:], encryptedInit[56:64])
 
-	// Send init
-	_, err = conn.Write(finalInit)
+	n, err := conn.Write(finalInit)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending init payload")
+	}
+	if n != len(finalInit) {
+		return nil, fmt.Errorf("incomplete init write: wrote %d/%d bytes", n, len(finalInit))
 	}
 
 	return &obfuscatedConn{
