@@ -1,12 +1,15 @@
-// Copyright (c) 2024 RoseLoverX
-
 package utils
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
-	"log"
+	"io"
+	"os"
 	"runtime"
 	"strings"
+	"sync"
+	"time"
 )
 
 type LogLevel int
@@ -27,35 +30,79 @@ const (
 )
 
 var (
-	colorOff    = []byte("\033[0m")
-	colorRed    = []byte("\033[0;31m")
-	colorGreen  = []byte("\033[0;32m")
-	colorOrange = []byte("\033[0;33m")
-	colorPurple = []byte("\033[0;35m")
-	colorCyan   = []byte("\033[0;36m")
+	boldOn      = "\033[1m"
+	boldOff     = "\033[22m"
+	colorOff    = "\033[0m"
+	colorRed    = "\033[0;31m"
+	colorGreen  = "\033[0;32m"
+	colorOrange = "\033[0;33m"
+	colorPurple = "\033[0;35m"
+	colorCyan   = "\033[0;36m"
 )
 
-// Logger is the logging struct.
 type Logger struct {
-	Level   LogLevel
-	Prefix  string
-	nocolor bool
+	mut      sync.Mutex
+	Level    LogLevel
+	Prefix   string
+	noColor  bool
+	noBold   bool
+	jsonMode bool
+	writer   *bufio.Writer
+	output   io.Writer
 }
 
-// NoColor disables colorized output.
-func (l *Logger) NoColor(nocolor ...bool) *Logger {
-	if len(nocolor) > 0 {
-		l.nocolor = nocolor[0]
-	} else {
-		l.nocolor = true
+func NewLogger(prefix string) *Logger {
+	return &Logger{
+		Prefix: prefix,
+		Level:  InfoLevel,
+		output: os.Stdout,
+		writer: bufio.NewWriter(os.Stdout),
 	}
+}
 
+// SetOutput allows logging to a file, network, or memory writer.
+func (l *Logger) SetOutput(w io.Writer) *Logger {
+	l.mut.Lock()
+	defer l.mut.Unlock()
+	l.output = w
+	l.writer = bufio.NewWriter(w)
 	return l
 }
 
-// Color enables colorized output. (default)
+// Flush ensures all buffered logs are written out.
+func (l *Logger) Flush() {
+	l.mut.Lock()
+	defer l.mut.Unlock()
+	l.writer.Flush()
+}
+
+// Set or Unset NoColor mode
+func (l *Logger) NoColor(on bool) *Logger {
+	l.noColor = on
+	return l
+}
+
+func (l *Logger) NoBold(on bool) *Logger {
+	l.noBold = on
+	return l
+}
+
 func (l *Logger) Color() bool {
-	return !l.nocolor
+	return !l.noColor
+}
+
+func (l *Logger) EnableJSON(enabled bool) *Logger {
+	l.jsonMode = enabled
+	return l
+}
+
+func (l *Logger) SetLevel(level LogLevel) *Logger {
+	l.Level = level
+	return l
+}
+
+func (l *Logger) Lev() LogLevel {
+	return l.Level
 }
 
 func (l *Logger) SetPrefix(prefix string) *Logger {
@@ -63,67 +110,25 @@ func (l *Logger) SetPrefix(prefix string) *Logger {
 	return l
 }
 
-func (l *Logger) colorize(color []byte, s string) string {
-	if l.nocolor {
+func (l *Logger) colorize(color, s string) string {
+	if l.noColor {
 		return s
 	}
-	return string(color) + s + string(colorOff)
+	return color + s + colorOff
 }
 
-func (l *Logger) Lev() LogLevel {
-	return l.Level
-}
-
-// SetLevelString sets the level string
-func (l *Logger) SetLevel(level LogLevel) *Logger {
-	l.Level = level
-	return l
-}
-
-// Log logs a message at the given level.
-func (l *Logger) Error(v ...any) {
-	// TODO: runtime.Caller(1)
-	if l.Level <= ErrorLevel {
-		log.Println(l.colorize(colorRed, "[error]"), l.Prefix, "-", getVariable(v...))
+func (l *Logger) bold() string {
+	if l.noBold {
+		return l.Prefix
 	}
+	return boldOn + l.Prefix + boldOff
 }
 
-func (l *Logger) Warn(v ...any) {
-	if l.Level <= WarnLevel {
-		log.Println(l.colorize(colorOrange, "[warn] "), l.Prefix, "-", getVariable(v...))
-	}
-}
-
-func (l *Logger) Info(v ...any) {
-	if l.Level <= InfoLevel {
-		log.Println(l.colorize(colorGreen, "[info] "), l.Prefix, "-", getVariable(v...))
-	}
-}
-
-func (l *Logger) Debug(v ...any) {
-	if l.Level <= DebugLevel {
-		log.Println(l.colorize(colorPurple, "[debug]"), l.Prefix, "-", getVariable(v...))
-	}
-}
-
-func (l *Logger) Trace(v ...any) {
-	if l.Level <= TraceLevel {
-		log.Println(l.colorize(colorCyan, "[trace]"), l.Prefix, "-", getVariable(v...))
-	}
-}
-
-func (l *Logger) Panic(v ...any) {
-	stack := make([]byte, 2048)
-	runtime.Stack(stack, false)
-
-	log.Println(l.colorize(colorCyan, "[panic]"), l.Prefix, "-", getVariable(v...), "\n", l.colorize(colorOrange, string(stack)))
-}
-
-// NewLogger returns a new Logger instance.
-func NewLogger(prefix string) *Logger {
-	return &Logger{
-		Prefix: prefix,
-	}
+func (l *Logger) write(s string) {
+	l.mut.Lock()
+	defer l.mut.Unlock()
+	l.writer.WriteString(s)
+	l.writer.Flush()
 }
 
 func getVariable(v ...any) string {
@@ -133,5 +138,50 @@ func getVariable(v ...any) string {
 	if len(v) == 1 {
 		return fmt.Sprint(v[0])
 	}
-	return strings.Trim(fmt.Sprint(v...), "]")
+	return fmt.Sprint(v...)
+}
+
+func (l *Logger) log(level LogLevel, color, label string, v ...any) {
+	if l.Level > level {
+		return
+	}
+
+	msg := getVariable(v...)
+	_, file, line, _ := runtime.Caller(2)
+	shortFile := file[strings.LastIndex(file, "/")+1:]
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+
+	if l.jsonMode {
+		entry := map[string]any{
+			"time":   timestamp,
+			"level":  strings.Trim(label, "[]"),
+			"prefix": l.Prefix,
+			"file":   fmt.Sprintf("%s:%d", shortFile, line),
+			"msg":    msg,
+		}
+		data, _ := json.Marshal(entry)
+		l.write(string(data) + "\n")
+	} else {
+		formatted := fmt.Sprintf("%s %s %-2s %s:%d - %s\n",
+			timestamp, l.colorize(color, fmt.Sprintf("%-*s", 7, label)),
+			l.bold(),
+			shortFile,
+			line,
+			msg)
+		l.write(formatted)
+	}
+}
+
+func (l *Logger) Error(v ...any) { l.log(ErrorLevel, colorRed, "[error]", v...) }
+func (l *Logger) Warn(v ...any)  { l.log(WarnLevel, colorOrange, "[warn]", v...) }
+func (l *Logger) Info(v ...any)  { l.log(InfoLevel, colorGreen, "[info]", v...) }
+func (l *Logger) Debug(v ...any) { l.log(DebugLevel, colorPurple, "[debug]", v...) }
+func (l *Logger) Trace(v ...any) { l.log(TraceLevel, colorCyan, "[trace]", v...) }
+
+func (l *Logger) Panic(v ...any) {
+	stack := make([]byte, 4096)
+	runtime.Stack(stack, false)
+	l.log(ErrorLevel, colorCyan, "[panic]", fmt.Sprint(v...))
+	l.write(string(stack))
+	panic(fmt.Sprint(v...))
 }
