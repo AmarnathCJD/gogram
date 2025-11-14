@@ -196,16 +196,9 @@ func FmtIp(ipv6WithPort string) string {
 	// convert 0000:0000:0000:0000:0000:0000:0000:000a -> ::a
 	address = strings.Replace(address, "0000:0000:0000:000", ":", 1)
 	// remove preceding zeros
-	address = strings.Replace(address, ":0", ":", -1)
+	address = strings.ReplaceAll(address, ":0", ":")
 
 	return fmt.Sprintf("[%s]:%s", address, port)
-}
-
-func Vtcp(isV6 bool) string {
-	if isV6 {
-		return "Tcp6"
-	}
-	return "Tcp"
 }
 
 type PingParams struct {

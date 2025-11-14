@@ -33,6 +33,10 @@ type wsConn struct {
 func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 	wsURL := FormatWebSocketURI(cfg.Host, cfg.TLS, cfg.DC, cfg.TestMode)
 
+	if cfg.Logger != nil {
+		cfg.Logger.Debug(fmt.Sprintf("[ws] connecting to %s", wsURL))
+	}
+
 	u, err := url.Parse(wsURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid websocket URL")
@@ -47,6 +51,10 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 		}
 	}
 
+	if cfg.Logger != nil {
+		cfg.Logger.Debug(fmt.Sprintf("[ws] resolved host: %s, scheme: %s", host, u.Scheme))
+	}
+
 	var conn net.Conn
 	dialer := &net.Dialer{
 		Timeout: 10 * time.Second,
@@ -55,19 +63,35 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 	if cfg.LocalAddr != "" {
 		localAddr, _ := net.ResolveTCPAddr("tcp", cfg.LocalAddr)
 		dialer.LocalAddr = localAddr
+		if cfg.Logger != nil {
+			cfg.Logger.Debug(fmt.Sprintf("[ws] using local address: %s", cfg.LocalAddr))
+		}
 	}
 
 	if u.Scheme == "wss" {
+		if cfg.Logger != nil {
+			cfg.Logger.Debug("[ws] establishing TLS connection")
+		}
 		tlsConfig := &tls.Config{
 			ServerName: strings.Split(u.Host, ":")[0],
 		}
 		conn, err = tls.DialWithDialer(dialer, "tcp", host, tlsConfig)
 	} else {
+		if cfg.Logger != nil {
+			cfg.Logger.Debug("[ws] establishing TCP connection")
+		}
 		conn, err = dialer.DialContext(cfg.Ctx, "tcp", host)
 	}
 
 	if err != nil {
+		if cfg.Logger != nil {
+			cfg.Logger.Debug(fmt.Sprintf("[ws] connection failed: %v", err))
+		}
 		return nil, errors.Wrap(err, "dial failed")
+	}
+
+	if cfg.Logger != nil {
+		cfg.Logger.Debug("[ws] connection established")
 	}
 
 	key := make([]byte, 16)
@@ -88,16 +112,30 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 		return nil, errors.Wrap(err, "write handshake failed")
 	}
 
+	if cfg.Logger != nil {
+		cfg.Logger.Debug("[ws] handshake sent")
+	}
+
 	reader := bufio.NewReader(conn)
 	resp, err := http.ReadResponse(reader, &http.Request{Method: "GET"})
 	if err != nil {
 		conn.Close()
+		if cfg.Logger != nil {
+			cfg.Logger.Debug(fmt.Sprintf("[ws] failed to read handshake response: %v", err))
+		}
 		return nil, errors.Wrap(err, "read handshake response failed")
 	}
 	defer resp.Body.Close()
 
+	if cfg.Logger != nil {
+		cfg.Logger.Debug(fmt.Sprintf("[ws] handshake response: status %d", resp.StatusCode))
+	}
+
 	if resp.StatusCode != 101 {
 		conn.Close()
+		if cfg.Logger != nil {
+			cfg.Logger.Debug(fmt.Sprintf("[ws] handshake failed: expected status 101, got %d", resp.StatusCode))
+		}
 		return nil, fmt.Errorf("handshake failed: status %d", resp.StatusCode)
 	}
 
@@ -108,7 +146,14 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 
 	if acceptKey != expectedKey {
 		conn.Close()
+		if cfg.Logger != nil {
+			cfg.Logger.Debug(fmt.Sprintf("[ws] invalid Sec-WebSocket-Accept: expected %s, got %s", expectedKey, acceptKey))
+		}
 		return nil, errors.New("invalid Sec-WebSocket-Accept")
+	}
+
+	if cfg.Logger != nil {
+		cfg.Logger.Debug("[ws] handshake validation successful")
 	}
 
 	ws := &wsConn{
@@ -117,13 +162,25 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 		masked:  true,
 	}
 
+	if cfg.Logger != nil {
+		cfg.Logger.Debug(fmt.Sprintf("[ws] initializing obfuscation with protocol: %v", cfg.ModeVariant))
+	}
+
 	obf, err := NewObfuscatedConn(ws, ProtocolID(cfg.ModeVariant))
 	if err != nil {
 		conn.Close()
+		if cfg.Logger != nil {
+			cfg.Logger.Debug(fmt.Sprintf("[ws] obfuscation failed: %v", err))
+		}
 		return nil, errors.Wrap(err, "obfuscation failed")
 	}
 
 	ws.reader = NewReader(cfg.Ctx, obf)
+
+	if cfg.Logger != nil {
+		cfg.Logger.Debug("[ws] WebSocket connection fully established")
+	}
+
 	return obf, nil
 }
 

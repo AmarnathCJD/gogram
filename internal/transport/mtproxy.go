@@ -11,13 +11,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 	"math/big"
 	"net"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/pkg/errors"
 )
 
@@ -30,7 +30,7 @@ const (
 // TLS Hello operation types
 type tlsOp struct {
 	opType string
-	value  interface{}
+	value  any
 }
 
 var _TLS_HELLO_OPS = []tlsOp{
@@ -614,15 +614,19 @@ func (m *mtproxyConn) Read(b []byte) (int, error) {
 	return n, nil
 }
 
-func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant uint8, localAddr string) (Conn, error) {
+func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant uint8, localAddr string, logger *utils.Logger) (Conn, error) {
 	secret := proxyURL.User.Username()
 	if secret == "" {
-		return nil, errors.New("MTProxy secret is required")
+		return nil, errors.New("mtproxy secret is required")
 	}
 
 	proto, secretBytes, serverHostname, err := DecodeMTProtoProxySecret(secret)
 	if err != nil {
 		return nil, errors.Wrap(err, "decoding MTProto proxy secret")
+	}
+
+	if logger != nil {
+		logger.Debug(fmt.Sprintf("[mtproxy] Connecting to %s (DC %d)", proxyURL.Host, dcID))
 	}
 
 	var dialer net.Dialer
@@ -636,6 +640,9 @@ func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant u
 
 	rawConn, err := dialer.Dial("tcp", proxyURL.Host)
 	if err != nil {
+		if logger != nil {
+			logger.Error(fmt.Sprintf("[mtproxy] TCP connection failed: %v", err))
+		}
 		return nil, errors.Wrap(err, "connecting to MTProxy")
 	}
 
@@ -645,27 +652,43 @@ func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant u
 		return nil, errors.New("expected TCP connection")
 	}
 
-	log.Printf("[MTProxy] Connected to proxy server")
+	if logger != nil {
+		logger.Debug("[mtproxy] TCP connection established")
+	}
 
 	var conn net.Conn = tcpConnection
 
 	if proto == fakeTLSHandshakeID {
+		if logger != nil {
+			logger.Debug(fmt.Sprintf("[mtproxy] Starting Fake TLS handshake with SNI: %s", string(serverHostname)))
+		}
 		ftlsConn, err := startFakeTLS(tcpConnection, secretBytes, serverHostname)
 		if err != nil {
 			tcpConnection.Close()
+			if logger != nil {
+				logger.Error(fmt.Sprintf("[mtproxy] Fake TLS handshake failed: %v", err))
+			}
 			return nil, errors.Wrap(err, "Fake TLS handshake failed")
 		}
 		conn = ftlsConn
+		if logger != nil {
+			logger.Debug("[mtproxy] Fake TLS handshake completed")
+		}
 	}
 
 	protocolID := ProtocolID(modeVariant)
 	obfConn, err := NewObfuscatedConnWithSecret(conn, protocolID, secretBytes, dcID)
 	if err != nil {
 		conn.Close()
+		if logger != nil {
+			logger.Error(fmt.Sprintf("[mtproxy] obfuscation failed: %v", err))
+		}
 		return nil, errors.Wrap(err, "creating obfuscated connection")
 	}
 
-	log.Printf("[MTProxy] Obfuscated connection established")
+	if logger != nil {
+		logger.Info(fmt.Sprintf("[mtproxy] connection established to %s (DC %d)", proxyURL.Host, dcID))
+	}
 
 	// The obfuscated connection handles:
 	// - TLS framing (if using fake TLS)
