@@ -86,9 +86,12 @@ type MTProto struct {
 	terminated            atomic.Bool
 	timeout               time.Duration
 
-	reconnectAttempts int
-	reconnectMutex    sync.Mutex
-	maxReconnectDelay time.Duration
+	reconnectAttempts     int
+	reconnectMutex        sync.Mutex
+	maxReconnectDelay     time.Duration
+	lastSuccessfulConnect time.Time
+	rapidReconnectCount   int
+	rapidReconnectMutex   sync.Mutex
 
 	useWebSocket    bool
 	useWebSocketTLS bool
@@ -578,6 +581,25 @@ func (m *MTProto) connect(ctx context.Context) error {
 	}
 
 	m.Logger.Debug(fmt.Sprintf("%s transport created successfully", transportType))
+
+	m.rapidReconnectMutex.Lock()
+	now := time.Now()
+	if !m.lastSuccessfulConnect.IsZero() && now.Sub(m.lastSuccessfulConnect) < 5*time.Second {
+		m.rapidReconnectCount++
+		if m.rapidReconnectCount >= 10 {
+			m.rapidReconnectMutex.Unlock()
+			m.Logger.Error(fmt.Sprintf("detected rapid reconnection loop (%d consecutive reconnects in <5s intervals)", m.rapidReconnectCount))
+			if m.proxy != nil && m.proxy.Scheme == "mtproxy" {
+				return errors.New("mtproxy connection loop detected: connection succeeds but immediately closes - check proxy configuration, secret, or server availability")
+			}
+			return errors.New("rapid reconnection loop detected: connection succeeds but immediately closes - possible network or server issue")
+		}
+	} else {
+		m.rapidReconnectCount = 0
+	}
+	m.lastSuccessfulConnect = now
+	m.rapidReconnectMutex.Unlock()
+
 	return nil
 }
 
@@ -787,6 +809,12 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					}
 				} else {
 					consecutiveErrors = 0
+
+					m.rapidReconnectMutex.Lock()
+					if m.rapidReconnectCount > 0 {
+						m.rapidReconnectCount = 0
+					}
+					m.rapidReconnectMutex.Unlock()
 				}
 
 				switch err {
