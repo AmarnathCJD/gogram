@@ -733,6 +733,11 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 
 	go func() {
 		defer m.routineswg.Done()
+
+		var consecutiveErrors int
+		maxConsecutiveErrors := 5
+		baseDelay := 100 * time.Millisecond
+		maxDelay := 2 * time.Second
 		for {
 			select {
 			case <-ctx.Done():
@@ -745,19 +750,43 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				err := m.readMsg()
 
 				if err != nil {
+					consecutiveErrors++
+
+					delay := min(time.Duration(1<<uint(min(consecutiveErrors-1, 5)))*baseDelay, maxDelay)
+
 					if strings.Contains(err.Error(), "unexpected error: unexpected EOF") {
-						m.Logger.Debug("tcp connection closed, reconnecting to [" + m.Addr + "] - <Tcp> ...")
+						m.Logger.Debug(fmt.Sprintf("connection closed, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
+							m.Addr, m.GetTransportType(), consecutiveErrors, delay))
+
+						time.Sleep(delay)
 						err = m.Reconnect(false)
 						if err != nil {
 							m.Logger.Error(errors.Wrap(err, "reconnecting"))
+							if consecutiveErrors >= maxConsecutiveErrors {
+								m.Logger.Error(fmt.Sprintf("max consecutive errors (%d) reached, backing off", maxConsecutiveErrors))
+								time.Sleep(delay * 2)
+							}
+						} else {
+							consecutiveErrors = 0
 						}
-					} else if strings.Contains(err.Error(), "required to reconnect!") { // network is not stable
-						m.Logger.Debug("packet read error, reconnecting to [" + m.Addr + "] - <Tcp> ...")
+					} else if strings.Contains(err.Error(), "required to reconnect!") {
+						m.Logger.Debug(fmt.Sprintf("network unstable, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
+							m.Addr, m.GetTransportType(), consecutiveErrors, delay))
+
+						time.Sleep(delay)
 						err = m.Reconnect(false)
 						if err != nil {
 							m.Logger.Error(errors.Wrap(err, "reconnecting"))
+							if consecutiveErrors >= maxConsecutiveErrors {
+								m.Logger.Error(fmt.Sprintf("max consecutive errors (%d) reached, backing off", maxConsecutiveErrors))
+								time.Sleep(delay * 2)
+							}
+						} else {
+							consecutiveErrors = 0
 						}
 					}
+				} else {
+					consecutiveErrors = 0
 				}
 
 				switch err {
@@ -765,10 +794,18 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				case context.Canceled:
 					return
 				case io.EOF:
-					m.Logger.Debug(fmt.Sprintf("eof error, reconnecting to [%s] - <%s> ...", m.Addr, m.GetTransportType()))
+					consecutiveErrors++
+					delay := min(time.Duration(1<<uint(min(consecutiveErrors-1, 5)))*baseDelay, maxDelay)
+
+					m.Logger.Debug(fmt.Sprintf("eof error, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
+						m.Addr, m.GetTransportType(), consecutiveErrors, delay))
+
+					time.Sleep(delay)
 					err = m.Reconnect(false)
 					if err != nil {
 						m.Logger.Error(errors.Wrap(err, "reconnecting"))
+					} else {
+						consecutiveErrors = 0
 					}
 					return
 				default:
@@ -777,16 +814,28 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						if e.Code == 4294966892 {
 							m.handle404Error()
 						} else {
-							m.Logger.Debug(errors.New("[RESPONSE_ERROR_CODE] - " + e.Error()))
+							m.Logger.Debug(errors.New("[ErrorOnTransport] - " + e.Error()))
 						}
 					case *transport.ErrCode:
-						m.Logger.Error(errors.New("[TRANSPORT_ERROR_CODE] - " + e.Error()))
+						m.Logger.Error(errors.New("[ErrorOnTransport] - " + e.Error()))
 					}
 
 					if !m.terminated.Load() {
 						m.Logger.Debug(errors.Wrap(err, "reading message >>"))
-						// is reconnect required here?
-						m.Reconnect(false)
+
+						delay := min(time.Duration(1<<uint(min(consecutiveErrors-1, 5)))*baseDelay, maxDelay)
+
+						if consecutiveErrors > 1 {
+							m.Logger.Debug(fmt.Sprintf("applying backoff delay: %v", delay))
+							time.Sleep(delay)
+						}
+
+						err = m.Reconnect(false)
+						if err != nil {
+							m.Logger.Error(errors.Wrap(err, "reconnecting"))
+						} else {
+							consecutiveErrors = 0
+						}
 					}
 				}
 			}
