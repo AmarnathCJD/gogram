@@ -2374,6 +2374,7 @@ var (
 	OnMessage        ev = "message"
 	OnCommand        ev = "command"
 	OnCommandShort   ev = "cmd"
+	OnAction         ev = "action"
 	OnEdit           ev = "edit"
 	OnDelete         ev = "delete"
 	OnAlbum          ev = "album"
@@ -2416,6 +2417,12 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 				return c.AddMessageHandler("cmd:"+args, h, filters...)
 			}
 			return c.AddMessageHandler(OnNewMessage, h, filters...)
+		} else {
+			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*NewMessage) error")
+		}
+	case OnAction:
+		if h, ok := handler.(func(m *NewMessage) error); ok {
+			return c.AddActionHandler(h)
 		} else {
 			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*NewMessage) error")
 		}
