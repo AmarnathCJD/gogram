@@ -11213,6 +11213,108 @@ func (c *Client) MessagesGetSponsoredMessages(peer InputPeer, msgID int32) (Mess
 	return resp, nil
 }
 
+type MessagesGetGroupCallStreamRtmpUrlParams struct {
+	LiveStory bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer      InputPeer
+	Revoke    bool
+}
+
+func (*MessagesGetGroupCallStreamRtmpUrlParams) CRC() uint32 {
+	return 0x5af4c73a
+}
+
+func (*MessagesGetGroupCallStreamRtmpUrlParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesGetGroupCallStreamRtmpUrl(liveStory bool, peer InputPeer, revoke bool) (*PhoneGroupCallStreamRtmpURL, error) {
+	responseData, err := c.MakeRequest(&MessagesGetGroupCallStreamRtmpUrlParams{
+		LiveStory: liveStory,
+		Peer:      peer,
+		Revoke:    revoke,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetGroupCallStreamRtmpUrl")
+	}
+
+	resp, ok := responseData.(*PhoneGroupCallStreamRtmpURL)
+	if !ok {
+		return nil, fmt.Errorf("invalid response type: %T", responseData)
+	}
+	return resp, nil
+}
+
+type MessagesGetStarGiftAuctionStateParams struct {
+	Auction InputStarGiftAuction
+	Version int
+}
+
+func (*MessagesGetStarGiftAuctionStateParams) CRC() uint32 {
+	return 0x5c9ff4d6
+}
+
+func (c *Client) MessagesGetStarGiftAuctionState(auction InputStarGiftAuction, version int) (*StarGiftAuctionState, error) {
+	responseData, err := c.MakeRequest(&MessagesGetStarGiftAuctionStateParams{
+		Auction: auction,
+		Version: version,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetStarGiftAuctionState")
+	}
+
+	resp, ok := responseData.(*StarGiftAuctionState)
+	if !ok {
+		return nil, fmt.Errorf("invalid response type: %T", responseData)
+	}
+	return resp, nil
+}
+
+type MessagesGetStarGiftAuctionAcquiredGiftsParams struct {
+	GiftID int64
+}
+
+func (*MessagesGetStarGiftAuctionAcquiredGiftsParams) CRC() uint32 {
+	return 0x6ba2cbec
+}
+
+func (c *Client) MessagesGetStarGiftAuctionAcquiredGifts(giftID int64) (*StarGiftAuctionAcquiredGifts, error) {
+	responseData, err := c.MakeRequest(&MessagesGetStarGiftAuctionAcquiredGiftsParams{
+		GiftID: giftID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetStarGiftAuctionAcquiredGifts")
+	}
+
+	resp, ok := responseData.(*StarGiftAuctionAcquiredGifts)
+	if !ok {
+		return nil, fmt.Errorf("invalid response type: %T", responseData)
+	}
+	return resp, nil
+}
+
+type MessagesGetGroupCallStarsParams struct {
+	Call InputGroupCall
+}
+
+func (*MessagesGetGroupCallStarsParams) CRC() uint32 {
+	return 0x6f636302
+}
+
+func (c *Client) MessagesGetGroupCallStars(call InputGroupCall) (*PhoneGroupCallStars, error) {
+	responseData, err := c.MakeRequest(&MessagesGetGroupCallStarsParams{
+		Call: call,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetGroupCallStars")
+	}
+
+	resp, ok := responseData.(*PhoneGroupCallStars)
+	if !ok {
+		return nil, fmt.Errorf("invalid response type: %T", responseData)
+	}
+	return resp, nil
+}
+
 type MessagesGetStatsURLParams struct {
 	Dark   bool `tl:"flag:0,encoded_in_bitflags"`
 	Peer   InputPeer

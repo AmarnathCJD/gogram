@@ -3359,6 +3359,17 @@ func (*PhoneGroupParticipants) CRC() uint32 {
 	return 0xf47751b6
 }
 
+type PhoneGroupCallStars struct {
+	TotalStars int64
+	TopDonors  []*GroupCallDonor
+	Chats      []Chat
+	Users      []User
+}
+
+func (*PhoneGroupCallStars) CRC() uint32 {
+	return 0x9d2395f6
+}
+
 // A list of peers that can be used to join a group call, presenting yourself as a specific user/channel.
 type PhoneJoinAsPeers struct {
 	Peers []Peer
@@ -4006,6 +4017,16 @@ func (*StarGiftAuctionAcquiredGift) CRC() uint32 {
 
 func (*StarGiftAuctionAcquiredGift) FlagIndex() int {
 	return 0
+}
+
+type StarGiftAuctionAcquiredGifts struct {
+	Gifts []*StarGiftAuctionAcquiredGift
+	Users []User
+	Chats []Chat
+}
+
+func (*StarGiftAuctionAcquiredGifts) CRC() uint32 {
+	return 0x7d6032b0
 }
 
 type StarGiftAuctionUserState struct {
