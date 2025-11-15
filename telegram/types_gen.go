@@ -65,23 +65,6 @@ func (*AccountBusinessChatLinks) CRC() uint32 {
 	return 0xec43a2d1
 }
 
-// Available chat themes
-type AccountChatThemes struct {
-	Hash       int64
-	Themes     []ChatTheme
-	Chats      []Chat
-	Users      []User
-	NextOffset int32 `tl:"flag:0"`
-}
-
-func (*AccountChatThemes) CRC() uint32 {
-	return 0x16484857
-}
-
-func (*AccountChatThemes) FlagIndex() int {
-	return 0
-}
-
 // Info about currently connected business bots.
 type AccountConnectedBots struct {
 	ConnectedBots []*ConnectedBot
@@ -302,6 +285,16 @@ type AttachMenuBotsBot struct {
 
 func (*AttachMenuBotsBot) CRC() uint32 {
 	return 0x93bf667f
+}
+
+type AuctionBidLevel struct {
+	Pos    int32
+	Amount int64
+	Date   int32
+}
+
+func (*AuctionBidLevel) CRC() uint32 {
+	return 0x310240cc
 }
 
 // Data for copying of authorization between data centers.
@@ -1283,10 +1276,11 @@ func (*DialogFilterSuggested) CRC() uint32 {
 
 // Disallow the reception of specific gift types.
 type DisallowedGiftsSettings struct {
-	DisallowUnlimitedStargifts bool `tl:"flag:0,encoded_in_bitflags"`
-	DisallowLimitedStargifts   bool `tl:"flag:1,encoded_in_bitflags"`
-	DisallowUniqueStargifts    bool `tl:"flag:2,encoded_in_bitflags"`
-	DisallowPremiumGifts       bool `tl:"flag:3,encoded_in_bitflags"`
+	DisallowUnlimitedStargifts    bool `tl:"flag:0,encoded_in_bitflags"`
+	DisallowLimitedStargifts      bool `tl:"flag:1,encoded_in_bitflags"`
+	DisallowUniqueStargifts       bool `tl:"flag:2,encoded_in_bitflags"`
+	DisallowPremiumGifts          bool `tl:"flag:3,encoded_in_bitflags"`
+	DisallowStargiftsFromChannels bool `tl:"flag:4,encoded_in_bitflags"`
 }
 
 func (*DisallowedGiftsSettings) CRC() uint32 {
@@ -1516,6 +1510,39 @@ func (*GlobalPrivacySettings) FlagIndex() int {
 	return 0
 }
 
+type GroupCallDonor struct {
+	Top       bool `tl:"flag:0,encoded_in_bitflags"`
+	My        bool `tl:"flag:1,encoded_in_bitflags"`
+	Anonymous bool `tl:"flag:2,encoded_in_bitflags"`
+	PeerID    Peer `tl:"flag:3"`
+	Stars     int64
+}
+
+func (*GroupCallDonor) CRC() uint32 {
+	return 0xee430c85
+}
+
+func (*GroupCallDonor) FlagIndex() int {
+	return 0
+}
+
+type GroupCallMessage struct {
+	FromAdmin        bool `tl:"flag:1,encoded_in_bitflags"`
+	ID               int32
+	FromID           Peer
+	Date             int32
+	Message          *TextWithEntities
+	PaidMessageStars int64 `tl:"flag:0"`
+}
+
+func (*GroupCallMessage) CRC() uint32 {
+	return 0x1a8afc7e
+}
+
+func (*GroupCallMessage) FlagIndex() int {
+	return 0
+}
+
 // Info about a group call participant
 type GroupCallParticipant struct {
 	Muted           bool `tl:"flag:0,encoded_in_bitflags"`
@@ -1537,10 +1564,11 @@ type GroupCallParticipant struct {
 	RaiseHandRating int64                      `tl:"flag:13"`
 	Video           *GroupCallParticipantVideo `tl:"flag:6"`
 	Presentation    *GroupCallParticipantVideo `tl:"flag:14"`
+	PaidStarsTotal  int64                      `tl:"flag:16"`
 }
 
 func (*GroupCallParticipant) CRC() uint32 {
-	return 0xeba636fe
+	return 0x2a3dc7ac
 }
 
 func (*GroupCallParticipant) FlagIndex() int {
@@ -1925,10 +1953,15 @@ type InputPhoneContact struct {
 	Phone     string
 	FirstName string
 	LastName  string
+	Note      *TextWithEntities `tl:"flag:0"`
 }
 
 func (*InputPhoneContact) CRC() uint32 {
-	return 0xf392b7f4
+	return 0x6a1dc4be
+}
+
+func (*InputPhoneContact) FlagIndex() int {
+	return 0
 }
 
 // Secure value, for more info see the passport docs »
@@ -2951,14 +2984,14 @@ type PaymentsCheckedGiftCode struct {
 	GiveawayMsgID int32 `tl:"flag:3"`
 	ToID          int64 `tl:"flag:0"`
 	Date          int32
-	Months        int32
+	Days          int32
 	UsedDate      int32 `tl:"flag:1"`
 	Chats         []Chat
 	Users         []User
 }
 
 func (*PaymentsCheckedGiftCode) CRC() uint32 {
-	return 0x284a1096
+	return 0xeb983f8f
 }
 
 func (*PaymentsCheckedGiftCode) FlagIndex() int {
@@ -3040,10 +3073,12 @@ func (*PaymentsSavedStarGifts) FlagIndex() int {
 // A preview of the possible attributes (chosen randomly) a gift » can receive after upgrading it to a collectible gift », see here » for more info.
 type PaymentsStarGiftUpgradePreview struct {
 	SampleAttributes []StarGiftAttribute
+	Prices           []*StarGiftUpgradePrice
+	NextPrices       []*StarGiftUpgradePrice
 }
 
 func (*PaymentsStarGiftUpgradePreview) CRC() uint32 {
-	return 0x167bd90b
+	return 0x3de1dfed
 }
 
 // A URL that can be used to import the exported NFT on Fragment.
@@ -3628,6 +3663,19 @@ func (*ReceivedNotifyMessage) CRC() uint32 {
 	return 0xa384b779
 }
 
+type RecentStory struct {
+	Live  bool  `tl:"flag:0,encoded_in_bitflags"`
+	MaxID int32 `tl:"flag:1"`
+}
+
+func (*RecentStory) CRC() uint32 {
+	return 0x711d692d
+}
+
+func (*RecentStory) FlagIndex() int {
+	return 0
+}
+
 // Restriction reason.
 type RestrictionReason struct {
 	Platform string
@@ -3922,6 +3970,16 @@ func (*SponsoredPeer) FlagIndex() int {
 	return 0
 }
 
+type StarGiftActiveAuctionState struct {
+	Gift      StarGift
+	State     StarGiftAuctionState
+	UserState *StarGiftAuctionUserState
+}
+
+func (*StarGiftActiveAuctionState) CRC() uint32 {
+	return 0xd31bc45d
+}
+
 // Indicates the total number of gifts that have the specified attribute.
 type StarGiftAttributeCounter struct {
 	Attribute StarGiftAttributeID
@@ -3930,6 +3988,41 @@ type StarGiftAttributeCounter struct {
 
 func (*StarGiftAttributeCounter) CRC() uint32 {
 	return 0x2eb1b658
+}
+
+type StarGiftAuctionAcquiredGift struct {
+	NameHidden bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer       Peer
+	Date       int32
+	BidAmount  int64
+	Round      int32
+	Pos        int32
+	Message    *TextWithEntities `tl:"flag:1"`
+}
+
+func (*StarGiftAuctionAcquiredGift) CRC() uint32 {
+	return 0xab60e20b
+}
+
+func (*StarGiftAuctionAcquiredGift) FlagIndex() int {
+	return 0
+}
+
+type StarGiftAuctionUserState struct {
+	Returned      bool  `tl:"flag:1,encoded_in_bitflags"`
+	BidAmount     int64 `tl:"flag:0"`
+	BidDate       int32 `tl:"flag:0"`
+	MinBidAmount  int64 `tl:"flag:0"`
+	Peer          Peer  `tl:"flag:0"`
+	AcquiredCount int32
+}
+
+func (*StarGiftAuctionUserState) CRC() uint32 {
+	return 0x2eeed1c4
+}
+
+func (*StarGiftAuctionUserState) FlagIndex() int {
+	return 0
 }
 
 // Represents a star gift collection ».
@@ -3947,16 +4040,6 @@ func (*StarGiftCollection) CRC() uint32 {
 
 func (*StarGiftCollection) FlagIndex() int {
 	return 0
-}
-
-type StarGiftUpgradePreview struct {
-	SampleAttributes []StarGiftAttribute
-	Prices           []*StarGiftUpgradePrice
-	NextPrices       []*StarGiftUpgradePrice
-}
-
-func (*StarGiftUpgradePreview) CRC() uint32 {
-	return 0x3de1dfed
 }
 
 type StarGiftUpgradePrice struct {
@@ -4138,6 +4221,8 @@ type StarsTransaction struct {
 	PostsSearch                 bool `tl:"flag:24,encoded_in_bitflags"`
 	StargiftPrepaidUpgrade      bool `tl:"flag:25,encoded_in_bitflags"`
 	StargiftDropOriginalDetails bool `tl:"flag:26,encoded_in_bitflags"`
+	PhonegroupMessage           bool `tl:"flag:27,encoded_in_bitflags"`
+	StargiftAuctionBid          bool `tl:"flag:28,encoded_in_bitflags"`
 	ID                          string
 	Amount                      StarsAmount
 	Date                        int32
@@ -4646,12 +4731,12 @@ func (*Timezone) CRC() uint32 {
 // A completed todo list » item.
 type TodoCompletion struct {
 	ID          int32
-	CompletedBy int64
+	CompletedBy Peer
 	Date        int32
 }
 
 func (*TodoCompletion) CRC() uint32 {
-	return 0x4cc120b7
+	return 0x221bb5e4
 }
 
 // An item of a todo list ».
@@ -4776,7 +4861,7 @@ type UserFull struct {
 	StarrefProgram           *StarRefProgram          `tl:"flag2:11"`
 	BotVerification          *BotVerification         `tl:"flag2:12"`
 	SendPaidMessagesStars    int64                    `tl:"flag2:14"`
-	DisallowedStargifts      *DisallowedGiftsSettings `tl:"flag2:15"`
+	DisallowedGifts          *DisallowedGiftsSettings `tl:"flag2:15"`
 	StarsRating              *StarsRating             `tl:"flag2:17"`
 	StarsMyPendingRating     *StarsRating             `tl:"flag2:18"`
 	StarsMyPendingRatingDate int32                    `tl:"flag2:18"`
