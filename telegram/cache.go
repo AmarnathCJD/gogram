@@ -13,8 +13,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
 type CACHE struct {
@@ -27,7 +25,7 @@ type CACHE struct {
 	memory      bool
 	disabled    bool
 	InputPeers  *InputPeerCache `json:"input_peers,omitempty"`
-	logger      *utils.Logger
+	logger      Logger
 
 	wipeScheduled atomic.Bool
 	writePending  atomic.Bool
@@ -76,17 +74,18 @@ func (c *CACHE) ImportJSON(data []byte) error {
 }
 
 type CacheConfig struct {
-	MaxSize    int // Max size of cache: TODO
-	LogLevel   utils.LogLevel
-	LogNoColor bool
-	LogName    string
-	Memory     bool
-	Disabled   bool
+	MaxSize  int // Max size of cache: TODO
+	LogLevel LogLevel
+	LogColor bool
+	Logger   Logger
+	LogName  string
+	Memory   bool
+	Disabled bool
 }
 
 func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 	opt := getVariadic(opts, &CacheConfig{
-		LogLevel: utils.InfoLevel,
+		LogLevel: InfoLevel,
 	})
 
 	c := &CACHE{
@@ -103,9 +102,9 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 		},
 		memory:   opt.Memory,
 		disabled: opt.Disabled,
-		logger: utils.NewLogger("gogram " + getLogPrefix("cache", opt.LogName)).
-			SetLevel(opt.LogLevel).
-			NoColor(opt.LogNoColor),
+		logger: getValue(opt.Logger, NewDefaultLogger("gogram "+getLogPrefix("cache", opt.LogName)).
+			SetColor(opt.LogColor).
+			SetLevel(opt.LogLevel)),
 	}
 
 	if !opt.Memory && !opt.Disabled {

@@ -820,7 +820,7 @@ func getInlineDocumentType(mimeType string, voiceNote bool) string {
 		return "photo"
 	case "image/webp", "application/x-tgsticker":
 		return "sticker"
-	case "video/mp4", "video/x-matroksa", "video/webm":
+	case "video/mp4", "video/x-matroska", "video/webm":
 		return "video"
 	default:
 		return "file"
@@ -1014,8 +1014,4 @@ func doesSessionFileExist(filePath string) bool {
 func IsFfmpegInstalled() bool {
 	_, err := exec.LookPath("ffmpeg")
 	return err == nil
-}
-
-func NewLogger(level utils.LogLevel, prefix ...string) *utils.Logger {
-	return utils.NewLogger(getVariadic(prefix, "gogram")).SetLevel(level)
 }
