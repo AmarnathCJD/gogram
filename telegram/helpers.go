@@ -1484,9 +1484,9 @@ func (c *Client) Stringify(object any) string {
 }
 
 // easy wrapper for json.MarshalIndent, returns string
-func (c *Client) JSON(object any, nointent ...any) string {
-	if len(nointent) > 0 {
-		switch _noi := nointent[0].(type) {
+func (c *Client) JSON(object any, noindent ...any) string {
+	if len(noindent) > 0 {
+		switch _noi := noindent[0].(type) {
 		case bool:
 			if _noi {
 				data, err := json.Marshal(object)
