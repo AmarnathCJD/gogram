@@ -414,15 +414,22 @@ func (l *Logger) log(level LogLevel, msg string, args ...any) {
 	var function string
 
 	if l.showCaller || l.showFunction {
-		pc, f, lineNum, ok := runtime.Caller(2)
-		if ok {
-			file = filepath.Base(f)
-			line = lineNum
-			if l.showFunction {
-				fn := runtime.FuncForPC(pc)
-				if fn != nil {
-					function = filepath.Base(fn.Name())
+		var pcs [10]uintptr
+		n := runtime.Callers(0, pcs[:])
+		frames := runtime.CallersFrames(pcs[:n])
+
+		for {
+			frame, more := frames.Next()
+			if !strings.Contains(frame.File, "logging.go") {
+				file = filepath.Base(frame.File)
+				line = frame.Line
+				if l.showFunction {
+					function = filepath.Base(frame.Function)
 				}
+				break
+			}
+			if !more {
+				break
 			}
 		}
 	}
