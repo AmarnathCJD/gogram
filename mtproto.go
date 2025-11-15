@@ -10,7 +10,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -33,7 +32,7 @@ import (
 type MTProto struct {
 	Addr      string
 	appID     int32
-	proxy     *url.URL
+	proxy     *utils.Proxy
 	transport transport.Transport
 	localAddr string
 
@@ -113,7 +112,7 @@ type Config struct {
 	PublicKey       *rsa.PublicKey
 	DataCenter      int
 	Logger          *utils.Logger
-	Proxy           *url.URL
+	Proxy           *utils.Proxy
 	Mode            string
 	Ipv6            bool
 	CustomHost      bool
@@ -292,9 +291,11 @@ func (m *MTProto) GetTransportType() string {
 		return "Ws"
 	}
 
-	if m.proxy != nil && m.proxy.Host != "" {
-		scheme := strings.ToLower(m.proxy.Scheme)
-		switch scheme {
+	if m.proxy != nil && !m.proxy.IsEmpty() {
+		pType := strings.ToLower(m.proxy.Type)
+		switch pType {
+		case "socks4", "socks4a":
+			return "Socks4"
 		case "socks5", "socks5h":
 			return "Socks5"
 		case "http", "https":
@@ -589,7 +590,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 		if m.rapidReconnectCount >= 10 {
 			m.rapidReconnectMutex.Unlock()
 			m.Logger.Error(fmt.Sprintf("detected rapid reconnection loop (%d consecutive reconnects in <5s intervals)", m.rapidReconnectCount))
-			if m.proxy != nil && m.proxy.Scheme == "mtproxy" {
+			if m.proxy != nil && m.proxy.Type == "mtproxy" {
 				return errors.New("mtproxy connection loop detected: connection succeeds but immediately closes - check proxy configuration, secret, or server availability")
 			}
 			return errors.New("rapid reconnection loop detected: connection succeeds but immediately closes - possible network or server issue")

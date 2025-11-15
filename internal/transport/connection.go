@@ -20,8 +20,8 @@ type tcpConn struct {
 }
 
 func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
-	if cfg.Socks != nil && cfg.Socks.Host != "" {
-		if cfg.Socks.Scheme == "mtproxy" {
+	if cfg.Socks != nil && !cfg.Socks.IsEmpty() {
+		if cfg.Socks.Type == "mtproxy" {
 			return newMTProxyTCP(cfg)
 		}
 		return newSocksTCP(cfg)
@@ -81,19 +81,19 @@ func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 
 func newSocksTCP(cfg TCPConnConfig) (Conn, bool, error) {
 	if cfg.Logger != nil {
-		cfg.Logger.Debug(fmt.Sprintf("[socks5] connecting to %s via proxy %s", cfg.Host, cfg.Socks.Host))
+		cfg.Logger.Debug(fmt.Sprintf("[%s] connecting to %s via proxy %s", cfg.Socks.Type, cfg.Host, cfg.Socks.Host))
 	}
 
-	conn, err := dialProxy(cfg.Socks, cfg.Host, cfg.LocalAddr)
+	conn, err := dialProxy(cfg.Socks.ToURL(), cfg.Host, cfg.LocalAddr)
 	if err != nil {
 		if cfg.Logger != nil {
-			cfg.Logger.Error(fmt.Sprintf("[socks5] connection failed: %v", err))
+			cfg.Logger.Error(fmt.Sprintf("[%s] connection failed: %v", cfg.Socks.Type, err))
 		}
 		return nil, false, err
 	}
 
 	if cfg.Logger != nil {
-		cfg.Logger.Debug(fmt.Sprintf("[socks5] connected to %s", cfg.Host))
+		cfg.Logger.Debug(fmt.Sprintf("[%s] connected to %s", cfg.Socks.Type, cfg.Host))
 	}
 
 	return &tcpConn{
