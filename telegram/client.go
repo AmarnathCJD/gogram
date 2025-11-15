@@ -131,7 +131,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 
 	if config.Logger != nil {
 		client.Log = config.Logger
-		client.Log.Prefix = "gogram " + getLogPrefix("client", config.SessionName)
+		client.Log.SetPrefix("gogram " + getLogPrefix("client", config.SessionName))
 		config.LogLevel = config.Logger.Lev()
 	} else {
 		config.LogLevel = getValue(config.LogLevel, LogInfo)
@@ -548,7 +548,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 	var authParam = getVariadic(authParams, &AuthExportedAuthorization{})
 
 	for retry := 0; retry <= retryLimit; retry++ {
-		c.Log.Debug("creating exported sender for DC ", dcID)
+		c.Log.WithField("dc", dcID).Debug("creating exported sender")
 		if cdn {
 			if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
 				cdnKeysResp, err := c.HelpGetCdnConfig()
@@ -566,7 +566,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 		exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
 		if err != nil {
 			lastError = errors.Wrap(err, "exporting new sender")
-			c.Log.Error("error exporting new sender: ", lastError)
+			c.Log.WithError(lastError).Error("error exporting new sender")
 			continue
 		}
 
@@ -589,11 +589,11 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 					Bytes: authParam.Bytes,
 				}
 			} else {
-				c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
+				c.Log.WithField("dc", exported.GetDC()).Info("exporting auth for data-center")
 				auth, err = c.AuthExportAuthorization(int32(exported.GetDC()))
 				if err != nil {
 					lastError = errors.Wrap(err, "exporting auth")
-					c.Log.Error("error exporting auth: ", lastError)
+					c.Log.WithError(lastError).Error("error exporting auth")
 					continue
 				}
 
@@ -616,7 +616,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 			Query: initialReq,
 		})
 		cancel()
-		c.Log.Debug(fmt.Sprintf("initial request for exported sender %d sent", dcID))
+		c.Log.WithField("dc", dcID).Debug("initial request for exported sender sent")
 
 		if err != nil {
 			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") {
@@ -627,9 +627,12 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 
 			lastError = errors.Wrap(err, "making initial request")
 			if retry < retryLimit {
-				c.Log.Debug(fmt.Sprintf("error making initial request, retrying (%d/%d)", retry+1, retryLimit))
+				c.Log.WithFields(map[string]any{
+					"retry": retry + 1,
+					"limit": retryLimit,
+				}).Debug("error making initial request, retrying")
 			} else {
-				c.Log.Error(fmt.Sprintf("exported sender: initialRequest: %s", lastError.Error()))
+				c.Log.WithError(lastError).Error("exported sender: initialRequest failed")
 			}
 
 			time.Sleep(200 * time.Millisecond)
@@ -816,19 +819,18 @@ func (c *Client) Stop() error {
 func (c *Client) NewRecovery() func() {
 	return func() {
 		if r := recover(); r != nil {
-			if c.Log.Lev() == LogDebug {
-				c.Log.Panic(r, "\n\n", string(debug.Stack())) // print stacktrace for debug
+			if c.Log.GetLevel() == LogDebug {
+				c.Log.Panic("%v\n\n%s", r, string(debug.Stack()))
 			} else {
-				c.Log.Panic(r)
+				c.Log.Panic("%v", r)
 			}
 		}
 	}
 }
 
-// WrapError sends an error to the error channel if it is not nil
 func (c *Client) WrapError(err error) error {
 	if err != nil {
-		c.Log.Error(err)
+		c.Log.WithError(err).Error("error occurred")
 	}
 	return err
 }

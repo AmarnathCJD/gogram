@@ -177,7 +177,8 @@ func (a *albumBox) WaitAndTrigger(d *UpdateDispatcher, c *Client) {
 						if errors.Is(err, EndGroup) {
 							return
 						}
-						c.Log.Error(errors.Wrap(err, "[AlbumHandler]"))
+
+						c.Log.WithError(err).Error("[AlbumHandler]")
 					}
 				}()
 			} else {
@@ -507,7 +508,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 						if errors.Is(err, EndGroup) {
 							return
 						}
-						c.dispatcher.logger.Error(errors.Wrap(err, "[NewMessageHandler]"))
+						c.dispatcher.logger.WithError(err).Error("[NewMessageHandler]")
 					}
 				}
 			}
@@ -542,7 +543,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 						if errors.Is(err, EndGroup) {
 							break
 						}
-						c.dispatcher.logger.Error(errors.Wrap(err, "[NewMessageHandler]"))
+						c.dispatcher.logger.WithError(err).Error("[NewMessageHandler]")
 					}
 				}
 			}
@@ -556,7 +557,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 					go func(h *messageHandle) {
 						defer wg.Done()
 						if err := handle(h); err != nil && !errors.Is(err, EndGroup) {
-							c.dispatcher.logger.Error(errors.Wrap(err, "[NewMessageHandler]"))
+							c.dispatcher.logger.WithError(err).Error("[NewMessageHandler]")
 						}
 					}(handler)
 				}
@@ -586,7 +587,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 							if errors.Is(err, EndGroup) {
 								return
 							}
-							c.Log.Error(errors.Wrap(err, "[ChatActionHandler]"))
+							c.Log.WithError(err).Error("[ChatActionHandler]")
 						}
 					}()
 				} else {
@@ -638,7 +639,7 @@ func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
 
 		updatedMessage, err := c.GetDifference(pts, 1)
 		if err != nil {
-			c.Log.Error(errors.Wrap(err, "[GetDifference] failed to get difference"))
+			c.Log.WithError(err).Error("[GetDifference] failed to get difference")
 		}
 		if updatedMessage != nil {
 			c.handleMessageUpdate(updatedMessage)
@@ -673,7 +674,7 @@ func (c *Client) handleEditUpdate(update Message) {
 								if errors.Is(err, EndGroup) {
 									return
 								}
-								c.Log.Error(errors.Wrap(err, "[EditMessageHandler]"))
+								c.Log.WithError(err).Error("[EditMessageHandler]")
 							}
 						}()
 					} else {
@@ -713,7 +714,7 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 							if errors.Is(err, EndGroup) {
 								return
 							}
-							c.Log.Error(errors.Wrap(err, "[CallbackQueryHandler]"))
+							c.Log.WithError(err).Error("[CallbackQueryHandler]")
 						}
 					}()
 				} else {
@@ -749,7 +750,7 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 							if errors.Is(err, EndGroup) {
 								return
 							}
-							c.Log.Error(errors.Wrap(err, "[InlineCallbackHandler]"))
+							c.Log.WithError(err).Error("[InlineCallbackHandler]")
 						}
 					}()
 				} else {
@@ -784,7 +785,7 @@ func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 						if errors.Is(err, EndGroup) {
 							return
 						}
-						c.Log.Error(errors.Wrap(err, "[ParticipantUpdateHandler]"))
+						c.Log.WithError(err).Error("[ParticipantUpdateHandler]")
 					}
 				}()
 			} else {
@@ -819,7 +820,7 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 							if errors.Is(err, EndGroup) {
 								return
 							}
-							c.Log.Error(errors.Wrap(err, "[InlineQueryHandler]"))
+							c.Log.WithError(err).Error("[InlineQueryHandler]")
 						}
 					}()
 				} else {
@@ -854,7 +855,7 @@ func (c *Client) handleInlineSendUpdate(update *UpdateBotInlineSend) {
 						if errors.Is(err, EndGroup) {
 							return
 						}
-						c.Log.Error(errors.Wrap(err, "[InlineSendHandler]"))
+						c.Log.WithError(err).Error("[InlineSendHandler]")
 					}
 				}()
 			} else {
@@ -888,7 +889,7 @@ func (c *Client) handleDeleteUpdate(update Update) {
 						if errors.Is(err, EndGroup) {
 							return
 						}
-						c.Log.Error(errors.Wrap(err, "[DeleteMessageHandler]"))
+						c.Log.WithError(err).Error("[DeleteMessageHandler]")
 					}
 				}()
 			} else {
@@ -922,7 +923,7 @@ func (c *Client) handleJoinRequestUpdate(update *UpdatePendingJoinRequests) {
 						if errors.Is(err, EndGroup) {
 							return
 						}
-						c.Log.Error(errors.Wrap(err, "[JoinRequestHandler]"))
+						c.Log.WithError(err).Error("[JoinRequestHandler]")
 					}
 				}()
 			} else {
@@ -967,7 +968,7 @@ func (c *Client) handleRawUpdate(update Update) {
 							if errors.Is(err, EndGroup) {
 								return
 							}
-							c.Log.Error(errors.Wrap(err, "[RawUpdateHandler]"))
+							c.Log.WithError(err).Error("[RawUpdateHandler]")
 						}
 					}()
 				} else {

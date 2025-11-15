@@ -114,10 +114,9 @@ nonceCreate:
 		return fmt.Errorf("reqDHParams: server nonce mismatch")
 	}
 
-	// check of hash, random bytes trail removing occurs in this func already
 	decodedMessage, err := ige.DecryptMessageWithTempKeys(dhParams.EncryptedAnswer, nonceSecond.Int, nonceServer.Int)
 	if err != nil {
-		m.Logger.Debug(err.Error() + " - retrying")
+		m.Logger.WithError(err).Debug("decrypt failed - retrying auth key generation")
 		return m.makeAuthKey()
 	}
 
@@ -200,7 +199,7 @@ nonceCreate:
 	m.serviceModeActivated = false
 	m.encrypted = true
 	if err := m.SaveSession(m.memorySession); err != nil {
-		m.Logger.Error("saving session: ", err)
+		m.Logger.WithError(err).Error("failed to save session")
 	}
 	return err
 }

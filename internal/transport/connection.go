@@ -28,7 +28,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 	}
 
 	if cfg.Logger != nil {
-		cfg.Logger.Debug(fmt.Sprintf("[tcp] connecting to %s", cfg.Host))
+		cfg.Logger.Debug("[tcp] connecting to %s", cfg.Host)
 	}
 
 	tcpPrefix := "tcp"
@@ -61,7 +61,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 
 	if err != nil {
 		if cfg.Logger != nil {
-			cfg.Logger.Error(fmt.Sprintf("[tcp] Connection failed: %v", err))
+			cfg.Logger.WithError(err).Error("[tcp] connection failed")
 		}
 		return nil, false, errors.Wrap(err, "dialing tcp")
 	}
@@ -69,7 +69,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 	conn.SetKeepAlive(true)
 
 	if cfg.Logger != nil {
-		cfg.Logger.Debug(fmt.Sprintf("[tcp] Connected to %s", cfg.Host))
+		cfg.Logger.Debug("[tcp] connected to %s", cfg.Host)
 	}
 
 	return &tcpConn{

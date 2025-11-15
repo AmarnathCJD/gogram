@@ -224,7 +224,7 @@ func CodeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions, maxRetri
 			}
 
 			if MatchError(err, "PHONE_CODE_INVALID") {
-				c.Log.Error(errors.Wrap(err, "invalid phone code"))
+				c.Log.WithError(err).Error("invalid phone code")
 				continue
 			} else if MatchError(err, "SESSION_PASSWORD_NEEDED") {
 			acceptPasswordInput:
