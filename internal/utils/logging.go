@@ -51,16 +51,18 @@ func (l LogLevel) String() string {
 }
 
 var (
-	colorReset   = "\033[0m"
-	colorBold    = "\033[1m"
-	colorRed     = "\033[31m"
-	colorGreen   = "\033[32m"
-	colorYellow  = "\033[33m"
-	colorMagenta = "\033[35m"
-	colorCyan    = "\033[36m"
-	colorWhite   = "\033[37m"
-	colorGray    = "\033[90m"
-	bgRed        = "\033[41m"
+	colorReset       = "\033[0m"
+	colorBold        = "\033[1m"
+	colorDim         = "\033[2m"
+	colorRed         = "\033[31m"
+	colorGreen       = "\033[32m"
+	colorYellow      = "\033[33m"
+	colorBlue        = "\033[34m"
+	colorMagenta     = "\033[35m"
+	colorCyan        = "\033[36m"
+	colorWhite       = "\033[37m"
+	colorBrightBlack = "\033[90m"
+	colorBrightRed   = "\033[91m"
 )
 
 type LogFormatter interface {
@@ -91,7 +93,7 @@ type Logger struct {
 	formatter       LogFormatter
 	hooks           []Hook
 	fields          map[string]any
-	noColor         bool
+	color           bool
 	showCaller      bool
 	showFunction    bool
 	timestampFormat string
@@ -112,7 +114,7 @@ type LoggerConfig struct {
 	Prefix          string
 	Output          io.Writer
 	Formatter       LogFormatter
-	NoColor         bool
+	Color           bool
 	ShowCaller      bool
 	ShowFunction    bool
 	TimestampFormat string
@@ -127,6 +129,7 @@ func DefaultConfig() *LoggerConfig {
 		Level:           InfoLevel,
 		Output:          os.Stdout,
 		Formatter:       &TextFormatter{},
+		Color:           false,
 		ShowCaller:      true,
 		TimestampFormat: "2006-01-02 15:04:05.000",
 		BufferSize:      4096,
@@ -148,7 +151,7 @@ func NewLoggerWithConfig(config *LoggerConfig) *Logger {
 		config.Output = os.Stdout
 	}
 	if config.Formatter == nil {
-		config.Formatter = &TextFormatter{}
+		config.Formatter = &TextFormatter{NoColor: !config.Color}
 	}
 	if config.TimestampFormat == "" {
 		config.TimestampFormat = "2006-01-02 15:04:05.000"
@@ -166,7 +169,7 @@ func NewLoggerWithConfig(config *LoggerConfig) *Logger {
 		output:          config.Output,
 		writer:          bufio.NewWriterSize(config.Output, config.BufferSize),
 		formatter:       config.Formatter,
-		noColor:         config.NoColor,
+		color:           config.Color,
 		showCaller:      config.ShowCaller,
 		showFunction:    config.ShowFunction,
 		timestampFormat: config.TimestampFormat,
@@ -195,7 +198,7 @@ func (l *Logger) Clone() *Logger {
 		output:          l.output,
 		writer:          bufio.NewWriterSize(l.output, l.bufferSize),
 		formatter:       l.formatter,
-		noColor:         l.noColor,
+		color:           l.color,
 		showCaller:      l.showCaller,
 		showFunction:    l.showFunction,
 		timestampFormat: l.timestampFormat,
@@ -205,9 +208,7 @@ func (l *Logger) Clone() *Logger {
 		errorHandler:    l.errorHandler,
 	}
 
-	for k, v := range l.fields {
-		clone.fields[k] = v
-	}
+	maps.Copy(clone.fields, l.fields)
 
 	return clone
 }
@@ -226,9 +227,7 @@ func (l *Logger) WithField(key string, value any) *Logger {
 
 func (l *Logger) WithFields(fields map[string]any) *Logger {
 	clone := l.Clone()
-	for k, v := range fields {
-		clone.fields[k] = v
-	}
+	maps.Copy(clone.fields, fields)
 	return clone
 }
 
@@ -245,7 +244,6 @@ func (l *Logger) SetLevel(level LogLevel) *Logger {
 	return l
 }
 
-// GetLevel returns the current logging level
 func (l *Logger) GetLevel() LogLevel {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
@@ -272,7 +270,7 @@ func (l *Logger) SetPrefix(prefix string) *Logger {
 func (l *Logger) Color() bool {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
-	return !l.noColor
+	return l.color
 }
 
 func (l *Logger) SetOutput(w io.Writer) *Logger {
@@ -284,7 +282,6 @@ func (l *Logger) SetOutput(w io.Writer) *Logger {
 	return l
 }
 
-// SetFormatter sets a custom log formatter
 func (l *Logger) SetFormatter(formatter LogFormatter) *Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -292,7 +289,6 @@ func (l *Logger) SetFormatter(formatter LogFormatter) *Logger {
 	return l
 }
 
-// AddHook adds a hook that will be called for each log entry
 func (l *Logger) AddHook(hook Hook) *Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -300,15 +296,17 @@ func (l *Logger) AddHook(hook Hook) *Logger {
 	return l
 }
 
-// NoColor disables colored output
-func (l *Logger) NoColor(enabled bool) *Logger {
+func (l *Logger) SetColor(enabled bool) *Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.noColor = enabled
+	l.color = enabled
+	// Sync with TextFormatter if present
+	if tf, ok := l.formatter.(*TextFormatter); ok {
+		tf.NoColor = !enabled
+	}
 	return l
 }
 
-// ShowCaller enables/disables caller information in logs
 func (l *Logger) ShowCaller(enabled bool) *Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -316,7 +314,6 @@ func (l *Logger) ShowCaller(enabled bool) *Logger {
 	return l
 }
 
-// ShowFunction enables/disables function name in logs
 func (l *Logger) ShowFunction(enabled bool) *Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -324,7 +321,6 @@ func (l *Logger) ShowFunction(enabled bool) *Logger {
 	return l
 }
 
-// SetTimestampFormat sets the format for timestamps
 func (l *Logger) SetTimestampFormat(format string) *Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -332,7 +328,6 @@ func (l *Logger) SetTimestampFormat(format string) *Logger {
 	return l
 }
 
-// EnableRotation enables log file rotation
 func (l *Logger) EnableRotation(maxFileSize int64, logFilePath string) *Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -342,14 +337,12 @@ func (l *Logger) EnableRotation(maxFileSize int64, logFilePath string) *Logger {
 	return l
 }
 
-// Flush writes any buffered data to the underlying writer
 func (l *Logger) Flush() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.writer.Flush()
 }
 
-// Close closes the logger and flushes any pending logs
 func (l *Logger) Close() error {
 	l.mu.Lock()
 	if l.closed {
@@ -378,7 +371,7 @@ func (l *Logger) processAsync() {
 	}
 }
 
-// log is the core logging function
+// core fn to log messages
 func (l *Logger) log(level LogLevel, msg string, args ...any) {
 	l.mu.RLock()
 	if level < l.level || l.closed {
@@ -387,12 +380,10 @@ func (l *Logger) log(level LogLevel, msg string, args ...any) {
 	}
 	l.mu.RUnlock()
 
-	// Format message
 	if len(args) > 0 {
 		msg = fmt.Sprintf(msg, args...)
 	}
 
-	// Get caller information
 	var file string
 	var line int
 	var function string
@@ -411,7 +402,6 @@ func (l *Logger) log(level LogLevel, msg string, args ...any) {
 		}
 	}
 
-	// Create log entry
 	entry := &LogEntry{
 		Time:     time.Now(),
 		Level:    level,
@@ -423,32 +413,24 @@ func (l *Logger) log(level LogLevel, msg string, args ...any) {
 		Fields:   make(map[string]any),
 	}
 
-	// Copy fields
 	l.mu.RLock()
-	for k, v := range l.fields {
-		if k == "error" {
-			if err, ok := v.(error); ok {
-				entry.Error = err
-			}
-		} else {
-			entry.Fields[k] = v
-		}
+	maps.Copy(entry.Fields, l.fields)
+	if err, ok := entry.Fields["error"].(error); ok {
+		entry.Error = err
+		delete(entry.Fields, "error")
 	}
 	l.mu.RUnlock()
 
-	// Run hooks
 	l.mu.RLock()
 	for _, hook := range l.hooks {
 		hook(entry)
 	}
 	l.mu.RUnlock()
 
-	// Process entry
 	if l.asyncMode {
 		select {
 		case l.logChan <- entry:
 		default:
-			// Queue full, log synchronously
 			l.writeEntry(entry)
 		}
 	} else {
@@ -456,14 +438,12 @@ func (l *Logger) log(level LogLevel, msg string, args ...any) {
 	}
 }
 
-// writeEntry writes a log entry to the output
 func (l *Logger) writeEntry(entry *LogEntry) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	formatted := l.formatter.Format(entry)
 
-	// Check for rotation
 	if l.rotationEnabled {
 		l.currentFileSize += int64(len(formatted))
 		if l.currentFileSize >= l.maxFileSize {
@@ -478,21 +458,17 @@ func (l *Logger) writeEntry(entry *LogEntry) {
 	l.writer.Flush()
 }
 
-// rotate performs log file rotation
 func (l *Logger) rotate() {
 	if l.logFilePath == "" {
 		return
 	}
 
-	// Close current writer
 	l.writer.Flush()
 
-	// Rename current file
 	timestamp := time.Now().Format("20060102-150405")
 	newName := fmt.Sprintf("%s.%s", l.logFilePath, timestamp)
 	os.Rename(l.logFilePath, newName)
 
-	// Create new file
 	f, err := os.OpenFile(l.logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		if l.errorHandler != nil {
@@ -506,7 +482,6 @@ func (l *Logger) rotate() {
 	l.currentFileSize = 0
 }
 
-// Logging methods
 func (l *Logger) Trace(msg string, args ...any)   { l.log(TraceLevel, msg, args...) }
 func (l *Logger) Debug(msg string, args ...any)   { l.log(DebugLevel, msg, args...) }
 func (l *Logger) Info(msg string, args ...any)    { l.log(InfoLevel, msg, args...) }
@@ -526,7 +501,7 @@ func (l *Logger) Fatal(msg string, args ...any) {
 }
 
 func (l *Logger) Panic(msg string, args ...any) {
-	// Capture stack trace
+	// capture stack trace
 	stack := make([]byte, 8192)
 	n := runtime.Stack(stack, false)
 	stackTrace := string(stack[:n])
@@ -541,9 +516,7 @@ func (l *Logger) Panic(msg string, args ...any) {
 	}
 
 	l.mu.RLock()
-	for k, v := range l.fields {
-		entry.Fields[k] = v
-	}
+	maps.Copy(entry.Fields, l.fields)
 	l.mu.RUnlock()
 
 	l.writeEntry(entry)
@@ -551,7 +524,6 @@ func (l *Logger) Panic(msg string, args ...any) {
 	panic(entry.Message)
 }
 
-// Leveled logging with arguments (backwards compatibility)
 func (l *Logger) Tracef(format string, args ...any)   { l.Trace(format, args...) }
 func (l *Logger) Debugf(format string, args ...any)   { l.Debug(format, args...) }
 func (l *Logger) Infof(format string, args ...any)    { l.Info(format, args...) }
@@ -576,32 +548,16 @@ type TextFormatter struct {
 func (f *TextFormatter) Format(entry *LogEntry) string {
 	var b strings.Builder
 
-	// Timestamp
-	timestampFormat := "15:04:05"
-	if f.FullTimestamp || entry.Fields["timestamp_format"] != nil {
-		if fmt, ok := entry.Fields["timestamp_format"].(string); ok {
-			timestampFormat = fmt
-		} else {
-			timestampFormat = "2006-01-02 15:04:05.000"
-		}
-	}
-
-	timestamp := entry.Time.Format(timestampFormat)
+	timestamp := entry.Time.Format("15:04:05")
 	if !f.NoColor {
-		b.WriteString(colorGray)
+		b.WriteString(colorDim)
 	}
 	b.WriteString(timestamp)
 	if !f.NoColor {
 		b.WriteString(colorReset)
 	}
-	b.WriteString(" ")
 
-	// Level
-	levelText := entry.Level.String()
-	if f.PadLevelText {
-		levelText = fmt.Sprintf("%-5s", levelText)
-	}
-
+	levelText := fmt.Sprintf(" %-5s", entry.Level.String())
 	levelColor := f.getLevelColor(entry.Level)
 	if !f.NoColor && levelColor != "" {
 		b.WriteString(levelColor)
@@ -611,71 +567,87 @@ func (f *TextFormatter) Format(entry *LogEntry) string {
 	if !f.NoColor && levelColor != "" {
 		b.WriteString(colorReset)
 	}
-	b.WriteString(" ")
 
-	// Prefix
 	if entry.Prefix != "" {
+		b.WriteString(" ")
 		if !f.NoColor {
-			b.WriteString(colorCyan)
-			b.WriteString(colorBold)
+			b.WriteString(colorDim)
 		}
 		b.WriteString("[")
+		if !f.NoColor {
+			b.WriteString(colorReset)
+			b.WriteString(colorBrightBlack)
+		}
 		b.WriteString(entry.Prefix)
+		if !f.NoColor {
+			b.WriteString(colorReset)
+			b.WriteString(colorDim)
+		}
 		b.WriteString("]")
 		if !f.NoColor {
 			b.WriteString(colorReset)
 		}
-		b.WriteString(" ")
 	}
 
-	// Caller info
 	if entry.File != "" && entry.Line > 0 {
 		if !f.NoColor {
-			b.WriteString(colorGray)
+			b.WriteString(colorDim)
 		}
+		b.WriteString(" ")
 		b.WriteString(entry.File)
 		b.WriteString(":")
 		b.WriteString(fmt.Sprint(entry.Line))
-		if entry.Function != "" {
-			b.WriteString(" ")
-			b.WriteString(entry.Function)
-			b.WriteString("()")
-		}
 		if !f.NoColor {
 			b.WriteString(colorReset)
 		}
-		b.WriteString(" ")
 	}
 
-	// Message
+	b.WriteString(" ")
+	if !f.NoColor {
+		msgColor := f.getMessageColor(entry.Level)
+		if msgColor != "" {
+			b.WriteString(msgColor)
+		}
+	}
 	b.WriteString(entry.Message)
+	if !f.NoColor {
+		b.WriteString(colorReset)
+	}
 
-	// Fields
 	if len(entry.Fields) > 0 {
-		b.WriteString(" ")
 		if !f.NoColor {
-			b.WriteString(colorGray)
+			b.WriteString(colorDim)
 		}
 		first := true
 		for k, v := range entry.Fields {
-			if !first {
+			if first {
 				b.WriteString(" ")
+				first = false
+			} else {
+				b.WriteString(", ")
 			}
-			first = false
 			b.WriteString(k)
 			b.WriteString("=")
+			if !f.NoColor {
+				b.WriteString(colorReset)
+				b.WriteString(colorCyan)
+			}
 			b.WriteString(fmt.Sprintf("%v", v))
+			if !f.NoColor {
+				b.WriteString(colorDim)
+			}
 		}
 		if !f.NoColor {
 			b.WriteString(colorReset)
 		}
 	}
 
-	// Error
 	if entry.Error != nil {
-		b.WriteString(" ")
 		if !f.NoColor {
-			b.WriteString(colorRed)
+			b.WriteString(" ")
+			b.WriteString(colorBrightRed)
+		} else {
+			b.WriteString(" ")
 		}
 		b.WriteString("error=")
 		b.WriteString(entry.Error.Error())
@@ -686,13 +658,30 @@ func (f *TextFormatter) Format(entry *LogEntry) string {
 
 	b.WriteString("\n")
 
-	// Stack trace
 	if entry.StackTrace != "" {
+		if !f.NoColor {
+			b.WriteString(colorDim)
+		}
 		b.WriteString(entry.StackTrace)
+		if !f.NoColor {
+			b.WriteString(colorReset)
+		}
 		b.WriteString("\n")
 	}
 
 	return b.String()
+}
+
+func (f *TextFormatter) getMessageColor(level LogLevel) string {
+	if f.NoColor {
+		return ""
+	}
+	switch level {
+	case ErrorLevel, FatalLevel, PanicLevel:
+		return colorWhite
+	default:
+		return ""
+	}
 }
 
 func (f *TextFormatter) getLevelColor(level LogLevel) string {
@@ -703,7 +692,7 @@ func (f *TextFormatter) getLevelColor(level LogLevel) string {
 	case TraceLevel:
 		return colorMagenta
 	case DebugLevel:
-		return colorCyan
+		return colorBlue
 	case InfoLevel:
 		return colorGreen
 	case WarnLevel:
@@ -711,9 +700,9 @@ func (f *TextFormatter) getLevelColor(level LogLevel) string {
 	case ErrorLevel:
 		return colorRed
 	case FatalLevel:
-		return bgRed + colorWhite
+		return colorBrightRed
 	case PanicLevel:
-		return bgRed + colorWhite + colorBold
+		return colorBrightRed
 	default:
 		return ""
 	}
@@ -770,36 +759,3 @@ func (f *JSONFormatter) Format(entry *LogEntry) string {
 
 	return string(output) + "\n"
 }
-
-// Global default logger
-var defaultLogger = NewLogger("gogram")
-
-// SetDefaultLogger sets the global default logger
-func SetDefaultLogger(logger *Logger) {
-	defaultLogger = logger
-}
-
-// GetDefaultLogger returns the global default logger
-func GetDefaultLogger() *Logger {
-	return defaultLogger
-}
-
-// Global logging functions using the default logger
-func Trace(msg string, args ...any)   { defaultLogger.Trace(msg, args...) }
-func Debug(msg string, args ...any)   { defaultLogger.Debug(msg, args...) }
-func Info(msg string, args ...any)    { defaultLogger.Info(msg, args...) }
-func Warn(msg string, args ...any)    { defaultLogger.Warn(msg, args...) }
-func Warning(msg string, args ...any) { defaultLogger.Warning(msg, args...) }
-func Error(msg string, args ...any)   { defaultLogger.Error(msg, args...) }
-func Fatal(msg string, args ...any)   { defaultLogger.Fatal(msg, args...) }
-func Panic(msg string, args ...any)   { defaultLogger.Panic(msg, args...) }
-
-// Formatted global logging functions
-func Tracef(format string, args ...any)   { defaultLogger.Tracef(format, args...) }
-func Debugf(format string, args ...any)   { defaultLogger.Debugf(format, args...) }
-func Infof(format string, args ...any)    { defaultLogger.Infof(format, args...) }
-func Warnf(format string, args ...any)    { defaultLogger.Warnf(format, args...) }
-func Warningf(format string, args ...any) { defaultLogger.Warningf(format, args...) }
-func Errorf(format string, args ...any)   { defaultLogger.Errorf(format, args...) }
-func Fatalf(format string, args ...any)   { defaultLogger.Fatalf(format, args...) }
-func Panicf(format string, args ...any)   { defaultLogger.Panicf(format, args...) }

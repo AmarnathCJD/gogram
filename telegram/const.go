@@ -2,20 +2,11 @@ package telegram
 
 import (
 	"regexp"
-
-	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
 const (
 	ApiVersion = 216
 	Version    = "v1.6.3"
-
-	LogDebug   = utils.DebugLevel
-	LogInfo    = utils.InfoLevel
-	LogWarn    = utils.WarnLevel
-	LogError   = utils.ErrorLevel
-	LogTrace   = utils.TraceLevel
-	LogDisable = utils.NoLevel
 
 	ModeAbridged     = "modeAbridged"
 	ModeFull         = "modeFull"

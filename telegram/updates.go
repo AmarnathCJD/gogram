@@ -15,7 +15,6 @@ import (
 
 	"slices"
 
-	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/pkg/errors"
 )
 
@@ -227,7 +226,7 @@ type UpdateDispatcher struct {
 	albumHandles          map[int][]*albumHandle
 	rawHandles            map[int][]*rawHandle
 	activeAlbums          map[int64]*albumBox
-	logger                *utils.Logger
+	logger                Logger
 	openChats             map[int64]*openChat
 	nextUpdatesDeadline   time.Time
 	lastUpdateTime        time.Time
@@ -370,9 +369,7 @@ func (d *UpdateDispatcher) CleanOldProcessedUpdates() {
 
 func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 	c.dispatcher = &UpdateDispatcher{
-		logger: utils.NewLogger("gogram " + getLogPrefix("dispatcher", getVariadic(sessionName, ""))).
-			SetLevel(c.Log.Lev()).
-			NoColor(!c.Log.Color()),
+		logger:                c.Log.WithPrefix("gogram " + getLogPrefix("dispatcher", getVariadic(sessionName, ""))),
 		channelStates:         make(map[int64]*channelState),
 		pendingGaps:           make(map[int32]time.Time),
 		processedUpdates:      make(map[int64]time.Time),

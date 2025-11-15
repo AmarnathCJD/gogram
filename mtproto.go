@@ -971,7 +971,7 @@ func (m *MTProto) processResponse(msg messages.Common) error {
 		data, err = tl.DecodeUnknownObject(msg.GetMsg())
 	}
 	if err != nil {
-		return fmt.Errorf("unmarshalling response: %w", err)
+		return fmt.Errorf("unmarshaling response: %w", err)
 	}
 
 messageTypeSwitching:

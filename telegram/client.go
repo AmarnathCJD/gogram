@@ -41,7 +41,7 @@ type clientData struct {
 	systemLangCode   string
 	langPack         string
 	parseMode        string
-	logLevel         utils.LogLevel
+	logLevel         LogLevel
 	sleepThresholdMs int
 	albumWaitTime    int64
 	botAcc           bool
@@ -60,7 +60,7 @@ type Client struct {
 	stopCh       chan struct{}
 	exSenders    *ExSenders
 	exportedKeys map[int]*AuthExportedAuthorization
-	Log          *utils.Logger
+	Log          Logger
 }
 
 type DeviceConfig struct {
@@ -88,8 +88,8 @@ type ClientConfig struct {
 	NoUpdates        bool                 // Don't handle updates
 	DisableCache     bool                 // Disable caching peer and chat information
 	TestMode         bool                 // Use the test data centers
-	LogLevel         utils.LogLevel       // The library log level
-	Logger           *utils.Logger        // The logger to use
+	LogLevel         LogLevel             // The library log level
+	Logger           Logger               // The logger to use
 	Proxy            Proxy                // The proxy to use
 	LocalAddr        string               // Local address binding for multi-interface support (IP:port)
 	ForceIPv6        bool                 // Force to use IPv6
@@ -135,7 +135,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		config.LogLevel = config.Logger.Lev()
 	} else {
 		config.LogLevel = getValue(config.LogLevel, LogInfo)
-		client.Log = utils.NewLogger("gogram " + getLogPrefix("client", config.SessionName))
+		client.Log = NewDefaultLogger("gogram " + getLogPrefix("client", config.SessionName))
 		client.Log.SetLevel(config.LogLevel)
 	}
 
@@ -144,10 +144,10 @@ func NewClient(config ClientConfig) (*Client, error) {
 
 	if config.Cache == nil {
 		client.Cache = NewCache(fmt.Sprintf("cache%s.db", config.SessionName), &CacheConfig{
-			Disabled:   config.DisableCache,
-			LogLevel:   config.LogLevel,
-			LogName:    config.SessionName,
-			LogNoColor: !client.Log.Color(),
+			Disabled: config.DisableCache,
+			Logger:   getValue(config.Logger, client.Log.WithPrefix("gogram "+getLogPrefix("cache", config.SessionName))),
+			LogColor: client.Log.Color(),
+			LogLevel: config.LogLevel,
 		})
 	} else {
 		client.Cache = config.Cache
@@ -183,18 +183,15 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		}
 	}
 
-	mtproto, err := mtproto.NewMTProto(mtproto.Config{
-		AppID:       config.AppID,
-		AuthKeyFile: config.Session,
-		AuthAESKey:  config.SessionAESKey,
-		ServerHost:  toIpAddr(),
-		PublicKey:   config.PublicKeys[0],
-		DataCenter:  config.DataCenter,
-		Logger: utils.NewLogger("gogram " + getLogPrefix("mtproto", config.SessionName)).
-			SetLevel(config.LogLevel).
-			NoColor(!c.Log.Color()),
+	cfg := mtproto.Config{
+		AppID:           config.AppID,
+		AuthKeyFile:     config.Session,
+		AuthAESKey:      config.SessionAESKey,
+		ServerHost:      toIpAddr(),
+		PublicKey:       config.PublicKeys[0],
+		DataCenter:      config.DataCenter,
+		Logger:          c.Logger.WithPrefix("gogram " + getLogPrefix("mtproto", config.SessionName)),
 		StringSession:   config.StringSession,
-		Proxy:           config.Proxy.toInternal(),
 		LocalAddr:       config.LocalAddr,
 		MemorySession:   config.MemorySession,
 		Ipv6:            config.ForceIPv6,
@@ -205,7 +202,13 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		ReqTimeout:      config.ReqTimeout,
 		UseWebSocket:    config.UseWebSocket,
 		UseWebSocketTLS: config.UseWebSocketTLS,
-	})
+	}
+
+	if config.Proxy != nil {
+		cfg.Proxy = config.Proxy.toInternal()
+	}
+
+	mtproto, err := mtproto.NewMTProto(cfg)
 	if err != nil {
 		return errors.Wrap(err, "creating mtproto client")
 	}
@@ -646,13 +649,13 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 }
 
 // setLogLevel sets the log level for all loggers
-func (c *Client) SetLogLevel(level utils.LogLevel) {
+func (c *Client) SetLogLevel(level LogLevel) {
 	c.Log.Debug("setting library log level to ", level)
 	c.Log.SetLevel(level)
 	if c.Cache != nil {
 		c.Cache.logger.SetLevel(level)
 	}
-	c.MTProto.Logger.SetLevel(level)
+	c.MTProto.Logger.SetLevel(utils.LogLevel(level))
 	if c.dispatcher != nil {
 		c.dispatcher.logger.SetLevel(level)
 	}
@@ -662,13 +665,13 @@ func (c *Client) SetLogLevel(level utils.LogLevel) {
 func (c *Client) LogColor(mode bool) {
 	c.Log.Debug("disabling color for all loggers")
 
-	c.Log.NoColor(!mode)
+	c.Log.SetColor(mode)
 	if c.Cache != nil {
-		c.Cache.logger.NoColor(!mode)
+		c.Cache.logger.SetColor(mode)
 	}
-	c.MTProto.Logger.NoColor(!mode)
+	c.MTProto.Logger.SetColor(mode)
 	if c.dispatcher != nil {
-		c.dispatcher.logger.NoColor(!mode)
+		c.dispatcher.logger.SetColor(mode)
 	}
 }
 
@@ -898,10 +901,10 @@ func NewClientConfigBuilder(appID int32, appHash string) *ClientConfigBuilder {
 				SystemVersion: "17.0",
 				AppVersion:    Version,
 			},
-			DataCenter:    4,               // Default DC
-			ParseMode:     "HTML",          // Default parse mode
-			LogLevel:      utils.InfoLevel, // Default log level
-			TransportMode: "Abridged",      // Default transport mode
+			DataCenter:    4,          // Default DC
+			ParseMode:     "HTML",     // Default parse mode
+			LogLevel:      InfoLevel,  // Default log level
+			TransportMode: "Abridged", // Default transport mode
 		},
 	}
 }
@@ -952,7 +955,7 @@ func (b *ClientConfigBuilder) WithLocalAddr(localAddr string) *ClientConfigBuild
 }
 
 func (b *ClientConfigBuilder) WithLogLevel(level utils.LogLevel) *ClientConfigBuilder {
-	b.config.LogLevel = level
+	b.config.LogLevel = LogLevel(level)
 	return b
 }
 
@@ -1021,7 +1024,7 @@ func (b *ClientConfigBuilder) WithTransportMode(mode string) *ClientConfigBuilde
 	return b
 }
 
-func (b *ClientConfigBuilder) WithLogger(logger *utils.Logger) *ClientConfigBuilder {
+func (b *ClientConfigBuilder) WithLogger(logger Logger) *ClientConfigBuilder {
 	b.config.Logger = logger
 	return b
 }
