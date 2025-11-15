@@ -398,6 +398,7 @@ type DownloadOptions struct {
 	IsVideo bool `json:"is_video,omitempty"`
 	// Context for cancellation
 	Ctx context.Context `json:"-"`
+	Timeout time.Duration `json:"-"`
 }
 
 type Destination struct {
@@ -435,7 +436,13 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 	ctx := opts.Ctx
 	if ctx == nil {
-		ctx = context.Background()
+		if opts.Timeout > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(context.Background(), opts.Timeout)
+			defer cancel()
+		} else {
+			ctx = context.Background()
+		}
 	}
 
 	location, dc, size, fileName, err := GetFileLocation(file, FileLocationOptions{
@@ -604,6 +611,8 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 					if MatchError(err, "FILE_REFERENCE_EXPIRED") {
 						c.Log.Debug(err)
+						cancelled.Store(true)
+						downloadErr.Store(err)
 						return // file reference expired, need to refetch ref
 					}
 
@@ -681,6 +690,8 @@ retrySinglePart:
 					}
 					if MatchError(err, "FILE_REFERENCE_EXPIRED") {
 						c.Log.Debug(err)
+						cancelled.Store(true)
+						downloadErr.Store(err)
 						return // file reference expired, need to refetch ref
 					}
 
@@ -745,6 +756,10 @@ func getUndoneParts(doneMap *sync.Map, totalParts int) []int {
 }
 
 func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error {
+	if numWorkers <= 0 {
+		return errors.New("number of workers must be greater than 0")
+	}
+
 	if numWorkers == 1 && dc == int32(c.GetDC()) {
 		w.AddWorker(NewExSender(c.MTProto))
 		return nil
@@ -773,30 +788,49 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 		}
 	}
 
-	go func() {
-		numCreate := 0
-		for dcId, workers := range c.exSenders.senders {
-			if int(dc) == dcId {
-				for _, worker := range workers {
+	numCreate := 0
+	for dcId, workers := range c.exSenders.senders {
+		if int(dc) == dcId {
+			for _, worker := range workers {
+				if worker != nil {
 					w.AddWorker(worker)
 					numCreate++
+					if numCreate >= numWorkers {
+						break
+					}
 				}
 			}
 		}
-
-		if numCreate < numWorkers {
-			c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers-numCreate))
+		if numCreate >= numWorkers {
+			break
 		}
+	}
 
-		for i := numCreate; i < numWorkers; i++ {
-			conn, err := c.CreateExportedSender(int(dc), false, authParams)
-			if conn != nil && err == nil {
-				sender := NewExSender(conn)
-				c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], sender)
-				w.AddWorker(sender)
-			}
+	needed := numWorkers - numCreate
+	if needed <= 0 {
+		return nil
+	}
+
+	c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, needed))
+
+	var lastErr error
+	for i := 0; i < needed; i++ {
+		conn, err := c.CreateExportedSender(int(dc), false, authParams)
+		if err != nil || conn == nil {
+			lastErr = err
+			continue
 		}
-	}()
+		sender := NewExSender(conn)
+		c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], sender)
+		w.AddWorker(sender)
+	}
+
+	if numCreate == 0 && len(w.workers) == 0 {
+		if lastErr != nil {
+			return lastErr
+		}
+		return errors.New("failed to initialize workers")
+	}
 
 	return nil
 }
