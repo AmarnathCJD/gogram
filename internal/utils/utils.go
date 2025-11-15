@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"maps"
+	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -297,4 +298,63 @@ func MinSafeDuration(d int) time.Duration {
 		return 60 * time.Second
 	}
 	return time.Duration(d) * time.Second
+}
+
+// ------------------ Proxy Configuration ------------------
+
+type Proxy struct {
+	Type     string // socks4, socks5, http, https, mtproxy
+	Host     string
+	Port     int
+	Username string
+	Password string
+	Secret   string // for MTProxy
+}
+
+func (p *Proxy) GetHost() string     { return p.Host }
+func (p *Proxy) GetPort() int        { return p.Port }
+func (p *Proxy) GetType() string     { return p.Type }
+func (p *Proxy) GetUsername() string { return p.Username }
+func (p *Proxy) GetPassword() string { return p.Password }
+func (p *Proxy) GetSecret() string   { return p.Secret }
+
+func (p *Proxy) IsEmpty() bool {
+	return p == nil || p.Host == ""
+}
+
+func (p *Proxy) String() string {
+	if p.IsEmpty() {
+		return ""
+	}
+	if p.Type == "mtproxy" {
+		return fmt.Sprintf("mtproxy://%s@%s:%d", p.Secret, p.Host, p.Port)
+	}
+	if p.Username != "" {
+		if p.Password != "" {
+			return fmt.Sprintf("%s://%s:%s@%s:%d", p.Type, p.Username, p.Password, p.Host, p.Port)
+		}
+		return fmt.Sprintf("%s://%s@%s:%d", p.Type, p.Username, p.Host, p.Port)
+	}
+	return fmt.Sprintf("%s://%s:%d", p.Type, p.Host, p.Port)
+}
+
+func (p *Proxy) ToURL() *url.URL {
+	if p.IsEmpty() {
+		return nil
+	}
+
+	u := &url.URL{
+		Scheme: p.Type,
+		Host:   fmt.Sprintf("%s:%d", p.Host, p.Port),
+	}
+
+	if p.Username != "" {
+		if p.Password != "" {
+			u.User = url.UserPassword(p.Username, p.Password)
+		} else {
+			u.User = url.User(p.Username)
+		}
+	}
+
+	return u
 }

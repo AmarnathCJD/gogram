@@ -614,8 +614,8 @@ func (m *mtproxyConn) Read(b []byte) (int, error) {
 	return n, nil
 }
 
-func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant uint8, localAddr string, logger *utils.Logger) (Conn, error) {
-	secret := proxyURL.User.Username()
+func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant uint8, localAddr string, logger *utils.Logger) (Conn, error) {
+	secret := proxy.Secret
 	if secret == "" {
 		return nil, errors.New("mtproxy secret is required")
 	}
@@ -626,7 +626,7 @@ func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant u
 	}
 
 	if logger != nil {
-		logger.Debug(fmt.Sprintf("[mtproxy] Connecting to %s (DC %d)", proxyURL.Host, dcID))
+		logger.Debug(fmt.Sprintf("[mtproxy] Connecting to %s (DC %d)", proxy.GetHost(), dcID))
 	}
 
 	var dialer net.Dialer
@@ -638,7 +638,8 @@ func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant u
 		dialer.LocalAddr = addr
 	}
 
-	rawConn, err := dialer.Dial("tcp", proxyURL.Host)
+	proxyAddr := net.JoinHostPort(proxy.GetHost(), fmt.Sprintf("%d", proxy.GetPort()))
+	rawConn, err := dialer.Dial("tcp", proxyAddr)
 	if err != nil {
 		if logger != nil {
 			logger.Error(fmt.Sprintf("[mtproxy] TCP connection failed: %v", err))
@@ -687,7 +688,7 @@ func DialMTProxy(proxyURL *url.URL, targetAddr string, dcID int16, modeVariant u
 	}
 
 	if logger != nil {
-		logger.Info(fmt.Sprintf("[mtproxy] connection established to %s (DC %d)", proxyURL.Host, dcID))
+		logger.Info(fmt.Sprintf("[mtproxy] connection established to %s (DC %d)", proxy.GetHost(), dcID))
 	}
 
 	// The obfuscated connection handles:

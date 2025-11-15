@@ -5,7 +5,6 @@ package transport
 import (
 	"context"
 	"io"
-	"net/url"
 	"time"
 
 	"github.com/amarnathcjd/gogram/internal/utils"
@@ -25,7 +24,7 @@ type TCPConnConfig struct {
 	Host        string
 	IpV6        bool
 	Timeout     time.Duration
-	Socks       *url.URL
+	Socks       *utils.Proxy
 	LocalAddr   string
 	ModeVariant uint8
 	DC          int
@@ -37,7 +36,7 @@ type WSConnConfig struct {
 	Host        string
 	TLS         bool
 	Timeout     time.Duration
-	Socks       *url.URL
+	Socks       *utils.Proxy
 	LocalAddr   string
 	ModeVariant uint8
 	DC          int

@@ -7,7 +7,6 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -27,7 +26,7 @@ import (
 )
 
 const (
-	// The Initial DC to connect to, before auth
+	// the initial data center to connect to, before knowing the real one
 	DefaultDataCenter         = 4
 	CleanExportedSendersDelay = 5 * time.Minute
 )
@@ -48,6 +47,7 @@ type clientData struct {
 	botAcc           bool
 	me               *UserObj
 	commandPrefixes  string
+	proxy            Proxy
 }
 
 // Client is the main struct of the library
@@ -90,7 +90,7 @@ type ClientConfig struct {
 	TestMode         bool                 // Use the test data centers
 	LogLevel         utils.LogLevel       // The library log level
 	Logger           *utils.Logger        // The logger to use
-	Proxy            *url.URL             // The proxy to use (SOCKS5, HTTP)
+	Proxy            Proxy                // The proxy to use
 	LocalAddr        string               // Local address binding for multi-interface support (IP:port)
 	ForceIPv6        bool                 // Force to use IPv6
 	NoPreconnect     bool                 // Don't preconnect to the DC until Connect() is called
@@ -194,7 +194,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 			SetLevel(config.LogLevel).
 			NoColor(!c.Log.Color()),
 		StringSession:   config.StringSession,
-		Proxy:           config.Proxy,
+		Proxy:           config.Proxy.toInternal(),
 		LocalAddr:       config.LocalAddr,
 		MemorySession:   config.MemorySession,
 		Ipv6:            config.ForceIPv6,
@@ -284,6 +284,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
 	c.clientData.albumWaitTime = getValue(cnf.AlbumWaitTime, 600)
 	c.clientData.commandPrefixes = getValue(cnf.CommandPrefixes, "/!")
+	c.clientData.proxy = cnf.Proxy
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
@@ -763,6 +764,16 @@ func (c *Client) SetCommandPrefixes(prefixes string) {
 	c.clientData.commandPrefixes = prefixes
 }
 
+// GetProxy returns the proxy configuration
+func (c *Client) GetProxy() Proxy {
+	return c.clientData.proxy
+}
+
+// SetProxy sets the proxy configuration
+func (c *Client) SetProxy(proxy Proxy) {
+	c.clientData.proxy = proxy
+}
+
 // Terminate client and disconnect from telegram server
 func (c *Client) Terminate() error {
 	//go c.cleanExportedSenders()
@@ -921,8 +932,8 @@ func (b *ClientConfigBuilder) WithDataCenter(dc int) *ClientConfigBuilder {
 	return b
 }
 
-func (b *ClientConfigBuilder) WithProxy(proxyURL *url.URL) *ClientConfigBuilder {
-	b.config.Proxy = proxyURL
+func (b *ClientConfigBuilder) WithProxy(proxy Proxy) *ClientConfigBuilder {
+	b.config.Proxy = proxy
 	return b
 }
 
