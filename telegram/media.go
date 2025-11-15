@@ -218,7 +218,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 			part := make([]byte, partSize)
 			readBytes, err := io.ReadFull(file, part)
 			if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
-				c.Log.Error(err)
+				c.Log.WithError(err).Error("reading file part")
 				return nil, err
 			}
 			part = part[:readBytes]
@@ -274,7 +274,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		part := make([]byte, partSize)
 		readBytes, err := io.ReadFull(file, part)
 		if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
-			c.Log.Error(err)
+			c.Log.WithError(err).Error("reading file part")
 			return nil, err
 		}
 		part = part[:readBytes]
@@ -611,13 +611,13 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					}
 
 					if MatchError(err, "FILE_REFERENCE_EXPIRED") {
-						c.Log.Debug(err)
+						c.Log.WithError(err).Debug("[FILE_REFERENCE_EXPIRED]")
 						cancelled.Store(true)
 						downloadErr.Store(err)
 						return // file reference expired, need to refetch ref
 					}
 
-					c.Log.Debug(errors.Wrap(err, fmt.Sprintf("part - (%d) - retrying...", p)))
+					c.Log.WithError(err).Debugf("part - (%d) - retrying...", p)
 					continue
 				}
 
@@ -690,13 +690,13 @@ retrySinglePart:
 						continue
 					}
 					if MatchError(err, "FILE_REFERENCE_EXPIRED") {
-						c.Log.Debug(err)
+						c.Log.WithError(err).Debug("[FILE_REFERENCE_EXPIRED]")
 						cancelled.Store(true)
 						downloadErr.Store(err)
 						return // file reference expired, need to refetch ref
 					}
 
-					c.Log.Debug(errors.Wrap(err, fmt.Sprintf("part - (%d) - retrying...", p)))
+					c.Log.WithError(err).Debugf("part - (%d) - retrying...", p)
 					continue
 				}
 
@@ -883,7 +883,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int, cal
 			if handleIfFlood(err, c) {
 				continue
 			}
-			c.Log.Error(err)
+			c.Log.WithError(err).Error("downloading chunk")
 		}
 
 		switch v := part.(type) {

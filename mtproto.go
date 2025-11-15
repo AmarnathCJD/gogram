@@ -486,7 +486,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 
 	err := m.connectWithRetry(ctx)
 	if err != nil {
-		m.Logger.Error(errors.Wrap(err, "creating connection"))
+		m.Logger.WithError(err).Error("failed to create connection")
 		return err
 	}
 	m.tcpState.SetActive(true)
@@ -805,7 +805,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						time.Sleep(delay)
 						err = m.Reconnect(false)
 						if err != nil {
-							m.Logger.Error(errors.Wrap(err, "reconnecting"))
+							m.Logger.WithError(err).Error("reconnecting")
 							if consecutiveErrors >= maxConsecutiveErrors {
 								m.Logger.Error(fmt.Sprintf("max consecutive errors (%d) reached, backing off", maxConsecutiveErrors))
 								time.Sleep(delay * 2)
@@ -820,7 +820,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						time.Sleep(delay)
 						err = m.Reconnect(false)
 						if err != nil {
-							m.Logger.Error(errors.Wrap(err, "reconnecting"))
+							m.Logger.WithError(err).Error("reconnecting")
 							if consecutiveErrors >= maxConsecutiveErrors {
 								m.Logger.Error(fmt.Sprintf("max consecutive errors (%d) reached, backing off", maxConsecutiveErrors))
 								time.Sleep(delay * 2)
@@ -853,7 +853,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					time.Sleep(delay)
 					err = m.Reconnect(false)
 					if err != nil {
-						m.Logger.Error(errors.Wrap(err, "reconnecting"))
+						m.Logger.WithError(err).Error("reconnecting")
 					} else {
 						consecutiveErrors = 0
 					}
@@ -864,14 +864,14 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						if e.Code == 4294966892 {
 							m.handle404Error()
 						} else {
-							m.Logger.Debug(errors.New("[ErrorOnTransport] - " + e.Error()))
+							m.Logger.WithError(err).Debug("[ErrorOnTransport]")
 						}
 					case *transport.ErrCode:
-						m.Logger.Error(errors.New("[ErrorOnTransport] - " + e.Error()))
+						m.Logger.WithError(err).Debug("[ErrorOnTransport]")
 					}
 
 					if !m.terminated.Load() {
-						m.Logger.Debug(errors.Wrap(err, "reading message >>"))
+						m.Logger.WithError(err).Debug("reading message >>")
 
 						delay := min(time.Duration(1<<uint(min(consecutiveErrors-1, 5)))*baseDelay, maxDelay)
 
@@ -882,7 +882,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 
 						err = m.Reconnect(false)
 						if err != nil {
-							m.Logger.Error(errors.Wrap(err, "reconnecting"))
+							m.Logger.WithError(err).Error("reconnecting")
 						} else {
 							consecutiveErrors = 0
 						}
@@ -909,7 +909,7 @@ func (m *MTProto) handle404Error() {
 		m.Logger.Debug(fmt.Sprintf("-404 error occurred %d times, attempting to reconnect", m.authKey404[0]))
 		err := m.Reconnect(false)
 		if err != nil {
-			m.Logger.Error(errors.Wrap(err, "reconnecting"))
+			m.Logger.WithError(err).Error("reconnecting")
 		}
 	} else if m.authKey404[0] >= 16 {
 		panic("[AUTH_KEY_INVALID] (code -404) - too many failures")
@@ -946,7 +946,7 @@ func (m *MTProto) readMsg() error {
 
 	err = m.processResponse(response)
 	if err != nil {
-		m.Logger.Debug(errors.Wrap(err, "decoding unknown object"))
+		m.Logger.WithError(err).Debug("decoding unknown object")
 		return errors.Wrap(err, "incoming update")
 	}
 	return nil
@@ -1009,7 +1009,7 @@ messageTypeSwitching:
 	case *objects.NewSessionCreated:
 		m.serverSalt = message.ServerSalt
 		if err := m.SaveSession(m.memorySession); err != nil {
-			m.Logger.Error(errors.Wrap(err, "saving session"))
+			m.Logger.WithError(err).Error("saving session")
 		}
 
 	case *objects.MsgsNewDetailedInfo:
@@ -1044,7 +1044,7 @@ messageTypeSwitching:
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			if strings.Contains(err.Error(), "no response channel found") {
-				m.Logger.Debug(errors.Wrap(err, "writing rpc response"))
+				m.Logger.WithError(err).Debug("writing rpc response")
 			} else {
 				return errors.Wrap(err, "writing rpc response")
 			}

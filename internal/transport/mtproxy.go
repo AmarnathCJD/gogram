@@ -626,7 +626,10 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 	}
 
 	if logger != nil {
-		logger.Debug(fmt.Sprintf("[mtproxy] Connecting to %s (DC %d)", proxy.GetHost(), dcID))
+		logger.WithFields(map[string]any{
+			"proxy": proxy.GetHost(),
+			"dc":    dcID,
+		}).Debug("[mtproxy] connecting to proxy")
 	}
 
 	var dialer net.Dialer
@@ -642,7 +645,7 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 	rawConn, err := dialer.Dial("tcp", proxyAddr)
 	if err != nil {
 		if logger != nil {
-			logger.Error(fmt.Sprintf("[mtproxy] TCP connection failed: %v", err))
+			logger.WithError(err).WithField("proxy", proxyAddr).Error("[mtproxy] TCP connection failed")
 		}
 		return nil, errors.Wrap(err, "connecting to MTProxy")
 	}
@@ -661,13 +664,13 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 
 	if proto == fakeTLSHandshakeID {
 		if logger != nil {
-			logger.Debug(fmt.Sprintf("[mtproxy] Starting Fake TLS handshake with SNI: %s", string(serverHostname)))
+			logger.WithField("sni", string(serverHostname)).Debug("[mtproxy] starting Fake TLS handshake")
 		}
 		ftlsConn, err := startFakeTLS(tcpConnection, secretBytes, serverHostname)
 		if err != nil {
 			tcpConnection.Close()
 			if logger != nil {
-				logger.Error(fmt.Sprintf("[mtproxy] Fake TLS handshake failed: %v", err))
+				logger.WithError(err).Error("[mtproxy] Fake TLS handshake failed")
 			}
 			return nil, errors.Wrap(err, "Fake TLS handshake failed")
 		}
@@ -682,13 +685,16 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 	if err != nil {
 		conn.Close()
 		if logger != nil {
-			logger.Error(fmt.Sprintf("[mtproxy] obfuscation failed: %v", err))
+			logger.WithError(err).Error("[mtproxy] obfuscation failed")
 		}
 		return nil, errors.Wrap(err, "creating obfuscated connection")
 	}
 
 	if logger != nil {
-		logger.Info(fmt.Sprintf("[mtproxy] connection established to %s (DC %d)", proxy.GetHost(), dcID))
+		logger.WithFields(map[string]any{
+			"proxy": proxy.GetHost(),
+			"dc":    dcID,
+		}).Info("[mtproxy] connection established")
 	}
 
 	// The obfuscated connection handles:

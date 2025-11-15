@@ -611,7 +611,7 @@ mediaTypeSwitch:
 			hasFileName := false
 			mediaAttributes, dur, err := GatherMediaMetadata(getValue(attr.FileAbsPath, fileName), mediaAttributes)
 			if err != nil {
-				c.Log.Debug(errors.Wrap(err, "gathering video metadata"))
+				c.Log.WithError(err).Debug("gathering media metadata")
 			}
 
 			for _, at := range mediaAttributes {
@@ -623,7 +623,7 @@ mediaTypeSwitch:
 			if thumbnail == nil && !attr.DisableThumb {
 				thumbFile, err := c.gatherVideoThumb(getValue(attr.FileAbsPath, fileName), dur)
 				if err != nil {
-					c.Log.Debug(errors.Wrap(err, "gathering video thumb"))
+					c.Log.WithError(err).Debug("gathering video thumb")
 				} else {
 					thumbnail = thumbFile
 				}
@@ -1260,7 +1260,7 @@ func packJoinRequest(c *Client, update *UpdatePendingJoinRequests) *JoinRequestU
 		if user, err := c.GetUser(userID); err == nil {
 			jr.Users = append(jr.Users, user)
 		} else {
-			c.Log.Debug(errors.Wrapf(err, "getting user %d for join request", userID))
+			c.Log.WithError(err).Debugf("getting user %d for join request", userID)
 		}
 	}
 
