@@ -190,7 +190,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		ServerHost:      toIpAddr(),
 		PublicKey:       config.PublicKeys[0],
 		DataCenter:      config.DataCenter,
-		Logger:          c.Log.Clone().WithPrefix("gogram " + getLogPrefix("mtproto", config.SessionName)),
+		Logger:          c.Log.CloneInternal().WithPrefix("gogram " + getLogPrefix("mtproto", config.SessionName)),
 		StringSession:   config.StringSession,
 		LocalAddr:       config.LocalAddr,
 		MemorySession:   config.MemorySession,
@@ -310,7 +310,7 @@ func (c *Client) InitialRequest() error {
 		Query:          &HelpGetConfigParams{},
 	}
 
-	if c.clientData.proxy.Type() == "mtproxy" {
+	if c.clientData.proxy != nil && c.clientData.proxy.Type() == "mtproxy" {
 		initConfig.Proxy = &InputClientProxy{
 			c.clientData.proxy.GetHost(),
 			int32(c.clientData.proxy.GetPort()),
