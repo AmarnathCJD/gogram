@@ -337,7 +337,7 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 		return nil, errors.New("dc_id not found")
 	}
 
-	m.Logger.Debug("migrating to new data center... dc-" + strconv.Itoa(dc))
+	m.Logger.Debug("migrating to new data center... dc %d", dc)
 	m.sessionStorage.Delete()
 	m.Logger.Debug("deleted old auth key file")
 
@@ -363,8 +363,8 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 	}
 	sender.serverRequestHandlers = m.serverRequestHandlers
 	m.stopRoutines()
-	m.Logger.Info(fmt.Sprintf("user migrated to new dc (%s) - %s", strconv.Itoa(dc), newAddr))
-	m.Logger.Debug("reconnecting to new dc... dc-" + strconv.Itoa(dc))
+	m.Logger.Info("user migrated to new dc (%s) - %s", strconv.Itoa(dc), newAddr)
+	m.Logger.Debug("reconnecting to new dc... dc %d", dc)
 	errConn := sender.CreateConnection(true)
 	if errConn != nil {
 		return nil, errors.Wrap(errConn, "creating connection")
@@ -374,11 +374,11 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 
 func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, error) {
 	newAddr := m.DcList.GetHostIp(dcID, false, m.IpV6)
-	logger := utils.NewLogger("gogram [sender]").SetLevel(utils.InfoLevel)
+	logger := m.Logger.WithPrefix("gogram [sender]")
 
 	if len(cdn) > 0 && cdn[0] {
 		newAddr, _ = m.DcList.GetCdnAddr(dcID)
-		logger.SetPrefix("gogram [cdn]")
+		logger = m.Logger.WithPrefix("gogram [cdn]")
 	}
 
 	cfg := Config{
@@ -443,7 +443,7 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 		err := m.connect(ctx)
 		if err == nil {
 			if attempt > 0 {
-				m.Logger.Info(fmt.Sprintf("successfully reconnected after %d attempts", attempt+1))
+				m.Logger.Info("successfully reconnected after %d attempts", attempt+1)
 			}
 			m.reconnectAttempts = 0
 			return nil
@@ -455,7 +455,7 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 
 		delay := min(time.Duration(1<<uint(attempt))*baseDelay, m.maxReconnectDelay)
 
-		m.Logger.Info(fmt.Sprintf("%v, retrying in %v...", err, delay))
+		m.Logger.Info("%v, retrying in %v...", err, delay)
 
 		select {
 		case <-ctx.Done():
@@ -479,9 +479,9 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 
 	transportType := m.GetTransportType()
 	if withLog {
-		m.Logger.Info(fmt.Sprintf("connecting to [%s] - <%s> ...", utils.FmtIp(m.Addr), transportType))
+		m.Logger.Info("connecting to [%s] - <%s> ...", utils.FmtIp(m.Addr), transportType)
 	} else {
-		m.Logger.Debug(fmt.Sprintf("connecting to [%s] - <%s> ...", utils.FmtIp(m.Addr), transportType))
+		m.Logger.Debug("connecting to [%s] - <%s> ...", utils.FmtIp(m.Addr), transportType)
 	}
 
 	err := m.connectWithRetry(ctx)
@@ -538,7 +538,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 		}
 	}
 
-	m.Logger.Debug(fmt.Sprintf("initializing %s transport for DC-%d", transportType, dcId))
+	m.Logger.Debug("initializing %s transport for dc %d", transportType, dcId)
 
 	var err error
 	if m.useWebSocket {
@@ -577,12 +577,11 @@ func (m *MTProto) connect(ctx context.Context) error {
 	}
 
 	if err != nil {
-		m.Logger.Debug(fmt.Sprintf("failed to create %s transport: %v", transportType, err))
+		m.Logger.Debug("failed to create %s transport: %v", transportType, err)
 		return fmt.Errorf("creating transport: %w", err)
 	}
 
-	m.Logger.Debug(fmt.Sprintf("%s transport created successfully", transportType))
-
+	m.Logger.Debug("%s transport created successfully", transportType)
 	m.rapidReconnectMutex.Lock()
 	now := time.Now()
 	if !m.lastSuccessfulConnect.IsZero() && now.Sub(m.lastSuccessfulConnect) < 5*time.Second {
@@ -612,7 +611,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 
 	if err != nil && strings.Contains(err.Error(), "request timeout") {
 		for attempt := 1; attempt <= 2; attempt++ {
-			m.Logger.Debug(fmt.Sprintf("request timed out: %v - retrying attempt %d/2", utils.FmtMethod(data), attempt))
+			m.Logger.Debug("request timed out: %v - retrying attempt %d/2", utils.FmtMethod(data), attempt)
 
 			ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
 			result, err = m.makeRequestCtx(ctx, data, expectedTypes...)
@@ -638,7 +637,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 	resp, msgId, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
 		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") || strings.Contains(err.Error(), "connection was forcibly closed") || strings.Contains(err.Error(), "connection reset by peer") || strings.Contains(err.Error(), "broken pipe") {
-			m.Logger.Debug(fmt.Sprintf("connection closed, reconnecting to [%s] - <%s> ...", m.Addr, m.GetTransportType()))
+			m.Logger.Debug("connection closed, reconnecting to [%s] - <%s> ...", m.Addr, m.GetTransportType())
 			err = m.Reconnect(false)
 			if err != nil {
 				return nil, errors.Wrap(err, "reconnecting")
@@ -651,7 +650,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 	select {
 	case <-ctx.Done():
 		go m.writeRPCResponse(int(msgId), &objects.Null{})
-		m.Logger.Debug(fmt.Sprintf("request timeout for %s after waiting for response", utils.FmtMethod(data)))
+		m.Logger.Debug("request timeout for %s after waiting for response", utils.FmtMethod(data))
 		return nil, errors.Wrap(ctx.Err(), "request timeout")
 	case response := <-resp:
 		switch r := response.(type) {
@@ -724,12 +723,12 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		return errors.Wrap(err, "disconnecting")
 	}
 	if WithLogs {
-		m.Logger.Info(fmt.Sprintf("reconnecting to [%s] - <%s> ...", m.Addr, m.GetTransportType()))
+		m.Logger.Info("reconnecting to [%s] - <%s> ...", m.Addr, m.GetTransportType())
 	}
 	err = m.CreateConnection(WithLogs)
 	if err == nil {
 		if WithLogs {
-			m.Logger.Info(fmt.Sprintf("reconnected to [%s] - <%s>", m.Addr, m.GetTransportType()))
+			m.Logger.Info("reconnected to [%s] - <%s>", m.Addr, m.GetTransportType())
 		}
 		if m.transport != nil {
 			m.Ping()
@@ -765,7 +764,7 @@ func (m *MTProto) Ping() time.Duration {
 		return 0
 	}
 	start := time.Now()
-	m.Logger.Debug("rpc - pinging server ...")
+	m.Logger.Debug("sending ping...")
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: time.Now().Unix(),
 	})
@@ -799,8 +798,8 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					delay := min(time.Duration(1<<uint(min(consecutiveErrors-1, 5)))*baseDelay, maxDelay)
 
 					if strings.Contains(err.Error(), "unexpected error: unexpected EOF") {
-						m.Logger.Debug(fmt.Sprintf("connection closed, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
-							m.Addr, m.GetTransportType(), consecutiveErrors, delay))
+						m.Logger.Debug("connection closed, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
+							m.Addr, m.GetTransportType(), consecutiveErrors, delay)
 
 						time.Sleep(delay)
 						err = m.Reconnect(false)
@@ -814,8 +813,8 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 							consecutiveErrors = 0
 						}
 					} else if strings.Contains(err.Error(), "required to reconnect!") {
-						m.Logger.Debug(fmt.Sprintf("network unstable, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
-							m.Addr, m.GetTransportType(), consecutiveErrors, delay))
+						m.Logger.Debug("network unstable, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
+							m.Addr, m.GetTransportType(), consecutiveErrors, delay)
 
 						time.Sleep(delay)
 						err = m.Reconnect(false)
@@ -847,8 +846,8 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					consecutiveErrors++
 					delay := min(time.Duration(1<<uint(min(consecutiveErrors-1, 5)))*baseDelay, maxDelay)
 
-					m.Logger.Debug(fmt.Sprintf("eof error, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
-						m.Addr, m.GetTransportType(), consecutiveErrors, delay))
+					m.Logger.Debug("eof error, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
+						m.Addr, m.GetTransportType(), consecutiveErrors, delay)
 
 					time.Sleep(delay)
 					err = m.Reconnect(false)
@@ -876,7 +875,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						delay := min(time.Duration(1<<uint(min(consecutiveErrors-1, 5)))*baseDelay, maxDelay)
 
 						if consecutiveErrors > 1 {
-							m.Logger.Debug(fmt.Sprintf("applying backoff delay: %v", delay))
+							m.Logger.Debug("applying backoff delay: %v", delay)
 							time.Sleep(delay)
 						}
 
@@ -906,7 +905,7 @@ func (m *MTProto) handle404Error() {
 	}
 
 	if m.authKey404[0] > 4 && m.authKey404[0] < 16 {
-		m.Logger.Debug(fmt.Sprintf("-404 error occurred %d times, attempting to reconnect", m.authKey404[0]))
+		m.Logger.Debug("-404 error occurred %d times, attempting to reconnect", m.authKey404[0])
 		err := m.Reconnect(false)
 		if err != nil {
 			m.Logger.WithError(err).Error("reconnecting")
@@ -1021,7 +1020,7 @@ messageTypeSwitching:
 		return nil
 
 	case *objects.Pong:
-		m.Logger.Debug("rpc - ping: " + fmt.Sprintf("%T", message))
+		m.Logger.Debug("received pong: %d", message.PingID)
 
 	case *objects.MsgsAck:
 		// do nothing
@@ -1032,7 +1031,7 @@ messageTypeSwitching:
 			m.Logger.Warn("Your system date and time are possibly incorrect, please adjust them")
 			m.offsetTime()
 		}
-		m.Logger.Debug("bad-msg-notification: " + badMsg.Error())
+		m.Logger.Debug("bad msg notification: %s", badMsg.Error())
 		return badMsg
 
 	case *objects.RpcResult:
@@ -1040,7 +1039,7 @@ messageTypeSwitching:
 		if v, ok := obj.(*objects.GzipPacked); ok {
 			obj = v.Obj
 		}
-		m.Logger.Debug("rpc - response: " + fmt.Sprintf("%T", obj))
+		m.Logger.Debug("received rpc result for msg_id %d: %T", message.ReqMsgID, obj)
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			if strings.Contains(err.Error(), "no response channel found") {
@@ -1065,12 +1064,12 @@ messageTypeSwitching:
 			}
 		}
 		if !processed {
-			m.Logger.Debug("unhandled update: " + fmt.Sprintf("%T", message))
+			m.Logger.Debug("received but unhandled message: %T", data)
 		}
 	}
 
 	if m.pendingAcks.Len() >= 10 {
-		m.Logger.Debug("Sending acks", m.pendingAcks.Len())
+		m.Logger.Debug("sending acks: %d", m.pendingAcks.Len())
 
 		_, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: m.pendingAcks.Keys()})
 		if err != nil {
@@ -1190,5 +1189,5 @@ func (m *MTProto) offsetTime() {
 
 	m.timeOffset = timeResponse.Unixtime - currentLocalTime
 	m.genMsgID = utils.NewMsgIDGenerator()
-	m.Logger.Info("system time is out of sync, offsetting time by " + strconv.FormatInt(m.timeOffset, 10) + " seconds")
+	m.Logger.Info("system time is out of sync, offsetting time by %d seconds", m.timeOffset)
 }

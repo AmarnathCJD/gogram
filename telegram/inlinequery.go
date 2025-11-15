@@ -5,7 +5,6 @@ package telegram
 import (
 	"fmt"
 	"math"
-	"reflect"
 	"strings"
 )
 
@@ -125,13 +124,13 @@ func (i *InlineBuilder) Photo(photo any, options ...*ArticleOptions) InputBotInl
 		Inline: true,
 	})
 	if err != nil {
-		i.Client.Logger.Debug("InlineBuilder.Photo: Error getting sendable media:", err)
+		i.Client.Log.Debug("error getting sendable media: inline photo: %v", err)
 		return nil
 	}
 
 	var image InputPhoto
 	if im, ok := inputPhoto.(*InputMediaPhoto); !ok {
-		i.Client.Logger.Error("InlineBuilder.Photo: Photo is not a InputMediaPhoto")
+		i.Client.Log.Warn("error getting sendable media: inline photo is not a InputMediaPhoto")
 		return nil
 	} else {
 		image = im.ID
@@ -179,14 +178,13 @@ func (i *InlineBuilder) Document(document any, options ...*ArticleOptions) Input
 		ForceDocument: opts.ForceDocument,
 	})
 	if err != nil {
-		i.Client.Logger.Debug("InlineBuilder.Document: Error getting sendable media:", err)
+		i.Client.Log.Debug("error getting sendable media: inline document: %v", err)
 		return nil
 	}
 
 	var doc InputDocument
 	if dc, ok := inputDoc.(*InputMediaDocument); !ok {
-		i.Client.Logger.Warn("inlineBuilder.Document: (skip) Document is not a InputMediaDocument but a", reflect.TypeOf(inputDoc))
-		return nil
+		i.Client.Log.Warn("error getting sendable media: inline document is not a InputMediaDocument")
 	} else {
 		doc = dc.ID
 	}

@@ -29,6 +29,7 @@ type Logger interface {
 	ShowCaller(enabled bool) Logger
 	ShowFunction(enabled bool) Logger
 	SetPrefix(prefix string) Logger
+	SetTimestampFormat(format string) Logger
 	Lev() LogLevel
 	SetJSONMode(enabled bool) Logger
 
@@ -276,6 +277,11 @@ func (l *loggerAdapter) ShowFunction(enabled bool) Logger {
 
 func (l *loggerAdapter) SetPrefix(prefix string) Logger {
 	l.internal.SetPrefix(prefix)
+	return l
+}
+
+func (l *loggerAdapter) SetTimestampFormat(format string) Logger {
+	l.internal.SetTimestampFormat(format)
 	return l
 }
 

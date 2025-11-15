@@ -150,11 +150,14 @@ func NewLoggerWithConfig(config *LoggerConfig) *Logger {
 	if config.Output == nil {
 		config.Output = os.Stdout
 	}
-	if config.Formatter == nil {
-		config.Formatter = &TextFormatter{NoColor: !config.Color}
-	}
 	if config.TimestampFormat == "" {
 		config.TimestampFormat = "2006-01-02 15:04:05.000"
+	}
+	if config.Formatter == nil {
+		config.Formatter = &TextFormatter{
+			NoColor:         !config.Color,
+			TimestampFormat: config.TimestampFormat,
+		}
 	}
 	if config.BufferSize <= 0 {
 		config.BufferSize = 4096
@@ -325,6 +328,10 @@ func (l *Logger) SetTimestampFormat(format string) *Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.timestampFormat = format
+	// Sync with TextFormatter if present
+	if tf, ok := l.formatter.(*TextFormatter); ok {
+		tf.TimestampFormat = format
+	}
 	return l
 }
 
@@ -548,7 +555,12 @@ type TextFormatter struct {
 func (f *TextFormatter) Format(entry *LogEntry) string {
 	var b strings.Builder
 
-	timestamp := entry.Time.Format("15:04:05")
+	// Use configured timestamp format or default
+	timestampFormat := f.TimestampFormat
+	if timestampFormat == "" {
+		timestampFormat = "15:04:05"
+	}
+	timestamp := entry.Time.Format(timestampFormat)
 	if !f.NoColor {
 		b.WriteString(colorDim)
 	}
@@ -597,6 +609,18 @@ func (f *TextFormatter) Format(entry *LogEntry) string {
 		b.WriteString(entry.File)
 		b.WriteString(":")
 		b.WriteString(fmt.Sprint(entry.Line))
+		if !f.NoColor {
+			b.WriteString(colorReset)
+		}
+	}
+
+	if entry.Function != "" {
+		if !f.NoColor {
+			b.WriteString(colorDim)
+		}
+		b.WriteString(" ")
+		b.WriteString(entry.Function)
+		b.WriteString("()")
 		if !f.NoColor {
 			b.WriteString(colorReset)
 		}

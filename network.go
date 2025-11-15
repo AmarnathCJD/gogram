@@ -205,7 +205,7 @@ func (m *MTProto) SaveSession(mem bool) (err error) {
 	}
 
 	if !mem {
-		m.Logger.Debug("saving session to `%s`", filepath.Base(m.sessionStorage.Path()))
+		m.Logger.Debug("saving session to '%s'", filepath.Base(m.sessionStorage.Path()))
 		return m.sessionStorage.Store(sess)
 	}
 

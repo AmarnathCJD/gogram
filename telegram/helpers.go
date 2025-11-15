@@ -264,7 +264,7 @@ updateTypeSwitch:
 				ID: upd.ID,
 			}
 		default:
-			c.Log.Debug("unknown update type", reflect.TypeOf(upd).String())
+			c.Log.Debug("unknown update type: %s", reflect.TypeOf(upd).String())
 		}
 	case *UpdateShortMessage:
 		return &MessageObj{Out: update.Out, ID: update.ID, PeerID: &PeerUser{}, Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod, ReplyTo: update.ReplyTo, FromID: &PeerUser{UserID: update.UserID}, ViaBotID: update.ViaBotID, Message: update.Message, MediaUnread: update.MediaUnread, Silent: update.Silent, FwdFrom: update.FwdFrom}
@@ -278,7 +278,7 @@ updateTypeSwitch:
 		upd = &UpdatesObj{Updates: []Update{update.Update}}
 		goto updateTypeSwitch
 	default:
-		c.Log.Debug("unknown update type", reflect.TypeOf(upd).String())
+		c.Log.Debug("unknown update type: %s", reflect.TypeOf(upd).String())
 	}
 	return nil
 }
@@ -1260,7 +1260,7 @@ func packJoinRequest(c *Client, update *UpdatePendingJoinRequests) *JoinRequestU
 		if user, err := c.GetUser(userID); err == nil {
 			jr.Users = append(jr.Users, user)
 		} else {
-			c.Log.WithError(err).Debugf("getting user %d for join request", userID)
+			c.Log.WithError(err).Debug("getting user %d for join request", userID)
 		}
 	}
 

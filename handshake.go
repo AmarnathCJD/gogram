@@ -88,7 +88,7 @@ nonceCreate:
 		NewNonce:    nonceSecond,
 	})
 	if err != nil {
-		m.Logger.Warn("makeAuthKey: failed to marshal pq inner data")
+		m.Logger.WithField("error", err).Debug("makeAuthKey: failed to marshal pq inner data")
 		return err
 	}
 
@@ -164,7 +164,7 @@ nonceCreate:
 		GB:          gB.Bytes(),
 	})
 	if err != nil {
-		m.Logger.Warn("makeAuthKey: failed to marshal client dh inner data")
+		m.Logger.WithField("error", err).Debug("makeAuthKey: failed to marshal client dh inner data")
 		return err
 	}
 

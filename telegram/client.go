@@ -244,10 +244,6 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 	if config.AppHash == "" {
 		c.Log.Debug("appHash is empty, some features may not work")
 	}
-
-	if !IsFfmpegInstalled() {
-		c.Log.Debug("ffmpeg is not installed, some media metadata may not be available")
-	}
 	return nil
 }
 
@@ -430,7 +426,7 @@ func (c *Client) Disconnect() error {
 
 // switchDC permanently switches the data center
 func (c *Client) SwitchDc(dcID int) error {
-	c.Log.Debug("switching data center to (" + strconv.Itoa(dcID) + ")")
+	c.Log.Debug("switching to data center %d", dcID)
 	newDcSender, err := c.MTProto.SwitchDc(dcID)
 	if err != nil {
 		return errors.Wrap(err, "reconnecting to new dc")
