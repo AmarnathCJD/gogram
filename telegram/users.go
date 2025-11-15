@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"context"
 	"reflect"
 	"time"
 
@@ -23,9 +24,9 @@ func (c *Client) GetMe() (*UserObj, error) {
 }
 
 type PhotosOptions struct {
-	MaxID  int64 `json:"max_id,omitempty"`
-	Offset int32 `json:"offset,omitempty"`
-	Limit  int32 `json:"limit,omitempty"`
+	MaxID  int64
+	Offset int32
+	Limit  int32
 }
 
 type UserPhoto struct {
@@ -127,14 +128,15 @@ func (c *Client) GetProfilePhotos(userID any, Opts ...*PhotosOptions) ([]UserPho
 }
 
 type DialogOptions struct {
-	OffsetID         int32     `json:"offset_id,omitempty"`
-	OffsetDate       int32     `json:"offset_date,omitempty"`
-	OffsetPeer       InputPeer `json:"offset_peer,omitempty"`
-	Limit            int32     `json:"limit,omitempty"`
-	ExcludePinned    bool      `json:"exclude_pinned,omitempty"`
-	FolderID         int32     `json:"folder_id,omitempty"`
-	Hash             int64     `json:"hash,omitempty"`
-	SleepThresholdMs int32     `json:"sleep_threshold_ms,omitempty"`
+	OffsetID         int32
+	OffsetDate       int32
+	OffsetPeer       InputPeer
+	Limit            int32
+	ExcludePinned    bool
+	FolderID         int32
+	Hash             int64
+	SleepThresholdMs int32
+	Context          context.Context
 }
 
 type TLDialog struct {
@@ -311,6 +313,14 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan TLDialog, <-chan er
 		options.SleepThresholdMs = 20
 	}
 
+	var ctx context.Context
+	if options.Context != nil {
+		ctx = options.Context
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	var req = &MessagesGetDialogsParams{
 		OffsetDate:    options.OffsetDate,
 		OffsetID:      options.OffsetID,
@@ -320,8 +330,8 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan TLDialog, <-chan er
 		Hash:          options.Hash,
 	}
 
-	dialogs := make(chan TLDialog)
-	errs := make(chan error)
+	dialogs := make(chan TLDialog, 100)
+	errs := make(chan error, 1)
 
 	go func() {
 		defer close(dialogs)
@@ -330,6 +340,12 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan TLDialog, <-chan er
 		var fetched int
 
 		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			remaining := int32(100)
 			if options.Limit > 0 {
 				remaining = options.Limit - int32(fetched)
@@ -340,11 +356,14 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan TLDialog, <-chan er
 
 			req.Limit = min(remaining, 100)
 
-			resp, err := c.MessagesGetDialogs(req)
+			resp, err := c.MakeRequestCtx(ctx, req)
 			if handleIfFlood(err, c) {
 				continue
 			} else if err != nil {
-				errs <- err
+				select {
+				case errs <- err:
+				default:
+				}
 				return
 			}
 
@@ -356,7 +375,11 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan TLDialog, <-chan er
 
 				c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 				for _, dialog := range p.Dialogs {
-					dialogs <- packDialog(dialog)
+					select {
+					case <-ctx.Done():
+						return
+					case dialogs <- packDialog(dialog):
+					}
 				}
 
 				if len(p.Messages) > 0 {
@@ -365,8 +388,10 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan TLDialog, <-chan er
 						req.OffsetDate = m.Date
 					}
 				}
-				if lastPeer, err := c.GetSendablePeer(p.Dialogs[len(p.Dialogs)-1].(*DialogObj).Peer); err == nil {
-					req.OffsetPeer = lastPeer
+				if len(p.Dialogs) > 0 {
+					if lastPeer, err := c.GetSendablePeer(p.Dialogs[len(p.Dialogs)-1].(*DialogObj).Peer); err == nil {
+						req.OffsetPeer = lastPeer
+					}
 				}
 
 				fetched += len(p.Dialogs)
@@ -381,7 +406,11 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan TLDialog, <-chan er
 
 				c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 				for _, dialog := range p.Dialogs {
-					dialogs <- packDialog(dialog)
+					select {
+					case <-ctx.Done():
+						return
+					case dialogs <- packDialog(dialog):
+					}
 				}
 
 				if len(p.Messages) > 0 {
@@ -390,8 +419,10 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan TLDialog, <-chan er
 						req.OffsetDate = m.Date
 					}
 				}
-				if lastPeer, err := c.GetSendablePeer(p.Dialogs[len(p.Dialogs)-1].(*DialogObj).Peer); err == nil {
-					req.OffsetPeer = lastPeer
+				if len(p.Dialogs) > 0 {
+					if lastPeer, err := c.GetSendablePeer(p.Dialogs[len(p.Dialogs)-1].(*DialogObj).Peer); err == nil {
+						req.OffsetPeer = lastPeer
+					}
 				}
 
 				fetched += len(p.Dialogs)
@@ -403,7 +434,10 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan TLDialog, <-chan er
 				return
 
 			default:
-				errs <- errors.New("could not convert dialogs: " + reflect.TypeOf(resp).String())
+				select {
+				case errs <- errors.New("could not convert dialogs: " + reflect.TypeOf(resp).String()):
+				default:
+				}
 				return
 			}
 
@@ -411,7 +445,11 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan TLDialog, <-chan er
 				return
 			}
 
-			time.Sleep(time.Duration(options.SleepThresholdMs) * time.Millisecond)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Duration(options.SleepThresholdMs) * time.Millisecond):
+			}
 		}
 	}()
 
