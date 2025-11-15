@@ -55,7 +55,7 @@ type Logger interface {
 	// Utility methods
 	Flush() error
 	Close() error
-	Clone() Logger
+	Clone() *utils.Logger
 }
 
 type LogLevel int
@@ -339,10 +339,8 @@ func (l *loggerAdapter) Close() error {
 	return l.internal.Close()
 }
 
-func (l *loggerAdapter) Clone() Logger {
-	return &loggerAdapter{
-		internal: l.internal.Clone(),
-	}
+func (l *loggerAdapter) Clone() *utils.Logger {
+	return l.internal.Clone()
 }
 
 // formatterAdapter adapts user-provided formatter to internal formatter

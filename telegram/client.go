@@ -190,7 +190,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		ServerHost:      toIpAddr(),
 		PublicKey:       config.PublicKeys[0],
 		DataCenter:      config.DataCenter,
-		Logger:          c.Logger.WithPrefix("gogram " + getLogPrefix("mtproto", config.SessionName)),
+		Logger:          c.Log.Clone().WithPrefix("gogram " + getLogPrefix("mtproto", config.SessionName)),
 		StringSession:   config.StringSession,
 		LocalAddr:       config.LocalAddr,
 		MemorySession:   config.MemorySession,
