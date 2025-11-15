@@ -24,6 +24,7 @@ type CACHE struct {
 	usernameMap map[string]int64
 	memory      bool
 	disabled    bool
+	maxSize     int
 	InputPeers  *InputPeerCache `json:"input_peers,omitempty"`
 	logger      Logger
 
@@ -74,7 +75,7 @@ func (c *CACHE) ImportJSON(data []byte) error {
 }
 
 type CacheConfig struct {
-	MaxSize  int // Max size of cache: TODO
+	MaxSize  int // Maximum number of users/channels to keep in cache (0 = unlimited)
 	LogLevel LogLevel
 	LogColor bool
 	Logger   Logger
@@ -102,6 +103,7 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 		},
 		memory:   opt.Memory,
 		disabled: opt.Disabled,
+		maxSize:  opt.MaxSize,
 		logger: getValue(opt.Logger, NewDefaultLogger("gogram "+getLogPrefix("cache", opt.LogName)).
 			SetColor(opt.LogColor).
 			SetLevel(opt.LogLevel)),
@@ -125,6 +127,48 @@ func (c *CACHE) Disable() *CACHE {
 	return c
 }
 
+// enforceSizeLimit removes oldest entries if cache exceeds maxSize
+// Must be called while holding write lock
+func (c *CACHE) enforceSizeLimit() {
+	if c.maxSize <= 0 {
+		return // unlimited
+	}
+
+	totalSize := len(c.InputPeers.InputUsers) + len(c.InputPeers.InputChannels)
+	if totalSize <= c.maxSize {
+		return
+	}
+
+	excess := totalSize - c.maxSize
+	removed := 0
+
+	// Remove oldest users first (simple strategy: remove arbitrary entries)
+	for userID := range c.InputPeers.InputUsers {
+		if removed >= excess {
+			break
+		}
+		delete(c.InputPeers.InputUsers, userID)
+		delete(c.users, userID)
+		removed++
+	}
+
+	// If still need to remove more, remove channels
+	if removed < excess {
+		for channelID := range c.InputPeers.InputChannels {
+			if removed >= excess {
+				break
+			}
+			delete(c.InputPeers.InputChannels, channelID)
+			delete(c.channels, channelID)
+			removed++
+		}
+	}
+
+	if removed > 0 {
+		c.logger.Debug("cache size limit reached, removed %d entries (limit: %d)", removed, c.maxSize)
+	}
+}
+
 // --------- Cache file Functions ---------
 func (c *CACHE) WriteFile() {
 	if c.disabled || c.memory {
@@ -134,14 +178,14 @@ func (c *CACHE) WriteFile() {
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 
-	// Debounce: don't write if we wrote recently
+	// debounce: don't write if we wrote recently
 	if time.Since(c.lastWrite) < 2*time.Second {
 		return
 	}
 
 	file, err := os.OpenFile(c.fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
-		c.logger.Error("error opening cache file: ", err)
+		c.logger.Error("error opening cache file: %v", err)
 		return
 	}
 	defer file.Close()
@@ -157,7 +201,7 @@ func (c *CACHE) WriteFile() {
 	c.RUnlock()
 
 	if err != nil {
-		c.logger.Error("error encoding cache file: ", err)
+		c.logger.Error("error encoding cache file: %v", err)
 	} else {
 		c.lastWrite = time.Now()
 		c.writePending.Store(false)
@@ -167,7 +211,7 @@ func (c *CACHE) WriteFile() {
 func (c *CACHE) ReadFile() {
 	file, err := os.Open(c.fileName)
 	if err != nil && !os.IsNotExist(err) {
-		c.logger.Error("error opening cache file: ", err)
+		c.logger.Error("error opening cache file: %v", err)
 		return
 	}
 
@@ -186,8 +230,11 @@ func (c *CACHE) ReadFile() {
 	c.Unlock()
 
 	if !c.memory {
-		c.logger.Debug("loaded %d users, %d channels, %d usernames from cache",
-			len(c.InputPeers.InputUsers), len(c.InputPeers.InputChannels), len(c.usernameMap))
+		c.logger.WithFields(map[string]any{
+			"users":     len(c.InputPeers.InputUsers),
+			"channels":  len(c.InputPeers.InputChannels),
+			"usernames": len(c.usernameMap),
+		}).Debug("cache loaded")
 	}
 }
 
@@ -214,7 +261,7 @@ func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
 }
 
 func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
-	// Channel ID (starts with -100)
+	// channel id (negative with -100 prefix)
 	if strings.HasPrefix(strconv.Itoa(int(peerID)), "-100") {
 		channelID := trimSuffixHundred(peerID)
 		c.Cache.RLock()
@@ -224,7 +271,7 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 		}
 		c.Cache.RUnlock()
 
-		// Fallback: try to fetch from Telegram
+		// try to fetch from Telegram
 		if channel, err := c.getChannelFromCache(channelID); err == nil {
 			return &InputPeerChannel{channelID, channel.AccessHash}, nil
 		}
@@ -232,7 +279,7 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 		return nil, fmt.Errorf("there is no channel with id '%d' or missing from cache", peerID)
 	}
 
-	// Chat ID (negative but not -100 prefix)
+	// chat id (negative)
 	if peerID < 0 {
 		chatID := peerID * -1
 		c.Cache.RLock()
@@ -243,7 +290,7 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 			return &InputPeerChat{chatID}, nil
 		}
 
-		// Fallback: try to fetch from Telegram
+		// try to fetch from Telegram
 		if _, err := c.getChatFromCache(chatID); err == nil {
 			return &InputPeerChat{chatID}, nil
 		}
@@ -251,7 +298,7 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 		return nil, fmt.Errorf("there is no chat with id '%d' or missing from cache", peerID)
 	}
 
-	// User ID (positive)
+	// user id (positive)
 	c.Cache.RLock()
 	userHash, userExists := c.Cache.InputPeers.InputUsers[peerID]
 	c.Cache.RUnlock()
@@ -260,12 +307,12 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 		return &InputPeerUser{peerID, userHash}, nil
 	}
 
-	// Fallback: try to fetch from Telegram
+	// try to fetch from Telegram
 	if user, err := c.getUserFromCache(peerID); err == nil {
 		return &InputPeerUser{peerID, user.AccessHash}, nil
 	}
 
-	// Last resort: check if it's a channel without -100 prefix
+	// check if it's a channel without -100 prefix
 	c.Cache.RLock()
 	channelHash, channelExists := c.Cache.InputPeers.InputChannels[peerID]
 	c.Cache.RUnlock()
@@ -458,6 +505,10 @@ func (c *CACHE) UpdateUser(user *UserObj) bool {
 
 	// New user
 	c.InputPeers.InputUsers[user.ID] = user.AccessHash
+
+	// Enforce size limit after adding new entry
+	c.enforceSizeLimit()
+
 	return true
 }
 
@@ -575,11 +626,13 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 				}()
 			}
 		}
-		cache.logger.Debug(
-			"updated %d users %d chats in cache (processed: u:%d, c:%d | total: u:%d, ch:%d, c:%d)",
-			totalUpdates[0], totalUpdates[1], len(users), len(chats),
-			len(cache.InputPeers.InputUsers), len(cache.InputPeers.InputChannels), len(cache.chats),
-		)
+		cache.logger.WithFields(map[string]any{
+			"new_users": totalUpdates[0],
+			"new_chats": totalUpdates[1],
+			"users":     len(cache.InputPeers.InputUsers),
+			"channels":  len(cache.InputPeers.InputChannels),
+			"usernames": len(cache.usernameMap),
+		}).Debug("cache updated")
 	}
 }
 
