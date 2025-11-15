@@ -108,7 +108,7 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 	}
 
 	if !opt.Memory && !opt.Disabled {
-		c.logger.Debug("initialized cache (" + c.fileName + ") successfully")
+		c.logger.Debug("cache file enabled: %s", c.fileName)
 	}
 
 	if !opt.Disabled {
@@ -186,8 +186,8 @@ func (c *CACHE) ReadFile() {
 	c.Unlock()
 
 	if !c.memory {
-		c.logger.Debug(fmt.Sprintf("loaded %d users, %d channels, %d usernames from cache",
-			len(c.InputPeers.InputUsers), len(c.InputPeers.InputChannels), len(c.usernameMap)))
+		c.logger.Debug("loaded %d users, %d channels, %d usernames from cache",
+			len(c.InputPeers.InputUsers), len(c.InputPeers.InputChannels), len(c.usernameMap))
 	}
 }
 
@@ -576,10 +576,9 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 			}
 		}
 		cache.logger.Debug(
-			fmt.Sprintf("updated %d users %d chats in cache (processed: u:%d, c:%d | total: u:%d, ch:%d, c:%d)",
-				totalUpdates[0], totalUpdates[1], len(users), len(chats),
-				len(cache.InputPeers.InputUsers), len(cache.InputPeers.InputChannels), len(cache.chats),
-			),
+			"updated %d users %d chats in cache (processed: u:%d, c:%d | total: u:%d, ch:%d, c:%d)",
+			totalUpdates[0], totalUpdates[1], len(users), len(chats),
+			len(cache.InputPeers.InputUsers), len(cache.InputPeers.InputChannels), len(cache.chats),
 		)
 	}
 }

@@ -118,9 +118,9 @@ type MTProxyConfig struct {
 }
 
 type fakeTLSConn struct {
-	conn   net.Conn
-	reader io.Reader
-	buffer []byte
+	conn        net.Conn
+	reader      io.Reader
+	buffer      []byte
 	firstPacket bool
 }
 
@@ -527,7 +527,6 @@ func (f *fakeTLSConn) Write(b []byte) (int, error) {
 	totalWritten := 0
 
 	// Some MTProxy implementations expect a ChangeCipherSpec record before
-	// the first application data record. See TDLib/gotd FakeTLS behavior.
 	if !f.firstPacket {
 		ccs := make([]byte, 5+1)
 		ccs[0] = 0x14 // ChangeCipherSpec

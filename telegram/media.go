@@ -167,7 +167,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	}
 	w := NewWorkerPool(numWorkers)
 
-	c.Log.Info(fmt.Sprintf("file - upload: (%s) - (%s) - (%d)", source.GetName(), SizetoHuman(size), parts))
+	c.Log.WithFields(map[string]any{
+		"file_name": source.GetName(),
+		"file_size": SizetoHuman(size),
+		"parts":     parts,
+	}).Info("starting file upload")
 
 	doneBytes := atomic.Int64{}
 	doneArray := sync.Map{}
@@ -243,11 +247,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 						if handleIfFlood(err, c) {
 							continue
 						}
-						c.Log.Debug(fmt.Sprintf("upload part %d error: %v", p, err))
+						c.Log.Debug("upload part %d error: %v", p, err)
 						continue
 					}
 
-					c.Log.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
+					c.Log.Debug("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024)
 					doneBytes.Add(int64(len(part)))
 					doneArray.Store(p, true)
 					break
@@ -300,11 +304,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					if handleIfFlood(err, c) {
 						continue
 					}
-					c.Log.Debug(fmt.Sprintf("upload part %d error: %v", p, err))
+					c.Log.Debug("upload part %d error: %v", p, err)
 					continue
 				}
 
-				c.Log.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
+				c.Log.Debug("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024)
 				doneBytes.Add(int64(len(part)))
 				doneArray.Store(p, true)
 				break
@@ -329,7 +333,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 func handleIfFlood(err error, c *Client) bool {
 	if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
 		if waitTime := GetFloodWait(err); waitTime > 0 {
-			c.Log.Debug("flood wait ", waitTime, "(s), waiting...")
+			c.Log.Debug("flood wait detected, sleeping for", waitTime, "seconds")
 			time.Sleep(time.Duration(waitTime) * time.Second)
 
 			if c.clientData.sleepThresholdMs > 0 {
@@ -501,7 +505,11 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		c.Log.Warn("downloading to buffer (memory) - use with caution (memory usage)")
 	}
 
-	c.Log.Info(fmt.Sprintf("file - download: (%s) - (%s) - (%d)", dest, SizetoHuman(size), parts))
+	c.Log.WithFields(map[string]any{
+		"file_name": dest,
+		"file_size": SizetoHuman(size),
+		"parts":     parts,
+	}).Info("starting file download")
 
 	if err := initializeWorkers(numWorkers, dc, c, w); err != nil {
 		return "", err
@@ -617,13 +625,13 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 						return // file reference expired, need to refetch ref
 					}
 
-					c.Log.WithError(err).Debugf("part - (%d) - retrying...", p)
+					c.Log.WithError(err).Debug("part - (%d) - retrying...", p)
 					continue
 				}
 
 				switch v := part.(type) {
 				case *UploadFileObj:
-					c.Log.Debug("downloaded part ", p, "/", totalParts, " len: ", len(v.Bytes)/1024, "KB")
+					c.Log.Debug("downloaded part %d/%d len: %d KB", p, totalParts, len(v.Bytes)/1024)
 					fs.WriteAt(v.Bytes, int64(p)*int64(partSize))
 					doneBytes.Add(int64(len(v.Bytes)))
 					doneArray.Store(p, true)
@@ -696,13 +704,13 @@ retrySinglePart:
 						return // file reference expired, need to refetch ref
 					}
 
-					c.Log.WithError(err).Debugf("part - (%d) - retrying...", p)
+					c.Log.WithError(err).Debug("part - (%d) - retrying...", p)
 					continue
 				}
 
 				switch v := part.(type) {
 				case *UploadFileObj:
-					c.Log.Debug("downloaded part ", p, "/", totalParts, " len: ", len(v.Bytes)/1024, "KB")
+					c.Log.Debug("downloaded part %d/%d len: %d KB", p, totalParts, len(v.Bytes)/1024)
 					fs.WriteAt(v.Bytes, int64(p)*int64(partSize))
 					doneBytes.Add(int64(len(v.Bytes)))
 					doneArray.Store(p, true)
@@ -812,7 +820,10 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 		return nil
 	}
 
-	c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, needed))
+	c.Log.WithFields(map[string]any{
+		"dc":      dc,
+		"workers": needed,
+	}).Info("exporting senders")
 
 	var lastErr error
 	for range needed {
