@@ -72,7 +72,7 @@ nonceCreate:
 
 	// (encoding) p_q_inner_data
 	pq := big.NewInt(0).SetBytes(res.Pq)
-	p, q := math.Factorize(pq) // new optimised factorization
+	p, q := math.Factorize(pq) // new optimized factorization
 	if p == nil || q == nil {
 		p, q = math.Fac(pq)
 	}
