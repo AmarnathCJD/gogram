@@ -330,7 +330,6 @@ func (l *loggerAdapter) Panic(msg any, args ...any) {
 	l.internal.Panic(toString(msg), args...)
 }
 
-// toString converts any to string for logging
 func toString(v any) string {
 	if v == nil {
 		return "<nil>"
@@ -389,6 +388,144 @@ func (l *loggerAdapter) Clone() Logger {
 
 func (l *loggerAdapter) CloneInternal() *utils.Logger {
 	return l.internal.Clone()
+}
+
+type SimpleLogger interface {
+	// Logging methods
+	Debug(msg any, args ...any)
+	Info(msg any, args ...any)
+	Warn(msg any, args ...any)
+	Error(msg any, args ...any)
+
+	// Configuration
+	SetLevel(level LogLevel)
+	GetLevel() LogLevel
+	SetOutput(w any)
+	GetOutput() any
+	SetTimestampFormat(format string)
+}
+
+type simpleLoggerWrapper struct {
+	simple SimpleLogger
+}
+
+// WrapSimpleLogger wraps a SimpleLogger to work with gogram
+// This allows users to implement only 8 basic methods
+func WrapSimpleLogger(simple SimpleLogger) Logger {
+	return &simpleLoggerWrapper{
+		simple: simple,
+	}
+}
+
+func (w *simpleLoggerWrapper) SetLevel(level LogLevel) Logger {
+	w.simple.SetLevel(level)
+	return w
+}
+
+func (w *simpleLoggerWrapper) GetLevel() LogLevel {
+	return w.simple.GetLevel()
+}
+
+func (w *simpleLoggerWrapper) SetOutput(wr any) Logger {
+	w.simple.SetOutput(wr)
+	return w
+}
+
+func (w *simpleLoggerWrapper) SetFormatter(formatter LogFormatter) Logger { return w }
+func (w *simpleLoggerWrapper) WithField(key string, value any) Logger     { return w }
+func (w *simpleLoggerWrapper) WithFields(fields map[string]any) Logger    { return w }
+func (w *simpleLoggerWrapper) WithError(err error) Logger                 { return w }
+func (w *simpleLoggerWrapper) WithPrefix(prefix string) Logger            { return w }
+func (w *simpleLoggerWrapper) SetColor(enabled bool) Logger               { return w }
+func (w *simpleLoggerWrapper) Color() bool                                { return false }
+func (w *simpleLoggerWrapper) ShowCaller(enabled bool) Logger             { return w }
+func (w *simpleLoggerWrapper) ShowFunction(enabled bool) Logger           { return w }
+func (w *simpleLoggerWrapper) SetPrefix(prefix string) Logger             { return w }
+
+func (w *simpleLoggerWrapper) SetTimestampFormat(format string) Logger {
+	w.simple.SetTimestampFormat(format)
+	return w
+}
+
+func (w *simpleLoggerWrapper) Lev() LogLevel                   { return w.simple.GetLevel() }
+func (w *simpleLoggerWrapper) SetJSONMode(enabled bool) Logger { return w }
+func (w *simpleLoggerWrapper) Flush() error                    { return nil }
+func (w *simpleLoggerWrapper) Close() error                    { return nil }
+func (w *simpleLoggerWrapper) Clone() Logger                   { return w }
+func (w *simpleLoggerWrapper) CloneInternal() *utils.Logger    { return utils.NewLogger("") }
+
+func (w *simpleLoggerWrapper) Trace(msg any, args ...any) {
+	if w.simple.GetLevel() <= TraceLevel {
+		w.simple.Debug(msg, args...)
+	}
+}
+
+func (w *simpleLoggerWrapper) Debug(msg any, args ...any) {
+	if w.simple.GetLevel() <= DebugLevel {
+		w.simple.Debug(msg, args...)
+	}
+}
+
+func (w *simpleLoggerWrapper) Info(msg any, args ...any) {
+	if w.simple.GetLevel() <= InfoLevel {
+		w.simple.Info(msg, args...)
+	}
+}
+
+func (w *simpleLoggerWrapper) Warn(msg any, args ...any) {
+	if w.simple.GetLevel() <= WarnLevel {
+		w.simple.Warn(msg, args...)
+	}
+}
+
+func (w *simpleLoggerWrapper) Warning(msg any, args ...any) {
+	w.Warn(msg, args...)
+}
+
+func (w *simpleLoggerWrapper) Error(msg any, args ...any) {
+	if w.simple.GetLevel() <= ErrorLevel {
+		w.simple.Error(msg, args...)
+	}
+}
+
+func (w *simpleLoggerWrapper) Fatal(msg any, args ...any) {
+	w.simple.Error(msg, args...)
+}
+
+func (w *simpleLoggerWrapper) Panic(msg any, args ...any) {
+	w.simple.Error(msg, args...)
+}
+
+func (w *simpleLoggerWrapper) Tracef(format string, args ...any) {
+	w.Trace(fmt.Sprintf(format, args...))
+}
+
+func (w *simpleLoggerWrapper) Debugf(format string, args ...any) {
+	w.Debug(fmt.Sprintf(format, args...))
+}
+
+func (w *simpleLoggerWrapper) Infof(format string, args ...any) {
+	w.Info(fmt.Sprintf(format, args...))
+}
+
+func (w *simpleLoggerWrapper) Warnf(format string, args ...any) {
+	w.Warn(fmt.Sprintf(format, args...))
+}
+
+func (w *simpleLoggerWrapper) Warningf(format string, args ...any) {
+	w.Warn(fmt.Sprintf(format, args...))
+}
+
+func (w *simpleLoggerWrapper) Errorf(format string, args ...any) {
+	w.Error(fmt.Sprintf(format, args...))
+}
+
+func (w *simpleLoggerWrapper) Fatalf(format string, args ...any) {
+	w.Fatal(fmt.Sprintf(format, args...))
+}
+
+func (w *simpleLoggerWrapper) Panicf(format string, args ...any) {
+	w.Panic(fmt.Sprintf(format, args...))
 }
 
 // formatterAdapter adapts user-provided formatter to internal formatter
