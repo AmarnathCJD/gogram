@@ -55,7 +55,8 @@ type Logger interface {
 	// Utility methods
 	Flush() error
 	Close() error
-	Clone() *utils.Logger
+	Clone() Logger
+	CloneInternal() *utils.Logger
 }
 
 type LogLevel int
@@ -130,6 +131,41 @@ const (
 func NewDefaultLogger(prefix string) Logger {
 	return &loggerAdapter{
 		internal: utils.NewLogger(prefix),
+	}
+}
+
+func NewLogger(level LogLevel, config ...LoggerConfig) Logger {
+	internalConfig := &utils.LoggerConfig{
+		Level: utils.LogLevel(level),
+	}
+
+	if len(config) > 0 {
+		userConfig := config[0]
+		internalConfig.Prefix = userConfig.Prefix
+		if userConfig.Output != nil {
+			if w, ok := userConfig.Output.(io.Writer); ok {
+				internalConfig.Output = w
+			}
+		}
+		internalConfig.Color = userConfig.Color
+		internalConfig.ShowCaller = userConfig.ShowCaller
+		internalConfig.ShowFunction = userConfig.ShowFunction
+		internalConfig.TimestampFormat = userConfig.TimestampFormat
+		internalConfig.BufferSize = userConfig.BufferSize
+		internalConfig.AsyncMode = userConfig.AsyncMode
+		internalConfig.AsyncQueueSize = userConfig.AsyncQueueSize
+		internalConfig.ErrorHandler = userConfig.ErrorHandler
+		if userConfig.JSONOutput {
+			internalConfig.Formatter = &utils.JSONFormatter{}
+		}
+		if userConfig.Formatter != nil {
+			// wrap the user formatter
+			internalConfig.Formatter = &formatterAdapter{userFormatter: userConfig.Formatter}
+		}
+	}
+
+	return &loggerAdapter{
+		internal: utils.NewLoggerWithConfig(internalConfig),
 	}
 }
 
@@ -339,7 +375,13 @@ func (l *loggerAdapter) Close() error {
 	return l.internal.Close()
 }
 
-func (l *loggerAdapter) Clone() *utils.Logger {
+func (l *loggerAdapter) Clone() Logger {
+	return &loggerAdapter{
+		internal: l.internal.Clone(),
+	}
+}
+
+func (l *loggerAdapter) CloneInternal() *utils.Logger {
 	return l.internal.Clone()
 }
 
