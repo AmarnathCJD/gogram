@@ -415,7 +415,7 @@ func (l *Logger) log(level LogLevel, msg string, args ...any) {
 
 	if l.showCaller || l.showFunction {
 		var pcs [10]uintptr
-		n := runtime.Callers(0, pcs[:])
+		n := runtime.Callers(3, pcs[:])
 		frames := runtime.CallersFrames(pcs[:n])
 
 		for {
