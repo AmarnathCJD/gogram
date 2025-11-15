@@ -307,6 +307,13 @@ func (c *Client) InitialRequest() error {
 		Query:          &HelpGetConfigParams{},
 	}
 
+	if c.clientData.proxy.Type() == "mtproxy" {
+		initConfig.Proxy = &InputClientProxy{
+			c.clientData.proxy.GetHost(),
+			int32(c.clientData.proxy.GetPort()),
+		}
+	}
+
 	serverConfig, err := c.InvokeWithLayer(ApiVersion, initConfig)
 
 	if err != nil {
