@@ -278,6 +278,10 @@ func ProxyFromURL(proxyURL string) (Proxy, error) {
 
 	scheme := strings.ToLower(u.Scheme)
 
+	if (scheme == "http" || scheme == "https") && strings.Contains(u.Host, "t.me") && strings.HasPrefix(u.Path, "/proxy") {
+		scheme = "tg"
+	}
+
 	var port int
 	portStr := u.Port()
 	if portStr != "" {
