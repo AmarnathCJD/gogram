@@ -606,11 +606,31 @@ func (m *MTProto) connect(ctx context.Context) error {
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
 	defer cancel()
-	return m.makeRequestCtx(ctx, data, expectedTypes...)
+
+	result, err := m.makeRequestCtx(ctx, data, expectedTypes...)
+
+	if err != nil && strings.Contains(err.Error(), "request timeout") {
+		for attempt := 1; attempt <= 2; attempt++ {
+			m.Logger.Debug(fmt.Sprintf("request timed out: %v - retrying attempt %d/2", utils.FmtMethod(data), attempt))
+
+			ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
+			result, err = m.makeRequestCtx(ctx, data, expectedTypes...)
+			cancel()
+
+			if err == nil || !strings.Contains(err.Error(), "request timeout") {
+				break
+			}
+		}
+	}
+
+	return result, err
 }
 
 func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	if err := m.tcpState.WaitForActive(ctx); err != nil {
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer waitCancel()
+
+	if err := m.tcpState.WaitForActive(waitCtx); err != nil {
 		return nil, errors.Wrap(err, "waiting for active tcp state")
 	}
 
@@ -630,7 +650,8 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 	select {
 	case <-ctx.Done():
 		go m.writeRPCResponse(int(msgId), &objects.Null{})
-		return nil, errors.Wrap(ctx.Err(), "makeRequestIsTheCulprit")
+		m.Logger.Debug(fmt.Sprintf("request timeout for %s after waiting for response", utils.FmtMethod(data)))
+		return nil, errors.Wrap(ctx.Err(), "request timeout")
 	case response := <-resp:
 		switch r := response.(type) {
 		case *objects.RpcError:

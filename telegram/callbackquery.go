@@ -80,10 +80,21 @@ func (b *CallbackQuery) GetChatID() int64 {
 }
 
 func (b *CallbackQuery) ChannelID() int64 {
-	if b.Channel != nil {
-		return -100_000_000_0000 - b.Channel.ID
-	} else if b.Chat != nil {
-		return -b.Chat.ID
+	if b != nil && b.Peer != nil {
+		switch peer := b.Peer.(type) {
+		case *PeerChannel:
+			if peer != nil {
+				return -100_000_000_0000 - peer.ChannelID
+			}
+		case *PeerChat:
+			if peer != nil {
+				return -peer.ChatID
+			}
+		case *PeerUser:
+			if peer != nil {
+				return peer.UserID
+			}
+		}
 	}
 	return 0
 }
@@ -231,8 +242,8 @@ func (b *CallbackQuery) ForwardTo(ChatID int64, options ...*ForwardOptions) (*Ne
 	return &m[0], nil
 }
 
-func (b *CallbackQuery) Marshal(nointent ...bool) string {
-	return b.Client.JSON(b.OriginalUpdate, nointent)
+func (b *CallbackQuery) Marshal(noindent ...bool) string {
+	return b.Client.JSON(b.OriginalUpdate, noindent)
 }
 
 type InlineCallbackQuery struct {
@@ -309,6 +320,6 @@ func (b *InlineCallbackQuery) IsChannel() bool {
 	return b.ChatType() == EntityChannel
 }
 
-func (b *InlineCallbackQuery) Marshal(nointent ...bool) string {
-	return b.Client.JSON(b.OriginalUpdate, nointent)
+func (b *InlineCallbackQuery) Marshal(noindent ...bool) string {
+	return b.Client.JSON(b.OriginalUpdate, noindent)
 }

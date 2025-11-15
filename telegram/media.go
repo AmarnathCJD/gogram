@@ -398,6 +398,7 @@ type DownloadOptions struct {
 	IsVideo bool `json:"is_video,omitempty"`
 	// Context for cancellation
 	Ctx context.Context `json:"-"`
+	// Timeout for download operation to seize out
 	Timeout time.Duration `json:"-"`
 }
 
@@ -814,7 +815,7 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 	c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, needed))
 
 	var lastErr error
-	for i := 0; i < needed; i++ {
+	for range needed {
 		conn, err := c.CreateExportedSender(int(dc), false, authParams)
 		if err != nil || conn == nil {
 			lastErr = err

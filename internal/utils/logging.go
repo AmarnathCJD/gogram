@@ -45,7 +45,7 @@ type Logger struct {
 	Level    LogLevel
 	Prefix   string
 	noColor  bool
-	noBold   bool
+	enBold   bool
 	jsonMode bool
 	writer   *bufio.Writer
 	output   io.Writer
@@ -82,13 +82,13 @@ func (l *Logger) NoColor(on bool) *Logger {
 	return l
 }
 
-func (l *Logger) NoBold(on bool) *Logger {
-	l.noBold = on
-	return l
-}
-
 func (l *Logger) Color() bool {
 	return !l.noColor
+}
+
+func (l *Logger) EnableBold(enabled bool) *Logger {
+	l.enBold = enabled
+	return l
 }
 
 func (l *Logger) EnableJSON(enabled bool) *Logger {
@@ -118,7 +118,7 @@ func (l *Logger) colorize(color, s string) string {
 }
 
 func (l *Logger) bold() string {
-	if l.noBold {
+	if !l.enBold {
 		return l.Prefix
 	}
 	return boldOn + l.Prefix + boldOff
