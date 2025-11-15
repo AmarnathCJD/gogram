@@ -39,11 +39,6 @@ type mimeTypeManager struct {
 	mimeTypes map[string]string
 }
 
-// type ExportedAuthParams struct {
-// 	ID    int64
-// 	Bytes []byte
-// }
-
 func (m *mimeTypeManager) addMime(ext, mime string) {
 	m.mimeTypes[ext] = mime
 }
@@ -150,6 +145,269 @@ func init() {
 	MimeTypes.addMime(".alac", "audio/x-alac")
 
 	MimeTypes.addMime(".tgs", "application/x-tgsticker")
+}
+
+type Proxy interface {
+	GetHost() string
+	GetPort() int
+	Type() string
+	GetUsername() string
+	GetPassword() string
+	GetSecret() string
+}
+
+type BaseProxy struct {
+	Host string
+	Port int
+}
+
+func (p *BaseProxy) GetHost() string { return p.Host }
+func (p *BaseProxy) GetPort() int    { return p.Port }
+
+type Socks5Proxy struct {
+	BaseProxy
+	Username string
+	Password string
+}
+
+func (s *Socks5Proxy) Type() string        { return "socks5" }
+func (s *Socks5Proxy) GetUsername() string { return s.Username }
+func (s *Socks5Proxy) GetPassword() string { return s.Password }
+func (s *Socks5Proxy) GetSecret() string   { return "" }
+
+func (s *Socks5Proxy) FromURL(proxyURL string) error {
+	proxy, err := ProxyFromURL(proxyURL)
+	if err != nil {
+		return err
+	}
+	if p, ok := proxy.(*Socks5Proxy); ok {
+		*s = *p
+		return nil
+	}
+	return errors.New("not a socks5 proxy URL")
+}
+
+type Socks4Proxy struct {
+	BaseProxy
+	UserID string
+}
+
+func (s *Socks4Proxy) Type() string        { return "socks4" }
+func (s *Socks4Proxy) GetUsername() string { return s.UserID }
+func (s *Socks4Proxy) GetPassword() string { return "" }
+func (s *Socks4Proxy) GetSecret() string   { return "" }
+
+func (s *Socks4Proxy) FromURL(proxyURL string) error {
+	proxy, err := ProxyFromURL(proxyURL)
+	if err != nil {
+		return err
+	}
+	if p, ok := proxy.(*Socks4Proxy); ok {
+		*s = *p
+		return nil
+	}
+	return errors.New("not a socks4 proxy URL")
+}
+
+type HttpProxy struct {
+	BaseProxy
+	Username string
+	Password string
+}
+
+func (h *HttpProxy) Type() string        { return "http" }
+func (h *HttpProxy) GetUsername() string { return h.Username }
+func (h *HttpProxy) GetPassword() string { return h.Password }
+func (h *HttpProxy) GetSecret() string   { return "" }
+
+func (h *HttpProxy) FromURL(proxyURL string) error {
+	proxy, err := ProxyFromURL(proxyURL)
+	if err != nil {
+		return err
+	}
+	if p, ok := proxy.(*HttpProxy); ok {
+		*h = *p
+		return nil
+	}
+	return errors.New("not an http proxy URL")
+}
+
+type MTProxy struct {
+	BaseProxy
+	Secret string
+}
+
+func (m *MTProxy) Type() string        { return "mtproxy" }
+func (m *MTProxy) GetUsername() string { return "" }
+func (m *MTProxy) GetPassword() string { return "" }
+func (m *MTProxy) GetSecret() string   { return m.Secret }
+
+func (m *MTProxy) FromURL(proxyURL string) error {
+	proxy, err := ProxyFromURL(proxyURL)
+	if err != nil {
+		return err
+	}
+	if p, ok := proxy.(*MTProxy); ok {
+		*m = *p
+		return nil
+	}
+	return errors.New("not an mtproxy URL")
+}
+
+// ProxyFromURL parses a proxy URL and returns the appropriate Proxy type
+// Supported formats:
+//   - socks4://[userid@]host:port
+//   - socks5://[user:pass@]host:port
+//   - http://[user:pass@]host:port
+//   - https://[user:pass@]host:port
+//   - mtproxy://secret@host:port
+//   - tg://proxy?server=host&port=port&secret=secret
+func ProxyFromURL(proxyURL string) (Proxy, error) {
+	if proxyURL == "" {
+		return nil, errors.New("empty proxy URL")
+	}
+
+	u, err := url.Parse(proxyURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid proxy URL")
+	}
+
+	scheme := strings.ToLower(u.Scheme)
+
+	switch scheme {
+	case "socks4", "socks4a":
+		proxy := &Socks4Proxy{
+			BaseProxy: BaseProxy{Host: u.Hostname()},
+		}
+
+		portStr := u.Port()
+		if portStr == "" {
+			proxy.Port = 1080 // def port
+		} else {
+			port, err := strconv.Atoi(portStr)
+			if err != nil {
+				return nil, errors.Wrap(err, "invalid port")
+			}
+			proxy.Port = port
+		}
+
+		if u.User != nil {
+			proxy.UserID = u.User.Username()
+		}
+
+		return proxy, nil
+
+	case "socks5", "socks5h":
+		proxy := &Socks5Proxy{
+			BaseProxy: BaseProxy{Host: u.Hostname()},
+		}
+
+		portStr := u.Port()
+		if portStr == "" {
+			proxy.Port = 1080 // def port
+		} else {
+			port, err := strconv.Atoi(portStr)
+			if err != nil {
+				return nil, errors.Wrap(err, "invalid port")
+			}
+			proxy.Port = port
+		}
+
+		if u.User != nil {
+			proxy.Username = u.User.Username()
+			proxy.Password, _ = u.User.Password()
+		}
+
+		return proxy, nil
+
+	case "http", "https":
+		proxy := &HttpProxy{
+			BaseProxy: BaseProxy{Host: u.Hostname()},
+		}
+
+		portStr := u.Port()
+		if portStr == "" {
+			if scheme == "https" {
+				proxy.Port = 443
+			} else {
+				proxy.Port = 8080
+			}
+		} else {
+			port, err := strconv.Atoi(portStr)
+			if err != nil {
+				return nil, errors.Wrap(err, "invalid port")
+			}
+			proxy.Port = port
+		}
+
+		if u.User != nil {
+			proxy.Username = u.User.Username()
+			proxy.Password, _ = u.User.Password()
+		}
+
+		return proxy, nil
+
+	case "mtproxy", "tg":
+		proxy := &MTProxy{}
+
+		if scheme == "tg" {
+			// tg://proxy?server=host&port=port&secret=secret
+			q := u.Query()
+			proxy.BaseProxy.Host = q.Get("server")
+			portStr := q.Get("port")
+			if portStr == "" {
+				proxy.Port = 443
+			} else {
+				port, err := strconv.Atoi(portStr)
+				if err != nil {
+					return nil, errors.Wrap(err, "invalid port")
+				}
+				proxy.Port = port
+			}
+			proxy.Secret = q.Get("secret")
+		} else {
+			// mtproxy://secret@host:port or secret@host:port
+			if u.User != nil {
+				proxy.Secret = u.User.Username()
+			}
+			proxy.BaseProxy.Host = u.Hostname()
+			portStr := u.Port()
+			if portStr == "" {
+				proxy.Port = 443
+			} else {
+				port, err := strconv.Atoi(portStr)
+				if err != nil {
+					return nil, errors.Wrap(err, "invalid port")
+				}
+				proxy.Port = port
+			}
+		}
+
+		if proxy.Host == "" || proxy.Secret == "" {
+			return nil, errors.New("invalid mtproxy URL: missing host or secret")
+		}
+
+		return proxy, nil
+
+	default:
+		re := regexp.MustCompile(`^([a-fA-F0-9]+)@([a-zA-Z0-9\.\-]+):(\d+)$`)
+		matches := re.FindStringSubmatch(proxyURL)
+		if len(matches) == 4 {
+			port, err := strconv.Atoi(matches[3])
+			if err != nil {
+				return nil, errors.Wrap(err, "invalid port")
+			}
+			return &MTProxy{
+				BaseProxy: BaseProxy{
+					Host: matches[2],
+					Port: port,
+				},
+				Secret: matches[1],
+			}, nil
+		}
+
+		return nil, fmt.Errorf("unsupported proxy scheme: %s", scheme)
+	}
 }
 
 var (

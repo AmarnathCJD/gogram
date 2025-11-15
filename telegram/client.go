@@ -295,7 +295,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 // InitialRequest sends the initial initConnection request
 func (c *Client) InitialRequest() error {
 	c.Log.Debug("sending initial invokeWithLayer request")
-	serverConfig, err := c.InvokeWithLayer(ApiVersion, &InitConnectionParams{
+	initConfig := &InitConnectionParams{
 		ApiID:          c.clientData.appID,
 		DeviceModel:    c.clientData.deviceModel,
 		SystemVersion:  c.clientData.systemVersion,
@@ -304,7 +304,9 @@ func (c *Client) InitialRequest() error {
 		LangCode:       c.clientData.langCode,
 		LangPack:       c.clientData.langPack,
 		Query:          &HelpGetConfigParams{},
-	})
+	}
+
+	serverConfig, err := c.InvokeWithLayer(ApiVersion, initConfig)
 
 	if err != nil {
 		return errors.Wrap(err, "sending invokeWithLayer")
@@ -330,7 +332,7 @@ func (c *Client) InitialRequest() error {
 			}
 		}
 
-		c.DcList.SetDCs(dcs, cdnDcs) // set the upto-date DC configuration for the library
+		c.DcList.SetDCs(dcs, cdnDcs) // set the up to-date DC configuration for the library
 	}
 
 	return nil
