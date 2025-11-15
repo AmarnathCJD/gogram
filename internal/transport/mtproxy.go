@@ -121,6 +121,7 @@ type fakeTLSConn struct {
 	conn   net.Conn
 	reader io.Reader
 	buffer []byte
+	firstPacket bool
 }
 
 var _ net.Conn = (*fakeTLSConn)(nil)
@@ -524,6 +525,22 @@ func (f *fakeTLSConn) Read(b []byte) (int, error) {
 
 func (f *fakeTLSConn) Write(b []byte) (int, error) {
 	totalWritten := 0
+
+	// Some MTProxy implementations expect a ChangeCipherSpec record before
+	// the first application data record. See TDLib/gotd FakeTLS behavior.
+	if !f.firstPacket {
+		ccs := make([]byte, 5+1)
+		ccs[0] = 0x14 // ChangeCipherSpec
+		ccs[1] = 0x03 // TLS 1.2
+		ccs[2] = 0x03
+		binary.BigEndian.PutUint16(ccs[3:5], 1)
+		ccs[5] = 0x01
+
+		if _, err := f.conn.Write(ccs); err != nil {
+			return 0, err
+		}
+		f.firstPacket = true
+	}
 
 	for offset := 0; offset < len(b); offset += _MAX_TLS_MSG {
 		end := min(offset+_MAX_TLS_MSG, len(b))
