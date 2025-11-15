@@ -166,13 +166,18 @@ func NewLoggerWithConfig(config *LoggerConfig) *Logger {
 		config.AsyncQueueSize = 1000
 	}
 
+	effectiveColor := config.Color
+	if effectiveColor && !isTerminal(config.Output) {
+		effectiveColor = false
+	}
+
 	logger := &Logger{
 		level:           config.Level,
 		prefix:          config.Prefix,
 		output:          config.Output,
 		writer:          bufio.NewWriterSize(config.Output, config.BufferSize),
 		formatter:       config.Formatter,
-		color:           config.Color,
+		color:           effectiveColor,
 		showCaller:      config.ShowCaller,
 		showFunction:    config.ShowFunction,
 		timestampFormat: config.TimestampFormat,
@@ -180,6 +185,11 @@ func NewLoggerWithConfig(config *LoggerConfig) *Logger {
 		asyncMode:       config.AsyncMode,
 		fields:          make(map[string]any),
 		errorHandler:    config.ErrorHandler,
+	}
+
+	// Update formatter's NoColor setting based on effective color
+	if tf, ok := logger.formatter.(*TextFormatter); ok {
+		tf.NoColor = !effectiveColor
 	}
 
 	if config.AsyncMode {
@@ -282,6 +292,14 @@ func (l *Logger) SetOutput(w io.Writer) *Logger {
 	l.Flush()
 	l.output = w
 	l.writer = bufio.NewWriterSize(w, l.bufferSize)
+
+	if l.color && !isTerminal(w) {
+		l.color = false
+		if tf, ok := l.formatter.(*TextFormatter); ok {
+			tf.NoColor = true
+		}
+	}
+
 	return l
 }
 
@@ -487,6 +505,16 @@ func (l *Logger) rotate() {
 	l.output = f
 	l.writer = bufio.NewWriterSize(f, l.bufferSize)
 	l.currentFileSize = 0
+}
+
+func isTerminal(w io.Writer) bool {
+	if f, ok := w.(*os.File); ok {
+		if f == os.Stdout || f == os.Stderr || f == os.Stdin {
+			return true
+		}
+		return false
+	}
+	return false
 }
 
 func (l *Logger) Trace(msg string, args ...any)   { l.log(TraceLevel, msg, args...) }
