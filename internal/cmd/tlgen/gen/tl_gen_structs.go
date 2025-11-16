@@ -124,9 +124,10 @@ func (g *Generator) generateStructParameter(param *tlparser.Parameter) *jen.Stat
 	}
 
 	if param.IsOptional {
-		if param.Version == 1 {
+		switch param.Version {
+		case 1:
 			tag = fmt.Sprintf("flag:%v", param.BitToTrigger)
-		} else if param.Version == 2 {
+		case 2:
 			tag = fmt.Sprintf("flag2:%v", param.BitToTrigger)
 		}
 	}
