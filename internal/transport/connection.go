@@ -4,12 +4,11 @@ package transport
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 type tcpConn struct {
@@ -39,7 +38,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 
 	tcpAddr, err := net.ResolveTCPAddr(tcpPrefix, cfg.Host)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "resolving tcp")
+		return nil, false, fmt.Errorf("resolving tcp addr: %w", err)
 	}
 
 	// Resolve a local address if provided
@@ -47,7 +46,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 	if cfg.LocalAddr != "" {
 		localAddr, err = net.ResolveTCPAddr(tcpPrefix, cfg.LocalAddr)
 		if err != nil {
-			return nil, false, errors.Wrap(err, "resolving local tcp addr")
+			return nil, false, fmt.Errorf("resolving local tcp addr: %w", err)
 		}
 	}
 
@@ -62,7 +61,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 		if cfg.Logger != nil {
 			cfg.Logger.WithError(err).Error("[tcp] connection failed")
 		}
-		return nil, false, errors.Wrap(err, "dialing tcp")
+		return nil, false, fmt.Errorf("dialing tcp: %w", err)
 	}
 
 	conn.SetKeepAlive(true)
@@ -110,7 +109,7 @@ func newMTProxyTCP(cfg TCPConnConfig) (Conn, bool, error) {
 
 	conn, err := DialMTProxy(cfg.Socks, cfg.Host, dcID, cfg.ModeVariant, cfg.LocalAddr, cfg.Logger)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "establishing mtproxy connection")
+		return nil, false, fmt.Errorf("establishing mtproxy connection: %w", err)
 	}
 
 	return conn, true, nil
@@ -128,7 +127,7 @@ func (t *tcpConn) Read(b []byte) (int, error) {
 	if t.timeout > 0 {
 		err := t.conn.SetReadDeadline(time.Now().Add(t.timeout))
 		if err != nil {
-			return 0, errors.Wrap(err, "setting read deadline")
+			return 0, fmt.Errorf("setting read deadline: %w", err)
 		}
 	}
 
@@ -136,14 +135,14 @@ func (t *tcpConn) Read(b []byte) (int, error) {
 	if err != nil {
 		if e, ok := err.(*net.OpError); ok || err == io.ErrClosedPipe {
 			if e.Err.Error() == "i/o timeout" || err == io.ErrClosedPipe {
-				return 0, errors.Wrap(err, "required to reconnect!")
+				return 0, fmt.Errorf("required to reconnect: %w", err)
 			}
 		}
 		switch err {
 		case io.EOF, context.Canceled:
 			return 0, err
 		default:
-			return 0, errors.Wrap(err, "unexpected error")
+			return 0, fmt.Errorf("unexpected error: %w", err)
 		}
 	}
 	return n, nil

@@ -786,8 +786,6 @@ func AnyError(err error, errs ...string) bool {
 	return false
 }
 
-// internal errors for internal purposes
-
 type errorSessionConfigsChanged struct{}
 
 func (*errorSessionConfigsChanged) Error() string {

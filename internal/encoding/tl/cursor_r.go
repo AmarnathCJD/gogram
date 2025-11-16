@@ -9,8 +9,6 @@ import (
 	"io"
 	"math"
 	"reflect"
-
-	"github.com/pkg/errors"
 )
 
 // A Decoder reads and decodes TL values from an input stream.
@@ -28,7 +26,7 @@ type Decoder struct {
 func NewDecoder(r io.Reader) (*Decoder, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading data before decoding")
+		return nil, fmt.Errorf("reading data before decoding: %w", err)
 	}
 
 	return &Decoder{buf: bytes.NewReader(data)}, nil
@@ -186,7 +184,7 @@ func (d *Decoder) popVector(as reflect.Type, ignoreCRC bool) any {
 	if !ignoreCRC {
 		crc := d.PopCRC()
 		if d.err != nil {
-			d.err = errors.Wrap(d.err, "read crc")
+			d.err = fmt.Errorf("read crc: %w", d.err)
 			return nil
 		}
 
@@ -198,7 +196,7 @@ func (d *Decoder) popVector(as reflect.Type, ignoreCRC bool) any {
 
 	size := d.PopUint()
 	if d.err != nil {
-		d.err = errors.Wrap(d.err, "read vector size")
+		d.err = fmt.Errorf("read vector size: %w", d.err)
 		return nil
 	}
 
@@ -243,7 +241,7 @@ func (d *Decoder) PopMessage() []byte {
 		val = make([]byte, WordLen-1)
 		d.read(val)
 		if d.err != nil {
-			d.err = errors.Wrapf(d.err, "reading last %v bytes of message size", WordLen-1)
+			d.err = fmt.Errorf("reading last %v bytes of message size: %w", WordLen-1, d.err)
 			return nil
 		}
 
@@ -256,7 +254,7 @@ func (d *Decoder) PopMessage() []byte {
 	buf := make([]byte, realSize)
 	d.read(buf)
 	if d.err != nil {
-		d.err = errors.Wrapf(d.err, "reading message data with len of %v", realSize)
+		d.err = fmt.Errorf("reading message data with len of %v: %w", realSize, d.err)
 		return nil
 	}
 
@@ -265,7 +263,7 @@ func (d *Decoder) PopMessage() []byte {
 		voidBytes := make([]byte, WordLen-readLen%WordLen)
 		d.read(voidBytes)
 		if d.err != nil {
-			d.err = errors.Wrapf(d.err, "reading %v last void bytes", WordLen-readLen%WordLen)
+			d.err = fmt.Errorf("reading %v last void bytes: %w", WordLen-readLen%WordLen, d.err)
 			return nil
 		}
 

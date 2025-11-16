@@ -6,8 +6,7 @@ package objects
 import (
 	"bytes"
 	"compress/gzip"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/mtproto/messages"
@@ -328,7 +327,7 @@ func (t *GzipPacked) UnmarshalTL(d *tl.Decoder) error {
 
 	t.Obj, err = tl.DecodeUnknownObject(obj)
 	if err != nil {
-		return errors.Wrap(err, "parsing gzipped object")
+		return fmt.Errorf("parsing gzipped object: %w", err)
 	}
 
 	return nil
@@ -349,7 +348,7 @@ func (*GzipPacked) popMessageAsBytes(d *tl.Decoder) ([]byte, error) {
 	_, _ = buf.Write(d.PopMessage())
 	gz, err := gzip.NewReader(&buf)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating gzip reader")
+		return nil, fmt.Errorf("creating gzip reader: %w", err)
 	}
 
 	b := make([]byte, 4096)

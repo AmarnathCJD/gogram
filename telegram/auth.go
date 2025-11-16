@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // ConnectBot connects to telegram using bot token
@@ -325,7 +325,7 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 	}
 
 	if err := json.NewDecoder(respCode.Body).Decode(&result); err != nil {
-		return 0, "", false, errors.Wrap(err, "Too many requests, try again later")
+		return 0, "", false, fmt.Errorf("Too many requests, try again later: %w", err)
 	}
 
 	code, err := conf.WebCodeCallback()

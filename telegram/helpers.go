@@ -16,9 +16,10 @@ import (
 	"strconv"
 	"strings"
 
+	"errors"
+
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 func FileExists(path string) bool {
@@ -370,7 +371,7 @@ PeerSwitch:
 		case *ChatForbidden:
 			return &InputPeerChat{ChatID: peerEntity.ID}, nil
 		default:
-			return nil, errors.New(fmt.Sprintf("unknown peer type %s", reflect.TypeOf(peerEntity).String()))
+			return nil, fmt.Errorf("unknown peer type %s", reflect.TypeOf(peerEntity).String())
 		}
 	case *ChannelForbidden:
 		return &InputPeerChannel{ChannelID: Peer.ID, AccessHash: Peer.AccessHash}, nil
@@ -575,7 +576,7 @@ mediaTypeSwitch:
 		case *MessageMediaUnsupported:
 			return nil, errors.New("unsupported media type: MessageMediaUnsupported (Maybe you need to update the library)")
 		default:
-			return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(media).String()))
+			return nil, fmt.Errorf("unknown media type: %s", reflect.TypeOf(media).String())
 		}
 	case InputFile, *InputFile:
 		var (
@@ -657,7 +658,7 @@ mediaTypeSwitch:
 	case nil:
 		return nil, errors.New("media given is nil, cannot send nil media")
 	}
-	return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(mediaFile).String()))
+	return nil, fmt.Errorf("unknown media type: %s", reflect.TypeOf(mediaFile).String())
 }
 
 func (c *Client) uploadToSelf(mediaFile InputMedia) (InputMedia, error) {
@@ -820,7 +821,7 @@ func GatherMediaMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 		out, err := cmd.Output()
 
 		if err != nil {
-			return attrs, 0, errors.Wrap(err, "gathering video metadata")
+			return attrs, 0, fmt.Errorf("gathering video metadata: %w", err)
 		}
 
 		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
@@ -1048,7 +1049,7 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 		_, err := cmd.CombinedOutput()
 
 		if err != nil {
-			return nil, errors.Wrap(err, "gathering audio thumb")
+			return nil, fmt.Errorf("gathering audio thumb: %w", err)
 		}
 
 		defer os.Remove(path + ".png")
@@ -1076,7 +1077,7 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 	_, err := cmd.Output()
 
 	if err != nil {
-		return nil, errors.Wrap(err, "gathering video thumb")
+		return nil, fmt.Errorf("gathering video thumb: %w", err)
 	}
 
 	defer os.Remove(path + ".png")
@@ -1091,7 +1092,7 @@ func (c *Client) ResolveUsername(username string, ref ...string) (any, error) {
 
 	resp, err := c.ContactsResolveUsername(strings.TrimPrefix(username, "@"), referer)
 	if err != nil {
-		return nil, errors.Wrap(err, "resolving username")
+		return nil, fmt.Errorf("resolving username: %w", err)
 	}
 	c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
 	if len(resp.Users) != 0 {
@@ -1452,7 +1453,7 @@ func GetInputCheckPassword(password string, accountPassword *AccountPassword) (I
 
 	res, err := GetInputCheckPasswordAlgo(password, accountPassword.SRPB, mp)
 	if err != nil {
-		return nil, errors.Wrap(err, "processing password")
+		return nil, fmt.Errorf("processing password: %w", err)
 	}
 
 	if res == nil {

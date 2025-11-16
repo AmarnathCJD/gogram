@@ -9,18 +9,19 @@ import (
 	"reflect"
 	"strings"
 
+	"errors"
+
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/mtproto/messages"
 	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
 	"github.com/amarnathcjd/gogram/internal/session"
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (chan tl.Object, int64, error) {
 	msg, err := tl.Marshal(request)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "marshaling request")
+		return nil, 0, fmt.Errorf("marshaling request: %w", err)
 	}
 
 	var (
@@ -92,7 +93,7 @@ func (m *MTProto) writeRPCResponse(msgID int, data tl.Object) error {
 	}
 
 	if err := safeSend(v, data); err != nil {
-		return errors.Wrap(err, "sending response")
+		return fmt.Errorf("sending response: %w", err)
 	}
 
 	m.responseChannels.Delete(msgID)

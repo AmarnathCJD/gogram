@@ -17,8 +17,9 @@ import (
 	"strings"
 	"time"
 
+	"errors"
+
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 // cryptoRandIntn returns a random int in [0, n) using crypto/rand
@@ -273,7 +274,7 @@ func ProxyFromURL(proxyURL string) (Proxy, error) {
 				Secret: matches[1],
 			}, nil
 		}
-		return nil, errors.Wrap(err, "invalid proxy URL")
+		return nil, fmt.Errorf("invalid proxy URL: %w", err)
 	}
 
 	scheme := strings.ToLower(u.Scheme)
@@ -1018,4 +1019,27 @@ func doesSessionFileExist(filePath string) bool {
 func IsFfmpegInstalled() bool {
 	_, err := exec.LookPath("ffmpeg")
 	return err == nil
+}
+
+type wrappedError struct {
+	msg string
+	err error
+}
+
+func (w *wrappedError) Error() string {
+	if w.err == nil {
+		return w.msg
+	}
+	return w.msg + ": " + w.err.Error()
+}
+
+func (w *wrappedError) Unwrap() error {
+	return w.err
+}
+
+func wrapError(err error, msg string) error {
+	if err == nil {
+		return nil
+	}
+	return &wrappedError{msg: msg, err: err}
 }

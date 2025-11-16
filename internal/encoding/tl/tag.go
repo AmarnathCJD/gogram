@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 const tagName = "tl"
@@ -24,7 +24,7 @@ type fieldTag struct {
 func parseTag(s reflect.StructTag) (*fieldTag, error) {
 	tags, err := parseFunc(string(s))
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing field tags")
+		return nil, fmt.Errorf("parsing field tags: %w", err)
 	}
 
 	tag, err := tags.Get(tagName)
@@ -45,7 +45,7 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 		index, err := parseUintMax32(num)
 		info.index = int(index)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing index number '%s'", num)
+			return nil, fmt.Errorf("parsing index number '%s': %w", num, err)
 		}
 
 		info.optional = true
@@ -57,7 +57,7 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 		index, err := parseUintMax32(num)
 		info.index = int(index)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing index number '%s'", num)
+			return nil, fmt.Errorf("parsing index number '%s': %w", num, err)
 		}
 
 		info.optional = true

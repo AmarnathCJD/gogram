@@ -7,7 +7,7 @@ import (
 )
 
 var tlPackagePath = "github.com/amarnathcjd/gogram/internal/encoding/tl"
-var errorsPackagePath = "github.com/pkg/errors"
+var errorsPackagePath = "errors"
 
 func (g *Generator) generateInit(file *jen.File, _ bool) {
 	structs, enums := g.getAllConstructors()

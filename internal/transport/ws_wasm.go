@@ -9,7 +9,7 @@ import (
 	"syscall/js"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type wsConn struct {

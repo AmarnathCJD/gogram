@@ -14,7 +14,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // obfuscatedConn wraps a connection with AES-256-CTR obfuscation
@@ -37,7 +37,7 @@ func NewObfuscatedConn(conn io.ReadWriteCloser, protocolID []byte) (*obfuscatedC
 
 	init, err := generateInitPayload(paddedProtocol)
 	if err != nil {
-		return nil, errors.Wrap(err, "generating init payload")
+		return nil, fmt.Errorf("generating init payload: %w", err)
 	}
 
 	initRev := make([]byte, 64)
@@ -52,13 +52,13 @@ func NewObfuscatedConn(conn io.ReadWriteCloser, protocolID []byte) (*obfuscatedC
 
 	encryptBlock, err := aes.NewCipher(encryptKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating encrypt cipher")
+		return nil, fmt.Errorf("creating encrypt cipher: %w", err)
 	}
 	encryptor := cipher.NewCTR(encryptBlock, encryptIV)
 
 	decryptBlock, err := aes.NewCipher(decryptKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating decrypt cipher")
+		return nil, fmt.Errorf("creating decrypt cipher: %w", err)
 	}
 	decryptor := cipher.NewCTR(decryptBlock, decryptIV)
 
@@ -72,7 +72,7 @@ func NewObfuscatedConn(conn io.ReadWriteCloser, protocolID []byte) (*obfuscatedC
 
 	_, err = conn.Write(finalInit)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending init payload")
+		return nil, fmt.Errorf("sending init payload: %w", err)
 	}
 
 	return &obfuscatedConn{
@@ -97,7 +97,7 @@ func generateInitPayload(protocolID []byte) ([]byte, error) {
 		init := make([]byte, 64)
 
 		if _, err := rand.Read(init); err != nil {
-			return nil, errors.Wrap(err, "reading random bytes")
+			return nil, fmt.Errorf("reading random bytes: %w", err)
 		}
 
 		if init[0] == 0xef {
@@ -193,7 +193,7 @@ func NewObfuscatedConnWithSecret(conn io.ReadWriteCloser, protocolID []byte, sec
 
 	for {
 		if _, err := io.ReadFull(rand.Reader, init[:56]); err != nil {
-			return nil, errors.Wrap(err, "reading random bytes")
+			return nil, fmt.Errorf("reading random bytes: %w", err)
 		}
 
 		if init[0] == 0xEF {
@@ -216,7 +216,7 @@ func NewObfuscatedConnWithSecret(conn io.ReadWriteCloser, protocolID []byte, sec
 
 		// last 2 bytes random
 		if _, err := io.ReadFull(rand.Reader, init[62:64]); err != nil {
-			return nil, errors.Wrap(err, "reading random tail bytes")
+			return nil, fmt.Errorf("reading random tail bytes: %w", err)
 		}
 
 		break
@@ -250,13 +250,13 @@ func NewObfuscatedConnWithSecret(conn io.ReadWriteCloser, protocolID []byte, sec
 
 	encryptBlock, err := aes.NewCipher(encryptKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating encrypt cipher")
+		return nil, fmt.Errorf("creating encrypt cipher: %w", err)
 	}
 	encryptor := cipher.NewCTR(encryptBlock, encryptIV)
 
 	decryptBlock, err := aes.NewCipher(decryptKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating decrypt cipher")
+		return nil, fmt.Errorf("creating decrypt cipher: %w", err)
 	}
 	decryptor := cipher.NewCTR(decryptBlock, decryptIV)
 
@@ -270,7 +270,7 @@ func NewObfuscatedConnWithSecret(conn io.ReadWriteCloser, protocolID []byte, sec
 
 	n, err := conn.Write(finalInit)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending init payload")
+		return nil, fmt.Errorf("sending init payload: %w", err)
 	}
 	if n != len(finalInit) {
 		return nil, fmt.Errorf("incomplete init write: wrote %d/%d bytes", n, len(finalInit))

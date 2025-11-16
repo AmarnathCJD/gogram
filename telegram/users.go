@@ -2,17 +2,18 @@ package telegram
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // GetMe returns the current user
 func (c *Client) GetMe() (*UserObj, error) {
 	resp, err := c.UsersGetFullUser(&InputUserSelf{})
 	if err != nil {
-		return nil, errors.Wrap(err, "getting user")
+		return nil, fmt.Errorf("getting user: %w", err)
 	}
 	user, ok := resp.Users[0].(*UserObj)
 	if !ok {

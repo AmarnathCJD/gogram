@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type wsConn struct {
@@ -39,7 +39,7 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 
 	u, err := url.Parse(wsURL)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid websocket URL")
+		return nil, fmt.Errorf("invalid websocket URL: %w", err)
 	}
 
 	host := u.Host
@@ -90,7 +90,7 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 		if cfg.Logger != nil {
 			cfg.Logger.WithError(err).Error("[ws] connection failed")
 		}
-		return nil, errors.Wrap(err, "dial failed")
+		return nil, fmt.Errorf("dial failed: %w", err)
 	}
 
 	if cfg.Logger != nil {
@@ -112,7 +112,7 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 
 	if _, err := conn.Write([]byte(req)); err != nil {
 		conn.Close()
-		return nil, errors.Wrap(err, "write handshake failed")
+		return nil, fmt.Errorf("write handshake failed: %w", err)
 	}
 
 	if cfg.Logger != nil {
@@ -126,7 +126,7 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 		if cfg.Logger != nil {
 			cfg.Logger.WithError(err).Error("[ws] failed to read handshake response")
 		}
-		return nil, errors.Wrap(err, "read handshake response failed")
+		return nil, fmt.Errorf("read handshake response failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -181,7 +181,7 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 		if cfg.Logger != nil {
 			cfg.Logger.WithError(err).Error("[ws] obfuscation failed")
 		}
-		return nil, errors.Wrap(err, "obfuscation failed")
+		return nil, fmt.Errorf("obfuscation failed: %w", err)
 	}
 
 	ws.reader = NewReader(cfg.Ctx, obf)
@@ -236,7 +236,7 @@ func (w *wsConn) Write(b []byte) (int, error) {
 
 	_, err := w.conn.Write(frame)
 	if err != nil {
-		return 0, errors.Wrap(err, "websocket write")
+		return 0, fmt.Errorf("websocket write: %w", err)
 	}
 	return len(b), nil
 }
@@ -245,7 +245,7 @@ func (w *wsConn) Read(b []byte) (int, error) {
 	if w.timeout > 0 {
 		err := w.conn.SetReadDeadline(time.Now().Add(w.timeout))
 		if err != nil {
-			return 0, errors.Wrap(err, "setting read deadline")
+			return 0, fmt.Errorf("setting read deadline: %w", err)
 		}
 	}
 
@@ -261,9 +261,9 @@ func (w *wsConn) Read(b []byte) (int, error) {
 			return 0, io.EOF
 		}
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			return 0, errors.Wrap(err, "required to reconnect!")
+			return 0, fmt.Errorf("required to reconnect!: %w", err)
 		}
-		return 0, errors.Wrap(err, "reading websocket frame header")
+		return 0, fmt.Errorf("reading websocket frame header: %w", err)
 	}
 
 	opcode := header[0] & 0x0F
@@ -278,13 +278,13 @@ func (w *wsConn) Read(b []byte) (int, error) {
 	case 126:
 		ext := make([]byte, 2)
 		if _, err := io.ReadFull(w.conn, ext); err != nil {
-			return 0, errors.Wrap(err, "reading extended payload length")
+			return 0, fmt.Errorf("reading extended payload length: %w", err)
 		}
 		payloadLen = int64(binary.BigEndian.Uint16(ext))
 	case 127:
 		ext := make([]byte, 8)
 		if _, err := io.ReadFull(w.conn, ext); err != nil {
-			return 0, errors.Wrap(err, "reading extended payload length")
+			return 0, fmt.Errorf("reading extended payload length: %w", err)
 		}
 		payloadLen = int64(binary.BigEndian.Uint64(ext))
 	}
@@ -293,13 +293,13 @@ func (w *wsConn) Read(b []byte) (int, error) {
 	if masked {
 		maskKey = make([]byte, 4)
 		if _, err := io.ReadFull(w.conn, maskKey); err != nil {
-			return 0, errors.Wrap(err, "reading mask key")
+			return 0, fmt.Errorf("reading mask key: %w", err)
 		}
 	}
 
 	payload := make([]byte, payloadLen)
 	if _, err := io.ReadFull(w.conn, payload); err != nil {
-		return 0, errors.Wrap(err, "reading payload")
+		return 0, fmt.Errorf("reading payload: %w", err)
 	}
 
 	if masked {

@@ -303,14 +303,14 @@ func minorFixes(outdir, layer string) {
 
 	replace(filepath.Join(execWorkDir, "methods_gen.go"), "return bool", "return false")
 	replace(filepath.Join(execWorkDir, "methods_gen.go"), `if err != nil {
-		return nil, errors.Wrap(err, "sending UsersGetUsers")
+		return nil, fmt.Errorf("sending UsersGetUsers: %w", err)
 	}
 
 	resp, ok := responseData.([]User)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}`, `if err != nil {
-		return nil, errors.Wrap(err, "sending UsersGetUsers")
+		return nil, fmt.Errorf("sending UsersGetUsers: %w", err)
 	}
 
 	resp, ok := responseData.([]User)

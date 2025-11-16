@@ -17,8 +17,9 @@ import (
 	"strings"
 	"time"
 
+	"errors"
+
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -144,7 +145,7 @@ func DecodeMTProtoProxySecret(value string) (proto byte, secret []byte, serverHo
 
 		data, err = base64.URLEncoding.DecodeString(value)
 		if err != nil {
-			return 0, nil, nil, errors.Wrap(err, "invalid mtproxy secret")
+			return 0, nil, nil, fmt.Errorf("invalid mtproxy secret: %w", err)
 		}
 	}
 
@@ -250,7 +251,7 @@ func generatePublicKey() ([]byte, error) {
 	for {
 		keyBytes := make([]byte, 32)
 		if _, err := rand.Read(keyBytes); err != nil {
-			return nil, errors.Wrap(err, "generating random bytes")
+			return nil, fmt.Errorf("generating random bytes: %w", err)
 		}
 
 		keyBytes[31] &= 0x7F
@@ -292,12 +293,12 @@ func generatePublicKey() ([]byte, error) {
 func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSConn, error) {
 	sessionID := make([]byte, 32)
 	if _, err := rand.Read(sessionID); err != nil {
-		return nil, errors.Wrap(err, "generating session ID")
+		return nil, fmt.Errorf("generating session ID: %w", err)
 	}
 
 	grease := make([]byte, _MAX_GREASE)
 	if _, err := rand.Read(grease); err != nil {
-		return nil, errors.Wrap(err, "generating grease for faketls")
+		return nil, fmt.Errorf("generating grease for faketls: %w", err)
 	}
 
 	for i := range grease {
@@ -310,7 +311,7 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 
 	publicKey, err := generatePublicKey()
 	if err != nil {
-		return nil, errors.Wrap(err, "generating public key")
+		return nil, fmt.Errorf("generating public key: %w", err)
 	}
 
 	buffer := make([]byte, 0, 1024)
@@ -403,12 +404,12 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 
 	_, err = conn.Write(buffer)
 	if err != nil {
-		return nil, errors.Wrap(err, "sending client hello")
+		return nil, fmt.Errorf("sending client hello: %w", err)
 	}
 
 	header, payload, err := readTLSRecord(conn)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading server hello")
+		return nil, fmt.Errorf("reading server hello: %w", err)
 	}
 
 	if len(payload) < 38 {
@@ -440,7 +441,7 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 
 	nextHeader, nextPayload, err := readTLSRecord(conn)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading change cipher spec")
+		return nil, fmt.Errorf("reading change cipher spec: %w", err)
 	}
 
 	if nextHeader[0] != 0x14 {
@@ -451,7 +452,7 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 
 	nextHeader, nextPayload, err = readTLSRecord(conn)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading random data")
+		return nil, fmt.Errorf("reading random data: %w", err)
 	}
 	if nextHeader[0] != 0x17 {
 		return nil, fmt.Errorf("unexpected TLS record: %#x", nextHeader[0])
@@ -607,7 +608,7 @@ func (m *mtproxyConn) Read(b []byte) (int, error) {
 		if setter, ok := m.conn.(interface{ SetReadDeadline(time.Time) error }); ok {
 			err := setter.SetReadDeadline(time.Now().Add(m.timeout))
 			if err != nil {
-				return 0, errors.Wrap(err, "setting read deadline")
+				return 0, fmt.Errorf("setting read deadline: %w", err)
 			}
 		}
 	}
@@ -617,14 +618,14 @@ func (m *mtproxyConn) Read(b []byte) (int, error) {
 	if err != nil {
 		if e, ok := err.(*net.OpError); ok || err == io.ErrClosedPipe {
 			if e != nil && e.Err.Error() == "i/o timeout" || err == io.ErrClosedPipe {
-				return 0, errors.Wrap(err, "required to reconnect!")
+				return 0, fmt.Errorf("required to reconnect: %w", err)
 			}
 		}
 		switch err {
 		case io.EOF, context.Canceled:
 			return 0, err
 		default:
-			return 0, errors.Wrap(err, "unexpected error")
+			return 0, fmt.Errorf("unexpected error: %w", err)
 		}
 	}
 	return n, nil
@@ -638,7 +639,7 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 
 	proto, secretBytes, serverHostname, err := DecodeMTProtoProxySecret(secret)
 	if err != nil {
-		return nil, errors.Wrap(err, "decoding MTProto proxy secret")
+		return nil, fmt.Errorf("decoding MTProto proxy secret: %w", err)
 	}
 
 	if logger != nil {
@@ -652,7 +653,7 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 	if localAddr != "" {
 		addr, err := net.ResolveTCPAddr("tcp", localAddr)
 		if err != nil {
-			return nil, errors.Wrap(err, "resolving local address")
+			return nil, fmt.Errorf("resolving local address: %w", err)
 		}
 		dialer.LocalAddr = addr
 	}
@@ -663,7 +664,7 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 		if logger != nil {
 			logger.WithError(err).WithField("proxy", proxyAddr).Error("[mtproxy] TCP connection failed")
 		}
-		return nil, errors.Wrap(err, "connecting to MTProxy")
+		return nil, fmt.Errorf("connecting to MTProxy: %w", err)
 	}
 
 	tcpConnection, ok := rawConn.(*net.TCPConn)
@@ -688,7 +689,7 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 			if logger != nil {
 				logger.WithError(err).Error("[mtproxy] Fake TLS handshake failed")
 			}
-			return nil, errors.Wrap(err, "Fake TLS handshake failed")
+			return nil, fmt.Errorf("Fake TLS handshake failed: %w", err)
 		}
 		conn = ftlsConn
 		if logger != nil {
@@ -703,7 +704,7 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 		if logger != nil {
 			logger.WithError(err).Error("[mtproxy] obfuscation failed")
 		}
-		return nil, errors.Wrap(err, "creating obfuscated connection")
+		return nil, fmt.Errorf("creating obfuscated connection: %w", err)
 	}
 
 	if logger != nil {
