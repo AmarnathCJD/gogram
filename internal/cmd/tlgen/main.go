@@ -46,21 +46,31 @@ func main() {
 	log.Println("INFO: Starting TL generator")
 
 	var aeq AEQ
+	hasFlags := false
 	for _, arg := range os.Args {
 		if arg == "-f" {
 			aeq.Force = true
+			hasFlags = true
 			log.Println("INFO: Force mode enabled")
 		}
 
 		if arg == "-d" || arg == "--doc" {
 			aeq.D = true
+			hasFlags = true
 			log.Println("INFO: Documentation mode enabled")
 		}
 
 		if arg == "-g" || arg == "--gen" {
 			aeq.Gen = true
+			hasFlags = true
 			log.Println("INFO: Generation mode enabled")
 		}
+	}
+
+	// Start web UI if no flags provided
+	if len(os.Args) == 1 && !hasFlags {
+		startWebUI()
+		return
 	}
 
 	if len(os.Args) == 0 || len(os.Args) == 1 || len(os.Args) == 2 || aeq.D || aeq.Force {
