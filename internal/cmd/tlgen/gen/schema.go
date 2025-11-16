@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"log"
 	"strings"
 
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
@@ -23,6 +24,7 @@ type enum struct {
 }
 
 func createInternalSchema(nativeSchema *tlparser.Schema) (*internalSchema, error) {
+	log.Println("INFO: Creating internal schema representation")
 	internalSchema := &internalSchema{
 		InterfaceCommnets:    make(map[string]string),
 		Enums:                make(map[string][]enum),
@@ -31,6 +33,7 @@ func createInternalSchema(nativeSchema *tlparser.Schema) (*internalSchema, error
 		Methods:              make([]tlparser.Method, 0),
 	}
 
+	log.Printf("INFO: Processing %d objects from schema\n", len(nativeSchema.Objects))
 	reversedObjects := make(map[string][]tlparser.Object)
 	for _, obj := range nativeSchema.Objects {
 		if reversedObjects[obj.Interface] == nil {
@@ -40,10 +43,22 @@ func createInternalSchema(nativeSchema *tlparser.Schema) (*internalSchema, error
 		reversedObjects[obj.Interface] = append(reversedObjects[obj.Interface], obj)
 	}
 
+	enumCount := 0
+	singleInterfaceCount := 0
+	multiTypeCount := 0
+
 	for interfaceName, objects := range reversedObjects {
 		for _, obj := range objects {
+			originalName := obj.Name
 			if strings.EqualFold(obj.Name, obj.Interface) {
 				obj.Name += "Obj"
+			}
+
+			goifiedOriginal := goify(originalName, true)
+			goifiedNew := goify(obj.Name, true)
+			if goifiedOriginal != goifiedNew && !strings.HasSuffix(goifiedNew, "Obj") {
+				log.Printf("ERROR: Type name deviation detected! Original: '%s' -> Goified: '%s', New: '%s' -> Goified: '%s'\n",
+					originalName, goifiedOriginal, obj.Name, goifiedNew)
 			}
 		}
 
@@ -57,20 +72,27 @@ func createInternalSchema(nativeSchema *tlparser.Schema) (*internalSchema, error
 			}
 
 			internalSchema.Enums[interfaceName] = enums
+			enumCount++
 			continue
 		}
 
 		if len(objects) == 1 {
 			internalSchema.SingleInterfaceTypes = append(internalSchema.SingleInterfaceTypes, objects[0])
+			singleInterfaceCount++
 			// delete(reversedObjects, interfaceName)
 			continue
 		}
 
 		internalSchema.Types[interfaceName] = objects
+		multiTypeCount++
 	}
 
 	internalSchema.Methods = nativeSchema.Methods
 	internalSchema.InterfaceCommnets = nativeSchema.TypeComments
+
+	log.Printf("INFO: Schema analysis complete - Enums: %d, Single Types: %d, Multi Types: %d, Methods: %d\n",
+		enumCount, singleInterfaceCount, multiTypeCount, len(nativeSchema.Methods))
+
 	return internalSchema, nil
 }
 
