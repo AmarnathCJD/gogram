@@ -358,26 +358,3 @@ func (p *Proxy) ToURL() *url.URL {
 
 	return u
 }
-
-type wrappedError struct {
-	msg string
-	err error
-}
-
-func (w *wrappedError) Error() string {
-	if w.err == nil {
-		return w.msg
-	}
-	return w.msg + ": " + w.err.Error()
-}
-
-func (w *wrappedError) Unwrap() error {
-	return w.err
-}
-
-func WrapError(err error, msg string) error {
-	if err == nil {
-		return nil
-	}
-	return &wrappedError{msg: msg, err: err}
-}
