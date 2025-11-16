@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/rand"
+	"crypto/sha1"
 	"crypto/sha256"
 	"math/big"
 
@@ -210,4 +211,97 @@ func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte, err er
 	copy(tmpAESIV[28:], nonceSecond.Bytes()[0:4])
 
 	return tmpAESKey, tmpAESIV, nil
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// MTProto 1.0 helpers (used for auth.bindTempAuthKey binding message encryption)
+
+// aesKeysV1 derives AES key and IV according to MTProto 1.0 specification.
+// See https://core.telegram.org/mtproto/description_v1#defining-aes-key-and-initialization-vector
+func aesKeysV1(msgKey, authKey []byte, decode bool) (aesKey, aesIv [32]byte) {
+	var x int
+	if decode {
+		x = 8
+	} else {
+		x = 0
+	}
+
+	// sha1_a = SHA1 (msg_key + substr (auth_key, x, 32));
+	buf := make([]byte, 16+32)
+	copy(buf, msgKey)
+	copy(buf[16:], authKey[x:x+32])
+	sha1a := sha1.Sum(buf)
+
+	// sha1_b = SHA1 (substr (auth_key, 32+x, 16) + msg_key + substr (auth_key, 48+x, 16));
+	buf = make([]byte, 16+16+16)
+	copy(buf, authKey[32+x:32+x+16])
+	copy(buf[16:], msgKey)
+	copy(buf[32:], authKey[48+x:48+x+16])
+	sha1b := sha1.Sum(buf)
+
+	// sha1_c = SHA1 (substr (auth_key, 64+x, 32) + msg_key);
+	buf = make([]byte, 32+16)
+	copy(buf, authKey[64+x:64+x+32])
+	copy(buf[32:], msgKey)
+	sha1c := sha1.Sum(buf)
+
+	// sha1_d = SHA1 (msg_key + substr (auth_key, 96+x, 32));
+	buf = make([]byte, 16+32)
+	copy(buf, msgKey)
+	copy(buf[16:], authKey[96+x:96+x+32])
+	sha1d := sha1.Sum(buf)
+
+	// aes_key = substr (sha1_a, 0, 8) + substr (sha1_b, 8, 12) + substr (sha1_c, 4, 12);
+	copy(aesKey[0:], sha1a[0:8])
+	copy(aesKey[8:], sha1b[8:8+12])
+	copy(aesKey[20:], sha1c[4:4+12])
+
+	// aes_iv = substr (sha1_a, 8, 12) + substr (sha1_b, 0, 8) + substr (sha1_c, 16, 4) + substr (sha1_d, 0, 8);
+	copy(aesIv[0:], sha1a[8:8+12])
+	copy(aesIv[12:], sha1b[0:0+8])
+	copy(aesIv[20:], sha1c[16:16+4])
+	copy(aesIv[24:], sha1d[0:0+8])
+
+	return aesKey, aesIv
+}
+
+// encryptV1 encrypts plaintext using MTProto 1.0 key derivation.
+// It returns the ciphertext and msg_key (128-bit).
+func encryptV1(plaintext, authKey []byte, decode bool) (out, msgKey []byte, _ error) {
+	// msg_key = substr (SHA1 (plaintext), 4, 16);
+	sha := sha1.Sum(plaintext)
+	msgKey = make([]byte, 16)
+	copy(msgKey, sha[4:4+16])
+
+	aesKey, aesIV := aesKeysV1(msgKey, authKey, decode)
+
+	// pad plaintext with random bytes to a multiple of 16 bytes
+	padding := 16 - (len(plaintext) % 16)
+	if padding == 16 {
+		padding = 0
+	}
+	data := make([]byte, len(plaintext)+padding)
+	copy(data, plaintext)
+	if padding > 0 {
+		if _, err := rand.Read(data[len(plaintext):]); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	c, err := NewCipher(aesKey[:], aesIV[:])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out = make([]byte, len(data))
+	if err := c.doAES256IGEencrypt(data, out); err != nil {
+		return nil, nil, err
+	}
+
+	return out, msgKey, nil
+}
+
+// EncryptV1 is a convenience wrapper for encryptV1 for client-to-server messages.
+func EncryptV1(plaintext, authKey []byte) (out, msgKey []byte, _ error) {
+	return encryptV1(plaintext, authKey, false)
 }
