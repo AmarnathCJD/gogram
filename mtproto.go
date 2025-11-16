@@ -50,6 +50,10 @@ type MTProto struct {
 
 	authKeyHash []byte
 
+	tempAuthKey       []byte
+	tempAuthKeyHash   []byte
+	tempAuthExpiresAt int64
+
 	noRedirect bool
 
 	serverSalt int64
@@ -95,6 +99,7 @@ type MTProto struct {
 
 	useWebSocket    bool
 	useWebSocketTLS bool
+	enablePFS       bool
 }
 
 type Config struct {
@@ -104,6 +109,7 @@ type Config struct {
 	SessionStorage session.SessionLoader
 	MemorySession  bool
 	AppID          int32
+	EnablePFS      bool
 
 	FloodHandler      func(err error) bool
 	ErrorHandler      func(err error)
@@ -178,6 +184,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		maxReconnectDelay:     15 * time.Minute,
 		useWebSocket:          c.UseWebSocket,
 		useWebSocketTLS:       c.UseWebSocketTLS,
+		enablePFS:             c.EnablePFS,
 	}
 
 	mtproto.Logger.Debug("initializing mtproto...")
@@ -526,7 +533,101 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 		m.Logger.Debug("authKey created and saved")
 	}
 
+	// Start Perfect Forward Secrecy manager if enabled on the main connection.
+	if m.enablePFS && !m.exported && !m.cdn {
+		m.startPFSManager(ctx)
+	}
+
 	return nil
+}
+
+// startPFSManager runs a background loop which ensures that a temporary auth
+// key is created and bound to the permanent auth key when PFS is enabled.
+// It will renew the temporary key shortly before its expiry.
+func (m *MTProto) startPFSManager(ctx context.Context) {
+	const renewBeforeSeconds int64 = 60                      // renew 60s before expiry
+	const defaultTempLifetimeSeconds int32 = 24 * 60 * 60    // 24h
+	const retryDelayOnError = 30 * time.Second               // backoff on error
+	const pollNoAuthKeyDelay = 5 * time.Second               // wait for authKey
+	const minSleepSeconds int64 = 5                          // minimum wait between checks
+
+	m.routineswg.Add(1)
+	go func() {
+		defer m.routineswg.Done()
+
+		m.Logger.Debug("PFS manager started")
+		for {
+			select {
+			case <-ctx.Done():
+				m.Logger.Debug("PFS manager stopped: context cancelled")
+				return
+			default:
+			}
+
+			// Require permanent auth key first.
+			if len(m.authKey) == 0 {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(pollNoAuthKeyDelay):
+				}
+				continue
+			}
+
+			now := time.Now().Unix()
+			expiresAt := m.tempAuthExpiresAt
+			needNew := m.tempAuthKey == nil || expiresAt == 0 || now >= expiresAt-renewBeforeSeconds
+
+			if needNew {
+				m.Logger.Debug("PFS: creating and binding temporary auth key")
+				if err := m.createTempAuthKey(defaultTempLifetimeSeconds); err != nil {
+					m.Logger.WithError(err).Error("PFS: createTempAuthKey failed")
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(retryDelayOnError):
+					}
+					continue
+				}
+
+				if err := m.bindTempAuthKey(); err != nil {
+					m.Logger.WithError(err).Error("PFS: bindTempAuthKey failed")
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(retryDelayOnError):
+					}
+					continue
+				}
+
+				// Refresh local expiry after successful bind.
+				expiresAt = m.tempAuthExpiresAt
+			}
+
+			// Compute sleep until just before expiry.
+			if expiresAt == 0 {
+				// No expiry known (should not normally happen); poll later.
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(pollNoAuthKeyDelay):
+				}
+				continue
+			}
+
+			waitSec := expiresAt - now - renewBeforeSeconds
+			if waitSec < minSleepSeconds {
+				waitSec = minSleepSeconds
+			}
+			waitDur := time.Duration(waitSec) * time.Second
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(waitDur):
+			}
+		}
+	}()
 }
 
 func (m *MTProto) connect(ctx context.Context) error {
@@ -727,16 +828,18 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		m.Logger.Info("reconnecting to [%s] - <%s> ...", m.Addr, m.GetTransportType())
 	}
 	err = m.CreateConnection(WithLogs)
-	if err == nil {
-		if WithLogs {
-			m.Logger.Info("reconnected to [%s] - <%s>", m.Addr, m.GetTransportType())
-		}
-		if m.transport != nil {
-			m.Ping()
-		}
+	if err != nil {
+		return fmt.Errorf("recreating connection: %w", err)
 	}
 
-	return fmt.Errorf("recreating connection: %w", err)
+	if WithLogs {
+		m.Logger.Info("reconnected to [%s] - <%s>", m.Addr, m.GetTransportType())
+	}
+	if m.transport != nil {
+		m.Ping()
+	}
+
+	return nil
 }
 
 // keep pinging to keep the connection alive

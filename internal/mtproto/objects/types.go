@@ -45,6 +45,43 @@ func (*PQInnerData) CRC() uint32 {
 	return 0x83c95aec
 }
 
+// PQInnerDataTempDc represents p_q_inner_data_temp_dc used for generating
+// temporary authorization keys (PFS) as described in MTProto auth_key docs.
+//
+// p_q_inner_data_temp_dc#56fddf88 pq:string p:string q:string nonce:int128
+//   server_nonce:int128 new_nonce:int256 dc:int expires_in:int = P_Q_inner_data;
+func (*PQInnerDataTempDc) CRC() uint32 {
+	return 0x56fddf88
+}
+
+type PQInnerDataTempDc struct {
+	Pq          []byte
+	P           []byte
+	Q           []byte
+	Nonce       *tl.Int128
+	ServerNonce *tl.Int128
+	NewNonce    *tl.Int256
+	Dc          int32
+	ExpiresIn   int32
+}
+
+// BindAuthKeyInner represents the bind_auth_key_inner message used to bind
+// a temporary auth key to a permanent one in auth.bindTempAuthKey.
+//
+// bind_auth_key_inner#75a3f765 nonce:long temp_auth_key_id:long
+//   perm_auth_key_id:long temp_session_id:long expires_at:int = BindAuthKeyInner;
+type BindAuthKeyInner struct {
+	Nonce         int64
+	TempAuthKeyID int64
+	PermAuthKeyID int64
+	TempSessionID int64
+	ExpiresAt     int32
+}
+
+func (*BindAuthKeyInner) CRC() uint32 {
+	return 0x75a3f765
+}
+
 type ServerDHParams interface {
 	tl.Object
 	ImplementsServerDHParams()
