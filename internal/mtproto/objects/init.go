@@ -14,6 +14,7 @@ func init() {
 		&PingParams{},
 		&ResPQ{},
 		&PQInnerData{},
+		&PQInnerDataTempDc{},
 		&ServerDHParamsFail{},
 		&ServerDHParamsOk{},
 		&ServerDHInnerData{},
