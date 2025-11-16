@@ -47,6 +47,7 @@ func main() {
 
 	var aeq AEQ
 	hasFlags := false
+	tuiMode := false
 	for _, arg := range os.Args {
 		if arg == "-f" {
 			aeq.Force = true
@@ -65,9 +66,18 @@ func main() {
 			hasFlags = true
 			log.Println("INFO: Generation mode enabled")
 		}
+
+		if arg == "-t" || arg == "--tui" {
+			tuiMode = true
+			hasFlags = true
+		}
 	}
 
-	// Start web UI if no flags provided
+	if tuiMode {
+		startTUI()
+		return
+	}
+
 	if len(os.Args) == 1 && !hasFlags {
 		startWebUI()
 		return
