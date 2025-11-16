@@ -8,8 +8,9 @@ import (
 	"reflect"
 	"time"
 
+	"errors"
+
 	"github.com/amarnathcjd/gogram"
-	"github.com/pkg/errors"
 )
 
 type SendOptions struct {
@@ -982,19 +983,20 @@ func (c *Client) GetCustomEmoji(docIDs ...int64) ([]Document, error) {
 }
 
 type SearchOption struct {
-	IDs              any            // IDs of the messages to get (bots can use)
-	Query            string         // query to search for
-	FromUser         any            // ID of the user to search from
-	AddOffset        int32          // Sequential number of the first message to be returned
-	Offset           int32          // offset of the message to search from
-	Limit            int32          // limit of the messages to get
-	Filter           MessagesFilter // filter to use
-	TopMsgID         int32          // ID of the top message
-	MaxID            int32          // maximum ID of the message
-	MinID            int32          // minimum ID of the message
-	MaxDate          int32          // maximum date of the message
-	MinDate          int32          // minimum date of the message
-	SleepThresholdMs int32          // sleep threshold in milliseconds (in-between chunked operations)
+	IDs              any             // IDs of the messages to get (bots can use)
+	Query            string          // query to search for
+	FromUser         any             // ID of the user to search from
+	AddOffset        int32           // Sequential number of the first message to be returned
+	Offset           int32           // offset of the message to search from
+	Limit            int32           // limit of the messages to get
+	Filter           MessagesFilter  // filter to use
+	TopMsgID         int32           // ID of the top message
+	MaxID            int32           // maximum ID of the message
+	MinID            int32           // minimum ID of the message
+	MaxDate          int32           // maximum date of the message
+	MinDate          int32           // minimum date of the message
+	SleepThresholdMs int32           // sleep threshold in milliseconds (in-between chunked operations)
+	Context          context.Context // context for cancellation and timeouts
 }
 
 func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, error) {
@@ -1162,8 +1164,8 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 }
 
 func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMessage, <-chan error) {
-	ch := make(chan NewMessage)
-	errCh := make(chan error)
+	ch := make(chan NewMessage, 100)
+	errCh := make(chan error, 1)
 
 	go func() {
 		defer close(ch)
@@ -1174,14 +1176,24 @@ func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMess
 			SleepThresholdMs: 20,
 		})
 
+		var ctx context.Context
+		if opt.Context != nil {
+			ctx = opt.Context
+		}
+		if ctx == nil {
+			ctx = context.Background()
+		}
+
 		peer, err := c.ResolvePeer(PeerID)
 		if err != nil {
-			errCh <- err
+			select {
+			case errCh <- err:
+			default:
+			}
 			return
 		}
 
 		var (
-			messages []NewMessage
 			inputIDs []InputMessage
 			result   MessagesMessages
 		)
@@ -1221,38 +1233,66 @@ func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMess
 		if len(inputIDs) > 0 {
 			var chunkedIds = splitIDsIntoChunks(inputIDs, 100)
 			for _, ids := range chunkedIds {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
 				switch peer := peer.(type) {
 				case *InputPeerChannel:
 					result, err = c.ChannelsGetMessages(&InputChannelObj{ChannelID: peer.ChannelID, AccessHash: peer.AccessHash}, ids)
 				case *InputPeerChat, *InputPeerUser, *InputPeerSelf:
 					result, err = c.MessagesGetMessages(ids)
 				default:
-					errCh <- errors.New("invalid peer type to get messages")
+					select {
+					case errCh <- errors.New("invalid peer type to get messages"):
+					default:
+					}
 					return
 				}
 				if err != nil {
-					errCh <- err
+					select {
+					case errCh <- err:
+					default:
+					}
 					return
 				}
 				switch result := result.(type) {
 				case *MessagesChannelMessages:
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
-						ch <- *packMessage(c, msg)
+						select {
+						case <-ctx.Done():
+							return
+						case ch <- *packMessage(c, msg):
+						}
 					}
 				case *MessagesMessagesObj:
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
-						ch <- *packMessage(c, msg)
+						select {
+						case <-ctx.Done():
+							return
+						case ch <- *packMessage(c, msg):
+						}
 					}
 				case *MessagesMessagesSlice:
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
-						ch <- *packMessage(c, msg)
+						select {
+						case <-ctx.Done():
+							return
+						case ch <- *packMessage(c, msg):
+						}
 					}
 				}
 
-				time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(time.Duration(opt.SleepThresholdMs) * time.Millisecond):
+				}
 			}
 		} else {
 			if opt.Filter == nil {
@@ -1275,15 +1315,32 @@ func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMess
 			if opt.FromUser != nil {
 				fromUser, err := c.ResolvePeer(opt.FromUser)
 				if err != nil {
-					errCh <- err
+					select {
+					case errCh <- err:
+					default:
+					}
 					return
 				}
 				params.FromID = fromUser
 			}
 
+			var totalFetched int32
 			for {
-				remaining := opt.Limit - int32(len(messages))
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				remaining := opt.Limit - totalFetched
+				if opt.Limit > 0 && remaining <= 0 {
+					return
+				}
+
 				perReqLimit := min(remaining, int32(100))
+				if opt.Limit == 0 {
+					perReqLimit = 100
+				}
 				params.Limit = perReqLimit
 
 				result, err = c.MessagesSearch(params)
@@ -1291,51 +1348,66 @@ func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMess
 					if handleIfFlood(err, c) {
 						continue
 					}
-					errCh <- err
+					select {
+					case errCh <- err:
+					default:
+					}
 					return
 				}
+
+				var batchMessages []NewMessage
 				switch result := result.(type) {
 				case *MessagesChannelMessages:
-					if result.Count == 0 {
+					if result.Count == 0 || len(result.Messages) == 0 {
 						return
 					}
-
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
-						messages = append(messages, *packMessage(c, msg))
+						batchMessages = append(batchMessages, *packMessage(c, msg))
 					}
 				case *MessagesMessagesObj:
 					if len(result.Messages) == 0 {
 						return
 					}
-
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
-						messages = append(messages, *packMessage(c, msg))
+						batchMessages = append(batchMessages, *packMessage(c, msg))
 					}
 				case *MessagesMessagesSlice:
-					if result.Count == 0 {
+					if result.Count == 0 || len(result.Messages) == 0 {
 						return
 					}
-
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
-						messages = append(messages, *packMessage(c, msg))
+						batchMessages = append(batchMessages, *packMessage(c, msg))
 					}
 				}
 
-				for _, msg := range messages {
-					ch <- msg
+				if len(batchMessages) == 0 {
+					return
 				}
 
-				if (len(messages) >= int(opt.Limit) || len(messages) == 0) && opt.Limit > 0 {
-					break
+				for _, msg := range batchMessages {
+					select {
+					case <-ctx.Done():
+						return
+					case ch <- msg:
+						totalFetched++
+					}
 				}
 
-				params.OffsetID = messages[len(messages)-1].ID
-				params.MaxDate = messages[len(messages)-1].Date()
+				if len(batchMessages) < int(perReqLimit) {
+					return
+				}
 
-				time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
+				params.OffsetID = batchMessages[len(batchMessages)-1].ID
+				params.MaxDate = batchMessages[len(batchMessages)-1].Date()
+
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(time.Duration(opt.SleepThresholdMs) * time.Millisecond):
+				}
 			}
 		}
 	}()

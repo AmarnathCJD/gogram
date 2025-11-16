@@ -79,6 +79,26 @@ func (b *CallbackQuery) GetChatID() int64 {
 	return b.ChatID
 }
 
+func (b *CallbackQuery) ChannelID() int64 {
+	if b != nil && b.Peer != nil {
+		switch peer := b.Peer.(type) {
+		case *PeerChannel:
+			if peer != nil {
+				return -100_000_000_0000 - peer.ChannelID
+			}
+		case *PeerChat:
+			if peer != nil {
+				return -peer.ChatID
+			}
+		case *PeerUser:
+			if peer != nil {
+				return peer.UserID
+			}
+		}
+	}
+	return 0
+}
+
 func (b *CallbackQuery) ShortName() string {
 	return b.OriginalUpdate.GameShortName
 }
@@ -155,6 +175,16 @@ func (b *CallbackQuery) Ask(Text any, Opts ...*SendOptions) (*NewMessage, error)
 	return conv.GetResponse()
 }
 
+func (b *CallbackQuery) WaitClick(timeout ...int32) (*CallbackQuery, error) {
+	conv, err := b.Conv(getVariadic(timeout, 60))
+	if err != nil {
+		return nil, err
+	}
+	defer conv.Close()
+
+	return conv.WaitClick()
+}
+
 func (b *CallbackQuery) Reply(Text any, options ...*SendOptions) (*NewMessage, error) {
 	var opts SendOptions
 	if len(options) > 0 {
@@ -212,8 +242,8 @@ func (b *CallbackQuery) ForwardTo(ChatID int64, options ...*ForwardOptions) (*Ne
 	return &m[0], nil
 }
 
-func (b *CallbackQuery) Marshal(nointent ...bool) string {
-	return b.Client.JSON(b.OriginalUpdate, nointent)
+func (b *CallbackQuery) Marshal(noindent ...bool) string {
+	return b.Client.JSON(b.OriginalUpdate, noindent)
 }
 
 type InlineCallbackQuery struct {
@@ -290,6 +320,6 @@ func (b *InlineCallbackQuery) IsChannel() bool {
 	return b.ChatType() == EntityChannel
 }
 
-func (b *InlineCallbackQuery) Marshal(nointent ...bool) string {
-	return b.Client.JSON(b.OriginalUpdate, nointent)
+func (b *InlineCallbackQuery) Marshal(noindent ...bool) string {
+	return b.Client.JSON(b.OriginalUpdate, noindent)
 }

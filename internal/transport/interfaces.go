@@ -5,8 +5,9 @@ package transport
 import (
 	"context"
 	"io"
-	"net/url"
 	"time"
+
+	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
 type ConnConfig any
@@ -18,14 +19,27 @@ type Mode interface {
 	ReadMsg() ([]byte, error)
 }
 
+type TCPConnConfig struct {
+	Ctx         context.Context
+	Host        string
+	IpV6        bool
+	Timeout     time.Duration
+	Socks       *utils.Proxy
+	LocalAddr   string
+	ModeVariant uint8
+	DC          int
+	Logger      *utils.Logger
+}
+
 type WSConnConfig struct {
 	Ctx         context.Context
 	Host        string
 	TLS         bool
 	Timeout     time.Duration
-	Socks       *url.URL
+	Socks       *utils.Proxy
 	LocalAddr   string
 	ModeVariant uint8
 	DC          int
 	TestMode    bool
+	Logger      *utils.Logger
 }

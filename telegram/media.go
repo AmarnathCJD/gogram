@@ -17,7 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type UploadOptions struct {
@@ -53,7 +53,10 @@ func (wp *WorkerPool) AddWorker(s *ExSender) {
 
 func (wp *WorkerPool) Next() *ExSender {
 	next := <-wp.free
-	if !next.MTProto.IsTcpActive() {
+	if next == nil {
+		return nil
+	}
+	if next.MTProto != nil && !next.MTProto.IsTcpActive() {
 		next.MTProto.Reconnect(false)
 	}
 	next.lastUsedMu.Lock()
@@ -164,7 +167,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	}
 	w := NewWorkerPool(numWorkers)
 
-	c.Log.Info(fmt.Sprintf("file - upload: (%s) - (%s) - (%d)", source.GetName(), SizetoHuman(size), parts))
+	c.Log.WithFields(map[string]any{
+		"file_name": source.GetName(),
+		"file_size": SizetoHuman(size),
+		"parts":     parts,
+	}).Info("starting file upload")
 
 	doneBytes := atomic.Int64{}
 	doneArray := sync.Map{}
@@ -215,7 +222,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 			part := make([]byte, partSize)
 			readBytes, err := io.ReadFull(file, part)
 			if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
-				c.Log.Error(err)
+				c.Log.WithError(err).Error("reading file part")
 				return nil, err
 			}
 			part = part[:readBytes]
@@ -240,11 +247,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 						if handleIfFlood(err, c) {
 							continue
 						}
-						c.Log.Debug(fmt.Sprintf("upload part %d error: %v", p, err))
+						c.Log.Debug("upload part %d error: %v", p, err)
 						continue
 					}
 
-					c.Log.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
+					c.Log.Debug("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024)
 					doneBytes.Add(int64(len(part)))
 					doneArray.Store(p, true)
 					break
@@ -271,7 +278,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		part := make([]byte, partSize)
 		readBytes, err := io.ReadFull(file, part)
 		if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
-			c.Log.Error(err)
+			c.Log.WithError(err).Error("reading file part")
 			return nil, err
 		}
 		part = part[:readBytes]
@@ -297,11 +304,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					if handleIfFlood(err, c) {
 						continue
 					}
-					c.Log.Debug(fmt.Sprintf("upload part %d error: %v", p, err))
+					c.Log.Debug("upload part %d error: %v", p, err)
 					continue
 				}
 
-				c.Log.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
+				c.Log.Debug("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024)
 				doneBytes.Add(int64(len(part)))
 				doneArray.Store(p, true)
 				break
@@ -326,7 +333,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 func handleIfFlood(err error, c *Client) bool {
 	if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
 		if waitTime := GetFloodWait(err); waitTime > 0 {
-			c.Log.Debug("flood wait ", waitTime, "(s), waiting...")
+			c.Log.Debug("flood wait detected, sleeping for", waitTime, "seconds")
 			time.Sleep(time.Duration(waitTime) * time.Second)
 
 			if c.clientData.sleepThresholdMs > 0 {
@@ -393,6 +400,10 @@ type DownloadOptions struct {
 	ThumbSize PhotoSize `json:"thumb_size,omitempty"`
 	// Weather to download video file (profile photo, etc)
 	IsVideo bool `json:"is_video,omitempty"`
+	// Context for cancellation
+	Ctx context.Context `json:"-"`
+	// Timeout for download operation to seize out
+	Timeout time.Duration `json:"-"`
 }
 
 type Destination struct {
@@ -427,6 +438,17 @@ func (mb *Destination) Close() error {
 
 func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, error) {
 	opts := getVariadic(Opts, &DownloadOptions{})
+
+	ctx := opts.Ctx
+	if ctx == nil {
+		if opts.Timeout > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(context.Background(), opts.Timeout)
+			defer cancel()
+		} else {
+			ctx = context.Background()
+		}
+	}
 
 	location, dc, size, fileName, err := GetFileLocation(file, FileLocationOptions{
 		ThumbOnly: opts.ThumbOnly,
@@ -464,8 +486,6 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		fs.data = make([]byte, size)
 	}
 
-	defer fs.Close()
-
 	parts := size / int64(partSize)
 	partOver := size % int64(partSize)
 	totalParts := parts
@@ -485,21 +505,49 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		c.Log.Warn("downloading to buffer (memory) - use with caution (memory usage)")
 	}
 
-	c.Log.Info(fmt.Sprintf("file - download: (%s) - (%s) - (%d)", dest, SizetoHuman(size), parts))
+	c.Log.WithFields(map[string]any{
+		"file_name": dest,
+		"file_size": SizetoHuman(size),
+		"parts":     parts,
+	}).Info("starting file download")
 
 	if err := initializeWorkers(numWorkers, dc, c, w); err != nil {
 		return "", err
 	}
 
 	var sem = make(chan struct{}, numWorkers)
-	defer close(sem)
-
 	var wg sync.WaitGroup
 	var doneBytes atomic.Int64
 	var doneArray sync.Map
+	var cancelled atomic.Bool
+	var downloadErr atomic.Value
+	var cleanupOnce sync.Once
 
 	stopProgress := make(chan struct{})
-	defer close(stopProgress)
+
+	cleanup := func() {
+		cleanupOnce.Do(func() {
+			close(stopProgress)
+			close(sem)
+			fs.Close()
+			if cancelled.Load() && opts.Buffer == nil && fs.file != nil {
+				os.Remove(dest)
+			}
+		})
+	}
+	defer cleanup()
+
+	ctxDone := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			cancelled.Store(true)
+			downloadErr.Store(ctx.Err())
+		case <-ctxDone:
+			return
+		}
+	}()
+	defer close(ctxDone)
 
 	if opts.ProgressManager != nil {
 		opts.ProgressManager.SetFileName(dest)
@@ -508,7 +556,9 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		opts.ProgressManager.SetTotalSize(size)
 		opts.ProgressManager.SetMeta(int(dc), numWorkers)
 
-		opts.ProgressManager.editFunc(size, 0) // Initial edit
+		if opts.ProgressManager.editFunc != nil {
+			opts.ProgressManager.editFunc(size, 0)
+		}
 
 		go func() {
 			ticker := time.NewTicker(time.Duration(opts.ProgressManager.editInterval) * time.Second)
@@ -519,8 +569,10 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				case <-stopProgress:
 					return
 				case <-ticker.C:
-					current := min(doneBytes.Load(), size)
-					opts.ProgressManager.editFunc(size, current)
+					if opts.ProgressManager.editFunc != nil {
+						current := min(doneBytes.Load(), size)
+						opts.ProgressManager.editFunc(size, current)
+					}
 				}
 			}
 		}()
@@ -529,6 +581,10 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	MaxRetries := 3
 	var cdnRedirect atomic.Bool
 	for p := int64(0); p < totalParts; p++ {
+		if cancelled.Load() {
+			break
+		}
+
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(p int) {
@@ -538,13 +594,16 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 			}()
 
 			for range MaxRetries {
-				if cdnRedirect.Load() {
+				if cancelled.Load() || cdnRedirect.Load() {
 					return
 				}
 				sender := w.Next()
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				if sender == nil {
+					return
+				}
+				reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 
-				part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
+				part, err := sender.MakeRequestCtx(reqCtx, &UploadGetFileParams{
 					Location:     location,
 					Offset:       int64(p * partSize),
 					Limit:        int32(partSize),
@@ -559,18 +618,20 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 						continue
 					}
 
-					if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
-						c.Log.Debug(err)
-						return // File reference expired
+					if MatchError(err, "FILE_REFERENCE_EXPIRED") {
+						c.Log.WithError(err).Debug("[FILE_REFERENCE_EXPIRED]")
+						cancelled.Store(true)
+						downloadErr.Store(err)
+						return // file reference expired, need to refetch ref
 					}
 
-					c.Log.Debug(errors.Wrap(err, fmt.Sprintf("part - (%d) - retrying...", p)))
+					c.Log.WithError(err).Debug("part - (%d) - retrying...", p)
 					continue
 				}
 
 				switch v := part.(type) {
 				case *UploadFileObj:
-					c.Log.Debug("downloaded part ", p, "/", totalParts, " len: ", len(v.Bytes)/1024, "KB")
+					c.Log.Debug("downloaded part %d/%d len: %d KB", p, totalParts, len(v.Bytes)/1024)
 					fs.WriteAt(v.Bytes, int64(p)*int64(partSize))
 					doneBytes.Add(int64(len(v.Bytes)))
 					doneArray.Store(p, true)
@@ -586,12 +647,24 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		}(int(p))
 	}
 	wg.Wait()
+
+	if cancelled.Load() {
+		if err := downloadErr.Load(); err != nil {
+			return "", err.(error)
+		}
+		return "", context.Canceled
+	}
+
 	if cdnRedirect.Load() {
 		return "", errors.New("cdn redirect not implemented")
 	}
 
 retrySinglePart:
 	for _, p := range getUndoneParts(&doneArray, int(totalParts)) {
+		if cancelled.Load() {
+			break
+		}
+
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(p int) {
@@ -601,10 +674,16 @@ retrySinglePart:
 			}()
 
 			for range MaxRetries {
+				if cancelled.Load() {
+					return
+				}
 				sender := w.Next()
-				ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+				if sender == nil {
+					return
+				}
+				reqCtx, cancel := context.WithTimeout(ctx, 6*time.Second)
 
-				part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
+				part, err := sender.MakeRequestCtx(reqCtx, &UploadGetFileParams{
 					Location:     location,
 					Offset:       int64(p * partSize),
 					Limit:        int32(partSize),
@@ -618,18 +697,20 @@ retrySinglePart:
 					if handleIfFlood(err, c) {
 						continue
 					}
-					if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
-						c.Log.Debug(err)
-						return // File reference expired
+					if MatchError(err, "FILE_REFERENCE_EXPIRED") {
+						c.Log.WithError(err).Debug("[FILE_REFERENCE_EXPIRED]")
+						cancelled.Store(true)
+						downloadErr.Store(err)
+						return // file reference expired, need to refetch ref
 					}
 
-					c.Log.Debug(errors.Wrap(err, fmt.Sprintf("part - (%d) - retrying...", p)))
+					c.Log.WithError(err).Debug("part - (%d) - retrying...", p)
 					continue
 				}
 
 				switch v := part.(type) {
 				case *UploadFileObj:
-					c.Log.Debug("downloaded part ", p, "/", totalParts, " len: ", len(v.Bytes)/1024, "KB")
+					c.Log.Debug("downloaded part %d/%d len: %d KB", p, totalParts, len(v.Bytes)/1024)
 					fs.WriteAt(v.Bytes, int64(p)*int64(partSize))
 					doneBytes.Add(int64(len(v.Bytes)))
 					doneArray.Store(p, true)
@@ -645,16 +726,24 @@ retrySinglePart:
 		}(p)
 	}
 
-	if !cdnRedirect.Load() && len(getUndoneParts(&doneArray, int(totalParts))) > 0 { // Loop through failed parts
+	if !cancelled.Load() && !cdnRedirect.Load() && len(getUndoneParts(&doneArray, int(totalParts))) > 0 {
 		goto retrySinglePart
 	}
 
 	wg.Wait()
+
+	if cancelled.Load() {
+		if err := downloadErr.Load(); err != nil {
+			return "", err.(error)
+		}
+		return "", context.Canceled
+	}
+
 	if cdnRedirect.Load() {
 		return "", errors.New("cdn redirect not implemented")
 	}
 
-	if opts.ProgressManager != nil {
+	if opts.ProgressManager != nil && opts.ProgressManager.editFunc != nil {
 		opts.ProgressManager.editFunc(size, size)
 	}
 
@@ -676,6 +765,10 @@ func getUndoneParts(doneMap *sync.Map, totalParts int) []int {
 }
 
 func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error {
+	if numWorkers <= 0 {
+		return errors.New("number of workers must be greater than 0")
+	}
+
 	if numWorkers == 1 && dc == int32(c.GetDC()) {
 		w.AddWorker(NewExSender(c.MTProto))
 		return nil
@@ -704,30 +797,52 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 		}
 	}
 
-	go func() {
-		numCreate := 0
-		for dcId, workers := range c.exSenders.senders {
-			if int(dc) == dcId {
-				for _, worker := range workers {
+	numCreate := 0
+	for dcId, workers := range c.exSenders.senders {
+		if int(dc) == dcId {
+			for _, worker := range workers {
+				if worker != nil {
 					w.AddWorker(worker)
 					numCreate++
+					if numCreate >= numWorkers {
+						break
+					}
 				}
 			}
 		}
-
-		if numCreate < numWorkers {
-			c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers-numCreate))
+		if numCreate >= numWorkers {
+			break
 		}
+	}
 
-		for i := numCreate; i < numWorkers; i++ {
-			conn, err := c.CreateExportedSender(int(dc), false, authParams)
-			if conn != nil && err == nil {
-				sender := NewExSender(conn)
-				c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], sender)
-				w.AddWorker(sender)
-			}
+	needed := numWorkers - numCreate
+	if needed <= 0 {
+		return nil
+	}
+
+	c.Log.WithFields(map[string]any{
+		"dc":      dc,
+		"workers": needed,
+	}).Info("exporting senders")
+
+	var lastErr error
+	for range needed {
+		conn, err := c.CreateExportedSender(int(dc), false, authParams)
+		if err != nil || conn == nil {
+			lastErr = err
+			continue
 		}
-	}()
+		sender := NewExSender(conn)
+		c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], sender)
+		w.AddWorker(sender)
+	}
+
+	if numCreate == 0 && len(w.workers) == 0 {
+		if lastErr != nil {
+			return lastErr
+		}
+		return errors.New("failed to initialize workers")
+	}
 
 	return nil
 }
@@ -779,7 +894,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int, cal
 			if handleIfFlood(err, c) {
 				continue
 			}
-			c.Log.Error(err)
+			c.Log.WithError(err).Error("downloading chunk")
 		}
 
 		switch v := part.(type) {

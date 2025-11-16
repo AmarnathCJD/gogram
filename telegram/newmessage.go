@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type NewMessage struct {
@@ -212,8 +212,8 @@ func (m *NewMessage) IsReply() bool {
 	return m.Message.ReplyTo != nil
 }
 
-func (m *NewMessage) Marshal(nointent ...bool) string {
-	return m.Client.JSON(m.OriginalUpdate, nointent)
+func (m *NewMessage) Marshal(noindent ...bool) string {
+	return m.Client.JSON(m.OriginalUpdate, noindent)
 }
 
 func (m *NewMessage) Unmarshal(data []byte) (*NewMessage, error) {
@@ -556,21 +556,17 @@ func (m *NewMessage) WaitClick(timeout ...int32) (*CallbackQuery, error) {
 		return nil, err
 	}
 	defer conv.Close()
-	update, err := conv.WaitEvent(&UpdateBotCallbackQuery{})
-	if err != nil {
-		return nil, err
-	}
-	return packCallbackQuery(m.Client, update.(*UpdateBotCallbackQuery)), nil
+	return conv.WaitClick()
 }
 
 // Client.SendMessage ReplyID set to messageID
-func (m *NewMessage) Reply(Text any, Opts ...SendOptions) (*NewMessage, error) {
+func (m *NewMessage) Reply(Text any, Opts ...*SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
-		Opts = append(Opts, SendOptions{ReplyID: m.ID})
+		Opts = append(Opts, &SendOptions{ReplyID: m.ID})
 	} else {
 		Opts[0].ReplyID = m.ID
 	}
-	resp, err := m.Client.SendMessage(m.ChannelID(), Text, &Opts[0])
+	resp, err := m.Client.SendMessage(m.ChannelID(), Text, Opts[0])
 	if resp == nil {
 		return nil, err
 	}
@@ -580,7 +576,7 @@ func (m *NewMessage) Reply(Text any, Opts ...SendOptions) (*NewMessage, error) {
 }
 
 // ReplyWithoutError calls message.Reply and wraps the error to error channel of the client
-func (m *NewMessage) ReplyWithoutError(Text any, Opts ...SendOptions) *NewMessage {
+func (m *NewMessage) ReplyWithoutError(Text any, Opts ...*SendOptions) *NewMessage {
 	resp, err := m.Reply(Text, Opts...)
 	if err != nil {
 		m.Client.WrapError(err)
@@ -588,11 +584,11 @@ func (m *NewMessage) ReplyWithoutError(Text any, Opts ...SendOptions) *NewMessag
 	return resp
 }
 
-func (m *NewMessage) Respond(Text any, Opts ...SendOptions) (*NewMessage, error) {
+func (m *NewMessage) Respond(Text any, Opts ...*SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
-		Opts = append(Opts, SendOptions{})
+		Opts = append(Opts, &SendOptions{})
 	}
-	resp, err := m.Client.SendMessage(m.ChannelID(), Text, &Opts[0])
+	resp, err := m.Client.SendMessage(m.ChannelID(), Text, Opts[0])
 	if resp == nil {
 		return nil, err
 	}
@@ -609,11 +605,11 @@ func (m *NewMessage) SendAction(Action any) (*ActionResult, error) {
 	return m.Client.SendAction(m.ChannelID(), Action)
 }
 
-func (m *NewMessage) Edit(Text any, Opts ...SendOptions) (*NewMessage, error) {
+func (m *NewMessage) Edit(Text any, Opts ...*SendOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
-		Opts = append(Opts, SendOptions{})
+		Opts = append(Opts, &SendOptions{})
 	}
-	resp, err := m.Client.EditMessage(m.ChannelID(), m.ID, Text, &Opts[0])
+	resp, err := m.Client.EditMessage(m.ChannelID(), m.ID, Text, Opts[0])
 	if resp == nil {
 		return nil, err
 	}
@@ -622,14 +618,14 @@ func (m *NewMessage) Edit(Text any, Opts ...SendOptions) (*NewMessage, error) {
 	return &response, err
 }
 
-func (m *NewMessage) ReplyMedia(Media any, Opts ...MediaOptions) (*NewMessage, error) {
+func (m *NewMessage) ReplyMedia(Media any, Opts ...*MediaOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
-		Opts = append(Opts, MediaOptions{ReplyID: m.ID})
+		Opts = append(Opts, &MediaOptions{ReplyID: m.ID})
 	} else {
 		Opts[0].ReplyID = m.ID
 	}
 
-	resp, err := m.Client.SendMedia(m.ChannelID(), Media, &Opts[0])
+	resp, err := m.Client.SendMedia(m.ChannelID(), Media, Opts[0])
 	if err != nil {
 		return nil, err
 	}
@@ -646,11 +642,11 @@ func (m *NewMessage) ReplyAlbum(Album any, Opts ...*MediaOptions) ([]*NewMessage
 	return m.Client.SendAlbum(m.ChannelID(), Album, Opts...)
 }
 
-func (m *NewMessage) RespondMedia(Media any, Opts ...MediaOptions) (*NewMessage, error) {
+func (m *NewMessage) RespondMedia(Media any, Opts ...*MediaOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
-		Opts = append(Opts, MediaOptions{})
+		Opts = append(Opts, &MediaOptions{})
 	}
-	resp, err := m.Client.SendMedia(m.ChannelID(), Media, &Opts[0])
+	resp, err := m.Client.SendMedia(m.ChannelID(), Media, Opts[0])
 	if err != nil {
 		return nil, err
 	}
@@ -744,13 +740,13 @@ type Album struct {
 	Messages  []*NewMessage
 }
 
-func (a *Album) Marshal(nointent ...bool) string {
+func (a *Album) Marshal(noindent ...bool) string {
 	var messages []Message
 	for _, m := range a.Messages {
 		messages = append(messages, m.OriginalUpdate)
 	}
 
-	return a.Client.JSON(messages, nointent)
+	return a.Client.JSON(messages, noindent)
 }
 
 func (a *Album) Download(opts ...*DownloadOptions) ([]string, error) {
@@ -781,6 +777,14 @@ func (a *Album) ForwardTo(PeerID any, Opts ...*ForwardOptions) ([]NewMessage, er
 	return a.Client.Forward(a.Messages[0].ChatID(), PeerID, ids, Opts...)
 }
 
+func (a *Album) ChatID() int64 {
+	return a.Messages[0].ChatID()
+}
+
+func (a *Album) ChannelID() int64 {
+	return a.Messages[0].ChannelID()
+}
+
 func (a *Album) IsReply() bool {
 	return a.Messages[0].IsReply()
 }
@@ -793,23 +797,23 @@ func (a *Album) GetReplyMessage() (*NewMessage, error) {
 	return a.Messages[0].GetReplyMessage()
 }
 
-func (a *Album) Respond(Text any, Opts ...SendOptions) (*NewMessage, error) {
+func (a *Album) Respond(Text any, Opts ...*SendOptions) (*NewMessage, error) {
 	return a.Messages[0].Respond(Text, Opts...)
 }
 
-func (a *Album) RespondMedia(Media any, Opts ...MediaOptions) (*NewMessage, error) {
+func (a *Album) RespondMedia(Media any, Opts ...*MediaOptions) (*NewMessage, error) {
 	return a.Messages[0].RespondMedia(Media, Opts...)
 }
 
-func (a *Album) Reply(Text any, Opts ...SendOptions) (*NewMessage, error) {
+func (a *Album) Reply(Text any, Opts ...*SendOptions) (*NewMessage, error) {
 	return a.Messages[0].Reply(Text, Opts...)
 }
 
-func (a *Album) ReplyMedia(Media any, Opts ...MediaOptions) (*NewMessage, error) {
+func (a *Album) ReplyMedia(Media any, Opts ...*MediaOptions) (*NewMessage, error) {
 	return a.Messages[0].ReplyMedia(Media, Opts...)
 }
 
-func (a *Album) Edit(Text any, Opts ...SendOptions) (*NewMessage, error) {
+func (a *Album) Edit(Text any, Opts ...*SendOptions) (*NewMessage, error) {
 	return a.Messages[0].Edit(Text, Opts...)
 }
 

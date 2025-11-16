@@ -12,7 +12,6 @@ import (
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/mode"
 	"github.com/amarnathcjd/gogram/internal/mtproto/messages"
-	"github.com/pkg/errors"
 )
 
 type Transport interface {
@@ -36,8 +35,7 @@ func NewTransport(m messages.MessageInformator, conn ConnConfig, modeVariant mod
 	var isObfuscated bool
 	switch cfg := conn.(type) {
 	case TCPConnConfig:
-		t.conn, err = NewTCP(cfg)
-		isObfuscated = false
+		t.conn, isObfuscated, err = NewTCP(cfg)
 	case WSConnConfig:
 		cfg.ModeVariant = uint8(modeVariant)
 		t.conn, err = NewWebSocket(cfg)
@@ -46,7 +44,7 @@ func NewTransport(m messages.MessageInformator, conn ConnConfig, modeVariant mod
 		return nil, fmt.Errorf("unsupported connection type %v", reflect.TypeOf(conn).String())
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "setup connection")
+		return nil, fmt.Errorf("setup connection: %w", err)
 	}
 
 	// already sent in obfuscation handshake
@@ -56,7 +54,7 @@ func NewTransport(m messages.MessageInformator, conn ConnConfig, modeVariant mod
 		t.mode, err = mode.New(modeVariant, t.conn)
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "setup mode")
+		return nil, fmt.Errorf("setup mode: %w", err)
 	}
 
 	return t, nil
@@ -76,7 +74,7 @@ func (t *transport) WriteMsg(msg messages.Common, seqNo int32) error {
 		var err error
 		data, err = message.Serialize(t.m, seqNo)
 		if err != nil {
-			return errors.Wrap(err, "serializing message")
+			return fmt.Errorf("serializing message: %w", err)
 		}
 
 	default:
@@ -85,7 +83,7 @@ func (t *transport) WriteMsg(msg messages.Common, seqNo int32) error {
 
 	err := t.mode.WriteMsg(data)
 	if err != nil {
-		return errors.Wrap(err, "sending request")
+		return fmt.Errorf("sending request: %w", err)
 	}
 	return nil
 }
@@ -97,7 +95,7 @@ func (t *transport) ReadMsg() (messages.Common, error) {
 		case io.EOF, context.Canceled:
 			return nil, err
 		default:
-			return nil, errors.Wrap(err, "reading message")
+			return nil, fmt.Errorf("reading message: %w", err)
 		}
 	}
 
@@ -113,7 +111,7 @@ func (t *transport) ReadMsg() (messages.Common, error) {
 		msg, err = messages.DeserializeUnencrypted(data)
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing message")
+		return nil, fmt.Errorf("parsing message: %w", err)
 	}
 
 	mod := msg.GetMsgID() & 3 // why 3? only god knows why

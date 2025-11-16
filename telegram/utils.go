@@ -17,8 +17,9 @@ import (
 	"strings"
 	"time"
 
+	"errors"
+
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 // cryptoRandIntn returns a random int in [0, n) using crypto/rand
@@ -38,11 +39,6 @@ func cryptoRandIntn(n int) int {
 type mimeTypeManager struct {
 	mimeTypes map[string]string
 }
-
-// type ExportedAuthParams struct {
-// 	ID    int64
-// 	Bytes []byte
-// }
 
 func (m *mimeTypeManager) addMime(ext, mime string) {
 	m.mimeTypes[ext] = mime
@@ -150,6 +146,230 @@ func init() {
 	MimeTypes.addMime(".alac", "audio/x-alac")
 
 	MimeTypes.addMime(".tgs", "application/x-tgsticker")
+}
+
+type Proxy interface {
+	GetHost() string
+	GetPort() int
+	Type() string
+	GetUsername() string
+	GetPassword() string
+	GetSecret() string
+	toInternal() *utils.Proxy
+}
+
+type BaseProxy struct {
+	Host string
+	Port int
+}
+
+func (p *BaseProxy) GetHost() string { return p.Host }
+func (p *BaseProxy) GetPort() int    { return p.Port }
+
+type Socks5Proxy struct {
+	BaseProxy
+	Username string
+	Password string
+}
+
+func (s *Socks5Proxy) Type() string        { return "socks5" }
+func (s *Socks5Proxy) GetUsername() string { return s.Username }
+func (s *Socks5Proxy) GetPassword() string { return s.Password }
+func (s *Socks5Proxy) GetSecret() string   { return "" }
+
+func (s *Socks5Proxy) toInternal() *utils.Proxy {
+	return &utils.Proxy{
+		Type:     "socks5",
+		Host:     s.Host,
+		Port:     s.Port,
+		Username: s.Username,
+		Password: s.Password,
+	}
+}
+
+type Socks4Proxy struct {
+	BaseProxy
+	UserID string
+}
+
+func (s *Socks4Proxy) Type() string        { return "socks4" }
+func (s *Socks4Proxy) GetUsername() string { return s.UserID }
+func (s *Socks4Proxy) GetPassword() string { return "" }
+func (s *Socks4Proxy) GetSecret() string   { return "" }
+
+func (s *Socks4Proxy) toInternal() *utils.Proxy {
+	return &utils.Proxy{
+		Type:     "socks4",
+		Host:     s.Host,
+		Port:     s.Port,
+		Username: s.UserID,
+	}
+}
+
+type HttpProxy struct {
+	BaseProxy
+	Username string
+	Password string
+}
+
+func (h *HttpProxy) Type() string        { return "http" }
+func (h *HttpProxy) GetUsername() string { return h.Username }
+func (h *HttpProxy) GetPassword() string { return h.Password }
+func (h *HttpProxy) GetSecret() string   { return "" }
+
+func (h *HttpProxy) toInternal() *utils.Proxy {
+	return &utils.Proxy{
+		Type:     "http",
+		Host:     h.Host,
+		Port:     h.Port,
+		Username: h.Username,
+		Password: h.Password,
+	}
+}
+
+type MTProxy struct {
+	BaseProxy
+	Secret string
+}
+
+func (m *MTProxy) Type() string        { return "mtproxy" }
+func (m *MTProxy) GetUsername() string { return "" }
+func (m *MTProxy) GetPassword() string { return "" }
+func (m *MTProxy) GetSecret() string   { return m.Secret }
+
+func (m *MTProxy) toInternal() *utils.Proxy {
+	return &utils.Proxy{
+		Type:   "mtproxy",
+		Host:   m.Host,
+		Port:   m.Port,
+		Secret: m.Secret,
+	}
+}
+
+// ProxyFromURL creates a Proxy from a URL string
+// Supported formats:
+//   - socks4://[userid@]host:port
+//   - socks5://[user:pass@]host:port
+//   - http://[user:pass@]host:port
+//   - https://[user:pass@]host:port
+//   - mtproxy://secret@host:port
+//   - tg://proxy?server=host&port=port&secret=secret
+//   - secret@host:port (for mtproxy without scheme)
+func ProxyFromURL(proxyURL string) (Proxy, error) {
+	if proxyURL == "" {
+		return nil, errors.New("empty proxy URL")
+	}
+
+	u, err := url.Parse(proxyURL)
+	if err != nil {
+		re := regexp.MustCompile(`^([a-fA-F0-9]+)@([a-zA-Z0-9\.\-]+):(\d+)$`)
+		matches := re.FindStringSubmatch(proxyURL)
+		if len(matches) == 4 {
+			port, _ := strconv.Atoi(matches[3])
+			return &MTProxy{
+				BaseProxy: BaseProxy{
+					Host: matches[2],
+					Port: port,
+				},
+				Secret: matches[1],
+			}, nil
+		}
+		return nil, fmt.Errorf("invalid proxy URL: %w", err)
+	}
+
+	scheme := strings.ToLower(u.Scheme)
+
+	if (scheme == "http" || scheme == "https") && strings.Contains(u.Host, "t.me") && strings.HasPrefix(u.Path, "/proxy") {
+		scheme = "tg"
+	}
+
+	var port int
+	portStr := u.Port()
+	if portStr != "" {
+		port, _ = strconv.Atoi(portStr)
+	} else {
+		switch scheme {
+		case "socks4", "socks4a", "socks5", "socks5h":
+			port = 1080
+		case "http":
+			port = 8080
+		case "https", "mtproxy", "tg":
+			port = 443
+		}
+	}
+
+	switch scheme {
+	case "socks4", "socks4a":
+		proxy := &Socks4Proxy{
+			BaseProxy: BaseProxy{
+				Host: u.Hostname(),
+				Port: port,
+			},
+		}
+		if u.User != nil {
+			proxy.UserID = u.User.Username()
+		}
+		return proxy, nil
+
+	case "socks5", "socks5h":
+		proxy := &Socks5Proxy{
+			BaseProxy: BaseProxy{
+				Host: u.Hostname(),
+				Port: port,
+			},
+		}
+		if u.User != nil {
+			proxy.Username = u.User.Username()
+			proxy.Password, _ = u.User.Password()
+		}
+		return proxy, nil
+
+	case "http", "https":
+		proxy := &HttpProxy{
+			BaseProxy: BaseProxy{
+				Host: u.Hostname(),
+				Port: port,
+			},
+		}
+		if u.User != nil {
+			proxy.Username = u.User.Username()
+			proxy.Password, _ = u.User.Password()
+		}
+		return proxy, nil
+
+	case "mtproxy":
+		proxy := &MTProxy{
+			BaseProxy: BaseProxy{
+				Host: u.Hostname(),
+				Port: port,
+			},
+		}
+		if u.User != nil {
+			proxy.Secret = u.User.Username()
+		}
+		return proxy, nil
+
+	case "tg":
+		// Format: tg://proxy?server=host&port=port&secret=secret
+		q := u.Query()
+		host := q.Get("server")
+		if host == "" {
+			host = u.Hostname()
+		}
+		if portQuery := q.Get("port"); portQuery != "" {
+			port, _ = strconv.Atoi(portQuery)
+		}
+		return &MTProxy{
+			BaseProxy: BaseProxy{
+				Host: host,
+				Port: port,
+			},
+			Secret: q.Get("secret"),
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported proxy scheme: %s", scheme)
+	}
 }
 
 var (
@@ -605,7 +825,7 @@ func getInlineDocumentType(mimeType string, voiceNote bool) string {
 		return "photo"
 	case "image/webp", "application/x-tgsticker":
 		return "sticker"
-	case "video/mp4", "video/x-matroksa", "video/webm":
+	case "video/mp4", "video/x-matroska", "video/webm":
 		return "video"
 	default:
 		return "file"
@@ -799,8 +1019,4 @@ func doesSessionFileExist(filePath string) bool {
 func IsFfmpegInstalled() bool {
 	_, err := exec.LookPath("ffmpeg")
 	return err == nil
-}
-
-func NewLogger(level utils.LogLevel, prefix ...string) *utils.Logger {
-	return utils.NewLogger(getVariadic(prefix, "gogram")).SetLevel(level)
 }

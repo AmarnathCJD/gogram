@@ -7,7 +7,7 @@ import (
 )
 
 var tlPackagePath = "github.com/amarnathcjd/gogram/internal/encoding/tl"
-var errorsPackagePath = "github.com/pkg/errors"
+var errorsPackagePath = "errors"
 
 func (g *Generator) generateInit(file *jen.File, _ bool) {
 	structs, enums := g.getAllConstructors()
@@ -29,7 +29,7 @@ func (*Generator) createInitStructs(itemNames ...string) jen.Code {
 		structs[i] = jen.Op("&").Id(item).Block()
 	}
 
-	return jen.Qual(tlPackagePath, "RegisterObjects").Call(
+	return jen.Qual(tlPackagePath, "RegisterObjects").CallWithNewLine(
 		structs...,
 	)
 }

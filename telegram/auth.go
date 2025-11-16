@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // ConnectBot connects to telegram using bot token
@@ -224,12 +224,12 @@ func CodeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions, maxRetri
 			}
 
 			if MatchError(err, "PHONE_CODE_INVALID") {
-				c.Log.Error(errors.Wrap(err, "invalid phone code"))
+				c.Log.WithError(err).Error("invalid phone code")
 				continue
 			} else if MatchError(err, "SESSION_PASSWORD_NEEDED") {
 			acceptPasswordInput:
 				if opts.Password == "" {
-					for {
+					for range maxRetries {
 						passwordInput, err := opts.PasswordCallback()
 						if err != nil {
 							return nil, err
@@ -240,8 +240,6 @@ func CodeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions, maxRetri
 							break
 						} else if passwordInput == "cancel" || passwordInput == "exit" {
 							return nil, errors.New("login canceled")
-						} else {
-							fmt.Println("Invalid password, try again")
 						}
 					}
 				}
@@ -327,7 +325,7 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 	}
 
 	if err := json.NewDecoder(respCode.Body).Decode(&result); err != nil {
-		return 0, "", false, errors.Wrap(err, "Too many requests, try again later")
+		return 0, "", false, fmt.Errorf("Too many requests, try again later: %w", err)
 	}
 
 	code, err := conf.WebCodeCallback()

@@ -5,7 +5,6 @@ package telegram
 import (
 	"fmt"
 	"math"
-	"reflect"
 	"strings"
 )
 
@@ -37,10 +36,10 @@ type (
 	}
 )
 
-func (i *InlineQuery) Answer(results []InputBotInlineResult, options ...InlineSendOptions) (bool, error) {
+func (i *InlineQuery) Answer(results []InputBotInlineResult, options ...*InlineSendOptions) (bool, error) {
 	var opts InlineSendOptions
 	if len(options) > 0 {
-		opts = options[0]
+		opts = *options[0]
 	}
 	return i.Client.AnswerInlineQuery(i.QueryID, results, &opts)
 }
@@ -125,13 +124,13 @@ func (i *InlineBuilder) Photo(photo any, options ...*ArticleOptions) InputBotInl
 		Inline: true,
 	})
 	if err != nil {
-		i.Client.Logger.Debug("InlineBuilder.Photo: Error getting sendable media:", err)
+		i.Client.Log.Debug("error getting sendable media: inline photo: %v", err)
 		return nil
 	}
 
 	var image InputPhoto
 	if im, ok := inputPhoto.(*InputMediaPhoto); !ok {
-		i.Client.Logger.Error("InlineBuilder.Photo: Photo is not a InputMediaPhoto")
+		i.Client.Log.Warn("error getting sendable media: inline photo is not a InputMediaPhoto")
 		return nil
 	} else {
 		image = im.ID
@@ -179,14 +178,13 @@ func (i *InlineBuilder) Document(document any, options ...*ArticleOptions) Input
 		ForceDocument: opts.ForceDocument,
 	})
 	if err != nil {
-		i.Client.Logger.Debug("InlineBuilder.Document: Error getting sendable media:", err)
+		i.Client.Log.Debug("error getting sendable media: inline document: %v", err)
 		return nil
 	}
 
 	var doc InputDocument
 	if dc, ok := inputDoc.(*InputMediaDocument); !ok {
-		i.Client.Logger.Warn("inlineBuilder.Document: (skip) Document is not a InputMediaDocument but a", reflect.TypeOf(inputDoc))
-		return nil
+		i.Client.Log.Warn("error getting sendable media: inline document is not a InputMediaDocument")
 	} else {
 		doc = dc.ID
 	}
@@ -278,8 +276,8 @@ func (i *InlineQuery) IsPrivate() bool {
 	return i.PeerType == InlineQueryPeerTypePm || i.PeerType == InlineQueryPeerTypeSameBotPm
 }
 
-func (i *InlineQuery) Marshal(nointent ...bool) string {
-	return i.Client.JSON(i.OriginalUpdate, nointent)
+func (i *InlineQuery) Marshal(noindent ...bool) string {
+	return i.Client.JSON(i.OriginalUpdate, noindent)
 }
 
 func (m *InlineQuery) Args() string {
@@ -287,7 +285,7 @@ func (m *InlineQuery) Args() string {
 	if len(Messages) < 2 {
 		return ""
 	}
-	return strings.TrimSpace(strings.Join(Messages[1:], " ")) // Args()
+	return strings.TrimSpace(strings.Join(Messages[1:], " "))
 }
 
 func (i *InlineSend) Edit(message any, options ...*SendOptions) (*NewMessage, error) {
@@ -300,6 +298,15 @@ func (i *InlineSend) ChatID() int64 {
 		return int64(math.Abs(float64(msg.ID >> 32)))
 	case *InputBotInlineMessageID64:
 		return int64(math.Abs(float64(msg.OwnerID)))
+	default:
+		return 0
+	}
+}
+
+func (i *InlineSend) ChannelID() int64 {
+	switch msg := i.MsgID.(type) {
+	case *InputBotInlineMessageIDObj:
+		return -100_000_000_0000 - int64(msg.ID>>32)
 	default:
 		return 0
 	}
@@ -378,6 +385,6 @@ func (i *InlineSend) GetReplyMessage() (*NewMessage, error) {
 	return msg.GetReplyMessage()
 }
 
-func (i *InlineSend) Marshal(nointent ...bool) string {
-	return i.Client.JSON(i.OriginalUpdate, nointent)
+func (i *InlineSend) Marshal(noindent ...bool) string {
+	return i.Client.JSON(i.OriginalUpdate, noindent)
 }

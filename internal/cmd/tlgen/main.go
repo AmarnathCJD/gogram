@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -40,34 +41,66 @@ type AEQ struct {
 }
 
 func main() {
+	log.SetPrefix("[TLGEN] ")
+	log.SetFlags(log.Ltime | log.Lshortfile)
+	log.Println("INFO: Starting TL generator")
+
 	var aeq AEQ
+	hasFlags := false
+	tuiMode := false
 	for _, arg := range os.Args {
 		if arg == "-f" {
 			aeq.Force = true
+			hasFlags = true
+			log.Println("INFO: Force mode enabled")
 		}
 
 		if arg == "-d" || arg == "--doc" {
 			aeq.D = true
+			hasFlags = true
+			log.Println("INFO: Documentation mode enabled")
 		}
 
 		if arg == "-g" || arg == "--gen" {
 			aeq.Gen = true
+			hasFlags = true
+			log.Println("INFO: Generation mode enabled")
 		}
+
+		if arg == "-t" || arg == "--tui" {
+			tuiMode = true
+			hasFlags = true
+		}
+	}
+
+	if tuiMode {
+		startTUI()
+		return
+	}
+
+	if len(os.Args) == 1 && !hasFlags {
+		startWebUI()
+		return
 	}
 
 	if len(os.Args) == 0 || len(os.Args) == 1 || len(os.Args) == 2 || aeq.D || aeq.Force {
 		if aeq.Gen {
+			log.Println("INFO: Starting generation from local schema file")
 			if err := root(tlLOC, desLOC, aeq.D, getAPILayerFromFile(tlLOC)); err != nil {
+				log.Printf("ERROR: Generation failed: %s\n", err)
 				fmt.Fprintf(os.Stderr, "%s\n", err)
 			} else {
+				log.Println("INFO: Generation completed successfully")
 				fmt.Println("Generation completed - Generated code in", desLOC)
 			}
 			return
 		}
 
+		log.Println("INFO: Checking for API updates")
 		currentLocalAPIVersionFile := filepath.Join(desLOC, "const.go")
 		currentLocalAPIVersion, err := os.ReadFile(currentLocalAPIVersionFile)
 		if err != nil {
+			log.Printf("ERROR: Failed to read local API version: %v\n", err)
 			panic(err)
 		}
 
@@ -75,21 +108,27 @@ func main() {
 		str := string(currentLocalAPIVersion)
 		llayer := reg.FindString(str)
 		llayer = strings.TrimPrefix(llayer, "ApiVersion = ")
+		log.Printf("INFO: Local API version: %s\n", llayer)
 
 		remoteAPIVersion, rlayer, err := getSourceLAYER(llayer, aeq.Force)
 		if err != nil {
+			log.Printf("WARN: %v\n", err)
 			fmt.Println(err)
 			return
 		}
 
 		if !strings.EqualFold(llayer, rlayer) || aeq.Force {
+			log.Printf("INFO: Updating from layer %s to %s\n", llayer, rlayer)
 			fmt.Println("Local API version is", llayer, "and remote API version is", rlayer)
 			fmt.Println("Performing update")
 
+			log.Println("INFO: Cleaning comments from remote schema")
 			remoteAPIVersion = cleanComments(remoteAPIVersion)
 
+			log.Printf("INFO: Writing updated schema to %s\n", tlLOC)
 			file, err := os.OpenFile(tlLOC, os.O_RDWR|os.O_CREATE, 0600)
 			if err != nil {
+				log.Printf("ERROR: Failed to open schema file: %v\n", err)
 				panic(err)
 			}
 
@@ -97,13 +136,17 @@ func main() {
 			file.Seek(0, 0)
 			file.WriteString(string(remoteAPIVersion))
 
+			log.Println("INFO: Generating code from updated schema")
 			if err := root(tlLOC, desLOC, aeq.D, rlayer); err != nil {
+				log.Printf("ERROR: Update generation failed: %s\n", err)
 				fmt.Fprintf(os.Stderr, "%s\n", err)
 			} else {
+				log.Println("INFO: Update completed successfully")
 				fmt.Println("Update completed - Generated code in", desLOC)
 			}
 
 		} else {
+			log.Printf("INFO: No update required (local=%s, remote=%s)\n", llayer, rlayer)
 			fmt.Println("Local API version is", llayer, "and remote API version is", rlayer)
 			fmt.Println("No update required")
 		}
@@ -123,11 +166,15 @@ func main() {
 }
 
 func getSourceLAYER(llayer string, force bool) ([]byte, string, error) {
+	log.Printf("INFO: Checking remote API sources for updates (local layer: %s)\n", llayer)
 	reg := regexp.MustCompile(`// LAYER \d+`)
 
 	for _, source := range API_SOURCES {
+		log.Printf("INFO: Checking source: %s\n", source)
+		log.Printf("INFO: Checking source: %s\n", source)
 		src, err := http.Get(source)
 		if err != nil {
+			log.Printf("ERROR: Failed to fetch from %s: %v\n", source, err)
 			return nil, "", err
 		}
 
@@ -185,27 +232,37 @@ func getSourceLAYER(llayer string, force bool) ([]byte, string, error) {
 
 func root(tlfile, outdir string, d bool, rlayer string) error {
 	startTime := time.Now()
+	log.Printf("INFO: Reading schema file: %s\n", tlfile)
 	b, err := os.ReadFile(tlfile)
 	if err != nil {
+		log.Printf("ERROR: Failed to read schema file: %v\n", err)
 		return fmt.Errorf("read schema file: %w", err)
 	}
 
+	log.Println("INFO: Parsing TL schema")
 	schema, err := tlparser.ParseSchema(string(b))
 	if err != nil {
+		log.Printf("ERROR: Failed to parse schema: %v\n", err)
 		return fmt.Errorf("parse schema file: %w", err)
 	}
 
+	log.Printf("INFO: Creating generator (output dir: %s)\n", outdir)
 	g, err := gen.NewGenerator(schema, "(c) @amarnathcjd", outdir)
 	if err != nil {
+		log.Printf("ERROR: Failed to create generator: %v\n", err)
 		return err
 	}
 
+	log.Println("INFO: Generating code...")
 	err = g.Generate(d)
+	log.Println("INFO: Applying minor fixes")
 	minorFixes(outdir, rlayer)
 	if err != nil {
+		log.Printf("WARN: Generation completed with errors (ignored): %v\n", err)
 		return fmt.Errorf("generate code: error (ignored)")
 	}
 
+	log.Printf("INFO: Code generation completed in %v\n", time.Since(startTime))
 	fmt.Println("Generated code in", outdir, "in", time.Since(startTime))
 	return nil
 }
@@ -233,24 +290,27 @@ func getAPILayerFromFile(tlfile string) string {
 }
 
 func minorFixes(outdir, layer string) {
+	log.Println("INFO: Starting minor fixes")
 	execWorkDir, err := os.Getwd()
 	if err != nil {
+		log.Printf("ERROR: Failed to get working directory: %v\n", err)
 		panic(err)
 	}
 
 	execWorkDir = filepath.Join(execWorkDir, outdir)
+	log.Printf("INFO: Applying minor fixes to generated code in %s\n", execWorkDir)
 	fmt.Println("Applying minor fixes to generated code in", execWorkDir)
 
 	replace(filepath.Join(execWorkDir, "methods_gen.go"), "return bool", "return false")
 	replace(filepath.Join(execWorkDir, "methods_gen.go"), `if err != nil {
-		return nil, errors.Wrap(err, "sending UsersGetUsers")
+		return nil, fmt.Errorf("sending UsersGetUsers: %w", err)
 	}
 
 	resp, ok := responseData.([]User)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}`, `if err != nil {
-		return nil, errors.Wrap(err, "sending UsersGetUsers")
+		return nil, fmt.Errorf("sending UsersGetUsers: %w", err)
 	}
 
 	resp, ok := responseData.([]User)

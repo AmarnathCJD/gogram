@@ -5,7 +5,7 @@ package mode
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 var (

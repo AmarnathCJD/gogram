@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // GetChatPhotos returns the profile photos of a chat

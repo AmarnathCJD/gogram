@@ -10,13 +10,14 @@ import (
 	"math/big"
 	"time"
 
+	"errors"
+
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/keys"
 	"github.com/amarnathcjd/gogram/internal/math"
 	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 // https://core.telegram.org/mtproto/auth_key
@@ -72,7 +73,7 @@ nonceCreate:
 
 	// (encoding) p_q_inner_data
 	pq := big.NewInt(0).SetBytes(res.Pq)
-	p, q := math.Factorize(pq) // new optimised factorization
+	p, q := math.Factorize(pq) // new optimized factorization
 	if p == nil || q == nil {
 		p, q = math.Fac(pq)
 	}
@@ -88,7 +89,7 @@ nonceCreate:
 		NewNonce:    nonceSecond,
 	})
 	if err != nil {
-		m.Logger.Warn("makeAuthKey: failed to marshal pq inner data")
+		m.Logger.WithField("error", err).Debug("makeAuthKey: failed to marshal pq inner data")
 		return err
 	}
 
@@ -114,10 +115,9 @@ nonceCreate:
 		return fmt.Errorf("reqDHParams: server nonce mismatch")
 	}
 
-	// check of hash, random bytes trail removing occurs in this func already
 	decodedMessage, err := ige.DecryptMessageWithTempKeys(dhParams.EncryptedAnswer, nonceSecond.Int, nonceServer.Int)
 	if err != nil {
-		m.Logger.Debug(err.Error() + " - retrying")
+		m.Logger.WithError(err).Debug("decrypt failed - retrying auth key generation")
 		return m.makeAuthKey()
 	}
 
@@ -165,7 +165,7 @@ nonceCreate:
 		GB:          gB.Bytes(),
 	})
 	if err != nil {
-		m.Logger.Warn("makeAuthKey: failed to marshal client dh inner data")
+		m.Logger.WithField("error", err).Debug("makeAuthKey: failed to marshal client dh inner data")
 		return err
 	}
 
@@ -200,7 +200,7 @@ nonceCreate:
 	m.serviceModeActivated = false
 	m.encrypted = true
 	if err := m.SaveSession(m.memorySession); err != nil {
-		m.Logger.Error("saving session: ", err)
+		m.Logger.WithError(err).Error("failed to save session")
 	}
 	return err
 }

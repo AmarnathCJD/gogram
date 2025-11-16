@@ -6,9 +6,9 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/sha256"
+	"fmt"
 
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 type Cipher struct {
@@ -30,7 +30,7 @@ func NewCipher(key, iv []byte) (*Cipher, error) {
 	c := new(Cipher)
 	c.block, err = aes.NewCipher(key)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating new cipher")
+		return nil, fmt.Errorf("creating new cipher: %w", err)
 	}
 
 	c.t = c.v[firstBlock][:]

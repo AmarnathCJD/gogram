@@ -9,7 +9,7 @@ import (
 	"syscall/js"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type wsConn struct {
@@ -26,7 +26,7 @@ type wsConn struct {
 
 func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 	wsURL := FormatWebSocketURI(cfg.Host, cfg.TLS, cfg.DC, cfg.TestMode)
-	wsObj := js.Global().Get("WebSocket").New(wsURL, js.ValueOf([]interface{}{"binary"}))
+	wsObj := js.Global().Get("WebSocket").New(wsURL, js.ValueOf([]any{"binary"}))
 	wsObj.Set("binaryType", "arraybuffer")
 
 	w := &wsConn{

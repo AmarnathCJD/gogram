@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -17,18 +16,21 @@ const (
 )
 
 func main() {
-	socks5Proxy := &url.URL{
-		Scheme: "socks5",
-		Host:   "127.0.0.1:1080",
-		// User:   url.UserPassword("username", "password"),
-	}
+	// socks5Proxy := &telegram.Socks5Proxy{
+	// 	BaseProxy: telegram.BaseProxy{
+	// 		Host: "127.0.0.1",
+	// 		Port: 8080,
+	// 	},
+	// }
+
+	socks, _ := telegram.ProxyFromURL("socks5://127.0.0.1:8080")
 
 	// create a new client object
 	client, _ := telegram.NewClient(telegram.ClientConfig{
 		AppID:    appID,
 		AppHash:  appHash,
 		LogLevel: telegram.LogInfo,
-		Proxy:    socks5Proxy,
+		Proxy:    socks, // you can also use socks5Proxy here
 	})
 
 	// authenticate the client using the bot token
