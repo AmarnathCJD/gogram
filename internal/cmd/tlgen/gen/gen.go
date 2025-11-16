@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/dave/jennifer/jen"
-	"github.com/pkg/errors"
 
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
 )
@@ -33,7 +32,7 @@ type Generator struct {
 func NewGenerator(tlschema *tlparser.Schema, licenseHeader, outdir string) (*Generator, error) {
 	internalSchema, err := createInternalSchema(tlschema)
 	if err != nil {
-		return nil, errors.Wrap(err, "analyzing schema")
+		return nil, fmt.Errorf("analyzing schema: %w", err)
 	}
 
 	return &Generator{

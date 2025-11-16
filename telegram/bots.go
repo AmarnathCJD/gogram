@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type InlineSendOptions struct {

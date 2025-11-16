@@ -3,9 +3,10 @@
 package objects
 
 import (
+	"fmt"
 	"reflect"
 
-	"github.com/pkg/errors"
+	"errors"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
@@ -25,7 +26,7 @@ func (*ReqPQParams) CRC() uint32 {
 func ReqPQ(m requester, nonce *tl.Int128) (*ResPQ, error) {
 	data, err := m.MakeRequest(&ReqPQParams{Nonce: nonce})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ReqPQ")
+		return nil, fmt.Errorf("sending ReqPQ: %w", err)
 	}
 
 	resp, ok := data.(*ResPQ)
@@ -47,7 +48,7 @@ func (*ReqPQMultiParams) CRC() uint32 {
 func ReqPQMulti(m requester, nonce *tl.Int128) (*ResPQ, error) {
 	data, err := m.MakeRequest(&ReqPQMultiParams{Nonce: nonce})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ReqPQMulti")
+		return nil, fmt.Errorf("sending ReqPQMulti: %w", err)
 	}
 
 	resp, ok := data.(*ResPQ)
@@ -84,7 +85,7 @@ func ReqDHParams(
 		EncryptedData:        encryptedData,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending ReqDHParams")
+		return nil, fmt.Errorf("sending ReqDHParams: %w", err)
 	}
 
 	resp, ok := data.(ServerDHParams)
@@ -112,7 +113,7 @@ func SetClientDHParams(m requester, nonce, serverNonce *tl.Int128, encryptedData
 		EncryptedData: encryptedData,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending Ping")
+		return nil, fmt.Errorf("sending Ping: %w", err)
 	}
 
 	resp, ok := data.(SetClientDHParamsAnswer)
@@ -139,7 +140,7 @@ func Ping(m requester, pingID int64) (*Pong, error) {
 		PingID: pingID,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending Ping")
+		return nil, fmt.Errorf("sending Ping: %w", err)
 	}
 
 	resp, ok := data.(*Pong)

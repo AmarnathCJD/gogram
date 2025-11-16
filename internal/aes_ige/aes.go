@@ -9,8 +9,9 @@ import (
 	"crypto/sha256"
 	"math/big"
 
+	"errors"
+
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 type AesBlock [aes.BlockSize]byte

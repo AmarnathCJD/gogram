@@ -9,10 +9,11 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"errors"
+
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/utils"
-	"github.com/pkg/errors"
 )
 
 // Common is a message (either encrypted or unencrypted) used for communication between the client and server.
@@ -37,7 +38,7 @@ func (msg *Encrypted) Serialize(client MessageInformator, seqNo int32) ([]byte, 
 	obj := serializePacket(client, msg.Msg, msg.MsgID, seqNo)
 	encryptedData, msgKey, err := ige.Encrypt(obj, client.GetAuthKey())
 	if err != nil {
-		return nil, errors.Wrap(err, "encrypting")
+		return nil, fmt.Errorf("encrypting: %w", err)
 	}
 
 	buf := bytes.NewBuffer(nil)
@@ -67,7 +68,7 @@ func DeserializeEncrypted(data, authKey []byte) (*Encrypted, error) {
 
 	decrypted, err := ige.Decrypt(encryptedData, authKey, msg.MsgKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "decrypting message")
+		return nil, fmt.Errorf("decrypting message: %w", err)
 	}
 	buf = bytes.NewBuffer(decrypted)
 	d, err = tl.NewDecoder(buf)
@@ -147,7 +148,7 @@ func DeserializeUnencrypted(data []byte) (*Unencrypted, error) {
 	var err error
 	msg.Msg, err = d.GetRestOfMessage()
 	if err != nil {
-		return nil, errors.Wrap(err, "getting real message")
+		return nil, fmt.Errorf("getting real message: %w", err)
 	}
 
 	return msg, nil

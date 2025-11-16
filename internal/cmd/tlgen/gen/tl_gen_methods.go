@@ -133,7 +133,7 @@ func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 
 	//	data, err := c.MakeRequest(params)
 	//	if err != nil {
-	//		return nil, errors.Wrap(err, "sedning AuthSendCode")
+	//		return nil, fmt.Errorf("sedning AuthSendCode: %w", err)
 	//	}
 	//
 	//	resp, ok := data.(*AuthSentCode)
@@ -146,7 +146,7 @@ func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 	method := jen.Func().Params(jen.Id("c").Op("*").Id("Client")).Id(goify(obj.Name, true)).Params(g.generateArgumentsForMethod(obj)...).Params(responses...).Block(
 		jen.List(jen.Id("responseData"), jen.Id("err")).Op(":=").Id("c").Dot("MakeRequest").Call(g.generateMethodArgumentForMakingRequest(obj)),
 		jen.If(jen.Err().Op("!=").Nil()).Block(
-			jen.Return(nuk, jen.Qual(errorsPackagePath, "Wrap").Call(jen.Err(), jen.Lit("sending "+goify(obj.Name, true)))),
+			jen.Return(nuk, jen.Qual("fmt", "Errorf").Call(jen.Lit("sending "+goify(obj.Name, true)+": %w"), jen.Err())),
 		),
 		jen.Line(),
 		jen.List(jen.Id("resp"), jen.Id("ok")).Op(":=").Id("responseData").Assert(resp),

@@ -15,7 +15,7 @@ import (
 
 	"slices"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type MessageHandler func(m *NewMessage) error

@@ -17,8 +17,9 @@ import (
 	"syscall"
 	"time"
 
+	"errors"
+
 	mtproto "github.com/amarnathcjd/gogram"
-	"github.com/pkg/errors"
 
 	"github.com/amarnathcjd/gogram/internal/keys"
 	"github.com/amarnathcjd/gogram/internal/session"
@@ -210,7 +211,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 
 	mtproto, err := mtproto.NewMTProto(cfg)
 	if err != nil {
-		return errors.Wrap(err, "creating mtproto client")
+		return fmt.Errorf("creating mtproto client: %w", err)
 	}
 	c.MTProto = mtproto
 	c.clientData.appID = mtproto.AppID() // in case the appId was not provided in the config but was in the session
@@ -218,7 +219,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 	if config.StringSession != "" && !config.NoPreconnect {
 		c.Log.Debug("using string session, connecting to telegram servers")
 		if err := c.Connect(); err != nil {
-			return errors.Wrap(err, "connecting to telegram servers")
+			return fmt.Errorf("connecting to telegram servers: %w", err)
 		}
 	}
 
@@ -316,7 +317,7 @@ func (c *Client) InitialRequest() error {
 	serverConfig, err := c.InvokeWithLayer(ApiVersion, initConfig)
 
 	if err != nil {
-		return errors.Wrap(err, "sending invokeWithLayer")
+		return fmt.Errorf("sending invokeWithLayer: %w", err)
 	}
 
 	c.Log.Debug("received initial invokeWithLayer response")
@@ -355,13 +356,13 @@ func (c *Client) Connect() error {
 
 	err := c.MTProto.CreateConnection(true)
 	if err != nil {
-		return errors.Wrap(err, "connecting to telegram servers")
+		return fmt.Errorf("connecting to telegram servers: %w", err)
 	}
 
 	// Initial request (invokeWithLayer) must be sent after connection is established
 	err = c.InitialRequest()
 	if err != nil {
-		return errors.Wrap(err, "sending initial request")
+		return fmt.Errorf("sending initial request: %w", err)
 	}
 
 	_, _ = c.GetMe()
@@ -429,7 +430,7 @@ func (c *Client) SwitchDc(dcID int) error {
 	c.Log.Debug("switching to data center %d", dcID)
 	newDcSender, err := c.MTProto.SwitchDc(dcID)
 	if err != nil {
-		return errors.Wrap(err, "reconnecting to new dc")
+		return fmt.Errorf("reconnecting to new dc: %w", err)
 	}
 	c.MTProto = newDcSender
 	return c.InitialRequest()
@@ -552,7 +553,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 			if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
 				cdnKeysResp, err := c.HelpGetCdnConfig()
 				if err != nil {
-					return nil, errors.Wrap(err, "getting cdn config")
+					return nil, fmt.Errorf("getting cdn config: %w", err)
 				}
 
 				var cdnKeys = make(map[int32]*rsa.PublicKey)
@@ -564,7 +565,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 
 		exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
 		if err != nil {
-			lastError = errors.Wrap(err, "exporting new sender")
+			lastError = fmt.Errorf("exporting new sender: %w", err)
 			c.Log.WithError(lastError).Error("error exporting new sender")
 			continue
 		}
@@ -591,7 +592,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 				c.Log.WithField("dc", exported.GetDC()).Info("exporting auth for data-center")
 				auth, err = c.AuthExportAuthorization(int32(exported.GetDC()))
 				if err != nil {
-					lastError = errors.Wrap(err, "exporting auth")
+					lastError = fmt.Errorf("exporting auth: %w", err)
 					c.Log.WithError(lastError).Error("error exporting auth")
 					continue
 				}
@@ -624,7 +625,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 				continue
 			}
 
-			lastError = errors.Wrap(err, "making initial request")
+			lastError = fmt.Errorf("making initial request: %w", err)
 			if retry < retryLimit {
 				c.Log.WithFields(map[string]any{
 					"retry": retry + 1,

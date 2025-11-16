@@ -5,10 +5,11 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
+	"fmt"
 	"hash"
 	"math/big"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 func GetInputCheckPassword(password string, srpB []byte, mp *ModPow, random []byte) (*SrpAnswer, error) {
@@ -17,7 +18,7 @@ func GetInputCheckPassword(password string, srpB []byte, mp *ModPow, random []by
 	}
 	err := validateCurrentAlgo(srpB, mp)
 	if err != nil {
-		return nil, errors.Wrap(err, "validating CurrentAlgo")
+		return nil, fmt.Errorf("validating CurrentAlgo: %w", err)
 	}
 	p := BytesToBig(mp.P)
 	g := big.NewInt(int64(mp.G))
