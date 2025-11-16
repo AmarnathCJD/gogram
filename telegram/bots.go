@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type InlineSendOptions struct {
@@ -152,7 +152,7 @@ func (c *Client) Broadcast(ctx ...context.Context) (chan User, chan Chat, error)
 				if handleIfFlood(err, c) {
 					continue
 				}
-				c.Logger.Error(err)
+				c.Logger.WithError(err).Error("")
 				return
 			}
 

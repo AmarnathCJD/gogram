@@ -1,7 +1,7 @@
 package gen
 
 import (
-	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"unicode"
@@ -10,6 +10,11 @@ import (
 	"github.com/iancoleman/strcase"
 
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
+)
+
+var (
+	missingTypesCache = make(map[string]string) // Cache for user-provided or skipped types
+	skippedTypes      = make(map[string]bool)   // Track types user chose to skip
 )
 
 func createParamsStructFromMethod(method tlparser.Method) tlparser.Object {
@@ -28,17 +33,6 @@ func haveOptionalParams(params []tlparser.Parameter) bool {
 	}
 
 	return false
-}
-
-func maxBitflag(params []tlparser.Parameter) int {
-	maximum := 0
-	for _, param := range params {
-		if param.BitToTrigger > maximum {
-			maximum = param.BitToTrigger
-		}
-	}
-
-	return maximum
 }
 
 func goify(name string, public bool) string {
@@ -87,17 +81,23 @@ func (g *Generator) typeIdFromSchemaType(t string) *jen.Statement {
 	case "true":
 		item = jen.Bool()
 	default:
+		// Check if it's an enum
 		if _, ok := g.schema.Enums[t]; ok {
+			log.Printf("INFO: Found enum type: %s\n", t)
 			item = jen.Id(goify(t, true))
 			break
 		}
+		// Check if it's a defined type
 		if _, ok := g.schema.Types[t]; ok {
+			log.Printf("INFO: Found interface type: %s\n", t)
 			item = jen.Id(goify(t, true))
 			break
 		}
+		// Check single interface types
 		found := false
 		for _, _struct := range g.schema.SingleInterfaceTypes {
 			if _struct.Interface == t {
+				log.Printf("INFO: Found single interface type: %s\n", t)
 				item = jen.Id("*" + goify(_struct.Name, true))
 				found = true
 				break
@@ -106,9 +106,61 @@ func (g *Generator) typeIdFromSchemaType(t string) *jen.Statement {
 		if found {
 			break
 		}
-		// pp.Fprintln(os.Stderr, g.schema)
-		//panic("'" + t + "'")
-		fmt.Println("panic: ", t)
+
+		// Type not found - check cache or prompt user
+		if cachedType, ok := missingTypesCache[t]; ok {
+			if cachedType != "" {
+				log.Printf("INFO: Using cached type definition for '%s': %s\n", t, cachedType)
+				item = jen.Id(cachedType)
+			} else {
+				log.Printf("WARN: Using interface{} for previously skipped type '%s'\n", t)
+				item = jen.Interface()
+			}
+			break
+		}
+
+		if skippedTypes[t] {
+			log.Printf("WARN: Using interface{} for skipped type '%s'\n", t)
+			item = jen.Interface()
+			break
+		}
+
+		userInput := currentTypeHandler.RequestTypeDefinition(t)
+
+		if userInput == "" {
+			log.Printf("WARN: User skipped type '%s', using interface{}\n", t)
+			missingTypesCache[t] = ""
+			skippedTypes[t] = true
+			item = jen.Interface()
+		} else {
+			// Check if it's a TL definition (contains = and ends with ;)
+			if strings.Contains(userInput, "=") && strings.HasSuffix(userInput, ";") {
+				// Parse TL definition to extract the return type
+				parts := strings.Split(userInput, "=")
+				if len(parts) == 2 {
+					returnType := strings.TrimSpace(parts[1])
+					returnType = strings.TrimSuffix(returnType, ";")
+					returnType = strings.TrimSpace(returnType)
+					log.Printf("INFO: Parsed TL definition for '%s', extracted return type: %s\n", t, returnType)
+
+					// Store both the original type and the parsed type
+					missingTypesCache[t] = goify(returnType, true)
+					item = jen.Id(goify(returnType, true))
+
+					// TODO: Optionally, could parse and register the full definition
+					// For now, just use the return type
+				} else {
+					log.Printf("WARN: Failed to parse TL definition for '%s', using as Go type\n", t)
+					missingTypesCache[t] = userInput
+					item = jen.Id(userInput)
+				}
+			} else {
+				// Treat as Go type name
+				log.Printf("INFO: User provided Go type for '%s': %s\n", t, userInput)
+				missingTypesCache[t] = userInput
+				item = jen.Id(userInput)
+			}
+		}
 	}
 
 	return item

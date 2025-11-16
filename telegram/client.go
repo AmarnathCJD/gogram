@@ -7,7 +7,6 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -18,8 +17,9 @@ import (
 	"syscall"
 	"time"
 
+	"errors"
+
 	mtproto "github.com/amarnathcjd/gogram"
-	"github.com/pkg/errors"
 
 	"github.com/amarnathcjd/gogram/internal/keys"
 	"github.com/amarnathcjd/gogram/internal/session"
@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	// The Initial DC to connect to, before auth
+	// the initial data center to connect to, before knowing the real one
 	DefaultDataCenter         = 4
 	CleanExportedSendersDelay = 5 * time.Minute
 )
@@ -42,12 +42,13 @@ type clientData struct {
 	systemLangCode   string
 	langPack         string
 	parseMode        string
-	logLevel         utils.LogLevel
+	logLevel         LogLevel
 	sleepThresholdMs int
 	albumWaitTime    int64
 	botAcc           bool
 	me               *UserObj
 	commandPrefixes  string
+	proxy            Proxy
 }
 
 // Client is the main struct of the library
@@ -60,7 +61,7 @@ type Client struct {
 	stopCh       chan struct{}
 	exSenders    *ExSenders
 	exportedKeys map[int]*AuthExportedAuthorization
-	Log          *utils.Logger
+	Log          Logger
 }
 
 type DeviceConfig struct {
@@ -88,9 +89,9 @@ type ClientConfig struct {
 	NoUpdates        bool                 // Don't handle updates
 	DisableCache     bool                 // Disable caching peer and chat information
 	TestMode         bool                 // Use the test data centers
-	LogLevel         utils.LogLevel       // The library log level
-	Logger           *utils.Logger        // The logger to use
-	Proxy            *url.URL             // The proxy to use (SOCKS5, HTTP)
+	LogLevel         LogLevel             // The library log level
+	Logger           Logger               // The logger to use
+	Proxy            Proxy                // The proxy to use
 	LocalAddr        string               // Local address binding for multi-interface support (IP:port)
 	ForceIPv6        bool                 // Force to use IPv6
 	NoPreconnect     bool                 // Don't preconnect to the DC until Connect() is called
@@ -131,11 +132,11 @@ func NewClient(config ClientConfig) (*Client, error) {
 
 	if config.Logger != nil {
 		client.Log = config.Logger
-		client.Log.Prefix = "gogram " + getLogPrefix("client", config.SessionName)
+		client.Log.SetPrefix("gogram " + getLogPrefix("client", config.SessionName))
 		config.LogLevel = config.Logger.Lev()
 	} else {
 		config.LogLevel = getValue(config.LogLevel, LogInfo)
-		client.Log = utils.NewLogger("gogram " + getLogPrefix("client", config.SessionName))
+		client.Log = NewDefaultLogger("gogram " + getLogPrefix("client", config.SessionName))
 		client.Log.SetLevel(config.LogLevel)
 	}
 
@@ -144,10 +145,10 @@ func NewClient(config ClientConfig) (*Client, error) {
 
 	if config.Cache == nil {
 		client.Cache = NewCache(fmt.Sprintf("cache%s.db", config.SessionName), &CacheConfig{
-			Disabled:   config.DisableCache,
-			LogLevel:   config.LogLevel,
-			LogName:    config.SessionName,
-			LogNoColor: !client.Log.Color(),
+			Disabled: config.DisableCache,
+			Logger:   getValue(config.Logger, client.Log.WithPrefix("gogram "+getLogPrefix("cache", config.SessionName))),
+			LogColor: client.Log.Color(),
+			LogLevel: config.LogLevel,
 		})
 	} else {
 		client.Cache = config.Cache
@@ -183,18 +184,15 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		}
 	}
 
-	mtproto, err := mtproto.NewMTProto(mtproto.Config{
-		AppID:       config.AppID,
-		AuthKeyFile: config.Session,
-		AuthAESKey:  config.SessionAESKey,
-		ServerHost:  toIpAddr(),
-		PublicKey:   config.PublicKeys[0],
-		DataCenter:  config.DataCenter,
-		Logger: utils.NewLogger("gogram " + getLogPrefix("mtproto", config.SessionName)).
-			SetLevel(config.LogLevel).
-			NoColor(!c.Log.Color()),
+	cfg := mtproto.Config{
+		AppID:           config.AppID,
+		AuthKeyFile:     config.Session,
+		AuthAESKey:      config.SessionAESKey,
+		ServerHost:      toIpAddr(),
+		PublicKey:       config.PublicKeys[0],
+		DataCenter:      config.DataCenter,
+		Logger:          c.Log.CloneInternal().WithPrefix("gogram " + getLogPrefix("mtproto", config.SessionName)),
 		StringSession:   config.StringSession,
-		Proxy:           config.Proxy,
 		LocalAddr:       config.LocalAddr,
 		MemorySession:   config.MemorySession,
 		Ipv6:            config.ForceIPv6,
@@ -205,9 +203,15 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		ReqTimeout:      config.ReqTimeout,
 		UseWebSocket:    config.UseWebSocket,
 		UseWebSocketTLS: config.UseWebSocketTLS,
-	})
+	}
+
+	if config.Proxy != nil {
+		cfg.Proxy = config.Proxy.toInternal()
+	}
+
+	mtproto, err := mtproto.NewMTProto(cfg)
 	if err != nil {
-		return errors.Wrap(err, "creating mtproto client")
+		return fmt.Errorf("creating mtproto client: %w", err)
 	}
 	c.MTProto = mtproto
 	c.clientData.appID = mtproto.AppID() // in case the appId was not provided in the config but was in the session
@@ -215,7 +219,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 	if config.StringSession != "" && !config.NoPreconnect {
 		c.Log.Debug("using string session, connecting to telegram servers")
 		if err := c.Connect(); err != nil {
-			return errors.Wrap(err, "connecting to telegram servers")
+			return fmt.Errorf("connecting to telegram servers: %w", err)
 		}
 	}
 
@@ -240,10 +244,6 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 	}
 	if config.AppHash == "" {
 		c.Log.Debug("appHash is empty, some features may not work")
-	}
-
-	if !IsFfmpegInstalled() {
-		c.Log.Debug("ffmpeg is not installed, some media metadata may not be available")
 	}
 	return nil
 }
@@ -284,6 +284,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
 	c.clientData.albumWaitTime = getValue(cnf.AlbumWaitTime, 600)
 	c.clientData.commandPrefixes = getValue(cnf.CommandPrefixes, "/!")
+	c.clientData.proxy = cnf.Proxy
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
@@ -295,7 +296,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 // InitialRequest sends the initial initConnection request
 func (c *Client) InitialRequest() error {
 	c.Log.Debug("sending initial invokeWithLayer request")
-	serverConfig, err := c.InvokeWithLayer(ApiVersion, &InitConnectionParams{
+	initConfig := &InitConnectionParams{
 		ApiID:          c.clientData.appID,
 		DeviceModel:    c.clientData.deviceModel,
 		SystemVersion:  c.clientData.systemVersion,
@@ -304,10 +305,19 @@ func (c *Client) InitialRequest() error {
 		LangCode:       c.clientData.langCode,
 		LangPack:       c.clientData.langPack,
 		Query:          &HelpGetConfigParams{},
-	})
+	}
+
+	if c.clientData.proxy != nil && c.clientData.proxy.Type() == "mtproxy" {
+		initConfig.Proxy = &InputClientProxy{
+			c.clientData.proxy.GetHost(),
+			int32(c.clientData.proxy.GetPort()),
+		}
+	}
+
+	serverConfig, err := c.InvokeWithLayer(ApiVersion, initConfig)
 
 	if err != nil {
-		return errors.Wrap(err, "sending invokeWithLayer")
+		return fmt.Errorf("sending invokeWithLayer: %w", err)
 	}
 
 	c.Log.Debug("received initial invokeWithLayer response")
@@ -330,7 +340,7 @@ func (c *Client) InitialRequest() error {
 			}
 		}
 
-		c.DcList.SetDCs(dcs, cdnDcs) // set the upto-date DC configuration for the library
+		c.DcList.SetDCs(dcs, cdnDcs) // set the up to-date DC configuration for the library
 	}
 
 	return nil
@@ -346,13 +356,13 @@ func (c *Client) Connect() error {
 
 	err := c.MTProto.CreateConnection(true)
 	if err != nil {
-		return errors.Wrap(err, "connecting to telegram servers")
+		return fmt.Errorf("connecting to telegram servers: %w", err)
 	}
 
 	// Initial request (invokeWithLayer) must be sent after connection is established
 	err = c.InitialRequest()
 	if err != nil {
-		return errors.Wrap(err, "sending initial request")
+		return fmt.Errorf("sending initial request: %w", err)
 	}
 
 	_, _ = c.GetMe()
@@ -417,10 +427,10 @@ func (c *Client) Disconnect() error {
 
 // switchDC permanently switches the data center
 func (c *Client) SwitchDc(dcID int) error {
-	c.Log.Debug("switching data center to (" + strconv.Itoa(dcID) + ")")
+	c.Log.Debug("switching to data center %d", dcID)
 	newDcSender, err := c.MTProto.SwitchDc(dcID)
 	if err != nil {
-		return errors.Wrap(err, "reconnecting to new dc")
+		return fmt.Errorf("reconnecting to new dc: %w", err)
 	}
 	c.MTProto = newDcSender
 	return c.InitialRequest()
@@ -538,12 +548,12 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 	var authParam = getVariadic(authParams, &AuthExportedAuthorization{})
 
 	for retry := 0; retry <= retryLimit; retry++ {
-		c.Log.Debug("creating exported sender for DC ", dcID)
+		c.Log.WithField("dc", dcID).Debug("creating exported sender")
 		if cdn {
 			if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
 				cdnKeysResp, err := c.HelpGetCdnConfig()
 				if err != nil {
-					return nil, errors.Wrap(err, "getting cdn config")
+					return nil, fmt.Errorf("getting cdn config: %w", err)
 				}
 
 				var cdnKeys = make(map[int32]*rsa.PublicKey)
@@ -555,8 +565,8 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 
 		exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
 		if err != nil {
-			lastError = errors.Wrap(err, "exporting new sender")
-			c.Log.Error("error exporting new sender: ", lastError)
+			lastError = fmt.Errorf("exporting new sender: %w", err)
+			c.Log.WithError(lastError).Error("error exporting new sender")
 			continue
 		}
 
@@ -579,11 +589,11 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 					Bytes: authParam.Bytes,
 				}
 			} else {
-				c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
+				c.Log.WithField("dc", exported.GetDC()).Info("exporting auth for data-center")
 				auth, err = c.AuthExportAuthorization(int32(exported.GetDC()))
 				if err != nil {
-					lastError = errors.Wrap(err, "exporting auth")
-					c.Log.Error("error exporting auth: ", lastError)
+					lastError = fmt.Errorf("exporting auth: %w", err)
+					c.Log.WithError(lastError).Error("error exporting auth")
 					continue
 				}
 
@@ -606,7 +616,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 			Query: initialReq,
 		})
 		cancel()
-		c.Log.Debug(fmt.Sprintf("initial request for exported sender %d sent", dcID))
+		c.Log.WithField("dc", dcID).Debug("initial request for exported sender sent")
 
 		if err != nil {
 			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") {
@@ -615,11 +625,14 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 				continue
 			}
 
-			lastError = errors.Wrap(err, "making initial request")
+			lastError = fmt.Errorf("making initial request: %w", err)
 			if retry < retryLimit {
-				c.Log.Debug(fmt.Sprintf("error making initial request, retrying (%d/%d)", retry+1, retryLimit))
+				c.Log.WithFields(map[string]any{
+					"retry": retry + 1,
+					"limit": retryLimit,
+				}).Debug("error making initial request, retrying")
 			} else {
-				c.Log.Error(fmt.Sprintf("exported sender: initialRequest: %s", lastError.Error()))
+				c.Log.WithError(lastError).Error("exported sender: initialRequest failed")
 			}
 
 			time.Sleep(200 * time.Millisecond)
@@ -633,13 +646,13 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 }
 
 // setLogLevel sets the log level for all loggers
-func (c *Client) SetLogLevel(level utils.LogLevel) {
+func (c *Client) SetLogLevel(level LogLevel) {
 	c.Log.Debug("setting library log level to ", level)
 	c.Log.SetLevel(level)
 	if c.Cache != nil {
 		c.Cache.logger.SetLevel(level)
 	}
-	c.MTProto.Logger.SetLevel(level)
+	c.MTProto.Logger.SetLevel(utils.LogLevel(level))
 	if c.dispatcher != nil {
 		c.dispatcher.logger.SetLevel(level)
 	}
@@ -649,13 +662,13 @@ func (c *Client) SetLogLevel(level utils.LogLevel) {
 func (c *Client) LogColor(mode bool) {
 	c.Log.Debug("disabling color for all loggers")
 
-	c.Log.NoColor(!mode)
+	c.Log.SetColor(mode)
 	if c.Cache != nil {
-		c.Cache.logger.NoColor(!mode)
+		c.Cache.logger.SetColor(mode)
 	}
-	c.MTProto.Logger.NoColor(!mode)
+	c.MTProto.Logger.SetColor(mode)
 	if c.dispatcher != nil {
-		c.dispatcher.logger.NoColor(!mode)
+		c.dispatcher.logger.SetColor(mode)
 	}
 }
 
@@ -761,6 +774,16 @@ func (c *Client) SetCommandPrefixes(prefixes string) {
 	c.clientData.commandPrefixes = prefixes
 }
 
+// GetProxy returns the proxy configuration
+func (c *Client) GetProxy() Proxy {
+	return c.clientData.proxy
+}
+
+// SetProxy sets the proxy configuration
+func (c *Client) SetProxy(proxy Proxy) {
+	c.clientData.proxy = proxy
+}
+
 // Terminate client and disconnect from telegram server
 func (c *Client) Terminate() error {
 	//go c.cleanExportedSenders()
@@ -796,19 +819,18 @@ func (c *Client) Stop() error {
 func (c *Client) NewRecovery() func() {
 	return func() {
 		if r := recover(); r != nil {
-			if c.Log.Lev() == LogDebug {
-				c.Log.Panic(r, "\n\n", string(debug.Stack())) // print stacktrace for debug
+			if c.Log.GetLevel() == LogDebug {
+				c.Log.Panic("%v\n\n%s", r, string(debug.Stack()))
 			} else {
-				c.Log.Panic(r)
+				c.Log.Panic("%v", r)
 			}
 		}
 	}
 }
 
-// WrapError sends an error to the error channel if it is not nil
 func (c *Client) WrapError(err error) error {
 	if err != nil {
-		c.Log.Error(err)
+		c.Log.WithError(err).Error("error occurred")
 	}
 	return err
 }
@@ -876,10 +898,10 @@ func NewClientConfigBuilder(appID int32, appHash string) *ClientConfigBuilder {
 				SystemVersion: "17.0",
 				AppVersion:    Version,
 			},
-			DataCenter:    4,               // Default DC
-			ParseMode:     "HTML",          // Default parse mode
-			LogLevel:      utils.InfoLevel, // Default log level
-			TransportMode: "Abridged",      // Default transport mode
+			DataCenter:    4,          // Default DC
+			ParseMode:     "HTML",     // Default parse mode
+			LogLevel:      InfoLevel,  // Default log level
+			TransportMode: "Abridged", // Default transport mode
 		},
 	}
 }
@@ -919,8 +941,8 @@ func (b *ClientConfigBuilder) WithDataCenter(dc int) *ClientConfigBuilder {
 	return b
 }
 
-func (b *ClientConfigBuilder) WithProxy(proxyURL *url.URL) *ClientConfigBuilder {
-	b.config.Proxy = proxyURL
+func (b *ClientConfigBuilder) WithProxy(proxy Proxy) *ClientConfigBuilder {
+	b.config.Proxy = proxy
 	return b
 }
 
@@ -930,7 +952,7 @@ func (b *ClientConfigBuilder) WithLocalAddr(localAddr string) *ClientConfigBuild
 }
 
 func (b *ClientConfigBuilder) WithLogLevel(level utils.LogLevel) *ClientConfigBuilder {
-	b.config.LogLevel = level
+	b.config.LogLevel = LogLevel(level)
 	return b
 }
 
@@ -999,7 +1021,7 @@ func (b *ClientConfigBuilder) WithTransportMode(mode string) *ClientConfigBuilde
 	return b
 }
 
-func (b *ClientConfigBuilder) WithLogger(logger *utils.Logger) *ClientConfigBuilder {
+func (b *ClientConfigBuilder) WithLogger(logger Logger) *ClientConfigBuilder {
 	b.config.Logger = logger
 	return b
 }

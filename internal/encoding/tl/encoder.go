@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 var bufferPool = sync.Pool{
@@ -131,7 +131,7 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 
 		info, err := parseTag(vtyp.Field(i).Tag)
 		if err != nil {
-			c.err = errors.Wrapf(err, "parsing tag of field %v", vtyp.Field(i).Name)
+			c.err = fmt.Errorf("parsing tag of field %v: %w", vtyp.Field(i).Name, err)
 			return
 		}
 
@@ -186,7 +186,7 @@ func (c *Encoder) encodeVector(slice ...any) {
 	for i, item := range slice {
 		c.encodeValue(reflect.ValueOf(item))
 		if c.CheckErr() != nil {
-			c.err = errors.Wrapf(c.err, "[%v]", i)
+			c.err = fmt.Errorf("[%v]: %w", i, c.err)
 		}
 	}
 }

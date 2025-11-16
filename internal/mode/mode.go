@@ -4,9 +4,10 @@ package mode
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // Mode is an interface that defines how the connection sides determine the size of transmitted messages.
@@ -63,7 +64,7 @@ func New(v Variant, conn io.ReadWriter) (Mode, error) {
 	announcement := m.getModeAnnouncement()
 	_, err = conn.Write(announcement)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't setup connection")
+		return nil, fmt.Errorf("can't setup connection: %w", err)
 	}
 
 	return m, nil

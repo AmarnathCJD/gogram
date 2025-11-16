@@ -100,9 +100,10 @@ func dialSocks5(s *url.URL, addr string, localAddr string) (net.Conn, error) {
 			return nil, errors.New("socks version not supported")
 		}
 
-		if buf[1] == 0 {
+		switch buf[1] {
+		case 0:
 			// No authentication required
-		} else if buf[1] == 2 {
+		case 2:
 			// Username/password authentication
 			_, err = conn.Write(append([]byte{1, byte(len(username))}, []byte(username)...))
 			if err != nil {
@@ -125,7 +126,7 @@ func dialSocks5(s *url.URL, addr string, localAddr string) (net.Conn, error) {
 			if buf[1] != 0 {
 				return nil, errors.New("socks authentication failed")
 			}
-		} else {
+		default:
 			return nil, errors.New("socks authentication method not supported")
 		}
 	} else {

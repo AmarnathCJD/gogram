@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type wsConn struct {
@@ -33,9 +33,13 @@ type wsConn struct {
 func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 	wsURL := FormatWebSocketURI(cfg.Host, cfg.TLS, cfg.DC, cfg.TestMode)
 
+	if cfg.Logger != nil {
+		cfg.Logger.WithField("url", wsURL).Debug("[ws] connecting")
+	}
+
 	u, err := url.Parse(wsURL)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid websocket URL")
+		return nil, fmt.Errorf("invalid websocket URL: %w", err)
 	}
 
 	host := u.Host
@@ -47,6 +51,13 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 		}
 	}
 
+	if cfg.Logger != nil {
+		cfg.Logger.WithFields(map[string]any{
+			"host":   host,
+			"scheme": u.Scheme,
+		}).Debug("[ws] resolved connection details")
+	}
+
 	var conn net.Conn
 	dialer := &net.Dialer{
 		Timeout: 10 * time.Second,
@@ -55,19 +66,35 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 	if cfg.LocalAddr != "" {
 		localAddr, _ := net.ResolveTCPAddr("tcp", cfg.LocalAddr)
 		dialer.LocalAddr = localAddr
+		if cfg.Logger != nil {
+			cfg.Logger.WithField("local_addr", cfg.LocalAddr).Debug("[ws] using local address")
+		}
 	}
 
 	if u.Scheme == "wss" {
+		if cfg.Logger != nil {
+			cfg.Logger.Debug("[ws] establishing TLS connection")
+		}
 		tlsConfig := &tls.Config{
 			ServerName: strings.Split(u.Host, ":")[0],
 		}
 		conn, err = tls.DialWithDialer(dialer, "tcp", host, tlsConfig)
 	} else {
+		if cfg.Logger != nil {
+			cfg.Logger.Debug("[ws] establishing TCP connection")
+		}
 		conn, err = dialer.DialContext(cfg.Ctx, "tcp", host)
 	}
 
 	if err != nil {
-		return nil, errors.Wrap(err, "dial failed")
+		if cfg.Logger != nil {
+			cfg.Logger.WithError(err).Error("[ws] connection failed")
+		}
+		return nil, fmt.Errorf("dial failed: %w", err)
+	}
+
+	if cfg.Logger != nil {
+		cfg.Logger.Debug("[ws] connection established")
 	}
 
 	key := make([]byte, 16)
@@ -85,19 +112,36 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 
 	if _, err := conn.Write([]byte(req)); err != nil {
 		conn.Close()
-		return nil, errors.Wrap(err, "write handshake failed")
+		return nil, fmt.Errorf("write handshake failed: %w", err)
+	}
+
+	if cfg.Logger != nil {
+		cfg.Logger.Debug("[ws] handshake sent")
 	}
 
 	reader := bufio.NewReader(conn)
 	resp, err := http.ReadResponse(reader, &http.Request{Method: "GET"})
 	if err != nil {
 		conn.Close()
-		return nil, errors.Wrap(err, "read handshake response failed")
+		if cfg.Logger != nil {
+			cfg.Logger.WithError(err).Error("[ws] failed to read handshake response")
+		}
+		return nil, fmt.Errorf("read handshake response failed: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if cfg.Logger != nil {
+		cfg.Logger.WithField("status", resp.StatusCode).Debug("[ws] handshake response received")
+	}
+
 	if resp.StatusCode != 101 {
 		conn.Close()
+		if cfg.Logger != nil {
+			cfg.Logger.WithFields(map[string]any{
+				"expected": 101,
+				"got":      resp.StatusCode,
+			}).Error("[ws] handshake failed")
+		}
 		return nil, fmt.Errorf("handshake failed: status %d", resp.StatusCode)
 	}
 
@@ -108,7 +152,17 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 
 	if acceptKey != expectedKey {
 		conn.Close()
+		if cfg.Logger != nil {
+			cfg.Logger.WithFields(map[string]any{
+				"expected": expectedKey,
+				"got":      acceptKey,
+			}).Error("[ws] invalid Sec-WebSocket-Accept")
+		}
 		return nil, errors.New("invalid Sec-WebSocket-Accept")
+	}
+
+	if cfg.Logger != nil {
+		cfg.Logger.Debug("[ws] handshake validation successful")
 	}
 
 	ws := &wsConn{
@@ -117,13 +171,25 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 		masked:  true,
 	}
 
+	if cfg.Logger != nil {
+		cfg.Logger.WithField("protocol", cfg.ModeVariant).Debug("[ws] initializing obfuscation")
+	}
+
 	obf, err := NewObfuscatedConn(ws, ProtocolID(cfg.ModeVariant))
 	if err != nil {
 		conn.Close()
-		return nil, errors.Wrap(err, "obfuscation failed")
+		if cfg.Logger != nil {
+			cfg.Logger.WithError(err).Error("[ws] obfuscation failed")
+		}
+		return nil, fmt.Errorf("obfuscation failed: %w", err)
 	}
 
 	ws.reader = NewReader(cfg.Ctx, obf)
+
+	if cfg.Logger != nil {
+		cfg.Logger.Info("[ws] WebSocket connection fully established")
+	}
+
 	return obf, nil
 }
 
@@ -170,7 +236,7 @@ func (w *wsConn) Write(b []byte) (int, error) {
 
 	_, err := w.conn.Write(frame)
 	if err != nil {
-		return 0, errors.Wrap(err, "websocket write")
+		return 0, fmt.Errorf("websocket write: %w", err)
 	}
 	return len(b), nil
 }
@@ -179,7 +245,7 @@ func (w *wsConn) Read(b []byte) (int, error) {
 	if w.timeout > 0 {
 		err := w.conn.SetReadDeadline(time.Now().Add(w.timeout))
 		if err != nil {
-			return 0, errors.Wrap(err, "setting read deadline")
+			return 0, fmt.Errorf("setting read deadline: %w", err)
 		}
 	}
 
@@ -195,9 +261,9 @@ func (w *wsConn) Read(b []byte) (int, error) {
 			return 0, io.EOF
 		}
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			return 0, errors.Wrap(err, "required to reconnect!")
+			return 0, fmt.Errorf("required to reconnect!: %w", err)
 		}
-		return 0, errors.Wrap(err, "reading websocket frame header")
+		return 0, fmt.Errorf("reading websocket frame header: %w", err)
 	}
 
 	opcode := header[0] & 0x0F
@@ -212,13 +278,13 @@ func (w *wsConn) Read(b []byte) (int, error) {
 	case 126:
 		ext := make([]byte, 2)
 		if _, err := io.ReadFull(w.conn, ext); err != nil {
-			return 0, errors.Wrap(err, "reading extended payload length")
+			return 0, fmt.Errorf("reading extended payload length: %w", err)
 		}
 		payloadLen = int64(binary.BigEndian.Uint16(ext))
 	case 127:
 		ext := make([]byte, 8)
 		if _, err := io.ReadFull(w.conn, ext); err != nil {
-			return 0, errors.Wrap(err, "reading extended payload length")
+			return 0, fmt.Errorf("reading extended payload length: %w", err)
 		}
 		payloadLen = int64(binary.BigEndian.Uint64(ext))
 	}
@@ -227,13 +293,13 @@ func (w *wsConn) Read(b []byte) (int, error) {
 	if masked {
 		maskKey = make([]byte, 4)
 		if _, err := io.ReadFull(w.conn, maskKey); err != nil {
-			return 0, errors.Wrap(err, "reading mask key")
+			return 0, fmt.Errorf("reading mask key: %w", err)
 		}
 	}
 
 	payload := make([]byte, payloadLen)
 	if _, err := io.ReadFull(w.conn, payload); err != nil {
-		return 0, errors.Wrap(err, "reading payload")
+		return 0, fmt.Errorf("reading payload: %w", err)
 	}
 
 	if masked {

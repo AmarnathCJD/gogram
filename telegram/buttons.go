@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 type ButtonBuilder struct{}

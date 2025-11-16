@@ -25,7 +25,8 @@ type Session struct {
 }
 
 var (
-	ErrSessionNotFound = errors.New("session not found")
-	ErrPathNotFound    = "file not found"
-	ErrFileNotExists   = "no such file or directory"
+	ErrSessionNotFound    = errors.New("session not found")
+	ErrPathNotFound       = "file not found"
+	ErrFileNotExists      = "no such file or directory"
+	ErrNotImplementedInJS = "not implemented in js environment"
 )
