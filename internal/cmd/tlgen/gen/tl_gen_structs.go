@@ -2,11 +2,11 @@ package gen
 
 import (
 	"fmt"
+	"log"
 	"sort"
 	"sync"
 
 	"github.com/dave/jennifer/jen"
-	"github.com/k0kubun/pp"
 
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
 )
@@ -72,8 +72,11 @@ func (g *Generator) generateStructTypeAndMethods(definition tlparser.Object, imp
 			}
 		}
 		if flagBitIndex == -1 {
-			pp.Println(definition)
-			panic("optional bitflag not found!")
+			log.Printf("ERROR: Optional parameters found but no bitflag in struct '%s'\n", structName)
+			log.Printf("ERROR: Definition: %+v\n", definition)
+			// Return a default value instead of panicking
+			log.Println("WARN: Using default flag index 0 as fallback")
+			flagBitIndex = 0
 		}
 
 		f := jen.Func().Params(jen.Op("*").Id(structName)).Id("FlagIndex").Params().Int().Block(

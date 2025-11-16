@@ -29,7 +29,7 @@ func (*Generator) createInitStructs(itemNames ...string) jen.Code {
 		structs[i] = jen.Op("&").Id(item).Block()
 	}
 
-	return jen.Qual(tlPackagePath, "RegisterObjects").Call(
+	return jen.Qual(tlPackagePath, "RegisterObjects").CallWithNewLine(
 		structs...,
 	)
 }

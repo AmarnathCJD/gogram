@@ -4,10 +4,9 @@ package telegram
 
 import (
 	"fmt"
-	"reflect"
-
 	tl "github.com/amarnathcjd/gogram/internal/encoding/tl"
 	errors "github.com/pkg/errors"
+	"reflect"
 )
 
 type AccountAcceptAuthorizationParams struct {
@@ -1246,17 +1245,17 @@ func (c *Client) AccountGetTmpPassword(password InputCheckPasswordSRP, period in
 }
 
 type AccountGetUniqueGiftChatThemesParams struct {
-	Offset int32
+	Offset string
 	Limit  int32
 	Hash   int64
 }
 
 func (*AccountGetUniqueGiftChatThemesParams) CRC() uint32 {
-	return 0xfe74ef9f
+	return 0xe42ce9c9
 }
 
 // Obtain all chat themes » associated to owned collectible gifts ».
-func (c *Client) AccountGetUniqueGiftChatThemes(offset, limit int32, hash int64) (*AccountChatThemes, error) {
+func (c *Client) AccountGetUniqueGiftChatThemes(offset string, limit int32, hash int64) (AccountChatThemes, error) {
 	responseData, err := c.MakeRequest(&AccountGetUniqueGiftChatThemesParams{
 		Hash:   hash,
 		Limit:  limit,
@@ -1266,7 +1265,7 @@ func (c *Client) AccountGetUniqueGiftChatThemes(offset, limit int32, hash int64)
 		return nil, errors.Wrap(err, "sending AccountGetUniqueGiftChatThemes")
 	}
 
-	resp, ok := responseData.(*AccountChatThemes)
+	resp, ok := responseData.(AccountChatThemes)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -2516,13 +2515,12 @@ func (c *Client) AccountUpdateBusinessWorkHours(businessWorkHours *BusinessWorkH
 }
 
 type AccountUpdateColorParams struct {
-	ForProfile        bool  `tl:"flag:1,encoded_in_bitflags"`
-	Color             int32 `tl:"flag:2"`
-	BackgroundEmojiID int64 `tl:"flag:0"`
+	ForProfile bool      `tl:"flag:1,encoded_in_bitflags"`
+	Color      PeerColor `tl:"flag:2"`
 }
 
 func (*AccountUpdateColorParams) CRC() uint32 {
-	return 0x7cefa15d
+	return 0x684d214e
 }
 
 func (*AccountUpdateColorParams) FlagIndex() int {
@@ -2530,11 +2528,10 @@ func (*AccountUpdateColorParams) FlagIndex() int {
 }
 
 // Update the accent color and background custom emoji » of the current account.
-func (c *Client) AccountUpdateColor(forProfile bool, color int32, backgroundEmojiID int64) (bool, error) {
+func (c *Client) AccountUpdateColor(forProfile bool, color PeerColor) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateColorParams{
-		BackgroundEmojiID: backgroundEmojiID,
-		Color:             color,
-		ForProfile:        forProfile,
+		Color:      color,
+		ForProfile: forProfile,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending AccountUpdateColor")
@@ -3030,6 +3027,33 @@ func (c *Client) AuthCancelCode(phoneNumber, phoneCodeHash string) (bool, error)
 	resp, ok := responseData.(bool)
 	if !ok {
 		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AuthCheckPaidAuthParams struct {
+	PhoneNumber   string
+	PhoneCodeHash string
+	FormID        int64
+}
+
+func (*AuthCheckPaidAuthParams) CRC() uint32 {
+	return 0x56e59f9c
+}
+
+func (c *Client) AuthCheckPaidAuth(phoneNumber, phoneCodeHash string, formID int64) (AuthSentCode, error) {
+	responseData, err := c.MakeRequest(&AuthCheckPaidAuthParams{
+		FormID:        formID,
+		PhoneCodeHash: phoneCodeHash,
+		PhoneNumber:   phoneNumber,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending AuthCheckPaidAuth")
+	}
+
+	resp, ok := responseData.(AuthSentCode)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4453,37 +4477,6 @@ func (c *Client) ChannelsCreateChannel(params *ChannelsCreateChannelParams) (Upd
 	return resp, nil
 }
 
-type ChannelsCreateForumTopicParams struct {
-	Channel     InputChannel
-	Title       string
-	IconColor   int32 `tl:"flag:0"`
-	IconEmojiID int64 `tl:"flag:3"`
-	RandomID    int64
-	SendAs      InputPeer `tl:"flag:2"`
-}
-
-func (*ChannelsCreateForumTopicParams) CRC() uint32 {
-	return 0xf40c0224
-}
-
-func (*ChannelsCreateForumTopicParams) FlagIndex() int {
-	return 0
-}
-
-// Create a forum topic; requires <a href="/api/rights">`manage_topics` rights</a>.
-func (c *Client) ChannelsCreateForumTopic(params *ChannelsCreateForumTopicParams) (Updates, error) {
-	responseData, err := c.MakeRequest(params)
-	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsCreateForumTopic")
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type ChannelsDeactivateAllUsernamesParams struct {
 	Channel InputChannel
 }
@@ -4612,32 +4605,6 @@ func (c *Client) ChannelsDeleteParticipantHistory(channel InputChannel, particip
 	return resp, nil
 }
 
-type ChannelsDeleteTopicHistoryParams struct {
-	Channel  InputChannel
-	TopMsgID int32
-}
-
-func (*ChannelsDeleteTopicHistoryParams) CRC() uint32 {
-	return 0x34435f2d
-}
-
-// Delete message history of a forum topic
-func (c *Client) ChannelsDeleteTopicHistory(channel InputChannel, topMsgID int32) (*MessagesAffectedHistory, error) {
-	responseData, err := c.MakeRequest(&ChannelsDeleteTopicHistoryParams{
-		Channel:  channel,
-		TopMsgID: topMsgID,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsDeleteTopicHistory")
-	}
-
-	resp, ok := responseData.(*MessagesAffectedHistory)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type ChannelsEditAdminParams struct {
 	Channel     InputChannel
 	UserID      InputUser
@@ -4715,37 +4682,6 @@ func (c *Client) ChannelsEditCreator(channel InputChannel, userID InputUser, pas
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending ChannelsEditCreator")
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type ChannelsEditForumTopicParams struct {
-	Channel     InputChannel
-	TopicID     int32
-	Title       string `tl:"flag:0"`
-	IconEmojiID int64  `tl:"flag:1"`
-	Closed      bool   `tl:"flag:2"`
-	Hidden      bool   `tl:"flag:3"`
-}
-
-func (*ChannelsEditForumTopicParams) CRC() uint32 {
-	return 0xf4dfa185
-}
-
-func (*ChannelsEditForumTopicParams) FlagIndex() int {
-	return 0
-}
-
-// Edit forum topic; requires <a href="/api/rights">`manage_topics` rights</a>.
-func (c *Client) ChannelsEditForumTopic(params *ChannelsEditForumTopicParams) (Updates, error) {
-	responseData, err := c.MakeRequest(params)
-	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsEditForumTopic")
 	}
 
 	resp, ok := responseData.(Updates)
@@ -4981,63 +4917,6 @@ func (c *Client) ChannelsGetChannels(id []InputChannel) (MessagesChats, error) {
 	return resp, nil
 }
 
-type ChannelsGetForumTopicsParams struct {
-	Channel     InputChannel
-	Q           string `tl:"flag:0"`
-	OffsetDate  int32
-	OffsetID    int32
-	OffsetTopic int32
-	Limit       int32
-}
-
-func (*ChannelsGetForumTopicsParams) CRC() uint32 {
-	return 0xde560d1
-}
-
-func (*ChannelsGetForumTopicsParams) FlagIndex() int {
-	return 0
-}
-
-// Get topics of a forum
-func (c *Client) ChannelsGetForumTopics(params *ChannelsGetForumTopicsParams) (*MessagesForumTopics, error) {
-	responseData, err := c.MakeRequest(params)
-	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetForumTopics")
-	}
-
-	resp, ok := responseData.(*MessagesForumTopics)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type ChannelsGetForumTopicsByIDParams struct {
-	Channel InputChannel
-	Topics  []int32
-}
-
-func (*ChannelsGetForumTopicsByIDParams) CRC() uint32 {
-	return 0xb0831eb9
-}
-
-// Get forum topics by their ID
-func (c *Client) ChannelsGetForumTopicsByID(channel InputChannel, topics []int32) (*MessagesForumTopics, error) {
-	responseData, err := c.MakeRequest(&ChannelsGetForumTopicsByIDParams{
-		Channel: channel,
-		Topics:  topics,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetForumTopicsByID")
-	}
-
-	resp, ok := responseData.(*MessagesForumTopics)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type ChannelsGetFullChannelParams struct {
 	Channel InputChannel
 }
@@ -5234,6 +5113,7 @@ func (c *Client) ChannelsGetParticipants(channel InputChannel, filter ChannelPar
 
 type ChannelsGetSendAsParams struct {
 	ForPaidReactions bool `tl:"flag:0,encoded_in_bitflags"`
+	ForLiveStories   bool `tl:"flag:1,encoded_in_bitflags"`
 	Peer             InputPeer
 }
 
@@ -5246,8 +5126,9 @@ func (*ChannelsGetSendAsParams) FlagIndex() int {
 }
 
 // Obtains a list of peers that can be used to send messages in a specific group
-func (c *Client) ChannelsGetSendAs(forPaidReactions bool, peer InputPeer) (*ChannelsSendAsPeers, error) {
+func (c *Client) ChannelsGetSendAs(forPaidReactions, forLiveStories bool, peer InputPeer) (*ChannelsSendAsPeers, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetSendAsParams{
+		ForLiveStories:   forLiveStories,
 		ForPaidReactions: forPaidReactions,
 		Peer:             peer,
 	})
@@ -5380,38 +5261,6 @@ func (c *Client) ChannelsReadMessageContents(channel InputChannel, id []int32) (
 	resp, ok := responseData.(bool)
 	if !ok {
 		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type ChannelsReorderPinnedForumTopicsParams struct {
-	Force   bool `tl:"flag:0,encoded_in_bitflags"`
-	Channel InputChannel
-	Order   []int32
-}
-
-func (*ChannelsReorderPinnedForumTopicsParams) CRC() uint32 {
-	return 0x2950a18f
-}
-
-func (*ChannelsReorderPinnedForumTopicsParams) FlagIndex() int {
-	return 0
-}
-
-// Reorder pinned forum topics
-func (c *Client) ChannelsReorderPinnedForumTopics(force bool, channel InputChannel, order []int32) (Updates, error) {
-	responseData, err := c.MakeRequest(&ChannelsReorderPinnedForumTopicsParams{
-		Channel: channel,
-		Force:   force,
-		Order:   order,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsReorderPinnedForumTopics")
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -6063,34 +5912,6 @@ func (c *Client) ChannelsUpdatePaidMessagesPrice(broadcastMessagesAllowed bool, 
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending ChannelsUpdatePaidMessagesPrice")
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type ChannelsUpdatePinnedForumTopicParams struct {
-	Channel InputChannel
-	TopicID int32
-	Pinned  bool
-}
-
-func (*ChannelsUpdatePinnedForumTopicParams) CRC() uint32 {
-	return 0x6c2d9026
-}
-
-// Pin or unpin forum topics
-func (c *Client) ChannelsUpdatePinnedForumTopic(channel InputChannel, topicID int32, pinned bool) (Updates, error) {
-	responseData, err := c.MakeRequest(&ChannelsUpdatePinnedForumTopicParams{
-		Channel: channel,
-		Pinned:  pinned,
-		TopicID: topicID,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsUpdatePinnedForumTopic")
 	}
 
 	resp, ok := responseData.(Updates)
@@ -7105,6 +6926,31 @@ func (c *Client) ContactsUnblock(myStoriesFrom bool, id InputPeer) (bool, error)
 	return resp, nil
 }
 
+type ContactsUpdateContactNoteParams struct {
+	ID   InputUser
+	Note *TextWithEntities
+}
+
+func (*ContactsUpdateContactNoteParams) CRC() uint32 {
+	return 0x139f63fb
+}
+
+func (c *Client) ContactsUpdateContactNote(id InputUser, note *TextWithEntities) (bool, error) {
+	responseData, err := c.MakeRequest(&ContactsUpdateContactNoteParams{
+		ID:   id,
+		Note: note,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending ContactsUpdateContactNote")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type FoldersDeleteFolderParams struct {
 	FolderID int32
 }
@@ -8031,33 +7877,6 @@ func (c *Client) MessagesCheckHistoryImportPeer(peer InputPeer) (*MessagesChecke
 	return resp, nil
 }
 
-type MessagesCheckPaidAuthParams struct {
-	PhoneNumber   string
-	PhoneCodeHash string
-	FormID        int64
-}
-
-func (*MessagesCheckPaidAuthParams) CRC() uint32 {
-	return 0x56e59f9c
-}
-
-func (c *Client) MessagesCheckPaidAuth(phoneNumber, phoneCodeHash string, formID int64) (AuthSentCode, error) {
-	responseData, err := c.MakeRequest(&MessagesCheckPaidAuthParams{
-		FormID:        formID,
-		PhoneCodeHash: phoneCodeHash,
-		PhoneNumber:   phoneNumber,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesCheckPaidAuth")
-	}
-
-	resp, ok := responseData.(AuthSentCode)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type MessagesCheckQuickReplyShortcutParams struct {
 	Shortcut string
 }
@@ -8338,6 +8157,68 @@ func (c *Client) MessagesDeleteFactCheck(peer InputPeer, msgID int32) (Updates, 
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesDeleteFactCheck")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesDeleteGroupCallMessagesParams struct {
+	ReportSpam bool `tl:"flag:0,encoded_in_bitflags"`
+	Call       InputGroupCall
+	Messages   []int32
+}
+
+func (*MessagesDeleteGroupCallMessagesParams) CRC() uint32 {
+	return 0xf64f54f7
+}
+
+func (*MessagesDeleteGroupCallMessagesParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesDeleteGroupCallMessages(reportSpam bool, call InputGroupCall, messages []int32) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesDeleteGroupCallMessagesParams{
+		Call:       call,
+		Messages:   messages,
+		ReportSpam: reportSpam,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesDeleteGroupCallMessages")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesDeleteGroupCallParticipantMessagesParams struct {
+	ReportSpam  bool `tl:"flag:0,encoded_in_bitflags"`
+	Call        InputGroupCall
+	Participant InputPeer
+}
+
+func (*MessagesDeleteGroupCallParticipantMessagesParams) CRC() uint32 {
+	return 0x1dbfeca0
+}
+
+func (*MessagesDeleteGroupCallParticipantMessagesParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesDeleteGroupCallParticipantMessages(reportSpam bool, call InputGroupCall, participant InputPeer) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesDeleteGroupCallParticipantMessagesParams{
+		Call:        call,
+		Participant: participant,
+		ReportSpam:  reportSpam,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesDeleteGroupCallParticipantMessages")
 	}
 
 	resp, ok := responseData.(Updates)
@@ -8886,11 +8767,12 @@ type MessagesEditMessageParams struct {
 	ReplyMarkup          ReplyMarkup     `tl:"flag:2"`
 	Entities             []MessageEntity `tl:"flag:3"`
 	ScheduleDate         int32           `tl:"flag:15"`
+	ScheduleRepeatPeriod int32           `tl:"flag:18"`
 	QuickReplyShortcutID int32           `tl:"flag:17"`
 }
 
 func (*MessagesEditMessageParams) CRC() uint32 {
-	return 0xdfd14005
+	return 0x51e842e1
 }
 
 func (*MessagesEditMessageParams) FlagIndex() int {
@@ -9027,29 +8909,29 @@ func (c *Client) MessagesForwardMessage(peer InputPeer, id int32, randomID int64
 }
 
 type MessagesForwardMessagesParams struct {
-	Silent             bool `tl:"flag:5,encoded_in_bitflags"`
-	Background         bool `tl:"flag:6,encoded_in_bitflags"`
-	WithMyScore        bool `tl:"flag:8,encoded_in_bitflags"`
-	DropAuthor         bool `tl:"flag:11,encoded_in_bitflags"`
-	DropMediaCaptions  bool `tl:"flag:12,encoded_in_bitflags"`
-	Noforwards         bool `tl:"flag:14,encoded_in_bitflags"`
-	AllowPaidFloodskip bool `tl:"flag:19,encoded_in_bitflags"`
-	FromPeer           InputPeer
-	ID                 []int32
-	RandomID           []int64
-	ToPeer             InputPeer
-	TopMsgID           int32                   `tl:"flag:9"`
-	ReplyTo            InputReplyTo            `tl:"flag:22"`
-	ScheduleDate       int32                   `tl:"flag:10"`
-	SendAs             InputPeer               `tl:"flag:13"`
-	QuickReplyShortcut InputQuickReplyShortcut `tl:"flag:17"`
-	VideoTimestamp     int32                   `tl:"flag:20"`
-	AllowPaidStars     int64                   `tl:"flag:21"`
-	SuggestedPost      *SuggestedPost          `tl:"flag:23"`
+	Silent               bool `tl:"flag:5,encoded_in_bitflags"`
+	Background           bool `tl:"flag:6,encoded_in_bitflags"`
+	WithMyScore          bool `tl:"flag:8,encoded_in_bitflags"`
+	DropAuthor           bool `tl:"flag:11,encoded_in_bitflags"`
+	DropMediaCaptions    bool `tl:"flag:12,encoded_in_bitflags"`
+	Noforwards           bool `tl:"flag:14,encoded_in_bitflags"`
+	FromPeer             InputPeer
+	ID                   []int32
+	RandomID             []int64
+	ToPeer               InputPeer
+	TopMsgID             int32                   `tl:"flag:9"`
+	ReplyTo              InputReplyTo            `tl:"flag:22"`
+	ScheduleDate         int32                   `tl:"flag:10"`
+	ScheduleRepeatPeriod int32                   `tl:"flag:24"`
+	SendAs               InputPeer               `tl:"flag:13"`
+	QuickReplyShortcut   InputQuickReplyShortcut `tl:"flag:17"`
+	VideoTimestamp       int32                   `tl:"flag:20"`
+	AllowPaidStars       int64                   `tl:"flag:21"`
+	SuggestedPost        *SuggestedPost          `tl:"flag:23"`
 }
 
 func (*MessagesForwardMessagesParams) CRC() uint32 {
-	return 0x978928ca
+	return 0x41d41ade
 }
 
 func (*MessagesForwardMessagesParams) FlagIndex() int {
@@ -10146,6 +10028,58 @@ func (c *Client) MessagesGetGameHighScores(peer InputPeer, id int32, userID Inpu
 	return resp, nil
 }
 
+type MessagesGetGroupCallStarsParams struct {
+	Call InputGroupCall
+}
+
+func (*MessagesGetGroupCallStarsParams) CRC() uint32 {
+	return 0x6f636302
+}
+
+func (c *Client) MessagesGetGroupCallStars(call InputGroupCall) (*PhoneGroupCallStars, error) {
+	responseData, err := c.MakeRequest(&MessagesGetGroupCallStarsParams{Call: call})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetGroupCallStars")
+	}
+
+	resp, ok := responseData.(*PhoneGroupCallStars)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesGetGroupCallStreamRtmpURLParams struct {
+	LiveStory bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer      InputPeer
+	Revoke    bool
+}
+
+func (*MessagesGetGroupCallStreamRtmpURLParams) CRC() uint32 {
+	return 0x5af4c73a
+}
+
+func (*MessagesGetGroupCallStreamRtmpURLParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesGetGroupCallStreamRtmpURL(liveStory bool, peer InputPeer, revoke bool) (*PhoneGroupCallStreamRtmpURL, error) {
+	responseData, err := c.MakeRequest(&MessagesGetGroupCallStreamRtmpURLParams{
+		LiveStory: liveStory,
+		Peer:      peer,
+		Revoke:    revoke,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetGroupCallStreamRtmpURL")
+	}
+
+	resp, ok := responseData.(*PhoneGroupCallStreamRtmpURL)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type MessagesGetHistoryParams struct {
 	Peer       InputPeer
 	OffsetID   int32
@@ -11213,58 +11147,23 @@ func (c *Client) MessagesGetSponsoredMessages(peer InputPeer, msgID int32) (Mess
 	return resp, nil
 }
 
-type MessagesGetGroupCallStreamRtmpUrlParams struct {
-	LiveStory bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer      InputPeer
-	Revoke    bool
+type MessagesGetStarGiftActiveAuctionsParams struct {
+	Hash int64
 }
 
-func (*MessagesGetGroupCallStreamRtmpUrlParams) CRC() uint32 {
-	return 0x5af4c73a
+func (*MessagesGetStarGiftActiveAuctionsParams) CRC() uint32 {
+	return 0xa5d0514d
 }
 
-func (*MessagesGetGroupCallStreamRtmpUrlParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesGetGroupCallStreamRtmpUrl(liveStory bool, peer InputPeer, revoke bool) (*PhoneGroupCallStreamRtmpURL, error) {
-	responseData, err := c.MakeRequest(&MessagesGetGroupCallStreamRtmpUrlParams{
-		LiveStory: liveStory,
-		Peer:      peer,
-		Revoke:    revoke,
-	})
+func (c *Client) MessagesGetStarGiftActiveAuctions(hash int64) (StarGiftActiveAuctions, error) {
+	responseData, err := c.MakeRequest(&MessagesGetStarGiftActiveAuctionsParams{Hash: hash})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetGroupCallStreamRtmpUrl")
+		return nil, errors.Wrap(err, "sending MessagesGetStarGiftActiveAuctions")
 	}
 
-	resp, ok := responseData.(*PhoneGroupCallStreamRtmpURL)
+	resp, ok := responseData.(StarGiftActiveAuctions)
 	if !ok {
-		return nil, fmt.Errorf("invalid response type: %T", responseData)
-	}
-	return resp, nil
-}
-
-type MessagesGetStarGiftAuctionStateParams struct {
-	Auction InputStarGiftAuction
-	Version int
-}
-
-func (*MessagesGetStarGiftAuctionStateParams) CRC() uint32 {
-	return 0x5c9ff4d6
-}
-
-func (c *Client) MessagesGetStarGiftAuctionState(auction InputStarGiftAuction, version int) (*StarGiftAuctionState, error) {
-	responseData, err := c.MakeRequest(&MessagesGetStarGiftAuctionStateParams{
-		Auction: auction,
-		Version: version,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetStarGiftAuctionState")
-	}
-
-	resp, ok := responseData.(*StarGiftAuctionState)
-	if !ok {
-		return nil, fmt.Errorf("invalid response type: %T", responseData)
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11278,39 +11177,39 @@ func (*MessagesGetStarGiftAuctionAcquiredGiftsParams) CRC() uint32 {
 }
 
 func (c *Client) MessagesGetStarGiftAuctionAcquiredGifts(giftID int64) (*StarGiftAuctionAcquiredGifts, error) {
-	responseData, err := c.MakeRequest(&MessagesGetStarGiftAuctionAcquiredGiftsParams{
-		GiftID: giftID,
-	})
+	responseData, err := c.MakeRequest(&MessagesGetStarGiftAuctionAcquiredGiftsParams{GiftID: giftID})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesGetStarGiftAuctionAcquiredGifts")
 	}
 
 	resp, ok := responseData.(*StarGiftAuctionAcquiredGifts)
 	if !ok {
-		return nil, fmt.Errorf("invalid response type: %T", responseData)
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
 
-type MessagesGetGroupCallStarsParams struct {
-	Call InputGroupCall
+type MessagesGetStarGiftAuctionStateParams struct {
+	Auction InputStarGiftAuction
+	Version int32
 }
 
-func (*MessagesGetGroupCallStarsParams) CRC() uint32 {
-	return 0x6f636302
+func (*MessagesGetStarGiftAuctionStateParams) CRC() uint32 {
+	return 0x5c9ff4d6
 }
 
-func (c *Client) MessagesGetGroupCallStars(call InputGroupCall) (*PhoneGroupCallStars, error) {
-	responseData, err := c.MakeRequest(&MessagesGetGroupCallStarsParams{
-		Call: call,
+func (c *Client) MessagesGetStarGiftAuctionState(auction InputStarGiftAuction, version int32) (StarGiftAuctionState, error) {
+	responseData, err := c.MakeRequest(&MessagesGetStarGiftAuctionStateParams{
+		Auction: auction,
+		Version: version,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetGroupCallStars")
+		return nil, errors.Wrap(err, "sending MessagesGetStarGiftAuctionState")
 	}
 
-	resp, ok := responseData.(*PhoneGroupCallStars)
+	resp, ok := responseData.(StarGiftAuctionState)
 	if !ok {
-		return nil, fmt.Errorf("invalid response type: %T", responseData)
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -11439,33 +11338,6 @@ func (c *Client) MessagesGetTopReactions(limit int32, hash int64) (MessagesReact
 	}
 
 	resp, ok := responseData.(MessagesReactions)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type MessagesGetUniqueGiftChatThemesParams struct {
-	Offset string
-	Limit  int32
-	Hash   int64
-}
-
-func (*MessagesGetUniqueGiftChatThemesParams) CRC() uint32 {
-	return 0xe42ce9c9
-}
-
-func (c *Client) MessagesGetUniqueGiftChatThemes(offset string, limit int32, hash int64) (*ChatThemes, error) {
-	responseData, err := c.MakeRequest(&MessagesGetUniqueGiftChatThemesParams{
-		Hash:   hash,
-		Limit:  limit,
-		Offset: offset,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetUniqueGiftChatThemes")
-	}
-
-	resp, ok := responseData.(*ChatThemes)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -12191,7 +12063,7 @@ func (c *Client) MessagesReorderPinnedDialogs(force bool, folderID int32, order 
 }
 
 type MessagesReorderPinnedForumTopicsParams struct {
-	Force int32 `tl:"flag:0"`
+	Force bool `tl:"flag:0,encoded_in_bitflags"`
 	Peer  InputPeer
 	Order []int32
 }
@@ -12204,7 +12076,7 @@ func (*MessagesReorderPinnedForumTopicsParams) FlagIndex() int {
 	return 0
 }
 
-func (c *Client) MessagesReorderPinnedForumTopics(force int32, peer InputPeer, order []int32) (Updates, error) {
+func (c *Client) MessagesReorderPinnedForumTopics(force bool, peer InputPeer, order []int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesReorderPinnedForumTopicsParams{
 		Force: force,
 		Order: order,
@@ -13165,54 +13037,31 @@ func (c *Client) MessagesSendEncryptedService(peer *InputEncryptedChat, randomID
 	return resp, nil
 }
 
-type MessagesSendGroupCallEncryptedMessageParams struct {
-	Call             InputGroupCall
-	EncryptedMessage []byte
-}
-
-func (*MessagesSendGroupCallEncryptedMessageParams) CRC() uint32 {
-	return 0xe5afa56d
-}
-
-func (c *Client) MessagesSendGroupCallEncryptedMessage(call InputGroupCall, encryptedMessage []byte) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesSendGroupCallEncryptedMessageParams{
-		Call:             call,
-		EncryptedMessage: encryptedMessage,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSendGroupCallEncryptedMessage")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type MessagesSendGroupCallMessageParams struct {
-	Call     InputGroupCall
-	RandomID int64
-	Message  *TextWithEntities
+	Call           InputGroupCall
+	RandomID       int64
+	Message        *TextWithEntities
+	AllowPaidStars int64     `tl:"flag:0"`
+	SendAs         InputPeer `tl:"flag:1"`
 }
 
 func (*MessagesSendGroupCallMessageParams) CRC() uint32 {
-	return 0x87893014
+	return 0xb1d11410
 }
 
-func (c *Client) MessagesSendGroupCallMessage(call InputGroupCall, randomID int64, message *TextWithEntities) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesSendGroupCallMessageParams{
-		Call:     call,
-		Message:  message,
-		RandomID: randomID,
-	})
+func (*MessagesSendGroupCallMessageParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesSendGroupCallMessage(params *MessagesSendGroupCallMessageParams) (Updates, error) {
+	responseData, err := c.MakeRequest(params)
 	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesSendGroupCallMessage")
+		return nil, errors.Wrap(err, "sending MessagesSendGroupCallMessage")
 	}
 
-	resp, ok := responseData.(bool)
+	resp, ok := responseData.(Updates)
 	if !ok {
-		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -13262,7 +13111,6 @@ type MessagesSendMediaParams struct {
 	Noforwards             bool `tl:"flag:14,encoded_in_bitflags"`
 	UpdateStickersetsOrder bool `tl:"flag:15,encoded_in_bitflags"`
 	InvertMedia            bool `tl:"flag:16,encoded_in_bitflags"`
-	AllowPaidFloodskip     bool `tl:"flag:19,encoded_in_bitflags"`
 	Peer                   InputPeer
 	ReplyTo                InputReplyTo `tl:"flag:0"`
 	Media                  InputMedia
@@ -13271,6 +13119,7 @@ type MessagesSendMediaParams struct {
 	ReplyMarkup            ReplyMarkup             `tl:"flag:2"`
 	Entities               []MessageEntity         `tl:"flag:3"`
 	ScheduleDate           int32                   `tl:"flag:10"`
+	ScheduleRepeatPeriod   int32                   `tl:"flag:24"`
 	SendAs                 InputPeer               `tl:"flag:13"`
 	QuickReplyShortcut     InputQuickReplyShortcut `tl:"flag:17"`
 	Effect                 int64                   `tl:"flag:18"`
@@ -13279,7 +13128,7 @@ type MessagesSendMediaParams struct {
 }
 
 func (*MessagesSendMediaParams) CRC() uint32 {
-	return 0xac55d9c1
+	return 0x330e77f
 }
 
 func (*MessagesSendMediaParams) FlagIndex() int {
@@ -13308,7 +13157,6 @@ type MessagesSendMessageParams struct {
 	Noforwards             bool `tl:"flag:14,encoded_in_bitflags"`
 	UpdateStickersetsOrder bool `tl:"flag:15,encoded_in_bitflags"`
 	InvertMedia            bool `tl:"flag:16,encoded_in_bitflags"`
-	AllowPaidFloodskip     bool `tl:"flag:19,encoded_in_bitflags"`
 	Peer                   InputPeer
 	ReplyTo                InputReplyTo `tl:"flag:0"`
 	Message                string
@@ -13316,6 +13164,7 @@ type MessagesSendMessageParams struct {
 	ReplyMarkup            ReplyMarkup             `tl:"flag:2"`
 	Entities               []MessageEntity         `tl:"flag:3"`
 	ScheduleDate           int32                   `tl:"flag:10"`
+	ScheduleRepeatPeriod   int32                   `tl:"flag:24"`
 	SendAs                 InputPeer               `tl:"flag:13"`
 	QuickReplyShortcut     InputQuickReplyShortcut `tl:"flag:17"`
 	Effect                 int64                   `tl:"flag:18"`
@@ -13324,7 +13173,7 @@ type MessagesSendMessageParams struct {
 }
 
 func (*MessagesSendMessageParams) CRC() uint32 {
-	return 0xfe05dc9a
+	return 0x545cd15a
 }
 
 func (*MessagesSendMessageParams) FlagIndex() int {
@@ -14104,6 +13953,40 @@ func (c *Client) MessagesStartHistoryImport(peer InputPeer, importID int64) (boo
 	return resp, nil
 }
 
+type MessagesStartLiveParams struct {
+	Pinned                bool  `tl:"flag:2,encoded_in_bitflags"`
+	Noforwards            bool  `tl:"flag:4,encoded_in_bitflags"`
+	RtmpStream            bool  `tl:"flag:5,encoded_in_bitflags"`
+	MessagesEnabled       bool  `tl:"flag:6,encoded_in_bitflags"`
+	SendPaidMessagesStars int64 `tl:"flag:7"`
+	Peer                  InputPeer
+	Caption               string          `tl:"flag:0"`
+	Entities              []MessageEntity `tl:"flag:1"`
+	PrivacyRules          []InputPrivacyRule
+	RandomID              int64
+}
+
+func (*MessagesStartLiveParams) CRC() uint32 {
+	return 0xd069ccde
+}
+
+func (*MessagesStartLiveParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesStartLive(params *MessagesStartLiveParams) (Updates, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesStartLive")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type MessagesToggleBotInAttachMenuParams struct {
 	WriteAllowed bool `tl:"flag:0,encoded_in_bitflags"`
 	Bot          InputUser
@@ -14189,24 +14072,26 @@ func (c *Client) MessagesToggleDialogPin(pinned bool, peer InputDialogPeer) (boo
 }
 
 type MessagesToggleGroupCallSettingsParams struct {
-	Call            InputGroupCall
-	JoinMuted       bool `tl:"flag:0"`
-	MessagesEnabled bool `tl:"flag:2"`
+	Call                  InputGroupCall
+	JoinMuted             bool  `tl:"flag:0"`
+	MessagesEnabled       bool  `tl:"flag:2"`
+	SendPaidMessagesStars int64 `tl:"flag:3"`
 }
 
 func (*MessagesToggleGroupCallSettingsParams) CRC() uint32 {
-	return 0xe9723804
+	return 0x974392f2
 }
 
 func (*MessagesToggleGroupCallSettingsParams) FlagIndex() int {
 	return 0
 }
 
-func (c *Client) MessagesToggleGroupCallSettings(call InputGroupCall, joinMuted, messagesEnabled bool) (Updates, error) {
+func (c *Client) MessagesToggleGroupCallSettings(call InputGroupCall, joinMuted, messagesEnabled bool, sendPaidMessagesStars int64) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesToggleGroupCallSettingsParams{
-		Call:            call,
-		JoinMuted:       joinMuted,
-		MessagesEnabled: messagesEnabled,
+		Call:                  call,
+		JoinMuted:             joinMuted,
+		MessagesEnabled:       messagesEnabled,
+		SendPaidMessagesStars: sendPaidMessagesStars,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesToggleGroupCallSettings")
@@ -14537,60 +14422,6 @@ func (c *Client) MessagesUnpinAllMessages(peer InputPeer, topMsgID int32, savedP
 	resp, ok := responseData.(*MessagesAffectedHistory)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type MessagesUpdateColorParams struct {
-	ForProfile bool      `tl:"flag:1,encoded_in_bitflags"`
-	Color      PeerColor `tl:"flag:2"`
-}
-
-func (*MessagesUpdateColorParams) CRC() uint32 {
-	return 0x684d214e
-}
-
-func (*MessagesUpdateColorParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesUpdateColor(forProfile bool, color PeerColor) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesUpdateColorParams{
-		Color:      color,
-		ForProfile: forProfile,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesUpdateColor")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type MessagesUpdateContactNoteParams struct {
-	ID   InputUser
-	Note *TextWithEntities
-}
-
-func (*MessagesUpdateContactNoteParams) CRC() uint32 {
-	return 0x139f63fb
-}
-
-func (c *Client) MessagesUpdateContactNote(id InputUser, note *TextWithEntities) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesUpdateContactNoteParams{
-		ID:   id,
-		Note: note,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending MessagesUpdateContactNote")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -15533,6 +15364,7 @@ type PaymentsGetSavedStarGiftsParams struct {
 	ExcludeUpgradable   bool `tl:"flag:7,encoded_in_bitflags"`
 	ExcludeUnupgradable bool `tl:"flag:8,encoded_in_bitflags"`
 	PeerColorAvailable  bool `tl:"flag:9,encoded_in_bitflags"`
+	ExcludeHosted       bool `tl:"flag:10,encoded_in_bitflags"`
 	Peer                InputPeer
 	CollectionID        int32 `tl:"flag:6"`
 	Offset              string
@@ -17252,6 +17084,58 @@ func (c *Client) PhoneSendConferenceCallBroadcast(call InputGroupCall, block []b
 	return resp, nil
 }
 
+type PhoneSendGroupCallEncryptedMessageParams struct {
+	Call             InputGroupCall
+	EncryptedMessage []byte
+}
+
+func (*PhoneSendGroupCallEncryptedMessageParams) CRC() uint32 {
+	return 0xe5afa56d
+}
+
+func (c *Client) PhoneSendGroupCallEncryptedMessage(call InputGroupCall, encryptedMessage []byte) (bool, error) {
+	responseData, err := c.MakeRequest(&PhoneSendGroupCallEncryptedMessageParams{
+		Call:             call,
+		EncryptedMessage: encryptedMessage,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending PhoneSendGroupCallEncryptedMessage")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PhoneSendGroupCallMessageParams struct {
+	Call     InputGroupCall
+	RandomID int64
+	Message  *TextWithEntities
+}
+
+func (*PhoneSendGroupCallMessageParams) CRC() uint32 {
+	return 0x87893014
+}
+
+func (c *Client) PhoneSendGroupCallMessage(call InputGroupCall, randomID int64, message *TextWithEntities) (bool, error) {
+	responseData, err := c.MakeRequest(&PhoneSendGroupCallMessageParams{
+		Call:     call,
+		Message:  message,
+		RandomID: randomID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending PhoneSendGroupCallMessage")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type PhoneSendSignalingDataParams struct {
 	Peer *InputPhoneCall
 	Data []byte
@@ -17368,10 +17252,11 @@ type PhoneToggleGroupCallSettingsParams struct {
 	ResetInviteHash bool `tl:"flag:1,encoded_in_bitflags"`
 	Call            InputGroupCall
 	JoinMuted       bool `tl:"flag:0"`
+	MessagesEnabled bool `tl:"flag:2"`
 }
 
 func (*PhoneToggleGroupCallSettingsParams) CRC() uint32 {
-	return 0x74bbb43d
+	return 0xe9723804
 }
 
 func (*PhoneToggleGroupCallSettingsParams) FlagIndex() int {
@@ -17379,10 +17264,11 @@ func (*PhoneToggleGroupCallSettingsParams) FlagIndex() int {
 }
 
 // Change group call settings
-func (c *Client) PhoneToggleGroupCallSettings(resetInviteHash bool, call InputGroupCall, joinMuted bool) (Updates, error) {
+func (c *Client) PhoneToggleGroupCallSettings(resetInviteHash bool, call InputGroupCall, joinMuted, messagesEnabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&PhoneToggleGroupCallSettingsParams{
 		Call:            call,
 		JoinMuted:       joinMuted,
+		MessagesEnabled: messagesEnabled,
 		ResetInviteHash: resetInviteHash,
 	})
 	if err != nil {
@@ -18691,7 +18577,7 @@ type StoriesGetPeerMaxIDsParams struct {
 }
 
 func (*StoriesGetPeerMaxIDsParams) CRC() uint32 {
-	return 0x535983c3
+	return 0x78499170
 }
 
 // Get the IDs of the maximum read stories for a set of peers.

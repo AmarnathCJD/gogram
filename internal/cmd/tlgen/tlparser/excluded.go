@@ -8,13 +8,17 @@ var excludedDefinitions = map[string]null{
 	"boolTrue":  {},
 	"vector":    {},
 
-	"invokeAfterMsg":          {},
-	"invokeAfterMsgs":         {},
-	"initConnection":          {},
-	"invokeWithLayer":         {},
-	"invokeWithoutUpdates":    {},
-	"invokeWithMessagesRange": {},
-	"invokeWithTakeout":       {},
+	"invokeAfterMsg":                {},
+	"invokeAfterMsgs":               {},
+	"initConnection":                {},
+	"invokeWithLayer":               {},
+	"invokeWithoutUpdates":          {},
+	"invokeWithMessagesRange":       {},
+	"invokeWithTakeout":             {},
+	"invokeWithBusinessConnection":  {},
+	"invokeWithGooglePlayIntegrity": {},
+	"invokeWithApnsSecret":          {},
+	"invokeWithReCaptcha":           {},
 }
 
 var excludedTypes = map[string]null{

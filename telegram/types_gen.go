@@ -990,22 +990,6 @@ func (*ChatOnlines) CRC() uint32 {
 	return 0xf041e250
 }
 
-type ChatThemes struct {
-	Hash       int64
-	Themes     []ChatTheme
-	Chats      []Chat
-	Users      []User
-	NextOffset string `tl:"flag:0"`
-}
-
-func (*ChatThemes) CRC() uint32 {
-	return 0xbe098173
-}
-
-func (*ChatThemes) FlagIndex() int {
-	return 0
-}
-
 // Updated information about a chat folder deep link ».
 type ChatlistsChatlistUpdates struct {
 	MissingPeers []Peer
@@ -3326,6 +3310,17 @@ func (*PhoneGroupCall) CRC() uint32 {
 	return 0x9e727aad
 }
 
+type PhoneGroupCallStars struct {
+	TotalStars int64
+	TopDonors  []GroupCallDonor
+	Chats      []Chat
+	Users      []User
+}
+
+func (*PhoneGroupCallStars) CRC() uint32 {
+	return 0x9d2395f6
+}
+
 // Info about RTMP streams in a group call or livestream
 type PhoneGroupCallStreamChannels struct {
 	Channels []*GroupCallStreamChannel
@@ -3357,17 +3352,6 @@ type PhoneGroupParticipants struct {
 
 func (*PhoneGroupParticipants) CRC() uint32 {
 	return 0xf47751b6
-}
-
-type PhoneGroupCallStars struct {
-	TotalStars int64
-	TopDonors  []*GroupCallDonor
-	Chats      []Chat
-	Users      []User
-}
-
-func (*PhoneGroupCallStars) CRC() uint32 {
-	return 0x9d2395f6
 }
 
 // A list of peers that can be used to join a group call, presenting yourself as a specific user/channel.
