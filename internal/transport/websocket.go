@@ -77,6 +77,8 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 		}
 		tlsConfig := &tls.Config{
 			ServerName: strings.Split(u.Host, ":")[0],
+			MinVersion: tls.VersionTLS12,
+			MaxVersion: 0,
 		}
 		conn, err = tls.DialWithDialer(dialer, "tcp", host, tlsConfig)
 	} else {

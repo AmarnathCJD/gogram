@@ -316,7 +316,7 @@ func minorFixes(outdir, layer string) {
 	resp, ok := responseData.([]User)
 	if !ok {
 		if responseData == nil {
-			return nil, errors.New("[USER_ID_INVALID] The user ID is invalid")
+			return nil, fmt.Errorf("[USER_ID_INVALID] The user ID is invalid")
 		}
 
 		if _, ok := responseData.([]*UserObj); ok { // Temp Fix till Problem is Identified
@@ -328,7 +328,7 @@ func minorFixes(outdir, layer string) {
 			return users, nil
 		}
 
-		return nil, errors.New("[USER_ID_INVALID] The user ID is invalid")
+		return nil, fmt.Errorf("[USER_ID_INVALID] The user ID is invalid")
 	}`)
 
 	replace(filepath.Join(execWorkDir, "methods_gen.go"), `errors []SecureValueError`, `errorsw []SecureValueError`)
