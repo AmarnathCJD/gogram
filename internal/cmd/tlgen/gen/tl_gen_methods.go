@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dave/jennifer/jen"
 
@@ -15,6 +16,27 @@ import (
 )
 
 var maximumPositionalArguments = 5
+
+var (
+	docHTTPClient = &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 10,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
+
+	// Improved regex patterns for cleaning documentation
+	regexHTMLLink         = regexp.MustCompile(`<a\s+[^>]*href="([^"]*?)"[^>]*>([^<]+)</a>`)
+	regexMarkdownLinkFull = regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
+	regexSeeReference     = regexp.MustCompile(`(?i),?\s*see\s+(?:here|the\s+docs?|documentation)[^.;]*[.;]?`)
+	regexArrowSymbol      = regexp.MustCompile(`[»›]`)
+	regexHTMLEntities     = regexp.MustCompile(`&[a-z]+;`)
+	regexExtraWhitespace  = regexp.MustCompile(`\s{2,}`)
+	regexTrailingPunct    = regexp.MustCompile(`[,;]\s*$`)
+	regexLeadingPunct     = regexp.MustCompile(`^[,;]\s*`)
+)
 
 func (g *Generator) generateMethods(f *jen.File, d bool) {
 	sort.Slice(g.schema.Methods, func(i, j int) bool {
@@ -69,12 +91,14 @@ func (g *Generator) generateMethods(f *jen.File, d bool) {
 func (g *Generator) generateComment(name, _type string) (string, []string) {
 	var base = "https://corefork.telegram.org/" + _type + "/"
 	req, _ := http.NewRequest("GET", base+name, http.NoBody)
+	req.Header.Set("User-Agent", "TLGen/1.0")
 	log.Println("tlgen: fetching", req.URL.String())
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := docHTTPClient.Do(req)
 	if err != nil {
 		return "", nil
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		return "", nil
@@ -87,34 +111,72 @@ func (g *Generator) generateComment(name, _type string) (string, []string) {
 
 	ack := string(body)
 
+	// Extract parameter descriptions from table
 	matches := regexTableTag.FindAllStringSubmatch(ack, -1)
-
 	var descs []string
-
 	for _, match := range matches {
-		descs = append(descs, match[1])
+		if len(match) > 1 {
+			descs = append(descs, cleanHTMLContent(match[1]))
+		}
 	}
 
-	ack = strings.Split(ack, "<div id=\"dev_page_content\">")[1]
-	ack = strings.Split(ack, "</p>")[0]
-	ack = strings.ReplaceAll(ack, "<p>", "")
-	//ack = strings.ReplaceAll(ack, "see .", "")
-	ack = regexLinkTag.ReplaceAllString(ack, "[$2](https://corefork.telegram.org$1)")
-	ack = regexp.MustCompile(`\[(.*?)\]\(.*?\)`).ReplaceAllString(ack, "$1")
+	// Extract main description
+	parts := strings.Split(ack, `<div id="dev_page_content">`)
+	if len(parts) < 2 {
+		return "", nil
+	}
+	ack = parts[1]
 
-	ack = regexCodeTag.ReplaceAllString(ack, "`$1`")
+	// Get first paragraph only
+	if idx := strings.Index(ack, "</p>"); idx != -1 {
+		ack = ack[:idx]
+	}
 
-	ack = strings.TrimSpace(ack)
-
-	if strings.Contains(ack, "The page has not been saved") {
+	// Quick validation checks
+	if strings.Contains(ack, "The page has not been saved") ||
+		strings.Contains(ack, `<ul class="dev_layer_select`) {
 		return "", nil
 	}
 
-	if strings.Contains(ack, `<ul class="dev_layer_select slightly-pull-right nav nav-pills">`) {
-		return "", nil
-	}
+	// Clean HTML and formatting
+	ack = cleanHTMLContent(ack)
 
 	return ack, descs
+}
+
+func cleanHTMLContent(content string) string {
+	// Remove HTML tags but preserve text
+	content = strings.ReplaceAll(content, "<p>", "")
+	content = strings.ReplaceAll(content, "</p>", "")
+	content = strings.ReplaceAll(content, "<br>", " ")
+	content = strings.ReplaceAll(content, "<br/>", " ")
+	content = regexStrongTag.ReplaceAllString(content, "$1")
+	content = regexCodeTag.ReplaceAllString(content, "`$1`")
+
+	// Remove all links but keep link text
+	content = regexHTMLLink.ReplaceAllString(content, "$2")
+	content = regexMarkdownLinkFull.ReplaceAllString(content, "$1")
+
+	// Remove "see here" references and arrows
+	content = regexSeeReference.ReplaceAllString(content, "")
+	content = regexArrowSymbol.ReplaceAllString(content, "")
+
+	// Decode common HTML entities
+	content = strings.ReplaceAll(content, "&lt;", "<")
+	content = strings.ReplaceAll(content, "&gt;", ">")
+	content = strings.ReplaceAll(content, "&amp;", "&")
+	content = strings.ReplaceAll(content, "&quot;", `"`)
+	content = strings.ReplaceAll(content, "&#39;", "'")
+	content = regexHTMLEntities.ReplaceAllString(content, "")
+
+	// Clean up whitespace and punctuation
+	content = regexExtraWhitespace.ReplaceAllString(content, " ")
+	content = regexTrailingPunct.ReplaceAllString(content, "")
+	content = regexLeadingPunct.ReplaceAllString(content, "")
+	content = strings.ReplaceAll(content, " .", ".")
+	content = strings.ReplaceAll(content, " ,", ",")
+
+	return strings.TrimSpace(content)
 }
 
 func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {

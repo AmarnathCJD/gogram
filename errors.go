@@ -70,24 +70,24 @@ var specificErrors = []prefixSuffix{
 }
 
 func TryExpandError(errStr string) (nativeErrorName string, additionalData any) {
-	var choosedPrefixSuffix *prefixSuffix
+	var chosenPrefixSuffix *prefixSuffix
 
 	for _, errCase := range specificErrors {
 		if strings.HasPrefix(errStr, errCase.prefix) && strings.HasSuffix(errStr, errCase.suffix) {
 			errCase := errCase
-			choosedPrefixSuffix = &errCase
+			chosenPrefixSuffix = &errCase
 			break
 		}
 	}
 
-	if choosedPrefixSuffix == nil {
+	if chosenPrefixSuffix == nil {
 		return errStr, nil // common error, returning
 	}
 
-	nativeErrorName = choosedPrefixSuffix.prefix + "X" + choosedPrefixSuffix.suffix
-	trimmedData := strings.TrimSuffix(strings.TrimPrefix(errStr, choosedPrefixSuffix.prefix), choosedPrefixSuffix.suffix)
+	nativeErrorName = chosenPrefixSuffix.prefix + "X" + chosenPrefixSuffix.suffix
+	trimmedData := strings.TrimSuffix(strings.TrimPrefix(errStr, chosenPrefixSuffix.prefix), chosenPrefixSuffix.suffix)
 
-	switch v := choosedPrefixSuffix.kind; v {
+	switch v := chosenPrefixSuffix.kind; v {
 	case reflect.Int:
 		var err error
 		additionalData, err = strconv.Atoi(trimmedData)
@@ -138,7 +138,6 @@ var errorMessages = map[string]string{
 	"AUTH_TOKEN_EXCEPTION":                "An error occurred while importing the auth token.",
 	"AUTH_TOKEN_EXPIRED":                  "The authorization token has expired.",
 	"AUTH_TOKEN_INVALID":                  "The specified auth token is invalid.",
-	"AUTH_TOKEN_INVALIDX":                 "The specified auth token is invalid.",
 	"AUTOARCHIVE_NOT_AVAILABLE":           "The autoarchive setting is not available at this time: please check the value of the [autoarchive_setting_available field in client config &raquo;](https://core.telegram.org/api/config#client-configuration) before calling this method.",
 	"BANK_CARD_NUMBER_INVALID":            "The specified card number is invalid.",
 	"BANNED_RIGHTS_INVALID":               "You provided some invalid flags in the banned rights.",
@@ -205,7 +204,7 @@ var errorMessages = map[string]string{
 	"CHAT_DISCUSSION_UNALLOWED":           "You can't enable forum topics in a discussion group linked to a channel.",
 	"CHAT_FORBIDDEN":                      "You cannot write in this chat",
 	"CHAT_FORWARDS_RESTRICTED":            "You can't forward messages from a protected chat.",
-	"CHAT_GUEST_SEND_FORBIDDEN":           "You join the discussion group before commenting, see [here &raquo;](/api/discussion#requiring-users-to-join-the-group) for more info.",
+	"CHAT_GUEST_SEND_FORBIDDEN":           "You join the discussion group before commenting.",
 	"CHAT_ID_EMPTY":                       "The provided chat ID is empty.",
 	"CHAT_ID_GENERATE_FAILED":             "Failure while generating the chat ID.",
 	"CHAT_ID_INVALID":                     "The provided chat id is invalid.",
@@ -229,7 +228,7 @@ var errorMessages = map[string]string{
 	"CHAT_SEND_VIDEOS_FORBIDDEN":          "You can't send videos in this chat.",
 	"CHAT_SEND_VOICES_FORBIDDEN":          "You can't send voice recordings in this chat.",
 	"CHAT_TITLE_EMPTY":                    "No chat title provided.",
-	"CHAT_TOO_BIG":                        "This method is not available for groups with more than `chat_read_mark_size_threshold` members, [see client configuration &raquo;](https://core.telegram.org/api/config#client-configuration).",
+	"CHAT_TOO_BIG":                        "This method is not available for groups with more than `chat_read_mark_size_threshold` members.",
 	"CHAT_WRITE_FORBIDDEN":                "You can't write in this chat.",
 	"CHP_CALL_FAIL":                       "The statistics cannot be retrieved at this time",
 	"CODE_EMPTY":                          "The provided code is empty.",
@@ -359,7 +358,7 @@ var errorMessages = map[string]string{
 	"INPUT_TEXT_EMPTY":                    "The specified text is empty.",
 	"INPUT_TEXT_TOO_LONG":                 "The specified text is too long.",
 	"INPUT_USER_DEACTIVATED":              "The specified user was deleted.",
-	"INVITES_TOO_MUCH":                    "The maximum number of per-folder invites specified by the `chatlist_invites_limit_default`/`chatlist_invites_limit_premium` [client configuration parameters &raquo;](https://core.telegram.org/api/config#chatlist-invites-limit-default) was reached.",
+	"INVITES_TOO_MUCH":                    "The maximum number of per-folder invites specified by the `chatlist_invites_limit_default`/`chatlist_invites_limit_premium` was reached.",
 	"INVITE_FORBIDDEN_WITH_JOINAS":        "If the user has anonymously joined a group call as a channel, they can't invite other users to the group call because that would cause deanonymization, because the invite would be sent using the original user ID, not the anonymized channel ID.",
 	"INVITE_HASH_EMPTY":                   "The invite hash is empty.",
 	"INVITE_HASH_EXPIRED":                 "The invite link has expired.",

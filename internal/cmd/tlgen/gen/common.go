@@ -1,8 +1,6 @@
 package gen
 
 import (
-	"fmt"
-
 	"github.com/dave/jennifer/jen"
 
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
@@ -62,10 +60,4 @@ func (*Generator) generateMethodCallerFunc(method tlparser.Method) *jen.Statemen
 		jen.Err().Op(":=").Id("c.MakeRequest").Call(requestStruct, jen.Id("&resp")),
 		jen.Return(jen.Id("resp"), jen.Err()),
 	)
-}
-
-func createCrcFunc(typ string, crc uint32) *jen.Statement {
-	hex := fmt.Sprintf("0x%x", crc)
-	return jen.Func().Params(jen.Id(typ)).Id("CRC").Params().Uint32().
-		Id("{" + jen.Return(jen.Id(hex)).GoString() + "}")
 }
