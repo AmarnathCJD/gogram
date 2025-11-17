@@ -343,19 +343,21 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 	m.Logger.Debug("deleted old auth key file")
 
 	cfg := Config{
-		DataCenter:    dc,
-		PublicKey:     m.publicKey,
-		ServerHost:    newAddr,
-		AuthKeyFile:   m.sessionStorage.Path(),
-		AuthAESKey:    m.sessionStorage.Key(),
-		MemorySession: m.memorySession,
-		Logger:        m.Logger,
-		Proxy:         m.proxy,
-		LocalAddr:     m.localAddr,
-		AppID:         m.appID,
-		Ipv6:          m.IpV6,
-		Timeout:       int(m.timeout.Seconds()),
-		ReqTimeout:    int(m.reqTimeout.Seconds()),
+		DataCenter:      dc,
+		PublicKey:       m.publicKey,
+		ServerHost:      newAddr,
+		AuthKeyFile:     m.sessionStorage.Path(),
+		AuthAESKey:      m.sessionStorage.Key(),
+		MemorySession:   m.memorySession,
+		Logger:          m.Logger,
+		Proxy:           m.proxy,
+		LocalAddr:       m.localAddr,
+		AppID:           m.appID,
+		Ipv6:            m.IpV6,
+		Timeout:         int(m.timeout.Seconds()),
+		ReqTimeout:      int(m.reqTimeout.Seconds()),
+		UseWebSocket:    m.useWebSocket,
+		UseWebSocketTLS: m.useWebSocketTLS,
 	}
 
 	sender, err := NewMTProto(cfg)
@@ -383,18 +385,20 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 	}
 
 	cfg := Config{
-		DataCenter:    dcID,
-		PublicKey:     m.publicKey,
-		ServerHost:    newAddr,
-		AuthKeyFile:   "__exp_" + strconv.Itoa(dcID) + ".dat",
-		MemorySession: mem,
-		Logger:        logger,
-		Proxy:         m.proxy,
-		LocalAddr:     m.localAddr,
-		AppID:         m.appID,
-		Ipv6:          m.IpV6,
-		Timeout:       int(m.timeout.Seconds()),
-		ReqTimeout:    int(m.reqTimeout.Seconds()),
+		DataCenter:      dcID,
+		PublicKey:       m.publicKey,
+		ServerHost:      newAddr,
+		AuthKeyFile:     "__exp_" + strconv.Itoa(dcID) + ".dat",
+		MemorySession:   mem,
+		Logger:          logger,
+		Proxy:           m.proxy,
+		LocalAddr:       m.localAddr,
+		AppID:           m.appID,
+		Ipv6:            m.IpV6,
+		Timeout:         int(m.timeout.Seconds()),
+		ReqTimeout:      int(m.reqTimeout.Seconds()),
+		UseWebSocket:    m.useWebSocket,
+		UseWebSocketTLS: m.useWebSocketTLS,
 	}
 
 	if dcID == m.GetDC() {
