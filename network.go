@@ -241,7 +241,7 @@ func (m *MTProto) activeAuthKey() []byte {
 
 // GetAuthKey returns the current auth key used for message encryption.
 func (m *MTProto) GetAuthKey() []byte {
-	return m.activeAuthKey()
+	return m.authKey
 }
 
 func (m *MTProto) SetAuthKey(key []byte) {
