@@ -144,10 +144,6 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		return nil, errors.New("failed to convert source to io.Reader")
 	}
 
-	if closer, ok := file.(io.Closer); ok {
-		defer closer.Close()
-	}
-
 	partSize := 1024 * 512 // 512KB
 	if opts.ChunkSize > 0 {
 		partSize = int(opts.ChunkSize)
@@ -747,15 +743,8 @@ retrySinglePart:
 		return "", errors.New("cdn redirect not implemented")
 	}
 
-	c.Log.WithFields(map[string]any{
-		"file":       dest,
-		"size":       SizetoHuman(size),
-		"done_bytes": doneBytes.Load(),
-	}).Debug("download complete")
-
 	if opts.ProgressManager != nil && opts.ProgressManager.editFunc != nil {
 		opts.ProgressManager.editFunc(size, size)
-		time.Sleep(100 * time.Millisecond) // Let final update display
 	}
 
 	if opts.Buffer != nil {
