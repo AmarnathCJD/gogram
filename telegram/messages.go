@@ -1763,7 +1763,7 @@ func (c *Client) GetMediaGroup(PeerID any, MsgID int32) ([]NewMessage, error) {
 	}
 	groupID := getMediaGroupID(resp)
 	if groupID == 0 {
-		return nil, errors.New("The message is not part of a media group")
+		return nil, errors.New("the message is not part of a media group")
 	}
 	sameGroup := func(m []NewMessage, groupID int64) []NewMessage {
 		var msgs []NewMessage

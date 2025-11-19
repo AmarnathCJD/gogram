@@ -894,9 +894,12 @@ func NewClientConfigBuilder(appID int32, appHash string) *ClientConfigBuilder {
 			AppID:   appID,
 			AppHash: appHash,
 			DeviceConfig: DeviceConfig{
-				DeviceModel:   "IPhone",
-				SystemVersion: "17.0",
-				AppVersion:    Version,
+				DeviceModel:    "gogram " + runtime.GOOS + " " + runtime.GOARCH,
+				SystemVersion:  "go " + runtime.Version(),
+				AppVersion:     Version,
+				LangCode:       "en",
+				LangPack:       "desktop",
+				SystemLangCode: "en",
 			},
 			DataCenter:    4,          // Default DC
 			ParseMode:     "HTML",     // Default parse mode
@@ -976,6 +979,32 @@ func (b *ClientConfigBuilder) WithTestMode() *ClientConfigBuilder {
 	return b
 }
 
+func (b *ClientConfigBuilder) WithForceIPv6() *ClientConfigBuilder {
+	b.config.ForceIPv6 = true
+	return b
+}
+
+func (b *ClientConfigBuilder) WithNoPreconnect() *ClientConfigBuilder {
+	b.config.NoPreconnect = true
+	return b
+}
+
+func (b *ClientConfigBuilder) WithAlbumWaitTime(waitTime int64) *ClientConfigBuilder {
+	b.config.AlbumWaitTime = waitTime
+	return b
+}
+
+func (b *ClientConfigBuilder) WithCommandPrefixes(prefixes string) *ClientConfigBuilder {
+	b.config.CommandPrefixes = prefixes
+	return b
+}
+
+func (b *ClientConfigBuilder) WithUseWebSocket(useWs, useWss bool) *ClientConfigBuilder {
+	b.config.UseWebSocket = useWs
+	b.config.UseWebSocketTLS = useWss
+	return b
+}
+
 func (b *ClientConfigBuilder) WithIpAddr(ipAddr string) *ClientConfigBuilder {
 	b.config.IpAddr = ipAddr
 	return b
@@ -1038,4 +1067,24 @@ func (b *ClientConfigBuilder) WithReqTimeout(reqTimeout int) *ClientConfigBuilde
 
 func (b *ClientConfigBuilder) Build() ClientConfig {
 	return b.config
+}
+
+// One-liner client creation for simple use cases
+func QuickClient(appID int32, appHash, session string) (*Client, error) {
+	config := NewClientConfigBuilder(appID, appHash).
+		WithSession(session).
+		Build()
+	return NewClient(config)
+}
+
+// For bots specifically
+func QuickBot(appID int32, appHash, botToken string) (*Client, error) {
+	client, err := QuickClient(appID, appHash, "")
+	if err != nil {
+		return nil, err
+	}
+	if err := client.LoginBot(botToken); err != nil {
+		return nil, err
+	}
+	return client, nil
 }
