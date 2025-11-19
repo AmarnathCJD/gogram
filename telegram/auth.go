@@ -20,6 +20,11 @@ import (
 	"errors"
 )
 
+var (
+	botTokenRegex = regexp.MustCompile(`^\d{8,10}:[A-Za-z0-9_-]{35}$`)
+	phoneRegex    = regexp.MustCompile(`^\+?[1-9]\d{6,14}$`)
+)
+
 // ConnectBot connects to telegram using bot token
 func (c *Client) ConnectBot(botToken string) error {
 	if err := c.Connect(); err != nil {
@@ -27,11 +32,6 @@ func (c *Client) ConnectBot(botToken string) error {
 	}
 	return c.LoginBot(botToken)
 }
-
-var (
-	botTokenRegex = regexp.MustCompile(`^\d+:[\w\d_-]+$`)
-	phoneRegex    = regexp.MustCompile(`^\+?\d+$`)
-)
 
 // AuthPrompt prompts the user to enter a phone number or bot token to authorize the client.
 func (c *Client) AuthPrompt() error {
@@ -392,7 +392,7 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 	}
 
 	if err := json.NewDecoder(respCode.Body).Decode(&result); err != nil {
-		return 0, "", false, fmt.Errorf("Too many requests, try again later: %w", err)
+		return 0, "", false, fmt.Errorf("too many requests, try again later: %w", err)
 	}
 
 	code, err := conf.WebCodeCallback()
