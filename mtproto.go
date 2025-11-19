@@ -486,7 +486,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 
 	m.stopRoutines()
-	m.routineswg.Wait()
+	//m.routineswg.Wait()
 
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.ctxCancel = cancelfunc
@@ -526,7 +526,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 
 	m.startReadingResponses(ctx)
 
-	if !m.cdn {
+	if !m.exported && !m.cdn {
 		go m.longPing(ctx)
 	}
 
