@@ -585,7 +585,7 @@ func (m *MTProto) startPFSManager(ctx context.Context) {
 			needNew := m.tempAuthKey == nil || expiresAt == 0 || now >= expiresAt-renewBeforeSeconds
 
 			if needNew {
-				m.Logger.Debug("PFS: creating and binding temporary auth key")
+				m.Logger.Debug("creating and binding new temporary auth key for pfs")
 				if err := m.createTempAuthKey(defaultTempLifetimeSeconds); err != nil {
 					m.Logger.WithError(err).Error("PFS: createTempAuthKey failed")
 					select {
@@ -809,12 +809,23 @@ func (m *MTProto) Disconnect() error {
 
 func (m *MTProto) Terminate() error {
 	m.terminated.Store(true)
-	m.stopRoutines()
 	m.tcpState.SetActive(false)
-	m.routineswg.Wait()
+	m.stopRoutines()
 	if m.transport != nil {
 		m.transport.Close()
 	}
+	done := make(chan struct{})
+	go func() {
+		m.routineswg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		m.Logger.Debug("terminate: timeout waiting for goroutines to finish")
+	}
+
 	m.responseChannels.Close()
 	// if m.serviceChannel != nil {
 	// 	select {
@@ -824,6 +835,7 @@ func (m *MTProto) Terminate() error {
 	// 	close(m.serviceChannel)
 	// }
 
+	m.Logger.Debug("terminate completed successfully")
 	return nil
 }
 
@@ -863,13 +875,13 @@ func (m *MTProto) longPing(ctx context.Context) {
 	defer m.routineswg.Done()
 
 	for {
-		time.Sleep(30 * time.Second)
 		select {
 		case <-ctx.Done():
 			return
-		default:
+		case <-time.After(30 * time.Second):
 			err := m.tcpState.WaitForActive(ctx)
 			if err != nil {
+				m.Logger.Debug("longPing: tcp state not active, exiting longPing")
 				return
 			}
 			m.Ping()
@@ -919,13 +931,26 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						m.Logger.Debug("connection closed, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
 							m.Addr, m.GetTransportType(), consecutiveErrors, delay)
 
-						time.Sleep(delay)
+						select {
+						case <-ctx.Done():
+							return
+						case <-time.After(delay):
+						}
+
+						if m.terminated.Load() {
+							return
+						}
+
 						err = m.Reconnect(false)
 						if err != nil {
 							m.Logger.WithError(err).Error("reconnecting")
 							if consecutiveErrors >= maxConsecutiveErrors {
 								m.Logger.Error(fmt.Sprintf("max consecutive errors (%d) reached, backing off", maxConsecutiveErrors))
-								time.Sleep(delay * 2)
+								select {
+								case <-ctx.Done():
+									return
+								case <-time.After(delay * 2):
+								}
 							}
 						} else {
 							consecutiveErrors = 0
@@ -934,13 +959,26 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						m.Logger.Debug("network unstable, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
 							m.Addr, m.GetTransportType(), consecutiveErrors, delay)
 
-						time.Sleep(delay)
+						select {
+						case <-ctx.Done():
+							return
+						case <-time.After(delay):
+						}
+
+						if m.terminated.Load() {
+							return
+						}
+
 						err = m.Reconnect(false)
 						if err != nil {
 							m.Logger.WithError(err).Error("reconnecting")
 							if consecutiveErrors >= maxConsecutiveErrors {
 								m.Logger.Error(fmt.Sprintf("max consecutive errors (%d) reached, backing off", maxConsecutiveErrors))
-								time.Sleep(delay * 2)
+								select {
+								case <-ctx.Done():
+									return
+								case <-time.After(delay * 2):
+								}
 							}
 						} else {
 							consecutiveErrors = 0
@@ -967,7 +1005,16 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					m.Logger.Debug("eof error, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
 						m.Addr, m.GetTransportType(), consecutiveErrors, delay)
 
-					time.Sleep(delay)
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(delay):
+					}
+
+					if m.terminated.Load() {
+						return
+					}
+
 					err = m.Reconnect(false)
 					if err != nil {
 						m.Logger.WithError(err).Error("reconnecting")
@@ -988,13 +1035,21 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					}
 
 					if !m.terminated.Load() {
-						m.Logger.WithError(err).Debug("reading message >>")
+						m.Logger.WithError(err).Debug("reading messages")
 
 						delay := min(time.Duration(1<<uint(min(consecutiveErrors-1, 5)))*baseDelay, maxDelay)
 
 						if consecutiveErrors > 1 {
 							m.Logger.Debug("applying backoff delay: %v", delay)
-							time.Sleep(delay)
+							select {
+							case <-ctx.Done():
+								return
+							case <-time.After(delay):
+							}
+						}
+
+						if m.terminated.Load() {
+							return
 						}
 
 						err = m.Reconnect(false)
@@ -1003,6 +1058,8 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						} else {
 							consecutiveErrors = 0
 						}
+					} else {
+						return
 					}
 				}
 			}
