@@ -186,7 +186,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 
 	if opts.PasswordCallback == nil {
 		opts.PasswordCallback = func() (string, error) {
-			fmt.Printf("Enter 2Factor password: ")
+			fmt.Printf("Enter password: ")
 			var password string
 			if _, err := fmt.Scanln(&password); err != nil {
 				return "", fmt.Errorf("reading password: %w", err)
@@ -375,7 +375,10 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 		Timeout: time.Second * 10,
 	}
 
-	reqCode, err := http.NewRequest("POST", "https://my.telegram.org/auth/send_password", strings.NewReader("phone="+url.QueryEscape(conf.PhoneNum)))
+	formData := url.Values{}
+	formData.Set("phone", conf.PhoneNum)
+
+	reqCode, err := http.NewRequest("POST", "https://my.telegram.org/auth/send_password", strings.NewReader(formData.Encode()))
 	if err != nil {
 		return 0, "", false, err
 	}
@@ -400,7 +403,12 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 		return 0, "", false, err
 	}
 
-	reqLogin, err := http.NewRequest("POST", "https://my.telegram.org/auth/login", strings.NewReader("phone="+url.QueryEscape(conf.PhoneNum)+"&random_hash="+result.RandomHash+"&password="+url.QueryEscape(code)))
+	loginData := url.Values{}
+	loginData.Set("phone", conf.PhoneNum)
+	loginData.Set("random_hash", result.RandomHash)
+	loginData.Set("password", code)
+
+	reqLogin, err := http.NewRequest("POST", "https://my.telegram.org/auth/login", strings.NewReader(loginData.Encode()))
 	if err != nil {
 		return 0, "", false, err
 	}
@@ -457,7 +465,16 @@ BackToAppsPage:
 			return 0, "", false, err
 		}
 
-		reqCreateApp, err := http.NewRequest("POST", "https://my.telegram.org/apps/create", strings.NewReader("hash="+hiddenHash[1]+"&app_title=AppForGogram"+string(appRandomSuffix)+"&app_shortname=gogramapp"+string(appRandomSuffix)+"&app_platform=android&app_url=https%3A%2F%2Fgogram.fun&app_desc=ForGoGram"+string(appRandomSuffix)))
+		suffix := string(appRandomSuffix)
+		createAppData := url.Values{}
+		createAppData.Set("hash", hiddenHash[1])
+		createAppData.Set("app_title", "AppForGogram"+suffix)
+		createAppData.Set("app_shortname", "gogramapp"+suffix)
+		createAppData.Set("app_platform", "android")
+		createAppData.Set("app_url", "https://gogram.fun")
+		createAppData.Set("app_desc", "ForGoGram"+suffix)
+
+		reqCreateApp, err := http.NewRequest("POST", "https://my.telegram.org/apps/create", strings.NewReader(createAppData.Encode()))
 		if err != nil {
 			return 0, "", false, err
 		}
