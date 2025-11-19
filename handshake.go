@@ -241,6 +241,7 @@ nonceCreate:
 
 // createTempAuthKey performs the temporary auth key handshake
 func (m *MTProto) createTempAuthKey(expiresIn int32) error {
+	m.Logger.WithField("expires_in", expiresIn).Debug("Creating temporary auth key for PFS...")
 	cfg := Config{
 		AuthKeyFile:     "",
 		AuthAESKey:      "",
@@ -251,7 +252,7 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 		ServerHost:      m.Addr,
 		PublicKey:       m.publicKey,
 		DataCenter:      m.GetDC(),
-		Logger:          m.Logger.Clone().WithPrefix("gogram [pfs]"),
+		Logger:          m.Logger.Clone().WithPrefix("gogram [mtp-pfs]"),
 		Proxy:           m.proxy,
 		Mode:            "Abridged",
 		Ipv6:            m.IpV6,
@@ -291,6 +292,7 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 	m.serverSalt = tmp.serverSalt
 
 	tmp.Terminate()
+	m.Logger.Debug("Temporary auth key created")
 	return nil
 }
 

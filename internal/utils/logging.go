@@ -620,7 +620,6 @@ func (f *TextFormatter) Format(entry *LogEntry) string {
 		if !f.NoColor {
 			b.WriteString(colorDim)
 		}
-		b.WriteString("[")
 		if !f.NoColor {
 			b.WriteString(colorReset)
 			b.WriteString(colorBrightBlack)
@@ -630,7 +629,6 @@ func (f *TextFormatter) Format(entry *LogEntry) string {
 			b.WriteString(colorReset)
 			b.WriteString(colorDim)
 		}
-		b.WriteString("]")
 		if !f.NoColor {
 			b.WriteString(colorReset)
 		}
