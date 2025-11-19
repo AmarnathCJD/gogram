@@ -241,7 +241,6 @@ nonceCreate:
 
 // createTempAuthKey performs the temporary auth key handshake
 func (m *MTProto) createTempAuthKey(expiresIn int32) error {
-	m.Logger.WithField("expires_in", expiresIn).Debug("creating temporary auth key for pfs...")
 	cfg := Config{
 		AuthKeyFile:     "",
 		AuthAESKey:      "",
