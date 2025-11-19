@@ -33,95 +33,112 @@ var (
 	phoneRegex    = regexp.MustCompile(`^\+?\d+$`)
 )
 
-// AuthPrompt will prompt user to enter phone number or bot token to authorize client
+// AuthPrompt prompts the user to enter a phone number or bot token to authorize the client.
 func (c *Client) AuthPrompt() error {
-	if au, _ := c.IsAuthorized(); au {
+	if authorized, _ := c.IsAuthorized(); authorized {
 		return nil
 	}
-	var input string
-	maxRetries := 3
-	for i := range maxRetries {
-		fmt.Printf("Enter phone number (with country code [+42xxx]) or bot token: ")
-		fmt.Scanln(&input)
-		if input != "" {
-			if botTokenRegex.MatchString(input) {
-				err := c.LoginBot(input)
-				if err != nil {
-					return err
-				}
-			} else {
-				if phoneRegex.MatchString(strings.TrimSpace(input)) {
-					_, err := c.Login(input)
-					if err != nil {
-						return err
-					}
-				} else {
-					fmt.Println("The input is not a valid phone number or bot token, try again [", i+1, "/", maxRetries, "]")
-					continue
-				}
-			}
-			break
-		} else {
-			fmt.Println("Invalid response, try again")
+
+	const maxRetries = 3
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		fmt.Printf("Enter phone number (with country code, e.g., +1234567890) or bot token: ")
+		var input string
+		if _, err := fmt.Scanln(&input); err != nil {
+			return fmt.Errorf("reading input: %w", err)
 		}
+
+		input = strings.TrimSpace(input)
+		if input == "" {
+			fmt.Printf("Empty input received. Please try again (%d/%d)\n", attempt, maxRetries)
+			continue
+		}
+
+		if botTokenRegex.MatchString(input) {
+			if err := c.LoginBot(input); err != nil {
+				return fmt.Errorf("bot login failed: %w", err)
+			}
+			return nil
+		}
+
+		if phoneRegex.MatchString(input) {
+			if _, err := c.Login(input); err != nil {
+				return fmt.Errorf("user login failed: %w", err)
+			}
+			return nil
+		}
+
+		fmt.Printf("Invalid format. Expected phone number or bot token (%d/%d)\n", attempt, maxRetries)
 	}
-	return nil
+
+	return errors.New("authentication failed: maximum retry attempts exceeded")
 }
 
-// Authorize client with bot token
+// LoginBot authenticates the client using a bot token.
 func (c *Client) LoginBot(botToken string) error {
+	if botToken == "" {
+		return errors.New("bot token cannot be empty")
+	}
+
 	if !c.IsConnected() {
 		if err := c.Connect(); err != nil {
-			return err
+			return fmt.Errorf("establishing connection: %w", err)
 		}
 	}
-	if au, _ := c.IsAuthorized(); au {
+
+	if authorized, _ := c.IsAuthorized(); authorized {
 		return nil
 	}
 
 	_, err := c.AuthImportBotAuthorization(1, c.AppID(), c.AppHash(), botToken)
-	if err == nil {
-		c.clientData.botAcc = true
-	}
-	if au, e := c.IsAuthorized(); !au {
-		if dc, code := GetErrorCode(e); code == 303 {
-			err = c.SwitchDc(dc)
-			if err != nil {
-				return err
+	if err != nil {
+		if dc, code := GetErrorCode(err); code == 303 {
+			if err := c.SwitchDc(dc); err != nil {
+				return fmt.Errorf("switching to DC %d: %w", dc, err)
 			}
 			return c.LoginBot(botToken)
 		}
+		return fmt.Errorf("importing bot authorization: %w", err)
 	}
-	return err
+
+	c.clientData.botAcc = true
+	return nil
 }
 
-// sendCode and return phoneCodeHash
-func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
+// SendCode sends an authentication code to the specified phone number and returns the phone code hash.
+func (c *Client) SendCode(phoneNumber string) (string, error) {
+	if phoneNumber == "" {
+		return "", errors.New("phone number cannot be empty")
+	}
+
 	resp, err := c.AuthSendCode(phoneNumber, c.AppID(), c.AppHash(), &CodeSettings{
 		AllowAppHash:  true,
 		CurrentNumber: true,
 	})
 
 	if err != nil {
-		if strings.Contains(err.Error(), "CONNECTION_NOT_INITED") {
-			c.InitialRequest()
-			return c.SendCode(phoneNumber)
-		}
-
-		if dc, code := GetErrorCode(err); code == 303 {
-			err = c.SwitchDc(dc)
-			if err != nil {
-				return "", err
+		if MatchError(err, "CONNECTION_NOT_INITED") {
+			if err := c.InitialRequest(); err != nil {
+				return "", fmt.Errorf("initializing connection: %w", err)
 			}
 			return c.SendCode(phoneNumber)
 		}
-		return "", err
+
+		// handle dc migration
+		if dc, code := GetErrorCode(err); code == 303 {
+			if err := c.SwitchDc(dc); err != nil {
+				return "", fmt.Errorf("switching to DC %d: %w", dc, err)
+			}
+			return c.SendCode(phoneNumber)
+		}
+
+		return "", fmt.Errorf("sending code to %s: %w", phoneNumber, err)
 	}
+
 	switch resp := resp.(type) {
 	case *AuthSentCodeObj:
 		return resp.PhoneCodeHash, nil
 	default:
-		return "", nil
+		return "", fmt.Errorf("unexpected response type: %T", resp)
 	}
 }
 
@@ -136,147 +153,197 @@ type LoginOptions struct {
 	LastName         string `json:"last_name,omitempty"`
 }
 
-// Authorize client with phone number, code and phone code hash,
-// If phone code hash is empty, it will be requested from telegram server
+// Login authenticates the client using a phone number.
+//
+// If code is not provided in options, it will be requested via callback.
 func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, error) {
+	if phoneNumber == "" {
+		return false, errors.New("phone number cannot be empty")
+	}
+
 	if !c.IsConnected() {
 		if err := c.Connect(); err != nil {
-			return false, err
+			return false, fmt.Errorf("establishing connection: %w", err)
 		}
 	}
-	if au, _ := c.IsAuthorized(); au {
+
+	if authorized, _ := c.IsAuthorized(); authorized {
 		return true, nil
 	}
 
-	var opts = getVariadic(options, &LoginOptions{})
+	opts := getVariadic(options, &LoginOptions{})
+
+	if opts.CodeCallback == nil {
+		opts.CodeCallback = func() (string, error) {
+			fmt.Printf("Enter authentication code: ")
+			var code string
+			if _, err := fmt.Scanln(&code); err != nil {
+				return "", fmt.Errorf("reading code: %w", err)
+			}
+			return strings.TrimSpace(code), nil
+		}
+	}
+
+	if opts.PasswordCallback == nil {
+		opts.PasswordCallback = func() (string, error) {
+			fmt.Printf("Enter 2Factor password: ")
+			var password string
+			if _, err := fmt.Scanln(&password); err != nil {
+				return "", fmt.Errorf("reading password: %w", err)
+			}
+			return strings.TrimSpace(password), nil
+		}
+	}
 
 	var auth AuthAuthorization
 	var err error
+
 	if opts.Code == "" {
-		hash, e := c.SendCode(phoneNumber)
-		if e != nil {
-			return false, e
+		hash, err := c.SendCode(phoneNumber)
+		if err != nil {
+			return false, fmt.Errorf("sending verification code: %w", err)
 		}
 		opts.CodeHash = hash
 
-		if opts.CodeCallback == nil {
-			opts.CodeCallback = func() (string, error) {
-				fmt.Printf("Enter code: ")
-				var codeInput string
-				fmt.Scanln(&codeInput)
-				return codeInput, nil
-			}
-		}
-		if opts.PasswordCallback == nil {
-			opts.PasswordCallback = func() (string, error) {
-				fmt.Printf("Two-steps verification is enabled\n")
-				fmt.Printf("Enter password: ")
-				var passwordInput string
-				fmt.Scanln(&passwordInput)
-				return passwordInput, nil
-			}
-		}
-
-		auth, err = CodeAuthAttempt(c, phoneNumber, opts, getValue(opts.MaxRetries, 3))
+		maxRetries := getValue(opts.MaxRetries, 3)
+		auth, err = CodeAuthAttempt(c, phoneNumber, opts, maxRetries)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("authentication attempt failed: %w", err)
 		}
 	} else {
 		if opts.CodeHash == "" {
-			return false, errors.New("Code hash is empty, but code is not")
+			return false, errors.New("code hash is required when code is provided")
 		}
+
 		auth, err = c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("signing in: %w", err)
 		}
 	}
 
-	c.SaveSession(true)
+	if err := c.SaveSession(true); err != nil {
+		c.Log.WithError(err).Warn("failed to save session")
+	}
+
 	switch auth := auth.(type) {
 	case *AuthAuthorizationSignUpRequired:
-		return false, errors.New("SignUp using official Telegram app is required")
+		return false, errors.New("account registration required via official Telegram app")
+
 	case *AuthAuthorizationObj:
-		switch u := auth.User.(type) {
+		switch user := auth.User.(type) {
 		case *UserObj:
-			c.clientData.botAcc = u.Bot
-			go c.Cache.UpdateUser(u)
+			c.clientData.botAcc = user.Bot
+			go c.Cache.UpdateUser(user)
+			return true, nil
+
 		case *UserEmpty:
-			return false, errors.New("user is empty, authorization failed")
+			return false, errors.New("authorization failed: received empty user object")
+
+		default:
+			return false, fmt.Errorf("unexpected user type: %T", user)
 		}
 	case nil:
-		return false, nil // need not mean error
+		return false, nil
+
+	default:
+		return false, fmt.Errorf("unexpected authorization type: %T", auth)
 	}
-	return true, nil
 }
 
+// CodeAuthAttempt handles the authentication process with code and optional 2FA password.
 func CodeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions, maxRetries int) (AuthAuthorization, error) {
-	var err error
-
-	for range maxRetries {
-		opts.Code, err = opts.CodeCallback()
-
-		if opts.Code == "cancel" || opts.Code == "exit" {
-			return nil, errors.New("login canceled")
-		} else if opts.Code != "" {
-			authResp, err := c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
-			if err == nil {
-				return authResp, nil
-			}
-
-			if MatchError(err, "PHONE_CODE_INVALID") {
-				c.Log.WithError(err).Error("invalid phone code")
-				continue
-			} else if MatchError(err, "SESSION_PASSWORD_NEEDED") {
-			acceptPasswordInput:
-				if opts.Password == "" {
-					for range maxRetries {
-						passwordInput, err := opts.PasswordCallback()
-						if err != nil {
-							return nil, err
-						}
-
-						if passwordInput != "" {
-							opts.Password = passwordInput
-							break
-						} else if passwordInput == "cancel" || passwordInput == "exit" {
-							return nil, errors.New("login canceled")
-						}
-					}
-				}
-
-				accPassword, err := c.AccountGetPassword()
-				if err != nil {
-					return nil, err
-				}
-
-				inputPassword, err := GetInputCheckPassword(opts.Password, accPassword)
-				if err != nil {
-					return nil, err
-				}
-
-				_, err = c.AuthCheckPassword(inputPassword)
-				if err != nil {
-					if strings.Contains(err.Error(), "PASSWORD_HASH_INVALID") {
-						opts.Password = ""
-						fmt.Println("password is incorrect, please try again!")
-						goto acceptPasswordInput
-					}
-					return nil, err
-				}
-				break
-			} else if MatchError(err, "The code is valid but no user with the given number") {
-				return nil, errors.New("SignUp using official Telegram app is required")
-			} else {
-				return nil, err
-			}
-		} else {
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		code, err := opts.CodeCallback()
+		if err != nil {
 			if err, ok := err.(syscall.Errno); ok && err == syscall.EINTR {
-				return nil, errors.New("login canceled")
+				return nil, errors.New("authentication canceled by user")
 			}
+			return nil, fmt.Errorf("code input failed: %w", err)
 		}
+
+		code = strings.TrimSpace(code)
+		if code == "cancel" || code == "exit" {
+			return nil, errors.New("authentication canceled by user")
+		}
+
+		if code == "" {
+			c.Log.Warn("empty code received, skipping attempt")
+			continue
+		}
+
+		opts.Code = code
+		authResp, err := c.AuthSignIn(phoneNumber, opts.CodeHash, code, nil)
+		if err == nil {
+			return authResp, nil
+		}
+
+		if MatchError(err, "PHONE_CODE_INVALID") {
+			c.Log.WithError(err).Warn("invalid verification code (attempt %d/%d)", attempt, maxRetries)
+			continue
+		}
+
+		if MatchError(err, "SESSION_PASSWORD_NEEDED") {
+			return c.handlePasswordAuth(opts, maxRetries)
+		}
+
+		if MatchError(err, "PHONE_NUMBER_UNOCCUPIED") || MatchError(err, "The code is valid but no user with the given number") {
+			return nil, errors.New("account registration required via official Telegram app")
+		}
+
+		// unexpected error
+		return nil, fmt.Errorf("sign in failed: %w", err)
 	}
 
-	return nil, nil
+	return nil, fmt.Errorf("authentication failed after %d attempts", maxRetries)
+}
+
+// handlePasswordAuth handles two-factor authentication password verification.
+func (c *Client) handlePasswordAuth(opts *LoginOptions, maxRetries int) (AuthAuthorization, error) {
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		if opts.Password == "" {
+			password, err := opts.PasswordCallback()
+			if err != nil {
+				return nil, fmt.Errorf("password input failed: %w", err)
+			}
+
+			password = strings.TrimSpace(password)
+			if password == "cancel" || password == "exit" {
+				return nil, errors.New("authentication canceled by user")
+			}
+
+			if password == "" {
+				c.Log.Warn("empty password received (attempt %d/%d)", attempt, maxRetries)
+				continue
+			}
+
+			opts.Password = password
+		}
+
+		accPassword, err := c.AccountGetPassword()
+		if err != nil {
+			return nil, fmt.Errorf("retrieving password settings: %w", err)
+		}
+
+		inputPassword, err := GetInputCheckPassword(opts.Password, accPassword)
+		if err != nil {
+			return nil, fmt.Errorf("computing password hash: %w", err)
+		}
+
+		auth, err := c.AuthCheckPassword(inputPassword)
+		if err == nil {
+			return auth, nil
+		}
+
+		if MatchError(err, "PASSWORD_HASH_INVALID") {
+			c.Log.Warn("incorrect password (attempt %d/%d)", attempt, maxRetries)
+			opts.Password = "" // reset for next attempt
+			continue
+		}
+
+		return nil, fmt.Errorf("password verification failed: %w", err)
+	}
+
+	return nil, fmt.Errorf("password authentication failed after %d attempts", maxRetries)
 }
 
 type ScrapeConfig struct {
@@ -346,7 +413,7 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 	}
 
 	cookies := respLogin.Cookies()
-	ALREDY_TRIED_CREATION := false
+	ALREADY_TRIED_CREATION := false
 
 BackToAppsPage:
 	reqScrape, err := http.NewRequest("GET", "https://my.telegram.org/apps", nil)
@@ -374,8 +441,8 @@ BackToAppsPage:
 	appID := appIDRegex.FindStringSubmatch(string(body))
 	appHash := appHashRegex.FindStringSubmatch(string(body))
 
-	if len(appID) < 2 || len(appHash) < 2 || strings.Contains(string(body), "Create new application") && !ALREDY_TRIED_CREATION {
-		ALREDY_TRIED_CREATION = true
+	if len(appID) < 2 || len(appHash) < 2 || strings.Contains(string(body), "Create new application") && !ALREADY_TRIED_CREATION {
+		ALREADY_TRIED_CREATION = true
 		// assume app is not created, create app
 		hiddenHashRegex := regexp.MustCompile(`<input type="hidden" name="hash" value="([a-fA-F0-9]+)"\/>`)
 		hiddenHash := hiddenHashRegex.FindStringSubmatch(string(body))
@@ -390,7 +457,7 @@ BackToAppsPage:
 			return 0, "", false, err
 		}
 
-		reqCreateApp, err := http.NewRequest("POST", "https://my.telegram.org/apps/create", strings.NewReader("hash="+hiddenHash[1]+"&app_title=AppForGogram"+string(appRandomSuffix)+"&app_shortname=gogramapp"+string(appRandomSuffix)+"&app_platform=android&app_url=https%3A%2F%2Fgogram.vercel.app&app_desc=ForGoGram"+string(appRandomSuffix)))
+		reqCreateApp, err := http.NewRequest("POST", "https://my.telegram.org/apps/create", strings.NewReader("hash="+hiddenHash[1]+"&app_title=AppForGogram"+string(appRandomSuffix)+"&app_shortname=gogramapp"+string(appRandomSuffix)+"&app_platform=android&app_url=https%3A%2F%2Fgogram.fun&app_desc=ForGoGram"+string(appRandomSuffix)))
 		if err != nil {
 			return 0, "", false, err
 		}
