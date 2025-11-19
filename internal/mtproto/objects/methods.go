@@ -37,14 +37,6 @@ func ReqPQ(m requester, nonce *tl.Int128) (*ResPQ, error) {
 	return resp, nil
 }
 
-// AuthBindTempAuthKeyParams is the TL params type for auth.bindTempAuthKey.
-//
-// auth.bindTempAuthKey#cdd42a05 perm_auth_key_id:long nonce:long
-//   expires_at:int encrypted_message:bytes = Bool;
-//
-// Note: this type is intentionally not registered in the global TL registry
-// because the same constructor is already registered in the telegram package.
-// We only use it for encoding requests from the MTProto layer.
 type AuthBindTempAuthKeyParams struct {
 	PermAuthKeyID    int64
 	Nonce            int64
@@ -154,20 +146,13 @@ func (*PingParams) CRC() uint32 {
 	return 0x7abe77ec
 }
 
-func Ping(m requester, pingID int64) (*Pong, error) {
-	data, err := m.MakeRequest(&PingParams{
-		PingID: pingID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("sending Ping: %w", err)
-	}
+type PingDelayDisconnectParams struct {
+	PingID          int64
+	DisconnectDelay int32
+}
 
-	resp, ok := data.(*Pong)
-	if !ok {
-		return nil, errors.New("got invalid response type: " + reflect.TypeOf(data).String())
-	}
-
-	return resp, nil
+func (*PingDelayDisconnectParams) CRC() uint32 {
+	return 0xf3427b8c
 }
 
 // ping_delay_disconnect

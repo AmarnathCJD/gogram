@@ -549,11 +549,11 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 // key is created and bound to the permanent auth key when PFS is enabled.
 // It will renew the temporary key shortly before its expiry.
 func (m *MTProto) startPFSManager(ctx context.Context) {
-	const renewBeforeSeconds int64 = 60                      // renew 60s before expiry
-	const defaultTempLifetimeSeconds int32 = 24 * 60 * 60    // 24h
-	const retryDelayOnError = 30 * time.Second               // backoff on error
-	const pollNoAuthKeyDelay = 5 * time.Second               // wait for authKey
-	const minSleepSeconds int64 = 5                          // minimum wait between checks
+	const renewBeforeSeconds int64 = 60                   // renew 60s before expiry
+	const defaultTempLifetimeSeconds int32 = 24 * 60 * 60 // 24h
+	const retryDelayOnError = 30 * time.Second            // backoff on error
+	const pollNoAuthKeyDelay = 5 * time.Second            // wait for authKey
+	const minSleepSeconds int64 = 5                       // minimum wait between checks
 
 	m.routineswg.Add(1)
 	go func() {
@@ -807,12 +807,23 @@ func (m *MTProto) Disconnect() error {
 
 func (m *MTProto) Terminate() error {
 	m.terminated.Store(true)
+	m.tcpState.SetActive(false)
+
 	m.stopRoutines()
-	m.responseChannels.Close()
+	m.routineswg.Wait()
 	if m.transport != nil {
 		m.transport.Close()
 	}
-	m.tcpState.SetActive(false)
+
+	m.responseChannels.Close()
+	if m.serviceChannel != nil {
+		select {
+		case <-m.serviceChannel:
+		default:
+		}
+		close(m.serviceChannel)
+	}
+
 	return nil
 }
 
@@ -881,7 +892,6 @@ func (m *MTProto) Ping() time.Duration {
 
 func (m *MTProto) startReadingResponses(ctx context.Context) {
 	m.routineswg.Add(1)
-
 	go func() {
 		defer m.routineswg.Done()
 

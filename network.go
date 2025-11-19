@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"time"
 
 	"errors"
 
@@ -20,71 +19,7 @@ import (
 )
 
 func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (chan tl.Object, int64, error) {
-	msg, err := tl.Marshal(request)
-	if err != nil {
-		return nil, 0, fmt.Errorf("marshaling request: %w", err)
-	}
-
-	var (
-		data  messages.Common
-		msgID = m.genMsgID(m.timeOffset)
-	)
-
-	// adding types for parser if required
-	if len(expectedTypes) > 0 {
-		m.expectedTypes.Add(int(msgID), expectedTypes)
-	}
-
-	resp := m.getRespChannel()
-	if isNullableResponse(request) {
-		go func() {
-			resp <- &objects.Null{}
-		}()
-	} else {
-		m.responseChannels.Add(int(msgID), resp)
-	}
-
-	if m.encrypted {
-		data = &messages.Encrypted{
-			Msg:         msg,
-			MsgID:       msgID,
-			AuthKeyHash: m.authKeyHash,
-		}
-	} else {
-		data = &messages.Unencrypted{
-			Msg:   msg,
-			MsgID: msgID,
-		}
-	}
-
-	var seqNo int32
-	if isNotContentRelated(request) {
-		seqNo = m.GetSeqNo()
-	} else {
-		seqNo = m.UpdateSeqNo()
-	}
-
-	if m.transport == nil || !m.IsTcpActive() {
-		err := m.CreateConnection(false)
-		if err != nil || m.transport == nil {
-			return nil, 0, errors.New("failed to establish connection, transport is nil")
-		}
-	}
-
-	maxRetries := 2
-sendPacket:
-	errorSendPacket := m.transport.WriteMsg(data, seqNo)
-	if errorSendPacket != nil {
-		if maxRetries > 0 && (strings.Contains(errorSendPacket.Error(), "connection was aborted") || strings.Contains(errorSendPacket.Error(), "connection reset")) {
-			maxRetries--
-			err := m.CreateConnection(false)
-			if err == nil && m.transport != nil {
-				goto sendPacket
-			}
-		}
-		return nil, msgID, fmt.Errorf("writing message: %w", errorSendPacket)
-	}
-	return resp, msgID, nil
+	return m.sendPacketWithMsgID(request, 0, expectedTypes...)
 }
 
 func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTypes ...reflect.Type) (chan tl.Object, int64, error) {
@@ -93,7 +28,9 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 		return nil, 0, fmt.Errorf("marshaling request: %w", err)
 	}
 
-	var data messages.Common
+	if msgID == 0 {
+		msgID = m.genMsgID(m.timeOffset)
+	}
 
 	if len(expectedTypes) > 0 {
 		m.expectedTypes.Add(int(msgID), expectedTypes)
@@ -108,6 +45,7 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 		m.responseChannels.Add(int(msgID), resp)
 	}
 
+	var data messages.Common
 	if m.encrypted {
 		data = &messages.Encrypted{
 			Msg:         msg,
@@ -225,18 +163,6 @@ func (m *MTProto) UpdateSeqNo() int32 {
 // GetServerSalt returns current server salt
 func (m *MTProto) GetServerSalt() int64 {
 	return m.serverSalt
-}
-
-// activeAuthKey returns the currently active auth key.
-// If PFS is enabled and a valid temporary auth key is present, it is preferred.
-// Otherwise, the permanent auth key is returned.
-func (m *MTProto) activeAuthKey() []byte {
-	if m.enablePFS && m.tempAuthKey != nil {
-		if m.tempAuthExpiresAt == 0 || time.Now().Unix() < m.tempAuthExpiresAt {
-			return m.tempAuthKey
-		}
-	}
-	return m.authKey
 }
 
 // GetAuthKey returns the current auth key used for message encryption.
