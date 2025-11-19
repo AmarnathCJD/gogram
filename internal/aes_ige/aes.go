@@ -213,9 +213,6 @@ func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte, err er
 	return tmpAESKey, tmpAESIV, nil
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// MTProto 1.0 helpers (used for auth.bindTempAuthKey binding message encryption)
-
 // aesKeysV1 derives AES key and IV according to MTProto 1.0 specification.
 // See https://core.telegram.org/mtproto/description_v1#defining-aes-key-and-initialization-vector
 func aesKeysV1(msgKey, authKey []byte, decode bool) (aesKey, aesIv [32]byte) {
@@ -265,7 +262,6 @@ func aesKeysV1(msgKey, authKey []byte, decode bool) (aesKey, aesIv [32]byte) {
 	return aesKey, aesIv
 }
 
-// encryptV1 encrypts plaintext using MTProto 1.0 key derivation.
 // It returns the ciphertext and msg_key (128-bit).
 func encryptV1(plaintext, authKey []byte, decode bool) (out, msgKey []byte, _ error) {
 	// msg_key = substr (SHA1 (plaintext), 4, 16);
@@ -301,7 +297,7 @@ func encryptV1(plaintext, authKey []byte, decode bool) (out, msgKey []byte, _ er
 	return out, msgKey, nil
 }
 
-// EncryptV1 is a convenience wrapper for encryptV1 for client-to-server messages.
+// EncryptV1 encryptV1.
 func EncryptV1(plaintext, authKey []byte) (out, msgKey []byte, _ error) {
 	return encryptV1(plaintext, authKey, false)
 }
