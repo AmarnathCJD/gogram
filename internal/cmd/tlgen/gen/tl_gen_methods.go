@@ -133,7 +133,7 @@ func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 
 	//	data, err := c.MakeRequest(params)
 	//	if err != nil {
-	//		return nil, fmt.Errorf("sedning AuthSendCode: %w", err)
+	//		return nil, fmt.Errorf("sending AuthSendCode: %w", err)
 	//	}
 	//
 	//	resp, ok := data.(*AuthSentCode)
