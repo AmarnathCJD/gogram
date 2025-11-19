@@ -30,7 +30,7 @@ type ParticipantHandler func(m *ParticipantUpdate) error
 type PendingJoinHandler func(m *JoinRequestUpdate) error
 type RawHandler func(m Update, c *Client) error
 
-var EndGroup = errors.New("[EndGroup] end of handler propagation")
+var ErrEndGroup = errors.New("[EndGroup] end of handler propagation")
 
 const (
 	ConversationGroup = -1
@@ -173,7 +173,7 @@ func (a *albumBox) WaitAndTrigger(d *UpdateDispatcher, c *Client) {
 				go func() {
 					err := handle(handler)
 					if err != nil {
-						if errors.Is(err, EndGroup) {
+						if errors.Is(err, ErrEndGroup) {
 							return
 						}
 
@@ -181,7 +181,7 @@ func (a *albumBox) WaitAndTrigger(d *UpdateDispatcher, c *Client) {
 					}
 				}()
 			} else {
-				if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+				if err := handle(handler); err != nil && errors.Is(err, ErrEndGroup) {
 					break
 				}
 			}
@@ -502,7 +502,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 			for _, handler := range convHandlers {
 				if handler.IsMatch(msg.Message, c) {
 					if err := handle(handler); err != nil {
-						if errors.Is(err, EndGroup) {
+						if errors.Is(err, ErrEndGroup) {
 							return
 						}
 						c.dispatcher.logger.WithError(err).Error("[NewMessageHandler]")
@@ -537,7 +537,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 			for _, handler := range gp.handlers {
 				if handler.IsMatch(msg.Message, c) {
 					if err := handle(handler); err != nil {
-						if errors.Is(err, EndGroup) {
+						if errors.Is(err, ErrEndGroup) {
 							break
 						}
 						c.dispatcher.logger.WithError(err).Error("[NewMessageHandler]")
@@ -553,7 +553,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 					wg.Add(1)
 					go func(h *messageHandle) {
 						defer wg.Done()
-						if err := handle(h); err != nil && !errors.Is(err, EndGroup) {
+						if err := handle(h); err != nil && !errors.Is(err, ErrEndGroup) {
 							c.dispatcher.logger.WithError(err).Error("[NewMessageHandler]")
 						}
 					}(handler)
@@ -581,14 +581,14 @@ func (c *Client) handleMessageUpdate(update Message) {
 					go func() {
 						err := handle(h)
 						if err != nil {
-							if errors.Is(err, EndGroup) {
+							if errors.Is(err, ErrEndGroup) {
 								return
 							}
 							c.Log.WithError(err).Error("[ChatActionHandler]")
 						}
 					}()
 				} else {
-					if err := handle(h); err != nil && errors.Is(err, EndGroup) {
+					if err := handle(h); err != nil && errors.Is(err, ErrEndGroup) {
 						break
 					}
 				}
@@ -668,14 +668,14 @@ func (c *Client) handleEditUpdate(update Message) {
 						go func() {
 							err := handle(handler)
 							if err != nil {
-								if errors.Is(err, EndGroup) {
+								if errors.Is(err, ErrEndGroup) {
 									return
 								}
 								c.Log.WithError(err).Error("[EditMessageHandler]")
 							}
 						}()
 					} else {
-						if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+						if err := handle(handler); err != nil && errors.Is(err, ErrEndGroup) {
 							break
 						}
 					}
@@ -708,14 +708,14 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 					go func() {
 						err := handle(handler)
 						if err != nil {
-							if errors.Is(err, EndGroup) {
+							if errors.Is(err, ErrEndGroup) {
 								return
 							}
 							c.Log.WithError(err).Error("[CallbackQueryHandler]")
 						}
 					}()
 				} else {
-					if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+					if err := handle(handler); err != nil && errors.Is(err, ErrEndGroup) {
 						break
 					}
 				}
@@ -744,14 +744,14 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 					go func() {
 						err := handle(handler)
 						if err != nil {
-							if errors.Is(err, EndGroup) {
+							if errors.Is(err, ErrEndGroup) {
 								return
 							}
 							c.Log.WithError(err).Error("[InlineCallbackHandler]")
 						}
 					}()
 				} else {
-					if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+					if err := handle(handler); err != nil && errors.Is(err, ErrEndGroup) {
 						break
 					}
 				}
@@ -779,14 +779,14 @@ func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 				go func() {
 					err := handle(handler)
 					if err != nil {
-						if errors.Is(err, EndGroup) {
+						if errors.Is(err, ErrEndGroup) {
 							return
 						}
 						c.Log.WithError(err).Error("[ParticipantUpdateHandler]")
 					}
 				}()
 			} else {
-				if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+				if err := handle(handler); err != nil && errors.Is(err, ErrEndGroup) {
 					break
 				}
 			}
@@ -814,14 +814,14 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 					go func() {
 						err := handle(handler)
 						if err != nil {
-							if errors.Is(err, EndGroup) {
+							if errors.Is(err, ErrEndGroup) {
 								return
 							}
 							c.Log.WithError(err).Error("[InlineQueryHandler]")
 						}
 					}()
 				} else {
-					if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+					if err := handle(handler); err != nil && errors.Is(err, ErrEndGroup) {
 						break
 					}
 				}
@@ -849,14 +849,14 @@ func (c *Client) handleInlineSendUpdate(update *UpdateBotInlineSend) {
 				go func() {
 					err := handle(handler)
 					if err != nil {
-						if errors.Is(err, EndGroup) {
+						if errors.Is(err, ErrEndGroup) {
 							return
 						}
 						c.Log.WithError(err).Error("[InlineSendHandler]")
 					}
 				}()
 			} else {
-				if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+				if err := handle(handler); err != nil && errors.Is(err, ErrEndGroup) {
 					break
 				}
 			}
@@ -883,14 +883,14 @@ func (c *Client) handleDeleteUpdate(update Update) {
 				go func() {
 					err := handle(handler)
 					if err != nil {
-						if errors.Is(err, EndGroup) {
+						if errors.Is(err, ErrEndGroup) {
 							return
 						}
 						c.Log.WithError(err).Error("[DeleteMessageHandler]")
 					}
 				}()
 			} else {
-				if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+				if err := handle(handler); err != nil && errors.Is(err, ErrEndGroup) {
 					break
 				}
 			}
@@ -917,14 +917,14 @@ func (c *Client) handleJoinRequestUpdate(update *UpdatePendingJoinRequests) {
 				go func() {
 					err := handle(handler)
 					if err != nil {
-						if errors.Is(err, EndGroup) {
+						if errors.Is(err, ErrEndGroup) {
 							return
 						}
 						c.Log.WithError(err).Error("[JoinRequestHandler]")
 					}
 				}()
 			} else {
-				if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+				if err := handle(handler); err != nil && errors.Is(err, ErrEndGroup) {
 					break
 				}
 			}
@@ -962,14 +962,14 @@ func (c *Client) handleRawUpdate(update Update) {
 					go func() {
 						err := handle(handler)
 						if err != nil {
-							if errors.Is(err, EndGroup) {
+							if errors.Is(err, ErrEndGroup) {
 								return
 							}
 							c.Log.WithError(err).Error("[RawUpdateHandler]")
 						}
 					}()
 				} else {
-					if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+					if err := handle(handler); err != nil && errors.Is(err, ErrEndGroup) {
 						break
 					}
 				}
