@@ -95,7 +95,7 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 		}
 
 		if c.stopPropagation {
-			return EndGroup
+			return ErrEndGroup
 		}
 		return nil
 	}
@@ -136,7 +136,7 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 		}
 
 		if c.stopPropagation {
-			return EndGroup
+			return ErrEndGroup
 		}
 		return nil
 	}
@@ -176,7 +176,7 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 		}
 
 		if c.stopPropagation {
-			return EndGroup
+			return ErrEndGroup
 		}
 		return nil
 	}
@@ -225,7 +225,7 @@ func (c *Conversation) WaitClick() (*CallbackQuery, error) {
 		}
 
 		if c.stopPropagation {
-			return EndGroup
+			return ErrEndGroup
 		}
 		return nil
 	}
