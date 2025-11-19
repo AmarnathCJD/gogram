@@ -107,6 +107,7 @@ type ClientConfig struct {
 	ReqTimeout       int                  // Rpc request timeout in seconds (default: 60s)
 	UseWebSocket     bool                 // Use WebSocket transport instead of TCP
 	UseWebSocketTLS  bool                 // Use wss:// (WebSocket over TLS) instead of ws://
+	EnablePFS        bool                 // Enable Perfect Forward Secrecy using temporary auth keys
 }
 
 type Session struct {
@@ -203,6 +204,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		ReqTimeout:      config.ReqTimeout,
 		UseWebSocket:    config.UseWebSocket,
 		UseWebSocketTLS: config.UseWebSocketTLS,
+		EnablePFS:       config.EnablePFS,
 	}
 
 	if config.Proxy != nil {
