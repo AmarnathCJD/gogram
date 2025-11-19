@@ -526,7 +526,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 
 	m.startReadingResponses(ctx)
 
-	if !m.exported && !m.cdn {
+	if !m.cdn {
 		go m.longPing(ctx)
 	}
 
