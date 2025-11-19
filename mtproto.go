@@ -484,7 +484,9 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	if m.terminated.Load() {
 		return errors.New("mtproto is terminated, cannot create connection")
 	}
+
 	m.stopRoutines()
+	m.routineswg.Wait()
 
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.ctxCancel = cancelfunc
@@ -807,22 +809,20 @@ func (m *MTProto) Disconnect() error {
 
 func (m *MTProto) Terminate() error {
 	m.terminated.Store(true)
-	m.tcpState.SetActive(false)
-
 	m.stopRoutines()
+	m.tcpState.SetActive(false)
 	m.routineswg.Wait()
 	if m.transport != nil {
 		m.transport.Close()
 	}
-
 	m.responseChannels.Close()
-	if m.serviceChannel != nil {
-		select {
-		case <-m.serviceChannel:
-		default:
-		}
-		close(m.serviceChannel)
-	}
+	// if m.serviceChannel != nil {
+	// 	select {
+	// 	case <-m.serviceChannel:
+	// 	default:
+	// 	}
+	// 	close(m.serviceChannel)
+	// }
 
 	return nil
 }
