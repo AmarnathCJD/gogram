@@ -243,6 +243,8 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		totalParts++
 	}
 	totalPartsInt := int(totalParts)
+	uploadLog := newPartLogAggregator("upload", totalPartsInt, 3*time.Second)
+	defer uploadLog.Flush(c)
 
 	wg := sync.WaitGroup{}
 	numWorkers := countWorkers(int64(totalParts))
@@ -346,7 +348,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					retryWG.Done()
 				}()
 
-				for r := 0; r < MaxRetries; r++ {
+				for range MaxRetries {
 					sender := w.Next()
 					if sender == nil {
 						time.Sleep(50 * time.Millisecond)
@@ -376,15 +378,16 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 						if handleIfFlood(reqErr, c) {
 							continue
 						}
-						c.Log.Debug("retry upload part %d error: %v", partIdx, reqErr)
+						uploadLog.recordFailure(partIdx, reqErr, c)
 						continue
 					}
 
-					c.Log.Debug("retry uploaded part %d/%d len: %d KB", partIdx, totalParts, len(body)/1024)
 					markPartComplete(partIdx, len(body))
+					uploadLog.recordSuccess(partIdx, c)
 					return
 				}
 
+				uploadLog.recordFailure(partIdx, fmt.Errorf("retry exhausted"), c)
 				c.Log.Warn("retry upload part %d exhausted retries", partIdx)
 			}(partIndex, data)
 		}
@@ -491,12 +494,12 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 						if handleIfFlood(err, c) {
 							continue
 						}
-						c.Log.Debug("upload part %d error: %v", p, err)
+						uploadLog.recordFailure(int(p), err, c)
 						continue
 					}
 
-					c.Log.Debug("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024)
 					markPartComplete(int(p), len(part))
+					uploadLog.recordSuccess(int(p), c)
 					break
 				}
 			}(p, part)
@@ -554,12 +557,12 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					if handleIfFlood(err, c) {
 						continue
 					}
-					c.Log.Debug("upload part %d error: %v", p, err)
+					uploadLog.recordFailure(int(p), err, c)
 					continue
 				}
 
-				c.Log.Debug("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024)
 				markPartComplete(int(p), len(part))
+				uploadLog.recordSuccess(int(p), c)
 				break
 			}
 		}(p, part)
@@ -753,6 +756,8 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		totalParts++
 	}
 	totalPartsInt := int(totalParts)
+	downloadLog := newPartLogAggregator("download", totalPartsInt, 3*time.Second)
+	defer downloadLog.Flush(c)
 
 	numWorkers := countWorkers(parts)
 	if ops.Threads > 0 {
@@ -897,10 +902,12 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					continue
 				}
 				offset := int64(p * partSize)
-				c.Log.WithFields(map[string]any{
-					"part":    p,
-					"attempt": r + 1,
-				}).Debug("requesting download part")
+				if r == 0 {
+					c.Log.WithFields(map[string]any{
+						"part":    p,
+						"attempt": r + 1,
+					}).Trace("requesting download part")
+				}
 				reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 
 				part, err := sender.MakeRequestCtx(reqCtx, &UploadGetFileParams{
@@ -925,23 +932,18 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 						return // file reference expired, need to refetch ref
 					}
 
-					c.Log.WithError(err).
-						WithError(err).
-						WithFields(map[string]any{
-							"part":    p,
-							"attempt": r + 1,
-						}).Debug("download part failed, retrying")
+					downloadLog.recordFailure(p, err, c)
 					continue
 				}
 
 				switch v := part.(type) {
 				case *UploadFileObj:
-					c.Log.Debug("downloaded part %d/%d len: %d KB", p, totalParts, len(v.Bytes)/1024)
 					fs.WriteAt(v.Bytes, int64(p)*int64(partSize))
 					doneBytes.Add(int64(len(v.Bytes)))
 					if _, loaded := doneArray.LoadOrStore(p, true); !loaded {
 						doneParts.Add(1)
 					}
+					downloadLog.recordSuccess(p, c)
 				case *UploadFileCdnRedirect:
 					cdnRedirect.Store(true)
 				case nil:
@@ -1011,10 +1013,12 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 						continue
 					}
 					offset := int64(p * partSize)
-					c.Log.WithFields(map[string]any{
-						"part":    p,
-						"attempt": r + 1,
-					}).Debug("retry requesting download part")
+					if r == 0 {
+						c.Log.WithFields(map[string]any{
+							"part":    p,
+							"attempt": r + 1,
+						}).Trace("retry requesting download part")
+					}
 					reqCtx, cancel := context.WithTimeout(ctx, ctxTimeout)
 
 					part, err := sender.MakeRequestCtx(reqCtx, &UploadGetFileParams{
@@ -1038,22 +1042,18 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 							return
 						}
 
-						c.Log.WithError(err).WithFields(map[string]any{
-							"part":    p,
-							"attempt": r + 1,
-							"timeout": ctxTimeout,
-						}).Debug("retry download part failed, retrying")
+						downloadLog.recordFailure(p, err, c)
 						continue
 					}
 
 					switch v := part.(type) {
 					case *UploadFileObj:
-						c.Log.Debug("downloaded part %d/%d len: %d KB", p, totalParts, len(v.Bytes)/1024)
 						fs.WriteAt(v.Bytes, int64(p)*int64(partSize))
 						doneBytes.Add(int64(len(v.Bytes)))
 						if _, loaded := doneArray.LoadOrStore(p, true); !loaded {
 							doneParts.Add(1)
 						}
+						downloadLog.recordSuccess(p, c)
 					case *UploadFileCdnRedirect:
 						cdnRedirect.Store(true)
 					case nil:
@@ -1171,6 +1171,77 @@ func sampleParts(parts []int, limit int) []int {
 		return append([]int(nil), parts...)
 	}
 	return append([]int(nil), parts[:limit]...)
+}
+
+type partLogAggregator struct {
+	mu        sync.Mutex
+	ctx       string
+	total     int
+	interval  time.Duration
+	lastLog   time.Time
+	successes int
+	failures  int
+	lastPart  int
+	lastErr   error
+}
+
+func newPartLogAggregator(ctx string, total int, interval time.Duration) *partLogAggregator {
+	if interval <= 0 {
+		interval = 3 * time.Second
+	}
+	return &partLogAggregator{
+		ctx:      ctx,
+		total:    total,
+		interval: interval,
+		lastLog:  time.Now(),
+	}
+}
+
+func (a *partLogAggregator) recordSuccess(part int, c *Client) {
+	a.mu.Lock()
+	a.successes++
+	a.lastPart = part
+	a.maybeLogLocked(c)
+	a.mu.Unlock()
+}
+
+func (a *partLogAggregator) recordFailure(part int, err error, c *Client) {
+	a.mu.Lock()
+	a.failures++
+	a.lastPart = part
+	a.lastErr = err
+	a.maybeLogLocked(c)
+	a.mu.Unlock()
+}
+
+func (a *partLogAggregator) maybeLogLocked(c *Client) {
+	if time.Since(a.lastLog) < a.interval {
+		return
+	}
+	a.logLocked(c)
+}
+
+func (a *partLogAggregator) logLocked(c *Client) {
+	if a.successes == 0 && a.failures == 0 {
+		return
+	}
+	fields := map[string]any{
+		"success_parts": a.successes,
+		"failed_parts":  a.failures,
+		"last_part":     a.lastPart,
+		"total_parts":   a.total,
+	}
+	if a.lastErr != nil {
+		fields["last_error"] = a.lastErr.Error()
+	}
+	c.Log.WithFields(fields).Debug(a.ctx + " batch status")
+	a.lastLog = time.Now()
+}
+
+func (a *partLogAggregator) Flush(c *Client) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.logLocked(c)
 }
 
 func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error {
@@ -1689,7 +1760,7 @@ func humanizeSpeed(bps float64) string {
 
 func formatETAString(d time.Duration) string {
 	if d < 0 {
-		return "calculating..."
+		return "INFINITE"
 	}
 	if d == 0 {
 		return "done"

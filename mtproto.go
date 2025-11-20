@@ -1253,7 +1253,9 @@ messageTypeSwitching:
 	}
 
 	if m.pendingAcks.Len() >= 10 {
-		m.Logger.Debug("sending acks: %d", m.pendingAcks.Len())
+		if !m.exported {
+			m.Logger.Debug("sending acks: %d", m.pendingAcks.Len())
+		}
 
 		_, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: m.pendingAcks.Keys()})
 		if err != nil {
