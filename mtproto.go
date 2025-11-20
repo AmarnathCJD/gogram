@@ -416,6 +416,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 	}
 
 	sender, err := NewMTProto(cfg)
+	sender.genMsgID = m.genMsgID
 	if err != nil {
 		return nil, fmt.Errorf("creating new MTProto: %w", err)
 	}
@@ -955,7 +956,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						} else {
 							consecutiveErrors = 0
 						}
-					} else if strings.Contains(err.Error(), "required to reconnect!") {
+					} else if strings.Contains(err.Error(), "required to reconnect") {
 						m.Logger.Debug("network unstable, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
 							m.Addr, m.GetTransportType(), consecutiveErrors, delay)
 
@@ -1035,6 +1036,9 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					}
 
 					if !m.terminated.Load() {
+						if strings.Contains(err.Error(), "channel is full or closed") {
+							continue
+						}
 						m.Logger.WithError(err).Debug("reading messages")
 
 						delay := min(time.Duration(1<<uint(min(consecutiveErrors-1, 5)))*baseDelay, maxDelay)
@@ -1214,7 +1218,7 @@ messageTypeSwitching:
 		if v, ok := obj.(*objects.GzipPacked); ok {
 			obj = v.Obj
 		}
-		m.Logger.Debug("received rpc result for msg_id %d: %T", message.ReqMsgID, obj)
+		m.Logger.Debug("rpc: msg_id %d: %T", message.ReqMsgID, obj)
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			if strings.Contains(err.Error(), "no response channel found") {

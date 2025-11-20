@@ -14,6 +14,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -54,14 +55,16 @@ type clientData struct {
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
-	Cache        *CACHE
-	clientData   clientData
-	dispatcher   *UpdateDispatcher
-	wg           sync.WaitGroup
-	stopCh       chan struct{}
-	exSenders    *ExSenders
-	exportedKeys map[int]*AuthExportedAuthorization
-	Log          Logger
+	Cache                *CACHE
+	clientData           clientData
+	dispatcher           *UpdateDispatcher
+	wg                   sync.WaitGroup
+	stopCh               chan struct{}
+	exSenders            *ExSenders
+	exportedKeys         map[int]*AuthExportedAuthorization
+	exportedKeysMu       sync.Mutex
+	exportedAuthInflight map[int]*exportedAuthCall
+	Log                  Logger
 }
 
 type DeviceConfig struct {
@@ -470,6 +473,7 @@ type ExSender struct {
 	*mtproto.MTProto
 	lastUsed   time.Time
 	lastUsedMu sync.Mutex
+	busy       atomic.Bool
 }
 
 func NewExSender(mtProto *mtproto.MTProto) *ExSender {
@@ -483,6 +487,20 @@ func (es *ExSender) GetLastUsedTime() time.Time {
 	es.lastUsedMu.Lock()
 	defer es.lastUsedMu.Unlock()
 	return es.lastUsed
+}
+
+func (es *ExSender) TryAcquire() bool {
+	if es == nil {
+		return false
+	}
+	return es.busy.CompareAndSwap(false, true)
+}
+
+func (es *ExSender) Release() {
+	if es == nil {
+		return
+	}
+	es.busy.Store(false)
 }
 
 func NewExSenders() *ExSenders {
@@ -547,7 +565,8 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 	const retryLimit = 3 // Retry only once
 	var lastError error
 
-	var authParam = getVariadic(authParams, &AuthExportedAuthorization{})
+	var baseAuth = getVariadic(authParams, &AuthExportedAuthorization{})
+	authParam := cloneExportedAuth(baseAuth)
 
 	for retry := 0; retry <= retryLimit; retry++ {
 		c.Log.WithField("dc", dcID).Debug("creating exported sender")
@@ -585,24 +604,15 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 
 		if c.MTProto.GetDC() != exported.GetDC() {
 			var auth *AuthExportedAuthorization
-			if authParam.ID != 0 {
-				auth = &AuthExportedAuthorization{
-					ID:    authParam.ID,
-					Bytes: authParam.Bytes,
-				}
+			if authParam != nil && authParam.ID != 0 {
+				auth = authParam
 			} else {
-				c.Log.WithField("dc", exported.GetDC()).Info("exporting auth for data-center")
-				auth, err = c.AuthExportAuthorization(int32(exported.GetDC()))
+				auth, err = c.ensureExportedAuth(int32(exported.GetDC()))
 				if err != nil {
 					lastError = fmt.Errorf("exporting auth: %w", err)
 					c.Log.WithError(lastError).Error("error exporting auth")
 					continue
 				}
-
-				if c.exportedKeys == nil {
-					c.exportedKeys = make(map[int]*AuthExportedAuthorization)
-				}
-				c.exportedKeys[dcID] = auth
 			}
 
 			initialReq.Query = &AuthImportAuthorizationParams{
@@ -622,7 +632,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 
 		if err != nil {
 			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") {
-				authParam.ID = 0
+				authParam = nil
 				c.Log.Debug("auth bytes invalid, re-exporting auth")
 				continue
 			}
@@ -645,6 +655,71 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 	}
 
 	return nil, lastError
+}
+
+type exportedAuthCall struct {
+	done chan struct{}
+	auth *AuthExportedAuthorization
+	err  error
+}
+
+func cloneExportedAuth(src *AuthExportedAuthorization) *AuthExportedAuthorization {
+	if src == nil {
+		return nil
+	}
+	clone := &AuthExportedAuthorization{ID: src.ID}
+	if len(src.Bytes) > 0 {
+		clone.Bytes = make([]byte, len(src.Bytes))
+		copy(clone.Bytes, src.Bytes)
+	}
+	return clone
+}
+
+func (c *Client) ensureExportedAuth(dc int32) (*AuthExportedAuthorization, error) {
+	if dc == int32(c.GetDC()) {
+		return nil, nil
+	}
+
+	c.exportedKeysMu.Lock()
+	if c.exportedKeys == nil {
+		c.exportedKeys = make(map[int]*AuthExportedAuthorization)
+	}
+	if auth, ok := c.exportedKeys[int(dc)]; ok && auth != nil {
+		result := cloneExportedAuth(auth)
+		c.exportedKeysMu.Unlock()
+		c.Log.WithField("dc", dc).Debug("using cached exported auth")
+		return result, nil
+	}
+	if c.exportedAuthInflight == nil {
+		c.exportedAuthInflight = make(map[int]*exportedAuthCall)
+	}
+	if call, ok := c.exportedAuthInflight[int(dc)]; ok {
+		c.exportedKeysMu.Unlock()
+		<-call.done
+		return cloneExportedAuth(call.auth), call.err
+	}
+	call := &exportedAuthCall{done: make(chan struct{})}
+	c.exportedAuthInflight[int(dc)] = call
+	c.exportedKeysMu.Unlock()
+
+	c.Log.WithField("dc", dc).Debug("exporting new auth")
+	auth, err := c.AuthExportAuthorization(dc)
+
+	c.exportedKeysMu.Lock()
+	if err == nil {
+		cached := cloneExportedAuth(auth)
+		c.exportedKeys[int(dc)] = cached
+		call.auth = cached
+	}
+	if err != nil {
+		c.Log.WithError(err).WithField("dc", dc).Warn("exported auth failed")
+	}
+	call.err = err
+	close(call.done)
+	delete(c.exportedAuthInflight, int(dc))
+	result := cloneExportedAuth(call.auth)
+	c.exportedKeysMu.Unlock()
+	return result, err
 }
 
 // setLogLevel sets the log level for all loggers
