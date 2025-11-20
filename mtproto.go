@@ -639,11 +639,11 @@ func (m *MTProto) startPFSManager(ctx context.Context) {
 
 func (m *MTProto) connect(ctx context.Context) error {
 	dcId := m.GetDC()
-	transportType := "TCP"
+	transportType := "[tcp]"
 	if m.useWebSocket {
-		transportType = "WebSocket"
+		transportType = "[websocket]"
 		if m.useWebSocketTLS {
-			transportType = "WebSocket (TLS)"
+			transportType = "[websocket (tls)]"
 		}
 	}
 
@@ -764,15 +764,14 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 	case response := <-resp:
 		switch r := response.(type) {
 		case *objects.RpcError:
-			if err := RpcErrorToNative(r).(*ErrResponseCode); strings.Contains(err.Message, "FLOOD_WAIT_") || strings.Contains(err.Message, "FLOOD_PREMIUM_WAIT_") {
-				err.Message = fmt.Sprintf("{%s}", utils.FmtMethod(data))
+			if err := RpcErrorToNative(r, utils.FmtMethod(data)).(*ErrResponseCode); strings.Contains(err.Message, "FLOOD_WAIT_") || strings.Contains(err.Message, "FLOOD_PREMIUM_WAIT_") {
 				if done := m.floodHandler(err); !done {
-					return nil, RpcErrorToNative(r)
+					return nil, RpcErrorToNative(r, utils.FmtMethod(data))
 				} else {
 					return m.makeRequestCtx(ctx, data, expectedTypes...)
 				}
 			}
-			return nil, RpcErrorToNative(r)
+			return nil, RpcErrorToNative(r, utils.FmtMethod(data))
 
 		case *errorSessionConfigsChanged:
 			m.Logger.Debug("session configs changed, resending request")
@@ -896,7 +895,9 @@ func (m *MTProto) Ping() time.Duration {
 		return 0
 	}
 	start := time.Now()
-	m.Logger.Debug("sending ping...")
+	if !m.exported {
+		m.Logger.Debug("sending ping...")
+	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: time.Now().Unix(),
 	})
@@ -1199,7 +1200,9 @@ messageTypeSwitching:
 		return nil
 
 	case *objects.Pong:
-		m.Logger.Debug("received pong: %d", message.PingID)
+		if !m.exported {
+			m.Logger.Debug("received pong: %d", message.PingID)
+		}
 
 	case *objects.MsgsAck:
 		// do nothing
@@ -1218,7 +1221,9 @@ messageTypeSwitching:
 		if v, ok := obj.(*objects.GzipPacked); ok {
 			obj = v.Obj
 		}
-		m.Logger.Debug("rpc: msg_id %d: %T", message.ReqMsgID, obj)
+		if !m.exported {
+			m.Logger.Debug("[rpc] msg_id %d: %T", message.ReqMsgID, obj)
+		}
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			if strings.Contains(err.Error(), "no response channel found") {
