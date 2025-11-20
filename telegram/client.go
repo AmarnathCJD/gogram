@@ -602,12 +602,12 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 			Query:          &HelpGetConfigParams{},
 		}
 
-		if c.MTProto.GetDC() != exported.GetDC() {
+		if c.MTProto.GetDC() != dcID {
 			var auth *AuthExportedAuthorization
 			if authParam != nil && authParam.ID != 0 {
 				auth = authParam
 			} else {
-				auth, err = c.ensureExportedAuth(int32(exported.GetDC()))
+				auth, err = c.ensureExportedAuth(int32(dcID))
 				if err != nil {
 					lastError = fmt.Errorf("exporting auth: %w", err)
 					c.Log.WithError(lastError).Error("error exporting auth")
