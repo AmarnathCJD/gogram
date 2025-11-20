@@ -1,4 +1,4 @@
-package examples
+package main
 
 // ExampleMultiple demonstrates how to use multiple clients in a single application.
 
