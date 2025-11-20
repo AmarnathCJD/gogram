@@ -107,12 +107,20 @@ func (c *Client) SetChatMenuButton(userID int64, button *BotMenuButton) (bool, e
 
 // Broadcast walks through the update history and invokes callbacks for each unique user/chat.
 // It is intended for bots that need a lightweight way to collect peers for messaging.
-func (c *Client) Broadcast(ctx context.Context, userCallback func(User) error, chatCallback func(Chat) error) error {
+// An optional sleep threshold may be provided to slow down polling between difference requests.
+func (c *Client) Broadcast(ctx context.Context, userCallback func(User) error, chatCallback func(Chat) error, sleepThreshold ...time.Duration) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if userCallback == nil && chatCallback == nil {
 		return errors.New("broadcast: at least one callback must be provided")
+	}
+
+	delay := 150 * time.Millisecond
+	if len(sleepThreshold) > 0 && sleepThreshold[0] > 0 {
+		delay = sleepThreshold[0]
+	} else if c.clientData.sleepThresholdMs > 0 {
+		delay = time.Duration(c.clientData.sleepThresholdMs) * time.Millisecond
 	}
 
 	state, err := c.UpdatesGetState()
@@ -134,6 +142,15 @@ func (c *Client) Broadcast(ctx context.Context, userCallback func(User) error, c
 	for req.Pts < endPts {
 		if err := ctx.Err(); err != nil {
 			return err
+		}
+		if delay > 0 {
+			timer := time.NewTimer(delay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+			}
 		}
 
 		updates, err := c.MakeRequestCtx(ctx, req)
@@ -189,11 +206,6 @@ func (c *Client) Broadcast(ctx context.Context, userCallback func(User) error, c
 			req.Date = nextDate
 		}
 
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(150 * time.Millisecond):
-		}
 	}
 
 	return nil
