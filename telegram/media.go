@@ -216,7 +216,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	if src == nil {
 		return nil, errors.New("file can not be nil")
 	}
-	opts.ProgressManager = ensureProgressManager(opts.ProgressManager, opts.ProgressHandler, opts.ProgressInterval)
+	opts.ProgressManager = ensureProgressManager(opts.ProgressManager, opts.ProgressHandler, opts.ProgressInterval, true)
 
 	source := &Source{Source: src}
 	defer source.Close()
@@ -527,7 +527,8 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		part := make([]byte, partSize)
 		readBytes, err := io.ReadFull(file, part)
 		if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
-			c.Log.WithError(err).Error("reading file part")
+			c.Log.WithError(err).
+				Error("reading file part")
 			return nil, err
 		}
 		part = part[:readBytes]
@@ -587,7 +588,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 func handleIfFlood(err error, c *Client) bool {
 	if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
 		if waitTime := GetFloodWait(err); waitTime > 0 {
-			c.Log.Debug("flood wait detected, sleeping for", waitTime, "seconds")
+			c.Log.Debug("flood wait detected, sleeping for %d seconds", waitTime)
 			time.Sleep(time.Duration(waitTime) * time.Second)
 
 			if c.clientData.sleepThresholdMs > 0 {
@@ -696,7 +697,7 @@ func (mb *Destination) Close() error {
 
 func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, error) {
 	ops := getVariadic(Opts, &DownloadOptions{})
-	ops.ProgressManager = ensureProgressManager(ops.ProgressManager, ops.ProgressHandler, ops.ProgressInterval)
+	ops.ProgressManager = ensureProgressManager(ops.ProgressManager, ops.ProgressHandler, ops.ProgressInterval, false)
 
 	ctx := ops.Ctx
 	if ctx == nil {
@@ -780,7 +781,6 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		"dc":      dc,
 		"workers": numWorkers,
 		"parts":   totalPartsInt,
-		"chunk":   partSize,
 	}).Debug("download workers ready")
 
 	var sem = make(chan struct{}, numWorkers)
@@ -851,10 +851,9 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	MaxRetries := 3
 	var cdnRedirect atomic.Bool
 	c.Log.WithFields(map[string]any{
-		"parts":       totalPartsInt,
-		"workers":     numWorkers,
-		"chunk_bytes": partSize,
-		"dc":          dc,
+		"parts":   totalPartsInt,
+		"workers": numWorkers,
+		"dc":      dc,
 	}).Debug("dispatching download workers")
 
 	for p := int64(0); p < totalParts; p++ {
@@ -870,7 +869,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				wg.Done()
 			}()
 
-			for r := 0; r < MaxRetries; r++ {
+			for r := range MaxRetries {
 				if cancelled.Load() || cdnRedirect.Load() {
 					return
 				}
@@ -901,8 +900,6 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				c.Log.WithFields(map[string]any{
 					"part":    p,
 					"attempt": r + 1,
-					"offset":  offset,
-					"limit":   partSize,
 				}).Debug("requesting download part")
 				reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 
@@ -928,10 +925,12 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 						return // file reference expired, need to refetch ref
 					}
 
-					c.Log.WithError(err).WithFields(map[string]any{
-						"part":    p,
-						"attempt": r + 1,
-					}).Debug("download part failed, retrying")
+					c.Log.WithError(err).
+						WithError(err).
+						WithFields(map[string]any{
+							"part":    p,
+							"attempt": r + 1,
+						}).Debug("download part failed, retrying")
 					continue
 				}
 
@@ -955,11 +954,6 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		}(int(p))
 	}
 	wg.Wait()
-	c.Log.WithFields(map[string]any{
-		"file":       dest,
-		"done_parts": doneParts.Load(),
-		"total":      totalPartsInt,
-	}).Debug("initial download pass completed")
 
 	if cancelled.Load() {
 		if err := downloadErr.Load(); err != nil {
@@ -974,18 +968,8 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 	retryDownload := func(undone []int, ctxTimeout time.Duration) error {
 		if len(undone) == 0 {
-			c.Log.WithField("file", dest).Debug("retryDownload invoked with no parts; skipping")
 			return nil
 		}
-		c.Log.WithFields(map[string]any{
-			"file":        dest,
-			"dc":          dc,
-			"parts":       len(undone),
-			"timeout":     ctxTimeout,
-			"sample":      sampleParts(undone, 8),
-			"done_parts":  doneParts.Load(),
-			"total_parts": totalPartsInt,
-		}).Debug("retryDownload scheduling parts")
 		for _, p := range undone {
 			if cancelled.Load() || cdnRedirect.Load() {
 				return nil
@@ -1030,9 +1014,6 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					c.Log.WithFields(map[string]any{
 						"part":    p,
 						"attempt": r + 1,
-						"offset":  offset,
-						"limit":   partSize,
-						"timeout": ctxTimeout,
 					}).Debug("retry requesting download part")
 					reqCtx, cancel := context.WithTimeout(ctx, ctxTimeout)
 
@@ -1095,7 +1076,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 
 	if doneParts.Load() != int64(totalPartsInt) {
-		const maxRetryAttempts = 10
+		const maxRetryAttempts = 15
 		retryAttempt := 0
 		for {
 			if cancelled.Load() || cdnRedirect.Load() {
@@ -1114,12 +1095,6 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 			if retryAttempt >= maxRetryAttempts {
 				err := fmt.Errorf("download incomplete: %d parts failed after %d retries", len(undone), maxRetryAttempts)
-				c.Log.WithError(err).WithFields(map[string]any{
-					"undone_parts": undone,
-					"attempt":      retryAttempt,
-					"total_parts":  totalPartsInt,
-					"done_parts":   doneParts.Load(),
-				}).Error("download retry limit reached")
 				return "", err
 			}
 			retryAttempt++
@@ -1158,14 +1133,8 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				"done_parts":  doneParts.Load(),
 			}).Warn("download bytes complete but part tracker inconsistent; continuing")
 		} else {
-			undone := getUndoneParts(&doneArray, totalPartsInt)
 			missing := totalPartsInt - int(doneParts.Load())
 			err := fmt.Errorf("download incomplete: %d parts missing", missing)
-			c.Log.WithError(err).WithFields(map[string]any{
-				"undone_parts": undone,
-				"done_parts":   doneParts.Load(),
-				"total_parts":  totalPartsInt,
-			}).Error("download incomplete after retries")
 			return "", err
 		}
 	}
@@ -1183,8 +1152,6 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	if ops.Buffer != nil {
 		io.Copy(ops.Buffer, bytes.NewReader(fs.data))
 	}
-
-	c.Log.Debug("finalizing download to %s", dest)
 
 	return dest, nil
 }
@@ -1396,6 +1363,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int, cal
 }
 
 // ----------------------- Progress Manager -----------------------
+
 type ProgressManager struct {
 	mu           sync.Mutex
 	startTime    time.Time
@@ -1409,6 +1377,7 @@ type ProgressManager struct {
 		dataCenter int
 		numWorkers int
 	}
+	status          string
 	lastSampleBytes int64
 	lastSampleTime  time.Time
 	smoothedSpeed   float64
@@ -1425,7 +1394,6 @@ type ProgressSnapshot struct {
 	ETA            time.Duration
 	ETAString      string
 	ProgressBar    string
-	Status         string
 	RemainingBytes int64
 	StartedAt      time.Time
 	UpdatedAt      time.Time
@@ -1471,7 +1439,7 @@ func normalizeInterval(interval time.Duration) time.Duration {
 	return interval
 }
 
-func ensureProgressManager(base *ProgressManager, handler func(totalSize, currentSize int64), interval time.Duration) *ProgressManager {
+func ensureProgressManager(base *ProgressManager, handler func(totalSize, currentSize int64), interval time.Duration, up bool) *ProgressManager {
 	if base == nil && handler == nil {
 		return nil
 	}
@@ -1487,6 +1455,12 @@ func ensureProgressManager(base *ProgressManager, handler func(totalSize, curren
 	}
 	if handler != nil {
 		base.Edit(handler)
+	}
+
+	if up {
+		base.status = "[UL]"
+	} else {
+		base.status = "[DL]"
 	}
 	return base
 }
@@ -1605,10 +1579,7 @@ func (pm *ProgressManager) Snapshot(currentBytes int64) ProgressSnapshot {
 
 	elapsed := now.Sub(pm.lastSampleTime)
 	if elapsed >= 350*time.Millisecond {
-		deltaBytes := currentBytes - pm.lastSampleBytes
-		if deltaBytes < 0 {
-			deltaBytes = 0
-		}
+		deltaBytes := max(currentBytes-pm.lastSampleBytes, 0)
 		instantSpeed := 0.0
 		if elapsed > 0 {
 			instantSpeed = float64(deltaBytes) / elapsed.Seconds()
@@ -1623,21 +1594,12 @@ func (pm *ProgressManager) Snapshot(currentBytes int64) ProgressSnapshot {
 		pm.lastSampleTime = now
 	}
 
-	remaining := pm.totalSize - current
-	if remaining < 0 {
-		remaining = 0
-	}
+	remaining := max(pm.totalSize-current, 0)
 	etaDuration := time.Duration(-1)
 	if pm.smoothedSpeed > 0 && remaining > 0 {
 		etaDuration = time.Duration(float64(remaining)/pm.smoothedSpeed) * time.Second
 	} else if remaining == 0 && pm.totalSize > 0 {
 		etaDuration = 0
-	}
-
-	status := "Downloading"
-	if remaining == 0 && pm.totalSize > 0 {
-		status = "✅ Completed"
-		percent = 100
 	}
 
 	snapshot := ProgressSnapshot{
@@ -1650,7 +1612,6 @@ func (pm *ProgressManager) Snapshot(currentBytes int64) ProgressSnapshot {
 		ETA:            etaDuration,
 		ETAString:      formatETAString(etaDuration),
 		ProgressBar:    buildProgressBar(percent, 10),
-		Status:         status,
 		RemainingBytes: remaining,
 		StartedAt:      pm.startTime,
 		UpdatedAt:      now,
@@ -1666,12 +1627,11 @@ func (pm *ProgressManager) RenderSnapshot(currentBytes int64) string {
 	sizeMiB := float64(snap.TotalSize) / (1024 * 1024)
 	var builder strings.Builder
 	fmt.Fprintf(&builder, "<b>📄 Name:</b> <code>%s</code>\n", snap.FileName)
-	fmt.Fprintf(&builder, "<b>🈂️ DC ID:</b> <code>%d</code> <b>|</b> <b>⚡ Workers:</b> <code>%d</code>\n\n", snap.Meta.DataCenter, snap.Meta.NumWorkers)
+	fmt.Fprintf(&builder, "<b>🈂️ DC:</b> <code>%d</code> <b>| ⚡ Workers:</b> <code>%d</code> <b>| %s</b>\n\n", snap.Meta.DataCenter, snap.Meta.NumWorkers, pm.status)
 	fmt.Fprintf(&builder, "<b>💾 File Size:</b> <code>%.2f MiB</code>\n", sizeMiB)
 	fmt.Fprintf(&builder, "<b>⚙️ Progress:</b> %s <code>%.2f%%</code>\n", snap.ProgressBar, snap.Percentage)
 	fmt.Fprintf(&builder, "<b>⏱ Speed:</b> <code>%s</code>\n", snap.Speed)
 	fmt.Fprintf(&builder, "<b>⌛️ ETA:</b> <code>%s</code>\n", snap.ETAString)
-	fmt.Fprintf(&builder, "<b>Status:</b> <code>%s</code>", snap.Status)
 	return builder.String()
 }
 
@@ -1750,9 +1710,6 @@ func buildProgressBar(percent float64, width int) string {
 	if width <= 0 {
 		width = 10
 	}
-	filled := min(int(math.Round(percent/100*float64(width))), width)
-	if filled < 0 {
-		filled = 0
-	}
+	filled := max(min(int(math.Round(percent/100*float64(width))), width), 0)
 	return strings.Repeat("■", filled) + strings.Repeat("□", width-filled)
 }

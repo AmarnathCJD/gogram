@@ -19,7 +19,7 @@ type ErrResponseCode struct {
 	AdditionalInfo any // some errors has additional data like timeout seconds, dc id etc.
 }
 
-func RpcErrorToNative(r *objects.RpcError) error {
+func RpcErrorToNative(r *objects.RpcError, method ...string) error {
 	nativeErrorName, additionalData := TryExpandError(r.ErrorMessage)
 
 	desc, ok := errorMessages[nativeErrorName]
@@ -29,6 +29,10 @@ func RpcErrorToNative(r *objects.RpcError) error {
 
 	if additionalData != nil {
 		desc = fmt.Sprintf(desc, additionalData)
+	}
+
+	if len(method) > 0 {
+		desc = fmt.Sprintf("%s (method: %s)", desc, strings.Join(method, ", "))
 	}
 
 	return &ErrResponseCode{
