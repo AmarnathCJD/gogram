@@ -310,7 +310,9 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 		}
 
 		if !found {
-			senderNew, err := c.CreateExportedSender(int(dcID), false)
+			createCtx, createCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			senderNew, err := c.CreateExportedSender(createCtx, int(dcID), false)
+			createCancel()
 			if err != nil {
 				return nil, err
 			}

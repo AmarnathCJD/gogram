@@ -591,7 +591,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 func handleIfFlood(err error, c *Client) bool {
 	if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
 		if waitTime := GetFloodWait(err); waitTime > 0 {
-			c.Log.Debug("flood wait detected, sleeping for %d seconds", waitTime)
+			c.Log.Debug("[FLOOD WAIT] sender sleeping for %d seconds", waitTime)
 			time.Sleep(time.Duration(waitTime) * time.Second)
 
 			if c.clientData.sleepThresholdMs > 0 {
@@ -637,6 +637,61 @@ func chunkSizeCalc(size int64) int {
 	return 1024 * 1024 // 1MB
 }
 
+type adaptiveDelay struct {
+	mu           sync.Mutex
+	baselineMs   int64
+	currentMs    int64
+	floodCount   int64
+	lastAdjust   time.Time
+	adjustWindow time.Duration
+}
+
+func newAdaptiveDelay(size int64) *adaptiveDelay {
+	var baseline int64
+	if size > 2*1024*1024*1024 { // > 2GB
+		baseline = 420
+	} else if size > 1024*1024*1024 { // > 1GB
+		baseline = 340
+	} else {
+		baseline = 160
+	}
+	return &adaptiveDelay{
+		baselineMs:   baseline,
+		currentMs:    baseline,
+		adjustWindow: 5 * time.Second,
+		lastAdjust:   time.Now(),
+	}
+}
+
+func (ad *adaptiveDelay) get() time.Duration {
+	ad.mu.Lock()
+	defer ad.mu.Unlock()
+	return time.Duration(ad.currentMs) * time.Millisecond
+}
+
+func (ad *adaptiveDelay) recordFlood() {
+	ad.mu.Lock()
+	defer ad.mu.Unlock()
+	ad.floodCount++
+
+	now := time.Now()
+	if now.Sub(ad.lastAdjust) >= ad.adjustWindow {
+		if ad.floodCount > 0 {
+			ad.currentMs += 10 * int64(ad.floodCount/2+1)
+			if ad.currentMs > 500 { // cap at 500ms
+				ad.currentMs = 500
+			}
+		} else if ad.currentMs > ad.baselineMs {
+			ad.currentMs -= 50
+			if ad.currentMs < ad.baselineMs {
+				ad.currentMs = ad.baselineMs
+			}
+		}
+		ad.floodCount = 0
+		ad.lastAdjust = now
+	}
+}
+
 // ----------------------- Download Media -----------------------
 
 type DownloadOptions struct {
@@ -666,6 +721,8 @@ type DownloadOptions struct {
 	Ctx context.Context `json:"-"`
 	// Timeout for download operation to seize out
 	Timeout time.Duration `json:"-"`
+	// Delay between part downloads to prevent rate limits
+	Delay time.Duration `json:"-"`
 }
 
 type Destination struct {
@@ -772,10 +829,13 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		c.Log.Warn("downloading to buffer (memory) - use with caution (memory usage)")
 	}
 
+	adaptDelay := newAdaptiveDelay(size)
+
 	c.Log.WithFields(map[string]any{
 		"file_name": dest,
 		"file_size": SizetoHuman(size),
 		"parts":     parts,
+		"delay":     adaptDelay.get(),
 	}).Info("starting file download")
 
 	if err := initializeWorkers(numWorkers, dc, c, w); err != nil {
@@ -888,8 +948,6 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 						"worker_pool": numWorkers,
 					}
 					if waitDelay > 2*time.Second {
-						c.Log.WithFields(logFields).Warn("slow worker acquisition")
-					} else {
 						c.Log.WithFields(logFields).Debug("worker acquisition delay")
 					}
 				}
@@ -917,11 +975,14 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					Precise:      true,
 					CdnSupported: false,
 				})
+				time.Sleep(adaptDelay.get())
 				w.FreeWorker(sender)
 				cancel()
 
 				if err != nil {
 					if handleIfFlood(err, c) {
+						adaptDelay.recordFlood()
+						downloadLog.recordFailure(p, err, c)
 						continue
 					}
 
@@ -1028,11 +1089,14 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 						Precise:      true,
 						CdnSupported: false,
 					})
+					time.Sleep(adaptDelay.get())
 					w.FreeWorker(sender)
 					cancel()
 
 					if err != nil {
 						if handleIfFlood(err, c) {
+							adaptDelay.recordFlood()
+							downloadLog.recordFailure(p, err, c)
 							continue
 						}
 						if MatchError(err, "FILE_REFERENCE_EXPIRED") {
@@ -1314,7 +1378,7 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 	for range needed {
 		go func() {
 			defer wg.Done()
-			conn, err := c.CreateExportedSender(int(dc), false, authParams)
+			conn, err := c.CreateExportedSender(context.Background(), int(dc), false, authParams)
 			if err != nil || conn == nil {
 				errMu.Lock()
 				if err != nil {

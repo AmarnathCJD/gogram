@@ -189,13 +189,14 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 	}
 
 	cfg := mtproto.Config{
-		AppID:           config.AppID,
-		AuthKeyFile:     config.Session,
-		AuthAESKey:      config.SessionAESKey,
-		ServerHost:      toIpAddr(),
-		PublicKey:       config.PublicKeys[0],
-		DataCenter:      config.DataCenter,
-		Logger:          c.Log.CloneInternal().WithPrefix("gogram " + getLogPrefix("mtproto", config.SessionName)),
+		AppID:       config.AppID,
+		AuthKeyFile: config.Session,
+		AuthAESKey:  config.SessionAESKey,
+		ServerHost:  toIpAddr(),
+		PublicKey:   config.PublicKeys[0],
+		DataCenter:  config.DataCenter,
+		Logger: c.Log.CloneInternal().
+			WithPrefix("gogram " + getLogPrefix("mtproto", config.SessionName)),
 		StringSession:   config.StringSession,
 		LocalAddr:       config.LocalAddr,
 		MemorySession:   config.MemorySession,
@@ -276,20 +277,23 @@ func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
 
 // setupClientData sets up the client data from the config
 func (c *Client) setupClientData(cnf ClientConfig) {
-	c.clientData.appID = cnf.AppID
-	c.clientData.appHash = cnf.AppHash
-	c.clientData.deviceModel = getValue(cnf.DeviceConfig.DeviceModel, "gogram "+runtime.GOOS+" "+runtime.GOARCH)
-	c.clientData.systemVersion = getValue(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH)
-	c.clientData.appVersion = getValue(cnf.DeviceConfig.AppVersion, Version)
-	c.clientData.langCode = getValue(cnf.DeviceConfig.LangCode, "en")
-	c.clientData.systemLangCode = getValue(cnf.DeviceConfig.SystemLangCode, c.clientData.langCode) // backward compatibility
-	c.clientData.langPack = cnf.DeviceConfig.LangPack
-	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
-	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
-	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
-	c.clientData.albumWaitTime = getValue(cnf.AlbumWaitTime, 600)
-	c.clientData.commandPrefixes = getValue(cnf.CommandPrefixes, "/!")
-	c.clientData.proxy = cnf.Proxy
+	langCode := getValue(cnf.DeviceConfig.LangCode, "en")
+	c.clientData = clientData{
+		appID:            cnf.AppID,
+		appHash:          cnf.AppHash,
+		deviceModel:      getValue(cnf.DeviceConfig.DeviceModel, "gogram "+runtime.GOOS+" "+runtime.GOARCH),
+		systemVersion:    getValue(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
+		appVersion:       getValue(cnf.DeviceConfig.AppVersion, Version),
+		langCode:         langCode,
+		systemLangCode:   getValue(cnf.DeviceConfig.SystemLangCode, langCode),
+		langPack:         cnf.DeviceConfig.LangPack,
+		logLevel:         getValue(cnf.LogLevel, LogInfo),
+		parseMode:        getValue(cnf.ParseMode, "HTML"),
+		sleepThresholdMs: getValue(cnf.SleepThresholdMs, 0),
+		albumWaitTime:    getValue(cnf.AlbumWaitTime, 600),
+		commandPrefixes:  getValue(cnf.CommandPrefixes, "/!"),
+		proxy:            cnf.Proxy,
+	}
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
@@ -457,6 +461,11 @@ func (c *Client) Me() *UserObj {
 			return &UserObj{}
 		}
 		c.clientData.me = me
+		if c.Cache != nil {
+			if err := c.Cache.BindToUser(me.ID, c.clientData.appID); err != nil {
+				c.Log.WithError(err).Warn("failed to bind cache to user")
+			}
+		}
 	}
 
 	return c.clientData.me
@@ -558,11 +567,14 @@ func (es *ExSenders) Close() {
 }
 
 // CreateExportedSender creates a new exported sender for the given DC
-func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
+func (c *Client) CreateExportedSender(ctx context.Context, dcID int, cdn bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if dcID <= 0 {
 		return nil, errors.New("invalid data center ID")
 	}
-	const retryLimit = 3 // Retry only once
+	const retryLimit = 3
 	var lastError error
 
 	var baseAuth = getVariadic(authParams, &AuthExportedAuthorization{})
@@ -621,20 +633,40 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 			}
 		}
 
-		c.Log.Debug("sending initial request...")
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		_, err = exported.MakeRequestCtx(ctx, &InvokeWithLayerParams{
-			Layer: ApiVersion,
-			Query: initialReq,
-		})
-		cancel()
-		c.Log.WithField("dc", dcID).Debug("initial request for exported sender sent")
+		sent := func() error {
+			c.Log.Debug("sending initial request...")
+			reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+			_, reqErr := exported.MakeRequestCtx(reqCtx, &InvokeWithLayerParams{
+				Layer: ApiVersion,
+				Query: initialReq,
+			})
+			c.Log.WithField("dc", dcID).Debug("initial request for exported sender sent")
+			return reqErr
+		}
 
-		if err != nil {
-			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") {
+		authRetry := false
+	initialRequest:
+		if err = sent(); err != nil {
+			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") && !authRetry {
+				authRetry = true
 				authParam = nil
-				c.Log.Debug("auth bytes invalid, re-exporting auth")
-				continue
+				c.invalidateExportedAuth(int32(dcID))
+				c.Log.Debug("auth bytes invalid, re-exporting auth only")
+				if c.MTProto.GetDC() != dcID {
+					var reAuth *AuthExportedAuthorization
+					reAuth, err = c.ensureExportedAuth(int32(dcID))
+					if err != nil {
+						lastError = fmt.Errorf("exporting auth: %w", err)
+						c.Log.WithError(lastError).Error("error re-exporting auth")
+						break
+					}
+					initialReq.Query = &AuthImportAuthorizationParams{
+						ID:    reAuth.ID,
+						Bytes: reAuth.Bytes,
+					}
+				}
+				goto initialRequest
 			}
 
 			lastError = fmt.Errorf("making initial request: %w", err)
@@ -720,6 +752,15 @@ func (c *Client) ensureExportedAuth(dc int32) (*AuthExportedAuthorization, error
 	result := cloneExportedAuth(call.auth)
 	c.exportedKeysMu.Unlock()
 	return result, err
+}
+
+func (c *Client) invalidateExportedAuth(dc int32) {
+	c.exportedKeysMu.Lock()
+	defer c.exportedKeysMu.Unlock()
+	if c.exportedKeys != nil {
+		delete(c.exportedKeys, int(dc))
+	}
+	// let next ensureExportedAuth call re-export; callers will wait via exportedAuthInflight
 }
 
 // setLogLevel sets the log level for all loggers

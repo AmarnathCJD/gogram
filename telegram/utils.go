@@ -395,7 +395,7 @@ func GetErrorCode(err error) (int, int) {
 }
 
 var (
-	regexFloodWait        = regexp.MustCompile(`A wait of (\d+) seconds is required`)
+	regexFloodWait        = regexp.MustCompile(`Please wait (\d+) seconds before repeating the action`)
 	regexFloodWaitBasic   = regexp.MustCompile(`FLOOD_WAIT_(\d+)`)
 	regexFloodWaitPremium = regexp.MustCompile(`FLOOD_PREMIUM_WAIT_(\d+)`)
 )
