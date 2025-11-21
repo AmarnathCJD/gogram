@@ -1012,12 +1012,9 @@ func NewClientConfigBuilder(appID int32, appHash string) *ClientConfigBuilder {
 			AppID:   appID,
 			AppHash: appHash,
 			DeviceConfig: DeviceConfig{
-				DeviceModel:    "gogram " + runtime.GOOS + " " + runtime.GOARCH,
-				SystemVersion:  "go " + runtime.Version(),
-				AppVersion:     Version,
-				LangCode:       "en",
-				LangPack:       "desktop",
-				SystemLangCode: "en",
+				DeviceModel:   "IPhone",
+				SystemVersion: "17.0",
+				AppVersion:    Version,
 			},
 			DataCenter:    4,          // Default DC
 			ParseMode:     "HTML",     // Default parse mode
