@@ -26,7 +26,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 	}
 
 	if cfg.Logger != nil {
-		cfg.Logger.Debug("[tcp] connecting to %s", cfg.Host)
+		cfg.Logger.Trace("[tcp] connecting to %s", cfg.Host)
 	}
 
 	tcpPrefix := "tcp"
@@ -67,7 +67,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 	conn.SetKeepAlive(true)
 
 	if cfg.Logger != nil {
-		cfg.Logger.Debug("[tcp] connected to %s", cfg.Host)
+		cfg.Logger.Trace("[tcp] connected to %s", cfg.Host)
 	}
 
 	return &tcpConn{
