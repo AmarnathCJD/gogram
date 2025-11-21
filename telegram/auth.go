@@ -100,6 +100,16 @@ func (c *Client) LoginBot(botToken string) error {
 		return fmt.Errorf("importing bot authorization: %w", err)
 	}
 
+	if _, err := c.UpdatesGetState(); err != nil {
+		if dc, code := GetErrorCode(err); code == 303 {
+			if err := c.SwitchDc(dc); err != nil {
+				return fmt.Errorf("switching to DC %d: %w", dc, err)
+			}
+			return c.LoginBot(botToken)
+		}
+		return fmt.Errorf("getting updates state: %w", err)
+	}
+
 	c.clientData.botAcc = true
 	return nil
 }
