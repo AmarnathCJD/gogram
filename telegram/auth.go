@@ -91,23 +91,16 @@ func (c *Client) LoginBot(botToken string) error {
 
 	_, err := c.AuthImportBotAuthorization(1, c.AppID(), c.AppHash(), botToken)
 	if err != nil {
-		if dc, code := GetErrorCode(err); code == 303 {
-			if err := c.SwitchDc(dc); err != nil {
-				return fmt.Errorf("switching to DC %d: %w", dc, err)
-			}
+		if MatchError(err, "DC_MIGRATE") {
 			return c.LoginBot(botToken)
 		}
 		return fmt.Errorf("importing bot authorization: %w", err)
 	}
 
-	if _, err := c.UpdatesGetState(); err != nil {
-		if dc, code := GetErrorCode(err); code == 303 {
-			if err := c.SwitchDc(dc); err != nil {
-				return fmt.Errorf("switching to DC %d: %w", dc, err)
-			}
+	if is, err := c.IsAuthorized(); err != nil || !is {
+		if MatchError(err, "DC_MIGRATE") {
 			return c.LoginBot(botToken)
 		}
-		return fmt.Errorf("getting updates state: %w", err)
 	}
 
 	c.clientData.botAcc = true
@@ -133,11 +126,7 @@ func (c *Client) SendCode(phoneNumber string) (string, error) {
 			return c.SendCode(phoneNumber)
 		}
 
-		// handle dc migration
-		if dc, code := GetErrorCode(err); code == 303 {
-			if err := c.SwitchDc(dc); err != nil {
-				return "", fmt.Errorf("switching to DC %d: %w", dc, err)
-			}
+		if MatchError(err, "DC_MIGRATE") {
 			return c.SendCode(phoneNumber)
 		}
 

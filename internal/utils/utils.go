@@ -10,12 +10,17 @@ import (
 	"maps"
 	"net/url"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+)
+
+var (
+	RegexpDCMigrate = regexp.MustCompile(`DC (\d+)`)
 )
 
 // ------------------ Telegram Data Center Configs ------------------

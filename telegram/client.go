@@ -209,6 +209,10 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		UseWebSocket:    config.UseWebSocket,
 		UseWebSocketTLS: config.UseWebSocketTLS,
 		EnablePFS:       config.EnablePFS,
+		OnMigration: func(newMTProto *mtproto.MTProto) {
+			c.MTProto = newMTProto
+			c.InitialRequest()
+		},
 	}
 
 	if config.Proxy != nil {
@@ -374,7 +378,9 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("sending initial request: %w", err)
 	}
 
-	_, _ = c.GetMe()
+	if is, err := c.IsAuthorized(); err == nil && is {
+		_, _ = c.GetMe()
+	}
 	return err
 }
 
@@ -437,11 +443,9 @@ func (c *Client) Disconnect() error {
 // switchDC permanently switches the data center
 func (c *Client) SwitchDc(dcID int) error {
 	c.Log.Debug("switching to data center %d", dcID)
-	newDcSender, err := c.MTProto.SwitchDc(dcID)
-	if err != nil {
+	if err := c.MTProto.SwitchDc(dcID); err != nil {
 		return fmt.Errorf("reconnecting to new dc: %w", err)
 	}
-	c.MTProto = newDcSender
 	return c.InitialRequest()
 }
 
@@ -1012,8 +1016,8 @@ func NewClientConfigBuilder(appID int32, appHash string) *ClientConfigBuilder {
 			AppID:   appID,
 			AppHash: appHash,
 			DeviceConfig: DeviceConfig{
-				DeviceModel:   "IPhone",
-				SystemVersion: "17.0",
+				DeviceModel:   "iPhone 17 Pro",
+				SystemVersion: "iOS 26.0",
 				AppVersion:    Version,
 			},
 			DataCenter:    4,          // Default DC

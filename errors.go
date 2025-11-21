@@ -801,3 +801,15 @@ func (*errorSessionConfigsChanged) Error() string {
 func (*errorSessionConfigsChanged) CRC() uint32 {
 	return 0x00000000
 }
+
+type errorDCMigrated struct {
+	dc int32
+}
+
+func (e *errorDCMigrated) Error() string {
+	return fmt.Sprintf("[DC_MIGRATE] The DC was migrated to %d, need to repeat request", e.dc)
+}
+
+func (*errorDCMigrated) CRC() uint32 {
+	return 0x00000000
+}

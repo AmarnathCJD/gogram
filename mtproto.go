@@ -100,6 +100,8 @@ type MTProto struct {
 	useWebSocket    bool
 	useWebSocketTLS bool
 	enablePFS       bool
+
+	onMigration func(newMTProto *MTProto)
 }
 
 type Config struct {
@@ -128,6 +130,8 @@ type Config struct {
 	ReqTimeout      int
 	UseWebSocket    bool
 	UseWebSocketTLS bool
+
+	OnMigration func(newMTProto *MTProto)
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -185,6 +189,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		useWebSocket:          c.UseWebSocket,
 		useWebSocketTLS:       c.UseWebSocketTLS,
 		enablePFS:             c.EnablePFS,
+		onMigration:           c.OnMigration,
 	}
 
 	mtproto.Logger.Debug("initializing mtproto...")
@@ -336,50 +341,54 @@ func (m *MTProto) HasCdnKey(dc int32) (*rsa.PublicKey, bool) {
 	return key, ok
 }
 
-func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
+func (m *MTProto) SwitchDc(dc int) error {
 	if m.noRedirect {
-		return m, nil
+		return nil
 	}
 	newAddr := m.DcList.GetHostIp(dc, false, m.IpV6)
 	if newAddr == "" {
-		return nil, errors.New("dc_id not found")
+		return errors.New("dc_id not found")
 	}
 
 	m.Logger.Debug("migrating to new data center... dc %d", dc)
+
+	m.stopRoutines()
+	m.routineswg.Wait()
+
 	m.sessionStorage.Delete()
 	m.Logger.Debug("deleted old auth key file")
 
-	cfg := Config{
-		DataCenter:      dc,
-		PublicKey:       m.publicKey,
-		ServerHost:      newAddr,
-		AuthKeyFile:     m.sessionStorage.Path(),
-		AuthAESKey:      m.sessionStorage.Key(),
-		MemorySession:   m.memorySession,
-		Logger:          m.Logger,
-		Proxy:           m.proxy,
-		LocalAddr:       m.localAddr,
-		AppID:           m.appID,
-		Ipv6:            m.IpV6,
-		Timeout:         int(m.timeout.Seconds()),
-		ReqTimeout:      int(m.reqTimeout.Seconds()),
-		UseWebSocket:    m.useWebSocket,
-		UseWebSocketTLS: m.useWebSocketTLS,
-	}
+	m.authKey = nil
+	m.authKeyHash = nil
+	m.serverSalt = 0
+	m.encrypted = false
+	m.sessionId = utils.GenerateSessionID()
 
-	sender, err := NewMTProto(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("creating new MTProto: %w", err)
-	}
-	sender.serverRequestHandlers = m.serverRequestHandlers
-	m.stopRoutines()
+	m.tempAuthKey = nil
+	m.tempAuthKeyHash = nil
+	m.tempAuthExpiresAt = 0
+
+	m.responseChannels = utils.NewSyncIntObjectChan()
+	m.expectedTypes = utils.NewSyncIntReflectTypes()
+	m.pendingAcks = utils.NewSyncSet[int64]()
+	m.currentSeqNo.Store(0)
+
+	m.authKey404 = [2]int64{0, 0}
+	m.reconnectAttempts = 0
+	m.rapidReconnectCount = 0
+	m.lastSuccessfulConnect = time.Time{}
+
+	m.Addr = newAddr
+
 	m.Logger.Info("user migrated to new dc (%s) - %s", strconv.Itoa(dc), newAddr)
 	m.Logger.Debug("reconnecting to new dc... dc %d", dc)
-	errConn := sender.CreateConnection(true)
+
+	errConn := m.CreateConnection(true)
 	if errConn != nil {
-		return nil, fmt.Errorf("creating connection: %w", errConn)
+		return fmt.Errorf("creating connection: %w", errConn)
 	}
-	return sender, nil
+
+	return nil
 }
 
 func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, error) {
@@ -764,14 +773,41 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 	case response := <-resp:
 		switch r := response.(type) {
 		case *objects.RpcError:
-			if err := RpcErrorToNative(r, utils.FmtMethod(data)).(*ErrResponseCode); strings.Contains(err.Message, "FLOOD_WAIT_") || strings.Contains(err.Message, "FLOOD_PREMIUM_WAIT_") {
-				if done := m.floodHandler(err); !done {
-					return nil, RpcErrorToNative(r, utils.FmtMethod(data))
-				} else {
-					return m.makeRequestCtx(ctx, data, expectedTypes...)
+			rpcError := RpcErrorToNative(r, utils.FmtMethod(data)).(*ErrResponseCode)
+
+			// handle dc migration (303 errors)
+			if rpcError.Code == 303 && (strings.HasPrefix(rpcError.Message, "USER_MIGRATE_") || strings.HasPrefix(rpcError.Message, "PHONE_MIGRATE_")) {
+				dcIDStr := utils.RegexpDCMigrate.FindStringSubmatch(rpcError.Description)
+				if len(dcIDStr) == 2 {
+					dcID, err := strconv.Atoi(dcIDStr[1])
+					if err != nil {
+						return nil, fmt.Errorf("parsing dc id from rpc error: %w", err)
+					}
+					m.SwitchDc(dcID)
+
+					if m.onMigration != nil {
+						m.onMigration(m)
+					}
+					return nil, &errorDCMigrated{int32(dcID)}
 				}
 			}
-			return nil, RpcErrorToNative(r, utils.FmtMethod(data))
+
+			// Handle flood wait errors
+			if strings.Contains(rpcError.Message, "FLOOD_WAIT_") || strings.Contains(rpcError.Message, "FLOOD_PREMIUM_WAIT_") {
+				if m.floodHandler(rpcError) {
+					return m.makeRequestCtx(ctx, data, expectedTypes...)
+				}
+				return nil, rpcError
+			}
+
+			logMessage := fmt.Sprintf("rpc error for %s: %s", utils.FmtMethod(data), rpcError.Message)
+			if rpcError.Code >= 500 {
+				m.Logger.Error(logMessage)
+			} else {
+				m.Logger.Debug(logMessage)
+			}
+
+			return nil, rpcError
 
 		case *errorSessionConfigsChanged:
 			m.Logger.Debug("session configs changed, resending request")
