@@ -800,13 +800,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 				return nil, rpcError
 			}
 
-			logMessage := fmt.Sprintf("rpc error for %s: %s", utils.FmtMethod(data), rpcError.Message)
-			if rpcError.Code >= 500 {
-				m.Logger.Error(logMessage)
-			} else {
-				m.Logger.Debug(logMessage)
-			}
-
+			m.Logger.Trace("received rpc error: code=%d message=%s description=%s", rpcError.Code, rpcError.Message, rpcError.Description)
 			return nil, rpcError
 
 		case *errorSessionConfigsChanged:
