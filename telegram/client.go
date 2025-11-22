@@ -638,14 +638,14 @@ func (c *Client) CreateExportedSender(ctx context.Context, dcID int, cdn bool, a
 		}
 
 		sent := func() error {
-			c.Log.Debug("sending initial request...")
+			c.Log.Trace("sending initial request...")
 			reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			defer cancel()
 			_, reqErr := exported.MakeRequestCtx(reqCtx, &InvokeWithLayerParams{
 				Layer: ApiVersion,
 				Query: initialReq,
 			})
-			c.Log.WithField("dc", dcID).Debug("initial request for exported sender sent")
+			c.Log.WithField("dc", dcID).Trace("initial request for exported sender sent")
 			return reqErr
 		}
 
@@ -686,6 +686,8 @@ func (c *Client) CreateExportedSender(ctx context.Context, dcID int, cdn bool, a
 			time.Sleep(200 * time.Millisecond)
 			continue
 		}
+
+		c.Log.WithField("dc", dcID).Debug("exported sender created successfully")
 
 		return exported, nil
 	}

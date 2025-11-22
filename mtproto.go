@@ -804,7 +804,11 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 			return nil, rpcError
 
 		case *errorSessionConfigsChanged:
-			m.Logger.Debug("session configs changed, resending request")
+			if !m.exported {
+				m.Logger.Debug("session configs changed, resending request")
+			} else {
+				m.Logger.Trace("session configs changed, resending request")
+			}
 			return m.makeRequestCtx(ctx, data, expectedTypes...)
 		}
 
@@ -1033,10 +1037,13 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				case io.EOF:
 					consecutiveErrors++
 					delay := min(time.Duration(1<<uint(min(consecutiveErrors-1, 5)))*baseDelay, maxDelay)
-
-					m.Logger.Debug("eof error, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
-						m.Addr, m.GetTransportType(), consecutiveErrors, delay)
-
+					if m.exported {
+						m.Logger.Trace("eof error, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
+							m.Addr, m.GetTransportType(), consecutiveErrors, delay)
+					} else {
+						m.Logger.Debug("eof error, reconnecting to [%s] - <%s> (attempt %d, backoff %v)...",
+							m.Addr, m.GetTransportType(), consecutiveErrors, delay)
+					}
 					select {
 					case <-ctx.Done():
 						return
