@@ -44,10 +44,13 @@ func main() {
 }
 
 func convEventHandler(m *telegram.NewMessage) error {
-	response, err := m.Ask("What's your name?")
+	sent, response, err := m.Ask("What's your name?")
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("Sent message:", sent.Text())
+	fmt.Println("Response message:", response.Text())
 
 	response.Reply("Nice to meet you, " + response.Text())
 	return nil
