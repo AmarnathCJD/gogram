@@ -166,8 +166,8 @@ func (pu *ParticipantUpdate) IsDemoted() bool {
 	return false
 }
 
-func (pu *ParticipantUpdate) Marshal(nointent ...bool) string {
-	return pu.Client.JSON(pu.OriginalUpdate, nointent)
+func (pu *ParticipantUpdate) Marshal(noindent ...bool) string {
+	return pu.Client.JSON(pu.OriginalUpdate, noindent)
 }
 
 func (pu *ParticipantUpdate) Ban() (bool, error) {
@@ -275,11 +275,11 @@ func (jru *JoinRequestUpdate) ChannelID() int64 {
 	return 0
 }
 
-func (jru *JoinRequestUpdate) Marshal(nointent ...bool) string {
+func (jru *JoinRequestUpdate) Marshal(noindent ...bool) string {
 	if jru.OriginalUpdate != nil {
-		return jru.Client.JSON(jru.OriginalUpdate, nointent)
+		return jru.Client.JSON(jru.OriginalUpdate, noindent)
 	} else if jru.BotOriginalUpdate != nil {
-		return jru.Client.JSON(jru.BotOriginalUpdate, nointent)
+		return jru.Client.JSON(jru.BotOriginalUpdate, noindent)
 	}
 	return ""
 }

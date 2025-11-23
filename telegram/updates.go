@@ -1897,7 +1897,7 @@ UpdateTypeSwitching:
 	case *UpdatesTooLong:
 		go c.FetchDifference(c.dispatcher.GetPts(), 5000)
 	default:
-		c.Log.Debug("unknown update skipped: %v", reflect.TypeOf(upd))
+		c.Log.Debug("unknown update skipped: %T", upd)
 	}
 	return true
 }
@@ -2241,7 +2241,7 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 		if channel != nil {
 			accessHash = channel.AccessHash
 		} else {
-			c.Log.Error(fmt.Sprintf("channel difference failed (channel=%d): no access hash", channelID))
+			c.Log.Error("channel difference failed (channel=%d): no access hash", channelID)
 			return
 		}
 	}
@@ -2420,7 +2420,7 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 			}
 			return c.AddMessageHandler(OnNewMessage, h, filters...)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*NewMessage) error")
+			c.Log.Error("bad handler: got %T, want func(*NewMessage) error", handler)
 		}
 	case OnCommand, OnCommandShort:
 		if h, ok := handler.(func(m *NewMessage) error); ok {
@@ -2429,13 +2429,13 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 			}
 			return c.AddMessageHandler(OnNewMessage, h, filters...)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*NewMessage) error")
+			c.Log.Error("bad handler: got %T, want func(*NewMessage) error", handler)
 		}
 	case OnAction:
 		if h, ok := handler.(func(m *NewMessage) error); ok {
 			return c.AddActionHandler(h)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*NewMessage) error")
+			c.Log.Error("bad handler: got %T, want func(*NewMessage) error", handler)
 		}
 	case OnEdit, OnEditMessage:
 		if h, ok := handler.(func(m *NewMessage) error); ok {
@@ -2444,7 +2444,7 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 			}
 			return c.AddEditHandler(OnEditMessage, h)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*NewMessage) error")
+			c.Log.Error("bad handler: got %T, want func(*NewMessage) error", handler)
 		}
 	case OnDelete, OnDeleteMessage:
 		if h, ok := handler.(func(m *DeleteMessage) error); ok {
@@ -2453,13 +2453,13 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 			}
 			return c.AddDeleteHandler(OnDeleteMessage, h)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*DeleteMessage) error")
+			c.Log.Error("bad handler: got %T, want func(*DeleteMessage) error", handler)
 		}
 	case OnAlbum:
 		if h, ok := handler.(func(m *Album) error); ok {
 			return c.AddAlbumHandler(h)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*Album) error")
+			c.Log.Error("bad handler: got %T, want func(*Album) error", handler)
 		}
 	case OnInline, OnInlineQuery:
 		if h, ok := handler.(func(m *InlineQuery) error); ok {
@@ -2468,13 +2468,13 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 			}
 			return c.AddInlineHandler(OnInlineQuery, h)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*InlineQuery) error")
+			c.Log.Error("bad handler: got %T, want func(*InlineQuery) error", handler)
 		}
 	case OnChosenInline:
 		if h, ok := handler.(func(m *InlineSend) error); ok {
 			return c.AddInlineSendHandler(h)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*InlineSend) error")
+			c.Log.Error("bad handler: got %T, want func(*InlineSend) error", handler)
 		}
 	case OnCallback, OnCallbackQuery:
 		if h, ok := handler.(func(m *CallbackQuery) error); ok {
@@ -2483,7 +2483,7 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 			}
 			return c.AddCallbackHandler(OnCallbackQuery, h)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*CallbackQuery) error")
+			c.Log.Error("bad handler: got %T, want func(*CallbackQuery) error", handler)
 		}
 	case OnInlineCallback, OnInlineCallbackQuery, "inlineCallback":
 		if h, ok := handler.(func(m *InlineCallbackQuery) error); ok {
@@ -2492,25 +2492,25 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 			}
 			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, h)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*InlineCallbackQuery) error")
+			c.Log.Error("bad handler: got %T, want func(*InlineCallbackQuery) error", handler)
 		}
 	case OnParticipant:
 		if h, ok := handler.(func(m *ParticipantUpdate) error); ok {
 			return c.AddParticipantHandler(h)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*ParticipantUpdate) error")
+			c.Log.Error("bad handler: got %T, want func(*ParticipantUpdate) error", handler)
 		}
 	case OnJoinRequest:
 		if h, ok := handler.(func(m *JoinRequestUpdate) error); ok {
 			return c.AddJoinRequestHandler(h)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*JoinRequestUpdate) error")
+			c.Log.Error("bad handler: got %T, want func(*JoinRequestUpdate) error", handler)
 		}
 	case OnRaw, "*":
 		if h, ok := handler.(func(m Update, c *Client) error); ok {
 			return c.AddRawHandler(nil, h)
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(Update, *Client) error")
+			c.Log.Error("bad handler: got %T, want func(Update, *Client) error", handler)
 		}
 	default:
 		if update, ok := pattern.(Update); ok {
@@ -2518,7 +2518,7 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 				return c.AddRawHandler(update, h)
 			}
 		} else {
-			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(Update, *Client) error")
+			c.Log.Error("bad handler: got %T, want func(Update, *Client) error", handler)
 		}
 	}
 
