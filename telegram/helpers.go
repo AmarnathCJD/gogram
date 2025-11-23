@@ -204,22 +204,57 @@ func calculateSha256Hash(localFile string) (string, error) {
 
 func processUpdates(updates Updates) []Message {
 	var messages []Message
+	processMessage := func(upd Update) {
+		switch update := upd.(type) {
+		case *UpdateNewMessage:
+			messages = append(messages, update.Message.(*MessageObj))
+		case *UpdateNewChannelMessage:
+			messages = append(messages, update.Message.(*MessageObj))
+		case *UpdateEditMessage:
+			messages = append(messages, update.Message.(*MessageObj))
+		case *UpdateEditChannelMessage:
+			messages = append(messages, update.Message.(*MessageObj))
+		case *UpdateBotEditBusinessMessage:
+			messages = append(messages, update.Message.(*MessageObj))
+		}
+	}
+
 	switch updates := updates.(type) {
 	case *UpdatesObj:
 		for _, update := range updates.Updates {
-			switch update := update.(type) {
-			case *UpdateNewMessage:
-				messages = append(messages, update.Message.(*MessageObj))
-			case *UpdateNewChannelMessage:
-				messages = append(messages, update.Message.(*MessageObj))
-			case *UpdateEditMessage:
-				messages = append(messages, update.Message.(*MessageObj))
-			case *UpdateEditChannelMessage:
-				messages = append(messages, update.Message.(*MessageObj))
-			case *UpdateBotEditBusinessMessage:
-				messages = append(messages, update.Message.(*MessageObj))
-			}
+			processMessage(update)
 		}
+	case *UpdateShort:
+		processMessage(updates.Update)
+	case *UpdateShortSentMessage:
+		processMessage(&UpdateNewMessage{
+			Message: &MessageObj{
+				ID:        updates.ID,
+				Date:      updates.Date,
+				Out:       updates.Out,
+				Media:     updates.Media,
+				Entities:  updates.Entities,
+				TtlPeriod: updates.TtlPeriod,
+			},
+		})
+	case *UpdateShortMessage:
+		processMessage(&UpdateNewMessage{
+			Message: &MessageObj{
+				Out:         updates.Out,
+				ID:          updates.ID,
+				PeerID:      &PeerUser{},
+				Date:        updates.Date,
+				Entities:    updates.Entities,
+				TtlPeriod:   updates.TtlPeriod,
+				ReplyTo:     updates.ReplyTo,
+				FromID:      &PeerUser{UserID: updates.UserID},
+				ViaBotID:    updates.ViaBotID,
+				Message:     updates.Message,
+				MediaUnread: updates.MediaUnread,
+				Silent:      updates.Silent,
+				FwdFrom:     updates.FwdFrom,
+			},
+		})
 	}
 	return messages
 }

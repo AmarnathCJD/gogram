@@ -241,6 +241,7 @@ func (b *CallbackQuery) ForwardTo(ChatID int64, options ...*ForwardOptions) (*Ne
 	if len(m) == 0 {
 		return nil, fmt.Errorf("message not found")
 	}
+	m[0].Message.PeerID = b.Peer
 	return &m[0], nil
 }
 
