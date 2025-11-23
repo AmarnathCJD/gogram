@@ -351,7 +351,7 @@ func (m *MTProto) SwitchDc(dc int) error {
 	m.Logger.Debug("migrating to new data center... dc %d", dc)
 
 	m.stopRoutines()
-	m.routineswg.Wait()
+	// m.routineswg.Wait()
 
 	m.sessionStorage.Delete()
 	m.Logger.Debug("deleted old auth key file")
