@@ -275,6 +275,77 @@ func (jru *JoinRequestUpdate) ChannelID() int64 {
 	return 0
 }
 
+func (jru *JoinRequestUpdate) UserIDs() []int64 {
+	ids := make([]int64, 0, len(jru.Users))
+	for _, u := range jru.Users {
+		ids = append(ids, u.ID)
+	}
+	return ids
+}
+
+func (jru *JoinRequestUpdate) IsEmpty() bool {
+	return len(jru.Users) == 0
+}
+
+func (jru *JoinRequestUpdate) HasUser(userID int64) bool {
+	for _, u := range jru.Users {
+		if u.ID == userID {
+			return true
+		}
+	}
+	return false
+}
+
+func (jru *JoinRequestUpdate) GetPeer() (Peer, error) {
+	if jru.OriginalUpdate != nil {
+		return jru.OriginalUpdate.Peer, nil
+	} else if jru.BotOriginalUpdate != nil {
+		return jru.BotOriginalUpdate.Peer, nil
+	}
+	return nil, errors.New("peer not found")
+}
+
+func (jru *JoinRequestUpdate) GetInputPeer() (InputPeer, error) {
+	peer, err := jru.GetPeer()
+	if err != nil {
+		return nil, err
+	}
+	return jru.Client.GetSendablePeer(peer)
+}
+
+func (jru *JoinRequestUpdate) Approve(userID int64) (bool, error) {
+	if jru.Channel == nil && jru.Chat == nil {
+		return false, errors.New("channel/chat is nil")
+	}
+	peer, err := jru.GetInputPeer()
+	if err != nil {
+		return false, err
+	}
+
+	user, err := jru.Client.GetSendableUser(userID)
+	if err != nil {
+		return false, err
+	}
+	_, err = jru.Client.MessagesHideChatJoinRequest(true, peer, user)
+	return err == nil, err
+}
+
+func (jru *JoinRequestUpdate) Decline(userID int64) (bool, error) {
+	if jru.Channel == nil && jru.Chat == nil {
+		return false, errors.New("channel/chat is nil")
+	}
+	peer, err := jru.GetInputPeer()
+	if err != nil {
+		return false, err
+	}
+	user, err := jru.Client.GetSendableUser(userID)
+	if err != nil {
+		return false, err
+	}
+	_, err = jru.Client.MessagesHideChatJoinRequest(false, peer, user)
+	return err == nil, err
+}
+
 func (jru *JoinRequestUpdate) Marshal(noindent ...bool) string {
 	if jru.OriginalUpdate != nil {
 		return jru.Client.JSON(jru.OriginalUpdate, noindent)

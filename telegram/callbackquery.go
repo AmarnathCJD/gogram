@@ -154,7 +154,8 @@ func (b *CallbackQuery) Conv(timeout ...int32) (*Conversation, error) {
 }
 
 // Ask starts new conversation with the user
-func (b *CallbackQuery) Ask(Text any, Opts ...*SendOptions) (*NewMessage, error) {
+// returns the sent message and the response message
+func (b *CallbackQuery) Ask(Text any, Opts ...*SendOptions) (*NewMessage, *NewMessage, error) {
 	var opt = getVariadic(Opts, &SendOptions{})
 	if opt.Timeouts == 0 {
 		opt.Timeouts = 120 // default timeout
@@ -162,17 +163,18 @@ func (b *CallbackQuery) Ask(Text any, Opts ...*SendOptions) (*NewMessage, error)
 
 	conv, err := b.Conv(opt.Timeouts)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	defer conv.Close()
 
-	_, err = conv.Respond(Text, Opts...)
+	msg, err := conv.Respond(Text, Opts...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return conv.GetResponse()
+	resp, err := conv.GetResponse()
+	return msg, resp, err
 }
 
 func (b *CallbackQuery) WaitClick(timeout ...int32) (*CallbackQuery, error) {
