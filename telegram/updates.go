@@ -898,8 +898,14 @@ func (c *Client) handleDeleteUpdate(update Update) {
 	}
 }
 
-func (c *Client) handleJoinRequestUpdate(update *UpdatePendingJoinRequests) {
-	packed := packJoinRequest(c, update)
+func (c *Client) handleJoinRequestUpdate(update Update) {
+	var packed *JoinRequestUpdate
+	switch u := update.(type) {
+	case *UpdateBotChatInviteRequester:
+		packed = packBotChatJoinRequest(c, u)
+	case *UpdatePendingJoinRequests:
+		packed = packJoinRequest(c, u)
+	}
 
 	c.dispatcher.RLock()
 	joinRequestHandles := make(map[int][]*joinRequestHandle)
@@ -1835,7 +1841,7 @@ UpdateTypeSwitching:
 				go c.handleInlineCallbackUpdate(update)
 			case *UpdateChannelParticipant:
 				go c.handleParticipantUpdate(update)
-			case *UpdatePendingJoinRequests:
+			case *UpdatePendingJoinRequests, *UpdateBotChatInviteRequester:
 				go c.handleJoinRequestUpdate(update)
 			case *UpdateBotInlineSend:
 				go c.handleInlineSendUpdate(update)
@@ -1882,6 +1888,12 @@ UpdateTypeSwitching:
 		u = upd.Updates
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
 		goto UpdateTypeSwitching
+	case *UpdateChannelTooLong:
+		currentPts := c.dispatcher.GetChannelPts(upd.ChannelID)
+		if upd.Pts != 0 {
+			currentPts = upd.Pts
+		}
+		go c.FetchChannelDifference(upd.ChannelID, currentPts, 50)
 	case *UpdatesTooLong:
 		go c.FetchDifference(c.dispatcher.GetPts(), 5000)
 	default:
@@ -2487,7 +2499,7 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 		} else {
 			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*ParticipantUpdate) error")
 		}
-	case OnRaw:
+	case OnRaw, "*":
 		if h, ok := handler.(func(m Update, c *Client) error); ok {
 			return c.AddRawHandler(nil, h)
 		} else {
