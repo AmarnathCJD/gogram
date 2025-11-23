@@ -525,6 +525,10 @@ mediaTypeSwitch:
 				if attr.ProgressManager != nil {
 					uploadOpts.ProgressManager = attr.ProgressManager
 				}
+				uploadOpts.ProgressInterval = attr.ProgressInterval
+				if attr.ProgressCallback != nil {
+					uploadOpts.ProgressCallback = attr.ProgressCallback
+				}
 				uploadOpts.Threads = attr.UploadThreads
 
 				mediaFile, err = c.UploadFile(media, uploadOpts)

@@ -14,31 +14,33 @@ import (
 )
 
 type SendOptions struct {
-	Attributes      []DocumentAttribute // attributes of the file
-	MimeType        string              // mime type of the file
-	Caption         any                 // caption for the media (takes array of strings or a NewMessage)
-	ClearDraft      bool                // to clear the draft after sending
-	Entities        []MessageEntity     // message formatting entities
-	FileName        string              // file name to be used
-	ForceDocument   bool                // to force the file to be sent as a document
-	InvertMedia     bool                // show media below the caption
-	LinkPreview     bool                // to enable link preview
-	Media           any                 // media to be sent (e.g., photo, video, document)
-	NoForwards      bool                // to disable forwarding (restrict saving)
-	ParseMode       string              // parse mode for the caption (markdown or html)
-	ReplyID         int32               // reply to message ID
-	TopicID         int32               // topic ID for the message to be sent
-	ReplyMarkup     ReplyMarkup         // keyboard to send with the message
-	ScheduleDate    int32               // schedule date for the message
-	SendAs          any                 // to send the message as a different peer
-	Silent          bool                // to send the message silently
-	Thumb           any                 // thumbnail of the file
-	TTL             int32               // time to live for the file (in seconds)
-	Spoiler         bool                // to send the file as a spoiler message
-	ProgressManager *ProgressManager    // progress manager for uploading
-	UploadThreads   int                 // number of worker threads to use for uploading
-	Effect          int64               // effect ID for the media (e.g., animations)
-	Timeouts        int32               // timeouts for conversations (m.Ask())
+	Attributes       []DocumentAttribute // attributes of the file
+	MimeType         string              // mime type of the file
+	Caption          any                 // caption for the media (takes array of strings or a NewMessage)
+	ClearDraft       bool                // to clear the draft after sending
+	Entities         []MessageEntity     // message formatting entities
+	FileName         string              // file name to be used
+	ForceDocument    bool                // to force the file to be sent as a document
+	InvertMedia      bool                // show media below the caption
+	LinkPreview      bool                // to enable link preview
+	Media            any                 // media to be sent (e.g., photo, video, document)
+	NoForwards       bool                // to disable forwarding (restrict saving)
+	ParseMode        string              // parse mode for the caption (markdown or html)
+	ReplyID          int32               // reply to message ID
+	TopicID          int32               // topic ID for the message to be sent
+	ReplyMarkup      ReplyMarkup         // keyboard to send with the message
+	ScheduleDate     int32               // schedule date for the message
+	SendAs           any                 // to send the message as a different peer
+	Silent           bool                // to send the message silently
+	Thumb            any                 // thumbnail of the file
+	TTL              int32               // time to live for the file (in seconds)
+	Spoiler          bool                // to send the file as a spoiler message
+	ProgressInterval int                 // interval (in seconds) to update progress
+	ProgressManager  *ProgressManager    // progress manager for uploading
+	ProgressCallback func(*ProgressInfo) // progress callback function
+	UploadThreads    int                 // number of worker threads to use for uploading
+	Effect           int64               // effect ID for the media (e.g., animations)
+	Timeouts         int32               // timeouts for conversations (m.Ask())
 }
 
 // SendMessage sends a message to a specified peer using the Telegram API method messages.sendMessage.
@@ -205,16 +207,18 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 	)
 	if Media != nil {
 		media, err = c.getSendableMedia(Media, &MediaMetadata{
-			FileName:        options.FileName,
-			Thumb:           options.Thumb,
-			Attributes:      options.Attributes,
-			ForceDocument:   options.ForceDocument,
-			TTL:             options.TTL,
-			Spoiler:         options.Spoiler,
-			DisableThumb:    false,
-			MimeType:        options.MimeType,
-			ProgressManager: options.ProgressManager,
-			UploadThreads:   options.UploadThreads,
+			FileName:         options.FileName,
+			Thumb:            options.Thumb,
+			Attributes:       options.Attributes,
+			ForceDocument:    options.ForceDocument,
+			TTL:              options.TTL,
+			Spoiler:          options.Spoiler,
+			DisableThumb:     false,
+			MimeType:         options.MimeType,
+			ProgressManager:  options.ProgressManager,
+			ProgressInterval: options.ProgressInterval,
+			ProgressCallback: options.ProgressCallback,
+			UploadThreads:    options.UploadThreads,
 		})
 		if err != nil {
 			return nil, err
@@ -262,15 +266,18 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 	)
 	if Media != nil {
 		media, err = c.getSendableMedia(Media, &MediaMetadata{
-			Attributes:      options.Attributes,
-			TTL:             options.TTL,
-			ForceDocument:   options.ForceDocument,
-			Thumb:           options.Thumb,
-			FileName:        options.FileName,
-			Spoiler:         options.Spoiler,
-			MimeType:        options.MimeType,
-			ProgressManager: options.ProgressManager,
-			Inline:          true,
+			Attributes:       options.Attributes,
+			TTL:              options.TTL,
+			ForceDocument:    options.ForceDocument,
+			Thumb:            options.Thumb,
+			FileName:         options.FileName,
+			Spoiler:          options.Spoiler,
+			MimeType:         options.MimeType,
+			ProgressManager:  options.ProgressManager,
+			ProgressInterval: options.ProgressInterval,
+			ProgressCallback: options.ProgressCallback,
+			UploadThreads:    options.UploadThreads,
+			Inline:           true,
 		})
 		if err != nil {
 			return nil, err
@@ -361,8 +368,10 @@ type MediaOptions struct {
 	Silent           bool                // to send the message silently
 	Thumb            any                 // thumbnail of the file
 	TTL              int32               // time to live for the file (in seconds)
-	Spoiler          bool                // to send the file as a spoiler message
+	Spoiler          bool                // to send the file as a spoiler message'
+	ProgressInterval int                 // interval (in seconds) to update progress
 	ProgressManager  *ProgressManager    // progress manager for uploading
+	ProgressCallback func(*ProgressInfo) // progress callback function
 	UploadThreads    int                 // number of worker threads to use for uploading
 	SkipHash         bool                // to skip reusing duplicate files
 	SleepThresholdMs int32               // sleep threshold in milliseconds (in-between chunked operations)
@@ -378,7 +387,9 @@ type MediaMetadata struct {
 	Spoiler              bool                // to send the file as a spoiler message
 	DisableThumb         bool                // disable thumbnail generation
 	MimeType             string              // mime type of the file
+	ProgressInterval     int                 // interval (in seconds) to update progress
 	ProgressManager      *ProgressManager    // progress manager for uploading
+	ProgressCallback     func(*ProgressInfo) // progress callback function
 	UploadThreads        int                 // number of worker threads to use for uploading
 	FileAbsPath          string              // absolute path to the file
 	Inline               bool                // to force calling media.uploadMedia (for inline and albums)
@@ -412,16 +423,18 @@ func (c *Client) SendMedia(peerID, Media any, opts ...*MediaOptions) (*NewMessag
 	)
 
 	sendMedia, err := c.getSendableMedia(Media, &MediaMetadata{
-		FileName:        opt.FileName,
-		Thumb:           opt.Thumb,
-		ForceDocument:   opt.ForceDocument,
-		Attributes:      opt.Attributes,
-		TTL:             opt.TTL,
-		Spoiler:         opt.Spoiler,
-		MimeType:        opt.MimeType,
-		ProgressManager: opt.ProgressManager,
-		UploadThreads:   opt.UploadThreads,
-		SkipHash:        opt.SkipHash,
+		FileName:         opt.FileName,
+		Thumb:            opt.Thumb,
+		ForceDocument:    opt.ForceDocument,
+		Attributes:       opt.Attributes,
+		TTL:              opt.TTL,
+		Spoiler:          opt.Spoiler,
+		MimeType:         opt.MimeType,
+		ProgressManager:  opt.ProgressManager,
+		ProgressInterval: opt.ProgressInterval,
+		ProgressCallback: opt.ProgressCallback,
+		UploadThreads:    opt.UploadThreads,
+		SkipHash:         opt.SkipHash,
 	})
 
 	if err != nil {
@@ -517,7 +530,21 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 		opt.SleepThresholdMs = 5000
 	}
 
-	InputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{FileName: opt.FileName, Thumb: opt.Thumb, ForceDocument: opt.ForceDocument, Attributes: opt.Attributes, TTL: opt.TTL, Spoiler: opt.Spoiler, MimeType: opt.MimeType, ProgressManager: opt.ProgressManager, UploadThreads: opt.UploadThreads, SkipHash: opt.SkipHash})
+	InputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{
+		FileName:         opt.FileName,
+		Thumb:            opt.Thumb,
+		ForceDocument:    opt.ForceDocument,
+		Attributes:       opt.Attributes,
+		TTL:              opt.TTL,
+		Spoiler:          opt.Spoiler,
+		MimeType:         opt.MimeType,
+		ProgressManager:  opt.ProgressManager,
+		ProgressInterval: opt.ProgressInterval,
+		ProgressCallback: opt.ProgressCallback,
+		UploadThreads:    opt.UploadThreads,
+		SkipHash:         opt.SkipHash,
+	})
+
 	if multiErr != nil {
 		return nil, multiErr
 	}
@@ -1752,24 +1779,29 @@ func (c *Client) GetMediaGroup(PeerID any, MsgID int32) ([]NewMessage, error) {
 
 func convertOption(s *SendOptions) *MediaOptions {
 	return &MediaOptions{
-		ReplyID:       s.ReplyID,
-		MimeType:      s.MimeType,
-		Caption:       s.Caption,
-		ParseMode:     s.ParseMode,
-		Silent:        s.Silent,
-		LinkPreview:   s.LinkPreview,
-		InvertMedia:   s.InvertMedia,
-		ReplyMarkup:   s.ReplyMarkup,
-		ClearDraft:    s.ClearDraft,
-		NoForwards:    s.NoForwards,
-		ScheduleDate:  s.ScheduleDate,
-		SendAs:        s.SendAs,
-		Thumb:         s.Thumb,
-		TTL:           s.TTL,
-		Entities:      s.Entities,
-		ForceDocument: s.ForceDocument,
-		FileName:      s.FileName,
-		Attributes:    s.Attributes,
+		ReplyID:          s.ReplyID,
+		MimeType:         s.MimeType,
+		Caption:          s.Caption,
+		ParseMode:        s.ParseMode,
+		Silent:           s.Silent,
+		LinkPreview:      s.LinkPreview,
+		InvertMedia:      s.InvertMedia,
+		ReplyMarkup:      s.ReplyMarkup,
+		ClearDraft:       s.ClearDraft,
+		NoForwards:       s.NoForwards,
+		ScheduleDate:     s.ScheduleDate,
+		SendAs:           s.SendAs,
+		Thumb:            s.Thumb,
+		TTL:              s.TTL,
+		Entities:         s.Entities,
+		ForceDocument:    s.ForceDocument,
+		Spoiler:          s.Spoiler,
+		TopicID:          s.TopicID,
+		ProgressInterval: s.ProgressInterval,
+		ProgressManager:  s.ProgressManager,
+		ProgressCallback: s.ProgressCallback,
+		FileName:         s.FileName,
+		Attributes:       s.Attributes,
 	}
 }
 
