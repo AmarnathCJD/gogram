@@ -7,7 +7,6 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -186,7 +185,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		}
 	}
 
-	mtproto, err := mtproto.NewMTProto(mtproto.Config{
+	mtpCfg := mtproto.Config{
 		AppID:       config.AppID,
 		AuthKeyFile: config.Session,
 		AuthAESKey:  config.SessionAESKey,
@@ -195,21 +194,29 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		DataCenter:  config.DataCenter,
 		Logger: c.Log.CloneInternal().
 			WithPrefix("gogram " + getLogPrefix("mtproto", config.SessionName)),
-		StringSession: config.StringSession,
-		//Proxy:         config.Proxy,
-		LocalAddr:     config.LocalAddr,
-		MemorySession: config.MemorySession,
-		Ipv6:          config.ForceIPv6,
-		CustomHost:    customHost,
-		FloodHandler:  config.FloodHandler,
-		ErrorHandler:  config.ErrorHandler,
-		Timeout:       config.Timeout,
-		//ReqTimeout:    config.ReqTimeout,
+		StringSession:   config.StringSession,
+		LocalAddr:       config.LocalAddr,
+		MemorySession:   config.MemorySession,
+		Ipv6:            config.ForceIPv6,
+		CustomHost:      customHost,
+		FloodHandler:    config.FloodHandler,
+		ErrorHandler:    config.ErrorHandler,
+		Timeout:         config.Timeout,
+		ReqTimeout:      config.ReqTimeout,
+		UseWebSocket:    config.UseWebSocket,
+		UseWebSocketTLS: config.UseWebSocketTLS,
+		EnablePFS:       config.EnablePFS,
 		OnMigration: func(newMTProto *mtproto.MTProto) {
 			c.MTProto = newMTProto
 			c.InitialRequest()
 		},
-	})
+	}
+
+	if config.Proxy != nil {
+		mtpCfg.Proxy = config.Proxy.toInternal()
+	}
+
+	mtproto, err := mtproto.NewMTProto(mtpCfg)
 	if err != nil {
 		return fmt.Errorf("creating mtproto client: %w", err)
 	}
@@ -217,7 +224,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 	c.clientData.appID = mtproto.AppID() // in case the appId was not provided in the config but was in the session
 
 	if config.StringSession != "" && !config.NoPreconnect {
-		c.Log.Debug("using string session, connecting to telegram servers")
+		c.Log.Debug("preconnecting to telegram servers")
 		if err := c.Connect(); err != nil {
 			return fmt.Errorf("connecting to telegram servers: %w", err)
 		}
@@ -246,9 +253,6 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 		c.Log.Debug("appHash is empty, some features may not work")
 	}
 
-	if !IsFfmpegInstalled() {
-		c.Log.Debug("ffmpeg is not installed, some media metadata may not be available")
-	}
 	return nil
 }
 
@@ -275,19 +279,23 @@ func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
 
 // setupClientData sets up the client data from the config
 func (c *Client) setupClientData(cnf ClientConfig) {
-	c.clientData.appID = cnf.AppID
-	c.clientData.appHash = cnf.AppHash
-	c.clientData.deviceModel = getValue(cnf.DeviceConfig.DeviceModel, "gogram "+runtime.GOOS+" "+runtime.GOARCH)
-	c.clientData.systemVersion = getValue(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH)
-	c.clientData.appVersion = getValue(cnf.DeviceConfig.AppVersion, Version)
-	c.clientData.langCode = getValue(cnf.DeviceConfig.LangCode, "en")
-	c.clientData.systemLangCode = getValue(cnf.DeviceConfig.SystemLangCode, c.clientData.langCode) // backward compatibility
-	c.clientData.langPack = cnf.DeviceConfig.LangPack
-	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
-	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
-	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
-	c.clientData.albumWaitTime = getValue(cnf.AlbumWaitTime, 600)
-	c.clientData.commandPrefixes = getValue(cnf.CommandPrefixes, "/!")
+	langCode := getValue(cnf.DeviceConfig.LangCode, "en")
+	c.clientData = clientData{
+		appID:            cnf.AppID,
+		appHash:          cnf.AppHash,
+		deviceModel:      getValue(cnf.DeviceConfig.DeviceModel, "gogram "+runtime.GOOS+" "+runtime.GOARCH),
+		systemVersion:    getValue(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
+		appVersion:       getValue(cnf.DeviceConfig.AppVersion, Version),
+		langCode:         langCode,
+		systemLangCode:   getValue(cnf.DeviceConfig.SystemLangCode, langCode),
+		langPack:         cnf.DeviceConfig.LangPack,
+		logLevel:         getValue(cnf.LogLevel, LogInfo),
+		parseMode:        getValue(cnf.ParseMode, "HTML"),
+		sleepThresholdMs: getValue(cnf.SleepThresholdMs, 0),
+		albumWaitTime:    getValue(cnf.AlbumWaitTime, 600),
+		commandPrefixes:  getValue(cnf.CommandPrefixes, "/!"),
+		proxy:            cnf.Proxy,
+	}
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
@@ -299,7 +307,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 // InitialRequest sends the initial initConnection request
 func (c *Client) InitialRequest() error {
 	c.Log.Debug("sending initial invokeWithLayer request")
-	serverConfig, err := c.InvokeWithLayer(ApiVersion, &InitConnectionParams{
+	request := &InitConnectionParams{
 		ApiID:          c.clientData.appID,
 		DeviceModel:    c.clientData.deviceModel,
 		SystemVersion:  c.clientData.systemVersion,
@@ -308,13 +316,22 @@ func (c *Client) InitialRequest() error {
 		LangCode:       c.clientData.langCode,
 		LangPack:       c.clientData.langPack,
 		Query:          &HelpGetConfigParams{},
-	})
+	}
+
+	if c.clientData.proxy != nil && c.clientData.proxy.Type() == "mtproxy" {
+		request.Proxy = &InputClientProxy{
+			Address: c.clientData.proxy.GetHost(),
+			Port:    int32(c.clientData.proxy.GetPort()),
+		}
+	}
+
+	serverConfig, err := c.InvokeWithLayer(ApiVersion, request)
 
 	if err != nil {
 		return fmt.Errorf("sending invokeWithLayer: %w", err)
 	}
 
-	c.Log.Debug("received initial invokeWithLayer response")
+	c.Log.Debug("received server config from invokeWithLayer")
 	if config, ok := serverConfig.(*Config); ok {
 		var dcs = make(map[int][]utils.DC)
 		var cdnDcs = make(map[int][]utils.DC)
@@ -334,7 +351,7 @@ func (c *Client) InitialRequest() error {
 			}
 		}
 
-		c.DcList.SetDCs(dcs, cdnDcs) // set the upto-date DC configuration for the library
+		c.DcList.SetDCs(dcs, cdnDcs) // set the up to-date DC configuration for the library
 	}
 
 	return nil
@@ -408,7 +425,7 @@ func (c *Client) St() error {
 
 // Returns true if the client is authorized as a user or a bot
 func (c *Client) IsAuthorized() (bool, error) {
-	c.Log.Debug("sending updates.getState request")
+	c.Log.Debug("fetching updates state to check authorization")
 	_, err := c.UpdatesGetState()
 	if err != nil {
 		return false, err
@@ -446,6 +463,11 @@ func (c *Client) Me() *UserObj {
 			return &UserObj{}
 		}
 		c.clientData.me = me
+		if c.Cache != nil {
+			if err := c.Cache.BindToUser(me.ID, c.clientData.appID); err != nil {
+				c.Log.WithError(err).Warn("failed to bind cache to user")
+			}
+		}
 	}
 
 	return c.clientData.me
@@ -650,18 +672,18 @@ func (c *Client) SetLogLevel(level LogLevel) {
 }
 
 // disables color for all loggers
-// func (c *Client) LogColor(mode bool) {
-// 	c.Log.Debug("disabling color for all loggers")
+func (c *Client) LogColor(mode bool) {
+	c.Log.Debug("disabling color for all loggers")
 
-// 	c.Log.NoColor(!mode)
-// 	if c.Cache != nil {
-// 		c.Cache.logger.NoColor(!mode)
-// 	}
-// 	c.MTProto.Logger.NoColor(!mode)
-// 	if c.dispatcher != nil {
-// 		c.dispatcher.logger.NoColor(!mode)
-// 	}
-// }
+	c.Log.SetColor(mode)
+	if c.Cache != nil {
+		c.Cache.logger.SetColor(mode)
+	}
+	c.MTProto.Logger.SetColor(mode)
+	if c.dispatcher != nil {
+		c.dispatcher.logger.SetColor(mode)
+	}
+}
 
 // SetParseMode sets the parse mode for the client
 func (c *Client) SetParseMode(mode string) {
@@ -865,6 +887,16 @@ func (c *Client) MatchRPCError(err error, message string) bool {
 	return rpcErr.Message == message
 }
 
+// GetProxy returns the proxy configuration
+func (c *Client) GetProxy() Proxy {
+	return c.clientData.proxy
+}
+
+// SetProxy sets the proxy configuration
+func (c *Client) SetProxy(proxy Proxy) {
+	c.clientData.proxy = proxy
+}
+
 // ClientConfigBuilder
 type ClientConfigBuilder struct {
 	config ClientConfig
@@ -876,8 +908,8 @@ func NewClientConfigBuilder(appID int32, appHash string) *ClientConfigBuilder {
 			AppID:   appID,
 			AppHash: appHash,
 			DeviceConfig: DeviceConfig{
-				DeviceModel:   "IPhone",
-				SystemVersion: "17.0",
+				DeviceModel:   "IPhone 17 Pro",
+				SystemVersion: "iOS 26.0",
 				AppVersion:    Version,
 			},
 			DataCenter:    4,          // Default DC
@@ -923,8 +955,8 @@ func (b *ClientConfigBuilder) WithDataCenter(dc int) *ClientConfigBuilder {
 	return b
 }
 
-func (b *ClientConfigBuilder) WithProxy(proxyURL *url.URL) *ClientConfigBuilder {
-	//b.config.Proxy = proxyURL
+func (b *ClientConfigBuilder) WithProxy(proxy Proxy) *ClientConfigBuilder {
+	b.config.Proxy = proxy
 	return b
 }
 
