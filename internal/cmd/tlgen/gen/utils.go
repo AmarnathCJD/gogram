@@ -8,8 +8,6 @@ import (
 
 	"github.com/dave/jennifer/jen"
 	"github.com/iancoleman/strcase"
-
-	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
 )
 
 var (
@@ -17,29 +15,11 @@ var (
 	skippedTypes      = make(map[string]bool)   // Track types user chose to skip
 )
 
-func createParamsStructFromMethod(method tlparser.Method) tlparser.Object {
-	return tlparser.Object{
-		Name:       method.Name + "Params",
-		CRC:        method.CRC,
-		Parameters: method.Parameters,
-	}
-}
-
-func haveOptionalParams(params []tlparser.Parameter) bool {
-	for _, param := range params {
-		if param.IsOptional {
-			return true
-		}
-	}
-
-	return false
-}
-
 func goify(name string, public bool) string {
 	delim := strcase.ToDelimited(name, '|')
 	delim = strings.ReplaceAll(delim, ".", "|")
-	splitted := strings.Split(delim, "|")
-	for i, item := range splitted {
+	split := strings.Split(delim, "|")
+	for i, item := range split {
 		item = strings.ToLower(item)
 		if SliceContains(capitalizePatterns, item) {
 			item = strings.ToUpper(item)
@@ -53,10 +33,10 @@ func goify(name string, public bool) string {
 			itemRunes[0] = unicode.ToUpper(itemRunes[0])
 		}
 
-		splitted[i] = string(itemRunes)
+		split[i] = string(itemRunes)
 	}
 
-	return strings.Join(splitted, "")
+	return strings.Join(split, "")
 }
 
 func (g *Generator) typeIdFromSchemaType(t string) *jen.Statement {

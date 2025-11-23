@@ -3011,7 +3011,29 @@ func (*PaymentsSavedStarGifts) FlagIndex() int {
 	return 0
 }
 
-// A preview of the possible attributes (chosen randomly) a gift can receive after upgrading it to a collectible gift
+type PaymentsStarGiftAuctionAcquiredGifts struct {
+	Gifts []*StarGiftAuctionAcquiredGift
+	Users []User
+	Chats []Chat
+}
+
+func (*PaymentsStarGiftAuctionAcquiredGifts) CRC() uint32 {
+	return 0x7d5bd1f0
+}
+
+type PaymentsStarGiftAuctionState struct {
+	Gift      StarGift
+	State     StarGiftAuctionState
+	UserState *StarGiftAuctionUserState
+	Timeout   int32
+	Users     []User
+}
+
+func (*PaymentsStarGiftAuctionState) CRC() uint32 {
+	return 0xe98e474
+}
+
+// A preview of the possible attributes (chosen randomly) a gift » can receive after upgrading it to a collectible gift », see here » for more info.
 type PaymentsStarGiftUpgradePreview struct {
 	SampleAttributes []StarGiftAttribute
 	Prices           []*StarGiftUpgradePrice
@@ -3269,13 +3291,13 @@ func (*PhoneGroupCall) CRC() uint32 {
 
 type PhoneGroupCallStars struct {
 	TotalStars int64
-	TopDonors  []GroupCallDonor
+	TopDonors  []*GroupCallDonor
 	Chats      []Chat
 	Users      []User
 }
 
 func (*PhoneGroupCallStars) CRC() uint32 {
-	return 0x9d2395f6
+	return 0x9d1dbd26
 }
 
 // Info about RTMP streams in a group call or livestream
@@ -3960,22 +3982,12 @@ func (*StarGiftAuctionAcquiredGift) FlagIndex() int {
 	return 0
 }
 
-type StarGiftAuctionAcquiredGifts struct {
-	Gifts []*StarGiftAuctionAcquiredGift
-	Users []User
-	Chats []Chat
-}
-
-func (*StarGiftAuctionAcquiredGifts) CRC() uint32 {
-	return 0x7d6032b0
-}
-
 type StarGiftAuctionUserState struct {
 	Returned      bool  `tl:"flag:1,encoded_in_bitflags"`
 	BidAmount     int64 `tl:"flag:0"`
 	BidDate       int32 `tl:"flag:0"`
 	MinBidAmount  int64 `tl:"flag:0"`
-	Peer          Peer  `tl:"flag:0"`
+	BidPeer       Peer  `tl:"flag:0"`
 	AcquiredCount int32
 }
 

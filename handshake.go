@@ -24,7 +24,21 @@ import (
 
 // https://core.telegram.org/mtproto/auth_key
 func (m *MTProto) makeAuthKey() error {
+	return m.makeAuthKeyInternal(0)
+}
+
+func (m *MTProto) makeTempAuthKey(expiresIn int32) error {
+	if expiresIn <= 0 {
+		expiresIn = 24 * 60 * 60
+	}
+	return m.makeAuthKeyInternal(expiresIn)
+}
+
+func (m *MTProto) makeAuthKeyInternal(expiresIn int32) error {
+	isTemp := expiresIn > 0
+
 	m.serviceModeActivated = true
+	defer func() { m.serviceModeActivated = false }()
 
 	maxRetries := 5
 nonceCreate:
@@ -73,23 +87,36 @@ nonceCreate:
 		return fmt.Errorf("reqPQ: no matching fingerprint")
 	}
 
-	// (encoding) p_q_inner_data
 	pq := big.NewInt(0).SetBytes(res.Pq)
-	p, q := math.Factorize(pq) // new optimized factorization
+	p, q := math.Factorize(pq)
 	if p == nil || q == nil {
 		p, q = math.Fac(pq)
 	}
 	nonceSecond := tl.RandomInt256()
 	nonceServer := res.ServerNonce
 
-	message, err := tl.Marshal(&objects.PQInnerData{
-		Pq:          res.Pq,
-		P:           p.Bytes(),
-		Q:           q.Bytes(),
-		Nonce:       nonceFirst,
-		ServerNonce: nonceServer,
-		NewNonce:    nonceSecond,
-	})
+	var message []byte
+	if isTemp {
+		message, err = tl.Marshal(&objects.PQInnerDataTempDc{
+			Pq:          res.Pq,
+			P:           p.Bytes(),
+			Q:           q.Bytes(),
+			Nonce:       nonceFirst,
+			ServerNonce: nonceServer,
+			NewNonce:    nonceSecond,
+			Dc:          int32(m.GetDC()),
+			ExpiresIn:   expiresIn,
+		})
+	} else {
+		message, err = tl.Marshal(&objects.PQInnerData{
+			Pq:          res.Pq,
+			P:           p.Bytes(),
+			Q:           q.Bytes(),
+			Nonce:       nonceFirst,
+			ServerNonce: nonceServer,
+			NewNonce:    nonceSecond,
+		})
+	}
 	if err != nil {
 		m.Logger.WithField("error", err).Debug("makeAuthKey: failed to marshal pq inner data")
 		return err
@@ -120,7 +147,7 @@ nonceCreate:
 	decodedMessage, err := ige.DecryptMessageWithTempKeys(dhParams.EncryptedAnswer, nonceSecond.Int, nonceServer.Int)
 	if err != nil {
 		m.Logger.WithError(err).Debug("decrypt failed - retrying auth key generation")
-		return m.makeAuthKey()
+		return m.makeAuthKeyInternal(expiresIn)
 	}
 
 	data, err := tl.DecodeUnknownObject(decodedMessage)
@@ -139,7 +166,6 @@ nonceCreate:
 		return fmt.Errorf("decode: server nonce mismatch")
 	}
 
-	// this apparently is just part of diffie hellman, so just leave it as it is, hope that it will just work
 	_, gB, gAB := math.MakeGAB(dhi.G, big.NewInt(0).SetBytes(dhi.GA), big.NewInt(0).SetBytes(dhi.DhPrime))
 
 	authKey := gAB.Bytes()
@@ -147,19 +173,16 @@ nonceCreate:
 		authKey = authKey[1:]
 	}
 
-	m.SetAuthKey(authKey)
-
 	t4 := make([]byte, 32+1+8)
 	copy(t4[0:], nonceSecond.Bytes())
 	t4[32] = 1
-	copy(t4[33:], utils.Sha1Byte(m.GetAuthKey())[0:8])
+	copy(t4[33:], utils.Sha1Byte(authKey)[0:8])
 	nonceHash1 := utils.Sha1Byte(t4)[4:20]
 	salt := make([]byte, tl.LongLen)
 	copy(salt, nonceSecond.Bytes()[:8])
 	math.Xor(salt, nonceServer.Bytes()[:8])
-	m.serverSalt = int64(binary.LittleEndian.Uint64(salt))
+	newSalt := int64(binary.LittleEndian.Uint64(salt))
 
-	// (encoding) client_DH_inner_data
 	clientDHData, err := tl.Marshal(&objects.ClientDHInnerData{
 		Nonce:       nonceFirst,
 		ServerNonce: nonceServer,
@@ -199,12 +222,168 @@ nonceCreate:
 		)
 	}
 
-	m.serviceModeActivated = false
-	m.encrypted = true
-	if err := m.SaveSession(m.memorySession); err != nil {
-		m.Logger.WithError(err).Error("failed to save session")
+	if isTemp {
+		m.tempAuthKey = authKey
+		m.tempAuthKeyHash = utils.AuthKeyHash(authKey)
+		m.tempAuthExpiresAt = time.Now().Unix() + int64(expiresIn)
+		m.serverSalt = newSalt
+	} else {
+		m.SetAuthKey(authKey)
+		m.serverSalt = newSalt
+		m.encrypted = true
+		if err := m.SaveSession(m.memorySession); err != nil {
+			m.Logger.WithError(err).Error("failed to save session")
+		}
 	}
-	return err
+
+	return nil
+}
+
+// createTempAuthKey performs the temporary auth key handshake
+func (m *MTProto) createTempAuthKey(expiresIn int32) error {
+	cfg := Config{
+		AuthKeyFile:     "",
+		AuthAESKey:      "",
+		SessionStorage:  session.NewInMemory(),
+		MemorySession:   true,
+		AppID:           m.appID,
+		EnablePFS:       false,
+		ServerHost:      m.Addr,
+		PublicKey:       m.publicKey,
+		DataCenter:      m.GetDC(),
+		Logger:          m.Logger.Clone().WithPrefix("gogram [mtp-pfs]"),
+		Proxy:           m.proxy,
+		Mode:            "Abridged",
+		Ipv6:            m.IpV6,
+		CustomHost:      true,
+		LocalAddr:       m.localAddr,
+		Timeout:         int(m.timeout.Seconds()),
+		ReqTimeout:      int(m.reqTimeout.Seconds()),
+		UseWebSocket:    m.useWebSocket,
+		UseWebSocketTLS: m.useWebSocketTLS,
+	}
+
+	tmp, err := NewMTProto(cfg)
+	if err != nil {
+		return fmt.Errorf("createTempAuthKey: creating temp MTProto: %w", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := tmp.connect(ctx); err != nil {
+		return fmt.Errorf("createTempAuthKey: connecting temp MTProto: %w", err)
+	}
+	tmp.tcpState.SetActive(true)
+	tmp.startReadingResponses(ctx)
+
+	if err := tmp.makeTempAuthKey(expiresIn); err != nil {
+		return fmt.Errorf("createTempAuthKey: makeTempAuthKey on temp connection: %w", err)
+	}
+
+	// Copy the generated temporary auth key and its metadata back to the main
+	// MTProto instance. The server salt associated with the temporary key is
+	// also propagated so that subsequent messages encrypted with the temp key
+	// use the correct salt.
+	m.tempAuthKey = tmp.tempAuthKey
+	m.tempAuthKeyHash = tmp.tempAuthKeyHash
+	m.tempAuthExpiresAt = tmp.tempAuthExpiresAt
+	m.serverSalt = tmp.serverSalt
+
+	tmp.Terminate()
+	m.Logger.Debug("temporary auth key created successfully")
+	return nil
+}
+
+// bindTempAuthKey binds the temporary auth key to the permanent auth key using auth.bindTempAuthKey.
+func (m *MTProto) bindTempAuthKey() error {
+	if m.tempAuthKey == nil {
+		return errors.New("bindTempAuthKey: tempAuthKey is nil")
+	}
+	if len(m.authKey) == 0 {
+		return errors.New("bindTempAuthKey: permanent authKey is nil")
+	}
+
+	permKeyHash := utils.AuthKeyHash(m.authKey)
+	permAuthKeyID := int64(binary.LittleEndian.Uint64(permKeyHash))
+
+	tempKeyHash := utils.AuthKeyHash(m.tempAuthKey)
+	tempAuthKeyID := int64(binary.LittleEndian.Uint64(tempKeyHash))
+
+	// Use current session ID as temp_session_id for the binding.
+	tempSessionID := m.sessionId
+
+	expiresAt := int32(m.tempAuthExpiresAt)
+	if expiresAt == 0 {
+		expiresAt = int32(time.Now().Unix() + 24*60*60)
+	}
+
+	nonce := utils.GenerateSessionID()
+	msgID := m.genMsgID(m.timeOffset)
+
+	inner := &objects.BindAuthKeyInner{
+		Nonce:         nonce,
+		TempAuthKeyID: tempAuthKeyID,
+		PermAuthKeyID: permAuthKeyID,
+		TempSessionID: tempSessionID,
+		ExpiresAt:     expiresAt,
+	}
+
+	innerBytes, err := tl.Marshal(inner)
+	if err != nil {
+		return fmt.Errorf("marshal BindAuthKeyInner: %w", err)
+	}
+
+	// Build MTProto v1 plaintext: random:int128 + msg_id + seqno(0) + msg_len + inner.
+	random128 := utils.RandomBytes(16)
+	plaintext := make([]byte, 0, 16+8+4+4+len(innerBytes))
+	plaintext = append(plaintext, random128...)
+
+	buf8 := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf8, uint64(msgID))
+	plaintext = append(plaintext, buf8...)
+
+	buf4 := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buf4, 0) // seqno = 0
+	plaintext = append(plaintext, buf4...)
+
+	binary.LittleEndian.PutUint32(buf4, uint32(len(innerBytes)))
+	plaintext = append(plaintext, buf4...)
+	plaintext = append(plaintext, innerBytes...)
+
+	// Encrypt binding message with permanent auth key using MTProto 1.0 helpers.
+	cipher, msgKey, err := ige.EncryptV1(plaintext, m.authKey)
+	if err != nil {
+		return fmt.Errorf("encrypt BindAuthKeyInner: %w", err)
+	}
+
+	encryptedMessage := make([]byte, 0, len(permKeyHash)+len(msgKey)+len(cipher))
+	encryptedMessage = append(encryptedMessage, permKeyHash...)
+	encryptedMessage = append(encryptedMessage, msgKey...)
+	encryptedMessage = append(encryptedMessage, cipher...)
+
+	params := &objects.AuthBindTempAuthKeyParams{
+		PermAuthKeyID:    permAuthKeyID,
+		Nonce:            nonce,
+		ExpiresAt:        expiresAt,
+		EncryptedMessage: encryptedMessage,
+	}
+
+	// Send auth.bindTempAuthKey with the same msg_id used inside the MTProto
+	// v1 binding message, as required by the PFS specification.
+	respCh, _, err := m.sendPacketWithMsgID(params, msgID)
+	if err != nil {
+		return fmt.Errorf("auth.bindTempAuthKey: %w", err)
+	}
+
+	response := <-respCh
+	if rpcErr, ok := response.(*objects.RpcError); ok {
+		return fmt.Errorf("auth.bindTempAuthKey: %w", RpcErrorToNative(rpcErr))
+	}
+
+	// Any non-error response is treated as success; the exact Bool value is not
+	// critical here, as the server typically returns true on success.
+	return nil
 }
 
 // makeTempAuthKey creates a temporary authorization key using p_q_inner_data_temp_dc,
