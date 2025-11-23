@@ -424,11 +424,9 @@ func (c *Client) Disconnect() error {
 // switchDC permanently switches the data center
 func (c *Client) SwitchDc(dcID int) error {
 	c.Log.Debug("switching data center to (" + strconv.Itoa(dcID) + ")")
-	newDcSender, err := c.MTProto.SwitchDc(dcID)
-	if err != nil {
+	if err := c.MTProto.SwitchDc(dcID); err != nil {
 		return fmt.Errorf("reconnecting to new dc: %w", err)
 	}
-	c.MTProto = newDcSender
 	return c.InitialRequest()
 }
 
