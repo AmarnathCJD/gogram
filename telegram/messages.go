@@ -14,33 +14,40 @@ import (
 )
 
 type SendOptions struct {
-	Attributes       []DocumentAttribute // attributes of the file
-	MimeType         string              // mime type of the file
-	Caption          any                 // caption for the media (takes array of strings or a NewMessage)
-	ClearDraft       bool                // to clear the draft after sending
-	Entities         []MessageEntity     // message formatting entities
-	FileName         string              // file name to be used
-	ForceDocument    bool                // to force the file to be sent as a document
-	InvertMedia      bool                // show media below the caption
-	LinkPreview      bool                // to enable link preview
-	Media            any                 // media to be sent (e.g., photo, video, document)
-	NoForwards       bool                // to disable forwarding (restrict saving)
-	ParseMode        string              // parse mode for the caption (markdown or html)
-	ReplyID          int32               // reply to message ID
-	TopicID          int32               // topic ID for the message to be sent
-	ReplyMarkup      ReplyMarkup         // keyboard to send with the message
-	ScheduleDate     int32               // schedule date for the message
-	SendAs           any                 // to send the message as a different peer
-	Silent           bool                // to send the message silently
-	Thumb            any                 // thumbnail of the file
-	TTL              int32               // time to live for the file (in seconds)
-	Spoiler          bool                // to send the file as a spoiler message
-	ProgressInterval int                 // interval (in seconds) to update progress
-	ProgressManager  *ProgressManager    // progress manager for uploading
-	ProgressCallback func(*ProgressInfo) // progress callback function
-	UploadThreads    int                 // number of worker threads to use for uploading
-	Effect           int64               // effect ID for the media (e.g., animations)
-	Timeouts         int32               // timeouts for conversations (m.Ask())
+	Attributes           []DocumentAttribute      // attributes of the file
+	MimeType             string                   // mime type of the file
+	Caption              any                      // caption for the media (takes array of strings or a NewMessage)
+	ClearDraft           bool                     // to clear the draft after sending
+	Entities             []MessageEntity          // message formatting entities
+	FileName             string                   // file name to be used
+	ForceDocument        bool                     // to force the file to be sent as a document
+	InvertMedia          bool                     // show media below the caption
+	LinkPreview          bool                     // to enable link preview
+	Media                any                      // media to be sent (e.g., photo, video, document)
+	NoForwards           bool                     // to disable forwarding (restrict saving)
+	ParseMode            string                   // parse mode for the caption (markdown or html)
+	ReplyTo              *InputReplyToMessage     // custom reply to message
+	ReplyID              int32                    // reply to message ID
+	TopicID              int32                    // topic ID for the message to be sent
+	ReplyMarkup          ReplyMarkup              // keyboard to send with the message
+	UpdateStickerOrder   bool                     // to update sticker sets order after sending
+	ScheduleDate         int32                    // schedule date for the message
+	ScheduleRepeatPeriod int32                    // schedule repeat period for the message
+	SendAs               any                      // to send the message as a different peer
+	Silent               bool                     // to send the message silently
+	Thumb                any                      // thumbnail of the file
+	TTL                  int32                    // time to live for the file (in seconds)
+	Spoiler              bool                     // to send the file as a spoiler message
+	ProgressInterval     int                      // interval (in seconds) to update progress
+	ProgressManager      *ProgressManager         // progress manager for uploading
+	ProgressCallback     func(*ProgressInfo)      // progress callback function
+	UploadThreads        int                      // number of worker threads to use for uploading
+	Effect               int64                    // effect ID for the media (e.g., animations)
+	Timeouts             int32                    // timeouts for conversations (m.Ask())
+	AllowPaidStars       int64                    // allow paid stars
+	PaidFloodSkip        bool                     // allow paid flood skip
+	SuggestedPost        *SuggestedPost           // suggested post options
+	QuickReplyShortcut   *InputQuickReplyShortcut // quick reply shortcut options
 }
 
 // SendMessage sends a message to a specified peer using the Telegram API method messages.sendMessage.
@@ -114,23 +121,27 @@ func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMes
 
 func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageEntity, sendAs InputPeer, opt *SendOptions) (*NewMessage, error) {
 	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
-	if opt.ReplyID != 0 {
-		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
-			replyTo.TopMsgID = opt.TopicID
-		}
+	if opt.ReplyTo != nil {
+		replyTo = opt.ReplyTo
 	} else {
-		if opt.TopicID != 0 && opt.TopicID != 1 {
-			replyTo.TopMsgID = opt.TopicID
+		if opt.ReplyID != 0 {
+			if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
+				replyTo.TopMsgID = opt.TopicID
+			}
+		} else {
+			if opt.TopicID != 0 && opt.TopicID != 1 {
+				replyTo.TopMsgID = opt.TopicID
+			}
 		}
 	}
 
-	updateResp, err := c.MessagesSendMessage(&MessagesSendMessageParams{
+	opts := &MessagesSendMessageParams{
 		NoWebpage:              !opt.LinkPreview,
 		Silent:                 opt.Silent,
 		Background:             false,
 		ClearDraft:             opt.ClearDraft,
 		Noforwards:             opt.NoForwards,
-		UpdateStickersetsOrder: false,
+		UpdateStickersetsOrder: opt.UpdateStickerOrder,
 		InvertMedia:            opt.InvertMedia,
 		Peer:                   Peer,
 		ReplyTo:                replyTo,
@@ -139,9 +150,19 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 		ReplyMarkup:            opt.ReplyMarkup,
 		Entities:               entities,
 		ScheduleDate:           opt.ScheduleDate,
+		ScheduleRepeatPeriod:   opt.ScheduleRepeatPeriod,
 		SendAs:                 sendAs,
 		Effect:                 opt.Effect,
-	})
+		SuggestedPost:          opt.SuggestedPost,
+		AllowPaidStars:         opt.AllowPaidStars,
+		AllowPaidFloodskip:     opt.PaidFloodSkip,
+	}
+
+	if opt.QuickReplyShortcut != nil {
+		opts.QuickReplyShortcut = *opt.QuickReplyShortcut
+	}
+
+	updateResp, err := c.MessagesSendMessage(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +172,7 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 		return packMessage(c, processed), nil
 	}
 
-	return nil, errors.New("no response for sendMessage")
+	return nil, errors.New("no response for message sent")
 }
 
 // EditMessage edits a message. This method is a wrapper for messages.editMessage.
@@ -233,15 +254,16 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 	}
 
 	result, err := c.MakeRequestCtx(ctx, &MessagesEditMessageParams{
-		Peer:         Peer,
-		ID:           id,
-		Message:      Message,
-		NoWebpage:    !options.LinkPreview,
-		InvertMedia:  options.InvertMedia,
-		ReplyMarkup:  options.ReplyMarkup,
-		Entities:     entities,
-		Media:        media,
-		ScheduleDate: options.ScheduleDate,
+		Peer:                 Peer,
+		ID:                   id,
+		Message:              Message,
+		NoWebpage:            !options.LinkPreview,
+		InvertMedia:          options.InvertMedia,
+		ReplyMarkup:          options.ReplyMarkup,
+		Entities:             entities,
+		Media:                media,
+		ScheduleDate:         options.ScheduleDate,
+		ScheduleRepeatPeriod: options.ScheduleRepeatPeriod,
 	})
 	if err != nil {
 		return nil, err
@@ -344,37 +366,44 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 		}}, nil
 	}
 
-	return nil, errors.New("no response for editBotInlineMessage")
+	return nil, errors.New("no response for edit bot inline message")
 }
 
 type MediaOptions struct {
-	Attributes       []DocumentAttribute // attributes of the file
-	MimeType         string              // mime type of the file
-	Caption          any                 // caption for the media (takes array of strings or a NewMessage)
-	ClearDraft       bool                // to clear the draft after sending
-	Entities         []MessageEntity     // message formatting entities
-	FileName         string              // file name to be used
-	ForceDocument    bool                // to force the file to be sent as a document
-	InvertMedia      bool                // show media below the caption
-	LinkPreview      bool                // to enable link preview
-	NoForwards       bool                // to disable forwarding (restrict saving)
-	NoSoundVideo     bool                // to send the video without sound
-	ParseMode        string              // parse mode for the caption (markdown or html)
-	ReplyID          int32               //	reply to message ID
-	TopicID          int32               // topic ID for the message to be sent
-	ReplyMarkup      ReplyMarkup         // keyboard to send with the message
-	ScheduleDate     int32               // schedule date for the message
-	SendAs           any                 // to send the message as a different peer
-	Silent           bool                // to send the message silently
-	Thumb            any                 // thumbnail of the file
-	TTL              int32               // time to live for the file (in seconds)
-	Spoiler          bool                // to send the file as a spoiler message'
-	ProgressInterval int                 // interval (in seconds) to update progress
-	ProgressManager  *ProgressManager    // progress manager for uploading
-	ProgressCallback func(*ProgressInfo) // progress callback function
-	UploadThreads    int                 // number of worker threads to use for uploading
-	SkipHash         bool                // to skip reusing duplicate files
-	SleepThresholdMs int32               // sleep threshold in milliseconds (in-between chunked operations)
+	Attributes           []DocumentAttribute      // attributes of the file
+	MimeType             string                   // mime type of the file
+	Caption              any                      // caption for the media (takes array of strings or a NewMessage)
+	ClearDraft           bool                     // to clear the draft after sending
+	Entities             []MessageEntity          // message formatting entities
+	FileName             string                   // file name to be used
+	ForceDocument        bool                     // to force the file to be sent as a document
+	InvertMedia          bool                     // show media below the caption
+	LinkPreview          bool                     // to enable link preview
+	NoForwards           bool                     // to disable forwarding (restrict saving)
+	NoSoundVideo         bool                     // to send the video without sound
+	ParseMode            string                   // parse mode for the caption (markdown or html)
+	ReplyTo              *InputReplyToMessage     // reply to message
+	ReplyID              int32                    // reply to message ID
+	TopicID              int32                    // topic ID for the message to be sent
+	UpdateStickerOrder   bool                     // to update sticker sets order after sending
+	ReplyMarkup          ReplyMarkup              // keyboard to send with the message
+	ScheduleDate         int32                    // schedule date for the message
+	ScheduleRepeatPeriod int32                    // schedule repeat period for the message
+	SendAs               any                      // to send the message as a different peer
+	Silent               bool                     // to send the message silently
+	Thumb                any                      // thumbnail of the file
+	TTL                  int32                    // time to live for the file (in seconds)
+	Spoiler              bool                     // to send the file as a spoiler message'
+	ProgressInterval     int                      // interval (in seconds) to update progress
+	ProgressManager      *ProgressManager         // progress manager for uploading
+	ProgressCallback     func(*ProgressInfo)      // progress callback function
+	UploadThreads        int                      // number of worker threads to use for uploading
+	SkipHash             bool                     // to skip reusing duplicate files
+	SleepThresholdMs     int32                    // sleep threshold in milliseconds (in-between chunked operations)
+	AllowPaidStars       int64                    // allow paid stars
+	PaidFloodSkip        bool                     // allow paid flood skip
+	SuggestedPost        *SuggestedPost           // suggested post options
+	QuickReplyShortcut   *InputQuickReplyShortcut // quick reply shortcut options
 }
 
 type MediaMetadata struct {
@@ -466,22 +495,26 @@ func (c *Client) SendMedia(peerID, Media any, opts ...*MediaOptions) (*NewMessag
 
 func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, entities []MessageEntity, sendAs InputPeer, opt *MediaOptions) (*NewMessage, error) {
 	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
-	if opt.ReplyID != 0 {
-		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
-			replyTo.TopMsgID = opt.TopicID
-		}
+	if opt.ReplyTo != nil {
+		replyTo = opt.ReplyTo
 	} else {
-		if opt.TopicID != 0 && opt.TopicID != 1 {
-			replyTo.TopMsgID = opt.TopicID
+		if opt.ReplyID != 0 {
+			if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
+				replyTo.TopMsgID = opt.TopicID
+			}
+		} else {
+			if opt.TopicID != 0 && opt.TopicID != 1 {
+				replyTo.TopMsgID = opt.TopicID
+			}
 		}
 	}
 
-	result, err := c.MessagesSendMedia(&MessagesSendMediaParams{
+	params := &MessagesSendMediaParams{
 		Silent:                 opt.Silent,
 		Background:             false,
 		ClearDraft:             opt.ClearDraft,
 		Noforwards:             opt.NoForwards,
-		UpdateStickersetsOrder: false,
+		UpdateStickersetsOrder: opt.UpdateStickerOrder,
 		InvertMedia:            opt.InvertMedia,
 		Peer:                   Peer,
 		ReplyTo:                replyTo,
@@ -491,8 +524,18 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 		Message:                Caption,
 		Entities:               entities,
 		ScheduleDate:           opt.ScheduleDate,
+		ScheduleRepeatPeriod:   opt.ScheduleRepeatPeriod,
 		SendAs:                 sendAs,
-	})
+		AllowPaidStars:         opt.AllowPaidStars,
+		AllowPaidFloodskip:     opt.PaidFloodSkip,
+		SuggestedPost:          opt.SuggestedPost,
+	}
+
+	if opt.QuickReplyShortcut != nil {
+		params.QuickReplyShortcut = *opt.QuickReplyShortcut
+	}
+
+	result, err := c.MessagesSendMedia(params)
 	if err != nil {
 		return nil, err
 	}
@@ -530,7 +573,7 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 		opt.SleepThresholdMs = 5000
 	}
 
-	InputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{
+	inputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{
 		FileName:         opt.FileName,
 		Thumb:            opt.Thumb,
 		ForceDocument:    opt.ForceDocument,
@@ -568,24 +611,31 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 			entities = opt.Entities
 		}
 
-		if len(InputAlbum) > 0 {
-			InputAlbum[len(InputAlbum)-1].Message = textMessage
-			InputAlbum[len(InputAlbum)-1].Entities = entities
+		if len(inputAlbum) > 0 {
+			lastIdx := len(inputAlbum) - 1
+			inputAlbum[lastIdx].Message = textMessage
+			inputAlbum[lastIdx].Entities = entities
 		}
 
 	case []string, []*NewMessage:
-		if len(InputAlbum) > 0 {
+		if len(inputAlbum) > 0 {
 			switch cap := caption.(type) {
 			case []string:
 				for i, cap := range cap {
+					if i >= len(inputAlbum) {
+						break
+					}
 					entities, textMessage := parseEntities(cap, opt.ParseMode)
-					InputAlbum[i].Message = textMessage
-					InputAlbum[i].Entities = entities
+					inputAlbum[i].Message = textMessage
+					inputAlbum[i].Entities = entities
 				}
 			case []*NewMessage:
 				for i, cap := range cap {
-					InputAlbum[i].Message = cap.MessageText()
-					InputAlbum[i].Entities = cap.Message.Entities
+					if i >= len(inputAlbum) {
+						break
+					}
+					inputAlbum[i].Message = cap.MessageText()
+					inputAlbum[i].Entities = cap.Message.Entities
 				}
 			}
 		}
@@ -597,12 +647,12 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 	}
 	var sendAs InputPeer
 	if opt.SendAs != nil {
-		sendAs, err = c.ResolvePeer(sendAs)
+		sendAs, err = c.ResolvePeer(opt.SendAs)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return c.sendAlbum(senderPeer, InputAlbum, sendAs, opt)
+	return c.sendAlbum(senderPeer, inputAlbum, sendAs, opt)
 }
 
 func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs InputPeer, opt *MediaOptions) ([]*NewMessage, error) {
@@ -909,23 +959,28 @@ func (c *Client) SendReadAck(PeerID any, MaxID ...int32) (*MessagesAffectedMessa
 // SendPoll sends a poll. TODO
 
 type ForwardOptions struct {
-	HideCaption  bool                 // whether to drop the original caption
-	HideAuthor   bool                 // whether to drop the original author
-	Silent       bool                 // whether to send the message silently
-	Noforwards   bool                 // whether to disable forwarding
-	Background   bool                 // send the message in the background
-	WithMyScore  bool                 // whether to include the user's game score
-	SendAs       any                  // send the message as a different peer
-	ScheduleDate int32                // schedule date for the message
-	ReplyTo      *InputReplyToMessage // reply to message
+	HideCaption          bool                 // whether to drop the original caption
+	HideAuthor           bool                 // whether to drop the original author
+	Silent               bool                 // whether to send the message silently
+	Noforwards           bool                 // whether to disable forwarding
+	AllowPaidFloodSkip   bool                 // allow paid flood skip
+	Background           bool                 // send the message in the background
+	WithMyScore          bool                 // whether to include the user's game score
+	SendAs               any                  // send the message as a different peer
+	ScheduleDate         int32                // schedule date for the message
+	ScheduleRepeatPeriod int32                // schedule repeat period for the message
+	ReplyTo              *InputReplyToMessage // custom reply to message
+	ReplyID              int32                // reply to message ID
+	TopicID              int32                // topic ID for the message to be sent
+	AllowPaidStars       int64                // allow paid stars reactions
+	VideoTimestamp       int32                // video timestamp
+	SuggestedPost        *SuggestedPost       // suggested post info
 }
 
 // Forward forwards a message.
 // This method is a wrapper for messages.forwardMessages.
 func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*ForwardOptions) ([]NewMessage, error) {
-	opt := getVariadic(opts, &ForwardOptions{
-		ReplyTo: &InputReplyToMessage{},
-	})
+	opt := getVariadic(opts, &ForwardOptions{})
 	toPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
@@ -947,20 +1002,41 @@ func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*Forwar
 			return nil, err
 		}
 	}
+	var reply *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
+	if opt.ReplyTo != nil {
+		reply = opt.ReplyTo
+	} else {
+		if opt.ReplyID != 0 {
+			if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
+				reply.TopMsgID = opt.TopicID
+			}
+		} else {
+			if opt.TopicID != 0 && opt.TopicID != 1 {
+				reply.TopMsgID = opt.TopicID
+			}
+		}
+	}
+
 	updateResp, err := c.MessagesForwardMessages(&MessagesForwardMessagesParams{
-		//ReplyTo:           opt.ReplyTo,
-		ToPeer:            toPeer,
-		FromPeer:          fromPeer,
-		ID:                msgIDs,
-		RandomID:          randomIDs,
-		Silent:            opt.Silent,
-		Background:        false,
-		Noforwards:        opt.Noforwards,
-		ScheduleDate:      opt.ScheduleDate,
-		DropAuthor:        opt.HideAuthor,
-		DropMediaCaptions: opt.HideCaption,
-		SendAs:            sendAs,
+		ReplyTo:            reply,
+		ToPeer:             toPeer,
+		FromPeer:           fromPeer,
+		ID:                 msgIDs,
+		RandomID:           randomIDs,
+		Silent:             opt.Silent,
+		Background:         opt.Background,
+		Noforwards:         opt.Noforwards,
+		ScheduleDate:       opt.ScheduleDate,
+		DropAuthor:         opt.HideAuthor,
+		DropMediaCaptions:  opt.HideCaption,
+		WithMyScore:        opt.WithMyScore,
+		AllowPaidFloodskip: opt.AllowPaidFloodSkip,
+		SendAs:             sendAs,
+		VideoTimestamp:     opt.VideoTimestamp,
+		AllowPaidStars:     opt.AllowPaidStars,
+		SuggestedPost:      opt.SuggestedPost,
 	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -968,8 +1044,12 @@ func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*Forwar
 	if updateResp != nil {
 		updates := processUpdates(updateResp)
 		for _, update := range updates {
-			m = append(m, *packMessage(c, update))
+			packed := *packMessage(c, update)
+			packed.Message.PeerID = c.getPeer(toPeer)
+			m = append(m, packed)
 		}
+	} else {
+		m = append(m, *packMessage(c, &MessageObj{ID: 0, PeerID: c.getPeer(toPeer)}))
 	}
 	return m, nil
 }
@@ -1180,8 +1260,11 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 				break
 			}
 
-			params.OffsetID = fetchedMessages[len(fetchedMessages)-1].ID
-			params.MaxDate = fetchedMessages[len(fetchedMessages)-1].Date()
+			if len(fetchedMessages) > 0 {
+				lastIdx := len(fetchedMessages) - 1
+				params.OffsetID = fetchedMessages[lastIdx].ID
+				params.MaxDate = fetchedMessages[lastIdx].Date()
+			}
 
 			time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
 		}
@@ -1401,8 +1484,11 @@ func (c *Client) IterMessages(PeerID any, callback func(*NewMessage) error, Opts
 				return nil
 			}
 
-			params.OffsetID = batchMessages[len(batchMessages)-1].ID
-			params.MaxDate = batchMessages[len(batchMessages)-1].Date()
+			if len(batchMessages) > 0 {
+				lastIdx := len(batchMessages) - 1
+				params.OffsetID = batchMessages[lastIdx].ID
+				params.MaxDate = batchMessages[lastIdx].Date()
+			}
 
 			time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
 		}

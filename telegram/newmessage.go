@@ -676,12 +676,12 @@ func (m *NewMessage) React(Reactions ...any) error {
 
 // Forward forwards the message to a chat
 func (m *NewMessage) ForwardTo(PeerID any, Opts ...*ForwardOptions) (*NewMessage, error) {
-	resps, err := m.Client.Forward(PeerID, m.Peer, []int32{m.ID}, Opts...)
-	if resps == nil {
+	forwards, err := m.Client.Forward(PeerID, m.Peer, []int32{m.ID}, Opts...)
+	if forwards == nil {
 		return nil, err
 	}
-	resps[0].Message.PeerID = m.Message.PeerID
-	return &resps[0], err
+	forwards[0].Message.PeerID = m.Message.PeerID
+	return &forwards[0], err
 }
 
 // Fact checks the message for facts
