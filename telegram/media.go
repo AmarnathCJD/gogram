@@ -33,6 +33,8 @@ type UploadOptions struct {
 	ProgressManager *ProgressManager `json:"-"`
 	// Progress callback interval in seconds (default: 5)
 	ProgressInterval int `json:"progress_interval,omitempty"`
+	// Delay between chunks in milliseconds (default: 0)
+	Delay int `json:"delay,omitempty"`
 	// Context for cancellation.
 	Ctx context.Context `json:"-"`
 }
@@ -185,8 +187,6 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	uploadLog.setNumWorkers(numWorkers)
 	defer uploadLog.Flush()
 
-	adaptiveDelay := newAdaptiveDelay(size)
-
 	c.Log.WithFields(map[string]any{
 		"file_name": source.GetName(),
 		"file_size": SizetoHuman(size),
@@ -264,13 +264,14 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 						FilePart: int32(p),
 						Bytes:    part,
 					})
-					time.Sleep(adaptiveDelay.get())
+					if opts.Delay > 0 {
+						time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
+					}
 					w.FreeWorker(sender)
 					cancel()
 
 					if err != nil {
 						if handleIfFlood(err, c) {
-							adaptiveDelay.recordFlood()
 							continue
 						}
 						uploadLog.recordFailure(int(p), err, sender)
@@ -356,13 +357,14 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					FileTotalParts: int32(totalParts),
 					Bytes:          part,
 				})
-				//time.Sleep(adaptiveDelay.get())
+				if opts.Delay > 0 {
+					time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
+				}
 				w.FreeWorker(sender)
 				cancel()
 
 				if err != nil {
 					if handleIfFlood(err, c) {
-						//adaptiveDelay.recordFlood()
 						continue
 					}
 					uploadLog.recordFailure(int(p), err, sender)
@@ -474,6 +476,8 @@ type DownloadOptions struct {
 	ProgressManager *ProgressManager `json:"-"`
 	// Progress callback interval in seconds (default: 5)
 	ProgressInterval int `json:"progress_interval,omitempty"`
+	// Delay between chunks in milliseconds (default: 0)
+	Delay int `json:"delay,omitempty"`
 	// Datacenter ID of file
 	DCId int32 `json:"dc_id,omitempty"`
 	// Destination Writer
@@ -581,7 +585,6 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		c.Log.WithField("size", size).Warn("downloading to buffer (memory) - use with caution (memory usage)")
 	}
 
-	adaptiveDelay := newAdaptiveDelay(size)
 	c.Log.WithFields(map[string]any{
 		"file_name": dest,
 		"file_size": SizetoHuman(size),
@@ -661,16 +664,18 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					Precise:      true,
 					CdnSupported: false,
 				})
-				//time.Sleep(adaptiveDelay.get())
+				if opts.Delay > 0 {
+					time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
+				}
 				w.FreeWorker(sender)
 				cancel()
 
 				if err != nil {
 					if handleIfFlood(err, c) {
-						adaptiveDelay.recordFlood()
+						continue
 					} else if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
 						c.Log.WithError(err).Debug("while downloading file")
-						return // File reference expired
+						return // file reference expired
 					}
 
 					downloadLog.recordFailure(p, err, sender)
@@ -720,17 +725,18 @@ retrySinglePart:
 					Precise:      true,
 					CdnSupported: false,
 				})
-				//time.Sleep(adaptiveDelay.get())
+				if opts.Delay > 0 {
+					time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
+				}
 				w.FreeWorker(sender)
 				cancel()
 
 				if err != nil {
 					if handleIfFlood(err, c) {
-						adaptiveDelay.recordFlood()
 						downloadLog.recordFailure(p, err, sender)
 					} else if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
 						c.Log.WithError(err).Debug("while downloading file")
-						return // File reference expired
+						return // file reference expired
 					}
 
 					downloadLog.recordFailure(p, err, sender)
@@ -910,61 +916,6 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 }
 
 // ----------------------- Helper Functions -----------------------
-
-type adaptiveDelay struct {
-	mu           sync.Mutex
-	baselineMs   int64
-	currentMs    int64
-	floodCount   int64
-	lastAdjust   time.Time
-	adjustWindow time.Duration
-}
-
-func newAdaptiveDelay(size int64) *adaptiveDelay {
-	var baseline int64
-	if size > 2*1024*1024*1024 { // > 2GB
-		baseline = 420
-	} else if size > 1024*1024*1024 { // > 1GB
-		baseline = 340
-	} else {
-		baseline = 160
-	}
-	return &adaptiveDelay{
-		baselineMs:   baseline,
-		currentMs:    baseline,
-		adjustWindow: 5 * time.Second,
-		lastAdjust:   time.Now(),
-	}
-}
-
-func (ad *adaptiveDelay) get() time.Duration {
-	ad.mu.Lock()
-	defer ad.mu.Unlock()
-	return time.Duration(ad.currentMs) * time.Millisecond
-}
-
-func (ad *adaptiveDelay) recordFlood() {
-	ad.mu.Lock()
-	defer ad.mu.Unlock()
-	ad.floodCount++
-
-	now := time.Now()
-	if now.Sub(ad.lastAdjust) >= ad.adjustWindow {
-		if ad.floodCount > 0 {
-			ad.currentMs += 10 * int64(ad.floodCount/2+1)
-			if ad.currentMs > 500 { // cap at 500ms
-				ad.currentMs = 500
-			}
-		} else if ad.currentMs > ad.baselineMs {
-			ad.currentMs -= 50
-			if ad.currentMs < ad.baselineMs {
-				ad.currentMs = ad.baselineMs
-			}
-		}
-		ad.floodCount = 0
-		ad.lastAdjust = now
-	}
-}
 
 type partLogAggregator struct {
 	mu          sync.Mutex
