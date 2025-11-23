@@ -1,4 +1,4 @@
-// Copyright (c) 2024 RoseLoverX
+// Copyright (c) 2025 RoseLoverX
 
 package telegram
 
@@ -27,8 +27,14 @@ type UploadOptions struct {
 	ChunkSize int32 `json:"chunk_size,omitempty"`
 	// File name for upload file.
 	FileName string `json:"file_name,omitempty"`
-	// Progress callback for upload file.
+	// Progress callback: receives ProgressInfo with all transfer details
+	ProgressCallback func(*ProgressInfo) `json:"-"`
+	// Progress manager (legacy support)
 	ProgressManager *ProgressManager `json:"-"`
+	// Progress callback interval in seconds (default: 5)
+	ProgressInterval int `json:"progress_interval,omitempty"`
+	// Context for cancellation.
+	Ctx context.Context `json:"-"`
 }
 
 type WorkerPool struct {
@@ -71,6 +77,7 @@ func (wp *WorkerPool) FreeWorker(s *ExSender) {
 
 type Source struct {
 	Source any
+	closer io.Closer
 }
 
 func (s *Source) GetSizeAndName() (int64, string) {
@@ -80,6 +87,7 @@ func (s *Source) GetSizeAndName() (int64, string) {
 		if err != nil {
 			return 0, ""
 		}
+		defer file.Close()
 		stat, _ := file.Stat()
 		return stat.Size(), file.Name()
 	case *os.File:
@@ -100,6 +108,7 @@ func (s *Source) GetName() string {
 		if err != nil {
 			return ""
 		}
+		defer file.Close()
 		return file.Name()
 	case *os.File:
 		return src.Name()
@@ -114,6 +123,7 @@ func (s *Source) GetReader() io.Reader {
 		if err != nil {
 			return nil
 		}
+		s.closer = file
 		return file
 	case *os.File:
 		return src
@@ -127,18 +137,26 @@ func (s *Source) GetReader() io.Reader {
 	return nil
 }
 
+func (s *Source) Close() error {
+	if s.closer != nil {
+		return s.closer.Close()
+	}
+	return nil
+}
+
 func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) {
 	opts := getVariadic(Opts, &UploadOptions{})
 	if src == nil {
-		return nil, errors.New("file can not be nil")
+		return nil, errors.New("you must provide a valid file source")
 	}
 
 	source := &Source{Source: src}
+	defer source.Close()
 	size, fileName := source.GetSizeAndName()
 
 	file := source.GetReader()
 	if file == nil {
-		return nil, errors.New("failed to convert source to io.Reader")
+		return nil, errors.New("could not get reader from source")
 	}
 
 	partSize := 1024 * 512 // 512KB
@@ -163,8 +181,17 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		numWorkers = opts.Threads
 	}
 	w := NewWorkerPool(numWorkers)
+	uploadLog := newPartLogAggregator("upload", int(totalParts), 3*time.Second)
+	uploadLog.setNumWorkers(numWorkers)
+	defer uploadLog.Flush()
 
-	c.Log.Info(fmt.Sprintf("file - upload: (%s) - (%s) - (%d)", source.GetName(), SizetoHuman(size), parts))
+	adaptiveDelay := newAdaptiveDelay(size)
+
+	c.Log.WithFields(map[string]any{
+		"file_name": source.GetName(),
+		"file_size": SizetoHuman(size),
+		"parts":     parts,
+	}).Info("starting file upload")
 
 	doneBytes := atomic.Int64{}
 	doneArray := sync.Map{}
@@ -173,34 +200,24 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		return nil, err
 	}
 
-	stopProgress := make(chan struct{})
-	defer close(stopProgress)
+	var progressTracker *progressTracker
+	var progressCallback func(*ProgressInfo)
 
-	if opts.ProgressManager != nil {
+	if opts.ProgressCallback != nil {
+		progressCallback = opts.ProgressCallback
+	} else if opts.ProgressManager != nil {
 		opts.ProgressManager.SetFileName(source.GetName())
-		opts.ProgressManager.lastPerc = 0
-		opts.ProgressManager.IncCount()
 		opts.ProgressManager.SetTotalSize(size)
-		opts.ProgressManager.SetMeta(c.GetDC(), numWorkers)
-
-		opts.ProgressManager.editFunc(size, 0) // Initial edit
-
-		go func() {
-			ticker := time.NewTicker(time.Duration(opts.ProgressManager.editInterval) * time.Second)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-stopProgress:
-					return
-				case <-ticker.C:
-					current := min(doneBytes.Load(), size)
-					opts.ProgressManager.editFunc(size, current)
-				}
-			}
-		}()
+		progressCallback = opts.ProgressManager.getCallback()
 	}
 
-	MaxRetries := 3
+	if progressCallback != nil {
+		progressTracker = newProgressTracker(source.GetName(), size, progressCallback, opts.ProgressInterval)
+		defer progressTracker.stop()
+		progressTracker.start(&doneBytes)
+	}
+
+	MaxRetries := 15
 	sem := make(chan struct{}, numWorkers)
 	defer close(sem)
 
@@ -224,27 +241,43 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 			go func(p int64, part []byte) {
 				defer func() { <-sem; wg.Done() }()
 
-				for r := 0; r < MaxRetries; r++ {
+				for range MaxRetries {
+					if opts.Ctx != nil {
+						select {
+						case <-opts.Ctx.Done():
+							return
+						default:
+						}
+					}
+
 					sender := w.Next()
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					var ctx context.Context
+					var cancel context.CancelFunc
+					if opts.Ctx != nil {
+						ctx, cancel = context.WithTimeout(opts.Ctx, 5*time.Second)
+					} else {
+						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+					}
 
 					_, err := sender.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
 						FileID:   fileId,
 						FilePart: int32(p),
 						Bytes:    part,
 					})
+					time.Sleep(adaptiveDelay.get())
 					w.FreeWorker(sender)
 					cancel()
 
 					if err != nil {
 						if handleIfFlood(err, c) {
+							adaptiveDelay.recordFlood()
 							continue
 						}
-						c.Log.Debug(fmt.Sprintf("upload part %d error: %v", p, err))
+						uploadLog.recordFailure(int(p), err, sender)
 						continue
 					}
 
-					c.Log.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
+					uploadLog.recordSuccess(int(p), sender)
 					doneBytes.Add(int64(len(part)))
 					doneArray.Store(p, true)
 					break
@@ -254,9 +287,28 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 		wg.Wait()
 
+		if progressCallback != nil {
+			progressCallback(&ProgressInfo{
+				FileName:     source.GetName(),
+				TotalSize:    size,
+				Current:      size,
+				CurrentSpeed: 0,
+				AverageSpeed: 0,
+				ETA:          0,
+				Elapsed:      0,
+				Percentage:   100,
+			})
+		}
+
 		if opts.FileName != "" {
 			fileName = opts.FileName
 		}
+
+		c.Log.WithFields(map[string]any{
+			"file_name": source.GetName(),
+			"file_size": SizetoHuman(size),
+			"parts":     parts,
+		}).Info("file upload completed")
 
 		return &InputFileObj{
 			ID:          fileId,
@@ -280,9 +332,23 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		go func(p int64, part []byte) {
 			defer func() { <-sem; wg.Done() }()
 
-			for r := 0; r < MaxRetries; r++ {
+			for range MaxRetries {
+				if opts.Ctx != nil {
+					select {
+					case <-opts.Ctx.Done():
+						return
+					default:
+					}
+				}
+
 				sender := w.Next()
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				var ctx context.Context
+				var cancel context.CancelFunc
+				if opts.Ctx != nil {
+					ctx, cancel = context.WithTimeout(opts.Ctx, 5*time.Second)
+				} else {
+					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+				}
 
 				_, err := sender.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
 					FileID:         fileId,
@@ -290,18 +356,20 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					FileTotalParts: int32(totalParts),
 					Bytes:          part,
 				})
+				time.Sleep(adaptiveDelay.get())
 				w.FreeWorker(sender)
 				cancel()
 
 				if err != nil {
 					if handleIfFlood(err, c) {
+						adaptiveDelay.recordFlood()
 						continue
 					}
-					c.Log.Debug(fmt.Sprintf("upload part %d error: %v", p, err))
+					uploadLog.recordFailure(int(p), err, sender)
 					continue
 				}
 
-				c.Log.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
+				uploadLog.recordSuccess(int(p), sender)
 				doneBytes.Add(int64(len(part)))
 				doneArray.Store(p, true)
 				break
@@ -311,9 +379,28 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 	wg.Wait()
 
+	if progressCallback != nil {
+		progressCallback(&ProgressInfo{
+			FileName:     source.GetName(),
+			TotalSize:    size,
+			Current:      size,
+			CurrentSpeed: 0,
+			AverageSpeed: 0,
+			ETA:          0,
+			Elapsed:      0,
+			Percentage:   100,
+		})
+	}
+
 	if opts.FileName != "" {
 		fileName = opts.FileName
 	}
+
+	c.Log.WithFields(map[string]any{
+		"file_name": source.GetName(),
+		"file_size": SizetoHuman(size),
+		"parts":     parts,
+	}).Info("file upload completed")
 
 	return &InputFileBig{
 		ID:    fileId,
@@ -326,7 +413,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 func handleIfFlood(err error, c *Client) bool {
 	if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
 		if waitTime := GetFloodWait(err); waitTime > 0 {
-			c.Log.Debug("flood wait ", waitTime, "(s), waiting...")
+			c.Log.Debug("sleeping for flood wait %s", waitTime, "(s)...", waitTime)
 			time.Sleep(time.Duration(waitTime) * time.Second)
 
 			if c.clientData.sleepThresholdMs > 0 {
@@ -381,8 +468,12 @@ type DownloadOptions struct {
 	Threads int `json:"threads,omitempty"`
 	// Chunk size to download file
 	ChunkSize int32 `json:"chunk_size,omitempty"`
-	// output Callback for download progress in bytes.
+	// Progress callback: receives ProgressInfo with all transfer details
+	ProgressCallback func(*ProgressInfo) `json:"-"`
+	// Progress manager (legacy support)
 	ProgressManager *ProgressManager `json:"-"`
+	// Progress callback interval in seconds (default: 5)
+	ProgressInterval int `json:"progress_interval,omitempty"`
 	// Datacenter ID of file
 	DCId int32 `json:"dc_id,omitempty"`
 	// Destination Writer
@@ -393,6 +484,8 @@ type DownloadOptions struct {
 	ThumbSize PhotoSize `json:"thumb_size,omitempty"`
 	// Weather to download video file (profile photo, etc)
 	IsVideo bool `json:"is_video,omitempty"`
+	// Context for cancellation.
+	Ctx context.Context `json:"-"`
 }
 
 type Destination struct {
@@ -446,7 +539,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	partSize := chunkSizeCalc(size)
 	if opts.ChunkSize > 0 {
 		if opts.ChunkSize > 1048576 || (1048576%opts.ChunkSize) != 0 {
-			return "", errors.New("chunk size must be a multiple of 1048576 (1MB)")
+			return "", fmt.Errorf("chunk size must be a multiple of 1048576 (1MB)")
 		}
 		partSize = int(opts.ChunkSize)
 	}
@@ -479,13 +572,21 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 
 	var w = NewWorkerPool(numWorkers)
+	downloadLog := newPartLogAggregator("download", int(totalParts), 3*time.Second)
+	downloadLog.setNumWorkers(numWorkers)
+	defer downloadLog.Flush()
 
 	if opts.Buffer != nil {
 		dest = ":mem-buffer:"
-		c.Log.Warn("downloading to buffer (memory) - use with caution (memory usage)")
+		c.Log.WithField("size", size).Warn("downloading to buffer (memory) - use with caution (memory usage)")
 	}
 
-	c.Log.Info(fmt.Sprintf("file - download: (%s) - (%s) - (%d)", dest, SizetoHuman(size), parts))
+	adaptiveDelay := newAdaptiveDelay(size)
+	c.Log.WithFields(map[string]any{
+		"file_name": dest,
+		"file_size": SizetoHuman(size),
+		"parts":     parts,
+	}).Info("starting file download")
 
 	if err := initializeWorkers(numWorkers, dc, c, w); err != nil {
 		return "", err
@@ -498,35 +599,30 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	var doneBytes atomic.Int64
 	var doneArray sync.Map
 
-	stopProgress := make(chan struct{})
-	defer close(stopProgress)
+	var progressTracker *progressTracker
+	var progressCallback func(*ProgressInfo)
 
-	if opts.ProgressManager != nil {
+	if opts.ProgressCallback != nil {
+		progressCallback = opts.ProgressCallback
+	} else if opts.ProgressManager != nil {
 		opts.ProgressManager.SetFileName(dest)
-		opts.ProgressManager.lastPerc = 0
-		opts.ProgressManager.IncCount()
 		opts.ProgressManager.SetTotalSize(size)
-		opts.ProgressManager.SetMeta(int(dc), numWorkers)
+		progressCallback = opts.ProgressManager.getCallback()
+	}
 
-		opts.ProgressManager.editFunc(size, 0) // Initial edit
-
-		go func() {
-			ticker := time.NewTicker(time.Duration(opts.ProgressManager.editInterval) * time.Second)
-			defer ticker.Stop()
-
-			for {
-				select {
-				case <-stopProgress:
-					return
-				case <-ticker.C:
-					current := min(doneBytes.Load(), size)
-					opts.ProgressManager.editFunc(size, current)
-				}
-			}
-		}()
+	if progressCallback != nil {
+		progressTracker = newProgressTracker(dest, size, progressCallback, opts.ProgressInterval)
+		defer progressTracker.stop()
+		progressTracker.start(&doneBytes)
 	}
 
 	MaxRetries := 3
+	c.Log.WithFields(map[string]any{
+		"parts":   totalParts,
+		"workers": numWorkers,
+		"dc":      dc,
+	}).Debug("dispatching download workers")
+
 	var cdnRedirect atomic.Bool
 	for p := int64(0); p < totalParts; p++ {
 		wg.Add(1)
@@ -541,8 +637,22 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				if cdnRedirect.Load() {
 					return
 				}
+				if opts.Ctx != nil {
+					select {
+					case <-opts.Ctx.Done():
+						return
+					default:
+					}
+				}
+
 				sender := w.Next()
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				var ctx context.Context
+				var cancel context.CancelFunc
+				if opts.Ctx != nil {
+					ctx, cancel = context.WithTimeout(opts.Ctx, 5*time.Second)
+				} else {
+					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+				}
 
 				part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
 					Location:     location,
@@ -551,29 +661,28 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					Precise:      true,
 					CdnSupported: false,
 				})
+				time.Sleep(adaptiveDelay.get())
 				w.FreeWorker(sender)
 				cancel()
 
 				if err != nil {
 					if handleIfFlood(err, c) {
-						continue
-					}
-
-					if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
-						c.Log.Debug(err)
+						adaptiveDelay.recordFlood()
+					} else if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
+						c.Log.WithError(err).Debug("while downloading file")
 						return // File reference expired
 					}
 
-					c.Log.Debug(errors.New(fmt.Sprintf("part - (%d) - retrying...", p)))
+					downloadLog.recordFailure(p, err, sender)
 					continue
 				}
 
 				switch v := part.(type) {
 				case *UploadFileObj:
-					c.Log.Debug("downloaded part ", p, "/", totalParts, " len: ", len(v.Bytes)/1024, "KB")
 					fs.WriteAt(v.Bytes, int64(p)*int64(partSize))
 					doneBytes.Add(int64(len(v.Bytes)))
 					doneArray.Store(p, true)
+					downloadLog.recordSuccess(p, sender)
 				case *UploadFileCdnRedirect:
 					cdnRedirect.Store(true)
 				case nil:
@@ -587,7 +696,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 	wg.Wait()
 	if cdnRedirect.Load() {
-		return "", errors.New("cdn redirect not implemented")
+		return "", fmt.Errorf("cdn redirect not implemented")
 	}
 
 retrySinglePart:
@@ -611,28 +720,29 @@ retrySinglePart:
 					Precise:      true,
 					CdnSupported: false,
 				})
+				time.Sleep(adaptiveDelay.get())
 				w.FreeWorker(sender)
 				cancel()
 
 				if err != nil {
 					if handleIfFlood(err, c) {
-						continue
-					}
-					if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
-						c.Log.Debug(err)
+						adaptiveDelay.recordFlood()
+						downloadLog.recordFailure(p, err, sender)
+					} else if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
+						c.Log.WithError(err).Debug("while downloading file")
 						return // File reference expired
 					}
 
-					c.Log.Debug(errors.New(fmt.Sprintf("part - (%d) - retrying...", p)))
+					downloadLog.recordFailure(p, err, sender)
 					continue
 				}
 
 				switch v := part.(type) {
 				case *UploadFileObj:
-					c.Log.Debug("downloaded part ", p, "/", totalParts, " len: ", len(v.Bytes)/1024, "KB")
 					fs.WriteAt(v.Bytes, int64(p)*int64(partSize))
 					doneBytes.Add(int64(len(v.Bytes)))
 					doneArray.Store(p, true)
+					downloadLog.recordSuccess(p, sender)
 				case *UploadFileCdnRedirect:
 					cdnRedirect.Store(true) // TODO
 				case nil:
@@ -651,16 +761,31 @@ retrySinglePart:
 
 	wg.Wait()
 	if cdnRedirect.Load() {
-		return "", errors.New("cdn redirect not implemented")
+		return "", fmt.Errorf("cdn redirect not implemented")
 	}
 
-	if opts.ProgressManager != nil {
-		opts.ProgressManager.editFunc(size, size)
+	// Final progress callback to show 100%
+	if progressCallback != nil {
+		progressCallback(&ProgressInfo{
+			FileName:     dest,
+			TotalSize:    size,
+			Current:      size,
+			CurrentSpeed: 0,
+			AverageSpeed: 0,
+			ETA:          0,
+			Elapsed:      0,
+			Percentage:   100,
+		})
 	}
 
 	if opts.Buffer != nil {
 		io.Copy(opts.Buffer, bytes.NewReader(fs.data))
 	}
+
+	c.Log.WithFields(map[string]any{
+		"file_name": dest,
+		"file_size": SizetoHuman(size),
+	}).Info("file download completed")
 
 	return dest, nil
 }
@@ -777,174 +902,468 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		case *UploadFileObj:
 			buf = append(buf, v.Bytes...)
 		case *UploadFileCdnRedirect:
-			return nil, "", errors.New("cdn redirect not implemented")
+			return nil, "", fmt.Errorf("cdn redirect not implemented")
 		}
 	}
 
 	return buf, name, nil
 }
 
-// ----------------------- Progress Manager -----------------------
-type ProgressManager struct {
-	startTime    int64
-	editInterval int
-	editFunc     func(totalSize, currentSize int64)
-	totalSize    int64
-	lastPerc     float64
-	fileName     string
-	fileCount    int
-	meta         struct {
-		dataCenter int
-		numWorkers int
+// ----------------------- Helper Functions -----------------------
+
+type adaptiveDelay struct {
+	mu           sync.Mutex
+	baselineMs   int64
+	currentMs    int64
+	floodCount   int64
+	lastAdjust   time.Time
+	adjustWindow time.Duration
+}
+
+func newAdaptiveDelay(size int64) *adaptiveDelay {
+	var baseline int64
+	if size > 2*1024*1024*1024 { // > 2GB
+		baseline = 420
+	} else if size > 1024*1024*1024 { // > 1GB
+		baseline = 340
+	} else {
+		baseline = 160
 	}
+	return &adaptiveDelay{
+		baselineMs:   baseline,
+		currentMs:    baseline,
+		adjustWindow: 5 * time.Second,
+		lastAdjust:   time.Now(),
+	}
+}
+
+func (ad *adaptiveDelay) get() time.Duration {
+	ad.mu.Lock()
+	defer ad.mu.Unlock()
+	return time.Duration(ad.currentMs) * time.Millisecond
+}
+
+func (ad *adaptiveDelay) recordFlood() {
+	ad.mu.Lock()
+	defer ad.mu.Unlock()
+	ad.floodCount++
+
+	now := time.Now()
+	if now.Sub(ad.lastAdjust) >= ad.adjustWindow {
+		if ad.floodCount > 0 {
+			ad.currentMs += 10 * int64(ad.floodCount/2+1)
+			if ad.currentMs > 500 { // cap at 500ms
+				ad.currentMs = 500
+			}
+		} else if ad.currentMs > ad.baselineMs {
+			ad.currentMs -= 50
+			if ad.currentMs < ad.baselineMs {
+				ad.currentMs = ad.baselineMs
+			}
+		}
+		ad.floodCount = 0
+		ad.lastAdjust = now
+	}
+}
+
+type partLogAggregator struct {
+	mu          sync.Mutex
+	ctx         string
+	total       int
+	interval    time.Duration
+	lastLog     time.Time
+	successes   int
+	failures    int
+	lastPart    int
+	lastErr     error
+	senderStats map[*ExSender]*senderStats
+	numWorkers  int
+}
+
+type senderStats struct {
+	successes int
+	failures  int
+	lastSeen  time.Time
+}
+
+func newPartLogAggregator(ctx string, total int, interval time.Duration) *partLogAggregator {
+	if interval <= 0 {
+		interval = 3 * time.Second
+	}
+	return &partLogAggregator{
+		ctx:         ctx,
+		total:       total,
+		interval:    interval,
+		lastLog:     time.Now(),
+		senderStats: make(map[*ExSender]*senderStats),
+	}
+}
+
+func (a *partLogAggregator) setNumWorkers(n int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.numWorkers = n
+}
+
+func (a *partLogAggregator) recordSuccess(part int, sender *ExSender) {
+	a.mu.Lock()
+	a.successes++
+	a.lastPart = part
+	if sender != nil {
+		if _, ok := a.senderStats[sender]; !ok {
+			a.senderStats[sender] = &senderStats{}
+		}
+		a.senderStats[sender].successes++
+		a.senderStats[sender].lastSeen = time.Now()
+	}
+	a.maybeLogLocked(sender)
+	a.mu.Unlock()
+}
+
+func (a *partLogAggregator) recordFailure(part int, err error, sender *ExSender) {
+	a.mu.Lock()
+	a.failures++
+	a.lastPart = part
+	a.lastErr = err
+	if sender != nil {
+		if _, ok := a.senderStats[sender]; !ok {
+			a.senderStats[sender] = &senderStats{}
+		}
+		a.senderStats[sender].failures++
+		a.senderStats[sender].lastSeen = time.Now()
+	}
+	a.maybeLogLocked(sender)
+	a.mu.Unlock()
+}
+
+func (a *partLogAggregator) maybeLogLocked(sender *ExSender) {
+	if time.Since(a.lastLog) < a.interval {
+		return
+	}
+	a.logLocked(sender)
+}
+
+func (a *partLogAggregator) logLocked(senderVar ...*ExSender) {
+	if a.successes == 0 && a.failures == 0 {
+		return
+	}
+
+	var sender *ExSender
+	if len(senderVar) > 0 {
+		sender = senderVar[0]
+	}
+
+	var workerStats []string
+	if len(a.senderStats) > 0 {
+		type senderInfo struct {
+			sender *ExSender
+			stats  *senderStats
+		}
+		var senders []senderInfo
+		for sender, stats := range a.senderStats {
+			senders = append(senders, senderInfo{sender: sender, stats: stats})
+		}
+
+		for i := 0; i < len(senders); i++ {
+			for j := i + 1; j < len(senders); j++ {
+				if senders[j].stats.successes > senders[i].stats.successes {
+					senders[i], senders[j] = senders[j], senders[i]
+				}
+			}
+		}
+
+		for i, s := range senders {
+			total := s.stats.successes + s.stats.failures
+			if total == 0 {
+				continue
+			}
+
+			successRate := float64(s.stats.successes) / float64(total) * 100
+			var stat string
+			if s.stats.failures == 0 {
+				stat = fmt.Sprintf("W%d:%d", i+1, s.stats.successes)
+			} else if successRate < 80 {
+				stat = fmt.Sprintf("W%d:%d/%d!", i+1, s.stats.successes, s.stats.failures)
+			} else {
+				stat = fmt.Sprintf("W%d:%d/%d", i+1, s.stats.successes, s.stats.failures)
+			}
+			workerStats = append(workerStats, stat)
+		}
+	}
+
+	totalProgress := float64(a.successes) / float64(a.total) * 100
+
+	logMsg := fmt.Sprintf("[%s] %d/%d (%.1f%%) ✓%d ✗%d",
+		a.ctx, a.successes, a.total, totalProgress, a.successes, a.failures)
+
+	if len(workerStats) > 0 {
+		logMsg += " | " + strings.Join(workerStats, " ")
+	}
+
+	if a.lastErr != nil && a.failures > 0 {
+		errMsg := a.lastErr.Error()
+		if strings.Contains(errMsg, "context deadline exceeded") {
+			errMsg = "timeout"
+		} else if strings.Contains(errMsg, "FLOOD_WAIT") {
+			errMsg = "flood"
+		} else if len(errMsg) > 30 {
+			errMsg = errMsg[:30] + "..."
+		}
+		logMsg += " | err:" + errMsg
+	}
+
+	if sender != nil {
+		sender.Logger.Debug(logMsg)
+	}
+	a.lastLog = time.Now()
+}
+
+func (a *partLogAggregator) Flush() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.logLocked()
+}
+
+// ----------------------- Progress Manager -----------------------
+
+// ProgressInfo contains all information about upload/download progress
+type ProgressInfo struct {
+	// File name being transferred
+	FileName string
+	// Total file size in bytes
+	TotalSize int64
+	// Current bytes transferred
+	Current int64
+	// Current transfer speed in bytes/second (speed in last interval)
+	CurrentSpeed float64
+	// Average transfer speed in bytes/second (overall)
+	AverageSpeed float64
+	// Estimated time remaining in seconds
+	ETA float64
+	// Time elapsed since start in seconds
+	Elapsed float64
+	// Progress percentage (0-100)
+	Percentage float64
+}
+
+// SpeedString returns current speed as human-readable string
+func (p *ProgressInfo) SpeedString() string {
+	speed := p.CurrentSpeed
+	if speed < 1024 {
+		return fmt.Sprintf("%.2f B/s", speed)
+	} else if speed < 1024*1024 {
+		return fmt.Sprintf("%.2f KB/s", speed/1024)
+	}
+	return fmt.Sprintf("%.2f MB/s", speed/1024/1024)
+}
+
+// AvgSpeedString returns average speed as human-readable string
+func (p *ProgressInfo) AvgSpeedString() string {
+	speed := p.AverageSpeed
+	if speed < 1024 {
+		return fmt.Sprintf("%.2f B/s", speed)
+	} else if speed < 1024*1024 {
+		return fmt.Sprintf("%.2f KB/s", speed/1024)
+	}
+	return fmt.Sprintf("%.2f MB/s", speed/1024/1024)
+}
+
+// ETAString returns ETA as human-readable string
+func (p *ProgressInfo) ETAString() string {
+	if p.ETA <= 0 {
+		return "--:--"
+	}
+	duration := time.Duration(p.ETA) * time.Second
+	if duration < time.Minute {
+		return fmt.Sprintf("%ds", int(duration.Seconds()))
+	} else if duration < time.Hour {
+		return fmt.Sprintf("%dm%ds", int(duration.Minutes()), int(duration.Seconds())%60)
+	}
+	return fmt.Sprintf("%dh%dm", int(duration.Hours()), int(duration.Minutes())%60)
+}
+
+// ElapsedString returns elapsed time as human-readable string
+func (p *ProgressInfo) ElapsedString() string {
+	duration := time.Duration(p.Elapsed) * time.Second
+	if duration < time.Minute {
+		return fmt.Sprintf("%ds", int(duration.Seconds()))
+	} else if duration < time.Hour {
+		return fmt.Sprintf("%dm%ds", int(duration.Minutes()), int(duration.Seconds())%60)
+	}
+	return fmt.Sprintf("%dh%dm", int(duration.Hours()), int(duration.Minutes())%60)
+}
+
+type progressTracker struct {
+	fileName  string
+	totalSize int64
+	callback  func(*ProgressInfo)
+	interval  time.Duration
+	lastBytes int64
+	lastTime  time.Time
+	startTime time.Time
+	stopChan  chan struct{}
+	mu        sync.Mutex
+}
+
+func newProgressTracker(fileName string, totalSize int64, callback func(*ProgressInfo), intervalSec int) *progressTracker {
+	now := time.Now()
+	if intervalSec <= 0 {
+		intervalSec = 5
+	}
+	return &progressTracker{
+		fileName:  fileName,
+		totalSize: totalSize,
+		callback:  callback,
+		interval:  time.Duration(intervalSec) * time.Second,
+		lastTime:  now,
+		startTime: now,
+		stopChan:  make(chan struct{}),
+	}
+}
+
+func (pt *progressTracker) start(doneBytes *atomic.Int64) {
+	go func() {
+		ticker := time.NewTicker(pt.interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-pt.stopChan:
+				return
+			case <-ticker.C:
+				pt.mu.Lock()
+				current := doneBytes.Load()
+				now := time.Now()
+				intervalElapsed := now.Sub(pt.lastTime).Seconds()
+				totalElapsed := now.Sub(pt.startTime).Seconds()
+
+				var currentSpeed float64
+				if intervalElapsed > 0 {
+					bytesDiff := current - pt.lastBytes
+					currentSpeed = float64(bytesDiff) / intervalElapsed
+				}
+
+				var averageSpeed float64
+				if totalElapsed > 0 {
+					averageSpeed = float64(current) / totalElapsed
+				}
+
+				var eta float64
+				if currentSpeed > 0 && current < pt.totalSize {
+					remaining := pt.totalSize - current
+					eta = float64(remaining) / currentSpeed
+				}
+
+				var percentage float64
+				if pt.totalSize > 0 {
+					percentage = float64(current) / float64(pt.totalSize) * 100
+				}
+
+				pt.lastBytes = current
+				pt.lastTime = now
+				pt.mu.Unlock()
+
+				if current > 0 && current <= pt.totalSize {
+					pt.callback(&ProgressInfo{
+						FileName:     pt.fileName,
+						TotalSize:    pt.totalSize,
+						Current:      current,
+						CurrentSpeed: currentSpeed,
+						AverageSpeed: averageSpeed,
+						ETA:          eta,
+						Elapsed:      totalElapsed,
+						Percentage:   percentage,
+					})
+				}
+			}
+		}
+	}()
+}
+
+func (pt *progressTracker) stop() {
+	close(pt.stopChan)
+}
+
+// ProgressManager provides progress tracking for uploads and downloads
+type ProgressManager struct {
+	progressCallback func(*ProgressInfo)
+	legacyCallback   func(totalSize, currentSize int64)
+	fileName         string
+	totalSize        int64
 }
 
 func NewProgressManager(editInterval int, editFunc ...func(totalSize, currentSize int64)) *ProgressManager {
-	var pm = &ProgressManager{
-		startTime:    time.Now().Unix(),
-		editInterval: editInterval,
-	}
-
+	pm := &ProgressManager{}
 	if len(editFunc) > 0 {
-		pm.editFunc = editFunc[0]
+		pm.legacyCallback = editFunc[0]
 	}
-
 	return pm
-}
-
-func (pm *ProgressManager) SetMessage(msg *NewMessage) *ProgressManager {
-	pm.editFunc = MediaDownloadProgress(msg, pm)
-	return pm
-}
-
-func (pm *ProgressManager) SetInlineMessage(client *Client, inline *InputBotInlineMessageID) *ProgressManager {
-	pm.editFunc = MediaDownloadProgress(&NewMessage{
-		Client: client,
-	}, pm, inline)
-	return pm
-}
-
-// WithEdit sets the edit function for the progress manager.
-func (pm *ProgressManager) WithEdit(editFunc func(totalSize, currentSize int64)) *ProgressManager {
-	pm.editFunc = editFunc
-	return pm
-}
-
-func (pm *ProgressManager) Edit(editFunc func(totalSize, currentSize int64)) {
-	pm.editFunc = editFunc
-}
-
-func (pm *ProgressManager) SetTotalSize(totalSize int64) {
-	pm.totalSize = totalSize
-}
-
-func (pm *ProgressManager) SetMeta(dataCenter, numWorkers int) {
-	pm.meta.dataCenter = dataCenter
-	pm.meta.numWorkers = numWorkers
-}
-
-func (pm *ProgressManager) PrintFunc() func(a, b int64) {
-	return func(a, b int64) {
-		fmt.Println(pm.GetStats(b))
-	}
-}
-
-// specify the message to edit
-func (pm *ProgressManager) WithMessage(msg *NewMessage) func(a, b int64) {
-	return func(a, b int64) {
-		msg.Edit(pm.GetStats(b))
-	}
 }
 
 func (pm *ProgressManager) SetFileName(fileName string) {
 	pm.fileName = fileName
 }
 
-func (pm *ProgressManager) GetFileName() string {
-	return pm.fileName
+func (pm *ProgressManager) SetTotalSize(totalSize int64) {
+	pm.totalSize = totalSize
 }
 
-func (pm *ProgressManager) IncCount() {
-	pm.fileCount++
+// WithEdit sets the edit function
+func (pm *ProgressManager) WithEdit(editFunc func(totalSize, currentSize int64)) *ProgressManager {
+	pm.legacyCallback = editFunc
+	return pm
 }
 
-func (pm *ProgressManager) GetCount() int {
-	return pm.fileCount
+// WithCallback sets the callback function
+func (pm *ProgressManager) WithCallback(callback func(*ProgressInfo)) *ProgressManager {
+	pm.progressCallback = callback
+	return pm
 }
 
-func (pm *ProgressManager) GetProgress(currentBytes int64) float64 {
-	if pm.totalSize == 0 {
-		return 0
+// SetMessage sets up progress reporting to edit a telegram message
+func (pm *ProgressManager) SetMessage(msg *NewMessage) *ProgressManager {
+	pm.progressCallback = MediaDownloadProgress(msg)
+	return pm
+}
+
+func (pm *ProgressManager) SetInlineMessage(client *Client, inline *InputBotInlineMessageID) *ProgressManager {
+	pm.progressCallback = MediaDownloadProgress(&NewMessage{Client: client}, inline)
+	return pm
+}
+
+func (pm *ProgressManager) getCallback() func(*ProgressInfo) {
+	if pm.progressCallback != nil {
+		return pm.progressCallback
 	}
-	var currPerc = float64(currentBytes) / float64(pm.totalSize) * 100
-	if currPerc < pm.lastPerc {
-		return pm.lastPerc
-	}
-
-	pm.lastPerc = currPerc
-	return currPerc
-}
-
-func (pm *ProgressManager) GetETA(currentBytes int64) string {
-	elapsed := time.Now().Unix() - pm.startTime
-	remaining := float64(pm.totalSize-currentBytes) / float64(currentBytes) * float64(elapsed)
-	return (time.Second * time.Duration(remaining)).String()
-}
-
-func (pm *ProgressManager) GetSpeed(currentBytes int64) string {
-	elapsedTime := time.Since(time.Unix(pm.startTime, 0))
-	if int(elapsedTime.Seconds()) == 0 {
-		return "0 B/s"
-	}
-	speedBps := float64(currentBytes) / elapsedTime.Seconds()
-	if speedBps < 1024 {
-		return fmt.Sprintf("%.2f B/s", speedBps)
-	} else if speedBps < 1024*1024 {
-		return fmt.Sprintf("%.2f KB/s", speedBps/1024)
-	} else {
-		return fmt.Sprintf("%.2f MB/s", speedBps/1024/1024)
-	}
-}
-
-func (pm *ProgressManager) GetStats(currentBytes int64) string {
-	return fmt.Sprintf("Progress: %.2f%% | ETA: %s | Speed: %s\n%s", pm.GetProgress(currentBytes), pm.GetETA(currentBytes), pm.GetSpeed(currentBytes), pm.GenProgressBar(currentBytes))
-}
-
-func (pm *ProgressManager) GenProgressBar(b int64) string {
-	barLength := 20
-	progress := int((pm.GetProgress(b) / 100) * float64(barLength))
-	bar := "["
-
-	for i := range barLength {
-		if i < progress {
-			bar += "="
-		} else {
-			bar += " "
+	if pm.legacyCallback != nil {
+		return func(info *ProgressInfo) {
+			pm.legacyCallback(info.TotalSize, info.Current)
 		}
 	}
-	bar += "]"
-
-	return fmt.Sprintf("\r%s %d%%", bar, int(pm.GetProgress(b)))
+	return nil
 }
 
-func MediaDownloadProgress(editMsg *NewMessage, pm *ProgressManager, inline ...*InputBotInlineMessageID) func(totalBytes, currentBytes int64) {
-	return func(totalBytes int64, currentBytes int64) {
-		text := ""
-		text += "<b>📄 Name:</b> <code>%s</code>\n"
-		text += "<b>🈂️ DC ID:</b> <code>%d</code> <b>|</b> <b>⚡Workers:</b> <code>%d</code>\n\n"
-		text += "<b>💾 File Size:</b> <code>%.2f MiB</code>\n"
-		text += "<b>⌛️ ETA:</b> <code>%s</code>\n"
-		text += "<b>⏱ Speed:</b> <code>%s</code>\n"
-		text += "<b>⚙️ Progress:</b> %s <code>%.2f%%</code>"
+// MediaDownloadProgress creates a progress callback that edits a telegram message with download progress
+func MediaDownloadProgress(editMsg *NewMessage, inline ...*InputBotInlineMessageID) func(*ProgressInfo) {
+	return func(info *ProgressInfo) {
+		progressbar := strings.Repeat("■", int(info.Percentage/10)) + strings.Repeat("□", 10-int(info.Percentage/10))
 
-		size := float64(totalBytes) / 1024 / 1024
-		eta := pm.GetETA(currentBytes)
-		speed := pm.GetSpeed(currentBytes)
-		percent := pm.GetProgress(currentBytes)
+		message := fmt.Sprintf(
+			"<b>Name:</b> <code>%s</code>\n\n"+
+				"<b>Size:</b> <code>%.2f MiB</code>\n"+
+				"<b>Speed:</b> <code>%s</code> (avg: <code>%s</code>)\n"+
+				"<b>ETA:</b> <code>%s</code> | <b>Elapsed:</b> <code>%s</code>\n\n"+
+				"%s <code>%.2f%%</code>",
+			info.FileName,
+			float64(info.TotalSize)/1024/1024,
+			info.SpeedString(),
+			info.AvgSpeedString(),
+			info.ETAString(),
+			info.ElapsedString(),
+			progressbar,
+			info.Percentage,
+		)
 
-		progressbar := strings.Repeat("■", int(percent/10)) + strings.Repeat("□", 10-int(percent/10))
-
-		message := fmt.Sprintf(text, pm.GetFileName(), pm.meta.dataCenter, pm.meta.numWorkers, size, eta, speed, progressbar, percent)
 		if len(inline) > 0 {
 			editMsg.Client.EditMessage(inline[0], 0, message)
 		} else {
