@@ -23,6 +23,13 @@ var (
 	RegexpDCMigrate = regexp.MustCompile(`DC (\d+)`)
 )
 
+func Vtcp(ipv6 bool) string {
+	if ipv6 {
+		return "IPv6"
+	}
+	return "IPv4"
+}
+
 // ------------------ Telegram Data Center Configs ------------------
 
 var DcList = DCOptions{

@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -14,7 +15,6 @@ import (
 	"runtime/debug"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	// the initial data center to connect to, before knowing the real one
+	// The Initial DC to connect to, before auth
 	DefaultDataCenter         = 4
 	CleanExportedSendersDelay = 5 * time.Minute
 )
@@ -55,16 +55,14 @@ type clientData struct {
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
-	Cache                *CACHE
-	clientData           clientData
-	dispatcher           *UpdateDispatcher
-	wg                   sync.WaitGroup
-	stopCh               chan struct{}
-	exSenders            *ExSenders
-	exportedKeys         map[int]*AuthExportedAuthorization
-	exportedKeysMu       sync.Mutex
-	exportedAuthInflight map[int]*exportedAuthCall
-	Log                  Logger
+	Cache        *CACHE
+	clientData   clientData
+	dispatcher   *UpdateDispatcher
+	wg           sync.WaitGroup
+	stopCh       chan struct{}
+	exSenders    *ExSenders
+	exportedKeys map[int]*AuthExportedAuthorization
+	Log          Logger
 }
 
 type DeviceConfig struct {
@@ -188,7 +186,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		}
 	}
 
-	cfg := mtproto.Config{
+	mtproto, err := mtproto.NewMTProto(mtproto.Config{
 		AppID:       config.AppID,
 		AuthKeyFile: config.Session,
 		AuthAESKey:  config.SessionAESKey,
@@ -197,29 +195,21 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		DataCenter:  config.DataCenter,
 		Logger: c.Log.CloneInternal().
 			WithPrefix("gogram " + getLogPrefix("mtproto", config.SessionName)),
-		StringSession:   config.StringSession,
-		LocalAddr:       config.LocalAddr,
-		MemorySession:   config.MemorySession,
-		Ipv6:            config.ForceIPv6,
-		CustomHost:      customHost,
-		FloodHandler:    config.FloodHandler,
-		ErrorHandler:    config.ErrorHandler,
-		Timeout:         config.Timeout,
-		ReqTimeout:      config.ReqTimeout,
-		UseWebSocket:    config.UseWebSocket,
-		UseWebSocketTLS: config.UseWebSocketTLS,
-		EnablePFS:       config.EnablePFS,
+		StringSession: config.StringSession,
+		//Proxy:         config.Proxy,
+		LocalAddr:     config.LocalAddr,
+		MemorySession: config.MemorySession,
+		Ipv6:          config.ForceIPv6,
+		CustomHost:    customHost,
+		FloodHandler:  config.FloodHandler,
+		ErrorHandler:  config.ErrorHandler,
+		Timeout:       config.Timeout,
+		//ReqTimeout:    config.ReqTimeout,
 		OnMigration: func(newMTProto *mtproto.MTProto) {
 			c.MTProto = newMTProto
 			c.InitialRequest()
 		},
-	}
-
-	if config.Proxy != nil {
-		cfg.Proxy = config.Proxy.toInternal()
-	}
-
-	mtproto, err := mtproto.NewMTProto(cfg)
+	})
 	if err != nil {
 		return fmt.Errorf("creating mtproto client: %w", err)
 	}
@@ -255,6 +245,10 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 	if config.AppHash == "" {
 		c.Log.Debug("appHash is empty, some features may not work")
 	}
+
+	if !IsFfmpegInstalled() {
+		c.Log.Debug("ffmpeg is not installed, some media metadata may not be available")
+	}
 	return nil
 }
 
@@ -281,23 +275,19 @@ func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
 
 // setupClientData sets up the client data from the config
 func (c *Client) setupClientData(cnf ClientConfig) {
-	langCode := getValue(cnf.DeviceConfig.LangCode, "en")
-	c.clientData = clientData{
-		appID:            cnf.AppID,
-		appHash:          cnf.AppHash,
-		deviceModel:      getValue(cnf.DeviceConfig.DeviceModel, "gogram "+runtime.GOOS+" "+runtime.GOARCH),
-		systemVersion:    getValue(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
-		appVersion:       getValue(cnf.DeviceConfig.AppVersion, Version),
-		langCode:         langCode,
-		systemLangCode:   getValue(cnf.DeviceConfig.SystemLangCode, langCode),
-		langPack:         cnf.DeviceConfig.LangPack,
-		logLevel:         getValue(cnf.LogLevel, LogInfo),
-		parseMode:        getValue(cnf.ParseMode, "HTML"),
-		sleepThresholdMs: getValue(cnf.SleepThresholdMs, 0),
-		albumWaitTime:    getValue(cnf.AlbumWaitTime, 600),
-		commandPrefixes:  getValue(cnf.CommandPrefixes, "/!"),
-		proxy:            cnf.Proxy,
-	}
+	c.clientData.appID = cnf.AppID
+	c.clientData.appHash = cnf.AppHash
+	c.clientData.deviceModel = getValue(cnf.DeviceConfig.DeviceModel, "gogram "+runtime.GOOS+" "+runtime.GOARCH)
+	c.clientData.systemVersion = getValue(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH)
+	c.clientData.appVersion = getValue(cnf.DeviceConfig.AppVersion, Version)
+	c.clientData.langCode = getValue(cnf.DeviceConfig.LangCode, "en")
+	c.clientData.systemLangCode = getValue(cnf.DeviceConfig.SystemLangCode, c.clientData.langCode) // backward compatibility
+	c.clientData.langPack = cnf.DeviceConfig.LangPack
+	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
+	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
+	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
+	c.clientData.albumWaitTime = getValue(cnf.AlbumWaitTime, 600)
+	c.clientData.commandPrefixes = getValue(cnf.CommandPrefixes, "/!")
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
@@ -309,7 +299,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 // InitialRequest sends the initial initConnection request
 func (c *Client) InitialRequest() error {
 	c.Log.Debug("sending initial invokeWithLayer request")
-	initConfig := &InitConnectionParams{
+	serverConfig, err := c.InvokeWithLayer(ApiVersion, &InitConnectionParams{
 		ApiID:          c.clientData.appID,
 		DeviceModel:    c.clientData.deviceModel,
 		SystemVersion:  c.clientData.systemVersion,
@@ -318,16 +308,7 @@ func (c *Client) InitialRequest() error {
 		LangCode:       c.clientData.langCode,
 		LangPack:       c.clientData.langPack,
 		Query:          &HelpGetConfigParams{},
-	}
-
-	if c.clientData.proxy != nil && c.clientData.proxy.Type() == "mtproxy" {
-		initConfig.Proxy = &InputClientProxy{
-			c.clientData.proxy.GetHost(),
-			int32(c.clientData.proxy.GetPort()),
-		}
-	}
-
-	serverConfig, err := c.InvokeWithLayer(ApiVersion, initConfig)
+	})
 
 	if err != nil {
 		return fmt.Errorf("sending invokeWithLayer: %w", err)
@@ -353,7 +334,7 @@ func (c *Client) InitialRequest() error {
 			}
 		}
 
-		c.DcList.SetDCs(dcs, cdnDcs) // set the up to-date DC configuration for the library
+		c.DcList.SetDCs(dcs, cdnDcs) // set the upto-date DC configuration for the library
 	}
 
 	return nil
@@ -442,10 +423,12 @@ func (c *Client) Disconnect() error {
 
 // switchDC permanently switches the data center
 func (c *Client) SwitchDc(dcID int) error {
-	c.Log.Debug("switching to data center %d", dcID)
-	if err := c.MTProto.SwitchDc(dcID); err != nil {
+	c.Log.Debug("switching data center to (" + strconv.Itoa(dcID) + ")")
+	newDcSender, err := c.MTProto.SwitchDc(dcID)
+	if err != nil {
 		return fmt.Errorf("reconnecting to new dc: %w", err)
 	}
+	c.MTProto = newDcSender
 	return c.InitialRequest()
 }
 
@@ -465,11 +448,6 @@ func (c *Client) Me() *UserObj {
 			return &UserObj{}
 		}
 		c.clientData.me = me
-		if c.Cache != nil {
-			if err := c.Cache.BindToUser(me.ID, c.clientData.appID); err != nil {
-				c.Log.WithError(err).Warn("failed to bind cache to user")
-			}
-		}
 	}
 
 	return c.clientData.me
@@ -486,7 +464,6 @@ type ExSender struct {
 	*mtproto.MTProto
 	lastUsed   time.Time
 	lastUsedMu sync.Mutex
-	busy       atomic.Bool
 }
 
 func NewExSender(mtProto *mtproto.MTProto) *ExSender {
@@ -500,20 +477,6 @@ func (es *ExSender) GetLastUsedTime() time.Time {
 	es.lastUsedMu.Lock()
 	defer es.lastUsedMu.Unlock()
 	return es.lastUsed
-}
-
-func (es *ExSender) TryAcquire() bool {
-	if es == nil {
-		return false
-	}
-	return es.busy.CompareAndSwap(false, true)
-}
-
-func (es *ExSender) Release() {
-	if es == nil {
-		return
-	}
-	es.busy.Store(false)
 }
 
 func NewExSenders() *ExSenders {
@@ -571,21 +534,17 @@ func (es *ExSenders) Close() {
 }
 
 // CreateExportedSender creates a new exported sender for the given DC
-func (c *Client) CreateExportedSender(ctx context.Context, dcID int, cdn bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
 	if dcID <= 0 {
 		return nil, errors.New("invalid data center ID")
 	}
-	const retryLimit = 3
+	const retryLimit = 3 // Retry only once
 	var lastError error
 
-	var baseAuth = getVariadic(authParams, &AuthExportedAuthorization{})
-	authParam := cloneExportedAuth(baseAuth)
+	var authParam = getVariadic(authParams, &AuthExportedAuthorization{})
 
 	for retry := 0; retry <= retryLimit; retry++ {
-		c.Log.WithField("dc", dcID).Debug("creating exported sender")
+		c.Log.Debug("creating exported sender for DC ", dcID)
 		if cdn {
 			if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
 				cdnKeysResp, err := c.HelpGetCdnConfig()
@@ -603,7 +562,7 @@ func (c *Client) CreateExportedSender(ctx context.Context, dcID int, cdn bool, a
 		exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
 		if err != nil {
 			lastError = fmt.Errorf("exporting new sender: %w", err)
-			c.Log.WithError(lastError).Error("error exporting new sender")
+			c.Log.Error("error exporting new sender: ", lastError)
 			continue
 		}
 
@@ -618,17 +577,26 @@ func (c *Client) CreateExportedSender(ctx context.Context, dcID int, cdn bool, a
 			Query:          &HelpGetConfigParams{},
 		}
 
-		if c.MTProto.GetDC() != dcID {
+		if c.MTProto.GetDC() != exported.GetDC() {
 			var auth *AuthExportedAuthorization
-			if authParam != nil && authParam.ID != 0 {
-				auth = authParam
+			if authParam.ID != 0 {
+				auth = &AuthExportedAuthorization{
+					ID:    authParam.ID,
+					Bytes: authParam.Bytes,
+				}
 			} else {
-				auth, err = c.ensureExportedAuth(int32(dcID))
+				c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
+				auth, err = c.AuthExportAuthorization(int32(exported.GetDC()))
 				if err != nil {
 					lastError = fmt.Errorf("exporting auth: %w", err)
-					c.Log.WithError(lastError).Error("error exporting auth")
+					c.Log.Error("error exporting auth: ", lastError)
 					continue
 				}
+
+				if c.exportedKeys == nil {
+					c.exportedKeys = make(map[int]*AuthExportedAuthorization)
+				}
+				c.exportedKeys[dcID] = auth
 			}
 
 			initialReq.Query = &AuthImportAuthorizationParams{
@@ -637,136 +605,37 @@ func (c *Client) CreateExportedSender(ctx context.Context, dcID int, cdn bool, a
 			}
 		}
 
-		sent := func() error {
-			c.Log.Trace("sending initial request...")
-			reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-			defer cancel()
-			_, reqErr := exported.MakeRequestCtx(reqCtx, &InvokeWithLayerParams{
-				Layer: ApiVersion,
-				Query: initialReq,
-			})
-			c.Log.WithField("dc", dcID).Trace("initial request for exported sender sent")
-			return reqErr
-		}
+		c.Log.Debug("sending initial request...")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_, err = exported.MakeRequestCtx(ctx, &InvokeWithLayerParams{
+			Layer: ApiVersion,
+			Query: initialReq,
+		})
+		cancel()
+		c.Log.Debug(fmt.Sprintf("initial request for exported sender %d sent", dcID))
 
-		authRetry := false
-	initialRequest:
-		if err = sent(); err != nil {
-			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") && !authRetry {
-				authRetry = true
-				authParam = nil
-				c.invalidateExportedAuth(int32(dcID))
-				c.Log.Debug("auth bytes invalid, re-exporting auth only")
-				if c.MTProto.GetDC() != dcID {
-					var reAuth *AuthExportedAuthorization
-					reAuth, err = c.ensureExportedAuth(int32(dcID))
-					if err != nil {
-						lastError = fmt.Errorf("exporting auth: %w", err)
-						c.Log.WithError(lastError).Error("error re-exporting auth")
-						break
-					}
-					initialReq.Query = &AuthImportAuthorizationParams{
-						ID:    reAuth.ID,
-						Bytes: reAuth.Bytes,
-					}
-				}
-				goto initialRequest
+		if err != nil {
+			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") {
+				authParam.ID = 0
+				c.Log.Debug("auth bytes invalid, re-exporting auth")
+				continue
 			}
 
 			lastError = fmt.Errorf("making initial request: %w", err)
 			if retry < retryLimit {
-				c.Log.WithFields(map[string]any{
-					"retry": retry + 1,
-					"limit": retryLimit,
-				}).Debug("error making initial request, retrying")
+				c.Log.Debug(fmt.Sprintf("error making initial request, retrying (%d/%d)", retry+1, retryLimit))
 			} else {
-				c.Log.WithError(lastError).Error("exported sender: initialRequest failed")
+				c.Log.Error(fmt.Sprintf("exported sender: initialRequest: %s", lastError.Error()))
 			}
 
 			time.Sleep(200 * time.Millisecond)
 			continue
 		}
 
-		c.Log.WithField("dc", dcID).Debug("exported sender created successfully")
-
 		return exported, nil
 	}
 
 	return nil, lastError
-}
-
-type exportedAuthCall struct {
-	done chan struct{}
-	auth *AuthExportedAuthorization
-	err  error
-}
-
-func cloneExportedAuth(src *AuthExportedAuthorization) *AuthExportedAuthorization {
-	if src == nil {
-		return nil
-	}
-	clone := &AuthExportedAuthorization{ID: src.ID}
-	if len(src.Bytes) > 0 {
-		clone.Bytes = make([]byte, len(src.Bytes))
-		copy(clone.Bytes, src.Bytes)
-	}
-	return clone
-}
-
-func (c *Client) ensureExportedAuth(dc int32) (*AuthExportedAuthorization, error) {
-	if dc == int32(c.GetDC()) {
-		return nil, nil
-	}
-
-	c.exportedKeysMu.Lock()
-	if c.exportedKeys == nil {
-		c.exportedKeys = make(map[int]*AuthExportedAuthorization)
-	}
-	if auth, ok := c.exportedKeys[int(dc)]; ok && auth != nil {
-		result := cloneExportedAuth(auth)
-		c.exportedKeysMu.Unlock()
-		c.Log.WithField("dc", dc).Debug("using cached exported auth")
-		return result, nil
-	}
-	if c.exportedAuthInflight == nil {
-		c.exportedAuthInflight = make(map[int]*exportedAuthCall)
-	}
-	if call, ok := c.exportedAuthInflight[int(dc)]; ok {
-		c.exportedKeysMu.Unlock()
-		<-call.done
-		return cloneExportedAuth(call.auth), call.err
-	}
-	call := &exportedAuthCall{done: make(chan struct{})}
-	c.exportedAuthInflight[int(dc)] = call
-	c.exportedKeysMu.Unlock()
-
-	c.Log.WithField("dc", dc).Debug("exporting new auth")
-	auth, err := c.AuthExportAuthorization(dc)
-
-	c.exportedKeysMu.Lock()
-	if err == nil {
-		cached := cloneExportedAuth(auth)
-		c.exportedKeys[int(dc)] = cached
-		call.auth = cached
-	}
-	if err != nil {
-		c.Log.WithError(err).WithField("dc", dc).Warn("exported auth failed")
-	}
-	call.err = err
-	close(call.done)
-	delete(c.exportedAuthInflight, int(dc))
-	result := cloneExportedAuth(call.auth)
-	c.exportedKeysMu.Unlock()
-	return result, err
-}
-
-func (c *Client) invalidateExportedAuth(dc int32) {
-	c.exportedKeysMu.Lock()
-	defer c.exportedKeysMu.Unlock()
-	if c.exportedKeys != nil {
-		delete(c.exportedKeys, int(dc))
-	}
-	// let next ensureExportedAuth call re-export; callers will wait via exportedAuthInflight
 }
 
 // setLogLevel sets the log level for all loggers
@@ -783,18 +652,18 @@ func (c *Client) SetLogLevel(level LogLevel) {
 }
 
 // disables color for all loggers
-func (c *Client) LogColor(mode bool) {
-	c.Log.Debug("disabling color for all loggers")
+// func (c *Client) LogColor(mode bool) {
+// 	c.Log.Debug("disabling color for all loggers")
 
-	c.Log.SetColor(mode)
-	if c.Cache != nil {
-		c.Cache.logger.SetColor(mode)
-	}
-	c.MTProto.Logger.SetColor(mode)
-	if c.dispatcher != nil {
-		c.dispatcher.logger.SetColor(mode)
-	}
-}
+// 	c.Log.NoColor(!mode)
+// 	if c.Cache != nil {
+// 		c.Cache.logger.NoColor(!mode)
+// 	}
+// 	c.MTProto.Logger.NoColor(!mode)
+// 	if c.dispatcher != nil {
+// 		c.dispatcher.logger.NoColor(!mode)
+// 	}
+// }
 
 // SetParseMode sets the parse mode for the client
 func (c *Client) SetParseMode(mode string) {
@@ -898,16 +767,6 @@ func (c *Client) SetCommandPrefixes(prefixes string) {
 	c.clientData.commandPrefixes = prefixes
 }
 
-// GetProxy returns the proxy configuration
-func (c *Client) GetProxy() Proxy {
-	return c.clientData.proxy
-}
-
-// SetProxy sets the proxy configuration
-func (c *Client) SetProxy(proxy Proxy) {
-	c.clientData.proxy = proxy
-}
-
 // Terminate client and disconnect from telegram server
 func (c *Client) Terminate() error {
 	//go c.cleanExportedSenders()
@@ -943,18 +802,19 @@ func (c *Client) Stop() error {
 func (c *Client) NewRecovery() func() {
 	return func() {
 		if r := recover(); r != nil {
-			if c.Log.GetLevel() == LogDebug {
-				c.Log.Panic("%v\n\n%s", r, string(debug.Stack()))
+			if c.Log.Lev() == LogDebug {
+				c.Log.Panic(r, "\n\n", string(debug.Stack())) // print stacktrace for debug
 			} else {
-				c.Log.Panic("%v", r)
+				c.Log.Panic(r)
 			}
 		}
 	}
 }
 
+// WrapError sends an error to the error channel if it is not nil
 func (c *Client) WrapError(err error) error {
 	if err != nil {
-		c.Log.WithError(err).Error("error occurred")
+		c.Log.Error(err)
 	}
 	return err
 }
@@ -1018,8 +878,8 @@ func NewClientConfigBuilder(appID int32, appHash string) *ClientConfigBuilder {
 			AppID:   appID,
 			AppHash: appHash,
 			DeviceConfig: DeviceConfig{
-				DeviceModel:   "iPhone 17 Pro",
-				SystemVersion: "iOS 26.0",
+				DeviceModel:   "IPhone",
+				SystemVersion: "17.0",
 				AppVersion:    Version,
 			},
 			DataCenter:    4,          // Default DC
@@ -1065,8 +925,8 @@ func (b *ClientConfigBuilder) WithDataCenter(dc int) *ClientConfigBuilder {
 	return b
 }
 
-func (b *ClientConfigBuilder) WithProxy(proxy Proxy) *ClientConfigBuilder {
-	b.config.Proxy = proxy
+func (b *ClientConfigBuilder) WithProxy(proxyURL *url.URL) *ClientConfigBuilder {
+	//b.config.Proxy = proxyURL
 	return b
 }
 
@@ -1075,8 +935,8 @@ func (b *ClientConfigBuilder) WithLocalAddr(localAddr string) *ClientConfigBuild
 	return b
 }
 
-func (b *ClientConfigBuilder) WithLogLevel(level utils.LogLevel) *ClientConfigBuilder {
-	b.config.LogLevel = LogLevel(level)
+func (b *ClientConfigBuilder) WithLogLevel(level LogLevel) *ClientConfigBuilder {
+	b.config.LogLevel = level
 	return b
 }
 
@@ -1097,32 +957,6 @@ func (b *ClientConfigBuilder) WithDisableCache() *ClientConfigBuilder {
 
 func (b *ClientConfigBuilder) WithTestMode() *ClientConfigBuilder {
 	b.config.TestMode = true
-	return b
-}
-
-func (b *ClientConfigBuilder) WithForceIPv6() *ClientConfigBuilder {
-	b.config.ForceIPv6 = true
-	return b
-}
-
-func (b *ClientConfigBuilder) WithNoPreconnect() *ClientConfigBuilder {
-	b.config.NoPreconnect = true
-	return b
-}
-
-func (b *ClientConfigBuilder) WithAlbumWaitTime(waitTime int64) *ClientConfigBuilder {
-	b.config.AlbumWaitTime = waitTime
-	return b
-}
-
-func (b *ClientConfigBuilder) WithCommandPrefixes(prefixes string) *ClientConfigBuilder {
-	b.config.CommandPrefixes = prefixes
-	return b
-}
-
-func (b *ClientConfigBuilder) WithUseWebSocket(useWs, useWss bool) *ClientConfigBuilder {
-	b.config.UseWebSocket = useWs
-	b.config.UseWebSocketTLS = useWss
 	return b
 }
 
@@ -1188,24 +1022,4 @@ func (b *ClientConfigBuilder) WithReqTimeout(reqTimeout int) *ClientConfigBuilde
 
 func (b *ClientConfigBuilder) Build() ClientConfig {
 	return b.config
-}
-
-// One-liner client creation for simple use cases
-func QuickClient(appID int32, appHash, session string) (*Client, error) {
-	config := NewClientConfigBuilder(appID, appHash).
-		WithSession(session).
-		Build()
-	return NewClient(config)
-}
-
-// For bots specifically
-func QuickBot(appID int32, appHash, botToken string) (*Client, error) {
-	client, err := QuickClient(appID, appHash, "")
-	if err != nil {
-		return nil, err
-	}
-	if err := client.LoginBot(botToken); err != nil {
-		return nil, err
-	}
-	return client, nil
 }
