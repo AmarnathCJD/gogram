@@ -1253,6 +1253,23 @@ func packDeleteMessage(c *Client, delete Update) *DeleteMessage {
 	return deleteMessage
 }
 
+func packBotChatJoinRequest(c *Client, update *UpdateBotChatInviteRequester) *JoinRequestUpdate {
+	var (
+		jr = &JoinRequestUpdate{}
+	)
+	jr.Client = c
+	jr.BotOriginalUpdate = update
+	jr.Channel = c.getChannel(update.Peer)
+	jr.Chat = c.getChat(update.Peer)
+	if user, err := c.GetUser(update.UserID); err == nil {
+		jr.Users = append(jr.Users, user)
+	} else {
+		c.Log.WithError(err).Debug("getting user %d for bot chat join request", update.UserID)
+	}
+	jr.PendingCount = 1
+	return jr
+}
+
 func packJoinRequest(c *Client, update *UpdatePendingJoinRequests) *JoinRequestUpdate {
 	var (
 		jr = &JoinRequestUpdate{}

@@ -248,9 +248,38 @@ func (pu *ParticipantUpdate) Demote() (bool, error) {
 }
 
 type JoinRequestUpdate struct {
-	Client         *Client
-	OriginalUpdate *UpdatePendingJoinRequests
-	Channel        *Channel
-	Users          []*UserObj
-	PendingCount   int32
+	Client            *Client
+	OriginalUpdate    *UpdatePendingJoinRequests
+	BotOriginalUpdate *UpdateBotChatInviteRequester
+	Channel           *Channel
+	Chat              *ChatObj
+	Users             []*UserObj
+	PendingCount      int32
+}
+
+func (jru *JoinRequestUpdate) ChatID() int64 {
+	if jru.Channel != nil {
+		return jru.Channel.ID
+	} else if jru.Chat != nil {
+		return jru.Chat.ID
+	}
+	return 0
+}
+
+func (jru *JoinRequestUpdate) ChannelID() int64 {
+	if jru.Channel != nil {
+		return -100_000_000_0000 - jru.Channel.ID
+	} else if jru.Chat != nil {
+		return -jru.Chat.ID
+	}
+	return 0
+}
+
+func (jru *JoinRequestUpdate) Marshal(nointent ...bool) string {
+	if jru.OriginalUpdate != nil {
+		return jru.Client.JSON(jru.OriginalUpdate, nointent)
+	} else if jru.BotOriginalUpdate != nil {
+		return jru.Client.JSON(jru.BotOriginalUpdate, nointent)
+	}
+	return ""
 }
