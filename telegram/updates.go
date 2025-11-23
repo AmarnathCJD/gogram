@@ -2393,6 +2393,7 @@ var (
 	OnInlineCallback ev = "inlinecallback"
 	OnChosenInline   ev = "choseninline"
 	OnParticipant    ev = "participant"
+	OnJoinRequest    ev = "joinrequest"
 	OnRaw            ev = "raw"
 )
 
@@ -2498,6 +2499,12 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 			return c.AddParticipantHandler(h)
 		} else {
 			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*ParticipantUpdate) error")
+		}
+	case OnJoinRequest:
+		if h, ok := handler.(func(m *JoinRequestUpdate) error); ok {
+			return c.AddJoinRequestHandler(h)
+		} else {
+			c.Log.Error("bad handler: got ", reflect.TypeOf(handler).String(), ", want func(*JoinRequestUpdate) error")
 		}
 	case OnRaw, "*":
 		if h, ok := handler.(func(m Update, c *Client) error); ok {
