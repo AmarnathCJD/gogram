@@ -5,7 +5,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -29,7 +28,14 @@ func main() {
 	m, _ := client.SendMessage(chat, "Starting File Upload...")
 
 	client.SendMedia(chat, "<file-name>", &telegram.MediaOptions{
-		ProgressManager: telegram.NewProgressManager(5).SetMessage(m),
+		ProgressCallback: func(pi *telegram.ProgressInfo) {
+			m.Edit(fmt.Sprintf("Uploading... %.2f%% complete (%.2f MB/s), ETA: %.2f seconds",
+				pi.Percentage,
+				pi.CurrentSpeed/1024/1024,
+				pi.ETA,
+			))
+		},
+		ProgressInterval: 5, // update every 5 seconds
 	})
 
 	// to use custom progress manager
@@ -41,27 +47,14 @@ func main() {
 
 	// same goes for download
 	// &DownloadOptions{ProgressManager: NewProgressManager(5).SetMessage(m)}
-	// &SendOptions{ProgressManager: NewProgressManager(5).SetMessage(m)}
-	// &MediaOptions{ProgressManager: NewProgressManager(5).SetMessage(m)}
-}
-
-func MediaDownloadProgress(fname string, editMsg *telegram.NewMessage, pm *telegram.ProgressManager) func(atotalBytes, currentBytes int64) {
-	return func(totalBytes int64, currentBytes int64) {
-		text := ""
-		text += "<b>📄 Name:</b> <code>%s</code>\n"
-		text += "<b>💾 File Size:</b> <code>%.2f MiB</code>\n"
-		text += "<b>⌛️ ETA:</b> <code>%s</code>\n"
-		text += "<b>⏱ Speed:</b> <code>%s</code>\n"
-		text += "<b>⚙️ Progress:</b> %s <code>%.2f%%</code>"
-
-		size := float64(totalBytes) / 1024 / 1024
-		eta := pm.GetETA(currentBytes)
-		speed := pm.GetSpeed(currentBytes)
-		percent := pm.GetProgress(currentBytes)
-
-		progressbar := strings.Repeat("■", int(percent/10)) + strings.Repeat("□", 10-int(percent/10))
-
-		message := fmt.Sprintf(text, fname, size, eta, speed, progressbar, percent)
-		editMsg.Edit(message)
-	}
+	// or
+	// &DownloadOptions{ProgressCallback: func(pi *ProgressInfo) {
+	//     m.Edit(fmt.Sprintf("Downloading... %.2f%% complete (%.2f MB/s), ETA: %.2f seconds",
+	//         pi.Percentage,
+	//         pi.CurrentSpeed/1024/1024,
+	//         pi.ETA,
+	//     ))
+	// }}
+	// &SendOptions{ProgressManager: ...}
+	// &MediaOptions{ProgressManager: ...}
 }
