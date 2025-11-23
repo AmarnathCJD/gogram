@@ -356,13 +356,13 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					FileTotalParts: int32(totalParts),
 					Bytes:          part,
 				})
-				time.Sleep(adaptiveDelay.get())
+				//time.Sleep(adaptiveDelay.get())
 				w.FreeWorker(sender)
 				cancel()
 
 				if err != nil {
 					if handleIfFlood(err, c) {
-						adaptiveDelay.recordFlood()
+						//adaptiveDelay.recordFlood()
 						continue
 					}
 					uploadLog.recordFailure(int(p), err, sender)
