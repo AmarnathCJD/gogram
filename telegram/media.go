@@ -661,7 +661,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					Precise:      true,
 					CdnSupported: false,
 				})
-				time.Sleep(adaptiveDelay.get())
+				//time.Sleep(adaptiveDelay.get())
 				w.FreeWorker(sender)
 				cancel()
 
@@ -720,7 +720,7 @@ retrySinglePart:
 					Precise:      true,
 					CdnSupported: false,
 				})
-				time.Sleep(adaptiveDelay.get())
+				//time.Sleep(adaptiveDelay.get())
 				w.FreeWorker(sender)
 				cancel()
 
