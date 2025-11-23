@@ -563,7 +563,7 @@ func (l *Logger) Panic(msg string, args ...any) {
 
 	l.writeEntry(entry)
 	l.Close()
-	panic(entry.Message)
+	//panic(entry.Message)
 }
 
 func (l *Logger) Tracef(format string, args ...any)   { l.Trace(format, args...) }
