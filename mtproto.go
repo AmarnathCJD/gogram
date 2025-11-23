@@ -853,13 +853,13 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						m.Logger.Debug("tcp connection closed, reconnecting to [" + m.Addr + "] - <Tcp> ...")
 						err = m.Reconnect(false)
 						if err != nil {
-							m.Logger.Error("failed to reconnect to [%s] - <%s>: %v", utils.FmtIp(m.Addr), m.GetTransportType(), err)
+							m.Logger.Error("failed to reconnect to [%s] - <%s>: %w", utils.FmtIp(m.Addr), m.GetTransportType(), err)
 						}
 					} else if strings.Contains(err.Error(), "required to reconnect!") { // network is not stable
 						m.Logger.Debug("packet read error, reconnecting to [" + m.Addr + "] - <Tcp> ...")
 						err = m.Reconnect(false)
 						if err != nil {
-							m.Logger.Error("failed to reconnect to [%s] - <%s>: %v", utils.FmtIp(m.Addr), m.GetTransportType(), err)
+							m.Logger.Error("failed to reconnect to [%s] - <%s>: %w", utils.FmtIp(m.Addr), m.GetTransportType(), err)
 						}
 					}
 				}
@@ -872,7 +872,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					m.Logger.Debug("eof error, reconnecting to [" + m.Addr + "] - <Tcp> ...")
 					err = m.Reconnect(false)
 					if err != nil {
-						m.Logger.Error("failed to reconnect to [%s] - <%s>: %v", utils.FmtIp(m.Addr), m.GetTransportType(), err)
+						m.Logger.Error("failed to reconnect to [%s] - <%s>: %w", utils.FmtIp(m.Addr), m.GetTransportType(), err)
 					}
 					return
 				default:
@@ -914,7 +914,7 @@ func (m *MTProto) handle404Error() {
 		m.Logger.Debug("-404 error occurred %d times, attempting to reconnect", m.authKey404[0])
 		err := m.Reconnect(false)
 		if err != nil {
-			m.Logger.Error("failed to reconnect to [%s] - <%s>: %v", utils.FmtIp(m.Addr), m.GetTransportType(), err)
+			m.Logger.Error("failed to reconnect to [%s] - <%s>: %w", utils.FmtIp(m.Addr), m.GetTransportType(), err)
 		}
 	} else if m.authKey404[0] >= 16 {
 		panic("[AUTH_KEY_INVALID] (code -404) - too many failures")
