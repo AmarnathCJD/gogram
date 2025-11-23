@@ -775,28 +775,30 @@ func (m *MTProto) SetTerminated(val bool) {
 	m.terminated.Store(val)
 }
 
-func (m *MTProto) Reconnect(WithLogs bool) error {
+func (m *MTProto) Reconnect(loggy bool) error {
 	if m.terminated.Load() {
 		return nil
 	}
 	err := m.Disconnect()
 	if err != nil {
-		return errors.Wrap(err, "disconnecting")
+		return fmt.Errorf("disconnecting: %w", err)
 	}
-	if WithLogs {
-		m.Logger.Info("reconnecting to [%s] - <Tcp> ...", m.Addr)
+	if loggy {
+		m.Logger.Info("reconnecting to [%s] - <%s> ...", m.Addr, m.GetTransportType())
 	}
-	err = m.CreateConnection(WithLogs)
-	if err == nil {
-		if WithLogs {
-			m.Logger.Info("reconnected to [%s] - <Tcp>", m.Addr)
-		}
-		if m.transport != nil {
-			m.Ping()
-		}
+	err = m.CreateConnection(loggy)
+	if err != nil {
+		return fmt.Errorf("recreating connection: %w", err)
 	}
 
-	return fmt.Errorf("recreating connection: %w", err)
+	if loggy {
+		m.Logger.Info("reconnected to [%s] - <%s>", m.Addr, m.GetTransportType())
+	}
+	if m.transport != nil {
+		m.Ping()
+	}
+
+	return nil
 }
 
 // keep pinging to keep the connection alive
