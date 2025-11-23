@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
-	"runtime"
 	"runtime/debug"
 	"strconv"
 	"sync"
@@ -283,8 +282,8 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData = clientData{
 		appID:            cnf.AppID,
 		appHash:          cnf.AppHash,
-		deviceModel:      getValue(cnf.DeviceConfig.DeviceModel, "gogram "+runtime.GOOS+" "+runtime.GOARCH),
-		systemVersion:    getValue(cnf.DeviceConfig.SystemVersion, runtime.GOOS+" "+runtime.GOARCH),
+		deviceModel:      getValue(cnf.DeviceConfig.DeviceModel, "iPhone 17 Pro"),
+		systemVersion:    getValue(cnf.DeviceConfig.SystemVersion, "iOS 26.0"),
 		appVersion:       getValue(cnf.DeviceConfig.AppVersion, Version),
 		langCode:         langCode,
 		systemLangCode:   getValue(cnf.DeviceConfig.SystemLangCode, langCode),
