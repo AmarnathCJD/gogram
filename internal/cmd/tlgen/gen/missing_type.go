@@ -62,10 +62,7 @@ func (h *WebUIMissingTypeHandler) RequestTypeDefinition(typeName string) string 
 	}
 
 	// Wait for response from web UI
-	select {
-	case response := <-h.ResponseCh:
-		return response
-	}
+	return <-h.ResponseCh
 }
 
 var (

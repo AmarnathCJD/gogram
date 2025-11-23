@@ -328,7 +328,7 @@ func minorFixes(outdir, layer string) {
 			return users, nil
 		}
 
-		return nil, fmt.Errorf("[USER_ID_INVALID] The user ID is invalid")
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}`)
 
 	replace(filepath.Join(execWorkDir, "methods_gen.go"), `errors []SecureValueError`, `errorsw []SecureValueError`)

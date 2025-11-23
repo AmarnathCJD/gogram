@@ -105,28 +105,28 @@ func (c *Client) SetChatMenuButton(userID int64, button *BotMenuButton) (bool, e
 	return resp, nil
 }
 
-// In testing stage, TODO
-// returns list of users and chats in chans
-func (c *Client) Broadcast(ctx ...context.Context) (chan User, chan Chat, error) {
-	var ctxC context.Context
-	if len(ctx) > 0 {
-		ctxC = ctx[0]
-	} else {
-		ctxC = context.Background()
+// Broadcast walks through the update history and invokes callbacks for each unique user/chat.
+// It is intended for bots that need a lightweight way to collect peers for messaging.
+// An optional sleep threshold may be provided to slow down polling between difference requests.
+func (c *Client) Broadcast(ctx context.Context, userCallback func(User) error, chatCallback func(Chat) error, sleepThreshold ...time.Duration) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if userCallback == nil && chatCallback == nil {
+		return errors.New("broadcast: at least one callback must be provided")
 	}
 
-	s, err := c.UpdatesGetState()
+	delay := 150 * time.Millisecond
+	if len(sleepThreshold) > 0 && sleepThreshold[0] > 0 {
+		delay = sleepThreshold[0]
+	} else if c.clientData.sleepThresholdMs > 0 {
+		delay = time.Duration(c.clientData.sleepThresholdMs) * time.Millisecond
+	}
+
+	state, err := c.UpdatesGetState()
 	if err != nil {
-		return nil, nil, err
+		return fmt.Errorf("broadcast: updates.getState: %w", err)
 	}
-
-	endPts := s.Pts
-
-	var users = make(map[int64]User)
-	var chats = make(map[int64]Chat)
-
-	var userChan = make(chan User, 100)
-	var chatChan = make(chan Chat, 100)
 
 	req := &UpdatesGetDifferenceParams{
 		Pts:           1,
@@ -135,95 +135,126 @@ func (c *Client) Broadcast(ctx ...context.Context) (chan User, chan Chat, error)
 		PtsTotalLimit: 2147483647, // max int32
 		Qts:           1,
 	}
+	endPts := state.Pts
+	usersSeen := make(map[int64]struct{})
+	chatsSeen := make(map[int64]struct{})
 
-	go func() {
-		defer close(userChan)
-		defer close(chatChan)
-
-		for req.Pts < endPts {
-			select {
-			case <-ctxC.Done():
-				return
-			default:
-			}
-
-			updates, err := c.MakeRequestCtx(ctxC, req)
-			if err != nil {
-				if handleIfFlood(err, c) {
-					continue
-				}
-				c.Logger.WithError(err).Error("")
-				return
-			}
-
-			switch u := updates.(type) {
-			case *UpdatesDifferenceObj:
-				for _, user := range u.Users {
-					switch uz := user.(type) {
-					case *UserObj:
-						if _, ok := users[uz.ID]; !ok {
-							userChan <- uz
-						}
-						users[uz.ID] = uz
-					}
-				}
-				for _, chat := range u.Chats {
-					switch cz := chat.(type) {
-					case *ChatObj:
-						if _, ok := chats[cz.ID]; !ok {
-							chatChan <- cz
-						}
-						chats[cz.ID] = cz
-					case *Channel:
-						if _, ok := chats[cz.ID]; !ok {
-							chatChan <- cz
-						}
-						chats[cz.ID] = cz
-					}
-				}
-
-				req.Pts = u.State.Pts
-				req.Qts = u.State.Qts
-				req.Date = u.State.Date
-			case *UpdatesDifferenceSlice:
-				for _, user := range u.Users {
-					switch uz := user.(type) {
-					case *UserObj:
-						if _, ok := users[uz.ID]; !ok {
-							userChan <- uz
-						}
-						users[uz.ID] = uz
-					}
-				}
-				for _, chat := range u.Chats {
-					switch cz := chat.(type) {
-					case *ChatObj:
-						if _, ok := chats[cz.ID]; !ok {
-							chatChan <- cz
-						}
-						chats[cz.ID] = cz
-					case *Channel:
-						if _, ok := chats[cz.ID]; !ok {
-							chatChan <- cz
-						}
-						chats[cz.ID] = cz
-					}
-				}
-
-				req.Pts = u.IntermediateState.Pts
-				req.Qts = u.IntermediateState.Qts
-				req.Date = u.IntermediateState.Date
-			case *UpdatesDifferenceEmpty:
-				break
-			case *UpdatesDifferenceTooLong:
-				endPts = u.Pts
-			}
-
-			time.Sleep(150 * time.Millisecond)
+	for req.Pts < endPts {
+		if err := ctx.Err(); err != nil {
+			return err
 		}
-	}()
+		if delay > 0 {
+			timer := time.NewTimer(delay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+			}
+		}
 
-	return userChan, chatChan, nil
+		updates, err := c.MakeRequestCtx(ctx, req)
+		if err != nil {
+			if handleIfFlood(err, c) {
+				continue
+			}
+			return fmt.Errorf("broadcast: updates.getDifference: %w", err)
+		}
+
+		var (
+			nextPts  int32
+			nextQts  int32
+			nextDate int32
+			advance  bool
+		)
+
+		switch u := updates.(type) {
+		case *UpdatesDifferenceObj:
+			if err := deliverBroadcastUsers(u.Users, usersSeen, userCallback); err != nil {
+				return err
+			}
+			if err := deliverBroadcastChats(u.Chats, chatsSeen, chatCallback); err != nil {
+				return err
+			}
+			nextPts = u.State.Pts
+			nextQts = u.State.Qts
+			nextDate = u.State.Date
+			advance = true
+		case *UpdatesDifferenceSlice:
+			if err := deliverBroadcastUsers(u.Users, usersSeen, userCallback); err != nil {
+				return err
+			}
+			if err := deliverBroadcastChats(u.Chats, chatsSeen, chatCallback); err != nil {
+				return err
+			}
+			nextPts = u.IntermediateState.Pts
+			nextQts = u.IntermediateState.Qts
+			nextDate = u.IntermediateState.Date
+			advance = true
+		case *UpdatesDifferenceEmpty:
+			return nil
+		case *UpdatesDifferenceTooLong:
+			endPts = u.Pts
+			continue
+		default:
+			return fmt.Errorf("broadcast: unexpected updates type %T", updates)
+		}
+
+		if advance {
+			req.Pts = nextPts
+			req.Qts = nextQts
+			req.Date = nextDate
+		}
+
+	}
+
+	return nil
+}
+
+func deliverBroadcastUsers(users []User, seen map[int64]struct{}, callback func(User) error) error {
+	if callback == nil {
+		return nil
+	}
+	for _, user := range users {
+		usr, ok := user.(*UserObj)
+		if !ok {
+			continue
+		}
+		if _, exists := seen[usr.ID]; exists {
+			continue
+		}
+		seen[usr.ID] = struct{}{}
+		if err := callback(usr); err != nil {
+			return fmt.Errorf("broadcast user callback: %w", err)
+		}
+	}
+	return nil
+}
+
+func deliverBroadcastChats(chats []Chat, seen map[int64]struct{}, callback func(Chat) error) error {
+	if callback == nil {
+		return nil
+	}
+	for _, chat := range chats {
+		var chatID int64
+		switch ch := chat.(type) {
+		case *ChatObj:
+			chatID = ch.ID
+		case *Channel:
+			chatID = ch.ID
+		default:
+			continue
+		}
+
+		if _, exists := seen[chatID]; exists {
+			continue
+		}
+		seen[chatID] = struct{}{}
+		if err := callback(chat); err != nil {
+			return fmt.Errorf("broadcast chat callback: %w", err)
+		}
+	}
+	return nil
 }
 
 // Buy a gift for a user
@@ -241,10 +272,10 @@ func (c *Client) SendNewGift(toPeer any, giftId int64, message ...string) (Payme
 	}
 
 	if len(message) > 0 {
-		entites, textPart := c.FormatMessage(message[0], c.ParseMode())
+		entities, textPart := c.FormatMessage(message[0], c.ParseMode())
 		inv.Message = &TextWithEntities{
 			Text:     textPart,
-			Entities: entites,
+			Entities: entities,
 		}
 	}
 

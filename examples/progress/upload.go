@@ -1,4 +1,4 @@
-package examples
+package main
 
 // Youtube DL Bot Example;
 // https://gist.github.com/AmarnathCJD/bfceefe9efd1a079ab151da54ef3bba2

@@ -9893,29 +9893,6 @@ func (*StarGiftUnique) FlagIndex() int {
 
 func (*StarGiftUnique) ImplementsStarGift() {}
 
-type StarGiftActiveAuctions interface {
-	tl.Object
-	ImplementsStarGiftActiveAuctions()
-}
-type StarGiftActiveAuctionsObj struct {
-	Auctions []*StarGiftActiveAuctionState
-	Users    []User
-}
-
-func (*StarGiftActiveAuctionsObj) CRC() uint32 {
-	return 0x97f187d8
-}
-
-func (*StarGiftActiveAuctionsObj) ImplementsStarGiftActiveAuctions() {}
-
-type StarGiftActiveAuctionsNotModified struct{}
-
-func (*StarGiftActiveAuctionsNotModified) CRC() uint32 {
-	return 0xdb33dad0
-}
-
-func (*StarGiftActiveAuctionsNotModified) ImplementsStarGiftActiveAuctions() {}
-
 type StarGiftAttribute interface {
 	tl.Object
 	ImplementsStarGiftAttribute()
@@ -15288,6 +15265,29 @@ func (*PaymentsPaymentVerificationNeeded) CRC() uint32 {
 }
 
 func (*PaymentsPaymentVerificationNeeded) ImplementsPaymentsPaymentResult() {}
+
+type PaymentsStarGiftActiveAuctions interface {
+	tl.Object
+	ImplementsPaymentsStarGiftActiveAuctions()
+}
+type PaymentsStarGiftActiveAuctionsObj struct {
+	Auctions []*StarGiftActiveAuctionState
+	Users    []User
+}
+
+func (*PaymentsStarGiftActiveAuctionsObj) CRC() uint32 {
+	return 0x97f187d8
+}
+
+func (*PaymentsStarGiftActiveAuctionsObj) ImplementsPaymentsStarGiftActiveAuctions() {}
+
+type PaymentsStarGiftActiveAuctionsNotModified struct{}
+
+func (*PaymentsStarGiftActiveAuctionsNotModified) CRC() uint32 {
+	return 0xdb33dad0
+}
+
+func (*PaymentsStarGiftActiveAuctionsNotModified) ImplementsPaymentsStarGiftActiveAuctions() {}
 
 type PaymentsStarGiftCollections interface {
 	tl.Object

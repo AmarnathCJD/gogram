@@ -5,9 +5,11 @@ package telegram
 import (
 	"encoding/gob"
 	"encoding/json"
+	"maps"
 
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,6 +20,7 @@ import (
 type CACHE struct {
 	*sync.RWMutex
 	fileName    string
+	baseName    string
 	chats       map[int64]*ChatObj
 	users       map[int64]*UserObj
 	channels    map[int64]*Channel
@@ -38,6 +41,163 @@ type InputPeerCache struct {
 	InputChannels map[int64]int64  `json:"channels,omitempty"`
 	InputUsers    map[int64]int64  `json:"users,omitempty"`
 	UsernameMap   map[string]int64 `json:"username_map,omitempty"`
+	Meta          *CacheMeta       `json:"meta,omitempty"`
+}
+
+const cacheMetaVersion = 1
+
+type CacheMeta struct {
+	OwnerID int64     `json:"owner_id"`
+	AppID   int32     `json:"app_id"`
+	Version int       `json:"version"`
+	BoundAt time.Time `json:"bound_at"`
+}
+
+func newInputPeerCache() *InputPeerCache {
+	return &InputPeerCache{
+		InputChannels: make(map[int64]int64),
+		InputUsers:    make(map[int64]int64),
+		UsernameMap:   make(map[string]int64),
+	}
+}
+
+func cloneCacheMeta(meta *CacheMeta) *CacheMeta {
+	if meta == nil {
+		return nil
+	}
+	clone := *meta
+	return &clone
+}
+
+func (c *CACHE) ensureInputPeersLocked() {
+	if c.InputPeers == nil {
+		c.InputPeers = newInputPeerCache()
+		return
+	}
+	if c.InputPeers.InputChannels == nil {
+		c.InputPeers.InputChannels = make(map[int64]int64)
+	}
+	if c.InputPeers.InputUsers == nil {
+		c.InputPeers.InputUsers = make(map[int64]int64)
+	}
+	if c.InputPeers.UsernameMap == nil {
+		c.InputPeers.UsernameMap = make(map[string]int64)
+	}
+}
+
+func (c *CACHE) resetLocked() {
+	c.chats = make(map[int64]*ChatObj)
+	c.users = make(map[int64]*UserObj)
+	c.channels = make(map[int64]*Channel)
+	c.usernameMap = make(map[string]int64)
+	c.InputPeers = newInputPeerCache()
+}
+
+func (c *CACHE) currentMetaLocked() *CacheMeta {
+	if c.InputPeers == nil || c.InputPeers.Meta == nil {
+		return nil
+	}
+	return cloneCacheMeta(c.InputPeers.Meta)
+}
+
+func (c *CACHE) fileNameForUser(userID int64) string {
+	if userID == 0 || c.baseName == "" {
+		return c.baseName
+	}
+	base := c.baseName
+	ext := filepath.Ext(base)
+	name := strings.TrimSuffix(base, ext)
+	if ext == "" {
+		ext = ".db"
+	}
+	return fmt.Sprintf("%s_%d%s", name, userID, ext)
+}
+
+func (c *CACHE) loadFileIntoLocked(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	dec := gob.NewDecoder(file)
+	var peers InputPeerCache
+	if err := dec.Decode(&peers); err != nil {
+		return err
+	}
+	c.InputPeers = &peers
+	c.ensureInputPeersLocked()
+	c.usernameMap = make(map[string]int64, len(c.InputPeers.UsernameMap))
+	maps.Copy(c.usernameMap, c.InputPeers.UsernameMap)
+	return nil
+}
+
+func (c *CACHE) snapshotInputPeers() *InputPeerCache {
+	c.RLock()
+	defer c.RUnlock()
+
+	var peers *InputPeerCache
+	if c.InputPeers == nil {
+		peers = newInputPeerCache()
+	} else {
+		peers = &InputPeerCache{
+			InputChannels: make(map[int64]int64, len(c.InputPeers.InputChannels)),
+			InputUsers:    make(map[int64]int64, len(c.InputPeers.InputUsers)),
+			UsernameMap:   make(map[string]int64, len(c.usernameMap)),
+			Meta:          cloneCacheMeta(c.InputPeers.Meta),
+		}
+		maps.Copy(peers.InputChannels, c.InputPeers.InputChannels)
+		maps.Copy(peers.InputUsers, c.InputPeers.InputUsers)
+	}
+	maps.Copy(peers.UsernameMap, c.usernameMap)
+	return peers
+}
+
+func (c *CACHE) BindToUser(userID int64, appID int32) error {
+	if c == nil || c.disabled || c.memory || userID == 0 {
+		return nil
+	}
+
+	target := c.fileNameForUser(userID)
+	if target == "" {
+		target = c.fileName
+	}
+
+	c.Lock()
+	defer c.Unlock()
+
+	if target != "" && c.fileName != target {
+		if err := c.loadFileIntoLocked(target); err != nil {
+			if os.IsNotExist(err) {
+				// keep current in-memory cache, start writing to the user-specific file
+			} else {
+				c.logger.WithError(err).Warn("cache: failed to load user-specific cache, starting empty cache")
+				c.resetLocked()
+			}
+		}
+		c.fileName = target
+	}
+
+	meta := c.currentMetaLocked()
+	if meta != nil && meta.OwnerID != 0 {
+		if meta.OwnerID == userID && (meta.AppID == 0 || meta.AppID == appID) {
+			return nil
+		}
+		c.logger.WithFields(map[string]any{
+			"expected_owner": meta.OwnerID,
+			"current_owner":  userID,
+			"cache":          c.fileName,
+		}).Warn("cache: metadata mismatch detected, rotating cache file")
+		c.resetLocked()
+	}
+
+	c.ensureInputPeersLocked()
+	c.InputPeers.Meta = &CacheMeta{
+		OwnerID: userID,
+		AppID:   appID,
+		Version: cacheMetaVersion,
+		BoundAt: time.Now(),
+	}
+	return nil
 }
 
 func (c *CACHE) SetWriteFile(write bool) *CACHE {
@@ -49,15 +209,13 @@ func (c *CACHE) Clear() {
 	c.Lock()
 	defer c.Unlock()
 
+	meta := c.currentMetaLocked()
 	c.chats = make(map[int64]*ChatObj)
 	c.users = make(map[int64]*UserObj)
 	c.channels = make(map[int64]*Channel)
 	c.usernameMap = make(map[string]int64)
-	c.InputPeers = &InputPeerCache{
-		InputChannels: make(map[int64]int64),
-		InputUsers:    make(map[int64]int64),
-		UsernameMap:   make(map[string]int64),
-	}
+	c.InputPeers = newInputPeerCache()
+	c.InputPeers.Meta = meta
 }
 
 func (c *CACHE) ExportJSON() ([]byte, error) {
@@ -71,6 +229,7 @@ func (c *CACHE) ImportJSON(data []byte) error {
 	c.Lock()
 	defer c.Unlock()
 
+	c.ensureInputPeersLocked()
 	return json.Unmarshal(data, c.InputPeers)
 }
 
@@ -92,21 +251,19 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 	c := &CACHE{
 		RWMutex:     &sync.RWMutex{},
 		fileName:    fileName,
+		baseName:    fileName,
 		chats:       make(map[int64]*ChatObj),
 		users:       make(map[int64]*UserObj),
 		channels:    make(map[int64]*Channel),
 		usernameMap: make(map[string]int64),
-		InputPeers: &InputPeerCache{
-			InputChannels: make(map[int64]int64),
-			InputUsers:    make(map[int64]int64),
-			UsernameMap:   make(map[string]int64),
-		},
-		memory:   opt.Memory,
-		disabled: opt.Disabled,
-		maxSize:  opt.MaxSize,
-		logger: getValue(opt.Logger, NewDefaultLogger("gogram "+getLogPrefix("cache", opt.LogName)).
-			SetColor(opt.LogColor).
-			SetLevel(opt.LogLevel)),
+		InputPeers:  newInputPeerCache(),
+		memory:      opt.Memory,
+		disabled:    opt.Disabled,
+		maxSize:     opt.MaxSize,
+		logger: getValue(opt.Logger,
+			NewDefaultLogger("gogram "+getLogPrefix("cache", opt.LogName)).
+				SetColor(opt.LogColor).
+				SetLevel(opt.LogLevel)),
 	}
 
 	if !opt.Memory && !opt.Disabled {
@@ -182,6 +339,11 @@ func (c *CACHE) WriteFile() {
 	if time.Since(c.lastWrite) < 2*time.Second {
 		return
 	}
+	if c.fileName == "" {
+		return
+	}
+
+	peers := c.snapshotInputPeers()
 
 	file, err := os.OpenFile(c.fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
@@ -190,15 +352,8 @@ func (c *CACHE) WriteFile() {
 	}
 	defer file.Close()
 
-	c.RLock()
-	// Sync username map to InputPeers before writing
-	c.InputPeers.UsernameMap = make(map[string]int64, len(c.usernameMap))
-	for k, v := range c.usernameMap {
-		c.InputPeers.UsernameMap[k] = v
-	}
 	enc := gob.NewEncoder(file)
-	err = enc.Encode(c.InputPeers)
-	c.RUnlock()
+	err = enc.Encode(peers)
 
 	if err != nil {
 		c.logger.Error("error encoding cache file: %v", err)
@@ -209,25 +364,18 @@ func (c *CACHE) WriteFile() {
 }
 
 func (c *CACHE) ReadFile() {
-	file, err := os.Open(c.fileName)
-	if err != nil && !os.IsNotExist(err) {
-		c.logger.Error("error opening cache file: %v", err)
+	if c.fileName == "" {
 		return
 	}
 
-	if os.IsNotExist(err) {
-		return
-	}
-
-	defer file.Close()
-	dec := gob.NewDecoder(file)
 	c.Lock()
-	dec.Decode(&c.InputPeers)
-	// Load username map from InputPeers
-	if c.InputPeers.UsernameMap != nil {
-		c.usernameMap = c.InputPeers.UsernameMap
+	defer c.Unlock()
+	if err := c.loadFileIntoLocked(c.fileName); err != nil {
+		if !os.IsNotExist(err) {
+			c.logger.Error("error reading cache file: %v", err)
+		}
+		return
 	}
-	c.Unlock()
 
 	if !c.memory {
 		c.logger.WithFields(map[string]any{

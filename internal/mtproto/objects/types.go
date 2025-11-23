@@ -47,9 +47,6 @@ func (*PQInnerData) CRC() uint32 {
 
 // PQInnerDataTempDc represents p_q_inner_data_temp_dc used for generating
 // temporary authorization keys (PFS) as described in MTProto auth_key docs.
-//
-// p_q_inner_data_temp_dc#56fddf88 pq:string p:string q:string nonce:int128
-//   server_nonce:int128 new_nonce:int256 dc:int expires_in:int = P_Q_inner_data;
 func (*PQInnerDataTempDc) CRC() uint32 {
 	return 0x56fddf88
 }
@@ -67,9 +64,6 @@ type PQInnerDataTempDc struct {
 
 // BindAuthKeyInner represents the bind_auth_key_inner message used to bind
 // a temporary auth key to a permanent one in auth.bindTempAuthKey.
-//
-// bind_auth_key_inner#75a3f765 nonce:long temp_auth_key_id:long
-//   perm_auth_key_id:long temp_session_id:long expires_at:int = BindAuthKeyInner;
 type BindAuthKeyInner struct {
 	Nonce         int64
 	TempAuthKeyID int64
@@ -184,21 +178,6 @@ type RpcResult struct {
 func (*RpcResult) CRC() uint32 {
 	return CrcRpcResult
 }
-
-// func (t *RpcResult) DecodeFromButItsVector(d *Decoder, as reflect.Type) {
-// 	t.ReqMsgID = d.PopLong()
-// 	crc := binary.LittleEndian.Uint32(d.GetRestOfMessage()[:WordLen])
-//
-// 	if crc == CrcGzipPacked {
-// 		_ = d.PopCRC()
-// 		gz := &GzipPacked{}
-// 		gz.DecodeFromButItsVector(d, as)
-// 		t.Obj = gz.Obj.(*InnerVectorObject)
-// 	} else {
-// 		vector := d.PopVector(as)
-// 		t.Obj = &InnerVectorObject{I: vector}
-// 	}
-// }
 
 type RpcError struct {
 	ErrorCode    int32

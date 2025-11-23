@@ -310,7 +310,9 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 		}
 
 		if !found {
-			senderNew, err := c.CreateExportedSender(int(dcID), false)
+			createCtx, createCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			senderNew, err := c.CreateExportedSender(createCtx, int(dcID), false)
+			createCancel()
 			if err != nil {
 				return nil, err
 			}
@@ -668,9 +670,9 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 		})
 	}
 
-	var answsers []*PollAnswer
+	var answers []*PollAnswer
 	for i, option := range actualOptions {
-		answsers = append(answsers, &PollAnswer{
+		answers = append(answers, &PollAnswer{
 			Text:   option,
 			Option: []byte{byte(i)},
 		})
@@ -699,7 +701,7 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 				Text:     actualQuestion,
 				Entities: questionEntities,
 			},
-			Answers:     answsers,
+			Answers:     answers,
 			ClosePeriod: opt.ClosePeriod,
 			CloseDate:   opt.CloseDate,
 		},
@@ -1163,256 +1165,225 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 	return messages, nil
 }
 
-func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMessage, <-chan error) {
-	ch := make(chan NewMessage, 100)
-	errCh := make(chan error, 1)
+var ErrStopIteration = errors.New("stop iteration")
 
-	go func() {
-		defer close(ch)
-		defer close(errCh)
+func (c *Client) IterMessages(PeerID any, callback func(*NewMessage) error, Opts ...*SearchOption) error {
+	opt := getVariadic(Opts, &SearchOption{
+		Filter:           &InputMessagesFilterEmpty{},
+		SleepThresholdMs: 20,
+	})
 
-		opt := getVariadic(Opts, &SearchOption{
-			Filter:           &InputMessagesFilterEmpty{},
-			SleepThresholdMs: 20,
-		})
+	var ctx context.Context
+	if opt.Context != nil {
+		ctx = opt.Context
+	} else {
+		ctx = context.Background()
+	}
 
-		var ctx context.Context
-		if opt.Context != nil {
-			ctx = opt.Context
+	peer, err := c.ResolvePeer(PeerID)
+	if err != nil {
+		return err
+	}
+
+	var (
+		inputIDs []InputMessage
+		result   MessagesMessages
+	)
+
+	switch i := opt.IDs.(type) {
+	case []int32, []int64, []int:
+		var ids []int32
+		switch i := i.(type) {
+		case []int32:
+			ids = convertSlice[int32](i)
+		case []int64:
+			ids = convertSlice[int32](i)
+		case []int:
+			ids = convertSlice[int32](i)
 		}
-		if ctx == nil {
-			ctx = context.Background()
+		for _, id := range ids {
+			inputIDs = append(inputIDs, &InputMessageID{ID: id})
 		}
+	case int, int64, int32:
+		inputIDs = append(inputIDs, &InputMessageID{ID: parseInt32(i)})
+	case *InputMessage:
+		inputIDs = append(inputIDs, *i)
+	case *InputMessagePinned:
+		inputIDs = append(inputIDs, &InputMessagePinned{})
+	case *InputMessageID:
+		inputIDs = append(inputIDs, &InputMessageID{ID: i.ID})
+	case *InputMessageReplyTo:
+		inputIDs = append(inputIDs, &InputMessageReplyTo{ID: i.ID})
+	case *InputMessageCallbackQuery:
+		inputIDs = append(inputIDs, &InputMessageCallbackQuery{ID: i.ID})
+	}
 
-		peer, err := c.ResolvePeer(PeerID)
-		if err != nil {
+	if len(inputIDs) == 0 && opt.Query == "" && opt.Limit == 0 {
+		opt.Limit = 1
+	}
+
+	if len(inputIDs) > 0 {
+		var chunkedIds = splitIDsIntoChunks(inputIDs, 100)
+		for _, ids := range chunkedIds {
 			select {
-			case errCh <- err:
+			case <-ctx.Done():
+				return ctx.Err()
 			default:
 			}
-			return
-		}
 
-		var (
-			inputIDs []InputMessage
-			result   MessagesMessages
-		)
-
-		switch i := opt.IDs.(type) {
-		case []int32, []int64, []int:
-			var ids []int32
-			switch i := i.(type) {
-			case []int32:
-				ids = convertSlice[int32](i)
-			case []int64:
-				ids = convertSlice[int32](i)
-			case []int:
-				ids = convertSlice[int32](i)
+			switch peer := peer.(type) {
+			case *InputPeerChannel:
+				result, err = c.ChannelsGetMessages(&InputChannelObj{ChannelID: peer.ChannelID, AccessHash: peer.AccessHash}, ids)
+			case *InputPeerChat, *InputPeerUser, *InputPeerSelf:
+				result, err = c.MessagesGetMessages(ids)
+			default:
+				return errors.New("invalid peer type to get messages")
 			}
-			for _, id := range ids {
-				inputIDs = append(inputIDs, &InputMessageID{ID: id})
+			if err != nil {
+				return err
 			}
-		case int, int64, int32:
-			inputIDs = append(inputIDs, &InputMessageID{ID: parseInt32(i)})
-		case *InputMessage:
-			inputIDs = append(inputIDs, *i)
-		case *InputMessagePinned:
-			inputIDs = append(inputIDs, &InputMessagePinned{})
-		case *InputMessageID:
-			inputIDs = append(inputIDs, &InputMessageID{ID: i.ID})
-		case *InputMessageReplyTo:
-			inputIDs = append(inputIDs, &InputMessageReplyTo{ID: i.ID})
-		case *InputMessageCallbackQuery:
-			inputIDs = append(inputIDs, &InputMessageCallbackQuery{ID: i.ID})
-		}
-
-		if len(inputIDs) == 0 && opt.Query == "" && opt.Limit == 0 {
-			opt.Limit = 1
-		}
-
-		if len(inputIDs) > 0 {
-			var chunkedIds = splitIDsIntoChunks(inputIDs, 100)
-			for _, ids := range chunkedIds {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
-
-				switch peer := peer.(type) {
-				case *InputPeerChannel:
-					result, err = c.ChannelsGetMessages(&InputChannelObj{ChannelID: peer.ChannelID, AccessHash: peer.AccessHash}, ids)
-				case *InputPeerChat, *InputPeerUser, *InputPeerSelf:
-					result, err = c.MessagesGetMessages(ids)
-				default:
-					select {
-					case errCh <- errors.New("invalid peer type to get messages"):
-					default:
-					}
-					return
-				}
-				if err != nil {
-					select {
-					case errCh <- err:
-					default:
-					}
-					return
-				}
-				switch result := result.(type) {
-				case *MessagesChannelMessages:
-					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
-					for _, msg := range result.Messages {
-						select {
-						case <-ctx.Done():
-							return
-						case ch <- *packMessage(c, msg):
+			switch result := result.(type) {
+			case *MessagesChannelMessages:
+				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+				for _, msg := range result.Messages {
+					if err := callback(packMessage(c, msg)); err != nil {
+						if err == ErrStopIteration {
+							return nil
 						}
+						return err
 					}
-				case *MessagesMessagesObj:
-					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
-					for _, msg := range result.Messages {
-						select {
-						case <-ctx.Done():
-							return
-						case ch <- *packMessage(c, msg):
+				}
+			case *MessagesMessagesObj:
+				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+				for _, msg := range result.Messages {
+					if err := callback(packMessage(c, msg)); err != nil {
+						if err == ErrStopIteration {
+							return nil
 						}
+						return err
 					}
-				case *MessagesMessagesSlice:
-					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
-					for _, msg := range result.Messages {
-						select {
-						case <-ctx.Done():
-							return
-						case ch <- *packMessage(c, msg):
+				}
+			case *MessagesMessagesSlice:
+				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+				for _, msg := range result.Messages {
+					if err := callback(packMessage(c, msg)); err != nil {
+						if err == ErrStopIteration {
+							return nil
 						}
+						return err
 					}
-				}
-
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(time.Duration(opt.SleepThresholdMs) * time.Millisecond):
 				}
 			}
-		} else {
-			if opt.Filter == nil {
-				opt.Filter = &InputMessagesFilterEmpty{}
-			}
 
-			params := &MessagesSearchParams{
-				Peer:     peer,
-				Q:        opt.Query,
-				OffsetID: opt.Offset,
-				Filter:   opt.Filter,
-				MinDate:  opt.MinDate,
-				MaxDate:  opt.MaxDate,
-				MinID:    opt.MinID,
-				MaxID:    opt.MaxID,
-				Limit:    opt.Limit,
-				TopMsgID: opt.TopMsgID,
-			}
-
-			if opt.FromUser != nil {
-				fromUser, err := c.ResolvePeer(opt.FromUser)
-				if err != nil {
-					select {
-					case errCh <- err:
-					default:
-					}
-					return
-				}
-				params.FromID = fromUser
-			}
-
-			var totalFetched int32
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
-
-				remaining := opt.Limit - totalFetched
-				if opt.Limit > 0 && remaining <= 0 {
-					return
-				}
-
-				perReqLimit := min(remaining, int32(100))
-				if opt.Limit == 0 {
-					perReqLimit = 100
-				}
-				params.Limit = perReqLimit
-
-				result, err = c.MessagesSearch(params)
-				if err != nil {
-					if handleIfFlood(err, c) {
-						continue
-					}
-					select {
-					case errCh <- err:
-					default:
-					}
-					return
-				}
-
-				var batchMessages []NewMessage
-				switch result := result.(type) {
-				case *MessagesChannelMessages:
-					if result.Count == 0 || len(result.Messages) == 0 {
-						return
-					}
-					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
-					for _, msg := range result.Messages {
-						batchMessages = append(batchMessages, *packMessage(c, msg))
-					}
-				case *MessagesMessagesObj:
-					if len(result.Messages) == 0 {
-						return
-					}
-					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
-					for _, msg := range result.Messages {
-						batchMessages = append(batchMessages, *packMessage(c, msg))
-					}
-				case *MessagesMessagesSlice:
-					if result.Count == 0 || len(result.Messages) == 0 {
-						return
-					}
-					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
-					for _, msg := range result.Messages {
-						batchMessages = append(batchMessages, *packMessage(c, msg))
-					}
-				}
-
-				if len(batchMessages) == 0 {
-					return
-				}
-
-				for _, msg := range batchMessages {
-					select {
-					case <-ctx.Done():
-						return
-					case ch <- msg:
-						totalFetched++
-					}
-				}
-
-				if len(batchMessages) < int(perReqLimit) {
-					return
-				}
-
-				params.OffsetID = batchMessages[len(batchMessages)-1].ID
-				params.MaxDate = batchMessages[len(batchMessages)-1].Date()
-
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(time.Duration(opt.SleepThresholdMs) * time.Millisecond):
-				}
-			}
+			time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
 		}
-	}()
+	} else {
+		if opt.Filter == nil {
+			opt.Filter = &InputMessagesFilterEmpty{}
+		}
 
-	return ch, errCh
+		params := &MessagesSearchParams{
+			Peer:     peer,
+			Q:        opt.Query,
+			OffsetID: opt.Offset,
+			Filter:   opt.Filter,
+			MinDate:  opt.MinDate,
+			MaxDate:  opt.MaxDate,
+			MinID:    opt.MinID,
+			MaxID:    opt.MaxID,
+			Limit:    opt.Limit,
+			TopMsgID: opt.TopMsgID,
+		}
+
+		if opt.FromUser != nil {
+			fromUser, err := c.ResolvePeer(opt.FromUser)
+			if err != nil {
+				return err
+			}
+			params.FromID = fromUser
+		}
+
+		var totalFetched int32
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
+			remaining := opt.Limit - totalFetched
+			if opt.Limit > 0 && remaining <= 0 {
+				return nil
+			}
+
+			perReqLimit := min(remaining, int32(100))
+			if opt.Limit == 0 {
+				perReqLimit = 100
+			}
+			params.Limit = perReqLimit
+
+			result, err = c.MessagesSearch(params)
+			if err != nil {
+				if handleIfFlood(err, c) {
+					continue
+				}
+				return err
+			}
+
+			var batchMessages []NewMessage
+			switch result := result.(type) {
+			case *MessagesChannelMessages:
+				if result.Count == 0 || len(result.Messages) == 0 {
+					return nil
+				}
+				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+				for _, msg := range result.Messages {
+					batchMessages = append(batchMessages, *packMessage(c, msg))
+				}
+			case *MessagesMessagesObj:
+				if len(result.Messages) == 0 {
+					return nil
+				}
+				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+				for _, msg := range result.Messages {
+					batchMessages = append(batchMessages, *packMessage(c, msg))
+				}
+			case *MessagesMessagesSlice:
+				if result.Count == 0 || len(result.Messages) == 0 {
+					return nil
+				}
+				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+				for _, msg := range result.Messages {
+					batchMessages = append(batchMessages, *packMessage(c, msg))
+				}
+			}
+
+			if len(batchMessages) == 0 {
+				return nil
+			}
+
+			for _, msg := range batchMessages {
+				if err := callback(&msg); err != nil {
+					if err == ErrStopIteration {
+						return nil
+					}
+					return err
+				}
+				totalFetched++
+			}
+
+			if len(batchMessages) < int(perReqLimit) {
+				return nil
+			}
+
+			params.OffsetID = batchMessages[len(batchMessages)-1].ID
+			params.MaxDate = batchMessages[len(batchMessages)-1].Date()
+
+			time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
+		}
+	}
+
+	return nil
 }
 
 func (c *Client) GetMessageByID(PeerID any, MsgID int32) (*NewMessage, error) {
@@ -1520,113 +1491,115 @@ func (c *Client) GetHistory(PeerID any, opts ...*HistoryOption) ([]NewMessage, e
 	}
 }
 
-func (c *Client) IterHistory(PeerID any, opts ...*HistoryOption) (<-chan NewMessage, <-chan error) {
-	ch := make(chan NewMessage)
-	errCh := make(chan error)
+func (c *Client) IterHistory(PeerID any, callback func(*NewMessage) error, opts ...*HistoryOption) error {
+	var opt = getVariadic(opts, &HistoryOption{
+		Limit:            1,
+		SleepThresholdMs: 20,
+	})
 
-	go func() {
-		defer close(ch)
-		defer close(errCh)
+	var fetched int
 
-		var opt = getVariadic(opts, &HistoryOption{
-			Limit:            1,
-			SleepThresholdMs: 20,
-		})
+	var peerToAct, err = c.ResolvePeer(PeerID)
+	if err != nil {
+		return err
+	}
 
-		var fetched int
+	req := &MessagesGetHistoryParams{
+		Peer:       peerToAct,
+		OffsetID:   opt.Offset,
+		OffsetDate: 0,
+		MaxID:      opt.MaxID,
+		MinID:      opt.MinID,
+	}
 
-		var peerToAct, err = c.ResolvePeer(PeerID)
+	for {
+		var messages []NewMessage
+		remaining := opt.Limit - int32(fetched)
+		perReqLimit := int32(100)
+		if remaining < perReqLimit {
+			perReqLimit = remaining
+		}
+		req.Limit = perReqLimit
+
+		resp, err := c.MessagesGetHistory(req)
 		if err != nil {
-			errCh <- err
-			return
+			if handleIfFlood(err, c) {
+				continue
+			}
+			return err
 		}
 
-		req := &MessagesGetHistoryParams{
-			Peer:       peerToAct,
-			OffsetID:   opt.Offset,
-			OffsetDate: 0,
-			MaxID:      opt.MaxID,
-			MinID:      opt.MinID,
+		switch resp := resp.(type) {
+		case *MessagesMessagesObj:
+			c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
+			for _, msg := range resp.Messages {
+				messages = append(messages, *packMessage(c, msg))
+			}
+			fetched += len(resp.Messages)
+
+			for _, msg := range messages {
+				if err := callback(&msg); err != nil {
+					if err == ErrStopIteration {
+						return nil
+					}
+					return err
+				}
+			}
+			if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
+				return nil
+			}
+
+			req.OffsetID = messages[len(messages)-1].ID
+			req.OffsetDate = messages[len(messages)-1].Date()
+
+		case *MessagesMessagesSlice:
+			c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
+			for _, msg := range resp.Messages {
+				messages = append(messages, *packMessage(c, msg))
+			}
+			fetched += len(resp.Messages)
+
+			for _, msg := range messages {
+				if err := callback(&msg); err != nil {
+					if err == ErrStopIteration {
+						return nil
+					}
+					return err
+				}
+			}
+			if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
+				return nil
+			}
+
+			req.OffsetID = messages[len(messages)-1].ID
+			req.OffsetDate = messages[len(messages)-1].Date()
+		case *MessagesChannelMessages:
+			c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
+			for _, msg := range resp.Messages {
+				messages = append(messages, *packMessage(c, msg))
+			}
+			fetched += len(resp.Messages)
+
+			for _, msg := range messages {
+				if err := callback(&msg); err != nil {
+					if err == ErrStopIteration {
+						return nil
+					}
+					return err
+				}
+			}
+			if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
+				return nil
+			}
+
+			req.OffsetID = messages[len(messages)-1].ID
+			req.OffsetDate = messages[len(messages)-1].Date()
+		default:
+			return errors.New("unexpected response: " + reflect.TypeOf(resp).String())
 		}
 
-		for {
-			var messages []NewMessage
-			remaining := opt.Limit - int32(fetched)
-			perReqLimit := int32(100)
-			if remaining < perReqLimit {
-				perReqLimit = remaining
-			}
-			req.Limit = perReqLimit
-
-			resp, err := c.MessagesGetHistory(req)
-			if err != nil {
-				if handleIfFlood(err, c) {
-					continue
-				}
-				errCh <- err
-				return
-			}
-
-			switch resp := resp.(type) {
-			case *MessagesMessagesObj:
-				c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
-				for _, msg := range resp.Messages {
-					messages = append(messages, *packMessage(c, msg))
-				}
-				fetched += len(resp.Messages)
-
-				for _, msg := range messages {
-					ch <- msg
-				}
-				if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
-					return
-				}
-
-				req.OffsetID = messages[len(messages)-1].ID
-				req.OffsetDate = messages[len(messages)-1].Date()
-
-			case *MessagesMessagesSlice:
-				c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
-				for _, msg := range resp.Messages {
-					messages = append(messages, *packMessage(c, msg))
-				}
-				fetched += len(resp.Messages)
-
-				for _, msg := range messages {
-					ch <- msg
-				}
-				if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
-					return
-				}
-
-				req.OffsetID = messages[len(messages)-1].ID
-				req.OffsetDate = messages[len(messages)-1].Date()
-			case *MessagesChannelMessages:
-				c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
-				for _, msg := range resp.Messages {
-					messages = append(messages, *packMessage(c, msg))
-				}
-				fetched += len(resp.Messages)
-
-				for _, msg := range messages {
-					ch <- msg
-				}
-				if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
-					return
-				}
-
-				req.OffsetID = messages[len(messages)-1].ID
-				req.OffsetDate = messages[len(messages)-1].Date()
-			default:
-				errCh <- errors.New("unexpected response: " + reflect.TypeOf(resp).String())
-				return
-			}
-
-			time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
-		}
-	}()
-
-	return ch, errCh
+		time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
+	}
 }
 
 type PinOptions struct {
@@ -1763,7 +1736,7 @@ func (c *Client) GetMediaGroup(PeerID any, MsgID int32) ([]NewMessage, error) {
 	}
 	groupID := getMediaGroupID(resp)
 	if groupID == 0 {
-		return nil, errors.New("The message is not part of a media group")
+		return nil, errors.New("the message is not part of a media group")
 	}
 	sameGroup := func(m []NewMessage, groupID int64) []NewMessage {
 		var msgs []NewMessage

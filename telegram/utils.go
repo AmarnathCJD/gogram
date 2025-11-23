@@ -373,29 +373,7 @@ func ProxyFromURL(proxyURL string) (Proxy, error) {
 }
 
 var (
-	regexDataCenter = regexp.MustCompile(`DC (\d+)`)
-	regexCode       = regexp.MustCompile(`code (\d+)`)
-)
-
-func GetErrorCode(err error) (int, int) {
-	datacenter := 0
-	code := 0
-	if err == nil {
-		return datacenter, code
-	}
-
-	if regexDataCenter.MatchString(err.Error()) {
-		datacenter, _ = strconv.Atoi(regexDataCenter.FindStringSubmatch(err.Error())[1])
-	}
-	if regexCode.MatchString(err.Error()) {
-		code, _ = strconv.Atoi(regexCode.FindStringSubmatch(err.Error())[1])
-	}
-
-	return datacenter, code
-}
-
-var (
-	regexFloodWait        = regexp.MustCompile(`A wait of (\d+) seconds is required`)
+	regexFloodWait        = regexp.MustCompile(`Please wait (\d+) seconds before repeating the action`)
 	regexFloodWaitBasic   = regexp.MustCompile(`FLOOD_WAIT_(\d+)`)
 	regexFloodWaitPremium = regexp.MustCompile(`FLOOD_PREMIUM_WAIT_(\d+)`)
 )

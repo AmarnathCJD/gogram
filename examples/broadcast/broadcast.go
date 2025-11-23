@@ -1,13 +1,15 @@
-package examples
+package main
 
 import (
+	"context"
+	"log"
+
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
 // Broadcasting to bot users / chats using updates.GetDifference
-// client.Broadcast returns peers in update history via channels
-// these peers can be used for broadcasting messages
-// no external database is required to store user / chat ids
+// Broadcast now invokes callbacks for each unique peer instead of returning channels.
+// No external database is required to store user / chat ids.
 
 const (
 	appID    = 6
@@ -16,25 +18,33 @@ const (
 )
 
 func main() {
-	// create a new client object
-	client, _ := telegram.NewClient(telegram.ClientConfig{
+	client, err := telegram.NewClient(telegram.ClientConfig{
 		AppID:    appID,
 		AppHash:  appHash,
 		LogLevel: telegram.LogInfo,
 	})
-
-	client.LoginBot(botToken)
-
-	users, chats, err := client.Broadcast()
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to create client: %v", err)
 	}
 
-	for user := range users {
-		client.SendMessage(user, "Hello, This is a broadcast message")
+	if err := client.LoginBot(botToken); err != nil {
+		log.Fatalf("bot login failed: %v", err)
 	}
 
-	for chat := range chats {
-		client.SendMessage(chat, "Hello, This is a broadcast message")
+	ctx := context.Background()
+	message := "Hello, this is a broadcast message"
+
+	userCallback := func(user telegram.User) error {
+		_, err := client.SendMessage(user, message)
+		return err
+	}
+
+	chatCallback := func(chat telegram.Chat) error {
+		_, err := client.SendMessage(chat, message)
+		return err
+	}
+
+	if err := client.Broadcast(ctx, userCallback, chatCallback); err != nil {
+		log.Fatalf("broadcast failed: %v", err)
 	}
 }
