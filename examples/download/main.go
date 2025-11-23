@@ -1,8 +1,6 @@
 package main
 
 import (
-	"time"
-
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -30,7 +28,7 @@ func main() {
 
 		_, err := message.Download(&telegram.DownloadOptions{
 			ProgressManager: pm,
-			Timeout:         2 * time.Minute,
+			// Timeout:         2 * time.Minute,
 		})
 		if err != nil {
 			message.Reply("download error: " + err.Error())
