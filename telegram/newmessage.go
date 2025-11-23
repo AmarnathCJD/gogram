@@ -704,6 +704,18 @@ func (m *NewMessage) Download(opts ...*DownloadOptions) (string, error) {
 	return m.Client.DownloadMedia(m.Media(), opts...)
 }
 
+func (m *NewMessage) GetDiscussionMessages() ([]*NewMessage, error) {
+	resp, err := m.Client.MessagesGetDiscussionMessage(m.Peer, m.ID)
+	if resp == nil || err != nil {
+		return nil, err
+	}
+
+	if m.Client != nil && m.Client.Cache != nil {
+		m.Client.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
+	}
+	return PackMessages(m.Client, resp.Messages), err
+}
+
 // Link returns the URL to the message
 // Format: https://t.me/username/msgID for public chats
 // Format: https://t.me/c/channelID/msgID for private chats
