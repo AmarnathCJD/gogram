@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
+	"github.com/amarnathcjd/gogram/internal/session"
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
@@ -1554,6 +1555,31 @@ func ComputeDigest(algo *PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SH
 	hash := ige.PasswordHash2([]byte(password), algo.Salt1, algo.Salt2)
 	value := ige.BigExp(big.NewInt(int64(algo.G)), ige.BytesToBig(hash), ige.BytesToBig(algo.P))
 	return ige.Pad256(value.Bytes())
+}
+
+type Session struct {
+	Key      []byte `json:"key,omitempty"`      // AUTH_KEY
+	Hash     []byte `json:"hash,omitempty"`     // AUTH_KEY_HASH (SHA1 of AUTH_KEY)
+	Salt     int64  `json:"salt,omitempty"`     // SERVER_SALT
+	Hostname string `json:"hostname,omitempty"` // HOSTNAME (IP address of the DC)
+	AppID    int32  `json:"app_id,omitempty"`   // APP_ID
+}
+
+func (s *Session) Encode() string {
+	if len(s.Hash) == 0 {
+		s.Hash = utils.Sha1Byte(s.Key)[12:20]
+	}
+	return session.NewStringSession(s.Key, s.Hash, 0, s.Hostname, s.AppID).Encode()
+}
+
+type RpcError struct {
+	Code        int32
+	Message     string
+	Description string
+}
+
+func (r *RpcError) Error() string {
+	return fmt.Sprintf("%s (%d)", r.Message, r.Code)
 }
 
 func (c *Client) Stringify(object any) string {

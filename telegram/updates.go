@@ -369,7 +369,8 @@ func (d *UpdateDispatcher) CleanOldProcessedUpdates() {
 
 func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 	c.dispatcher = &UpdateDispatcher{
-		logger:                c.Log.WithPrefix("gogram " + lp("dispatcher", getVariadic(sessionName, ""))),
+		logger: c.Log.WithPrefix("gogram " +
+			lp("dispatcher", getVariadic(sessionName, ""))),
 		channelStates:         make(map[int64]*channelState),
 		pendingGaps:           make(map[int32]time.Time),
 		processedUpdates:      make(map[int64]time.Time),

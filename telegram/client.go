@@ -26,9 +26,8 @@ import (
 )
 
 const (
-	// The Initial DC to connect to, before auth
-	DefaultDataCenter         = 4
-	CleanExportedSendersDelay = 5 * time.Minute
+	// the initial data center to connect to, before authentication
+	DefaultDataCenter = 4
 )
 
 type clientData struct {
@@ -109,21 +108,6 @@ type ClientConfig struct {
 	EnablePFS        bool                 // Enable Perfect Forward Secrecy using temporary auth keys
 }
 
-type Session struct {
-	Key      []byte `json:"key,omitempty"`      // AUTH_KEY
-	Hash     []byte `json:"hash,omitempty"`     // AUTH_KEY_HASH (SHA1 of AUTH_KEY)
-	Salt     int64  `json:"salt,omitempty"`     // SERVER_SALT
-	Hostname string `json:"hostname,omitempty"` // HOSTNAME (IP address of the DC)
-	AppID    int32  `json:"app_id,omitempty"`   // APP_ID
-}
-
-func (s *Session) Encode() string {
-	if len(s.Hash) == 0 {
-		s.Hash = utils.Sha1Byte(s.Key)[12:20]
-	}
-	return session.NewStringSession(s.Key, s.Hash, 0, s.Hostname, s.AppID).Encode()
-}
-
 func NewClient(config ClientConfig) (*Client, error) {
 	client := &Client{
 		wg:     sync.WaitGroup{},
@@ -132,11 +116,13 @@ func NewClient(config ClientConfig) (*Client, error) {
 
 	if config.Logger != nil {
 		client.Log = config.Logger
-		client.Log.SetPrefix("gogram " + lp("client", config.SessionName))
+		client.Log.SetPrefix("gogram " +
+			lp("client", config.SessionName))
 		config.LogLevel = config.Logger.Lev()
 	} else {
 		config.LogLevel = getValue(config.LogLevel, LogInfo)
-		client.Log = NewDefaultLogger("gogram " + lp("client", config.SessionName))
+		client.Log = NewDefaultLogger("gogram " +
+			lp("client", config.SessionName))
 		client.Log.SetLevel(config.LogLevel)
 	}
 
@@ -146,7 +132,8 @@ func NewClient(config ClientConfig) (*Client, error) {
 	if config.Cache == nil {
 		client.Cache = NewCache(fmt.Sprintf("cache%s.db", config.SessionName), &CacheConfig{
 			Disabled: config.DisableCache,
-			Logger:   getValue(config.Logger, client.Log.WithPrefix("gogram "+lp("cache", config.SessionName))),
+			Logger: getValue(config.Logger, client.Log.WithPrefix("gogram "+
+				lp("cache", config.SessionName))),
 			LogColor: client.Log.Color(),
 			LogLevel: config.LogLevel,
 		})
@@ -160,7 +147,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		return nil, err
 	}
 	if config.NoUpdates {
-		client.Log.Debug("client is running in no updates mode, no updates will be handled")
+		client.Log.Debug("no updates mode enabled, skipping dispatcher setup")
 	} else {
 		client.setupDispatcher()
 	}
@@ -192,7 +179,8 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		PublicKey:   config.PublicKeys[0],
 		DataCenter:  config.DataCenter,
 		Logger: c.Log.CloneInternal().
-			WithPrefix("gogram " + lp("mtproto", config.SessionName)),
+			WithPrefix("gogram " +
+				lp("mtproto", config.SessionName)),
 		StringSession:   config.StringSession,
 		LocalAddr:       config.LocalAddr,
 		MemorySession:   config.MemorySession,
@@ -439,7 +427,7 @@ func (c *Client) Disconnect() error {
 
 // switchDC permanently switches the data center
 func (c *Client) SwitchDc(dcID int) error {
-	c.Log.Debug("switching data center to (" + strconv.Itoa(dcID) + ")")
+	c.Log.Debug("switching to data center: %d", dcID)
 	if err := c.MTProto.SwitchDc(dcID); err != nil {
 		return fmt.Errorf("reconnecting to new dc: %w", err)
 	}
@@ -534,7 +522,6 @@ func (es *ExSenders) cleanupIdleSenders() {
 		}
 	}
 
-	// Remove nil senders
 	for dcID, senders := range es.senders {
 		var newSenders []*ExSender
 		for _, sender := range senders {
@@ -557,13 +544,13 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 	if dcID <= 0 {
 		return nil, errors.New("invalid data center ID")
 	}
-	const retryLimit = 3 // Retry only once
+	const retryLimit = 3
 	var lastError error
 
 	var authParam = getVariadic(authParams, &AuthExportedAuthorization{})
 
 	for retry := 0; retry <= retryLimit; retry++ {
-		c.Log.Debug("creating exported sender for DC ", dcID)
+		c.Log.Debug("creating exported sender for dc %d", dcID)
 		if cdn {
 			if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
 				cdnKeysResp, err := c.HelpGetCdnConfig()
@@ -581,7 +568,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 		exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
 		if err != nil {
 			lastError = fmt.Errorf("exporting new sender: %w", err)
-			c.Log.Error("error exporting new sender: ", lastError)
+			c.Log.Error("error exporting new sender: %s", lastError.Error())
 			continue
 		}
 
@@ -604,11 +591,11 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 					Bytes: authParam.Bytes,
 				}
 			} else {
-				c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
+				c.Log.Info("exporting auth for dc %d", dcID)
 				auth, err = c.AuthExportAuthorization(int32(exported.GetDC()))
 				if err != nil {
 					lastError = fmt.Errorf("exporting auth: %w", err)
-					c.Log.Error("error exporting auth: ", lastError)
+					c.Log.Error("error exporting auth: %s", lastError.Error())
 					continue
 				}
 
@@ -636,15 +623,15 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 		if err != nil {
 			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") {
 				authParam.ID = 0
-				c.Log.Debug("auth bytes invalid, re-exporting auth")
+				c.Log.Debug("AUTH_BYTES_INVALID received, retrying export of auth bytes")
 				continue
 			}
 
 			lastError = fmt.Errorf("making initial request: %w", err)
 			if retry < retryLimit {
-				c.Log.Debug(fmt.Sprintf("error making initial request, retrying (%d/%d)", retry+1, retryLimit))
+				c.Log.Debug("error making initial request, retrying (%d/%d)", retry+1, retryLimit)
 			} else {
-				c.Log.Error(fmt.Sprintf("exported sender: initialRequest: %s", lastError.Error()))
+				c.Log.Error("exported sender: initialRequest: %s", lastError.Error())
 			}
 
 			time.Sleep(200 * time.Millisecond)
@@ -659,7 +646,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 
 // setLogLevel sets the log level for all loggers
 func (c *Client) SetLogLevel(level LogLevel) {
-	c.Log.Debug("setting library log level to ", level)
+	c.Log.Debug("setting library log level to %d", level)
 	c.Log.SetLevel(level)
 	if c.Cache != nil {
 		c.Cache.logger.SetLevel(level)
@@ -699,6 +686,20 @@ func (c *Client) GetDC() int {
 	return c.MTProto.GetDC()
 }
 
+func (c *Client) GetCurrentIP() string {
+	return c.MTProto.Addr
+}
+
+// ExportStringSession exports the current session to a string,
+func (c *Client) ExportStringSession() string {
+	return c.ExportSession()
+}
+
+// ImportStringSession imports a session from a string
+func (c *Client) ImportStringSession(sessionString string) (bool, error) {
+	return c.ImportSession(sessionString)
+}
+
 // ExportSession exports the current session to a string,
 // This string can be used to import the session later
 func (c *Client) ExportSession() string {
@@ -716,26 +717,18 @@ func (c *Client) ImportSession(sessionString string) (bool, error) {
 	return c.MTProto.ImportAuth(sessionString)
 }
 
-// ImportRawSession imports a session from raw TData
-//
-//	Params:
-//	  authKey: The auth key of the session
-//	  authKeyHash: The auth key hash
-//	  IpAddr: The IP address of the DC
-//	  DcID: The DC ID to connect to
-//	  AppID: The App ID to use
-func (c *Client) ImportRawSession(authKey, authKeyHash []byte, IpAddr string, AppID int32) (bool, error) {
-	return c.MTProto.ImportRawAuth(authKey, authKeyHash, IpAddr, AppID)
+// ImportRawSession imports a session from raw fields
+func (c *Client) ImportRawSession(sess *Session) error {
+	return c.MTProto.LoadSession(&session.Session{
+		Key:      sess.Key,
+		Hash:     sess.Hash,
+		Salt:     sess.Salt,
+		Hostname: sess.Hostname,
+		AppID:    sess.AppID,
+	})
 }
 
-// ExportRawSession exports a session to raw TData
-//
-//	Returns:
-//	  authKey: The auth key of the session
-//	  authKeyHash: The auth key hash
-//	  IpAddr: The IP address of the DC
-//	  DcID: The DC ID to connect to
-//	  AppID: The App ID to use
+// ExportRawSession exports the current session to raw fields
 func (c *Client) ExportRawSession() *Session {
 	mtSession, _ := c.MTProto.ExportAuth()
 	return &Session{
@@ -745,20 +738,6 @@ func (c *Client) ExportRawSession() *Session {
 		Hostname: mtSession.Hostname,
 		AppID:    mtSession.AppID,
 	}
-}
-
-// LoadSession loads a session from a file, database, etc.
-//
-//	Params:
-//	  Session: The session to load
-func (c *Client) LoadSession(sess *Session) error {
-	return c.MTProto.LoadSession(&session.Session{
-		Key:      sess.Key,
-		Hash:     sess.Hash,
-		Salt:     sess.Salt,
-		Hostname: sess.Hostname,
-		AppID:    sess.AppID,
-	})
 }
 
 // returns the AppID (api_id) of the client
@@ -776,6 +755,16 @@ func (c *Client) ParseMode() string {
 	return c.clientData.parseMode
 }
 
+// GetProxy returns the proxy configuration
+func (c *Client) GetProxy() Proxy {
+	return c.clientData.proxy
+}
+
+// SetProxy sets the proxy configuration
+func (c *Client) SetProxy(proxy Proxy) {
+	c.clientData.proxy = proxy
+}
+
 // CommandPrefixes returns the command prefixes configured for the client
 func (c *Client) CommandPrefixes() string {
 	return c.clientData.commandPrefixes
@@ -788,7 +777,6 @@ func (c *Client) SetCommandPrefixes(prefixes string) {
 
 // Terminate client and disconnect from telegram server
 func (c *Client) Terminate() error {
-	//go c.cleanExportedSenders()
 	return c.MTProto.Terminate()
 }
 
@@ -830,7 +818,8 @@ func (c *Client) NewRecovery() func() {
 	}
 }
 
-// WrapError sends an error to the error channel if it is not nil
+// WrapError logs and returns the error if it's not nil.
+// Returns the same error for chaining.
 func (c *Client) WrapError(err error) error {
 	if err != nil {
 		c.Log.Error(err)
@@ -838,24 +827,28 @@ func (c *Client) WrapError(err error) error {
 	return err
 }
 
-// return only the object, omitting the error
-func (c *Client) W(obj any, err error) any {
+// Must panics if err is not nil, otherwise returns obj.
+// Useful for operations that should never fail in production.
+func (c *Client) Must(obj any, err error) any {
+	if err != nil {
+		panic(err)
+	}
 	return obj
 }
 
-// return only the error, omitting the object
-func (c *Client) E(obj any, err error) error {
+// Try returns the object and ignores the error.
+// Use when you want to safely ignore errors.
+func (c *Client) Try(obj any, err error) any {
+	if err != nil {
+		c.Log.Debug("try: ignoring error: %v", err)
+	}
+	return obj
+}
+
+// CheckErr returns only the error, discarding the object.
+// Useful for checking if an operation succeeded without caring about the result.
+func (c *Client) CheckErr(_ any, err error) error {
 	return err
-}
-
-type RpcError struct {
-	Code        int32
-	Message     string
-	Description string
-}
-
-func (r *RpcError) Error() string {
-	return fmt.Sprintf("%s (%d)", r.Message, r.Code)
 }
 
 func (c *Client) ToRpcError(err error) *RpcError {
@@ -884,16 +877,6 @@ func (c *Client) MatchRPCError(err error, message string) bool {
 	}
 
 	return rpcErr.Message == message
-}
-
-// GetProxy returns the proxy configuration
-func (c *Client) GetProxy() Proxy {
-	return c.clientData.proxy
-}
-
-// SetProxy sets the proxy configuration
-func (c *Client) SetProxy(proxy Proxy) {
-	c.clientData.proxy = proxy
 }
 
 // ClientConfigBuilder

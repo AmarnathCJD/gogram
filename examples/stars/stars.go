@@ -20,7 +20,7 @@ func main() {
 	bot.AddRawHandler(&telegram.UpdateBotPrecheckoutQuery{}, preCheckoutQueryUpd)
 	bot.On("edit", func(m *telegram.NewMessage) error {
 		paidUsers[m.SenderID()] = m.Invoice().ReceiptMsgID
-		return bot.E(m.Respond("Payment Successful!"))
+		return bot.CheckErr(m.Respond("Payment Successful!"))
 	}, telegram.FilterFunc(func(upd *telegram.NewMessage) bool {
 		return upd.Invoice() != nil && upd.Invoice().ReceiptMsgID != 0
 	}))
@@ -60,17 +60,17 @@ func preCheckoutQueryUpd(upd telegram.Update, c *telegram.Client) error {
 
 func statusCmd(m *telegram.NewMessage) error {
 	if _, ok := paidUsers[m.SenderID()]; ok {
-		return m.E(m.Respond("You have paid!"))
+		return m.CheckErr(m.Respond("You have paid!"))
 	}
-	return m.E(m.Respond("You have not paid!"))
+	return m.CheckErr(m.Respond("You have not paid!"))
 }
 
 func refundCmd(m *telegram.NewMessage) error {
-	if recpt_id, ok := paidUsers[m.SenderID()]; ok {
+	if receipt_id, ok := paidUsers[m.SenderID()]; ok {
 		delete(paidUsers, m.SenderID())
 		u, _ := m.Client.GetSendableUser(m.SenderID())
-		m.Client.PaymentsRefundStarsCharge(u, fmt.Sprintf("%d", recpt_id))
-		return m.E(m.Respond("Refund Successful!"))
+		m.Client.PaymentsRefundStarsCharge(u, fmt.Sprintf("%d", receipt_id))
+		return m.CheckErr(m.Respond("Refund Successful!"))
 	}
-	return m.E(m.Respond("You have not paid!"))
+	return m.CheckErr(m.Respond("You have not paid!"))
 }
