@@ -1572,6 +1572,19 @@ func (s *Session) Encode() string {
 	return session.NewStringSession(s.Key, s.Hash, 0, s.Hostname, s.AppID).Encode()
 }
 
+func (s *Session) Decode(sessionString string) error {
+	sess := session.NewEmptyStringSession()
+	if err := sess.Decode(sessionString); err != nil {
+		return err
+	}
+
+	s.Key = sess.AuthKey()
+	s.Hash = sess.AuthKeyHash()
+	s.Hostname = sess.IpAddr()
+	s.AppID = sess.AppID()
+	return nil
+}
+
 type RpcError struct {
 	Code        int32
 	Message     string
