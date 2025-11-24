@@ -607,8 +607,9 @@ func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool
 }
 
 type QrToken struct {
-	qrBase64 string
-	qrSmall  string
+	qrBase64         string
+	qrSmall          string
+	passwordCallback func() (string, error)
 
 	// Token is the token to be used for logging in
 	Token []byte
@@ -650,11 +651,20 @@ func (q *QrToken) ExportAsSmallString() string {
 }
 
 func (q *QrToken) PrintToConsole() {
+	fmt.Println("Scan the following QR code to login:")
 	fmt.Println(q.qrSmall)
 }
 
 func (q *QrToken) Renew() error {
-	qrNew, err := q.client.QRLogin(q.IgnoredIDs...)
+	var options = QrOptions{
+		IgnoredIDs: q.IgnoredIDs,
+	}
+	if q.passwordCallback != nil {
+		options.PasswordCallback = q.passwordCallback
+	}
+	options.Timeout = q.Timeout
+
+	qrNew, err := q.client.QRLogin(options)
 	if err != nil {
 		return err
 	}
@@ -662,7 +672,7 @@ func (q *QrToken) Renew() error {
 	q.Token = qrNew.Token
 	q.Url = qrNew.Url
 	q.ExpiresIn = qrNew.ExpiresIn
-	q.Timeout = 600
+	q.Timeout = qrNew.Timeout
 	qrMake, err := utils.NewQRCode(q.Url)
 	if err != nil {
 		return err
@@ -674,7 +684,11 @@ func (q *QrToken) Renew() error {
 }
 
 func (q *QrToken) WaitLogin(timeout ...int32) error {
-	q.Timeout = getVariadic(timeout, 600)
+	if au, err := q.client.IsAuthorized(); au || err != nil {
+		return nil
+	}
+
+	q.Timeout = getVariadic(timeout, q.Timeout)
 	ch := make(chan int)
 	ev := q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update, client *Client) error {
 		ch <- 1
@@ -685,7 +699,39 @@ func (q *QrToken) WaitLogin(timeout ...int32) error {
 		go q.client.removeHandle(ev)
 		resp, err := q.client.AuthExportLoginToken(q.client.AppID(), q.client.AppHash(), q.IgnoredIDs)
 		if err != nil {
-			return err
+			if MatchError(err, "SESSION_PASSWORD_NEEDED") {
+				if q.passwordCallback == nil {
+					return fmt.Errorf("password callback is nil")
+				}
+
+				fmt.Println("Two-factor authentication is enabled. Please enter your password.")
+				password, err := q.passwordCallback()
+				if err != nil {
+					return err
+				}
+
+				accPassword, err := q.client.AccountGetPassword()
+				if err != nil {
+					return err
+				}
+
+				inputPassword, err := GetInputCheckPassword(password, accPassword)
+				if err != nil {
+					return err
+				}
+
+				_, err = q.client.AuthCheckPassword(inputPassword)
+				if err != nil {
+					return err
+				}
+
+				resp, err = q.client.AuthExportLoginToken(q.client.AppID(), q.client.AppHash(), q.IgnoredIDs)
+				if err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
 		}
 	QrResponseSwitch:
 		switch req := resp.(type) {
@@ -697,6 +743,7 @@ func (q *QrToken) WaitLogin(timeout ...int32) error {
 			}
 			goto QrResponseSwitch
 		case *AuthLoginTokenSuccess:
+			q.client.Log.Info("QR login successful")
 			switch u := req.Authorization.(type) {
 			case *AuthAuthorizationObj:
 				switch u := u.User.(type) {
@@ -716,10 +763,34 @@ func (q *QrToken) WaitLogin(timeout ...int32) error {
 	}
 }
 
+type QrOptions struct {
+	IgnoredIDs       []int64                // IDs to be excluded from the QR login
+	PasswordCallback func() (string, error) // Callback to get password if 2FA is enabled
+	Timeout          int32                  // Timeout for the QR login in seconds
+}
+
 // QRLogin initiates a QR code login and returns the QrToken containing the QR code and related information.
-func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
+func (c *Client) QRLogin(options ...QrOptions) (*QrToken, error) {
 	var ignoreIDs []int64
-	ignoreIDs = append(ignoreIDs, IgnoreIDs...)
+	var timeout int32 = 600
+	var passwordCallback = func() (string, error) {
+		fmt.Printf("Enter password: ")
+		var password string
+		if _, err := fmt.Scanln(&password); err != nil {
+			return "", fmt.Errorf("reading password: %w", err)
+		}
+		return strings.TrimSpace(password), nil
+	}
+
+	if len(options) > 0 {
+		ignoreIDs = options[0].IgnoredIDs
+		passwordCallback = options[0].PasswordCallback
+		timeout = options[0].Timeout
+
+		if timeout == 0 {
+			timeout = 600
+		}
+	}
 	qr, err := c.AuthExportLoginToken(c.AppID(), c.AppHash(), ignoreIDs)
 	if err != nil {
 		return nil, err
@@ -729,7 +800,7 @@ func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 		if err := c.SwitchDc(int(qr.DcID)); err != nil {
 			return nil, err
 		}
-		return c.QRLogin(IgnoreIDs...)
+		return c.QRLogin(options...)
 	case *AuthLoginTokenObj:
 		qrHash := base64.RawURLEncoding.EncodeToString(qr.Token)
 		qrURL := fmt.Sprintf("tg://login?token=%s", qrHash)
@@ -739,13 +810,15 @@ func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 		}
 
 		return &QrToken{
-			qrBase64:   qrCodeMaker.Base64PNG(0),
-			qrSmall:    qrCodeMaker.ToSmallString(false),
-			Token:      qr.Token,
-			Url:        qrURL,
-			ExpiresIn:  qr.Expires,
-			client:     c,
-			IgnoredIDs: ignoreIDs,
+			qrBase64:         qrCodeMaker.Base64PNG(0),
+			qrSmall:          qrCodeMaker.ToSmallString(true),
+			passwordCallback: passwordCallback,
+			Token:            qr.Token,
+			Url:              qrURL,
+			ExpiresIn:        qr.Expires,
+			client:           c,
+			IgnoredIDs:       ignoreIDs,
+			Timeout:          timeout,
 		}, nil
 	}
 
