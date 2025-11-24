@@ -780,7 +780,7 @@ func (q *QrToken) Renew() error {
 }
 
 func (q *QrToken) WaitLogin(timeout ...int32) error {
-	if au, err := q.client.IsAuthorized(); au || err != nil {
+	if au, err := q.client.IsAuthorized(); au || err == nil {
 		return nil
 	}
 
