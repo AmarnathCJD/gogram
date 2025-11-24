@@ -222,7 +222,7 @@ func (m *NewMessage) IsPrivate() bool {
 }
 
 // returns the error only, of a method
-func (m *NewMessage) E(obj any, err error) error {
+func (m *NewMessage) CheckErr(obj any, err error) error {
 	return err
 }
 

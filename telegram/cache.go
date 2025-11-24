@@ -160,6 +160,7 @@ type CACHE struct {
 	maxSize     int
 	InputPeers  *InputPeerCache `json:"input_peers,omitempty"`
 	logger      Logger
+	binded      bool
 	storage     CacheStorage
 
 	wipeScheduled atomic.Bool
@@ -296,9 +297,11 @@ func (c *CACHE) snapshotInputPeers() *InputPeerCache {
 }
 
 func (c *CACHE) BindToUser(userID int64, appID int32) error {
-	if c == nil || c.disabled || c.memory || userID == 0 {
+	if c == nil || c.disabled || c.memory || userID == 0 || c.binded {
 		return nil
 	}
+
+	c.binded = true
 
 	target := c.fileNameForUser(userID)
 	if target == "" {
@@ -405,7 +408,8 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 		disabled:    opt.Disabled,
 		maxSize:     opt.MaxSize,
 		logger: getValue(opt.Logger,
-			NewDefaultLogger("gogram "+lp("cache", opt.LogName)).
+			NewDefaultLogger("gogram "+
+				lp("cache", opt.LogName)).
 				SetColor(opt.LogColor).
 				SetLevel(opt.LogLevel)),
 	}
