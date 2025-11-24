@@ -61,9 +61,13 @@ func (wp *WorkerPool) AddWorker(s *ExSender) {
 
 func (wp *WorkerPool) Next() *ExSender {
 	next := <-wp.free
+
 	if !next.MTProto.IsTcpActive() {
-		next.MTProto.Reconnect(false)
+		go func(mt *ExSender) {
+			_ = mt.Reconnect(false)
+		}(next)
 	}
+
 	next.lastUsedMu.Lock()
 	next.lastUsed = time.Now()
 	next.lastUsedMu.Unlock()

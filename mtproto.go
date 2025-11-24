@@ -86,11 +86,13 @@ type MTProto struct {
 	exported              bool
 	cdn                   bool
 	terminated            atomic.Bool
+	reconnectInProgress   atomic.Bool
 	timeout               time.Duration
 
-	reconnectAttempts     int
-	reconnectMutex        sync.Mutex
-	maxReconnectDelay     time.Duration
+	reconnectAttempts int
+	reconnectMutex    sync.Mutex
+	maxReconnectDelay time.Duration
+
 	lastSuccessfulConnect time.Time
 	rapidReconnectCount   int
 	rapidReconnectMutex   sync.Mutex
@@ -828,9 +830,16 @@ func (m *MTProto) SetTerminated(val bool) {
 }
 
 func (m *MTProto) Reconnect(loggy bool) error {
+	if !m.reconnectInProgress.CompareAndSwap(false, true) {
+		m.Logger.Debug("reconnect already in progress, skipping")
+		return nil
+	}
+	defer m.reconnectInProgress.Store(false)
+
 	if m.terminated.Load() {
 		return nil
 	}
+
 	err := m.Disconnect()
 	if err != nil {
 		return fmt.Errorf("disconnecting: %w", err)
@@ -1049,12 +1058,11 @@ messageTypeSwitching:
 			return fmt.Errorf("failed to save session: %w", err)
 		}
 
-		var respChannelsBackup *utils.SyncIntObjectChan
 		m.mutex.Lock()
-		defer m.mutex.Unlock()
-		respChannelsBackup = m.responseChannels
-
+		respChannelsBackup := m.responseChannels
 		m.responseChannels = utils.NewSyncIntObjectChan()
+		m.mutex.Unlock()
+
 		for _, k := range respChannelsBackup.Keys() {
 			if v, ok := respChannelsBackup.Get(k); ok {
 				respChannelsBackup.Delete(k)
