@@ -715,7 +715,6 @@ func (m *NewMessage) ForwardTo(PeerID any, Opts ...*ForwardOptions) (*NewMessage
 	if forwards == nil {
 		return nil, err
 	}
-	forwards[0].Message.PeerID = m.Message.PeerID
 	return &forwards[0], err
 }
 
