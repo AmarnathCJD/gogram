@@ -143,19 +143,50 @@ func (c *Client) SendCode(phoneNumber string) (string, error) {
 	}
 }
 
+// AuthCallback is a function type for authentication input callbacks.
+type AuthCallback func() (string, error)
+
+// WrongPasswordCallback is called when an incorrect password is entered.
+// It receives the attempt number and max retries, and returns whether to continue trying.
+type WrongPasswordCallback func(attempt, maxRetries int) bool
+
+func DefaultWrongPasswordCallback(attempt, maxRetries int) bool {
+	fmt.Printf("Incorrect password (attempt %d/%d). Please try again.\n", attempt, maxRetries)
+	return true // continue retrying
+}
+
+func DefaultCodeCallback() (string, error) {
+	fmt.Printf("Enter authentication code: ")
+	var code string
+	if _, err := fmt.Scanln(&code); err != nil {
+		return "", fmt.Errorf("reading code: %w", err)
+	}
+	return strings.TrimSpace(code), nil
+}
+
+func DefaultPasswordCallback() (string, error) {
+	fmt.Printf("Enter password: ")
+	var password string
+	if _, err := fmt.Scanln(&password); err != nil {
+		return "", fmt.Errorf("reading password: %w", err)
+	}
+	return strings.TrimSpace(password), nil
+}
+
 type LoginOptions struct {
 	Password         string `json:"password,omitempty"`
 	Code             string `json:"code,omitempty"`
 	CodeHash         string `json:"code_hash,omitempty"`
 	MaxRetries       int    `json:"max_retries,omitempty"`
-	CodeCallback     func() (string, error)
-	PasswordCallback func() (string, error)
+	CodeCallback     AuthCallback
+	PasswordCallback AuthCallback
+	OnWrongPassword  WrongPasswordCallback
+	OnWrongCode      func(attempt, maxRetries int) bool
 	FirstName        string `json:"first_name,omitempty"`
 	LastName         string `json:"last_name,omitempty"`
 }
 
 // Login authenticates the client using a phone number.
-//
 // If code is not provided in options, it will be requested via callback.
 func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, error) {
 	if phoneNumber == "" {
@@ -173,28 +204,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 	}
 
 	opts := getVariadic(options, &LoginOptions{})
-
-	if opts.CodeCallback == nil {
-		opts.CodeCallback = func() (string, error) {
-			fmt.Printf("Enter authentication code: ")
-			var code string
-			if _, err := fmt.Scanln(&code); err != nil {
-				return "", fmt.Errorf("reading code: %w", err)
-			}
-			return strings.TrimSpace(code), nil
-		}
-	}
-
-	if opts.PasswordCallback == nil {
-		opts.PasswordCallback = func() (string, error) {
-			fmt.Printf("Enter password: ")
-			var password string
-			if _, err := fmt.Scanln(&password); err != nil {
-				return "", fmt.Errorf("reading password: %w", err)
-			}
-			return strings.TrimSpace(password), nil
-		}
-	}
+	applyLoginDefaults(opts)
 
 	var auth AuthAuthorization
 	var err error
@@ -228,7 +238,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 
 	switch auth := auth.(type) {
 	case *AuthAuthorizationSignUpRequired:
-		return false, errors.New("account registration required via official Telegram app")
+		return false, errors.New("this phone number is not registered. Please sign up via the official Telegram app")
 
 	case *AuthAuthorizationObj:
 		switch user := auth.User.(type) {
@@ -251,19 +261,39 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 	}
 }
 
+func applyLoginDefaults(opts *LoginOptions) {
+	if opts.CodeCallback == nil {
+		opts.CodeCallback = DefaultCodeCallback
+	}
+	if opts.PasswordCallback == nil {
+		opts.PasswordCallback = DefaultPasswordCallback
+	}
+	if opts.OnWrongPassword == nil {
+		opts.OnWrongPassword = DefaultWrongPasswordCallback
+	}
+	if opts.OnWrongCode == nil {
+		opts.OnWrongCode = func(attempt, maxRetries int) bool {
+			fmt.Printf("Invalid code (attempt %d/%d). Please try again.\n", attempt, maxRetries)
+			return true
+		}
+	}
+	if opts.MaxRetries == 0 {
+		opts.MaxRetries = 3
+	}
+}
+
 // CodeAuthAttempt handles the authentication process with code and optional 2FA password.
 func CodeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions, maxRetries int) (AuthAuthorization, error) {
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		code, err := opts.CodeCallback()
 		if err != nil {
-			if err, ok := err.(syscall.Errno); ok && err == syscall.EINTR {
+			if errno, ok := err.(syscall.Errno); ok && errno == syscall.EINTR {
 				return nil, errors.New("authentication canceled by user")
 			}
 			return nil, fmt.Errorf("code input failed: %w", err)
 		}
 
-		code = strings.TrimSpace(code)
-		if code == "cancel" || code == "exit" {
+		if isCancelInput(code) {
 			return nil, errors.New("authentication canceled by user")
 		}
 
@@ -279,7 +309,9 @@ func CodeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions, maxRetri
 		}
 
 		if MatchError(err, "PHONE_CODE_INVALID") {
-			c.Log.WithError(err).Warn("invalid verification code (attempt %d/%d)", attempt, maxRetries)
+			if opts.OnWrongCode != nil && !opts.OnWrongCode(attempt, maxRetries) {
+				return nil, errors.New("authentication canceled: wrong code")
+			}
 			continue
 		}
 
@@ -291,53 +323,51 @@ func CodeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions, maxRetri
 			return nil, errors.New("account registration required via official Telegram app")
 		}
 
-		// unexpected error
 		return nil, fmt.Errorf("sign in failed: %w", err)
 	}
 
-	return nil, fmt.Errorf("authentication failed after %d attempts", maxRetries)
+	return nil, fmt.Errorf("code authentication failed after %d attempts", maxRetries)
+}
+
+func isCancelInput(input string) bool {
+	input = strings.TrimSpace(strings.ToLower(input))
+	return input == "cancel" || input == "exit" || input == "quit" || input == "q"
 }
 
 // handlePasswordAuth handles two-factor authentication password verification.
 func (c *Client) handlePasswordAuth(opts *LoginOptions, maxRetries int) (AuthAuthorization, error) {
+	fmt.Println("Two-factor authentication is enabled.")
+
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		if opts.Password == "" {
-			password, err := opts.PasswordCallback()
+		password := opts.Password
+
+		if password == "" {
+			var err error
+			password, err = opts.PasswordCallback()
 			if err != nil {
 				return nil, fmt.Errorf("password input failed: %w", err)
 			}
 
-			password = strings.TrimSpace(password)
-			if password == "cancel" || password == "exit" {
+			if isCancelInput(password) {
 				return nil, errors.New("authentication canceled by user")
 			}
 
 			if password == "" {
-				c.Log.Warn("empty password received (attempt %d/%d)", attempt, maxRetries)
+				c.Log.Warn("empty password received, skipping attempt")
 				continue
 			}
-
-			opts.Password = password
 		}
 
-		accPassword, err := c.AccountGetPassword()
-		if err != nil {
-			return nil, fmt.Errorf("retrieving password settings: %w", err)
-		}
-
-		inputPassword, err := GetInputCheckPassword(opts.Password, accPassword)
-		if err != nil {
-			return nil, fmt.Errorf("computing password hash: %w", err)
-		}
-
-		auth, err := c.AuthCheckPassword(inputPassword)
+		auth, err := c.verifyPassword(password)
 		if err == nil {
 			return auth, nil
 		}
 
 		if MatchError(err, "PASSWORD_HASH_INVALID") {
-			c.Log.Warn("incorrect password (attempt %d/%d)", attempt, maxRetries)
-			opts.Password = "" // reset for next attempt
+			opts.Password = ""
+			if opts.OnWrongPassword != nil && !opts.OnWrongPassword(attempt, maxRetries) {
+				return nil, errors.New("authentication canceled: wrong password")
+			}
 			continue
 		}
 
@@ -345,6 +375,21 @@ func (c *Client) handlePasswordAuth(opts *LoginOptions, maxRetries int) (AuthAut
 	}
 
 	return nil, fmt.Errorf("password authentication failed after %d attempts", maxRetries)
+}
+
+// verifyPassword verifies the 2FA password and returns the auth result.
+func (c *Client) verifyPassword(password string) (AuthAuthorization, error) {
+	accPassword, err := c.AccountGetPassword()
+	if err != nil {
+		return nil, fmt.Errorf("retrieving password settings: %w", err)
+	}
+
+	inputPassword, err := GetInputCheckPassword(password, accPassword)
+	if err != nil {
+		return nil, fmt.Errorf("computing password hash: %w", err)
+	}
+
+	return c.AuthCheckPassword(inputPassword)
 }
 
 type ScrapeConfig struct {
@@ -609,36 +654,83 @@ func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool
 type QrToken struct {
 	qrBase64         string
 	qrSmall          string
-	passwordCallback func() (string, error)
-
-	// Token is the token to be used for logging in
-	Token []byte
-	// URL is the URL to be used for logging in
-	Url string
-	// ExpiresIn is the time in seconds after which the token will expire
-	ExpiresIn int32
-	// IgnoredIDs are the IDs of the users that will be ignored
-	IgnoredIDs []int64
-	// client is the client to be used for logging in
-	client *Client
-	// Timeout is the time after which the token will be considered expired
-	Timeout int32
+	passwordCallback AuthCallback
+	onWrongPassword  WrongPasswordCallback
+	maxRetries       int
+	token            []byte
+	url              string
+	expiresIn        int32
+	ignoredIDs       []int64
+	client           *Client
+	timeout          int32
 }
 
-func (q *QrToken) URL() string {
-	return q.Url
+// handleQrPasswordAuth handles 2FA password authentication during QR login.
+func (q *QrToken) handleQrPasswordAuth() (AuthLoginToken, error) {
+	if q.passwordCallback == nil {
+		return nil, errors.New("password callback is nil: 2FA is enabled but no password handler provided")
+	}
+
+	maxRetries := q.maxRetries
+	if maxRetries == 0 {
+		maxRetries = 3
+	}
+
+	onWrongPassword := q.onWrongPassword
+	if onWrongPassword == nil {
+		onWrongPassword = DefaultWrongPasswordCallback
+	}
+
+	fmt.Println("Two-factor authentication is enabled.")
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		password, err := q.passwordCallback()
+		if err != nil {
+			return nil, fmt.Errorf("password input failed: %w", err)
+		}
+
+		password = strings.TrimSpace(password)
+		if isCancelInput(password) {
+			return nil, errors.New("authentication canceled by user")
+		}
+
+		if password == "" {
+			q.client.Log.Warn("empty password received, skipping attempt")
+			continue
+		}
+
+		_, err = q.client.verifyPassword(password)
+		if err != nil {
+			if MatchError(err, "PASSWORD_HASH_INVALID") {
+				if !onWrongPassword(attempt, maxRetries) {
+					return nil, errors.New("authentication canceled: wrong password")
+				}
+				continue
+			}
+			return nil, fmt.Errorf("password verification failed: %w", err)
+		}
+
+		// Password verified, export login token
+		return q.client.AuthExportLoginToken(q.client.AppID(), q.client.AppHash(), q.ignoredIDs)
+	}
+
+	return nil, fmt.Errorf("password authentication failed after %d attempts", maxRetries)
 }
 
-func (q *QrToken) TOKEN() []byte {
-	return q.Token
+func (q *QrToken) Url() string {
+	return q.url
+}
+
+func (q *QrToken) Token() []byte {
+	return q.token
 }
 
 func (q *QrToken) Expires() int32 {
-	return q.ExpiresIn
+	return q.expiresIn
 }
 
 func (q *QrToken) IsExpired() bool {
-	return time.Now().After(time.Unix(int64(q.ExpiresIn), 0))
+	return time.Now().After(time.Unix(int64(q.expiresIn), 0))
 }
 
 func (q *QrToken) ExportAsPng() ([]byte, error) {
@@ -656,24 +748,28 @@ func (q *QrToken) PrintToConsole() {
 }
 
 func (q *QrToken) Renew() error {
-	var options = QrOptions{
-		IgnoredIDs: q.IgnoredIDs,
+	options := QrOptions{
+		IgnoredIDs:       q.ignoredIDs,
+		PasswordCallback: q.passwordCallback,
+		OnWrongPassword:  q.onWrongPassword,
+		Timeout:          q.timeout,
+		MaxRetries:       q.maxRetries,
 	}
-	if q.passwordCallback != nil {
-		options.PasswordCallback = q.passwordCallback
-	}
-	options.Timeout = q.Timeout
 
 	qrNew, err := q.client.QRLogin(options)
 	if err != nil {
 		return err
 	}
 
-	q.Token = qrNew.Token
-	q.Url = qrNew.Url
-	q.ExpiresIn = qrNew.ExpiresIn
-	q.Timeout = qrNew.Timeout
-	qrMake, err := utils.NewQRCode(q.Url)
+	q.token = qrNew.token
+	q.url = qrNew.url
+	q.expiresIn = qrNew.expiresIn
+	q.timeout = qrNew.timeout
+	q.maxRetries = qrNew.maxRetries
+	q.passwordCallback = qrNew.passwordCallback
+	q.onWrongPassword = qrNew.onWrongPassword
+
+	qrMake, err := utils.NewQRCode(q.url)
 	if err != nil {
 		return err
 	}
@@ -688,7 +784,7 @@ func (q *QrToken) WaitLogin(timeout ...int32) error {
 		return nil
 	}
 
-	q.Timeout = getVariadic(timeout, q.Timeout)
+	q.timeout = getVariadic(timeout, q.timeout)
 	ch := make(chan int)
 	ev := q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update, client *Client) error {
 		ch <- 1
@@ -697,52 +793,13 @@ func (q *QrToken) WaitLogin(timeout ...int32) error {
 	select {
 	case <-ch:
 		go q.client.removeHandle(ev)
-		resp, err := q.client.AuthExportLoginToken(q.client.AppID(), q.client.AppHash(), q.IgnoredIDs)
+		resp, err := q.client.AuthExportLoginToken(q.client.AppID(), q.client.AppHash(), q.ignoredIDs)
 		if err != nil {
 			if MatchError(err, "SESSION_PASSWORD_NEEDED") {
-				if q.passwordCallback == nil {
-					return fmt.Errorf("password callback is nil")
+				resp, err = q.handleQrPasswordAuth()
+				if err != nil {
+					return err
 				}
-
-				const maxPasswordRetries = 3
-				for attempt := 1; attempt <= maxPasswordRetries; attempt++ {
-					fmt.Printf("Two-factor authentication is enabled. Please enter your password (attempt %d/%d):\n", attempt, maxPasswordRetries)
-					password, err := q.passwordCallback()
-					if err != nil {
-						return err
-					}
-
-					password = strings.TrimSpace(password)
-					if password == "" {
-						continue
-					}
-
-					accPassword, err := q.client.AccountGetPassword()
-					if err != nil {
-						return err
-					}
-
-					inputPassword, err := GetInputCheckPassword(password, accPassword)
-					if err != nil {
-						return err
-					}
-
-					_, err = q.client.AuthCheckPassword(inputPassword)
-					if err != nil {
-						if MatchError(err, "PASSWORD_HASH_INVALID") {
-							q.client.Log.Warn("incorrect password (attempt %d/%d)", attempt, maxPasswordRetries)
-							continue
-						}
-						return fmt.Errorf("password verification failed: %w", err)
-					}
-
-					resp, err = q.client.AuthExportLoginToken(q.client.AppID(), q.client.AppHash(), q.IgnoredIDs)
-					if err != nil {
-						return err
-					}
-					goto QrResponseSwitch
-				}
-				return fmt.Errorf("password authentication failed after %d attempts", maxPasswordRetries)
 			} else {
 				return err
 			}
@@ -771,50 +828,40 @@ func (q *QrToken) WaitLogin(timeout ...int32) error {
 			}
 		}
 		return nil
-	case <-time.After(time.Duration(q.Timeout) * time.Second):
+	case <-time.After(time.Duration(q.timeout) * time.Second):
 		go q.client.removeHandle(ev)
-		return fmt.Errorf("qr login wait timeout after %d seconds", q.Timeout)
+		return fmt.Errorf("qr login wait timeout after %d seconds", q.timeout)
 	}
 }
 
 type QrOptions struct {
-	IgnoredIDs       []int64                // IDs to be excluded from the QR login
-	PasswordCallback func() (string, error) // Callback to get password if 2FA is enabled
-	Timeout          int32                  // Timeout for the QR login in seconds
+	IgnoredIDs       []int64               // IDs to be excluded from the QR login
+	PasswordCallback AuthCallback          // Callback to get password if 2FA is enabled
+	OnWrongPassword  WrongPasswordCallback // Called when password is incorrect
+	Timeout          int32                 // Timeout for the QR login in seconds
+	MaxRetries       int                   // Max password retry attempts (default: 3)
 }
 
 // QRLogin initiates a QR code login and returns the QrToken containing the QR code and related information.
 func (c *Client) QRLogin(options ...QrOptions) (*QrToken, error) {
-	var ignoreIDs []int64
-	var timeout int32 = 600
-	var passwordCallback = func() (string, error) {
-		fmt.Printf("Enter password: ")
-		var password string
-		if _, err := fmt.Scanln(&password); err != nil {
-			return "", fmt.Errorf("reading password: %w", err)
-		}
-		return strings.TrimSpace(password), nil
-	}
-
+	var opts QrOptions
 	if len(options) > 0 {
-		ignoreIDs = options[0].IgnoredIDs
-		passwordCallback = options[0].PasswordCallback
-		timeout = options[0].Timeout
-
-		if timeout == 0 {
-			timeout = 600
-		}
+		opts = options[0]
 	}
-	qr, err := c.AuthExportLoginToken(c.AppID(), c.AppHash(), ignoreIDs)
+	applyQrDefaults(&opts)
+
+	qr, err := c.AuthExportLoginToken(c.AppID(), c.AppHash(), opts.IgnoredIDs)
 	if err != nil {
 		return nil, err
 	}
+
 	switch qr := qr.(type) {
 	case *AuthLoginTokenMigrateTo:
 		if err := c.SwitchDc(int(qr.DcID)); err != nil {
 			return nil, err
 		}
 		return c.QRLogin(options...)
+
 	case *AuthLoginTokenObj:
 		qrHash := base64.RawURLEncoding.EncodeToString(qr.Token)
 		qrURL := fmt.Sprintf("tg://login?token=%s", qrHash)
@@ -826,17 +873,34 @@ func (c *Client) QRLogin(options ...QrOptions) (*QrToken, error) {
 		return &QrToken{
 			qrBase64:         qrCodeMaker.Base64PNG(0),
 			qrSmall:          qrCodeMaker.ToSmallString(true),
-			passwordCallback: passwordCallback,
-			Token:            qr.Token,
-			Url:              qrURL,
-			ExpiresIn:        qr.Expires,
+			passwordCallback: opts.PasswordCallback,
+			onWrongPassword:  opts.OnWrongPassword,
+			maxRetries:       opts.MaxRetries,
+			token:            qr.Token,
+			url:              qrURL,
+			expiresIn:        qr.Expires,
 			client:           c,
-			IgnoredIDs:       ignoreIDs,
-			Timeout:          timeout,
+			ignoredIDs:       opts.IgnoredIDs,
+			timeout:          opts.Timeout,
 		}, nil
 	}
 
 	return nil, fmt.Errorf("unexpected qr login response type: %T", qr)
+}
+
+func applyQrDefaults(opts *QrOptions) {
+	if opts.PasswordCallback == nil {
+		opts.PasswordCallback = DefaultPasswordCallback
+	}
+	if opts.OnWrongPassword == nil {
+		opts.OnWrongPassword = DefaultWrongPasswordCallback
+	}
+	if opts.Timeout == 0 {
+		opts.Timeout = 600
+	}
+	if opts.MaxRetries == 0 {
+		opts.MaxRetries = 3
+	}
 }
 
 // Logs out from the current account
