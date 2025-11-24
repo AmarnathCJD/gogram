@@ -6,16 +6,19 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"errors"
 
@@ -724,11 +727,11 @@ func getPeerUser(userID int64) *PeerUser {
 	}
 }
 
-func getLogPrefix(loggerName string, sessionName string) string {
+func lp(loggerName string, sessionName string) string {
 	if sessionName == "" {
 		return fmt.Sprintf("[%s]", loggerName)
 	}
-	return fmt.Sprintf("[%s] {%s}", loggerName, sessionName)
+	return fmt.Sprintf("[%s-%s]", loggerName, sessionName)
 }
 
 func IsURL(str string) bool {
@@ -997,4 +1000,105 @@ func doesSessionFileExist(filePath string) bool {
 func IsFfmpegInstalled() bool {
 	_, err := exec.LookPath("ffmpeg")
 	return err == nil
+}
+
+func MarshalWithTypeName(v any, snakeCase ...bool) string {
+	rv := reflect.ValueOf(v)
+	rt := reflect.TypeOf(v)
+
+	if rt.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return "{}"
+		}
+		rt = rt.Elem()
+		rv = rv.Elem()
+	}
+
+	if rt.Kind() != reflect.Struct {
+		return "{}"
+	}
+
+	typeName := rt.Name()
+	if snakeCase != nil && snakeCase[0] {
+		typeName = toSnakeCase(typeName)
+	}
+
+	result := map[string]any{
+		typeName: buildRecursive(rv, snakeCase != nil && snakeCase[0]),
+	}
+
+	b, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "{}"
+	}
+
+	return string(b)
+}
+
+func buildRecursive(v reflect.Value, snakeCase bool) interface{} {
+	switch v.Kind() {
+
+	case reflect.Interface:
+		if v.IsNil() {
+			return nil
+		}
+		return buildRecursive(v.Elem(), snakeCase)
+
+	case reflect.Pointer:
+		if v.IsNil() {
+			return nil
+		}
+		return buildRecursive(v.Elem(), snakeCase)
+
+	case reflect.Struct:
+		out := make(map[string]any)
+		t := v.Type()
+		for i := 0; i < v.NumField(); i++ {
+			f := t.Field(i)
+			if f.PkgPath != "" {
+				continue
+			}
+
+			name := f.Name
+			if snakeCase {
+				name = toSnakeCase(name)
+			}
+
+			out[name] = buildRecursive(v.Field(i), snakeCase)
+		}
+		return out
+
+	case reflect.Slice, reflect.Array:
+		arr := make([]any, v.Len())
+		for i := 0; i < v.Len(); i++ {
+			arr[i] = buildRecursive(v.Index(i), snakeCase)
+		}
+		return arr
+
+	case reflect.Map:
+		out := make(map[string]any)
+		for _, key := range v.MapKeys() {
+			strKey := fmt.Sprintf("%v", key.Interface())
+			if snakeCase {
+				strKey = toSnakeCase(strKey)
+			}
+			out[strKey] = buildRecursive(v.MapIndex(key), snakeCase)
+		}
+		return out
+
+	default:
+		return v.Interface()
+	}
+}
+
+func toSnakeCase(s string) string {
+	var out []rune
+	for i, r := range s {
+		if i > 0 && unicode.IsUpper(r) &&
+			(unicode.IsLower(rune(s[i-1])) || unicode.IsDigit(rune(s[i-1]))) {
+			out = append(out, '_')
+		}
+		out = append(out, unicode.ToLower(r))
+	}
+	return string(out)
 }

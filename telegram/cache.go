@@ -5,6 +5,7 @@ package telegram
 import (
 	"encoding/gob"
 	"encoding/json"
+	"io"
 	"maps"
 
 	"fmt"
@@ -16,6 +17,135 @@ import (
 	"sync/atomic"
 	"time"
 )
+
+// CacheStorage defines the interface for cache persistence backends
+type CacheStorage interface {
+	// Read reads cache data from storage
+	Read() (*InputPeerCache, error)
+
+	// Write writes cache data to storage
+	Write(*InputPeerCache) error
+
+	// Close closes the storage backend
+	Close() error
+}
+
+// FileCacheStorage implements CacheStorage for file-based persistence
+type FileCacheStorage struct {
+	path string
+}
+
+func NewFileCacheStorage(path string) *FileCacheStorage {
+	return &FileCacheStorage{path: path}
+}
+
+func (f *FileCacheStorage) Read() (*InputPeerCache, error) {
+	file, err := os.Open(f.path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	dec := gob.NewDecoder(file)
+	var peers InputPeerCache
+	if err := dec.Decode(&peers); err != nil {
+		return nil, err
+	}
+	return &peers, nil
+}
+
+func (f *FileCacheStorage) Write(peers *InputPeerCache) error {
+	file, err := os.OpenFile(f.path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	enc := gob.NewEncoder(file)
+	return enc.Encode(peers)
+}
+
+func (f *FileCacheStorage) Close() error {
+	return nil
+}
+
+// MemoryCacheStorage implements CacheStorage for in-memory only (no persistence)
+type MemoryCacheStorage struct {
+	data *InputPeerCache
+}
+
+func NewMemoryCacheStorage() *MemoryCacheStorage {
+	return &MemoryCacheStorage{}
+}
+
+func (m *MemoryCacheStorage) Read() (*InputPeerCache, error) {
+	if m.data == nil {
+		return nil, os.ErrNotExist
+	}
+	return m.data, nil
+}
+
+func (m *MemoryCacheStorage) Write(peers *InputPeerCache) error {
+	m.data = peers
+	return nil
+}
+
+func (m *MemoryCacheStorage) Close() error {
+	m.data = nil
+	return nil
+}
+
+// ReaderWriterCacheStorage implements CacheStorage using io.Reader/Writer
+type ReaderWriterCacheStorage struct {
+	reader    func() (io.ReadCloser, error)
+	writer    func() (io.WriteCloser, error)
+	closeFunc func() error
+}
+
+func NewReaderWriterCacheStorage(
+	reader func() (io.ReadCloser, error),
+	writer func() (io.WriteCloser, error),
+	closeFunc func() error,
+) *ReaderWriterCacheStorage {
+	return &ReaderWriterCacheStorage{
+		reader:    reader,
+		writer:    writer,
+		closeFunc: closeFunc,
+	}
+}
+
+func (rw *ReaderWriterCacheStorage) Read() (*InputPeerCache, error) {
+	r, err := rw.reader()
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	dec := gob.NewDecoder(r)
+	var peers InputPeerCache
+	if err := dec.Decode(&peers); err != nil {
+		return nil, err
+	}
+	return &peers, nil
+}
+
+func (rw *ReaderWriterCacheStorage) Write(peers *InputPeerCache) error {
+	w, err := rw.writer()
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	enc := gob.NewEncoder(w)
+	return enc.Encode(peers)
+}
+
+func (rw *ReaderWriterCacheStorage) Close() error {
+	if rw.closeFunc != nil {
+		return rw.closeFunc()
+	}
+	return nil
+}
 
 type CACHE struct {
 	*sync.RWMutex
@@ -30,6 +160,7 @@ type CACHE struct {
 	maxSize     int
 	InputPeers  *InputPeerCache `json:"input_peers,omitempty"`
 	logger      Logger
+	storage     CacheStorage
 
 	wipeScheduled atomic.Bool
 	writePending  atomic.Bool
@@ -114,6 +245,18 @@ func (c *CACHE) fileNameForUser(userID int64) string {
 }
 
 func (c *CACHE) loadFileIntoLocked(path string) error {
+	if c.storage != nil {
+		peers, err := c.storage.Read()
+		if err != nil {
+			return err
+		}
+		c.InputPeers = peers
+		c.ensureInputPeersLocked()
+		c.usernameMap = make(map[string]int64, len(c.InputPeers.UsernameMap))
+		maps.Copy(c.usernameMap, c.InputPeers.UsernameMap)
+		return nil
+	}
+
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -241,6 +384,7 @@ type CacheConfig struct {
 	LogName  string
 	Memory   bool
 	Disabled bool
+	Storage  CacheStorage // custom storage backend (overrides file-based storage)
 }
 
 func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
@@ -261,18 +405,35 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 		disabled:    opt.Disabled,
 		maxSize:     opt.MaxSize,
 		logger: getValue(opt.Logger,
-			NewDefaultLogger("gogram "+getLogPrefix("cache", opt.LogName)).
+			NewDefaultLogger("gogram "+lp("cache", opt.LogName)).
 				SetColor(opt.LogColor).
 				SetLevel(opt.LogLevel)),
 	}
 
+	if opt.Storage != nil {
+		c.storage = opt.Storage
+		c.memory = false
+	} else if opt.Memory {
+		c.storage = NewMemoryCacheStorage()
+	} else if !opt.Disabled && fileName != "" {
+		c.storage = NewFileCacheStorage(fileName)
+	}
+
 	if !opt.Memory && !opt.Disabled {
-		c.logger.Debug("cache file enabled: %s", c.fileName)
+		if opt.Storage != nil {
+			c.logger.Debug("cache enabled with custom storage backend")
+		} else {
+			c.logger.Debug("cache file enabled: %s", c.fileName)
+		}
 	}
 
 	if !opt.Disabled {
-		if _, err := os.Stat(c.fileName); err == nil && !c.memory {
+		if c.storage != nil {
 			c.ReadFile()
+		} else if fileName != "" {
+			if _, err := os.Stat(c.fileName); err == nil && !c.memory {
+				c.ReadFile()
+			}
 		}
 	}
 
@@ -339,24 +500,28 @@ func (c *CACHE) WriteFile() {
 	if time.Since(c.lastWrite) < 2*time.Second {
 		return
 	}
-	if c.fileName == "" {
-		return
-	}
 
 	peers := c.snapshotInputPeers()
 
-	file, err := os.OpenFile(c.fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
-	if err != nil {
-		c.logger.Error("error opening cache file: %v", err)
+	var err error
+	if c.storage != nil {
+		err = c.storage.Write(peers)
+	} else if c.fileName != "" {
+		file, fileErr := os.OpenFile(c.fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+		if fileErr != nil {
+			c.logger.Error("error opening cache file: %v", fileErr)
+			return
+		}
+		defer file.Close()
+
+		enc := gob.NewEncoder(file)
+		err = enc.Encode(peers)
+	} else {
 		return
 	}
-	defer file.Close()
-
-	enc := gob.NewEncoder(file)
-	err = enc.Encode(peers)
 
 	if err != nil {
-		c.logger.Error("error encoding cache file: %v", err)
+		c.logger.Error("error writing cache: %v", err)
 	} else {
 		c.lastWrite = time.Now()
 		c.writePending.Store(false)
@@ -364,15 +529,21 @@ func (c *CACHE) WriteFile() {
 }
 
 func (c *CACHE) ReadFile() {
-	if c.fileName == "" {
+	c.Lock()
+	defer c.Unlock()
+
+	var err error
+	if c.storage != nil {
+		err = c.loadFileIntoLocked("")
+	} else if c.fileName != "" {
+		err = c.loadFileIntoLocked(c.fileName)
+	} else {
 		return
 	}
 
-	c.Lock()
-	defer c.Unlock()
-	if err := c.loadFileIntoLocked(c.fileName); err != nil {
+	if err != nil {
 		if !os.IsNotExist(err) {
-			c.logger.Error("error reading cache file: %v", err)
+			c.logger.Error("error reading cache: %v", err)
 		}
 		return
 	}
@@ -384,6 +555,29 @@ func (c *CACHE) ReadFile() {
 			"usernames": len(c.usernameMap),
 		}).Debug("cache loaded")
 	}
+}
+
+// SetStorage sets a custom storage backend for the cache
+func (c *CACHE) SetStorage(storage CacheStorage) *CACHE {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.storage != nil {
+		c.storage.Close()
+	}
+
+	c.storage = storage
+	c.memory = false
+
+	return c
+}
+
+// Close closes the cache and underlying storage
+func (c *CACHE) Close() error {
+	if c.storage != nil {
+		return c.storage.Close()
+	}
+	return nil
 }
 
 func (c *CACHE) getUserPeer(userID int64) (InputUser, error) {

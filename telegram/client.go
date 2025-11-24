@@ -132,11 +132,11 @@ func NewClient(config ClientConfig) (*Client, error) {
 
 	if config.Logger != nil {
 		client.Log = config.Logger
-		client.Log.SetPrefix("gogram " + getLogPrefix("client", config.SessionName))
+		client.Log.SetPrefix("gogram " + lp("client", config.SessionName))
 		config.LogLevel = config.Logger.Lev()
 	} else {
 		config.LogLevel = getValue(config.LogLevel, LogInfo)
-		client.Log = NewDefaultLogger("gogram " + getLogPrefix("client", config.SessionName))
+		client.Log = NewDefaultLogger("gogram " + lp("client", config.SessionName))
 		client.Log.SetLevel(config.LogLevel)
 	}
 
@@ -146,7 +146,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 	if config.Cache == nil {
 		client.Cache = NewCache(fmt.Sprintf("cache%s.db", config.SessionName), &CacheConfig{
 			Disabled: config.DisableCache,
-			Logger:   getValue(config.Logger, client.Log.WithPrefix("gogram "+getLogPrefix("cache", config.SessionName))),
+			Logger:   getValue(config.Logger, client.Log.WithPrefix("gogram "+lp("cache", config.SessionName))),
 			LogColor: client.Log.Color(),
 			LogLevel: config.LogLevel,
 		})
@@ -192,7 +192,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		PublicKey:   config.PublicKeys[0],
 		DataCenter:  config.DataCenter,
 		Logger: c.Log.CloneInternal().
-			WithPrefix("gogram " + getLogPrefix("mtproto", config.SessionName)),
+			WithPrefix("gogram " + lp("mtproto", config.SessionName)),
 		StringSession:   config.StringSession,
 		LocalAddr:       config.LocalAddr,
 		MemorySession:   config.MemorySession,

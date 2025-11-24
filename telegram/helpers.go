@@ -16,8 +16,6 @@ import (
 	"strconv"
 	"strings"
 
-	"errors"
-
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
@@ -323,7 +321,7 @@ func (c *Client) GetSendablePeer(PeerID any) (InputPeer, error) {
 PeerSwitch:
 	switch Peer := PeerID.(type) {
 	case nil:
-		return nil, errors.New("peer is nil, cannot send nil peer")
+		return nil, fmt.Errorf("peer is nil, cannot send nil peer")
 	case *PeerUser:
 		peerEntity, err := c.GetPeerUser(Peer.UserID)
 		if err != nil {
@@ -417,7 +415,7 @@ PeerSwitch:
 	case *InputChannelFromMessage:
 		return &InputPeerChannelFromMessage{Peer: Peer.Peer, MsgID: Peer.MsgID, ChannelID: Peer.ChannelID}, nil
 	default:
-		return nil, errors.New("Failed to get sendable peer, unknown type " + reflect.TypeOf(PeerID).String())
+		return nil, fmt.Errorf("failed to get sendable peer, unknown type %s", reflect.TypeOf(PeerID).String())
 	}
 }
 
@@ -438,9 +436,9 @@ func (c *Client) GetSendableChannel(PeerID any) (InputChannel, error) {
 	case *InputPeerChannelFromMessage:
 		return &InputChannelFromMessage{Peer: rawPeer.Peer, MsgID: rawPeer.MsgID, ChannelID: rawPeer.ChannelID}, nil
 	case *InputPeerChat, *InputPeerUser:
-		return nil, errors.New("given peer is not a channel")
+		return nil, fmt.Errorf("given peer is not a channel")
 	default:
-		return nil, errors.New("failed to get sendable channel, unknown type " + reflect.TypeOf(rawPeer).String())
+		return nil, fmt.Errorf("failed to get sendable channel, unknown type %s", reflect.TypeOf(rawPeer).String())
 	}
 }
 
@@ -456,9 +454,9 @@ func (c *Client) GetSendableUser(PeerID any) (InputUser, error) {
 	case *InputPeerUserFromMessage:
 		return &InputUserFromMessage{Peer: rawPeer.Peer, MsgID: rawPeer.MsgID, UserID: rawPeer.UserID}, nil
 	case *InputPeerChat, *InputPeerChannel:
-		return nil, errors.New("given peer is not a user")
+		return nil, fmt.Errorf("given peer is not a user")
 	default:
-		return nil, errors.New("failed to get sendable user, unknown type " + reflect.TypeOf(rawPeer).String())
+		return nil, fmt.Errorf("failed to get sendable user, unknown type %s", reflect.TypeOf(rawPeer).String())
 	}
 }
 
@@ -546,7 +544,7 @@ mediaTypeSwitch:
 			}
 
 			if attr == nil {
-				return nil, errors.New("attributes cannot be nil")
+				return nil, fmt.Errorf("attributes cannot be nil")
 			}
 			documentExt := &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}
 			if attr.Inline {
@@ -613,7 +611,7 @@ mediaTypeSwitch:
 		case *MessageMediaPoll:
 			return convertPoll(media), nil
 		case *MessageMediaUnsupported:
-			return nil, errors.New("unsupported media type: MessageMediaUnsupported (Maybe you need to update the library)")
+			return nil, fmt.Errorf("unsupported media type, maybe update the library to support it")
 		default:
 			return nil, fmt.Errorf("unknown media type: %s", reflect.TypeOf(media).String())
 		}
@@ -695,7 +693,7 @@ mediaTypeSwitch:
 		}
 		goto mediaTypeSwitch
 	case nil:
-		return nil, errors.New("media given is nil, cannot send nil media")
+		return nil, fmt.Errorf("media file is empty")
 	}
 	return nil, fmt.Errorf("unknown media type: %s", reflect.TypeOf(mediaFile).String())
 }
@@ -723,7 +721,7 @@ func (c *Client) uploadToSelf(mediaFile InputMedia) (InputMedia, error) {
 		}
 	}
 
-	return nil, errors.New("failed to upload media")
+	return nil, fmt.Errorf("unable to upload media to self, unknown media type %s", reflect.TypeOf(upl).String())
 }
 
 func convertPoll(poll *MessageMediaPoll) *InputMediaPoll {
@@ -1273,6 +1271,28 @@ func packMessage(c *Client, message Message) *NewMessage {
 	return m
 }
 
+func packStoryToMessage(c *Client, story *StoryItemObj) *NewMessage {
+	var (
+		m = &NewMessage{}
+	)
+	m.ID = story.ID
+	m.OriginalUpdate = &MessageObj{
+		ID:         story.ID,
+		PeerID:     story.FromID,
+		FromID:     story.FromID,
+		Out:        story.Out,
+		Date:       story.Date,
+		Entities:   story.Entities,
+		Message:    story.Caption,
+		Media:      story.Media,
+		Noforwards: story.Noforwards,
+	}
+
+	m.Client = c
+	m.Message = m.OriginalUpdate.(*MessageObj)
+	return m
+}
+
 func packDeleteMessage(c *Client, delete Update) *DeleteMessage {
 	var deleteMessage *DeleteMessage = &DeleteMessage{}
 	switch d := delete.(type) {
@@ -1497,7 +1517,7 @@ func GetInputCheckPassword(password string, accountPassword *AccountPassword) (I
 	current, ok := alg.(*PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow)
 
 	if !ok {
-		return nil, errors.New("invalid CurrentAlgo type")
+		return nil, fmt.Errorf("unsupported password algorithm: %s", reflect.TypeOf(alg).String())
 	}
 
 	mp := &ige.ModPow{
@@ -1542,22 +1562,5 @@ func (c *Client) Stringify(object any) string {
 
 // easy wrapper for json.MarshalIndent, returns string
 func (c *Client) JSON(object any, noindent ...any) string {
-	if len(noindent) > 0 {
-		switch _noi := noindent[0].(type) {
-		case bool:
-			if _noi {
-				data, err := json.Marshal(object)
-				if err != nil {
-					return fmt.Sprintf("marshal: %s", err)
-				}
-				return string(data)
-			}
-		}
-	}
-
-	data, err := json.MarshalIndent(object, "", "  ")
-	if err != nil {
-		return fmt.Sprintf("marshal: %s", err)
-	}
-	return string(data)
+	return MarshalWithTypeName(object, true)
 }

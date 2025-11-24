@@ -246,7 +246,7 @@ func (b *CallbackQuery) ForwardTo(ChatID int64, options ...*ForwardOptions) (*Ne
 }
 
 func (b *CallbackQuery) Marshal(noindent ...bool) string {
-	return b.Client.JSON(b.OriginalUpdate, noindent)
+	return MarshalWithTypeName(b.OriginalUpdate, noindent...)
 }
 
 type InlineCallbackQuery struct {
@@ -324,5 +324,5 @@ func (b *InlineCallbackQuery) IsChannel() bool {
 }
 
 func (b *InlineCallbackQuery) Marshal(noindent ...bool) string {
-	return b.Client.JSON(b.OriginalUpdate, noindent)
+	return MarshalWithTypeName(b.OriginalUpdate, noindent...)
 }

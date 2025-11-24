@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"errors"
 )
 
 type NewMessage struct {
@@ -90,29 +88,66 @@ func (a *NewMessage) Unpin() (err error) {
 
 func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 	if !m.IsReply() {
-		return nil, errors.New("message is not a reply")
+		return nil, fmt.Errorf("message is not a reply")
 	}
-	// switch rep := m.Message.ReplyTo.(type) {
-	// case *MessageReplyHeaderObj:
 
-	// } TODO: Menakked Ahh, So Pinne Nokam, Reply Thingies.
+	switch reply := m.Message.ReplyTo.(type) {
+	case *MessageReplyHeaderObj:
+		// Check if this is an external reply (from another chat)
+		// If ReplyFrom or ReplyMedia is set, it means the full message isn't available
+		// and we need to use InputMessageReplyTo to fetch it
+		if reply.ReplyFrom != nil || reply.ReplyMedia != nil {
+			// External reply - use InputMessageReplyTo to fetch the actual message
+			messages, err := m.Client.GetMessages(m.ChannelID(), &SearchOption{IDs: &InputMessageReplyTo{ID: m.ID}})
+			if err != nil {
+				return nil, err
+			}
+			if len(messages) > 0 {
+				return &messages[0], nil
+			}
+		}
 
-	// try to get message by reply id, cuz if reply is by bot other bots can't get it otherwise
-	messages, err := m.Client.GetMessages(m.ChannelID(), &SearchOption{IDs: &InputMessageReplyTo{ID: m.ID}})
-	if err != nil {
-		return nil, err
-	}
-	if len(messages) == 0 {
-		// if actual message got deleted, try again with actual reply id
-		messages, err = m.Client.GetMessages(m.ChannelID(), &SearchOption{IDs: []int32{m.ReplyToMsgID()}})
+		// For regular replies, try InputMessageReplyTo first (works for bot replies)
+		messages, err := m.Client.GetMessages(m.ChannelID(), &SearchOption{IDs: &InputMessageReplyTo{ID: m.ID}})
 		if err != nil {
 			return nil, err
 		}
-		if len(messages) == 0 {
-			return nil, errors.New("message not found")
+		if len(messages) > 0 {
+			return &messages[0], nil
+		}
+
+		// Fallback to direct message ID fetch
+		if reply.ReplyToMsgID != 0 {
+			messages, err = m.Client.GetMessages(m.ChannelID(), &SearchOption{IDs: []int32{reply.ReplyToMsgID}})
+			if err != nil {
+				return nil, err
+			}
+			if len(messages) > 0 {
+				return &messages[0], nil
+			}
+		}
+
+		return nil, fmt.Errorf("reply message not found")
+
+	case *MessageReplyStoryHeader:
+		peer, err := m.Client.ResolvePeer(reply.Peer)
+		if err != nil {
+			return nil, err
+		}
+		stories, err := m.Client.StoriesGetStoriesByID(peer, []int32{reply.StoryID})
+		if err != nil {
+			return nil, err
+		}
+
+		switch st := stories.Stories[0].(type) {
+		case *StoryItemObj:
+			return packStoryToMessage(m.Client, st), nil
+		default:
+			return nil, fmt.Errorf("reply story is not a story object")
 		}
 	}
-	return &messages[0], nil
+
+	return nil, fmt.Errorf("unknown reply type")
 }
 
 func (m *NewMessage) ChatID() int64 {
@@ -213,7 +248,7 @@ func (m *NewMessage) IsReply() bool {
 }
 
 func (m *NewMessage) Marshal(noindent ...bool) string {
-	return m.Client.JSON(m.OriginalUpdate, noindent)
+	return MarshalWithTypeName(m.OriginalUpdate, noindent...)
 }
 
 func (m *NewMessage) Unmarshal(data []byte) (*NewMessage, error) {
@@ -760,7 +795,7 @@ func (a *Album) Marshal(noindent ...bool) string {
 		messages = append(messages, m.OriginalUpdate)
 	}
 
-	return a.Client.JSON(messages, noindent)
+	return MarshalWithTypeName(messages, noindent...)
 }
 
 func (a *Album) Download(opts ...*DownloadOptions) ([]string, error) {

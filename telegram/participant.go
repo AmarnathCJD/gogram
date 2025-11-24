@@ -1,8 +1,10 @@
-// Copyright (c) 2024 RoseLoverX
+// Copyright (c) 2025 RoseLoverX
 
 package telegram
 
-import "errors"
+import (
+	"fmt"
+)
 
 type ParticipantUpdate struct {
 	Client         *Client
@@ -167,16 +169,12 @@ func (pu *ParticipantUpdate) IsDemoted() bool {
 }
 
 func (pu *ParticipantUpdate) Marshal(noindent ...bool) string {
-	return pu.Client.JSON(pu.OriginalUpdate, noindent)
+	return MarshalWithTypeName(pu.OriginalUpdate, noindent...)
 }
 
 func (pu *ParticipantUpdate) Ban() (bool, error) {
-	if pu.User == nil {
-		return false, errors.New("ParticipantUpdate.Ban: User is nil")
-	}
-
-	if pu.Channel == nil {
-		return false, errors.New("ParticipantUpdate.Ban: Channel is nil")
+	if pu.User == nil || pu.Channel == nil {
+		return false, fmt.Errorf("user or channel is nil, cannot ban")
 	}
 
 	_, err := pu.Client.EditBanned(pu.Channel, pu.User, &BannedOptions{
@@ -187,12 +185,8 @@ func (pu *ParticipantUpdate) Ban() (bool, error) {
 }
 
 func (pu *ParticipantUpdate) Unban() (bool, error) {
-	if pu.User == nil {
-		return false, errors.New("ParticipantUpdate.Unban: User is nil")
-	}
-
-	if pu.Channel == nil {
-		return false, errors.New("ParticipantUpdate.Unban: Channel is nil")
+	if pu.User == nil || pu.Channel == nil {
+		return false, fmt.Errorf("user or channel is nil, cannot unban")
 	}
 
 	_, err := pu.Client.EditBanned(pu.Channel, pu.User, &BannedOptions{
@@ -203,12 +197,8 @@ func (pu *ParticipantUpdate) Unban() (bool, error) {
 }
 
 func (pu *ParticipantUpdate) Kick() (bool, error) {
-	if pu.User == nil {
-		return false, errors.New("ParticipantUpdate.Kick: User is nil")
-	}
-
-	if pu.Channel == nil {
-		return false, errors.New("ParticipantUpdate.Kick: Channel is nil")
+	if pu.User == nil || pu.Channel == nil {
+		return false, fmt.Errorf("user or channel is nil, cannot kick")
 	}
 
 	_, err := pu.Client.KickParticipant(pu.Channel, pu.User)
@@ -216,12 +206,8 @@ func (pu *ParticipantUpdate) Kick() (bool, error) {
 }
 
 func (pu *ParticipantUpdate) Promote() (bool, error) {
-	if pu.User == nil {
-		return false, errors.New("ParticipantUpdate.Promote: User is nil")
-	}
-
-	if pu.Channel == nil {
-		return false, errors.New("ParticipantUpdate.Promote: Channel is nil")
+	if pu.User == nil || pu.Channel == nil {
+		return false, fmt.Errorf("user or channel is nil, cannot promote")
 	}
 
 	_, err := pu.Client.EditAdmin(pu.Channel, pu.User, &AdminOptions{
@@ -232,12 +218,8 @@ func (pu *ParticipantUpdate) Promote() (bool, error) {
 }
 
 func (pu *ParticipantUpdate) Demote() (bool, error) {
-	if pu.User == nil {
-		return false, errors.New("ParticipantUpdate.Demote: User is nil")
-	}
-
-	if pu.Channel == nil {
-		return false, errors.New("ParticipantUpdate.Demote: Channel is nil")
+	if pu.User == nil || pu.Channel == nil {
+		return false, fmt.Errorf("user or channel is nil, cannot demote")
 	}
 
 	_, err := pu.Client.EditAdmin(pu.Channel, pu.User, &AdminOptions{
@@ -302,7 +284,7 @@ func (jru *JoinRequestUpdate) GetPeer() (Peer, error) {
 	} else if jru.BotOriginalUpdate != nil {
 		return jru.BotOriginalUpdate.Peer, nil
 	}
-	return nil, errors.New("peer not found")
+	return nil, fmt.Errorf("no original update found")
 }
 
 func (jru *JoinRequestUpdate) GetInputPeer() (InputPeer, error) {
@@ -315,7 +297,7 @@ func (jru *JoinRequestUpdate) GetInputPeer() (InputPeer, error) {
 
 func (jru *JoinRequestUpdate) Approve(userID int64) (bool, error) {
 	if jru.Channel == nil && jru.Chat == nil {
-		return false, errors.New("channel/chat is nil")
+		return false, fmt.Errorf("channel/chat is nil")
 	}
 	peer, err := jru.GetInputPeer()
 	if err != nil {
@@ -332,7 +314,7 @@ func (jru *JoinRequestUpdate) Approve(userID int64) (bool, error) {
 
 func (jru *JoinRequestUpdate) Decline(userID int64) (bool, error) {
 	if jru.Channel == nil && jru.Chat == nil {
-		return false, errors.New("channel/chat is nil")
+		return false, fmt.Errorf("channel/chat is nil")
 	}
 	peer, err := jru.GetInputPeer()
 	if err != nil {
@@ -348,9 +330,9 @@ func (jru *JoinRequestUpdate) Decline(userID int64) (bool, error) {
 
 func (jru *JoinRequestUpdate) Marshal(noindent ...bool) string {
 	if jru.OriginalUpdate != nil {
-		return jru.Client.JSON(jru.OriginalUpdate, noindent)
+		return MarshalWithTypeName(jru.OriginalUpdate, noindent...)
 	} else if jru.BotOriginalUpdate != nil {
-		return jru.Client.JSON(jru.BotOriginalUpdate, noindent)
+		return MarshalWithTypeName(jru.BotOriginalUpdate, noindent...)
 	}
-	return ""
+	return "{}"
 }
