@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"errors"
+
+	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
 var (
@@ -604,22 +606,23 @@ func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool
 	return true, nil
 }
 
-type (
-	QrToken struct {
-		// Token is the token to be used for logging in
-		Token []byte
-		// URL is the URL to be used for logging in
-		Url string
-		// ExpiresIn is the time in seconds after which the token will expire
-		ExpiresIn int32
-		// IgnoredIDs are the IDs of the users that will be ignored
-		IgnoredIDs []int64
-		// client is the client to be used for logging in
-		client *Client
-		// Timeout is the time after which the token will be considered expired
-		Timeout int32
-	}
-)
+type QrToken struct {
+	qrBase64 string
+	qrSmall  string
+
+	// Token is the token to be used for logging in
+	Token []byte
+	// URL is the URL to be used for logging in
+	Url string
+	// ExpiresIn is the time in seconds after which the token will expire
+	ExpiresIn int32
+	// IgnoredIDs are the IDs of the users that will be ignored
+	IgnoredIDs []int64
+	// client is the client to be used for logging in
+	client *Client
+	// Timeout is the time after which the token will be considered expired
+	Timeout int32
+}
 
 func (q *QrToken) URL() string {
 	return q.Url
@@ -633,14 +636,45 @@ func (q *QrToken) Expires() int32 {
 	return q.ExpiresIn
 }
 
-func (q *QrToken) Recreate() (*QrToken, error) {
-	q, err := q.client.QRLogin(q.IgnoredIDs...)
-	return q, err
+func (q *QrToken) IsExpired() bool {
+	return time.Now().After(time.Unix(int64(q.ExpiresIn), 0))
 }
 
-func (q *QrToken) Wait(timeout ...int32) error {
-	const def int32 = 600 // 10 minutes
-	q.Timeout = getVariadic(timeout, def)
+func (q *QrToken) ExportAsPng() ([]byte, error) {
+	base64Data := q.qrBase64
+	return base64.StdEncoding.DecodeString(base64Data)
+}
+
+func (q *QrToken) ExportAsSmallString() string {
+	return q.qrSmall
+}
+
+func (q *QrToken) PrintToConsole() {
+	fmt.Println(q.qrSmall)
+}
+
+func (q *QrToken) Renew() error {
+	qrNew, err := q.client.QRLogin(q.IgnoredIDs...)
+	if err != nil {
+		return err
+	}
+
+	q.Token = qrNew.Token
+	q.Url = qrNew.Url
+	q.ExpiresIn = qrNew.ExpiresIn
+	q.Timeout = 600
+	qrMake, err := utils.NewQRCode(q.Url)
+	if err != nil {
+		return err
+	}
+
+	q.qrBase64 = qrMake.Base64PNG(0)
+	q.qrSmall = qrMake.ToSmallString(false)
+	return nil
+}
+
+func (q *QrToken) WaitLogin(timeout ...int32) error {
+	q.Timeout = getVariadic(timeout, 600)
 	ch := make(chan int)
 	ev := q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update, client *Client) error {
 		ch <- 1
@@ -669,52 +703,58 @@ func (q *QrToken) Wait(timeout ...int32) error {
 				case *UserObj:
 					q.client.Cache.UpdateUser(u)
 				case *UserEmpty:
-					return errors.New("authorization user is empty")
+					return fmt.Errorf("empty user received after qr login")
+				default:
+					return fmt.Errorf("unexpected user type received after qr login: %T", u)
 				}
 			}
 		}
 		return nil
 	case <-time.After(time.Duration(q.Timeout) * time.Second):
 		go q.client.removeHandle(ev)
-		return errors.New("qr login timed out")
+		return fmt.Errorf("qr login wait timeout after %d seconds", q.Timeout)
 	}
 }
 
+// QRLogin initiates a QR code login and returns the QrToken containing the QR code and related information.
 func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
-	// Get QR code
 	var ignoreIDs []int64
 	ignoreIDs = append(ignoreIDs, IgnoreIDs...)
 	qr, err := c.AuthExportLoginToken(c.AppID(), c.AppHash(), ignoreIDs)
 	if err != nil {
 		return nil, err
 	}
-	var (
-		qrToken   []byte
-		expiresIn int32 = 60
-	)
 	switch qr := qr.(type) {
 	case *AuthLoginTokenMigrateTo:
-		c.SwitchDc(int(qr.DcID))
+		if err := c.SwitchDc(int(qr.DcID)); err != nil {
+			return nil, err
+		}
 		return c.QRLogin(IgnoreIDs...)
 	case *AuthLoginTokenObj:
-		qrToken = qr.Token
-		expiresIn = qr.Expires
+		qrHash := base64.RawURLEncoding.EncodeToString(qr.Token)
+		qrURL := fmt.Sprintf("tg://login?token=%s", qrHash)
+		qrCodeMaker, err := utils.NewQRCode(qrURL)
+		if err != nil {
+			return nil, err
+		}
+
+		return &QrToken{
+			qrBase64:   qrCodeMaker.Base64PNG(0),
+			qrSmall:    qrCodeMaker.ToSmallString(false),
+			Token:      qr.Token,
+			Url:        qrURL,
+			ExpiresIn:  qr.Expires,
+			client:     c,
+			IgnoredIDs: ignoreIDs,
+		}, nil
 	}
-	// Get QR code URL
-	qrURL := base64.RawURLEncoding.EncodeToString(qrToken)
-	return &QrToken{
-		Token:      qrToken,
-		Url:        fmt.Sprintf("tg://login?token=%s", qrURL),
-		ExpiresIn:  expiresIn,
-		client:     c,
-		IgnoredIDs: ignoreIDs,
-	}, nil
+
+	return nil, fmt.Errorf("unexpected qr login response type: %T", qr)
 }
 
 // Logs out from the current account
 func (c *Client) LogOut() error {
 	_, err := c.AuthLogOut()
-	// c.bot = false
 	c.MTProto.DeleteSession()
 	return err
 }
