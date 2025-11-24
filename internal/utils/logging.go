@@ -194,8 +194,7 @@ func NewLoggerWithConfig(config *LoggerConfig) *Logger {
 
 	if config.AsyncMode {
 		logger.logChan = make(chan *LogEntry, config.AsyncQueueSize)
-		logger.wg.Add(1)
-		go logger.processAsync()
+		logger.wg.Go(logger.processAsync)
 	}
 
 	return logger
