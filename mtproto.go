@@ -636,10 +636,7 @@ func (m *MTProto) startPFSManager(ctx context.Context) {
 	const pollNoAuthKeyDelay = 5 * time.Second            // wait for authKey
 	const minSleepSeconds int64 = 5                       // minimum wait between checks
 
-	m.routineswg.Add(1)
-	go func() {
-		defer m.routineswg.Done()
-
+	m.routineswg.Go(func() {
 		m.Logger.Debug("PFS manager started")
 		for {
 			select {
@@ -700,10 +697,7 @@ func (m *MTProto) startPFSManager(ctx context.Context) {
 				continue
 			}
 
-			waitSec := expiresAt - now - renewBeforeSeconds
-			if waitSec < minSleepSeconds {
-				waitSec = minSleepSeconds
-			}
+			waitSec := max(expiresAt-now-renewBeforeSeconds, minSleepSeconds)
 			waitDur := time.Duration(waitSec) * time.Second
 
 			select {
@@ -712,7 +706,7 @@ func (m *MTProto) startPFSManager(ctx context.Context) {
 			case <-time.After(waitDur):
 			}
 		}
-	}()
+	})
 }
 
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
@@ -896,10 +890,7 @@ func (m *MTProto) Ping() time.Duration {
 }
 
 func (m *MTProto) startReadingResponses(ctx context.Context) {
-	m.routineswg.Add(1)
-
-	go func() {
-		defer m.routineswg.Done()
+	m.routineswg.Go(func() {
 		for {
 			select {
 			case <-ctx.Done():
@@ -958,7 +949,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				}
 			}
 		}
-	}()
+	})
 }
 
 func (m *MTProto) handle404Error() {
