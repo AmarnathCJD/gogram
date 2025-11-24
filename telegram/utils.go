@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"errors"
 
@@ -1002,7 +1001,7 @@ func IsFfmpegInstalled() bool {
 	return err == nil
 }
 
-func MarshalWithTypeName(v any, snakeCase ...bool) string {
+func MarshalWithTypeName(v any, noindent ...bool) string {
 	rv := reflect.ValueOf(v)
 	rt := reflect.TypeOf(v)
 
@@ -1019,15 +1018,19 @@ func MarshalWithTypeName(v any, snakeCase ...bool) string {
 	}
 
 	typeName := rt.Name()
-	if snakeCase != nil && snakeCase[0] {
-		typeName = toSnakeCase(typeName)
-	}
 
 	result := map[string]any{
-		typeName: buildRecursive(rv, snakeCase != nil && snakeCase[0]),
+		typeName: buildRecursive(rv, false),
 	}
 
-	b, err := json.MarshalIndent(result, "", "  ")
+	var b []byte
+	var err error
+
+	if getVariadic(noindent, false) {
+		b, err = json.Marshal(result)
+	} else {
+		b, err = json.MarshalIndent(result, "", "  ")
+	}
 	if err != nil {
 		return "{}"
 	}
@@ -1035,20 +1038,20 @@ func MarshalWithTypeName(v any, snakeCase ...bool) string {
 	return string(b)
 }
 
-func buildRecursive(v reflect.Value, snakeCase bool) interface{} {
+func buildRecursive(v reflect.Value, _ bool) any {
 	switch v.Kind() {
 
 	case reflect.Interface:
 		if v.IsNil() {
 			return nil
 		}
-		return buildRecursive(v.Elem(), snakeCase)
+		return buildRecursive(v.Elem(), false)
 
 	case reflect.Pointer:
 		if v.IsNil() {
 			return nil
 		}
-		return buildRecursive(v.Elem(), snakeCase)
+		return buildRecursive(v.Elem(), false)
 
 	case reflect.Struct:
 		out := make(map[string]any)
@@ -1060,18 +1063,15 @@ func buildRecursive(v reflect.Value, snakeCase bool) interface{} {
 			}
 
 			name := f.Name
-			if snakeCase {
-				name = toSnakeCase(name)
-			}
 
-			out[name] = buildRecursive(v.Field(i), snakeCase)
+			out[name] = buildRecursive(v.Field(i), false)
 		}
 		return out
 
 	case reflect.Slice, reflect.Array:
 		arr := make([]any, v.Len())
 		for i := 0; i < v.Len(); i++ {
-			arr[i] = buildRecursive(v.Index(i), snakeCase)
+			arr[i] = buildRecursive(v.Index(i), false)
 		}
 		return arr
 
@@ -1079,26 +1079,11 @@ func buildRecursive(v reflect.Value, snakeCase bool) interface{} {
 		out := make(map[string]any)
 		for _, key := range v.MapKeys() {
 			strKey := fmt.Sprintf("%v", key.Interface())
-			if snakeCase {
-				strKey = toSnakeCase(strKey)
-			}
-			out[strKey] = buildRecursive(v.MapIndex(key), snakeCase)
+			out[strKey] = buildRecursive(v.MapIndex(key), false)
 		}
 		return out
 
 	default:
 		return v.Interface()
 	}
-}
-
-func toSnakeCase(s string) string {
-	var out []rune
-	for i, r := range s {
-		if i > 0 && unicode.IsUpper(r) &&
-			(unicode.IsLower(rune(s[i-1])) || unicode.IsDigit(rune(s[i-1]))) {
-			out = append(out, '_')
-		}
-		out = append(out, unicode.ToLower(r))
-	}
-	return string(out)
 }
