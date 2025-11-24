@@ -277,7 +277,7 @@ func (i *InlineQuery) IsPrivate() bool {
 }
 
 func (i *InlineQuery) Marshal(noindent ...bool) string {
-	return i.Client.JSON(i.OriginalUpdate, noindent)
+	return MarshalWithTypeName(i.OriginalUpdate, noindent...)
 }
 
 func (m *InlineQuery) Args() string {
@@ -386,5 +386,5 @@ func (i *InlineSend) GetReplyMessage() (*NewMessage, error) {
 }
 
 func (i *InlineSend) Marshal(noindent ...bool) string {
-	return i.Client.JSON(i.OriginalUpdate, noindent)
+	return MarshalWithTypeName(i.OriginalUpdate, noindent...)
 }
