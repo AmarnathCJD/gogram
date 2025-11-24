@@ -12,43 +12,30 @@ import (
 )
 
 type QRCode struct {
-	Content string
-	Level   RecoveryLevel
-
-	VersionNumber int
-
+	Content         string
 	ForegroundColor color.Color
 	BackgroundColor color.Color
-
-	DisableBorder bool
-
-	version qrCodeVersion
-
-	data   *Bitset
-	symbol *symbol
-	mask   int
+	DisableBorder   bool
+	version         qrCodeVersion
+	data            *Bitset
+	symbol          *symbol
 }
 
 func NewQRCode(content string) (*QRCode, error) {
-	encoder := newDataEncoder()
-	encoded, err := encoder.encode([]byte(content))
+	encoded, err := encodeData([]byte(content))
 	if err != nil {
 		return nil, err
 	}
-
-	q := &QRCode{
-		Content: content,
-		Level:   Medium,
-
-		VersionNumber:   version5.version,
+	if encoded.Len() > version5.numDataBits() {
+		return nil, fmt.Errorf("content too long to encode")
+	}
+	return &QRCode{
+		Content:         content,
 		ForegroundColor: color.Black,
 		BackgroundColor: color.White,
-
-		data:    encoded,
-		version: version5,
-	}
-
-	return q, nil
+		data:            encoded,
+		version:         version5,
+	}, nil
 }
 
 func (q *QRCode) Bitmap() ([][]bool, error) {
@@ -121,22 +108,11 @@ func (q *QRCode) encode() error {
 	if err != nil {
 		return err
 	}
-	const numMasks = 8
-	bestMask := 0
-	bestPenalty := -1
-	for mask := range numMasks {
-		symbol, err := buildRegularSymbol(q.version, mask, encoded, !q.DisableBorder)
-		if err != nil {
-			return fmt.Errorf("failed to build QR symbol: %w", err)
-		}
-		penalty := symbol.penaltyScore()
-		if bestPenalty == -1 || penalty < bestPenalty {
-			bestPenalty = penalty
-			bestMask = mask
-			q.symbol = symbol
-		}
+	// Always use mask 2 (known working mask)
+	q.symbol, err = buildRegularSymbol(q.version, 2, encoded, !q.DisableBorder)
+	if err != nil {
+		return fmt.Errorf("failed to build QR symbol: %w", err)
 	}
-	q.mask = bestMask
 	return nil
 }
 
@@ -280,33 +256,19 @@ func (q *QRCode) ToSmallString(inverse bool) string {
 	return buf.String()
 }
 
-type dataEncoder struct {
-	charCountBits int
-	modeIndicator *Bitset
-}
-
-func newDataEncoder() *dataEncoder {
-	return &dataEncoder{charCountBits: 8, modeIndicator: NewBitset(b0, b1, b0, b0)}
-}
-
-func (d *dataEncoder) encode(data []byte) (*Bitset, error) {
+// encodeData encodes content as byte mode for version 1-9 (8-bit char count)
+func encodeData(data []byte) (*Bitset, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("no data to encode")
 	}
-	if len(data) > (1<<uint(d.charCountBits))-1 {
-		return nil, fmt.Errorf("segment too long")
+	if len(data) > 255 {
+		return nil, fmt.Errorf("data too long")
 	}
 	encoded := NewBitset()
-	if err := encoded.Append(d.modeIndicator); err != nil {
-		return nil, err
-	}
-	if err := encoded.AppendUint32(uint32(len(data)), d.charCountBits); err != nil {
-		return nil, err
-	}
+	encoded.AppendBools(b0, b1, b0, b0) // byte mode indicator
+	encoded.AppendByte(byte(len(data)), 8)
 	for _, b := range data {
-		if err := encoded.AppendByte(b, 8); err != nil {
-			return nil, err
-		}
+		encoded.AppendByte(b, 8)
 	}
 	return encoded, nil
 }
@@ -472,10 +434,6 @@ func newSymbol(size int, quietZoneSize int) *symbol {
 	return m
 }
 
-func (m *symbol) get(x, y int) bool {
-	return m.module[y+m.quietZoneSize][x+m.quietZoneSize]
-}
-
 func (m *symbol) empty(x, y int) bool {
 	return !m.isUsed[y+m.quietZoneSize][x+m.quietZoneSize]
 }
@@ -501,129 +459,6 @@ func (m *symbol) bitmap() [][]bool {
 	return dup
 }
 
-const (
-	penaltyWeight1 = 3
-	penaltyWeight2 = 3
-	penaltyWeight3 = 40
-	penaltyWeight4 = 10
-)
-
-func (m *symbol) penaltyScore() int {
-	return m.penalty1() + m.penalty2() + m.penalty3() + m.penalty4()
-}
-
-func (m *symbol) penalty1() int {
-	penalty := 0
-	for x := 0; x < m.symbolSize; x++ {
-		last := m.get(x, 0)
-		count := 1
-		for y := 1; y < m.symbolSize; y++ {
-			v := m.get(x, y)
-			if v != last {
-				count = 1
-				last = v
-			} else {
-				count++
-				if count == 6 {
-					penalty += penaltyWeight1 + 1
-				} else if count > 6 {
-					penalty++
-				}
-			}
-		}
-	}
-	for y := 0; y < m.symbolSize; y++ {
-		last := m.get(0, y)
-		count := 1
-		for x := 1; x < m.symbolSize; x++ {
-			v := m.get(x, y)
-			if v != last {
-				count = 1
-				last = v
-			} else {
-				count++
-				if count == 6 {
-					penalty += penaltyWeight1 + 1
-				} else if count > 6 {
-					penalty++
-				}
-			}
-		}
-	}
-	return penalty
-}
-
-func (m *symbol) penalty2() int {
-	penalty := 0
-	for y := 1; y < m.symbolSize; y++ {
-		for x := 1; x < m.symbolSize; x++ {
-			topLeft := m.get(x-1, y-1)
-			if topLeft == m.get(x, y-1) && topLeft == m.get(x-1, y) && topLeft == m.get(x, y) {
-				penalty++
-			}
-		}
-	}
-	return penalty * penaltyWeight2
-}
-
-func (m *symbol) penalty3() int {
-	penalty := 0
-	for y := 0; y < m.symbolSize; y++ {
-		var buffer int16
-		for x := 0; x < m.symbolSize; x++ {
-			buffer <<= 1
-			if m.get(x, y) {
-				buffer |= 1
-			}
-			switch buffer & 0x7ff {
-			case 0x05d, 0x5d0:
-				penalty += penaltyWeight3
-				buffer = 0xff
-			default:
-				if x == m.symbolSize-1 && (buffer&0x7f) == 0x5d {
-					penalty += penaltyWeight3
-				}
-			}
-		}
-	}
-	for x := 0; x < m.symbolSize; x++ {
-		var buffer int16
-		for y := 0; y < m.symbolSize; y++ {
-			buffer <<= 1
-			if m.get(x, y) {
-				buffer |= 1
-			}
-			switch buffer & 0x7ff {
-			case 0x05d, 0x5d0:
-				penalty += penaltyWeight3
-				buffer = 0xff
-			default:
-				if y == m.symbolSize-1 && (buffer&0x7f) == 0x5d {
-					penalty += penaltyWeight3
-				}
-			}
-		}
-	}
-	return penalty
-}
-
-func (m *symbol) penalty4() int {
-	numModules := m.symbolSize * m.symbolSize
-	dark := 0
-	for x := 0; x < m.symbolSize; x++ {
-		for y := 0; y < m.symbolSize; y++ {
-			if m.get(x, y) {
-				dark++
-			}
-		}
-	}
-	deviation := numModules/2 - dark
-	if deviation < 0 {
-		deviation = -deviation
-	}
-	return penaltyWeight4 * (deviation / (numModules / 20))
-}
-
 type regularSymbol struct {
 	version qrCodeVersion
 	mask    int
@@ -632,11 +467,8 @@ type regularSymbol struct {
 	size    int
 }
 
-var alignmentPatternCenter = [][]int{
-	{}, {},
-	{6, 18}, {6, 22},
-	{6, 26}, {6, 30},
-}
+// Alignment pattern centers for version 5
+var alignmentPatternCenter = []int{6, 30}
 
 var finderPattern = [][]bool{
 	{b1, b1, b1, b1, b1, b1, b1},
@@ -674,9 +506,7 @@ func buildRegularSymbol(version qrCodeVersion, mask int, data *Bitset, includeQu
 	m.addFinderPatterns()
 	m.addAlignmentPatterns()
 	m.addTimingPatterns()
-	if err := m.addFormatInfo(); err != nil {
-		return nil, err
-	}
+	m.addFormatInfo()
 	m.addVersionInfo()
 	if ok, err := m.addData(); !ok {
 		return nil, err
@@ -698,9 +528,8 @@ func (m *regularSymbol) addFinderPatterns() {
 }
 
 func (m *regularSymbol) addAlignmentPatterns() {
-	centers := alignmentPatternCenter[m.version.version]
-	for _, x := range centers {
-		for _, y := range centers {
+	for _, x := range alignmentPatternCenter {
+		for _, y := range alignmentPatternCenter {
 			if !m.symbol.empty(x, y) {
 				continue
 			}
@@ -718,11 +547,8 @@ func (m *regularSymbol) addTimingPatterns() {
 	}
 }
 
-func (m *regularSymbol) addFormatInfo() error {
-	f, err := m.version.formatInfo(m.mask)
-	if err != nil {
-		return err
-	}
+func (m *regularSymbol) addFormatInfo() {
+	f := m.version.formatInfo()
 	fpSize := len(finderPattern)
 	l := f.Len() - 1
 	for i := 0; i <= 7; i++ {
@@ -741,20 +567,10 @@ func (m *regularSymbol) addFormatInfo() error {
 		m.symbol.set(fpSize+1, m.size-fpSize+i-8, f.At(l-i))
 	}
 	m.symbol.set(fpSize+1, m.size-fpSize-1, true)
-	return nil
 }
 
 func (m *regularSymbol) addVersionInfo() {
-	fpSize := len(finderPattern)
-	v := m.version.versionInfo()
-	if v == nil {
-		return
-	}
-	l := v.Len() - 1
-	for i := 0; i < v.Len(); i++ {
-		m.symbol.set(i/3, m.size-fpSize-4+i%3, v.At(l-i))
-		m.symbol.set(m.size-fpSize-4+i%3, i/3, v.At(l-i))
-	}
+	// Version 5 doesn't need version info (only v7+), so nothing to do
 }
 
 func (m *regularSymbol) addData() (bool, error) {
@@ -885,9 +701,7 @@ var (
 	}
 )
 
-func gfAdd(a, b gfElement) gfElement {
-	return a ^ b
-}
+func gfAdd(a, b gfElement) gfElement { return a ^ b }
 
 func gfMultiply(a, b gfElement) gfElement {
 	if a == gfZero || b == gfZero {
@@ -896,25 +710,11 @@ func gfMultiply(a, b gfElement) gfElement {
 	return gfExpTable[(gfLogTable[a]+gfLogTable[b])%255]
 }
 
-func gfDivide(a, b gfElement) (gfElement, error) {
-	if b == gfZero {
-		return 0, fmt.Errorf("gf divide by zero")
-	}
+func gfDivide(a, b gfElement) gfElement {
 	if a == gfZero {
-		return gfZero, nil
+		return gfZero
 	}
-	inv, err := gfInverse(b)
-	if err != nil {
-		return 0, err
-	}
-	return gfMultiply(a, inv), nil
-}
-
-func gfInverse(a gfElement) (gfElement, error) {
-	if a == gfZero {
-		return 0, fmt.Errorf("gf inverse of zero")
-	}
-	return gfExpTable[255-gfLogTable[a]], nil
+	return gfExpTable[(gfLogTable[a]+255-gfLogTable[b])%255]
 }
 
 type gfPoly struct {
@@ -976,18 +776,12 @@ func gfPolyMultiply(a, b gfPoly) gfPoly {
 
 func gfPolyRemainder(numerator, denominator gfPoly) (gfPoly, error) {
 	if denominator.equals(gfPoly{}) {
-		return gfPoly{}, fmt.Errorf("gfPolyRemainder divide by zero")
+		return gfPoly{}, fmt.Errorf("remainder by zero polynomial")
 	}
 	remainder := numerator
 	for remainder.numTerms() >= denominator.numTerms() {
 		degree := remainder.numTerms() - denominator.numTerms()
-		coef, err := gfDivide(
-			remainder.term[remainder.numTerms()-1],
-			denominator.term[denominator.numTerms()-1],
-		)
-		if err != nil {
-			return gfPoly{}, err
-		}
+		coef := gfDivide(remainder.term[remainder.numTerms()-1], denominator.term[denominator.numTerms()-1])
 		divisor := gfPolyMultiply(denominator, newGFPolyMonomial(coef, degree))
 		remainder = gfPolyAdd(remainder, divisor)
 	}
@@ -1081,114 +875,61 @@ func rsGeneratorPoly(degree int) (gfPoly, error) {
 		return gfPoly{}, fmt.Errorf("generator degree %d < 2", degree)
 	}
 	generator := gfPoly{term: []gfElement{1}}
-	for i := range degree {
+	for i := 0; i < degree; i++ {
 		nextPoly := gfPoly{term: []gfElement{gfExpTable[i], 1}}
 		generator = gfPolyMultiply(generator, nextPoly)
 	}
 	return generator, nil
 }
 
-type RecoveryLevel int
-
-const (
-	Medium RecoveryLevel = 0
-)
-
 type qrCodeVersion struct {
 	version          int
-	level            RecoveryLevel
 	block            []block
 	numRemainderBits int
 }
 
 type block struct{ numBlocks, numCodewords, numDataCodewords int }
 
-var version5 = qrCodeVersion{version: 5, level: Medium, block: []block{{2, 67, 43}}, numRemainderBits: 7}
+// Version 5 Medium: 37x37, 2 blocks of 43 data codewords, 24 EC codewords each
+var version5 = qrCodeVersion{5, []block{{2, 67, 43}}, 7}
 
-var formatBitSequence = []uint32{
-	0x5412, 0x4172, 0x5e7c, 0x4b1c, 0x55ae, 0x5099,
-	0x5fc0, 0x5af7, 0x6793, 0x62a4, 0x6dfd, 0x68ca,
-	0x7678, 0x734f, 0x7c16, 0x7921, 0x06de, 0x03e9,
-	0x0cb0, 0x0987, 0x1735, 0x1202, 0x1d5b, 0x186c,
-	0x2508, 0x203f, 0x2f66, 0x2a51, 0x34e3, 0x31d4,
-	0x3e8d, 0x3bba,
-}
+const formatInfoMask2 uint32 = 0x5e7c // Format info for Medium ECC, mask 2
 
-var versionBitSequence = []uint32{
-	0x00000, 0x00000, 0x00000, 0x00000, 0x00000, 0x00000,
-	0x00000, 0x07c94, 0x085bc, 0x09a99, 0x0a4d3, 0x0bbf6,
-	0x0c762, 0x0d847, 0x0e60d, 0x0f928, 0x10b78, 0x1145d,
-	0x12a17, 0x13532, 0x149a6, 0x15683, 0x168c9, 0x177ec,
-	0x18ec4, 0x191e1, 0x1afab, 0x1b08e, 0x1cc1a, 0x1d33f,
-	0x1ed75, 0x1f250, 0x209d5, 0x216f0, 0x228ba, 0x2379f,
-	0x24b0b, 0x2542e, 0x26a64, 0x27541, 0x28c69,
-}
-
-func (v qrCodeVersion) formatInfo(maskPattern int) (*Bitset, error) {
-	if v.level != Medium {
-		return nil, fmt.Errorf("unsupported level %d", v.level)
-	}
-	if maskPattern < 0 || maskPattern > 7 {
-		return nil, fmt.Errorf("invalid maskPattern %d", maskPattern)
-	}
+func (v qrCodeVersion) formatInfo() *Bitset {
 	result := NewBitset()
-	result.AppendUint32(formatBitSequence[maskPattern&0x7], 15)
-	return result, nil
-}
-
-func (v qrCodeVersion) versionInfo() *Bitset {
-	if v.version < 7 {
-		return nil
-	}
-
-	result := NewBitset()
-	result.AppendUint32(versionBitSequence[v.version], 18)
-
+	result.AppendUint32(formatInfoMask2, 15)
 	return result
 }
 
 func (v qrCodeVersion) numDataBits() int {
-	numDataBits := 0
+	n := 0
 	for _, b := range v.block {
-		numDataBits += 8 * b.numBlocks * b.numDataCodewords // 8 bits in a byte
+		n += 8 * b.numBlocks * b.numDataCodewords
 	}
-
-	return numDataBits
+	return n
 }
 
 func (v qrCodeVersion) numTerminatorBitsRequired(numDataBits int) int {
-	numFreeBits := v.numDataBits() - numDataBits
-
-	var numTerminatorBits int
-
-	switch {
-	case numFreeBits >= 4:
-		numTerminatorBits = 4
-	default:
-		numTerminatorBits = numFreeBits
+	free := v.numDataBits() - numDataBits
+	if free >= 4 {
+		return 4
 	}
-
-	return numTerminatorBits
+	return free
 }
 
 func (v qrCodeVersion) numBlocks() int {
-	numBlocks := 0
-
+	n := 0
 	for _, b := range v.block {
-		numBlocks += b.numBlocks
+		n += b.numBlocks
 	}
-
-	return numBlocks
+	return n
 }
 
 func (v qrCodeVersion) numBitsToPadToCodeword(numDataBits int) int {
 	if numDataBits == v.numDataBits() {
 		return 0
 	}
-
 	return (8 - numDataBits%8) % 8
 }
 
-func (v qrCodeVersion) symbolSize() int {
-	return 21 + (v.version-1)*4
-}
+func (v qrCodeVersion) symbolSize() int { return 21 + (v.version-1)*4 }
