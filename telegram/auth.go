@@ -704,31 +704,45 @@ func (q *QrToken) WaitLogin(timeout ...int32) error {
 					return fmt.Errorf("password callback is nil")
 				}
 
-				fmt.Println("Two-factor authentication is enabled. Please enter your password.")
-				password, err := q.passwordCallback()
-				if err != nil {
-					return err
-				}
+				const maxPasswordRetries = 3
+				for attempt := 1; attempt <= maxPasswordRetries; attempt++ {
+					fmt.Printf("Two-factor authentication is enabled. Please enter your password (attempt %d/%d):\n", attempt, maxPasswordRetries)
+					password, err := q.passwordCallback()
+					if err != nil {
+						return err
+					}
 
-				accPassword, err := q.client.AccountGetPassword()
-				if err != nil {
-					return err
-				}
+					password = strings.TrimSpace(password)
+					if password == "" {
+						continue
+					}
 
-				inputPassword, err := GetInputCheckPassword(password, accPassword)
-				if err != nil {
-					return err
-				}
+					accPassword, err := q.client.AccountGetPassword()
+					if err != nil {
+						return err
+					}
 
-				_, err = q.client.AuthCheckPassword(inputPassword)
-				if err != nil {
-					return err
-				}
+					inputPassword, err := GetInputCheckPassword(password, accPassword)
+					if err != nil {
+						return err
+					}
 
-				resp, err = q.client.AuthExportLoginToken(q.client.AppID(), q.client.AppHash(), q.IgnoredIDs)
-				if err != nil {
-					return err
+					_, err = q.client.AuthCheckPassword(inputPassword)
+					if err != nil {
+						if MatchError(err, "PASSWORD_HASH_INVALID") {
+							q.client.Log.Warn("incorrect password (attempt %d/%d)", attempt, maxPasswordRetries)
+							continue
+						}
+						return fmt.Errorf("password verification failed: %w", err)
+					}
+
+					resp, err = q.client.AuthExportLoginToken(q.client.AppID(), q.client.AppHash(), q.IgnoredIDs)
+					if err != nil {
+						return err
+					}
+					goto QrResponseSwitch
 				}
+				return fmt.Errorf("password authentication failed after %d attempts", maxPasswordRetries)
 			} else {
 				return err
 			}
