@@ -3,6 +3,7 @@
 package utils
 
 import (
+	"crypto/rand"
 	cr "crypto/rand"
 	"crypto/sha1"
 	"encoding/binary"
@@ -283,6 +284,25 @@ func Xor(dst, src []byte) {
 	for i := range dst {
 		dst[i] ^= src[i]
 	}
+}
+
+func RandomSenderID() string {
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, 2)
+	for i := range b {
+		buf := make([]byte, 1)
+		rand.Read(buf)
+		b[i] = chars[int(buf[0])%len(chars)]
+	}
+	return string(b)
+}
+
+func OrDefault[T comparable](val, def T) T {
+	var zero T
+	if val == zero {
+		return def
+	}
+	return val
 }
 
 func AskForConfirmation() bool {

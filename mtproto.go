@@ -28,6 +28,13 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
+const (
+	defaultMaxReconnectAttempts = 500
+	defaultBaseReconnectDelay   = 2 * time.Second
+	defaultPingInterval         = 30 * time.Second
+	defaultPendingAcksThreshold = 10
+)
+
 type MTProto struct {
 	Addr      string
 	appID     int32
@@ -89,9 +96,11 @@ type MTProto struct {
 	reconnectInProgress   atomic.Bool
 	timeout               time.Duration
 
-	reconnectAttempts int
-	reconnectMutex    sync.Mutex
-	maxReconnectDelay time.Duration
+	reconnectAttempts    int
+	reconnectMutex       sync.Mutex
+	maxReconnectDelay    time.Duration
+	maxReconnectAttempts int
+	baseReconnectDelay   time.Duration
 
 	lastSuccessfulConnect time.Time
 	rapidReconnectCount   int
@@ -130,6 +139,10 @@ type Config struct {
 	ReqTimeout      int
 	UseWebSocket    bool
 	UseWebSocketTLS bool
+
+	MaxReconnectAttempts int
+	BaseReconnectDelay   time.Duration
+	MaxReconnectDelay    time.Duration
 
 	OnMigration func()
 }
@@ -185,7 +198,9 @@ func NewMTProto(c Config) (*MTProto, error) {
 		DcList:                utils.NewDCOptions(),
 		timeout:               utils.MinSafeDuration(c.Timeout),
 		reconnectAttempts:     0,
-		maxReconnectDelay:     15 * time.Minute,
+		maxReconnectDelay:     utils.OrDefault(c.MaxReconnectDelay, 15*time.Minute),
+		maxReconnectAttempts:  utils.OrDefault(c.MaxReconnectAttempts, defaultMaxReconnectAttempts),
+		baseReconnectDelay:    utils.OrDefault(c.BaseReconnectDelay, defaultBaseReconnectDelay),
 		useWebSocket:          c.UseWebSocket,
 		useWebSocketTLS:       c.UseWebSocketTLS,
 		enablePFS:             c.EnablePFS,
@@ -395,11 +410,12 @@ func (m *MTProto) SwitchDc(dc int) error {
 
 func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, error) {
 	newAddr := m.DcList.GetHostIp(dcID, false, m.IpV6)
-	logger := utils.NewLogger("gogram [sender]").SetLevel(utils.InfoLevel)
+	senderID := utils.RandomSenderID()
+	logger := utils.NewLogger("gogram [sender-" + senderID + "]").SetLevel(utils.InfoLevel)
 
 	if len(cdn) > 0 && cdn[0] {
 		newAddr, _ = m.DcList.GetCdnAddr(dcID)
-		logger.SetPrefix("gogram [cdn]")
+		logger.SetPrefix("gogram [cdn-" + senderID + "]")
 	}
 
 	cfg := Config{
@@ -459,10 +475,7 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 		return m.connectionHandler(err)
 	}
 
-	maxAttempts := 999999
-	baseDelay := 2 * time.Second
-
-	for attempt := range maxAttempts {
+	for attempt := range m.maxReconnectAttempts {
 		err := m.connect(ctx)
 		if err == nil {
 			if attempt > 0 {
@@ -476,9 +489,9 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 			return fmt.Errorf("mtproto terminated during reconnection")
 		}
 
-		delay := min(time.Duration(1<<uint(attempt))*baseDelay, m.maxReconnectDelay)
+		delay := min(time.Duration(1<<uint(attempt))*m.baseReconnectDelay, m.maxReconnectDelay)
 
-		m.Logger.Info("%v, retrying in %v...", err, delay)
+		m.Logger.Info("%v, retrying in %v (attempt %d/%d)...", err, delay, attempt+1, m.maxReconnectAttempts)
 
 		select {
 		case <-ctx.Done():
@@ -488,7 +501,7 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 		}
 	}
 
-	return fmt.Errorf("max reconnection attempts reached")
+	return fmt.Errorf("max reconnection attempts (%d) reached", m.maxReconnectAttempts)
 }
 
 func (m *MTProto) CreateConnection(withLog bool) error {
@@ -738,7 +751,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 	select {
 	case <-ctx.Done():
 		go m.writeRPCResponse(int(msgId), &objects.Null{})
-		return nil, fmt.Errorf("makeRequestIsTheCulprit: %w", ctx.Err())
+		return nil, fmt.Errorf("context done while waiting for response: %w", ctx.Err())
 	case response := <-resp:
 		switch r := response.(type) {
 		case *objects.RpcError:
@@ -761,7 +774,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 				}
 			}
 
-			// Handle flood wait errors
+			// handle flood wait errors (429 errors)
 			if strings.Contains(rpcError.Message, "FLOOD_WAIT_") || strings.Contains(rpcError.Message, "FLOOD_PREMIUM_WAIT_") {
 				if m.floodHandler(rpcError) {
 					return m.makeRequestCtx(ctx, data, expectedTypes...)
@@ -864,13 +877,11 @@ func (m *MTProto) longPing(ctx context.Context) {
 	defer m.routineswg.Done()
 
 	for {
-		time.Sleep(30 * time.Second)
 		select {
 		case <-ctx.Done():
 			return
-		default:
-			err := m.tcpState.WaitForActive(ctx)
-			if err != nil {
+		case <-time.After(defaultPingInterval):
+			if err := m.tcpState.WaitForActive(ctx); err != nil {
 				return
 			}
 			m.Ping()
@@ -891,6 +902,25 @@ func (m *MTProto) Ping() time.Duration {
 	return time.Since(start)
 }
 
+func (m *MTProto) tryReconnect() error {
+	if err := m.Reconnect(false); err != nil {
+		m.Logger.Error("failed to reconnect to [%s] - <%s>: %v", utils.FmtIp(m.Addr), m.GetTransportType(), err)
+		return err
+	}
+	return nil
+}
+
+// isBrokenError checks if an error should trigger a reconnection
+func isBrokenError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "unexpected error: unexpected EOF") ||
+		strings.Contains(errStr, "required to reconnect!") ||
+		err == io.EOF
+}
+
 func (m *MTProto) startReadingResponses(ctx context.Context) {
 	m.routineswg.Go(func() {
 		for {
@@ -898,55 +928,44 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			default:
-				errCtx := m.tcpState.WaitForActive(ctx)
-				if errCtx != nil {
+				if err := m.tcpState.WaitForActive(ctx); err != nil {
 					return
 				}
+
 				err := m.readMsg()
-
-				if err != nil {
-					if strings.Contains(err.Error(), "unexpected error: unexpected EOF") {
-						m.Logger.Debug("tcp connection closed, reconnecting to [" + m.Addr + "] - <Tcp> ...")
-						err = m.Reconnect(false)
-						if err != nil {
-							m.Logger.Error("failed to reconnect to [%s] - <%s>: %v", utils.FmtIp(m.Addr), m.GetTransportType(), err)
-						}
-					} else if strings.Contains(err.Error(), "required to reconnect!") { // network is not stable
-						m.Logger.Debug("packet read error, reconnecting to [" + m.Addr + "] - <Tcp> ...")
-						err = m.Reconnect(false)
-						if err != nil {
-							m.Logger.Error("failed to reconnect to [%s] - <%s>: %v", utils.FmtIp(m.Addr), m.GetTransportType(), err)
-						}
-					}
+				if err == nil {
+					continue
 				}
 
-				switch err {
-				case nil:
-				case context.Canceled:
+				if err == context.Canceled {
 					return
-				case io.EOF:
-					m.Logger.Debug("eof error, reconnecting to [" + m.Addr + "] - <Tcp> ...")
-					err = m.Reconnect(false)
-					if err != nil {
-						m.Logger.Error("failed to reconnect to [%s] - <%s>: %v", utils.FmtIp(m.Addr), m.GetTransportType(), err)
-					}
-					return
-				default:
-					switch e := err.(type) {
-					case *ErrResponseCode:
-						if e.Code == 4294966892 {
-							m.handle404Error()
-						} else {
-							m.Logger.Debug("[RESPONSE_ERROR_CODE] - %s", e.Error())
-						}
-					case *transport.ErrCode:
-						m.Logger.Error("[TRANSPORT_ERROR_CODE] - %s", e.Error())
-					}
+				}
 
+				if isBrokenError(err) {
+					m.Logger.Debug("connection error (%v), reconnecting to [%s] - <%s>...", err, utils.FmtIp(m.Addr), m.GetTransportType())
+					m.tryReconnect()
+					if err == io.EOF {
+						return
+					}
+					continue
+				}
+
+				switch e := err.(type) {
+				case *ErrResponseCode:
+					if e.Code == 4294966892 {
+						if authErr := m.handle404Error(); authErr != nil {
+							m.Logger.Error("auth key error: %v", authErr)
+							return
+						}
+					} else {
+						m.Logger.Debug("transport response error code: %d - %s", e.Code, e.Error())
+					}
+				case *transport.ErrCode:
+					m.Logger.Error("transport error code: %d - %s", int64(*e), e.Error())
+				default:
 					if !m.terminated.Load() {
 						m.Logger.Debug("reading message: %v", err)
-						// is reconnect required here?
-						m.Reconnect(false)
+						m.tryReconnect()
 					}
 				}
 			}
@@ -954,7 +973,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 	})
 }
 
-func (m *MTProto) handle404Error() {
+func (m *MTProto) handle404Error() error {
 	if m.authKey404[0] == 0 && m.authKey404[1] == 0 {
 		m.authKey404 = [2]int64{1, time.Now().Unix()}
 	} else {
@@ -968,13 +987,14 @@ func (m *MTProto) handle404Error() {
 
 	if m.authKey404[0] > 4 && m.authKey404[0] < 16 {
 		m.Logger.Debug("-404 error occurred %d times, attempting to reconnect", m.authKey404[0])
-		err := m.Reconnect(false)
-		if err != nil {
-			m.Logger.Error("failed to reconnect to [%s] - <%s>: %v", utils.FmtIp(m.Addr), m.GetTransportType(), err)
+		if err := m.tryReconnect(); err != nil {
+			return err
 		}
 	} else if m.authKey404[0] >= 16 {
-		panic("[AUTH_KEY_INVALID] (code -404) - too many failures")
+		m.errorHandler(ErrAuthKeyInvalid)
+		return ErrAuthKeyInvalid
 	}
+	return nil
 }
 
 func (m *MTProto) readMsg() error {
@@ -1048,23 +1068,9 @@ messageTypeSwitching:
 	case *objects.BadServerSalt:
 		m.serverSalt = message.NewSalt
 		if err := m.SaveSession(m.memorySession); err != nil {
-			return fmt.Errorf("failed to save session: %w", err)
+			m.Logger.Error("failed to save session after salt update: %v", err)
 		}
-
-		m.mutex.Lock()
-		respChannelsBackup := m.responseChannels
-		m.responseChannels = utils.NewSyncIntObjectChan()
-		m.mutex.Unlock()
-
-		for _, k := range respChannelsBackup.Keys() {
-			if v, ok := respChannelsBackup.Get(k); ok {
-				respChannelsBackup.Delete(k)
-				select {
-				case v <- &errorSessionConfigsChanged{}:
-				case <-time.After(1 * time.Millisecond):
-				}
-			}
-		}
+		m.notifyPendingRequestsOfConfigChange()
 
 	case *objects.NewSessionCreated:
 		m.serverSalt = message.ServerSalt
@@ -1133,7 +1139,7 @@ messageTypeSwitching:
 		}
 	}
 
-	if m.pendingAcks.Len() >= 10 {
+	if m.pendingAcks.Len() >= defaultPendingAcksThreshold {
 		m.Logger.Debug("Sending acks %d", m.pendingAcks.Len())
 
 		_, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: m.pendingAcks.Keys()})
@@ -1145,6 +1151,25 @@ messageTypeSwitching:
 	}
 
 	return nil
+}
+
+// notifyPendingRequestsOfConfigChange notifies all pending requests that session config changed
+// Used when server salt changes and requests need to be resent
+func (m *MTProto) notifyPendingRequestsOfConfigChange() {
+	m.mutex.Lock()
+	respChannelsBackup := m.responseChannels
+	m.responseChannels = utils.NewSyncIntObjectChan()
+	m.mutex.Unlock()
+
+	for _, k := range respChannelsBackup.Keys() {
+		if v, ok := respChannelsBackup.Get(k); ok {
+			respChannelsBackup.Delete(k)
+			select {
+			case v <- &errorSessionConfigsChanged{}:
+			case <-time.After(1 * time.Millisecond):
+			}
+		}
+	}
 }
 
 func MessageRequireToAck(msg tl.Object) bool {
