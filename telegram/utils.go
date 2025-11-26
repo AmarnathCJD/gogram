@@ -39,7 +39,11 @@ func cryptoRandIntn(n int) int {
 }
 
 type mimeTypeManager struct {
-	mimeTypes map[string]string
+	mimeTypes       map[string]string // ext -> mime
+	streamableMimes map[string]bool   // streamable video mime types
+	streamableExts  map[string]bool   // streamable video extensions
+	audioExts       map[string]bool   // audio file extensions
+	imageExts       map[string]bool   // image file extensions
 }
 
 func (m *mimeTypeManager) addMime(ext, mime string) {
@@ -48,56 +52,71 @@ func (m *mimeTypeManager) addMime(ext, mime string) {
 
 func (m *mimeTypeManager) match(filePath string) string {
 	if IsURL(filePath) {
-		// do a get request with timeout and get the content type
-		req, err := http.NewRequest("GET", filePath, nil)
+		if u, err := url.Parse(filePath); err == nil {
+			ext := strings.ToLower(filepath.Ext(u.Path))
+			if mime, ok := m.mimeTypes[ext]; ok {
+				return mime
+			}
+		}
+
+		req, err := http.NewRequest("HEAD", filePath, nil)
 		if err != nil {
 			return ""
 		}
 
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 6.1; rv:60.0) Gecko/20100101 Firefox/60.0")
-		HTTPClient := &http.Client{
-			Timeout: 4 * time.Second,
-		}
+		HTTPClient := &http.Client{Timeout: 4 * time.Second}
 
 		resp, err := HTTPClient.Do(req)
 		if err != nil {
 			return ""
 		}
-
 		defer resp.Body.Close()
-		if resp.StatusCode == 200 {
-			if resp.Header.Get("Content-Type") != "" {
-				return resp.Header.Get("Content-Type")
-			}
+
+		if resp.StatusCode == 200 && resp.Header.Get("Content-Type") != "" {
+			return resp.Header.Get("Content-Type")
 		}
 
+		req, err = http.NewRequest("GET", filePath, nil)
+		if err != nil {
+			return ""
+		}
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 6.1; rv:60.0) Gecko/20100101 Firefox/60.0")
+		req.Header.Set("Range", "bytes=0-0")
+
+		resp, err = HTTPClient.Do(req)
+		if err != nil {
+			return ""
+		}
+		defer resp.Body.Close()
+
+		if (resp.StatusCode == 200 || resp.StatusCode == 206) && resp.Header.Get("Content-Type") != "" {
+			return resp.Header.Get("Content-Type")
+		}
 		return ""
 	}
 
-	if mime, ok := m.mimeTypes[filepath.Ext(filePath)]; ok {
+	ext := strings.ToLower(filepath.Ext(filePath))
+	if mime, ok := m.mimeTypes[ext]; ok {
 		return mime
 	}
 
-	// use http.DetectContentType if no match
 	file, err := os.Open(filePath)
 	if err != nil {
 		return ""
 	}
-
 	defer file.Close()
-	buffer := make([]byte, 512)
-	_, err = file.Read(buffer)
 
-	if err != nil {
+	buffer := make([]byte, 512)
+	if _, err = file.Read(buffer); err != nil {
 		return ""
 	}
-
 	return http.DetectContentType(buffer)
 }
 
 func (m *mimeTypeManager) Ext(mime string) string {
-	for ext, m := range m.mimeTypes {
-		if m == mime {
+	for ext, mimeType := range m.mimeTypes {
+		if mimeType == mime {
 			return ext
 		}
 	}
@@ -113,41 +132,90 @@ func (m *mimeTypeManager) MIME(filePath string) (string, bool) {
 	return mime, m.IsPhoto(mime)
 }
 
+func (m *mimeTypeManager) IsStreamable(mimeType string) bool {
+	return m.streamableMimes[mimeType]
+}
+
+func (m *mimeTypeManager) IsStreamableFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return m.streamableExts[ext]
+}
+
+func (m *mimeTypeManager) IsAudioFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return m.audioExts[ext]
+}
+
+func (m *mimeTypeManager) IsImageFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return m.imageExts[ext]
+}
+
+func (m *mimeTypeManager) IsVideoFile(path string) bool {
+	return m.IsStreamableFile(path)
+}
+
 var MimeTypes = &mimeTypeManager{
-	mimeTypes: make(map[string]string),
+	mimeTypes:       make(map[string]string),
+	streamableMimes: make(map[string]bool),
+	streamableExts:  make(map[string]bool),
+	audioExts:       make(map[string]bool),
+	imageExts:       make(map[string]bool),
 }
 
 func init() {
-	MimeTypes.addMime(".png", "image/png")
-	MimeTypes.addMime(".jpg", "image/jpeg")
-	MimeTypes.addMime(".jpeg", "image/jpeg")
+	for ext, mime := range map[string]string{
+		".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+		".webp": "image/webp", ".gif": "image/gif", ".bmp": "image/bmp",
+		".tga": "image/x-tga", ".tiff": "image/tiff", ".tif": "image/tiff",
+		".ico": "image/x-icon", ".svg": "image/svg+xml", ".heic": "image/heic",
+		".heif": "image/heif", ".avif": "image/avif", ".psd": "image/vnd.adobe.photoshop", ".raw": "image/x-raw",
+	} {
+		MimeTypes.addMime(ext, mime)
+		MimeTypes.imageExts[ext] = true
+	}
 
-	MimeTypes.addMime(".webp", "image/webp")
-	MimeTypes.addMime(".gif", "image/gif")
-	MimeTypes.addMime(".bmp", "image/bmp")
-	MimeTypes.addMime(".tga", "image/x-tga")
-	MimeTypes.addMime(".tiff", "image/tiff")
-	MimeTypes.addMime(".psd", "image/vnd.adobe.photoshop")
+	for ext, mime := range map[string]string{
+		".mp4": "video/mp4", ".m4v": "video/x-m4v", ".mov": "video/quicktime",
+		".avi": "video/x-msvideo", ".wmv": "video/x-ms-wmv", ".flv": "video/x-flv",
+		".mkv": "video/x-matroska", ".webm": "video/webm", ".3gp": "video/3gpp",
+		".3g2": "video/3gpp2", ".mpeg": "video/mpeg", ".mpg": "video/mpeg",
+		".ogv": "video/ogg", ".ts": "video/mp2t", ".mts": "video/mp2t",
+		".m2ts": "video/mp2t", ".vob": "video/mpeg", ".asf": "video/x-ms-asf", ".divx": "video/x-divx",
+	} {
+		MimeTypes.addMime(ext, mime)
+		MimeTypes.streamableExts[ext] = true
+	}
 
-	MimeTypes.addMime(".mp4", "video/mp4")
-	MimeTypes.addMime(".mov", "video/quicktime")
-	MimeTypes.addMime(".avi", "video/avi")
-	MimeTypes.addMime(".flv", "video/x-flv")
-	MimeTypes.addMime(".m4v", "video/x-m4v")
-	MimeTypes.addMime(".mkv", "video/x-matroska")
-	MimeTypes.addMime(".webm", "video/webm")
-	MimeTypes.addMime(".3gp", "video/3gpp")
+	for _, mime := range []string{
+		"video/mp4", "video/webm", "video/mpeg", "video/ogg", "video/x-msvideo", "video/x-ms-wmv",
+		"video/x-flv", "video/x-m4v", "video/quicktime", "video/3gpp", "video/3gpp2", "video/matroska",
+		"video/x-matroska", "video/mp2t", "video/x-ms-asf", "video/divx", "video/x-divx", "video/vnd.dlna.mpeg-tts", "video/avi",
+	} {
+		MimeTypes.streamableMimes[mime] = true
+	}
 
-	MimeTypes.addMime(".mp3", "audio/mpeg")
-	MimeTypes.addMime(".m4a", "audio/m4a")
-	MimeTypes.addMime(".aac", "audio/aac")
-	MimeTypes.addMime(".ogg", "audio/ogg")
-	MimeTypes.addMime(".flac", "audio/x-flac")
-	MimeTypes.addMime(".opus", "audio/opus")
-	MimeTypes.addMime(".wav", "audio/wav")
-	MimeTypes.addMime(".alac", "audio/x-alac")
+	for ext, mime := range map[string]string{
+		".mp3": "audio/mpeg", ".m4a": "audio/m4a", ".aac": "audio/aac",
+		".ogg": "audio/ogg", ".oga": "audio/ogg", ".flac": "audio/x-flac",
+		".opus": "audio/opus", ".wav": "audio/wav", ".alac": "audio/x-alac",
+		".wma": "audio/x-ms-wma", ".aiff": "audio/aiff", ".aif": "audio/aiff",
+		".ape": "audio/x-ape", ".wv": "audio/x-wavpack", ".mka": "audio/x-matroska",
+		".mid": "audio/midi", ".midi": "audio/midi", ".amr": "audio/amr",
+		".ac3": "audio/ac3", ".dts": "audio/vnd.dts", ".ra": "audio/vnd.rn-realaudio", ".spx": "audio/ogg",
+	} {
+		MimeTypes.addMime(ext, mime)
+		MimeTypes.audioExts[ext] = true
+	}
 
-	MimeTypes.addMime(".tgs", "application/x-tgsticker")
+	for ext, mime := range map[string]string{
+		".tgs": "application/x-tgsticker", ".pdf": "application/pdf", ".zip": "application/zip",
+		".rar": "application/x-rar-compressed", ".7z": "application/x-7z-compressed", ".tar": "application/x-tar",
+		".gz": "application/gzip", ".json": "application/json", ".xml": "application/xml",
+		".txt": "text/plain", ".html": "text/html", ".css": "text/css", ".js": "application/javascript",
+	} {
+		MimeTypes.addMime(ext, mime)
+	}
 }
 
 func parseInt64(s string) (int64, error) {
