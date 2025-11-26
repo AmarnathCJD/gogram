@@ -5,11 +5,8 @@ package gogram
 import (
 	"context"
 	"crypto/rsa"
-	"encoding/json"
 	"fmt"
 	"io"
-	"math"
-	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1148,10 +1145,17 @@ messageTypeSwitching:
 	case *objects.BadMsgNotification:
 		badMsg := BadMsgErrorFromNative(message)
 		if badMsg.Code == 16 || badMsg.Code == 17 {
-			m.Logger.Warn("Your system date and time are possibly incorrect, please adjust them")
-			m.offsetTime()
+			// calculate offset from server's message ID
+			serverTime := int64(msg.GetMsgID()) >> 32
+			localTime := time.Now().Unix()
+			if offset := serverTime - localTime; offset != 0 {
+				m.timeOffset = offset
+				m.Logger.Warn("system time out of sync by %d seconds, auto-correcting", offset)
+			}
+			m.notifyPendingRequestsOfConfigChange()
+			return nil
 		}
-		m.Logger.Debug("bad-msg-notification: %s", badMsg.Error())
+		m.Logger.Debug("bad-msg-notification: code=%d msg=%s", badMsg.Code, badMsg.Error())
 		return badMsg
 
 	case *objects.RpcResult:
@@ -1301,32 +1305,4 @@ func NewTcpState() *TcpState {
 	return &TcpState{
 		ch: make(chan struct{}),
 	}
-}
-
-func (m *MTProto) offsetTime() {
-	currentLocalTime := time.Now().Unix()
-	client := http.Client{Timeout: 2 * time.Second}
-
-	resp, err := client.Get("http://worldtimeapi.org/api/ip")
-	if err != nil {
-		return
-	}
-
-	defer resp.Body.Close()
-
-	var timeResponse struct {
-		Unixtime int64 `json:"unixtime"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&timeResponse); err != nil {
-		return
-	}
-
-	if timeResponse.Unixtime <= currentLocalTime || math.Abs(float64(timeResponse.Unixtime-currentLocalTime)) < 60 {
-		return // -no need to offset time
-	}
-
-	m.timeOffset = timeResponse.Unixtime - currentLocalTime
-	m.genMsgID = utils.NewMsgIDGenerator()
-	m.Logger.Info("system time is out of sync, offsetting time by " + strconv.FormatInt(m.timeOffset, 10) + " seconds")
 }
