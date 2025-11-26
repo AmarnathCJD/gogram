@@ -749,7 +749,7 @@ func GatherMediaMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 	if !IsFfmpegInstalled() {
 		ext := strings.ToLower(filepath.Ext(path))
 
-		if IsStreamableFile(path) {
+		if MimeTypes.IsStreamableFile(path) {
 			var width, height int64
 
 			switch ext {
@@ -794,7 +794,7 @@ func GatherMediaMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 			}
 		}
 
-		if IsAudioFile(path) {
+		if MimeTypes.IsAudioFile(path) {
 			var performer, title string
 			var audioDur int64
 
@@ -849,7 +849,7 @@ func GatherMediaMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 		return attrs, int64(dur), nil
 	}
 
-	if IsStreamableFile(path) {
+	if MimeTypes.IsStreamableFile(path) {
 		var (
 			width  int64
 			height int64
@@ -899,7 +899,7 @@ func GatherMediaMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 		attrs = append(attrs, &DocumentAttributeAnimated{})
 	}
 
-	if IsAudioFile(path) {
+	if MimeTypes.IsAudioFile(path) {
 		var (
 			performer string
 			title     string
@@ -1047,41 +1047,12 @@ func packWaveform(waveform []byte) []byte {
 	return result
 }
 
-func IsStreamable(mimeType string) bool {
-	switch mimeType {
-	case "video/mp4", "video/webm", "video/mpeg", "video/matroska", "video/3gpp", "video/3gpp2", "video/x-matroska", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/x-m4v", "video/x-flv":
-		return true
-	default:
-		return false
-	}
-}
-
-func IsStreamableFile(path string) bool {
-	ext := filepath.Ext(path)
-	switch ext {
-	case ".mp4", ".webm", ".mpeg", ".mkv", ".3gpp", ".3gpp2", ".x-matroska", ".quicktime", ".x-msvideo", ".x-ms-wmv", ".x-m4v", ".x-flv":
-		return true
-	default:
-		return false
-	}
-}
-
-func IsAudioFile(path string) bool {
-	ext := filepath.Ext(path)
-	switch ext {
-	case ".mp3", ".ogg", ".wav", ".flac", ".m4a", ".alac", ".vorbis", ".opus":
-		return true
-	default:
-		return false
-	}
-}
-
 func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error) {
 	if duration == 0 {
 		duration = 2
 	}
 
-	if IsAudioFile(path) {
+	if MimeTypes.IsAudioFile(path) {
 		// get embedded album art
 		cmd := exec.Command("ffmpeg", "-i", path, "-vf", "scale=200:100:force_original_aspect_ratio=increase,thumbnail", "-frames:v", "1", path+".png")
 		_, err := cmd.CombinedOutput()
