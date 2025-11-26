@@ -560,7 +560,10 @@ func (m *NewMessage) GetCommand() string {
 
 // Conv starts a new conversation with the user
 func (m *NewMessage) Conv(timeout ...int32) (*Conversation, error) {
-	return m.Client.NewConversation(m.Peer, m.IsPrivate(), timeout...)
+	return m.Client.NewConversation(m.Peer, &ConversationOptions{
+		Timeout: getVariadic(timeout, 60),
+		Private: m.IsPrivate(),
+	})
 }
 
 // Ask starts new conversation with the user

@@ -150,6 +150,13 @@ func init() {
 	MimeTypes.addMime(".tgs", "application/x-tgsticker")
 }
 
+func parseInt64(s string) (int64, error) {
+	s = strings.TrimSpace(s)
+	var n int64
+	_, err := fmt.Sscanf(s, "%d", &n)
+	return n, err
+}
+
 type Proxy interface {
 	GetHost() string
 	GetPort() int

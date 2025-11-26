@@ -150,7 +150,10 @@ func (b *CallbackQuery) Delete() (*MessagesAffectedMessages, error) {
 
 // Conv starts a new conversation with the user
 func (b *CallbackQuery) Conv(timeout ...int32) (*Conversation, error) {
-	return b.Client.NewConversation(b.Peer, b.IsPrivate(), timeout...)
+	return b.Client.NewConversation(b.Peer, &ConversationOptions{
+		Private: b.IsPrivate(),
+		Timeout: getVariadic(timeout, 60),
+	})
 }
 
 // Ask starts new conversation with the user

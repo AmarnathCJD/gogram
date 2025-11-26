@@ -8,9 +8,10 @@ const (
 	ApiVersion = 218
 	Version    = "v1.6.8"
 
-	ModeAbridged     = "modeAbridged"
-	ModeFull         = "modeFull"
-	ModeIntermediate = "modeIntermediate"
+	ModeAbridged           = "modeAbridged"
+	ModeFull               = "modeFull"
+	ModeIntermediate       = "modeIntermediate"
+	ModePaddedIntermediate = "modePaddedIntermediate"
 
 	MarkDown string = "Markdown"
 	HTML     string = "HTML"
@@ -28,19 +29,14 @@ const (
 	OnInlineCallbackQuery = "OnInlineCallbackQuery"
 	OnChosenInlineResult  = "OnChosenInlineResult"
 	OnDeleteMessage       = "OnDeleteMessage"
-)
 
-const (
-	randombyteLen = 256
-	OneTimeMedia  = 2147483647
+	OneTimeMediaTTL = 2147483647
 )
 
 var (
 	USERNAME_RE = regexp.MustCompile(`(?i)(?:@|(?:https?:\/\/)?(?:www\.)?(?:telegram\.(?:me|dog)|t\.me)\/)([\w\d_]+)`)
 	TG_JOIN_RE  = regexp.MustCompile(`^(?:https?://)?(?:www\.)?t(?:elegram)?\.(?:org|me|dog)/(?:joinchat/|\+)([\w-]+)$`)
-)
 
-var (
 	Actions = map[string]SendMessageAction{
 		"typing":          &SendMessageTypingAction{},
 		"upload_photo":    &SendMessageUploadPhotoAction{},

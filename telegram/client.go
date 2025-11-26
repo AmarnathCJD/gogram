@@ -36,6 +36,7 @@ type clientData struct {
 	deviceModel      string
 	systemVersion    string
 	appVersion       string
+	params           JsonValue
 	langCode         string
 	systemLangCode   string
 	langPack         string
@@ -63,12 +64,13 @@ type Client struct {
 }
 
 type DeviceConfig struct {
-	DeviceModel    string // The device model to use
-	SystemVersion  string // The version of the system
-	AppVersion     string // The version of the app
-	LangCode       string // The language code
-	SystemLangCode string // The system language code
-	LangPack       string // The language pack
+	DeviceModel    string    // The device model to use
+	SystemVersion  string    // The version of the system
+	AppVersion     string    // The version of the app
+	LangCode       string    // The language code
+	SystemLangCode string    // The system language code
+	LangPack       string    // The language pack
+	Params         JsonValue // Additional parameters to send during initialization
 }
 
 type ClientConfig struct {
@@ -193,8 +195,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		UseWebSocket:    config.UseWebSocket,
 		UseWebSocketTLS: config.UseWebSocketTLS,
 		EnablePFS:       config.EnablePFS,
-		OnMigration: func(newMTProto *mtproto.MTProto) {
-			c.MTProto = newMTProto
+		OnMigration: func() {
 			c.InitialRequest()
 		},
 	}
@@ -275,13 +276,17 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 		appVersion:       getValue(cnf.DeviceConfig.AppVersion, Version),
 		langCode:         langCode,
 		systemLangCode:   getValue(cnf.DeviceConfig.SystemLangCode, langCode),
-		langPack:         cnf.DeviceConfig.LangPack,
+		langPack:         getValue(cnf.DeviceConfig.LangPack, "ios"),
 		logLevel:         getValue(cnf.LogLevel, LogInfo),
 		parseMode:        getValue(cnf.ParseMode, "HTML"),
 		sleepThresholdMs: getValue(cnf.SleepThresholdMs, 0),
 		albumWaitTime:    getValue(cnf.AlbumWaitTime, 600),
 		commandPrefixes:  getValue(cnf.CommandPrefixes, "/!"),
 		proxy:            cnf.Proxy,
+	}
+
+	if cnf.DeviceConfig.Params != nil {
+		c.clientData.params = cnf.DeviceConfig.Params
 	}
 
 	if cnf.LogLevel == LogDebug {
@@ -310,6 +315,10 @@ func (c *Client) InitialRequest() error {
 			Address: c.clientData.proxy.GetHost(),
 			Port:    int32(c.clientData.proxy.GetPort()),
 		}
+	}
+
+	if c.clientData.params != nil {
+		request.Params = c.clientData.params
 	}
 
 	serverConfig, err := c.InvokeWithLayer(ApiVersion, request)
