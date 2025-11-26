@@ -813,3 +813,5 @@ func (e *errorDCMigrated) Error() string {
 func (*errorDCMigrated) CRC() uint32 {
 	return 0x00000000
 }
+
+var ErrAuthKeyInvalid = fmt.Errorf("auth key invalid (code -404) - too many failures")
