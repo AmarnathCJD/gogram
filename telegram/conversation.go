@@ -1,12 +1,21 @@
 package telegram
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"regexp"
 	"slices"
+	"strings"
 	"time"
 )
 
-const defaultConversationTimeout = 60
+var (
+	ErrConversationTimeout = errors.New("conversation timeout")
+	ErrConversationClosed  = errors.New("conversation closed")
+	ErrConversationAborted = errors.New("conversation aborted by user")
+	ErrValidationFailed    = errors.New("validation failed after max retries")
+)
 
 // State Machine for conversation with users and in groups
 type Conversation struct {
@@ -17,33 +26,90 @@ type Conversation struct {
 	openHandlers    []Handle
 	lastMsg         *NewMessage
 	stopPropagation bool
+	ctx             context.Context
+	cancel          context.CancelFunc
+	closed          bool
 }
 
-func (c *Client) NewConversation(peer any, isPrivate bool, timeout ...int32) (*Conversation, error) {
+// ConversationOptions for configuring a conversation
+type ConversationOptions struct {
+	Private         bool
+	Timeout         int32
+	StopPropagation bool
+	Context         context.Context
+}
+
+func (c *Client) NewConversation(peer any, options ...*ConversationOptions) (*Conversation, error) {
 	peerID, err := c.ResolvePeer(peer)
 	if err != nil {
 		return nil, err
 	}
+
+	opts := getVariadic(options, &ConversationOptions{
+		Timeout:         60,
+		StopPropagation: true,
+	})
+
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithCancel(ctx)
+
 	return &Conversation{
 		Client:          c,
 		Peer:            peerID,
-		isPrivate:       isPrivate,
-		timeout:         getVariadic(timeout, defaultConversationTimeout),
-		stopPropagation: true,
+		isPrivate:       opts.Private,
+		timeout:         opts.Timeout,
+		stopPropagation: opts.StopPropagation,
+		ctx:             ctx,
+		cancel:          cancel,
 	}, nil
 }
 
-// NewConversation creates a new conversation with user
-func NewConversation(client *Client, peer InputPeer, timeout ...int32) *Conversation {
+// NewConversation creates a new conversation with user (standalone function)
+func NewConversation(client *Client, peer InputPeer, options ...*ConversationOptions) *Conversation {
+	opts := getVariadic(options, &ConversationOptions{
+		Timeout: 60,
+	})
+
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithCancel(ctx)
+
 	return &Conversation{
 		Client:          client,
 		Peer:            peer,
-		timeout:         getVariadic(timeout, defaultConversationTimeout),
-		stopPropagation: false,
+		isPrivate:       opts.Private,
+		timeout:         opts.Timeout,
+		stopPropagation: opts.StopPropagation,
+		ctx:             ctx,
+		cancel:          cancel,
 	}
 }
 
-// SetTimeout sets the timeout for conversation
+func (c *Conversation) WithTimeout(timeout int32) *Conversation {
+	c.timeout = timeout
+	return c
+}
+
+func (c *Conversation) WithPrivate(private bool) *Conversation {
+	c.isPrivate = private
+	return c
+}
+
+func (c *Conversation) WithStopPropagation(stop bool) *Conversation {
+	c.stopPropagation = stop
+	return c
+}
+
+func (c *Conversation) WithContext(ctx context.Context) *Conversation {
+	c.ctx, c.cancel = context.WithCancel(ctx)
+	return c
+}
+
 func (c *Conversation) SetTimeout(timeout int32) *Conversation {
 	c.timeout = timeout
 	return c
@@ -53,6 +119,14 @@ func (c *Conversation) SetTimeout(timeout int32) *Conversation {
 func (c *Conversation) SetStopPropagation(stop bool) *Conversation {
 	c.stopPropagation = stop
 	return c
+}
+
+func (c *Conversation) LastMessage() *NewMessage {
+	return c.lastMsg
+}
+
+func (c *Conversation) IsClosed() bool {
+	return c.closed
 }
 
 func (c *Conversation) Respond(text any, opts ...*SendOptions) (*NewMessage, error) {
@@ -304,9 +378,361 @@ func (c *Conversation) removeHandle(h Handle) {
 	c.Client.removeHandle(h)
 }
 
-// close closes the conversation, removing all open event handlers
+// Close closes the conversation, removing all open event handlers
 func (c *Conversation) Close() {
+	c.closed = true
+	if c.cancel != nil {
+		c.cancel()
+	}
 	for _, h := range c.openHandlers {
 		c.Client.removeHandle(h)
 	}
+	c.openHandlers = nil
+}
+
+func (c *Conversation) Ask(text any, opts ...*SendOptions) (*NewMessage, error) {
+	if _, err := c.Respond(text, opts...); err != nil {
+		return nil, fmt.Errorf("sending message: %w", err)
+	}
+	return c.GetResponse()
+}
+
+func (c *Conversation) AskMedia(text any, opts ...*SendOptions) (*NewMessage, error) {
+	if _, err := c.Respond(text, opts...); err != nil {
+		return nil, fmt.Errorf("sending message: %w", err)
+	}
+	return c.WaitForMedia()
+}
+
+func (c *Conversation) AskPhoto(text any, opts ...*SendOptions) (*NewMessage, error) {
+	if _, err := c.Respond(text, opts...); err != nil {
+		return nil, fmt.Errorf("sending message: %w", err)
+	}
+	return c.WaitForPhoto()
+}
+
+func (c *Conversation) AskDocument(text any, opts ...*SendOptions) (*NewMessage, error) {
+	if _, err := c.Respond(text, opts...); err != nil {
+		return nil, fmt.Errorf("sending message: %w", err)
+	}
+	return c.WaitForDocument()
+}
+
+func (c *Conversation) AskVideo(text any, opts ...*SendOptions) (*NewMessage, error) {
+	if _, err := c.Respond(text, opts...); err != nil {
+		return nil, fmt.Errorf("sending message: %w", err)
+	}
+	return c.WaitForVideo()
+}
+
+func (c *Conversation) AskVoice(text any, opts ...*SendOptions) (*NewMessage, error) {
+	if _, err := c.Respond(text, opts...); err != nil {
+		return nil, fmt.Errorf("sending message: %w", err)
+	}
+	return c.WaitForVoice()
+}
+
+func (c *Conversation) GetResponseMatching(pattern *regexp.Regexp) (*NewMessage, error) {
+	return c.getResponseWithFilter(func(m *NewMessage) bool {
+		return pattern.MatchString(m.Text())
+	})
+}
+
+func (c *Conversation) GetResponseContaining(words ...string) (*NewMessage, error) {
+	return c.getResponseWithFilter(func(m *NewMessage) bool {
+		text := strings.ToLower(m.Text())
+		for _, word := range words {
+			if strings.Contains(text, strings.ToLower(word)) {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+// GetResponseExact waits for a message with exact text match (case-insensitive)
+func (c *Conversation) GetResponseExact(options ...string) (*NewMessage, error) {
+	return c.getResponseWithFilter(func(m *NewMessage) bool {
+		text := strings.ToLower(strings.TrimSpace(m.Text()))
+		for _, opt := range options {
+			if text == strings.ToLower(opt) {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+func (c *Conversation) getResponseWithFilter(check func(*NewMessage) bool) (*NewMessage, error) {
+	resp := make(chan *NewMessage, 1)
+	waitFunc := func(m *NewMessage) error {
+		if check(m) {
+			select {
+			case resp <- m:
+				c.lastMsg = m
+			default:
+			}
+		}
+		if c.stopPropagation {
+			return ErrEndGroup
+		}
+		return nil
+	}
+
+	filters := c.buildFilters()
+	h := c.Client.On(OnMessage, waitFunc, filters...)
+	h.SetGroup(-1)
+	c.openHandlers = append(c.openHandlers, h)
+
+	select {
+	case <-c.ctx.Done():
+		go c.removeHandle(h)
+		return nil, ErrConversationClosed
+	case <-time.After(time.Duration(c.timeout) * time.Second):
+		go c.removeHandle(h)
+		return nil, ErrConversationTimeout
+	case m := <-resp:
+		go c.removeHandle(h)
+		return m, nil
+	}
+}
+
+func (c *Conversation) WaitForPhoto() (*NewMessage, error) {
+	return c.getResponseWithFilter(func(m *NewMessage) bool {
+		return m.Photo() != nil
+	})
+}
+
+func (c *Conversation) WaitForDocument() (*NewMessage, error) {
+	return c.getResponseWithFilter(func(m *NewMessage) bool {
+		return m.Document() != nil
+	})
+}
+
+func (c *Conversation) WaitForVoice() (*NewMessage, error) {
+	return c.getResponseWithFilter(func(m *NewMessage) bool {
+		if doc := m.Document(); doc != nil {
+			for _, attr := range doc.Attributes {
+				if _, ok := attr.(*DocumentAttributeAudio); ok {
+					return true
+				}
+			}
+		}
+		return false
+	})
+}
+
+func (c *Conversation) WaitForVideo() (*NewMessage, error) {
+	return c.getResponseWithFilter(func(m *NewMessage) bool {
+		return m.Video() != nil
+	})
+}
+
+func (c *Conversation) WaitForSticker() (*NewMessage, error) {
+	return c.getResponseWithFilter(func(m *NewMessage) bool {
+		return m.Sticker() != nil
+	})
+}
+
+func (c *Conversation) WaitForMedia() (*NewMessage, error) {
+	return c.getResponseWithFilter(func(m *NewMessage) bool {
+		return m.Media() != nil
+	})
+}
+
+// Choice sends a message with inline buttons and waits for a button click.
+// eg. choices := []string{"Option 1", "Option 2", "Option 3"}
+func (c *Conversation) Choice(text string, choices []string) (*CallbackQuery, error) {
+	kb := NewKeyboard()
+	var buttons []KeyboardButton
+	for _, choice := range choices {
+		buttons = append(buttons, Button.Data(choice, choice))
+	}
+	kb.AddRow(buttons...)
+
+	_, err := c.Respond(text, &SendOptions{
+		ReplyMarkup: kb.Build(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending choice message: %w", err)
+	}
+
+	return c.WaitClick()
+}
+
+func (c *Conversation) ChoiceRow(text string, rows ...[]string) (*CallbackQuery, error) {
+	kb := NewKeyboard()
+	for _, row := range rows {
+		var buttons []KeyboardButton
+		for _, choice := range row {
+			buttons = append(buttons, Button.Data(choice, choice))
+		}
+		kb.AddRow(buttons...)
+	}
+
+	_, err := c.Respond(text, &SendOptions{
+		ReplyMarkup: kb.Build(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending choice message: %w", err)
+	}
+
+	return c.WaitClick()
+}
+
+// AskUntil keeps asking until the validator returns true or maxRetries is reached.
+// On each failed validation, it sends the retryMessage if provided.
+func (c *Conversation) AskUntil(question string, validator func(*NewMessage) bool, maxRetries int, retryMessage ...string) (*NewMessage, error) {
+	retry := "Invalid response. Please try again."
+	if len(retryMessage) > 0 {
+		retry = retryMessage[0]
+	}
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		msg, err := c.Ask(question)
+		if err != nil {
+			return nil, err
+		}
+
+		if validator(msg) {
+			return msg, nil
+		}
+
+		if attempt < maxRetries-1 {
+			question = retry // Use retry message for subsequent attempts
+		}
+	}
+
+	return nil, fmt.Errorf("%w: after %d attempts", ErrValidationFailed, maxRetries)
+}
+
+// AskNumber asks for a numeric response
+func (c *Conversation) AskNumber(question string, maxRetries ...int) (int64, error) {
+	retries := getVariadic(maxRetries, 3)
+	msg, err := c.AskUntil(question, func(m *NewMessage) bool {
+		_, err := parseInt64(m.Text())
+		return err == nil
+	}, retries, "Please enter a valid number.")
+	if err != nil {
+		return 0, err
+	}
+	num, _ := parseInt64(msg.Text())
+	return num, nil
+}
+
+// AskYesNo asks a yes/no question and returns the boolean response
+func (c *Conversation) AskYesNo(question string) (bool, error) {
+	msg, err := c.AskUntil(question, func(m *NewMessage) bool {
+		text := strings.ToLower(strings.TrimSpace(m.Text()))
+		return text == "yes" || text == "no" || text == "y" || text == "n"
+	}, 3, "Please answer with 'yes' or 'no'.")
+	if err != nil {
+		return false, err
+	}
+	text := strings.ToLower(strings.TrimSpace(msg.Text()))
+	return text == "yes" || text == "y", nil
+}
+
+// ConversationStep represents a single step in a multi-step conversation
+type ConversationStep struct {
+	Name       string
+	Question   string
+	Validator  func(*NewMessage) bool
+	RetryMsg   string
+	MaxRetries int
+}
+
+// ConversationWizard manages multi-step conversations
+type ConversationWizard struct {
+	conv    *Conversation
+	steps   []ConversationStep
+	answers map[string]*NewMessage
+}
+
+func (c *Conversation) Wizard() *ConversationWizard {
+	return &ConversationWizard{
+		conv:    c,
+		answers: make(map[string]*NewMessage),
+	}
+}
+
+func (w *ConversationWizard) Step(name, question string, opts ...func(*ConversationStep)) *ConversationWizard {
+	step := ConversationStep{
+		Name:       name,
+		Question:   question,
+		MaxRetries: 3,
+	}
+	for _, opt := range opts {
+		opt(&step)
+	}
+	w.steps = append(w.steps, step)
+	return w
+}
+
+func WithValidator(fn func(*NewMessage) bool) func(*ConversationStep) {
+	return func(s *ConversationStep) {
+		s.Validator = fn
+	}
+}
+
+func WithRetryMessage(msg string) func(*ConversationStep) {
+	return func(s *ConversationStep) {
+		s.RetryMsg = msg
+	}
+}
+
+func WithMaxRetries(n int) func(*ConversationStep) {
+	return func(s *ConversationStep) {
+		s.MaxRetries = n
+	}
+}
+
+func (w *ConversationWizard) Run() (map[string]*NewMessage, error) {
+	for _, step := range w.steps {
+		var msg *NewMessage
+		var err error
+
+		if step.Validator != nil {
+			retryMsg := step.RetryMsg
+			if retryMsg == "" {
+				retryMsg = "Invalid input. Please try again."
+			}
+			msg, err = w.conv.AskUntil(step.Question, step.Validator, step.MaxRetries, retryMsg)
+		} else {
+			msg, err = w.conv.Ask(step.Question)
+		}
+
+		if err != nil {
+			return w.answers, fmt.Errorf("step %q failed: %w", step.Name, err)
+		}
+
+		w.answers[step.Name] = msg
+	}
+
+	return w.answers, nil
+}
+
+func (w *ConversationWizard) GetAnswer(name string) *NewMessage {
+	return w.answers[name]
+}
+
+func (w *ConversationWizard) GetAnswerText(name string) string {
+	if msg := w.answers[name]; msg != nil {
+		return msg.Text()
+	}
+	return ""
+}
+
+func (c *Conversation) buildFilters() []Filter {
+	var filters []Filter
+	switch c.Peer.(type) {
+	case *InputPeerChannel, *InputPeerChat:
+		filters = append(filters, FilterChats(c.Client.GetPeerID(c.Peer)))
+	case *InputPeerUser, *InputPeerSelf:
+		filters = append(filters, FilterUsers(c.Client.GetPeerID(c.Peer)))
+	}
+	if c.isPrivate {
+		filters = append(filters, FilterPrivate)
+	}
+	return filters
 }

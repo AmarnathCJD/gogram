@@ -1548,7 +1548,7 @@ func GetInputCheckPassword(password string, accountPassword *AccountPassword) (I
 // all the internal functions are in internal/ige, send pr if you want to use them directly
 // https://core.telegram.org/api/srp#checking-the-password-with-srp
 func GetInputCheckPasswordAlgo(password string, srpB []byte, mp *ige.ModPow) (*ige.SrpAnswer, error) {
-	return ige.GetInputCheckPassword(password, srpB, mp, ige.RandomBytes(randombyteLen))
+	return ige.GetInputCheckPassword(password, srpB, mp, ige.RandomBytes(256))
 }
 
 func ComputeDigest(algo *PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SHA256ModPow, password string) []byte {

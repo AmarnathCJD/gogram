@@ -101,7 +101,7 @@ type MTProto struct {
 	useWebSocketTLS bool
 	enablePFS       bool
 
-	onMigration func(newMTProto *MTProto)
+	onMigration func()
 }
 
 type Config struct {
@@ -131,7 +131,7 @@ type Config struct {
 	UseWebSocket    bool
 	UseWebSocketTLS bool
 
-	OnMigration func(newMTProto *MTProto)
+	OnMigration func()
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -228,6 +228,8 @@ func parseTransportMode(sMode string) mode.Variant {
 		return mode.Full
 	case "modeIntermediate":
 		return mode.Intermediate
+	case "modePaddedIntermediate":
+		return mode.PaddedIntermediate
 	default:
 		return mode.Abridged
 	}
@@ -753,7 +755,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 					m.SwitchDc(dcID)
 
 					if m.onMigration != nil {
-						m.onMigration(m)
+						m.onMigration()
 					}
 					return nil, &errorDCMigrated{int32(dcID)}
 				}
