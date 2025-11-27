@@ -210,6 +210,9 @@ func (c *Client) EditMessage(peerID any, id int32, message any, opts ...*SendOpt
 		entities = opt.Entities
 	}
 	media = getValue(media, opt.Media)
+	if s, ok := media.(string); ok && s == "" {
+		media = nil
+	}
 	switch p := peerID.(type) {
 	case *InputBotInlineMessageID:
 		return c.editBotInlineMessage(*p, textMessage, entities, media, opt)
