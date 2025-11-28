@@ -4,91 +4,87 @@ package transport
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"strconv"
+	"sync"
 )
 
-// Reader is a wrapper around io.Reader, that allows to cancel read operation.
+// Reader is a context-aware wrapper around io.Reader that allows cancellation.
 type Reader struct {
-	ctx  context.Context
-	data chan []byte
-
-	sizeWant chan int
-
-	err error
-	r   io.Reader
+	ctx    context.Context
+	cancel context.CancelFunc
+	r      io.Reader
+	mu     sync.Mutex
+	closed bool
 }
 
-func (c *Reader) begin() {
-	for {
-		select {
-		case <-c.ctx.Done():
-			close(c.data)
-			close(c.sizeWant)
-			return
-		case sizeWant := <-c.sizeWant:
-			buf := make([]byte, sizeWant)
-			n, err := io.ReadFull(c.r, buf)
-			if err != nil {
-				c.err = err
-				close(c.data)
-				return
-			}
-			if n != sizeWant {
-				panic("read " + strconv.Itoa(n) + ", want " + strconv.Itoa(sizeWant))
-			}
-			c.data <- buf
-		}
+// NewReader creates a new context-aware Reader.
+func NewReader(ctx context.Context, r io.Reader) *Reader {
+	ctx, cancel := context.WithCancel(ctx)
+	return &Reader{
+		ctx:    ctx,
+		cancel: cancel,
+		r:      r,
 	}
 }
 
 func (c *Reader) Read(p []byte) (int, error) {
-	defer func() {
-		if r := recover(); r != nil {
-			c.err = io.ErrClosedPipe
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return 0, io.ErrClosedPipe
+	}
+	c.mu.Unlock()
+
+	// check context before reading
+	select {
+	case <-c.ctx.Done():
+		return 0, c.ctx.Err()
+	default:
+	}
+
+	// use a channel to make the read cancellable
+	type readResult struct {
+		n   int
+		err error
+	}
+
+	resultCh := make(chan readResult, 1)
+
+	go func() {
+		n, err := io.ReadFull(c.r, p)
+		select {
+		case resultCh <- readResult{n, err}:
+		case <-c.ctx.Done():
 		}
 	}()
 
 	select {
 	case <-c.ctx.Done():
 		return 0, c.ctx.Err()
-	case c.sizeWant <- len(p):
-	}
-
-	select {
-	case <-c.ctx.Done():
-		return 0, c.ctx.Err()
-	case d, ok := <-c.data:
-		if !ok {
-			return 0, c.err
-		}
-		copy(p, d)
-		return len(d), nil
+	case result := <-resultCh:
+		return result.n, result.err
 	}
 }
 
 func (c *Reader) ReadByte() (byte, error) {
 	b := make([]byte, 1)
-
 	n, err := c.Read(b)
 	if err != nil {
-		return 0x0, err
+		return 0, err
 	}
-	if n != 1 {
-		panic(fmt.Errorf("read more than 1 byte, got %v", n))
+	if n == 0 {
+		return 0, io.EOF
 	}
-
 	return b[0], nil
 }
 
-func NewReader(ctx context.Context, r io.Reader) *Reader {
-	c := &Reader{
-		r:        r,
-		ctx:      ctx,
-		data:     make(chan []byte),
-		sizeWant: make(chan int),
+func (c *Reader) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if !c.closed {
+		c.closed = true
+		c.cancel()
 	}
-	go c.begin()
-	return c
+	return nil
 }

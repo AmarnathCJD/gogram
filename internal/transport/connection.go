@@ -116,6 +116,9 @@ func newMTProxyTCP(cfg TCPConnConfig) (Conn, bool, error) {
 }
 
 func (t *tcpConn) Close() error {
+	if t.reader != nil {
+		t.reader.Close()
+	}
 	return t.conn.Close()
 }
 
