@@ -8,22 +8,60 @@ import (
 	"sync"
 )
 
-// Reader is a context-aware wrapper around io.Reader that allows cancellation.
 type Reader struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	r      io.Reader
+
 	mu     sync.Mutex
 	closed bool
+
+	reqCh chan readRequest
+	wg    sync.WaitGroup
+}
+
+type readRequest struct {
+	buf    []byte
+	respCh chan readResponse
+}
+
+type readResponse struct {
+	n   int
+	err error
 }
 
 // NewReader creates a new context-aware Reader.
 func NewReader(ctx context.Context, r io.Reader) *Reader {
 	ctx, cancel := context.WithCancel(ctx)
-	return &Reader{
+	reader := &Reader{
 		ctx:    ctx,
 		cancel: cancel,
 		r:      r,
+		reqCh:  make(chan readRequest),
+	}
+	reader.wg.Add(1)
+	go reader.worker()
+	return reader
+}
+
+func (c *Reader) worker() {
+	defer c.wg.Done()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case req, ok := <-c.reqCh:
+			if !ok {
+				return
+			}
+			n, err := io.ReadFull(c.r, req.buf)
+			select {
+			case req.respCh <- readResponse{n, err}:
+			case <-c.ctx.Done():
+				return
+			}
+		}
 	}
 }
 
@@ -35,34 +73,26 @@ func (c *Reader) Read(p []byte) (int, error) {
 	}
 	c.mu.Unlock()
 
-	// check context before reading
 	select {
 	case <-c.ctx.Done():
 		return 0, c.ctx.Err()
 	default:
 	}
 
-	// use a channel to make the read cancellable
-	type readResult struct {
-		n   int
-		err error
-	}
-
-	resultCh := make(chan readResult, 1)
-
-	go func() {
-		n, err := io.ReadFull(c.r, p)
-		select {
-		case resultCh <- readResult{n, err}:
-		case <-c.ctx.Done():
-		}
-	}()
+	respCh := make(chan readResponse, 1)
+	req := readRequest{buf: p, respCh: respCh}
 
 	select {
 	case <-c.ctx.Done():
 		return 0, c.ctx.Err()
-	case result := <-resultCh:
-		return result.n, result.err
+	case c.reqCh <- req:
+	}
+
+	select {
+	case <-c.ctx.Done():
+		return 0, c.ctx.Err()
+	case resp := <-respCh:
+		return resp.n, resp.err
 	}
 }
 
@@ -80,11 +110,14 @@ func (c *Reader) ReadByte() (byte, error) {
 
 func (c *Reader) Close() error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if !c.closed {
-		c.closed = true
-		c.cancel()
+	if c.closed {
+		c.mu.Unlock()
+		return nil
 	}
+	c.closed = true
+	c.mu.Unlock()
+
+	c.cancel()
+	c.wg.Wait()
 	return nil
 }
