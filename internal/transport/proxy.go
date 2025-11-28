@@ -192,10 +192,10 @@ func dialSocks5(s *url.URL, addr string, localAddr string) (net.Conn, error) {
 	}
 
 	if buf[0] != 5 {
-		return nil, errors.New("socks version not supported")
+		return nil, fmt.Errorf("socks version not supported: %d", buf[0])
 	}
 	if buf[1] != 0 {
-		return nil, errors.New("socks connection failed")
+		return nil, fmt.Errorf("socks connection failed, error code: %d", buf[1])
 	}
 
 	switch buf[3] {
@@ -282,10 +282,10 @@ func dialSocks4(s *url.URL, addr string, localAddr string) (net.Conn, error) {
 	}
 
 	if buf[0] != 0 {
-		return nil, errors.New("SOCKS version not supported")
+		return nil, fmt.Errorf("invalid SOCKS4 response version: %d", buf[0])
 	}
 	if buf[1] != 90 {
-		return nil, errors.New("SOCKS connection failed")
+		return nil, fmt.Errorf("SOCKS connection failed, error code: %d", buf[1])
 	}
 
 	return conn, nil

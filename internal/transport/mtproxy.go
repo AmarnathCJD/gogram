@@ -665,7 +665,7 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 	rawConn, err := dialer.Dial("tcp", proxyAddr)
 	if err != nil {
 		if logger != nil {
-			logger.WithError(err).WithField("proxy", proxyAddr).Error("[mtproxy] TCP connection failed")
+			logger.WithError(err).WithField("proxy", proxyAddr).Debug("[mtproxy] TCP connection failed")
 		}
 		return nil, fmt.Errorf("connecting to MTProxy: %w", err)
 	}
@@ -689,9 +689,6 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 		ftlsConn, err := startFakeTLS(tcpConnection, secretBytes, serverHostname)
 		if err != nil {
 			tcpConnection.Close()
-			if logger != nil {
-				logger.WithError(err).Error("[mtproxy] fake TLS handshake failed")
-			}
 			return nil, fmt.Errorf("fake TLS handshake failed: %w", err)
 		}
 		conn = ftlsConn
@@ -704,9 +701,6 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 	obfConn, err := NewObfuscatedConnWithSecret(conn, protocolID, secretBytes, dcID)
 	if err != nil {
 		conn.Close()
-		if logger != nil {
-			logger.WithError(err).Error("[mtproxy] obfuscation failed")
-		}
 		return nil, fmt.Errorf("creating obfuscated connection: %w", err)
 	}
 
@@ -714,7 +708,7 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 		logger.WithFields(map[string]any{
 			"proxy": proxy.GetHost(),
 			"dc":    dcID,
-		}).Info("[mtproxy] connection established")
+		}).Debug("[mtproxy] connection established")
 	}
 
 	// The obfuscated connection handles:

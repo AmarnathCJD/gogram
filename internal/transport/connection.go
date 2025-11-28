@@ -59,7 +59,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, bool, error) {
 
 	if err != nil {
 		if cfg.Logger != nil {
-			cfg.Logger.WithError(err).Error("[tcp] connection failed")
+			cfg.Logger.WithError(err).Debug("[tcp] connection failed")
 		}
 		return nil, false, fmt.Errorf("dialing tcp: %w", err)
 	}
@@ -85,7 +85,7 @@ func newSocksTCP(cfg TCPConnConfig) (Conn, bool, error) {
 	conn, err := dialProxy(cfg.Socks.ToURL(), cfg.Host, cfg.LocalAddr)
 	if err != nil {
 		if cfg.Logger != nil {
-			cfg.Logger.Error("[%s] connection failed: %v", cfg.Socks.Type, err)
+			cfg.Logger.Debug("[%s] connection failed: %v", cfg.Socks.Type, err)
 		}
 		return nil, false, err
 	}
