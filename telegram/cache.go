@@ -163,10 +163,19 @@ type CACHE struct {
 	binded      bool
 	storage     CacheStorage
 
+	mediaCache   map[string]*CachedMedia
+	mediaCacheMu sync.RWMutex
+
 	wipeScheduled atomic.Bool
 	writePending  atomic.Bool
 	lastWrite     time.Time
 	writeMu       sync.Mutex
+}
+
+type CachedMedia struct {
+	FileID    string `json:"file_id"`
+	CachedAt  int64  `json:"cached_at"`
+	ExpiresAt int64  `json:"expires_at"`
 }
 
 type InputPeerCache struct {
@@ -404,6 +413,7 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 		channels:    make(map[int64]*Channel),
 		usernameMap: make(map[string]int64),
 		InputPeers:  newInputPeerCache(),
+		mediaCache:  make(map[string]*CachedMedia),
 		memory:      opt.Memory,
 		disabled:    opt.Disabled,
 		maxSize:     opt.MaxSize,
@@ -1028,4 +1038,83 @@ func trimSuffixHundred(id int64) int64 {
 
 	idInt, _ := strconv.Atoi(idStr)
 	return int64(idInt)
+}
+
+// GetCachedMedia retrieves a cached media by its key (URL or file hash)
+func (c *CACHE) GetCachedMedia(key string) (*CachedMedia, bool) {
+	if c.disabled {
+		return nil, false
+	}
+	c.mediaCacheMu.RLock()
+	defer c.mediaCacheMu.RUnlock()
+
+	if c.mediaCache == nil {
+		return nil, false
+	}
+
+	media, ok := c.mediaCache[key]
+	if !ok {
+		return nil, false
+	}
+
+	if media.ExpiresAt > 0 && time.Now().Unix() > media.ExpiresAt {
+		return nil, false
+	}
+
+	return media, true
+}
+
+func (c *CACHE) SetCachedMedia(key string, media *CachedMedia, ttlSeconds ...int64) {
+	if c.disabled {
+		return
+	}
+	c.mediaCacheMu.Lock()
+	defer c.mediaCacheMu.Unlock()
+
+	if c.mediaCache == nil {
+		c.mediaCache = make(map[string]*CachedMedia)
+	}
+
+	media.CachedAt = time.Now().Unix()
+
+	ttl := int64(24 * 60 * 60) // default 24 hours
+	if len(ttlSeconds) > 0 {
+		if ttlSeconds[0] == -1 {
+			ttl = 0 // no expiry
+		} else if ttlSeconds[0] > 0 {
+			ttl = ttlSeconds[0]
+		}
+	}
+
+	if ttl > 0 {
+		media.ExpiresAt = media.CachedAt + ttl
+	}
+
+	c.mediaCache[key] = media
+
+	if len(c.mediaCache) > 2000 {
+		c.cleanupMediaCache()
+	}
+}
+
+func (c *CACHE) DeleteCachedMedia(key string) {
+	c.mediaCacheMu.Lock()
+	defer c.mediaCacheMu.Unlock()
+
+	delete(c.mediaCache, key)
+}
+
+func (c *CACHE) cleanupMediaCache() {
+	now := time.Now().Unix()
+	for key, media := range c.mediaCache {
+		if media.ExpiresAt > 0 && now > media.ExpiresAt {
+			delete(c.mediaCache, key)
+		}
+	}
+}
+
+func (c *CACHE) ClearMediaCache() {
+	c.mediaCacheMu.Lock()
+	defer c.mediaCacheMu.Unlock()
+	c.mediaCache = make(map[string]*CachedMedia)
 }
