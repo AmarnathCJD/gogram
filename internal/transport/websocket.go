@@ -73,7 +73,7 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 
 	if u.Scheme == "wss" {
 		if cfg.Logger != nil {
-			cfg.Logger.Debug("[ws] establishing TLS connection")
+			cfg.Logger.Debug("[wss] establishing TLS connection")
 		}
 		tlsConfig := &tls.Config{
 			ServerName: strings.Split(u.Host, ":")[0],
@@ -90,7 +90,7 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 
 	if err != nil {
 		if cfg.Logger != nil {
-			cfg.Logger.WithError(err).Error("[ws] connection failed")
+			cfg.Logger.WithError(err).Debug("[ws] connection failed")
 		}
 		return nil, fmt.Errorf("dial failed: %w", err)
 	}
@@ -125,25 +125,17 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 	resp, err := http.ReadResponse(reader, &http.Request{Method: "GET"})
 	if err != nil {
 		conn.Close()
-		if cfg.Logger != nil {
-			cfg.Logger.WithError(err).Error("[ws] failed to read handshake response")
-		}
 		return nil, fmt.Errorf("read handshake response failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if cfg.Logger != nil {
-		cfg.Logger.WithField("status", resp.StatusCode).Debug("[ws] handshake response received")
+		cfg.Logger.WithField("status", resp.StatusCode).Trace("[ws] handshake response received")
 	}
 
 	if resp.StatusCode != 101 {
 		conn.Close()
-		if cfg.Logger != nil {
-			cfg.Logger.WithFields(map[string]any{
-				"expected": 101,
-				"got":      resp.StatusCode,
-			}).Error("[ws] handshake failed")
-		}
+
 		return nil, fmt.Errorf("handshake failed: status %d", resp.StatusCode)
 	}
 
@@ -158,13 +150,13 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 			cfg.Logger.WithFields(map[string]any{
 				"expected": expectedKey,
 				"got":      acceptKey,
-			}).Error("[ws] invalid Sec-WebSocket-Accept")
+			}).Debug("[ws] invalid Sec-WebSocket-Accept")
 		}
 		return nil, errors.New("invalid Sec-WebSocket-Accept")
 	}
 
 	if cfg.Logger != nil {
-		cfg.Logger.Debug("[ws] handshake validation successful")
+		cfg.Logger.Trace("[ws] handshake validation successful")
 	}
 
 	ws := &wsConn{
@@ -180,16 +172,13 @@ func NewWebSocket(cfg WSConnConfig) (Conn, error) {
 	obf, err := NewObfuscatedConn(ws, ProtocolID(cfg.ModeVariant))
 	if err != nil {
 		conn.Close()
-		if cfg.Logger != nil {
-			cfg.Logger.WithError(err).Error("[ws] obfuscation failed")
-		}
 		return nil, fmt.Errorf("obfuscation failed: %w", err)
 	}
 
 	ws.reader = NewReader(cfg.Ctx, obf)
 
 	if cfg.Logger != nil {
-		cfg.Logger.Info("[ws] WebSocket connection fully established")
+		cfg.Logger.Debug("[ws] WebSocket connection fully established")
 	}
 
 	return obf, nil

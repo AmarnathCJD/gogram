@@ -28,6 +28,12 @@ func main() {
 
 	// Simple conversation example
 	client.On("command:ask", simpleConversationHandler)
+	// Choice buttons example
+	client.On("command:choice", choiceExample)
+	// Media request example
+	client.On("command:media", mediaExample)
+	// Yes/No question example
+	client.On("command:confirm", confirmExample)
 
 	client.Idle()
 }
