@@ -762,6 +762,9 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 
 			if attempt < maxRetries {
 				m.Logger.Trace("request timeout, retrying: %s", utils.FmtMethod(data))
+				m.Logger.Info("for debug: retrying method: %s, attempt %d/%d, with timeout %s, isconnected: %t",
+					utils.FmtMethod(data), attempt+1, maxRetries+1, m.getTimeout(data).String(), m.IsTcpActive(),
+				)
 				ctx, cancel = context.WithTimeout(context.Background(), m.getTimeout(data))
 				defer cancel()
 				continue
