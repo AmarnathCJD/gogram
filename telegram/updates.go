@@ -322,49 +322,28 @@ func (d *UpdateDispatcher) UpdateLastUpdateTime() {
 	d.lastUpdateTime = time.Now()
 }
 
-func (d *UpdateDispatcher) IsUpdateProcessed(updateID int64) bool {
-	d.RLock()
-	defer d.RUnlock()
-	if d.processedUpdates == nil {
-		return false
-	}
-	_, exists := d.processedUpdates[updateID]
-	return exists
-}
-
-func (d *UpdateDispatcher) MarkUpdateProcessed(updateID int64) {
+// TryMarkUpdateProcessed atomically checks if an update was processed and marks it if not.
+// Returns true if this call marked it (first processor), false if already processed.
+func (d *UpdateDispatcher) TryMarkUpdateProcessed(updateID int64) bool {
 	d.Lock()
 	defer d.Unlock()
 	if d.processedUpdates == nil {
 		d.processedUpdates = make(map[int64]time.Time)
 	}
+	if _, exists := d.processedUpdates[updateID]; exists {
+		return false
+	}
 	d.processedUpdates[updateID] = time.Now()
 
-	if len(d.processedUpdates) > 1000 {
-		oldest := time.Now()
-		var oldestID int64
+	if len(d.processedUpdates) > 5000 {
+		cutoff := time.Now().Add(-5 * time.Minute)
 		for id, t := range d.processedUpdates {
-			if t.Before(oldest) {
-				oldest = t
-				oldestID = id
+			if t.Before(cutoff) {
+				delete(d.processedUpdates, id)
 			}
 		}
-		delete(d.processedUpdates, oldestID)
 	}
-}
-
-func (d *UpdateDispatcher) CleanOldProcessedUpdates() {
-	d.Lock()
-	defer d.Unlock()
-	if d.processedUpdates == nil {
-		return
-	}
-	cutoff := time.Now().Add(-5 * time.Minute)
-	for id, t := range d.processedUpdates {
-		if t.Before(cutoff) {
-			delete(d.processedUpdates, id)
-		}
-	}
+	return true
 }
 
 func (c *Client) NewUpdateDispatcher(sessionName ...string) {
@@ -393,7 +372,6 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 	c.dispatcher.logger.Debug("dispatcher initialized")
 
 	go c.monitorNoUpdatesTimeout()
-	go c.cleanupProcessedUpdates()
 }
 
 func (c *Client) RemoveHandle(handle Handle) error {
@@ -461,22 +439,20 @@ func removeHandleFromMap[T any](handle T, handlesMap map[int][]T) {
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
+		// build unique update ID: (peerID << 32) | msgID
 		updateID := int64(msg.ID)
-		if msg.PeerID != nil {
-			if peer, ok := msg.PeerID.(*PeerChannel); ok {
-				updateID = (int64(peer.ChannelID) << 32) | int64(msg.ID)
-			} else if peer, ok := msg.PeerID.(*PeerChat); ok {
-				updateID = (int64(peer.ChatID) << 32) | int64(msg.ID)
-			} else if peer, ok := msg.PeerID.(*PeerUser); ok {
-				updateID = (int64(peer.UserID) << 32) | int64(msg.ID)
-			}
+		peerID := c.GetPeerID(msg.PeerID)
+		if peerID == 0 {
+			peerID = c.GetPeerID(msg.FromID)
+		}
+		if peerID != 0 {
+			updateID = (peerID << 32) | int64(msg.ID)
 		}
 
-		if c.dispatcher.IsUpdateProcessed(updateID) {
-			c.dispatcher.logger.Debug("skipping already processed message update: %s", updateID)
+		if !c.dispatcher.TryMarkUpdateProcessed(updateID) {
+			c.dispatcher.logger.Trace("skipping duplicate message update: %d", updateID)
 			return
 		}
-		c.dispatcher.MarkUpdateProcessed(updateID)
 
 		if msg.GroupedID != 0 {
 			c.handleAlbum(*msg)
@@ -2542,20 +2518,6 @@ func (c *Client) monitorNoUpdatesTimeout() {
 				c.Log.Debug("no updates received for 15 minutes, getting difference...")
 				c.FetchDifference(c.dispatcher.currentPts, 5000)
 			}
-		case <-c.dispatcher.stopChan:
-			return
-		}
-	}
-}
-
-func (c *Client) cleanupProcessedUpdates() {
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			c.dispatcher.CleanOldProcessedUpdates()
 		case <-c.dispatcher.stopChan:
 			return
 		}
