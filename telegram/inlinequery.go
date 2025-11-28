@@ -290,6 +290,14 @@ func (m *InlineQuery) Args() string {
 	return strings.TrimSpace(strings.Join(Messages[1:], " "))
 }
 
+func (m *InlineQuery) ArgsList() []string {
+	Messages := strings.Split(m.Query, " ")
+	if len(Messages) < 2 {
+		return []string{}
+	}
+	return Messages[1:]
+}
+
 func (i *InlineSend) Edit(message any, options ...*SendOptions) (*NewMessage, error) {
 	return i.Client.EditMessage(&i.MsgID, 0, message, options...)
 }

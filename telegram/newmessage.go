@@ -535,6 +535,14 @@ func (m *NewMessage) Args() string {
 	return strings.TrimSpace(strings.Join(Messages[1:], " "))
 }
 
+func (m *NewMessage) ArgsList() []string {
+	Messages := strings.Split(m.Text(), " ")
+	if len(Messages) < 2 {
+		return []string{}
+	}
+	return Messages[1:]
+}
+
 // IsCommand returns true if the message is a command
 func (m *NewMessage) IsCommand() bool {
 	for _, p := range m.Message.Entities {
