@@ -700,29 +700,94 @@ mediaTypeSwitch:
 }
 
 func (c *Client) uploadToSelf(mediaFile InputMedia) (InputMedia, error) {
+	cacheKey := c.getMediaCacheKey(mediaFile)
+
+	if cacheKey != "" {
+		if cached, ok := c.Cache.GetCachedMedia(cacheKey); ok {
+			media, err := ResolveBotFileID(cached.FileID)
+			if err == nil {
+				switch m := media.(type) {
+				case *MessageMediaPhoto:
+					if photo, ok := m.Photo.(*PhotoObj); ok {
+						return &InputMediaPhoto{ID: &InputPhotoObj{
+							ID:            photo.ID,
+							AccessHash:    photo.AccessHash,
+							FileReference: photo.FileReference,
+						}}, nil
+					}
+				case *MessageMediaDocument:
+					if doc, ok := m.Document.(*DocumentObj); ok {
+						return &InputMediaDocument{ID: &InputDocumentObj{
+							ID:            doc.ID,
+							AccessHash:    doc.AccessHash,
+							FileReference: doc.FileReference,
+						}}, nil
+					}
+				}
+			}
+		}
+	}
+
 	upl, err := c.MessagesUploadMedia("", &InputPeerSelf{}, mediaFile)
 	if err != nil {
 		return nil, err
 	}
 
+	var result InputMedia
+	var fileID string
+
 	switch upl := upl.(type) {
 	case *MessageMediaPhoto:
 		switch photo := upl.Photo.(type) {
 		case *PhotoObj:
-			return &InputMediaPhoto{ID: &InputPhotoObj{ID: photo.ID, AccessHash: photo.AccessHash, FileReference: photo.FileReference}}, nil
+			result = &InputMediaPhoto{ID: &InputPhotoObj{ID: photo.ID, AccessHash: photo.AccessHash, FileReference: photo.FileReference}}
+			fileID = PackBotFileID(photo)
 		case *PhotoEmpty:
 			return &InputMediaPhoto{ID: &InputPhotoEmpty{}}, nil
 		}
 	case *MessageMediaDocument:
 		switch doc := upl.Document.(type) {
 		case *DocumentObj:
-			return &InputMediaDocument{ID: &InputDocumentObj{ID: doc.ID, AccessHash: doc.AccessHash, FileReference: doc.FileReference}}, nil
+			result = &InputMediaDocument{ID: &InputDocumentObj{ID: doc.ID, AccessHash: doc.AccessHash, FileReference: doc.FileReference}}
+			fileID = PackBotFileID(doc)
 		case *DocumentEmpty:
 			return &InputMediaDocument{ID: &InputDocumentEmpty{}}, nil
 		}
 	}
 
-	return nil, fmt.Errorf("unable to upload media to self, unknown media type %s", reflect.TypeOf(upl).String())
+	if result == nil {
+		return nil, fmt.Errorf("unable to upload media to self, unknown media type %s", reflect.TypeOf(upl).String())
+	}
+
+	if cacheKey != "" && fileID != "" {
+		c.Cache.SetCachedMedia(cacheKey, &CachedMedia{FileID: fileID})
+	}
+
+	return result, nil
+}
+
+func (c *Client) getMediaCacheKey(media InputMedia) string {
+	switch m := media.(type) {
+	case *InputMediaPhotoExternal:
+		return "photo_url:" + m.URL
+	case *InputMediaDocumentExternal:
+		return "doc_url:" + m.URL
+	case *InputMediaUploadedPhoto:
+		switch file := m.File.(type) {
+		case *InputFileObj:
+			return fmt.Sprintf("photo_upload:%d:%s", file.ID, file.Name)
+		case *InputFileBig:
+			return fmt.Sprintf("photo_upload:%d:%s", file.ID, file.Name)
+		}
+	case *InputMediaUploadedDocument:
+		switch file := m.File.(type) {
+		case *InputFileObj:
+			return fmt.Sprintf("doc_upload:%d:%s", file.ID, file.Name)
+		case *InputFileBig:
+			return fmt.Sprintf("doc_upload:%d:%s", file.ID, file.Name)
+		}
+	}
+	return ""
 }
 
 func convertPoll(poll *MessageMediaPoll) *InputMediaPoll {
