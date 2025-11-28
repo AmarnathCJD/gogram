@@ -70,6 +70,7 @@ type ArticleOptions struct {
 	Entities             []MessageEntity                    `json:"entities,omitempty"`
 	ParseMode            string                             `json:"parse_mode,omitempty"`
 	Caption              string                             `json:"caption,omitempty"`
+	InvertMedia          bool                               `json:"invert_media,omitempty"`
 	Venue                *InputBotInlineMessageMediaVenue   `json:"venue,omitempty"`
 	Location             *InputBotInlineMessageMediaGeo     `json:"location,omitempty"`
 	Contact              *InputBotInlineMessageMediaContact `json:"contact,omitempty"`
@@ -97,6 +98,7 @@ func (i *InlineBuilder) Article(title, description, text string, options ...*Art
 			Entities:    e,
 			ReplyMarkup: opts.ReplyMarkup,
 			NoWebpage:   !opts.LinkPreview,
+			InvertMedia: opts.InvertMedia,
 		},
 	}
 	if opts.Venue != nil {
