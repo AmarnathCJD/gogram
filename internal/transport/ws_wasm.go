@@ -135,6 +135,9 @@ func (w *wsConn) Read(b []byte) (int, error) {
 }
 
 func (w *wsConn) Close() error {
+	if w.reader != nil {
+		w.reader.Close()
+	}
 	if w.wasmWS.Truthy() && !w.closeOnce {
 		w.closeOnce = true
 		w.wasmWS.Call("close")

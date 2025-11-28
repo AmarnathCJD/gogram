@@ -319,6 +319,9 @@ func (w *wsConn) Read(b []byte) (int, error) {
 }
 
 func (w *wsConn) Close() error {
+	if w.reader != nil {
+		w.reader.Close()
+	}
 	closeFrame := []byte{0x88, 0x80, 0, 0, 0, 0}
 	w.conn.Write(closeFrame)
 	return w.conn.Close()

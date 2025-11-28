@@ -596,6 +596,9 @@ type mtproxyConn struct {
 }
 
 func (m *mtproxyConn) Close() error {
+	if m.reader != nil {
+		m.reader.Close()
+	}
 	return m.conn.Close()
 }
 
@@ -687,13 +690,13 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 		if err != nil {
 			tcpConnection.Close()
 			if logger != nil {
-				logger.WithError(err).Error("[mtproxy] Fake TLS handshake failed")
+				logger.WithError(err).Error("[mtproxy] fake TLS handshake failed")
 			}
-			return nil, fmt.Errorf("Fake TLS handshake failed: %w", err)
+			return nil, fmt.Errorf("fake TLS handshake failed: %w", err)
 		}
 		conn = ftlsConn
 		if logger != nil {
-			logger.Debug("[mtproxy] Fake TLS handshake completed")
+			logger.Debug("[mtproxy] fake TLS handshake completed")
 		}
 	}
 
