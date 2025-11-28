@@ -29,10 +29,15 @@ import (
 )
 
 const (
-	defaultMaxReconnectAttempts = 500
+	defaultMaxReconnectAttempts = 2000
 	defaultBaseReconnectDelay   = 2 * time.Second
 	defaultPingInterval         = 30 * time.Second
 	defaultPendingAcksThreshold = 10
+
+	// request timeouts
+	fileReqTimeout     = 3 * time.Minute
+	graceTimeout       = 2 * time.Second
+	channelDrainPeriod = 30 * time.Second
 )
 
 type MTProto struct {
@@ -582,39 +587,28 @@ func (m *MTProto) connect(ctx context.Context) error {
 	m.Logger.Debug("initializing %s transport for dc %d", transportType, dcId)
 
 	var err error
+	cfg := transport.CommonConfig{
+		Ctx:         ctx,
+		Host:        utils.FmtIp(m.Addr),
+		Timeout:     m.timeout,
+		Socks:       m.proxy,
+		LocalAddr:   m.localAddr,
+		ModeVariant: uint8(m.mode),
+		DC:          dcId,
+		Logger:      m.Logger,
+	}
+
 	if m.useWebSocket {
-		m.transport, err = transport.NewTransport(
-			m,
-			transport.WSConnConfig{
-				Ctx:         ctx,
-				Host:        utils.FmtIp(m.Addr),
-				TLS:         m.useWebSocketTLS,
-				DC:          dcId,
-				TestMode:    false,
-				Timeout:     m.timeout,
-				Socks:       m.proxy,
-				LocalAddr:   m.localAddr,
-				ModeVariant: uint8(m.mode),
-				Logger:      m.Logger,
-			},
-			m.mode,
-		)
+		m.transport, err = transport.NewTransport(m, transport.WSConnConfig{
+			CommonConfig: cfg,
+			TLS:          m.useWebSocketTLS,
+			TestMode:     false,
+		}, m.mode)
 	} else {
-		m.transport, err = transport.NewTransport(
-			m,
-			transport.TCPConnConfig{
-				Ctx:         ctx,
-				Host:        utils.FmtIp(m.Addr),
-				IpV6:        m.IpV6,
-				Timeout:     m.timeout,
-				Socks:       m.proxy,
-				LocalAddr:   m.localAddr,
-				ModeVariant: uint8(m.mode),
-				DC:          dcId,
-				Logger:      m.Logger,
-			},
-			m.mode,
-		)
+		m.transport, err = transport.NewTransport(m, transport.TCPConnConfig{
+			CommonConfig: cfg,
+			IpV6:         m.IpV6,
+		}, m.mode)
 	}
 
 	if err != nil {
@@ -623,23 +617,10 @@ func (m *MTProto) connect(ctx context.Context) error {
 	}
 
 	m.Logger.Debug("%s transport created successfully", transportType)
-	m.rapidReconnectMutex.Lock()
-	now := time.Now()
-	if !m.lastSuccessfulConnect.IsZero() && now.Sub(m.lastSuccessfulConnect) < 5*time.Second {
-		m.rapidReconnectCount++
-		if m.rapidReconnectCount >= 10 {
-			m.rapidReconnectMutex.Unlock()
-			m.Logger.Error(fmt.Sprintf("detected rapid reconnection loop (%d consecutive reconnects in <5s intervals)", m.rapidReconnectCount))
-			if m.proxy != nil && m.proxy.Type == "mtproxy" {
-				return fmt.Errorf("mtproxy connection loop detected: connection succeeds but immediately closes - check proxy configuration, secret, or server availability")
-			}
-			return fmt.Errorf("rapid reconnection loop detected: connection succeeds but immediately closes - possible network or server issue")
-		}
-	} else {
-		m.rapidReconnectCount = 0
+
+	if err := m.checkRapidReconnect(); err != nil {
+		return err
 	}
-	m.lastSuccessfulConnect = now
-	m.rapidReconnectMutex.Unlock()
 
 	return nil
 }
@@ -661,7 +642,7 @@ func (m *MTProto) startPFSManager(ctx context.Context) {
 			default:
 			}
 
-			// Require permanent auth key first.
+			// require permanent auth key first.
 			if len(m.authKey) == 0 {
 				select {
 				case <-ctx.Done():
@@ -697,13 +678,13 @@ func (m *MTProto) startPFSManager(ctx context.Context) {
 					continue
 				}
 
-				// Refresh local expiry after successful bind.
+				// refresh local expiry after successful bind.
 				expiresAt = m.tempAuthExpiresAt
 			}
 
-			// Compute sleep until just before expiry.
+			// compute sleep until just before expiry.
 			if expiresAt == 0 {
-				// No expiry known (should not normally happen); poll later.
+				// no expiry known (should not normally happen); poll later.
 				select {
 				case <-ctx.Done():
 					return
@@ -724,78 +705,124 @@ func (m *MTProto) startPFSManager(ctx context.Context) {
 	})
 }
 
+func (m *MTProto) getTimeout(data tl.Object) time.Duration {
+	typeName := fmt.Sprintf("%T", data)
+	if strings.Contains(typeName, "Upload") {
+		return fileReqTimeout
+	}
+	return m.reqTimeout
+}
+
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), m.getTimeout(data))
 	defer cancel()
 	return m.makeRequestCtx(ctx, data, expectedTypes...)
 }
 
 func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	if err := m.tcpState.WaitForActive(ctx); err != nil {
-		return nil, fmt.Errorf("waiting for active tcp state: %w", err)
-	}
+	const maxRetries = 1
+	var cancel context.CancelFunc
 
-	resp, msgId, err := m.sendPacket(data, expectedTypes...)
-	if err != nil {
-		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") || strings.Contains(err.Error(), "connection was forcibly closed") || strings.Contains(err.Error(), "connection reset by peer") || strings.Contains(err.Error(), "broken pipe") {
-			m.Logger.Debug("transport closed, reconnecting to [%s] - <%s> ...", m.Addr, m.GetTransportType())
-			err = m.Reconnect(false)
-			if err != nil {
-				return nil, fmt.Errorf("reconnecting: %w", err)
-			}
-			return m.makeRequestCtx(ctx, data, expectedTypes...)
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if err := m.tcpState.WaitForActive(ctx); err != nil {
+			return nil, fmt.Errorf("waiting for active tcp state: %w", err)
 		}
-		return nil, fmt.Errorf("sending packet: %w", err)
+
+		resp, msgID, err := m.sendPacket(data, expectedTypes...)
+		if err != nil {
+			if utils.IsTransportError(err) {
+				m.Logger.WithError(err).
+					Debug("transport error: reconnecting to [%s] - <%s>...", m.Addr, m.GetTransportType())
+				if reconnErr := m.Reconnect(false); reconnErr != nil {
+					return nil, fmt.Errorf("reconnecting: %w", reconnErr)
+				}
+				ctx, cancel = context.WithTimeout(context.Background(), m.getTimeout(data))
+				defer cancel()
+				continue
+			}
+			return nil, fmt.Errorf("sending packet: %w", err)
+		}
+
+		select {
+		case response := <-resp:
+			return m.handleRPCResult(data, response, expectedTypes...)
+
+		case <-ctx.Done():
+			select {
+			case response := <-resp:
+				return m.handleRPCResult(data, response, expectedTypes...)
+			case <-time.After(graceTimeout):
+			}
+
+			m.responseChannels.Delete(int(msgID))
+			m.expectedTypes.Delete(int(msgID))
+			go func() {
+				select {
+				case <-resp:
+				case <-time.After(channelDrainPeriod):
+				}
+			}()
+
+			if attempt < maxRetries {
+				m.Logger.Trace("request timeout, retrying: %s", utils.FmtMethod(data))
+				ctx, cancel = context.WithTimeout(context.Background(), m.getTimeout(data))
+				defer cancel()
+				continue
+			}
+			return nil, fmt.Errorf("request timeout: %w", context.DeadlineExceeded)
+		}
 	}
 
-	select {
-	case <-ctx.Done():
-		go m.writeRPCResponse(int(msgId), &objects.Null{})
-		return nil, fmt.Errorf("context done while waiting for response: %w", ctx.Err())
-	case response := <-resp:
-		switch r := response.(type) {
-		case *objects.RpcError:
-			rpcError := RpcErrorToNative(r, utils.FmtMethod(data)).(*ErrResponseCode)
+	return nil, fmt.Errorf("request failed, try again")
+}
 
-			// handle dc migration (303 errors)
-			if rpcError.Code == 303 && (strings.HasPrefix(rpcError.Message, "USER_MIGRATE_") || strings.HasPrefix(rpcError.Message, "PHONE_MIGRATE_")) {
-				dcIDStr := utils.RegexpDCMigrate.FindStringSubmatch(rpcError.Description)
-				if len(dcIDStr) == 2 {
-					dcID, err := strconv.Atoi(dcIDStr[1])
-					if err != nil {
-						return nil, fmt.Errorf("parsing dc id from rpc error: %w", err)
-					}
-					m.SwitchDc(dcID)
+func (m *MTProto) handleRPCResult(data tl.Object, response tl.Object, expectedTypes ...reflect.Type) (any, error) {
+	switch r := response.(type) {
+	case *objects.RpcError:
+		rpcError := RpcErrorToNative(r, utils.FmtMethod(data)).(*ErrResponseCode)
 
-					if m.onMigration != nil {
-						m.onMigration()
+		// handle dc migration (code 303)
+		if rpcError.Code == 303 {
+			if strings.HasPrefix(rpcError.Message, "USER_MIGRATE_") || strings.HasPrefix(rpcError.Message, "PHONE_MIGRATE_") {
+				if dcIDStr := utils.RegexpDCMigrate.FindStringSubmatch(rpcError.Description); len(dcIDStr) == 2 {
+					if dcID, err := strconv.Atoi(dcIDStr[1]); err == nil {
+						if err := m.SwitchDc(dcID); err == nil {
+							if m.onMigration != nil {
+								m.onMigration()
+							}
+							return nil, &errorDCMigrated{int32(dcID)}
+						}
 					}
-					return nil, &errorDCMigrated{int32(dcID)}
 				}
 			}
-
-			// handle flood wait errors (429 errors)
-			if strings.Contains(rpcError.Message, "FLOOD_WAIT_") || strings.Contains(rpcError.Message, "FLOOD_PREMIUM_WAIT_") {
-				if m.floodHandler(rpcError) {
-					return m.makeRequestCtx(ctx, data, expectedTypes...)
-				}
-				return nil, rpcError
-			}
-
-			m.Logger.Trace("received rpc error: code=%d message=%s description=%s", rpcError.Code, rpcError.Message, rpcError.Description)
 			return nil, rpcError
-
-		case *errorSessionConfigsChanged:
-			if !m.exported {
-				m.Logger.Debug("session configs changed, resending request")
-			} else {
-				m.Logger.Trace("session configs changed, resending request")
-			}
-			return m.makeRequestCtx(ctx, data, expectedTypes...)
 		}
 
-		return tl.UnwrapNativeTypes(response), nil
+		// handle flood wait errors (code 420)
+		if strings.Contains(rpcError.Message, "FLOOD_WAIT_") || strings.Contains(rpcError.Message, "FLOOD_PREMIUM_WAIT_") {
+			if m.floodHandler(rpcError) {
+				ctx, cancel := context.WithTimeout(context.Background(), m.getTimeout(data))
+				defer cancel()
+				return m.makeRequestCtx(ctx, data, expectedTypes...)
+			}
+			return nil, rpcError
+		}
+
+		m.Logger.Trace("rpc error: code=%d message=%s", rpcError.Code, rpcError.Message)
+		return nil, rpcError
+
+	case *errorSessionConfigsChanged:
+		if m.exported {
+			m.Logger.Trace("session configs changed, resending request")
+		} else {
+			m.Logger.Debug("session configs changed, resending request")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), m.getTimeout(data))
+		defer cancel()
+		return m.makeRequestCtx(ctx, data, expectedTypes...)
 	}
+
+	return tl.UnwrapNativeTypes(response), nil
 }
 
 func (m *MTProto) InvokeRequestWithoutUpdate(data tl.Object, expectedTypes ...reflect.Type) error {
@@ -904,9 +931,31 @@ func (m *MTProto) Ping() time.Duration {
 
 func (m *MTProto) tryReconnect() error {
 	if err := m.Reconnect(false); err != nil {
-		m.Logger.Error("failed to reconnect to [%s] - <%s>: %v", utils.FmtIp(m.Addr), m.GetTransportType(), err)
+		m.Logger.Debug("failed to reconnect to [%s] - <%s>: %v", utils.FmtIp(m.Addr), m.GetTransportType(), err)
 		return err
 	}
+	return nil
+}
+
+// checkRapidReconnect detects rapid reconnection loops that indicate connection instability
+func (m *MTProto) checkRapidReconnect() error {
+	m.rapidReconnectMutex.Lock()
+	defer m.rapidReconnectMutex.Unlock()
+
+	now := time.Now()
+	if !m.lastSuccessfulConnect.IsZero() && now.Sub(m.lastSuccessfulConnect) < 5*time.Second {
+		m.rapidReconnectCount++
+		if m.rapidReconnectCount >= 10 {
+			m.Logger.Debug("detected rapid reconnection loop (%d consecutive reconnects in <5s intervals)", m.rapidReconnectCount)
+			if m.proxy != nil && m.proxy.Type == "mtproxy" {
+				return fmt.Errorf("mtproxy connection loop detected: connection succeeds but immediately closes - check proxy configuration, secret, or server availability")
+			}
+			return fmt.Errorf("rapid reconnection loop detected: connection succeeds but immediately closes - possible network or server issue")
+		}
+	} else {
+		m.rapidReconnectCount = 0
+	}
+	m.lastSuccessfulConnect = now
 	return nil
 }
 
@@ -961,7 +1010,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						m.Logger.Debug("transport response error code: %d - %s", e.Code, e.Error())
 					}
 				case *transport.ErrCode:
-					m.Logger.Error("transport error code: %d - %s", int64(*e), e.Error())
+					m.Logger.Debug("transport error code: %d - %s", int64(*e), e.Error())
 				default:
 					if !m.terminated.Load() {
 						m.Logger.Debug("reading message: %v", err)
@@ -1068,14 +1117,14 @@ messageTypeSwitching:
 	case *objects.BadServerSalt:
 		m.serverSalt = message.NewSalt
 		if err := m.SaveSession(m.memorySession); err != nil {
-			m.Logger.Error("failed to save session after salt update: %v", err)
+			m.Logger.Debug("failed to save session after salt update: %v", err)
 		}
 		m.notifyPendingRequestsOfConfigChange()
 
 	case *objects.NewSessionCreated:
 		m.serverSalt = message.ServerSalt
 		if err := m.SaveSession(m.memorySession); err != nil {
-			m.Logger.Error("failed to save session: %v", err)
+			m.Logger.Debug("failed to save session: %v", err)
 		}
 
 	case *objects.MsgsNewDetailedInfo:
