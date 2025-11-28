@@ -1044,3 +1044,61 @@ func (b *ClientConfigBuilder) WithReqTimeout(reqTimeout int) *ClientConfigBuilde
 func (b *ClientConfigBuilder) Build() ClientConfig {
 	return b.config
 }
+
+// QuickBot creates a new client and logs in as a bot in one call.
+// This is a convenience method for quick bot setup.
+//
+// Example:
+//
+//	client, err := telegram.QuickBot(12345, "your_app_hash", "bot_token")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+func QuickBot(appID int32, appHash, botToken string) (*Client, error) {
+	client, err := NewClient(ClientConfig{
+		AppID:   appID,
+		AppHash: appHash,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("creating client: %w", err)
+	}
+
+	if err := client.Connect(); err != nil {
+		return nil, fmt.Errorf("connecting: %w", err)
+	}
+
+	if err := client.LoginBot(botToken); err != nil {
+		return nil, fmt.Errorf("logging in as bot: %w", err)
+	}
+
+	return client, nil
+}
+
+// QuickPhone creates a new client and logs in with a phone number in one call.
+// This is a convenience method for quick user setup with interactive code input.
+//
+// Example:
+//
+//	client, err := telegram.QuickPhone(12345, "your_app_hash", "+1234567890")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+func QuickPhone(appID int32, appHash, phoneNumber string, options ...*LoginOptions) (*Client, error) {
+	client, err := NewClient(ClientConfig{
+		AppID:   appID,
+		AppHash: appHash,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("creating client: %w", err)
+	}
+
+	if err := client.Connect(); err != nil {
+		return nil, fmt.Errorf("connecting: %w", err)
+	}
+
+	if _, err := client.Login(phoneNumber, options...); err != nil {
+		return nil, fmt.Errorf("logging in with phone: %w", err)
+	}
+
+	return client, nil
+}
