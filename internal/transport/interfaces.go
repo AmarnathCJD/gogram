@@ -19,10 +19,10 @@ type Mode interface {
 	ReadMsg() ([]byte, error)
 }
 
-type TCPConnConfig struct {
+// CommonConfig contains shared configuration fields for all transport types
+type CommonConfig struct {
 	Ctx         context.Context
 	Host        string
-	IpV6        bool
 	Timeout     time.Duration
 	Socks       *utils.Proxy
 	LocalAddr   string
@@ -31,15 +31,13 @@ type TCPConnConfig struct {
 	Logger      *utils.Logger
 }
 
+type TCPConnConfig struct {
+	CommonConfig
+	IpV6 bool
+}
+
 type WSConnConfig struct {
-	Ctx         context.Context
-	Host        string
-	TLS         bool
-	Timeout     time.Duration
-	Socks       *utils.Proxy
-	LocalAddr   string
-	ModeVariant uint8
-	DC          int
-	TestMode    bool
-	Logger      *utils.Logger
+	CommonConfig
+	TLS      bool
+	TestMode bool
 }

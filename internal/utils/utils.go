@@ -4,7 +4,6 @@ package utils
 
 import (
 	"crypto/rand"
-	cr "crypto/rand"
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
@@ -249,7 +248,7 @@ func AuthKeyHash(key []byte) []byte {
 
 func GenerateSessionID() int64 {
 	b := make([]byte, 8)
-	_, _ = cr.Read(b)
+	_, _ = rand.Read(b)
 	return int64(binary.BigEndian.Uint64(b))
 }
 
@@ -276,7 +275,7 @@ func Sha1(input string) []byte {
 
 func RandomBytes(size int) []byte {
 	b := make([]byte, size)
-	_, _ = cr.Read(b)
+	_, _ = rand.Read(b)
 	return b
 }
 
@@ -323,6 +322,18 @@ func MinSafeDuration(d int) time.Duration {
 		return 60 * time.Second
 	}
 	return time.Duration(d) * time.Second
+}
+
+func IsTransportError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "use of closed network connection") ||
+		strings.Contains(errStr, "transport is closed") ||
+		strings.Contains(errStr, "connection was forcibly closed") ||
+		strings.Contains(errStr, "connection reset by peer") ||
+		strings.Contains(errStr, "broken pipe")
 }
 
 // ------------------ Proxy Configuration ------------------
