@@ -2562,13 +2562,13 @@ type ForumTopic interface {
 
 // Represents a forum topic.
 type ForumTopicObj struct {
-	My                   bool  `tl:"flag:1,encoded_in_bitflags"`
-	Closed               bool  `tl:"flag:2,encoded_in_bitflags"`
-	Pinned               bool  `tl:"flag:3,encoded_in_bitflags"`
-	Short                bool  `tl:"flag:5,encoded_in_bitflags"`
-	Hidden               bool  `tl:"flag:6,encoded_in_bitflags"`
-	TitleMissing         bool  `tl:"flag:7,encoded_in_bitflags"`
-	ID                   int32 `tl:"flag:7"`
+	My                   bool `tl:"flag:1,encoded_in_bitflags"`
+	Closed               bool `tl:"flag:2,encoded_in_bitflags"`
+	Pinned               bool `tl:"flag:3,encoded_in_bitflags"`
+	Short                bool `tl:"flag:5,encoded_in_bitflags"`
+	Hidden               bool `tl:"flag:6,encoded_in_bitflags"`
+	TitleMissing         bool `tl:"flag:7,encoded_in_bitflags"`
+	ID                   int32
 	Date                 int32
 	Peer                 Peer
 	Title                string
