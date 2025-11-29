@@ -762,9 +762,6 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 
 			if attempt < maxRetries {
 				m.Logger.Trace("request timeout, retrying: %s", utils.FmtMethod(data))
-				m.Logger.Info("for debug: retrying method: %s, attempt %d/%d, with timeout %s, isconnected: %t",
-					utils.FmtMethod(data), attempt+1, maxRetries+1, m.getTimeout(data).String(), m.IsTcpActive(),
-				)
 				ctx, cancel = context.WithTimeout(context.Background(), m.getTimeout(data))
 				defer cancel()
 				continue
@@ -1013,8 +1010,12 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					m.Logger.Debug("transport error code: %d - %s", int64(*e), e.Error())
 				default:
 					if !m.terminated.Load() {
-						m.Logger.Debug("reading message: %v", err)
-						m.tryReconnect()
+						if strings.Contains(err.Error(), "object with provided crc") {
+							m.Logger.Warn(FormatDecodeError(err))
+						} else {
+							m.Logger.Debug("reading message: %v", err)
+							m.tryReconnect()
+						}
 					}
 				}
 			}

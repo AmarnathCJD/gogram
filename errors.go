@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -815,3 +816,72 @@ func (*errorDCMigrated) CRC() uint32 {
 }
 
 var ErrAuthKeyInvalid = fmt.Errorf("auth key invalid (code -404) - too many failures")
+
+type DecodeErrorInfo struct {
+	CRC       string
+	FieldPath string
+	RootType  string
+}
+
+func parseDecodeError(errStr string) *DecodeErrorInfo {
+	if !strings.Contains(errStr, "object with provided crc not registered") {
+		return nil
+	}
+
+	info := &DecodeErrorInfo{}
+
+	crcRegex := regexp.MustCompile(`object with provided crc not registered: (0x[0-9a-fA-F]+)`)
+	if matches := crcRegex.FindStringSubmatch(errStr); len(matches) > 1 {
+		info.CRC = matches[1]
+	}
+
+	fieldRegex := regexp.MustCompile(`decode object: ([A-Za-z0-9_]+)\.([A-Za-z0-9_]+):`)
+	matches := fieldRegex.FindAllStringSubmatch(errStr, -1)
+
+	var pathParts []string
+	for _, match := range matches {
+		if len(match) > 2 {
+			pathParts = append(pathParts, fmt.Sprintf("%s.%s", match[1], match[2]))
+		}
+	}
+	if len(pathParts) > 0 {
+		info.FieldPath = strings.Join(pathParts, " -> ")
+	}
+
+	rootRegex := regexp.MustCompile(`decode registered object \*([a-z]+\.[A-Za-z0-9_]+):`)
+	if rootMatches := rootRegex.FindStringSubmatch(errStr); len(rootMatches) > 1 {
+		info.RootType = rootMatches[1]
+	}
+
+	return info
+}
+
+func FormatDecodeError(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	info := parseDecodeError(err.Error())
+	if info == nil {
+		return err.Error()
+	}
+
+	var sb strings.Builder
+	sb.WriteString("decode error: unregistered object")
+
+	if info.CRC != "" {
+		sb.WriteString(fmt.Sprintf(" (crc: %s)", info.CRC))
+	}
+
+	if info.FieldPath != "" {
+		sb.WriteString(fmt.Sprintf(" at field: %s", info.FieldPath))
+	}
+
+	if info.RootType != "" {
+		sb.WriteString(fmt.Sprintf(" in type: %s", info.RootType))
+	}
+
+	sb.WriteString(" - please report this issue in gogram's GitHub repository")
+
+	return sb.String()
+}
