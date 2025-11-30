@@ -40,31 +40,30 @@ func (m *MTProto) makeAuthKeyInternal(expiresIn int32) error {
 	m.serviceModeActivated = true
 	defer func() { m.serviceModeActivated = false }()
 
-	maxRetries := 5
-nonceCreate:
-	nonceFirst := tl.RandomInt128()
-	var (
-		res *objects.ResPQ
-		err error
-	)
-
-	if m.cdn {
-		res, err = m.reqPQMulti(nonceFirst)
-	} else {
-		res, err = m.reqPQ(nonceFirst)
-	}
-
-	if err != nil {
-		return fmt.Errorf("reqPQ: %w", err)
-	}
-
-	if nonceFirst.Cmp(res.Nonce.Int) != 0 {
-		if maxRetries > 0 {
-			maxRetries--
-			time.Sleep(200 * time.Millisecond)
-			goto nonceCreate
+	// telegram sometimes gvs wrong nonce, idk
+	const maxNonceRetries = 5
+	nonceRetries := 0
+	var nonceFirst *tl.Int128
+	var res *objects.ResPQ
+	var err error
+	for {
+		nonceFirst = tl.RandomInt128()
+		if m.cdn {
+			res, err = m.reqPQMulti(nonceFirst)
+		} else {
+			res, err = m.reqPQ(nonceFirst)
 		}
-		return fmt.Errorf("reqPQ: nonce mismatch (%v, %v)", nonceFirst, res.Nonce)
+		if err != nil {
+			return fmt.Errorf("reqPQ: %w", err)
+		}
+		if nonceFirst.Cmp(res.Nonce.Int) == 0 {
+			break
+		}
+		nonceRetries++
+		if nonceRetries >= maxNonceRetries {
+			return fmt.Errorf("reqPQ: nonce mismatch after %d retries (%v, %v)", maxNonceRetries, nonceFirst, res.Nonce)
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	found := false
@@ -90,7 +89,7 @@ nonceCreate:
 	pq := big.NewInt(0).SetBytes(res.Pq)
 	p, q := math.Factorize(pq)
 	if p == nil || q == nil {
-		p, q = math.Fac(pq)
+		p, q = math.SplitPQ(pq)
 	}
 	nonceSecond := tl.RandomInt256()
 	nonceServer := res.ServerNonce
@@ -180,7 +179,7 @@ nonceCreate:
 	nonceHash1 := utils.Sha1Byte(t4)[4:20]
 	salt := make([]byte, tl.LongLen)
 	copy(salt, nonceSecond.Bytes()[:8])
-	math.Xor(salt, nonceServer.Bytes()[:8])
+	math.XOR(salt, nonceServer.Bytes()[:8])
 	newSalt := int64(binary.LittleEndian.Uint64(salt))
 
 	clientDHData, err := tl.Marshal(&objects.ClientDHInnerData{
