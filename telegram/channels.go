@@ -258,8 +258,8 @@ func (c *Client) GetChatMembers(chatID any, Opts ...*ParticipantOptions) ([]*Par
 	var totalCount int32
 
 	for {
-		remaning := opts.Limit - int32(fetched)
-		reqLimit = min(remaning, 200)
+		remaining := opts.Limit - int32(fetched)
+		reqLimit = min(remaining, 200)
 
 		participants, err := c.ChannelsGetParticipants(&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash}, opts.Filter, reqOffset, reqLimit, 0)
 		if err != nil {
@@ -536,13 +536,46 @@ func (c *Client) EditAdmin(PeerID, UserID any, Opts ...*AdminOptions) (bool, err
 	return true, nil
 }
 
+type AdminBuilder struct {
+	client         *Client
+	chatID, userID any
+	isAdmin        bool
+	rights         *ChatAdminRights
+	rank           string
+}
+
+func (c *Client) EditAdminBuilder(chatID, userID any) *AdminBuilder {
+	return &AdminBuilder{client: c, chatID: chatID, userID: userID}
+}
+
+func (b *AdminBuilder) WithRights(rights *ChatAdminRights) *AdminBuilder {
+	b.rights = rights
+	return b
+}
+
+func (b *AdminBuilder) WithRank(rank string) *AdminBuilder {
+	b.rank = rank
+	return b
+}
+
+func (b *AdminBuilder) Promote() (bool, error) {
+	b.isAdmin = true
+	return b.client.EditAdmin(b.chatID, b.userID, &AdminOptions{IsAdmin: b.isAdmin, Rights: b.rights, Rank: b.rank})
+}
+
+func (b *AdminBuilder) Demote() (bool, error) {
+	b.isAdmin = false
+	return b.client.EditAdmin(b.chatID, b.userID, &AdminOptions{IsAdmin: b.isAdmin, Rights: &ChatAdminRights{}, Rank: ""})
+}
+
 type BannedOptions struct {
-	Ban    bool              `json:"ban,omitempty"`
-	Unban  bool              `json:"unban,omitempty"`
-	Mute   bool              `json:"mute,omitempty"`
-	Unmute bool              `json:"unmute,omitempty"`
-	Rights *ChatBannedRights `json:"rights,omitempty"`
-	Revoke bool              `json:"revoke,omitempty"`
+	Ban      bool              `json:"ban,omitempty"`
+	Unban    bool              `json:"unban,omitempty"`
+	Mute     bool              `json:"mute,omitempty"`
+	Unmute   bool              `json:"unmute,omitempty"`
+	Rights   *ChatBannedRights `json:"rights,omitempty"`
+	Revoke   bool              `json:"revoke,omitempty"`
+	TillDate int32             `json:"till_date,omitempty"`
 }
 
 // EditBanned modifies the ban status of a user in a chat or channel.
@@ -586,6 +619,9 @@ func (c *Client) EditBanned(PeerID, UserID any, opts ...*BannedOptions) (bool, e
 func handleChannelBan(c *Client, p *InputPeerChannel, u InputPeer, o *BannedOptions) (bool, error) {
 	o.Rights.ViewMessages = o.Ban
 	o.Rights.SendMessages = o.Mute
+	if o.TillDate != 0 {
+		o.Rights.UntilDate = o.TillDate
+	}
 
 	_, err := c.ChannelsEditBanned(&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash}, u, o.Rights)
 	return err == nil, err
@@ -601,6 +637,7 @@ func handleChatBan(c *Client, p *InputPeerChat, u InputPeer, o *BannedOptions) (
 			return err == nil, err
 		}
 	}
+
 	return false, errors.New("user is not a valid InputPeerUser")
 }
 
@@ -636,6 +673,83 @@ func (c *Client) KickParticipant(PeerID, UserID any) (bool, error) {
 		return false, errors.New("peer is not a chat or channel")
 	}
 	return true, nil
+}
+
+type BannedBuilder struct {
+	client            *Client
+	chatID, userID    any
+	ban, mute, revoke bool
+	rights            *ChatBannedRights
+	tillDate          int32
+}
+
+func (c *Client) EditBannedBuilder(chatID, userID any) *BannedBuilder {
+	return &BannedBuilder{client: c, chatID: chatID, userID: userID}
+}
+
+func (b *BannedBuilder) WithRights(rights *ChatBannedRights) *BannedBuilder {
+	b.rights = rights
+	return b
+}
+
+func (b *BannedBuilder) Ban(until ...int) (bool, error) {
+	b.ban = true
+	return b.client.EditBanned(b.chatID, b.userID, &BannedOptions{
+		Ban:    true,
+		Rights: b.rights,
+		Revoke: b.revoke,
+		TillDate: func() int32 {
+			if len(until) > 0 {
+				return int32(until[0])
+			}
+			return b.tillDate
+		}(),
+	})
+}
+
+func (b *BannedBuilder) Unban() (bool, error) {
+	b.ban = false
+	return b.client.EditBanned(b.chatID, b.userID, &BannedOptions{
+		Unban:  true,
+		Rights: b.rights,
+		Revoke: b.revoke,
+	})
+}
+func (b *BannedBuilder) Mute() (bool, error) {
+	b.mute = true
+	return b.client.EditBanned(b.chatID, b.userID, &BannedOptions{
+		Mute:     true,
+		Rights:   b.rights,
+		Revoke:   b.revoke,
+		TillDate: b.tillDate,
+	})
+}
+
+func (b *BannedBuilder) Unmute() (bool, error) {
+	b.mute = false
+	return b.client.EditBanned(b.chatID, b.userID, &BannedOptions{
+		Ban:    b.ban,
+		Mute:   b.mute,
+		Revoke: b.revoke,
+	})
+}
+
+func (b *BannedBuilder) Revoke() *BannedBuilder {
+	b.revoke = true
+	return b
+}
+
+func (b *BannedBuilder) TillDate(tillDate int32) *BannedBuilder {
+	b.tillDate = tillDate
+	return b
+}
+
+func (b *BannedBuilder) Invoke() (bool, error) {
+	return b.client.EditBanned(b.chatID, b.userID, &BannedOptions{
+		Revoke:   b.revoke,
+		Rights:   b.rights,
+		TillDate: b.tillDate,
+	})
 }
 
 type TitleOptions struct {
