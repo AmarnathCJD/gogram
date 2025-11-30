@@ -110,7 +110,7 @@ func main() {
 	fmt.Println("==")
 
 	// Option 1: Use default logger (simplest)
-	defaultLogger := telegram.NewDefaultLogger("myapp")
+	defaultLogger := telegram.NewDefaultLogger("gogram")
 	defaultLogger.Info("Using default logger")
 
 	// Option 2: Create logger with level only

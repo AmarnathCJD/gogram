@@ -5,7 +5,6 @@ package telegram
 import (
 	"encoding/gob"
 	"encoding/json"
-	"io"
 	"maps"
 
 	"fmt"
@@ -92,58 +91,6 @@ func (m *MemoryCacheStorage) Write(peers *InputPeerCache) error {
 
 func (m *MemoryCacheStorage) Close() error {
 	m.data = nil
-	return nil
-}
-
-// ReaderWriterCacheStorage implements CacheStorage using io.Reader/Writer
-type ReaderWriterCacheStorage struct {
-	reader    func() (io.ReadCloser, error)
-	writer    func() (io.WriteCloser, error)
-	closeFunc func() error
-}
-
-func NewReaderWriterCacheStorage(
-	reader func() (io.ReadCloser, error),
-	writer func() (io.WriteCloser, error),
-	closeFunc func() error,
-) *ReaderWriterCacheStorage {
-	return &ReaderWriterCacheStorage{
-		reader:    reader,
-		writer:    writer,
-		closeFunc: closeFunc,
-	}
-}
-
-func (rw *ReaderWriterCacheStorage) Read() (*InputPeerCache, error) {
-	r, err := rw.reader()
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-
-	dec := gob.NewDecoder(r)
-	var peers InputPeerCache
-	if err := dec.Decode(&peers); err != nil {
-		return nil, err
-	}
-	return &peers, nil
-}
-
-func (rw *ReaderWriterCacheStorage) Write(peers *InputPeerCache) error {
-	w, err := rw.writer()
-	if err != nil {
-		return err
-	}
-	defer w.Close()
-
-	enc := gob.NewEncoder(w)
-	return enc.Encode(peers)
-}
-
-func (rw *ReaderWriterCacheStorage) Close() error {
-	if rw.closeFunc != nil {
-		return rw.closeFunc()
-	}
 	return nil
 }
 
