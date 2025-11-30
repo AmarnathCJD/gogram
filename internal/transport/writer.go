@@ -1,47 +1,50 @@
-// Copyright (c) 2024 RoseLoverX
-
 package transport
 
 import (
 	"context"
+	"errors"
 	"io"
+	"net"
 	"sync"
+	"time"
 )
 
+var ErrClosed = errors.New("reader closed")
+
 type Reader struct {
+	r      io.Reader
 	ctx    context.Context
 	cancel context.CancelFunc
-	r      io.Reader
+
+	req  chan []byte
+	done chan readResult
 
 	mu     sync.Mutex
 	closed bool
 
-	reqCh chan readRequest
-	wg    sync.WaitGroup
+	wg sync.WaitGroup
 }
 
-type readRequest struct {
-	buf    []byte
-	respCh chan readResponse
-}
-
-type readResponse struct {
+type readResult struct {
 	n   int
 	err error
 }
 
-// NewReader creates a new context-aware Reader.
 func NewReader(ctx context.Context, r io.Reader) *Reader {
 	ctx, cancel := context.WithCancel(ctx)
-	reader := &Reader{
+
+	c := &Reader{
+		r:      r,
 		ctx:    ctx,
 		cancel: cancel,
-		r:      r,
-		reqCh:  make(chan readRequest),
+		req:    make(chan []byte, 4),
+		done:   make(chan readResult, 1),
 	}
-	reader.wg.Add(1)
-	go reader.worker()
-	return reader
+
+	c.wg.Add(1)
+	go c.worker()
+
+	return c
 }
 
 func (c *Reader) worker() {
@@ -51,13 +54,16 @@ func (c *Reader) worker() {
 		select {
 		case <-c.ctx.Done():
 			return
-		case req, ok := <-c.reqCh:
+
+		case buf, ok := <-c.req:
 			if !ok {
 				return
 			}
-			n, err := io.ReadFull(c.r, req.buf)
+
+			n, err := c.read(buf)
+
 			select {
-			case req.respCh <- readResponse{n, err}:
+			case c.done <- readResult{n, err}:
 			case <-c.ctx.Done():
 				return
 			}
@@ -65,47 +71,51 @@ func (c *Reader) worker() {
 	}
 }
 
+func (c *Reader) interrupt() {
+	if nc, ok := c.r.(net.Conn); ok {
+		nc.SetReadDeadline(time.Now())
+	} else if closer, ok := c.r.(io.Closer); ok {
+		closer.Close()
+	}
+}
+
+func (c *Reader) read(buf []byte) (int, error) {
+	n := 0
+	for n < len(buf) {
+		select {
+		case <-c.ctx.Done():
+			return n, c.ctx.Err()
+		default:
+			k, err := c.r.Read(buf[n:])
+			n += k
+			if err != nil {
+				return n, err
+			}
+		}
+	}
+	return n, nil
+}
+
 func (c *Reader) Read(p []byte) (int, error) {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
-		return 0, io.ErrClosedPipe
+		return 0, ErrClosed
 	}
 	c.mu.Unlock()
 
 	select {
 	case <-c.ctx.Done():
 		return 0, c.ctx.Err()
-	default:
-	}
-
-	respCh := make(chan readResponse, 1)
-	req := readRequest{buf: p, respCh: respCh}
-
-	select {
-	case <-c.ctx.Done():
-		return 0, c.ctx.Err()
-	case c.reqCh <- req:
+	case c.req <- p:
 	}
 
 	select {
 	case <-c.ctx.Done():
 		return 0, c.ctx.Err()
-	case resp := <-respCh:
-		return resp.n, resp.err
+	case res := <-c.done:
+		return res.n, res.err
 	}
-}
-
-func (c *Reader) ReadByte() (byte, error) {
-	b := make([]byte, 1)
-	n, err := c.Read(b)
-	if err != nil {
-		return 0, err
-	}
-	if n == 0 {
-		return 0, io.EOF
-	}
-	return b[0], nil
 }
 
 func (c *Reader) Close() error {
@@ -118,6 +128,8 @@ func (c *Reader) Close() error {
 	c.mu.Unlock()
 
 	c.cancel()
+	c.interrupt()
+	close(c.req)
 	c.wg.Wait()
 	return nil
 }
