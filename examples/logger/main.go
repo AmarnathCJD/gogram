@@ -101,4 +101,81 @@ func main() {
 	fmt.Println("- GetOutput()")
 	fmt.Println("- SetTimestampFormat(format)")
 	fmt.Println("\nJust wrap with: telegram.WrapSimpleLogger(yourLogger)")
+
+	// ============================================================
+	// BUILT-IN LOGGER EXAMPLE
+	// ============================================================
+	fmt.Println("\n==================================================")
+	fmt.Println("BUILT-IN LOGGER OPTIONS")
+	fmt.Println("==")
+
+	// Option 1: Use default logger (simplest)
+	defaultLogger := telegram.NewDefaultLogger("myapp")
+	defaultLogger.Info("Using default logger")
+
+	// Option 2: Create logger with level only
+	simpleLogger := telegram.NewLogger(telegram.DebugLevel)
+	simpleLogger.Debug("Debug message visible")
+
+	// Option 3: Create logger with full configuration
+	fullConfig := &telegram.LoggerConfig{
+		Level:           telegram.DebugLevel, // Log level (Trace, Debug, Info, Warn, Error, Fatal, Panic)
+		Prefix:          "gogram",            // Prefix shown in log output
+		Output:          os.Stdout,           // Output writer (os.Stdout, file, etc.)
+		Color:           true,                // Enable colored output
+		ShowCaller:      true,                // Show file:line in logs
+		ShowFunction:    false,               // Show function name in logs
+		FullStackTrace:  false,               // false = formatted stack, true = raw full stack
+		TimestampFormat: "15:04:05",          // Time format (Go time layout)
+		BufferSize:      4096,                // Write buffer size
+		AsyncMode:       false,               // Enable async logging
+		AsyncQueueSize:  1000,                // Async queue size (if AsyncMode)
+		JSONOutput:      false,               // Output as JSON instead of text
+		ErrorHandler:    nil,                 // Custom error handler
+	}
+	configuredLogger := telegram.NewLoggerWithConfig(fullConfig)
+	configuredLogger.Info("Configured logger ready!")
+
+	// Option 4: Use with gogram client
+	clientWithLogger, _ := telegram.NewClient(telegram.ClientConfig{
+		AppID:   6,
+		AppHash: "app_hash",
+		Logger:  configuredLogger,
+	})
+
+	// Runtime configuration changes
+	clientWithLogger.Log.SetLevel(telegram.DebugLevel) // Change log level
+	clientWithLogger.Log.SetColor(true)                // Enable colors
+	clientWithLogger.Log.ShowCaller(true)              // Show file:line
+	clientWithLogger.Log.ShowFunction(true)            // Show function names
+	clientWithLogger.Log.FullStackTrace(false)         // Use formatted panic stack (default)
+	clientWithLogger.Log.SetTimestampFormat("2006-01-02 15:04:05")
+	clientWithLogger.Log.SetJSONMode(false) // Text mode (default)
+
+	// Contextual logging
+	clientWithLogger.Log.WithField("user_id", 12345).Info("User action")
+	clientWithLogger.Log.WithFields(map[string]any{
+		"chat_id": -100123,
+		"action":  "send_message",
+	}).Debug("Chat operation")
+	clientWithLogger.Log.WithError(fmt.Errorf("connection timeout")).Error("Failed to connect")
+
+	// Different log levels
+	clientWithLogger.Log.Trace("Trace message (most verbose)")
+	clientWithLogger.Log.Debug("Debug message")
+	clientWithLogger.Log.Info("Info message")
+	clientWithLogger.Log.Warn("Warning message")
+	clientWithLogger.Log.Error("Error message")
+	// clientWithLogger.Log.Fatal("Fatal message") // Exits program
+	// clientWithLogger.Log.Panic("Panic message") // Logs panic with stack trace
+
+	fmt.Println("\nBuilt-in Logger Features:")
+	fmt.Println("- Multiple log levels (Trace → Panic)")
+	fmt.Println("- Colored output support")
+	fmt.Println("- Caller info (file:line, function)")
+	fmt.Println("- Contextual fields (WithField, WithFields)")
+	fmt.Println("- JSON or Text output modes")
+	fmt.Println("- Async logging option")
+	fmt.Println("- Formatted panic stack traces")
+	fmt.Println("- File rotation support")
 }

@@ -96,6 +96,7 @@ type Logger struct {
 	color           bool
 	showCaller      bool
 	showFunction    bool
+	fullStackTrace  bool
 	timestampFormat string
 	bufferSize      int
 	asyncMode       bool
@@ -117,6 +118,7 @@ type LoggerConfig struct {
 	Color           bool
 	ShowCaller      bool
 	ShowFunction    bool
+	FullStackTrace  bool // If true, show raw full stack trace; if false (default), show formatted condensed stack
 	TimestampFormat string
 	BufferSize      int
 	AsyncMode       bool
@@ -180,6 +182,7 @@ func NewLoggerWithConfig(config *LoggerConfig) *Logger {
 		color:           effectiveColor,
 		showCaller:      config.ShowCaller,
 		showFunction:    config.ShowFunction,
+		fullStackTrace:  config.FullStackTrace,
 		timestampFormat: config.TimestampFormat,
 		bufferSize:      config.BufferSize,
 		asyncMode:       config.AsyncMode,
@@ -213,6 +216,7 @@ func (l *Logger) Clone() *Logger {
 		color:           l.color,
 		showCaller:      l.showCaller,
 		showFunction:    l.showFunction,
+		fullStackTrace:  l.fullStackTrace,
 		timestampFormat: l.timestampFormat,
 		bufferSize:      l.bufferSize,
 		asyncMode:       l.asyncMode,
@@ -338,6 +342,13 @@ func (l *Logger) ShowFunction(enabled bool) *Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.showFunction = enabled
+	return l
+}
+
+func (l *Logger) FullStackTrace(enabled bool) *Logger {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.fullStackTrace = enabled
 	return l
 }
 
@@ -542,17 +553,20 @@ func (l *Logger) Fatal(msg string, args ...any) {
 }
 
 func (l *Logger) Panic(msg string, args ...any) {
-	// capture stack trace
 	stack := make([]byte, 8192)
 	n := runtime.Stack(stack, false)
-	stackTrace := string(stack[:n])
+
+	stackStr := string(stack[:n])
+	if !l.fullStackTrace {
+		stackStr = formatPanicStack(stackStr)
+	}
 
 	entry := &LogEntry{
 		Time:       time.Now(),
 		Level:      PanicLevel,
 		Message:    fmt.Sprintf(msg, args...),
 		Prefix:     l.prefix,
-		StackTrace: stackTrace,
+		StackTrace: stackStr,
 		Fields:     make(map[string]any),
 	}
 
@@ -562,7 +576,112 @@ func (l *Logger) Panic(msg string, args ...any) {
 
 	l.writeEntry(entry)
 	l.Close()
-	//panic(entry.Message)
+}
+
+func formatPanicStack(stack string) string {
+	lines := strings.Split(stack, "\n")
+	var out strings.Builder
+
+	type frame struct {
+		fn  string
+		loc string
+	}
+	var frames []frame
+
+	i := 1
+	for i < len(lines)-1 {
+		fnLine := lines[i]
+		locLine := lines[i+1]
+
+		if !strings.HasPrefix(locLine, "\t") {
+			i++
+			continue
+		}
+
+		i += 2
+
+		locLine = strings.TrimSpace(locLine)
+		if !strings.Contains(locLine, ".go:") {
+			continue
+		}
+
+		if strings.Contains(locLine, "runtime/") || strings.Contains(locLine, "logging.go") {
+			continue
+		}
+
+		fn := extractFuncName(strings.TrimSpace(fnLine))
+
+		loc := locLine
+		if sp := strings.LastIndex(loc, " +"); sp > 0 {
+			loc = loc[:sp]
+		}
+		if idx := strings.LastIndexAny(loc, "/\\"); idx >= 0 {
+			loc = loc[idx+1:]
+		}
+
+		frames = append(frames, frame{fn: fn, loc: loc})
+	}
+
+	var origin *frame
+	for i := range frames {
+		f := &frames[i]
+		if strings.Contains(f.loc, "client.go") || strings.Contains(f.loc, "updates.go") ||
+			strings.Contains(f.loc, "network.go") || strings.Contains(f.loc, "mtproto.go") {
+			continue
+		}
+		origin = f
+		break
+	}
+
+	if origin != nil {
+		out.WriteString(fmt.Sprintf("  origin: %s @ %s\n", origin.fn, origin.loc))
+	}
+	out.WriteString("  stack:\n")
+	for i, f := range frames {
+		if i >= 5 {
+			break
+		}
+		out.WriteString(fmt.Sprintf("    %s @ %s\n", f.fn, f.loc))
+	}
+	return out.String()
+}
+
+func extractFuncName(full string) string {
+	if p := strings.Index(full, "(0x"); p > 0 {
+		full = full[:p]
+	} else if p := strings.Index(full, "()"); p > 0 {
+		full = full[:p]
+	}
+
+	full = strings.ReplaceAll(full, "/", ".")
+	parts := strings.Split(full, ".")
+	var result []string
+	for i := len(parts) - 1; i >= 0 && len(result) < 2; i-- {
+		p := parts[i]
+		if p == "" {
+			continue
+		}
+		if len(p) == 1 && p[0] >= '0' && p[0] <= '9' {
+			continue
+		}
+		if strings.HasPrefix(p, "(*") || strings.HasPrefix(p, "(") {
+			continue
+		}
+		if strings.HasPrefix(p, "func") && len(p) <= 5 {
+			if len(result) == 0 {
+				continue
+			}
+		}
+		result = append([]string{p}, result...)
+	}
+
+	if len(result) == 0 {
+		return "?"
+	}
+	if len(result) == 1 {
+		return result[0]
+	}
+	return result[len(result)-1]
 }
 
 func (l *Logger) Tracef(format string, args ...any)   { l.Trace(format, args...) }

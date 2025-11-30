@@ -817,71 +817,23 @@ func (*errorDCMigrated) CRC() uint32 {
 
 var ErrAuthKeyInvalid = fmt.Errorf("auth key invalid (code -404) - too many failures")
 
-type DecodeErrorInfo struct {
-	CRC       string
-	FieldPath string
-	RootType  string
-}
-
-func parseDecodeError(errStr string) *DecodeErrorInfo {
-	if !strings.Contains(errStr, "object with provided crc not registered") {
-		return nil
-	}
-
-	info := &DecodeErrorInfo{}
-
-	crcRegex := regexp.MustCompile(`object with provided crc not registered: (0x[0-9a-fA-F]+)`)
-	if matches := crcRegex.FindStringSubmatch(errStr); len(matches) > 1 {
-		info.CRC = matches[1]
-	}
-
-	fieldRegex := regexp.MustCompile(`decode object: ([A-Za-z0-9_]+)\.([A-Za-z0-9_]+):`)
-	matches := fieldRegex.FindAllStringSubmatch(errStr, -1)
-
-	var pathParts []string
-	for _, match := range matches {
-		if len(match) > 2 {
-			pathParts = append(pathParts, fmt.Sprintf("%s.%s", match[1], match[2]))
-		}
-	}
-	if len(pathParts) > 0 {
-		info.FieldPath = strings.Join(pathParts, " -> ")
-	}
-
-	rootRegex := regexp.MustCompile(`decode registered object \*([a-z]+\.[A-Za-z0-9_]+):`)
-	if rootMatches := rootRegex.FindStringSubmatch(errStr); len(rootMatches) > 1 {
-		info.RootType = rootMatches[1]
-	}
-
-	return info
-}
-
 func FormatDecodeError(err error) string {
 	if err == nil {
 		return ""
 	}
-
-	info := parseDecodeError(err.Error())
-	if info == nil {
-		return err.Error()
+	s := err.Error()
+	if !strings.Contains(s, "object with provided crc not registered") {
+		return s
 	}
-
-	var sb strings.Builder
-	sb.WriteString("decode error: unregistered object")
-
-	if info.CRC != "" {
-		sb.WriteString(fmt.Sprintf(" (crc: %s)", info.CRC))
+	var crc, field, root string
+	if m := regexp.MustCompile(`crc not registered: (0x[0-9a-fA-F]+)`).FindStringSubmatch(s); len(m) > 1 {
+		crc = m[1]
 	}
-
-	if info.FieldPath != "" {
-		sb.WriteString(fmt.Sprintf(" at field: %s", info.FieldPath))
+	if m := regexp.MustCompile(`decode object: (\w+\.\w+):`).FindAllStringSubmatch(s, -1); len(m) > 0 {
+		field = m[len(m)-1][1]
 	}
-
-	if info.RootType != "" {
-		sb.WriteString(fmt.Sprintf(" in type: %s", info.RootType))
+	if m := regexp.MustCompile(`\*([a-z]+\.\w+):`).FindStringSubmatch(s); len(m) > 1 {
+		root = m[1]
 	}
-
-	sb.WriteString(" - please report this issue in gogram's GitHub repository")
-
-	return sb.String()
+	return fmt.Sprintf("decode error: unknown crc %s at %s (in %s) - report to github.com/amarnathcjd/gogram", crc, field, root)
 }

@@ -33,10 +33,7 @@ func (kb *KeyboardBuilder) AddRow(buttons ...KeyboardButton) *KeyboardBuilder {
 func (kb *KeyboardBuilder) NewGrid(x, y int, buttons ...KeyboardButton) *KeyboardBuilder {
 	totalButtons := len(buttons)
 	for i := 0; i < x && i*y < totalButtons; i++ {
-		endIndex := (i + 1) * y
-		if endIndex > totalButtons {
-			endIndex = totalButtons
-		}
+		endIndex := min((i+1)*y, totalButtons)
 		rowButtons := buttons[i*y : endIndex]
 		kb.AddRow(rowButtons...)
 	}
@@ -52,10 +49,7 @@ func (kb *KeyboardBuilder) NewGrid(x, y int, buttons ...KeyboardButton) *Keyboar
 func (kb *KeyboardBuilder) NewColumn(x int, buttons ...KeyboardButton) *KeyboardBuilder {
 	// i.e x buttons per column
 	for i := 0; i < len(buttons); i += x {
-		endIndex := i + x
-		if endIndex > len(buttons) {
-			endIndex = len(buttons)
-		}
+		endIndex := min(i+x, len(buttons))
 		kb.AddRow(buttons[i:endIndex]...)
 	}
 	return kb
@@ -64,7 +58,7 @@ func (kb *KeyboardBuilder) NewColumn(x int, buttons ...KeyboardButton) *Keyboard
 // NewRow arranges buttons into a grid based on specified number of buttons (y) per row.
 func (kb *KeyboardBuilder) NewRow(y int, buttons ...KeyboardButton) *KeyboardBuilder {
 	// i.e y buttons per row
-	for i := 0; i < y; i++ {
+	for i := range y {
 		var rowButtons []KeyboardButton
 		for j := i; j < len(buttons); j += y {
 			rowButtons = append(rowButtons, buttons[j])
@@ -178,6 +172,66 @@ func (ButtonBuilder) Keyboard(Rows ...*KeyboardButtonRow) *ReplyInlineMarkup {
 
 func (ButtonBuilder) Clear() *ReplyKeyboardHide {
 	return &ReplyKeyboardHide{}
+}
+
+func InlineData(pairs ...string) *ReplyInlineMarkup {
+	if len(pairs)%2 != 0 {
+		pairs = append(pairs, pairs[len(pairs)-1])
+	}
+	var buttons []KeyboardButton
+	for i := 0; i < len(pairs); i += 2 {
+		buttons = append(buttons, &KeyboardButtonCallback{Text: pairs[i], Data: []byte(pairs[i+1])})
+	}
+	return &ReplyInlineMarkup{Rows: []*KeyboardButtonRow{{Buttons: buttons}}}
+}
+
+func InlineDataGrid(perRow int, pairs ...string) *ReplyInlineMarkup {
+	if len(pairs)%2 != 0 {
+		pairs = append(pairs, pairs[len(pairs)-1])
+	}
+	var rows []*KeyboardButtonRow
+	var buttons []KeyboardButton
+	for i := 0; i < len(pairs); i += 2 {
+		buttons = append(buttons, &KeyboardButtonCallback{Text: pairs[i], Data: []byte(pairs[i+1])})
+		if len(buttons) == perRow {
+			rows = append(rows, &KeyboardButtonRow{Buttons: buttons})
+			buttons = nil
+		}
+	}
+	if len(buttons) > 0 {
+		rows = append(rows, &KeyboardButtonRow{Buttons: buttons})
+	}
+	return &ReplyInlineMarkup{Rows: rows}
+}
+
+func InlineURL(pairs ...string) *ReplyInlineMarkup {
+	if len(pairs)%2 != 0 {
+		pairs = append(pairs, pairs[len(pairs)-1])
+	}
+	var buttons []KeyboardButton
+	for i := 0; i < len(pairs); i += 2 {
+		buttons = append(buttons, &KeyboardButtonURL{Text: pairs[i], URL: pairs[i+1]})
+	}
+	return &ReplyInlineMarkup{Rows: []*KeyboardButtonRow{{Buttons: buttons}}}
+}
+
+func InlineURLGrid(perRow int, pairs ...string) *ReplyInlineMarkup {
+	if len(pairs)%2 != 0 {
+		pairs = append(pairs, pairs[len(pairs)-1])
+	}
+	var rows []*KeyboardButtonRow
+	var buttons []KeyboardButton
+	for i := 0; i < len(pairs); i += 2 {
+		buttons = append(buttons, &KeyboardButtonURL{Text: pairs[i], URL: pairs[i+1]})
+		if len(buttons) == perRow {
+			rows = append(rows, &KeyboardButtonRow{Buttons: buttons})
+			buttons = nil
+		}
+	}
+	if len(buttons) > 0 {
+		rows = append(rows, &KeyboardButtonRow{Buttons: buttons})
+	}
+	return &ReplyInlineMarkup{Rows: rows}
 }
 
 type ClickOptions struct {

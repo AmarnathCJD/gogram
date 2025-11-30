@@ -28,6 +28,7 @@ type Logger interface {
 	Color() bool
 	ShowCaller(enabled bool) Logger
 	ShowFunction(enabled bool) Logger
+	FullStackTrace(enabled bool) Logger
 	SetPrefix(prefix string) Logger
 	SetTimestampFormat(format string) Logger
 	Lev() LogLevel
@@ -113,6 +114,7 @@ type LoggerConfig struct {
 	Color           bool
 	ShowCaller      bool
 	ShowFunction    bool
+	FullStackTrace  bool // If true, show raw full stack trace; if false (default), show formatted condensed stack
 	TimestampFormat string
 	BufferSize      int
 	AsyncMode       bool
@@ -151,6 +153,7 @@ func NewLogger(level LogLevel, config ...LoggerConfig) Logger {
 		internalConfig.Color = userConfig.Color
 		internalConfig.ShowCaller = userConfig.ShowCaller
 		internalConfig.ShowFunction = userConfig.ShowFunction
+		internalConfig.FullStackTrace = userConfig.FullStackTrace
 		internalConfig.TimestampFormat = userConfig.TimestampFormat
 		internalConfig.BufferSize = userConfig.BufferSize
 		internalConfig.AsyncMode = userConfig.AsyncMode
@@ -177,6 +180,7 @@ func NewLoggerWithConfig(config *LoggerConfig) Logger {
 		Color:           config.Color,
 		ShowCaller:      config.ShowCaller,
 		ShowFunction:    config.ShowFunction,
+		FullStackTrace:  config.FullStackTrace,
 		TimestampFormat: config.TimestampFormat,
 		BufferSize:      config.BufferSize,
 		AsyncMode:       config.AsyncMode,
@@ -272,6 +276,11 @@ func (l *loggerAdapter) ShowCaller(enabled bool) Logger {
 
 func (l *loggerAdapter) ShowFunction(enabled bool) Logger {
 	l.internal.ShowFunction(enabled)
+	return l
+}
+
+func (l *loggerAdapter) FullStackTrace(enabled bool) Logger {
+	l.internal.FullStackTrace(enabled)
 	return l
 }
 
@@ -440,6 +449,7 @@ func (w *simpleLoggerWrapper) SetColor(enabled bool) Logger               { retu
 func (w *simpleLoggerWrapper) Color() bool                                { return false }
 func (w *simpleLoggerWrapper) ShowCaller(enabled bool) Logger             { return w }
 func (w *simpleLoggerWrapper) ShowFunction(enabled bool) Logger           { return w }
+func (w *simpleLoggerWrapper) FullStackTrace(enabled bool) Logger         { return w }
 func (w *simpleLoggerWrapper) SetPrefix(prefix string) Logger             { return w }
 
 func (w *simpleLoggerWrapper) SetTimestampFormat(format string) Logger {
