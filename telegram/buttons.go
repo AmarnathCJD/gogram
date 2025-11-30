@@ -131,7 +131,7 @@ func (ButtonBuilder) RequestPhone(text string) *KeyboardButtonRequestPhone {
 }
 
 type RequestPeerOptions struct {
-	NameRquested      bool
+	NameRequested     bool
 	UsernameRequested bool
 	PhotoRequested    bool
 	MaxQuantity       int32
@@ -139,7 +139,7 @@ type RequestPeerOptions struct {
 
 func (ButtonBuilder) RequestPeer(text string, buttonID int32, peerType RequestPeerType, options ...RequestPeerOptions) *InputKeyboardButtonRequestPeer {
 	opt := getVariadic(options, RequestPeerOptions{})
-	return &InputKeyboardButtonRequestPeer{Text: text, ButtonID: buttonID, PeerType: peerType, NameRequested: opt.NameRquested, UsernameRequested: opt.UsernameRequested, PhotoRequested: opt.PhotoRequested, MaxQuantity: opt.MaxQuantity}
+	return &InputKeyboardButtonRequestPeer{Text: text, ButtonID: buttonID, PeerType: peerType, NameRequested: opt.NameRequested, UsernameRequested: opt.UsernameRequested, PhotoRequested: opt.PhotoRequested, MaxQuantity: opt.MaxQuantity}
 }
 
 func (ButtonBuilder) RequestPoll(text string, quiz bool) *KeyboardButtonRequestPoll {
