@@ -560,12 +560,16 @@ func (b *AdminBuilder) WithRank(rank string) *AdminBuilder {
 
 func (b *AdminBuilder) Promote() (bool, error) {
 	b.isAdmin = true
-	return b.client.EditAdmin(b.chatID, b.userID, &AdminOptions{IsAdmin: b.isAdmin, Rights: b.rights, Rank: b.rank})
+	return b.client.EditAdmin(b.chatID, b.userID, &AdminOptions{IsAdmin: true, Rights: b.rights, Rank: b.rank})
 }
 
 func (b *AdminBuilder) Demote() (bool, error) {
 	b.isAdmin = false
-	return b.client.EditAdmin(b.chatID, b.userID, &AdminOptions{IsAdmin: b.isAdmin, Rights: &ChatAdminRights{}, Rank: ""})
+	return b.client.EditAdmin(b.chatID, b.userID, &AdminOptions{IsAdmin: false, Rights: &ChatAdminRights{}, Rank: ""})
+}
+
+func (b *AdminBuilder) Invoke() (bool, error) {
+	return b.client.EditAdmin(b.chatID, b.userID, &AdminOptions{Rights: b.rights, Rank: b.rank})
 }
 
 type BannedOptions struct {
