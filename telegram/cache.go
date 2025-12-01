@@ -563,6 +563,26 @@ func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
 	return nil, fmt.Errorf("no channel with id '%d' or missing from cache", channelID)
 }
 
+func (c *CACHE) LookupUsername(username string) (peerID int64, accessHash int64, isChannel bool, found bool) {
+	c.RLock()
+	defer c.RUnlock()
+
+	username = strings.TrimPrefix(username, "@")
+	peerID, ok := c.usernameMap[username]
+	if !ok {
+		return 0, 0, false, false
+	}
+
+	if hash, ok := c.InputPeers.InputChannels[peerID]; ok {
+		return peerID, hash, true, true
+	}
+	if hash, ok := c.InputPeers.InputUsers[peerID]; ok {
+		return peerID, hash, false, true
+	}
+
+	return 0, 0, false, false
+}
+
 func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	// channel id (negative with -100 prefix)
 	if strings.HasPrefix(strconv.Itoa(int(peerID)), "-100") {
