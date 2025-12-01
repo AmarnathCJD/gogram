@@ -121,6 +121,22 @@ func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia
 			}
 			inputMedia = append(inputMedia, mediaObj)
 		}
+	case []Document:
+		for _, m := range m {
+			mediaObj, err := c.getSendableMedia(m, attrs)
+			if err != nil {
+				return nil, err
+			}
+			inputMedia = append(inputMedia, mediaObj)
+		}
+	case []Photo:
+		for _, m := range m {
+			mediaObj, err := c.getSendableMedia(m, attrs)
+			if err != nil {
+				return nil, err
+			}
+			inputMedia = append(inputMedia, mediaObj)
+		}
 	case []string:
 		for _, m := range m {
 			if !IsURL(m) && !attrs.SkipHash {
@@ -157,7 +173,7 @@ func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia
 			}
 			inputMedia = append(inputMedia, mediaObj)
 		}
-	case string, InputFile, InputMedia, MessageMedia, []byte:
+	case string, InputFile, InputMedia, MessageMedia, []byte, Photo, Document:
 		mediaObj, err := c.getSendableMedia(m, attrs)
 		if err != nil {
 			return nil, err
@@ -380,13 +396,11 @@ PeerSwitch:
 			return &InputPeerSelf{}, nil
 		}
 
-		if peerMap, ok := c.Cache.usernameMap[strings.TrimPrefix(Peer, "@")]; ok {
-			if peerHash, ok := c.Cache.InputPeers.InputChannels[peerMap]; ok {
-				return &InputPeerChannel{ChannelID: peerMap, AccessHash: peerHash}, nil
+		if peerID, accessHash, isChannel, found := c.Cache.LookupUsername(Peer); found {
+			if isChannel {
+				return &InputPeerChannel{ChannelID: peerID, AccessHash: accessHash}, nil
 			}
-			if peerHash, ok := c.Cache.InputPeers.InputUsers[peerMap]; ok {
-				return &InputPeerUser{UserID: peerMap, AccessHash: peerHash}, nil
-			}
+			return &InputPeerUser{UserID: peerID, AccessHash: accessHash}, nil
 		}
 
 		peerEntity, err := c.ResolveUsername(Peer)
