@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+const (
+	sessionPrefix    = "1BvX"
+	sessionSeparator = ":_:"
+	legacySeparator  = "::"
+)
+
 var (
 	ErrInvalidSession = errors.New("the session string is invalid/has been tampered with")
 )
@@ -56,7 +62,6 @@ func (s StringSession) AppID() int32 {
 }
 
 func (s *StringSession) Encode() string {
-	stringPrefix := "1BvX"
 	sessionContents := []string{
 		string(s.authKey),
 		string(s.authKeyHash),
@@ -64,19 +69,22 @@ func (s *StringSession) Encode() string {
 		strconv.Itoa(s.dcID),
 		strconv.FormatInt(int64(s.appID), 10),
 	}
-	return stringPrefix + base64.RawURLEncoding.EncodeToString([]byte(strings.Join(sessionContents, ":_:")))
+	return sessionPrefix + base64.RawURLEncoding.EncodeToString([]byte(strings.Join(sessionContents, sessionSeparator)))
 }
 
 func (s *StringSession) Decode(encoded string) error {
-	decoded, err := base64.RawURLEncoding.DecodeString(encoded[len("1BvX"):])
+	if len(encoded) < len(sessionPrefix) || encoded[:len(sessionPrefix)] != sessionPrefix {
+		return ErrInvalidSession
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(encoded[len(sessionPrefix):])
 	if err != nil {
 		return err
 	}
 	decodedString := string(decoded)
-	split := strings.Split(decodedString, ":_:")
+	split := strings.Split(decodedString, sessionSeparator)
 	if len(split) != 5 {
 		// try again with "::" as a separator (backward compatibility)
-		split = strings.Split(decodedString, "::")
+		split = strings.Split(decodedString, legacySeparator)
 	}
 	if len(split) != 5 {
 		return ErrInvalidSession

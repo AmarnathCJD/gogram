@@ -119,15 +119,14 @@ func (s *SyncIntObjectChan) Close() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	for k, v := range s.m {
-		CloseChannelWithoutPanic(v)
+		ccNoPanPan(v)
 		delete(s.m, k)
 	}
 }
 
-func CloseChannelWithoutPanic(c chan tl.Object) {
+func ccNoPanPan(c chan tl.Object) {
 	defer func() {
-		if r := recover(); r != nil {
-			close(c)
-		}
+		_ = recover()
 	}()
+	close(c)
 }

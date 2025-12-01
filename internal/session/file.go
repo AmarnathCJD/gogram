@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
+	"sync"
 	"time"
 
 	"errors"
@@ -45,11 +45,16 @@ func (l *genericFileSessionLoader) Key() string {
 	return l.key
 }
 
+func (l *genericFileSessionLoader) Exists() bool {
+	_, err := os.Stat(l.path)
+	return err == nil
+}
+
 func (l *genericFileSessionLoader) Load() (*Session, error) {
 	info, err := os.Stat(l.path)
 	switch {
 	case err == nil:
-	case errors.Is(err, syscall.ENOENT):
+	case errors.Is(err, os.ErrNotExist):
 		return nil, fmt.Errorf("file not found: %w", err)
 	default:
 		return nil, err
@@ -60,9 +65,13 @@ func (l *genericFileSessionLoader) Load() (*Session, error) {
 	}
 
 	data, err := os.ReadFile(l.path)
-	data = decodeBytes(data, l.key)
 	if err != nil {
 		return nil, fmt.Errorf("reading file: %w", err)
+	}
+
+	data, err = decodeBytes(data, l.key)
+	if err != nil {
+		return nil, fmt.Errorf("decrypting session: %w", err)
 	}
 
 	file := new(tokenStorageFormat)
@@ -84,16 +93,20 @@ func (l *genericFileSessionLoader) Load() (*Session, error) {
 
 func (l *genericFileSessionLoader) Store(s *Session) error {
 	dir, _ := filepath.Split(l.path)
-	if stat, err := os.Stat(dir); err != nil {
-		return fmt.Errorf("%v: directory not found", dir)
-	} else if !stat.IsDir() {
-		return fmt.Errorf("%v: not a directory", dir)
+	if dir != "" {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return fmt.Errorf("creating session directory: %w", err)
+		}
 	}
 	file := new(tokenStorageFormat)
 	file.writeSession(s)
 	data, _ := json.Marshal(file)
 
-	return os.WriteFile(l.path, encodeBytes(data, l.key), 0600)
+	encrypted, err := encodeBytes(data, l.key)
+	if err != nil {
+		return fmt.Errorf("encrypting session: %w", err)
+	}
+	return os.WriteFile(l.path, encrypted, 0600)
 }
 
 func (l *genericFileSessionLoader) Delete() error {
@@ -151,14 +164,12 @@ func decodeInt64ToBase64(i string) (int64, error) {
 	return int64(binary.LittleEndian.Uint64(buf)), nil
 }
 
-func encodeBytes(b []byte, key string) []byte {
-	aesByte, _ := aes.EncryptAES(b, key)
-	return aesByte
+func encodeBytes(b []byte, key string) ([]byte, error) {
+	return aes.EncryptAES(b, key)
 }
 
-func decodeBytes(b []byte, key string) []byte {
-	aesByte, _ := aes.DecryptAES(b, key)
-	return aesByte
+func decodeBytes(b []byte, key string) ([]byte, error) {
+	return aes.DecryptAES(b, key)
 }
 
 func NewInMemory() SessionLoader {
@@ -166,7 +177,8 @@ func NewInMemory() SessionLoader {
 }
 
 type inMemorySessionLoader struct {
-	s *Session
+	mu sync.RWMutex
+	s  *Session
 }
 
 var _ SessionLoader = (*inMemorySessionLoader)(nil)
@@ -179,16 +191,28 @@ func (l *inMemorySessionLoader) Key() string {
 	return "in-memory"
 }
 
+func (l *inMemorySessionLoader) Exists() bool {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	return l.s != nil
+}
+
 func (l *inMemorySessionLoader) Load() (*Session, error) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
 	return l.s, nil
 }
 
 func (l *inMemorySessionLoader) Store(s *Session) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.s = s
 	return nil
 }
 
 func (l *inMemorySessionLoader) Delete() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.s = nil
 	return nil
 }
