@@ -261,7 +261,7 @@ func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
 	} else {
 		config.DataCenter = getValue(config.DataCenter, DefaultDataCenter)
 	}
-	config.PublicKeys, _ = keys.GetRSAKeys()
+	config.PublicKeys = keys.GetRSAKeys()
 	return config
 }
 
