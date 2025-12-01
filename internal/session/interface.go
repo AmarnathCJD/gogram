@@ -12,6 +12,7 @@ type SessionLoader interface {
 	Path() string
 	Key() string
 	Delete() error
+	Exists() bool
 }
 
 // Session is a basic data of specific session. Typically, session stores default hostname of mtproto server
