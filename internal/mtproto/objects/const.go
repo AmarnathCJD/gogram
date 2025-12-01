@@ -1,4 +1,4 @@
-// Copyright (c) 2024 RoseLoverX
+// Copyright (c) 2025 @AmarnathCJD
 
 package objects
 

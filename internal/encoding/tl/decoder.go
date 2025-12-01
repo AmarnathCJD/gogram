@@ -1,4 +1,4 @@
-// Copyright (c) 2024 RoseLoverX
+// Copyright (c) 2025 @AmarnathCJD
 
 package tl
 
@@ -6,15 +6,13 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
-
-	"errors"
 )
 
 func Decode(data []byte, res any) error {
 	if res == nil {
-		return errors.New("can't unmarshal to nil value")
+		return fmt.Errorf("can't decode into nil value")
 	}
-	if reflect.TypeOf(res).Kind() != reflect.Ptr {
+	if reflect.TypeOf(res).Kind() != reflect.Pointer {
 		return fmt.Errorf("res value is not pointer as expected. got %v", reflect.TypeOf(res))
 	}
 
@@ -68,13 +66,15 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 
 	value := reflect.ValueOf(o)
 
-	if value.Kind() != reflect.Ptr {
-		panic("not a pointer")
+	if value.Kind() != reflect.Pointer {
+		d.err = fmt.Errorf("not pointer to struct: %s", value.Type().String())
+		return
 	}
 
 	value = reflect.Indirect(value)
 	if value.Kind() != reflect.Struct {
-		panic("not receiving on struct: " + value.Type().String() + " -> " + value.Kind().String())
+		d.err = fmt.Errorf("not receiving on struct: %s -> %s", value.Type().String(), value.Kind().String())
+		return
 	}
 
 	vtyp := value.Type()
@@ -86,11 +86,13 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 	if haveFlag(value.Interface()) {
 		indexGetter, ok := reflect.New(vtyp).Interface().(FlagIndexGetter)
 		if !ok {
-			panic("type " + value.Type().String() + " has type bit flag tags, but doesn't implement tl.FlagIndexGetter")
+			d.err = fmt.Errorf("type %s has type bit flag tags, but doesn't implement tl.FlagIndexGetter", value.Type().String())
+			return
 		}
 		flagsetIndex = indexGetter.FlagIndex()
 		if flagsetIndex < 0 {
-			panic("flag index is below zero, must be index of parameters")
+			d.err = fmt.Errorf("flag index is below zero, must be index of parameters")
+			return
 		}
 	}
 
@@ -159,7 +161,7 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 			}
 		}
 
-		if field.Kind() == reflect.Ptr {
+		if field.Kind() == reflect.Pointer {
 			val := reflect.New(field.Type().Elem())
 			field.Set(val)
 		}
@@ -204,7 +206,7 @@ func (d *Decoder) decodeValue(value reflect.Value) {
 			val = d.PopVector(value.Type().Elem())
 		}
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if o, ok := value.Interface().(Object); ok {
 			d.decodeObject(o, false)
 		} else {
@@ -266,10 +268,10 @@ func (d *Decoder) decodeValueGeneral(value reflect.Value) any {
 		d.err = fmt.Errorf("%v must implement tl.Object for decoding (also it must be pointer)", value.Type())
 
 	case reflect.Map:
-		d.err = errors.New("map is not ordered object (must order like structs)")
+		d.err = fmt.Errorf("map is not ordered object (must order like structs): %s", value.Type())
 
 	case reflect.Array:
-		d.err = errors.New("array must be slice")
+		d.err = fmt.Errorf("array must be slice: %s", value.Type())
 
 	case reflect.Int, reflect.Int8, reflect.Int16,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint64:
@@ -314,8 +316,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 				crc = vecCrc
 			}
 
-			// seek back to initial position
-			d.unread(8) // d.buf.Seek(-8, io.SeekCurrent)
+			d.unread(8)
 		}
 
 		_typ = d.expectedTypes[0]
@@ -324,8 +325,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 		res := d.popVector(_typ.Elem(), true)
 
 		if d.err != nil {
-			//d.err = nil
-			return nil // &PseudoNil{}
+			return nil
 		}
 
 		switch res := res.(type) {

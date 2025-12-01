@@ -1,9 +1,8 @@
-// Copyright (c) 2025 RoseLoverX
+// Copyright (c) 2025 @AmarnathCJD
 
 package telegram
 
 import (
-	"bytes"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -356,7 +355,7 @@ func InsertTagsIntoText(text string, tags []Tag) string {
 	}
 
 	result := make([]uint16, 0, len(utf16Text)*2)
-	for i := 0; i < len(utf16Text); i++ {
+	for i := range utf16Text {
 		if opening, exists := openTags[i]; exists {
 			for _, tag := range opening {
 				var utf16tag []uint16
@@ -387,90 +386,116 @@ func InsertTagsIntoText(text string, tags []Tag) string {
 	return string(utf16.Decode(result))
 }
 
+var (
+	mdLinkRe       = regexp.MustCompile(`<a\s+href="([^"]*)"[^>]*>([^<]*)</a>`)
+	mdEmojiRe      = regexp.MustCompile(`<emoji\s+id="(\d+)"[^>]*>[^<]*</emoji>`)
+	mdPreLangRe    = regexp.MustCompile(`<pre><code\s+class="language-([^"]+)">([^<]*)</code></pre>`)
+	mdPreRe        = regexp.MustCompile(`<pre><code>([^<]*)</code></pre>`)
+	mdBlockquoteRe = regexp.MustCompile(`<blockquote(?:\s+collapsed="(true|false)")?[^>]*>([^<]*)</blockquote>`)
+)
+
 func ToMarkdown(htmlStr string) string {
+	if htmlStr == "" {
+		return ""
+	}
+	htmlStr = mdLinkRe.ReplaceAllString(htmlStr, "[$2]($1)")
+	htmlStr = mdEmojiRe.ReplaceAllString(htmlStr, "::$1::")
+	htmlStr = mdPreLangRe.ReplaceAllString(htmlStr, "```$1\n$2```")
+	htmlStr = mdPreRe.ReplaceAllString(htmlStr, "```$1```")
+
+	htmlStr = mdBlockquoteRe.ReplaceAllStringFunc(htmlStr, func(m string) string {
+		parts := mdBlockquoteRe.FindStringSubmatch(m)
+		prefix := "> "
+		if len(parts) > 1 && parts[1] == "true" {
+			prefix = ">> "
+		}
+		lines := strings.Split(parts[2], "\n")
+		for i, line := range lines {
+			if line != "" {
+				lines[i] = prefix + line
+			}
+		}
+		return strings.Join(lines, "\n")
+	})
+
 	replacer := strings.NewReplacer(
-		"<b>", "**",
-		"</b>", "**",
-		"<strong>", "**",
-		"</strong>", "**",
-		"<i>", "__",
-		"</i>", "__",
-		"<em>", "__",
-		"</em>", "__",
-		"<u>", "--",
-		"</u>", "--",
-		"<s>", "~~",
-		"</s>", "~~",
-		"<code>", "`",
-		"</code>", "`",
-		"<pre>", "```",
-		"</pre>", "```",
-		"<a href=\"", "[",
-		"\">", "](",
-		"</a>", ")",
-		"<spoiler>", "||",
-		"</spoiler>", "||",
-		"<blockquote>", "> ",
-		"<blockquote collapsed=\"false\">", "> ",
-		"</blockquote>", "",
-		"<blockquote collapsed=\"true\">", ">> ",
-		"</blockquote>", "",
-		"<emoji id=\"", "::",
-		"\">", "::",
+		"<b>", "**", "</b>", "**",
+		"<strong>", "**", "</strong>", "**",
+		"<i>", "__", "</i>", "__",
+		"<em>", "__", "</em>", "__",
+		"<u>", "--", "</u>", "--",
+		"<s>", "~~", "</s>", "~~",
+		"<code>", "`", "</code>", "`",
+		"<spoiler>", "||", "</spoiler>", "||",
 	)
 	return replacer.Replace(htmlStr)
 }
 
 func HTMLToMarkdownV2(markdown string) string {
-	markdown, placeholders := handleEscapes(markdown)
-	markdown = convertSyntax(markdown, "**", "<b>", "</b>")
-	markdown = convertSyntax(markdown, "__", "<i>", "</i>")
-	markdown = convertSyntax(markdown, "__", "<i>", "</i>")
-	markdown = convertSyntax(markdown, "!!", "<u>", "</u>")
-	markdown = convertSyntax(markdown, "--", "<u>", "</u>")
-	markdown = convertSyntax(markdown, "~~", "<s>", "</s>")
-	markdown = convertSyntax(markdown, "||", "<spoiler>", "</spoiler>")
-	markdown = convertCodeSyntax(markdown)
-	markdown = convertCodeBlockSyntax(markdown)
-	markdown = convertLinksSyntax(markdown)
-	markdown = convertEmojiSyntax(markdown)
-	markdown = convertBlockquotesSyntax(markdown)
-	markdown = restoreEscapes(markdown, placeholders)
-	return string(bytes.TrimSpace([]byte(markdown)))
-}
-
-func handleEscapes(markdown string) (string, map[string]string) {
-	escapes := []string{"\\*", "\\_", "\\~", "\\|", "\\`", "\\[", "\\]", "\\(", "\\)", "\\{", "\\}", "\\<", "\\>", "\\!"}
-	placeholders := make(map[string]string)
-
-	for i, esc := range escapes {
-		placeholder := "??ESC??" + strconv.Itoa(i) + "??"
-		placeholders[placeholder] = escapes[i]
-		markdown = strings.ReplaceAll(markdown, esc, placeholder)
+	if markdown == "" {
+		return ""
 	}
 
+	markdown, placeholders := handleEscapes(markdown)
+	markdown = convertCodeBlockSyntax(markdown)
+	markdown = convertCodeSyntax(markdown)
+
+	for _, conv := range [][3]string{
+		{"**", "<b>", "</b>"},
+		{"__", "<i>", "</i>"},
+		{"!!", "<u>", "</u>"},
+		{"--", "<u>", "</u>"},
+		{"~~", "<s>", "</s>"},
+		{"||", "<spoiler>", "</spoiler>"},
+	} {
+		markdown = convertSyntax(markdown, conv[0], conv[1], conv[2])
+	}
+
+	markdown = convertLinksSyntax(markdown)
+	markdown = convertEmojiSyntax(markdown)
+	markdown = convertBlockquoteSyntax(markdown)
+	markdown = restoreEscapes(markdown, placeholders)
+
+	return strings.TrimSpace(markdown)
+}
+
+var escapeChars = []string{"*", "_", "~", "|", "`", "[", "]", "(", ")", "{", "}", "<", ">", "!"}
+
+func handleEscapes(markdown string) (string, map[string]string) {
+	placeholders := make(map[string]string, len(escapeChars))
+	for i, ch := range escapeChars {
+		esc := "\\" + ch
+		placeholder := "\x00ESC" + strconv.Itoa(i) + "\x00"
+		placeholders[placeholder] = ch
+		markdown = strings.ReplaceAll(markdown, esc, placeholder)
+	}
 	return markdown, placeholders
 }
 
 func restoreEscapes(markdown string, placeholders map[string]string) string {
-	for placeholder, esc := range placeholders {
-		markdown = strings.ReplaceAll(markdown, placeholder, strings.ReplaceAll(esc, "\\", ""))
+	for placeholder, ch := range placeholders {
+		markdown = strings.ReplaceAll(markdown, placeholder, ch)
 	}
 	return markdown
 }
 
-func convertSyntax(markdown, delimiter, openTag, closeTag string) string {
+func convertSyntax(markdown, delim, openTag, closeTag string) string {
+	delimLen := len(delim)
 	for {
-		start := strings.Index(markdown, delimiter)
+		start := strings.Index(markdown, delim)
 		if start == -1 {
 			break
 		}
-		end := strings.Index(markdown[start+len(delimiter):], delimiter)
+		rest := markdown[start+delimLen:]
+		end := strings.Index(rest, delim)
 		if end == -1 {
 			break
 		}
-		end += start + len(delimiter)
-		markdown = markdown[:start] + openTag + markdown[start+len(delimiter):end] + closeTag + markdown[end+len(delimiter):]
+		content := rest[:end]
+		if content == "" { // skip empty: ****, etc.
+			break
+		}
+		markdown = markdown[:start] + openTag + content + closeTag + rest[end+delimLen:]
 	}
 	return markdown
 }
@@ -481,115 +506,134 @@ func convertCodeSyntax(markdown string) string {
 		if start == -1 {
 			break
 		}
-		end := strings.Index(markdown[start+1:], "`")
-		if end == -1 {
+		if start+2 < len(markdown) && markdown[start:start+3] == "```" {
 			break
 		}
-		end += start + 1
-		content := htmlEscape(markdown[start+1 : end])
-		markdown = markdown[:start] + "<code>" + content + "</code>" + markdown[end+1:]
+		rest := markdown[start+1:]
+		end := strings.Index(rest, "`")
+		if end == -1 || end == 0 {
+			break
+		}
+		content := htmlEscape(rest[:end])
+		markdown = markdown[:start] + "<code>" + content + "</code>" + rest[end+1:]
 	}
 	return markdown
 }
 
 func convertCodeBlockSyntax(markdown string) string {
+	const fence = "```"
 	for {
-		start := strings.Index(markdown, "```")
+		start := strings.Index(markdown, fence)
 		if start == -1 {
 			break
 		}
-		end := strings.Index(markdown[start+3:], "```")
+		rest := markdown[start+3:]
+		end := strings.Index(rest, fence)
 		if end == -1 {
 			break
 		}
-		end += start + 3
 
-		codeBlock := markdown[start+3 : end]
-		var lang string
-		if idx := strings.Index(codeBlock, "\n"); idx != -1 {
-			lang = strings.TrimSpace(codeBlock[:idx])
-			codeBlock = codeBlock[idx+1:]
-		}
-
-		content := htmlEscape(codeBlock)
-		if lang != "" {
-			markdown = markdown[:start] + "<pre><code class=\"language-" + htmlEscape(lang) + "\">" + content + "</code></pre>" + markdown[end+3:]
+		block := rest[:end]
+		var lang, code string
+		if idx := strings.Index(block, "\n"); idx != -1 {
+			lang = strings.TrimSpace(block[:idx])
+			code = block[idx+1:]
 		} else {
-			markdown = markdown[:start] + "<pre><code>" + content + "</code></pre>" + markdown[end+3:]
+			code = block
 		}
+
+		escaped := htmlEscape(code)
+		var replacement string
+		if lang != "" {
+			replacement = "<pre><code class=\"language-" + htmlEscape(lang) + "\">" + escaped + "</code></pre>"
+		} else {
+			replacement = "<pre><code>" + escaped + "</code></pre>"
+		}
+		markdown = markdown[:start] + replacement + rest[end+3:]
 	}
 	return markdown
 }
 
+var linkRegex = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
+
 func convertLinksSyntax(markdown string) string {
-	re := regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
-	return re.ReplaceAllStringFunc(markdown, func(m string) string {
-		parts := re.FindStringSubmatch(m)
-		text := htmlEscape(parts[1])
-		url := htmlEscape(parts[2])
-		return fmt.Sprintf(`<a href="%s">%s</a>`, url, text)
+	return linkRegex.ReplaceAllStringFunc(markdown, func(m string) string {
+		parts := linkRegex.FindStringSubmatch(m)
+		if len(parts) < 3 {
+			return m
+		}
+		return fmt.Sprintf(`<a href="%s">%s</a>`, htmlEscape(parts[2]), htmlEscape(parts[1]))
 	})
 }
 
 func convertEmojiSyntax(markdown string) string {
+	const delim = "::"
 	for {
-		start := strings.Index(markdown, "::")
+		start := strings.Index(markdown, delim)
 		if start == -1 {
 			break
 		}
-		end := strings.Index(markdown[start+2:], "::")
-		if end == -1 {
+		rest := markdown[start+2:]
+		end := strings.Index(rest, delim)
+		if end == -1 || end == 0 {
 			break
 		}
-		end += start + 2
-		emojiID := markdown[start+2 : end]
-		markdown = markdown[:start] + "<emoji id=\"" + emojiID + "\"></emoji>" + markdown[end+2:]
+		emojiID := rest[:end]
+		if _, err := strconv.ParseInt(emojiID, 10, 64); err != nil {
+			break
+		}
+		markdown = markdown[:start] + "<emoji id=\"" + emojiID + "\"></emoji>" + rest[end+2:]
 	}
 	return markdown
 }
 
-func convertBlockquotesSyntax(markdown string) string {
-	var result strings.Builder
+func convertBlockquoteSyntax(markdown string) string {
 	lines := strings.Split(markdown, "\n")
-	inBlockquote := false
-	isCollapsed := false
+	if len(lines) == 0 {
+		return markdown
+	}
 
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
+	var result strings.Builder
+	result.Grow(len(markdown) + 100)
 
-		if strings.HasPrefix(trimmed, ">> ") {
-			if !inBlockquote || !isCollapsed {
-				if inBlockquote {
-					result.WriteString("</blockquote>\n")
-				}
-				result.WriteString("<blockquote collapsed=\"true\">")
-				inBlockquote = true
-				isCollapsed = true
-			}
-			result.WriteString(strings.TrimPrefix(trimmed, ">> ") + "\n")
-		} else if strings.HasPrefix(trimmed, "> ") {
-			if !inBlockquote || isCollapsed {
-				if inBlockquote {
-					result.WriteString("</blockquote>\n")
-				}
-				result.WriteString("<blockquote>")
-				inBlockquote = true
-				isCollapsed = false
-			}
-			result.WriteString(strings.TrimPrefix(trimmed, "> ") + "\n")
-		} else {
-			if inBlockquote {
-				result.WriteString("</blockquote>\n")
-				inBlockquote = false
-				isCollapsed = false
-			}
-			result.WriteString(line + "\n")
+	var inBlockquote, isCollapsed bool
+
+	closeBlockquote := func() {
+		if inBlockquote {
+			result.WriteString("</blockquote>\n")
+			inBlockquote, isCollapsed = false, false
 		}
 	}
 
-	if inBlockquote {
-		result.WriteString("</blockquote>\n")
+	openBlockquote := func(collapsed bool) {
+		if inBlockquote && isCollapsed != collapsed {
+			closeBlockquote()
+		}
+		if !inBlockquote {
+			if collapsed {
+				result.WriteString("<blockquote collapsed=\"true\">")
+			} else {
+				result.WriteString("<blockquote>")
+			}
+			inBlockquote, isCollapsed = true, collapsed
+		}
 	}
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(trimmed, ">> "):
+			openBlockquote(true)
+			result.WriteString(trimmed[3:] + "\n")
+		case strings.HasPrefix(trimmed, "> "):
+			openBlockquote(false)
+			result.WriteString(trimmed[2:] + "\n")
+		default:
+			closeBlockquote()
+			result.WriteString(line + "\n")
+		}
+	}
+	closeBlockquote()
 
 	return result.String()
 }
