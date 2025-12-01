@@ -3,22 +3,48 @@
 package tl
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
-
-	"errors"
+	"sync"
 )
 
 const tagName = "tl"
 
 type fieldTag struct {
-	index            int  // flags:<N>
-	encodedInBitflag bool // encoded_in_bitflags
-	ignore           bool // -
-	optional         bool // omitempty
-	version          int  // flags||flags2
+	index            int
+	encodedInBitflag bool
+	ignore           bool
+	optional         bool
+	version          int
+}
+
+type cachedStructTags struct {
+	fields []*fieldTag
+}
+
+var tagCache sync.Map // map[reflect.Type]*cachedStructTags
+
+func GetCachedTags(t reflect.Type) []*fieldTag {
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if cached, ok := tagCache.Load(t); ok {
+		return cached.(*cachedStructTags).fields
+	}
+
+	numFields := t.NumField()
+	fields := make([]*fieldTag, numFields)
+	for i := range numFields {
+		info, _ := parseTag(t.Field(i).Tag)
+		fields[i] = info
+	}
+
+	tagCache.Store(t, &cachedStructTags{fields: fields})
+	return fields
 }
 
 func parseTag(s reflect.StructTag) (*fieldTag, error) {
@@ -40,8 +66,8 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 	}
 
 	var flagIndexSet bool
-	if strings.HasPrefix(tag.Name, "flag2:") {
-		num := strings.TrimPrefix(tag.Name, "flag2:")
+	if after, ok := strings.CutPrefix(tag.Name, "flag2:"); ok {
+		num := after
 		index, err := parseUintMax32(num)
 		info.index = int(index)
 		if err != nil {
@@ -52,8 +78,8 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 
 		flagIndexSet = true
 		info.version = 2
-	} else if strings.HasPrefix(tag.Name, "flag:") {
-		num := strings.TrimPrefix(tag.Name, "flag:")
+	} else if after, ok := strings.CutPrefix(tag.Name, "flag:"); ok {
+		num := after
 		index, err := parseUintMax32(num)
 		info.index = int(index)
 		if err != nil {
@@ -66,7 +92,7 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 		flagIndexSet = true
 	}
 
-	if haveInSlice("encoded_in_bitflags", tag.Options) {
+	if slices.Contains(tag.Options, "encoded_in_bitflags") {
 		if !flagIndexSet {
 			return nil, errors.New("have 'encoded_in_bitflag' option without flag index")
 		}
@@ -74,22 +100,11 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 		info.encodedInBitflag = true
 	}
 
-	if haveInSlice("omitempty", tag.Options) {
+	if slices.Contains(tag.Options, "omitempty") {
 		info.optional = true
 	}
 
 	return info, nil
-}
-
-// ! slicetricks
-func haveInSlice(s string, slice []string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-
-	return false
 }
 
 var (
@@ -127,7 +142,7 @@ func parseFunc(tag string) (*Tags, error) {
 
 	hasTag := tag != ""
 
-	// NOTE(arslan) following code is from reflect and vet package with some
+	// following code is from reflect and vet package with some
 	// modifications to collect all necessary information and extend it with
 	// usable methods
 	for tag != "" {

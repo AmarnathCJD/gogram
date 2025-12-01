@@ -78,6 +78,7 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 	}
 
 	vtyp := value.Type()
+	cachedTags := GetCachedTags(vtyp)
 
 	var optionalBitSetA uint32
 	var optionalBitSetB uint32
@@ -104,7 +105,7 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 		loopCycles++
 	}
 
-	var alreadyParsed []string
+	var parsedFields uint64
 
 	if vtyp.Name() == "UserFull" { // special case for UserFull
 		optionalBitSetA = d.PopUint()
@@ -131,18 +132,14 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 		}
 		field := value.Field(fieldIndex)
 
-		if _, found := vtyp.Field(fieldIndex).Tag.Lookup(tagName); found {
-			info, err := parseTag(vtyp.Field(fieldIndex).Tag)
-			if err != nil {
-				d.err = fmt.Errorf("parse tag: %w", err)
-				return
-			}
+		info := cachedTags[fieldIndex]
+		if info != nil {
 			if info.version == 1 {
 				if optionalBitSetA&(1<<info.index) == 0 {
 					continue
 				}
 			} else if info.version == 2 {
-				if (!isBitsetBParsed) && isBitsetAParsed {
+				if !isBitsetBParsed && isBitsetAParsed {
 					optionalBitSetB = d.PopUint()
 					if d.err != nil {
 						d.err = fmt.Errorf("read bitset: %w", d.err)
@@ -166,9 +163,9 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 			field.Set(val)
 		}
 
-		if !haveInSlice(vtyp.Field(fieldIndex).Name, alreadyParsed) {
+		if parsedFields&(1<<fieldIndex) == 0 {
 			d.decodeValue(field)
-			alreadyParsed = append(alreadyParsed, vtyp.Field(fieldIndex).Name)
+			parsedFields |= 1 << fieldIndex
 		}
 
 		if d.err != nil {

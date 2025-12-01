@@ -17,22 +17,12 @@ func padding4(size int) int {
 
 func haveFlag(v any) bool {
 	typ := reflect.TypeOf(v)
-	for i := 0; i < typ.NumField(); i++ {
-		_, found := typ.Field(i).Tag.Lookup(tagName)
-		if found {
-			info, err := parseTag(typ.Field(i).Tag)
-			if err != nil {
-				continue
-			}
-
-			if info.ignore {
-				continue
-			}
-
+	cachedTags := GetCachedTags(typ)
+	for _, info := range cachedTags {
+		if info != nil && !info.ignore {
 			return true
 		}
 	}
-
 	return false
 }
 
