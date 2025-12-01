@@ -1,4 +1,4 @@
-// Copyright (c) 2024 RoseLoverX
+// Copyright (c) 2025 @AmarnathCJD
 
 package tl
 
@@ -12,7 +12,7 @@ import (
 type Encoder struct {
 	w io.Writer
 	// this error is last unsuccessful write into w. if this err != nil,
-	// write() method will not write enay data
+	// write() method will not write anything more.
 	err error
 }
 

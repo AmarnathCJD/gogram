@@ -1,4 +1,4 @@
-// Copyright (c) 2024 RoseLoverX
+// Copyright (c) 2025 @AmarnathCJD
 
 package tl
 
@@ -47,7 +47,7 @@ func (*PseudoNil) Unwrap() any {
 	return nil
 }
 
-// WrappedSlice is pseudo type. YOU SHOULD NOT use it customly, instead, you must encode/decode value by
+// WrappedSlice is pseudo type. YOU SHOULD NOT use it custom, instead, you must encode/decode value by
 // encoder.PutVector or decoder.PopVector
 type WrappedSlice struct {
 	data any

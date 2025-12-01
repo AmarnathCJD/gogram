@@ -1,4 +1,4 @@
-// Copyright (c) 2024 RoseLoverX
+// Copyright (c) 2025 @AmarnathCJD
 
 package tl
 
@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-
-	"errors"
 )
 
 var bufferPool = sync.Pool{
@@ -64,7 +62,7 @@ func (c *Encoder) encodeValue(value reflect.Value) {
 
 	case reflect.Ptr, reflect.Interface:
 		if value.IsNil() {
-			c.err = errors.New("value can't be nil")
+			c.err = fmt.Errorf("value can't be nil")
 			break
 		}
 
@@ -98,7 +96,7 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 
 	o, ok := v.Interface().(Object)
 	if !ok {
-		c.err = errors.New(v.Type().String() + " doesn't implement tl.Object interface")
+		c.err = fmt.Errorf("%s doesn't implement tl.Object interface", v.Type().String())
 		return
 	}
 

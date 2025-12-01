@@ -1,4 +1,4 @@
-// Copyright (c) 2024 RoseLoverX
+// Copyright (c) 2025 @AmarnathCJD
 
 package tl
 
@@ -71,7 +71,7 @@ func (d *Decoder) read(buf []byte) {
 }
 
 func (d *Decoder) unread(count int) {
-	for i := 0; i < count; i++ {
+	for range count {
 		if d.buf.UnreadByte() != nil {
 			return
 		}
@@ -203,7 +203,7 @@ func (d *Decoder) popVector(as reflect.Type, ignoreCRC bool) any {
 	x := reflect.MakeSlice(reflect.SliceOf(as), int(size), int(size))
 	for i := 0; i < int(size); i++ {
 		var val reflect.Value
-		if as.Kind() == reflect.Ptr {
+		if as.Kind() == reflect.Pointer {
 			val = reflect.New(as.Elem())
 		} else {
 			val = reflect.New(as).Elem()
