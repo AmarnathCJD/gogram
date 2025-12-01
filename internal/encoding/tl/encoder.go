@@ -117,9 +117,10 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 	// 3) definitely struct (we don't call encodeStruct(), only in c.encodeValue())
 	// 4) not nil (structs can't be nil, only pointers and interfaces)
 	c.PutCRC(o.CRC())
-	var tmpObjects = make([]reflect.Value, 0)
+	var tmpObjects = make([]reflect.Value, 0, v.NumField())
 
 	vtyp := v.Type()
+	cachedTags := GetCachedTags(vtyp)
 
 	for i := 0; i < v.NumField(); i++ {
 		// THIS PART is appending to object meta value, that actually don't writing in real encodeValue
@@ -127,11 +128,7 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 			tmpObjects = append(tmpObjects, reflect.ValueOf(0))
 		}
 
-		info, err := parseTag(vtyp.Field(i).Tag)
-		if err != nil {
-			c.err = fmt.Errorf("parsing tag of field %v: %w", vtyp.Field(i).Name, err)
-			return
-		}
+		info := cachedTags[i]
 
 		if info == nil {
 			// If there is no tag, then this is a mandatory field, meaning we write 100%.
@@ -157,8 +154,6 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 			}
 
 			tmpObjects = append(tmpObjects, v.Field(i))
-
-			continue
 		}
 	}
 
