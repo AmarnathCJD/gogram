@@ -204,7 +204,7 @@ type openChat struct {
 	accessHash int64
 	closeChan  chan struct{}
 	lastPts    int32
-	timeout    int32 // timeout from getChannelDifference response
+	timeout    int32
 }
 
 type channelState struct {
@@ -238,7 +238,6 @@ type UpdateDispatcher struct {
 	activeAlbums          map[int64]*albumBox
 	logger                Logger
 
-	// State management per Telegram docs
 	state         UpdateState             // Common update state (pts, qts, seq, date)
 	channelStates map[int64]*channelState // Per-channel pts state
 
@@ -250,16 +249,11 @@ type UpdateDispatcher struct {
 	recoveringDifference bool
 	recoveringChannels   map[int64]bool
 
-	// Open chats for active polling
 	openChats map[int64]*openChat
 
-	// Misc
 	lastUpdateTime time.Time
-	//processedUpdates map[int64]time.Time
-	stopChan chan struct{}
+	stopChan       chan struct{}
 }
-
-// State getters and setters - using the consolidated UpdateState struct
 
 func (d *UpdateDispatcher) SetPts(pts int32) {
 	d.Lock()
@@ -359,30 +353,6 @@ func (d *UpdateDispatcher) HasState() bool {
 	return d.state.Pts != 0 || d.state.Seq != 0
 }
 
-// TryMarkUpdateProcessed atomically checks if an update was processed and marks it if not.
-// Returns true if this call marked it (first processor), false if already processed.
-// func (d *UpdateDispatcher) TryMarkUpdateProcessed(updateID int64) bool {
-// 	d.Lock()
-// 	defer d.Unlock()
-// 	if d.processedUpdates == nil {
-// 		d.processedUpdates = make(map[int64]time.Time)
-// 	}
-// 	if _, exists := d.processedUpdates[updateID]; exists {
-// 		return false
-// 	}
-// 	d.processedUpdates[updateID] = time.Now()
-
-// 	if len(d.processedUpdates) > 5000 {
-// 		cutoff := time.Now().Add(-5 * time.Minute)
-// 		for id, t := range d.processedUpdates {
-// 			if t.Before(cutoff) {
-// 				delete(d.processedUpdates, id)
-// 			}
-// 		}
-// 	}
-// 	return true
-// }
-
 func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 	c.dispatcher = &UpdateDispatcher{
 		logger: c.Log.WithPrefix("gogram " +
@@ -393,7 +363,6 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		recoveringChannels: make(map[int64]bool),
 		gapTimeout:         500 * time.Millisecond,
 
-		//processedUpdates: make(map[int64]time.Time),
 		stopChan:       make(chan struct{}),
 		lastUpdateTime: time.Now(),
 		openChats:      make(map[int64]*openChat),
@@ -952,21 +921,12 @@ func (c *Client) handleRawUpdate(update Update) {
 
 	for group, handlers := range rawHandles {
 		for _, handler := range handlers {
-			defer func() {
-				if r := recover(); r != nil {
-					c.Log.Error(fmt.Sprintf("[RawUpdateHandlerPanic] Recovered from panic: %v | Update details: %+v", r, update))
-				}
-			}()
 			if handler == nil || handler.Handler == nil {
 				continue
 			}
 			if reflect.TypeOf(update) == reflect.TypeOf(handler.updateType) || handler.updateType == nil {
 				handle := func(h *rawHandle) error {
-					defer func() {
-						if r := recover(); r != nil {
-							c.Log.Error(fmt.Sprintf("[RawUpdateHandlerPanic] Recovered from panic: %v | Update details: %+v", r, update))
-						}
-					}()
+					defer c.NewRecovery()()
 					return h.Handler(update, c)
 				}
 
@@ -1774,7 +1734,7 @@ func (c *Client) AddRawHandler(updateType Update, handler RawHandler) Handle {
 }
 
 // HandleIncomingUpdates processes incoming updates and dispatches them to the appropriate handlers.
-// Per Telegram docs, updates are handled in this order:
+// Updates are handled in this order:
 // 1. Handle pts/qts-based updates (message box updates) separately
 // 2. Handle remaining updates with respect to seq
 func HandleIncomingUpdates(u any, c *Client) bool {
@@ -2481,9 +2441,8 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 	c.Log.Debug("channel difference max iterations (channel=%d, iterations=%d, pts=%d, fetched=%d)", channelID, maxIterations, req.Pts, totalFetched)
 }
 
-// OpenChat starts active polling for a channel when user is viewing it.
-// Per Telegram docs: when user opens a channel, client should periodically
-// call getChannelDifference using the timeout from the response.
+// OpenChat starts active polling for a channel to receive updates faster.
+// timeoutSeconds specifies the polling interval in seconds.
 func (c *Client) OpenChat(channel *InputChannelObj, timeoutSeconds int32) {
 	c.dispatcher.Lock()
 	if c.dispatcher.openChats == nil {
@@ -2495,7 +2454,6 @@ func (c *Client) OpenChat(channel *InputChannelObj, timeoutSeconds int32) {
 	}
 	c.dispatcher.Unlock()
 
-	// Get current channel pts (outside lock to avoid blocking)
 	currentPts := c.dispatcher.GetChannelPts(channel.ChannelID)
 	if currentPts == 0 {
 		diff, err := c.UpdatesGetChannelDifference(&UpdatesGetChannelDifferenceParams{
@@ -2785,7 +2743,6 @@ func (c *Client) On(args ...any) Handle {
 		}
 	}
 
-	// Try to auto-detect event type from handler if no pattern given
 	info := parsePattern(pattern)
 	if info.eventType == "" && handler != nil {
 		handlerType := fmt.Sprintf("%T", handler)
@@ -2794,7 +2751,6 @@ func (c *Client) On(args ...any) Handle {
 		}
 	}
 
-	// Register handler based on event type
 	switch info.eventType {
 	case "message", "newmessage", "msg":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
@@ -2897,7 +2853,6 @@ func (c *Client) On(args ...any) Handle {
 		c.Log.Error("On(raw): invalid handler type %T, expected func(Update, *Client) error", handler)
 
 	default:
-		// Check if pattern is a raw Update type
 		if update, ok := pattern.(Update); ok {
 			if h, ok := handler.(func(m Update, c *Client) error); ok {
 				return c.AddRawHandler(update, h)
@@ -2906,7 +2861,6 @@ func (c *Client) On(args ...any) Handle {
 			return nil
 		}
 
-		// Unknown event type - try to auto-detect from handler
 		switch h := handler.(type) {
 		case func(m *NewMessage) error:
 			return c.AddMessageHandler(OnNewMessage, h, filters...)
@@ -3004,38 +2958,17 @@ func (c *Client) monitorNoUpdatesTimeout() {
 	}
 }
 
-// FetchInitialState fetches the initial update state from the server.
-// Per Telegram docs: "When the user logs in for the first time, a call to updates.getState
-// has to be made to store the latest update state."
-func (c *Client) FetchInitialState() error {
-	state, err := c.UpdatesGetState()
-	if err != nil {
-		return err
+// ExportPts exports the current pts value from the dispatcher.
+func (c *Client) ExportPts() int32 {
+	if c.dispatcher == nil {
+		return 0
 	}
-
-	c.dispatcher.SetState(UpdateState{
-		Pts:  state.Pts,
-		Qts:  state.Qts,
-		Seq:  state.Seq,
-		Date: state.Date,
-	})
-
-	c.Log.Debug("initial state fetched (pts=%d, qts=%d, seq=%d, date=%d)",
-		state.Pts, state.Qts, state.Seq, state.Date)
-
-	return nil
+	return c.dispatcher.GetPts()
 }
 
 // FetchDifferenceOnStartup fetches any missed updates since last disconnect.
 // Should be called on startup after logging in to catch up on missed events.
-// Per Telegram docs: "On startup, only updates.getDifference should be called"
-func (c *Client) FetchDifferenceOnStartup() error {
-	// If we don't have any stored state, fetch initial state first
-	if !c.dispatcher.HasState() {
-		return c.FetchInitialState()
-	}
-
-	// Get difference from stored pts
-	c.FetchDifference(c.dispatcher.GetPts(), 5000)
-	return nil
+func (c *Client) FetchDifferenceOnStartup(pts int32) {
+	c.Log.Debug("fetching difference on startup (pts=%d)", pts)
+	c.FetchDifference(pts, 5000)
 }
