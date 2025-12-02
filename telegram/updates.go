@@ -237,22 +237,16 @@ type UpdateDispatcher struct {
 	rawHandles            map[int][]*rawHandle
 	activeAlbums          map[int64]*albumBox
 	logger                Logger
-
-	state         UpdateState             // Common update state (pts, qts, seq, date)
-	channelStates map[int64]*channelState // Per-channel pts state
-
-	// Gap recovery state
-	gapTimeout           time.Duration         // Wait time before fetching difference (0.5s recommended)
-	pendingGapTimer      *time.Timer           // Timer for common pts/qts gap
-	pendingSeqGapTimer   *time.Timer           // Timer for seq gap
-	channelGapTimers     map[int64]*time.Timer // Per-channel gap timers
-	recoveringDifference bool
-	recoveringChannels   map[int64]bool
-
-	openChats map[int64]*openChat
-
-	lastUpdateTime time.Time
-	stopChan       chan struct{}
+	openChats             map[int64]*openChat
+	nextUpdatesDeadline   time.Time
+	lastUpdateTime        time.Time
+	state                 UpdateState
+	channelStates         map[int64]*channelState
+	pendingGaps           map[int32]time.Time
+	processedUpdates      map[int64]time.Time
+	recoveringDifference  bool
+	recoveringChannels    map[int64]bool
+	stopChan              chan struct{}
 }
 
 func (d *UpdateDispatcher) SetPts(pts int32) {
@@ -303,18 +297,6 @@ func (d *UpdateDispatcher) GetDate() int32 {
 	return d.state.Date
 }
 
-func (d *UpdateDispatcher) GetState() UpdateState {
-	d.RLock()
-	defer d.RUnlock()
-	return d.state
-}
-
-func (d *UpdateDispatcher) SetState(state UpdateState) {
-	d.Lock()
-	defer d.Unlock()
-	d.state = state
-}
-
 func (d *UpdateDispatcher) SetChannelPts(channelID int64, pts int32) {
 	d.Lock()
 	defer d.Unlock()
@@ -346,27 +328,39 @@ func (d *UpdateDispatcher) UpdateLastUpdateTime() {
 	d.lastUpdateTime = time.Now()
 }
 
-// HasState returns true if the update state has been initialized
-func (d *UpdateDispatcher) HasState() bool {
-	d.RLock()
-	defer d.RUnlock()
-	return d.state.Pts != 0 || d.state.Seq != 0
+// TryMarkUpdateProcessed atomically checks if an update was processed and marks it if not.
+// Returns true if this call marked it (first processor), false if already processed.
+func (d *UpdateDispatcher) TryMarkUpdateProcessed(updateID int64) bool {
+	d.Lock()
+	defer d.Unlock()
+	if d.processedUpdates == nil {
+		d.processedUpdates = make(map[int64]time.Time)
+	}
+	if _, exists := d.processedUpdates[updateID]; exists {
+		return false
+	}
+	d.processedUpdates[updateID] = time.Now()
+
+	if len(d.processedUpdates) > 15000 {
+		cutoff := time.Now().Add(-24 * time.Hour)
+		for id, t := range d.processedUpdates {
+			if t.Before(cutoff) {
+				delete(d.processedUpdates, id)
+			}
+		}
+	}
+	return true
 }
 
 func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 	c.dispatcher = &UpdateDispatcher{
 		logger: c.Log.WithPrefix("gogram " +
 			lp("dispatcher", getVariadic(sessionName, ""))),
-
-		channelStates:      make(map[int64]*channelState),
-		channelGapTimers:   make(map[int64]*time.Timer),
-		recoveringChannels: make(map[int64]bool),
-		gapTimeout:         500 * time.Millisecond,
-
-		stopChan:       make(chan struct{}),
-		lastUpdateTime: time.Now(),
-		openChats:      make(map[int64]*openChat),
-
+		channelStates:         make(map[int64]*channelState),
+		pendingGaps:           make(map[int32]time.Time),
+		processedUpdates:      make(map[int64]time.Time),
+		stopChan:              make(chan struct{}),
+		lastUpdateTime:        time.Now(),
 		messageHandles:        make(map[int][]*messageHandle),
 		inlineHandles:         make(map[int][]*inlineHandle),
 		inlineSendHandles:     make(map[int][]*inlineSendHandle),
@@ -387,7 +381,7 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 }
 
 func (c *Client) RemoveHandle(handle Handle) error {
-	if c.dispatcher == nil {
+	if c.dispatcher == nil || c == nil {
 		return errors.New("[DispatcherNotInitialized] dispatcher is not initialized")
 	}
 
@@ -451,6 +445,19 @@ func removeHandleFromMap[T any](handle T, handlesMap map[int][]T) {
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
+		updateID := int64(msg.ID)
+		peerID := c.GetPeerID(msg.PeerID)
+		if peerID == 0 {
+			peerID = c.GetPeerID(msg.FromID)
+		}
+		if peerID != 0 {
+			updateID = (peerID << 32) | int64(msg.ID)
+		}
+
+		if !c.dispatcher.TryMarkUpdateProcessed(updateID) {
+			c.dispatcher.logger.Trace("skipping duplicate message update: %d", updateID)
+			return
+		}
 
 		if msg.GroupedID != 0 {
 			c.handleAlbum(*msg)
@@ -1658,23 +1665,16 @@ func (c *Client) AddRawHandler(updateType Update, handler RawHandler) Handle {
 }
 
 // HandleIncomingUpdates processes incoming updates and dispatches them to the appropriate handlers.
-// Updates are handled in this order:
-// 1. Handle pts/qts-based updates (message box updates) separately
-// 2. Handle remaining updates with respect to seq
 func HandleIncomingUpdates(u any, c *Client) bool {
 	// Update last update time for 15-minute timeout monitoring
 	c.dispatcher.UpdateLastUpdateTime()
+	c.dispatcher.nextUpdatesDeadline = time.Now().Add(time.Minute * 15)
 
 UpdateTypeSwitching:
 	switch upd := u.(type) {
 	case *UpdatesObj:
-		// Check and apply seq first
 		if !c.manageSeq(upd.Seq, upd.Seq) {
 			return false
-		}
-		// Update date from Updates constructor
-		if upd.Date > 0 {
-			c.dispatcher.SetDate(upd.Date)
 		}
 
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
@@ -1751,27 +1751,17 @@ UpdateTypeSwitching:
 			}
 			go c.handleRawUpdate(update)
 		}
-
 	case *UpdateShort:
-		// UpdateShort contains lower priority events
-		if upd.Date > 0 {
-			c.dispatcher.SetDate(upd.Date)
-		}
 		switch upd := upd.Update.(type) {
 		case *UpdateNewMessage:
-			if c.managePts(upd.Pts, upd.PtsCount) {
-				go c.handleMessageUpdate(upd.Message)
-			}
+			go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
 		case *UpdateNewChannelMessage:
 			channelID := getChannelIDFromMessage(upd.Message)
 			if channelID != 0 {
-				if c.manageChannelPts(channelID, upd.Pts, upd.PtsCount) {
-					go c.handleMessageUpdate(upd.Message)
-				}
+				go c.handleMessageUpdate(upd.Message)
+				c.manageChannelPts(channelID, upd.Pts, upd.PtsCount)
 			} else {
-				if c.managePts(upd.Pts, upd.PtsCount) {
-					go c.handleMessageUpdate(upd.Message)
-				}
+				go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
 			}
 		case *UpdateChannelTooLong:
 			currentPts := c.dispatcher.GetChannelPts(upd.ChannelID)
@@ -1781,76 +1771,34 @@ UpdateTypeSwitching:
 			go c.FetchChannelDifference(upd.ChannelID, currentPts, 50)
 		}
 		go c.handleRawUpdate(upd.Update)
-
 	case *UpdateShortMessage:
-		if c.managePts(upd.Pts, upd.PtsCount) {
-			update := &MessageObj{
-				ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message,
-				MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID),
-				PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities,
-				FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID,
-				TtlPeriod: upd.TtlPeriod, Silent: upd.Silent,
-			}
-			go c.fetchPeersBeforeUpdate(update, upd.Pts)
-			go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: upd.PtsCount})
-		}
-		if upd.Date > 0 {
-			c.dispatcher.SetDate(upd.Date)
-		}
-
+		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
+		go c.fetchPeersBeforeUpdate(update, upd.Pts)
+		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdateShortChatMessage:
-		if c.managePts(upd.Pts, upd.PtsCount) {
-			update := &MessageObj{
-				ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message,
-				MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID),
-				PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities,
-				FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID,
-				TtlPeriod: upd.TtlPeriod, Silent: upd.Silent,
-			}
-			go c.fetchPeersBeforeUpdate(update, upd.Pts)
-			go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: upd.PtsCount})
-		}
-		if upd.Date > 0 {
-			c.dispatcher.SetDate(upd.Date)
-		}
-
+		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
+		go c.fetchPeersBeforeUpdate(update, upd.Pts)
+		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdateShortSentMessage:
-		// Response to messages.sendMessage - contains sent message info
-		if c.managePts(upd.Pts, upd.PtsCount) {
-			update := &MessageObj{
-				ID: upd.ID, Out: upd.Out, Date: upd.Date,
-				Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod,
-			}
-			go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: upd.PtsCount})
-		}
-		if upd.Date > 0 {
-			c.dispatcher.SetDate(upd.Date)
-		}
-
+		update := &MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}
+		go c.fetchPeersBeforeUpdate(update, upd.Pts)
+		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdatesCombined:
-		// updatesCombined has seq_start and seq attributes
 		if !c.manageSeq(upd.Seq, upd.SeqStart) {
 			return false
 		}
-		if upd.Date > 0 {
-			c.dispatcher.SetDate(upd.Date)
-		}
+
 		u = upd.Updates
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
 		goto UpdateTypeSwitching
-
 	case *UpdateChannelTooLong:
-		// Server indicates too many events pending for this channel
 		currentPts := c.dispatcher.GetChannelPts(upd.ChannelID)
 		if upd.Pts != 0 {
 			currentPts = upd.Pts
 		}
 		go c.FetchChannelDifference(upd.ChannelID, currentPts, 50)
-
 	case *UpdatesTooLong:
-		// Server indicates too many events pending - must fetch manually
 		go c.FetchDifference(c.dispatcher.GetPts(), 5000)
-
 	default:
 		c.Log.Debug("unknown update skipped: %T", upd)
 	}
@@ -1995,86 +1943,49 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 	c.Log.Debug("fetch difference max iterations (iterations=%d, pts=%d, fetched=%d)", maxIterations, req.Pts, totalFetched)
 }
 
-type PtsCheckResult int
-
-const (
-	PtsApply  PtsCheckResult = iota // local_pts + pts_count == pts: apply update
-	PtsIgnore                       // local_pts + pts_count > pts: already applied, ignore
-	PtsGap                          // local_pts + pts_count < pts: gap detected
-)
-
-func (c *Client) checkPts(localPts, pts, ptsCount int32) PtsCheckResult {
-	if localPts == 0 {
-		return PtsApply // First update, just apply
-	}
-
-	expected := localPts + ptsCount
-	if expected == pts {
-		return PtsApply
-	}
-	if expected > pts {
-		return PtsIgnore
-	}
-	return PtsGap
-}
-
-// managePts handles pts-based updates.
-// Returns true if the update should be processed, false if it should be ignored.
 func (c *Client) managePts(pts int32, ptsCount int32) bool {
-	localPts := c.dispatcher.GetPts()
+	var currentPts = c.dispatcher.GetPts()
 
-	result := c.checkPts(localPts, pts, ptsCount)
-
-	switch result {
-	case PtsApply:
+	if currentPts == 0 {
 		c.dispatcher.SetPts(pts)
 		return true
+	}
 
-	case PtsIgnore:
-		// Update was already applied
-		c.dispatcher.logger.Trace("pts: ignoring duplicate update (local=%d, pts=%d, count=%d)", localPts, pts, ptsCount)
+	expectedPts := currentPts + ptsCount
+
+	if expectedPts == pts {
+		c.dispatcher.SetPts(pts)
+		return true
+	}
+
+	if expectedPts > pts {
 		return false
+	}
 
-	case PtsGap:
-		// Gap detected
-		gap := pts - (localPts + ptsCount)
+	if expectedPts < pts {
+		gap := pts - expectedPts
 
-		// For small gaps (<=3), just accept and continue
-		if gap <= 3 {
+		if gap <= 5 {
+			c.dispatcher.SetPts(pts)
+			return true
+		} else if gap > 2000 {
 			c.dispatcher.SetPts(pts)
 			return true
 		}
 
-		// For very large gaps (>1000), this likely means we were offline for a while
-		// or there's a state inconsistency. Just accept the new pts and move on.
-		// Trying to fetch thousands of updates would block the bot.
-		if gap > 1000 {
-			c.dispatcher.logger.Info("pts: large gap detected (local=%d, pts=%d, gap=%d), resetting to current pts", localPts, pts, gap)
-			c.dispatcher.SetPts(pts)
-			return true
-		}
-
-		c.dispatcher.logger.Debug("pts: gap detected (local=%d, pts=%d, count=%d, gap=%d)", localPts, pts, ptsCount, gap)
-
-		// Store the pts anyway to avoid re-processing
 		c.dispatcher.SetPts(pts)
 
-		// Schedule gap recovery with 0.5s delay, but limit fetch size
-		gapStartPts := localPts
-		fetchLimit := min(gap+10, 500)
-		c.dispatcher.Lock()
-		if c.dispatcher.pendingGapTimer != nil {
-			c.dispatcher.pendingGapTimer.Stop()
-		}
-		c.dispatcher.pendingGapTimer = time.AfterFunc(c.dispatcher.gapTimeout, func() {
-			// Check if gap was filled by another update
-			currentPts := c.dispatcher.GetPts()
-			if currentPts >= pts {
-				return // Gap was filled
+		gapPts := expectedPts
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+
+			newCurrentPts := c.dispatcher.GetPts()
+			if newCurrentPts >= pts {
+				return
 			}
-			c.FetchDifference(gapStartPts, fetchLimit)
-		})
-		c.dispatcher.Unlock()
+
+			c.FetchDifference(gapPts, gap+10)
+		}()
 
 		return true
 	}
@@ -2082,131 +1993,80 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 	return true
 }
 
-// manageSeq handles seq-based updates.
-// For updates/updatesCombined constructors with seq attribute.
-// seq_start = seq for updates constructor (omitted means equal to seq)
 func (c *Client) manageSeq(seq int32, seqStart int32) bool {
-	// seq = 0 means unordered update, just apply immediately
-	if seq == 0 {
+	if seq == 0 && seqStart == 0 {
 		return true
 	}
 
-	// For updates constructor, seq_start is omitted and equals seq
-	if seqStart == 0 {
-		seqStart = seq
-	}
+	currentSeq := c.dispatcher.GetSeq()
 
-	localSeq := c.dispatcher.GetSeq()
-
-	// First update
-	if localSeq == 0 {
+	if currentSeq == 0 {
 		c.dispatcher.SetSeq(seq)
 		return true
 	}
 
-	expectedSeqStart := localSeq + 1
+	expectedSeqStart := currentSeq + 1
 
 	if expectedSeqStart == seqStart {
-		// Perfect sequence - apply and update state
 		c.dispatcher.SetSeq(seq)
 		return true
 	}
 
 	if expectedSeqStart > seqStart {
-		// Already applied, ignore
-		c.dispatcher.logger.Trace("seq: ignoring duplicate (local=%d, seq=%d, seqStart=%d)", localSeq, seq, seqStart)
 		return false
 	}
 
-	// Gap detected: expectedSeqStart < seqStart
-	gap := seqStart - expectedSeqStart
-
-	// For small gaps (1-2), accept and continue to avoid unnecessary fetches
-	if gap <= 2 {
-		c.dispatcher.SetSeq(seq)
-		return true
+	if expectedSeqStart < seqStart {
+		go c.FetchDifference(c.dispatcher.GetPts(), 5000)
+		return false
 	}
 
-	// For very large gaps (>100), just accept the new seq
-	if gap > 100 {
-		c.dispatcher.logger.Info("seq: large gap detected (local=%d, seq=%d, gap=%d), resetting to current seq", localSeq, seq, gap)
-		c.dispatcher.SetSeq(seq)
-		return true
-	}
-
-	c.dispatcher.logger.Debug("seq: gap detected (local=%d, seq=%d, seqStart=%d, gap=%d)", localSeq, seq, seqStart, gap)
-
-	// Schedule gap recovery with 0.5s delay
-	c.dispatcher.Lock()
-	if c.dispatcher.pendingSeqGapTimer != nil {
-		c.dispatcher.pendingSeqGapTimer.Stop()
-	}
-	c.dispatcher.pendingSeqGapTimer = time.AfterFunc(c.dispatcher.gapTimeout, func() {
-		currentSeq := c.dispatcher.GetSeq()
-		if currentSeq >= seq {
-			return // Gap was filled
-		}
-		c.FetchDifference(c.dispatcher.GetPts(), 500)
-	})
-	c.dispatcher.Unlock()
-
-	// Accept update to avoid dropping it - gap recovery will fetch missing ones
-	c.dispatcher.SetSeq(seq)
 	return true
 }
 
-// manageChannelPts handles per-channel pts according to Telegram documentation.
 func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bool {
-	localPts := c.dispatcher.GetChannelPts(channelID)
+	var currentPts = c.dispatcher.GetChannelPts(channelID)
 
-	result := c.checkPts(localPts, pts, ptsCount)
-
-	switch result {
-	case PtsApply:
+	if currentPts == 0 {
 		c.dispatcher.SetChannelPts(channelID, pts)
 		return true
+	}
 
-	case PtsIgnore:
-		c.dispatcher.logger.Trace("channel pts: ignoring duplicate (channel=%d, local=%d, pts=%d)", channelID, localPts, pts)
+	expectedPts := currentPts + ptsCount
+
+	if expectedPts == pts {
+		c.dispatcher.SetChannelPts(channelID, pts)
+		return true
+	}
+
+	if expectedPts > pts {
 		return false
+	}
 
-	case PtsGap:
-		gap := pts - (localPts + ptsCount)
+	if expectedPts < pts {
+		gap := pts - expectedPts
 
-		// For small gaps (<=3), just accept and continue
-		if gap <= 3 {
+		if gap <= 5 {
+			c.dispatcher.SetChannelPts(channelID, pts)
+			return true
+		} else if gap > 1000 {
 			c.dispatcher.SetChannelPts(channelID, pts)
 			return true
 		}
-
-		// For very large gaps (>500), just accept new pts to avoid blocking
-		if gap > 500 {
-			c.dispatcher.logger.Info("channel pts: large gap detected (channel=%d, local=%d, pts=%d, gap=%d), resetting", channelID, localPts, pts, gap)
-			c.dispatcher.SetChannelPts(channelID, pts)
-			return true
-		}
-
-		c.dispatcher.logger.Debug("channel pts: gap detected (channel=%d, local=%d, pts=%d, gap=%d)", channelID, localPts, pts, gap)
 
 		c.dispatcher.SetChannelPts(channelID, pts)
 
-		// Schedule channel-specific gap recovery
-		gapStartPts := localPts
-		c.dispatcher.Lock()
-		if c.dispatcher.channelGapTimers == nil {
-			c.dispatcher.channelGapTimers = make(map[int64]*time.Timer)
-		}
-		if timer, exists := c.dispatcher.channelGapTimers[channelID]; exists {
-			timer.Stop()
-		}
-		c.dispatcher.channelGapTimers[channelID] = time.AfterFunc(c.dispatcher.gapTimeout, func() {
-			currentPts := c.dispatcher.GetChannelPts(channelID)
-			if currentPts >= pts {
+		gapPts := expectedPts
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+
+			newCurrentPts := c.dispatcher.GetChannelPts(channelID)
+			if newCurrentPts >= pts {
 				return
 			}
-			c.FetchChannelDifference(channelID, gapStartPts, 100)
-		})
-		c.dispatcher.Unlock()
+
+			c.FetchChannelDifference(channelID, gapPts, 100)
+		}()
 
 		return true
 	}
@@ -2563,6 +2423,37 @@ func (c *Client) CloseChat(channel *InputChannelObj) {
 	}
 }
 
+func (c *Client) monitorNoUpdatesTimeout() {
+	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if time.Since(c.dispatcher.lastUpdateTime) > 15*time.Minute {
+				c.Log.Debug("no updates received for 15 minutes, getting difference...")
+				c.FetchDifference(c.dispatcher.GetPts(), 5000)
+			}
+		case <-c.dispatcher.stopChan:
+			return
+		}
+	}
+}
+
+// ExportPts exports the current pts value from the dispatcher.
+func (c *Client) ExportPts() int32 {
+	if c.dispatcher == nil {
+		return 0
+	}
+	return c.dispatcher.GetPts()
+}
+
+// FetchDifferenceOnStartup fetches any missed updates since last disconnect.
+// Should be called on startup after logging in to catch up on missed events.
+func (c *Client) FetchDifferenceOnStartup(pts int32) {
+	c.Log.Debug("fetching difference on startup (pts=%d)", pts)
+	c.FetchDifference(pts, 5000)
+}
+
 type ev any
 
 var (
@@ -2891,35 +2782,4 @@ func (c *Client) OnJoinRequest(handler func(m *JoinRequestUpdate) error) Handle 
 
 func (c *Client) OnRaw(updateType Update, handler func(m Update, c *Client) error) Handle {
 	return c.AddRawHandler(updateType, handler)
-}
-
-func (c *Client) monitorNoUpdatesTimeout() {
-	ticker := time.NewTicker(15 * time.Minute)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			if time.Since(c.dispatcher.lastUpdateTime) > 15*time.Minute {
-				c.Log.Debug("no updates received for 15 minutes, getting difference...")
-				c.FetchDifference(c.dispatcher.GetPts(), 5000)
-			}
-		case <-c.dispatcher.stopChan:
-			return
-		}
-	}
-}
-
-// ExportPts exports the current pts value from the dispatcher.
-func (c *Client) ExportPts() int32 {
-	if c.dispatcher == nil {
-		return 0
-	}
-	return c.dispatcher.GetPts()
-}
-
-// FetchDifferenceOnStartup fetches any missed updates since last disconnect.
-// Should be called on startup after logging in to catch up on missed events.
-func (c *Client) FetchDifferenceOnStartup(pts int32) {
-	c.Log.Debug("fetching difference on startup (pts=%d)", pts)
-	c.FetchDifference(pts, 5000)
 }
