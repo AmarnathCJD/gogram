@@ -1662,14 +1662,12 @@ func (c *Client) AddRawHandler(updateType Update, handler RawHandler) Handle {
 // 1. Handle pts/qts-based updates (message box updates) separately
 // 2. Handle remaining updates with respect to seq
 func HandleIncomingUpdates(u any, c *Client) bool {
-	fmt.Println("Handling incoming update:", reflect.TypeOf(u))
 	// Update last update time for 15-minute timeout monitoring
 	c.dispatcher.UpdateLastUpdateTime()
 
 UpdateTypeSwitching:
 	switch upd := u.(type) {
 	case *UpdatesObj:
-		fmt.Println("Processing UpdatesObj:", len(upd.Updates), "updates")
 		// Check and apply seq first
 		if !c.manageSeq(upd.Seq, upd.Seq) {
 			return false
@@ -2038,21 +2036,32 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 		return false
 
 	case PtsGap:
-		// Gap detected - wait 0.5s then fetch difference if gap persists
+		// Gap detected
 		gap := pts - (localPts + ptsCount)
 
-		// For small gaps, just accept and continue
+		// For small gaps (<=3), just accept and continue
 		if gap <= 3 {
 			c.dispatcher.SetPts(pts)
 			return true
 		}
+
+		// For very large gaps (>1000), this likely means we were offline for a while
+		// or there's a state inconsistency. Just accept the new pts and move on.
+		// Trying to fetch thousands of updates would block the bot.
+		if gap > 1000 {
+			c.dispatcher.logger.Info("pts: large gap detected (local=%d, pts=%d, gap=%d), resetting to current pts", localPts, pts, gap)
+			c.dispatcher.SetPts(pts)
+			return true
+		}
+
 		c.dispatcher.logger.Debug("pts: gap detected (local=%d, pts=%d, count=%d, gap=%d)", localPts, pts, ptsCount, gap)
 
 		// Store the pts anyway to avoid re-processing
 		c.dispatcher.SetPts(pts)
 
-		// schedule gap recovery with 0.5s delay
+		// Schedule gap recovery with 0.5s delay, but limit fetch size
 		gapStartPts := localPts
+		fetchLimit := min(gap+10, 500)
 		c.dispatcher.Lock()
 		if c.dispatcher.pendingGapTimer != nil {
 			c.dispatcher.pendingGapTimer.Stop()
@@ -2063,7 +2072,7 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 			if currentPts >= pts {
 				return // Gap was filled
 			}
-			c.FetchDifference(gapStartPts, gap+10)
+			c.FetchDifference(gapStartPts, fetchLimit)
 		})
 		c.dispatcher.Unlock()
 
@@ -2117,9 +2126,17 @@ func (c *Client) manageSeq(seq int32, seqStart int32) bool {
 		c.dispatcher.SetSeq(seq)
 		return true
 	}
+
+	// For very large gaps (>100), just accept the new seq
+	if gap > 100 {
+		c.dispatcher.logger.Info("seq: large gap detected (local=%d, seq=%d, gap=%d), resetting to current seq", localSeq, seq, gap)
+		c.dispatcher.SetSeq(seq)
+		return true
+	}
+
 	c.dispatcher.logger.Debug("seq: gap detected (local=%d, seq=%d, seqStart=%d, gap=%d)", localSeq, seq, seqStart, gap)
 
-	// schedule gap recovery with 0.5s delay
+	// Schedule gap recovery with 0.5s delay
 	c.dispatcher.Lock()
 	if c.dispatcher.pendingSeqGapTimer != nil {
 		c.dispatcher.pendingSeqGapTimer.Stop()
@@ -2129,7 +2146,7 @@ func (c *Client) manageSeq(seq int32, seqStart int32) bool {
 		if currentSeq >= seq {
 			return // Gap was filled
 		}
-		c.FetchDifference(c.dispatcher.GetPts(), 5000)
+		c.FetchDifference(c.dispatcher.GetPts(), 500)
 	})
 	c.dispatcher.Unlock()
 
@@ -2156,16 +2173,24 @@ func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bo
 	case PtsGap:
 		gap := pts - (localPts + ptsCount)
 
-		// For small gaps, accept anw
+		// For small gaps (<=3), just accept and continue
 		if gap <= 3 {
 			c.dispatcher.SetChannelPts(channelID, pts)
 			return true
 		}
+
+		// For very large gaps (>500), just accept new pts to avoid blocking
+		if gap > 500 {
+			c.dispatcher.logger.Info("channel pts: large gap detected (channel=%d, local=%d, pts=%d, gap=%d), resetting", channelID, localPts, pts, gap)
+			c.dispatcher.SetChannelPts(channelID, pts)
+			return true
+		}
+
 		c.dispatcher.logger.Debug("channel pts: gap detected (channel=%d, local=%d, pts=%d, gap=%d)", channelID, localPts, pts, gap)
 
 		c.dispatcher.SetChannelPts(channelID, pts)
 
-		// schedule channel-specific gap recovery
+		// Schedule channel-specific gap recovery
 		gapStartPts := localPts
 		c.dispatcher.Lock()
 		if c.dispatcher.channelGapTimers == nil {
