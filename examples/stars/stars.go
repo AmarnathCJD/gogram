@@ -21,7 +21,7 @@ func main() {
 	bot.On("edit", func(m *telegram.NewMessage) error {
 		paidUsers[m.SenderID()] = m.Invoice().ReceiptMsgID
 		return bot.CheckErr(m.Respond("Payment Successful!"))
-	}, telegram.FilterFunc(func(upd *telegram.NewMessage) bool {
+	}, telegram.Custom(func(upd *telegram.NewMessage) bool {
 		return upd.Invoice() != nil && upd.Invoice().ReceiptMsgID != 0
 	}))
 
