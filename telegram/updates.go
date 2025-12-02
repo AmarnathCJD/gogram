@@ -1,4 +1,4 @@
-// Copyright (c) 2024, amarnathcjd
+// Copyright (c) 2025, amarnathcjd
 
 package telegram
 
@@ -213,7 +213,7 @@ type channelState struct {
 	isOpen     bool
 }
 
-// UpdateState represents the current update state per Telegram docs
+// UpdateState represents the current update state
 type UpdateState struct {
 	Pts  int32
 	Qts  int32

@@ -286,7 +286,7 @@ func (c *Client) NewRTMPStream(chatID int64, config ...*RTMPConfig) (*RTMPStream
 }
 
 // FetchRTMPURL fetches the RTMP URL and stream key from Telegram.
-// NOTE: This can only be called by user accounts (userbots), not bot accounts.
+// NOTE: This can only be called by user accounts, not bot accounts.
 // Bot accounts will receive an error. For bots, use SetURL() and SetKey() manually.
 func (s *RTMPStream) FetchRTMPURL() error {
 	peer, err := s.client.ResolvePeer(s.chatID)
@@ -342,7 +342,7 @@ func (s *RTMPStream) GetFullURL() string {
 }
 
 // RefreshRTMPURL fetches a new RTMP URL and stream key (revokes the old one).
-// NOTE: This can only be called by user accounts (userbots), not bot accounts.
+// NOTE: This can only be called by user accounts, not bot accounts.
 func (s *RTMPStream) RefreshRTMPURL() error {
 	peer, err := s.client.ResolvePeer(s.chatID)
 	if err != nil {
@@ -649,4 +649,154 @@ func (s *RTMPStream) SetLoopCount(count int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.loopCount = count
+}
+
+// StartPipe starts the RTMP stream expecting data to be fed via FeedChunk().
+// Use this when you want to stream data progressively in chunks.
+func (s *RTMPStream) StartPipe() error {
+	if s.rtmpURL == "" || s.rtmpKey == "" {
+		return ErrNoRTMPURL
+	}
+
+	s.mu.Lock()
+	if s.state == StreamStatePlaying {
+		s.mu.Unlock()
+		return ErrStreamPlaying
+	}
+	s.inputFile = ""
+	s.inputData = nil
+	s.mu.Unlock()
+
+	return s.startFFmpegPipe()
+}
+
+func (s *RTMPStream) startFFmpegPipe() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancelFunc = cancel
+
+	args := s.buildFFmpegPipeArgs()
+	s.cmd = exec.CommandContext(ctx, "ffmpeg", args...)
+
+	s.stderr.Reset()
+	s.cmd.Stderr = &s.stderr
+	s.cmd.Stdout = nil
+
+	stdin, err := s.cmd.StdinPipe()
+	if err != nil {
+		cancel()
+		return fmt.Errorf("failed to get stdin pipe: %w", err)
+	}
+	s.stdin = stdin
+
+	if err := s.cmd.Start(); err != nil {
+		cancel()
+		return fmt.Errorf("failed to start ffmpeg: %w", err)
+	}
+
+	s.mu.Lock()
+	s.state = StreamStatePlaying
+	s.startTime = time.Now()
+	s.lastError = nil
+	s.mu.Unlock()
+
+	go func() {
+		err := s.cmd.Wait()
+		s.mu.Lock()
+		if s.state == StreamStatePlaying {
+			s.state = StreamStateIdle
+			if err != nil && ctx.Err() == nil {
+				errMsg := s.stderr.String()
+				if errMsg != "" {
+					s.lastError = fmt.Errorf("ffmpeg error: %s", errMsg)
+				} else {
+					s.lastError = fmt.Errorf("ffmpeg exited with error: %w", err)
+				}
+				if s.onError != nil {
+					go s.onError(s.lastError)
+				}
+			}
+		}
+		s.mu.Unlock()
+	}()
+
+	return nil
+}
+
+func (s *RTMPStream) buildFFmpegPipeArgs() []string {
+	return []string{
+		"-re",
+		"-i", "pipe:0",
+		"-c:v", "libx264",
+		"-preset", "superfast",
+		"-b:v", s.bitrate,
+		"-maxrate", s.bitrate,
+		"-bufsize", s.doubleBitrate(),
+		"-pix_fmt", "yuv420p",
+		"-g", fmt.Sprintf("%d", s.frameRate),
+		"-threads", "0",
+		"-c:a", "aac",
+		"-b:a", s.audioBit,
+		"-ac", "2",
+		"-ar", "44100",
+		"-f", "flv",
+		"-rtmp_buffer", "100",
+		"-rtmp_live", "live",
+		s.GetFullURL(),
+	}
+}
+
+// FeedChunk writes a chunk of data to the RTMP stream.
+// Must call StartPipe() first to initialize the stream.
+// Returns error if stream is not playing or write fails.
+func (s *RTMPStream) FeedChunk(data []byte) error {
+	s.mu.Lock()
+	if s.state != StreamStatePlaying {
+		s.mu.Unlock()
+		return fmt.Errorf("cannot feed chunk: stream is %s", s.state)
+	}
+	if s.stdin == nil {
+		s.mu.Unlock()
+		return errors.New("stdin pipe not initialized, call StartPipe() first")
+	}
+	s.mu.Unlock()
+
+	_, err := s.stdin.Write(data)
+	if err != nil {
+		return fmt.Errorf("failed to write chunk: %w", err)
+	}
+	return nil
+}
+
+// FeedReader reads from an io.Reader and feeds data to the RTMP stream.
+// This is useful for streaming from HTTP responses, files, etc.
+// Must call StartPipe() first.
+func (s *RTMPStream) FeedReader(r io.Reader) error {
+	s.mu.Lock()
+	if s.state != StreamStatePlaying {
+		s.mu.Unlock()
+		return fmt.Errorf("cannot feed reader: stream is %s", s.state)
+	}
+	if s.stdin == nil {
+		s.mu.Unlock()
+		return errors.New("stdin pipe not initialized, call StartPipe() first")
+	}
+	s.mu.Unlock()
+
+	_, err := io.Copy(s.stdin, r)
+	if err != nil {
+		return fmt.Errorf("failed to copy from reader: %w", err)
+	}
+	return nil
+}
+
+// ClosePipe closes the stdin pipe, signaling EOF to ffmpeg.
+// Call this when you're done feeding data.
+func (s *RTMPStream) ClosePipe() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.stdin != nil {
+		return s.stdin.Close()
+	}
+	return nil
 }
