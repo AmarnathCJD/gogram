@@ -14,15 +14,21 @@ import (
 	"time"
 )
 
-func (c *Client) StartGroupCallMedia(peer any) (PhoneCall, error) {
+func (c *Client) StartGroupCallMedia(peer any, rtmp ...bool) (PhoneCall, error) {
 	peerDialog, err := c.ResolvePeer(peer)
 	if err != nil {
 		return nil, err
 	}
+
+	var useRtmp bool
+	if len(rtmp) > 0 {
+		useRtmp = rtmp[0]
+	}
 	// Start the group call
 	updates, e := c.PhoneCreateGroupCall(&PhoneCreateGroupCallParams{
-		Peer:     peerDialog,
-		RandomID: int32(GenRandInt()),
+		Peer:       peerDialog,
+		RandomID:   int32(GenRandInt()),
+		RtmpStream: useRtmp,
 	})
 	if e != nil {
 		return nil, e
