@@ -199,16 +199,26 @@ func (a *albumBox) Add(m *NewMessage) {
 	a.messages = append(a.messages, m)
 }
 
-type openChat struct { // TODO: Implement this
+type openChat struct {
+	sync.RWMutex
 	accessHash int64
 	closeChan  chan struct{}
 	lastPts    int32
+	timeout    int32 // timeout from getChannelDifference response
 }
 
 type channelState struct {
 	pts        int32
 	accessHash int64
 	isOpen     bool
+}
+
+// UpdateState represents the current update state per Telegram docs
+type UpdateState struct {
+	Pts  int32
+	Qts  int32
+	Seq  int32
+	Date int32
 }
 
 type UpdateDispatcher struct {
@@ -227,68 +237,88 @@ type UpdateDispatcher struct {
 	rawHandles            map[int][]*rawHandle
 	activeAlbums          map[int64]*albumBox
 	logger                Logger
-	openChats             map[int64]*openChat
-	nextUpdatesDeadline   time.Time
-	lastUpdateTime        time.Time
-	currentPts            int32
-	currentQts            int32
-	currentSeq            int32
-	currentDate           int32
-	channelStates         map[int64]*channelState
-	pendingGaps           map[int32]time.Time
-	//pendingChannelGaps    map[int64]map[int32]time.Time
-	processedUpdates     map[int64]time.Time
+
+	// State management per Telegram docs
+	state         UpdateState             // Common update state (pts, qts, seq, date)
+	channelStates map[int64]*channelState // Per-channel pts state
+
+	// Gap recovery state
+	gapTimeout           time.Duration         // Wait time before fetching difference (0.5s recommended)
+	pendingGapTimer      *time.Timer           // Timer for common pts/qts gap
+	pendingSeqGapTimer   *time.Timer           // Timer for seq gap
+	channelGapTimers     map[int64]*time.Timer // Per-channel gap timers
 	recoveringDifference bool
 	recoveringChannels   map[int64]bool
-	stopChan             chan struct{}
+
+	// Open chats for active polling
+	openChats map[int64]*openChat
+
+	// Misc
+	lastUpdateTime time.Time
+	//processedUpdates map[int64]time.Time
+	stopChan chan struct{}
 }
+
+// State getters and setters - using the consolidated UpdateState struct
 
 func (d *UpdateDispatcher) SetPts(pts int32) {
 	d.Lock()
 	defer d.Unlock()
-	d.currentPts = pts
+	d.state.Pts = pts
 }
 
 func (d *UpdateDispatcher) GetPts() int32 {
 	d.RLock()
 	defer d.RUnlock()
-	return d.currentPts
+	return d.state.Pts
 }
 
 func (d *UpdateDispatcher) SetQts(qts int32) {
 	d.Lock()
 	defer d.Unlock()
-	d.currentQts = qts
+	d.state.Qts = qts
 }
 
 func (d *UpdateDispatcher) GetQts() int32 {
 	d.RLock()
 	defer d.RUnlock()
-	return d.currentQts
+	return d.state.Qts
 }
 
 func (d *UpdateDispatcher) SetSeq(seq int32) {
 	d.Lock()
 	defer d.Unlock()
-	d.currentSeq = seq
+	d.state.Seq = seq
 }
 
 func (d *UpdateDispatcher) GetSeq() int32 {
 	d.RLock()
 	defer d.RUnlock()
-	return d.currentSeq
+	return d.state.Seq
 }
 
 func (d *UpdateDispatcher) SetDate(date int32) {
 	d.Lock()
 	defer d.Unlock()
-	d.currentDate = date
+	d.state.Date = date
 }
 
 func (d *UpdateDispatcher) GetDate() int32 {
 	d.RLock()
 	defer d.RUnlock()
-	return d.currentDate
+	return d.state.Date
+}
+
+func (d *UpdateDispatcher) GetState() UpdateState {
+	d.RLock()
+	defer d.RUnlock()
+	return d.state
+}
+
+func (d *UpdateDispatcher) SetState(state UpdateState) {
+	d.Lock()
+	defer d.Unlock()
+	d.state = state
 }
 
 func (d *UpdateDispatcher) SetChannelPts(channelID int64, pts int32) {
@@ -322,39 +352,52 @@ func (d *UpdateDispatcher) UpdateLastUpdateTime() {
 	d.lastUpdateTime = time.Now()
 }
 
+// HasState returns true if the update state has been initialized
+func (d *UpdateDispatcher) HasState() bool {
+	d.RLock()
+	defer d.RUnlock()
+	return d.state.Pts != 0 || d.state.Seq != 0
+}
+
 // TryMarkUpdateProcessed atomically checks if an update was processed and marks it if not.
 // Returns true if this call marked it (first processor), false if already processed.
-func (d *UpdateDispatcher) TryMarkUpdateProcessed(updateID int64) bool {
-	d.Lock()
-	defer d.Unlock()
-	if d.processedUpdates == nil {
-		d.processedUpdates = make(map[int64]time.Time)
-	}
-	if _, exists := d.processedUpdates[updateID]; exists {
-		return false
-	}
-	d.processedUpdates[updateID] = time.Now()
+// func (d *UpdateDispatcher) TryMarkUpdateProcessed(updateID int64) bool {
+// 	d.Lock()
+// 	defer d.Unlock()
+// 	if d.processedUpdates == nil {
+// 		d.processedUpdates = make(map[int64]time.Time)
+// 	}
+// 	if _, exists := d.processedUpdates[updateID]; exists {
+// 		return false
+// 	}
+// 	d.processedUpdates[updateID] = time.Now()
 
-	if len(d.processedUpdates) > 5000 {
-		cutoff := time.Now().Add(-5 * time.Minute)
-		for id, t := range d.processedUpdates {
-			if t.Before(cutoff) {
-				delete(d.processedUpdates, id)
-			}
-		}
-	}
-	return true
-}
+// 	if len(d.processedUpdates) > 5000 {
+// 		cutoff := time.Now().Add(-5 * time.Minute)
+// 		for id, t := range d.processedUpdates {
+// 			if t.Before(cutoff) {
+// 				delete(d.processedUpdates, id)
+// 			}
+// 		}
+// 	}
+// 	return true
+// }
 
 func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 	c.dispatcher = &UpdateDispatcher{
 		logger: c.Log.WithPrefix("gogram " +
 			lp("dispatcher", getVariadic(sessionName, ""))),
-		channelStates:         make(map[int64]*channelState),
-		pendingGaps:           make(map[int32]time.Time),
-		processedUpdates:      make(map[int64]time.Time),
-		stopChan:              make(chan struct{}),
-		lastUpdateTime:        time.Now(),
+
+		channelStates:      make(map[int64]*channelState),
+		channelGapTimers:   make(map[int64]*time.Timer),
+		recoveringChannels: make(map[int64]bool),
+		gapTimeout:         500 * time.Millisecond,
+
+		//processedUpdates: make(map[int64]time.Time),
+		stopChan:       make(chan struct{}),
+		lastUpdateTime: time.Now(),
+		openChats:      make(map[int64]*openChat),
+
 		messageHandles:        make(map[int][]*messageHandle),
 		inlineHandles:         make(map[int][]*inlineHandle),
 		inlineSendHandles:     make(map[int][]*inlineSendHandle),
@@ -439,20 +482,6 @@ func removeHandleFromMap[T any](handle T, handlesMap map[int][]T) {
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
-		// build unique update ID: (peerID << 32) | msgID
-		updateID := int64(msg.ID)
-		peerID := c.GetPeerID(msg.PeerID)
-		if peerID == 0 {
-			peerID = c.GetPeerID(msg.FromID)
-		}
-		if peerID != 0 {
-			updateID = (peerID << 32) | int64(msg.ID)
-		}
-
-		if !c.dispatcher.TryMarkUpdateProcessed(updateID) {
-			c.dispatcher.logger.Trace("skipping duplicate message update: %d", updateID)
-			return
-		}
 
 		if msg.GroupedID != 0 {
 			c.handleAlbum(*msg)
@@ -597,7 +626,7 @@ func (c *Client) handleAlbum(message MessageObj) {
 	}
 }
 
-func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
+func (c *Client) fetchPeersBeforeUpdate(m Message, pts int32) {
 	switch msg := m.(type) {
 	case *MessageObj:
 		if (c.IdInCache(c.GetPeerID(msg.FromID)) || func() bool {
@@ -1745,16 +1774,23 @@ func (c *Client) AddRawHandler(updateType Update, handler RawHandler) Handle {
 }
 
 // HandleIncomingUpdates processes incoming updates and dispatches them to the appropriate handlers.
+// Per Telegram docs, updates are handled in this order:
+// 1. Handle pts/qts-based updates (message box updates) separately
+// 2. Handle remaining updates with respect to seq
 func HandleIncomingUpdates(u any, c *Client) bool {
 	// Update last update time for 15-minute timeout monitoring
 	c.dispatcher.UpdateLastUpdateTime()
-	c.dispatcher.nextUpdatesDeadline = time.Now().Add(time.Minute * 15)
 
 UpdateTypeSwitching:
 	switch upd := u.(type) {
 	case *UpdatesObj:
+		// Check and apply seq first
 		if !c.manageSeq(upd.Seq, upd.Seq) {
 			return false
+		}
+		// Update date from Updates constructor
+		if upd.Date > 0 {
+			c.dispatcher.SetDate(upd.Date)
 		}
 
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
@@ -1831,17 +1867,27 @@ UpdateTypeSwitching:
 			}
 			go c.handleRawUpdate(update)
 		}
+
 	case *UpdateShort:
+		// UpdateShort contains lower priority events
+		if upd.Date > 0 {
+			c.dispatcher.SetDate(upd.Date)
+		}
 		switch upd := upd.Update.(type) {
 		case *UpdateNewMessage:
-			go c.handleMessageUpdateWith(upd.Message, upd.Pts)
+			if c.managePts(upd.Pts, upd.PtsCount) {
+				go c.handleMessageUpdate(upd.Message)
+			}
 		case *UpdateNewChannelMessage:
 			channelID := getChannelIDFromMessage(upd.Message)
 			if channelID != 0 {
-				go c.handleMessageUpdate(upd.Message)
-				c.manageChannelPts(channelID, upd.Pts, upd.PtsCount)
+				if c.manageChannelPts(channelID, upd.Pts, upd.PtsCount) {
+					go c.handleMessageUpdate(upd.Message)
+				}
 			} else {
-				go c.handleMessageUpdateWith(upd.Message, upd.Pts)
+				if c.managePts(upd.Pts, upd.PtsCount) {
+					go c.handleMessageUpdate(upd.Message)
+				}
 			}
 		case *UpdateChannelTooLong:
 			currentPts := c.dispatcher.GetChannelPts(upd.ChannelID)
@@ -1851,34 +1897,76 @@ UpdateTypeSwitching:
 			go c.FetchChannelDifference(upd.ChannelID, currentPts, 50)
 		}
 		go c.handleRawUpdate(upd.Update)
+
 	case *UpdateShortMessage:
-		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
-		go c.handleMessageUpdateWith(update, upd.Pts)
-		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
+		if c.managePts(upd.Pts, upd.PtsCount) {
+			update := &MessageObj{
+				ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message,
+				MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID),
+				PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities,
+				FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID,
+				TtlPeriod: upd.TtlPeriod, Silent: upd.Silent,
+			}
+			go c.fetchPeersBeforeUpdate(update, upd.Pts)
+			go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: upd.PtsCount})
+		}
+		if upd.Date > 0 {
+			c.dispatcher.SetDate(upd.Date)
+		}
+
 	case *UpdateShortChatMessage:
-		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
-		go c.handleMessageUpdateWith(update, upd.Pts)
-		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
+		if c.managePts(upd.Pts, upd.PtsCount) {
+			update := &MessageObj{
+				ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message,
+				MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID),
+				PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities,
+				FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID,
+				TtlPeriod: upd.TtlPeriod, Silent: upd.Silent,
+			}
+			go c.fetchPeersBeforeUpdate(update, upd.Pts)
+			go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: upd.PtsCount})
+		}
+		if upd.Date > 0 {
+			c.dispatcher.SetDate(upd.Date)
+		}
+
 	case *UpdateShortSentMessage:
-		update := &MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}
-		go c.handleMessageUpdateWith(update, upd.Pts)
-		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
+		// Response to messages.sendMessage - contains sent message info
+		if c.managePts(upd.Pts, upd.PtsCount) {
+			update := &MessageObj{
+				ID: upd.ID, Out: upd.Out, Date: upd.Date,
+				Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod,
+			}
+			go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: upd.PtsCount})
+		}
+		if upd.Date > 0 {
+			c.dispatcher.SetDate(upd.Date)
+		}
+
 	case *UpdatesCombined:
+		// updatesCombined has seq_start and seq attributes
 		if !c.manageSeq(upd.Seq, upd.SeqStart) {
 			return false
 		}
-
+		if upd.Date > 0 {
+			c.dispatcher.SetDate(upd.Date)
+		}
 		u = upd.Updates
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
 		goto UpdateTypeSwitching
+
 	case *UpdateChannelTooLong:
+		// Server indicates too many events pending for this channel
 		currentPts := c.dispatcher.GetChannelPts(upd.ChannelID)
 		if upd.Pts != 0 {
 			currentPts = upd.Pts
 		}
 		go c.FetchChannelDifference(upd.ChannelID, currentPts, 50)
+
 	case *UpdatesTooLong:
+		// Server indicates too many events pending - must fetch manually
 		go c.FetchDifference(c.dispatcher.GetPts(), 5000)
+
 	default:
 		c.Log.Debug("unknown update skipped: %T", upd)
 	}
@@ -2023,46 +2111,75 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 	c.Log.Debug("fetch difference max iterations (iterations=%d, pts=%d, fetched=%d)", maxIterations, req.Pts, totalFetched)
 }
 
+type PtsCheckResult int
+
+const (
+	PtsApply  PtsCheckResult = iota // local_pts + pts_count == pts: apply update
+	PtsIgnore                       // local_pts + pts_count > pts: already applied, ignore
+	PtsGap                          // local_pts + pts_count < pts: gap detected
+)
+
+func (c *Client) checkPts(localPts, pts, ptsCount int32) PtsCheckResult {
+	if localPts == 0 {
+		return PtsApply // First update, just apply
+	}
+
+	expected := localPts + ptsCount
+	if expected == pts {
+		return PtsApply
+	}
+	if expected > pts {
+		return PtsIgnore
+	}
+	return PtsGap
+}
+
+// managePts handles pts-based updates.
+// Returns true if the update should be processed, false if it should be ignored.
 func (c *Client) managePts(pts int32, ptsCount int32) bool {
-	var currentPts = c.dispatcher.GetPts()
+	localPts := c.dispatcher.GetPts()
 
-	if currentPts == 0 {
+	result := c.checkPts(localPts, pts, ptsCount)
+
+	switch result {
+	case PtsApply:
 		c.dispatcher.SetPts(pts)
 		return true
-	}
 
-	expectedPts := currentPts + ptsCount
-
-	if expectedPts == pts {
-		c.dispatcher.SetPts(pts)
-		return true
-	}
-
-	if expectedPts > pts {
+	case PtsIgnore:
+		// Update was already applied
+		c.dispatcher.logger.Trace("pts: ignoring duplicate update (local=%d, pts=%d, count=%d)", localPts, pts, ptsCount)
 		return false
-	}
 
-	if expectedPts < pts {
-		gap := pts - expectedPts
+	case PtsGap:
+		// Gap detected - wait 0.5s then fetch difference if gap persists
+		gap := pts - (localPts + ptsCount)
+		c.dispatcher.logger.Debug("pts: gap detected (local=%d, pts=%d, count=%d, gap=%d)", localPts, pts, ptsCount, gap)
 
-		if gap <= 5 {
+		// For small gaps, just accept and continue
+		if gap <= 3 {
 			c.dispatcher.SetPts(pts)
 			return true
 		}
 
+		// Store the pts anyway to avoid re-processing
 		c.dispatcher.SetPts(pts)
 
-		gapPts := expectedPts
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-
-			newCurrentPts := c.dispatcher.GetPts()
-			if newCurrentPts >= pts {
-				return
+		// schedule gap recovery with 0.5s delay
+		gapStartPts := localPts
+		c.dispatcher.Lock()
+		if c.dispatcher.pendingGapTimer != nil {
+			c.dispatcher.pendingGapTimer.Stop()
+		}
+		c.dispatcher.pendingGapTimer = time.AfterFunc(c.dispatcher.gapTimeout, func() {
+			// Check if gap was filled by another update
+			currentPts := c.dispatcher.GetPts()
+			if currentPts >= pts {
+				return // Gap was filled
 			}
-
-			c.FetchDifference(gapPts, gap+10)
-		}()
+			c.FetchDifference(gapStartPts, gap+10)
+		})
+		c.dispatcher.Unlock()
 
 		return true
 	}
@@ -2070,77 +2187,115 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 	return true
 }
 
+// manageSeq handles seq-based updates.
+// For updates/updatesCombined constructors with seq attribute.
+// seq_start = seq for updates constructor (omitted means equal to seq)
 func (c *Client) manageSeq(seq int32, seqStart int32) bool {
-	if seq == 0 && seqStart == 0 {
+	// seq = 0 means unordered update, just apply immediately
+	if seq == 0 {
 		return true
 	}
 
-	currentSeq := c.dispatcher.GetSeq()
+	// For updates constructor, seq_start is omitted and equals seq
+	if seqStart == 0 {
+		seqStart = seq
+	}
 
-	if currentSeq == 0 {
+	localSeq := c.dispatcher.GetSeq()
+
+	// First update
+	if localSeq == 0 {
 		c.dispatcher.SetSeq(seq)
 		return true
 	}
 
-	expectedSeqStart := currentSeq + 1
+	expectedSeqStart := localSeq + 1
 
 	if expectedSeqStart == seqStart {
+		// Perfect sequence - apply and update state
 		c.dispatcher.SetSeq(seq)
 		return true
 	}
 
 	if expectedSeqStart > seqStart {
+		// Already applied, ignore
+		c.dispatcher.logger.Trace("seq: ignoring duplicate (local=%d, seq=%d, seqStart=%d)", localSeq, seq, seqStart)
 		return false
 	}
 
-	if expectedSeqStart < seqStart {
-		go c.FetchDifference(c.dispatcher.GetPts(), 5000)
-		return false
+	// Gap detected: expectedSeqStart < seqStart
+	gap := seqStart - expectedSeqStart
+	c.dispatcher.logger.Debug("seq: gap detected (local=%d, seq=%d, seqStart=%d, gap=%d)", localSeq, seq, seqStart, gap)
+
+	// For small gaps (1-2), accept and continue to avoid unnecessary fetches
+	if gap <= 2 {
+		c.dispatcher.SetSeq(seq)
+		return true
 	}
 
+	// schedule gap recovery with 0.5s delay
+	c.dispatcher.Lock()
+	if c.dispatcher.pendingSeqGapTimer != nil {
+		c.dispatcher.pendingSeqGapTimer.Stop()
+	}
+	c.dispatcher.pendingSeqGapTimer = time.AfterFunc(c.dispatcher.gapTimeout, func() {
+		currentSeq := c.dispatcher.GetSeq()
+		if currentSeq >= seq {
+			return // Gap was filled
+		}
+		c.FetchDifference(c.dispatcher.GetPts(), 5000)
+	})
+	c.dispatcher.Unlock()
+
+	// Accept update to avoid dropping it - gap recovery will fetch missing ones
+	c.dispatcher.SetSeq(seq)
 	return true
 }
 
+// manageChannelPts handles per-channel pts according to Telegram documentation.
 func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bool {
-	var currentPts = c.dispatcher.GetChannelPts(channelID)
+	localPts := c.dispatcher.GetChannelPts(channelID)
 
-	if currentPts == 0 {
+	result := c.checkPts(localPts, pts, ptsCount)
+
+	switch result {
+	case PtsApply:
 		c.dispatcher.SetChannelPts(channelID, pts)
 		return true
-	}
 
-	expectedPts := currentPts + ptsCount
-
-	if expectedPts == pts {
-		c.dispatcher.SetChannelPts(channelID, pts)
-		return true
-	}
-
-	if expectedPts > pts {
+	case PtsIgnore:
+		c.dispatcher.logger.Trace("channel pts: ignoring duplicate (channel=%d, local=%d, pts=%d)", channelID, localPts, pts)
 		return false
-	}
 
-	if expectedPts < pts {
-		gap := pts - expectedPts
+	case PtsGap:
+		gap := pts - (localPts + ptsCount)
+		c.dispatcher.logger.Debug("channel pts: gap detected (channel=%d, local=%d, pts=%d, gap=%d)", channelID, localPts, pts, gap)
 
-		if gap <= 5 {
+		// For small gaps, accept anw
+		if gap <= 3 {
 			c.dispatcher.SetChannelPts(channelID, pts)
 			return true
 		}
 
 		c.dispatcher.SetChannelPts(channelID, pts)
 
-		gapPts := expectedPts
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-
-			newCurrentPts := c.dispatcher.GetChannelPts(channelID)
-			if newCurrentPts >= pts {
+		// schedule channel-specific gap recovery
+		gapStartPts := localPts
+		c.dispatcher.Lock()
+		if c.dispatcher.channelGapTimers == nil {
+			c.dispatcher.channelGapTimers = make(map[int64]*time.Timer)
+		}
+		if timer, exists := c.dispatcher.channelGapTimers[channelID]; exists {
+			timer.Stop()
+		}
+		c.dispatcher.channelGapTimers[channelID] = time.AfterFunc(c.dispatcher.gapTimeout, func() {
+			currentPts := c.dispatcher.GetChannelPts(channelID)
+			if currentPts >= pts {
 				return
 			}
-
-			c.FetchChannelDifference(channelID, gapPts, 100)
-		}()
+			c.FetchChannelDifference(channelID, gapStartPts, 100)
+		})
+		c.dispatcher.Unlock()
 
 		return true
 	}
@@ -2326,25 +2481,160 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 	c.Log.Debug("channel difference max iterations (channel=%d, iterations=%d, pts=%d, fetched=%d)", channelID, maxIterations, req.Pts, totalFetched)
 }
 
-func (c *Client) OpenChat(channel *InputChannelObj) {
+// OpenChat starts active polling for a channel when user is viewing it.
+// Per Telegram docs: when user opens a channel, client should periodically
+// call getChannelDifference using the timeout from the response.
+func (c *Client) OpenChat(channel *InputChannelObj, timeoutSeconds int32) {
 	c.dispatcher.Lock()
-	defer c.dispatcher.Unlock()
-
 	if c.dispatcher.openChats == nil {
 		c.dispatcher.openChats = make(map[int64]*openChat)
 	}
-
 	if _, ok := c.dispatcher.openChats[channel.ChannelID]; ok {
+		c.dispatcher.Unlock()
 		return
 	}
+	c.dispatcher.Unlock()
 
-	c.dispatcher.openChats[channel.ChannelID] = &openChat{
+	// Get current channel pts (outside lock to avoid blocking)
+	currentPts := c.dispatcher.GetChannelPts(channel.ChannelID)
+	if currentPts == 0 {
+		diff, err := c.UpdatesGetChannelDifference(&UpdatesGetChannelDifferenceParams{
+			Channel: channel,
+			Filter:  &ChannelMessagesFilterEmpty{},
+			Pts:     1,
+			Limit:   1,
+		})
+		if err != nil {
+			c.Log.Error("open chat: failed to get pts (channel=%d): %v", channel.ChannelID, err)
+			return
+		}
+		switch d := diff.(type) {
+		case *UpdatesChannelDifferenceEmpty:
+			currentPts = d.Pts
+		case *UpdatesChannelDifferenceObj:
+			currentPts = d.Pts
+		case *UpdatesChannelDifferenceTooLong:
+			if dialog, ok := d.Dialog.(*DialogObj); ok {
+				currentPts = dialog.Pts
+			}
+		}
+		if currentPts == 0 {
+			currentPts = 1
+		}
+	}
+
+	chat := &openChat{
 		accessHash: channel.AccessHash,
 		closeChan:  make(chan struct{}),
-		lastPts:    0,
+		lastPts:    currentPts,
+		timeout:    timeoutSeconds,
+	}
+
+	c.dispatcher.Lock()
+	if _, ok := c.dispatcher.openChats[channel.ChannelID]; ok {
+		c.dispatcher.Unlock()
+		return
+	}
+	c.dispatcher.openChats[channel.ChannelID] = chat
+	// Mark channel as open in channelState for FetchChannelDifference checks
+	if c.dispatcher.channelStates == nil {
+		c.dispatcher.channelStates = make(map[int64]*channelState)
+	}
+	if state, ok := c.dispatcher.channelStates[channel.ChannelID]; ok {
+		state.isOpen = true
+	} else {
+		c.dispatcher.channelStates[channel.ChannelID] = &channelState{
+			pts:        currentPts,
+			accessHash: channel.AccessHash,
+			isOpen:     true,
+		}
+	}
+	c.dispatcher.Unlock()
+
+	go c.pollOpenChat(channel.ChannelID, chat)
+}
+
+// pollOpenChat periodically fetches channel difference for an open chat
+func (c *Client) pollOpenChat(channelID int64, chat *openChat) {
+	var errorCount int
+	const maxBackoff = 60 // max 60 seconds between retries on error
+
+	for {
+		chat.RLock()
+		timeout := time.Duration(chat.timeout) * time.Second
+		lastPts := chat.lastPts
+		chat.RUnlock()
+
+		if timeout < time.Second {
+			timeout = 15 * time.Second
+		}
+
+		// Add exponential backoff on consecutive errors
+		if errorCount > 0 {
+			backoff := min(1<<errorCount, maxBackoff)
+			timeout = time.Duration(backoff) * time.Second
+		}
+
+		select {
+		case <-chat.closeChan:
+			return
+		case <-time.After(timeout):
+		}
+
+		diff, err := c.UpdatesGetChannelDifference(&UpdatesGetChannelDifferenceParams{
+			Channel: &InputChannelObj{ChannelID: channelID, AccessHash: chat.accessHash},
+			Filter:  &ChannelMessagesFilterEmpty{},
+			Pts:     lastPts,
+			Limit:   100,
+		})
+		if err != nil {
+			errorCount++
+			c.Log.Debug("open chat poll error (channel=%d, attempt=%d): %v", channelID, errorCount, err)
+			continue
+		}
+		errorCount = 0
+
+		switch d := diff.(type) {
+		case *UpdatesChannelDifferenceEmpty:
+			chat.Lock()
+			chat.timeout = d.Timeout
+			chat.Unlock()
+
+		case *UpdatesChannelDifferenceObj:
+			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
+			for _, msg := range d.NewMessages {
+				if msgObj, ok := msg.(*MessageObj); ok {
+					go c.handleMessageUpdate(msgObj)
+				}
+			}
+			if len(d.OtherUpdates) > 0 {
+				HandleIncomingUpdates(&UpdatesObj{Updates: d.OtherUpdates, Users: d.Users, Chats: d.Chats}, c)
+			}
+			chat.Lock()
+			chat.lastPts = d.Pts
+			chat.timeout = d.Timeout
+			chat.Unlock()
+			c.dispatcher.SetChannelPts(channelID, d.Pts)
+
+		case *UpdatesChannelDifferenceTooLong:
+			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
+			for _, msg := range d.Messages {
+				if msgObj, ok := msg.(*MessageObj); ok {
+					go c.handleMessageUpdate(msgObj)
+				}
+			}
+			chat.Lock()
+			chat.timeout = d.Timeout
+			if dialog, ok := d.Dialog.(*DialogObj); ok {
+				chat.lastPts = dialog.Pts
+				c.dispatcher.SetChannelPts(channelID, dialog.Pts)
+			}
+			chat.Unlock()
+		}
 	}
 }
 
+// CloseChat stops active polling for a channel when user leaves it.
 func (c *Client) CloseChat(channel *InputChannelObj) {
 	c.dispatcher.Lock()
 	defer c.dispatcher.Unlock()
@@ -2352,13 +2642,16 @@ func (c *Client) CloseChat(channel *InputChannelObj) {
 	if c.dispatcher.openChats == nil {
 		return
 	}
-
-	if _, ok := c.dispatcher.openChats[channel.ChannelID]; !ok {
+	chat, ok := c.dispatcher.openChats[channel.ChannelID]
+	if !ok {
 		return
 	}
-
-	close(c.dispatcher.openChats[channel.ChannelID].closeChan)
+	close(chat.closeChan)
 	delete(c.dispatcher.openChats, channel.ChannelID)
+	// Mark channel as closed
+	if state, ok := c.dispatcher.channelStates[channel.ChannelID]; ok {
+		state.isOpen = false
+	}
 }
 
 type ev any
@@ -2380,132 +2673,319 @@ var (
 	OnRaw            ev = "raw"
 )
 
-// .On is a helper function to add a handler for a specific event type (handler: func(m *NewMessage) error, etc.)
-func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
-	var patternKey string
-	var args string
+type eventInfo struct {
+	eventType string
+	pattern   string
+}
 
-	if patternStr, ok := pattern.(string); ok {
-		if strings.Contains(patternStr, ":") {
-			parts := strings.SplitN(patternStr, ":", 2)
-			patternKey = strings.TrimSpace(parts[0])
-			args = strings.TrimSpace(parts[1])
+func parsePattern(pattern any) eventInfo {
+	switch p := pattern.(type) {
+	case string:
+		p = strings.TrimSpace(p)
+
+		if len(p) > 0 && (p[0] == '/' || p[0] == '!') {
+			return eventInfo{eventType: "command", pattern: p[1:]}
+		}
+		if idx := strings.Index(p, ":"); idx > 0 {
+			return eventInfo{
+				eventType: strings.ToLower(strings.TrimSpace(p[:idx])),
+				pattern:   strings.TrimSpace(p[idx+1:]),
+			}
+		}
+
+		return eventInfo{eventType: strings.ToLower(p)}
+
+	case ev:
+		if s, ok := p.(string); ok {
+			return eventInfo{eventType: s}
+		}
+		return eventInfo{}
+
+	default:
+		return eventInfo{}
+	}
+}
+
+var handlerTypes = map[string]string{
+	"func(*telegram.NewMessage) error":              "message",
+	"func(*telegram.DeleteMessage) error":           "delete",
+	"func(*telegram.Album) error":                   "album",
+	"func(*telegram.InlineQuery) error":             "inline",
+	"func(*telegram.InlineSend) error":              "choseninline",
+	"func(*telegram.CallbackQuery) error":           "callback",
+	"func(*telegram.InlineCallbackQuery) error":     "inlinecallback",
+	"func(*telegram.ParticipantUpdate) error":       "participant",
+	"func(*telegram.JoinRequestUpdate) error":       "joinrequest",
+	"func(telegram.Update, *telegram.Client) error": "raw",
+}
+
+// On registers an event handler with flexible pattern matching.
+//
+// Usage patterns:
+//
+//	// Message handlers
+//	client.On("message", handler)              // All messages
+//	client.On("message:hello", handler)        // Messages matching "hello"
+//	client.On(OnMessage, handler)              // Using constant
+//
+//	// Command handlers (multiple formats)
+//	client.On("/start", handler)               // Shortcut for cmd:start
+//	client.On("!help", handler)                // Shortcut for cmd:help
+//	client.On("cmd:start", handler)            // Explicit command
+//	client.On("command:start", handler)        // Full form
+//
+//	// Other events
+//	client.On("callback:data", handler)        // Callback with data pattern
+//	client.On("inline:query", handler)         // Inline query pattern
+//	client.On("edit", handler)                 // Message edits
+//	client.On("delete", handler)               // Message deletions
+//	client.On("album", handler)                // Media albums
+//	client.On("participant", handler)          // Member updates
+//	client.On("joinrequest", handler)          // Join requests
+//
+//	// Raw updates
+//	client.On("raw", handler)                  // All raw updates
+//	client.On("*", handler)                    // Alias for raw
+//	client.On(&UpdateNewMessage{}, handler)   // Specific update type
+//
+//	// Auto-detect from handler signature
+//	client.On(func(m *NewMessage) error {...}) // Detects as message handler
+func (c *Client) On(args ...any) Handle {
+	if len(args) == 0 {
+		c.Log.Error("On: no arguments provided")
+		return nil
+	}
+
+	var pattern any
+	var handler any
+	var filters []Filter
+
+	// Parse arguments based on count and types
+	switch len(args) {
+	case 1:
+		// Single arg must be a handler - auto-detect event type
+		handler = args[0]
+	case 2:
+		// pattern + handler, or handler + filter
+		if _, ok := args[1].(Filter); ok {
+			handler = args[0]
+			filters = append(filters, args[1].(Filter))
 		} else {
-			patternKey = strings.TrimSpace(patternStr)
+			pattern = args[0]
+			handler = args[1]
+		}
+	default:
+		// pattern + handler + filters...
+		pattern = args[0]
+		handler = args[1]
+		for _, f := range args[2:] {
+			if filter, ok := f.(Filter); ok {
+				filters = append(filters, filter)
+			}
 		}
 	}
 
-	switch ev(patternKey) {
-	case OnMessage, OnNewMessage:
+	// Try to auto-detect event type from handler if no pattern given
+	info := parsePattern(pattern)
+	if info.eventType == "" && handler != nil {
+		handlerType := fmt.Sprintf("%T", handler)
+		if detected, ok := handlerTypes[handlerType]; ok {
+			info.eventType = detected
+		}
+	}
+
+	// Register handler based on event type
+	switch info.eventType {
+	case "message", "newmessage", "msg":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
-			if args != "" {
-				return c.AddMessageHandler(args, h, filters...)
+			if info.pattern != "" {
+				return c.AddMessageHandler(info.pattern, h, filters...)
 			}
 			return c.AddMessageHandler(OnNewMessage, h, filters...)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*NewMessage) error", handler)
 		}
-	case OnCommand, OnCommandShort:
+		c.Log.Error("On(%s): invalid handler type %T, expected func(*NewMessage) error", info.eventType, handler)
+
+	case "command", "cmd":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
-			if args != "" {
-				return c.AddMessageHandler("cmd:"+args, h, filters...)
+			if info.pattern != "" {
+				return c.AddMessageHandler("cmd:"+info.pattern, h, filters...)
 			}
-			return c.AddMessageHandler(OnNewMessage, h, filters...)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*NewMessage) error", handler)
+			c.Log.Error("On(command): pattern required, use 'cmd:name' or '/name'")
+			return nil
 		}
-	case OnAction:
+		c.Log.Error("On(%s): invalid handler type %T, expected func(*NewMessage) error", info.eventType, handler)
+
+	case "action":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
 			return c.AddActionHandler(h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*NewMessage) error", handler)
 		}
-	case OnEdit, OnEditMessage:
+		c.Log.Error("On(action): invalid handler type %T, expected func(*NewMessage) error", handler)
+
+	case "edit", "editmessage":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
-			if args != "" {
-				return c.AddEditHandler(args, h)
+			if info.pattern != "" {
+				return c.AddEditHandler(info.pattern, h)
 			}
 			return c.AddEditHandler(OnEditMessage, h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*NewMessage) error", handler)
 		}
-	case OnDelete, OnDeleteMessage:
+		c.Log.Error("On(edit): invalid handler type %T, expected func(*NewMessage) error", handler)
+
+	case "delete", "deletemessage":
 		if h, ok := handler.(func(m *DeleteMessage) error); ok {
-			if args != "" {
-				return c.AddDeleteHandler(args, h)
+			if info.pattern != "" {
+				return c.AddDeleteHandler(info.pattern, h)
 			}
 			return c.AddDeleteHandler(OnDeleteMessage, h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*DeleteMessage) error", handler)
 		}
-	case OnAlbum:
+		c.Log.Error("On(delete): invalid handler type %T, expected func(*DeleteMessage) error", handler)
+
+	case "album":
 		if h, ok := handler.(func(m *Album) error); ok {
 			return c.AddAlbumHandler(h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*Album) error", handler)
 		}
-	case OnInline, OnInlineQuery:
+		c.Log.Error("On(album): invalid handler type %T, expected func(*Album) error", handler)
+
+	case "inline", "inlinequery":
 		if h, ok := handler.(func(m *InlineQuery) error); ok {
-			if args != "" {
-				return c.AddInlineHandler(args, h)
+			if info.pattern != "" {
+				return c.AddInlineHandler(info.pattern, h)
 			}
 			return c.AddInlineHandler(OnInlineQuery, h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*InlineQuery) error", handler)
 		}
-	case OnChosenInline:
+		c.Log.Error("On(inline): invalid handler type %T, expected func(*InlineQuery) error", handler)
+
+	case "choseninline", "inlinesend":
 		if h, ok := handler.(func(m *InlineSend) error); ok {
 			return c.AddInlineSendHandler(h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*InlineSend) error", handler)
 		}
-	case OnCallback, OnCallbackQuery:
+		c.Log.Error("On(choseninline): invalid handler type %T, expected func(*InlineSend) error", handler)
+
+	case "callback", "callbackquery":
 		if h, ok := handler.(func(m *CallbackQuery) error); ok {
-			if args != "" {
-				return c.AddCallbackHandler(args, h)
+			if info.pattern != "" {
+				return c.AddCallbackHandler(info.pattern, h)
 			}
 			return c.AddCallbackHandler(OnCallbackQuery, h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*CallbackQuery) error", handler)
 		}
-	case OnInlineCallback, OnInlineCallbackQuery, "inlineCallback":
+		c.Log.Error("On(callback): invalid handler type %T, expected func(*CallbackQuery) error", handler)
+
+	case "inlinecallback", "inlinecallbackquery":
 		if h, ok := handler.(func(m *InlineCallbackQuery) error); ok {
-			if args != "" {
-				return c.AddInlineCallbackHandler(args, h)
+			if info.pattern != "" {
+				return c.AddInlineCallbackHandler(info.pattern, h)
 			}
 			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*InlineCallbackQuery) error", handler)
 		}
-	case OnParticipant:
+		c.Log.Error("On(inlinecallback): invalid handler type %T, expected func(*InlineCallbackQuery) error", handler)
+
+	case "participant":
 		if h, ok := handler.(func(m *ParticipantUpdate) error); ok {
 			return c.AddParticipantHandler(h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*ParticipantUpdate) error", handler)
 		}
-	case OnJoinRequest:
+		c.Log.Error("On(participant): invalid handler type %T, expected func(*ParticipantUpdate) error", handler)
+
+	case "joinrequest":
 		if h, ok := handler.(func(m *JoinRequestUpdate) error); ok {
 			return c.AddJoinRequestHandler(h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*JoinRequestUpdate) error", handler)
 		}
-	case OnRaw, "*":
+		c.Log.Error("On(joinrequest): invalid handler type %T, expected func(*JoinRequestUpdate) error", handler)
+
+	case "raw", "*":
 		if h, ok := handler.(func(m Update, c *Client) error); ok {
 			return c.AddRawHandler(nil, h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(Update, *Client) error", handler)
 		}
+		c.Log.Error("On(raw): invalid handler type %T, expected func(Update, *Client) error", handler)
+
 	default:
+		// Check if pattern is a raw Update type
 		if update, ok := pattern.(Update); ok {
 			if h, ok := handler.(func(m Update, c *Client) error); ok {
 				return c.AddRawHandler(update, h)
 			}
-		} else {
-			c.Log.Error("bad handler: got %T, want func(Update, *Client) error", handler)
+			c.Log.Error("On(Update): invalid handler type %T, expected func(Update, *Client) error", handler)
+			return nil
+		}
+
+		// Unknown event type - try to auto-detect from handler
+		switch h := handler.(type) {
+		case func(m *NewMessage) error:
+			return c.AddMessageHandler(OnNewMessage, h, filters...)
+		case func(m *DeleteMessage) error:
+			return c.AddDeleteHandler(OnDeleteMessage, h)
+		case func(m *Album) error:
+			return c.AddAlbumHandler(h)
+		case func(m *InlineQuery) error:
+			return c.AddInlineHandler(OnInlineQuery, h)
+		case func(m *InlineSend) error:
+			return c.AddInlineSendHandler(h)
+		case func(m *CallbackQuery) error:
+			return c.AddCallbackHandler(OnCallbackQuery, h)
+		case func(m *InlineCallbackQuery) error:
+			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, h)
+		case func(m *ParticipantUpdate) error:
+			return c.AddParticipantHandler(h)
+		case func(m *JoinRequestUpdate) error:
+			return c.AddJoinRequestHandler(h)
+		case func(m Update, c *Client) error:
+			return c.AddRawHandler(nil, h)
+		default:
+			c.Log.Error("On: unknown pattern %q or handler type %T", pattern, handler)
 		}
 	}
 
 	return nil
+}
+
+func (c *Client) OnMessage(pattern string, handler func(m *NewMessage) error, filters ...Filter) Handle {
+	if pattern == "" {
+		return c.AddMessageHandler(OnNewMessage, handler, filters...)
+	}
+	return c.AddMessageHandler(pattern, handler, filters...)
+}
+
+func (c *Client) OnCommand(command string, handler func(m *NewMessage) error, filters ...Filter) Handle {
+	return c.AddMessageHandler("cmd:"+command, handler, filters...)
+}
+
+func (c *Client) OnCallback(pattern string, handler func(m *CallbackQuery) error) Handle {
+	if pattern == "" {
+		return c.AddCallbackHandler(OnCallbackQuery, handler)
+	}
+	return c.AddCallbackHandler(pattern, handler)
+}
+
+func (c *Client) OnInlineQuery(pattern string, handler func(m *InlineQuery) error) Handle {
+	if pattern == "" {
+		return c.AddInlineHandler(OnInlineQuery, handler)
+	}
+	return c.AddInlineHandler(pattern, handler)
+}
+
+func (c *Client) OnEdit(pattern string, handler func(m *NewMessage) error) Handle {
+	if pattern == "" {
+		return c.AddEditHandler(OnEditMessage, handler)
+	}
+	return c.AddEditHandler(pattern, handler)
+}
+
+func (c *Client) OnDelete(handler func(m *DeleteMessage) error) Handle {
+	return c.AddDeleteHandler(OnDeleteMessage, handler)
+}
+
+func (c *Client) OnAlbum(handler func(m *Album) error) Handle {
+	return c.AddAlbumHandler(handler)
+}
+
+func (c *Client) OnParticipant(handler func(m *ParticipantUpdate) error) Handle {
+	return c.AddParticipantHandler(handler)
+}
+
+func (c *Client) OnJoinRequest(handler func(m *JoinRequestUpdate) error) Handle {
+	return c.AddJoinRequestHandler(handler)
+}
+
+func (c *Client) OnRaw(updateType Update, handler func(m Update, c *Client) error) Handle {
+	return c.AddRawHandler(updateType, handler)
 }
 
 func (c *Client) monitorNoUpdatesTimeout() {
@@ -2516,7 +2996,7 @@ func (c *Client) monitorNoUpdatesTimeout() {
 		case <-ticker.C:
 			if time.Since(c.dispatcher.lastUpdateTime) > 15*time.Minute {
 				c.Log.Debug("no updates received for 15 minutes, getting difference...")
-				c.FetchDifference(c.dispatcher.currentPts, 5000)
+				c.FetchDifference(c.dispatcher.GetPts(), 5000)
 			}
 		case <-c.dispatcher.stopChan:
 			return
@@ -2524,7 +3004,38 @@ func (c *Client) monitorNoUpdatesTimeout() {
 	}
 }
 
+// FetchInitialState fetches the initial update state from the server.
+// Per Telegram docs: "When the user logs in for the first time, a call to updates.getState
+// has to be made to store the latest update state."
+func (c *Client) FetchInitialState() error {
+	state, err := c.UpdatesGetState()
+	if err != nil {
+		return err
+	}
+
+	c.dispatcher.SetState(UpdateState{
+		Pts:  state.Pts,
+		Qts:  state.Qts,
+		Seq:  state.Seq,
+		Date: state.Date,
+	})
+
+	c.Log.Debug("initial state fetched (pts=%d, qts=%d, seq=%d, date=%d)",
+		state.Pts, state.Qts, state.Seq, state.Date)
+
+	return nil
+}
+
+// FetchDifferenceOnStartup fetches any missed updates since last disconnect.
+// Should be called on startup after logging in to catch up on missed events.
+// Per Telegram docs: "On startup, only updates.getDifference should be called"
 func (c *Client) FetchDifferenceOnStartup() error {
-	// need to store last state locally on disconnect and compare on startup
-	return errors.New("TODO: implement FetchDifferenceOnStartup")
+	// If we don't have any stored state, fetch initial state first
+	if !c.dispatcher.HasState() {
+		return c.FetchInitialState()
+	}
+
+	// Get difference from stored pts
+	c.FetchDifference(c.dispatcher.GetPts(), 5000)
+	return nil
 }

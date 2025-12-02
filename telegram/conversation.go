@@ -186,7 +186,7 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 		filters = append(filters, FilterPrivate)
 	}
 
-	h := c.Client.On(OnMessage, waitFunc, filters...)
+	h := c.Client.On(OnMessage, waitFunc, filters)
 	h.SetGroup(-1)
 
 	c.openHandlers = append(c.openHandlers, h)
@@ -227,7 +227,7 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 		filters = append(filters, FilterPrivate)
 	}
 
-	h := c.Client.On(OnEdit, waitFunc, filters...)
+	h := c.Client.On(OnEdit, waitFunc, filters)
 	h.SetGroup(-1)
 	c.openHandlers = append(c.openHandlers, h)
 	select {
@@ -269,7 +269,7 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 
 	filters = append(filters, FilterReply)
 
-	h := c.Client.On(OnMessage, waitFunc, filters...)
+	h := c.Client.On(OnMessage, waitFunc, filters)
 	h.SetGroup(-1)
 	c.openHandlers = append(c.openHandlers, h)
 	select {
@@ -480,7 +480,7 @@ func (c *Conversation) getResponseWithFilter(check func(*NewMessage) bool) (*New
 	}
 
 	filters := c.buildFilters()
-	h := c.Client.On(OnMessage, waitFunc, filters...)
+	h := c.Client.On(OnMessage, waitFunc, filters)
 	h.SetGroup(-1)
 	c.openHandlers = append(c.openHandlers, h)
 
