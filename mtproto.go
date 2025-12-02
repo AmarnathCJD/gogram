@@ -748,10 +748,15 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 			return m.handleRPCResult(data, response, expectedTypes...)
 
 		case <-ctx.Done():
+			graceTimer := time.NewTimer(graceTimeout)
+
 			select {
 			case response := <-resp:
+				if !graceTimer.Stop() {
+					<-graceTimer.C
+				}
 				return m.handleRPCResult(data, response, expectedTypes...)
-			case <-time.After(graceTimeout):
+			case <-graceTimer.C:
 			}
 
 			m.responseChannels.Delete(int(msgID))
@@ -907,11 +912,14 @@ func (m *MTProto) longPing(ctx context.Context) {
 	m.routineswg.Add(1)
 	defer m.routineswg.Done()
 
+	ticker := time.NewTicker(defaultPingInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(defaultPingInterval):
+		case <-ticker.C:
 			if err := m.tcpState.WaitForActive(ctx); err != nil {
 				return
 			}
@@ -981,48 +989,49 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			default:
-				if err := m.tcpState.WaitForActive(ctx); err != nil {
+			}
+
+			if err := m.tcpState.WaitForActive(ctx); err != nil {
+				return
+			}
+
+			err := m.readMsg()
+			if err == nil {
+				continue
+			}
+
+			if err == context.Canceled {
+				return
+			}
+
+			if isBrokenError(err) {
+				m.Logger.Debug("connection error (%v), reconnecting to [%s] - <%s>...", err, utils.FmtIp(m.Addr), m.GetTransportType())
+				m.tryReconnect()
+				if err == io.EOF {
 					return
 				}
+				continue
+			}
 
-				err := m.readMsg()
-				if err == nil {
-					continue
-				}
-
-				if err == context.Canceled {
-					return
-				}
-
-				if isBrokenError(err) {
-					m.Logger.Debug("connection error (%v), reconnecting to [%s] - <%s>...", err, utils.FmtIp(m.Addr), m.GetTransportType())
-					m.tryReconnect()
-					if err == io.EOF {
+			switch e := err.(type) {
+			case *ErrResponseCode:
+				if e.Code == 4294966892 {
+					if authErr := m.handle404Error(); authErr != nil {
+						m.Logger.Error("auth key error: %v", authErr)
 						return
 					}
-					continue
+				} else {
+					m.Logger.Debug("transport response error code: %d - %s", e.Code, e.Error())
 				}
-
-				switch e := err.(type) {
-				case *ErrResponseCode:
-					if e.Code == 4294966892 {
-						if authErr := m.handle404Error(); authErr != nil {
-							m.Logger.Error("auth key error: %v", authErr)
-							return
-						}
+			case *transport.ErrCode:
+				m.Logger.Debug("transport error code: %d - %s", int64(*e), e.Error())
+			default:
+				if !m.terminated.Load() {
+					if strings.Contains(err.Error(), "object with provided crc") {
+						m.Logger.Warn(FormatDecodeError(err))
 					} else {
-						m.Logger.Debug("transport response error code: %d - %s", e.Code, e.Error())
-					}
-				case *transport.ErrCode:
-					m.Logger.Debug("transport error code: %d - %s", int64(*e), e.Error())
-				default:
-					if !m.terminated.Load() {
-						if strings.Contains(err.Error(), "object with provided crc") {
-							m.Logger.Warn(FormatDecodeError(err))
-						} else {
-							m.Logger.Debug("reading message: %v", err)
-							m.tryReconnect()
-						}
+						m.Logger.Debug("reading message: %v", err)
+						m.tryReconnect()
 					}
 				}
 			}
