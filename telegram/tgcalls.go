@@ -44,7 +44,7 @@ func (c *Client) StartGroupCallMedia(peer any, rtmp ...bool) (PhoneCall, error) 
 		}
 	}
 
-	return nil, fmt.Errorf("StartGroupCallMedia: failed to start group call")
+	return nil, fmt.Errorf("failed to start group call media")
 }
 
 func (c *Client) GetGroupCall(chatId any) (*InputGroupCall, error) {
@@ -54,9 +54,9 @@ func (c *Client) GetGroupCall(chatId any) (*InputGroupCall, error) {
 	}
 
 	if inPeer, ok := resolvedPeer.(*InputPeerChannel); !ok {
-		return nil, fmt.Errorf("GetGroupCall: chatId is not a channel")
+		return nil, fmt.Errorf("resolved peer is not a channel")
 	} else {
-		fullChatRaw, err := c.ChannelsGetFullChannel(
+		fullchannel, err := c.ChannelsGetFullChannel(
 			&InputChannelObj{
 				ChannelID:  inPeer.ChannelID,
 				AccessHash: inPeer.AccessHash,
@@ -67,21 +67,20 @@ func (c *Client) GetGroupCall(chatId any) (*InputGroupCall, error) {
 			return nil, err
 		}
 
-		if fullChatRaw == nil {
-			return nil, fmt.Errorf("GetGroupCall: fullChatRaw is nil")
+		switch channel := fullchannel.FullChat.(type) {
+		case *ChannelFull:
+			if channel.Call == nil {
+				return nil, fmt.Errorf("no active group call in the channel")
+			}
+			return &channel.Call, nil
+		case *ChatFullObj:
+			if channel.Call == nil {
+				return nil, fmt.Errorf("no active group call in the chat")
+			}
+			return &channel.Call, nil
+		default:
+			return nil, fmt.Errorf("failed to get full channel info")
 		}
-
-		fullChat, ok := fullChatRaw.FullChat.(*ChannelFull)
-
-		if !ok {
-			return nil, fmt.Errorf("GetGroupCall: fullChatRaw.FullChat is not a ChannelFull")
-		}
-
-		if fullChat.Call == nil {
-			return nil, fmt.Errorf("GetGroupCall: No active group call")
-		}
-
-		return &fullChat.Call, nil
 	}
 }
 
