@@ -639,7 +639,7 @@ func (c *Client) handleEditUpdate(update Message) {
 			for _, handler := range handlers {
 				if handler.IsMatch(msg.Message) {
 					handle := func(h *messageEditHandle) error {
-						if handler.runFilterChain(packed, h.Filters) {
+						if h.runFilterChain(packed, h.Filters) {
 							defer c.NewRecovery()()
 							return h.Handler(packed)
 						}
@@ -679,7 +679,7 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Data) {
 				handle := func(h *callbackHandle) error {
-					if handler.runFilterChain(packed, h.Filters) {
+					if h.runFilterChain(packed, h.Filters) {
 						defer c.NewRecovery()()
 						return h.Handler(packed)
 					}
@@ -2622,9 +2622,9 @@ func (c *Client) On(args ...any) Handle {
 	case "edit", "editmessage":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
 			if info.pattern != "" {
-				return c.AddEditHandler(info.pattern, h)
+				return c.AddEditHandler(info.pattern, h, filters...)
 			}
-			return c.AddEditHandler(OnEditMessage, h)
+			return c.AddEditHandler(OnEditMessage, h, filters...)
 		}
 		c.Log.Error("On(edit): invalid handler type %T, expected func(*NewMessage) error", handler)
 
@@ -2661,9 +2661,9 @@ func (c *Client) On(args ...any) Handle {
 	case "callback", "callbackquery":
 		if h, ok := handler.(func(m *CallbackQuery) error); ok {
 			if info.pattern != "" {
-				return c.AddCallbackHandler(info.pattern, h)
+				return c.AddCallbackHandler(info.pattern, h, filters...)
 			}
-			return c.AddCallbackHandler(OnCallbackQuery, h)
+			return c.AddCallbackHandler(OnCallbackQuery, h, filters...)
 		}
 		c.Log.Error("On(callback): invalid handler type %T, expected func(*CallbackQuery) error", handler)
 
@@ -2715,7 +2715,7 @@ func (c *Client) On(args ...any) Handle {
 		case func(m *InlineSend) error:
 			return c.AddInlineSendHandler(h)
 		case func(m *CallbackQuery) error:
-			return c.AddCallbackHandler(OnCallbackQuery, h)
+			return c.AddCallbackHandler(OnCallbackQuery, h, filters...)
 		case func(m *InlineCallbackQuery) error:
 			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, h)
 		case func(m *ParticipantUpdate) error:
