@@ -1229,20 +1229,22 @@ messageTypeSwitching:
 // notifyPendingRequestsOfConfigChange notifies all pending requests that session config changed
 // Used when server salt changes and requests need to be resent
 func (m *MTProto) notifyPendingRequestsOfConfigChange() {
-	m.mutex.Lock()
-	respChannelsBackup := m.responseChannels
-	m.responseChannels = utils.NewSyncIntObjectChan()
-	m.mutex.Unlock()
+    m.mutex.Lock()
 
-	for _, k := range respChannelsBackup.Keys() {
-		if v, ok := respChannelsBackup.Get(k); ok {
-			respChannelsBackup.Delete(k)
-			select {
-			case v <- &errorSessionConfigsChanged{}:
-			case <-time.After(1 * time.Millisecond):
-			}
-		}
-	}
+    respChannelsBackup := m.responseChannels
+    m.responseChannels = utils.NewSyncIntObjectChan()
+
+    for _, k := range respChannelsBackup.Keys() {
+        if v, ok := respChannelsBackup.Get(k); ok {
+            respChannelsBackup.Delete(k)
+            select {
+            case v <- &errorSessionConfigsChanged{}:
+            case <-time.After(1 * time.Millisecond):
+            }
+        }
+    }
+
+    m.mutex.Unlock()
 }
 
 func MessageRequireToAck(msg tl.Object) bool {
