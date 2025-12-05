@@ -225,10 +225,10 @@ func (m *MTProto) makeAuthKeyInternal(expiresIn int32) error {
 		m.tempAuthKey = authKey
 		m.tempAuthKeyHash = utils.AuthKeyHash(authKey)
 		m.tempAuthExpiresAt = time.Now().Unix() + int64(expiresIn)
-		m.serverSalt = newSalt
+		m.serverSalt.Store(newSalt)
 	} else {
 		m.SetAuthKey(authKey)
-		m.serverSalt = newSalt
+		m.serverSalt.Store(newSalt)
 		m.encrypted = true
 		if err := m.SaveSession(m.memorySession); err != nil {
 			m.Logger.WithError(err).Error("failed to save session")
@@ -287,7 +287,7 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 	m.tempAuthKey = tmp.tempAuthKey
 	m.tempAuthKeyHash = tmp.tempAuthKeyHash
 	m.tempAuthExpiresAt = tmp.tempAuthExpiresAt
-	m.serverSalt = tmp.serverSalt
+	m.serverSalt.Store(tmp.serverSalt.Load())
 
 	tmp.Terminate()
 	m.Logger.Debug("temporary auth key created successfully")
