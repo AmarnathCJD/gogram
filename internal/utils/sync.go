@@ -1,5 +1,3 @@
-// Copyright (c) 2025 @AmarnathCJD
-
 package utils
 
 import (
@@ -10,123 +8,127 @@ import (
 )
 
 type SyncIntObjectChan struct {
-	mutex sync.RWMutex
-	m     map[int]chan tl.Object
-}
-
-func (s *SyncIntObjectChan) Reset() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.m = make(map[int]chan tl.Object)
+	mu sync.RWMutex
+	m  map[int]chan tl.Object
 }
 
 func NewSyncIntObjectChan() *SyncIntObjectChan {
-	return &SyncIntObjectChan{m: make(map[int]chan tl.Object)}
-}
-
-func (s *SyncIntObjectChan) Has(key int) bool {
-	s.mutex.RLock()
-	_, ok := s.m[key]
-	s.mutex.RUnlock()
-	return ok
-}
-
-func (s *SyncIntObjectChan) Get(key int) (chan tl.Object, bool) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	v, ok := s.m[key]
-	return v, ok
+	return &SyncIntObjectChan{
+		m: make(map[int]chan tl.Object),
+	}
 }
 
 func (s *SyncIntObjectChan) Add(key int, value chan tl.Object) {
-	s.mutex.Lock()
+	s.mu.Lock()
 	s.m[key] = value
-	s.mutex.Unlock()
+	s.mu.Unlock()
 }
 
-func (s *SyncIntObjectChan) Keys() []int {
-	keys := make([]int, 0, len(s.m))
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	for k := range s.m {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-func (s *SyncIntObjectChan) Delete(key int) bool {
-	s.mutex.Lock()
-	_, ok := s.m[key]
-	delete(s.m, key)
-	s.mutex.Unlock()
-	return ok
-}
-
-type SyncIntReflectTypes struct {
-	mutex sync.RWMutex
-	m     map[int][]reflect.Type
-}
-
-func (s *SyncIntReflectTypes) Reset() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.m = make(map[int][]reflect.Type)
-}
-
-func NewSyncIntReflectTypes() *SyncIntReflectTypes {
-	return &SyncIntReflectTypes{m: make(map[int][]reflect.Type)}
-}
-
-func (s *SyncIntReflectTypes) Has(key int) bool {
-	s.mutex.RLock()
-	_, ok := s.m[key]
-	s.mutex.RUnlock()
-	return ok
-}
-
-func (s *SyncIntReflectTypes) Get(key int) ([]reflect.Type, bool) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
+func (s *SyncIntObjectChan) Get(key int) (chan tl.Object, bool) {
+	s.mu.RLock()
 	v, ok := s.m[key]
+	s.mu.RUnlock()
 	return v, ok
 }
 
-func (s *SyncIntReflectTypes) Add(key int, value []reflect.Type) {
-	s.mutex.Lock()
-	s.m[key] = value
-	s.mutex.Unlock()
-}
-
-func (s *SyncIntReflectTypes) Keys() []int {
-	keys := make([]int, 0, len(s.m))
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	for k := range s.m {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-func (s *SyncIntReflectTypes) Delete(key int) bool {
-	s.mutex.Lock()
+func (s *SyncIntObjectChan) Has(key int) bool {
+	s.mu.RLock()
 	_, ok := s.m[key]
-	delete(s.m, key)
-	s.mutex.Unlock()
+	s.mu.RUnlock()
 	return ok
 }
 
+func (s *SyncIntObjectChan) Delete(key int) bool {
+	s.mu.Lock()
+	_, ok := s.m[key]
+	delete(s.m, key)
+	s.mu.Unlock()
+	return ok
+}
+
+func (s *SyncIntObjectChan) Keys() []int {
+	s.mu.RLock()
+	keys := make([]int, 0, len(s.m))
+	for k := range s.m {
+		keys = append(keys, k)
+	}
+	s.mu.RUnlock()
+	return keys
+}
+
+func (s *SyncIntObjectChan) SwapAndClear() map[int]chan tl.Object {
+	s.mu.Lock()
+	old := s.m
+	s.m = make(map[int]chan tl.Object)
+	s.mu.Unlock()
+	return old
+}
+
 func (s *SyncIntObjectChan) Close() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	for k, v := range s.m {
-		ccNoPanPan(v)
-		delete(s.m, k)
+	old := s.SwapAndClear()
+	for _, ch := range old {
+		closeChanNoPanic(ch)
 	}
 }
 
-func ccNoPanPan(c chan tl.Object) {
-	defer func() {
-		_ = recover()
-	}()
+type SyncIntReflectTypes struct {
+	mu sync.RWMutex
+	m  map[int][]reflect.Type
+}
+
+func NewSyncIntReflectTypes() *SyncIntReflectTypes {
+	return &SyncIntReflectTypes{
+		m: make(map[int][]reflect.Type),
+	}
+}
+
+func (s *SyncIntReflectTypes) Add(key int, value []reflect.Type) {
+	s.mu.Lock()
+	s.m[key] = value
+	s.mu.Unlock()
+}
+
+func (s *SyncIntReflectTypes) Get(key int) ([]reflect.Type, bool) {
+	s.mu.RLock()
+	v, ok := s.m[key]
+	s.mu.RUnlock()
+	return v, ok
+}
+
+func (s *SyncIntReflectTypes) Has(key int) bool {
+	s.mu.RLock()
+	_, ok := s.m[key]
+	s.mu.RUnlock()
+	return ok
+}
+
+func (s *SyncIntReflectTypes) Delete(key int) bool {
+	s.mu.Lock()
+	_, ok := s.m[key]
+	delete(s.m, key)
+	s.mu.Unlock()
+	return ok
+}
+
+func (s *SyncIntReflectTypes) Keys() []int {
+	s.mu.RLock()
+	keys := make([]int, 0, len(s.m))
+	for k := range s.m {
+		keys = append(keys, k)
+	}
+	s.mu.RUnlock()
+	return keys
+}
+
+func (s *SyncIntReflectTypes) SwapAndClear() map[int][]reflect.Type {
+	s.mu.Lock()
+	old := s.m
+	s.m = make(map[int][]reflect.Type)
+	s.mu.Unlock()
+	return old
+}
+
+func closeChanNoPanic(c chan tl.Object) {
+	defer func() { _ = recover() }()
 	close(c)
 }
