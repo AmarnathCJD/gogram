@@ -5,6 +5,7 @@ package gogram
 import (
 	"context"
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -162,7 +163,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		if !AnyError(err, session.ErrFileNotExists, session.ErrPathNotFound, session.ErrNotImplementedInJS) {
 			// if the error is not because of file not found or path not found, return the error
 			// else, continue with the execution
-			// check if have write permission in the directory
+			// check if you have write permission in the directory
 			if _, err := os.OpenFile(filepath.Dir(c.AuthKeyFile), os.O_WRONLY, 0222); err != nil {
 				return nil, fmt.Errorf("check if you have write permission in the directory: %w", err)
 			}
@@ -370,10 +371,14 @@ func (m *MTProto) SwitchDc(dc int) error {
 
 	m.Logger.Debug("migrating to new data center... dc %d", dc)
 
-	m.Disconnect()
+	if err := m.Disconnect(); err != nil {
+		return err
+	}
 	m.routineswg.Wait()
 
-	m.sessionStorage.Delete()
+	if err := m.sessionStorage.Delete(); err != nil {
+		return err
+	}
 	m.Logger.Debug("deleted old auth key file")
 
 	m.authKey = nil
@@ -511,7 +516,9 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 	m.stopRoutines()
 	if m.transport != nil {
-		m.transport.Close()
+		if err := m.transport.Close(); err != nil {
+			return err
+		}
 	}
 
 	ctx, cancelfunc := context.WithCancel(context.Background())
@@ -720,70 +727,64 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 
 func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) (any, error) {
 	const maxRetries = 1
-	var cancel context.CancelFunc
 
-	for attempt := 0; attempt <= maxRetries; attempt++ {
+	for attempt := range maxRetries + 1 {
 		if err := m.tcpState.WaitForActive(ctx); err != nil {
 			return nil, fmt.Errorf("waiting for active tcp state: %w", err)
 		}
 
-		resp, msgID, err := m.sendPacket(data, expectedTypes...)
+		resp, _, err := m.sendPacket(data, expectedTypes...)
 		if err != nil {
-			if utils.IsTransportError(err) {
-				m.Logger.WithError(err).
-					Debug("transport error: reconnecting to [%s] - <%s>...", m.Addr, m.GetTransportType())
-				if reconnErr := m.Reconnect(false); reconnErr != nil {
-					return nil, fmt.Errorf("reconnecting: %w", reconnErr)
-				}
-				ctx, cancel = context.WithTimeout(context.Background(), m.getTimeout(data))
-				defer cancel()
-				continue
+			if !utils.IsTransportError(err) {
+				return nil, fmt.Errorf("sending packet: %w", err)
 			}
-			return nil, fmt.Errorf("sending packet: %w", err)
+			m.Logger.WithError(err).Debug("transport error: reconnecting to [%s] - <%s>...", m.Addr, m.GetTransportType())
+			if reconnErr := m.Reconnect(false); reconnErr != nil {
+				return nil, fmt.Errorf("reconnecting: %w", reconnErr)
+			}
+			resp, _, err = m.sendPacket(data, expectedTypes...)
+			if err != nil {
+				return nil, fmt.Errorf("sending packet after reconnect: %w", err)
+			}
 		}
 
+		reqCtx, cancel := context.WithTimeout(ctx, m.getTimeout(data))
 		select {
 		case response := <-resp:
+			cancel()
 			return m.handleRPCResult(data, response, expectedTypes...)
 
-		case <-ctx.Done():
-			graceTimer := time.NewTimer(graceTimeout)
-
+		case <-reqCtx.Done():
+			cancel()
+			// grace period for late responses
 			select {
 			case response := <-resp:
-				if !graceTimer.Stop() {
-					<-graceTimer.C
-				}
 				return m.handleRPCResult(data, response, expectedTypes...)
-			case <-graceTimer.C:
+			case <-time.After(graceTimeout):
+				go func() {
+					select {
+					case <-resp:
+					case <-time.After(channelDrainPeriod):
+					}
+				}()
 			}
-
-			m.responseChannels.Delete(int(msgID))
-			m.expectedTypes.Delete(int(msgID))
-			go func() {
-				select {
-				case <-resp:
-				case <-time.After(channelDrainPeriod):
-				}
-			}()
 
 			if attempt < maxRetries {
 				m.Logger.Trace("request timeout, retrying: %s", utils.FmtMethod(data))
-				ctx, cancel = context.WithTimeout(context.Background(), m.getTimeout(data))
-				defer cancel()
 				continue
 			}
-			return nil, fmt.Errorf("request timeout: %w", context.DeadlineExceeded)
+			return nil, context.DeadlineExceeded
 		}
 	}
 
-	return nil, fmt.Errorf("request failed, try again")
+	return nil, errors.New("request failed after retries")
 }
 
 func (m *MTProto) handleRPCResult(data tl.Object, response tl.Object, expectedTypes ...reflect.Type) (any, error) {
 	switch r := response.(type) {
 	case *objects.RpcError:
-		rpcError := RpcErrorToNative(r, utils.FmtMethod(data)).(*ErrResponseCode)
+		var rpcError *ErrResponseCode
+		errors.As(RpcErrorToNative(r, utils.FmtMethod(data)), &rpcError)
 
 		// handle dc migration (code 303)
 		if rpcError.Code == 303 {
@@ -852,7 +853,9 @@ func (m *MTProto) Disconnect() error {
 	m.stopRoutines()
 
 	if m.transport != nil {
-		m.transport.Close()
+		if err := m.transport.Close(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -863,7 +866,9 @@ func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
 	if m.transport != nil {
-		m.transport.Close()
+		if err := m.transport.Close(); err != nil {
+			return err
+		}
 	}
 	m.tcpState.SetActive(false)
 	return nil
@@ -934,9 +939,12 @@ func (m *MTProto) Ping() time.Duration {
 	}
 	start := time.Now()
 	m.Logger.Debug("pinging server...")
-	m.InvokeRequestWithoutUpdate(&utils.PingParams{
+	if err := m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: time.Now().Unix(),
-	})
+	}); err != nil {
+		m.Logger.Debug("ping error: %v", err)
+		return -1
+	}
 	return time.Since(start)
 }
 
@@ -999,38 +1007,44 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				continue
 			}
 
-			if err == context.Canceled {
+			if errors.Is(err, context.Canceled) {
 				return
 			}
 
 			if isBrokenError(err) {
 				m.Logger.Debug("connection error (%v), reconnecting to [%s] - <%s>...", err, utils.FmtIp(m.Addr), m.GetTransportType())
-				m.tryReconnect()
-				if err == io.EOF {
+				if err := m.tryReconnect(); err != nil {
+					m.Logger.Debug("failed to reconnect: %v", err)
+				}
+				if errors.Is(err, io.EOF) {
 					return
 				}
 				continue
 			}
 
-			switch e := err.(type) {
-			case *ErrResponseCode:
-				if e.Code == 4294966892 {
+			var respErr *ErrResponseCode
+			var transErr *transport.ErrCode
+			switch {
+			case errors.As(err, &respErr):
+				if respErr.Code == 4294966892 {
 					if authErr := m.handle404Error(); authErr != nil {
 						m.Logger.Error("auth key error: %v", authErr)
 						return
 					}
 				} else {
-					m.Logger.Debug("transport response error code: %d - %s", e.Code, e.Error())
+					m.Logger.Debug("transport response error code: %d - %s", respErr.Code, respErr.Error())
 				}
-			case *transport.ErrCode:
-				m.Logger.Debug("transport error code: %d - %s", int64(*e), e.Error())
+			case errors.As(err, &transErr):
+				m.Logger.Debug("transport error code: %d - %s", int64(*transErr), transErr.Error())
 			default:
 				if !m.terminated.Load() {
 					if strings.Contains(err.Error(), "object with provided crc") {
 						m.Logger.Warn(FormatDecodeError(err))
 					} else {
 						m.Logger.Debug("reading message: %v", err)
-						m.tryReconnect()
+						if err := m.tryReconnect(); err != nil {
+							m.Logger.Debug("failed to reconnect: %v", err)
+						}
 					}
 				}
 			}
@@ -1069,11 +1083,12 @@ func (m *MTProto) readMsg() error {
 
 	response, err := m.transport.ReadMsg()
 	if err != nil {
-		if e, ok := err.(transport.ErrCode); ok {
+		var e transport.ErrCode
+		if errors.As(err, &e) {
 			return &ErrResponseCode{Code: int64(e)}
 		}
-		switch err {
-		case io.EOF, context.Canceled:
+		switch {
+		case err == io.EOF, errors.Is(err, context.Canceled):
 			return err
 		default:
 			return fmt.Errorf("reading message: %w", err)
@@ -1234,15 +1249,6 @@ func (m *MTProto) notifyPendingRequestsOfConfigChange() {
 		case ch <- &errorSessionConfigsChanged{}:
 		case <-time.After(1 * time.Millisecond):
 		}
-	}
-}
-
-func MessageRequireToAck(msg tl.Object) bool {
-	switch msg.(type) {
-	case *objects.MsgsAck:
-		return false
-	default:
-		return true
 	}
 }
 
