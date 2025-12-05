@@ -299,9 +299,9 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 	if err := sessionString.Decode(stringSession); err != nil {
 		return false, err
 	}
-	m.authKey, m.authKeyHash, m.Addr = sessionString.AuthKey(), sessionString.AuthKeyHash(), sessionString.IpAddr()
+	m.authKey, m.authKeyHash, m.Addr = sessionString.AuthKey, sessionString.AuthKeyHash, sessionString.IpAddr
 	if m.appID == 0 {
-		m.appID = sessionString.AppID()
+		m.appID = sessionString.AppID
 	}
 	m.Logger.Debug("importing - auth from string session (IP: %s)...", utils.FmtIp(m.Addr))
 	if err := m.SaveSession(m.memorySession); err != nil {
