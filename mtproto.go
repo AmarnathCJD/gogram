@@ -63,11 +63,10 @@ type MTProto struct {
 
 	noRedirect bool
 
-	serverSalt int64
+	serverSalt atomic.Int64
 	encrypted  bool
 	sessionId  int64
 
-	mutex            sync.Mutex
 	responseChannels *utils.SyncIntObjectChan
 	expectedTypes    *utils.SyncIntReflectTypes
 	pendingAcks      *utils.SyncSet[int64]
@@ -277,7 +276,7 @@ func (m *MTProto) ExportAuth() (*session.Session, int) {
 	return &session.Session{
 		Key:      m.authKey,
 		Hash:     m.authKeyHash,
-		Salt:     m.serverSalt,
+		Salt:     m.serverSalt.Load(),
 		Hostname: m.Addr,
 		AppID:    m.AppID(),
 	}, m.GetDC()
@@ -379,7 +378,7 @@ func (m *MTProto) SwitchDc(dc int) error {
 
 	m.authKey = nil
 	m.authKeyHash = nil
-	m.serverSalt = 0
+	m.serverSalt.Store(0)
 	m.encrypted = false
 	m.sessionId = utils.GenerateSessionID()
 
@@ -1132,14 +1131,14 @@ messageTypeSwitching:
 		}
 
 	case *objects.BadServerSalt:
-		m.serverSalt = message.NewSalt
+		m.serverSalt.Store(message.NewSalt)
 		if err := m.SaveSession(m.memorySession); err != nil {
 			m.Logger.Debug("failed to save session after salt update: %v", err)
 		}
 		m.notifyPendingRequestsOfConfigChange()
 
 	case *objects.NewSessionCreated:
-		m.serverSalt = message.ServerSalt
+		m.serverSalt.Store(message.ServerSalt)
 		if err := m.SaveSession(m.memorySession); err != nil {
 			m.Logger.Debug("failed to save session: %v", err)
 		}
@@ -1229,22 +1228,13 @@ messageTypeSwitching:
 // notifyPendingRequestsOfConfigChange notifies all pending requests that session config changed
 // Used when server salt changes and requests need to be resent
 func (m *MTProto) notifyPendingRequestsOfConfigChange() {
-	m.mutex.Lock()
-
-	respChannelsBackup := m.responseChannels
-	m.responseChannels = utils.NewSyncIntObjectChan()
-
-	for _, k := range respChannelsBackup.Keys() {
-		if v, ok := respChannelsBackup.Get(k); ok {
-			respChannelsBackup.Delete(k)
-			select {
-			case v <- &errorSessionConfigsChanged{}:
-			case <-time.After(1 * time.Millisecond):
-			}
+	old := m.responseChannels.SwapAndClear()
+	for _, ch := range old {
+		select {
+		case ch <- &errorSessionConfigsChanged{}:
+		case <-time.After(1 * time.Millisecond):
 		}
 	}
-
-	m.mutex.Unlock()
 }
 
 func MessageRequireToAck(msg tl.Object) bool {
