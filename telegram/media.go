@@ -841,13 +841,10 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 
 	go func() {
 		numCreate := 0
-		for dcId, workers := range c.exSenders.senders {
-			if int(dc) == dcId {
-				for _, worker := range workers {
-					w.AddWorker(worker)
-					numCreate++
-				}
-			}
+		existingSenders := c.exSenders.GetSenders(int(dc))
+		for _, worker := range existingSenders {
+			w.AddWorker(worker)
+			numCreate++
 		}
 
 		if numCreate < numWorkers {
@@ -858,7 +855,7 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 			conn, err := c.CreateExportedSender(int(dc), false, authParams)
 			if conn != nil && err == nil {
 				sender := NewExSender(conn)
-				c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], sender)
+				c.exSenders.AddSender(int(dc), sender)
 				w.AddWorker(sender)
 			}
 		}
