@@ -29,7 +29,7 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 	}
 
 	if msgID == 0 {
-		msgID = m.genMsgID(m.timeOffset)
+		msgID = m.genMsgID(m.timeOffset.Load())
 	}
 
 	if len(expectedTypes) > 0 {
@@ -46,7 +46,7 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 	}
 
 	var data messages.Common
-	if m.encrypted {
+	if m.encrypted.Load() {
 		data = &messages.Encrypted{
 			Msg:         msg,
 			MsgID:       msgID,
@@ -147,7 +147,7 @@ func isNullableResponse(t tl.Object) bool {
 }
 
 func (m *MTProto) GetSessionID() int64 {
-	return m.sessionId
+	return m.sessionId.Load()
 }
 
 // GetSeqNo returns seqno

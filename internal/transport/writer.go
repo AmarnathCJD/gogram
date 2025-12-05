@@ -74,6 +74,7 @@ func (c *Reader) worker() {
 func (c *Reader) interrupt() {
 	if nc, ok := c.r.(net.Conn); ok {
 		nc.SetReadDeadline(time.Now())
+		nc.Close()
 	} else if closer, ok := c.r.(io.Closer); ok {
 		closer.Close()
 	}
