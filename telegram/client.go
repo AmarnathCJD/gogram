@@ -548,6 +548,28 @@ func (es *ExSenders) Close() {
 	})
 }
 
+// GetSenders returns a copy of senders for the given DC
+func (es *ExSenders) GetSenders(dcID int) []*ExSender {
+	es.Lock()
+	defer es.Unlock()
+
+	if senders, ok := es.senders[dcID]; ok {
+		copy := make([]*ExSender, len(senders))
+		for i, s := range senders {
+			copy[i] = s
+		}
+		return copy
+	}
+	return nil
+}
+
+// AddSender adds a sender to the given DC
+func (es *ExSenders) AddSender(dcID int, sender *ExSender) {
+	es.Lock()
+	defer es.Unlock()
+	es.senders[dcID] = append(es.senders[dcID], sender)
+}
+
 // CreateExportedSender creates a new exported sender for the given DC
 func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
 	if dcID <= 0 {
