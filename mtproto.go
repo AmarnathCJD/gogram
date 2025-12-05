@@ -45,14 +45,15 @@ type MTProto struct {
 	transport transport.Transport
 	localAddr string
 
-	ctxCancel     context.CancelFunc
-	routineswg    sync.WaitGroup
-	memorySession bool
-	tcpState      *TcpState
-	timeOffset    int64
-	reqTimeout    time.Duration
-	mode          mode.Variant
-	DcList        *utils.DCOptions
+	ctxCancel      context.CancelFunc
+	ctxCancelMutex sync.Mutex
+	routineswg     sync.WaitGroup
+	memorySession  bool
+	tcpState       *TcpState
+	timeOffset     int64
+	reqTimeout     time.Duration
+	mode           mode.Variant
+	DcList         *utils.DCOptions
 
 	authKey []byte
 
@@ -516,13 +517,13 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 	m.stopRoutines()
 	if m.transport != nil {
-		if err := m.transport.Close(); err != nil {
-			return err
-		}
+		m.transport.Close()
 	}
 
 	ctx, cancelfunc := context.WithCancel(context.Background())
+	m.ctxCancelMutex.Lock()
 	m.ctxCancel = cancelfunc
+	m.ctxCancelMutex.Unlock()
 
 	transportType := m.GetTransportType()
 	if withLog {
@@ -843,6 +844,8 @@ func (m *MTProto) IsTcpActive() bool {
 }
 
 func (m *MTProto) stopRoutines() {
+	m.ctxCancelMutex.Lock()
+	defer m.ctxCancelMutex.Unlock()
 	if m.ctxCancel != nil {
 		m.ctxCancel()
 	}
@@ -853,9 +856,7 @@ func (m *MTProto) Disconnect() error {
 	m.stopRoutines()
 
 	if m.transport != nil {
-		if err := m.transport.Close(); err != nil {
-			return err
-		}
+		m.transport.Close()
 	}
 
 	return nil
@@ -866,9 +867,7 @@ func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
 	if m.transport != nil {
-		if err := m.transport.Close(); err != nil {
-			return err
-		}
+		m.transport.Close()
 	}
 	m.tcpState.SetActive(false)
 	return nil
