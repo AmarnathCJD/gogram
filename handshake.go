@@ -229,7 +229,7 @@ func (m *MTProto) makeAuthKeyInternal(expiresIn int32) error {
 	} else {
 		m.SetAuthKey(authKey)
 		m.serverSalt.Store(newSalt)
-		m.encrypted = true
+		m.encrypted.Store(true)
 		if err := m.SaveSession(m.memorySession); err != nil {
 			m.Logger.WithError(err).Error("failed to save session")
 		}
@@ -310,7 +310,7 @@ func (m *MTProto) bindTempAuthKey() error {
 	tempAuthKeyID := int64(binary.LittleEndian.Uint64(tempKeyHash))
 
 	// Use current session ID as temp_session_id for the binding.
-	tempSessionID := m.sessionId
+	tempSessionID := m.sessionId.Load()
 
 	expiresAt := int32(m.tempAuthExpiresAt)
 	if expiresAt == 0 {
@@ -318,7 +318,7 @@ func (m *MTProto) bindTempAuthKey() error {
 	}
 
 	nonce := utils.GenerateSessionID()
-	msgID := m.genMsgID(m.timeOffset)
+	msgID := m.genMsgID(m.timeOffset.Load())
 
 	inner := &objects.BindAuthKeyInner{
 		Nonce:         nonce,

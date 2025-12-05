@@ -50,7 +50,7 @@ type MTProto struct {
 	routineswg     sync.WaitGroup
 	memorySession  bool
 	tcpState       *TcpState
-	timeOffset     int64
+	timeOffset     atomic.Int64
 	reqTimeout     time.Duration
 	mode           mode.Variant
 	DcList         *utils.DCOptions
@@ -66,8 +66,8 @@ type MTProto struct {
 	noRedirect bool
 
 	serverSalt atomic.Int64
-	encrypted  bool
-	sessionId  int64
+	encrypted  atomic.Bool
+	sessionId  atomic.Int64
 
 	responseChannels *utils.SyncIntObjectChan
 	expectedTypes    *utils.SyncIntReflectTypes
@@ -79,6 +79,7 @@ type MTProto struct {
 	sessionStorage session.SessionLoader
 
 	publicKey *rsa.PublicKey
+	cdnKeysMu sync.RWMutex
 	cdnKeys   map[int32]*rsa.PublicKey
 
 	serviceChannel       chan tl.Object
@@ -99,15 +100,14 @@ type MTProto struct {
 	reconnectInProgress   atomic.Bool
 	timeout               time.Duration
 
-	reconnectAttempts    int
-	reconnectMutex       sync.Mutex
+	reconnectAttempts    atomic.Int32
 	maxReconnectDelay    time.Duration
 	maxReconnectAttempts int
 	baseReconnectDelay   time.Duration
 
+	stateMutex            sync.RWMutex
 	lastSuccessfulConnect time.Time
 	rapidReconnectCount   int
-	rapidReconnectMutex   sync.Mutex
 
 	useWebSocket    bool
 	useWebSocketTLS bool
@@ -178,8 +178,6 @@ func NewMTProto(c Config) (*MTProto, error) {
 	mtproto := &MTProto{
 		sessionStorage:        c.SessionStorage,
 		Addr:                  c.ServerHost,
-		encrypted:             false,
-		sessionId:             utils.GenerateSessionID(),
 		serviceChannel:        make(chan tl.Object),
 		publicKey:             c.PublicKey,
 		responseChannels:      utils.NewSyncIntObjectChan(),
@@ -200,7 +198,6 @@ func NewMTProto(c Config) (*MTProto, error) {
 		tcpState:              NewTcpState(),
 		DcList:                utils.NewDCOptions(),
 		timeout:               utils.MinSafeDuration(c.Timeout),
-		reconnectAttempts:     0,
 		maxReconnectDelay:     utils.OrDefault(c.MaxReconnectDelay, 15*time.Minute),
 		maxReconnectAttempts:  utils.OrDefault(c.MaxReconnectAttempts, defaultMaxReconnectAttempts),
 		baseReconnectDelay:    utils.OrDefault(c.BaseReconnectDelay, defaultBaseReconnectDelay),
@@ -210,10 +207,14 @@ func NewMTProto(c Config) (*MTProto, error) {
 		onMigration:           c.OnMigration,
 	}
 
+	mtproto.encrypted.Store(false)
+	mtproto.sessionId.Store(utils.GenerateSessionID())
+	mtproto.reconnectAttempts.Store(0)
+
 	mtproto.Logger.Debug("initializing mtproto...")
 
 	if loaded != nil || c.StringSession != "" {
-		mtproto.encrypted = true
+		mtproto.encrypted.Store(true)
 	}
 	if err := mtproto.loadAuth(c.StringSession, loaded); err != nil {
 		return nil, fmt.Errorf("loading auth: %w", err)
@@ -254,8 +255,14 @@ func parseTransportMode(sMode string) mode.Variant {
 }
 
 func (m *MTProto) LoadSession(sess *session.Session) error {
-	m.authKey, m.authKeyHash, m.Addr, m.appID = sess.Key, sess.Hash, sess.Hostname, sess.AppID
-	m.Logger.Debug("loading - auth from session (IP: %s)...", utils.FmtIp(m.Addr))
+	m.stateMutex.Lock()
+	m.Addr = sess.Hostname
+	m.stateMutex.Unlock()
+
+	m.authKey = sess.Key
+	m.authKeyHash = sess.Hash
+	m.appID = sess.AppID
+	m.Logger.Debug("loading - auth from session (IP: %s)...", utils.FmtIp(sess.Hostname))
 	if err := m.SaveSession(m.memorySession); err != nil {
 		return fmt.Errorf("saving session: %w", err)
 	}
@@ -275,17 +282,27 @@ func (m *MTProto) loadAuth(stringSession string, sess *session.Session) error {
 }
 
 func (m *MTProto) ExportAuth() (*session.Session, int) {
+	m.stateMutex.RLock()
+	addr := m.Addr
+	m.stateMutex.RUnlock()
+
 	return &session.Session{
 		Key:      m.authKey,
 		Hash:     m.authKeyHash,
 		Salt:     m.serverSalt.Load(),
-		Hostname: m.Addr,
+		Hostname: addr,
 		AppID:    m.AppID(),
 	}, m.GetDC()
 }
 
 func (m *MTProto) ImportRawAuth(authKey, authKeyHash []byte, addr string, appID int32) (bool, error) {
-	m.authKey, m.authKeyHash, m.Addr, m.appID = authKey, authKeyHash, addr, appID
+	m.stateMutex.Lock()
+	m.Addr = addr
+	m.stateMutex.Unlock()
+
+	m.authKey = authKey
+	m.authKeyHash = authKeyHash
+	m.appID = appID
 	m.Logger.Debug("importing - raw auth...")
 	if err := m.SaveSession(m.memorySession); err != nil {
 		return false, fmt.Errorf("saving session: %w", err)
@@ -301,11 +318,17 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 	if err := sessionString.Decode(stringSession); err != nil {
 		return false, err
 	}
-	m.authKey, m.authKeyHash, m.Addr = sessionString.AuthKey, sessionString.AuthKeyHash, sessionString.IpAddr
+	m.authKey = sessionString.AuthKey
+	m.authKeyHash = sessionString.AuthKeyHash
+
+	m.stateMutex.Lock()
+	m.Addr = sessionString.IpAddr
+	m.stateMutex.Unlock()
+
 	if m.appID == 0 {
 		m.appID = sessionString.AppID
 	}
-	m.Logger.Debug("importing - auth from string session (IP: %s)...", utils.FmtIp(m.Addr))
+	m.Logger.Debug("importing - auth from string session (IP: %s)...", utils.FmtIp(sessionString.IpAddr))
 	if err := m.SaveSession(m.memorySession); err != nil {
 		return false, fmt.Errorf("saving session: %w", err)
 	}
@@ -353,10 +376,14 @@ func (m *MTProto) SetAppID(appID int32) {
 }
 
 func (m *MTProto) SetCdnKeys(keys map[int32]*rsa.PublicKey) {
+	m.cdnKeysMu.Lock()
+	defer m.cdnKeysMu.Unlock()
 	m.cdnKeys = keys
 }
 
 func (m *MTProto) HasCdnKey(dc int32) (*rsa.PublicKey, bool) {
+	m.cdnKeysMu.RLock()
+	defer m.cdnKeysMu.RUnlock()
 	key, ok := m.cdnKeys[dc]
 	return key, ok
 }
@@ -385,8 +412,8 @@ func (m *MTProto) SwitchDc(dc int) error {
 	m.authKey = nil
 	m.authKeyHash = nil
 	m.serverSalt.Store(0)
-	m.encrypted = false
-	m.sessionId = utils.GenerateSessionID()
+	m.encrypted.Store(false)
+	m.sessionId.Store(utils.GenerateSessionID())
 
 	m.tempAuthKey = nil
 	m.tempAuthKeyHash = nil
@@ -398,11 +425,12 @@ func (m *MTProto) SwitchDc(dc int) error {
 	m.currentSeqNo.Store(0)
 
 	m.authKey404 = [2]int64{0, 0}
-	m.reconnectAttempts = 0
+	m.reconnectAttempts.Store(0)
+	m.stateMutex.Lock()
+	m.Addr = newAddr
 	m.rapidReconnectCount = 0
 	m.lastSuccessfulConnect = time.Time{}
-
-	m.Addr = newAddr
+	m.stateMutex.Unlock()
 
 	m.Logger.Info("user migrated to new dc (%s) - %s", strconv.Itoa(dc), newAddr)
 	m.Logger.Debug("reconnecting to new dc... dc %d", dc)
@@ -468,12 +496,9 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 }
 
 func (m *MTProto) connectWithRetry(ctx context.Context) error {
-	m.reconnectMutex.Lock()
-	defer m.reconnectMutex.Unlock()
-
 	err := m.connect(ctx)
 	if err == nil {
-		m.reconnectAttempts = 0
+		m.reconnectAttempts.Store(0)
 		return nil
 	}
 
@@ -488,7 +513,7 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 			if attempt > 0 {
 				m.Logger.Info("successfully reconnected after %d attempts", attempt+1)
 			}
-			m.reconnectAttempts = 0
+			m.reconnectAttempts.Store(0)
 			return nil
 		}
 
@@ -564,7 +589,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 		go m.longPing(ctx)
 	}
 
-	if !m.encrypted {
+	if !m.encrypted.Load() {
 		m.Logger.Debug("authkey not found, creating new one")
 		err = m.makeAuthKey()
 		if err != nil {
@@ -957,8 +982,8 @@ func (m *MTProto) tryReconnect() error {
 
 // checkRapidReconnect detects rapid reconnection loops that indicate connection instability
 func (m *MTProto) checkRapidReconnect() error {
-	m.rapidReconnectMutex.Lock()
-	defer m.rapidReconnectMutex.Unlock()
+	m.stateMutex.Lock()
+	defer m.stateMutex.Unlock()
 
 	now := time.Now()
 	if !m.lastSuccessfulConnect.IsZero() && now.Sub(m.lastSuccessfulConnect) < 5*time.Second {
@@ -1182,7 +1207,7 @@ messageTypeSwitching:
 			serverTime := int64(msg.GetMsgID()) >> 32
 			localTime := time.Now().Unix()
 			if offset := serverTime - localTime; offset != 0 {
-				m.timeOffset = offset
+				m.timeOffset.Store(offset)
 				m.Logger.Warn("system time out of sync by %d seconds, auto-correcting", offset)
 			}
 			m.notifyPendingRequestsOfConfigChange()
