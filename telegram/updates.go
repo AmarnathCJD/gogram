@@ -240,6 +240,7 @@ type UpdateDispatcher struct {
 	openChats             map[int64]*openChat
 	nextUpdatesDeadline   time.Time
 	lastUpdateTime        time.Time
+	lastUpdateTimeMu      sync.RWMutex
 	state                 UpdateState
 	channelStates         map[int64]*channelState
 	pendingGaps           map[int32]time.Time
@@ -322,10 +323,16 @@ func (d *UpdateDispatcher) GetChannelPts(channelID int64) int32 {
 	return 0
 }
 
-func (d *UpdateDispatcher) UpdateLastUpdateTime() {
-	d.Lock()
-	defer d.Unlock()
-	d.lastUpdateTime = time.Now()
+func (u *UpdateDispatcher) UpdateLastUpdateTime() {
+	u.lastUpdateTimeMu.Lock()
+	defer u.lastUpdateTimeMu.Unlock()
+	u.lastUpdateTime = time.Now()
+}
+
+func (u *UpdateDispatcher) getLastUpdateTime() time.Time {
+	u.lastUpdateTimeMu.RLock()
+	defer u.lastUpdateTimeMu.RUnlock()
+	return u.lastUpdateTime
 }
 
 // TryMarkUpdateProcessed atomically checks if an update was processed and marks it if not.
@@ -1861,7 +1868,7 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 		cancel()
 
 		if err != nil {
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				continue
 			}
 			return
@@ -2174,7 +2181,7 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 		cancel()
 
 		if err != nil {
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				continue
 			}
 			return
@@ -2429,7 +2436,7 @@ func (c *Client) monitorNoUpdatesTimeout() {
 	for {
 		select {
 		case <-ticker.C:
-			if time.Since(c.dispatcher.lastUpdateTime) > 15*time.Minute {
+			if time.Since(c.dispatcher.getLastUpdateTime()) > 15*time.Minute {
 				c.Log.Debug("no updates received for 15 minutes, getting difference...")
 				c.FetchDifference(c.dispatcher.GetPts(), 5000)
 			}
