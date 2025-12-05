@@ -300,9 +300,9 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 	if err := sessionString.Decode(stringSession); err != nil {
 		return false, err
 	}
-	m.authKey, m.authKeyHash, m.Addr = sessionString.AuthKey(), sessionString.AuthKeyHash(), sessionString.IpAddr()
+	m.authKey, m.authKeyHash, m.Addr = sessionString.AuthKey, sessionString.AuthKeyHash, sessionString.IpAddr
 	if m.appID == 0 {
-		m.appID = sessionString.AppID()
+		m.appID = sessionString.AppID
 	}
 	m.Logger.Debug("importing - auth from string session (IP: %s)...", utils.FmtIp(m.Addr))
 	if err := m.SaveSession(m.memorySession); err != nil {
@@ -1229,22 +1229,22 @@ messageTypeSwitching:
 // notifyPendingRequestsOfConfigChange notifies all pending requests that session config changed
 // Used when server salt changes and requests need to be resent
 func (m *MTProto) notifyPendingRequestsOfConfigChange() {
-    m.mutex.Lock()
+	m.mutex.Lock()
 
-    respChannelsBackup := m.responseChannels
-    m.responseChannels = utils.NewSyncIntObjectChan()
+	respChannelsBackup := m.responseChannels
+	m.responseChannels = utils.NewSyncIntObjectChan()
 
-    for _, k := range respChannelsBackup.Keys() {
-        if v, ok := respChannelsBackup.Get(k); ok {
-            respChannelsBackup.Delete(k)
-            select {
-            case v <- &errorSessionConfigsChanged{}:
-            case <-time.After(1 * time.Millisecond):
-            }
-        }
-    }
+	for _, k := range respChannelsBackup.Keys() {
+		if v, ok := respChannelsBackup.Get(k); ok {
+			respChannelsBackup.Delete(k)
+			select {
+			case v <- &errorSessionConfigsChanged{}:
+			case <-time.After(1 * time.Millisecond):
+			}
+		}
+	}
 
-    m.mutex.Unlock()
+	m.mutex.Unlock()
 }
 
 func MessageRequireToAck(msg tl.Object) bool {
