@@ -4,15 +4,17 @@ package session
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
 )
 
 const (
-	sessionPrefix    = "1BvX"
-	sessionSeparator = ":_:"
-	legacySeparator  = "::"
+	sessionPrefix       = "1BvE"
+	sessionPrefixLegacy = "1BvX"
+	sessionSeparator    = ":_:"
+	legacySeparator     = "::"
 )
 
 var (
@@ -20,20 +22,20 @@ var (
 )
 
 type StringSession struct {
-	authKey     []byte
-	authKeyHash []byte
-	dcID        int
-	ipAddr      string
-	appID       int32
+	AuthKey     []byte `json:"key,omitempty"`     // AUTH_KEY
+	AuthKeyHash []byte `json:"hash,omitempty"`    // AUTH_KEY_HASH
+	DcID        int    `json:"dc_id,omitempty"`   // DC ID
+	IpAddr      string `json:"ip_addr,omitempty"` // IP address of DC
+	AppID       int32  `json:"app_id,omitempty"`  // APP_ID
 }
 
 func NewStringSession(authKey, authKeyHash []byte, dcID int, ipAddr string, appID int32) *StringSession {
 	return &StringSession{
-		authKey:     authKey,
-		authKeyHash: authKeyHash,
-		dcID:        dcID,
-		ipAddr:      ipAddr,
-		appID:       appID,
+		AuthKey:     authKey,
+		AuthKeyHash: authKeyHash,
+		DcID:        dcID,
+		IpAddr:      ipAddr,
+		AppID:       appID,
 	}
 }
 
@@ -41,77 +43,72 @@ func NewEmptyStringSession() *StringSession {
 	return &StringSession{}
 }
 
-func (s StringSession) AuthKey() []byte {
-	return s.authKey
-}
-
-func (s StringSession) AuthKeyHash() []byte {
-	return s.authKeyHash
-}
-
-func (s StringSession) DcID() int {
-	return s.dcID
-}
-
-func (s StringSession) IpAddr() string {
-	return s.ipAddr
-}
-
-func (s StringSession) AppID() int32 {
-	return s.appID
-}
-
 func (s *StringSession) Encode() string {
-	sessionContents := []string{
-		string(s.authKey),
-		string(s.authKeyHash),
-		s.ipAddr,
-		strconv.Itoa(s.dcID),
-		strconv.FormatInt(int64(s.appID), 10),
+	jsonSession, err := json.Marshal(s)
+	if err != nil {
+		return ""
 	}
-	return sessionPrefix + base64.RawURLEncoding.EncodeToString([]byte(strings.Join(sessionContents, sessionSeparator)))
+
+	return sessionPrefix + base64.RawURLEncoding.EncodeToString(jsonSession)
 }
 
 func (s *StringSession) Decode(encoded string) error {
-	if len(encoded) < len(sessionPrefix) || encoded[:len(sessionPrefix)] != sessionPrefix {
-		return ErrInvalidSession
-	}
-	decoded, err := base64.RawURLEncoding.DecodeString(encoded[len(sessionPrefix):])
-	if err != nil {
-		return err
-	}
-	decodedString := string(decoded)
-	split := strings.Split(decodedString, sessionSeparator)
-	if len(split) != 5 {
-		// try again with "::" as a separator (backward compatibility)
-		split = strings.Split(decodedString, legacySeparator)
-	}
-	if len(split) != 5 {
-		return ErrInvalidSession
-	}
-	for i, v := range split {
-		switch i {
-		case 0:
-			s.authKey = []byte(v)
-		case 1:
-			s.authKeyHash = []byte(v)
-		case 2:
-			s.ipAddr = v
-		case 3:
-			dcId, err := strconv.Atoi(v)
-			if err != nil {
-				return err
-			}
-
-			s.dcID = dcId
-		case 4:
-			appId, err := strconv.ParseInt(v, 10, 32)
-			if err != nil {
-				return err
-			}
-
-			s.appID = int32(appId)
+	if strings.HasPrefix(encoded, sessionPrefix) {
+		// Decode modern json session
+		decoded, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(encoded, sessionPrefix))
+		if err != nil {
+			return err
 		}
+
+		err = json.Unmarshal(decoded, &s)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
-	return nil
+
+	if strings.HasPrefix(encoded, sessionPrefixLegacy) {
+		// Decode legacy session with separators
+		decoded, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(encoded, sessionPrefixLegacy))
+		if err != nil {
+			return err
+		}
+		decodedString := string(decoded)
+		split := strings.Split(decodedString, sessionSeparator)
+		if len(split) != 5 {
+			// try again with "::" as a separator (backward compatibility)
+			split = strings.Split(decodedString, legacySeparator)
+		}
+		if len(split) != 5 {
+			return ErrInvalidSession
+		}
+		for i, v := range split {
+			switch i {
+			case 0:
+				s.AuthKey = []byte(v)
+			case 1:
+				s.AuthKeyHash = []byte(v)
+			case 2:
+				s.IpAddr = v
+			case 3:
+				dcId, err := strconv.Atoi(v)
+				if err != nil {
+					return err
+				}
+
+				s.DcID = dcId
+			case 4:
+				appId, err := strconv.ParseInt(v, 10, 32)
+				if err != nil {
+					return err
+				}
+
+				s.AppID = int32(appId)
+			}
+		}
+		return nil
+	}
+
+	return ErrInvalidSession
 }
