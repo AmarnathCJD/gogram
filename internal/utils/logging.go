@@ -290,9 +290,9 @@ func (l *Logger) Color() bool {
 }
 
 func (l *Logger) SetOutput(w io.Writer) *Logger {
+	l.Flush()
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.Flush()
 	l.output = w
 	l.writer = bufio.NewWriterSize(w, l.bufferSize)
 
