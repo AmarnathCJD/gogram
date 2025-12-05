@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"slices"
@@ -239,8 +240,7 @@ type UpdateDispatcher struct {
 	logger                Logger
 	openChats             map[int64]*openChat
 	nextUpdatesDeadline   time.Time
-	lastUpdateTime        time.Time
-	lastUpdateTimeMu      sync.RWMutex
+	lastUpdateTimeNano    atomic.Int64
 	state                 UpdateState
 	channelStates         map[int64]*channelState
 	pendingGaps           map[int32]time.Time
@@ -324,15 +324,11 @@ func (d *UpdateDispatcher) GetChannelPts(channelID int64) int32 {
 }
 
 func (u *UpdateDispatcher) UpdateLastUpdateTime() {
-	u.lastUpdateTimeMu.Lock()
-	defer u.lastUpdateTimeMu.Unlock()
-	u.lastUpdateTime = time.Now()
+	u.lastUpdateTimeNano.Store(time.Now().UnixNano())
 }
 
 func (u *UpdateDispatcher) getLastUpdateTime() time.Time {
-	u.lastUpdateTimeMu.RLock()
-	defer u.lastUpdateTimeMu.RUnlock()
-	return u.lastUpdateTime
+	return time.Unix(0, u.lastUpdateTimeNano.Load())
 }
 
 // TryMarkUpdateProcessed atomically checks if an update was processed and marks it if not.
@@ -367,7 +363,6 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		pendingGaps:           make(map[int32]time.Time),
 		processedUpdates:      make(map[int64]time.Time),
 		stopChan:              make(chan struct{}),
-		lastUpdateTime:        time.Now(),
 		messageHandles:        make(map[int][]*messageHandle),
 		inlineHandles:         make(map[int][]*inlineHandle),
 		inlineSendHandles:     make(map[int][]*inlineSendHandle),
@@ -382,6 +377,7 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		rawHandles:            make(map[int][]*rawHandle),
 		activeAlbums:          make(map[int64]*albumBox),
 	}
+	c.dispatcher.lastUpdateTimeNano.Store(time.Now().UnixNano())
 	c.dispatcher.logger.Debug("dispatcher initialized")
 
 	go c.monitorNoUpdatesTimeout()
