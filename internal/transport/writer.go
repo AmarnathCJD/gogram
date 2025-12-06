@@ -127,8 +127,8 @@ func (c *Reader) Close() error {
 	c.closed = true
 	c.mu.Unlock()
 
-	c.cancel()
 	c.interrupt()
+	c.cancel()
 	close(c.req)
 	c.wg.Wait()
 	return nil

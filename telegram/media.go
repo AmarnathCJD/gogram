@@ -54,30 +54,72 @@ func NewWorkerPool(size int) *WorkerPool {
 
 func (wp *WorkerPool) AddWorker(s *ExSender) {
 	wp.Lock()
-	defer wp.Unlock()
 	wp.workers = append(wp.workers, s)
-	wp.free <- s // Mark the worker as free immediately
+	wp.Unlock()
+
+	select {
+	case wp.free <- s:
+	default:
+	}
 }
 
 func (wp *WorkerPool) Next() *ExSender {
-	next := <-wp.free
+	return wp.NextWithContext(context.Background())
+}
 
-	if !next.MTProto.IsTcpActive() {
-		go func(mt *ExSender) {
-			_ = mt.Reconnect(false)
-		}(next)
+func (wp *WorkerPool) NextWithContext(ctx context.Context) *ExSender {
+	select {
+	case next := <-wp.free:
+		if !next.MTProto.IsTcpActive() {
+			go func(mt *ExSender) {
+				_ = mt.Reconnect(false)
+			}(next)
+		}
+
+		next.lastUsedMu.Lock()
+		next.lastUsed = time.Now()
+		next.lastUsedMu.Unlock()
+		return next
+	case <-ctx.Done():
+		return nil
 	}
+}
 
-	next.lastUsedMu.Lock()
-	next.lastUsed = time.Now()
-	next.lastUsedMu.Unlock()
-	return next
+func (wp *WorkerPool) WaitReady(ctx context.Context) bool {
+	for {
+		wp.Lock()
+		count := len(wp.workers)
+		wp.Unlock()
+		if count > 0 {
+			return true
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
 }
 
 func (wp *WorkerPool) FreeWorker(s *ExSender) {
 	select {
 	case wp.free <- s:
 	default:
+	}
+}
+
+func (wp *WorkerPool) Close() {
+	wp.Lock()
+	defer wp.Unlock()
+
+	// Drain the free channel
+	for {
+		select {
+		case <-wp.free:
+		default:
+			wp.workers = nil
+			return
+		}
 	}
 }
 
@@ -246,21 +288,23 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 				defer func() { <-sem; wg.Done() }()
 
 				for range MaxRetries {
+					var ctx context.Context
+					var cancel context.CancelFunc
 					if opts.Ctx != nil {
 						select {
 						case <-opts.Ctx.Done():
 							return
 						default:
 						}
+						ctx, cancel = context.WithTimeout(opts.Ctx, 30*time.Second)
+					} else {
+						ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 					}
 
-					sender := w.Next()
-					var ctx context.Context
-					var cancel context.CancelFunc
-					if opts.Ctx != nil {
-						ctx, cancel = context.WithTimeout(opts.Ctx, 5*time.Second)
-					} else {
-						ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+					sender := w.NextWithContext(ctx)
+					if sender == nil {
+						cancel()
+						return
 					}
 
 					_, err := sender.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
@@ -338,21 +382,23 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 			defer func() { <-sem; wg.Done() }()
 
 			for range MaxRetries {
+				var ctx context.Context
+				var cancel context.CancelFunc
 				if opts.Ctx != nil {
 					select {
 					case <-opts.Ctx.Done():
 						return
 					default:
 					}
+					ctx, cancel = context.WithTimeout(opts.Ctx, 30*time.Second)
+				} else {
+					ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 				}
 
-				sender := w.Next()
-				var ctx context.Context
-				var cancel context.CancelFunc
-				if opts.Ctx != nil {
-					ctx, cancel = context.WithTimeout(opts.Ctx, 5*time.Second)
-				} else {
-					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+				sender := w.NextWithContext(ctx)
+				if sender == nil {
+					cancel()
+					return
 				}
 
 				_, err := sender.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
@@ -644,21 +690,23 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				if cdnRedirect.Load() {
 					return
 				}
+				var ctx context.Context
+				var cancel context.CancelFunc
 				if opts.Ctx != nil {
 					select {
 					case <-opts.Ctx.Done():
 						return
 					default:
 					}
+					ctx, cancel = context.WithTimeout(opts.Ctx, 30*time.Second)
+				} else {
+					ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 				}
 
-				sender := w.Next()
-				var ctx context.Context
-				var cancel context.CancelFunc
-				if opts.Ctx != nil {
-					ctx, cancel = context.WithTimeout(opts.Ctx, 5*time.Second)
-				} else {
-					ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+				sender := w.NextWithContext(ctx)
+				if sender == nil {
+					cancel()
+					return
 				}
 
 				part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
@@ -719,8 +767,13 @@ retrySinglePart:
 			}()
 
 			for range MaxRetries {
-				sender := w.Next()
-				ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+
+				sender := w.NextWithContext(ctx)
+				if sender == nil {
+					cancel()
+					return
+				}
 
 				part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
 					Location:     location,
@@ -839,30 +892,42 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 		}
 	}
 
-	go func() {
-		numCreate := 0
-		for dcId, workers := range c.exSenders.senders {
-			if int(dc) == dcId {
-				for _, worker := range workers {
-					w.AddWorker(worker)
-					numCreate++
+	// First, add any existing senders synchronously to ensure at least some workers are ready
+	numCreate := 0
+	existingSenders := c.exSenders.GetSenders(int(dc))
+	for _, worker := range existingSenders {
+		w.AddWorker(worker)
+		numCreate++
+	}
+
+	// If we have no existing senders, create at least one synchronously to avoid deadlock
+	if numCreate == 0 {
+		conn, err := c.CreateExportedSender(int(dc), false, authParams)
+		if err != nil {
+			return fmt.Errorf("creating initial sender: %w", err)
+		}
+		if conn != nil {
+			sender := NewExSender(conn)
+			c.exSenders.AddSender(int(dc), sender)
+			w.AddWorker(sender)
+			numCreate++
+		}
+	}
+
+	// Create remaining workers asynchronously
+	if numCreate < numWorkers {
+		c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers-numCreate))
+		go func() {
+			for i := numCreate; i < numWorkers; i++ {
+				conn, err := c.CreateExportedSender(int(dc), false, authParams)
+				if conn != nil && err == nil {
+					sender := NewExSender(conn)
+					c.exSenders.AddSender(int(dc), sender)
+					w.AddWorker(sender)
 				}
 			}
-		}
-
-		if numCreate < numWorkers {
-			c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers-numCreate))
-		}
-
-		for i := numCreate; i < numWorkers; i++ {
-			conn, err := c.CreateExportedSender(int(dc), false, authParams)
-			if conn != nil && err == nil {
-				sender := NewExSender(conn)
-				c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], sender)
-				w.AddWorker(sender)
-			}
-		}
-	}()
+		}()
+	}
 
 	return nil
 }
@@ -893,7 +958,13 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		return nil, "", err
 	}
 
-	sender := w.Next()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	sender := w.NextWithContext(ctx)
+	if sender == nil {
+		return nil, "", errors.New("failed to get worker: timeout")
+	}
 	defer w.FreeWorker(sender)
 
 	for curr := start; curr < end; curr += chunkSize {
