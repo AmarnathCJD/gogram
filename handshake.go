@@ -225,11 +225,11 @@ func (m *MTProto) makeAuthKeyInternal(expiresIn int32) error {
 		m.tempAuthKey = authKey
 		m.tempAuthKeyHash = utils.AuthKeyHash(authKey)
 		m.tempAuthExpiresAt = time.Now().Unix() + int64(expiresIn)
-		m.serverSalt = newSalt
+		m.serverSalt.Store(newSalt)
 	} else {
 		m.SetAuthKey(authKey)
-		m.serverSalt = newSalt
-		m.encrypted = true
+		m.serverSalt.Store(newSalt)
+		m.encrypted.Store(true)
 		if err := m.SaveSession(m.memorySession); err != nil {
 			m.Logger.WithError(err).Error("failed to save session")
 		}
@@ -288,7 +288,7 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 	m.tempAuthKey = tmp.tempAuthKey
 	m.tempAuthKeyHash = tmp.tempAuthKeyHash
 	m.tempAuthExpiresAt = tmp.tempAuthExpiresAt
-	m.serverSalt = tmp.serverSalt
+	m.serverSalt.Store(tmp.serverSalt.Load())
 
 	m.Logger.Debug("temporary auth key created successfully")
 	return nil
@@ -310,7 +310,7 @@ func (m *MTProto) bindTempAuthKey() error {
 	tempAuthKeyID := int64(binary.LittleEndian.Uint64(tempKeyHash))
 
 	// Use current session ID as temp_session_id for the binding.
-	tempSessionID := m.sessionId
+	tempSessionID := m.sessionId.Load()
 
 	expiresAt := int32(m.tempAuthExpiresAt)
 	if expiresAt == 0 {
@@ -318,7 +318,7 @@ func (m *MTProto) bindTempAuthKey() error {
 	}
 
 	nonce := utils.GenerateSessionID()
-	msgID := m.genMsgID(m.timeOffset)
+	msgID := m.genMsgID(m.timeOffset.Load())
 
 	inner := &objects.BindAuthKeyInner{
 		Nonce:         nonce,

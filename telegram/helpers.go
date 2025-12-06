@@ -1699,10 +1699,10 @@ func (s *Session) Decode(sessionString string) error {
 		return err
 	}
 
-	s.Key = sess.AuthKey()
-	s.Hash = sess.AuthKeyHash()
-	s.Hostname = sess.IpAddr()
-	s.AppID = sess.AppID()
+	s.Key = sess.AuthKey
+	s.Hash = sess.AuthKeyHash
+	s.Hostname = sess.IpAddr
+	s.AppID = sess.AppID
 	return nil
 }
 
