@@ -29,7 +29,7 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 	}
 
 	if msgID == 0 {
-		msgID = m.genMsgID(m.timeOffset)
+		msgID = m.genMsgID(m.timeOffset.Load())
 	}
 
 	if len(expectedTypes) > 0 {
@@ -46,7 +46,7 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 	}
 
 	var data messages.Common
-	if m.encrypted {
+	if m.encrypted.Load() {
 		data = &messages.Encrypted{
 			Msg:         msg,
 			MsgID:       msgID,
@@ -147,7 +147,7 @@ func isNullableResponse(t tl.Object) bool {
 }
 
 func (m *MTProto) GetSessionID() int64 {
-	return m.sessionId
+	return m.sessionId.Load()
 }
 
 // GetSeqNo returns seqno
@@ -162,7 +162,7 @@ func (m *MTProto) UpdateSeqNo() int32 {
 
 // GetServerSalt returns current server salt
 func (m *MTProto) GetServerSalt() int64 {
-	return m.serverSalt
+	return m.serverSalt.Load()
 }
 
 // GetAuthKey returns the current auth key used for message encryption.
@@ -203,7 +203,7 @@ func (m *MTProto) SaveSession(mem bool) (err error) {
 	sess := &session.Session{
 		Key:      m.authKey,
 		Hash:     m.authKeyHash,
-		Salt:     m.serverSalt,
+		Salt:     m.serverSalt.Load(),
 		Hostname: m.Addr,
 		AppID:    m.appID,
 	}
@@ -223,7 +223,7 @@ func (m *MTProto) DeleteSession() (err error) {
 func (m *MTProto) _loadSession(s *session.Session) {
 	m.authKey = s.Key
 	m.authKeyHash = s.Hash
-	m.serverSalt = s.Salt
+	m.serverSalt.Store(s.Salt)
 	m.Addr = s.Hostname
 	m.appID = s.AppID
 }

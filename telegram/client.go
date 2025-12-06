@@ -840,14 +840,16 @@ func (c *Client) Terminate() error {
 
 // Idle blocks the current goroutine until the client is stopped/terminated
 func (c *Client) Idle() {
-	c.wg.Add(1)
-	go func() {
-		sigchan := make(chan os.Signal, 1)
-		signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM)
-		<-sigchan
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case <-sigchan:
 		c.Stop()
-	}()
-	go func() { defer c.wg.Done(); <-c.stopCh; c.exSenders.Close() }()
+	case <-c.stopCh:
+		c.exSenders.Close()
+	}
+
 	c.wg.Wait()
 }
 

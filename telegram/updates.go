@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"slices"
@@ -239,7 +240,7 @@ type UpdateDispatcher struct {
 	logger                Logger
 	openChats             map[int64]*openChat
 	nextUpdatesDeadline   time.Time
-	lastUpdateTime        time.Time
+	lastUpdateTimeNano    atomic.Int64
 	state                 UpdateState
 	channelStates         map[int64]*channelState
 	pendingGaps           map[int32]time.Time
@@ -322,10 +323,12 @@ func (d *UpdateDispatcher) GetChannelPts(channelID int64) int32 {
 	return 0
 }
 
-func (d *UpdateDispatcher) UpdateLastUpdateTime() {
-	d.Lock()
-	defer d.Unlock()
-	d.lastUpdateTime = time.Now()
+func (u *UpdateDispatcher) UpdateLastUpdateTime() {
+	u.lastUpdateTimeNano.Store(time.Now().UnixNano())
+}
+
+func (u *UpdateDispatcher) getLastUpdateTime() time.Time {
+	return time.Unix(0, u.lastUpdateTimeNano.Load())
 }
 
 // TryMarkUpdateProcessed atomically checks if an update was processed and marks it if not.
@@ -360,7 +363,6 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		pendingGaps:           make(map[int32]time.Time),
 		processedUpdates:      make(map[int64]time.Time),
 		stopChan:              make(chan struct{}),
-		lastUpdateTime:        time.Now(),
 		messageHandles:        make(map[int][]*messageHandle),
 		inlineHandles:         make(map[int][]*inlineHandle),
 		inlineSendHandles:     make(map[int][]*inlineSendHandle),
@@ -375,6 +377,7 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		rawHandles:            make(map[int][]*rawHandle),
 		activeAlbums:          make(map[int64]*albumBox),
 	}
+	c.dispatcher.lastUpdateTimeNano.Store(time.Now().UnixNano())
 	c.dispatcher.logger.Debug("dispatcher initialized")
 
 	go c.monitorNoUpdatesTimeout()
@@ -639,7 +642,7 @@ func (c *Client) handleEditUpdate(update Message) {
 			for _, handler := range handlers {
 				if handler.IsMatch(msg.Message) {
 					handle := func(h *messageEditHandle) error {
-						if handler.runFilterChain(packed, h.Filters) {
+						if h.runFilterChain(packed, h.Filters) {
 							defer c.NewRecovery()()
 							return h.Handler(packed)
 						}
@@ -679,7 +682,7 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Data) {
 				handle := func(h *callbackHandle) error {
-					if handler.runFilterChain(packed, h.Filters) {
+					if h.runFilterChain(packed, h.Filters) {
 						defer c.NewRecovery()()
 						return h.Handler(packed)
 					}
@@ -1861,7 +1864,7 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 		cancel()
 
 		if err != nil {
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				continue
 			}
 			return
@@ -2174,7 +2177,7 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 		cancel()
 
 		if err != nil {
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				continue
 			}
 			return
@@ -2429,7 +2432,7 @@ func (c *Client) monitorNoUpdatesTimeout() {
 	for {
 		select {
 		case <-ticker.C:
-			if time.Since(c.dispatcher.lastUpdateTime) > 15*time.Minute {
+			if time.Since(c.dispatcher.getLastUpdateTime()) > 15*time.Minute {
 				c.Log.Debug("no updates received for 15 minutes, getting difference...")
 				c.FetchDifference(c.dispatcher.GetPts(), 5000)
 			}
@@ -2622,9 +2625,9 @@ func (c *Client) On(args ...any) Handle {
 	case "edit", "editmessage":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
 			if info.pattern != "" {
-				return c.AddEditHandler(info.pattern, h)
+				return c.AddEditHandler(info.pattern, h, filters...)
 			}
-			return c.AddEditHandler(OnEditMessage, h)
+			return c.AddEditHandler(OnEditMessage, h, filters...)
 		}
 		c.Log.Error("On(edit): invalid handler type %T, expected func(*NewMessage) error", handler)
 
@@ -2661,9 +2664,9 @@ func (c *Client) On(args ...any) Handle {
 	case "callback", "callbackquery":
 		if h, ok := handler.(func(m *CallbackQuery) error); ok {
 			if info.pattern != "" {
-				return c.AddCallbackHandler(info.pattern, h)
+				return c.AddCallbackHandler(info.pattern, h, filters...)
 			}
-			return c.AddCallbackHandler(OnCallbackQuery, h)
+			return c.AddCallbackHandler(OnCallbackQuery, h, filters...)
 		}
 		c.Log.Error("On(callback): invalid handler type %T, expected func(*CallbackQuery) error", handler)
 
@@ -2715,7 +2718,7 @@ func (c *Client) On(args ...any) Handle {
 		case func(m *InlineSend) error:
 			return c.AddInlineSendHandler(h)
 		case func(m *CallbackQuery) error:
-			return c.AddCallbackHandler(OnCallbackQuery, h)
+			return c.AddCallbackHandler(OnCallbackQuery, h, filters...)
 		case func(m *InlineCallbackQuery) error:
 			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, h)
 		case func(m *ParticipantUpdate) error:

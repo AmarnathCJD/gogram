@@ -949,6 +949,7 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 				}()
 			}
 		}
+		cache.RLock()
 		cache.logger.WithFields(map[string]any{
 			"new_users": totalUpdates[0],
 			"new_chats": totalUpdates[1],
@@ -956,6 +957,7 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 			"channels":  len(cache.InputPeers.InputChannels),
 			"usernames": len(cache.usernameMap),
 		}).Debug("cache updated")
+		cache.RUnlock()
 	}
 }
 
