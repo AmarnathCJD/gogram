@@ -19,10 +19,10 @@ var maximumPositionalArguments = 5
 
 var (
 	docHTTPClient = &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 20 * time.Second,
 		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
+			MaxIdleConns:        0,
+			MaxIdleConnsPerHost: 100,
 			IdleConnTimeout:     90 * time.Second,
 		},
 	}
@@ -45,7 +45,11 @@ func (g *Generator) generateMethods(f *jen.File, d bool) {
 
 	if d {
 		wg := sync.WaitGroup{}
+		rateLimiter := time.NewTicker(time.Second / 20)
+		defer rateLimiter.Stop()
+
 		for i, method := range g.schema.Methods {
+			<-rateLimiter.C
 			wg.Add(1)
 			go func(method tlparser.Method, i int) {
 				defer wg.Done()

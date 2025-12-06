@@ -12,11 +12,14 @@ import (
 )
 
 var explicitFields = map[string]bool{
-	"volume":        true,
-	"video_stopped": true,
-	"video_paused":  true,
-	"muted":         true,
-	"raise_hand":    true,
+	"volume":              true,
+	"video_stopped":       true,
+	"video_paused":        true,
+	"muted":               true,
+	"raise_hand":          true,
+	"start":               true,
+	"video":               true,
+	"presentation_paused": true,
 }
 
 func (g *Generator) generateSpecificStructs(f *jen.File, d bool) {
