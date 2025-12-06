@@ -146,7 +146,8 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 		}
 
 		fieldVal := v.Field(i)
-		if !fieldVal.IsZero() {
+		// explicit tag forces encoding even when zero value
+		if !fieldVal.IsZero() || info.explicit {
 			// Tag is there, this is 100% optional field
 			flag |= 1 << info.index
 			if info.encodedInBitflag {

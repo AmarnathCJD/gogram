@@ -98,6 +98,22 @@ func (*AccountPaidMessagesRevenue) CRC() uint32 {
 	return 0x1e109708
 }
 
+type AccountPasskeyRegistrationOptions struct {
+	Options *DataJson
+}
+
+func (*AccountPasskeyRegistrationOptions) CRC() uint32 {
+	return 0xe16b5ce1
+}
+
+type AccountPasskeys struct {
+	Passkeys []*Passkey
+}
+
+func (*AccountPasskeys) CRC() uint32 {
+	return 0xf8e0aa1c
+}
+
 // Configuration for two-factor authorization
 type AccountPassword struct {
 	HasRecovery             bool            `tl:"flag:0,encoded_in_bitflags"`
@@ -318,6 +334,14 @@ func (*AuthLoggedOut) CRC() uint32 {
 
 func (*AuthLoggedOut) FlagIndex() int {
 	return 0
+}
+
+type AuthPasskeyLoginOptions struct {
+	Options *DataJson
+}
+
+func (*AuthPasskeyLoginOptions) CRC() uint32 {
+	return 0xe2037789
 }
 
 // Recovery info of a 2FA password, only for accounts with a recovery email configured.
@@ -1543,7 +1567,7 @@ type GroupCallParticipant struct {
 	Date            int32
 	ActiveDate      int32 `tl:"flag:3"`
 	Source          int32
-	Volume          int32                      `tl:"flag:7"`
+	Volume          int32                      `tl:"flag:7,explicit"`
 	About           string                     `tl:"flag:11"`
 	RaiseHandRating int64                      `tl:"flag:13"`
 	Video           *GroupCallParticipantVideo `tl:"flag:6"`
@@ -1900,6 +1924,16 @@ type InputFolderPeer struct {
 
 func (*InputFolderPeer) CRC() uint32 {
 	return 0xfbd2c296
+}
+
+type InputPasskeyCredentialPublicKey struct {
+	ID       string
+	RawID    string
+	Response InputPasskeyResponse
+}
+
+func (*InputPasskeyCredentialPublicKey) CRC() uint32 {
+	return 0x3c27b78f
 }
 
 // Notification settings.
@@ -2902,6 +2936,22 @@ func (*PageTableRow) CRC() uint32 {
 	return 0xe0c0c5e5
 }
 
+type Passkey struct {
+	ID              string
+	Name            string
+	Date            int32
+	SoftwareEmojiID int64 `tl:"flag:0"`
+	LastUsageDate   int32 `tl:"flag:1"`
+}
+
+func (*Passkey) CRC() uint32 {
+	return 0x98613ebf
+}
+
+func (*Passkey) FlagIndex() int {
+	return 0
+}
+
 // Payment identifier
 type PaymentCharge struct {
 	ID               string
@@ -3071,6 +3121,14 @@ type PaymentsStarGiftAuctionState struct {
 
 func (*PaymentsStarGiftAuctionState) CRC() uint32 {
 	return 0xe98e474
+}
+
+type PaymentsStarGiftUpgradeAttributes struct {
+	Attributes []StarGiftAttribute
+}
+
+func (*PaymentsStarGiftUpgradeAttributes) CRC() uint32 {
+	return 0x46c6e36f
 }
 
 // A preview of the possible attributes (chosen randomly) a gift can receive after upgrading it to a collectible gift
@@ -3751,10 +3809,11 @@ type SavedStarGift struct {
 	CollectionID             []int32           `tl:"flag:15"`
 	PrepaidUpgradeHash       string            `tl:"flag:16"`
 	DropOriginalDetailsStars int64             `tl:"flag:18"`
+	GiftNum                  int32             `tl:"flag:19"`
 }
 
 func (*SavedStarGift) CRC() uint32 {
-	return 0x8983a452
+	return 0xead6805e
 }
 
 func (*SavedStarGift) FlagIndex() int {
@@ -3994,6 +4053,16 @@ func (*StarGiftActiveAuctionState) CRC() uint32 {
 	return 0xd31bc45d
 }
 
+type StarGiftActiveAuctions struct {
+	Auctions []*StarGiftActiveAuctionState
+	Users    []User
+	Chats    []Chat
+}
+
+func (*StarGiftActiveAuctions) CRC() uint32 {
+	return 0xaef6abbc
+}
+
 // Indicates the total number of gifts that have the specified attribute.
 type StarGiftAttributeCounter struct {
 	Attribute StarGiftAttributeID
@@ -4012,10 +4081,11 @@ type StarGiftAuctionAcquiredGift struct {
 	Round      int32
 	Pos        int32
 	Message    *TextWithEntities `tl:"flag:1"`
+	GiftNum    int32             `tl:"flag:2"`
 }
 
 func (*StarGiftAuctionAcquiredGift) CRC() uint32 {
-	return 0xab60e20b
+	return 0x42b00348
 }
 
 func (*StarGiftAuctionAcquiredGift) FlagIndex() int {
@@ -4037,6 +4107,16 @@ func (*StarGiftAuctionUserState) CRC() uint32 {
 
 func (*StarGiftAuctionUserState) FlagIndex() int {
 	return 0
+}
+
+type StarGiftBackground struct {
+	CenterColor int32
+	EdgeColor   int32
+	TextColor   int32
+}
+
+func (*StarGiftBackground) CRC() uint32 {
+	return 0xaff56398
 }
 
 // Represents a star gift collection.
@@ -4226,17 +4306,18 @@ type StarsTransaction struct {
 	Gift                        bool `tl:"flag:10,encoded_in_bitflags"`
 	Reaction                    bool `tl:"flag:11,encoded_in_bitflags"`
 	Subscription                bool `tl:"flag:12,encoded_in_bitflags"`
-	Floodskip                   bool `tl:"flag:15,encoded_in_bitflags"`
 	StargiftUpgrade             bool `tl:"flag:18,encoded_in_bitflags"`
-	PaidMessage                 bool `tl:"flag:19,encoded_in_bitflags"`
-	PremiumGift                 bool `tl:"flag:20,encoded_in_bitflags"`
+	Floodskip                   bool `tl:"flag:15,encoded_in_bitflags"`
 	BusinessTransfer            bool `tl:"flag:21,encoded_in_bitflags"`
 	StargiftResale              bool `tl:"flag:22,encoded_in_bitflags"`
+	PaidMessage                 bool `tl:"flag:19,encoded_in_bitflags"`
 	PostsSearch                 bool `tl:"flag:24,encoded_in_bitflags"`
+	PremiumGift                 bool `tl:"flag:20,encoded_in_bitflags"`
 	StargiftPrepaidUpgrade      bool `tl:"flag:25,encoded_in_bitflags"`
 	StargiftDropOriginalDetails bool `tl:"flag:26,encoded_in_bitflags"`
 	PhonegroupMessage           bool `tl:"flag:27,encoded_in_bitflags"`
 	StargiftAuctionBid          bool `tl:"flag:28,encoded_in_bitflags"`
+	Offer                       bool `tl:"flag:29,encoded_in_bitflags"`
 	ID                          string
 	Amount                      StarsAmount
 	Date                        int32

@@ -20,6 +20,7 @@ type fieldTag struct {
 	ignore           bool
 	optional         bool
 	version          int
+	explicit         bool // encode even if zero value
 }
 
 type cachedStructTags struct {
@@ -98,6 +99,14 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 		}
 
 		info.encodedInBitflag = true
+	}
+
+	if slices.Contains(tag.Options, "explicit") {
+		if !flagIndexSet {
+			return nil, errors.New("have 'explicit' option without flag index")
+		}
+
+		info.explicit = true
 	}
 
 	if slices.Contains(tag.Options, "omitempty") {
