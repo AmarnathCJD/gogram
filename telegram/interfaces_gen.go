@@ -2568,7 +2568,7 @@ type ForumTopicObj struct {
 	Short                bool  `tl:"flag:5,encoded_in_bitflags"`
 	Hidden               bool  `tl:"flag:6,encoded_in_bitflags"`
 	TitleMissing         bool  `tl:"flag:7,encoded_in_bitflags"`
-	ID                   int32 `tl:"flag:7"`
+	ID                   int32 
 	Date                 int32
 	Peer                 Peer
 	Title                string
