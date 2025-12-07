@@ -91,16 +91,12 @@ func (c *Client) GetProfilePhotos(userID any, Opts ...*PhotosOptions) ([]UserPho
 	} else if Options.Limit < 1 {
 		Options.Limit = 1
 	}
-	peer, err := c.ResolvePeer(userID)
+	peer, err := c.GetSendableUser(userID)
 	if err != nil {
 		return nil, err
 	}
-	User, ok := peer.(*InputPeerUser)
-	if !ok {
-		return nil, errors.New("given peer is not a user")
-	}
 	resp, err := c.PhotosGetUserPhotos(
-		&InputUserObj{UserID: User.UserID, AccessHash: User.AccessHash},
+		peer,
 		Options.Offset,
 		Options.MaxID,
 		Options.Limit,
@@ -464,15 +460,11 @@ func packDialog(dialog Dialog) TLDialog {
 //	Params:
 //	 - userID: The user Identifier
 func (c *Client) GetCommonChats(userID any) ([]Chat, error) {
-	peer, err := c.ResolvePeer(userID)
+	peer, err := c.GetSendableUser(userID)
 	if err != nil {
 		return nil, err
 	}
-	user, ok := peer.(*InputPeerUser)
-	if !ok {
-		return nil, errors.New("peer is not a user")
-	}
-	resp, err := c.MessagesGetCommonChats(&InputUserObj{UserID: user.UserID, AccessHash: user.AccessHash}, 0, 100)
+	resp, err := c.MessagesGetCommonChats(peer, 0, 100)
 	if err != nil {
 		return nil, err
 	}

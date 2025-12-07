@@ -1,4 +1,4 @@
-// Copyright (c) 2024, amarnathcjd
+// Copyright (c) 2025, amarnathcjd
 
 package telegram
 
@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"slices"
@@ -199,16 +200,26 @@ func (a *albumBox) Add(m *NewMessage) {
 	a.messages = append(a.messages, m)
 }
 
-type openChat struct { // TODO: Implement this
+type openChat struct {
+	sync.RWMutex
 	accessHash int64
 	closeChan  chan struct{}
 	lastPts    int32
+	timeout    int32
 }
 
 type channelState struct {
 	pts        int32
 	accessHash int64
 	isOpen     bool
+}
+
+// UpdateState represents the current update state
+type UpdateState struct {
+	Pts  int32
+	Qts  int32
+	Seq  int32
+	Date int32
 }
 
 type UpdateDispatcher struct {
@@ -229,66 +240,62 @@ type UpdateDispatcher struct {
 	logger                Logger
 	openChats             map[int64]*openChat
 	nextUpdatesDeadline   time.Time
-	lastUpdateTime        time.Time
-	currentPts            int32
-	currentQts            int32
-	currentSeq            int32
-	currentDate           int32
+	lastUpdateTimeNano    atomic.Int64
+	state                 UpdateState
 	channelStates         map[int64]*channelState
 	pendingGaps           map[int32]time.Time
-	//pendingChannelGaps    map[int64]map[int32]time.Time
-	processedUpdates     map[int64]time.Time
-	recoveringDifference bool
-	recoveringChannels   map[int64]bool
-	stopChan             chan struct{}
+	processedUpdates      map[int64]time.Time
+	recoveringDifference  bool
+	recoveringChannels    map[int64]bool
+	stopChan              chan struct{}
 }
 
 func (d *UpdateDispatcher) SetPts(pts int32) {
 	d.Lock()
 	defer d.Unlock()
-	d.currentPts = pts
+	d.state.Pts = pts
 }
 
 func (d *UpdateDispatcher) GetPts() int32 {
 	d.RLock()
 	defer d.RUnlock()
-	return d.currentPts
+	return d.state.Pts
 }
 
 func (d *UpdateDispatcher) SetQts(qts int32) {
 	d.Lock()
 	defer d.Unlock()
-	d.currentQts = qts
+	d.state.Qts = qts
 }
 
 func (d *UpdateDispatcher) GetQts() int32 {
 	d.RLock()
 	defer d.RUnlock()
-	return d.currentQts
+	return d.state.Qts
 }
 
 func (d *UpdateDispatcher) SetSeq(seq int32) {
 	d.Lock()
 	defer d.Unlock()
-	d.currentSeq = seq
+	d.state.Seq = seq
 }
 
 func (d *UpdateDispatcher) GetSeq() int32 {
 	d.RLock()
 	defer d.RUnlock()
-	return d.currentSeq
+	return d.state.Seq
 }
 
 func (d *UpdateDispatcher) SetDate(date int32) {
 	d.Lock()
 	defer d.Unlock()
-	d.currentDate = date
+	d.state.Date = date
 }
 
 func (d *UpdateDispatcher) GetDate() int32 {
 	d.RLock()
 	defer d.RUnlock()
-	return d.currentDate
+	return d.state.Date
 }
 
 func (d *UpdateDispatcher) SetChannelPts(channelID int64, pts int32) {
@@ -316,10 +323,12 @@ func (d *UpdateDispatcher) GetChannelPts(channelID int64) int32 {
 	return 0
 }
 
-func (d *UpdateDispatcher) UpdateLastUpdateTime() {
-	d.Lock()
-	defer d.Unlock()
-	d.lastUpdateTime = time.Now()
+func (u *UpdateDispatcher) UpdateLastUpdateTime() {
+	u.lastUpdateTimeNano.Store(time.Now().UnixNano())
+}
+
+func (u *UpdateDispatcher) getLastUpdateTime() time.Time {
+	return time.Unix(0, u.lastUpdateTimeNano.Load())
 }
 
 // TryMarkUpdateProcessed atomically checks if an update was processed and marks it if not.
@@ -335,8 +344,8 @@ func (d *UpdateDispatcher) TryMarkUpdateProcessed(updateID int64) bool {
 	}
 	d.processedUpdates[updateID] = time.Now()
 
-	if len(d.processedUpdates) > 5000 {
-		cutoff := time.Now().Add(-5 * time.Minute)
+	if len(d.processedUpdates) > 15000 {
+		cutoff := time.Now().Add(-24 * time.Hour)
 		for id, t := range d.processedUpdates {
 			if t.Before(cutoff) {
 				delete(d.processedUpdates, id)
@@ -354,7 +363,6 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		pendingGaps:           make(map[int32]time.Time),
 		processedUpdates:      make(map[int64]time.Time),
 		stopChan:              make(chan struct{}),
-		lastUpdateTime:        time.Now(),
 		messageHandles:        make(map[int][]*messageHandle),
 		inlineHandles:         make(map[int][]*inlineHandle),
 		inlineSendHandles:     make(map[int][]*inlineSendHandle),
@@ -369,13 +377,14 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		rawHandles:            make(map[int][]*rawHandle),
 		activeAlbums:          make(map[int64]*albumBox),
 	}
+	c.dispatcher.lastUpdateTimeNano.Store(time.Now().UnixNano())
 	c.dispatcher.logger.Debug("dispatcher initialized")
 
 	go c.monitorNoUpdatesTimeout()
 }
 
 func (c *Client) RemoveHandle(handle Handle) error {
-	if c.dispatcher == nil {
+	if c.dispatcher == nil || c == nil {
 		return errors.New("[DispatcherNotInitialized] dispatcher is not initialized")
 	}
 
@@ -439,7 +448,6 @@ func removeHandleFromMap[T any](handle T, handlesMap map[int][]T) {
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
-		// build unique update ID: (peerID << 32) | msgID
 		updateID := int64(msg.ID)
 		peerID := c.GetPeerID(msg.PeerID)
 		if peerID == 0 {
@@ -597,7 +605,7 @@ func (c *Client) handleAlbum(message MessageObj) {
 	}
 }
 
-func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
+func (c *Client) fetchPeersBeforeUpdate(m Message, pts int32) {
 	switch msg := m.(type) {
 	case *MessageObj:
 		if (c.IdInCache(c.GetPeerID(msg.FromID)) || func() bool {
@@ -634,7 +642,7 @@ func (c *Client) handleEditUpdate(update Message) {
 			for _, handler := range handlers {
 				if handler.IsMatch(msg.Message) {
 					handle := func(h *messageEditHandle) error {
-						if handler.runFilterChain(packed, h.Filters) {
+						if h.runFilterChain(packed, h.Filters) {
 							defer c.NewRecovery()()
 							return h.Handler(packed)
 						}
@@ -674,7 +682,7 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Data) {
 				handle := func(h *callbackHandle) error {
-					if handler.runFilterChain(packed, h.Filters) {
+					if h.runFilterChain(packed, h.Filters) {
 						defer c.NewRecovery()()
 						return h.Handler(packed)
 					}
@@ -923,21 +931,12 @@ func (c *Client) handleRawUpdate(update Update) {
 
 	for group, handlers := range rawHandles {
 		for _, handler := range handlers {
-			defer func() {
-				if r := recover(); r != nil {
-					c.Log.Error(fmt.Sprintf("[RawUpdateHandlerPanic] Recovered from panic: %v | Update details: %+v", r, update))
-				}
-			}()
 			if handler == nil || handler.Handler == nil {
 				continue
 			}
 			if reflect.TypeOf(update) == reflect.TypeOf(handler.updateType) || handler.updateType == nil {
 				handle := func(h *rawHandle) error {
-					defer func() {
-						if r := recover(); r != nil {
-							c.Log.Error(fmt.Sprintf("[RawUpdateHandlerPanic] Recovered from panic: %v | Update details: %+v", r, update))
-						}
-					}()
+					defer c.NewRecovery()()
 					return h.Handler(update, c)
 				}
 
@@ -1056,452 +1055,376 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 }
 
 func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
-	var (
-		actAsBlacklist                   bool
-		actUsers, actGroups, actChannels []int64
-		inSlice                          = func(e int64, s []int64) bool {
-			for _, a := range s {
-				if a == e {
-					return true
-				}
-			}
+	for _, f := range filters {
+		if !f.check(m) {
 			return false
 		}
-	)
-
-	if len(filters) > 0 {
-		for _, filter := range filters {
-			// Chat type filters
-			if filter.Private && !m.IsPrivate() || filter.Group && !m.IsGroup() || filter.Channel && !m.IsChannel() {
-				return false
-			}
-
-			// Message type filters
-			if filter.Media && !m.IsMedia() || filter.Command && !m.IsCommand() || filter.Reply && !m.IsReply() || filter.Forward && !m.IsForward() {
-				return false
-			}
-
-			// Direction filters
-			if filter.Outgoing && (m.Message == nil || !m.Message.Out) {
-				return false
-			}
-			if filter.Incoming && (m.Message == nil || m.Message.Out) {
-				return false
-			}
-
-			// Sender filters
-			if filter.FromBot {
-				if m.Sender == nil || !m.Sender.Bot {
-					return false
-				}
-			}
-
-			// Length filters
-			if filter.MinLength > 0 && len(m.Text()) < filter.MinLength {
-				return false
-			}
-			if filter.MaxLength > 0 && len(m.Text()) > filter.MaxLength {
-				return false
-			}
-
-			// Text content filter
-			if filter.HasText && m.Text() == "" {
-				return false
-			}
-
-			// Specific media type filters
-			if filter.HasPhoto && m.Photo() == nil {
-				return false
-			}
-			if filter.HasVideo && m.Video() == nil {
-				return false
-			}
-			if filter.HasDocument && m.Document() == nil {
-				return false
-			}
-			if filter.HasAudio && m.Audio() == nil {
-				return false
-			}
-			if filter.HasSticker && m.Sticker() == nil {
-				return false
-			}
-			if filter.HasAnimation {
-				doc := m.Document()
-				if doc == nil {
-					return false
-				}
-				isAnimation := false
-				for _, attr := range doc.Attributes {
-					if _, ok := attr.(*DocumentAttributeAnimated); ok {
-						isAnimation = true
-						break
-					}
-				}
-				if !isAnimation {
-					return false
-				}
-			}
-			if filter.HasVoice && m.Voice() == nil {
-				return false
-			}
-			if filter.HasVideoNote {
-				doc := m.Document()
-				if doc == nil {
-					return false
-				}
-				isVideoNote := false
-				for _, attr := range doc.Attributes {
-					if _, ok := attr.(*DocumentAttributeVideo); ok {
-						if videoAttr, okVideo := attr.(*DocumentAttributeVideo); okVideo && videoAttr.RoundMessage {
-							isVideoNote = true
-							break
-						}
-					}
-				}
-				if !isVideoNote {
-					return false
-				}
-			}
-			if filter.HasContact && m.Contact() == nil {
-				return false
-			}
-			if filter.HasLocation {
-				if msgMedia, ok := m.Media().(*MessageMediaGeo); !ok || msgMedia == nil {
-					return false
-				}
-			}
-			if filter.HasVenue {
-				if msgMedia, ok := m.Media().(*MessageMediaVenue); !ok || msgMedia == nil {
-					return false
-				}
-			}
-			if filter.HasPoll {
-				if msgMedia, ok := m.Media().(*MessageMediaPoll); !ok || msgMedia == nil {
-					return false
-				}
-			}
-
-			if filter.Edited && (m.Message == nil || m.Message.EditDate == 0) {
-				return false
-			}
-
-			if len(filter.MediaTypes) > 0 {
-				hasMatchingMedia := false
-				currentMediaType := m.MediaType()
-				for _, mediaType := range filter.MediaTypes {
-					mtLower := strings.ToLower(mediaType)
-					switch mtLower {
-					case "photo":
-						if m.Photo() != nil {
-							hasMatchingMedia = true
-						}
-					case "video":
-						if m.Video() != nil {
-							hasMatchingMedia = true
-						}
-					case "document":
-						if m.Document() != nil {
-							hasMatchingMedia = true
-						}
-					case "audio":
-						if m.Audio() != nil {
-							hasMatchingMedia = true
-						}
-					case "voice":
-						if m.Voice() != nil {
-							hasMatchingMedia = true
-						}
-					case "sticker":
-						if m.Sticker() != nil {
-							hasMatchingMedia = true
-						}
-					case "animation", "gif":
-						doc := m.Document()
-						if doc != nil {
-							for _, attr := range doc.Attributes {
-								if _, ok := attr.(*DocumentAttributeAnimated); ok {
-									hasMatchingMedia = true
-									break
-								}
-							}
-						}
-					case "videonote", "video_note":
-						doc := m.Document()
-						if doc != nil {
-							for _, attr := range doc.Attributes {
-								if videoAttr, ok := attr.(*DocumentAttributeVideo); ok && videoAttr.RoundMessage {
-									hasMatchingMedia = true
-									break
-								}
-							}
-						}
-					case "contact":
-						if m.Contact() != nil {
-							hasMatchingMedia = true
-						}
-					case "geo", "location":
-						if currentMediaType == "geo" || currentMediaType == "geo_live" {
-							hasMatchingMedia = true
-						}
-					case "venue":
-						if currentMediaType == "venue" {
-							hasMatchingMedia = true
-						}
-					case "poll":
-						if _, ok := m.Media().(*MessageMediaPoll); ok {
-							hasMatchingMedia = true
-						}
-					}
-					if hasMatchingMedia {
-						break
-					}
-				}
-				if !hasMatchingMedia {
-					return false
-				}
-			}
-
-			if len(filter.Users) > 0 {
-				actUsers = filter.Users
-			}
-			if len(filter.Chats) > 0 {
-				actGroups = filter.Chats
-			}
-			if len(filter.Channels) > 0 {
-				actChannels = filter.Channels
-			}
-			if filter.Blacklist {
-				actAsBlacklist = true
-			}
-			if filter.Mention && m.Message != nil && !m.Message.Mentioned {
-				return false
-			}
-
-			if filter.Func != nil {
-				if !filter.Func(m) {
-					return false
-				}
-			}
-		}
 	}
-
-	var peerCheckUserPassed bool
-	var peerCheckGroupPassed bool
-	var peerCheckChannelPassed bool
-
-	if len(actUsers) > 0 && m.SenderID() != 0 {
-		if inSlice(m.SenderID(), actUsers) {
-			if actAsBlacklist {
-				return false
-			}
-			peerCheckUserPassed = true
-		}
-	} else {
-		peerCheckUserPassed = true
-	}
-
-	if len(actGroups) > 0 && m.ChatID() != 0 {
-		if inSlice(m.ChatID(), actGroups) {
-			if actAsBlacklist {
-				return false
-			}
-			peerCheckGroupPassed = true
-		}
-	} else {
-		peerCheckGroupPassed = true
-	}
-
-	if len(actChannels) > 0 && m.ChannelID() != 0 {
-		if inSlice(m.ChannelID(), actChannels) {
-			if actAsBlacklist {
-				return false
-			}
-			// if the channel is in the blacklist, we should not pass the check
-			peerCheckChannelPassed = true
-		}
-	} else {
-		// if there are no channels in the filter, we should pass the check
-		peerCheckChannelPassed = true
-	}
-
-	if !actAsBlacklist && (len(actUsers) > 0 || len(actGroups) > 0 || len(actChannels) > 0) && !(peerCheckUserPassed && peerCheckGroupPassed && peerCheckChannelPassed) {
-		return false
-	}
-
 	return true
 }
 
 func (e *messageEditHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
-	var message = &messageHandle{}
-	return message.runFilterChain(m, filters)
+	for _, f := range filters {
+		if !f.check(m) {
+			return false
+		}
+	}
+	return true
 }
 
 func (h *callbackHandle) runFilterChain(c *CallbackQuery, filters []Filter) bool {
-	if len(filters) > 0 {
-		for _, filter := range filters {
-			if filter.Private && !c.IsPrivate() || filter.Group && !c.IsGroup() || filter.Channel && !c.IsChannel() {
-				return false
-			}
-			if filter.FromBot {
-				if c.Sender == nil || !c.Sender.Bot {
-					return false
-				}
-			}
-
-			if filter.Func != nil {
-				if !filter.FuncCallback(c) {
-					return false
-				}
-			}
+	for _, f := range filters {
+		if !f.checkCallback(c) {
+			return false
 		}
 	}
-
 	return true
 }
 
 type Filter struct {
-	Private, Group, Channel, Media, Command, Reply, Forward, FromBot, Blacklist, Mention bool
-	Users, Chats, Channels                                                               []int64
-	Func                                                                                 func(m *NewMessage) bool
-	FuncCallback                                                                         func(c *CallbackQuery) bool
-	// Advanced filters
-	Outgoing, Incoming                                 bool     // Outgoing or incoming messages
-	MinLength, MaxLength                               int      // Message text length constraints
-	HasText, HasPhoto, HasVideo, HasDocument, HasAudio bool     // Specific media type filters
-	HasSticker, HasAnimation, HasVoice, HasVideoNote   bool     // More media types
-	HasContact, HasLocation, HasVenue, HasPoll         bool     // Service message types
-	Edited                                             bool     // Only edited messages
-	MediaTypes                                         []string // Custom media type list (e.g., ["photo", "video"])
+	flags        FilterFlag
+	Users        []int64
+	Chats        []int64
+	Channels     []int64
+	MinLength    int
+	MaxLength    int
+	MediaTypes   []string
+	Func         func(m *NewMessage) bool
+	FuncCallback func(c *CallbackQuery) bool
 }
 
-func (f Filter) IsPrivate() Filter                                    { f.Private = true; return f }
-func (f Filter) IsGroup() Filter                                      { f.Group = true; return f }
-func (f Filter) IsChannel() Filter                                    { f.Channel = true; return f }
-func (f Filter) IsMedia() Filter                                      { f.Media = true; return f }
-func (f Filter) IsCommand() Filter                                    { f.Command = true; return f }
-func (f Filter) IsReply() Filter                                      { f.Reply = true; return f }
-func (f Filter) IsForward() Filter                                    { f.Forward = true; return f }
-func (f Filter) IsFromBot() Filter                                    { f.FromBot = true; return f }
-func (f Filter) IsMention() Filter                                    { f.Mention = true; return f }
-func (f Filter) IsOutgoing() Filter                                   { f.Outgoing = true; return f }
-func (f Filter) IsIncoming() Filter                                   { f.Incoming = true; return f }
-func (f Filter) IsEdited() Filter                                     { f.Edited = true; return f }
-func (f Filter) WithPhoto() Filter                                    { f.HasPhoto = true; return f }
-func (f Filter) WithVideo() Filter                                    { f.HasVideo = true; return f }
-func (f Filter) WithDocument() Filter                                 { f.HasDocument = true; return f }
-func (f Filter) WithAudio() Filter                                    { f.HasAudio = true; return f }
-func (f Filter) WithSticker() Filter                                  { f.HasSticker = true; return f }
-func (f Filter) WithAnimation() Filter                                { f.HasAnimation = true; return f }
-func (f Filter) WithVoice() Filter                                    { f.HasVoice = true; return f }
-func (f Filter) WithVideoNote() Filter                                { f.HasVideoNote = true; return f }
-func (f Filter) WithContact() Filter                                  { f.HasContact = true; return f }
-func (f Filter) WithLocation() Filter                                 { f.HasLocation = true; return f }
-func (f Filter) WithVenue() Filter                                    { f.HasVenue = true; return f }
-func (f Filter) WithPoll() Filter                                     { f.HasPoll = true; return f }
-func (f Filter) WithText() Filter                                     { f.HasText = true; return f }
-func (f Filter) FromUsers(users ...int64) Filter                      { f.Users = users; return f }
-func (f Filter) FromChats(chats ...int64) Filter                      { f.Chats = chats; return f }
-func (f Filter) FromChannels(channels ...int64) Filter                { f.Channels = channels; return f }
-func (f Filter) MinLen(length int) Filter                             { f.MinLength = length; return f }
-func (f Filter) MaxLen(length int) Filter                             { f.MaxLength = length; return f }
-func (f Filter) WithMediaTypes(types ...string) Filter                { f.MediaTypes = types; return f }
-func (f Filter) AsBlacklist() Filter                                  { f.Blacklist = true; return f }
-func (f Filter) Custom(fn func(m *NewMessage) bool) Filter            { f.Func = fn; return f }
-func (f Filter) CustomCallback(fn func(c *CallbackQuery) bool) Filter { f.FuncCallback = fn; return f }
+type FilterFlag uint32
 
-func NewFilter() Filter { return Filter{} }
+const (
+	FPrivate FilterFlag = 1 << iota
+	FGroup
+	FChannel
+	FMedia
+	FCommand
+	FReply
+	FForward
+	FFromBot
+	FBlacklist
+	FMention
+	FOutgoing
+	FIncoming
+	FEdited
+	FPhoto
+	FVideo
+	FDocument
+	FAudio
+	FSticker
+	FAnimation
+	FVoice
+	FVideoNote
+	FContact
+	FLocation
+	FVenue
+	FPoll
+	FText
+)
+
+func (f FilterFlag) Has(flag FilterFlag) bool { return f&flag != 0 }
+
+func (f FilterFlag) check(m *NewMessage) bool {
+	if f == 0 {
+		return true
+	}
+	if f.Has(FPrivate) && !m.IsPrivate() {
+		return false
+	}
+	if f.Has(FGroup) && !m.IsGroup() {
+		return false
+	}
+	if f.Has(FChannel) && !m.IsChannel() {
+		return false
+	}
+	if f.Has(FMedia) && !m.IsMedia() {
+		return false
+	}
+	if f.Has(FCommand) && !m.IsCommand() {
+		return false
+	}
+	if f.Has(FReply) && !m.IsReply() {
+		return false
+	}
+	if f.Has(FForward) && !m.IsForward() {
+		return false
+	}
+	if f.Has(FFromBot) && (m.Sender == nil || !m.Sender.Bot) {
+		return false
+	}
+	if f.Has(FMention) && (m.Message == nil || !m.Message.Mentioned) {
+		return false
+	}
+	if f.Has(FOutgoing) && (m.Message == nil || !m.Message.Out) {
+		return false
+	}
+	if f.Has(FIncoming) && (m.Message == nil || m.Message.Out) {
+		return false
+	}
+	if f.Has(FEdited) && (m.Message == nil || m.Message.EditDate == 0) {
+		return false
+	}
+	if f.Has(FText) && m.Text() == "" {
+		return false
+	}
+	if f.Has(FPhoto) && m.Photo() == nil {
+		return false
+	}
+	if f.Has(FVideo) && m.Video() == nil {
+		return false
+	}
+	if f.Has(FDocument) && m.Document() == nil {
+		return false
+	}
+	if f.Has(FAudio) && m.Audio() == nil {
+		return false
+	}
+	if f.Has(FSticker) && m.Sticker() == nil {
+		return false
+	}
+	if f.Has(FVoice) && m.Voice() == nil {
+		return false
+	}
+	if f.Has(FAnimation) {
+		doc := m.Document()
+		if doc == nil {
+			return false
+		}
+		isAnim := false
+		for _, attr := range doc.Attributes {
+			if _, ok := attr.(*DocumentAttributeAnimated); ok {
+				isAnim = true
+				break
+			}
+		}
+		if !isAnim {
+			return false
+		}
+	}
+	if f.Has(FVideoNote) {
+		doc := m.Document()
+		if doc == nil {
+			return false
+		}
+		isVN := false
+		for _, attr := range doc.Attributes {
+			if v, ok := attr.(*DocumentAttributeVideo); ok && v.RoundMessage {
+				isVN = true
+				break
+			}
+		}
+		if !isVN {
+			return false
+		}
+	}
+	if f.Has(FContact) && m.Contact() == nil {
+		return false
+	}
+	if f.Has(FLocation) {
+		if _, ok := m.Media().(*MessageMediaGeo); !ok {
+			return false
+		}
+	}
+	if f.Has(FVenue) {
+		if _, ok := m.Media().(*MessageMediaVenue); !ok {
+			return false
+		}
+	}
+	if f.Has(FPoll) {
+		if _, ok := m.Media().(*MessageMediaPoll); !ok {
+			return false
+		}
+	}
+	return true
+}
 
 var (
-	FilterPrivate   = Filter{Private: true}
-	FilterGroup     = Filter{Group: true}
-	FilterChannel   = Filter{Channel: true}
-	FilterMedia     = Filter{Media: true}
-	FilterCommand   = Filter{Command: true}
-	FilterReply     = Filter{Reply: true}
-	FilterForward   = Filter{Forward: true}
-	FilterFromBot   = Filter{FromBot: true}
-	FilterBlacklist = Filter{Blacklist: true}
-	FilterMention   = Filter{Mention: true}
-	FilterOutgoing  = Filter{Outgoing: true}
-	FilterIncoming  = Filter{Incoming: true}
-	FilterEdited    = Filter{Edited: true}
-	FilterPhoto     = Filter{HasPhoto: true}
-	FilterVideo     = Filter{HasVideo: true}
-	FilterDocument  = Filter{HasDocument: true}
-	FilterAudio     = Filter{HasAudio: true}
-	FilterSticker   = Filter{HasSticker: true}
-	FilterAnimation = Filter{HasAnimation: true}
-	FilterVoice     = Filter{HasVoice: true}
-	FilterVideoNote = Filter{HasVideoNote: true}
-	FilterContact   = Filter{HasContact: true}
-	FilterLocation  = Filter{HasLocation: true}
-	FilterVenue     = Filter{HasVenue: true}
-	FilterPoll      = Filter{HasPoll: true}
+	IsPrivate  = Filter{flags: FPrivate}
+	IsGroup    = Filter{flags: FGroup}
+	IsChannel  = Filter{flags: FChannel}
+	IsMedia    = Filter{flags: FMedia}
+	IsCommand  = Filter{flags: FCommand}
+	IsReply    = Filter{flags: FReply}
+	IsForward  = Filter{flags: FForward}
+	IsMention  = Filter{flags: FMention}
+	IsOutgoing = Filter{flags: FOutgoing}
+	IsIncoming = Filter{flags: FIncoming}
+	IsEdited   = Filter{flags: FEdited}
+	IsText     = Filter{flags: FText}
+	IsPhoto    = Filter{flags: FPhoto}
+	IsVideo    = Filter{flags: FVideo}
+	IsAudio    = Filter{flags: FAudio}
+	IsVoice    = Filter{flags: FVoice}
+	IsBot      = Filter{flags: FFromBot}
+)
 
-	FilterUsers = func(users ...int64) Filter {
-		return Filter{Users: users}
-	}
-	FilterChats = func(chats ...int64) Filter {
-		return Filter{Chats: chats}
-	}
-	FilterChannels = func(channels ...int64) Filter {
-		return Filter{Channels: channels}
-	}
-	FilterFunc = func(f func(m *NewMessage) bool) Filter {
-		return Filter{Func: f}
-	}
-	FilterFuncCallback = func(f func(c *CallbackQuery) bool) Filter {
-		return Filter{FuncCallback: f}
-	}
-	FilterFuncInline = func(f func(c *InlineQuery) bool) Filter {
-		return Filter{Func: func(m *NewMessage) bool { return true }}
-	}
-	FilterMinLength = func(length int) Filter {
-		return Filter{MinLength: length}
-	}
-	FilterMaxLength = func(length int) Filter {
-		return Filter{MaxLength: length}
-	}
-	FilterMediaTypes = func(types ...string) Filter {
-		return Filter{MediaTypes: types}
-	}
-	// Combine multiple filters with AND logic
-	FilterAnd = func(filters ...Filter) Filter {
-		return Filter{
-			Func: func(m *NewMessage) bool {
-				for _, f := range filters {
-					handle := &messageHandle{Filters: []Filter{f}}
-					if !handle.runFilterChain(m, []Filter{f}) {
-						return false
-					}
-				}
+func FromUser(ids ...int64) Filter { return Filter{Users: ids} }
+func InChat(ids ...int64) Filter   { return Filter{Chats: ids} }
+func TextMinLen(n int) Filter      { return Filter{MinLength: n} }
+func TextMaxLen(n int) Filter      { return Filter{MaxLength: n} }
+
+// Custom allows any func(m *NewMessage) bool as a filter
+func Custom(fn func(*NewMessage) bool) Filter { return Filter{Func: fn} }
+
+// CustomCallback allows any func(c *CallbackQuery) bool as a filter
+func CustomCallback(fn func(*CallbackQuery) bool) Filter {
+	return Filter{FuncCallback: fn}
+}
+
+func Not(f Filter) Filter {
+	return Filter{Func: func(m *NewMessage) bool { return !f.check(m) }}
+}
+
+func Any(fs ...Filter) Filter {
+	return Filter{Func: func(m *NewMessage) bool {
+		for _, f := range fs {
+			if f.check(m) {
 				return true
-			},
+			}
 		}
-	}
-	// Combine multiple filters with OR logic
-	FilterOr = func(filters ...Filter) Filter {
-		return Filter{
-			Func: func(m *NewMessage) bool {
-				for _, f := range filters {
-					handle := &messageHandle{Filters: []Filter{f}}
-					if handle.runFilterChain(m, []Filter{f}) {
-						return true
-					}
-				}
+		return false
+	}}
+}
+
+func All(fs ...Filter) Filter {
+	return Filter{Func: func(m *NewMessage) bool {
+		for _, f := range fs {
+			if !f.check(m) {
 				return false
-			},
+			}
+		}
+		return true
+	}}
+}
+
+func (f Filter) check(m *NewMessage) bool {
+	if !f.flags.check(m) {
+		return false
+	}
+	isBlacklist := f.flags.Has(FBlacklist)
+	if len(f.Users) > 0 {
+		found := false
+		sid := m.SenderID()
+		if slices.Contains(f.Users, sid) {
+			found = true
+		}
+		if isBlacklist && found {
+			return false
+		}
+		if !isBlacklist && !found {
+			return false
 		}
 	}
-	// Negate a filter
-	FilterNot = func(filter Filter) Filter {
-		return Filter{
-			Func: func(m *NewMessage) bool {
-				handle := &messageHandle{Filters: []Filter{filter}}
-				return !handle.runFilterChain(m, []Filter{filter})
-			},
+	if len(f.Chats) > 0 {
+		found := false
+		cid := m.ChatID()
+		if slices.Contains(f.Chats, cid) {
+			found = true
+		}
+		if isBlacklist && found {
+			return false
+		}
+		if !isBlacklist && !found {
+			return false
 		}
 	}
+	if len(f.Channels) > 0 {
+		found := false
+		cid := m.ChannelID()
+		if slices.Contains(f.Channels, cid) {
+			found = true
+		}
+		if isBlacklist && found {
+			return false
+		}
+		if !isBlacklist && !found {
+			return false
+		}
+	}
+	if f.MinLength > 0 && len(m.Text()) < f.MinLength {
+		return false
+	}
+	if f.MaxLength > 0 && len(m.Text()) > f.MaxLength {
+		return false
+	}
+	if len(f.MediaTypes) > 0 {
+		mt := strings.ToLower(m.MediaType())
+		found := false
+		for _, t := range f.MediaTypes {
+			if strings.ToLower(t) == mt {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	if f.Func != nil && !f.Func(m) {
+		return false
+	}
+	return true
+}
+
+func (f Filter) checkCallback(c *CallbackQuery) bool {
+	if f.flags.Has(FPrivate) && !c.IsPrivate() {
+		return false
+	}
+	if f.flags.Has(FGroup) && !c.IsGroup() {
+		return false
+	}
+	if f.flags.Has(FChannel) && !c.IsChannel() {
+		return false
+	}
+	if f.flags.Has(FFromBot) && (c.Sender == nil || !c.Sender.Bot) {
+		return false
+	}
+	if f.FuncCallback != nil && !f.FuncCallback(c) {
+		return false
+	}
+	return true
+}
+
+func F(flags FilterFlag) Filter                               { return Filter{flags: flags} }
+func (f Filter) Flag(flag FilterFlag) Filter                  { f.flags |= flag; return f }
+func (f Filter) FromUsers(ids ...int64) Filter                { f.Users = ids; return f }
+func (f Filter) FromChats(ids ...int64) Filter                { f.Chats = ids; return f }
+func (f Filter) FromChannels(ids ...int64) Filter             { f.Channels = ids; return f }
+func (f Filter) MinLen(n int) Filter                          { f.MinLength = n; return f }
+func (f Filter) MaxLen(n int) Filter                          { f.MaxLength = n; return f }
+func (f Filter) WithMediaTypes(t ...string) Filter            { f.MediaTypes = t; return f }
+func (f Filter) WithFunc(fn func(*NewMessage) bool) Filter    { f.Func = fn; return f }
+func (f Filter) CustomCB(fn func(*CallbackQuery) bool) Filter { f.FuncCallback = fn; return f }
+func (f Filter) Blacklist() Filter                            { f.flags |= FBlacklist; return f }
+
+var (
+	FilterPrivate   = IsPrivate
+	FilterGroup     = IsGroup
+	FilterChannel   = IsChannel
+	FilterMedia     = IsMedia
+	FilterCommand   = IsCommand
+	FilterReply     = IsReply
+	FilterForward   = IsForward
+	FilterFromBot   = IsBot
+	FilterMention   = IsMention
+	FilterOutgoing  = IsOutgoing
+	FilterIncoming  = IsIncoming
+	FilterEdited    = IsEdited
+	FilterPhoto     = IsPhoto
+	FilterVideo     = IsVideo
+	FilterDocument  = Filter{flags: FDocument}
+	FilterAudio     = IsAudio
+	FilterSticker   = Filter{flags: FSticker}
+	FilterAnimation = Filter{flags: FAnimation}
+	FilterVoice     = IsVoice
+	FilterVideoNote = Filter{flags: FVideoNote}
+	FilterContact   = Filter{flags: FContact}
+	FilterLocation  = Filter{flags: FLocation}
+	FilterVenue     = Filter{flags: FVenue}
+	FilterPoll      = Filter{flags: FPoll}
+	FilterText      = IsText
 )
 
 func addHandleToMap[T Handle](handleMap map[int][]T, handle T) T {
@@ -1834,14 +1757,14 @@ UpdateTypeSwitching:
 	case *UpdateShort:
 		switch upd := upd.Update.(type) {
 		case *UpdateNewMessage:
-			go c.handleMessageUpdateWith(upd.Message, upd.Pts)
+			go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
 		case *UpdateNewChannelMessage:
 			channelID := getChannelIDFromMessage(upd.Message)
 			if channelID != 0 {
 				go c.handleMessageUpdate(upd.Message)
 				c.manageChannelPts(channelID, upd.Pts, upd.PtsCount)
 			} else {
-				go c.handleMessageUpdateWith(upd.Message, upd.Pts)
+				go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
 			}
 		case *UpdateChannelTooLong:
 			currentPts := c.dispatcher.GetChannelPts(upd.ChannelID)
@@ -1853,15 +1776,15 @@ UpdateTypeSwitching:
 		go c.handleRawUpdate(upd.Update)
 	case *UpdateShortMessage:
 		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
-		go c.handleMessageUpdateWith(update, upd.Pts)
+		go c.fetchPeersBeforeUpdate(update, upd.Pts)
 		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdateShortChatMessage:
 		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
-		go c.handleMessageUpdateWith(update, upd.Pts)
+		go c.fetchPeersBeforeUpdate(update, upd.Pts)
 		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdateShortSentMessage:
 		update := &MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}
-		go c.handleMessageUpdateWith(update, upd.Pts)
+		go c.fetchPeersBeforeUpdate(update, upd.Pts)
 		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdatesCombined:
 		if !c.manageSeq(upd.Seq, upd.SeqStart) {
@@ -1941,7 +1864,7 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 		cancel()
 
 		if err != nil {
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				continue
 			}
 			return
@@ -2048,6 +1971,9 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 		if gap <= 5 {
 			c.dispatcher.SetPts(pts)
 			return true
+		} else if gap > 2000 {
+			c.dispatcher.SetPts(pts)
+			return true
 		}
 
 		c.dispatcher.SetPts(pts)
@@ -2124,6 +2050,9 @@ func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bo
 		gap := pts - expectedPts
 
 		if gap <= 5 {
+			c.dispatcher.SetChannelPts(channelID, pts)
+			return true
+		} else if gap > 1000 {
 			c.dispatcher.SetChannelPts(channelID, pts)
 			return true
 		}
@@ -2248,7 +2177,7 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 		cancel()
 
 		if err != nil {
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				continue
 			}
 			return
@@ -2326,25 +2255,158 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 	c.Log.Debug("channel difference max iterations (channel=%d, iterations=%d, pts=%d, fetched=%d)", channelID, maxIterations, req.Pts, totalFetched)
 }
 
-func (c *Client) OpenChat(channel *InputChannelObj) {
+// OpenChat starts active polling for a channel to receive updates faster.
+// timeoutSeconds specifies the polling interval in seconds.
+func (c *Client) OpenChat(channel *InputChannelObj, timeoutSeconds int32) {
 	c.dispatcher.Lock()
-	defer c.dispatcher.Unlock()
-
 	if c.dispatcher.openChats == nil {
 		c.dispatcher.openChats = make(map[int64]*openChat)
 	}
-
 	if _, ok := c.dispatcher.openChats[channel.ChannelID]; ok {
+		c.dispatcher.Unlock()
 		return
 	}
+	c.dispatcher.Unlock()
 
-	c.dispatcher.openChats[channel.ChannelID] = &openChat{
+	currentPts := c.dispatcher.GetChannelPts(channel.ChannelID)
+	if currentPts == 0 {
+		diff, err := c.UpdatesGetChannelDifference(&UpdatesGetChannelDifferenceParams{
+			Channel: channel,
+			Filter:  &ChannelMessagesFilterEmpty{},
+			Pts:     1,
+			Limit:   1,
+		})
+		if err != nil {
+			c.Log.Error("open chat: failed to get pts (channel=%d): %v", channel.ChannelID, err)
+			return
+		}
+		switch d := diff.(type) {
+		case *UpdatesChannelDifferenceEmpty:
+			currentPts = d.Pts
+		case *UpdatesChannelDifferenceObj:
+			currentPts = d.Pts
+		case *UpdatesChannelDifferenceTooLong:
+			if dialog, ok := d.Dialog.(*DialogObj); ok {
+				currentPts = dialog.Pts
+			}
+		}
+		if currentPts == 0 {
+			currentPts = 1
+		}
+	}
+
+	chat := &openChat{
 		accessHash: channel.AccessHash,
 		closeChan:  make(chan struct{}),
-		lastPts:    0,
+		lastPts:    currentPts,
+		timeout:    timeoutSeconds,
+	}
+
+	c.dispatcher.Lock()
+	if _, ok := c.dispatcher.openChats[channel.ChannelID]; ok {
+		c.dispatcher.Unlock()
+		return
+	}
+	c.dispatcher.openChats[channel.ChannelID] = chat
+	// Mark channel as open in channelState for FetchChannelDifference checks
+	if c.dispatcher.channelStates == nil {
+		c.dispatcher.channelStates = make(map[int64]*channelState)
+	}
+	if state, ok := c.dispatcher.channelStates[channel.ChannelID]; ok {
+		state.isOpen = true
+	} else {
+		c.dispatcher.channelStates[channel.ChannelID] = &channelState{
+			pts:        currentPts,
+			accessHash: channel.AccessHash,
+			isOpen:     true,
+		}
+	}
+	c.dispatcher.Unlock()
+
+	go c.pollOpenChat(channel.ChannelID, chat)
+}
+
+// pollOpenChat periodically fetches channel difference for an open chat
+func (c *Client) pollOpenChat(channelID int64, chat *openChat) {
+	var errorCount int
+	const maxBackoff = 60 // max 60 seconds between retries on error
+
+	for {
+		chat.RLock()
+		timeout := time.Duration(chat.timeout) * time.Second
+		lastPts := chat.lastPts
+		chat.RUnlock()
+
+		if timeout < time.Second {
+			timeout = 15 * time.Second
+		}
+
+		// Add exponential backoff on consecutive errors
+		if errorCount > 0 {
+			backoff := min(1<<errorCount, maxBackoff)
+			timeout = time.Duration(backoff) * time.Second
+		}
+
+		select {
+		case <-chat.closeChan:
+			return
+		case <-time.After(timeout):
+		}
+
+		diff, err := c.UpdatesGetChannelDifference(&UpdatesGetChannelDifferenceParams{
+			Channel: &InputChannelObj{ChannelID: channelID, AccessHash: chat.accessHash},
+			Filter:  &ChannelMessagesFilterEmpty{},
+			Pts:     lastPts,
+			Limit:   100,
+		})
+		if err != nil {
+			errorCount++
+			c.Log.Debug("open chat poll error (channel=%d, attempt=%d): %v", channelID, errorCount, err)
+			continue
+		}
+		errorCount = 0
+
+		switch d := diff.(type) {
+		case *UpdatesChannelDifferenceEmpty:
+			chat.Lock()
+			chat.timeout = d.Timeout
+			chat.Unlock()
+
+		case *UpdatesChannelDifferenceObj:
+			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
+			for _, msg := range d.NewMessages {
+				if msgObj, ok := msg.(*MessageObj); ok {
+					go c.handleMessageUpdate(msgObj)
+				}
+			}
+			if len(d.OtherUpdates) > 0 {
+				HandleIncomingUpdates(&UpdatesObj{Updates: d.OtherUpdates, Users: d.Users, Chats: d.Chats}, c)
+			}
+			chat.Lock()
+			chat.lastPts = d.Pts
+			chat.timeout = d.Timeout
+			chat.Unlock()
+			c.dispatcher.SetChannelPts(channelID, d.Pts)
+
+		case *UpdatesChannelDifferenceTooLong:
+			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
+			for _, msg := range d.Messages {
+				if msgObj, ok := msg.(*MessageObj); ok {
+					go c.handleMessageUpdate(msgObj)
+				}
+			}
+			chat.Lock()
+			chat.timeout = d.Timeout
+			if dialog, ok := d.Dialog.(*DialogObj); ok {
+				chat.lastPts = dialog.Pts
+				c.dispatcher.SetChannelPts(channelID, dialog.Pts)
+			}
+			chat.Unlock()
+		}
 	}
 }
 
+// CloseChat stops active polling for a channel when user leaves it.
 func (c *Client) CloseChat(channel *InputChannelObj) {
 	c.dispatcher.Lock()
 	defer c.dispatcher.Unlock()
@@ -2352,13 +2414,47 @@ func (c *Client) CloseChat(channel *InputChannelObj) {
 	if c.dispatcher.openChats == nil {
 		return
 	}
-
-	if _, ok := c.dispatcher.openChats[channel.ChannelID]; !ok {
+	chat, ok := c.dispatcher.openChats[channel.ChannelID]
+	if !ok {
 		return
 	}
-
-	close(c.dispatcher.openChats[channel.ChannelID].closeChan)
+	close(chat.closeChan)
 	delete(c.dispatcher.openChats, channel.ChannelID)
+	// Mark channel as closed
+	if state, ok := c.dispatcher.channelStates[channel.ChannelID]; ok {
+		state.isOpen = false
+	}
+}
+
+func (c *Client) monitorNoUpdatesTimeout() {
+	ticker := time.NewTicker(15 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if time.Since(c.dispatcher.getLastUpdateTime()) > 15*time.Minute {
+				c.Log.Debug("no updates received for 15 minutes, getting difference...")
+				c.FetchDifference(c.dispatcher.GetPts(), 5000)
+			}
+		case <-c.dispatcher.stopChan:
+			return
+		}
+	}
+}
+
+// ExportPts exports the current pts value from the dispatcher.
+func (c *Client) ExportPts() int32 {
+	if c.dispatcher == nil {
+		return 0
+	}
+	return c.dispatcher.GetPts()
+}
+
+// FetchDifferenceOnStartup fetches any missed updates since last disconnect.
+// Should be called on startup after logging in to catch up on missed events.
+func (c *Client) FetchDifferenceOnStartup(pts int32) {
+	c.Log.Debug("fetching difference on startup (pts=%d)", pts)
+	c.FetchDifference(pts, 5000)
 }
 
 type ev any
@@ -2380,151 +2476,313 @@ var (
 	OnRaw            ev = "raw"
 )
 
-// .On is a helper function to add a handler for a specific event type (handler: func(m *NewMessage) error, etc.)
-func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
-	var patternKey string
-	var args string
+type eventInfo struct {
+	eventType string
+	pattern   string
+}
 
-	if patternStr, ok := pattern.(string); ok {
-		if strings.Contains(patternStr, ":") {
-			parts := strings.SplitN(patternStr, ":", 2)
-			patternKey = strings.TrimSpace(parts[0])
-			args = strings.TrimSpace(parts[1])
+func parsePattern(pattern any) eventInfo {
+	switch p := pattern.(type) {
+	case string:
+		p = strings.TrimSpace(p)
+
+		if len(p) > 0 && (p[0] == '/' || p[0] == '!') {
+			return eventInfo{eventType: "command", pattern: p[1:]}
+		}
+		if idx := strings.Index(p, ":"); idx > 0 {
+			return eventInfo{
+				eventType: strings.ToLower(strings.TrimSpace(p[:idx])),
+				pattern:   strings.TrimSpace(p[idx+1:]),
+			}
+		}
+
+		return eventInfo{eventType: strings.ToLower(p)}
+
+	case ev:
+		if s, ok := p.(string); ok {
+			return eventInfo{eventType: s}
+		}
+		return eventInfo{}
+
+	default:
+		return eventInfo{}
+	}
+}
+
+var handlerTypes = map[string]string{
+	"func(*telegram.NewMessage) error":              "message",
+	"func(*telegram.DeleteMessage) error":           "delete",
+	"func(*telegram.Album) error":                   "album",
+	"func(*telegram.InlineQuery) error":             "inline",
+	"func(*telegram.InlineSend) error":              "choseninline",
+	"func(*telegram.CallbackQuery) error":           "callback",
+	"func(*telegram.InlineCallbackQuery) error":     "inlinecallback",
+	"func(*telegram.ParticipantUpdate) error":       "participant",
+	"func(*telegram.JoinRequestUpdate) error":       "joinrequest",
+	"func(telegram.Update, *telegram.Client) error": "raw",
+}
+
+// On registers an event handler with flexible pattern matching.
+//
+// Usage patterns:
+//
+//	// Message handlers
+//	client.On("message", handler)              // All messages
+//	client.On("message:hello", handler)        // Messages matching "hello"
+//	client.On(OnMessage, handler)              // Using constant
+//
+//	// Command handlers (multiple formats)
+//	client.On("/start", handler)               // Shortcut for cmd:start
+//	client.On("!help", handler)                // Shortcut for cmd:help
+//	client.On("cmd:start", handler)            // Explicit command
+//	client.On("command:start", handler)        // Full form
+//
+//	// Other events
+//	client.On("callback:data", handler)        // Callback with data pattern
+//	client.On("inline:query", handler)         // Inline query pattern
+//	client.On("edit", handler)                 // Message edits
+//	client.On("delete", handler)               // Message deletions
+//	client.On("album", handler)                // Media albums
+//	client.On("participant", handler)          // Member updates
+//	client.On("joinrequest", handler)          // Join requests
+//
+//	// Raw updates
+//	client.On("raw", handler)                  // All raw updates
+//	client.On("*", handler)                    // Alias for raw
+//	client.On(&UpdateNewMessage{}, handler)   // Specific update type
+//
+//	// Auto-detect from handler signature
+//	client.On(func(m *NewMessage) error {...}) // Detects as message handler
+func (c *Client) On(args ...any) Handle {
+	if len(args) == 0 {
+		c.Log.Error("On: no arguments provided")
+		return nil
+	}
+
+	var pattern any
+	var handler any
+	var filters []Filter
+
+	// Parse arguments based on count and types
+	switch len(args) {
+	case 1:
+		// Single arg must be a handler - auto-detect event type
+		handler = args[0]
+	case 2:
+		// pattern + handler, or handler + filter
+		if _, ok := args[1].(Filter); ok {
+			handler = args[0]
+			filters = append(filters, args[1].(Filter))
 		} else {
-			patternKey = strings.TrimSpace(patternStr)
+			pattern = args[0]
+			handler = args[1]
+		}
+	default:
+		// pattern + handler + filters...
+		pattern = args[0]
+		handler = args[1]
+		for _, f := range args[2:] {
+			if filter, ok := f.(Filter); ok {
+				filters = append(filters, filter)
+			}
 		}
 	}
 
-	switch ev(patternKey) {
-	case OnMessage, OnNewMessage:
+	info := parsePattern(pattern)
+	if info.eventType == "" && handler != nil {
+		handlerType := fmt.Sprintf("%T", handler)
+		if detected, ok := handlerTypes[handlerType]; ok {
+			info.eventType = detected
+		}
+	}
+
+	switch info.eventType {
+	case "message", "newmessage", "msg":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
-			if args != "" {
-				return c.AddMessageHandler(args, h, filters...)
+			if info.pattern != "" {
+				return c.AddMessageHandler(info.pattern, h, filters...)
 			}
 			return c.AddMessageHandler(OnNewMessage, h, filters...)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*NewMessage) error", handler)
 		}
-	case OnCommand, OnCommandShort:
+		c.Log.Error("On(%s): invalid handler type %T, expected func(*NewMessage) error", info.eventType, handler)
+
+	case "command", "cmd":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
-			if args != "" {
-				return c.AddMessageHandler("cmd:"+args, h, filters...)
+			if info.pattern != "" {
+				return c.AddMessageHandler("cmd:"+info.pattern, h, filters...)
 			}
-			return c.AddMessageHandler(OnNewMessage, h, filters...)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*NewMessage) error", handler)
+			c.Log.Error("On(command): pattern required, use 'cmd:name' or '/name'")
+			return nil
 		}
-	case OnAction:
+		c.Log.Error("On(%s): invalid handler type %T, expected func(*NewMessage) error", info.eventType, handler)
+
+	case "action":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
 			return c.AddActionHandler(h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*NewMessage) error", handler)
 		}
-	case OnEdit, OnEditMessage:
+		c.Log.Error("On(action): invalid handler type %T, expected func(*NewMessage) error", handler)
+
+	case "edit", "editmessage":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
-			if args != "" {
-				return c.AddEditHandler(args, h)
+			if info.pattern != "" {
+				return c.AddEditHandler(info.pattern, h, filters...)
 			}
-			return c.AddEditHandler(OnEditMessage, h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*NewMessage) error", handler)
+			return c.AddEditHandler(OnEditMessage, h, filters...)
 		}
-	case OnDelete, OnDeleteMessage:
+		c.Log.Error("On(edit): invalid handler type %T, expected func(*NewMessage) error", handler)
+
+	case "delete", "deletemessage":
 		if h, ok := handler.(func(m *DeleteMessage) error); ok {
-			if args != "" {
-				return c.AddDeleteHandler(args, h)
+			if info.pattern != "" {
+				return c.AddDeleteHandler(info.pattern, h)
 			}
 			return c.AddDeleteHandler(OnDeleteMessage, h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*DeleteMessage) error", handler)
 		}
-	case OnAlbum:
+		c.Log.Error("On(delete): invalid handler type %T, expected func(*DeleteMessage) error", handler)
+
+	case "album":
 		if h, ok := handler.(func(m *Album) error); ok {
 			return c.AddAlbumHandler(h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*Album) error", handler)
 		}
-	case OnInline, OnInlineQuery:
+		c.Log.Error("On(album): invalid handler type %T, expected func(*Album) error", handler)
+
+	case "inline", "inlinequery":
 		if h, ok := handler.(func(m *InlineQuery) error); ok {
-			if args != "" {
-				return c.AddInlineHandler(args, h)
+			if info.pattern != "" {
+				return c.AddInlineHandler(info.pattern, h)
 			}
 			return c.AddInlineHandler(OnInlineQuery, h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*InlineQuery) error", handler)
 		}
-	case OnChosenInline:
+		c.Log.Error("On(inline): invalid handler type %T, expected func(*InlineQuery) error", handler)
+
+	case "choseninline", "inlinesend":
 		if h, ok := handler.(func(m *InlineSend) error); ok {
 			return c.AddInlineSendHandler(h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*InlineSend) error", handler)
 		}
-	case OnCallback, OnCallbackQuery:
+		c.Log.Error("On(choseninline): invalid handler type %T, expected func(*InlineSend) error", handler)
+
+	case "callback", "callbackquery":
 		if h, ok := handler.(func(m *CallbackQuery) error); ok {
-			if args != "" {
-				return c.AddCallbackHandler(args, h)
+			if info.pattern != "" {
+				return c.AddCallbackHandler(info.pattern, h, filters...)
 			}
-			return c.AddCallbackHandler(OnCallbackQuery, h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*CallbackQuery) error", handler)
+			return c.AddCallbackHandler(OnCallbackQuery, h, filters...)
 		}
-	case OnInlineCallback, OnInlineCallbackQuery, "inlineCallback":
+		c.Log.Error("On(callback): invalid handler type %T, expected func(*CallbackQuery) error", handler)
+
+	case "inlinecallback", "inlinecallbackquery":
 		if h, ok := handler.(func(m *InlineCallbackQuery) error); ok {
-			if args != "" {
-				return c.AddInlineCallbackHandler(args, h)
+			if info.pattern != "" {
+				return c.AddInlineCallbackHandler(info.pattern, h)
 			}
 			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*InlineCallbackQuery) error", handler)
 		}
-	case OnParticipant:
+		c.Log.Error("On(inlinecallback): invalid handler type %T, expected func(*InlineCallbackQuery) error", handler)
+
+	case "participant":
 		if h, ok := handler.(func(m *ParticipantUpdate) error); ok {
 			return c.AddParticipantHandler(h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*ParticipantUpdate) error", handler)
 		}
-	case OnJoinRequest:
+		c.Log.Error("On(participant): invalid handler type %T, expected func(*ParticipantUpdate) error", handler)
+
+	case "joinrequest":
 		if h, ok := handler.(func(m *JoinRequestUpdate) error); ok {
 			return c.AddJoinRequestHandler(h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(*JoinRequestUpdate) error", handler)
 		}
-	case OnRaw, "*":
+		c.Log.Error("On(joinrequest): invalid handler type %T, expected func(*JoinRequestUpdate) error", handler)
+
+	case "raw", "*":
 		if h, ok := handler.(func(m Update, c *Client) error); ok {
 			return c.AddRawHandler(nil, h)
-		} else {
-			c.Log.Error("bad handler: got %T, want func(Update, *Client) error", handler)
 		}
+		c.Log.Error("On(raw): invalid handler type %T, expected func(Update, *Client) error", handler)
+
 	default:
 		if update, ok := pattern.(Update); ok {
 			if h, ok := handler.(func(m Update, c *Client) error); ok {
 				return c.AddRawHandler(update, h)
 			}
-		} else {
-			c.Log.Error("bad handler: got %T, want func(Update, *Client) error", handler)
+			c.Log.Error("On(Update): invalid handler type %T, expected func(Update, *Client) error", handler)
+			return nil
+		}
+
+		switch h := handler.(type) {
+		case func(m *NewMessage) error:
+			return c.AddMessageHandler(OnNewMessage, h, filters...)
+		case func(m *DeleteMessage) error:
+			return c.AddDeleteHandler(OnDeleteMessage, h)
+		case func(m *Album) error:
+			return c.AddAlbumHandler(h)
+		case func(m *InlineQuery) error:
+			return c.AddInlineHandler(OnInlineQuery, h)
+		case func(m *InlineSend) error:
+			return c.AddInlineSendHandler(h)
+		case func(m *CallbackQuery) error:
+			return c.AddCallbackHandler(OnCallbackQuery, h, filters...)
+		case func(m *InlineCallbackQuery) error:
+			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, h)
+		case func(m *ParticipantUpdate) error:
+			return c.AddParticipantHandler(h)
+		case func(m *JoinRequestUpdate) error:
+			return c.AddJoinRequestHandler(h)
+		case func(m Update, c *Client) error:
+			return c.AddRawHandler(nil, h)
+		default:
+			c.Log.Error("On: unknown pattern %q or handler type %T", pattern, handler)
 		}
 	}
 
 	return nil
 }
 
-func (c *Client) monitorNoUpdatesTimeout() {
-	ticker := time.NewTicker(15 * time.Minute)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			if time.Since(c.dispatcher.lastUpdateTime) > 15*time.Minute {
-				c.Log.Debug("no updates received for 15 minutes, getting difference...")
-				c.FetchDifference(c.dispatcher.currentPts, 5000)
-			}
-		case <-c.dispatcher.stopChan:
-			return
-		}
+func (c *Client) OnMessage(pattern string, handler func(m *NewMessage) error, filters ...Filter) Handle {
+	if pattern == "" {
+		return c.AddMessageHandler(OnNewMessage, handler, filters...)
 	}
+	return c.AddMessageHandler(pattern, handler, filters...)
 }
 
-func (c *Client) FetchDifferenceOnStartup() error {
-	// need to store last state locally on disconnect and compare on startup
-	return errors.New("TODO: implement FetchDifferenceOnStartup")
+func (c *Client) OnCommand(command string, handler func(m *NewMessage) error, filters ...Filter) Handle {
+	return c.AddMessageHandler("cmd:"+command, handler, filters...)
+}
+
+func (c *Client) OnCallback(pattern string, handler func(m *CallbackQuery) error) Handle {
+	if pattern == "" {
+		return c.AddCallbackHandler(OnCallbackQuery, handler)
+	}
+	return c.AddCallbackHandler(pattern, handler)
+}
+
+func (c *Client) OnInlineQuery(pattern string, handler func(m *InlineQuery) error) Handle {
+	if pattern == "" {
+		return c.AddInlineHandler(OnInlineQuery, handler)
+	}
+	return c.AddInlineHandler(pattern, handler)
+}
+
+func (c *Client) OnEdit(pattern string, handler func(m *NewMessage) error) Handle {
+	if pattern == "" {
+		return c.AddEditHandler(OnEditMessage, handler)
+	}
+	return c.AddEditHandler(pattern, handler)
+}
+
+func (c *Client) OnDelete(handler func(m *DeleteMessage) error) Handle {
+	return c.AddDeleteHandler(OnDeleteMessage, handler)
+}
+
+func (c *Client) OnAlbum(handler func(m *Album) error) Handle {
+	return c.AddAlbumHandler(handler)
+}
+
+func (c *Client) OnParticipant(handler func(m *ParticipantUpdate) error) Handle {
+	return c.AddParticipantHandler(handler)
+}
+
+func (c *Client) OnJoinRequest(handler func(m *JoinRequestUpdate) error) Handle {
+	return c.AddJoinRequestHandler(handler)
+}
+
+func (c *Client) OnRaw(updateType Update, handler func(m Update, c *Client) error) Handle {
+	return c.AddRawHandler(updateType, handler)
 }
