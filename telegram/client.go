@@ -542,7 +542,7 @@ func (es *ExSenders) cleanupIdleSenders() {
 	}
 }
 
-// GetSenders returns a copy of the senders for the given DC (thread-safe)
+// GetSenders returns a copy of the senders for the given DC
 func (es *ExSenders) GetSenders(dcID int) []*ExSender {
 	es.Lock()
 	defer es.Unlock()
@@ -550,13 +550,12 @@ func (es *ExSenders) GetSenders(dcID int) []*ExSender {
 	if senders == nil {
 		return nil
 	}
-	// Return a copy to avoid race conditions
 	result := make([]*ExSender, len(senders))
 	copy(result, senders)
 	return result
 }
 
-// AddSender adds a sender for the given DC (thread-safe)
+// AddSender adds a sender for the given DC
 func (es *ExSenders) AddSender(dcID int, sender *ExSender) {
 	es.Lock()
 	defer es.Unlock()
