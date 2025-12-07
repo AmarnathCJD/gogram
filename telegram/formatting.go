@@ -65,7 +65,6 @@ type htmlToken struct {
 	tagName   string
 	attrs     map[string]string
 	text      string
-	raw       string
 }
 
 func simpleHTMLTokenize(html string) []htmlToken {
@@ -80,7 +79,7 @@ func simpleHTMLTokenize(html string) []htmlToken {
 			}
 
 			if tagEnd >= len(html) {
-				tokens = append(tokens, htmlToken{isTag: false, text: html[i:], raw: html[i:]})
+				tokens = append(tokens, htmlToken{isTag: false, text: html[i:]})
 				break
 			}
 
@@ -112,13 +111,12 @@ func simpleHTMLTokenize(html string) []htmlToken {
 					isClosing: isClosing,
 					tagName:   tagName,
 					attrs:     attrs,
-					raw:       html[i : tagEnd+1],
+					text:      html[i : tagEnd+1],
 				})
 			} else {
 				tokens = append(tokens, htmlToken{
 					isTag: false,
 					text:  html[i : tagEnd+1],
-					raw:   html[i : tagEnd+1],
 				})
 			}
 
@@ -131,7 +129,6 @@ func simpleHTMLTokenize(html string) []htmlToken {
 			tokens = append(tokens, htmlToken{
 				isTag: false,
 				text:  html[textStart:i],
-				raw:   html[textStart:i],
 			})
 		}
 	}
@@ -179,10 +176,10 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 				}
 			}
 			if !matched {
-				textBuf.WriteString(token.raw)
+				textBuf.WriteString(token.text)
 			}
 		} else {
-			textBuf.WriteString(token.raw)
+			textBuf.WriteString(token.text)
 		}
 	}
 
