@@ -31,11 +31,6 @@ const (
 	defaultBaseReconnectDelay   = 2 * time.Second
 	defaultPingInterval         = 30 * time.Second
 	defaultPendingAcksThreshold = 10
-
-	// request timeouts
-	fileReqTimeout     = 3 * time.Minute
-	graceTimeout       = 2 * time.Second
-	channelDrainPeriod = 30 * time.Second
 )
 
 type MTProto struct {
@@ -108,6 +103,8 @@ type MTProto struct {
 	stateMutex            sync.RWMutex
 	lastSuccessfulConnect time.Time
 	rapidReconnectCount   int
+
+	consecutiveTimeouts atomic.Int32
 
 	useWebSocket    bool
 	useWebSocketTLS bool
@@ -738,73 +735,61 @@ func (m *MTProto) startPFSManager(ctx context.Context) {
 	})
 }
 
-func (m *MTProto) getTimeout(data tl.Object) time.Duration {
-	typeName := fmt.Sprintf("%T", data)
-	if strings.Contains(typeName, "Upload") {
-		return fileReqTimeout
-	}
-	return m.reqTimeout
-}
-
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), m.getTimeout(data))
+	ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
 	defer cancel()
 	return m.makeRequestCtx(ctx, data, expectedTypes...)
 }
 
 func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	const maxRetries = 1
-
-	for attempt := range maxRetries + 1 {
-		if err := m.tcpState.WaitForActive(ctx); err != nil {
-			return nil, fmt.Errorf("waiting for active tcp state: %w", err)
-		}
-
-		resp, _, err := m.sendPacket(data, expectedTypes...)
-		if err != nil {
-			if !utils.IsTransportError(err) {
-				return nil, fmt.Errorf("sending packet: %w", err)
-			}
-			m.Logger.WithError(err).Debug("transport error: reconnecting to [%s] - <%s>...", m.Addr, m.GetTransportType())
-			if reconnErr := m.Reconnect(false); reconnErr != nil {
-				return nil, fmt.Errorf("reconnecting: %w", reconnErr)
-			}
-			resp, _, err = m.sendPacket(data, expectedTypes...)
-			if err != nil {
-				return nil, fmt.Errorf("sending packet after reconnect: %w", err)
-			}
-		}
-
-		reqCtx, cancel := context.WithTimeout(ctx, m.getTimeout(data))
-		select {
-		case response := <-resp:
-			cancel()
-			return m.handleRPCResult(data, response, expectedTypes...)
-
-		case <-reqCtx.Done():
-			cancel()
-			// grace period for late responses
-			select {
-			case response := <-resp:
-				return m.handleRPCResult(data, response, expectedTypes...)
-			case <-time.After(graceTimeout):
-				go func() {
-					select {
-					case <-resp:
-					case <-time.After(channelDrainPeriod):
-					}
-				}()
-			}
-
-			if attempt < maxRetries {
-				m.Logger.Trace("request timeout, retrying: %s", utils.FmtMethod(data))
-				continue
-			}
-			return nil, context.DeadlineExceeded
-		}
+	if err := m.tcpState.WaitForActive(ctx); err != nil {
+		return nil, fmt.Errorf("waiting for active tcp state: %w", err)
 	}
 
-	return nil, errors.New("request failed after retries")
+	respChan, msgID, err := m.sendPacket(data, expectedTypes...)
+	if err != nil {
+		if !utils.IsTransportError(err) {
+			return nil, fmt.Errorf("sending packet: %w", err)
+		}
+		m.Logger.WithError(err).Debug("transport error: reconnecting to [%s] - <%s>...", m.Addr, m.GetTransportType())
+		if reconnErr := m.Reconnect(false); reconnErr != nil {
+			return nil, fmt.Errorf("reconnecting: %w", reconnErr)
+		}
+		return m.makeRequestCtx(ctx, data, expectedTypes...)
+	}
+
+	select {
+	case <-ctx.Done():
+		if msgID != 0 {
+			m.responseChannels.Delete(int(msgID))
+			m.expectedTypes.Delete(int(msgID))
+		}
+
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			count := m.consecutiveTimeouts.Add(1)
+			if count >= 5 {
+				m.Logger.Debug("[TIMEOUT DEBUG] 5 consecutive request timeouts detected:")
+				m.Logger.Debug("  - Request: %T", data)
+				m.Logger.Debug("  - TCP Active: %v", m.tcpState.GetActive())
+				m.Logger.Debug("  - Transport: %v", m.transport != nil)
+				m.Logger.Debug("  - Terminated: %v", m.terminated.Load())
+				m.Logger.Debug("  - Addr: %s", m.Addr)
+				m.Logger.Debug("  - Transport Type: %s", m.GetTransportType())
+				m.Logger.Debug("  - Message ID: %d", msgID)
+				if count == 5 {
+					m.consecutiveTimeouts.Store(0)
+				}
+			}
+		} else {
+			m.consecutiveTimeouts.Store(0)
+		}
+
+		return nil, fmt.Errorf("request context done: %w", ctx.Err())
+
+	case resp := <-respChan:
+		m.consecutiveTimeouts.Store(0)
+		return m.handleRPCResult(data, resp, expectedTypes...)
+	}
 }
 
 func (m *MTProto) handleRPCResult(data tl.Object, response tl.Object, expectedTypes ...reflect.Type) (any, error) {
@@ -833,7 +818,7 @@ func (m *MTProto) handleRPCResult(data tl.Object, response tl.Object, expectedTy
 		// handle flood wait errors (code 420)
 		if strings.Contains(rpcError.Message, "FLOOD_WAIT_") || strings.Contains(rpcError.Message, "FLOOD_PREMIUM_WAIT_") {
 			if m.floodHandler(rpcError) {
-				ctx, cancel := context.WithTimeout(context.Background(), m.getTimeout(data))
+				ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
 				defer cancel()
 				return m.makeRequestCtx(ctx, data, expectedTypes...)
 			}
@@ -849,7 +834,7 @@ func (m *MTProto) handleRPCResult(data tl.Object, response tl.Object, expectedTy
 		} else {
 			m.Logger.Debug("session configs changed, resending request")
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), m.getTimeout(data))
+		ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
 		defer cancel()
 		return m.makeRequestCtx(ctx, data, expectedTypes...)
 	}
