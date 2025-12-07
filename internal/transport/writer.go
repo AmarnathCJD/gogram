@@ -103,12 +103,13 @@ func (c *Reader) Read(p []byte) (int, error) {
 		c.mu.Unlock()
 		return 0, ErrClosed
 	}
-	c.mu.Unlock()
 
 	select {
 	case <-c.ctx.Done():
+		c.mu.Unlock()
 		return 0, c.ctx.Err()
 	case c.req <- p:
+		c.mu.Unlock()
 	}
 
 	select {
