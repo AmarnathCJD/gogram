@@ -71,7 +71,7 @@ type InvokeWithTakeoutParams struct {
 }
 
 func (*InvokeWithTakeoutParams) CRC() uint32 {
-	return 0xda9b0d0d
+	return 0xaca9fd2e
 }
 
 func (c *Client) InvokeWithTakeout(takeoutID int, query tl.Object) (tl.Object, error) {
