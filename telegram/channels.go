@@ -796,30 +796,20 @@ func (c *Client) EditTitle(PeerID any, Title string, Opts ...*TitleOptions) (boo
 //	Params:
 //	 - channelID: the channel ID
 //	 - messageID: the message ID
-func (c *Client) GetStats(channelID any, messageID ...any) (*StatsBroadcastStats, *StatsMessageStats, error) {
-	peerID, err := c.ResolvePeer(channelID)
+func (c *Client) GetStats(channel any, messageID ...any) (*StatsBroadcastStats, *StatsMessageStats, error) {
+	peerID, err := c.GetSendableChannel(channel)
 	if err != nil {
 		return nil, nil, err
 	}
-	channelPeer, ok := peerID.(*InputPeerChannel)
-	if !ok {
-		return nil, nil, errors.New("could not convert peer to channel")
-	}
 	var MessageID int32 = getVariadic(messageID, 0).(int32)
 	if MessageID > 0 {
-		resp, err := c.StatsGetMessageStats(true, &InputChannelObj{
-			ChannelID:  channelPeer.ChannelID,
-			AccessHash: channelPeer.AccessHash,
-		}, MessageID)
+		resp, err := c.StatsGetMessageStats(true, peerID, MessageID)
 		if err != nil {
 			return nil, nil, err
 		}
 		return nil, resp, nil
 	}
-	resp, err := c.StatsGetBroadcastStats(true, &InputChannelObj{
-		ChannelID:  channelPeer.ChannelID,
-		AccessHash: channelPeer.AccessHash,
-	})
+	resp, err := c.StatsGetBroadcastStats(true, peerID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -892,21 +882,13 @@ func (c *Client) CreateChannel(title string, opts ...*ChannelOptions) (*Channel,
 	return nil, errors.New("empty reply from server")
 }
 
-func (c *Client) DeleteChannel(channelID any) (*Updates, error) {
-	peer, err := c.ResolvePeer(channelID)
+func (c *Client) DeleteChannel(channel any) (*Updates, error) {
+	peer, err := c.GetSendableChannel(channel)
 	if err != nil {
 		return nil, err
 	}
 
-	channelPeer, ok := peer.(*InputPeerChannel)
-	if !ok {
-		return nil, errors.New("could not convert peer to channel")
-	}
-
-	u, err := c.ChannelsDeleteChannel(&InputChannelObj{
-		ChannelID:  channelPeer.ChannelID,
-		AccessHash: channelPeer.AccessHash,
-	})
+	u, err := c.ChannelsDeleteChannel(peer)
 
 	if err != nil {
 		return nil, err
@@ -1010,8 +992,8 @@ func (c *Client) GetChatJoinRequests(channelID any, lim int, query ...string) ([
 }
 
 // ApproveJoinRequest approves all pending join requests in a chat
-func (c *Client) ApproveAllJoinRequests(channelID any, invite ...string) error {
-	peer, err := c.ResolvePeer(channelID)
+func (c *Client) ApproveAllJoinRequests(channel any, invite ...string) error {
+	peer, err := c.ResolvePeer(channel)
 	if err != nil {
 		return err
 	}
@@ -1022,35 +1004,14 @@ func (c *Client) ApproveAllJoinRequests(channelID any, invite ...string) error {
 
 // TransferChatOwnership transfers the ownership of a chat to another user
 func (c *Client) TransferChatOwnership(chatID any, userID any, password string) error {
-	var inputChannel *InputChannelObj
-	var inputUser *InputUserObj
-
-	peer, err := c.ResolvePeer(chatID)
+	peer, err := c.GetSendableChannel(chatID)
 	if err != nil {
 		return err
 	}
 
-	if channel, ok := peer.(*InputPeerChannel); !ok {
-		return errors.New("chat peer is not a channel")
-	} else {
-		inputChannel = &InputChannelObj{
-			ChannelID:  channel.ChannelID,
-			AccessHash: channel.AccessHash,
-		}
-	}
-
-	user, err := c.ResolvePeer(userID)
+	user, err := c.GetSendableUser(userID)
 	if err != nil {
 		return err
-	}
-
-	if inpUser, ok := user.(*InputPeerUser); !ok {
-		return errors.New("user peer is not a user")
-	} else {
-		inputUser = &InputUserObj{
-			UserID:     inpUser.UserID,
-			AccessHash: inpUser.AccessHash,
-		}
 	}
 
 	accountPassword, err := c.AccountGetPassword()
@@ -1063,6 +1024,29 @@ func (c *Client) TransferChatOwnership(chatID any, userID any, password string) 
 		return err
 	}
 
-	_, err = c.ChannelsEditCreator(inputChannel, inputUser, passwordSrp)
+	_, err = c.ChannelsEditCreator(peer, user, passwordSrp)
 	return err
+}
+
+func (c *Client) GetLinkedChannel(channel any) (*Channel, error) {
+	peer, err := c.GetSendableChannel(channel)
+	if err != nil {
+		return nil, err
+	}
+
+	channelFull, err := c.ChannelsGetFullChannel(peer)
+	if err != nil {
+		return nil, err
+	}
+
+	c.Cache.UpdatePeersToCache(channelFull.Users, channelFull.Chats)
+	switch chFull := channelFull.FullChat.(type) {
+	case *ChannelFull:
+		if chFull.LinkedChatID != 0 {
+			return c.GetChannel(chFull.LinkedChatID)
+		}
+		return nil, errors.New("channel is not linked")
+	default:
+		return nil, errors.New("could not get full channel info")
+	}
 }

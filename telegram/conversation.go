@@ -177,16 +177,16 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 	var filters []Filter
 	switch c.Peer.(type) {
 	case *InputPeerChannel, *InputPeerChat:
-		filters = append(filters, FilterChats(c.Client.GetPeerID(c.Peer)))
+		filters = append(filters, InChat(c.Client.GetPeerID(c.Peer)))
 	case *InputPeerUser, *InputPeerSelf:
-		filters = append(filters, FilterUsers(c.Client.GetPeerID(c.Peer)))
+		filters = append(filters, FromUser(c.Client.GetPeerID(c.Peer)))
 	}
 
 	if c.isPrivate {
 		filters = append(filters, FilterPrivate)
 	}
 
-	h := c.Client.On(OnMessage, waitFunc, filters...)
+	h := c.Client.On(OnMessage, waitFunc, filters)
 	h.SetGroup(-1)
 
 	c.openHandlers = append(c.openHandlers, h)
@@ -218,16 +218,16 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 	var filters []Filter
 	switch c.Peer.(type) {
 	case *InputPeerChannel, *InputPeerChat:
-		filters = append(filters, FilterChats(c.Client.GetPeerID(c.Peer)))
+		filters = append(filters, InChat(c.Client.GetPeerID(c.Peer)))
 	case *InputPeerUser, *InputPeerSelf:
-		filters = append(filters, FilterUsers(c.Client.GetPeerID(c.Peer)))
+		filters = append(filters, FromUser(c.Client.GetPeerID(c.Peer)))
 	}
 
 	if c.isPrivate {
 		filters = append(filters, FilterPrivate)
 	}
 
-	h := c.Client.On(OnEdit, waitFunc, filters...)
+	h := c.Client.On(OnEdit, waitFunc, filters)
 	h.SetGroup(-1)
 	c.openHandlers = append(c.openHandlers, h)
 	select {
@@ -258,9 +258,9 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 	var filters []Filter
 	switch c.Peer.(type) {
 	case *InputPeerChannel, *InputPeerChat:
-		filters = append(filters, FilterChats(c.Client.GetPeerID(c.Peer)))
+		filters = append(filters, InChat(c.Client.GetPeerID(c.Peer)))
 	case *InputPeerUser, *InputPeerSelf:
-		filters = append(filters, FilterUsers(c.Client.GetPeerID(c.Peer)))
+		filters = append(filters, FromUser(c.Client.GetPeerID(c.Peer)))
 	}
 
 	if c.isPrivate {
@@ -269,7 +269,7 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 
 	filters = append(filters, FilterReply)
 
-	h := c.Client.On(OnMessage, waitFunc, filters...)
+	h := c.Client.On(OnMessage, waitFunc, filters)
 	h.SetGroup(-1)
 	c.openHandlers = append(c.openHandlers, h)
 	select {
@@ -304,7 +304,7 @@ func (c *Conversation) WaitClick() (*CallbackQuery, error) {
 		return nil
 	}
 
-	h := c.Client.On(OnCallbackQuery, waitFunc, FilterFuncCallback(func(b *CallbackQuery) bool {
+	h := c.Client.On(OnCallbackQuery, waitFunc, CustomCallback(func(b *CallbackQuery) bool {
 		return c.Client.PeerEquals(b.Peer, c.Peer)
 	}))
 	c.openHandlers = append(c.openHandlers, h)
@@ -480,7 +480,7 @@ func (c *Conversation) getResponseWithFilter(check func(*NewMessage) bool) (*New
 	}
 
 	filters := c.buildFilters()
-	h := c.Client.On(OnMessage, waitFunc, filters...)
+	h := c.Client.On(OnMessage, waitFunc, filters)
 	h.SetGroup(-1)
 	c.openHandlers = append(c.openHandlers, h)
 
@@ -727,9 +727,9 @@ func (c *Conversation) buildFilters() []Filter {
 	var filters []Filter
 	switch c.Peer.(type) {
 	case *InputPeerChannel, *InputPeerChat:
-		filters = append(filters, FilterChats(c.Client.GetPeerID(c.Peer)))
+		filters = append(filters, InChat(c.Client.GetPeerID(c.Peer)))
 	case *InputPeerUser, *InputPeerSelf:
-		filters = append(filters, FilterUsers(c.Client.GetPeerID(c.Peer)))
+		filters = append(filters, FromUser(c.Client.GetPeerID(c.Peer)))
 	}
 	if c.isPrivate {
 		filters = append(filters, FilterPrivate)

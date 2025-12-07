@@ -62,6 +62,10 @@ func GenRandInt() int64 {
 	return int64(int32(binary.BigEndian.Uint32(b)))
 }
 
+func (c *Client) ResolveMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
+	return c.getMultiMedia(m, attrs)
+}
+
 func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
 	var signatures = make([]string, 0)
 
@@ -421,6 +425,18 @@ PeerSwitch:
 		default:
 			return nil, fmt.Errorf("unknown peer type %s", reflect.TypeOf(peerEntity).String())
 		}
+	case *UserFull:
+		if peerEntity, err := c.GetPeerUser(Peer.ID); err == nil {
+			return &InputPeerUser{UserID: peerEntity.UserID, AccessHash: peerEntity.AccessHash}, nil
+		}
+		return nil, fmt.Errorf("failed to get sendable peer for UserFull, cannot find user in cache")
+	case *ChatFullObj:
+		return &InputPeerChat{ChatID: Peer.ID}, nil
+	case *ChannelFull:
+		if peerEntity, err := c.GetPeerChannel(Peer.ID); err == nil {
+			return &InputPeerChannel{ChannelID: peerEntity.ChannelID, AccessHash: peerEntity.AccessHash}, nil
+		}
+		return nil, fmt.Errorf("failed to get sendable peer for ChannelFull, cannot find channel in cache")
 	case *ChannelForbidden:
 		return &InputPeerChannel{ChannelID: Peer.ID, AccessHash: Peer.AccessHash}, nil
 	case *ChatForbidden:
@@ -502,6 +518,28 @@ func (c *Client) GetPeerID(Peer any) int64 {
 		return Peer.UserID
 	case *InputChannelObj:
 		return Peer.ChannelID
+	case *InputUserFromMessage:
+		return Peer.UserID
+	case *InputChannelFromMessage:
+		return Peer.ChannelID
+	case int64, int32, int:
+		return getAnyInt(Peer)
+	case string:
+		peer, err := c.ResolvePeer(Peer)
+		if err != nil {
+			return 0
+		}
+		return c.GetPeerID(peer)
+	case *InputPeerUserFromMessage:
+		return Peer.UserID
+	case *InputPeerChannelFromMessage:
+		return Peer.ChannelID
+	case *UserFull:
+		return Peer.ID
+	case *ChatFullObj:
+		return Peer.ID
+	case *ChannelFull:
+		return Peer.ID
 	default:
 		return 0
 	}
@@ -522,6 +560,10 @@ func getAnyInt(v any) int64 {
 	default:
 		return 0
 	}
+}
+
+func (c *Client) ResolveMedia(mediaFile any, attr *MediaMetadata) (InputMedia, error) {
+	return c.getSendableMedia(mediaFile, attr)
 }
 
 func (c *Client) GetSendableMedia(mediaFile any, attr *MediaMetadata) (InputMedia, error) {
@@ -625,6 +667,33 @@ mediaTypeSwitch:
 			return &InputMediaDice{Emoticon: media.Emoticon}, nil
 		case *MessageMediaPoll:
 			return convertPoll(media), nil
+		case *MessageMediaVenue:
+			return &InputMediaVenue{GeoPoint: &InputGeoPointObj{Lat: media.Geo.(*GeoPointObj).Lat, Long: media.Geo.(*GeoPointObj).Long}, Title: media.Title, Address: media.Address, Provider: media.Provider, VenueID: media.VenueID, VenueType: media.VenueType}, nil
+		case *MessageMediaWebPage:
+			switch media.Webpage.(type) {
+			case *WebPageObj:
+				return &InputMediaWebPage{URL: media.Webpage.(*WebPageObj).URL, ForceLargeMedia: media.ForceLargeMedia, ForceSmallMedia: media.ForceSmallMedia}, nil
+			case *WebPageEmpty:
+				return &InputMediaWebPage{URL: "", ForceLargeMedia: media.ForceLargeMedia, ForceSmallMedia: media.ForceSmallMedia}, nil
+			}
+		case *MessageMediaToDo:
+			return &InputMediaTodo{Todo: media.Todo}, nil
+		case *MessageMediaStory:
+			inputPeer, err := c.ResolvePeer(media.Peer)
+			if err != nil {
+				return nil, err
+			}
+			return &InputMediaStory{Peer: inputPeer, ID: media.ID}, nil
+		case *MessageMediaPaidMedia:
+			var medias []InputMedia
+			for _, m := range media.ExtendedMedia {
+				mediaObj, err := c.getSendableMedia(m, attr)
+				if err != nil {
+					return nil, err
+				}
+				medias = append(medias, mediaObj)
+			}
+			return &InputMediaPaidMedia{StarsAmount: media.StarsAmount, ExtendedMedia: medias}, nil
 		case *MessageMediaUnsupported:
 			return nil, fmt.Errorf("unsupported media type, maybe update the library to support it")
 		default:
@@ -1187,6 +1256,8 @@ func (c *Client) ResolveUsername(username string, ref ...string) (any, error) {
 		switch User := resp.Users[0].(type) {
 		case *UserObj:
 			return User, nil
+		case *UserEmpty:
+			return User, nil
 		default:
 			return nil, fmt.Errorf("got wrong response: %s", reflect.TypeOf(resp).String())
 		}
@@ -1628,10 +1699,10 @@ func (s *Session) Decode(sessionString string) error {
 		return err
 	}
 
-	s.Key = sess.AuthKey()
-	s.Hash = sess.AuthKeyHash()
-	s.Hostname = sess.IpAddr()
-	s.AppID = sess.AppID()
+	s.Key = sess.AuthKey
+	s.Hash = sess.AuthKeyHash
+	s.Hostname = sess.IpAddr
+	s.AppID = sess.AppID
 	return nil
 }
 

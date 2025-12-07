@@ -11,6 +11,17 @@ import (
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
 )
 
+var explicitFields = map[string]bool{
+	"volume":              true,
+	"video_stopped":       true,
+	"video_paused":        true,
+	"muted":               true,
+	"raise_hand":          true,
+	"start":               true,
+	"video":               true,
+	"presentation_paused": true,
+}
+
 func (g *Generator) generateSpecificStructs(f *jen.File, d bool) {
 	sort.Slice(g.schema.SingleInterfaceTypes, func(i, j int) bool {
 		return g.schema.SingleInterfaceTypes[i].Name < g.schema.SingleInterfaceTypes[j].Name
@@ -134,6 +145,13 @@ func (g *Generator) generateStructParameter(param *tlparser.Parameter) *jen.Stat
 
 	if param.Type == "true" {
 		tag += ",encoded_in_bitflags"
+	} else if param.IsOptional && explicitFields[param.Name] {
+		// Add explicit tag for types where zero value is valid
+		// This includes int, long, double, Bool, string
+		switch param.Type {
+		case "int", "long", "double", "Bool", "string":
+			tag += ",explicit"
+		}
 	}
 
 	f = f.Add(g.typeIdFromSchemaType(param.Type))

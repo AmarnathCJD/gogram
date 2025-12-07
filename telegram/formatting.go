@@ -65,6 +65,7 @@ type htmlToken struct {
 	tagName   string
 	attrs     map[string]string
 	text      string
+	raw       string
 }
 
 func simpleHTMLTokenize(html string) []htmlToken {
@@ -79,7 +80,7 @@ func simpleHTMLTokenize(html string) []htmlToken {
 			}
 
 			if tagEnd >= len(html) {
-				tokens = append(tokens, htmlToken{isTag: false, text: html[i:]})
+				tokens = append(tokens, htmlToken{isTag: false, text: html[i:], raw: html[i:]})
 				break
 			}
 
@@ -111,6 +112,13 @@ func simpleHTMLTokenize(html string) []htmlToken {
 					isClosing: isClosing,
 					tagName:   tagName,
 					attrs:     attrs,
+					raw:       html[i : tagEnd+1],
+				})
+			} else {
+				tokens = append(tokens, htmlToken{
+					isTag: false,
+					text:  html[i : tagEnd+1],
+					raw:   html[i : tagEnd+1],
 				})
 			}
 
@@ -123,6 +131,7 @@ func simpleHTMLTokenize(html string) []htmlToken {
 			tokens = append(tokens, htmlToken{
 				isTag: false,
 				text:  html[textStart:i],
+				raw:   html[textStart:i],
 			})
 		}
 	}
@@ -159,14 +168,21 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 			}{tag: tag, tagIdx: tagIdx})
 
 		} else if token.isClosing {
+			matched := false
 			for i := len(openTags) - 1; i >= 0; i-- {
 				if openTags[i].tag.Type == token.tagName {
 					currentOffset := utf16RuneCountInString(textBuf.String())
 					tagOffsets[openTags[i].tagIdx].Length = currentOffset - openTags[i].tag.Offset
 					openTags = append(openTags[:i], openTags[i+1:]...)
+					matched = true
 					break
 				}
 			}
+			if !matched {
+				textBuf.WriteString(token.raw)
+			}
+		} else {
+			textBuf.WriteString(token.raw)
 		}
 	}
 

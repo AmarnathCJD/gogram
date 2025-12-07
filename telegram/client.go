@@ -548,6 +548,28 @@ func (es *ExSenders) Close() {
 	})
 }
 
+// GetSenders returns a copy of senders for the given DC
+func (es *ExSenders) GetSenders(dcID int) []*ExSender {
+	es.Lock()
+	defer es.Unlock()
+
+	if senders, ok := es.senders[dcID]; ok {
+		copy := make([]*ExSender, len(senders))
+		for i, s := range senders {
+			copy[i] = s
+		}
+		return copy
+	}
+	return nil
+}
+
+// AddSender adds a sender to the given DC
+func (es *ExSenders) AddSender(dcID int, sender *ExSender) {
+	es.Lock()
+	defer es.Unlock()
+	es.senders[dcID] = append(es.senders[dcID], sender)
+}
+
 // CreateExportedSender creates a new exported sender for the given DC
 func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
 	if dcID <= 0 {
@@ -791,14 +813,16 @@ func (c *Client) Terminate() error {
 
 // Idle blocks the current goroutine until the client is stopped/terminated
 func (c *Client) Idle() {
-	c.wg.Add(1)
-	go func() {
-		sigchan := make(chan os.Signal, 1)
-		signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM)
-		<-sigchan
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case <-sigchan:
 		c.Stop()
-	}()
-	go func() { defer c.wg.Done(); <-c.stopCh; c.exSenders.Close() }()
+	case <-c.stopCh:
+		c.exSenders.Close()
+	}
+
 	c.wg.Wait()
 }
 
