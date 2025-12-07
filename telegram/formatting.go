@@ -199,10 +199,7 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 	for _, tag := range tagOffsets {
 		newOffset := max(tag.Offset-leadingTrimmed, 0)
 
-		endPos := tag.Offset + tag.Length - leadingTrimmed
-		if endPos > cleanedTextLen {
-			endPos = cleanedTextLen
-		}
+		endPos := min(tag.Offset+tag.Length-leadingTrimmed, cleanedTextLen)
 
 		newLength := endPos - newOffset
 		if newLength > 0 {
@@ -250,21 +247,6 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 			switch {
 			case tag.Attrs["href"] != "" && strings.HasPrefix(tag.Attrs["href"], "mailto:"):
 				entities = append(entities, &MessageEntityEmail{tag.Offset, tag.Length})
-			case tag.Attrs["href"] != "" && strings.HasPrefix(tag.Attrs["href"], "tg://user"):
-				u, err := url.Parse(tag.Attrs["href"])
-				if err == nil {
-					id := u.Query().Get("id")
-					if id != "" {
-						userID, err := strconv.ParseInt(id, 10, 64)
-						if err == nil {
-							entities = append(entities, &InputMessageEntityMentionName{
-								Offset: tag.Offset,
-								Length: tag.Length,
-								UserID: &InputUserObj{UserID: userID, AccessHash: 0},
-							})
-						}
-					}
-				}
 			case tag.Attrs["href"] != "" && strings.HasPrefix(tag.Attrs["href"], "tg://emoji"):
 				u, err := url.Parse(tag.Attrs["href"])
 				if err == nil {
