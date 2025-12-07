@@ -892,7 +892,6 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 		}
 	}
 
-	// First, add any existing senders synchronously to ensure at least some workers are ready
 	numCreate := 0
 	existingSenders := c.exSenders.GetSenders(int(dc))
 	for _, worker := range existingSenders {
@@ -900,7 +899,7 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 		numCreate++
 	}
 
-	// If we have no existing senders, create at least one synchronously to avoid deadlock
+	// set first worker synchronously
 	if numCreate == 0 {
 		conn, err := c.CreateExportedSender(int(dc), false, authParams)
 		if err != nil {
@@ -914,7 +913,6 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 		}
 	}
 
-	// Create remaining workers asynchronously
 	if numCreate < numWorkers {
 		c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers-numCreate))
 		go func() {
