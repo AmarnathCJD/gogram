@@ -634,7 +634,7 @@ func (m *mtproxyConn) Read(b []byte) (int, error) {
 	return n, nil
 }
 
-func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant uint8, localAddr string, logger *utils.Logger) (Conn, error) {
+func DialMTProxy(ctx context.Context, proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant uint8, localAddr string, logger *utils.Logger) (Conn, error) {
 	secret := proxy.Secret
 	if secret == "" {
 		return nil, errors.New("mtproxy secret is required")
@@ -717,7 +717,7 @@ func DialMTProxy(proxy *utils.Proxy, targetAddr string, dcID int16, modeVariant 
 	// - Protocol tag (embedded in handshake)
 
 	return &mtproxyConn{
-		reader: NewReader(context.TODO(), obfConn),
+		reader: NewReader(ctx, obfConn),
 		conn:   obfConn,
 	}, nil
 }

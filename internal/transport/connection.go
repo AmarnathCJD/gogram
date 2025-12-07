@@ -107,7 +107,7 @@ func newMTProxyTCP(cfg TCPConnConfig) (Conn, bool, error) {
 		dcID = 2
 	}
 
-	conn, err := DialMTProxy(cfg.Socks, cfg.Host, dcID, cfg.ModeVariant, cfg.LocalAddr, cfg.Logger)
+	conn, err := DialMTProxy(cfg.Ctx, cfg.Socks, cfg.Host, dcID, cfg.ModeVariant, cfg.LocalAddr, cfg.Logger)
 	if err != nil {
 		return nil, false, fmt.Errorf("establishing mtproxy connection: %w", err)
 	}

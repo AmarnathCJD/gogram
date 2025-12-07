@@ -65,7 +65,6 @@ type htmlToken struct {
 	tagName   string
 	attrs     map[string]string
 	text      string
-	raw       string
 }
 
 func simpleHTMLTokenize(html string) []htmlToken {
@@ -80,7 +79,7 @@ func simpleHTMLTokenize(html string) []htmlToken {
 			}
 
 			if tagEnd >= len(html) {
-				tokens = append(tokens, htmlToken{isTag: false, text: html[i:], raw: html[i:]})
+				tokens = append(tokens, htmlToken{isTag: false, text: html[i:]})
 				break
 			}
 
@@ -112,13 +111,12 @@ func simpleHTMLTokenize(html string) []htmlToken {
 					isClosing: isClosing,
 					tagName:   tagName,
 					attrs:     attrs,
-					raw:       html[i : tagEnd+1],
+					text:      html[i : tagEnd+1],
 				})
 			} else {
 				tokens = append(tokens, htmlToken{
 					isTag: false,
 					text:  html[i : tagEnd+1],
-					raw:   html[i : tagEnd+1],
 				})
 			}
 
@@ -131,7 +129,6 @@ func simpleHTMLTokenize(html string) []htmlToken {
 			tokens = append(tokens, htmlToken{
 				isTag: false,
 				text:  html[textStart:i],
-				raw:   html[textStart:i],
 			})
 		}
 	}
@@ -179,10 +176,10 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 				}
 			}
 			if !matched {
-				textBuf.WriteString(token.raw)
+				textBuf.WriteString(token.text)
 			}
 		} else {
-			textBuf.WriteString(token.raw)
+			textBuf.WriteString(token.text)
 		}
 	}
 
@@ -202,10 +199,7 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 	for _, tag := range tagOffsets {
 		newOffset := max(tag.Offset-leadingTrimmed, 0)
 
-		endPos := tag.Offset + tag.Length - leadingTrimmed
-		if endPos > cleanedTextLen {
-			endPos = cleanedTextLen
-		}
+		endPos := min(tag.Offset+tag.Length-leadingTrimmed, cleanedTextLen)
 
 		newLength := endPos - newOffset
 		if newLength > 0 {
@@ -253,21 +247,6 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 			switch {
 			case tag.Attrs["href"] != "" && strings.HasPrefix(tag.Attrs["href"], "mailto:"):
 				entities = append(entities, &MessageEntityEmail{tag.Offset, tag.Length})
-			case tag.Attrs["href"] != "" && strings.HasPrefix(tag.Attrs["href"], "tg://user"):
-				u, err := url.Parse(tag.Attrs["href"])
-				if err == nil {
-					id := u.Query().Get("id")
-					if id != "" {
-						userID, err := strconv.ParseInt(id, 10, 64)
-						if err == nil {
-							entities = append(entities, &InputMessageEntityMentionName{
-								Offset: tag.Offset,
-								Length: tag.Length,
-								UserID: &InputUserObj{UserID: userID, AccessHash: 0},
-							})
-						}
-					}
-				}
 			case tag.Attrs["href"] != "" && strings.HasPrefix(tag.Attrs["href"], "tg://emoji"):
 				u, err := url.Parse(tag.Attrs["href"])
 				if err == nil {

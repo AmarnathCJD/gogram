@@ -489,6 +489,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 	}
 
 	if err := sender.CreateConnection(false); err != nil {
+		sender.Terminate()
 		return nil, fmt.Errorf("creating connection: %w", err)
 	}
 
