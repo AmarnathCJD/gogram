@@ -320,9 +320,15 @@ func (s *RTMPStream) SetFullURL(fullURL string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var url, key string
-	_, err := fmt.Sscanf(fullURL, "%s/%s", &url, &key)
-	if err != nil {
-		return fmt.Errorf("invalid full URL format: %w", err)
+	// rtmps://dc5...../s/key
+	if parts := bytes.SplitN([]byte(fullURL), []byte("/s/"), 2); len(parts) == 2 {
+		url = string(parts[0]) + "/s/"
+		key = string(parts[1])
+	} else if parts := bytes.SplitN([]byte(fullURL), []byte("/"), 4); len(parts) == 4 {
+		url = string(parts[0]) + "//" + string(parts[1]) + "/" + string(parts[2]) + "/"
+		key = string(parts[3])
+	} else {
+		return fmt.Errorf("invalid RTMP URL format")
 	}
 	s.rtmpURL = url
 	s.rtmpKey = key
