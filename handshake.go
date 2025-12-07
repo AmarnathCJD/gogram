@@ -266,6 +266,7 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 	if err != nil {
 		return fmt.Errorf("createTempAuthKey: creating temp MTProto: %w", err)
 	}
+	defer tmp.Terminate() // Ensure cleanup in all cases
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -289,7 +290,6 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 	m.tempAuthExpiresAt = tmp.tempAuthExpiresAt
 	m.serverSalt.Store(tmp.serverSalt.Load())
 
-	tmp.Terminate()
 	m.Logger.Debug("temporary auth key created successfully")
 	return nil
 }

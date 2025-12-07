@@ -542,32 +542,41 @@ func (es *ExSenders) cleanupIdleSenders() {
 	}
 }
 
-func (es *ExSenders) Close() {
-	es.closeOnce.Do(func() {
-		close(es.cleanupDone)
-	})
-}
-
-// GetSenders returns a copy of senders for the given DC
+// GetSenders returns a copy of the senders for the given DC
 func (es *ExSenders) GetSenders(dcID int) []*ExSender {
 	es.Lock()
 	defer es.Unlock()
-
-	if senders, ok := es.senders[dcID]; ok {
-		copy := make([]*ExSender, len(senders))
-		for i, s := range senders {
-			copy[i] = s
-		}
-		return copy
+	senders := es.senders[dcID]
+	if senders == nil {
+		return nil
 	}
-	return nil
+	result := make([]*ExSender, len(senders))
+	copy(result, senders)
+	return result
 }
 
-// AddSender adds a sender to the given DC
+// AddSender adds a sender for the given DC
 func (es *ExSenders) AddSender(dcID int, sender *ExSender) {
 	es.Lock()
 	defer es.Unlock()
 	es.senders[dcID] = append(es.senders[dcID], sender)
+}
+
+func (es *ExSenders) Close() {
+	es.closeOnce.Do(func() {
+		close(es.cleanupDone)
+
+		es.Lock()
+		defer es.Unlock()
+		for _, senders := range es.senders {
+			for _, sender := range senders {
+				if sender != nil {
+					sender.Terminate()
+				}
+			}
+		}
+		es.senders = make(map[int][]*ExSender)
+	})
 }
 
 // CreateExportedSender creates a new exported sender for the given DC
@@ -580,29 +589,33 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 
 	var authParam = getVariadic(authParams, &AuthExportedAuthorization{})
 
-	for retry := 0; retry <= retryLimit; retry++ {
-		c.Log.Debug("creating exported sender for dc %d", dcID)
-		if cdn {
-			if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
-				cdnKeysResp, err := c.HelpGetCdnConfig()
-				if err != nil {
-					return nil, fmt.Errorf("getting cdn config: %w", err)
-				}
+	c.Log.Debug("creating exported sender for dc %d", dcID)
+	if cdn {
+		if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
+			cdnKeysResp, err := c.HelpGetCdnConfig()
+			if err != nil {
+				return nil, fmt.Errorf("getting cdn config: %w", err)
+			}
 
-				var cdnKeys = make(map[int32]*rsa.PublicKey)
-				for _, key := range cdnKeysResp.PublicKeys {
-					cdnKeys[key.DcID], _ = keys.ParsePublicKey(key.PublicKey)
-				}
+			var cdnKeys = make(map[int32]*rsa.PublicKey)
+			for _, key := range cdnKeysResp.PublicKeys {
+				cdnKeys[key.DcID], _ = keys.ParsePublicKey(key.PublicKey)
 			}
 		}
+	}
 
-		exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
-		if err != nil {
-			lastError = fmt.Errorf("exporting new sender: %w", err)
-			c.Log.Error("error exporting new sender: %s", lastError.Error())
-			continue
+	exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
+	if err != nil {
+		return nil, fmt.Errorf("exporting new sender: %w", err)
+	}
+
+	defer func() {
+		if lastError != nil && exported != nil {
+			exported.Terminate()
 		}
+	}()
 
+	for retry := 0; retry <= retryLimit; retry++ {
 		initialReq := &InitConnectionParams{
 			ApiID:          c.clientData.appID,
 			DeviceModel:    c.clientData.deviceModel,
@@ -669,10 +682,23 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 			continue
 		}
 
+		lastError = nil
 		return exported, nil
 	}
 
 	return nil, lastError
+}
+
+func (c *Client) GetExportedSendersStatus() map[int]int {
+	status := make(map[int]int)
+	if c.exSenders != nil {
+		c.exSenders.Lock()
+		defer c.exSenders.Unlock()
+		for dcID, senders := range c.exSenders.senders {
+			status[dcID] = len(senders)
+		}
+	}
+	return status
 }
 
 // setLogLevel sets the log level for all loggers
