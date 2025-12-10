@@ -111,16 +111,13 @@ func (wp *WorkerPool) FreeWorker(s *ExSender) {
 func (wp *WorkerPool) Close() {
 	wp.Lock()
 	defer wp.Unlock()
+	close(wp.free)
 
-	// Drain the free channel
-	for {
-		select {
-		case <-wp.free:
-		default:
-			wp.workers = nil
-			return
-		}
+	for range wp.free {
+		// Just drain
 	}
+
+	wp.workers = nil
 }
 
 type Source struct {
@@ -333,9 +330,32 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 	var hash hash.Hash
 	var hashMu sync.Mutex
-	var hashParts = make(map[int][]byte)
+	var nextHashPart atomic.Int32
+	var hashPending = make(map[int][]byte)
 	if !isBigFile {
 		hash = md5.New()
+	}
+
+	writeToHash := func(partNum int, data []byte) {
+		if isBigFile || hash == nil {
+			return
+		}
+
+		hashMu.Lock()
+		defer hashMu.Unlock()
+		hashPending[partNum] = data
+
+		next := int(nextHashPart.Load())
+		for {
+			if partData, ok := hashPending[next]; ok {
+				hash.Write(partData)
+				delete(hashPending, next)
+				next++
+				nextHashPart.Store(int32(next))
+			} else {
+				break
+			}
+		}
 	}
 
 	uploadPart := func(partNum int, retryCount int) bool {
@@ -413,11 +433,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 			return false
 		}
 
-		if !isBigFile {
-			hashMu.Lock()
-			hashParts[partNum] = data
-			hashMu.Unlock()
-		}
+		writeToHash(partNum, data)
 
 		doneBytes.Add(int64(len(data)))
 		completedParts[partNum].Store(true)
@@ -427,21 +443,15 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 	var wg sync.WaitGroup
 
-	// Use work-stealing approach: launch all workers at once
-	// Each worker will keep taking work until all parts are done
 	partQueue := make(chan int, totalParts)
 
-	// Fill the part queue
 	for p := 0; p < totalParts; p++ {
 		partQueue <- p
 	}
 	close(partQueue)
 
-	// Start all workers
 	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for partNum := range partQueue {
 				if uploadCtx.Err() != nil || globalErr.Load() != nil {
 					return
@@ -454,7 +464,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					return uploadCtx.Err() != nil || globalErr.Load() != nil
 				})
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -463,7 +473,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		return nil, err.(error)
 	}
 
-	for round := 0; round < 3; round++ {
+	for round := range 3 {
 		var failedParts []int
 		for p := 0; p < totalParts; p++ {
 			if !completedParts[p].Load() {
@@ -480,14 +490,12 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 			"failed_parts": len(failedParts),
 		}).Debug("retrying failed parts")
 
-		// Use work-stealing for retries too
 		retryQueue := make(chan int, len(failedParts))
 		for _, p := range failedParts {
 			retryQueue <- p
 		}
 		close(retryQueue)
 
-		// Start workers for retries
 		for i := 0; i < numWorkers && i < len(failedParts); i++ {
 			wg.Add(1)
 			go func(retryRound int) {
@@ -556,10 +564,6 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		}, nil
 	}
 
-	for p := 0; p < totalParts; p++ {
-		hash.Write(hashParts[p])
-	}
-
 	return &InputFileObj{
 		ID:          fileId,
 		Md5Checksum: hex.EncodeToString(hash.Sum(nil)),
@@ -612,6 +616,13 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 	if progressCallback != nil {
 		progressTracker = newProgressTracker(fileName, size, progressCallback, opts.ProgressInterval)
 		defer progressTracker.stop()
+		// Mark start of operation
+		progressCallback(&ProgressInfo{
+			FileName:   fileName,
+			TotalSize:  size,
+			Current:    0,
+			Percentage: 0,
+		})
 		progressTracker.start(&doneBytes)
 	}
 
@@ -1021,21 +1032,15 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 	var wg sync.WaitGroup
 
-	// Use work-stealing approach: launch all workers at once
-	// Each worker will keep taking work until all parts are done
 	partQueue := make(chan int, totalParts)
 
-	// Fill the part queue
 	for p := 0; p < totalParts; p++ {
 		partQueue <- p
 	}
 	close(partQueue)
 
-	// Start all workers
 	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for partNum := range partQueue {
 				if downloadCtx.Err() != nil || globalErr.Load() != nil || cdnRedirect.Load() {
 					return
@@ -1048,7 +1053,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					return downloadCtx.Err() != nil || globalErr.Load() != nil || cdnRedirect.Load()
 				})
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -1062,7 +1067,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 
 	const maxRetryRounds = 3
-	for round := 0; round < maxRetryRounds; round++ {
+	for round := range maxRetryRounds {
 		var failedParts []int
 		for p := 0; p < totalParts; p++ {
 			if !completedParts[p].Load() {
@@ -1079,14 +1084,12 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 			"failed_parts": len(failedParts),
 		}).Debug("retrying failed parts")
 
-		// Use work-stealing for retries too
 		retryQueue := make(chan int, len(failedParts))
 		for _, p := range failedParts {
 			retryQueue <- p
 		}
 		close(retryQueue)
 
-		// Start workers for retries
 		for i := 0; i < numWorkers && i < len(failedParts); i++ {
 			wg.Add(1)
 			go func(retryRound int) {
@@ -1142,7 +1145,9 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 
 	if opts.Buffer != nil {
-		io.Copy(opts.Buffer, bytes.NewReader(fs.data))
+		if _, err := io.Copy(opts.Buffer, bytes.NewReader(fs.data)); err != nil {
+			return "", fmt.Errorf("failed to copy to buffer: %w", err)
+		}
 	}
 
 	c.Log.WithFields(map[string]any{
@@ -1241,12 +1246,18 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 	}
 
 	w := NewWorkerPool(1)
+	defer w.Close()
+
 	if err := initializeWorkers(1, int32(dc), c, w); err != nil {
 		return nil, "", err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	if !w.WaitReady(ctx) {
+		return nil, "", errors.New("failed to initialize worker: timeout")
+	}
 
 	sender := w.NextWithContext(ctx)
 	if sender == nil {
@@ -1331,7 +1342,7 @@ func (a *partLogAggregator) recordSuccess(part int, sender *ExSender) {
 		a.senderStats[sender].successes++
 		a.senderStats[sender].lastSeen = time.Now()
 	}
-	a.maybeLogLocked(sender)
+	a.maybeLogLocked()
 	a.mu.Unlock()
 }
 
@@ -1347,18 +1358,18 @@ func (a *partLogAggregator) recordFailure(part int, err error, sender *ExSender)
 		a.senderStats[sender].failures++
 		a.senderStats[sender].lastSeen = time.Now()
 	}
-	a.maybeLogLocked(sender)
+	a.maybeLogLocked()
 	a.mu.Unlock()
 }
 
-func (a *partLogAggregator) maybeLogLocked(sender *ExSender) {
+func (a *partLogAggregator) maybeLogLocked() {
 	if time.Since(a.lastLog) < a.interval {
 		return
 	}
-	a.logLocked(sender)
+	a.logLocked()
 }
 
-func (a *partLogAggregator) logLocked(senderVar ...*ExSender) {
+func (a *partLogAggregator) logLocked() {
 	if a.successes == 0 && a.failures == 0 {
 		return
 	}
@@ -1661,13 +1672,12 @@ func MediaDownloadProgress(editMsg *NewMessage, inline ...*InputBotInlineMessage
 		message := fmt.Sprintf(
 			"<b>Name:</b> <code>%s</code>\n\n"+
 				"<b>Size:</b> <code>%.2f MiB</code>\n"+
-				"<b>Speed:</b> <code>%s</code> (avg: <code>%s</code>)\n"+
+				"<b>Speed:</b> <code>%s</code>\n"+
 				"<b>ETA:</b> <code>%s</code> | <b>Elapsed:</b> <code>%s</code>\n\n"+
 				"%s <code>%.2f%%</code>",
 			info.FileName,
 			float64(info.TotalSize)/1024/1024,
 			info.SpeedString(),
-			info.AvgSpeedString(),
 			info.ETAString(),
 			info.ElapsedString(),
 			progressbar,
