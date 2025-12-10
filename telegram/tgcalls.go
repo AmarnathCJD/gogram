@@ -319,17 +319,32 @@ func (s *RTMPStream) SetKey(key string) {
 func (s *RTMPStream) SetFullURL(fullURL string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if fullURL == "" {
+		return fmt.Errorf("RTMP URL cannot be empty")
+	}
+
+	if !bytes.Contains([]byte(fullURL), []byte("rtmp://")) && !bytes.Contains([]byte(fullURL), []byte("rtmps://")) {
+		return fmt.Errorf("invalid RTMP URL: must start with rtmp:// or rtmps://")
+	}
+
 	var url, key string
-	// rtmps://dc5...../s/key
+
+	// Try /s/ separator first (Telegram format)
 	if parts := bytes.SplitN([]byte(fullURL), []byte("/s/"), 2); len(parts) == 2 {
 		url = string(parts[0]) + "/s/"
 		key = string(parts[1])
-	} else if parts := bytes.SplitN([]byte(fullURL), []byte("/"), 4); len(parts) == 4 {
+	} else if parts := bytes.SplitN([]byte(fullURL), []byte("/"), 4); len(parts) >= 4 {
 		url = string(parts[0]) + "//" + string(parts[1]) + "/" + string(parts[2]) + "/"
 		key = string(parts[3])
 	} else {
-		return fmt.Errorf("invalid RTMP URL format")
+		return fmt.Errorf("invalid RTMP URL format: expected rtmp://host/app/streamkey or similar")
 	}
+
+	if url == "" || key == "" {
+		return fmt.Errorf("failed to parse URL: both URL and key must be non-empty")
+	}
+
 	s.rtmpURL = url
 	s.rtmpKey = key
 	return nil

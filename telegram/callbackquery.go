@@ -156,6 +156,18 @@ func (b *CallbackQuery) Conv(timeout ...int32) (*Conversation, error) {
 	})
 }
 
+// Wizard starts a new conversation wizard with the user
+func (b *CallbackQuery) Wizard(timeout ...int32) (*ConversationWizard, error) {
+	conv, err := b.Client.NewConversation(b.Peer, &ConversationOptions{
+		Private: b.IsPrivate(),
+		Timeout: getVariadic(timeout, 60),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return conv.Wizard(), nil
+}
+
 // Ask starts new conversation with the user
 // returns the sent message and the response message
 func (b *CallbackQuery) Ask(Text any, Opts ...*SendOptions) (*NewMessage, *NewMessage, error) {
