@@ -266,6 +266,21 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 			case tag.Attrs["href"] == "":
 				entities = append(entities, &MessageEntityURL{tag.Offset, tag.Length})
 			default:
+				if strings.HasPrefix(tag.Attrs["href"], "tg://user?id=") {
+					idStr := strings.TrimPrefix(tag.Attrs["href"], "tg://user?id=")
+					id, err := strconv.ParseInt(idStr, 10, 64)
+					if err == nil {
+						entities = append(entities, &InputMessageEntityMentionName{
+							Offset: tag.Offset,
+							Length: tag.Length,
+							UserID: &InputUserObj{
+								UserID:     id,
+								AccessHash: 0,
+							},
+						})
+						continue
+					}
+				}
 				entities = append(entities, &MessageEntityTextURL{tag.Offset, tag.Length, tag.Attrs["href"]})
 			}
 		case "b", "strong":
