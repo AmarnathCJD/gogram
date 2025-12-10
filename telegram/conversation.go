@@ -29,6 +29,8 @@ type Conversation struct {
 	ctx             context.Context
 	cancel          context.CancelFunc
 	closed          bool
+	abortKeywords   []string
+	fromUser        int64
 }
 
 // ConversationOptions for configuring a conversation
@@ -37,6 +39,8 @@ type ConversationOptions struct {
 	Timeout         int32
 	StopPropagation bool
 	Context         context.Context
+	AbortKeywords   []string // Words that abort the conversation (e.g., "cancel", "quit")
+	FromUser        int64    // Optional: Only accept messages from this user ID (useful in group chats)
 }
 
 func (c *Client) NewConversation(peer any, options ...*ConversationOptions) (*Conversation, error) {
@@ -64,6 +68,8 @@ func (c *Client) NewConversation(peer any, options ...*ConversationOptions) (*Co
 		stopPropagation: opts.StopPropagation,
 		ctx:             ctx,
 		cancel:          cancel,
+		abortKeywords:   opts.AbortKeywords,
+		fromUser:        opts.FromUser,
 	}, nil
 }
 
@@ -87,6 +93,8 @@ func NewConversation(client *Client, peer InputPeer, options ...*ConversationOpt
 		stopPropagation: opts.StopPropagation,
 		ctx:             ctx,
 		cancel:          cancel,
+		abortKeywords:   opts.AbortKeywords,
+		fromUser:        opts.FromUser,
 	}
 }
 
@@ -127,6 +135,36 @@ func (c *Conversation) LastMessage() *NewMessage {
 
 func (c *Conversation) IsClosed() bool {
 	return c.closed
+}
+
+// SetAbortKeywords sets keywords that will abort the conversation
+func (c *Conversation) SetAbortKeywords(keywords ...string) *Conversation {
+	c.abortKeywords = keywords
+	return c
+}
+
+func (c *Conversation) SetFromUser(userID int64) *Conversation {
+	c.fromUser = userID
+	return c
+}
+
+func (c *Conversation) WithFromUser(userID int64) *Conversation {
+	c.fromUser = userID
+	return c
+}
+
+// checkAbort checks if the message contains an abort keyword
+func (c *Conversation) checkAbort(msg *NewMessage) bool {
+	if len(c.abortKeywords) == 0 {
+		return false
+	}
+	text := strings.ToLower(strings.TrimSpace(msg.Text()))
+	for _, keyword := range c.abortKeywords {
+		if strings.ToLower(keyword) == text {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Conversation) Respond(text any, opts ...*SendOptions) (*NewMessage, error) {
@@ -394,7 +432,14 @@ func (c *Conversation) Ask(text any, opts ...*SendOptions) (*NewMessage, error) 
 	if _, err := c.Respond(text, opts...); err != nil {
 		return nil, fmt.Errorf("sending message: %w", err)
 	}
-	return c.GetResponse()
+	msg, err := c.GetResponse()
+	if err != nil {
+		return nil, err
+	}
+	if c.checkAbort(msg) {
+		return nil, ErrConversationAborted
+	}
+	return msg, nil
 }
 
 func (c *Conversation) AskMedia(text any, opts ...*SendOptions) (*NewMessage, error) {
@@ -640,20 +685,50 @@ type ConversationStep struct {
 	Validator  func(*NewMessage) bool
 	RetryMsg   string
 	MaxRetries int
+	MediaType  string                                                            // "photo", "video", "document", "voice", "sticker", "media"
+	AskFunc    func(*Conversation, string, ...*SendOptions) (*NewMessage, error) // Custom ask function
+	Skippable  bool                                                              // Allow skipping this step
+	SkipWords  []string                                                          // Words that skip this step (e.g., "skip", "pass")
+	Condition  func(map[string]*NewMessage) bool                                 // Only ask if condition is true
+	Transform  func(*NewMessage) any                                             // Transform the answer before storing
 }
 
 // ConversationWizard manages multi-step conversations
 type ConversationWizard struct {
-	conv    *Conversation
-	steps   []ConversationStep
-	answers map[string]*NewMessage
+	conv           *Conversation
+	steps          []ConversationStep
+	answers        map[string]*NewMessage
+	transformed    map[string]any    // Transformed answers
+	progressMsg    string            // Progress message format (e.g., "Step %d/%d")
+	onStepComplete func(string, int) // Callback after each step (stepName, stepNumber)
+	allowBack      bool              // Allow going back to previous steps
+	skipConfirmMsg string            // Message to confirm skip
 }
 
 func (c *Conversation) Wizard() *ConversationWizard {
 	return &ConversationWizard{
-		conv:    c,
-		answers: make(map[string]*NewMessage),
+		conv:        c,
+		answers:     make(map[string]*NewMessage),
+		transformed: make(map[string]any),
 	}
+}
+
+// WithProgress sets a progress message format
+func (w *ConversationWizard) WithProgress(format string) *ConversationWizard {
+	w.progressMsg = format
+	return w
+}
+
+// OnStepComplete sets a callback for step completion
+func (w *ConversationWizard) OnStepComplete(fn func(string, int)) *ConversationWizard {
+	w.onStepComplete = fn
+	return w
+}
+
+// AllowBack enables going back to previous steps
+func (w *ConversationWizard) AllowBack() *ConversationWizard {
+	w.allowBack = true
+	return w
 }
 
 func (w *ConversationWizard) Step(name, question string, opts ...func(*ConversationStep)) *ConversationWizard {
@@ -687,26 +762,144 @@ func WithMaxRetries(n int) func(*ConversationStep) {
 	}
 }
 
+func WithMediaType(mediaType string) func(*ConversationStep) {
+	return func(s *ConversationStep) {
+		s.MediaType = mediaType
+	}
+}
+
+func WithAskFunc(fn func(*Conversation, string, ...*SendOptions) (*NewMessage, error)) func(*ConversationStep) {
+	return func(s *ConversationStep) {
+		s.AskFunc = fn
+	}
+}
+
+// Convenience helpers for common media types
+func ExpectPhoto() func(*ConversationStep) {
+	return WithMediaType("photo")
+}
+
+func ExpectVideo() func(*ConversationStep) {
+	return WithMediaType("video")
+}
+
+func ExpectDocument() func(*ConversationStep) {
+	return WithMediaType("document")
+}
+
+func ExpectVoice() func(*ConversationStep) {
+	return WithMediaType("voice")
+}
+
+func ExpectSticker() func(*ConversationStep) {
+	return WithMediaType("sticker")
+}
+
+func ExpectMedia() func(*ConversationStep) {
+	return WithMediaType("media")
+}
+
+// WithSkip makes a step skippable
+func WithSkip(skipWords ...string) func(*ConversationStep) {
+	if len(skipWords) == 0 {
+		skipWords = []string{"skip", "pass"}
+	}
+	return func(s *ConversationStep) {
+		s.Skippable = true
+		s.SkipWords = skipWords
+	}
+}
+
+// WithCondition adds a condition to determine if step should be asked
+func WithCondition(fn func(map[string]*NewMessage) bool) func(*ConversationStep) {
+	return func(s *ConversationStep) {
+		s.Condition = fn
+	}
+}
+
+// WithTransform adds a transformation function for the answer
+func WithTransform(fn func(*NewMessage) any) func(*ConversationStep) {
+	return func(s *ConversationStep) {
+		s.Transform = fn
+	}
+}
+
 func (w *ConversationWizard) Run() (map[string]*NewMessage, error) {
-	for _, step := range w.steps {
+	for i, step := range w.steps {
+		if step.Condition != nil && !step.Condition(w.answers) {
+			continue
+		}
+
+		if w.progressMsg != "" {
+			w.conv.Respond(fmt.Sprintf(w.progressMsg, i+1, len(w.steps)))
+		}
+
+		question := step.Question
+		if step.Skippable {
+			if w.skipConfirmMsg != "" {
+				question += "\n" + w.skipConfirmMsg
+			} else {
+				question += fmt.Sprintf("\n(Type '%s' to skip)", step.SkipWords[0])
+			}
+		}
+
 		var msg *NewMessage
 		var err error
 
-		if step.Validator != nil {
+		if step.AskFunc != nil {
+			msg, err = step.AskFunc(w.conv, question)
+		} else if step.MediaType != "" {
+			switch step.MediaType {
+			case "photo":
+				msg, err = w.conv.AskPhoto(question)
+			case "video":
+				msg, err = w.conv.AskVideo(question)
+			case "document":
+				msg, err = w.conv.AskDocument(question)
+			case "voice":
+				msg, err = w.conv.AskVoice(question)
+			case "sticker":
+				if _, err = w.conv.Respond(question); err != nil {
+					return w.answers, fmt.Errorf("step %q: sending message: %w", step.Name, err)
+				}
+				msg, err = w.conv.WaitForSticker()
+			case "media":
+				msg, err = w.conv.AskMedia(question)
+			default:
+				return w.answers, fmt.Errorf("step %q: unknown media type: %s", step.Name, step.MediaType)
+			}
+		} else if step.Validator != nil {
 			retryMsg := step.RetryMsg
 			if retryMsg == "" {
 				retryMsg = "Invalid input. Please try again."
 			}
-			msg, err = w.conv.AskUntil(step.Question, step.Validator, step.MaxRetries, retryMsg)
+			msg, err = w.conv.AskUntil(question, step.Validator, step.MaxRetries, retryMsg)
 		} else {
-			msg, err = w.conv.Ask(step.Question)
+			msg, err = w.conv.Ask(question)
 		}
 
 		if err != nil {
 			return w.answers, fmt.Errorf("step %q failed: %w", step.Name, err)
 		}
 
+		if step.Skippable && msg != nil {
+			text := strings.ToLower(strings.TrimSpace(msg.Text()))
+			for _, skipWord := range step.SkipWords {
+				if text == strings.ToLower(skipWord) {
+					continue
+				}
+			}
+		}
+
 		w.answers[step.Name] = msg
+
+		if step.Transform != nil {
+			w.transformed[step.Name] = step.Transform(msg)
+		}
+
+		if w.onStepComplete != nil {
+			w.onStepComplete(step.Name, i+1)
+		}
 	}
 
 	return w.answers, nil
@@ -723,13 +916,36 @@ func (w *ConversationWizard) GetAnswerText(name string) string {
 	return ""
 }
 
+// GetTransformed returns the transformed answer for a step
+func (w *ConversationWizard) GetTransformed(name string) any {
+	return w.transformed[name]
+}
+
+// GetAllTransformed returns all transformed answers
+func (w *ConversationWizard) GetAllTransformed() map[string]any {
+	return w.transformed
+}
+
+// HasAnswer checks if a step has been answered
+func (w *ConversationWizard) HasAnswer(name string) bool {
+	_, exists := w.answers[name]
+	return exists
+}
+
 func (c *Conversation) buildFilters() []Filter {
 	var filters []Filter
 	switch c.Peer.(type) {
 	case *InputPeerChannel, *InputPeerChat:
 		filters = append(filters, InChat(c.Client.GetPeerID(c.Peer)))
+		if c.fromUser != 0 {
+			filters = append(filters, FromUser(c.fromUser))
+		}
 	case *InputPeerUser, *InputPeerSelf:
-		filters = append(filters, FromUser(c.Client.GetPeerID(c.Peer)))
+		if c.fromUser != 0 {
+			filters = append(filters, FromUser(c.fromUser))
+		} else {
+			filters = append(filters, FromUser(c.Client.GetPeerID(c.Peer)))
+		}
 	}
 	if c.isPrivate {
 		filters = append(filters, FilterPrivate)

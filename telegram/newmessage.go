@@ -574,6 +574,18 @@ func (m *NewMessage) Conv(timeout ...int32) (*Conversation, error) {
 	})
 }
 
+// Wizard starts a new conversation wizard with the user
+func (m *NewMessage) Wizard(timeout ...int32) (*ConversationWizard, error) {
+	conv, err := m.Client.NewConversation(m.Peer, &ConversationOptions{
+		Private: m.IsPrivate(),
+		Timeout: getVariadic(timeout, 60),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return conv.Wizard(), nil
+}
+
 // Ask starts new conversation with the user
 // returns the sent message and the response message
 func (m *NewMessage) Ask(Text any, Opts ...*SendOptions) (*NewMessage, *NewMessage, error) {

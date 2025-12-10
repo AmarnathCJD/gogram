@@ -34,6 +34,10 @@ func main() {
 	client.On("command:media", mediaExample)
 	// Yes/No question example
 	client.On("command:confirm", confirmExample)
+	// Advanced wizard with all features
+	client.On("command:advanced", advancedWizardExample)
+	// Abort example
+	client.On("command:profile", profileWithAbortExample)
 
 	client.Idle()
 }
@@ -66,6 +70,7 @@ func registrationHandler(m *telegram.NewMessage) error {
 		Timeout:         120, // 2 minutes per step
 		Private:         true,
 		StopPropagation: true,
+		AbortKeywords:   []string{"cancel", "quit"}, // Allow user to cancel
 	})
 	if err != nil {
 		return err
@@ -78,7 +83,7 @@ func registrationHandler(m *telegram.NewMessage) error {
 	// Step 1: Name (no validation)
 	wizard.Step("name", "👤 What's your full name?")
 
-	// Step 2: Age (with number validation)
+	// Step 2: Age (with number validation and transformation)
 	wizard.Step("age", "🎂 How old are you?",
 		telegram.WithValidator(func(m *telegram.NewMessage) bool {
 			_, err := fmt.Sscanf(m.Text(), "%d", new(int))
@@ -86,6 +91,11 @@ func registrationHandler(m *telegram.NewMessage) error {
 		}),
 		telegram.WithRetryMessage("❌ Please enter a valid number for your age."),
 		telegram.WithMaxRetries(3),
+		telegram.WithTransform(func(m *telegram.NewMessage) any {
+			var age int
+			fmt.Sscanf(m.Text(), "%d", &age)
+			return age
+		}),
 	)
 
 	// Step 3: Email (with validation)
@@ -96,31 +106,44 @@ func registrationHandler(m *telegram.NewMessage) error {
 		telegram.WithRetryMessage("❌ Please enter a valid email address."),
 	)
 
-	// Step 4: Bio (optional, no validation)
-	wizard.Step("bio", "📝 Tell us a bit about yourself (short bio):")
+	// Step 4: Bio (optional - skippable)
+	wizard.Step("bio", "📝 Tell us a bit about yourself",
+		telegram.WithSkip("skip", "pass"),
+	)
 
 	// Run the wizard
 	answers, err := wizard.Run()
 	if err != nil {
+		if err == telegram.ErrConversationAborted {
+			m.Reply("❌ Registration cancelled.")
+			return nil
+		}
 		m.Reply(fmt.Sprintf("Registration failed: %v", err))
 		return err
 	}
 
-	// Get all answers
+	// Get answers (text)
 	name := wizard.GetAnswerText("name")
-	age := wizard.GetAnswerText("age")
 	email := wizard.GetAnswerText("email")
 	bio := wizard.GetAnswerText("bio")
 
+	// Get transformed answer (as int)
+	age := wizard.GetTransformed("age").(int)
+
 	// Send confirmation
+	bioText := bio
+	if bioText == "" {
+		bioText = "(not provided)"
+	}
+
 	summary := fmt.Sprintf(`✅ **Registration Complete!**
 
 👤 **Name:** %s
-🎂 **Age:** %s
+🎂 **Age:** %d
 📧 **Email:** %s
 📝 **Bio:** %s
 
-Thank you for registering!`, name, age, email, bio)
+Thank you for registering!`, name, age, email, bioText)
 
 	conv.Respond(summary, &telegram.SendOptions{ParseMode: "markdown"})
 
@@ -185,5 +208,100 @@ func confirmExample(m *telegram.NewMessage) error {
 		conv.Respond("Cancelled.")
 	}
 
+	return nil
+}
+
+// Advanced wizard example with progress, conditions, and media
+func advancedWizardExample(m *telegram.NewMessage) error {
+	conv, _ := m.Client.NewConversation(m.ChatID(), &telegram.ConversationOptions{
+		Timeout:       180,
+		AbortKeywords: []string{"cancel", "stop"},
+	})
+	defer conv.Close()
+
+	wizard := conv.Wizard().
+		WithProgress("📝 Step %d of %d").
+		OnStepComplete(func(stepName string, stepNum int) {
+			conv.Respond(fmt.Sprintf("✓ %s completed", stepName))
+		})
+
+	// Step 1: Ask if user wants to upload profile picture
+	wizard.Step("upload_photo", "Do you want to upload a profile picture?",
+		telegram.WithValidator(func(m *telegram.NewMessage) bool {
+			text := strings.ToLower(m.Text())
+			return text == "yes" || text == "no"
+		}),
+		telegram.WithTransform(func(m *telegram.NewMessage) any {
+			return strings.ToLower(m.Text()) == "yes"
+		}),
+	)
+
+	// Step 2: Conditional - only ask for photo if user said yes
+	wizard.Step("photo", "📷 Please send your profile picture",
+		telegram.ExpectPhoto(),
+		telegram.WithCondition(func(answers map[string]*telegram.NewMessage) bool {
+			return wizard.GetTransformed("upload_photo").(bool)
+		}),
+	)
+
+	// Step 3: Ask for favorite color
+	wizard.Step("color", "🎨 What's your favorite color?")
+
+	// Step 4: Optional interests
+	wizard.Step("interests", "Tell us your interests (or skip)",
+		telegram.WithSkip(),
+	)
+
+	answers, err := wizard.Run()
+	if err != nil {
+		if err == telegram.ErrConversationAborted {
+			m.Reply("Operation cancelled by user")
+			return nil
+		}
+		return err
+	}
+
+	summary := "✅ Profile setup complete!\n\n"
+	if wizard.HasAnswer("photo") {
+		summary += "✓ Profile picture uploaded\n"
+	}
+	summary += fmt.Sprintf("✓ Favorite color: %s\n", wizard.GetAnswerText("color"))
+	if wizard.HasAnswer("interests") {
+		summary += fmt.Sprintf("✓ Interests: %s\n", wizard.GetAnswerText("interests"))
+	}
+
+	conv.Respond(summary)
+	_ = answers
+	return nil
+}
+
+// Profile creation with abort example
+func profileWithAbortExample(m *telegram.NewMessage) error {
+	conv, _ := m.Client.NewConversation(m.ChatID(), &telegram.ConversationOptions{
+		AbortKeywords: []string{"cancel", "quit", "exit"},
+	})
+	defer conv.Close()
+
+	m.Reply("Creating your profile... (type 'cancel' at any time to abort)")
+
+	name, err := conv.Ask("What's your name?")
+	if err != nil {
+		if err == telegram.ErrConversationAborted {
+			m.Reply("❌ Profile creation cancelled")
+			return nil
+		}
+		return err
+	}
+
+	age, err := conv.Ask("How old are you?")
+	if err != nil {
+		if err == telegram.ErrConversationAborted {
+			m.Reply("❌ Profile creation cancelled")
+			return nil
+		}
+		return err
+	}
+
+	conv.Respond(fmt.Sprintf("✅ Profile created for %s, age %s", name.Text(), age.Text()))
 	return nil
 }
