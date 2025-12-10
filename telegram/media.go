@@ -229,7 +229,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		numWorkers = opts.Threads
 	}
 	w := NewWorkerPool(numWorkers)
-	uploadLog := newPartLogAggregator("upload", int(totalParts), 3*time.Second)
+	uploadLog := newPartLogAggregator("upload", int(totalParts), 3*time.Second, c.Log)
 	uploadLog.setNumWorkers(numWorkers)
 	defer uploadLog.Flush()
 
@@ -307,11 +307,13 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 						return
 					}
 
-					_, err := sender.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
+					senderCtx, senderCancel := context.WithTimeout(ctx, 5*time.Second)
+					_, err := sender.MakeRequestCtx(senderCtx, &UploadSaveFilePartParams{
 						FileID:   fileId,
 						FilePart: int32(p),
 						Bytes:    part,
 					})
+					senderCancel()
 					if opts.Delay > 0 {
 						time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
 					}
@@ -401,12 +403,14 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					return
 				}
 
-				_, err := sender.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
+				senderCtx, senderCancel := context.WithTimeout(ctx, 5*time.Second)
+				_, err := sender.MakeRequestCtx(senderCtx, &UploadSaveBigFilePartParams{
 					FileID:         fileId,
 					FilePart:       int32(p),
 					FileTotalParts: int32(totalParts),
 					Bytes:          part,
 				})
+				senderCancel()
 				if opts.Delay > 0 {
 					time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
 				}
@@ -626,7 +630,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 
 	var w = NewWorkerPool(numWorkers)
-	downloadLog := newPartLogAggregator("download", int(totalParts), 3*time.Second)
+	downloadLog := newPartLogAggregator("download", int(totalParts), 3*time.Second, c.Log)
 	downloadLog.setNumWorkers(numWorkers)
 	defer downloadLog.Flush()
 
@@ -709,13 +713,16 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					return
 				}
 
-				part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
+				senderCtx, senderCancel := context.WithTimeout(ctx, 5*time.Second)
+				part, err := sender.MakeRequestCtx(senderCtx, &UploadGetFileParams{
 					Location:     location,
 					Offset:       int64(p * partSize),
 					Limit:        int32(partSize),
 					Precise:      true,
 					CdnSupported: false,
 				})
+				senderCancel()
+
 				if opts.Delay > 0 {
 					time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
 				}
@@ -775,13 +782,16 @@ retrySinglePart:
 					return
 				}
 
-				part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
+				senderCtx, senderCancel := context.WithTimeout(ctx, 5*time.Second)
+				part, err := sender.MakeRequestCtx(senderCtx, &UploadGetFileParams{
 					Location:     location,
 					Offset:       int64(p * partSize),
 					Limit:        int32(partSize),
 					Precise:      true,
 					CdnSupported: false,
 				})
+				senderCancel()
+
 				if opts.Delay > 0 {
 					time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
 				}
@@ -1002,6 +1012,7 @@ type partLogAggregator struct {
 	lastErr     error
 	senderStats map[*ExSender]*senderStats
 	numWorkers  int
+	logger      Logger
 }
 
 type senderStats struct {
@@ -1010,7 +1021,7 @@ type senderStats struct {
 	lastSeen  time.Time
 }
 
-func newPartLogAggregator(ctx string, total int, interval time.Duration) *partLogAggregator {
+func newPartLogAggregator(ctx string, total int, interval time.Duration, logger Logger) *partLogAggregator {
 	if interval <= 0 {
 		interval = 3 * time.Second
 	}
@@ -1020,6 +1031,7 @@ func newPartLogAggregator(ctx string, total int, interval time.Duration) *partLo
 		interval:    interval,
 		lastLog:     time.Now(),
 		senderStats: make(map[*ExSender]*senderStats),
+		logger:      logger,
 	}
 }
 
@@ -1040,7 +1052,7 @@ func (a *partLogAggregator) recordSuccess(part int, sender *ExSender) {
 		a.senderStats[sender].successes++
 		a.senderStats[sender].lastSeen = time.Now()
 	}
-	a.maybeLogLocked(sender)
+	a.maybeLogLocked()
 	a.mu.Unlock()
 }
 
@@ -1056,25 +1068,20 @@ func (a *partLogAggregator) recordFailure(part int, err error, sender *ExSender)
 		a.senderStats[sender].failures++
 		a.senderStats[sender].lastSeen = time.Now()
 	}
-	a.maybeLogLocked(sender)
+	a.maybeLogLocked()
 	a.mu.Unlock()
 }
 
-func (a *partLogAggregator) maybeLogLocked(sender *ExSender) {
+func (a *partLogAggregator) maybeLogLocked() {
 	if time.Since(a.lastLog) < a.interval {
 		return
 	}
-	a.logLocked(sender)
+	a.logLocked()
 }
 
-func (a *partLogAggregator) logLocked(senderVar ...*ExSender) {
+func (a *partLogAggregator) logLocked() {
 	if a.successes == 0 && a.failures == 0 {
 		return
-	}
-
-	var sender *ExSender
-	if len(senderVar) > 0 {
-		sender = senderVar[0]
 	}
 
 	var workerStats []string
@@ -1136,8 +1143,8 @@ func (a *partLogAggregator) logLocked(senderVar ...*ExSender) {
 		logMsg += " | err:" + errMsg
 	}
 
-	if sender != nil {
-		sender.Logger.Debug(logMsg)
+	if a.logger != nil {
+		a.logger.Debug(logMsg)
 	}
 	a.lastLog = time.Now()
 }
