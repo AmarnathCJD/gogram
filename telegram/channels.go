@@ -59,8 +59,8 @@ func (c *Client) GetChatPhoto(chatID any) (Photo, error) {
 func (c *Client) JoinChannel(Channel any) (bool, error) {
 	switch p := Channel.(type) {
 	case string:
-		if TG_JOIN_RE.MatchString(p) {
-			result, err := c.MessagesImportChatInvite(TG_JOIN_RE.FindStringSubmatch(p)[1])
+		if TgJoinRe.MatchString(p) {
+			result, err := c.MessagesImportChatInvite(TgJoinRe.FindStringSubmatch(p)[1])
 			if err != nil {
 				return false, err
 			}
@@ -71,8 +71,8 @@ func (c *Client) JoinChannel(Channel any) (bool, error) {
 			}
 
 			return true, nil
-		} else if USERNAME_RE.MatchString(p) {
-			return c.joinChannelByPeer(USERNAME_RE.FindStringSubmatch(p)[1])
+		} else if UsernameRe.MatchString(p) {
+			return c.joinChannelByPeer(UsernameRe.FindStringSubmatch(p)[1])
 		}
 
 		return false, errors.New("invalid channel or chat")

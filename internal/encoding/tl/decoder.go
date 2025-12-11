@@ -8,27 +8,6 @@ import (
 	"reflect"
 )
 
-func Decode(data []byte, res any) error {
-	if res == nil {
-		return fmt.Errorf("can't decode into nil value")
-	}
-	if reflect.TypeOf(res).Kind() != reflect.Pointer {
-		return fmt.Errorf("res value is not pointer as expected. got %v", reflect.TypeOf(res))
-	}
-
-	d, err := NewDecoder(bytes.NewReader(data))
-	if err != nil {
-		return err
-	}
-
-	d.decodeValue(reflect.ValueOf(res))
-	if d.err != nil {
-		return fmt.Errorf("decode %T: %w", res, d.err)
-	}
-
-	return nil
-}
-
 func DecodeUnknownObject(data []byte, expectNextTypes ...reflect.Type) (Object, error) {
 	d, err := NewDecoder(bytes.NewReader(data))
 	if err != nil {
