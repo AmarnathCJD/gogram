@@ -9,9 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"net/url"
-	"os"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -252,17 +250,6 @@ func GenerateSessionID() int64 {
 	return int64(binary.BigEndian.Uint64(b))
 }
 
-func FullStack() {
-	buf := make([]byte, 1024)
-	for {
-		n := runtime.Stack(buf, true)
-		if n < len(buf) {
-			fmt.Fprintln(os.Stderr, string(buf[:n]))
-		}
-		buf = make([]byte, 2*len(buf))
-	}
-}
-
 func Sha1Byte(input []byte) []byte {
 	r := sha1.Sum(input)
 	return r[:]
@@ -290,7 +277,10 @@ func RandomSenderID() string {
 	b := make([]byte, 2)
 	for i := range b {
 		buf := make([]byte, 1)
-		rand.Read(buf)
+		_, err := rand.Read(buf)
+		if err != nil {
+			return ""
+		}
 		b[i] = chars[int(buf[0])%len(chars)]
 	}
 	return string(b)

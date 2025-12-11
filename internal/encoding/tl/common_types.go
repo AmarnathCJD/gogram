@@ -12,12 +12,7 @@ type Int128 struct {
 	*big.Int
 }
 
-// NewInt128 creates int128 with zero value
-func NewInt128() *Int128 {
-	return &Int128{Int: big.NewInt(0).SetBytes(make([]byte, Int128Len))}
-}
-
-// NewInt128 creates int128 with random value
+// RandomInt128 creates int128 with random value
 func RandomInt128() *Int128 {
 	i := &Int128{Int: big.NewInt(0)}
 	i.SetBytes(RandomBytes(Int128Len))
@@ -53,12 +48,7 @@ type Int256 struct {
 	*big.Int
 }
 
-// NewInt256 creates int256 with zero value
-func NewInt256() *Int256 {
-	return &Int256{Int: big.NewInt(0).SetBytes(make([]byte, Int256Len))}
-}
-
-// NewInt256 creates int256 with random value
+// RandomInt256 creates int256 with random value
 func RandomInt256() *Int256 {
 	i := &Int256{big.NewInt(0)}
 	i.SetBytes(RandomBytes(Int256Len))

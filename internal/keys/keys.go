@@ -193,8 +193,3 @@ func ParsePublicKey(data string) (*rsa.PublicKey, error) {
 
 	return nil, err
 }
-
-func Sha1(input string) []byte {
-	r := sha1.Sum([]byte(input))
-	return r[:]
-}
