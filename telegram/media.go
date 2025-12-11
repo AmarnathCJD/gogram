@@ -111,13 +111,16 @@ func (wp *WorkerPool) FreeWorker(s *ExSender) {
 func (wp *WorkerPool) Close() {
 	wp.Lock()
 	defer wp.Unlock()
-	close(wp.free)
 
-	for range wp.free {
-		// Just drain
+	// Drain the free channel
+	for {
+		select {
+		case <-wp.free:
+		default:
+			wp.workers = nil
+			return
+		}
 	}
-
-	wp.workers = nil
 }
 
 type Source struct {
