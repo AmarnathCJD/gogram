@@ -768,19 +768,9 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			count := m.consecutiveTimeouts.Add(1)
 			if count >= 5 {
-				// log detailed debug info on 5 consecutive timeouts
-				m.Logger.Debug("[TIMEOUT DEBUG] 5 consecutive request timeouts detected:")
-				m.Logger.Debug("  - Request: %T", data)
-				m.Logger.Debug("  - TCP Active: %v", m.tcpState.GetActive())
-				m.Logger.Debug("  - Transport: %v", m.transport != nil)
-				m.Logger.Debug("  - Terminated: %v", m.terminated.Load())
-				m.Logger.Debug("  - Addr: %s", m.Addr)
-				m.Logger.Debug("  - Transport Type: %s", m.GetTransportType())
-				m.Logger.Debug("  - Message ID: %d", msgID)
-				if count == 5 {
-					m.consecutiveTimeouts.Store(0)
-				}
-				m.Reconnect(false)
+				m.Logger.Warn("5 consecutive timeouts: req=%T tcp_active=%v - reconnecting...", data, m.tcpState.GetActive())
+				m.consecutiveTimeouts.Store(0)
+				m.tryReconnect()
 			}
 		} else {
 			m.consecutiveTimeouts.Store(0)
