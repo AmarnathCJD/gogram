@@ -730,7 +730,7 @@ mediaTypeSwitch:
 			return uploadedPhoto, nil
 		} else {
 			mediaAttributes := getValueSlice(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}})
-			hasFileName := false
+			attributedFileName := ""
 			mediaAttributes, dur, err := GatherMediaMetadata(getValue(attr.FileAbsPath, fileName), mediaAttributes)
 			if err != nil {
 				c.Log.WithError(err).Debug("gathering media metadata")
@@ -738,11 +738,11 @@ mediaTypeSwitch:
 
 			for _, at := range mediaAttributes {
 				if _, ok := at.(*DocumentAttributeFilename); ok {
-					hasFileName = true
+					attributedFileName = at.(*DocumentAttributeFilename).FileName
 				}
 			}
 
-			if thumbnail == nil && !attr.DisableThumb {
+			if thumbnail == nil && !attr.DisableThumb && MimeTypes.IsStreamable(mimeType) {
 				thumbFile, err := c.gatherVideoThumb(getValue(attr.FileAbsPath, fileName), dur)
 				if err != nil {
 					c.Log.WithError(err).Debug("gathering video thumb")
@@ -751,7 +751,7 @@ mediaTypeSwitch:
 				}
 			}
 
-			if !hasFileName {
+			if attributedFileName == "" && fileName != "" {
 				mediaAttributes = append(mediaAttributes, &DocumentAttributeFilename{FileName: fileName})
 			}
 
