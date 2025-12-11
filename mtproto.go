@@ -780,6 +780,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 				if count == 5 {
 					m.consecutiveTimeouts.Store(0)
 				}
+				m.Reconnect(false)
 			}
 		} else {
 			m.consecutiveTimeouts.Store(0)
