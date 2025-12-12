@@ -2,12 +2,14 @@ package transport
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"net"
 	"sync"
 	"time"
 )
+
+var ErrClosed = errors.New("reader closed")
 
 type Reader struct {
 	r      io.Reader
@@ -51,7 +53,7 @@ func (c *Reader) Read(p []byte) (int, error) {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
-		return 0, fmt.Errorf("reader is closed")
+		return 0, ErrClosed
 	}
 	r := c.r
 	ctx := c.ctx
