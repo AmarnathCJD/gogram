@@ -17,7 +17,7 @@ import (
 type LogLevel int
 
 const (
-	TraceLevel LogLevel = iota
+	TraceLevel LogLevel = iota + 1
 	DebugLevel
 	InfoLevel
 	WarnLevel
@@ -149,6 +149,7 @@ func NewLoggerWithConfig(config *LoggerConfig) *Logger {
 	if config == nil {
 		config = DefaultConfig()
 	}
+	config.Level = normalizeLevel(config.Level)
 	if config.Output == nil {
 		config.Output = os.Stdout
 	}
@@ -256,7 +257,7 @@ func (l *Logger) WithError(err error) *Logger {
 func (l *Logger) SetLevel(level LogLevel) *Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.level = level
+	l.level = normalizeLevel(level)
 	return l
 }
 
@@ -264,6 +265,13 @@ func (l *Logger) GetLevel() LogLevel {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	return l.level
+}
+
+func normalizeLevel(level LogLevel) LogLevel {
+	if level == 0 {
+		return InfoLevel
+	}
+	return level
 }
 
 func (l *Logger) Lev() LogLevel {
