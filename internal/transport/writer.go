@@ -19,7 +19,9 @@ type Reader struct {
 	mu     sync.Mutex
 	closed bool
 
-	req chan readRequest
+	req    chan readRequest
+
+	sendMu sync.Mutex
 
 	wg sync.WaitGroup
 }
@@ -36,17 +38,14 @@ type readResult struct {
 
 func NewReader(ctx context.Context, r io.Reader) *Reader {
 	ctx, cancel := context.WithCancel(ctx)
-
 	c := &Reader{
 		r:      r,
 		ctx:    ctx,
 		cancel: cancel,
-		req:    make(chan readRequest, 16),
+		req:    make(chan readRequest, 32),
 	}
-
 	c.wg.Add(1)
 	go c.worker()
-
 	return c
 }
 
@@ -57,14 +56,11 @@ func (c *Reader) worker() {
 		select {
 		case <-c.ctx.Done():
 			return
-
 		case req, ok := <-c.req:
 			if !ok {
 				return
 			}
-
 			n, err := c.read(req.buf)
-
 			select {
 			case req.res <- readResult{n, err}:
 			case <-c.ctx.Done():
@@ -76,25 +72,21 @@ func (c *Reader) worker() {
 
 func (c *Reader) read(buf []byte) (int, error) {
 	n := 0
-
 	for n < len(buf) {
 		select {
 		case <-c.ctx.Done():
 			return n, c.ctx.Err()
 		default:
 			if nc, ok := c.r.(net.Conn); ok {
-				nc.SetReadDeadline(time.Now().Add(15 * time.Second))
+				_ = nc.SetReadDeadline(time.Now().Add(15 * time.Second))
 			}
-
 			k, err := c.r.Read(buf[n:])
 			n += k
-
 			if err != nil {
 				return n, err
 			}
 		}
 	}
-
 	return n, nil
 }
 
@@ -108,11 +100,22 @@ func (c *Reader) Read(p []byte) (int, error) {
 
 	resCh := make(chan readResult, 1)
 
+	c.sendMu.Lock()
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		c.sendMu.Unlock()
+		return 0, ErrClosed
+	}
+	c.mu.Unlock()
+
 	select {
-	case c.req <- readRequest{p, resCh}:
+	case c.req <- readRequest{buf: p, res: resCh}:
 	case <-c.ctx.Done():
+		c.sendMu.Unlock()
 		return 0, c.ctx.Err()
 	}
+	c.sendMu.Unlock()
 
 	select {
 	case res := <-resCh:
@@ -131,14 +134,12 @@ func (c *Reader) Close() error {
 	c.closed = true
 	c.mu.Unlock()
 
-	// Interrupt active reads safely
-	if nc, ok := c.r.(net.Conn); ok {
-		nc.SetReadDeadline(time.Now())
-	}
-
 	c.cancel()
 
+	c.sendMu.Lock()
 	close(c.req)
+	c.sendMu.Unlock()
+
 	c.wg.Wait()
 	return nil
 }
