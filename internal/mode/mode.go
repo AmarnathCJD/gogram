@@ -63,7 +63,7 @@ func NewWithoutAnnouncement(v Variant, conn io.ReadWriter) (Mode, error) {
 func initMode(v Variant, conn io.ReadWriter) (Mode, error) {
 	switch v {
 	case PaddedIntermediate:
-		panic("not supported yet")
+		return &paddedIntermediate{conn: conn}, nil
 	case Abridged:
 		return &abridged{conn: conn}, nil
 	case Intermediate:

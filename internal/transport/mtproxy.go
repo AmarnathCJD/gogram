@@ -34,17 +34,24 @@ type tlsOp struct {
 	value  any
 }
 
+// Updated TLS Hello ops matching Telegram's official client (with ML-KEM-768 support)
 var _TLS_HELLO_OPS = []tlsOp{
-	{"string", []byte("\x16\x03\x01\x02\x00\x01\x00\x01\xfc\x03\x03")},
-	{"zero", 32},
+	{"string", []byte("\x16\x03\x01")},
+	{"begin_scope", nil}, // TLS record length
+	{"string", []byte("\x01\x00")},
+	{"begin_scope", nil}, // Handshake length
+	{"string", []byte("\x03\x03")},
+	{"zero", 32}, // Client random placeholder (will be replaced with HMAC)
 	{"string", []byte("\x20")},
-	{"id", nil},
-	{"string", []byte("\x00\x20")},
+	{"random", 32},                 // Session ID
+	{"string", []byte("\x00\x20")}, // Cipher suites length prefix
 	{"grease", 0},
-	{"string", []byte("\x13\x01\x13\x02\x13\x03\xc0\x2b\xc0\x2f\xc0\x2c\xc0\x30\xcc\xa9\xcc\xa8\xc0\x13\xc0\x14\x00\x9c\x00\x9d\x00\x2f\x00\x35\x01\x00\x01\x93")},
+	{"string", []byte("\x13\x01\x13\x02\x13\x03\xc0\x2b\xc0\x2f\xc0\x2c\xc0\x30\xcc\xa9\xcc\xa8\xc0\x13\xc0\x14\x00\x9c\x00\x9d\x00\x2f\x00\x35\x01\x00")},
+	{"begin_scope", nil}, // Extensions length
 	{"grease", 2},
 	{"string", []byte("\x00\x00")},
 	{"permutation", [][]tlsOp{
+		// SNI extension
 		{
 			{"string", []byte("\x00\x00")},
 			{"begin_scope", nil},
@@ -56,58 +63,70 @@ var _TLS_HELLO_OPS = []tlsOp{
 			{"end_scope", nil},
 			{"end_scope", nil},
 		},
+		// status_request
+		{{"string", []byte("\x00\x05\x00\x05\x01\x00\x00\x00\x00")}},
+		// supported_groups - Updated with ML-KEM-768 (0x11ec)
 		{
-			{"string", []byte("\x00\x05\x00\x05\x01\x00\x00\x00\x00")},
-		},
-		{
-			{"string", []byte("\x00\x0a\x00\x0a\x00\x08")},
+			{"string", []byte("\x00\x0a\x00\x0c\x00\x0a")},
 			{"grease", 4},
-			{"string", []byte("\x00\x1d\x00\x17\x00\x18")},
+			{"string", []byte("\x11\xec\x00\x1d\x00\x17\x00\x18")}, // 0x11ec = ML-KEM-768 hybrid
 		},
-		{
-			{"string", []byte("\x00\x0b\x00\x02\x01\x00")},
-		},
-		{
-			{"string", []byte("\x00\x0d\x00\x12\x00\x10\x04\x03\x08\x04\x04\x01\x05\x03\x08\x05\x05\x01\x08\x06\x06\x01")},
-		},
-		{
-			{"string", []byte("\x00\x10\x00\x0e\x00\x0c\x02\x68\x32\x08\x68\x74\x74\x70\x2f\x31\x2e\x31")},
-		},
-		{
-			{"string", []byte("\x00\x12\x00\x00")},
-		},
-		{
-			{"string", []byte("\x00\x17\x00\x00")},
-		},
-		{
-			{"string", []byte("\x00\x1b\x00\x03\x02\x00\x02")},
-		},
-		{
-			{"string", []byte("\x00\x23\x00\x00")},
-		},
+		// ec_point_formats
+		{{"string", []byte("\x00\x0b\x00\x02\x01\x00")}},
+		// signature_algorithms
+		{{"string", []byte("\x00\x0d\x00\x12\x00\x10\x04\x03\x08\x04\x04\x01\x05\x03\x08\x05\x05\x01\x08\x06\x06\x01")}},
+		// ALPN
+		{{"string", []byte("\x00\x10\x00\x0e\x00\x0c\x02\x68\x32\x08\x68\x74\x74\x70\x2f\x31\x2e\x31")}},
+		// signed_certificate_timestamp
+		{{"string", []byte("\x00\x12\x00\x00")}},
+		// extended_master_secret
+		{{"string", []byte("\x00\x17\x00\x00")}},
+		// compress_certificate
+		{{"string", []byte("\x00\x1b\x00\x03\x02\x00\x02")}},
+		// session_ticket
+		{{"string", []byte("\x00\x23\x00\x00")}},
+		// supported_versions
 		{
 			{"string", []byte("\x00\x2b\x00\x07\x06")},
 			{"grease", 6},
 			{"string", []byte("\x03\x04\x03\x03")},
 		},
+		// psk_key_exchange_modes
+		{{"string", []byte("\x00\x2d\x00\x02\x01\x01")}},
+		// key_share - Updated with ML-KEM-768 hybrid key exchange
 		{
-			{"string", []byte("\x00\x2d\x00\x02\x01\x01")},
-		},
-		{
-			{"string", []byte("\x00\x33\x00\x2b\x00\x29")},
+			{"string", []byte("\x00\x33\x04\xef\x04\xed")}, // extension type + length
 			{"grease", 4},
-			{"string", []byte("\x00\x01\x00\x00\x1d\x00\x20")},
-			{"k", nil},
+			{"string", []byte("\x00\x01\x00\x11\xec\x04\xc0")}, // ML-KEM-768 key entry header
+			{"m", nil},                             // ML-KEM-768 public key (1184 bytes)
+			{"k", nil},                             // X25519 key 1
+			{"string", []byte("\x00\x1d\x00\x20")}, // X25519 header
+			{"k", nil},                             // X25519 key 2
 		},
+		// application_settings (ALPS)
+		{{"string", []byte("\x44\xcd\x00\x05\x00\x03\x02\x68\x32")}},
+		// encrypted_client_hello (0xfe02) - random padding extension
 		{
-			{"string", []byte("\x44\x69\x00\x05\x00\x03\x02\x68\x32")},
+			{"string", []byte("\xfe\x02")},
+			{"begin_scope", nil},
+			{"string", []byte("\x00\x00\x01\x00\x01")},
+			{"random", 1},
+			{"string", []byte("\x00\x20")},
+			{"random", 20},
+			{"begin_scope", nil},
+			{"e", nil}, // Random ECH data
+			{"end_scope", nil},
+			{"end_scope", nil},
 		},
-		{
-			{"string", []byte("\xff\x01\x00\x01\x00")},
-		},
+		// renegotiation_info
+		{{"string", []byte("\xff\x01\x00\x01\x00")}},
 	}},
 	{"grease", 3},
-	{"string", []byte("\x00\x01\x00\x00\x15")},
+	{"string", []byte("\x00\x01\x00")},
+	{"p", nil},         // Padding to reach minimum size
+	{"end_scope", nil}, // Extensions length
+	{"end_scope", nil}, // Handshake length
+	{"end_scope", nil}, // TLS record length
 }
 
 type MTProxyConfig struct {
@@ -290,6 +309,57 @@ func generatePublicKey() ([]byte, error) {
 	return result, nil
 }
 
+// generateMLKEM768Key generates a fake ML-KEM-768 public key (1184 bytes)
+// This matches Telegram's implementation in src.cpp
+func generateMLKEM768Key() ([]byte, error) {
+	const Q = 3329
+	const N = 384
+
+	key := make([]byte, 1184)
+	values := make([]byte, N*2*4) // N*2 uint32 values
+	if _, err := rand.Read(values); err != nil {
+		return nil, fmt.Errorf("generating ML-KEM-768 random values: %w", err)
+	}
+
+	for i := 0; i < N; i++ {
+		// Read two random uint32 values
+		a := uint32(values[i*8]) | (uint32(values[i*8+1]) << 8) | (uint32(values[i*8+2]) << 16) | (uint32(values[i*8+3]) << 24)
+		b := uint32(values[i*8+4]) | (uint32(values[i*8+5]) << 8) | (uint32(values[i*8+6]) << 16) | (uint32(values[i*8+7]) << 24)
+
+		a = a % Q
+		b = b % Q
+
+		key[i*3+0] = byte(a & 0xFF)
+		key[i*3+1] = byte((a >> 8) | ((b & 0x0F) << 4))
+		key[i*3+2] = byte(b >> 4)
+	}
+
+	// Last 32 bytes are random
+	if _, err := rand.Read(key[1152:]); err != nil {
+		return nil, fmt.Errorf("generating ML-KEM-768 suffix: %w", err)
+	}
+
+	return key, nil
+}
+
+// generateRandomECH generates random ECH (Encrypted Client Hello) data
+// with variable length matching Telegram's implementation
+func generateRandomECH() ([]byte, error) {
+	// Random length: 144, 176, 208, or 240 bytes
+	lengths := []int{144, 176, 208, 240}
+	randByte := make([]byte, 1)
+	if _, err := rand.Read(randByte); err != nil {
+		return nil, err
+	}
+	length := lengths[int(randByte[0])%4]
+
+	data := make([]byte, length)
+	if _, err := rand.Read(data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSConn, error) {
 	sessionID := make([]byte, 32)
 	if _, err := rand.Read(sessionID); err != nil {
@@ -314,7 +384,12 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 		return nil, fmt.Errorf("generating public key: %w", err)
 	}
 
-	buffer := make([]byte, 0, 1024)
+	mlkemKey, err := generateMLKEM768Key()
+	if err != nil {
+		return nil, fmt.Errorf("generating ML-KEM-768 key: %w", err)
+	}
+
+	buffer := make([]byte, 0, 2048) // Increased buffer size for larger TLS Hello
 	stack := make([]int, 0)
 
 	var writeOps func(ops []tlsOp)
@@ -323,6 +398,31 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 			switch op.opType {
 			case "k":
 				buffer = append(buffer, publicKey...)
+
+			case "m":
+				buffer = append(buffer, mlkemKey...)
+
+			case "e":
+				echData, err := generateRandomECH()
+				if err == nil {
+					buffer = append(buffer, echData...)
+				}
+
+			case "p":
+				// Padding extension - pad to minimum 513 bytes if needed
+				currentLen := len(buffer)
+				if currentLen <= 513 {
+					padSize := 513 - currentLen
+					buffer = append(buffer, 0x00, 0x15)                           // padding extension type
+					buffer = append(buffer, byte(padSize>>8), byte(padSize&0xFF)) // length
+					buffer = append(buffer, make([]byte, padSize)...)
+				}
+
+			case "random":
+				count := op.value.(int)
+				randomBytes := make([]byte, count)
+				rand.Read(randomBytes)
+				buffer = append(buffer, randomBytes...)
 
 			case "id":
 				buffer = append(buffer, sessionID...)
@@ -383,13 +483,8 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 
 	writeOps(_TLS_HELLO_OPS)
 
-	if len(buffer) > 515 {
-		return nil, errors.New("handshake buffer too large for padding")
-	}
-
-	padSize := 515 - len(buffer)
-	buffer = append(buffer, byte(padSize>>8), byte(padSize&0xFF))
-	buffer = append(buffer, make([]byte, padSize)...)
+	// The new format uses dynamic scopes for length calculation,
+	// no need for fixed padding check anymore
 
 	mac := hmac.New(sha256.New, key)
 	mac.Write(buffer)
@@ -400,7 +495,11 @@ func startFakeTLS(conn net.Conn, key []byte, serverHostname []byte) (*fakeTLSCon
 	binary.LittleEndian.PutUint32(digest[28:32], newValue)
 
 	clientRandom := digest[:32]
-	copy(buffer[11:11+32], clientRandom)
+	// Find the position of the client random (after \x03\x03 in the handshake)
+	// In new format it's at offset 11 (after record header + handshake header)
+	if len(buffer) > 43 {
+		copy(buffer[11:11+32], clientRandom)
+	}
 
 	_, err = conn.Write(buffer)
 	if err != nil {
