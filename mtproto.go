@@ -259,7 +259,7 @@ func (m *MTProto) LoadSession(sess *session.Session) error {
 	m.authKey = sess.Key
 	m.authKeyHash = sess.Hash
 	m.appID = sess.AppID
-	m.Logger.Debug("loading - auth from session (IP: %s)...", utils.FmtIp(sess.Hostname))
+	m.Logger.Debug("loading - auth from session (IP: %s)...", utils.FmtIP(sess.Hostname))
 	if err := m.SaveSession(m.memorySession); err != nil {
 		return fmt.Errorf("saving session: %w", err)
 	}
@@ -325,7 +325,7 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 	if m.appID == 0 {
 		m.appID = sessionString.AppID
 	}
-	m.Logger.Debug("importing - auth from string session (IP: %s)...", utils.FmtIp(sessionString.IpAddr))
+	m.Logger.Debug("importing - auth from string session (IP: %s)...", utils.FmtIP(sessionString.IpAddr))
 	if err := m.SaveSession(m.memorySession); err != nil {
 		return false, fmt.Errorf("saving session: %w", err)
 	}
@@ -389,7 +389,7 @@ func (m *MTProto) SwitchDc(dc int) error {
 	if m.noRedirect {
 		return nil
 	}
-	newAddr := m.DcList.GetHostIp(dc, false, m.IpV6)
+	newAddr := m.DcList.GetHostIP(dc, false, m.IpV6)
 	if newAddr == "" {
 		return fmt.Errorf("dc %d not found in dc list", dc)
 	}
@@ -441,12 +441,12 @@ func (m *MTProto) SwitchDc(dc int) error {
 }
 
 func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, error) {
-	newAddr := m.DcList.GetHostIp(dcID, false, m.IpV6)
+	newAddr := m.DcList.GetHostIP(dcID, false, m.IpV6)
 	senderID := utils.RandomSenderID()
 	logger := utils.NewLogger("gogram [sender-" + senderID + "]").SetLevel(utils.InfoLevel)
 
 	if len(cdn) > 0 && cdn[0] {
-		newAddr, _ = m.DcList.GetCdnAddr(dcID)
+		newAddr, _ = m.DcList.GetCDNAddr(dcID)
 		logger.SetPrefix("gogram [cdn-" + senderID + "]")
 	}
 
@@ -550,9 +550,9 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 
 	transportType := m.GetTransportType()
 	if withLog {
-		m.Logger.Info("connecting to [%s] - <%s> ...", utils.FmtIp(m.Addr), transportType)
+		m.Logger.Info("connecting to [%s] - <%s> ...", utils.FmtIP(m.Addr), transportType)
 	} else {
-		m.Logger.Debug("connecting to [%s] - <%s> ...", utils.FmtIp(m.Addr), transportType)
+		m.Logger.Debug("connecting to [%s] - <%s> ...", utils.FmtIP(m.Addr), transportType)
 	}
 
 	err := m.connectWithRetry(ctx)
@@ -564,16 +564,16 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 
 	var localAddrLabel string
 	if m.localAddr != "" {
-		localAddrLabel = fmt.Sprintf("(-%s)", utils.FmtIp(m.localAddr))
+		localAddrLabel = fmt.Sprintf("(-%s)", utils.FmtIP(m.localAddr))
 	}
 
 	var proxyLabel string
 	if m.proxy != nil && m.proxy.Host != "" {
-		proxyLabel = fmt.Sprintf("(~%s)", utils.FmtIp(m.proxy.Host))
+		proxyLabel = fmt.Sprintf("(~%s)", utils.FmtIP(m.proxy.Host))
 	}
 
 	transportType = m.GetTransportType()
-	logMessage := fmt.Sprintf("connection to %s%s[%s] - <%s> established", localAddrLabel, proxyLabel, utils.FmtIp(m.Addr), transportType)
+	logMessage := fmt.Sprintf("connection to %s%s[%s] - <%s> established", localAddrLabel, proxyLabel, utils.FmtIP(m.Addr), transportType)
 
 	if withLog {
 		m.Logger.Info(logMessage)
@@ -619,7 +619,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 	var err error
 	cfg := transport.CommonConfig{
 		Ctx:         ctx,
-		Host:        utils.FmtIp(m.Addr),
+		Host:        utils.FmtIP(m.Addr),
 		Timeout:     m.timeout,
 		Socks:       m.proxy,
 		LocalAddr:   m.localAddr,
@@ -646,7 +646,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 		return fmt.Errorf("creating transport: %w", err)
 	}
 
-	m.Logger.Debug("%s transport created successfully", transportType)
+	m.Logger.Trace("%s transport created successfully", transportType)
 
 	if err := m.checkRapidReconnect(); err != nil {
 		return err
@@ -747,11 +747,12 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 	}
 
 	respChan, msgID, err := m.sendPacket(data, expectedTypes...)
+	m.Logger.Trace("sent request: %T msgID=%d", data, msgID)
 	if err != nil {
 		if !utils.IsTransportError(err) {
 			return nil, fmt.Errorf("sending packet: %w", err)
 		}
-		m.Logger.WithError(err).Debug("transport error: reconnecting to [%s] - <%s>...", m.Addr, m.GetTransportType())
+		m.Logger.WithError(err).Trace("transport error: reconnecting to [%s] - <%s>...", m.Addr, m.GetTransportType())
 		if reconnErr := m.Reconnect(false); reconnErr != nil {
 			return nil, fmt.Errorf("reconnecting: %w", reconnErr)
 		}
@@ -852,6 +853,8 @@ func (m *MTProto) stopRoutines() {
 	if m.ctxCancel != nil {
 		m.ctxCancel()
 	}
+
+	m.notifyPendingRequestsOfConfigChange()
 }
 
 func (m *MTProto) Disconnect() error {
@@ -940,7 +943,7 @@ func (m *MTProto) Ping() time.Duration {
 		return 0
 	}
 	start := time.Now()
-	m.Logger.Debug("pinging server...")
+	m.Logger.Trace("pinging server...")
 	if err := m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: time.Now().Unix(),
 	}); err != nil {
@@ -952,7 +955,7 @@ func (m *MTProto) Ping() time.Duration {
 
 func (m *MTProto) tryReconnect() error {
 	if err := m.Reconnect(false); err != nil {
-		m.Logger.Debug("failed to reconnect to [%s] - <%s>: %v", utils.FmtIp(m.Addr), m.GetTransportType(), err)
+		m.Logger.Debug("failed to reconnect to [%s] - <%s>: %v", utils.FmtIP(m.Addr), m.GetTransportType(), err)
 		return err
 	}
 	return nil
@@ -967,7 +970,7 @@ func (m *MTProto) checkRapidReconnect() error {
 	if !m.lastSuccessfulConnect.IsZero() && now.Sub(m.lastSuccessfulConnect) < 5*time.Second {
 		m.rapidReconnectCount++
 		if m.rapidReconnectCount >= 10 {
-			m.Logger.Debug("detected rapid reconnection loop (%d consecutive reconnects in <5s intervals)", m.rapidReconnectCount)
+			m.Logger.Warn("detected rapid reconnection loop (%d consecutive reconnects in <5s intervals)", m.rapidReconnectCount)
 			if m.proxy != nil && m.proxy.Type == "mtproxy" {
 				return fmt.Errorf("mtproxy connection loop detected: connection succeeds but immediately closes - check proxy configuration, secret, or server availability")
 			}
@@ -1014,16 +1017,21 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			}
 
 			if isBrokenError(err) {
-				m.Logger.Debug("connection error (%v), reconnecting to [%s] - <%s>...", err, utils.FmtIp(m.Addr), m.GetTransportType())
-				if err := m.tryReconnect(); err != nil {
-					m.Logger.Debug("failed to reconnect: %v", err)
+				if !m.reconnectInProgress.Load() {
+					m.Logger.Trace("connection error (%v), reconnecting to [%s] - <%s>...", err, utils.FmtIP(m.Addr), m.GetTransportType())
+					if err := m.tryReconnect(); err != nil {
+						m.Logger.Debug("failed to reconnect: %v", err)
+					}
 				}
+
 				if errors.Is(err, io.EOF) {
+					m.Logger.Trace("connection closed (EOF), stopping read loop")
 					return
 				}
 				continue
 			}
 
+			m.Logger.Trace("error reading message: %v", err)
 			var respErr *ErrResponseCode
 			var transErr *transport.ErrCode
 			switch {
@@ -1042,8 +1050,8 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				if !m.terminated.Load() {
 					if strings.Contains(err.Error(), "object with provided crc") {
 						m.Logger.Warn(FormatDecodeError(err))
-					} else {
-						m.Logger.Debug("reading message: %v", err)
+					} else if !m.reconnectInProgress.Load() {
+						m.Logger.Trace("reading message: %v", err)
 						if err := m.tryReconnect(); err != nil {
 							m.Logger.Debug("failed to reconnect: %v", err)
 						}
@@ -1191,6 +1199,11 @@ messageTypeSwitching:
 			m.notifyPendingRequestsOfConfigChange()
 			return nil
 		}
+
+		if badMsg.Code == 32 || badMsg.Code == 33 {
+			m.notifyPendingRequestsOfConfigChange()
+			return nil
+		}
 		m.Logger.Debug("bad-msg-notification: code=%d msg=%s", badMsg.Code, badMsg.Error())
 		return badMsg
 
@@ -1199,7 +1212,7 @@ messageTypeSwitching:
 		if v, ok := obj.(*objects.GzipPacked); ok {
 			obj = v.Obj
 		}
-		m.Logger.Trace("RPC: %T", obj)
+		m.Logger.Trace("RPC: %T -> msgID %d", obj, message.ReqMsgID)
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			if strings.Contains(err.Error(), "no response channel found") {
@@ -1224,12 +1237,12 @@ messageTypeSwitching:
 			}
 		}
 		if !processed {
-			m.Logger.Debug("unhandled update: %T", message)
+			m.Logger.Trace("unhandled update: %T", message)
 		}
 	}
 
 	if m.pendingAcks.Len() >= defaultPendingAcksThreshold {
-		m.Logger.Debug("Sending acks %d", m.pendingAcks.Len())
+		m.Logger.Trace("sending acks %d", m.pendingAcks.Len())
 
 		_, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: m.pendingAcks.Keys()})
 		if err != nil {
@@ -1246,7 +1259,8 @@ messageTypeSwitching:
 // Used when server salt changes and requests need to be resent
 func (m *MTProto) notifyPendingRequestsOfConfigChange() {
 	old := m.responseChannels.SwapAndClear()
-	for _, ch := range old {
+	for msgID, ch := range old {
+		m.expectedTypes.Delete(msgID)
 		select {
 		case ch <- &errorSessionConfigsChanged{}:
 		case <-time.After(1 * time.Millisecond):

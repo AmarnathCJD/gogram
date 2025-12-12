@@ -169,7 +169,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 			customHost = true
 			return config.IpAddr
 		} else {
-			return utils.DcList.GetHostIp(config.DataCenter, config.TestMode, config.ForceIPv6)
+			return utils.DCList.GetHostIP(config.DataCenter, config.TestMode, config.ForceIPv6)
 		}
 	}
 
@@ -337,13 +337,13 @@ func (c *Client) InitialRequest() error {
 					dcs[int(dc.ID)] = []utils.DC{}
 				}
 
-				dcs[int(dc.ID)] = append(dcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), V: dc.Ipv6})
+				dcs[int(dc.ID)] = append(dcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), IPv6: dc.Ipv6})
 			} else if dc.Cdn {
 				if _, ok := cdnDcs[int(dc.ID)]; !ok {
 					cdnDcs[int(dc.ID)] = []utils.DC{}
 				}
 
-				cdnDcs[int(dc.ID)] = append(cdnDcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), V: dc.Ipv6})
+				cdnDcs[int(dc.ID)] = append(cdnDcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), IPv6: dc.Ipv6})
 			}
 		}
 
