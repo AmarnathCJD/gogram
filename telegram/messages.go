@@ -14,40 +14,37 @@ import (
 )
 
 type SendOptions struct {
-	Attributes           []DocumentAttribute      // attributes of the file
-	MimeType             string                   // mime type of the file
-	Caption              any                      // caption for the media (takes array of strings or a NewMessage)
-	ClearDraft           bool                     // to clear the draft after sending
-	Entities             []MessageEntity          // message formatting entities
-	FileName             string                   // file name to be used
-	ForceDocument        bool                     // to force the file to be sent as a document
-	InvertMedia          bool                     // show media below the caption
-	LinkPreview          bool                     // to enable link preview
-	Media                any                      // media to be sent (e.g., photo, video, document)
-	NoForwards           bool                     // to disable forwarding (restrict saving)
-	ParseMode            string                   // parse mode for the caption (markdown or html)
-	ReplyTo              *InputReplyToMessage     // custom reply to message
-	ReplyID              int32                    // reply to message ID
-	TopicID              int32                    // topic ID for the message to be sent
-	ReplyMarkup          ReplyMarkup              // keyboard to send with the message
-	UpdateStickerOrder   bool                     // to update sticker sets order after sending
-	ScheduleDate         int32                    // schedule date for the message
-	ScheduleRepeatPeriod int32                    // schedule repeat period for the message
-	SendAs               any                      // to send the message as a different peer
-	Silent               bool                     // to send the message silently
-	Thumb                any                      // thumbnail of the file
-	TTL                  int32                    // time to live for the file (in seconds)
-	Spoiler              bool                     // to send the file as a spoiler message
-	ProgressInterval     int                      // interval (in seconds) to update progress
-	ProgressManager      *ProgressManager         // progress manager for uploading
-	ProgressCallback     func(*ProgressInfo)      // progress callback function
-	UploadThreads        int                      // number of worker threads to use for uploading
-	Effect               int64                    // effect ID for the media (e.g., animations)
-	Timeouts             int32                    // timeouts for conversations (m.Ask())
-	AllowPaidStars       int64                    // allow paid stars
-	PaidFloodSkip        bool                     // allow paid flood skip
-	SuggestedPost        *SuggestedPost           // suggested post options
-	QuickReplyShortcut   *InputQuickReplyShortcut // quick reply shortcut options
+	Attributes           []DocumentAttribute      // Document attributes like filename, dimensions, duration
+	MimeType             string                   // MIME type override (e.g., "video/mp4", "audio/mpeg")
+	Caption              any                      // Media caption: string, []string for albums, or *NewMessage
+	ClearDraft           bool                     // Clear saved draft in this chat after sending
+	Entities             []MessageEntity          // Pre-parsed formatting entities (overrides ParseMode)
+	FileName             string                   // Custom filename for the uploaded file
+	ForceDocument        bool                     // Send media as document instead of embedded preview
+	InvertMedia          bool                     // Display media below caption instead of above
+	LinkPreview          bool                     // Generate link preview for URLs in message
+	Media                any                      // Media to attach: InputMedia, MessageMedia, or InputFile
+	NoForwards           bool                     // Restrict forwarding and saving of this message
+	ParseMode            string                   // Text parsing mode: "markdown", "html", or empty for plain
+	ReplyTo              *InputReplyToMessage     // Full reply configuration with quote support
+	ReplyID              int32                    // Simple reply to message by ID
+	TopicID              int32                    // Forum topic ID to send message in
+	ReplyMarkup          ReplyMarkup              // Inline keyboard or reply keyboard markup
+	UpdateStickerOrder   bool                     // Move used sticker to top of recent stickers
+	ScheduleDate         int32                    // Unix timestamp to schedule message delivery
+	ScheduleRepeatPeriod int32                    // Repeat interval in seconds for scheduled message
+	SendAs               any                      // Send as channel or linked chat (peer ID or username)
+	Silent               bool                     // Send without notification sound
+	Thumb                any                      // Custom thumbnail: file path, bytes, or InputFile
+	TTL                  int32                    // Self-destruct timer in seconds (for secret media)
+	Spoiler              bool                     // Hide media behind spoiler overlay
+	Upload               *UploadOptions           // Upload configuration (threads, progress, chunk size)
+	Effect               int64                    // Message effect animation ID
+	Timeouts             int32                    // Response timeout for conversation Ask() calls
+	AllowPaidStars       int64                    // Stars amount for paid content access
+	PaidFloodSkip        bool                     // Skip flood wait using paid priority
+	SuggestedPost        *SuggestedPost           // Channel post suggestion configuration
+	QuickReplyShortcut   *InputQuickReplyShortcut // Quick reply shortcut binding
 }
 
 // SendMessage sends a message to a specified peer using the Telegram API method messages.sendMessage.
@@ -231,18 +228,15 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 	)
 	if Media != nil {
 		media, err = c.getSendableMedia(Media, &MediaMetadata{
-			FileName:         options.FileName,
-			Thumb:            options.Thumb,
-			Attributes:       options.Attributes,
-			ForceDocument:    options.ForceDocument,
-			TTL:              options.TTL,
-			Spoiler:          options.Spoiler,
-			DisableThumb:     false,
-			MimeType:         options.MimeType,
-			ProgressManager:  options.ProgressManager,
-			ProgressInterval: options.ProgressInterval,
-			ProgressCallback: options.ProgressCallback,
-			UploadThreads:    options.UploadThreads,
+			FileName:      options.FileName,
+			Thumb:         options.Thumb,
+			Attributes:    options.Attributes,
+			ForceDocument: options.ForceDocument,
+			TTL:           options.TTL,
+			Spoiler:       options.Spoiler,
+			DisableThumb:  false,
+			MimeType:      options.MimeType,
+			Upload:        options.Upload,
 		})
 		if err != nil {
 			return nil, err
@@ -291,18 +285,15 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 	)
 	if Media != nil {
 		media, err = c.getSendableMedia(Media, &MediaMetadata{
-			Attributes:       options.Attributes,
-			TTL:              options.TTL,
-			ForceDocument:    options.ForceDocument,
-			Thumb:            options.Thumb,
-			FileName:         options.FileName,
-			Spoiler:          options.Spoiler,
-			MimeType:         options.MimeType,
-			ProgressManager:  options.ProgressManager,
-			ProgressInterval: options.ProgressInterval,
-			ProgressCallback: options.ProgressCallback,
-			UploadThreads:    options.UploadThreads,
-			Inline:           true,
+			Attributes:    options.Attributes,
+			TTL:           options.TTL,
+			ForceDocument: options.ForceDocument,
+			Thumb:         options.Thumb,
+			FileName:      options.FileName,
+			Spoiler:       options.Spoiler,
+			MimeType:      options.MimeType,
+			Upload:        options.Upload,
+			Inline:        true,
 		})
 		if err != nil {
 			return nil, err
@@ -373,59 +364,53 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 }
 
 type MediaOptions struct {
-	Attributes           []DocumentAttribute      // attributes of the file
-	MimeType             string                   // mime type of the file
-	Caption              any                      // caption for the media (takes array of strings or a NewMessage)
-	ClearDraft           bool                     // to clear the draft after sending
-	Entities             []MessageEntity          // message formatting entities
-	FileName             string                   // file name to be used
-	ForceDocument        bool                     // to force the file to be sent as a document
-	InvertMedia          bool                     // show media below the caption
-	LinkPreview          bool                     // to enable link preview
-	NoForwards           bool                     // to disable forwarding (restrict saving)
-	NoSoundVideo         bool                     // to send the video without sound
-	ParseMode            string                   // parse mode for the caption (markdown or html)
-	ReplyTo              *InputReplyToMessage     // reply to message
-	ReplyID              int32                    // reply to message ID
-	TopicID              int32                    // topic ID for the message to be sent
-	UpdateStickerOrder   bool                     // to update sticker sets order after sending
-	ReplyMarkup          ReplyMarkup              // keyboard to send with the message
-	ScheduleDate         int32                    // schedule date for the message
-	ScheduleRepeatPeriod int32                    // schedule repeat period for the message
-	SendAs               any                      // to send the message as a different peer
-	Silent               bool                     // to send the message silently
-	Thumb                any                      // thumbnail of the file
-	TTL                  int32                    // time to live for the file (in seconds)
-	Spoiler              bool                     // to send the file as a spoiler message'
-	ProgressInterval     int                      // interval (in seconds) to update progress
-	ProgressManager      *ProgressManager         // progress manager for uploading
-	ProgressCallback     func(*ProgressInfo)      // progress callback function
-	UploadThreads        int                      // number of worker threads to use for uploading
-	SkipHash             bool                     // to skip reusing duplicate files
-	SleepThresholdMs     int32                    // sleep threshold in milliseconds (in-between chunked operations)
-	AllowPaidStars       int64                    // allow paid stars
-	PaidFloodSkip        bool                     // allow paid flood skip
-	SuggestedPost        *SuggestedPost           // suggested post options
-	QuickReplyShortcut   *InputQuickReplyShortcut // quick reply shortcut options
+	Attributes           []DocumentAttribute      // Document attributes like filename, dimensions, duration
+	MimeType             string                   // MIME type override (e.g., "video/mp4", "audio/mpeg")
+	Caption              any                      // Media caption: string, []string for albums, or *NewMessage
+	ClearDraft           bool                     // Clear saved draft in this chat after sending
+	Entities             []MessageEntity          // Pre-parsed formatting entities (overrides ParseMode)
+	FileName             string                   // Custom filename for the uploaded file
+	ForceDocument        bool                     // Send media as document instead of embedded preview
+	InvertMedia          bool                     // Display media below caption instead of above
+	LinkPreview          bool                     // Generate link preview for URLs in caption
+	NoForwards           bool                     // Restrict forwarding and saving of this message
+	NoSoundVideo         bool                     // Strip audio track from video file
+	ParseMode            string                   // Text parsing mode: "markdown", "html", or empty for plain
+	ReplyTo              *InputReplyToMessage     // Full reply configuration with quote support
+	ReplyID              int32                    // Simple reply to message by ID
+	TopicID              int32                    // Forum topic ID to send message in
+	UpdateStickerOrder   bool                     // Move used sticker to top of recent stickers
+	ReplyMarkup          ReplyMarkup              // Inline keyboard or reply keyboard markup
+	ScheduleDate         int32                    // Unix timestamp to schedule message delivery
+	ScheduleRepeatPeriod int32                    // Repeat interval in seconds for scheduled message
+	SendAs               any                      // Send as channel or linked chat (peer ID or username)
+	Silent               bool                     // Send without notification sound
+	Thumb                any                      // Custom thumbnail: file path, bytes, or InputFile
+	TTL                  int32                    // Self-destruct timer in seconds (for secret media)
+	Spoiler              bool                     // Hide media behind spoiler overlay
+	Upload               *UploadOptions           // Upload configuration (threads, progress, chunk size)
+	SkipHash             bool                     // Disable file deduplication by hash lookup
+	SleepThresholdMs     int32                    // Delay between chunk operations in milliseconds
+	AllowPaidStars       int64                    // Stars amount for paid content access
+	PaidFloodSkip        bool                     // Skip flood wait using paid priority
+	SuggestedPost        *SuggestedPost           // Channel post suggestion configuration
+	QuickReplyShortcut   *InputQuickReplyShortcut // Quick reply shortcut binding
 }
 
 type MediaMetadata struct {
-	FileName             string              // file name to be used.
-	BusinessConnectionId string              // business connection id
-	Thumb                any                 // thumbnail of the file
-	Attributes           []DocumentAttribute // attributes of the file
-	ForceDocument        bool                // to force the file to be sent as a document
-	TTL                  int32               // time to live for the file
-	Spoiler              bool                // to send the file as a spoiler message
-	DisableThumb         bool                // disable thumbnail generation
-	MimeType             string              // mime type of the file
-	ProgressInterval     int                 // interval (in seconds) to update progress
-	ProgressManager      *ProgressManager    // progress manager for uploading
-	ProgressCallback     func(*ProgressInfo) // progress callback function
-	UploadThreads        int                 // number of worker threads to use for uploading
-	FileAbsPath          string              // absolute path to the file
-	Inline               bool                // to force calling media.uploadMedia (for inline and albums)
-	SkipHash             bool                // to skip reusing duplicate files
+	FileName             string              // Custom filename for the uploaded file
+	BusinessConnectionId string              // Business bot connection identifier
+	Thumb                any                 // Custom thumbnail: file path, bytes, or InputFile
+	Attributes           []DocumentAttribute // Document attributes like dimensions, duration, performer
+	ForceDocument        bool                // Send as generic document instead of media type
+	TTL                  int32               // Self-destruct timer in seconds
+	Spoiler              bool                // Hide media behind spoiler overlay
+	DisableThumb         bool                // Skip automatic thumbnail generation
+	MimeType             string              // MIME type override (e.g., "application/pdf")
+	Upload               *UploadOptions      // Upload configuration (threads, progress, chunk size)
+	FileAbsPath          string              // Source file absolute path (set automatically)
+	Inline               bool                // Force uploadMedia call (required for inline/albums)
+	SkipHash             bool                // Disable file deduplication by hash lookup
 }
 
 // SendMedia sends a media message.
@@ -455,18 +440,15 @@ func (c *Client) SendMedia(peerID, Media any, opts ...*MediaOptions) (*NewMessag
 	)
 
 	sendMedia, err := c.getSendableMedia(Media, &MediaMetadata{
-		FileName:         opt.FileName,
-		Thumb:            opt.Thumb,
-		ForceDocument:    opt.ForceDocument,
-		Attributes:       opt.Attributes,
-		TTL:              opt.TTL,
-		Spoiler:          opt.Spoiler,
-		MimeType:         opt.MimeType,
-		ProgressManager:  opt.ProgressManager,
-		ProgressInterval: opt.ProgressInterval,
-		ProgressCallback: opt.ProgressCallback,
-		UploadThreads:    opt.UploadThreads,
-		SkipHash:         opt.SkipHash,
+		FileName:      opt.FileName,
+		Thumb:         opt.Thumb,
+		ForceDocument: opt.ForceDocument,
+		Attributes:    opt.Attributes,
+		TTL:           opt.TTL,
+		Spoiler:       opt.Spoiler,
+		MimeType:      opt.MimeType,
+		Upload:        opt.Upload,
+		SkipHash:      opt.SkipHash,
 	})
 
 	if err != nil {
@@ -577,18 +559,15 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 	}
 
 	inputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{
-		FileName:         opt.FileName,
-		Thumb:            opt.Thumb,
-		ForceDocument:    opt.ForceDocument,
-		Attributes:       opt.Attributes,
-		TTL:              opt.TTL,
-		Spoiler:          opt.Spoiler,
-		MimeType:         opt.MimeType,
-		ProgressManager:  opt.ProgressManager,
-		ProgressInterval: opt.ProgressInterval,
-		ProgressCallback: opt.ProgressCallback,
-		UploadThreads:    opt.UploadThreads,
-		SkipHash:         opt.SkipHash,
+		FileName:      opt.FileName,
+		Thumb:         opt.Thumb,
+		ForceDocument: opt.ForceDocument,
+		Attributes:    opt.Attributes,
+		TTL:           opt.TTL,
+		Spoiler:       opt.Spoiler,
+		MimeType:      opt.MimeType,
+		Upload:        opt.Upload,
+		SkipHash:      opt.SkipHash,
 	})
 
 	if multiErr != nil {
@@ -715,17 +694,17 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 }
 
 type PollOptions struct {
-	PublicVoters   bool   // Allow public voters
-	MCQ            bool   // Multiple choice question type poll
-	IsQuiz         bool   // Quiz type poll
-	ClosePeriod    int32  // Close the poll after this period
-	CloseDate      int32  // Close the poll at this date
-	Solution       string // Solution for the poll
-	CorrectAnswers []int  // Correct answers for the poll
-	ReplyID        int32  // Reply to message ID
-	TopicID        int32  // Topic ID for the message to be sent
-	NoForwards     bool   // Disable forwarding
-	ScheduleDate   int32  // Schedule date for the message
+	PublicVoters   bool   // Show who voted for each option publicly
+	MCQ            bool   // Allow selecting multiple answers
+	IsQuiz         bool   // Quiz mode with correct answer and explanation
+	ClosePeriod    int32  // Auto-close poll after N seconds from creation
+	CloseDate      int32  // Unix timestamp to auto-close the poll
+	Solution       string // Explanation shown after quiz answer (supports formatting)
+	CorrectAnswers []int  // Zero-based indices of correct options (for quiz)
+	ReplyID        int32  // Simple reply to message by ID
+	TopicID        int32  // Forum topic ID to send poll in
+	NoForwards     bool   // Restrict forwarding and saving of this poll
+	ScheduleDate   int32  // Unix timestamp to schedule poll delivery
 }
 
 func (c *Client) SendPoll(peerID any, question string, options []string, opts ...*PollOptions) (*NewMessage, error) {
@@ -891,8 +870,8 @@ func (c *Client) SendDice(peerID any, emoji string) (*NewMessage, error) {
 }
 
 type ActionResult struct {
-	Peer   InputPeer `json:"peer,omitempty"`
-	Client *Client   `json:"client,omitempty"`
+	Peer   InputPeer // The peer the action was sent to
+	Client *Client   // The client that sent the action
 }
 
 // Cancel the pointed Action,
@@ -962,22 +941,22 @@ func (c *Client) SendReadAck(PeerID any, MaxID ...int32) (*MessagesAffectedMessa
 // SendPoll sends a poll. TODO
 
 type ForwardOptions struct {
-	HideCaption          bool                 // whether to drop the original caption
-	HideAuthor           bool                 // whether to drop the original author
-	Silent               bool                 // whether to send the message silently
-	Noforwards           bool                 // whether to disable forwarding
-	AllowPaidFloodSkip   bool                 // allow paid flood skip
-	Background           bool                 // send the message in the background
-	WithMyScore          bool                 // whether to include the user's game score
-	SendAs               any                  // send the message as a different peer
-	ScheduleDate         int32                // schedule date for the message
-	ScheduleRepeatPeriod int32                // schedule repeat period for the message
-	ReplyTo              *InputReplyToMessage // custom reply to message
-	ReplyID              int32                // reply to message ID
-	TopicID              int32                // topic ID for the message to be sent
-	AllowPaidStars       int64                // allow paid stars reactions
-	VideoTimestamp       int32                // video timestamp
-	SuggestedPost        *SuggestedPost       // suggested post info
+	HideCaption          bool                 // Remove original caption from forwarded message
+	HideAuthor           bool                 // Hide original sender (forward as copy)
+	Silent               bool                 // Send without notification sound
+	Noforwards           bool                 // Restrict further forwarding of this message
+	AllowPaidFloodSkip   bool                 // Skip flood wait using paid priority
+	Background           bool                 // Send in background without waiting for response
+	WithMyScore          bool                 // Include your game score when forwarding games
+	SendAs               any                  // Send as channel or linked chat (peer ID or username)
+	ScheduleDate         int32                // Unix timestamp to schedule forward delivery
+	ScheduleRepeatPeriod int32                // Repeat interval in seconds for scheduled forward
+	ReplyTo              *InputReplyToMessage // Full reply configuration with quote support
+	ReplyID              int32                // Simple reply to message by ID
+	TopicID              int32                // Forum topic ID to forward message to
+	AllowPaidStars       int64                // Stars amount for paid content access
+	VideoTimestamp       int32                // Start timestamp in seconds for video messages
+	SuggestedPost        *SuggestedPost       // Channel post suggestion configuration
 }
 
 // Forward forwards a message.
@@ -1717,9 +1696,9 @@ func (c *Client) IterHistory(PeerID any, callback func(*NewMessage) error, opts 
 }
 
 type PinOptions struct {
-	Unpin     bool // whether to unpin the message
-	PmOneside bool // whether to pin the message on one side
-	Silent    bool // whether to pin the message silently
+	Unpin     bool // Unpin instead of pin the message
+	PmOneside bool // Pin only for yourself in private chats
+	Silent    bool // Pin without sending notification to members
 }
 
 // Pin pins a message.
@@ -1765,10 +1744,10 @@ func (c *Client) GetPinnedMessage(PeerID any) (*NewMessage, error) {
 }
 
 type InlineOptions struct {
-	Dialog   any           // The chat or channel to send the query to.
-	Offset   string        // The offset to send.
-	Query    string        // The query to send.
-	GeoPoint InputGeoPoint // The location to send.
+	Dialog   any           // Chat context for personalized results (peer ID or username)
+	Offset   string        // Pagination offset from previous results
+	Query    string        // Search query text sent to the bot
+	GeoPoint InputGeoPoint // User location for location-based results
 }
 
 // InlineQuery performs an inline query and returns the results.
@@ -1868,29 +1847,27 @@ func (c *Client) GetMediaGroup(PeerID any, MsgID int32) ([]NewMessage, error) {
 
 func convertOption(s *SendOptions) *MediaOptions {
 	return &MediaOptions{
-		ReplyID:          s.ReplyID,
-		MimeType:         s.MimeType,
-		Caption:          s.Caption,
-		ParseMode:        s.ParseMode,
-		Silent:           s.Silent,
-		LinkPreview:      s.LinkPreview,
-		InvertMedia:      s.InvertMedia,
-		ReplyMarkup:      s.ReplyMarkup,
-		ClearDraft:       s.ClearDraft,
-		NoForwards:       s.NoForwards,
-		ScheduleDate:     s.ScheduleDate,
-		SendAs:           s.SendAs,
-		Thumb:            s.Thumb,
-		TTL:              s.TTL,
-		Entities:         s.Entities,
-		ForceDocument:    s.ForceDocument,
-		Spoiler:          s.Spoiler,
-		TopicID:          s.TopicID,
-		ProgressInterval: s.ProgressInterval,
-		ProgressManager:  s.ProgressManager,
-		ProgressCallback: s.ProgressCallback,
-		FileName:         s.FileName,
-		Attributes:       s.Attributes,
+		ReplyID:       s.ReplyID,
+		MimeType:      s.MimeType,
+		Caption:       s.Caption,
+		ParseMode:     s.ParseMode,
+		Silent:        s.Silent,
+		LinkPreview:   s.LinkPreview,
+		InvertMedia:   s.InvertMedia,
+		ReplyMarkup:   s.ReplyMarkup,
+		ClearDraft:    s.ClearDraft,
+		NoForwards:    s.NoForwards,
+		ScheduleDate:  s.ScheduleDate,
+		SendAs:        s.SendAs,
+		Thumb:         s.Thumb,
+		TTL:           s.TTL,
+		Entities:      s.Entities,
+		ForceDocument: s.ForceDocument,
+		Spoiler:       s.Spoiler,
+		TopicID:       s.TopicID,
+		Upload:        s.Upload,
+		FileName:      s.FileName,
+		Attributes:    s.Attributes,
 	}
 }
 

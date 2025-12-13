@@ -482,9 +482,9 @@ func MatchError(err error, str string) bool {
 }
 
 type FileLocationOptions struct {
-	ThumbOnly bool
-	ThumbSize PhotoSize
-	Video     bool
+	ThumbOnly bool      // Get thumbnail location only
+	ThumbSize PhotoSize // Specific thumbnail size to retrieve
+	Video     bool      // Get video version (for animated content)
 }
 
 // GetFileLocation returns file location, datacenter, file size and file name

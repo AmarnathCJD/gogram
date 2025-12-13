@@ -611,15 +611,10 @@ mediaTypeSwitch:
 			return documentExt, nil
 		} else {
 			if _, err := os.Stat(media); err == nil {
-				uploadOpts := &UploadOptions{}
-				if attr.ProgressManager != nil {
-					uploadOpts.ProgressManager = attr.ProgressManager
+				uploadOpts := attr.Upload
+				if uploadOpts == nil {
+					uploadOpts = &UploadOptions{}
 				}
-				uploadOpts.ProgressInterval = attr.ProgressInterval
-				if attr.ProgressCallback != nil {
-					uploadOpts.ProgressCallback = attr.ProgressCallback
-				}
-				uploadOpts.Threads = attr.UploadThreads
 
 				mediaFile, err = c.UploadFile(media, uploadOpts)
 				if err != nil {
@@ -763,10 +758,15 @@ mediaTypeSwitch:
 			return uploadedDoc, nil
 		}
 	case []byte, *io.Reader, *bytes.Buffer, *os.File:
-		var uopts *UploadOptions = &UploadOptions{}
-		if attr != nil {
-			uopts.ProgressManager = attr.ProgressManager
-			if attr.FileName != "" {
+		var uopts *UploadOptions
+		if attr != nil && attr.Upload != nil {
+			uopts = attr.Upload
+			if attr.FileName != "" && uopts.FileName == "" {
+				uopts.FileName = attr.FileName
+			}
+		} else {
+			uopts = &UploadOptions{}
+			if attr != nil && attr.FileName != "" {
 				uopts.FileName = attr.FileName
 			}
 		}

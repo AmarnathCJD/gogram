@@ -107,20 +107,20 @@ type LogEntry struct {
 type Hook func(*LogEntry)
 
 type LoggerConfig struct {
-	Level           LogLevel
-	Prefix          string
-	Output          any // io.Writer
-	Formatter       LogFormatter
-	Color           bool
-	ShowCaller      bool
-	ShowFunction    bool
-	FullStackTrace  bool // If true, show raw full stack trace; if false (default), show formatted condensed stack
-	TimestampFormat string
-	BufferSize      int
-	AsyncMode       bool
-	AsyncQueueSize  int
-	ErrorHandler    func(error)
-	JSONOutput      bool // Enable JSON output mode
+	Level           LogLevel     // Minimum log level to output
+	Prefix          string       // Log message prefix
+	Output          any          // Output destination (io.Writer)
+	Formatter       LogFormatter // Custom log formatter
+	Color           bool         // Enable colored output
+	ShowCaller      bool         // Include caller file:line in logs
+	ShowFunction    bool         // Include function name in logs
+	FullStackTrace  bool         // Show full stack trace on errors
+	TimestampFormat string       // Custom timestamp format
+	BufferSize      int          // Write buffer size
+	AsyncMode       bool         // Enable asynchronous logging
+	AsyncQueueSize  int          // Size of async log queue
+	ErrorHandler    func(error)  // Handler for logging errors
+	JSONOutput      bool         // Output logs in JSON format
 }
 
 // LogOutputMode defines the output format

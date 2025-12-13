@@ -21,22 +21,14 @@ import (
 )
 
 type UploadOptions struct {
-	// Worker count for upload file.
-	Threads int `json:"threads,omitempty"`
-	//  Chunk size for upload file.
-	ChunkSize int32 `json:"chunk_size,omitempty"`
-	// File name for upload file.
-	FileName string `json:"file_name,omitempty"`
-	// Progress callback: receives ProgressInfo with all transfer details
-	ProgressCallback func(*ProgressInfo) `json:"-"`
-	// Progress manager (legacy support)
-	ProgressManager *ProgressManager `json:"-"`
-	// Progress callback interval in seconds (default: 5)
-	ProgressInterval int `json:"progress_interval,omitempty"`
-	// Delay between chunks in milliseconds (default: 0)
-	Delay int `json:"delay,omitempty"`
-	// Context for cancellation.
-	Ctx context.Context `json:"-"`
+	Threads          int                 // Number of concurrent upload workers
+	ChunkSize        int32               // Size of each upload chunk in bytes
+	FileName         string              // Custom filename for the upload
+	ProgressCallback func(*ProgressInfo) // Callback for upload progress updates
+	ProgressManager  *ProgressManager    // Progress manager (legacy support)
+	ProgressInterval int                 // Progress callback interval in seconds (default: 5)
+	Delay            int                 // Delay between chunks in milliseconds
+	Ctx              context.Context     // Context for cancellation
 }
 
 type WorkerPool struct {
@@ -768,32 +760,19 @@ func chunkSizeCalc(size int64) int {
 }
 
 type DownloadOptions struct {
-	// Download path to save file
-	FileName string `json:"file_name,omitempty"`
-	// Worker count to download file
-	Threads int `json:"threads,omitempty"`
-	// Chunk size to download file
-	ChunkSize int32 `json:"chunk_size,omitempty"`
-	// Progress callback: receives ProgressInfo with all transfer details
-	ProgressCallback func(*ProgressInfo) `json:"-"`
-	// Progress manager (legacy support)
-	ProgressManager *ProgressManager `json:"-"`
-	// Progress callback interval in seconds (default: 5)
-	ProgressInterval int `json:"progress_interval,omitempty"`
-	// Delay between chunks in milliseconds (default: 0)
-	Delay int `json:"delay,omitempty"`
-	// Datacenter ID of file
-	DCId int32 `json:"dc_id,omitempty"`
-	// Destination Writer
-	Buffer io.Writer `json:"-"`
-	// Weather to download the thumb only
-	ThumbOnly bool `json:"thumb_only,omitempty"`
-	// Thumb size to download
-	ThumbSize PhotoSize `json:"thumb_size,omitempty"`
-	// Weather to download video file (profile photo, etc)
-	IsVideo bool `json:"is_video,omitempty"`
-	// Context for cancellation.
-	Ctx context.Context `json:"-"`
+	FileName         string              // Path to save the downloaded file
+	Threads          int                 // Number of concurrent download workers
+	ChunkSize        int32               // Size of each download chunk in bytes
+	ProgressCallback func(*ProgressInfo) // Callback for download progress updates
+	ProgressManager  *ProgressManager    // Progress manager (legacy support)
+	ProgressInterval int                 // Progress callback interval in seconds (default: 5)
+	Delay            int                 // Delay between chunks in milliseconds
+	DCId             int32               // Datacenter ID where file is stored
+	Buffer           io.Writer           // Custom writer for download output
+	ThumbOnly        bool                // Download thumbnail only
+	ThumbSize        PhotoSize           // Specific thumbnail size to download
+	IsVideo          bool                // Download video version (for animated profiles)
+	Ctx              context.Context     // Context for cancellation
 }
 
 type Destination struct {

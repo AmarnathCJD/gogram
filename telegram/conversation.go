@@ -35,12 +35,12 @@ type Conversation struct {
 
 // ConversationOptions for configuring a conversation
 type ConversationOptions struct {
-	Private         bool
-	Timeout         int32
-	StopPropagation bool
-	Context         context.Context
-	AbortKeywords   []string // Words that abort the conversation (e.g., "cancel", "quit")
-	FromUser        int64    // Optional: Only accept messages from this user ID (useful in group chats)
+	Private         bool            // Restrict conversation to private chats
+	Timeout         int32           // Response timeout in seconds (default: 60)
+	StopPropagation bool            // Stop update propagation to other handlers
+	Context         context.Context // Parent context for cancellation
+	AbortKeywords   []string        // Words that abort the conversation (e.g., "cancel")
+	FromUser        int64           // Only accept messages from this user ID, useful in groups
 }
 
 func (c *Client) NewConversation(peer any, options ...*ConversationOptions) (*Conversation, error) {
@@ -633,7 +633,7 @@ func (c *Conversation) AskUntil(question string, validator func(*NewMessage) boo
 		retry = retryMessage[0]
 	}
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		msg, err := c.Ask(question)
 		if err != nil {
 			return nil, err

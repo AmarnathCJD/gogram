@@ -62,8 +62,43 @@ func (c *Client) InvokeWithLayer(layer int, query tl.Object) (tl.Object, error) 
 	return data.(tl.Object), nil
 }
 
-//invokeWithoutUpdates#bf9459b7 {X:Type} query:!X = X;
-//invokeWithMessagesRange#365275f2 {X:Type} range:MessageRange query:!X = X;
+type InvokeWithoutUpdatesParams struct {
+	Query tl.Object
+}
+
+func (*InvokeWithoutUpdatesParams) CRC() uint32 {
+	return 0xbf9459b7
+}
+
+func (c *Client) InvokeWithoutUpdates(query tl.Object) (tl.Object, error) {
+	data, err := c.MakeRequest(&InvokeWithoutUpdatesParams{
+		Query: query,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending InvokeWithoutUpdates: %w", err)
+	}
+	return data.(tl.Object), nil
+}
+
+type InvokeWithMessagesRangeParams struct {
+	Range MessageRange
+	Query tl.Object
+}
+
+func (*InvokeWithMessagesRangeParams) CRC() uint32 {
+	return 0x365275f2
+}
+
+func (c *Client) InvokeWithMessagesRange(r MessageRange, query tl.Object) (tl.Object, error) {
+	data, err := c.MakeRequest(&InvokeWithMessagesRangeParams{
+		Range: r,
+		Query: query,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending InvokeWithMessagesRange: %w", err)
+	}
+	return data.(tl.Object), nil
+}
 
 type InvokeWithTakeoutParams struct {
 	TakeoutID int64
