@@ -8,10 +8,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"maps"
+	"net"
 	"net/url"
-	"os"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -25,168 +24,164 @@ var (
 
 // ------------------ Telegram Data Center Configs ------------------
 
-var DcList = DCOptions{
-	DCS: map[int][]DC{
-		1: {{"149.154.175.58:443", false}},
-		2: {{"149.154.167.50:443", false}},
-		3: {{"149.154.175.100:443", false}},
-		4: {{"149.154.167.91:443", false},
-			{"[2001:067c:04e8:f002::a]:443", true}}, // THIS IS DC2 IPv6
-		5: {{"91.108.56.151:443", false}},
+var DCList = DCOptions{
+	DCs: map[int][]DC{
+		1: {{Addr: "149.154.175.58:443", IPv6: false}},
+		2: {{Addr: "149.154.167.50:443", IPv6: false}},
+		3: {{Addr: "149.154.175.100:443", IPv6: false}},
+		4: {
+			{Addr: "149.154.167.91:443", IPv6: false},
+			{Addr: "[2001:067c:04e8:f002::a]:443", IPv6: true}, // dc2 ipv6, since ipv6 of dc4 is unreachable
+		},
+		5: {{Addr: "91.108.56.151:443", IPv6: false}},
 	},
 	TestDCs: map[int]string{
 		1: "149.154.175.10:443",
 		2: "149.154.167.40:443",
 		3: "149.154.175.117:443",
 	},
-	CdnDCs: map[int][]DC{
-		201: {{"91.108.23.100:443", false}},
-		203: {{"91.105.192.100:443", false},
-			{"[2a0a:f280:0203:000a:5000:0000:0000:0100]:443", true}},
+	CDNDCs: map[int][]DC{
+		201: {{Addr: "91.108.23.100:443", IPv6: false}},
+		203: {
+			{Addr: "91.105.192.100:443", IPv6: false},
+			{Addr: "[2a0a:f280:0203:000a:5000:0000:0000:0100]:443", IPv6: true},
+		},
 	},
 }
 
-// TODO: Fix DC4 Ipv6 is Unreachable
-
 type DC struct {
 	Addr string
-	V    bool
+	IPv6 bool
 }
 
 type DCOptions struct {
-	DCS     map[int][]DC
+	DCs     map[int][]DC
 	TestDCs map[int]string
-	CdnDCs  map[int][]DC
+	CDNDCs  map[int][]DC
 }
 
 func NewDCOptions() *DCOptions {
-	// make a copy of the default DCOptions
-	opt := &DCOptions{
-		DCS:     make(map[int][]DC),
-		TestDCs: make(map[int]string),
-		CdnDCs:  make(map[int][]DC),
+	return &DCOptions{
+		DCs:     maps.Clone(DCList.DCs),
+		TestDCs: maps.Clone(DCList.TestDCs),
+		CDNDCs:  maps.Clone(DCList.CDNDCs),
 	}
-	maps.Copy(opt.DCS, DcList.DCS)
-	maps.Copy(opt.TestDCs, DcList.TestDCs)
-	maps.Copy(opt.CdnDCs, DcList.CdnDCs)
-	return opt
 }
 
-func (opt *DCOptions) SetDCs(dcs map[int][]DC, cdnDcs map[int][]DC) {
-	for key, newDCs := range dcs {
-		opt.DCS[key] = mergeUnique(opt.DCS[key], newDCs)
+func (opt *DCOptions) SetDCs(dcs map[int][]DC, cdnDCs map[int][]DC) {
+	for id, newDCs := range dcs {
+		opt.DCs[id] = mergeUnique(opt.DCs[id], newDCs)
 	}
 
-	for key, newCDNs := range cdnDcs {
-		opt.CdnDCs[key] = mergeUnique(opt.CdnDCs[key], newCDNs)
+	for id, newCDNs := range cdnDCs {
+		opt.CDNDCs[id] = mergeUnique(opt.CDNDCs[id], newCDNs)
 	}
 }
 
 func mergeUnique(existing, new []DC) []DC {
-	uniqueMap := make(map[DC]struct{})
+	seen := make(map[DC]struct{}, len(existing)+len(new))
+	result := make([]DC, 0, len(existing)+len(new))
 
 	for _, dc := range existing {
-		uniqueMap[dc] = struct{}{}
+		if _, exists := seen[dc]; !exists {
+			seen[dc] = struct{}{}
+			result = append(result, dc)
+		}
 	}
 
 	for _, dc := range new {
-		uniqueMap[dc] = struct{}{}
-	}
-
-	result := make([]DC, 0, len(uniqueMap))
-	for dc := range uniqueMap {
-		result = append(result, dc)
+		if _, exists := seen[dc]; !exists {
+			seen[dc] = struct{}{}
+			result = append(result, dc)
+		}
 	}
 
 	return result
 }
 
-func (opt *DCOptions) GetCdnAddr(dc int) (string, bool) {
-	if addrs, ok := opt.CdnDCs[dc]; ok {
-		return addrs[0].Addr, addrs[0].V
+func (opt *DCOptions) GetCDNAddr(dc int) (string, bool) {
+	addrs, ok := opt.CDNDCs[dc]
+	if !ok || len(addrs) == 0 {
+		return "", false
 	}
-	return "", false
+	return addrs[0].Addr, addrs[0].IPv6
 }
 
-func (opt *DCOptions) GetHostIp(dc int, test bool, ipv6 bool) string {
-	dcMap, ok := opt.DCS[dc]
-	if !ok {
-		return ""
-	}
-
+func (opt *DCOptions) GetHostIP(dc int, test, ipv6 bool) string {
 	if test {
 		if addr, ok := opt.TestDCs[dc]; ok {
 			return addr
 		}
 	}
 
-	if ipv6 {
-		for _, dc := range dcMap {
-			if dc.V {
-				return dc.Addr
-			}
-		}
-	}
-
-	for _, dc := range dcMap {
-		if !dc.V {
-			return FmtIp(dc.Addr)
-		}
-	}
-
-	return dcMap[0].Addr
-}
-
-func GetDefaultHostIp(dc int, test bool, ipv6 bool) string {
-	dcMap, ok := DcList.DCS[dc]
+	dcAddrs, ok := opt.DCs[dc]
 	if !ok {
 		return ""
 	}
 
+	return selectDCAddr(dcAddrs, ipv6)
+}
+
+func GetDefaultHostIP(dc int, test, ipv6 bool) string {
 	if test {
-		if addr, ok := DcList.TestDCs[dc]; ok {
+		if addr, ok := DCList.TestDCs[dc]; ok {
 			return addr
 		}
 	}
 
-	if ipv6 {
-		for _, dc := range dcMap {
-			if dc.V {
+	dcAddrs, ok := DCList.DCs[dc]
+	if !ok {
+		return ""
+	}
+
+	return selectDCAddr(dcAddrs, ipv6)
+}
+
+func selectDCAddr(dcs []DC, preferIPv6 bool) string {
+	if len(dcs) == 0 {
+		return ""
+	}
+
+	if preferIPv6 {
+		for _, dc := range dcs {
+			if dc.IPv6 {
 				return dc.Addr
 			}
 		}
 	}
 
-	for _, dc := range dcMap {
-		if !dc.V {
-			return FmtIp(dc.Addr)
+	for _, dc := range dcs {
+		if !dc.IPv6 {
+			return FmtIP(dc.Addr)
 		}
 	}
 
-	return dcMap[0].Addr
+	return dcs[0].Addr
 }
 
 func (opt *DCOptions) SearchAddr(addr string) int {
-	for dc, addrs := range opt.DCS {
-		for _, a := range addrs {
-			if a.Addr == addr {
-				return dc
+	for dcID, addrs := range opt.DCs {
+		for _, dc := range addrs {
+			if dc.Addr == addr {
+				return dcID
 			}
 		}
 	}
 
-	if strings.Contains(addr, "91.108.56") {
+	switch {
+	case strings.Contains(addr, "91.108.56"):
 		return 5
-	} else if strings.Contains(addr, "149.154.175") {
+	case strings.Contains(addr, "149.154.175"):
 		return 1
-	} else if strings.Contains(addr, "149.154.167") {
+	case strings.Contains(addr, "149.154.167"):
 		return 2
+	default:
+		return 4
 	}
-	return 4
 }
 
-func FmtIp(ipv6WithPort string) string {
-	if strings.HasPrefix(ipv6WithPort, "[") || strings.Contains(ipv6WithPort, ".") {
+func FmtIP(ipv6WithPort string) string {
+	if strings.Contains(ipv6WithPort, ".") || strings.HasPrefix(ipv6WithPort, "[") {
 		return ipv6WithPort
 	}
 
@@ -195,16 +190,15 @@ func FmtIp(ipv6WithPort string) string {
 		return ipv6WithPort
 	}
 
-	address := ipv6WithPort[:lastColon]
+	host := strings.Trim(ipv6WithPort[:lastColon], "[]")
 	port := ipv6WithPort[lastColon+1:]
 
-	// 2001:0b28:f23f:f005:0000:0000:0000:000a -> [2001:0b28:f23f:f005::a]
-	// convert 0000:0000:0000:0000:0000:0000:0000:000a -> ::a
-	address = strings.Replace(address, "0000:0000:0000:000", ":", 1)
-	// remove preceding zeros
-	address = strings.ReplaceAll(address, ":0", ":")
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return ipv6WithPort
+	}
 
-	return fmt.Sprintf("[%s]:%s", address, port)
+	return net.JoinHostPort(ip.String(), port)
 }
 
 type PingParams struct {
@@ -252,17 +246,6 @@ func GenerateSessionID() int64 {
 	return int64(binary.BigEndian.Uint64(b))
 }
 
-func FullStack() {
-	buf := make([]byte, 1024)
-	for {
-		n := runtime.Stack(buf, true)
-		if n < len(buf) {
-			fmt.Fprintln(os.Stderr, string(buf[:n]))
-		}
-		buf = make([]byte, 2*len(buf))
-	}
-}
-
 func Sha1Byte(input []byte) []byte {
 	r := sha1.Sum(input)
 	return r[:]
@@ -290,7 +273,10 @@ func RandomSenderID() string {
 	b := make([]byte, 2)
 	for i := range b {
 		buf := make([]byte, 1)
-		rand.Read(buf)
+		_, err := rand.Read(buf)
+		if err != nil {
+			return ""
+		}
 		b[i] = chars[int(buf[0])%len(chars)]
 	}
 	return string(b)

@@ -34,8 +34,8 @@ const (
 )
 
 var (
-	USERNAME_RE = regexp.MustCompile(`(?i)(?:@|(?:https?:\/\/)?(?:www\.)?(?:telegram\.(?:me|dog)|t\.me)\/)([\w\d_]+)`)
-	TG_JOIN_RE  = regexp.MustCompile(`^(?:https?://)?(?:www\.)?t(?:elegram)?\.(?:org|me|dog)/(?:joinchat/|\+)([\w-]+)$`)
+	UsernameRe = regexp.MustCompile(`(?i)(?:@|(?:https?:\/\/)?(?:www\.)?(?:telegram\.(?:me|dog)|t\.me)\/)([\w\d_]+)`)
+	TgJoinRe   = regexp.MustCompile(`^(?:https?://)?(?:www\.)?t(?:elegram)?\.(?:org|me|dog)/(?:joinchat/|\+)([\w-]+)$`)
 
 	Actions = map[string]SendMessageAction{
 		"typing":          &SendMessageTypingAction{},

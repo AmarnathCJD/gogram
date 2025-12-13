@@ -73,8 +73,3 @@ var (
 func SetMissingTypeHandler(handler MissingTypeHandler) {
 	currentTypeHandler = handler
 }
-
-// GetMissingTypeHandler returns the current type handler
-func GetMissingTypeHandler() MissingTypeHandler {
-	return currentTypeHandler
-}
