@@ -396,10 +396,12 @@ func (m *MTProto) SwitchDc(dc int) error {
 
 	m.Logger.Debug("initiating migration to DC%d", dc)
 
+	m.reconnectInProgress.Store(true)
+	defer m.reconnectInProgress.Store(false)
+
 	if err := m.Disconnect(); err != nil {
 		return err
 	}
-	m.routineswg.Wait()
 
 	if err := m.sessionStorage.Delete(); err != nil {
 		return err
@@ -880,6 +882,7 @@ func (m *MTProto) stopRoutines() {
 func (m *MTProto) Disconnect() error {
 	m.tcpState.SetActive(false)
 	m.stopRoutines()
+	m.routineswg.Wait()
 
 	if m.transport != nil {
 		m.transport.Close()
