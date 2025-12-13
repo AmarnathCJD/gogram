@@ -33,9 +33,13 @@ func NewTransport(m messages.MessageInformator, conn ConnConfig, modeVariant mod
 
 	var err error
 	var isObfuscated bool
+	var isMTProxy bool
 	switch cfg := conn.(type) {
 	case TCPConnConfig:
 		t.conn, isObfuscated, err = NewTCP(cfg)
+		if cfg.Socks != nil && cfg.Socks.Type == "mtproxy" {
+			isMTProxy = true
+		}
 	case WSConnConfig:
 		cfg.ModeVariant = uint8(modeVariant)
 		t.conn, err = NewWebSocket(cfg)
@@ -45,6 +49,12 @@ func NewTransport(m messages.MessageInformator, conn ConnConfig, modeVariant mod
 	}
 	if err != nil {
 		return nil, fmt.Errorf("setup connection: %w", err)
+	}
+
+	// For MTProxy, always use Intermediate mode since the obfuscation header
+	// contains the protocol tag (0xeeeeeeee or 0xdddddddd)
+	if isMTProxy {
+		modeVariant = mode.Intermediate
 	}
 
 	// already sent in obfuscation handshake

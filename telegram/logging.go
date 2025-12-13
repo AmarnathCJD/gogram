@@ -64,7 +64,7 @@ type Logger interface {
 type LogLevel int
 
 const (
-	TraceLevel LogLevel = iota
+	TraceLevel LogLevel = iota + 1
 	DebugLevel
 	InfoLevel
 	WarnLevel
@@ -139,7 +139,7 @@ func NewDefaultLogger(prefix string) Logger {
 
 func NewLogger(level LogLevel, config ...LoggerConfig) Logger {
 	internalConfig := &utils.LoggerConfig{
-		Level: utils.LogLevel(level),
+		Level: utils.LogLevel(normLevel(level)),
 	}
 
 	if len(config) > 0 {
@@ -175,7 +175,7 @@ func NewLogger(level LogLevel, config ...LoggerConfig) Logger {
 
 func NewLoggerWithConfig(config *LoggerConfig) Logger {
 	internalConfig := &utils.LoggerConfig{
-		Level:           utils.LogLevel(config.Level),
+		Level:           utils.LogLevel(normLevel(config.Level)),
 		Prefix:          config.Prefix,
 		Color:           config.Color,
 		ShowCaller:      config.ShowCaller,
@@ -214,12 +214,19 @@ type loggerAdapter struct {
 }
 
 func (l *loggerAdapter) SetLevel(level LogLevel) Logger {
-	l.internal.SetLevel(utils.LogLevel(level))
+	l.internal.SetLevel(utils.LogLevel(normLevel(level)))
 	return l
 }
 
 func (l *loggerAdapter) GetLevel() LogLevel {
 	return LogLevel(l.internal.GetLevel())
+}
+
+func normLevel(level LogLevel) LogLevel {
+	if level == 0 {
+		return InfoLevel
+	}
+	return level
 }
 
 func (l *loggerAdapter) SetOutput(w any) Logger {

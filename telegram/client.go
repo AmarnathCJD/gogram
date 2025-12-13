@@ -101,8 +101,8 @@ type ClientConfig struct {
 	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
 	AlbumWaitTime    int64                // The time to wait for album messages (in milliseconds)
 	CommandPrefixes  string               // Command prefixes to recognize (default: "/!"), can be multiple like ".?!-/"
-	FloodHandler     func(err error) bool // The flood handler to use
-	ErrorHandler     func(err error)      // The error handler to use
+	FloodHandler     func(err error) bool // The flood handler to use, return true to retry
+	ErrorHandler     func(err error) bool // The error handler to use, return true to retry
 	Timeout          int                  // Tcp connection timeout in seconds (default: 60s)
 	ReqTimeout       int                  // Rpc request timeout in seconds (default: 60s)
 	UseWebSocket     bool                 // Use WebSocket transport instead of TCP
@@ -169,7 +169,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 			customHost = true
 			return config.IpAddr
 		} else {
-			return utils.DcList.GetHostIp(config.DataCenter, config.TestMode, config.ForceIPv6)
+			return utils.DCList.GetHostIP(config.DataCenter, config.TestMode, config.ForceIPv6)
 		}
 	}
 
@@ -337,13 +337,13 @@ func (c *Client) InitialRequest() error {
 					dcs[int(dc.ID)] = []utils.DC{}
 				}
 
-				dcs[int(dc.ID)] = append(dcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), V: dc.Ipv6})
+				dcs[int(dc.ID)] = append(dcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), IPv6: dc.Ipv6})
 			} else if dc.Cdn {
 				if _, ok := cdnDcs[int(dc.ID)]; !ok {
 					cdnDcs[int(dc.ID)] = []utils.DC{}
 				}
 
-				cdnDcs[int(dc.ID)] = append(cdnDcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), V: dc.Ipv6})
+				cdnDcs[int(dc.ID)] = append(cdnDcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), IPv6: dc.Ipv6})
 			}
 		}
 
@@ -605,6 +605,8 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 	}
 
 	exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
+	exported.Logger.SetPrefix(fmt.Sprintf("gogram [sender-%d>%d] ", dcID,
+		len(c.exSenders.GetSenders(dcID))+1))
 	if err != nil {
 		return nil, fmt.Errorf("exporting new sender: %w", err)
 	}
@@ -1061,7 +1063,7 @@ func (b *ClientConfigBuilder) WithFloodHandler(handler func(err error) bool) *Cl
 	return b
 }
 
-func (b *ClientConfigBuilder) WithErrorHandler(handler func(err error)) *ClientConfigBuilder {
+func (b *ClientConfigBuilder) WithErrorHandler(handler func(err error) bool) *ClientConfigBuilder {
 	b.config.ErrorHandler = handler
 	return b
 }
