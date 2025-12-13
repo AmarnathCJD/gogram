@@ -11,12 +11,12 @@ import (
 )
 
 type InlineSendOptions struct {
-	Gallery      bool   `json:"gallery,omitempty"`
-	NextOffset   string `json:"next_offset,omitempty"`
-	CacheTime    int32  `json:"cache_time,omitempty"`
-	Private      bool   `json:"private,omitempty"`
-	SwitchPm     string `json:"switch_pm,omitempty"`
-	SwitchPmText string `json:"switch_pm_text,omitempty"`
+	Gallery      bool   // Display results as a gallery grid
+	NextOffset   string // Offset for pagination in inline results
+	CacheTime    int32  // Cache duration in seconds (default: 60)
+	Private      bool   // Results visible only to the requesting user
+	SwitchPm     string // Text for the "Switch to PM" above inline results
+	SwitchPmText string // Deep link parameter for start= in Switch to PM
 }
 
 func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult, Options ...*InlineSendOptions) (bool, error) {
@@ -44,9 +44,9 @@ func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult
 }
 
 type CallbackOptions struct {
-	Alert     bool   `json:"alert,omitempty"`
-	CacheTime int32  `json:"cache_time,omitempty"`
-	URL       string `json:"url,omitempty"`
+	Alert     bool   // Show as alert popup instead of toast notification
+	CacheTime int32  // Cache duration for the answer in seconds
+	URL       string // URL to open (for game bots)
 }
 
 func (c *Client) AnswerCallbackQuery(QueryID int64, Text string, Opts ...*CallbackOptions) (bool, error) {

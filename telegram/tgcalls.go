@@ -247,10 +247,10 @@ type RTMPStream struct {
 }
 
 type RTMPConfig struct {
-	Bitrate   string
-	AudioBit  string
-	FrameRate int
-	LoopCount int
+	Bitrate   string // Video bitrate (e.g., "2000k")
+	AudioBit  string // Audio bitrate (e.g., "96k")
+	FrameRate int    // Video frame rate (default: 30)
+	LoopCount int    // Number of times to loop (-1 for infinite)
 }
 
 func DefaultRTMPConfig() *RTMPConfig {

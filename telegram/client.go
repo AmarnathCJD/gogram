@@ -64,50 +64,50 @@ type Client struct {
 }
 
 type DeviceConfig struct {
-	DeviceModel    string    // The device model to use
-	SystemVersion  string    // The version of the system
-	AppVersion     string    // The version of the app
-	LangCode       string    // The language code
-	SystemLangCode string    // The system language code
-	LangPack       string    // The language pack
-	Params         JsonValue // Additional parameters to send during initialization
+	DeviceModel    string    // Device model name shown to Telegram (e.g., "iPhone 17 Pro")
+	SystemVersion  string    // Operating system version (e.g., "iOS 26.0")
+	AppVersion     string    // Application version string
+	LangCode       string    // ISO 639-1 language code (e.g., "en")
+	SystemLangCode string    // System language code, defaults to LangCode if not set
+	LangPack       string    // Language pack identifier (e.g., "ios", "android")
+	Params         JsonValue // Additional JSON parameters for init connection
 }
 
 type ClientConfig struct {
-	AppID            int32                // The App ID from my.telegram.org
-	AppHash          string               // The App Hash from my.telegram.org
-	DeviceConfig     DeviceConfig         // Device configuration
-	Session          string               // The session file to use
-	StringSession    string               // The string session to use
-	SessionName      string               // The name of the session
-	SessionAESKey    string               // The AES key to use for encryption/decryption of the session file
-	ParseMode        string               // The parse mode to use (HTML, Markdown)
-	MemorySession    bool                 // Don't save the session to a file
-	DataCenter       int                  // The data center to connect to (default: 4)
-	IpAddr           string               // The IP address of the DC to connect to
-	PublicKeys       []*rsa.PublicKey     // The public keys to verify the server with
-	NoUpdates        bool                 // Don't handle updates
-	DisableCache     bool                 // Disable caching peer and chat information
-	TestMode         bool                 // Use the test data centers
-	LogLevel         LogLevel             // The library log level
-	Logger           Logger               // The logger to use
-	Proxy            Proxy                // The proxy to use
-	LocalAddr        string               // Local address binding for multi-interface support (IP:port)
-	ForceIPv6        bool                 // Force to use IPv6
-	NoPreconnect     bool                 // Don't preconnect to the DC until Connect() is called
-	Cache            *CACHE               // The cache to use
-	CacheSenders     bool                 // cache the exported file op sender
-	TransportMode    string               // The transport mode to use (Abridged, Intermediate, Full)
-	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
-	AlbumWaitTime    int64                // The time to wait for album messages (in milliseconds)
-	CommandPrefixes  string               // Command prefixes to recognize (default: "/!"), can be multiple like ".?!-/"
-	FloodHandler     func(err error) bool // The flood handler to use, return true to retry
-	ErrorHandler     func(err error) bool // The error handler to use, return true to retry
-	Timeout          int                  // Tcp connection timeout in seconds (default: 60s)
-	ReqTimeout       int                  // Rpc request timeout in seconds (default: 60s)
+	AppID            int32                // Telegram API ID from my.telegram.org
+	AppHash          string               // Telegram API Hash from my.telegram.org
+	DeviceConfig     DeviceConfig         // Device and app identification settings
+	Session          string               // Path to session file for persistent auth
+	StringSession    string               // Base64 encoded session string (alternative to file)
+	SessionName      string               // Identifier for this session (used in log prefixes)
+	SessionAESKey    string               // AES-256 key for encrypting session file
+	ParseMode        string               // Default message parse mode: "HTML" or "Markdown"
+	MemorySession    bool                 // Keep session in memory only, don't persist to disk
+	DataCenter       int                  // Initial DC to connect to (1-5, default: 4)
+	IpAddr           string               // Custom DC IP address (overrides DataCenter)
+	PublicKeys       []*rsa.PublicKey     // RSA public keys for server verification
+	NoUpdates        bool                 // Disable update handling (bot-only mode)
+	DisableCache     bool                 // Disable peer/chat caching
+	TestMode         bool                 // Connect to Telegram test servers
+	LogLevel         LogLevel             // Logging verbosity (Trace, Debug, Info, Warn, Error)
+	Logger           Logger               // Custom logger implementation
+	Proxy            Proxy                // Proxy configuration (SOCKS5, HTTP, MTProxy)
+	LocalAddr        string               // Local network interface to bind (IP:port)
+	ForceIPv6        bool                 // Prefer IPv6 connections to Telegram
+	NoPreconnect     bool                 // Delay connection until Connect() is called
+	Cache            *CACHE               // Custom cache instance
+	CacheSenders     bool                 // Cache exported senders for file operations
+	TransportMode    string               // Wire protocol: "Abridged", "Intermediate", "Full", "PaddedIntermediate"
+	SleepThresholdMs int                  // Auto-sleep threshold for flood wait (ms)
+	AlbumWaitTime    int64                // Time to wait for grouped album messages (ms)
+	CommandPrefixes  string               // Bot command prefixes (default: "/!")
+	FloodHandler     func(err error) bool // Called on FLOOD_WAIT; return true to retry after wait
+	ErrorHandler     func(err error) bool // Called on request errors; return true to retry
+	Timeout          int                  // TCP connection timeout in seconds (default: 60)
+	ReqTimeout       int                  // RPC request timeout in seconds (default: 60)
 	UseWebSocket     bool                 // Use WebSocket transport instead of TCP
-	UseWebSocketTLS  bool                 // Use wss:// (WebSocket over TLS) instead of ws://
-	EnablePFS        bool                 // Enable Perfect Forward Secrecy using temporary auth keys
+	UseWebSocketTLS  bool                 // Use secure WebSocket (wss://)
+	EnablePFS        bool                 // Enable Perfect Forward Secrecy with temp auth keys
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -119,12 +119,12 @@ func NewClient(config ClientConfig) (*Client, error) {
 	if config.Logger != nil {
 		client.Log = config.Logger
 		client.Log.SetPrefix("gogram " +
-			lp("client", config.SessionName))
+			lp("-client", config.SessionName))
 		config.LogLevel = config.Logger.Lev()
 	} else {
 		config.LogLevel = getValue(config.LogLevel, LogInfo)
 		client.Log = NewDefaultLogger("gogram " +
-			lp("client", config.SessionName))
+			lp("-client", config.SessionName))
 		client.Log.SetLevel(config.LogLevel)
 	}
 
@@ -135,7 +135,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		client.Cache = NewCache(fmt.Sprintf("cache%s.db", config.SessionName), &CacheConfig{
 			Disabled: config.DisableCache,
 			Logger: getValue(config.Logger, client.Log.WithPrefix("gogram "+
-				lp("cache", config.SessionName))),
+				lp("-cache-", config.SessionName))),
 			LogColor: client.Log.Color(),
 			LogLevel: config.LogLevel,
 		})
@@ -149,7 +149,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		return nil, err
 	}
 	if config.NoUpdates {
-		client.Log.Debug("no updates mode enabled, skipping dispatcher setup")
+		client.Log.Debug("updates disabled, skipping dispatcher initialization")
 	} else {
 		client.setupDispatcher()
 	}
@@ -212,7 +212,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 	c.clientData.appID = mtproto.AppID() // in case the appId was not provided in the config but was in the session
 
 	if config.StringSession != "" && !config.NoPreconnect {
-		c.Log.Debug("preconnecting to telegram servers")
+		c.Log.Debug("establishing connection to Telegram")
 		if err := c.Connect(); err != nil {
 			return fmt.Errorf("connecting to telegram servers: %w", err)
 		}
@@ -223,7 +223,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 
 func (c *Client) clientWarnings(config ClientConfig) error {
 	if config.NoUpdates {
-		c.Log.Debug("client is running in no updates mode, no updates will be handled")
+		c.Log.Debug("running in no-updates mode; update handlers will not be called")
 	}
 	if !doesSessionFileExist(config.Session) && config.StringSession == "" && (c.AppID() == 0 || c.AppHash() == "") {
 		if c.AppID() == 0 {
@@ -238,7 +238,7 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 		}
 	}
 	if config.AppHash == "" {
-		c.Log.Debug("appHash is empty, some features may not work")
+		c.Log.Debug("AppHash not provided; some features may be unavailable")
 	}
 
 	return nil
@@ -298,7 +298,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 
 // InitialRequest sends the initial initConnection request
 func (c *Client) InitialRequest() error {
-	c.Log.Debug("sending initial invokeWithLayer request")
+	c.Log.Debug("sending initConnection request (layer %d)", ApiVersion)
 	request := &InitConnectionParams{
 		ApiID:          c.clientData.appID,
 		DeviceModel:    c.clientData.deviceModel,
@@ -327,7 +327,7 @@ func (c *Client) InitialRequest() error {
 		return fmt.Errorf("sending invokeWithLayer: %w", err)
 	}
 
-	c.Log.Debug("received server config from invokeWithLayer")
+	c.Log.Debug("received server configuration")
 	if config, ok := serverConfig.(*Config); ok {
 		var dcs = make(map[int][]utils.DC)
 		var cdnDcs = make(map[int][]utils.DC)
@@ -359,7 +359,7 @@ func (c *Client) Connect() error {
 		return nil
 	}
 
-	c.Log.Debug("connecting to telegram servers")
+	c.Log.Debug("establishing connection to Telegram")
 
 	err := c.MTProto.CreateConnection(true)
 	if err != nil {
@@ -421,7 +421,7 @@ func (c *Client) St() error {
 
 // Returns true if the client is authorized as a user or a bot
 func (c *Client) IsAuthorized() (bool, error) {
-	c.Log.Debug("fetching updates state to check authorization")
+	c.Log.Debug("checking authorization status")
 	_, err := c.UpdatesGetState()
 	if err != nil {
 		return false, err
@@ -436,7 +436,7 @@ func (c *Client) Disconnect() error {
 
 // switchDC permanently switches the data center
 func (c *Client) SwitchDc(dcID int) error {
-	c.Log.Debug("switching to data center: %d", dcID)
+	c.Log.Debug("switching to DC%d", dcID)
 	if err := c.MTProto.SwitchDc(dcID); err != nil {
 		return fmt.Errorf("reconnecting to new dc: %w", err)
 	}
@@ -589,7 +589,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 
 	var authParam = getVariadic(authParams, &AuthExportedAuthorization{})
 
-	c.Log.Debug("creating exported sender for dc %d", dcID)
+	c.Log.Debug("creating exported sender for DC%d", dcID)
 	if cdn {
 		if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
 			cdnKeysResp, err := c.HelpGetCdnConfig()
@@ -637,11 +637,11 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 					Bytes: authParam.Bytes,
 				}
 			} else {
-				c.Log.Info("exporting auth for dc %d", dcID)
+				c.Log.Info("exporting authorization for DC%d", dcID)
 				auth, err = c.AuthExportAuthorization(int32(exported.GetDC()))
 				if err != nil {
 					lastError = fmt.Errorf("exporting auth: %w", err)
-					c.Log.Error("error exporting auth: %s", lastError.Error())
+					c.Log.Error("failed to export authorization: %s", lastError.Error())
 					continue
 				}
 
@@ -657,27 +657,27 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 			}
 		}
 
-		c.Log.Debug("sending initial request...")
+		c.Log.Debug("sending initConnection to exported sender")
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		_, err = exported.MakeRequestCtx(ctx, &InvokeWithLayerParams{
 			Layer: ApiVersion,
 			Query: initialReq,
 		})
 		cancel()
-		c.Log.Debug(fmt.Sprintf("initial request for exported sender %d sent", dcID))
+		c.Log.Debug("exported sender DC%d ready", dcID)
 
 		if err != nil {
 			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") {
 				authParam.ID = 0
-				c.Log.Debug("AUTH_BYTES_INVALID received, retrying export of auth bytes")
+				c.Log.Debug("AUTH_BYTES_INVALID: re-exporting authorization")
 				continue
 			}
 
 			lastError = fmt.Errorf("making initial request: %w", err)
 			if retry < retryLimit {
-				c.Log.Debug("error making initial request, retrying (%d/%d)", retry+1, retryLimit)
+				c.Log.Debug("initConnection failed, retrying (%d/%d)", retry+1, retryLimit)
 			} else {
-				c.Log.Error("exported sender: initialRequest: %s", lastError.Error())
+				c.Log.Error("exported sender failed: %s", lastError.Error())
 			}
 
 			time.Sleep(200 * time.Millisecond)
@@ -705,7 +705,7 @@ func (c *Client) GetExportedSendersStatus() map[int]int {
 
 // setLogLevel sets the log level for all loggers
 func (c *Client) SetLogLevel(level LogLevel) {
-	c.Log.Debug("setting library log level to %d", level)
+	c.Log.Debug("setting log level to %d", level)
 	c.Log.SetLevel(level)
 	if c.Cache != nil {
 		c.Cache.logger.SetLevel(level)
@@ -718,7 +718,7 @@ func (c *Client) SetLogLevel(level LogLevel) {
 
 // disables color for all loggers
 func (c *Client) LogColor(mode bool) {
-	c.Log.Debug("disabling color for all loggers")
+	c.Log.Debug("setting log color mode to %v", mode)
 
 	c.Log.SetColor(mode)
 	if c.Cache != nil {
@@ -763,7 +763,7 @@ func (c *Client) ImportStringSession(sessionString string) (bool, error) {
 // This string can be used to import the session later
 func (c *Client) ExportSession() string {
 	authSession, dcId := c.MTProto.ExportAuth()
-	c.Log.Debug("exporting auth to string session...")
+	c.Log.Debug("exporting session to string")
 	return session.NewStringSession(authSession.Key, authSession.Hash, dcId, authSession.Hostname, authSession.AppID).Encode()
 }
 
@@ -772,7 +772,7 @@ func (c *Client) ExportSession() string {
 //	Params:
 //	  sessionString: The sessionString to authenticate with
 func (c *Client) ImportSession(sessionString string) (bool, error) {
-	c.Log.Debug("importing auth from string session...")
+	c.Log.Debug("importing session from string")
 	return c.MTProto.ImportAuth(sessionString)
 }
 

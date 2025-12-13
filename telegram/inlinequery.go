@@ -57,26 +57,26 @@ func (i *InlineBuilder) Results() []InputBotInlineResult {
 }
 
 type ArticleOptions struct {
-	ID                   string                             `json:"id,omitempty"`
-	Title                string                             `json:"title,omitempty"`
-	Description          string                             `json:"description,omitempty"`
-	MimeType             string                             `json:"mime_type,omitempty"`
-	ExcludeMedia         bool                               `json:"exclude_media,omitempty"`
-	ForceDocument        bool                               `json:"force_document,omitempty"`
-	Thumb                InputWebDocument                   `json:"thumb,omitempty"`
-	Content              InputWebDocument                   `json:"content,omitempty"`
-	LinkPreview          bool                               `json:"link_preview,omitempty"`
-	ReplyMarkup          ReplyMarkup                        `json:"reply_markup,omitempty"`
-	Entities             []MessageEntity                    `json:"entities,omitempty"`
-	ParseMode            string                             `json:"parse_mode,omitempty"`
-	Caption              string                             `json:"caption,omitempty"`
-	InvertMedia          bool                               `json:"invert_media,omitempty"`
-	Venue                *InputBotInlineMessageMediaVenue   `json:"venue,omitempty"`
-	Location             *InputBotInlineMessageMediaGeo     `json:"location,omitempty"`
-	Contact              *InputBotInlineMessageMediaContact `json:"contact,omitempty"`
-	Invoice              *InputBotInlineMessageMediaInvoice `json:"invoice,omitempty"`
-	BusinessConnectionId string                             `json:"business_connection_id,omitempty"`
-	VoiceNote            bool                               `json:"voice_note,omitempty"`
+	ID                   string                             // Unique result identifier
+	Title                string                             // Result title
+	Description          string                             // Short description of the result
+	MimeType             string                             // MIME type for content
+	ExcludeMedia         bool                               // Separate media from message text
+	ForceDocument        bool                               // Force result as document
+	Thumb                InputWebDocument                   // Thumbnail for the result
+	Content              InputWebDocument                   // Content URL and attributes
+	LinkPreview          bool                               // Enable link preview in message
+	ReplyMarkup          ReplyMarkup                        // Inline keyboard for the result
+	Entities             []MessageEntity                    // Text formatting entities
+	ParseMode            string                             // Parse mode: "HTML" or "Markdown"
+	Caption              string                             // Caption for media results
+	InvertMedia          bool                               // Show media below text
+	Venue                *InputBotInlineMessageMediaVenue   // Venue information
+	Location             *InputBotInlineMessageMediaGeo     // Location information
+	Contact              *InputBotInlineMessageMediaContact // Contact information
+	Invoice              *InputBotInlineMessageMediaInvoice // Invoice for payments
+	BusinessConnectionId string                             // Business connection ID
+	VoiceNote            bool                               // Send as voice note
 }
 
 func (i *InlineBuilder) Article(title, description, text string, options ...*ArticleOptions) InputBotInlineResult {

@@ -25,9 +25,9 @@ func (c *Client) GetMe() (*UserObj, error) {
 }
 
 type PhotosOptions struct {
-	MaxID  int64
-	Offset int32
-	Limit  int32
+	MaxID  int64 // Maximum photo ID to return (for pagination)
+	Offset int32 // Number of photos to skip
+	Limit  int32 // Maximum number of photos to return (max: 80)
 }
 
 type UserPhoto struct {
@@ -125,15 +125,15 @@ func (c *Client) GetProfilePhotos(userID any, Opts ...*PhotosOptions) ([]UserPho
 }
 
 type DialogOptions struct {
-	OffsetID         int32
-	OffsetDate       int32
-	OffsetPeer       InputPeer
-	Limit            int32
-	ExcludePinned    bool
-	FolderID         int32
-	Hash             int64
-	SleepThresholdMs int32
-	Context          context.Context
+	OffsetID         int32           // Message ID to start from
+	OffsetDate       int32           // Unix timestamp to start from
+	OffsetPeer       InputPeer       // Peer to start from
+	Limit            int32           // Maximum number of dialogs to return
+	ExcludePinned    bool            // Exclude pinned dialogs from results
+	FolderID         int32           // Folder ID to get dialogs from (0 for main list)
+	Hash             int64           // Hash for caching
+	SleepThresholdMs int32           // Delay between requests in milliseconds
+	Context          context.Context // Context for cancellation
 }
 
 type TLDialog struct {
@@ -171,13 +171,6 @@ func (d *TLDialog) GetInputPeer(c *Client) (InputPeer, error) {
 	return c.GetSendablePeer(d.Peer)
 }
 
-// - OffsetDate: The offset date of the dialog
-// - OffsetPeer: The offset peer of the dialog
-// - Limit: The number of dialogs to return
-// - ExcludePinned: Whether to exclude pinned dialogs
-// - FolderID: The folder ID to get dialogs from
-// - Hash: The hash of the dialogs
-// - SleepThresholdMs: The sleep threshold in milliseconds, to avoid flooding
 func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]TLDialog, error) {
 	options := getVariadic(Opts, &DialogOptions{
 		Limit:            1,

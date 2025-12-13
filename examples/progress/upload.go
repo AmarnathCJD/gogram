@@ -28,14 +28,16 @@ func main() {
 	m, _ := client.SendMessage(chat, "Starting File Upload...")
 
 	client.SendMedia(chat, "<file-name>", &telegram.MediaOptions{
-		ProgressCallback: func(pi *telegram.ProgressInfo) {
-			m.Edit(fmt.Sprintf("Uploading... %.2f%% complete (%.2f MB/s), ETA: %.2f seconds",
-				pi.Percentage,
-				pi.CurrentSpeed/1024/1024,
-				pi.ETA,
-			))
+		Upload: &telegram.UploadOptions{
+			ProgressCallback: func(pi *telegram.ProgressInfo) {
+				m.Edit(fmt.Sprintf("Uploading... %.2f%% complete (%.2f MB/s), ETA: %.2f seconds",
+					pi.Percentage,
+					pi.CurrentSpeed/1024/1024,
+					pi.ETA,
+				))
+			},
+			ProgressInterval: 5, // update every 5 seconds
 		},
-		ProgressInterval: 5, // update every 5 seconds
 	})
 
 	// to use custom progress manager

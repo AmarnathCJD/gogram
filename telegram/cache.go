@@ -288,7 +288,7 @@ func (c *CACHE) BindToUser(userID int64, appID int32) error {
 			"expected_owner": meta.OwnerID,
 			"current_owner":  userID,
 			"cache":          c.fileName,
-		}).Warn("cache: metadata mismatch detected, rotating cache file")
+		}).Warn("cache owner mismatch, clearing cache")
 		c.resetLocked()
 	}
 
@@ -336,14 +336,14 @@ func (c *CACHE) ImportJSON(data []byte) error {
 }
 
 type CacheConfig struct {
-	MaxSize  int // Maximum number of users/channels to keep in cache (0 = unlimited)
-	LogLevel LogLevel
-	LogColor bool
-	Logger   Logger
-	LogName  string
-	Memory   bool
-	Disabled bool
-	Storage  CacheStorage // custom storage backend (overrides file-based storage)
+	MaxSize  int          // Maximum entries to cache (0 = unlimited)
+	LogLevel LogLevel     // Log verbosity for cache operations
+	LogColor bool         // Enable colored log output
+	Logger   Logger       // Custom logger instance
+	LogName  string       // Logger name prefix
+	Memory   bool         // Keep cache in memory only (no persistence)
+	Disabled bool         // Disable caching entirely
+	Storage  CacheStorage // Custom storage backend (overrides file-based storage)
 }
 
 func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
@@ -382,9 +382,9 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 
 	if !opt.Memory && !opt.Disabled {
 		if opt.Storage != nil {
-			c.logger.Debug("cache enabled with custom storage backend")
+			c.logger.Debug("using custom storage backend")
 		} else {
-			c.logger.Debug("cache file enabled: %s", c.fileName)
+			c.logger.Debug("cache file: %s", c.fileName)
 		}
 	}
 
@@ -444,7 +444,7 @@ func (c *CACHE) enforceSizeLimit() {
 	}
 
 	if removed > 0 {
-		c.logger.Debug("cache size limit reached, removed %d entries (limit: %d)", removed, c.maxSize)
+		c.logger.Debug("cache limit reached, evicted %d entries (max=%d)", removed, c.maxSize)
 	}
 }
 
@@ -470,7 +470,7 @@ func (c *CACHE) WriteFile() {
 	} else if c.fileName != "" {
 		file, fileErr := os.OpenFile(c.fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 		if fileErr != nil {
-			c.logger.Error("error opening cache file: %v", fileErr)
+			c.logger.Error("failed to open cache file: %v", fileErr)
 			return
 		}
 		defer file.Close()
@@ -482,7 +482,7 @@ func (c *CACHE) WriteFile() {
 	}
 
 	if err != nil {
-		c.logger.Error("error writing cache: %v", err)
+		c.logger.Error("failed to write cache: %v", err)
 	} else {
 		c.lastWrite = time.Now()
 		c.writePending.Store(false)
@@ -504,7 +504,7 @@ func (c *CACHE) ReadFile() {
 
 	if err != nil {
 		if !os.IsNotExist(err) {
-			c.logger.Error("error reading cache: %v", err)
+			c.logger.Error("failed to read cache: %v", err)
 		}
 		return
 	}
@@ -514,7 +514,7 @@ func (c *CACHE) ReadFile() {
 			"users":     len(c.InputPeers.InputUsers),
 			"channels":  len(c.InputPeers.InputChannels),
 			"usernames": len(c.usernameMap),
-		}).Debug("cache loaded")
+		}).Debug("loaded cache from disk")
 	}
 }
 
