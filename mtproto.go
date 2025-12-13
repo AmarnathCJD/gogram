@@ -87,7 +87,7 @@ type MTProto struct {
 
 	serverRequestHandlers []func(i any) bool
 	floodHandler          func(err error) bool
-	errorHandler          func(err error)
+	errorHandler          func(err error) bool
 	connectionHandler     func(err error) error
 	exported              bool
 	cdn                   bool
@@ -123,7 +123,7 @@ type Config struct {
 	EnablePFS      bool
 
 	FloodHandler      func(err error) bool
-	ErrorHandler      func(err error)
+	ErrorHandler      func(err error) bool
 	ConnectionHandler func(err error) error
 
 	ServerHost      string
@@ -188,7 +188,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		proxy:                 c.Proxy,
 		localAddr:             c.LocalAddr,
 		floodHandler:          func(err error) bool { return false },
-		errorHandler:          func(err error) {},
+		errorHandler:          func(err error) bool { return false },
 		reqTimeout:            utils.MinSafeDuration(c.ReqTimeout),
 		mode:                  parseTransportMode(c.Mode),
 		IpV6:                  c.Ipv6,
@@ -766,6 +766,8 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 			m.expectedTypes.Delete(int(msgID))
 		}
 
+		contextErr := fmt.Errorf("request context done: %w", ctx.Err())
+
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			count := m.consecutiveTimeouts.Add(1)
 			if count >= 5 {
@@ -777,7 +779,13 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 			m.consecutiveTimeouts.Store(0)
 		}
 
-		return nil, fmt.Errorf("request context done: %w", ctx.Err())
+		if m.errorHandler(contextErr) {
+			newCtx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
+			defer cancel()
+			return m.makeRequestCtx(newCtx, data, expectedTypes...)
+		}
+
+		return nil, contextErr
 
 	case resp := <-respChan:
 		m.consecutiveTimeouts.Store(0)

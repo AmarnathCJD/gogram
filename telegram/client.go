@@ -101,8 +101,8 @@ type ClientConfig struct {
 	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
 	AlbumWaitTime    int64                // The time to wait for album messages (in milliseconds)
 	CommandPrefixes  string               // Command prefixes to recognize (default: "/!"), can be multiple like ".?!-/"
-	FloodHandler     func(err error) bool // The flood handler to use
-	ErrorHandler     func(err error)      // The error handler to use
+	FloodHandler     func(err error) bool // The flood handler to use, return true to retry
+	ErrorHandler     func(err error) bool // The error handler to use, return true to retry
 	Timeout          int                  // Tcp connection timeout in seconds (default: 60s)
 	ReqTimeout       int                  // Rpc request timeout in seconds (default: 60s)
 	UseWebSocket     bool                 // Use WebSocket transport instead of TCP
@@ -1063,7 +1063,7 @@ func (b *ClientConfigBuilder) WithFloodHandler(handler func(err error) bool) *Cl
 	return b
 }
 
-func (b *ClientConfigBuilder) WithErrorHandler(handler func(err error)) *ClientConfigBuilder {
+func (b *ClientConfigBuilder) WithErrorHandler(handler func(err error) bool) *ClientConfigBuilder {
 	b.config.ErrorHandler = handler
 	return b
 }
