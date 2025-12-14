@@ -882,7 +882,7 @@ func (m *MTProto) stopRoutines() {
 func (m *MTProto) Disconnect() error {
 	m.tcpState.SetActive(false)
 	m.stopRoutines()
-	m.routineswg.Wait()
+	//m.routineswg.Wait()
 
 	if m.transport != nil {
 		m.transport.Close()
