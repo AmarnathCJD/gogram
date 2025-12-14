@@ -1,0 +1,45 @@
+package e2e
+
+import "github.com/amarnathcjd/gogram/internal/encoding/tl"
+
+func init() {
+	tl.RegisterObjects(
+		&DecryptedMessageObj{},
+		&DecryptedMessageService{},
+		&DecryptedMessageLayer{},
+		&DecryptedMessageMediaEmpty{},
+		&DecryptedMessageMediaPhoto{},
+		&DecryptedMessageMediaVideo{},
+		&DecryptedMessageMediaGeoPoint{},
+		&DecryptedMessageMediaContact{},
+		&DecryptedMessageMediaDocument{},
+		&DecryptedMessageMediaVenue{},
+		&DecryptedMessageMediaWebPage{},
+		&DecryptedMessageMediaExternalDocument{},
+		&DecryptedMessageActionSetMessageTTL{},
+		&DecryptedMessageActionReadMessages{},
+		&DecryptedMessageActionDeleteMessages{},
+		&DecryptedMessageActionScreenshotMessages{},
+		&DecryptedMessageActionFlushHistory{},
+		&DecryptedMessageActionResend{},
+		&DecryptedMessageActionNotifyLayer{},
+		&DecryptedMessageActionTyping{},
+		&DecryptedMessageActionRequestKey{},
+		&DecryptedMessageActionAcceptKey{},
+		&DecryptedMessageActionCommitKey{},
+		&DecryptedMessageActionAbortKey{},
+		&DecryptedMessageActionNoop{},
+		&MessageEntityBlockquote{},
+		&DocumentAttributeSticker{},
+		&DocumentAttributeVideo{},
+		&PhotoSizeObj{},
+		&PhotoCachedSize{},
+		&FileLocationUnavailable{},
+		&FileLocationObj{},
+		&SendMessageUploadVideoAction{},
+		&SendMessageUploadAudioAction{},
+		&SendMessageUploadPhotoAction{},
+		&SendMessageUploadDocumentAction{},
+		&SendMessageUploadRoundAction{},
+	)
+}

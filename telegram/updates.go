@@ -30,6 +30,7 @@ type InlineCallbackHandler func(m *InlineCallbackQuery) error
 type ParticipantHandler func(m *ParticipantUpdate) error
 type PendingJoinHandler func(m *JoinRequestUpdate) error
 type RawHandler func(m Update, c *Client) error
+type E2EHandler func(update Update, c *Client) error
 
 var ErrEndGroup = errors.New("[EndGroup] end of handler propagation")
 
@@ -147,6 +148,11 @@ type rawHandle struct {
 	Handler    RawHandler
 }
 
+type e2eHandle struct {
+	baseHandle
+	Handler E2EHandler
+}
+
 type albumBox struct {
 	sync.Mutex
 	messages  []*NewMessage
@@ -236,6 +242,7 @@ type UpdateDispatcher struct {
 	messageDeleteHandles  map[int][]*messageDeleteHandle
 	albumHandles          map[int][]*albumHandle
 	rawHandles            map[int][]*rawHandle
+	e2eHandles            map[int][]*e2eHandle
 	activeAlbums          map[int64]*albumBox
 	logger                Logger
 	openChats             map[int64]*openChat
@@ -375,6 +382,7 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		messageDeleteHandles:  make(map[int][]*messageDeleteHandle),
 		albumHandles:          make(map[int][]*albumHandle),
 		rawHandles:            make(map[int][]*rawHandle),
+		e2eHandles:            make(map[int][]*e2eHandle),
 		activeAlbums:          make(map[int64]*albumBox),
 	}
 	c.dispatcher.lastUpdateTimeNano.Store(time.Now().UnixNano())
@@ -1667,6 +1675,18 @@ func (c *Client) AddRawHandler(updateType Update, handler RawHandler) Handle {
 	return addHandleToMap(c.dispatcher.rawHandles, h)
 }
 
+func (c *Client) AddE2EHandler(handler func(update Update, c *Client) error) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
+	h := &e2eHandle{
+		Handler:    handler,
+		baseHandle: baseHandle{Group: DefaultGroup},
+	}
+	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.e2eHandles, h, &c.dispatcher.RWMutex)
+	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.e2eHandles, h, &c.dispatcher.RWMutex)
+	return addHandleToMap(c.dispatcher.e2eHandles, h)
+}
+
 // HandleIncomingUpdates processes incoming updates and dispatches them to the appropriate handlers.
 func HandleIncomingUpdates(u any, c *Client) bool {
 	// Update last update time for 15-minute timeout monitoring
@@ -1751,6 +1771,8 @@ UpdateTypeSwitching:
 					currentPts = update.Pts
 				}
 				go c.FetchChannelDifference(update.ChannelID, currentPts, 50)
+			case *UpdateEncryption, *UpdateNewEncryptedMessage:
+				go c.HandleSecretChatUpdate(update)
 			}
 			go c.handleRawUpdate(update)
 		}
@@ -2785,4 +2807,8 @@ func (c *Client) OnJoinRequest(handler func(m *JoinRequestUpdate) error) Handle 
 
 func (c *Client) OnRaw(updateType Update, handler func(m Update, c *Client) error) Handle {
 	return c.AddRawHandler(updateType, handler)
+}
+
+func (c *Client) OnE2EMessage(handler func(update Update, c *Client) error) Handle {
+	return c.AddE2EHandler(handler)
 }

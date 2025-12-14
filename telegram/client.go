@@ -23,6 +23,7 @@ import (
 	"github.com/amarnathcjd/gogram/internal/keys"
 	"github.com/amarnathcjd/gogram/internal/session"
 	"github.com/amarnathcjd/gogram/internal/utils"
+	"github.com/amarnathcjd/gogram/telegram/e2e"
 )
 
 const (
@@ -59,6 +60,7 @@ type Client struct {
 	wg           sync.WaitGroup
 	stopCh       chan struct{}
 	exSenders    *ExSenders
+	secretChats  *e2e.SecretChatManager
 	exportedKeys map[int]*AuthExportedAuthorization
 	Log          Logger
 }
@@ -743,6 +745,13 @@ func (c *Client) Ping() time.Duration {
 // Gets the connected DC-ID
 func (c *Client) GetDC() int {
 	return c.MTProto.GetDC()
+}
+
+func (c *Client) SecretChatManager() *e2e.SecretChatManager {
+	if c.secretChats == nil {
+		c.secretChats = e2e.NewSecretChatManager()
+	}
+	return c.secretChats
 }
 
 func (c *Client) GetCurrentIP() string {
