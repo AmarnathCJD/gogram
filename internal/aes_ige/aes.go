@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
+	"fmt"
 	"math/big"
 
 	"errors"
@@ -69,7 +70,7 @@ func encrypt(msg, authKey []byte, decode bool) (out, msgKey []byte, _ error) {
 	}
 
 	out = make([]byte, len(data))
-	if err := c.doAES256IGEencrypt(data, out); err != nil {
+	if err := c.DoAES256IGEencrypt(data, out); err != nil {
 		return nil, nil, err
 	}
 
@@ -89,7 +90,7 @@ func decrypt(msg, authKey, msgKey []byte, decode bool) ([]byte, error) {
 	}
 
 	out := make([]byte, len(msg))
-	if err := c.doAES256IGEdecrypt(msg, out); err != nil {
+	if err := c.DoAES256IGEdecrypt(msg, out); err != nil {
 		return nil, err
 	}
 
@@ -101,7 +102,7 @@ func doAES256IGEencrypt(data, out, key, iv []byte) error {
 	if err != nil {
 		return err
 	}
-	return c.doAES256IGEencrypt(data, out)
+	return c.DoAES256IGEencrypt(data, out)
 }
 
 func doAES256IGEdecrypt(data, out, key, iv []byte) error {
@@ -109,7 +110,7 @@ func doAES256IGEdecrypt(data, out, key, iv []byte) error {
 	if err != nil {
 		return err
 	}
-	return c.doAES256IGEdecrypt(data, out)
+	return c.DoAES256IGEdecrypt(data, out)
 }
 
 // DecryptMessageWithTempKeys decrypts a message using temporary keys obtained during the Diffie-Hellman key exchange.
@@ -263,6 +264,40 @@ func aesKeysV1(msgKey, authKey []byte, decode bool) (aesKey, aesIv [32]byte) {
 }
 
 // It returns the ciphertext and msg_key (128-bit).
+// computeSecretChatAesKeyIV computes AES key and IV for secret chat encryption (MTProto 2.0)
+func computeSecretChatAesKeyIV(msgKey, key []byte, isOriginator bool) (aesKey, aesIV []byte) {
+	x := 0
+	if !isOriginator {
+		x = 8
+	}
+
+	// sha256_a = SHA256(msg_key + substr(key, x, 36))
+	sha256A := sha256.New()
+	sha256A.Write(msgKey)
+	sha256A.Write(key[x : x+36])
+	hashA := sha256A.Sum(nil)
+
+	// sha256_b = SHA256(substr(key, 40+x, 36) + msg_key)
+	sha256B := sha256.New()
+	sha256B.Write(key[40+x : 40+x+36])
+	sha256B.Write(msgKey)
+	hashB := sha256B.Sum(nil)
+
+	// aes_key = substr(sha256_a, 0, 8) + substr(sha256_b, 8, 16) + substr(sha256_a, 24, 8)
+	aesKey = make([]byte, 32)
+	copy(aesKey[0:8], hashA[0:8])
+	copy(aesKey[8:24], hashB[8:24])
+	copy(aesKey[24:32], hashA[24:32])
+
+	// aes_iv = substr(sha256_b, 0, 8) + substr(sha256_a, 8, 16) + substr(sha256_b, 24, 8)
+	aesIV = make([]byte, 32)
+	copy(aesIV[0:8], hashB[0:8])
+	copy(aesIV[8:24], hashA[8:24])
+	copy(aesIV[24:32], hashB[24:32])
+
+	return aesKey, aesIV
+}
+
 func encryptV1(plaintext, authKey []byte, decode bool) (out, msgKey []byte, _ error) {
 	// msg_key = substr (SHA1 (plaintext), 4, 16);
 	sha := sha1.Sum(plaintext)
@@ -290,7 +325,7 @@ func encryptV1(plaintext, authKey []byte, decode bool) (out, msgKey []byte, _ er
 	}
 
 	out = make([]byte, len(data))
-	if err := c.doAES256IGEencrypt(data, out); err != nil {
+	if err := c.DoAES256IGEencrypt(data, out); err != nil {
 		return nil, nil, err
 	}
 
@@ -300,4 +335,129 @@ func encryptV1(plaintext, authKey []byte, decode bool) (out, msgKey []byte, _ er
 // EncryptV1 encryptV1.
 func EncryptV1(plaintext, authKey []byte) (out, msgKey []byte, _ error) {
 	return encryptV1(plaintext, authKey, false)
+}
+
+// EncryptMessageMTProto encrypts a message using MTProto 2.0 encryption for secret chats
+// x = 0 for originator, x = 8 for responder
+func EncryptMessageMTProto(key []byte, plaintext []byte, isOriginator bool) (msgKey []byte, encrypted []byte, err error) {
+	if len(key) != 256 {
+		return nil, nil, fmt.Errorf("key must be %d bytes", 256)
+	}
+
+	// Determine x based on direction
+	x := 0
+	if !isOriginator {
+		x = 8
+	}
+
+	// Generate random number for padding
+	randBytes := make([]byte, 2)
+	_, err = rand.Read(randBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	randNum := int(randBytes[0])<<8 | int(randBytes[1])
+
+	// Add random padding (12..1024 bytes) to make length divisible by 16
+	paddingLen := 12 + (randNum % 1013) // 12 + [0..1012]
+	// Total length must include the 4-byte length prefix
+	totalLen := 4 + len(plaintext) + paddingLen
+	remainder := totalLen % 16
+	if remainder != 0 {
+		paddingLen += 16 - remainder
+		totalLen = 4 + len(plaintext) + paddingLen
+	}
+
+	// Prepend 4 bytes with length
+	dataWithLength := make([]byte, totalLen)
+	dataWithLength[0] = byte(len(plaintext))
+	dataWithLength[1] = byte(len(plaintext) >> 8)
+	dataWithLength[2] = byte(len(plaintext) >> 16)
+	dataWithLength[3] = byte(len(plaintext) >> 24)
+	copy(dataWithLength[4:], plaintext)
+
+	// Add random padding
+	if paddingLen > 0 {
+		padding := make([]byte, paddingLen)
+		rand.Read(padding)
+		copy(dataWithLength[4+len(plaintext):], padding)
+	} // Compute msg_key (MTProto 2.0)
+	// msg_key_large = SHA256(substr(key, 88+x, 32) + plaintext + random_padding)
+	// msg_key = substr(msg_key_large, 8, 16)
+	h := sha256.New()
+	h.Write(key[88+x : 88+x+32])
+	h.Write(dataWithLength)
+	msgKeyLarge := h.Sum(nil)
+	msgKey = msgKeyLarge[8:24]
+
+	// Compute AES key and IV (MTProto 2.0)
+	aesKey, aesIV := computeSecretChatAesKeyIV(msgKey, key, isOriginator)
+
+	// Encrypt using AES-256-IGE
+	cipher, err := NewCipher(aesKey, aesIV)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	encrypted = make([]byte, len(dataWithLength))
+	if err = cipher.DoAES256IGEencrypt(dataWithLength, encrypted); err != nil {
+		return nil, nil, err
+	}
+
+	return msgKey, encrypted, nil
+}
+
+// DecryptMessageMTProto2 decrypts a message using MTProto 2.0 encryption for secret chats
+// x = 0 for originator, x = 8 for responder (same as encryption)
+func DecryptMessageMTProto(key []byte, msgKey []byte, encrypted []byte, isOriginator bool) (plaintext []byte, err error) {
+	if len(key) != 256 {
+		return nil, ErrKeySize
+	}
+	if len(msgKey) != 16 {
+		return nil, ErrMsgKeySize
+	}
+
+	// Compute AES key and IV (MTProto 2.0)
+	aesKey, aesIV := computeSecretChatAesKeyIV(msgKey, key, isOriginator)
+
+	// Decrypt using AES-256-IGE
+	cipher, err := NewCipher(aesKey, aesIV)
+	if err != nil {
+		return nil, err
+	}
+
+	decrypted := make([]byte, len(encrypted))
+	if err = cipher.DoAES256IGEdecrypt(encrypted, decrypted); err != nil {
+		return nil, err
+	}
+
+	// Verify msg_key
+	x := 0
+	if !isOriginator {
+		x = 8
+	}
+	h := sha256.New()
+	h.Write(key[88+x : 88+x+32])
+	h.Write(decrypted)
+	msgKeyLarge := h.Sum(nil)
+	expectedMsgKey := msgKeyLarge[8:24]
+
+	if !bytes.Equal(msgKey, expectedMsgKey) {
+		return nil, errors.New("msg_key mismatch")
+	}
+
+	// Extract length and plaintext
+	if len(decrypted) < 4 {
+		return nil, errors.New("decrypted data too short")
+	}
+
+	length := int(decrypted[0]) | int(decrypted[1])<<8 | int(decrypted[2])<<16 | int(decrypted[3])<<24
+	if length < 0 || length > len(decrypted)-4 {
+		return nil, fmt.Errorf("invalid plaintext length: %d", length)
+	}
+
+	plaintext = make([]byte, length)
+	copy(plaintext, decrypted[4:4+length])
+
+	return plaintext, nil
 }
