@@ -461,11 +461,6 @@ func (c *Client) Me() *UserObj {
 			return &UserObj{}
 		}
 		c.clientData.me = me
-		if c.Cache != nil {
-			if err := c.Cache.BindToUser(me.ID, c.clientData.appID); err != nil {
-				c.Log.WithError(err).Warn("failed to bind cache to user")
-			}
-		}
 	}
 
 	return c.clientData.me
