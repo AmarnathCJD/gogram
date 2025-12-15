@@ -132,3 +132,43 @@ func closeChanNoPanic(c chan tl.Object) {
 	defer func() { _ = recover() }()
 	close(c)
 }
+
+// SyncIntInt64 is a thread-safe map for int -> int64 (e.g., msgID -> timestamp)
+type SyncIntInt64 struct {
+	mu sync.RWMutex
+	m  map[int]int64
+}
+
+func NewSyncIntInt64() *SyncIntInt64 {
+	return &SyncIntInt64{
+		m: make(map[int]int64),
+	}
+}
+
+func (s *SyncIntInt64) Add(key int, value int64) {
+	s.mu.Lock()
+	s.m[key] = value
+	s.mu.Unlock()
+}
+
+func (s *SyncIntInt64) Get(key int) (int64, bool) {
+	s.mu.RLock()
+	v, ok := s.m[key]
+	s.mu.RUnlock()
+	return v, ok
+}
+
+func (s *SyncIntInt64) Delete(key int) bool {
+	s.mu.Lock()
+	_, ok := s.m[key]
+	delete(s.m, key)
+	s.mu.Unlock()
+	return ok
+}
+
+func (s *SyncIntInt64) Len() int {
+	s.mu.RLock()
+	l := len(s.m)
+	s.mu.RUnlock()
+	return l
+}
