@@ -750,7 +750,7 @@ func (c *Client) SecretChatManager() *e2e.SecretChatManager {
 }
 
 func (c *Client) GetCurrentIP() string {
-	return c.MTProto.Addr
+	return c.MTProto.GetAddr()
 }
 
 // ExportStringSession exports the current session to a string,
