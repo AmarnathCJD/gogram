@@ -75,7 +75,14 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 
 	maxRetries := 2
 sendPacket:
+	m.transportMu.Lock()
+	if m.transport == nil {
+		m.transportMu.Unlock()
+		return nil, 0, errors.New("transport is nil during write")
+	}
 	errorSendPacket := m.transport.WriteMsg(data, seqNo)
+	m.transportMu.Unlock()
+
 	if errorSendPacket != nil {
 		if maxRetries > 0 && (strings.Contains(errorSendPacket.Error(), "connection was aborted") || strings.Contains(errorSendPacket.Error(), "connection reset")) {
 			maxRetries--
