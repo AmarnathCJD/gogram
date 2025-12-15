@@ -49,6 +49,7 @@ type MTProto struct {
 	reqTimeout     time.Duration
 	mode           mode.Variant
 	DcList         *utils.DCOptions
+	transportMu    sync.Mutex
 
 	authKey []byte
 
@@ -558,9 +559,13 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 		return fmt.Errorf("mtproto is terminated, cannot create connection")
 	}
 	m.stopRoutines()
+
+	m.transportMu.Lock()
 	if m.transport != nil {
 		m.transport.Close()
 	}
+	m.transport = nil
+	m.transportMu.Unlock()
 
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.ctxCancelMutex.Lock()
@@ -647,14 +652,15 @@ func (m *MTProto) connect(ctx context.Context) error {
 		Logger:      m.Logger,
 	}
 
+	var newTransport transport.Transport
 	if m.useWebSocket {
-		m.transport, err = transport.NewTransport(m, transport.WSConnConfig{
+		newTransport, err = transport.NewTransport(m, transport.WSConnConfig{
 			CommonConfig: cfg,
 			TLS:          m.useWebSocketTLS,
 			TestMode:     false,
 		}, m.mode)
 	} else {
-		m.transport, err = transport.NewTransport(m, transport.TCPConnConfig{
+		newTransport, err = transport.NewTransport(m, transport.TCPConnConfig{
 			CommonConfig: cfg,
 			IpV6:         m.IpV6,
 		}, m.mode)
@@ -664,6 +670,10 @@ func (m *MTProto) connect(ctx context.Context) error {
 		m.Logger.Debug("failed to create %s transport: %v", transportType, err)
 		return fmt.Errorf("creating transport: %w", err)
 	}
+
+	m.transportMu.Lock()
+	m.transport = newTransport
+	m.transportMu.Unlock()
 
 	m.Logger.Trace("%s transport initialized", transportType)
 
@@ -966,9 +976,12 @@ func (m *MTProto) Disconnect() error {
 		m.Logger.Warn("timeout waiting for routines to stop (possible goroutine leak)")
 	}
 
+	m.transportMu.Lock()
 	if m.transport != nil {
 		m.transport.Close()
+		m.transport = nil
 	}
+	m.transportMu.Unlock()
 
 	return nil
 }
@@ -977,9 +990,14 @@ func (m *MTProto) Terminate() error {
 	m.terminated.Store(true)
 	m.stopRoutines()
 	m.responseChannels.Close()
+
+	m.transportMu.Lock()
 	if m.transport != nil {
 		m.transport.Close()
+		m.transport = nil
 	}
+	m.transportMu.Unlock()
+
 	m.tcpState.SetActive(false)
 	return nil
 }
@@ -1225,11 +1243,15 @@ func (m *MTProto) handle404Error() error {
 }
 
 func (m *MTProto) readMsg() error {
-	if m.transport == nil {
+	m.transportMu.Lock()
+	t := m.transport
+	m.transportMu.Unlock()
+
+	if t == nil {
 		return fmt.Errorf("must setup connection before reading messages")
 	}
 
-	response, err := m.transport.ReadMsg()
+	response, err := t.ReadMsg()
 	if err != nil {
 		var e transport.ErrCode
 		if errors.As(err, &e) {
@@ -1456,20 +1478,30 @@ func (m *TcpState) SetActive(active bool) {
 // until the provided context is canceled.
 // Returns nil when the state is active, or ctx.Err() if canceled.
 func (m *TcpState) WaitForActive(ctx context.Context) error {
-	m.mu.RLock()
-	ch := m.ch
-	active := m.active
-	m.mu.RUnlock()
+	for {
+		m.mu.RLock()
+		active := m.active
+		ch := m.ch
+		m.mu.RUnlock()
 
-	if active {
-		return nil
-	}
+		if active {
+			return nil
+		}
 
-	select {
-	case <-ch: // Unblocked when SetActive(true) closes the channel
-		return nil
-	case <-ctx.Done(): // Context canceled or timed out
-		return ctx.Err()
+		select {
+		case <-ch: // Unblocked when SetActive(true) closes the channel
+			// Channel was closed, re-check state in case it changed
+			m.mu.RLock()
+			stillActive := m.active
+			m.mu.RUnlock()
+			if stillActive {
+				return nil
+			}
+			// State changed back to inactive, loop again
+			continue
+		case <-ctx.Done(): // Context canceled or timed out
+			return ctx.Err()
+		}
 	}
 }
 
