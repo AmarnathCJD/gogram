@@ -34,7 +34,7 @@ const (
 )
 
 type MTProto struct {
-	Addr      string
+	Addr      atomic.Value
 	appID     int32
 	proxy     *utils.Proxy
 	transport transport.Transport
@@ -99,7 +99,6 @@ type MTProto struct {
 	reconnectAttempts     atomic.Int32
 	consecutiveTimeouts   atomic.Int32
 	lastSuccessfulConnect atomic.Int64 // Unix timestamp
-	stateMutex            sync.RWMutex // Protects Addr field
 
 	// Reconnection configuration
 	timeout              time.Duration
@@ -180,7 +179,6 @@ func NewMTProto(c Config) (*MTProto, error) {
 
 	mtproto := &MTProto{
 		sessionStorage:        c.SessionStorage,
-		Addr:                  c.ServerHost,
 		serviceChannel:        make(chan tl.Object),
 		publicKey:             c.PublicKey,
 		responseChannels:      utils.NewSyncIntObjectChan(),
@@ -212,6 +210,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		maxRetryDepth:         10, // Maximum retry depth to prevent stack overflow
 	}
 
+	mtproto.SetAddr(c.ServerHost)
 	mtproto.encrypted.Store(false)
 	mtproto.sessionId.Store(utils.GenerateSessionID())
 	mtproto.reconnectAttempts.Store(0)
@@ -226,7 +225,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 	}
 
 	if c.CustomHost {
-		mtproto.Addr = c.ServerHost
+		mtproto.SetAddr(c.ServerHost)
 	}
 
 	if c.FloodHandler != nil {
@@ -260,10 +259,7 @@ func parseTransportMode(sMode string) mode.Variant {
 }
 
 func (m *MTProto) LoadSession(sess *session.Session) error {
-	m.stateMutex.Lock()
-	m.Addr = sess.Hostname
-	m.stateMutex.Unlock()
-
+	m.SetAddr(sess.Hostname)
 	m.authKey = sess.Key
 	m.authKeyHash = sess.Hash
 	m.appID = sess.AppID
@@ -287,24 +283,17 @@ func (m *MTProto) loadAuth(stringSession string, sess *session.Session) error {
 }
 
 func (m *MTProto) ExportAuth() (*session.Session, int) {
-	m.stateMutex.RLock()
-	addr := m.Addr
-	m.stateMutex.RUnlock()
-
 	return &session.Session{
 		Key:      m.authKey,
 		Hash:     m.authKeyHash,
 		Salt:     m.serverSalt.Load(),
-		Hostname: addr,
+		Hostname: m.GetAddr(),
 		AppID:    m.AppID(),
 	}, m.GetDC()
 }
 
 func (m *MTProto) ImportRawAuth(authKey, authKeyHash []byte, addr string, appID int32) (bool, error) {
-	m.stateMutex.Lock()
-	m.Addr = addr
-	m.stateMutex.Unlock()
-
+	m.SetAddr(addr)
 	m.authKey = authKey
 	m.authKeyHash = authKeyHash
 	m.appID = appID
@@ -325,10 +314,7 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 	}
 	m.authKey = sessionString.AuthKey
 	m.authKeyHash = sessionString.AuthKeyHash
-
-	m.stateMutex.Lock()
-	m.Addr = sessionString.IpAddr
-	m.stateMutex.Unlock()
+	m.SetAddr(sessionString.IpAddr)
 
 	if m.appID == 0 {
 		m.appID = sessionString.AppID
@@ -341,7 +327,15 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 }
 
 func (m *MTProto) GetDC() int {
-	return m.DcList.SearchAddr(m.Addr)
+	return m.DcList.SearchAddr(m.GetAddr())
+}
+
+func (m *MTProto) SetAddr(addr string) {
+	m.Addr.Store(addr)
+}
+
+func (m *MTProto) GetAddr() string {
+	return m.Addr.Load().(string)
 }
 
 func (m *MTProto) GetTransportType() string {
@@ -435,9 +429,7 @@ func (m *MTProto) SwitchDc(dc int) error {
 	m.reconnectAttempts.Store(0)
 	m.consecutiveTimeouts.Store(0)
 	m.lastSuccessfulConnect.Store(0)
-	m.stateMutex.Lock()
-	m.Addr = newAddr
-	m.stateMutex.Unlock()
+	m.SetAddr(newAddr)
 
 	m.Logger.Info("migrated to DC%d (%s)", dc, newAddr)
 	m.Logger.Debug("establishing connection to DC%d", dc)
@@ -574,9 +566,9 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 
 	transportType := m.GetTransportType()
 	if withLog {
-		m.Logger.Info("connecting to %s (%s)", utils.FmtIP(m.Addr), transportType)
+		m.Logger.Info("connecting to %s (%s)", utils.FmtIP(m.GetAddr()), transportType)
 	} else {
-		m.Logger.Debug("connecting to %s (%s)", utils.FmtIP(m.Addr), transportType)
+		m.Logger.Debug("connecting to %s (%s)", utils.FmtIP(m.GetAddr()), transportType)
 	}
 
 	err := m.connectWithRetry(ctx)
@@ -597,7 +589,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 
 	transportType = m.GetTransportType()
-	logMessage := fmt.Sprintf("connected to %s%s%s (%s)", localAddrLabel, proxyLabel, utils.FmtIP(m.Addr), transportType)
+	logMessage := fmt.Sprintf("connected to %s%s%s (%s)", localAddrLabel, proxyLabel, utils.FmtIP(m.GetAddr()), transportType)
 
 	if withLog {
 		m.Logger.Info(logMessage)
@@ -643,7 +635,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 	var err error
 	cfg := transport.CommonConfig{
 		Ctx:         ctx,
-		Host:        utils.FmtIP(m.Addr),
+		Host:        utils.FmtIP(m.GetAddr()),
 		Timeout:     m.timeout,
 		Socks:       m.proxy,
 		LocalAddr:   m.localAddr,
@@ -1021,9 +1013,9 @@ func (m *MTProto) Reconnect(loggy bool) error {
 
 	startTime := time.Now()
 	if loggy {
-		m.Logger.Info("reconnecting to %s (%s)", utils.FmtIP(m.Addr), m.GetTransportType())
+		m.Logger.Info("reconnecting to %s (%s)", utils.FmtIP(m.GetAddr()), m.GetTransportType())
 	} else {
-		m.Logger.Debug("reconnecting to %s (%s)", utils.FmtIP(m.Addr), m.GetTransportType())
+		m.Logger.Debug("reconnecting to %s (%s)", utils.FmtIP(m.GetAddr()), m.GetTransportType())
 	}
 
 	err := m.Disconnect()
@@ -1039,9 +1031,9 @@ func (m *MTProto) Reconnect(loggy bool) error {
 
 	duration := time.Since(startTime)
 	if loggy {
-		m.Logger.Info("reconnected to %s (%s) in %v", utils.FmtIP(m.Addr), m.GetTransportType(), duration)
+		m.Logger.Info("reconnected to %s (%s) in %v", utils.FmtIP(m.GetAddr()), m.GetTransportType(), duration)
 	} else {
-		m.Logger.Debug("reconnected to %s (%s) in %v", utils.FmtIP(m.Addr), m.GetTransportType(), duration)
+		m.Logger.Debug("reconnected to %s (%s) in %v", utils.FmtIP(m.GetAddr()), m.GetTransportType(), duration)
 	}
 
 	if m.transport != nil {
@@ -1172,7 +1164,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					continue
 				}
 
-				m.Logger.Trace("connection error: %v; reconnecting to %s (%s)", err, utils.FmtIP(m.Addr), m.GetTransportType())
+				m.Logger.Trace("connection error: %v; reconnecting to %s (%s)", err, utils.FmtIP(m.GetAddr()), m.GetTransportType())
 				if reconnErr := m.tryReconnect(); reconnErr != nil {
 					m.Logger.Debug("failed to reconnect: %v", reconnErr)
 				}

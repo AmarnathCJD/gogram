@@ -211,7 +211,7 @@ func (m *MTProto) SaveSession(mem bool) (err error) {
 		Key:      m.authKey,
 		Hash:     m.authKeyHash,
 		Salt:     m.serverSalt.Load(),
-		Hostname: m.Addr,
+		Hostname: m.GetAddr(),
 		AppID:    m.appID,
 	}
 
@@ -231,7 +231,7 @@ func (m *MTProto) _loadSession(s *session.Session) {
 	m.authKey = s.Key
 	m.authKeyHash = s.Hash
 	m.serverSalt.Store(s.Salt)
-	m.Addr = s.Hostname
+	m.SetAddr(s.Hostname)
 	m.appID = s.AppID
 }
 
