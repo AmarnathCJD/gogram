@@ -92,6 +92,7 @@ type MTProto struct {
 	exported              bool
 	cdn                   bool
 	terminated            atomic.Bool
+	senderCounters        sync.Map // map[int]int32 - tracks sender count per DC
 	// Reconnection state (consolidated for simplicity)
 	reconnectInProgress   atomic.Bool
 	reconnectAttempts     atomic.Int32
@@ -450,13 +451,24 @@ func (m *MTProto) SwitchDc(dc int) error {
 
 func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, error) {
 	newAddr := m.DcList.GetHostIP(dcID, false, m.IpV6)
-	senderID := utils.RandomSenderID()
-	logger := utils.NewLogger("gogram [sender-" + senderID + "]").SetLevel(utils.InfoLevel)
 
+	var senderNum int32
+	if val, ok := m.senderCounters.Load(dcID); ok {
+		senderNum = val.(int32) + 1
+	} else {
+		senderNum = 1
+	}
+	m.senderCounters.Store(dcID, senderNum)
+
+	var loggerPrefix string
 	if len(cdn) > 0 && cdn[0] {
 		newAddr, _ = m.DcList.GetCDNAddr(dcID)
-		logger.SetPrefix("gogram [cdn-" + senderID + "]")
+		loggerPrefix = fmt.Sprintf("gogram [cdn>>dc%d#%d]", dcID, senderNum)
+	} else {
+		loggerPrefix = fmt.Sprintf("gogram [sender>>dc%d#%d]", dcID, senderNum)
 	}
+
+	logger := utils.NewLogger(loggerPrefix).SetLevel(utils.InfoLevel)
 
 	cfg := Config{
 		DataCenter:      dcID,
