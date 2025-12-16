@@ -602,11 +602,12 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 	}
 
 	exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
-	exported.Logger.SetPrefix(fmt.Sprintf("gogram [sender-%d>%d] ", dcID,
-		len(c.exSenders.GetSenders(dcID))+1))
 	if err != nil {
 		return nil, fmt.Errorf("exporting new sender: %w", err)
 	}
+
+	exported.Logger.SetPrefix(fmt.Sprintf("gogram [sender-%d>%d] ", dcID,
+		len(c.exSenders.GetSenders(dcID))+1))
 
 	defer func() {
 		if lastError != nil && exported != nil {
