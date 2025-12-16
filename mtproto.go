@@ -944,10 +944,17 @@ func (m *MTProto) IsTcpActive() bool {
 
 func (m *MTProto) stopRoutines() {
 	m.ctxCancelMutex.Lock()
-	defer m.ctxCancelMutex.Unlock()
 	if m.ctxCancel != nil {
 		m.ctxCancel()
 	}
+	m.ctxCancelMutex.Unlock()
+
+	m.transportMu.Lock()
+	if m.transport != nil {
+		m.transport.Close()
+		m.transport = nil
+	}
+	m.transportMu.Unlock()
 
 	m.notifyPendingRequestsOfConfigChange()
 }
@@ -965,15 +972,8 @@ func (m *MTProto) Disconnect() error {
 	case <-done:
 		m.Logger.Trace("all routines stopped gracefully")
 	case <-time.After(3 * time.Second):
-		//m.Logger.Warn("timeout waiting for routines to stop (possible goroutine leak)")
+		m.Logger.Warn("timeout waiting for routines to stop (possible goroutine leak)")
 	}
-
-	m.transportMu.Lock()
-	if m.transport != nil {
-		m.transport.Close()
-		m.transport = nil
-	}
-	m.transportMu.Unlock()
 
 	return nil
 }
