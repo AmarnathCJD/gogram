@@ -825,7 +825,7 @@ func (m *MTProto) makeRequestCtxWithDepth(ctx context.Context, data tl.Object, r
 			m.messageTracker.Delete(int(msgID))
 			m.messageTypesMap.Delete(msgID)
 
-			if channelExists && expectedExists && trackerExists {
+			if channelExists && trackerExists {
 				waitTime := time.Now().Unix() - sentTime
 				m.Logger.Debug("request timeout: %T (msgID=%d, retryDepth=%d, waitTime=%ds, err=%v) [channel_exists=true, still_waiting=true]",
 					data, msgID, retryDepth, waitTime, ctx.Err())
@@ -965,7 +965,7 @@ func (m *MTProto) Disconnect() error {
 	case <-done:
 		m.Logger.Trace("all routines stopped gracefully")
 	case <-time.After(3 * time.Second):
-		m.Logger.Warn("timeout waiting for routines to stop (possible goroutine leak)")
+		//m.Logger.Warn("timeout waiting for routines to stop (possible goroutine leak)")
 	}
 
 	m.transportMu.Lock()
