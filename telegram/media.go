@@ -626,21 +626,18 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 		progressTracker.start(&doneBytes)
 	}
 
-	var currentPart []byte
+	currentPart := make([]byte, partSize)
+	readBytes, err := io.ReadFull(file, currentPart)
+	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+		return nil, err
+	}
+	currentPart = currentPart[:readBytes]
+
 	for p := 0; p < totalParts || totalParts == -1; p++ {
 		select {
 		case <-uploadCtx.Done():
 			return nil, uploadCtx.Err()
 		default:
-		}
-
-		if currentPart == nil {
-			currentPart = make([]byte, partSize)
-			readBytes, err := io.ReadFull(file, currentPart)
-			if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
-				return nil, err
-			}
-			currentPart = currentPart[:readBytes]
 		}
 
 		nextPart := make([]byte, partSize)
