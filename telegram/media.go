@@ -381,7 +381,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		}
 		data = data[:n]
 
-		ctx, cancel := context.WithTimeout(uploadCtx, 5*time.Second)
+		ctx, cancel := context.WithTimeout(uploadCtx, 10*time.Second)
 		defer cancel()
 
 		sender := w.NextWithContext(ctx)
@@ -424,6 +424,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					}
 				}
 			}
+
+			if MatchError(err, "timeout") {
+				return false
+			}
+
 			uploadLog.recordFailure(partNum, err, sender)
 			return false
 		}
@@ -653,7 +658,7 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 
 		var uploadErr error
 		for retry := range 5 {
-			ctx, cancel := context.WithTimeout(uploadCtx, 5*time.Second)
+			ctx, cancel := context.WithTimeout(uploadCtx, 10*time.Second)
 			if isBigFile {
 				_, uploadErr = c.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
 					FileID:         fileId,
@@ -684,6 +689,16 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 					}
 				}
 			}
+
+			if MatchError(uploadErr, "timeout") {
+				select {
+				case <-uploadCtx.Done():
+					return nil, uploadCtx.Err()
+				default:
+					continue
+				}
+			}
+
 			break
 		}
 		if uploadErr != nil {
