@@ -582,6 +582,11 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 		totalParts++
 	}
 
+	if size == 0 {
+		totalParts = -1
+		isBigFile = true
+	}
+
 	var hash hash.Hash
 	if !isBigFile {
 		hash = md5.New()
@@ -621,19 +626,33 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 		progressTracker.start(&doneBytes)
 	}
 
-	for p := 0; p < totalParts; p++ {
+	var currentPart []byte
+	for p := 0; p < totalParts || totalParts == -1; p++ {
 		select {
 		case <-uploadCtx.Done():
 			return nil, uploadCtx.Err()
 		default:
 		}
 
-		part := make([]byte, partSize)
-		readBytes, err := io.ReadFull(file, part)
+		if currentPart == nil {
+			currentPart = make([]byte, partSize)
+			readBytes, err := io.ReadFull(file, currentPart)
+			if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+				return nil, err
+			}
+			currentPart = currentPart[:readBytes]
+		}
+
+		nextPart := make([]byte, partSize)
+		readBytes, err := io.ReadFull(file, nextPart)
 		if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 			return nil, err
 		}
-		part = part[:readBytes]
+		nextPart = nextPart[:readBytes]
+
+		if len(nextPart) == 0 {
+			totalParts = p + 1
+		}
 
 		var uploadErr error
 		for retry := range 5 {
@@ -643,13 +662,13 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 					FileID:         fileId,
 					FilePart:       int32(p),
 					FileTotalParts: int32(totalParts),
-					Bytes:          part,
+					Bytes:          currentPart,
 				})
 			} else {
 				_, uploadErr = c.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
 					FileID:   fileId,
 					FilePart: int32(p),
-					Bytes:    part,
+					Bytes:    currentPart,
 				})
 			}
 			cancel()
@@ -674,7 +693,8 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 			return nil, uploadErr
 		}
 
-		doneBytes.Add(int64(len(part)))
+		doneBytes.Add(int64(len(currentPart)))
+		currentPart = nextPart
 
 		if opts.Delay > 0 {
 			time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
