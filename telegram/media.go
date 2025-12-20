@@ -381,7 +381,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		}
 		data = data[:n]
 
-		ctx, cancel := context.WithTimeout(uploadCtx, 5*time.Second)
+		ctx, cancel := context.WithTimeout(uploadCtx, 10*time.Second)
 		defer cancel()
 
 		sender := w.NextWithContext(ctx)
@@ -424,6 +424,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					}
 				}
 			}
+
+			if MatchError(err, "timeout") {
+				return false
+			}
+
 			uploadLog.recordFailure(partNum, err, sender)
 			return false
 		}
@@ -582,6 +587,11 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 		totalParts++
 	}
 
+	if size == 0 {
+		totalParts = -1
+		isBigFile = true
+	}
+
 	var hash hash.Hash
 	if !isBigFile {
 		hash = md5.New()
@@ -621,35 +631,46 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 		progressTracker.start(&doneBytes)
 	}
 
-	for p := 0; p < totalParts; p++ {
+	currentPart := make([]byte, partSize)
+	readBytes, err := io.ReadFull(file, currentPart)
+	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+		return nil, err
+	}
+	currentPart = currentPart[:readBytes]
+
+	for p := 0; p < totalParts || totalParts == -1; p++ {
 		select {
 		case <-uploadCtx.Done():
 			return nil, uploadCtx.Err()
 		default:
 		}
 
-		part := make([]byte, partSize)
-		readBytes, err := io.ReadFull(file, part)
+		nextPart := make([]byte, partSize)
+		readBytes, err := io.ReadFull(file, nextPart)
 		if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 			return nil, err
 		}
-		part = part[:readBytes]
+		nextPart = nextPart[:readBytes]
+
+		if len(nextPart) == 0 {
+			totalParts = p + 1
+		}
 
 		var uploadErr error
 		for retry := range 5 {
-			ctx, cancel := context.WithTimeout(uploadCtx, 5*time.Second)
+			ctx, cancel := context.WithTimeout(uploadCtx, 10*time.Second)
 			if isBigFile {
 				_, uploadErr = c.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
 					FileID:         fileId,
 					FilePart:       int32(p),
 					FileTotalParts: int32(totalParts),
-					Bytes:          part,
+					Bytes:          currentPart,
 				})
 			} else {
 				_, uploadErr = c.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
 					FileID:   fileId,
 					FilePart: int32(p),
-					Bytes:    part,
+					Bytes:    currentPart,
 				})
 			}
 			cancel()
@@ -668,13 +689,24 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 					}
 				}
 			}
+
+			if MatchError(uploadErr, "timeout") {
+				select {
+				case <-uploadCtx.Done():
+					return nil, uploadCtx.Err()
+				default:
+					continue
+				}
+			}
+
 			break
 		}
 		if uploadErr != nil {
 			return nil, uploadErr
 		}
 
-		doneBytes.Add(int64(len(part)))
+		doneBytes.Add(int64(len(currentPart)))
+		currentPart = nextPart
 
 		if opts.Delay > 0 {
 			time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
