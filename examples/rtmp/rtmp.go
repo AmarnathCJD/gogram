@@ -13,6 +13,8 @@
 //   .playaudio <audio> <image> - Stream audio with static image background
 //   .pause                     - Pause the stream
 //   .resume                    - Resume the stream
+//   .mute                      - Mute audio
+//   .unmute                    - Unmute audio
 //   .stop                      - Stop the stream
 //   .seek <seconds>            - Seek to position
 //   .pos                       - Show current position
@@ -73,12 +75,12 @@ func main() {
 			}
 
 			// Set error callback
-			stream.OnError(func(err error) {
+			stream.OnError(func(chatID int64, err error) {
 				client.SendMessage(chatID, fmt.Sprintf("⚠️ Stream error: %v", err))
 			})
 
 			// Set end callback
-			stream.OnEnd(func() {
+			stream.OnEnd(func(chatID int64) {
 				client.SendMessage(chatID, "✅ Stream ended successfully")
 			})
 
@@ -140,12 +142,12 @@ func main() {
 			}
 
 			// Set error callback
-			stream.OnError(func(err error) {
+			stream.OnError(func(chatID int64, err error) {
 				client.SendMessage(chatID, fmt.Sprintf("⚠️ Stream error: %v", err))
 			})
 
 			// Set end callback
-			stream.OnEnd(func() {
+			stream.OnEnd(func(chatID int64) {
 				client.SendMessage(chatID, "✅ Audio stream ended successfully")
 			})
 
@@ -209,6 +211,48 @@ func main() {
 		}
 
 		m.Reply("▶️ Resumed playback")
+		return nil
+	})
+
+	client.On("message:.mute", func(m *telegram.NewMessage) error {
+		stream, exists := streams[m.ChatID()]
+		if !exists {
+			_, err := m.Reply("❌ No active stream in this chat")
+			return err
+		}
+
+		if stream.IsMuted() {
+			_, err := m.Reply("🔇 Stream is already muted")
+			return err
+		}
+
+		if err := stream.Mute(); err != nil {
+			_, replyErr := m.Reply(fmt.Sprintf("❌ %v", err))
+			return replyErr
+		}
+
+		m.Reply("🔇 Stream muted")
+		return nil
+	})
+
+	client.On("message:.unmute", func(m *telegram.NewMessage) error {
+		stream, exists := streams[m.ChatID()]
+		if !exists {
+			_, err := m.Reply("❌ No active stream in this chat")
+			return err
+		}
+
+		if !stream.IsMuted() {
+			_, err := m.Reply("🔊 Stream is already unmuted")
+			return err
+		}
+
+		if err := stream.Unmute(); err != nil {
+			_, replyErr := m.Reply(fmt.Sprintf("❌ %v", err))
+			return replyErr
+		}
+
+		m.Reply("🔊 Stream unmuted")
 		return nil
 	})
 
@@ -333,6 +377,8 @@ func main() {
 • ` + "`.playaudio <audio> <image>`" + ` - Stream audio with static image
 • ` + "`.pause`" + ` - Pause stream
 • ` + "`.resume`" + ` - Resume stream
+• ` + "`.mute`" + ` - Mute audio
+• ` + "`.unmute`" + ` - Unmute audio
 • ` + "`.stop`" + ` - Stop stream
 • ` + "`.seek <time>`" + ` - Seek to position
 • ` + "`.pos`" + ` - Show current position
