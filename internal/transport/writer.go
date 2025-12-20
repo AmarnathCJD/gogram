@@ -59,21 +59,31 @@ func (c *Reader) Read(p []byte) (int, error) {
 	ctx := c.ctx
 	c.mu.Unlock()
 
-	if err := ctx.Err(); err != nil {
-		return 0, err
+	total := 0
+
+	for total < len(p) {
+		if err := ctx.Err(); err != nil {
+			return total, err
+		}
+
+		if nc, ok := r.(net.Conn); ok {
+			_ = nc.SetReadDeadline(time.Now().Add(5 * time.Second))
+		}
+
+		n, err := r.Read(p[total:])
+		if n > 0 {
+			total += n
+		}
+
+		if err != nil {
+			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+				continue
+			}
+			return total, err
+		}
 	}
 
-	n, err := io.ReadFull(r, p)
-	if err != nil {
-		return n, err
-	}
-
-	select {
-	case <-ctx.Done():
-		return n, ctx.Err()
-	default:
-		return n, nil
-	}
+	return total, nil
 }
 
 func (c *Reader) Close() error {
