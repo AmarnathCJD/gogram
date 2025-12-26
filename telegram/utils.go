@@ -658,13 +658,15 @@ func GetFileName(f any, video ...bool) string {
 	var isVid = getVariadic(video, false)
 
 	getDocName := func(doc *DocumentObj) string {
+		for _, attr := range doc.Attributes {
+			if filename, ok := attr.(*DocumentAttributeFilename); ok && filename.FileName != "" {
+				return filename.FileName
+			}
+		}
+
 		var name string
 		for _, attr := range doc.Attributes {
 			switch attr := attr.(type) {
-			case *DocumentAttributeFilename:
-				if attr.FileName != "" {
-					return attr.FileName
-				}
 			case *DocumentAttributeAudio:
 				if attr.Title != "" {
 					name = attr.Title + ".mp3"
@@ -677,6 +679,7 @@ func GetFileName(f any, video ...bool) string {
 				return fmt.Sprintf("sticker_%s_%d.webp", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 			}
 		}
+
 		if name != "" {
 			return name
 		}
@@ -689,7 +692,12 @@ func GetFileName(f any, video ...bool) string {
 
 	switch f := f.(type) {
 	case *MessageMediaDocument:
-		return getDocName(f.Document.(*DocumentObj))
+		switch doc := f.Document.(type) {
+		case *DocumentObj:
+			return getDocName(doc)
+		default:
+			return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		}
 	case *MessageMediaPhoto:
 		if isVid {
 			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
