@@ -29,6 +29,7 @@ type InlineBuilder struct {
 	isPersonal    bool
 	switchPm      string
 	switchPmText  string
+	err           error
 }
 
 type InlineSend struct {
@@ -60,8 +61,16 @@ func (i *InlineBuilder) Results() []InputBotInlineResult {
 	return i.InlineResults
 }
 
+// Error returns the first error encountered during result building
+func (i *InlineBuilder) Error() error {
+	return i.err
+}
+
 // Answer sends the inline query results to Telegram
 func (i *InlineBuilder) Answer(options ...*InlineSendOptions) (bool, error) {
+	if i.err != nil {
+		return false, i.err
+	}
 	var opts InlineSendOptions
 	if len(options) > 0 {
 		opts = *options[0]
@@ -333,17 +342,21 @@ func (i *InlineBuilder) Article(title, description, text string, options ...*Art
 }
 
 func (i *InlineBuilder) Photo(photo any, options ...*ArticleOptions) *InlineBuilder {
+	if i.err != nil {
+		return i
+	}
+
 	opts := getVariadic(options, &ArticleOptions{})
 
 	inputPhoto, err := i.Client.getSendableMedia(photo, &MediaMetadata{Inline: true})
 	if err != nil {
-		i.Client.Log.Debug("error getting sendable media: inline photo: %v", err)
+		i.err = fmt.Errorf("inline photo: %w", err)
 		return i
 	}
 
 	im, ok := inputPhoto.(*InputMediaPhoto)
 	if !ok {
-		i.Client.Log.Warn("error getting sendable media: inline photo is not a InputMediaPhoto")
+		i.err = fmt.Errorf("inline photo: expected InputMediaPhoto, got %T", inputPhoto)
 		return i
 	}
 
@@ -376,6 +389,10 @@ func (i *InlineBuilder) Photo(photo any, options ...*ArticleOptions) *InlineBuil
 }
 
 func (i *InlineBuilder) Document(document any, options ...*ArticleOptions) *InlineBuilder {
+	if i.err != nil {
+		return i
+	}
+
 	opts := getVariadic(options, &ArticleOptions{})
 
 	inputDoc, err := i.Client.getSendableMedia(document, &MediaMetadata{
@@ -383,13 +400,13 @@ func (i *InlineBuilder) Document(document any, options ...*ArticleOptions) *Inli
 		ForceDocument: opts.ForceDocument,
 	})
 	if err != nil {
-		i.Client.Log.Debug("error getting sendable media: inline document: %v", err)
+		i.err = fmt.Errorf("inline document: %w", err)
 		return i
 	}
 
 	dc, ok := inputDoc.(*InputMediaDocument)
 	if !ok {
-		i.Client.Log.Warn("error getting sendable media: inline document is not a InputMediaDocument")
+		i.err = fmt.Errorf("inline document: expected InputMediaDocument, got %T", inputDoc)
 		return i
 	}
 
