@@ -675,7 +675,7 @@ func (c *CACHE) LookupUsername(username string) (peerID int64, accessHash int64,
 
 func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	// channel id (negative with -100 prefix)
-	if strings.HasPrefix(strconv.Itoa(int(peerID)), "-100") {
+	if strings.HasPrefix(strconv.FormatInt(peerID, 10), "-100") {
 		channelID := trimSuffixHundred(peerID)
 		c.Cache.RLock()
 		if channelHash, ok := c.Cache.InputPeers.InputChannels[channelID]; ok {
@@ -1088,15 +1088,21 @@ func (c *Client) IdInCache(id int64) bool {
 }
 
 func trimSuffixHundred(id int64) int64 {
-	if id > 0 {
+	if id >= 0 {
 		return id
 	}
 
-	idStr := strconv.Itoa(int(id))
-	idStr = strings.TrimPrefix(idStr, "-100")
+	s := strconv.FormatInt(id, 10)
+	s = strings.TrimPrefix(s, "-")
+	s = strings.TrimPrefix(s, "100")
 
-	idInt, _ := strconv.Atoi(idStr)
-	return int64(idInt)
+	if v, err := strconv.ParseInt(s, 10, 64); err == nil {
+		return v
+	}
+	if id < 0 {
+		return -id
+	}
+	return id
 }
 
 // GetCachedMedia retrieves a cached media by its key (URL or file hash)
