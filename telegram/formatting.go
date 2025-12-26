@@ -266,8 +266,8 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 			case tag.Attrs["href"] == "":
 				entities = append(entities, &MessageEntityURL{tag.Offset, tag.Length})
 			default:
-				if strings.HasPrefix(tag.Attrs["href"], "tg://user?id=") {
-					idStr := strings.TrimPrefix(tag.Attrs["href"], "tg://user?id=")
+				if after, ok := strings.CutPrefix(tag.Attrs["href"], "tg://user?id="); ok {
+					idStr := after
 					id, err := strconv.ParseInt(idStr, 10, 64)
 					if err == nil {
 						entities = append(entities, &InputMessageEntityMentionName{
