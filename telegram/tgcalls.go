@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 )
@@ -243,7 +244,11 @@ type RTMPStream struct {
 	pausedAt   time.Duration
 	seekPos    time.Duration
 	lastError  error
-	onError    func(error)
+	onError    func(int64, error)
+	onEnd      func(int64)
+	audioOnly  bool
+	imageFile  string
+	muted      bool
 }
 
 type RTMPConfig struct {
@@ -483,7 +488,12 @@ func (s *RTMPStream) startFFmpeg(input string, pipeInput bool) error {
 					s.lastError = fmt.Errorf("ffmpeg exited with error: %w", err)
 				}
 				if s.onError != nil {
-					go s.onError(s.lastError)
+					go s.onError(s.chatID, s.lastError)
+				}
+			} else {
+				// Stream ended normally (no error)
+				if s.onEnd != nil {
+					go s.onEnd(s.chatID)
 				}
 			}
 		}
@@ -502,29 +512,101 @@ func (s *RTMPStream) buildFFmpegArgs(input string) []string {
 
 	args = append(args, "-re")
 
-	if s.loopCount != 0 {
-		args = append(args, "-stream_loop", fmt.Sprintf("%d", s.loopCount))
-	}
+	// If audio-only with static image
+	if s.audioOnly && s.imageFile != "" {
+		// Add static image as loop input
+		args = append(args,
+			"-loop", "1",
+			"-i", s.imageFile,
+		)
 
-	args = append(args,
-		"-i", input,
-		"-c:v", "libx264",
-		"-preset", "superfast",
-		"-b:v", s.bitrate,
-		"-maxrate", s.bitrate,
-		"-bufsize", s.doubleBitrate(),
-		"-pix_fmt", "yuv420p",
-		"-g", fmt.Sprintf("%d", s.frameRate),
-		"-threads", "0",
-		"-c:a", "aac",
-		"-b:a", s.audioBit,
-		"-ac", "2",
-		"-ar", "44100",
-		"-f", "flv",
-		"-rtmp_buffer", "100",
-		"-rtmp_live", "live",
-		s.GetFullURL(),
-	)
+		// Add audio input
+		if s.loopCount != 0 {
+			args = append(args, "-stream_loop", fmt.Sprintf("%d", s.loopCount))
+		}
+		args = append(args, "-i", input)
+
+		// Map video from image and audio from input
+		args = append(args,
+			"-map", "0:v", // Video from image (first input)
+			"-map", "1:a", // Audio from audio file (second input)
+			"-c:v", "libx264",
+			"-preset", "superfast",
+			"-b:v", s.bitrate,
+			"-maxrate", s.bitrate,
+			"-bufsize", s.doubleBitrate(),
+			"-pix_fmt", "yuv420p",
+			"-r", fmt.Sprintf("%d", s.frameRate),
+			"-g", fmt.Sprintf("%d", s.frameRate),
+			"-threads", "0",
+		)
+
+		if s.muted {
+			// anullsrc
+			args = append(args,
+				"-c:a", "aac",
+				"-b:a", s.audioBit,
+				"-ac", "2",
+				"-ar", "44100",
+				"-af", "volume=0",
+			)
+		} else {
+			args = append(args,
+				"-c:a", "aac",
+				"-b:a", s.audioBit,
+				"-ac", "2",
+				"-ar", "44100",
+			)
+		}
+
+		args = append(args,
+			"-shortest",
+			"-f", "flv",
+			"-rtmp_buffer", "100",
+			"-rtmp_live", "live",
+			s.GetFullURL(),
+		)
+	} else {
+		if s.loopCount != 0 {
+			args = append(args, "-stream_loop", fmt.Sprintf("%d", s.loopCount))
+		}
+
+		args = append(args,
+			"-i", input,
+			"-c:v", "libx264",
+			"-preset", "superfast",
+			"-b:v", s.bitrate,
+			"-maxrate", s.bitrate,
+			"-bufsize", s.doubleBitrate(),
+			"-pix_fmt", "yuv420p",
+			"-g", fmt.Sprintf("%d", s.frameRate),
+			"-threads", "0",
+		)
+
+		if s.muted {
+			args = append(args,
+				"-c:a", "aac",
+				"-b:a", s.audioBit,
+				"-ac", "2",
+				"-ar", "44100",
+				"-af", "volume=0",
+			)
+		} else {
+			args = append(args,
+				"-c:a", "aac",
+				"-b:a", s.audioBit,
+				"-ac", "2",
+				"-ar", "44100",
+			)
+		}
+
+		args = append(args,
+			"-f", "flv",
+			"-rtmp_buffer", "100",
+			"-rtmp_live", "live",
+			s.GetFullURL(),
+		)
+	}
 
 	return args
 }
@@ -617,10 +699,92 @@ func (s *RTMPStream) LastError() error {
 }
 
 // OnError sets a callback function that will be called when an error occurs
-func (s *RTMPStream) OnError(fn func(error)) {
+func (s *RTMPStream) OnError(fn func(int64, error)) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.onError = fn
+}
+
+// OnEnd sets a callback function that will be called when the stream ends normally
+func (s *RTMPStream) OnEnd(fn func(int64)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onEnd = fn
+}
+
+// Mute mutes the audio stream by restarting FFmpeg with volume=0 filter
+func (s *RTMPStream) Mute() error {
+	s.mu.Lock()
+	if s.muted {
+		s.mu.Unlock()
+		return nil
+	}
+
+	if s.state != StreamStatePlaying {
+		s.mu.Unlock()
+		return fmt.Errorf("cannot mute: stream is %s", s.state)
+	}
+
+	s.muted = true
+	wasPlaying := s.state == StreamStatePlaying
+	currentPos := time.Since(s.startTime) + s.seekPos
+	s.mu.Unlock()
+
+	if wasPlaying {
+		s.Stop()
+		s.mu.Lock()
+		s.seekPos = currentPos
+		s.mu.Unlock()
+
+		if s.inputFile != "" {
+			return s.startFFmpeg(s.inputFile, false)
+		} else if s.inputData != nil {
+			return s.startFFmpeg("pipe:0", true)
+		}
+	}
+
+	return nil
+}
+
+// Unmute unmutes the audio stream by restarting FFmpeg without volume filter
+func (s *RTMPStream) Unmute() error {
+	s.mu.Lock()
+	if !s.muted {
+		s.mu.Unlock()
+		return nil
+	}
+
+	if s.state != StreamStatePlaying {
+		s.mu.Unlock()
+		return fmt.Errorf("cannot unmute: stream is %s", s.state)
+	}
+
+	s.muted = false
+	wasPlaying := s.state == StreamStatePlaying
+	currentPos := time.Since(s.startTime) + s.seekPos
+	s.mu.Unlock()
+
+	if wasPlaying {
+		s.Stop()
+		s.mu.Lock()
+		s.seekPos = currentPos
+		s.mu.Unlock()
+
+		if s.inputFile != "" {
+			return s.startFFmpeg(s.inputFile, false)
+		} else if s.inputData != nil {
+			return s.startFFmpeg("pipe:0", true)
+		}
+	}
+
+	return nil
+}
+
+// IsMuted returns whether the audio is currently muted
+func (s *RTMPStream) IsMuted() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.muted
 }
 
 func (s *RTMPStream) Stop() error {
@@ -733,7 +897,11 @@ func (s *RTMPStream) startFFmpegPipe() error {
 					s.lastError = fmt.Errorf("ffmpeg exited with error: %w", err)
 				}
 				if s.onError != nil {
-					go s.onError(s.lastError)
+					go s.onError(s.chatID, s.lastError)
+				}
+			} else {
+				if s.onEnd != nil {
+					go s.onEnd(s.chatID)
 				}
 			}
 		}
@@ -820,4 +988,58 @@ func (s *RTMPStream) ClosePipe() error {
 		return s.stdin.Close()
 	}
 	return nil
+}
+
+// PlayAudioWithImage streams audio with a static image as background.
+func (s *RTMPStream) PlayAudioWithImage(audioSource any, imageSource string) error {
+	if s.rtmpURL == "" || s.rtmpKey == "" {
+		return ErrNoRTMPURL
+	}
+
+	isURL := strings.HasPrefix(imageSource, "http://") || strings.HasPrefix(imageSource, "https://")
+
+	if !isURL {
+		if _, err := os.Stat(imageSource); err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("%w: %s", ErrFileNotFound, imageSource)
+			}
+			return fmt.Errorf("failed to access image file: %w", err)
+		}
+	}
+
+	s.mu.Lock()
+	if s.state == StreamStatePlaying {
+		s.mu.Unlock()
+		return ErrStreamPlaying
+	}
+
+	s.audioOnly = true
+	s.imageFile = imageSource
+
+	switch src := audioSource.(type) {
+	case string:
+		if _, err := os.Stat(src); err != nil {
+			s.mu.Unlock()
+			if os.IsNotExist(err) {
+				return fmt.Errorf("%w: %s", ErrFileNotFound, src)
+			}
+			return fmt.Errorf("failed to access audio file: %w", err)
+		}
+		s.inputFile = src
+		s.inputData = nil
+		s.mu.Unlock()
+		return s.startFFmpeg(src, false)
+	case []byte:
+		if len(src) == 0 {
+			s.mu.Unlock()
+			return errors.New("empty byte input")
+		}
+		s.inputData = src
+		s.inputFile = ""
+		s.mu.Unlock()
+		return s.startFFmpeg("pipe:0", true)
+	default:
+		s.mu.Unlock()
+		return fmt.Errorf("unsupported source type: expected string or []byte, got %T", audioSource)
+	}
 }

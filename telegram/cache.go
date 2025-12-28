@@ -38,6 +38,11 @@ func NewFileCacheStorage(path string) *FileCacheStorage {
 	return &FileCacheStorage{path: path}
 }
 
+// SetPath updates the storage path (useful for user-specific cache files)
+func (f *FileCacheStorage) SetPath(path string) {
+	f.path = path
+}
+
 func (f *FileCacheStorage) Read() (*InputPeerCache, error) {
 	file, err := os.Open(f.path)
 	if err != nil {
@@ -129,16 +134,7 @@ type InputPeerCache struct {
 	InputChannels map[int64]int64  `json:"channels,omitempty"`
 	InputUsers    map[int64]int64  `json:"users,omitempty"`
 	UsernameMap   map[string]int64 `json:"username_map,omitempty"`
-	Meta          *CacheMeta       `json:"meta,omitempty"`
-}
-
-const cacheMetaVersion = 1
-
-type CacheMeta struct {
-	OwnerID int64     `json:"owner_id"`
-	AppID   int32     `json:"app_id"`
-	Version int       `json:"version"`
-	BoundAt time.Time `json:"bound_at"`
+	OwnerID       int64            `json:"owner_id,omitempty"`
 }
 
 func newInputPeerCache() *InputPeerCache {
@@ -147,14 +143,6 @@ func newInputPeerCache() *InputPeerCache {
 		InputUsers:    make(map[int64]int64),
 		UsernameMap:   make(map[string]int64),
 	}
-}
-
-func cloneCacheMeta(meta *CacheMeta) *CacheMeta {
-	if meta == nil {
-		return nil
-	}
-	clone := *meta
-	return &clone
 }
 
 func (c *CACHE) ensureInputPeersLocked() {
@@ -181,13 +169,6 @@ func (c *CACHE) resetLocked() {
 	c.InputPeers = newInputPeerCache()
 }
 
-func (c *CACHE) currentMetaLocked() *CacheMeta {
-	if c.InputPeers == nil || c.InputPeers.Meta == nil {
-		return nil
-	}
-	return cloneCacheMeta(c.InputPeers.Meta)
-}
-
 func (c *CACHE) fileNameForUser(userID int64) string {
 	if userID == 0 || c.baseName == "" {
 		return c.baseName
@@ -201,33 +182,47 @@ func (c *CACHE) fileNameForUser(userID int64) string {
 	return fmt.Sprintf("%s_%d%s", name, userID, ext)
 }
 
-func (c *CACHE) loadFileIntoLocked(path string) error {
+func (c *CACHE) loadFileIntoLocked(path string, expectedOwnerID int64) error {
+	var peers *InputPeerCache
+	var err error
+
 	if c.storage != nil {
-		peers, err := c.storage.Read()
+		peers, err = c.storage.Read()
 		if err != nil {
 			return err
 		}
-		c.InputPeers = peers
-		c.ensureInputPeersLocked()
-		c.usernameMap = make(map[string]int64, len(c.InputPeers.UsernameMap))
-		maps.Copy(c.usernameMap, c.InputPeers.UsernameMap)
-		return nil
+	} else {
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		dec := gob.NewDecoder(file)
+		var p InputPeerCache
+		if err := dec.Decode(&p); err != nil {
+			return err
+		}
+		peers = &p
 	}
 
-	file, err := os.Open(path)
-	if err != nil {
-		return err
+	if expectedOwnerID != 0 && peers.OwnerID != 0 {
+		if peers.OwnerID != expectedOwnerID {
+			return fmt.Errorf("cache owner mismatch: expected %d, got %d", expectedOwnerID, peers.OwnerID)
+		}
 	}
-	defer file.Close()
-	dec := gob.NewDecoder(file)
-	var peers InputPeerCache
-	if err := dec.Decode(&peers); err != nil {
-		return err
-	}
-	c.InputPeers = &peers
+
+	c.InputPeers = peers
 	c.ensureInputPeersLocked()
 	c.usernameMap = make(map[string]int64, len(c.InputPeers.UsernameMap))
 	maps.Copy(c.usernameMap, c.InputPeers.UsernameMap)
+
+	c.logger.WithFields(map[string]any{
+		"users":     len(c.InputPeers.InputUsers),
+		"channels":  len(c.InputPeers.InputChannels),
+		"usernames": len(c.usernameMap),
+		"owner_id":  c.InputPeers.OwnerID,
+	}).Debug("loaded peers from cache")
+
 	return nil
 }
 
@@ -243,7 +238,7 @@ func (c *CACHE) snapshotInputPeers() *InputPeerCache {
 			InputChannels: make(map[int64]int64, len(c.InputPeers.InputChannels)),
 			InputUsers:    make(map[int64]int64, len(c.InputPeers.InputUsers)),
 			UsernameMap:   make(map[string]int64, len(c.usernameMap)),
-			Meta:          cloneCacheMeta(c.InputPeers.Meta),
+			OwnerID:       c.InputPeers.OwnerID,
 		}
 		maps.Copy(peers.InputChannels, c.InputPeers.InputChannels)
 		maps.Copy(peers.InputUsers, c.InputPeers.InputUsers)
@@ -252,9 +247,35 @@ func (c *CACHE) snapshotInputPeers() *InputPeerCache {
 	return peers
 }
 
-func (c *CACHE) BindToUser(userID int64, appID int32) error {
-	if c == nil || c.disabled || c.memory || userID == 0 || c.binded {
+func (c *CACHE) BindToUser(userID int64) error {
+	if c == nil || c.disabled || c.memory {
 		return nil
+	}
+
+	// Allow binding with 0 initially (loads base cache file)
+	// Later RebindToUser will be called with actual user ID
+	if userID == 0 {
+		if c.binded {
+			return nil // Already bound to something
+		}
+		c.binded = true
+		c.Lock()
+		defer c.Unlock()
+		// Try to load base cache file if it exists
+		if c.fileName != "" {
+			if err := c.loadFileIntoLocked(c.fileName, 0); err != nil {
+				if !os.IsNotExist(err) {
+					c.logger.WithError(err).Debug("failed to load base cache")
+				} else {
+					c.logger.Debug("no base cache file found, starting empty")
+				}
+			}
+		}
+		return nil
+	}
+
+	if c.binded {
+		return nil // Already bound
 	}
 
 	c.binded = true
@@ -268,37 +289,115 @@ func (c *CACHE) BindToUser(userID int64, appID int32) error {
 	defer c.Unlock()
 
 	if target != "" && c.fileName != target {
-		if err := c.loadFileIntoLocked(target); err != nil {
+		// Update storage path for file-based storage
+		if fStorage, ok := c.storage.(*FileCacheStorage); ok {
+			fStorage.SetPath(target)
+		}
+
+		if err := c.loadFileIntoLocked(target, userID); err != nil {
 			if os.IsNotExist(err) {
-				// keep current in-memory cache, start writing to the user-specific file
+				// No cache file for this user yet, start fresh
+				c.logger.Debug("no existing cache for user %d, starting fresh", userID)
+				c.resetLocked()
+			} else if strings.Contains(err.Error(), "owner mismatch") {
+				// Owner mismatch detected during load - don't use this cache
+				c.logger.WithError(err).Warn("cache owner mismatch detected, starting fresh cache")
+				c.resetLocked()
 			} else {
-				c.logger.WithError(err).Warn("cache: failed to load user-specific cache, starting empty cache")
+				c.logger.WithError(err).Warn("failed to load user-specific cache, starting empty cache")
 				c.resetLocked()
 			}
 		}
 		c.fileName = target
+		c.logger.Debug("bound cache to user %d: %s", userID, target)
 	}
 
-	meta := c.currentMetaLocked()
-	if meta != nil && meta.OwnerID != 0 {
-		if meta.OwnerID == userID && (meta.AppID == 0 || meta.AppID == appID) {
+	if c.InputPeers.OwnerID != 0 {
+		if c.InputPeers.OwnerID != userID {
+			c.logger.WithFields(map[string]any{
+				"cache_owner":  c.InputPeers.OwnerID,
+				"current_user": userID,
+				"cache_file":   c.fileName,
+			}).Warn("cache owner mismatch after load, clearing cache")
+			c.resetLocked()
+		} else {
+			// Valid cache for this user
 			return nil
 		}
-		c.logger.WithFields(map[string]any{
-			"expected_owner": meta.OwnerID,
-			"current_owner":  userID,
-			"cache":          c.fileName,
-		}).Warn("cache owner mismatch, clearing cache")
-		c.resetLocked()
 	}
 
 	c.ensureInputPeersLocked()
-	c.InputPeers.Meta = &CacheMeta{
-		OwnerID: userID,
-		AppID:   appID,
-		Version: cacheMetaVersion,
-		BoundAt: time.Now(),
+	c.InputPeers.OwnerID = userID
+	return nil
+}
+
+// RebindToUser rebinds the cache to a different user ID
+// Used when actual user ID is discovered after initial binding with 0
+func (c *CACHE) RebindToUser(userID int64) error {
+	if c == nil || c.disabled || c.memory || userID == 0 {
+		return nil
 	}
+
+	c.Lock()
+	defer c.Unlock()
+
+	currentOwner := c.InputPeers.OwnerID
+	if currentOwner == userID {
+		return nil
+	}
+
+	if currentOwner == 0 {
+		c.logger.WithFields(map[string]any{
+			"users":      len(c.InputPeers.InputUsers),
+			"channels":   len(c.InputPeers.InputChannels),
+			"usernames":  len(c.usernameMap),
+			"cache_file": c.fileName,
+		}).Debug("adopting unbound cache for user %d (keeping current file)", userID)
+		c.ensureInputPeersLocked()
+		c.InputPeers.OwnerID = userID
+		return nil
+	}
+
+	if currentOwner != userID {
+		c.logger.WithFields(map[string]any{
+			"old_owner": currentOwner,
+			"new_owner": userID,
+		}).Info("cache owner changed, rebinding to new user")
+		c.resetLocked()
+	}
+
+	// Load user-specific cache file
+	target := c.fileNameForUser(userID)
+	if target == "" {
+		target = c.fileName
+	}
+
+	if target != c.fileName {
+		// Update storage path for file-based storage
+		if fStorage, ok := c.storage.(*FileCacheStorage); ok {
+			fStorage.SetPath(target)
+		}
+
+		if err := c.loadFileIntoLocked(target, userID); err != nil {
+			if os.IsNotExist(err) {
+				c.logger.Debug("no existing cache for user %d, starting fresh", userID)
+			} else if strings.Contains(err.Error(), "owner mismatch") {
+				c.logger.WithError(err).Warn("cache owner mismatch during rebind, starting fresh")
+				c.resetLocked()
+			} else {
+				c.logger.WithError(err).Warn("failed to load cache during rebind, starting fresh")
+				c.resetLocked()
+			}
+		} else {
+			c.logger.Debug("successfully loaded user cache: %s", target)
+		}
+		c.fileName = target
+		c.logger.Debug("rebound cache to user %d: %s", userID, target)
+	}
+
+	// Set owner ID
+	c.ensureInputPeersLocked()
+	c.InputPeers.OwnerID = userID
 	return nil
 }
 
@@ -311,13 +410,13 @@ func (c *CACHE) Clear() {
 	c.Lock()
 	defer c.Unlock()
 
-	meta := c.currentMetaLocked()
+	ownerID := c.InputPeers.OwnerID
 	c.chats = make(map[int64]*ChatObj)
 	c.users = make(map[int64]*UserObj)
 	c.channels = make(map[int64]*Channel)
 	c.usernameMap = make(map[string]int64)
 	c.InputPeers = newInputPeerCache()
-	c.InputPeers.Meta = meta
+	c.InputPeers.OwnerID = ownerID
 }
 
 func (c *CACHE) ExportJSON() ([]byte, error) {
@@ -384,17 +483,7 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 		if opt.Storage != nil {
 			c.logger.Debug("using custom storage backend")
 		} else {
-			c.logger.Debug("cache file: %s", c.fileName)
-		}
-	}
-
-	if !opt.Disabled {
-		if c.storage != nil {
-			c.ReadFile()
-		} else if fileName != "" {
-			if _, err := os.Stat(c.fileName); err == nil && !c.memory {
-				c.ReadFile()
-			}
+			c.logger.Debug("cache base file: %s", c.fileName)
 		}
 	}
 
@@ -494,10 +583,11 @@ func (c *CACHE) ReadFile() {
 	defer c.Unlock()
 
 	var err error
+	// Pass 0 as expectedOwnerID - validation will happen in BindToUser
 	if c.storage != nil {
-		err = c.loadFileIntoLocked("")
+		err = c.loadFileIntoLocked("", 0)
 	} else if c.fileName != "" {
-		err = c.loadFileIntoLocked(c.fileName)
+		err = c.loadFileIntoLocked(c.fileName, 0)
 	} else {
 		return
 	}
@@ -585,7 +675,7 @@ func (c *CACHE) LookupUsername(username string) (peerID int64, accessHash int64,
 
 func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	// channel id (negative with -100 prefix)
-	if strings.HasPrefix(strconv.Itoa(int(peerID)), "-100") {
+	if strings.HasPrefix(strconv.FormatInt(peerID, 10), "-100") {
 		channelID := trimSuffixHundred(peerID)
 		c.Cache.RLock()
 		if channelHash, ok := c.Cache.InputPeers.InputChannels[channelID]; ok {
@@ -944,7 +1034,7 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 			if !cache.writePending.Load() {
 				cache.writePending.Store(true)
 				go func() {
-					time.Sleep(1 * time.Second) // Wait for batch updates
+					time.Sleep(1 * time.Second)
 					cache.WriteFile()
 				}()
 			}
@@ -998,15 +1088,21 @@ func (c *Client) IdInCache(id int64) bool {
 }
 
 func trimSuffixHundred(id int64) int64 {
-	if id > 0 {
+	if id >= 0 {
 		return id
 	}
 
-	idStr := strconv.Itoa(int(id))
-	idStr = strings.TrimPrefix(idStr, "-100")
+	s := strconv.FormatInt(id, 10)
+	s = strings.TrimPrefix(s, "-")
+	s = strings.TrimPrefix(s, "100")
 
-	idInt, _ := strconv.Atoi(idStr)
-	return int64(idInt)
+	if v, err := strconv.ParseInt(s, 10, 64); err == nil {
+		return v
+	}
+	if id < 0 {
+		return -id
+	}
+	return id
 }
 
 // GetCachedMedia retrieves a cached media by its key (URL or file hash)

@@ -247,7 +247,7 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 		MemorySession:   true,
 		AppID:           m.appID,
 		EnablePFS:       false,
-		ServerHost:      m.Addr,
+		ServerHost:      m.GetAddr(),
 		PublicKey:       m.publicKey,
 		DataCenter:      m.GetDC(),
 		Logger:          m.Logger.Clone().WithPrefix("gogram [mtp-pfs]"),

@@ -20,6 +20,11 @@ func (c *Client) GetMe() (*UserObj, error) {
 		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
 	}
 	c.clientData.me = user
+	if c.Cache != nil {
+		if err := c.Cache.BindToUser(user.ID); err != nil {
+			c.Log.WithError(err).Warn("failed to bind cache to user")
+		}
+	}
 
 	return user, nil
 }
