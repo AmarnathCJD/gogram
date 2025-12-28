@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -29,7 +31,8 @@ func main() {
 	}
 
 	// Add a inline query handler
-	client.AddInlineHandler(telegram.OnInlineQuery, HelloWorld)
+	client.OnInlineQuery("hello", HelloWorld)
+	client.OnInlineQuery("multiple", SendMultipleResults)
 
 	// Start polling
 	client.Idle()
@@ -40,4 +43,21 @@ func HelloWorld(i *telegram.InlineQuery) error {
 	builder.Article("Hello World", "Hello World", "This is a test article")
 	_, err := i.Answer(builder.Results())
 	return err
+}
+
+func SendMultipleResults(i *telegram.InlineQuery) error {
+	builder := i.Builder()
+	for j := 1; j <= 10; j++ {
+		builder.Article(fmt.Sprintf("Article %d", j), "description", "This is a test article").
+			WithLinkPreview(false)
+	}
+
+	builder.CacheTime(60)                  // Cache results for 1 minute
+	builder.SwitchPM("Start Bot", "start") // Add a button to start the bot in PM
+	if err := builder.Error(); err != nil {
+		return err
+	}
+	builder.Answer()
+
+	return nil
 }

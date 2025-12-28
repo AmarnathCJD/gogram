@@ -461,11 +461,6 @@ func (c *Client) Me() *UserObj {
 			return &UserObj{}
 		}
 		c.clientData.me = me
-		if c.Cache != nil {
-			if err := c.Cache.BindToUser(me.ID, c.clientData.appID); err != nil {
-				c.Log.WithError(err).Warn("failed to bind cache to user")
-			}
-		}
 	}
 
 	return c.clientData.me
@@ -607,11 +602,12 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 	}
 
 	exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
-	exported.Logger.SetPrefix(fmt.Sprintf("gogram [sender-%d>%d] ", dcID,
-		len(c.exSenders.GetSenders(dcID))+1))
 	if err != nil {
 		return nil, fmt.Errorf("exporting new sender: %w", err)
 	}
+
+	exported.Logger.SetPrefix(fmt.Sprintf("gogram [sender-%d>%d] ", dcID,
+		len(c.exSenders.GetSenders(dcID))+1))
 
 	defer func() {
 		if lastError != nil && exported != nil {
@@ -755,7 +751,7 @@ func (c *Client) SecretChatManager() *e2e.SecretChatManager {
 }
 
 func (c *Client) GetCurrentIP() string {
-	return c.MTProto.Addr
+	return c.MTProto.GetAddr()
 }
 
 // ExportStringSession exports the current session to a string,

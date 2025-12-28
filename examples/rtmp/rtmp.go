@@ -9,13 +9,16 @@
 // - The chat must have an active RTMP livestream enabled
 //
 // Usage:
-//   .play <file_path>  - Start streaming a file
-//   .pause             - Pause the stream
-//   .resume            - Resume the stream
-//   .stop              - Stop the stream
-//   .seek <seconds>    - Seek to position
-//   .pos               - Show current position
-//   .rtmpurl           - Show RTMP URL and key
+//   .play <file_path>          - Start streaming a file
+//   .playaudio <audio> <image> - Stream audio with static image background
+//   .pause                     - Pause the stream
+//   .resume                    - Resume the stream
+//   .mute                      - Mute audio
+//   .unmute                    - Unmute audio
+//   .stop                      - Stop the stream
+//   .seek <seconds>            - Seek to position
+//   .pos                       - Show current position
+//   .rtmpurl                   - Show RTMP URL and key
 
 package main
 
@@ -72,8 +75,13 @@ func main() {
 			}
 
 			// Set error callback
-			stream.OnError(func(err error) {
+			stream.OnError(func(chatID int64, err error) {
 				client.SendMessage(chatID, fmt.Sprintf("⚠️ Stream error: %v", err))
+			})
+
+			// Set end callback
+			stream.OnEnd(func(chatID int64) {
+				client.SendMessage(chatID, "✅ Stream ended successfully")
 			})
 
 			streams[chatID] = stream
@@ -97,6 +105,73 @@ func main() {
 		}
 
 		m.Reply(fmt.Sprintf("▶️ Now playing: `%s`", args))
+		return nil
+	})
+
+	// PlayAudioWithImage command: .playaudio <audio_path> <image_path>
+	client.On("message:.playaudio", func(m *telegram.NewMessage) error {
+		args := strings.TrimPrefix(m.Text(), ".playaudio ")
+		parts := strings.Fields(args)
+
+		if len(parts) != 2 {
+			m.Reply("Usage: `.playaudio <audio_path> <image_path>`")
+			return nil
+		}
+
+		audioPath := parts[0]
+		imagePath := parts[1]
+		chatID := m.ChatID()
+		stream, exists := streams[chatID]
+
+		if !exists {
+			var err error
+			stream, err = client.NewRTMPStream(chatID)
+			if err != nil {
+				if errors.Is(err, telegram.ErrFFmpegNotFound) {
+					_, err := m.Reply("❌ FFmpeg is not installed. Please install FFmpeg first.")
+					return err
+				}
+				_, err := m.Reply(fmt.Sprintf("❌ Failed to create stream: %v", err))
+				return err
+			}
+
+			// NOTE: FetchRTMPURL only works with user accounts, not bots
+			if err := stream.FetchRTMPURL(); err != nil {
+				_, replyErr := m.Reply(fmt.Sprintf("❌ Failed to fetch RTMP URL: %v\n\nNote: Bots cannot fetch RTMP URLs. Use a user account or set URL manually.", err))
+				return replyErr
+			}
+
+			// Set error callback
+			stream.OnError(func(chatID int64, err error) {
+				client.SendMessage(chatID, fmt.Sprintf("⚠️ Stream error: %v", err))
+			})
+
+			// Set end callback
+			stream.OnEnd(func(chatID int64) {
+				client.SendMessage(chatID, "✅ Audio stream ended successfully")
+			})
+
+			streams[chatID] = stream
+		}
+
+		if err := stream.PlayAudioWithImage(audioPath, imagePath); err != nil {
+			if errors.Is(err, telegram.ErrFileNotFound) {
+				_, replyErr := m.Reply(fmt.Sprintf("❌ File not found: `%v`", err))
+				return replyErr
+			}
+			if errors.Is(err, telegram.ErrStreamPlaying) {
+				_, err := m.Reply("⚠️ Stream already playing. Use `.stop` first.")
+				return err
+			}
+			if errors.Is(err, telegram.ErrNoRTMPURL) {
+				_, err := m.Reply("❌ RTMP URL not set. Make sure the chat has RTMP streaming enabled.")
+				return err
+			}
+			_, replyErr := m.Reply(fmt.Sprintf("❌ Failed to play: %v", err))
+			return replyErr
+		}
+
+		m.Reply(fmt.Sprintf("🎵 Now playing audio: `%s`\n🖼️ With image: `%s`", audioPath, imagePath))
 		return nil
 	})
 
@@ -136,6 +211,48 @@ func main() {
 		}
 
 		m.Reply("▶️ Resumed playback")
+		return nil
+	})
+
+	client.On("message:.mute", func(m *telegram.NewMessage) error {
+		stream, exists := streams[m.ChatID()]
+		if !exists {
+			_, err := m.Reply("❌ No active stream in this chat")
+			return err
+		}
+
+		if stream.IsMuted() {
+			_, err := m.Reply("🔇 Stream is already muted")
+			return err
+		}
+
+		if err := stream.Mute(); err != nil {
+			_, replyErr := m.Reply(fmt.Sprintf("❌ %v", err))
+			return replyErr
+		}
+
+		m.Reply("🔇 Stream muted")
+		return nil
+	})
+
+	client.On("message:.unmute", func(m *telegram.NewMessage) error {
+		stream, exists := streams[m.ChatID()]
+		if !exists {
+			_, err := m.Reply("❌ No active stream in this chat")
+			return err
+		}
+
+		if !stream.IsMuted() {
+			_, err := m.Reply("🔊 Stream is already unmuted")
+			return err
+		}
+
+		if err := stream.Unmute(); err != nil {
+			_, replyErr := m.Reply(fmt.Sprintf("❌ %v", err))
+			return replyErr
+		}
+
+		m.Reply("🔊 Stream unmuted")
 		return nil
 	})
 
@@ -256,9 +373,12 @@ func main() {
 		help := `**🎬 RTMP Stream Commands**
 
 ▶️ **Playback:**
-• ` + "`.play <file>`" + ` - Start streaming
+• ` + "`.play <file>`" + ` - Start streaming video/audio file
+• ` + "`.playaudio <audio> <image>`" + ` - Stream audio with static image
 • ` + "`.pause`" + ` - Pause stream
 • ` + "`.resume`" + ` - Resume stream
+• ` + "`.mute`" + ` - Mute audio
+• ` + "`.unmute`" + ` - Unmute audio
 • ` + "`.stop`" + ` - Stop stream
 • ` + "`.seek <time>`" + ` - Seek to position
 • ` + "`.pos`" + ` - Show current position

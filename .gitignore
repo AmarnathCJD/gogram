@@ -2,3 +2,4 @@
 /.idea
 *.yaml
 *_test.go
+*.txt

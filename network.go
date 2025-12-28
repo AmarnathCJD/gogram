@@ -75,7 +75,14 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 
 	maxRetries := 2
 sendPacket:
+	m.transportMu.Lock()
+	if m.transport == nil {
+		m.transportMu.Unlock()
+		return nil, 0, errors.New("transport is nil during write")
+	}
 	errorSendPacket := m.transport.WriteMsg(data, seqNo)
+	m.transportMu.Unlock()
+
 	if errorSendPacket != nil {
 		if maxRetries > 0 && (strings.Contains(errorSendPacket.Error(), "connection was aborted") || strings.Contains(errorSendPacket.Error(), "connection reset")) {
 			maxRetries--
@@ -204,7 +211,7 @@ func (m *MTProto) SaveSession(mem bool) (err error) {
 		Key:      m.authKey,
 		Hash:     m.authKeyHash,
 		Salt:     m.serverSalt.Load(),
-		Hostname: m.Addr,
+		Hostname: m.GetAddr(),
 		AppID:    m.appID,
 	}
 
@@ -224,7 +231,7 @@ func (m *MTProto) _loadSession(s *session.Session) {
 	m.authKey = s.Key
 	m.authKeyHash = s.Hash
 	m.serverSalt.Store(s.Salt)
-	m.Addr = s.Hostname
+	m.SetAddr(s.Hostname)
 	m.appID = s.AppID
 }
 
