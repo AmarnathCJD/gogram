@@ -3,21 +3,181 @@
 package telegram
 
 import (
+	"container/list"
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"slices"
-
-	"errors"
 )
+
+type Middleware func(MessageHandler) MessageHandler
+
+type LifecycleHooks struct {
+	BeforeHandler func(*NewMessage)
+	AfterHandler  func(*NewMessage, error)
+	OnError       func(error, *NewMessage)
+}
+
+type HandlerMetrics struct {
+	TotalCalls  atomic.Int64
+	Errors      atomic.Int64
+	TotalTimeNs atomic.Int64
+}
+
+func (m *HandlerMetrics) RecordCall(duration time.Duration, err error) {
+	m.TotalCalls.Add(1)
+	if err != nil {
+		m.Errors.Add(1)
+	}
+	m.TotalTimeNs.Add(int64(duration))
+}
+
+func (m *HandlerMetrics) AvgDuration() time.Duration {
+	calls := m.TotalCalls.Load()
+	if calls == 0 {
+		return 0
+	}
+	return time.Duration(m.TotalTimeNs.Load() / calls)
+}
+
+func (m *HandlerMetrics) ErrorRate() float64 {
+	calls := m.TotalCalls.Load()
+	if calls == 0 {
+		return 0
+	}
+	return float64(m.Errors.Load()) / float64(calls)
+}
+
+type lruCache struct {
+	sync.Mutex
+	maxSize int
+	items   map[int64]*list.Element
+	list    *list.List
+}
+
+type lruEntry struct {
+	key       int64
+	timestamp time.Time
+}
+
+func newLRUCache(maxSize int) *lruCache {
+	return &lruCache{
+		maxSize: maxSize,
+		items:   make(map[int64]*list.Element),
+		list:    list.New(),
+	}
+}
+
+func (c *lruCache) Add(key int64) {
+	c.Lock()
+	defer c.Unlock()
+
+	if elem, exists := c.items[key]; exists {
+		c.list.MoveToFront(elem)
+		elem.Value.(*lruEntry).timestamp = time.Now()
+		return
+	}
+
+	entry := &lruEntry{key: key, timestamp: time.Now()}
+	elem := c.list.PushFront(entry)
+	c.items[key] = elem
+
+	if c.list.Len() > c.maxSize {
+		oldest := c.list.Back()
+		if oldest != nil {
+			c.list.Remove(oldest)
+			delete(c.items, oldest.Value.(*lruEntry).key)
+		}
+	}
+}
+
+func (c *lruCache) Contains(key int64) bool {
+	c.Lock()
+	defer c.Unlock()
+	_, exists := c.items[key]
+	return exists
+}
+
+type patternCache struct {
+	sync.RWMutex
+	patterns map[string]*regexp.Regexp
+}
+
+func newPatternCache() *patternCache {
+	return &patternCache{
+		patterns: make(map[string]*regexp.Regexp),
+	}
+}
+
+func (c *patternCache) Get(pattern string) *regexp.Regexp {
+	c.RLock()
+	if regex, exists := c.patterns[pattern]; exists {
+		c.RUnlock()
+		return regex
+	}
+	c.RUnlock()
+
+	c.Lock()
+	defer c.Unlock()
+	if regex, exists := c.patterns[pattern]; exists {
+		return regex
+	}
+	regex := regexp.MustCompile(pattern)
+	c.patterns[pattern] = regex
+	return regex
+}
+
+type EventType string
+
+const (
+	EventMessage        EventType = "message"
+	EventNewMessage     EventType = "newmessage"
+	EventCommand        EventType = "command"
+	EventEdit           EventType = "edit"
+	EventEditMessage    EventType = "editmessage"
+	EventDelete         EventType = "delete"
+	EventDeleteMessage  EventType = "deletemessage"
+	EventAlbum          EventType = "album"
+	EventInline         EventType = "inline"
+	EventInlineQuery    EventType = "inlinequery"
+	EventCallback       EventType = "callback"
+	EventCallbackQuery  EventType = "callbackquery"
+	EventInlineCallback EventType = "inlinecallback"
+	EventChosenInline   EventType = "choseninline"
+	EventParticipant    EventType = "participant"
+	EventJoinRequest    EventType = "joinrequest"
+	EventAction         EventType = "action"
+	EventRaw            EventType = "raw"
+)
+
+func applyMiddlewares(handler MessageHandler, middlewares []Middleware) MessageHandler {
+	if len(middlewares) == 0 {
+		return handler
+	}
+	final := handler
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		final = middlewares[i](final)
+	}
+	return final
+}
+
+// WithMiddleware wraps a handler with the provided middlewares
+func WithMiddleware(handler MessageHandler, middlewares ...Middleware) MessageHandler {
+	return applyMiddlewares(handler, middlewares)
+}
+
+// AnyFilter creates a filter that matches if any of the provided filters match
+func AnyFilter(filters ...Filter) Filter {
+	return Filter{orFilters: filters}
+}
 
 type MessageHandler func(m *NewMessage) error
 type EditHandler func(m *NewMessage) error
@@ -49,6 +209,9 @@ type Handle interface {
 type baseHandle struct {
 	Group             int
 	priority          int
+	name              string
+	enabled           bool
+	metrics           *HandlerMetrics
 	onGroupChanged    func(int, int)
 	onPriorityChanged func()
 }
@@ -80,9 +243,10 @@ func (h *baseHandle) GetPriority() int {
 
 type messageHandle struct {
 	baseHandle
-	Pattern any
-	Handler MessageHandler
-	Filters []Filter
+	Pattern     any
+	Handler     MessageHandler
+	Filters     []Filter
+	middlewares []Middleware
 }
 
 type albumHandle struct {
@@ -251,10 +415,12 @@ type UpdateDispatcher struct {
 	state                 UpdateState
 	channelStates         map[int64]*channelState
 	pendingGaps           map[int32]time.Time
-	processedUpdates      map[int64]time.Time
+	processedUpdatesLRU   *lruCache
 	recoveringDifference  bool
 	recoveringChannels    map[int64]bool
 	stopChan              chan struct{}
+	patternCache          *patternCache
+	lifecycleHooks        *LifecycleHooks
 }
 
 func (d *UpdateDispatcher) SetPts(pts int32) {
@@ -341,24 +507,13 @@ func (u *UpdateDispatcher) getLastUpdateTime() time.Time {
 // TryMarkUpdateProcessed atomically checks if an update was processed and marks it if not.
 // Returns true if this call marked it (first processor), false if already processed.
 func (d *UpdateDispatcher) TryMarkUpdateProcessed(updateID int64) bool {
-	d.Lock()
-	defer d.Unlock()
-	if d.processedUpdates == nil {
-		d.processedUpdates = make(map[int64]time.Time)
+	if d.processedUpdatesLRU == nil {
+		return true
 	}
-	if _, exists := d.processedUpdates[updateID]; exists {
+	if d.processedUpdatesLRU.Contains(updateID) {
 		return false
 	}
-	d.processedUpdates[updateID] = time.Now()
-
-	if len(d.processedUpdates) > 15000 {
-		cutoff := time.Now().Add(-24 * time.Hour)
-		for id, t := range d.processedUpdates {
-			if t.Before(cutoff) {
-				delete(d.processedUpdates, id)
-			}
-		}
-	}
+	d.processedUpdatesLRU.Add(updateID)
 	return true
 }
 
@@ -368,7 +523,7 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 			lp("updates", getVariadic(sessionName, ""))),
 		channelStates:         make(map[int64]*channelState),
 		pendingGaps:           make(map[int32]time.Time),
-		processedUpdates:      make(map[int64]time.Time),
+		processedUpdatesLRU:   newLRUCache(15000),
 		stopChan:              make(chan struct{}),
 		messageHandles:        make(map[int][]*messageHandle),
 		inlineHandles:         make(map[int][]*inlineHandle),
@@ -384,6 +539,8 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		rawHandles:            make(map[int][]*rawHandle),
 		e2eHandles:            make(map[int][]*e2eHandle),
 		activeAlbums:          make(map[int64]*albumBox),
+		patternCache:          newPatternCache(),
+		lifecycleHooks:        &LifecycleHooks{},
 	}
 	c.dispatcher.lastUpdateTimeNano.Store(time.Now().UnixNano())
 	c.dispatcher.logger.Debug("update dispatcher initialized")
@@ -1105,6 +1262,7 @@ type Filter struct {
 	MediaTypes   []string
 	Func         func(m *NewMessage) bool
 	FuncCallback func(c *CallbackQuery) bool
+	orFilters    []Filter
 }
 
 type FilterFlag uint32
@@ -1314,6 +1472,15 @@ func All(fs ...Filter) Filter {
 }
 
 func (f Filter) check(m *NewMessage) bool {
+	if len(f.orFilters) > 0 {
+		for _, orFilter := range f.orFilters {
+			if orFilter.check(m) {
+				return true
+			}
+		}
+		return false
+	}
+
 	if !f.flags.check(m) {
 		return false
 	}
@@ -1399,6 +1566,15 @@ func (f Filter) checkCallback(c *CallbackQuery) bool {
 		return false
 	}
 	return true
+}
+
+func (f Filter) Or(other Filter) Filter {
+	if len(f.orFilters) == 0 {
+		f.orFilters = []Filter{f, other}
+	} else {
+		f.orFilters = append(f.orFilters, other)
+	}
+	return f
 }
 
 func F(flags FilterFlag) Filter                               { return Filter{flags: flags} }
@@ -1516,9 +1692,16 @@ func (c *Client) AddMessageHandler(pattern any, handler MessageHandler, filters 
 		messageFilters = filters
 	}
 
-	handle := &messageHandle{Pattern: pattern, Handler: handler, Filters: messageFilters, baseHandle: baseHandle{
-		Group: DefaultGroup,
-	}}
+	handle := &messageHandle{
+		Pattern: pattern,
+		Handler: handler,
+		Filters: messageFilters,
+		baseHandle: baseHandle{
+			Group:   DefaultGroup,
+			enabled: true,
+			metrics: &HandlerMetrics{},
+		},
+	}
 
 	handle.onGroupChanged = makeGroupChangeCallback(c.dispatcher.messageHandles, handle, &c.dispatcher.RWMutex)
 	handle.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.messageHandles, handle, &c.dispatcher.RWMutex)
@@ -2801,6 +2984,48 @@ func (c *Client) OnDelete(handler func(m *DeleteMessage) error) Handle {
 
 func (c *Client) OnAlbum(handler func(m *Album) error) Handle {
 	return c.AddAlbumHandler(handler)
+}
+
+// SetLifecycleHooks sets the lifecycle hooks for all handlers
+func (c *Client) SetLifecycleHooks(hooks *LifecycleHooks) {
+	if c.dispatcher != nil {
+		c.dispatcher.lifecycleHooks = hooks
+	}
+}
+
+// GetHandlerMetrics returns metrics for a specific handler
+func (c *Client) GetHandlerMetrics(handle Handle) *HandlerMetrics {
+	if bh, ok := handle.(*messageHandle); ok {
+		return bh.metrics
+	}
+	return nil
+}
+
+// AddMessageHandlerWithMiddleware adds a message handler with middleware support
+func (c *Client) AddMessageHandlerWithMiddleware(pattern any, handler MessageHandler, middlewares []Middleware, filters ...Filter) Handle {
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
+
+	var messageFilters []Filter
+	if len(filters) > 0 {
+		messageFilters = filters
+	}
+
+	handle := &messageHandle{
+		Pattern:     pattern,
+		Handler:     handler,
+		Filters:     messageFilters,
+		middlewares: middlewares,
+		baseHandle: baseHandle{
+			Group:   DefaultGroup,
+			enabled: true,
+			metrics: &HandlerMetrics{},
+		},
+	}
+
+	handle.onGroupChanged = makeGroupChangeCallback(c.dispatcher.messageHandles, handle, &c.dispatcher.RWMutex)
+	handle.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.messageHandles, handle, &c.dispatcher.RWMutex)
+	return addHandleToMap(c.dispatcher.messageHandles, handle)
 }
 
 func (c *Client) OnParticipant(handler func(m *ParticipantUpdate) error) Handle {
