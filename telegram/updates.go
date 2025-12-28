@@ -638,7 +638,29 @@ func (c *Client) handleMessageUpdate(update Message) {
 		handle := func(h *messageHandle) error {
 			if h.runFilterChain(packed, h.Filters) {
 				defer c.NewRecovery()()
-				if err := h.Handler(packed); err != nil {
+				start := time.Now()
+				if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.BeforeHandler != nil {
+					c.dispatcher.lifecycleHooks.BeforeHandler(packed)
+				}
+
+				handler := h.Handler
+				if len(h.middlewares) > 0 {
+					handler = applyMiddlewares(h.Handler, h.middlewares)
+				}
+
+				err := handler(packed)
+				if h.metrics != nil {
+					h.metrics.RecordCall(time.Since(start), err)
+				}
+
+				if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.AfterHandler != nil {
+					c.dispatcher.lifecycleHooks.AfterHandler(packed, err)
+				}
+
+				if err != nil {
+					if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.OnError != nil {
+						c.dispatcher.lifecycleHooks.OnError(err, packed)
+					}
 					return err
 				}
 			}
@@ -815,7 +837,25 @@ func (c *Client) handleEditUpdate(update Message) {
 					handle := func(h *messageEditHandle) error {
 						if h.runFilterChain(packed, h.Filters) {
 							defer c.NewRecovery()()
-							return h.Handler(packed)
+							start := time.Now()
+							if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.BeforeHandler != nil {
+								c.dispatcher.lifecycleHooks.BeforeHandler(packed)
+							}
+
+							err := h.Handler(packed)
+							if h.metrics != nil {
+								h.metrics.RecordCall(time.Since(start), err)
+							}
+
+							if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.AfterHandler != nil {
+								c.dispatcher.lifecycleHooks.AfterHandler(packed, err)
+							}
+							if err != nil {
+								if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.OnError != nil {
+									c.dispatcher.lifecycleHooks.OnError(err, packed)
+								}
+								return err
+							}
 						}
 						return nil
 					}
@@ -855,7 +895,14 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 				handle := func(h *callbackHandle) error {
 					if h.runFilterChain(packed, h.Filters) {
 						defer c.NewRecovery()()
-						return h.Handler(packed)
+						start := time.Now()
+						err := h.Handler(packed)
+						if h.metrics != nil {
+							h.metrics.RecordCall(time.Since(start), err)
+						}
+						if err != nil {
+							return err
+						}
 					}
 					return nil
 				}
