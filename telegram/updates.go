@@ -3048,33 +3048,6 @@ func (c *Client) GetHandlerMetrics(handle Handle) *HandlerMetrics {
 	return nil
 }
 
-// AddMessageHandlerWithMiddleware adds a message handler with middleware support
-func (c *Client) AddMessageHandlerWithMiddleware(pattern any, handler MessageHandler, middlewares []Middleware, filters ...Filter) Handle {
-	c.dispatcher.Lock()
-	defer c.dispatcher.Unlock()
-
-	var messageFilters []Filter
-	if len(filters) > 0 {
-		messageFilters = filters
-	}
-
-	handle := &messageHandle{
-		Pattern:     pattern,
-		Handler:     handler,
-		Filters:     messageFilters,
-		middlewares: middlewares,
-		baseHandle: baseHandle{
-			Group:   DefaultGroup,
-			enabled: true,
-			metrics: &HandlerMetrics{},
-		},
-	}
-
-	handle.onGroupChanged = makeGroupChangeCallback(c.dispatcher.messageHandles, handle, &c.dispatcher.RWMutex)
-	handle.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.messageHandles, handle, &c.dispatcher.RWMutex)
-	return addHandleToMap(c.dispatcher.messageHandles, handle)
-}
-
 func (c *Client) OnParticipant(handler func(m *ParticipantUpdate) error) Handle {
 	return c.AddParticipantHandler(handler)
 }
