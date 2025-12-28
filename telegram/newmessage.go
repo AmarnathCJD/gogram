@@ -221,6 +221,33 @@ func (m *NewMessage) IsPrivate() bool {
 	return m.ChatType() == EntityUser
 }
 
+func (m *NewMessage) IsAnonymous() bool {
+	return m.Message.FromID == nil
+}
+
+func (m *NewMessage) IsService() bool {
+	_, isService := m.OriginalUpdate.(*MessageService)
+	return isService
+}
+
+func (m *NewMessage) IsOutgoing() bool {
+	return m.Message.Out
+}
+
+func (m *NewMessage) IsChannelPost() bool {
+	fromId := m.Message.FromID
+	if fromId != nil {
+		if m.Message.FwdFrom != nil {
+			if m.Client.PeerEquals(m.Message.FwdFrom.FromID, fromId) {
+				if m.Message.FwdFrom.ChannelPost != 0 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // returns the error only, of a method
 func (m *NewMessage) CheckErr(obj any, err error) error {
 	return err
