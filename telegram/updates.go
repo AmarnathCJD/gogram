@@ -1290,6 +1290,15 @@ func (h *messageHandle) hasOutgoingFilter() bool {
 		if f.flags.Has(FOutgoing) {
 			return true
 		}
+
+		if f.Func != nil {
+			return true
+		}
+		for _, of := range f.orFilters {
+			if of.flags.Has(FOutgoing) {
+				return true
+			}
+		}
 	}
 	return false
 }
