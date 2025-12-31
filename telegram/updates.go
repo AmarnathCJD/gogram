@@ -613,9 +613,6 @@ func removeHandleFromMap[T any](handle T, handlesMap map[int][]T) {
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
-		if msg.Out {
-			return
-		}
 		updateID := int64(msg.ID)
 		peerID := c.GetPeerID(msg.PeerID)
 		if peerID == 0 {
@@ -738,9 +735,6 @@ func (c *Client) handleMessageUpdate(update Message) {
 		}
 
 	case *MessageService:
-		if msg.Out {
-			return
-		}
 		packed := packMessage(c, msg)
 
 		c.dispatcher.RLock()
