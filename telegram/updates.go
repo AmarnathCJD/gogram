@@ -613,9 +613,6 @@ func removeHandleFromMap[T any](handle T, handlesMap map[int][]T) {
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
-		if msg.Out {
-			return
-		}
 		updateID := int64(msg.ID)
 		peerID := c.GetPeerID(msg.PeerID)
 		if peerID == 0 {
@@ -623,6 +620,10 @@ func (c *Client) handleMessageUpdate(update Message) {
 		}
 		if peerID != 0 {
 			updateID = (peerID << 32) | int64(msg.ID)
+		}
+
+		if msg.Out {
+			msg.FromID = &PeerUser{UserID: c.Me().ID}
 		}
 
 		if !c.dispatcher.TryMarkUpdateProcessed(updateID) {
@@ -636,6 +637,9 @@ func (c *Client) handleMessageUpdate(update Message) {
 
 		packed := packMessage(c, msg)
 		handle := func(h *messageHandle) error {
+			if msg.Out && !h.hasOutgoingFilter() {
+				return nil
+			}
 			if h.runFilterChain(packed, h.Filters) {
 				defer c.NewRecovery()()
 				start := time.Now()
@@ -738,10 +742,10 @@ func (c *Client) handleMessageUpdate(update Message) {
 		}
 
 	case *MessageService:
+		packed := packMessage(c, msg)
 		if msg.Out {
 			return
 		}
-		packed := packMessage(c, msg)
 
 		c.dispatcher.RLock()
 		actionHandles := make(map[int][]*chatActionHandle)
@@ -1279,6 +1283,15 @@ func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 		}
 	}
 	return true
+}
+
+func (h *messageHandle) hasOutgoingFilter() bool {
+	for _, f := range h.Filters {
+		if f.flags.Has(FOutgoing) {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *messageEditHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
