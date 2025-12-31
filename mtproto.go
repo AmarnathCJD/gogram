@@ -952,7 +952,7 @@ func (m *MTProto) stopRoutines() {
 	m.transportMu.Lock()
 	if m.transport != nil {
 		m.transport.Close()
-		m.transport = nil
+		//m.transport = nil
 	}
 	m.transportMu.Unlock()
 
