@@ -742,6 +742,20 @@ func (c *Client) handleMessageUpdate(update Message) {
 		}
 
 	case *MessageService:
+		updateID := int64(msg.ID)
+		peerID := c.GetPeerID(msg.PeerID)
+		if peerID == 0 {
+			peerID = c.GetPeerID(msg.FromID)
+		}
+		if peerID != 0 {
+			updateID = (peerID << 32) | int64(msg.ID)
+		}
+
+		if !c.dispatcher.TryMarkUpdateProcessed(updateID) {
+			c.dispatcher.logger.Trace("duplicate message update skipped: %d", updateID)
+			return
+		}
+
 		packed := packMessage(c, msg)
 		if msg.Out {
 			return
