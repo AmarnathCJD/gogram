@@ -350,13 +350,7 @@ func (t *GzipPacked) UnmarshalTL(d *tl.Decoder) error {
 }
 
 func (*GzipPacked) popMessageAsBytes(d *tl.Decoder) ([]byte, error) {
-	// TODO: The standard gzip package throws an error "gzip: invalid header".
-	// After investigating, it appears that the gzip function is receiving a segment of data that is located
-	// billions of bits away from the actual message. For example, the message starts with 0x1f 0x8b 0x08 0x00 ...,
-	// but the gzip function is receiving a segment that is 500+ bytes ahead of the message start.
-	//
-	// This current implementation appears to work. Therefore, it is best not to modify it to avoid potentially
-	// breaking functionality.
+	// This current implementation appears to work.
 
 	decompressed := make([]byte, 0, 4096)
 

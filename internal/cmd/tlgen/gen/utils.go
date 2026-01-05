@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
 	"github.com/dave/jennifer/jen"
 	"github.com/iancoleman/strcase"
 )
@@ -118,17 +119,26 @@ func (g *Generator) typeIdFromSchemaType(t string) *jen.Statement {
 				// Parse TL definition to extract the return type
 				parts := strings.Split(userInput, "=")
 				if len(parts) == 2 {
-					returnType := strings.TrimSpace(parts[1])
-					returnType = strings.TrimSuffix(returnType, ";")
-					returnType = strings.TrimSpace(returnType)
-					log.Printf("INFO: Parsed TL definition for '%s', extracted return type: %s\n", t, returnType)
+					// Validate using full parser
+					obj, err := tlparser.ParseObject(userInput)
+					if err == nil {
+						log.Printf("INFO: Successfully parsed and registered full definition for '%s': %s (ID: 0x%x)\n", t, obj.Name, obj.CRC)
+						g.schema.AddObject(*obj)
 
-					// Store both the original type and the parsed type
-					missingTypesCache[t] = goify(returnType, true)
-					item = jen.Id(goify(returnType, true))
+						// Use the newly registered object's name
+						typeName := goify(obj.Name, true)
+						missingTypesCache[t] = typeName
+						item = jen.Id(typeName)
+					} else {
+						// Fallback to simple return type extraction if parsing fails (historical behavior)
+						log.Printf("WARN: Full parsing failed (%v), falling back to return type extraction\n", err)
+						returnType := strings.TrimSpace(parts[1])
+						returnType = strings.TrimSuffix(returnType, ";")
+						returnType = strings.TrimSpace(returnType)
 
-					// TODO: Optionally, could parse and register the full definition
-					// For now, just use the return type
+						missingTypesCache[t] = goify(returnType, true)
+						item = jen.Id(goify(returnType, true))
+					}
 				} else {
 					log.Printf("WARN: Failed to parse TL definition for '%s', using as Go type\n", t)
 					missingTypesCache[t] = userInput

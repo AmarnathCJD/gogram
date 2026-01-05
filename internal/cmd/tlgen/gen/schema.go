@@ -96,6 +96,30 @@ func createInternalSchema(nativeSchema *tlparser.Schema) (*internalSchema, error
 	return internalSchema, nil
 }
 
+func (s *internalSchema) AddObject(obj tlparser.Object) {
+	// 1. Check if it belongs to an existing multi-constructor type
+	if list, ok := s.Types[obj.Interface]; ok {
+		s.Types[obj.Interface] = append(list, obj)
+		return
+	}
+
+	// 2. Check if it belongs to an existing single-constructor type (needs promotion)
+	for i, existing := range s.SingleInterfaceTypes {
+		if existing.Interface == obj.Interface {
+			// Promote to multi-constructor type
+			s.Types[obj.Interface] = []tlparser.Object{existing, obj}
+
+			// Remove from SingleInterfaceTypes (efficient swap-remove since order doesn't matter strictly here, or just slice trick)
+			s.SingleInterfaceTypes[i] = s.SingleInterfaceTypes[len(s.SingleInterfaceTypes)-1]
+			s.SingleInterfaceTypes = s.SingleInterfaceTypes[:len(s.SingleInterfaceTypes)-1]
+			return
+		}
+	}
+
+	// 3. New single-constructor type
+	s.SingleInterfaceTypes = append(s.SingleInterfaceTypes, obj)
+}
+
 func (g *Generator) getAllConstructors() (structs, enums []goifiedName) {
 	structs, enums = make([]string, 0), make([]string, 0)
 

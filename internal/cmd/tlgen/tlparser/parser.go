@@ -144,6 +144,25 @@ func ParseSchema(source string) (*Schema, error) {
 	}, nil
 }
 
+func ParseObject(source string) (*Object, error) {
+	cur := NewCursor(source)
+	def, err := parseDefinition(cur)
+	if err != nil {
+		return nil, err
+	}
+
+	if def.IsEqVector {
+		return nil, errors.New("type can't be a vector")
+	}
+
+	return &Object{
+		Name:       def.Name,
+		CRC:        def.CRC,
+		Parameters: def.Params,
+		Interface:  def.EqType,
+	}, nil
+}
+
 func parseDefinition(cur *Cursor) (def definition, err error) {
 	cur.SkipSpaces()
 
