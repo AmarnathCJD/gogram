@@ -106,6 +106,28 @@ func (c *lruCache) Contains(key int64) bool {
 	return exists
 }
 
+func (c *lruCache) TryAdd(key int64) bool {
+	c.Lock()
+	defer c.Unlock()
+
+	if _, exists := c.items[key]; exists {
+		return false
+	}
+
+	entry := &lruEntry{key: key, timestamp: time.Now()}
+	elem := c.list.PushFront(entry)
+	c.items[key] = elem
+
+	if c.list.Len() > c.maxSize {
+		oldest := c.list.Back()
+		if oldest != nil {
+			c.list.Remove(oldest)
+			delete(c.items, oldest.Value.(*lruEntry).key)
+		}
+	}
+	return true
+}
+
 type patternCache struct {
 	sync.RWMutex
 	patterns map[string]*regexp.Regexp
@@ -504,17 +526,11 @@ func (u *UpdateDispatcher) getLastUpdateTime() time.Time {
 	return time.Unix(0, u.lastUpdateTimeNano.Load())
 }
 
-// TryMarkUpdateProcessed atomically checks if an update was processed and marks it if not.
-// Returns true if this call marked it (first processor), false if already processed.
 func (d *UpdateDispatcher) TryMarkUpdateProcessed(updateID int64) bool {
 	if d.processedUpdatesLRU == nil {
 		return true
 	}
-	if d.processedUpdatesLRU.Contains(updateID) {
-		return false
-	}
-	d.processedUpdatesLRU.Add(updateID)
-	return true
+	return d.processedUpdatesLRU.TryAdd(updateID)
 }
 
 func (c *Client) NewUpdateDispatcher(sessionName ...string) {
