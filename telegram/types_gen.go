@@ -1920,16 +1920,6 @@ func (*InputFolderPeer) CRC() uint32 {
 	return 0xfbd2c296
 }
 
-type InputPasskeyCredentialPublicKey struct {
-	ID       string
-	RawID    string
-	Response InputPasskeyResponse
-}
-
-func (*InputPasskeyCredentialPublicKey) CRC() uint32 {
-	return 0x3c27b78f
-}
-
 // Notification settings.
 type InputPeerNotifySettings struct {
 	ShowPreviews      bool              `tl:"flag:0"`
@@ -2505,6 +2495,16 @@ func (*MessagesDiscussionMessage) CRC() uint32 {
 
 func (*MessagesDiscussionMessage) FlagIndex() int {
 	return 0
+}
+
+type MessagesEmojiGameOutcome struct {
+	Seed           []byte
+	StakeTonAmount int64
+	TonAmount      int64
+}
+
+func (*MessagesEmojiGameOutcome) CRC() uint32 {
+	return 0xda2ad647
 }
 
 // Info about chat invites exported by a certain admin.
