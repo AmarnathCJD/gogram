@@ -3960,6 +3960,18 @@ func (*InputMediaPoll) FlagIndex() int {
 
 func (*InputMediaPoll) ImplementsInputMedia() {}
 
+type InputMediaStakeDice struct {
+	GameHash   string
+	TonAmount  int64
+	ClientSeed []byte
+}
+
+func (*InputMediaStakeDice) CRC() uint32 {
+	return 0xf3a9244a
+}
+
+func (*InputMediaStakeDice) ImplementsInputMedia() {}
+
 // Forwarded story
 type InputMediaStory struct {
 	Peer InputPeer // Peer where the story was posted
@@ -4162,6 +4174,32 @@ func (*InputNotifyUsers) CRC() uint32 {
 }
 
 func (*InputNotifyUsers) ImplementsInputNotifyPeer() {}
+
+type InputPasskeyCredential interface {
+	tl.Object
+	ImplementsInputPasskeyCredential()
+}
+type InputPasskeyCredentialFirebasePnv struct {
+	PnvToken string
+}
+
+func (*InputPasskeyCredentialFirebasePnv) CRC() uint32 {
+	return 0x5b1ccb28
+}
+
+func (*InputPasskeyCredentialFirebasePnv) ImplementsInputPasskeyCredential() {}
+
+type InputPasskeyCredentialPublicKey struct {
+	ID       string
+	RawID    string
+	Response InputPasskeyResponse
+}
+
+func (*InputPasskeyCredentialPublicKey) CRC() uint32 {
+	return 0x3c27b78f
+}
+
+func (*InputPasskeyCredentialPublicKey) ImplementsInputPasskeyCredential() {}
 
 type InputPasskeyResponse interface {
 	tl.Object
@@ -5676,10 +5714,11 @@ type MessageObj struct {
 	PaidMessageStars        int64                `tl:"flag2:6"`
 	SuggestedPost           *SuggestedPost       `tl:"flag2:7"`
 	ScheduleRepeatPeriod    int32                `tl:"flag2:10"`
+	SummaryFromLanguage     string               `tl:"flag2:11"`
 }
 
 func (*MessageObj) CRC() uint32 {
-	return 0xb92f76cf
+	return 0x9cb490e9
 }
 
 func (*MessageObj) FlagIndex() int {
@@ -6932,12 +6971,17 @@ func (*MessageMediaContact) ImplementsMessageMedia() {}
 
 // Dice-based animated sticker
 type MessageMediaDice struct {
-	Value    int32  // Dice value
-	Emoticon string // The emoji, for now <img class="emoji" src="//telegram.org/img/emoji/40/F09F8F80.png" width="20" height="20" alt="🏀" />, <img class="emoji" src="//telegram.org/img/emoji/40/F09F8EB2.png" width="20" height="20" alt="🎲" /> and <img class="emoji" src="//telegram.org/img/emoji/40/F09F8EAF.png" width="20" height="20" alt="🎯" /> are supported
+	Value       int32
+	Emoticon    string
+	GameOutcome *MessagesEmojiGameOutcome `tl:"flag:0"`
 }
 
 func (*MessageMediaDice) CRC() uint32 {
-	return 0x3f7ee58b
+	return 0x8cbec07
+}
+
+func (*MessageMediaDice) FlagIndex() int {
+	return 0
 }
 
 func (*MessageMediaDice) ImplementsMessageMedia() {}
@@ -11264,6 +11308,16 @@ func (*UpdateEditMessage) CRC() uint32 {
 
 func (*UpdateEditMessage) ImplementsUpdate() {}
 
+type UpdateEmojiGameInfo struct {
+	Info MessagesEmojiGameInfo
+}
+
+func (*UpdateEmojiGameInfo) CRC() uint32 {
+	return 0xfb9c547a
+}
+
+func (*UpdateEmojiGameInfo) ImplementsUpdate() {}
+
 // Interlocutor is typing a message in an encrypted chat. Update period is 6 second. If upon this time there is no repeated update, it shall be considered that the interlocutor stopped typing.
 type UpdateEncryptedChatTyping struct {
 	ChatID int32 // Chat ID
@@ -13333,8 +13387,9 @@ func (*AccountSavedRingtoneObj) CRC() uint32 {
 
 func (*AccountSavedRingtoneObj) ImplementsAccountSavedRingtone() {}
 
+// The notification sound was not in MP3 format and was successfully converted and saved, use the returned Document to refer to the notification sound from now on
 type AccountSavedRingtoneConverted struct {
-	Document Document
+	Document Document // The converted notification sound
 }
 
 func (*AccountSavedRingtoneConverted) CRC() uint32 {
@@ -14440,6 +14495,36 @@ func (*MessagesDialogsSlice) CRC() uint32 {
 }
 
 func (*MessagesDialogsSlice) ImplementsMessagesDialogs() {}
+
+type MessagesEmojiGameInfo interface {
+	tl.Object
+	ImplementsMessagesEmojiGameInfo()
+}
+type MessagesEmojiGameDiceInfo struct {
+	GameHash      string
+	PrevStake     int64
+	CurrentStreak int32
+	Params        []int32
+	PlaysLeft     int32 `tl:"flag:0"`
+}
+
+func (*MessagesEmojiGameDiceInfo) CRC() uint32 {
+	return 0x44e56023
+}
+
+func (*MessagesEmojiGameDiceInfo) FlagIndex() int {
+	return 0
+}
+
+func (*MessagesEmojiGameDiceInfo) ImplementsMessagesEmojiGameInfo() {}
+
+type MessagesEmojiGameUnavailable struct{}
+
+func (*MessagesEmojiGameUnavailable) CRC() uint32 {
+	return 0x59e65335
+}
+
+func (*MessagesEmojiGameUnavailable) ImplementsMessagesEmojiGameInfo() {}
 
 type MessagesEmojiGroups interface {
 	tl.Object

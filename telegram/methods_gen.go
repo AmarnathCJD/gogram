@@ -4,9 +4,8 @@ package telegram
 
 import (
 	"fmt"
-	"reflect"
-
 	tl "github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"reflect"
 )
 
 type AccountAcceptAuthorizationParams struct {
@@ -1536,14 +1535,14 @@ func (c *Client) AccountRegisterDevice(params *AccountRegisterDeviceParams) (boo
 }
 
 type AccountRegisterPasskeyParams struct {
-	Credential *InputPasskeyCredentialPublicKey
+	Credential InputPasskeyCredential
 }
 
 func (*AccountRegisterPasskeyParams) CRC() uint32 {
 	return 0x55b41fd6
 }
 
-func (c *Client) AccountRegisterPasskey(credential *InputPasskeyCredentialPublicKey) (*Passkey, error) {
+func (c *Client) AccountRegisterPasskey(credential InputPasskeyCredential) (*Passkey, error) {
 	responseData, err := c.MakeRequest(&AccountRegisterPasskeyParams{Credential: credential})
 	if err != nil {
 		return nil, fmt.Errorf("sending AccountRegisterPasskey: %w", err)
@@ -3247,7 +3246,7 @@ func (c *Client) AuthExportLoginToken(apiID int32, apiHash string, exceptIds []i
 }
 
 type AuthFinishPasskeyLoginParams struct {
-	Credential    *InputPasskeyCredentialPublicKey
+	Credential    InputPasskeyCredential
 	FromDcID      int32 `tl:"flag:0"`
 	FromAuthKeyID int64 `tl:"flag:0"`
 }
@@ -3260,7 +3259,7 @@ func (*AuthFinishPasskeyLoginParams) FlagIndex() int {
 	return 0
 }
 
-func (c *Client) AuthFinishPasskeyLogin(credential *InputPasskeyCredentialPublicKey, fromDcID int32, fromAuthKeyID int64) (AuthAuthorization, error) {
+func (c *Client) AuthFinishPasskeyLogin(credential InputPasskeyCredential, fromDcID int32, fromAuthKeyID int64) (AuthAuthorization, error) {
 	responseData, err := c.MakeRequest(&AuthFinishPasskeyLoginParams{
 		Credential:    credential,
 		FromAuthKeyID: fromAuthKeyID,
@@ -9509,6 +9508,25 @@ func (c *Client) MessagesGetDocumentByHash(sha256 []byte, size int64, mimeType s
 	return resp, nil
 }
 
+type MessagesGetEmojiGameInfoParams struct{}
+
+func (*MessagesGetEmojiGameInfoParams) CRC() uint32 {
+	return 0xfb7e8ca7
+}
+
+func (c *Client) MessagesGetEmojiGameInfo() (MessagesEmojiGameInfo, error) {
+	responseData, err := c.MakeRequest(&MessagesGetEmojiGameInfoParams{})
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesGetEmojiGameInfo: %w", err)
+	}
+
+	resp, ok := responseData.(MessagesEmojiGameInfo)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type MessagesGetEmojiGroupsParams struct {
 	Hash int32
 }
@@ -13677,6 +13695,37 @@ func (c *Client) MessagesStartHistoryImport(peer InputPeer, importID int64) (boo
 	return resp, nil
 }
 
+type MessagesSummarizeTextParams struct {
+	Peer   InputPeer
+	ID     int32
+	ToLang string `tl:"flag:0"`
+}
+
+func (*MessagesSummarizeTextParams) CRC() uint32 {
+	return 0x9d4104e2
+}
+
+func (*MessagesSummarizeTextParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesSummarizeText(peer InputPeer, id int32, toLang string) (*TextWithEntities, error) {
+	responseData, err := c.MakeRequest(&MessagesSummarizeTextParams{
+		ID:     id,
+		Peer:   peer,
+		ToLang: toLang,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesSummarizeText: %w", err)
+	}
+
+	resp, ok := responseData.(*TextWithEntities)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type MessagesToggleBotInAttachMenuParams struct {
 	WriteAllowed bool `tl:"flag:0,encoded_in_bitflags"`
 	Bot          InputUser
@@ -17105,8 +17154,8 @@ func (c *Client) PhoneStartScheduledGroupCall(call InputGroupCall) (Updates, err
 }
 
 type PhoneToggleGroupCallRecordParams struct {
-	Start         bool `tl:"flag:0,encoded_in_bitflags,explicit"`
-	Video         bool `tl:"flag:2,encoded_in_bitflags,explicit"`
+	Start         bool `tl:"flag:0,encoded_in_bitflags"`
+	Video         bool `tl:"flag:2,encoded_in_bitflags"`
 	Call          InputGroupCall
 	Title         string `tl:"flag:1"`
 	VideoPortrait bool   `tl:"flag:2"`
