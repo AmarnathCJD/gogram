@@ -1055,3 +1055,28 @@ func (c *Client) GetLinkedChannel(channel any) (*Channel, error) {
 		return nil, errors.New("could not get full channel info")
 	}
 }
+
+func (c *Client) ExportInvite(channel any) (ExportedChatInvite, error) {
+	peer, err := c.ResolvePeer(channel)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.MessagesExportChatInvite(&MessagesExportChatInviteParams{
+		Peer: peer,
+	})
+}
+
+func (c *Client) RevokeInvite(channel any, invite string) error {
+	peer, err := c.ResolvePeer(channel)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.MessagesEditExportedChatInvite(&MessagesEditExportedChatInviteParams{
+		Peer:    peer,
+		Link:    invite,
+		Revoked: true,
+	})
+	return err
+}

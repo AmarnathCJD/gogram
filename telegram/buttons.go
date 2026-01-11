@@ -150,7 +150,11 @@ func (ButtonBuilder) SwitchInline(text string, samePeer bool, query string) *Key
 	return &KeyboardButtonSwitchInline{Text: text, SamePeer: samePeer, Query: query}
 }
 
-func (ButtonBuilder) WebView(text, url string) *KeyboardButtonSimpleWebView {
+func (ButtonBuilder) WebView(text, url string) *KeyboardButtonWebView {
+	return &KeyboardButtonWebView{Text: text, URL: url}
+}
+
+func (ButtonBuilder) SimpleWebView(text, url string) *KeyboardButtonSimpleWebView {
 	return &KeyboardButtonSimpleWebView{Text: text, URL: url}
 }
 
