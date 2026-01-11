@@ -114,9 +114,10 @@ func DialMTProxy(ctx context.Context, proxy *utils.Proxy, targetHost string, dcI
 	m := &mtproxyConn{conn: conn, config: config, useFakeTls: config.FakeTlsDomain != nil, isFirstWrite: true}
 
 	if config.FakeTlsDomain != nil {
+		conn.SetDeadline(time.Now().Add(15 * time.Second))
 		if err := m.fakeTlsHandshake(); err != nil {
 			conn.Close()
-			return nil, err
+			return nil, fmt.Errorf("TLS handshake failed: %w", err)
 		}
 	}
 
@@ -134,10 +135,14 @@ func DialMTProxy(ctx context.Context, proxy *utils.Proxy, targetHost string, dcI
 
 	if config.FakeTlsDomain != nil {
 		m.obfTag = obfTag
-	} else if _, err = conn.Write(obfTag); err != nil {
-		conn.Close()
-		return nil, err
+	} else {
+		conn.SetDeadline(time.Now().Add(10 * time.Second))
+		if _, err = conn.Write(obfTag); err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("writing obfuscation tag: %w", err)
+		}
 	}
+	conn.SetDeadline(time.Time{})
 	return m, nil
 }
 

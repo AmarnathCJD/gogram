@@ -56,59 +56,64 @@ func (c *Client) GetChatPhoto(chatID any) (Photo, error) {
 //
 //	Params:
 //	- Channel: the username or id of the channel or chat
-func (c *Client) JoinChannel(Channel any) (bool, error) {
-	switch p := Channel.(type) {
+func (c *Client) JoinChannel(channel any) (*Channel, error) {
+	switch p := channel.(type) {
 	case string:
 		if TgJoinRe.MatchString(p) {
 			result, err := c.MessagesImportChatInvite(TgJoinRe.FindStringSubmatch(p)[1])
 			if err != nil {
-				return false, err
+				return nil, err
 			}
 
 			switch result := result.(type) {
 			case *UpdatesObj:
 				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+				switch result.Chats[0].(type) {
+				case *Channel:
+					return result.Chats[0].(*Channel), nil
+				}
 			}
 
-			return true, nil
+			return nil, nil
 		} else if UsernameRe.MatchString(p) {
 			return c.joinChannelByPeer(UsernameRe.FindStringSubmatch(p)[1])
 		}
 
-		return false, errors.New("invalid channel or chat")
+		return nil, errors.New("invalid channel or chat")
 	case *InputPeerChannel, *InputPeerChat, int, int32, int64:
 		return c.joinChannelByPeer(p)
 	case *ChatInviteExported:
 		_, err := c.MessagesImportChatInvite(p.Link)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 
-		return true, nil
+		return nil, nil
 	default:
-		return c.joinChannelByPeer(Channel)
+		return c.joinChannelByPeer(channel)
 	}
 }
 
-func (c *Client) joinChannelByPeer(Channel any) (bool, error) {
-	channel, err := c.ResolvePeer(Channel)
+func (c *Client) joinChannelByPeer(channel any) (*Channel, error) {
+	channel, err := c.ResolvePeer(channel)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	if chat, ok := channel.(*InputPeerChannel); ok {
 		_, err = c.ChannelsJoinChannel(&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash})
 		if err != nil {
-			return false, err
+			return nil, err
 		}
+		return c.GetChannel(chat.ChannelID)
 	} else if chat, ok := channel.(*InputPeerChat); ok {
 		_, err = c.MessagesAddChatUser(chat.ChatID, &InputUserEmpty{}, 0)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 	} else {
-		return false, errors.New("peer is not a channel or chat")
+		return nil, errors.New("peer is not a channel or chat")
 	}
-	return true, nil
+	return nil, nil
 }
 
 // LeaveChannel leaves a channel or chat
@@ -1049,4 +1054,29 @@ func (c *Client) GetLinkedChannel(channel any) (*Channel, error) {
 	default:
 		return nil, errors.New("could not get full channel info")
 	}
+}
+
+func (c *Client) ExportInvite(channel any) (ExportedChatInvite, error) {
+	peer, err := c.ResolvePeer(channel)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.MessagesExportChatInvite(&MessagesExportChatInviteParams{
+		Peer: peer,
+	})
+}
+
+func (c *Client) RevokeInvite(channel any, invite string) error {
+	peer, err := c.ResolvePeer(channel)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.MessagesEditExportedChatInvite(&MessagesEditExportedChatInviteParams{
+		Peer:    peer,
+		Link:    invite,
+		Revoked: true,
+	})
+	return err
 }

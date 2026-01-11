@@ -15,6 +15,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/session"
@@ -1723,4 +1725,239 @@ func (c *Client) Stringify(object any) string {
 // easy wrapper for json.MarshalIndent, returns string
 func (c *Client) JSON(object any, noindent ...any) string {
 	return MarshalWithTypeName(object, true)
+}
+
+// GetTyped retrieves a typed value from the ContextStore
+func GetTyped[T any](cs *ContextStore, key string) (T, bool) {
+	var zero T
+	val, ok := cs.GetOk(key)
+	if !ok {
+		return zero, false
+	}
+	typed, ok := val.(T)
+	return typed, ok
+}
+
+// GetScopedTyped retrieves a typed scoped value from the ContextStore
+func GetScopedTyped[T any](cs *ContextStore, id int64, key string) (T, bool) {
+	return GetTyped[T](cs, cs.scopedKey(id, key))
+}
+
+type ContextStore struct {
+	mu    sync.RWMutex
+	data  map[string]*contextEntry
+	stopC chan struct{}
+}
+
+type contextEntry struct {
+	value     any
+	expiresAt time.Time
+	hasTTL    bool
+}
+
+func NewContextStore() *ContextStore {
+	cs := &ContextStore{
+		data:  make(map[string]*contextEntry),
+		stopC: make(chan struct{}),
+	}
+	go cs.cleanupLoop()
+	return cs
+}
+
+func (cs *ContextStore) cleanupLoop() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			cs.cleanup()
+		case <-cs.stopC:
+			return
+		}
+	}
+}
+
+func (cs *ContextStore) cleanup() {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	now := time.Now()
+	for key, entry := range cs.data {
+		if entry.hasTTL && now.After(entry.expiresAt) {
+			delete(cs.data, key)
+		}
+	}
+}
+
+func (cs *ContextStore) Close()              { close(cs.stopC) }
+func (cs *ContextStore) Has(key string) bool { _, ok := cs.GetOk(key); return ok }
+func (cs *ContextStore) Len() int            { return len(cs.Keys()) }
+
+func (cs *ContextStore) Set(key string, value any) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.data[key] = &contextEntry{value: value, hasTTL: false}
+}
+
+func (cs *ContextStore) SetWithTTL(key string, value any, ttl time.Duration) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.data[key] = &contextEntry{value: value, expiresAt: time.Now().Add(ttl), hasTTL: true}
+}
+
+func (cs *ContextStore) Get(key string) any {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	entry, ok := cs.data[key]
+	if !ok || (entry.hasTTL && time.Now().After(entry.expiresAt)) {
+		return nil
+	}
+	return entry.value
+}
+
+func (cs *ContextStore) GetOk(key string) (any, bool) {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	entry, ok := cs.data[key]
+	if !ok || (entry.hasTTL && time.Now().After(entry.expiresAt)) {
+		return nil, false
+	}
+	return entry.value, true
+}
+
+func (cs *ContextStore) Delete(key string) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	delete(cs.data, key)
+}
+
+func (cs *ContextStore) scopedKey(id int64, key string) string {
+	return strconv.FormatInt(id, 10) + ":" + key
+}
+
+func (cs *ContextStore) SetScoped(id int64, key string, value any) {
+	cs.Set(cs.scopedKey(id, key), value)
+}
+func (cs *ContextStore) GetScoped(id int64, key string) any { return cs.Get(cs.scopedKey(id, key)) }
+func (cs *ContextStore) GetScopedOk(id int64, key string) (any, bool) {
+	return cs.GetOk(cs.scopedKey(id, key))
+}
+func (cs *ContextStore) DeleteScoped(id int64, key string)   { cs.Delete(cs.scopedKey(id, key)) }
+func (cs *ContextStore) HasScoped(id int64, key string) bool { return cs.Has(cs.scopedKey(id, key)) }
+func (cs *ContextStore) IncrementScoped(id int64, key string) int {
+	return cs.Increment(cs.scopedKey(id, key))
+}
+
+func (cs *ContextStore) SetScopedWithTTL(id int64, key string, value any, ttl time.Duration) {
+	cs.SetWithTTL(cs.scopedKey(id, key), value, ttl)
+}
+
+func (cs *ContextStore) DeleteByPrefix(prefix string) int {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	count := 0
+	for key := range cs.data {
+		if strings.HasPrefix(key, prefix) {
+			delete(cs.data, key)
+			count++
+		}
+	}
+	return count
+}
+
+func (cs *ContextStore) DeleteByScope(id int64) int {
+	return cs.DeleteByPrefix(strconv.FormatInt(id, 10) + ":")
+}
+
+func (cs *ContextStore) GetInt(key string, defaultVal int) int {
+	if val := cs.Get(key); val != nil {
+		switch v := val.(type) {
+		case int:
+			return v
+		case int32:
+			return int(v)
+		case int64:
+			return int(v)
+		}
+	}
+	return defaultVal
+}
+
+func (cs *ContextStore) GetString(key string, defaultVal string) string {
+	if val := cs.Get(key); val != nil {
+		if s, ok := val.(string); ok {
+			return s
+		}
+	}
+	return defaultVal
+}
+
+func (cs *ContextStore) GetBool(key string, defaultVal bool) bool {
+	if val := cs.Get(key); val != nil {
+		if b, ok := val.(bool); ok {
+			return b
+		}
+	}
+	return defaultVal
+}
+
+func (cs *ContextStore) Increment(key string) int {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	entry, ok := cs.data[key]
+	if !ok || (entry.hasTTL && time.Now().After(entry.expiresAt)) {
+		cs.data[key] = &contextEntry{value: 1, hasTTL: false}
+		return 1
+	}
+	switch v := entry.value.(type) {
+	case int:
+		entry.value = v + 1
+		return v + 1
+	case int32:
+		entry.value = v + 1
+		return int(v + 1)
+	case int64:
+		entry.value = v + 1
+		return int(v + 1)
+	default:
+		cs.data[key] = &contextEntry{value: 1, hasTTL: false}
+		return 1
+	}
+}
+
+func (cs *ContextStore) Keys() []string {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	now := time.Now()
+	keys := make([]string, 0, len(cs.data))
+	for key, entry := range cs.data {
+		if !entry.hasTTL || now.Before(entry.expiresAt) {
+			keys = append(keys, key)
+		}
+	}
+	return keys
+}
+
+func (cs *ContextStore) Clear() {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	cs.data = make(map[string]*contextEntry)
+}
+
+func (cs *ContextStore) SetOrUpdate(key string, defaultVal any, updateFn func(current any) any) any {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	entry, ok := cs.data[key]
+	if !ok || (entry.hasTTL && time.Now().After(entry.expiresAt)) {
+		cs.data[key] = &contextEntry{value: defaultVal, hasTTL: false}
+		return defaultVal
+	}
+	newVal := updateFn(entry.value)
+	entry.value = newVal
+	return newVal
+}
+
+func (cs *ContextStore) String() string {
+	cs.mu.RLock()
+	defer cs.mu.RUnlock()
+	return fmt.Sprintf("ContextStore{entries: %d}", len(cs.data))
 }

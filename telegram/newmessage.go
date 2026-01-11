@@ -34,7 +34,10 @@ type CustomFile struct {
 }
 
 func (m *NewMessage) MessageText() string {
-	return m.Message.Message
+	if m.Message != nil {
+		return m.Message.Message
+	}
+	return ""
 }
 
 func (m *NewMessage) ReplyToMsgID() int32 {
@@ -593,19 +596,20 @@ func (m *NewMessage) GetCommand() string {
 	return ""
 }
 
-// Conv starts a new conversation with the user
 func (m *NewMessage) Conv(timeout ...int32) (*Conversation, error) {
 	return m.Client.NewConversation(m.Peer, &ConversationOptions{
-		Timeout: getVariadic(timeout, 60),
-		Private: m.IsPrivate(),
+		Timeout:         getVariadic(timeout, 60),
+		Private:         m.IsPrivate(),
+		StopPropagation: true,
 	})
 }
 
 // Wizard starts a new conversation wizard with the user
 func (m *NewMessage) Wizard(timeout ...int32) (*ConversationWizard, error) {
 	conv, err := m.Client.NewConversation(m.Peer, &ConversationOptions{
-		Private: m.IsPrivate(),
-		Timeout: getVariadic(timeout, 60),
+		Private:         m.IsPrivate(),
+		Timeout:         getVariadic(timeout, 60),
+		StopPropagation: true,
 	})
 	if err != nil {
 		return nil, err

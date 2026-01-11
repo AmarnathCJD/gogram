@@ -271,6 +271,7 @@ var errorMessages = map[string]string{
 	"EDIT_BOT_INVITE_FORBIDDEN":           "Normal users can't edit invites that were created by bots.",
 	"EMAIL_HASH_EXPIRED":                  "Email hash expired.",
 	"EMAIL_INVALID":                       "The specified email is invalid.",
+	"EMAIL_INSTALL_MISSING":               "No email was set up for this account.",
 	"EMAIL_NOT_SETUP":                     "Login email not set up.",
 	"EMAIL_UNCONFIRMED":                   "Email unconfirmed.",
 	"EMAIL_VERIFY_EXPIRED":                "The verification email has expired.",

@@ -971,8 +971,8 @@ func (m *MTProto) Disconnect() error {
 	select {
 	case <-done:
 		m.Logger.Trace("all routines stopped gracefully")
-	case <-time.After(3 * time.Second):
-		m.Logger.Warn("timeout waiting for routines to stop (possible goroutine leak)")
+	case <-time.After(10 * time.Second):
+		m.Logger.Debug("timeout waiting for routines to stop on disconnect")
 	}
 
 	return nil
