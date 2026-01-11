@@ -63,6 +63,7 @@ type Client struct {
 	secretChats  *e2e.SecretChatManager
 	exportedKeys map[int]*AuthExportedAuthorization
 	Log          Logger
+	Data         *ContextStore
 }
 
 type DeviceConfig struct {
@@ -160,6 +161,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 	}
 
 	client.exSenders = NewExSenders()
+	client.Data = NewContextStore()
 
 	return client, nil
 }

@@ -172,6 +172,26 @@ func (d *TLDialog) GetID() int64 {
 	return 0
 }
 
+func (d *TLDialog) GetChannelID() int64 {
+	if d.Peer != nil {
+		switch peer := d.Peer.(type) {
+		case *PeerChannel:
+			if peer != nil {
+				return -100_000_000_0000 - peer.ChannelID
+			}
+		case *PeerChat:
+			if peer != nil {
+				return -peer.ChatID
+			}
+		case *PeerUser:
+			if peer != nil {
+				return peer.UserID
+			}
+		}
+	}
+	return 0
+}
+
 func (d *TLDialog) GetInputPeer(c *Client) (InputPeer, error) {
 	return c.GetSendablePeer(d.Peer)
 }
