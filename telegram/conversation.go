@@ -231,7 +231,12 @@ func (c *Conversation) waitForMessage(check func(*NewMessage) bool) (*NewMessage
 	}
 
 	filters := c.buildFilters()
-	h := c.Client.On(OnMessage, waitFunc, filters)
+	args := make([]any, 0, 2+len(filters))
+	args = append(args, OnMessage, waitFunc)
+	for _, f := range filters {
+		args = append(args, f)
+	}
+	h := c.Client.On(args...)
 	h.SetGroup(ConversationGroup)
 
 	timeout := time.Duration(c.timeout) * time.Second

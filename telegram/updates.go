@@ -1048,6 +1048,12 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 }
 
 func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
+	updateID := (update.ChannelID << 32) | (update.UserID << 16) | int64(update.Date&0xFFFF)
+
+	if !c.dispatcher.TryMarkUpdateProcessed(updateID) {
+		return
+	}
+
 	packed := packChannelParticipant(c, update)
 
 	c.dispatcher.RLock()
