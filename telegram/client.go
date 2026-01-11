@@ -379,8 +379,6 @@ func (c *Client) Connect() error {
 	if is, err := c.IsAuthorized(); err == nil && is {
 		_, _ = c.GetMe()
 	}
-
-	c.Log.Debug("Happy new year 2026! connected to Telegram DC%d", c.GetDC())
 	return err
 }
 

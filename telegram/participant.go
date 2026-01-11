@@ -312,6 +312,26 @@ func (jru *JoinRequestUpdate) Approve(userID int64) (bool, error) {
 	return err == nil, err
 }
 
+func (jru *JoinRequestUpdate) ApproveAll() (bool, error) {
+	if jru.Channel == nil && jru.Chat == nil {
+		return false, fmt.Errorf("channel/chat is nil")
+	}
+	peer, err := jru.GetInputPeer()
+	if err != nil {
+		return false, err
+	}
+	link := ""
+
+	if jru.BotOriginalUpdate != nil {
+		switch jru.BotOriginalUpdate.Invite.(type) {
+		case *ChatInviteExported:
+			link = jru.BotOriginalUpdate.Invite.(*ChatInviteExported).Link
+		}
+	}
+	_, err = jru.Client.MessagesHideAllChatJoinRequests(true, peer, link)
+	return err == nil, err
+}
+
 func (jru *JoinRequestUpdate) Decline(userID int64) (bool, error) {
 	if jru.Channel == nil && jru.Chat == nil {
 		return false, fmt.Errorf("channel/chat is nil")
@@ -325,6 +345,25 @@ func (jru *JoinRequestUpdate) Decline(userID int64) (bool, error) {
 		return false, err
 	}
 	_, err = jru.Client.MessagesHideChatJoinRequest(false, peer, user)
+	return err == nil, err
+}
+
+func (jru *JoinRequestUpdate) DeclineAll() (bool, error) {
+	if jru.Channel == nil && jru.Chat == nil {
+		return false, fmt.Errorf("channel/chat is nil")
+	}
+	peer, err := jru.GetInputPeer()
+	if err != nil {
+		return false, err
+	}
+	link := ""
+	if jru.BotOriginalUpdate != nil {
+		switch jru.BotOriginalUpdate.Invite.(type) {
+		case *ChatInviteExported:
+			link = jru.BotOriginalUpdate.Invite.(*ChatInviteExported).Link
+		}
+	}
+	_, err = jru.Client.MessagesHideAllChatJoinRequests(false, peer, link)
 	return err == nil, err
 }
 
