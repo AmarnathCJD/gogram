@@ -1325,7 +1325,7 @@ func packMessage(c *Client, message Message) *NewMessage {
 	m.Chat = c.getChat(m.Message.PeerID)
 	m.Channel = c.getChannel(m.Message.PeerID)
 
-	if m.Channel != nil && m.Channel.Min {
+	if m.Channel != nil && m.Channel.Min && !c.disableAutoResolve {
 		if actualChannel, err := c.ChannelsGetChannels([]InputChannel{&InputChannelObj{ChannelID: m.Channel.ID, AccessHash: m.Channel.AccessHash}}); err == nil {
 			switch actualChannels := actualChannel.(type) {
 			case *MessagesChatsObj:
@@ -1353,7 +1353,7 @@ func packMessage(c *Client, message Message) *NewMessage {
 	} else {
 		if m.Message.FromID != nil {
 			m.Sender = c.getSender(m.Message.FromID)
-			if m.Sender != nil && m.Sender.Min {
+			if m.Sender != nil && m.Sender.Min && !c.disableAutoResolve {
 				if actualUser, err := c.UsersGetUsers([]InputUser{&InputUserFromMessage{
 					Peer:   c.getInputPeer(m.Message.PeerID),
 					MsgID:  m.ID,
@@ -1560,17 +1560,41 @@ func (c *Client) getSender(FromID Peer) *UserObj {
 	}
 	switch FromID := FromID.(type) {
 	case *PeerUser:
-		u, err := c.GetUser(FromID.UserID)
+		var (
+			u   *UserObj
+			err error
+		)
+		if c.disableAutoResolve {
+			u, err = c.getUserFromCacheOnly(FromID.UserID)
+		} else {
+			u, err = c.GetUser(FromID.UserID)
+		}
 		if err == nil {
 			return u
 		}
 	case *PeerChat:
-		u, err := c.GetChat(FromID.ChatID)
+		var (
+			u   *ChatObj
+			err error
+		)
+		if c.disableAutoResolve {
+			u, err = c.getChatFromCacheOnly(FromID.ChatID)
+		} else {
+			u, err = c.GetChat(FromID.ChatID)
+		}
 		if err == nil {
 			return &UserObj{ID: FromID.ChatID, FirstName: u.Title, LastName: "", Username: "", Phone: "", AccessHash: 0, Photo: nil, Status: nil, Bot: false, Verified: false, Restricted: false}
 		}
 	case *PeerChannel:
-		u, err := c.GetChannel(FromID.ChannelID)
+		var (
+			u   *Channel
+			err error
+		)
+		if c.disableAutoResolve {
+			u, err = c.getChannelFromCacheOnly(FromID.ChannelID)
+		} else {
+			u, err = c.GetChannel(FromID.ChannelID)
+		}
 		if err == nil {
 			return &UserObj{ID: FromID.ChannelID, AccessHash: u.AccessHash, Username: u.Username, FirstName: u.Title, LastName: "", Phone: "", Bot: false, Verified: false, LangCode: ""}
 		}

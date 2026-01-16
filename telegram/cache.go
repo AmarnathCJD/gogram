@@ -740,6 +740,10 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 // ------------------ Get Chat/Channel/User From Cache/Telegram ------------------
 
 func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
+	if c.disableAutoResolve {
+		return c.getUserFromCacheOnly(userID)
+	}
+
 	c.Cache.RLock()
 	if user, found := c.Cache.users[userID]; found {
 		c.Cache.RUnlock()
@@ -773,7 +777,21 @@ func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 	return user, nil
 }
 
+func (c *Client) getUserFromCacheOnly(userID int64) (*UserObj, error) {
+	c.Cache.RLock()
+	if user, found := c.Cache.users[userID]; found {
+		c.Cache.RUnlock()
+		return user, nil
+	}
+	c.Cache.RUnlock()
+	return nil, fmt.Errorf("user not in cache: %d", userID)
+}
+
 func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
+	if c.disableAutoResolve {
+		return c.getChannelFromCacheOnly(channelID)
+	}
+
 	c.Cache.RLock()
 	if channel, found := c.Cache.channels[channelID]; found {
 		c.Cache.RUnlock()
@@ -812,7 +830,21 @@ func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 	return channel, nil
 }
 
+func (c *Client) getChannelFromCacheOnly(channelID int64) (*Channel, error) {
+	c.Cache.RLock()
+	if channel, found := c.Cache.channels[channelID]; found {
+		c.Cache.RUnlock()
+		return channel, nil
+	}
+	c.Cache.RUnlock()
+	return nil, fmt.Errorf("channel not in cache: %d", channelID)
+}
+
 func (c *Client) getChatFromCache(chatID int64) (*ChatObj, error) {
+	if c.disableAutoResolve {
+		return c.getChatFromCacheOnly(chatID)
+	}
+
 	c.Cache.RLock()
 	if chat, found := c.Cache.chats[chatID]; found {
 		c.Cache.RUnlock()
@@ -841,6 +873,16 @@ func (c *Client) getChatFromCache(chatID int64) (*ChatObj, error) {
 	c.Cache.UpdateChat(chatObj)
 
 	return chatObj, nil
+}
+
+func (c *Client) getChatFromCacheOnly(chatID int64) (*ChatObj, error) {
+	c.Cache.RLock()
+	if chat, found := c.Cache.chats[chatID]; found {
+		c.Cache.RUnlock()
+		return chat, nil
+	}
+	c.Cache.RUnlock()
+	return nil, fmt.Errorf("chat not in cache: %d", chatID)
 }
 
 // ----------------- Get User/Channel/Chat from cache -----------------
@@ -885,6 +927,10 @@ func (c *Client) GetPeer(peerID int64) (any, error) {
 // ----------------- Update User/Channel/Chat in cache -----------------
 
 func (c *CACHE) UpdateUser(user *UserObj) bool {
+	if c.disabled {
+		return false
+	}
+
 	c.Lock()
 	defer c.Unlock()
 
@@ -926,6 +972,10 @@ func (c *CACHE) UpdateUser(user *UserObj) bool {
 }
 
 func (c *CACHE) UpdateChannel(channel *Channel) bool {
+	if c.disabled {
+		return false
+	}
+
 	c.Lock()
 	defer c.Unlock()
 
@@ -963,6 +1013,10 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 }
 
 func (c *CACHE) UpdateChat(chat *ChatObj) bool {
+	if c.disabled {
+		return false
+	}
+
 	c.Lock()
 	defer c.Unlock()
 	c.chats[chat.ID] = chat
@@ -971,14 +1025,8 @@ func (c *CACHE) UpdateChat(chat *ChatObj) bool {
 }
 
 func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
-	if cache.disabled && !cache.wipeScheduled.Load() {
-		// schedule a wipe of the cache after 20 seconds
-		cache.wipeScheduled.Store(true)
-		go func() {
-			<-time.After(20 * time.Second)
-			cache.Clear()
-			cache.wipeScheduled.Store(false)
-		}()
+	if cache.disabled {
+		return
 	}
 
 	totalUpdates := [2]int{0, 0}
