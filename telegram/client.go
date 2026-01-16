@@ -54,16 +54,17 @@ type clientData struct {
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
-	Cache        *CACHE
-	clientData   clientData
-	dispatcher   *UpdateDispatcher
-	wg           sync.WaitGroup
-	stopCh       chan struct{}
-	exSenders    *ExSenders
-	secretChats  *e2e.SecretChatManager
-	exportedKeys map[int]*AuthExportedAuthorization
-	Log          Logger
-	Data         *ContextStore
+	Cache              *CACHE
+	clientData         clientData
+	dispatcher         *UpdateDispatcher
+	wg                 sync.WaitGroup
+	stopCh             chan struct{}
+	exSenders          *ExSenders
+	secretChats        *e2e.SecretChatManager
+	exportedKeys       map[int]*AuthExportedAuthorization
+	Log                Logger
+	Data               *ContextStore
+	disableAutoResolve bool
 }
 
 type DeviceConfig struct {
@@ -77,40 +78,41 @@ type DeviceConfig struct {
 }
 
 type ClientConfig struct {
-	AppID            int32                // Telegram API ID from my.telegram.org
-	AppHash          string               // Telegram API Hash from my.telegram.org
-	DeviceConfig     DeviceConfig         // Device and app identification settings
-	Session          string               // Path to session file for persistent auth
-	StringSession    string               // Base64 encoded session string (alternative to file)
-	SessionName      string               // Identifier for this session (used in log prefixes)
-	SessionAESKey    string               // AES-256 key for encrypting session file
-	ParseMode        string               // Default message parse mode: "HTML" or "Markdown"
-	MemorySession    bool                 // Keep session in memory only, don't persist to disk
-	DataCenter       int                  // Initial DC to connect to (1-5, default: 4)
-	IpAddr           string               // Custom DC IP address (overrides DataCenter)
-	PublicKeys       []*rsa.PublicKey     // RSA public keys for server verification
-	NoUpdates        bool                 // Disable update handling (bot-only mode)
-	DisableCache     bool                 // Disable peer/chat caching
-	TestMode         bool                 // Connect to Telegram test servers
-	LogLevel         LogLevel             // Logging verbosity (Trace, Debug, Info, Warn, Error)
-	Logger           Logger               // Custom logger implementation
-	Proxy            Proxy                // Proxy configuration (SOCKS5, HTTP, MTProxy)
-	LocalAddr        string               // Local network interface to bind (IP:port)
-	ForceIPv6        bool                 // Prefer IPv6 connections to Telegram
-	NoPreconnect     bool                 // Delay connection until Connect() is called
-	Cache            *CACHE               // Custom cache instance
-	CacheSenders     bool                 // Cache exported senders for file operations
-	TransportMode    string               // Wire protocol: "Abridged", "Intermediate", "Full", "PaddedIntermediate"
-	SleepThresholdMs int                  // Auto-sleep threshold for flood wait (ms)
-	AlbumWaitTime    int64                // Time to wait for grouped album messages (ms)
-	CommandPrefixes  string               // Bot command prefixes (default: "/!")
-	FloodHandler     func(err error) bool // Called on FLOOD_WAIT; return true to retry after wait
-	ErrorHandler     func(err error) bool // Called on request errors; return true to retry
-	Timeout          int                  // TCP connection timeout in seconds (default: 60)
-	ReqTimeout       int                  // RPC request timeout in seconds (default: 60)
-	UseWebSocket     bool                 // Use WebSocket transport instead of TCP
-	UseWebSocketTLS  bool                 // Use secure WebSocket (wss://)
-	EnablePFS        bool                 // Enable Perfect Forward Secrecy with temp auth keys
+	AppID              int32                // Telegram API ID from my.telegram.org
+	AppHash            string               // Telegram API Hash from my.telegram.org
+	DeviceConfig       DeviceConfig         // Device and app identification settings
+	Session            string               // Path to session file for persistent auth
+	StringSession      string               // Base64 encoded session string (alternative to file)
+	SessionName        string               // Identifier for this session (used in log prefixes)
+	SessionAESKey      string               // AES-256 key for encrypting session file
+	ParseMode          string               // Default message parse mode: "HTML" or "Markdown"
+	MemorySession      bool                 // Keep session in memory only, don't persist to disk
+	DataCenter         int                  // Initial DC to connect to (1-5, default: 4)
+	IpAddr             string               // Custom DC IP address (overrides DataCenter)
+	PublicKeys         []*rsa.PublicKey     // RSA public keys for server verification
+	NoUpdates          bool                 // Disable update handling (bot-only mode)
+	DisableCache       bool                 // Disable peer/chat caching
+	TestMode           bool                 // Connect to Telegram test servers
+	LogLevel           LogLevel             // Logging verbosity (Trace, Debug, Info, Warn, Error)
+	Logger             Logger               // Custom logger implementation
+	Proxy              Proxy                // Proxy configuration (SOCKS5, HTTP, MTProxy)
+	LocalAddr          string               // Local network interface to bind (IP:port)
+	ForceIPv6          bool                 // Prefer IPv6 connections to Telegram
+	NoPreconnect       bool                 // Delay connection until Connect() is called
+	Cache              *CACHE               // Custom cache instance
+	CacheSenders       bool                 // Cache exported senders for file operations
+	TransportMode      string               // Wire protocol: "Abridged", "Intermediate", "Full", "PaddedIntermediate"
+	SleepThresholdMs   int                  // Auto-sleep threshold for flood wait (ms)
+	AlbumWaitTime      int64                // Time to wait for grouped album messages (ms)
+	CommandPrefixes    string               // Bot command prefixes (default: "/!")
+	FloodHandler       func(err error) bool // Called on FLOOD_WAIT; return true to retry after wait
+	ErrorHandler       func(err error) bool // Called on request errors; return true to retry
+	Timeout            int                  // TCP connection timeout in seconds (default: 60)
+	ReqTimeout         int                  // RPC request timeout in seconds (default: 60)
+	UseWebSocket       bool                 // Use WebSocket transport instead of TCP
+	UseWebSocketTLS    bool                 // Use secure WebSocket (wss://)
+	EnablePFS          bool                 // Enable Perfect Forward Secrecy with temp auth keys
+	DisableAutoResolve bool                 // Skip auto-resolving min users/channels in updates (forced on when DisableCache is true)
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -132,6 +134,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 	}
 
 	config = client.cleanClientConfig(config)
+	client.disableAutoResolve = config.DisableAutoResolve
 	client.setupClientData(config)
 
 	if config.Cache == nil {
@@ -264,6 +267,9 @@ func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
 		config.DataCenter = 2
 	} else {
 		config.DataCenter = getValue(config.DataCenter, DefaultDataCenter)
+	}
+	if config.DisableCache {
+		config.DisableAutoResolve = true
 	}
 	config.PublicKeys = keys.GetRSAKeys()
 	return config
@@ -1032,6 +1038,11 @@ func (b *ClientConfigBuilder) WithNoUpdates() *ClientConfigBuilder {
 
 func (b *ClientConfigBuilder) WithDisableCache() *ClientConfigBuilder {
 	b.config.DisableCache = true
+	return b
+}
+
+func (b *ClientConfigBuilder) WithDisableAutoResolve() *ClientConfigBuilder {
+	b.config.DisableAutoResolve = true
 	return b
 }
 
