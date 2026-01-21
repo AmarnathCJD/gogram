@@ -17,7 +17,96 @@ import (
 	"time"
 )
 
+type EventType string
+
+const (
+	EventMessage        EventType = "message"
+	EventNewMessage     EventType = "newmessage"
+	EventCommand        EventType = "command"
+	EventCommandShort   EventType = "cmd"
+	EventEdit           EventType = "edit"
+	EventEditMessage    EventType = "editmessage"
+	EventDelete         EventType = "delete"
+	EventDeleteMessage  EventType = "deletemessage"
+	EventAlbum          EventType = "album"
+	EventInline         EventType = "inline"
+	EventInlineQuery    EventType = "inlinequery"
+	EventCallback       EventType = "callback"
+	EventCallbackQuery  EventType = "callbackquery"
+	EventInlineCallback EventType = "inlinecallback"
+	EventChosenInline   EventType = "choseninline"
+	EventParticipant    EventType = "participant"
+	EventJoinRequest    EventType = "joinrequest"
+	EventAction         EventType = "action"
+	EventRaw            EventType = "raw"
+
+	OnMessage        = EventMessage
+	OnCommand        = EventCommand
+	OnCommandShort   = EventCommandShort
+	OnAction         = EventAction
+	OnEdit           = EventEdit
+	OnDelete         = EventDelete
+	OnAlbum          = EventAlbum
+	OnInline         = EventInline
+	OnCallback       = EventCallback
+	OnInlineCallback = EventInlineCallback
+	OnChosenInline   = EventChosenInline
+	OnParticipant    = EventParticipant
+	OnJoinRequest    = EventJoinRequest
+	OnRaw            = EventRaw
+
+	OnNewMessage          = EventNewMessage
+	OnEditMessage         = EventEditMessage
+	OnDeleteMessage       = EventDeleteMessage
+	OnInlineQuery         = EventInlineQuery
+	OnCallbackQuery       = EventCallbackQuery
+	OnInlineCallbackQuery = EventInlineCallback
+)
+
+// Middleware wraps a handler to add cross-cutting concerns
 type Middleware func(MessageHandler) MessageHandler
+
+type MiddlewareChain struct {
+	middlewares []Middleware
+}
+
+// NewMiddlewareChain creates a new middleware chain
+func NewMiddlewareChain(middlewares ...Middleware) *MiddlewareChain {
+	return &MiddlewareChain{middlewares: middlewares}
+}
+
+func (mc *MiddlewareChain) Apply(handler MessageHandler) MessageHandler {
+	if len(mc.middlewares) == 0 {
+		return handler
+	}
+	final := handler
+	for i := len(mc.middlewares) - 1; i >= 0; i-- {
+		final = mc.middlewares[i](final)
+	}
+	return final
+}
+
+func (mc *MiddlewareChain) Add(m Middleware) *MiddlewareChain {
+	mc.middlewares = append(mc.middlewares, m)
+	return mc
+}
+
+type middlewareManager struct {
+	sync.RWMutex
+	global []Middleware
+}
+
+func (mm *middlewareManager) Use(middleware Middleware) {
+	mm.Lock()
+	defer mm.Unlock()
+	mm.global = append(mm.global, middleware)
+}
+
+func (mm *middlewareManager) GetGlobal() []Middleware {
+	mm.RLock()
+	defer mm.RUnlock()
+	return slices.Clone(mm.global)
+}
 
 type LifecycleHooks struct {
 	BeforeHandler func(*NewMessage)
@@ -55,6 +144,202 @@ func (m *HandlerMetrics) ErrorRate() float64 {
 	return float64(m.Errors.Load()) / float64(calls)
 }
 
+// HandlerGroup represents a group of handlers with shared configuration
+type HandlerGroup struct {
+	client      *Client
+	groupID     int
+	priority    int
+	middlewares []Middleware
+	filters     []Filter
+}
+
+// Use adds middleware to this group
+func (hg *HandlerGroup) Use(m Middleware) *HandlerGroup {
+	hg.middlewares = append(hg.middlewares, m)
+	return hg
+}
+
+// Filter adds filter to this group
+func (hg *HandlerGroup) Filter(f Filter) *HandlerGroup {
+	hg.filters = append(hg.filters, f)
+	return hg
+}
+
+// Priority sets the priority for handlers in this group
+func (hg *HandlerGroup) Priority(p int) *HandlerGroup {
+	hg.priority = p
+	return hg
+}
+
+// OnMessage registers a message handler in this group
+func (hg *HandlerGroup) OnMessage(pattern string, handler MessageHandler) *MessageHandleBuilder {
+	if pattern == "" {
+		pattern = string(OnMessage)
+	}
+	return hg.client.OnMessage(pattern, handler).
+		Group(hg.groupID).
+		Priority(hg.priority).
+		Use(hg.middlewares...).
+		Filter(hg.filters...)
+}
+
+// OnCommand registers a command handler in this group
+func (hg *HandlerGroup) OnCommand(command string, handler MessageHandler) *MessageHandleBuilder {
+	return hg.client.OnCommand(command, handler).
+		Group(hg.groupID).
+		Priority(hg.priority).
+		Use(hg.middlewares...).
+		Filter(hg.filters...)
+}
+
+// OnCallback registers a callback handler in this group
+func (hg *HandlerGroup) OnCallback(pattern string, handler CallbackHandler) *CallbackHandleBuilder {
+	return hg.client.OnCallback(pattern, handler).
+		Group(hg.groupID).
+		Priority(hg.priority)
+}
+
+// MessageHandleBuilder provides fluent API for configuring message handlers
+type MessageHandleBuilder struct {
+	handle      *messageHandle
+	client      *Client
+	registered  bool
+	middlewares []Middleware
+}
+
+func (hb *MessageHandleBuilder) Group(group int) *MessageHandleBuilder {
+	if hb.registered {
+		hb.handle.SetGroup(group)
+	} else {
+		hb.handle.Group = group
+	}
+	return hb
+}
+
+func (hb *MessageHandleBuilder) Priority(priority int) *MessageHandleBuilder {
+	if hb.registered {
+		hb.handle.SetPriority(priority)
+	} else {
+		hb.handle.priority = priority
+	}
+	return hb
+}
+
+func (hb *MessageHandleBuilder) Filter(filters ...Filter) *MessageHandleBuilder {
+	hb.handle.Filters = append(hb.handle.Filters, filters...)
+	return hb
+}
+
+func (hb *MessageHandleBuilder) Use(middlewares ...Middleware) *MessageHandleBuilder {
+	hb.middlewares = append(hb.middlewares, middlewares...)
+	hb.handle.middlewares = append(hb.handle.middlewares, middlewares...)
+	return hb
+}
+
+func (hb *MessageHandleBuilder) Name(name string) *MessageHandleBuilder {
+	hb.handle.name = name
+	return hb
+}
+
+func (hb *MessageHandleBuilder) Description(desc string) *MessageHandleBuilder {
+	hb.handle.description = desc
+	return hb
+}
+
+func (hb *MessageHandleBuilder) Private() *MessageHandleBuilder {
+	return hb.Filter(FilterPrivate)
+}
+
+func (hb *MessageHandleBuilder) Groups() *MessageHandleBuilder {
+	return hb.Filter(FilterGroup)
+}
+
+func (hb *MessageHandleBuilder) Channels() *MessageHandleBuilder {
+	return hb.Filter(FilterChannel)
+}
+
+func (hb *MessageHandleBuilder) From(userIDs ...int64) *MessageHandleBuilder {
+	return hb.Filter(FromUser(userIDs...))
+}
+
+func (hb *MessageHandleBuilder) In(chatIDs ...int64) *MessageHandleBuilder {
+	return hb.Filter(InChat(chatIDs...))
+}
+
+func (hb *MessageHandleBuilder) Register() Handle {
+	if hb.registered {
+		return hb.handle
+	}
+	hb.client.dispatcher.Lock()
+	defer hb.client.dispatcher.Unlock()
+	hb.registered = true
+	return addHandleToMap(hb.client.dispatcher.messageHandles, hb.handle)
+}
+
+func (hb *MessageHandleBuilder) Handle() Handle {
+	return hb.handle
+}
+
+type CallbackHandleBuilder struct {
+	handle     *callbackHandle
+	client     *Client
+	registered bool
+}
+
+func (cb *CallbackHandleBuilder) Group(group int) *CallbackHandleBuilder {
+	if cb.registered {
+		cb.handle.SetGroup(group)
+	} else {
+		cb.handle.Group = group
+	}
+	return cb
+}
+
+func (cb *CallbackHandleBuilder) Priority(priority int) *CallbackHandleBuilder {
+	if cb.registered {
+		cb.handle.SetPriority(priority)
+	} else {
+		cb.handle.priority = priority
+	}
+	return cb
+}
+
+func (cb *CallbackHandleBuilder) Filter(filters ...Filter) *CallbackHandleBuilder {
+	cb.handle.Filters = append(cb.handle.Filters, filters...)
+	return cb
+}
+
+func (cb *CallbackHandleBuilder) Name(name string) *CallbackHandleBuilder {
+	cb.handle.name = name
+	return cb
+}
+
+func (cb *CallbackHandleBuilder) Private() *CallbackHandleBuilder {
+	return cb.Filter(FilterPrivate)
+}
+
+func (cb *CallbackHandleBuilder) From(userIDs ...int64) *CallbackHandleBuilder {
+	return cb.Filter(FromUser(userIDs...))
+}
+
+func (cb *CallbackHandleBuilder) In(chatIDs ...int64) *CallbackHandleBuilder {
+	return cb.Filter(InChat(chatIDs...))
+}
+
+func (cb *CallbackHandleBuilder) Register() Handle {
+	if cb.registered {
+		return cb.handle
+	}
+	cb.client.dispatcher.Lock()
+	defer cb.client.dispatcher.Unlock()
+	cb.registered = true
+	return addHandleToMap(cb.client.dispatcher.callbackHandles, cb.handle)
+}
+
+func (cb *CallbackHandleBuilder) Handle() Handle {
+	return cb.handle
+}
+
 type lruCache struct {
 	sync.Mutex
 	maxSize int
@@ -79,15 +364,14 @@ func (c *lruCache) Add(key int64) {
 	c.Lock()
 	defer c.Unlock()
 
-	if elem, exists := c.items[key]; exists {
-		if elem != nil && elem.Value != nil {
-			if entry, ok := elem.Value.(*lruEntry); ok && entry != nil {
-				c.list.MoveToFront(elem)
-				entry.timestamp = time.Now()
-				return
-			}
+	if elem, exists := c.items[key]; exists && elem != nil {
+		if entry, ok := elem.Value.(*lruEntry); ok && entry != nil {
+			c.list.MoveToFront(elem)
+			entry.timestamp = time.Now()
+			return
 		}
 		delete(c.items, key)
+		c.list.Remove(elem)
 	}
 
 	entry := &lruEntry{key: key, timestamp: time.Now()}
@@ -116,13 +400,12 @@ func (c *lruCache) TryAdd(key int64) bool {
 	c.Lock()
 	defer c.Unlock()
 
-	if elem, exists := c.items[key]; exists {
-		if elem != nil && elem.Value != nil {
-			if _, ok := elem.Value.(*lruEntry); ok {
-				return false
-			}
+	if elem, exists := c.items[key]; exists && elem != nil {
+		if _, ok := elem.Value.(*lruEntry); ok {
+			return false
 		}
 		delete(c.items, key)
+		c.list.Remove(elem)
 	}
 
 	entry := &lruEntry{key: key, timestamp: time.Now()}
@@ -152,46 +435,29 @@ func newPatternCache() *patternCache {
 	}
 }
 
-func (c *patternCache) Get(pattern string) *regexp.Regexp {
+func (c *patternCache) Get(pattern string) (*regexp.Regexp, error) {
 	c.RLock()
 	if regex, exists := c.patterns[pattern]; exists {
 		c.RUnlock()
-		return regex
+		return regex, nil
 	}
 	c.RUnlock()
 
 	c.Lock()
 	defer c.Unlock()
+
 	if regex, exists := c.patterns[pattern]; exists {
-		return regex
+		return regex, nil
 	}
-	regex := regexp.MustCompile(pattern)
+
+	regex, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid regex pattern %q: %w", pattern, err)
+	}
+
 	c.patterns[pattern] = regex
-	return regex
+	return regex, nil
 }
-
-type EventType string
-
-const (
-	EventMessage        EventType = "message"
-	EventNewMessage     EventType = "newmessage"
-	EventCommand        EventType = "command"
-	EventEdit           EventType = "edit"
-	EventEditMessage    EventType = "editmessage"
-	EventDelete         EventType = "delete"
-	EventDeleteMessage  EventType = "deletemessage"
-	EventAlbum          EventType = "album"
-	EventInline         EventType = "inline"
-	EventInlineQuery    EventType = "inlinequery"
-	EventCallback       EventType = "callback"
-	EventCallbackQuery  EventType = "callbackquery"
-	EventInlineCallback EventType = "inlinecallback"
-	EventChosenInline   EventType = "choseninline"
-	EventParticipant    EventType = "participant"
-	EventJoinRequest    EventType = "joinrequest"
-	EventAction         EventType = "action"
-	EventRaw            EventType = "raw"
-)
 
 func applyMiddlewares(handler MessageHandler, middlewares []Middleware) MessageHandler {
 	if len(middlewares) == 0 {
@@ -211,7 +477,7 @@ func WithMiddleware(handler MessageHandler, middlewares ...Middleware) MessageHa
 
 // AnyFilter creates a filter that matches if any of the provided filters match
 func AnyFilter(filters ...Filter) Filter {
-	return Filter{orFilters: filters}
+	return Any(filters...)
 }
 
 type MessageHandler func(m *NewMessage) error
@@ -252,6 +518,7 @@ type baseHandle struct {
 	Group             int
 	priority          int
 	name              string
+	description       string
 	enabled           bool
 	metrics           *HandlerMetrics
 	onGroupChanged    func(int, int)
@@ -470,6 +737,7 @@ type UpdateDispatcher struct {
 	patternCache          *patternCache
 	lifecycleHooks        *LifecycleHooks
 	taskPool              *TaskPool
+	middlewareManager     *middlewareManager
 }
 
 func (d *UpdateDispatcher) SetPts(pts int32) {
@@ -585,6 +853,7 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		patternCache:          newPatternCache(),
 		lifecycleHooks:        &LifecycleHooks{},
 		taskPool:              NewTaskPool(1000),
+		middlewareManager:     &middlewareManager{},
 	}
 	c.dispatcher.lastUpdateTimeNano.Store(time.Now().UnixNano())
 	c.dispatcher.logger.Debug("update dispatcher initialized")
@@ -735,8 +1004,17 @@ func (c *Client) handleMessageUpdate(update Message) {
 				}
 
 				handler := h.Handler
-				if len(h.middlewares) > 0 {
-					handler = applyMiddlewares(h.Handler, h.middlewares)
+				var mids []Middleware
+
+				c.dispatcher.RLock()
+				if c.dispatcher.middlewareManager != nil {
+					mids = append(mids, c.dispatcher.middlewareManager.global...)
+				}
+				c.dispatcher.RUnlock()
+				mids = append(mids, h.middlewares...)
+
+				if len(mids) > 0 {
+					handler = applyMiddlewares(handler, mids)
 				}
 
 				err := handler(packed)
@@ -747,7 +1025,6 @@ func (c *Client) handleMessageUpdate(update Message) {
 				if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.AfterHandler != nil {
 					c.dispatcher.lifecycleHooks.AfterHandler(packed, err)
 				}
-
 				if err != nil {
 					if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.OnError != nil {
 						c.dispatcher.lifecycleHooks.OnError(err, packed)
@@ -813,19 +1090,16 @@ func (c *Client) handleMessageUpdate(update Message) {
 		}
 
 		if defaultHandlers, ok := allMessageHandles[DefaultGroup]; ok {
-			var wg sync.WaitGroup
 			for _, handler := range defaultHandlers {
 				if handler.IsMatch(msg.Message, c) {
-					wg.Add(1)
+					h := handler
 					c.dispatcher.taskPool.Submit(func() {
-						defer wg.Done()
-						if err := handle(handler); err != nil && !errors.Is(err, ErrEndGroup) {
+						if err := handle(h); err != nil && !errors.Is(err, ErrEndGroup) {
 							c.dispatcher.logger.WithError(err).Error("[NewMessageHandler]")
 						}
 					})
 				}
 			}
-			wg.Wait()
 		}
 
 	case *MessageService:
@@ -938,7 +1212,7 @@ func (c *Client) handleEditUpdate(update Message) {
 
 		for group, handlers := range editHandles {
 			for _, handler := range handlers {
-				if handler.IsMatch(msg.Message) {
+				if handler.IsMatch(msg.Message, c) {
 					handle := func(h *messageEditHandle) error {
 						if h.runFilterChain(packed, h.Filters) {
 							defer c.NewRecovery()()
@@ -947,7 +1221,19 @@ func (c *Client) handleEditUpdate(update Message) {
 								c.dispatcher.lifecycleHooks.BeforeHandler(packed)
 							}
 
-							err := h.Handler(packed)
+							handler := h.Handler
+							var mids []Middleware
+
+							c.dispatcher.RLock()
+							if c.dispatcher.middlewareManager != nil {
+								mids = append(mids, c.dispatcher.middlewareManager.global...)
+							}
+							c.dispatcher.RUnlock()
+							if len(mids) > 0 {
+								handler = applyMiddlewares(handler, mids)
+							}
+
+							err := handler(packed)
 							if h.metrics != nil {
 								h.metrics.RecordCall(time.Since(start), err)
 							}
@@ -996,7 +1282,7 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 
 	for group, handlers := range callbackHandles {
 		for _, handler := range handlers {
-			if handler.IsMatch(update.Data) {
+			if handler.IsMatch(update.Data, c) {
 				handle := func(h *callbackHandle) error {
 					if h.runFilterChain(packed, h.Filters) {
 						defer c.NewRecovery()()
@@ -1042,7 +1328,7 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 
 	for group, handlers := range inlineCallbackHandles {
 		for _, handler := range handlers {
-			if handler.IsMatch(update.Data) {
+			if handler.IsMatch(update.Data, c) {
 				handle := func(h *inlineCallbackHandle) error {
 					defer c.NewRecovery()()
 					return h.Handler(packed)
@@ -1118,7 +1404,7 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 
 	for group, handlers := range inlineHandles {
 		for _, handler := range handlers {
-			if handler.IsMatch(update.Query) {
+			if handler.IsMatch(update.Query, c) {
 				handle := func(h *inlineHandle) error {
 					defer c.NewRecovery()()
 					return h.Handler(packed)
@@ -1291,16 +1577,21 @@ func (c *Client) handleRawUpdate(update Update) {
 	}
 }
 
-func (h *inlineHandle) IsMatch(text string) bool {
+func (h *inlineHandle) IsMatch(text string, c *Client) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
-		if pattern == OnInlineQuery || pattern == OnInline {
+		if pattern == string(OnInlineQuery) || pattern == string(OnInline) {
 			return true
 		}
 		if !strings.HasPrefix(pattern, "^") {
 			pattern = "^" + pattern
 		}
-		return regexp.MustCompile(pattern).MatchString(text) || strings.HasPrefix(text, pattern)
+
+		reg, err := c.dispatcher.patternCache.Get(pattern)
+		if err != nil {
+			return strings.HasPrefix(text, pattern)
+		}
+		return reg.MatchString(text)
 	case *regexp.Regexp:
 		return pattern.MatchString(text)
 	default:
@@ -1308,14 +1599,18 @@ func (h *inlineHandle) IsMatch(text string) bool {
 	}
 }
 
-func (e *messageEditHandle) IsMatch(text string) bool {
+func (e *messageEditHandle) IsMatch(text string, c *Client) bool {
 	switch pattern := e.Pattern.(type) {
 	case string:
-		if pattern == OnEditMessage || pattern == OnEdit {
+		if pattern == string(OnEditMessage) || pattern == string(OnEdit) {
 			return true
 		}
-		p := regexp.MustCompile("^" + pattern)
-		return p.MatchString(text) || strings.HasPrefix(text, pattern)
+		p := "^" + pattern
+		reg, err := c.dispatcher.patternCache.Get(p)
+		if err != nil {
+			return strings.HasPrefix(text, pattern)
+		}
+		return reg.MatchString(text)
 	case *regexp.Regexp:
 		return pattern.MatchString(text)
 	default:
@@ -1323,14 +1618,20 @@ func (e *messageEditHandle) IsMatch(text string) bool {
 	}
 }
 
-func (h *callbackHandle) IsMatch(data []byte) bool {
+func (h *callbackHandle) IsMatch(data []byte, c *Client) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
-		if pattern == OnCallbackQuery || pattern == OnCallback {
+		if pattern == string(OnCallbackQuery) || pattern == string(OnCallback) {
 			return true
 		}
-		p := regexp.MustCompile(pattern)
-		return p.Match(data) || strings.HasPrefix(string(data), pattern)
+		if !strings.HasPrefix(pattern, "^") {
+			pattern = "^" + pattern
+		}
+		reg, err := c.dispatcher.patternCache.Get(pattern)
+		if err != nil {
+			return strings.HasPrefix(string(data), pattern)
+		}
+		return reg.Match(data)
 	case *regexp.Regexp:
 		return pattern.Match(data)
 	default:
@@ -1338,14 +1639,20 @@ func (h *callbackHandle) IsMatch(data []byte) bool {
 	}
 }
 
-func (h *inlineCallbackHandle) IsMatch(data []byte) bool {
+func (h *inlineCallbackHandle) IsMatch(data []byte, c *Client) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
-		if pattern == OnInlineCallbackQuery || pattern == OnInlineCallback {
+		if pattern == string(OnInlineCallbackQuery) || pattern == string(OnInlineCallback) {
 			return true
 		}
-		p := regexp.MustCompile(pattern)
-		return p.Match(data) || strings.HasPrefix(string(data), pattern)
+		if !strings.HasPrefix(pattern, "^") {
+			pattern = "^" + pattern
+		}
+		reg, err := c.dispatcher.patternCache.Get(pattern)
+		if err != nil {
+			return strings.HasPrefix(string(data), pattern)
+		}
+		return reg.Match(data)
 	case *regexp.Regexp:
 		return pattern.Match(data)
 	default:
@@ -1359,12 +1666,12 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 	}
 	switch Pattern := h.Pattern.(type) {
 	case string:
-		if Pattern == OnNewMessage || Pattern == OnMessage {
+		if Pattern == string(OnNewMessage) || Pattern == string(OnMessage) {
 			return true
 		}
 
 		if after, ok := strings.CutPrefix(Pattern, "cmd:"); ok {
-			prefixes := c.CommandPrefixes()
+			prefixes := c.clientData.commandPrefixes
 			if prefixes == "" {
 				prefixes = "/!"
 			}
@@ -1377,8 +1684,11 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 			}
 		}
 
-		pattern := regexp.MustCompile(Pattern)
-		return pattern.MatchString(text) || strings.HasPrefix(text, Pattern)
+		reg, err := c.dispatcher.patternCache.Get(Pattern)
+		if err != nil {
+			return strings.HasPrefix(text, Pattern)
+		}
+		return reg.MatchString(text)
 	case *regexp.Regexp:
 		return Pattern.MatchString(text)
 	}
@@ -1387,7 +1697,7 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 
 func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 	for _, f := range filters {
-		if !f.check(m) {
+		if !f.Check(m) {
 			return false
 		}
 	}
@@ -1396,14 +1706,8 @@ func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 
 func (h *messageHandle) hasOutgoingFilter() bool {
 	for _, f := range h.Filters {
-		if f.flags.Has(FOutgoing) {
+		if f.HasFlag(FOutgoing) {
 			return true
-		}
-
-		for _, of := range f.orFilters {
-			if of.flags.Has(FOutgoing) {
-				return true
-			}
 		}
 	}
 	return false
@@ -1411,7 +1715,7 @@ func (h *messageHandle) hasOutgoingFilter() bool {
 
 func (e *messageEditHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 	for _, f := range filters {
-		if !f.check(m) {
+		if !f.Check(m) {
 			return false
 		}
 	}
@@ -1420,24 +1724,17 @@ func (e *messageEditHandle) runFilterChain(m *NewMessage, filters []Filter) bool
 
 func (h *callbackHandle) runFilterChain(c *CallbackQuery, filters []Filter) bool {
 	for _, f := range filters {
-		if !f.checkCallback(c) {
+		if !f.CheckCallback(c) {
 			return false
 		}
 	}
 	return true
 }
 
-type Filter struct {
-	flags        FilterFlag
-	Users        []int64
-	Chats        []int64
-	Channels     []int64
-	MinLength    int
-	MaxLength    int
-	MediaTypes   []string
-	Func         func(m *NewMessage) bool
-	FuncCallback func(c *CallbackQuery) bool
-	orFilters    []Filter
+type Filter interface {
+	Check(m *NewMessage) bool
+	CheckCallback(c *CallbackQuery) bool
+	HasFlag(flag FilterFlag) bool
 }
 
 type FilterFlag uint32
@@ -1471,325 +1768,359 @@ const (
 	FText
 )
 
-func (f FilterFlag) Has(flag FilterFlag) bool { return f&flag != 0 }
+type flagFilter FilterFlag
 
-func (f FilterFlag) check(m *NewMessage) bool {
-	if f == 0 {
-		return true
-	}
-	if f.Has(FPrivate) && !m.IsPrivate() {
+func (f flagFilter) Check(m *NewMessage) bool {
+	return f.checkFlags(m)
+}
+
+func (f flagFilter) CheckCallback(c *CallbackQuery) bool {
+	flags := FilterFlag(f)
+	if flags&FPrivate != 0 && !c.IsPrivate() {
 		return false
 	}
-	if f.Has(FGroup) && !m.IsGroup() {
+	if flags&FGroup != 0 && !c.IsGroup() {
 		return false
 	}
-	if f.Has(FChannel) && !m.IsChannel() {
+	if flags&FChannel != 0 && !c.IsChannel() {
 		return false
 	}
-	if f.Has(FMedia) && !m.IsMedia() {
+	if flags&FFromBot != 0 && (c.Sender == nil || !c.Sender.Bot) {
 		return false
 	}
-	if f.Has(FCommand) && !m.IsCommand() {
+	return true
+}
+
+func (f flagFilter) HasFlag(flag FilterFlag) bool {
+	return FilterFlag(f)&flag != 0
+}
+
+func (f flagFilter) checkFlags(m *NewMessage) bool {
+	flags := FilterFlag(f)
+	if flags&FPrivate != 0 && !m.IsPrivate() {
 		return false
 	}
-	if f.Has(FReply) && !m.IsReply() {
+	if flags&FGroup != 0 && !m.IsGroup() {
 		return false
 	}
-	if f.Has(FForward) && !m.IsForward() {
+	if flags&FChannel != 0 && !m.IsChannel() {
 		return false
 	}
-	if f.Has(FFromBot) && (m.Sender == nil || !m.Sender.Bot) {
+	if flags&FMedia != 0 && !m.IsMedia() {
 		return false
 	}
-	if f.Has(FMention) && (m.Message == nil || !m.Message.Mentioned) {
+	if flags&FCommand != 0 && !m.IsCommand() {
 		return false
 	}
-	if f.Has(FOutgoing) && (m.Message == nil || !m.Message.Out) {
+	if flags&FReply != 0 && !m.IsReply() {
 		return false
 	}
-	if f.Has(FIncoming) && (m.Message == nil || m.Message.Out) {
+	if flags&FForward != 0 && !m.IsForward() {
 		return false
 	}
-	if f.Has(FEdited) && (m.Message == nil || m.Message.EditDate == 0) {
+	if flags&FFromBot != 0 && (m.Sender == nil || !m.Sender.Bot) {
 		return false
 	}
-	if f.Has(FText) && m.Text() == "" {
+	if flags&FMention != 0 && (m.Message == nil || !m.Message.Mentioned) {
 		return false
 	}
-	if f.Has(FPhoto) && m.Photo() == nil {
+	if flags&FOutgoing != 0 && (m.Message == nil || !m.Message.Out) {
 		return false
 	}
-	if f.Has(FVideo) && m.Video() == nil {
+	if flags&FIncoming != 0 && (m.Message == nil || m.Message.Out) {
 		return false
 	}
-	if f.Has(FDocument) && m.Document() == nil {
+	if flags&FEdited != 0 && (m.Message == nil || m.Message.EditDate == 0) {
 		return false
 	}
-	if f.Has(FAudio) && m.Audio() == nil {
+	if flags&FText != 0 && m.Text() == "" {
 		return false
 	}
-	if f.Has(FSticker) && m.Sticker() == nil {
+
+	if flags&FPhoto != 0 && m.Photo() == nil {
 		return false
 	}
-	if f.Has(FVoice) && m.Voice() == nil {
+	if flags&FVideo != 0 && m.Video() == nil {
 		return false
 	}
-	if f.Has(FAnimation) {
-		doc := m.Document()
-		if doc == nil {
-			return false
-		}
-		isAnim := false
-		for _, attr := range doc.Attributes {
-			if _, ok := attr.(*DocumentAttributeAnimated); ok {
-				isAnim = true
-				break
-			}
-		}
-		if !isAnim {
-			return false
-		}
-	}
-	if f.Has(FVideoNote) {
-		doc := m.Document()
-		if doc == nil {
-			return false
-		}
-		isVN := false
-		for _, attr := range doc.Attributes {
-			if v, ok := attr.(*DocumentAttributeVideo); ok && v.RoundMessage {
-				isVN = true
-				break
-			}
-		}
-		if !isVN {
-			return false
-		}
-	}
-	if f.Has(FContact) && m.Contact() == nil {
+	if flags&FAudio != 0 && m.Audio() == nil {
 		return false
 	}
-	if f.Has(FLocation) {
+	if flags&FVoice != 0 && m.Voice() == nil {
+		return false
+	}
+	if flags&FDocument != 0 && m.Document() == nil {
+		return false
+	}
+	if flags&FContact != 0 && m.Contact() == nil {
+		return false
+	}
+	if flags&FLocation != 0 {
 		if _, ok := m.Media().(*MessageMediaGeo); !ok {
 			return false
 		}
 	}
-	if f.Has(FVenue) {
+	if flags&FVenue != 0 {
 		if _, ok := m.Media().(*MessageMediaVenue); !ok {
 			return false
 		}
 	}
-	if f.Has(FPoll) {
+	if flags&FPoll != 0 {
 		if _, ok := m.Media().(*MessageMediaPoll); !ok {
 			return false
 		}
 	}
+
+	if flags&FAnimation != 0 {
+		if doc := m.Document(); doc != nil {
+			isAnim := false
+			for _, attr := range doc.Attributes {
+				if _, ok := attr.(*DocumentAttributeAnimated); ok {
+					isAnim = true
+					break
+				}
+			}
+			if !isAnim {
+				return false
+			}
+		} else {
+			return false
+		}
+	}
+	if flags&FVideoNote != 0 {
+		if doc := m.Document(); doc != nil {
+			isVN := false
+			for _, attr := range doc.Attributes {
+				if v, ok := attr.(*DocumentAttributeVideo); ok && v.RoundMessage {
+					isVN = true
+					break
+				}
+			}
+			if !isVN {
+				return false
+			}
+		} else {
+			return false
+		}
+	}
+
 	return true
 }
 
-var (
-	IsPrivate  = Filter{flags: FPrivate}
-	IsGroup    = Filter{flags: FGroup}
-	IsChannel  = Filter{flags: FChannel}
-	IsMedia    = Filter{flags: FMedia}
-	IsCommand  = Filter{flags: FCommand}
-	IsReply    = Filter{flags: FReply}
-	IsForward  = Filter{flags: FForward}
-	IsMention  = Filter{flags: FMention}
-	IsOutgoing = Filter{flags: FOutgoing}
-	IsIncoming = Filter{flags: FIncoming}
-	IsEdited   = Filter{flags: FEdited}
-	IsText     = Filter{flags: FText}
-	IsPhoto    = Filter{flags: FPhoto}
-	IsVideo    = Filter{flags: FVideo}
-	IsAudio    = Filter{flags: FAudio}
-	IsVoice    = Filter{flags: FVoice}
-	IsBot      = Filter{flags: FFromBot}
-)
-
-func FromUser(ids ...int64) Filter { return Filter{Users: ids} }
-func InChat(ids ...int64) Filter   { return Filter{Chats: ids} }
-func TextMinLen(n int) Filter      { return Filter{MinLength: n} }
-func TextMaxLen(n int) Filter      { return Filter{MaxLength: n} }
-
-// Custom allows any func(m *NewMessage) bool as a filter
-func Custom(fn func(*NewMessage) bool) Filter { return Filter{Func: fn} }
-
-// CustomCallback allows any func(c *CallbackQuery) bool as a filter
-func CustomCallback(fn func(*CallbackQuery) bool) Filter {
-	return Filter{FuncCallback: fn}
+type userFilter struct {
+	users []int64
 }
 
+func (f userFilter) Check(m *NewMessage) bool {
+	return slices.Contains(f.users, m.SenderID())
+}
+
+func (f userFilter) CheckCallback(c *CallbackQuery) bool {
+	return slices.Contains(f.users, c.SenderID)
+}
+
+func (f userFilter) HasFlag(flag FilterFlag) bool { return false }
+
+type chatFilter struct {
+	chats []int64
+}
+
+func (f chatFilter) Check(m *NewMessage) bool {
+	return slices.Contains(f.chats, m.ChatID())
+}
+
+func (f chatFilter) CheckCallback(c *CallbackQuery) bool {
+	// Callbacks like GameShortName don't always have ChatID easily accessible or consistent?
+	// But usually c.ChatID() is available if message is present.
+	// For simple callbacks, it should work.
+	return slices.Contains(f.chats, c.ChatID)
+}
+
+func (f chatFilter) HasFlag(flag FilterFlag) bool { return false }
+
+type customFilter struct {
+	fn func(*NewMessage) bool
+}
+
+func (f customFilter) Check(m *NewMessage) bool {
+	return f.fn(m)
+}
+
+func (f customFilter) CheckCallback(c *CallbackQuery) bool { return true }
+
+func (f customFilter) HasFlag(flag FilterFlag) bool { return false }
+
+type customCallbackFilter struct {
+	fn func(*CallbackQuery) bool
+}
+
+func (f customCallbackFilter) Check(m *NewMessage) bool { return true }
+
+func (f customCallbackFilter) CheckCallback(c *CallbackQuery) bool {
+	return f.fn(c)
+}
+
+func (f customCallbackFilter) HasFlag(flag FilterFlag) bool { return false }
+
+type lengthFilter struct {
+	min int
+	max int
+}
+
+func (f lengthFilter) Check(m *NewMessage) bool {
+	l := len(m.Text())
+	if f.min > 0 && l < f.min {
+		return false
+	}
+	if f.max > 0 && l > f.max {
+		return false
+	}
+	return true
+}
+
+func (f lengthFilter) CheckCallback(c *CallbackQuery) bool { return true }
+func (f lengthFilter) HasFlag(flag FilterFlag) bool        { return false }
+
+type anyFilter []Filter
+
+func (fs anyFilter) Check(m *NewMessage) bool {
+	for _, f := range fs {
+		if f.Check(m) {
+			return true
+		}
+	}
+	return false
+}
+
+func (fs anyFilter) CheckCallback(c *CallbackQuery) bool {
+	for _, f := range fs {
+		if f.CheckCallback(c) {
+			return true
+		}
+	}
+	return false
+}
+
+func (fs anyFilter) HasFlag(flag FilterFlag) bool {
+	for _, f := range fs {
+		if f.HasFlag(flag) {
+			return true
+		}
+	}
+	return false
+}
+
+type allFilter []Filter
+
+func (fs allFilter) Check(m *NewMessage) bool {
+	for _, f := range fs {
+		if !f.Check(m) {
+			return false
+		}
+	}
+	return true
+}
+
+func (fs allFilter) CheckCallback(c *CallbackQuery) bool {
+	for _, f := range fs {
+		if !f.CheckCallback(c) {
+			return false
+		}
+	}
+	return true
+}
+
+func (fs allFilter) HasFlag(flag FilterFlag) bool {
+	for _, f := range fs {
+		if f.HasFlag(flag) {
+			return true
+		}
+	}
+	return false
+}
+
+type notFilter struct {
+	f Filter
+}
+
+func (n notFilter) Check(m *NewMessage) bool {
+	return !n.f.Check(m)
+}
+
+func (n notFilter) CheckCallback(c *CallbackQuery) bool {
+	return !n.f.CheckCallback(c)
+}
+
+func (n notFilter) HasFlag(flag FilterFlag) bool {
+	return n.f.HasFlag(flag)
+}
+
+func FromUser(ids ...int64) Filter { return userFilter{users: ids} }
+func InChat(ids ...int64) Filter   { return chatFilter{chats: ids} }
+func TextMinLen(n int) Filter      { return lengthFilter{min: n} }
+func TextMaxLen(n int) Filter      { return lengthFilter{max: n} }
+
+func Custom(fn func(*NewMessage) bool) Filter            { return customFilter{fn: fn} }
+func CustomCallback(fn func(*CallbackQuery) bool) Filter { return customCallbackFilter{fn: fn} }
+
 func Not(f Filter) Filter {
-	return Filter{Func: func(m *NewMessage) bool { return !f.check(m) }}
+	return notFilter{f: f}
 }
 
 func Any(fs ...Filter) Filter {
-	return Filter{Func: func(m *NewMessage) bool {
-		for _, f := range fs {
-			if f.check(m) {
-				return true
-			}
-		}
-		return false
-	}}
+	return anyFilter(fs)
 }
 
 func All(fs ...Filter) Filter {
-	return Filter{Func: func(m *NewMessage) bool {
-		for _, f := range fs {
-			if !f.check(m) {
-				return false
-			}
-		}
-		return true
-	}}
+	return allFilter(fs)
 }
-
-func (f Filter) check(m *NewMessage) bool {
-	if len(f.orFilters) > 0 {
-		for _, orFilter := range f.orFilters {
-			if orFilter.check(m) {
-				return true
-			}
-		}
-		return false
-	}
-
-	if !f.flags.check(m) {
-		return false
-	}
-	isBlacklist := f.flags.Has(FBlacklist)
-	if len(f.Users) > 0 {
-		found := false
-		sid := m.SenderID()
-		if slices.Contains(f.Users, sid) {
-			found = true
-		}
-		if isBlacklist && found {
-			return false
-		}
-		if !isBlacklist && !found {
-			return false
-		}
-	}
-	if len(f.Chats) > 0 {
-		found := false
-		cid := m.ChatID()
-		if slices.Contains(f.Chats, cid) {
-			found = true
-		}
-		if isBlacklist && found {
-			return false
-		}
-		if !isBlacklist && !found {
-			return false
-		}
-	}
-	if len(f.Channels) > 0 {
-		found := false
-		cid := m.ChannelID()
-		if slices.Contains(f.Channels, cid) {
-			found = true
-		}
-		if isBlacklist && found {
-			return false
-		}
-		if !isBlacklist && !found {
-			return false
-		}
-	}
-	if f.MinLength > 0 && len(m.Text()) < f.MinLength {
-		return false
-	}
-	if f.MaxLength > 0 && len(m.Text()) > f.MaxLength {
-		return false
-	}
-	if len(f.MediaTypes) > 0 {
-		mt := strings.ToLower(m.MediaType())
-		found := false
-		for _, t := range f.MediaTypes {
-			if strings.ToLower(t) == mt {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	if f.Func != nil && !f.Func(m) {
-		return false
-	}
-	return true
-}
-
-func (f Filter) checkCallback(c *CallbackQuery) bool {
-	if f.flags.Has(FPrivate) && !c.IsPrivate() {
-		return false
-	}
-	if f.flags.Has(FGroup) && !c.IsGroup() {
-		return false
-	}
-	if f.flags.Has(FChannel) && !c.IsChannel() {
-		return false
-	}
-	if f.flags.Has(FFromBot) && (c.Sender == nil || !c.Sender.Bot) {
-		return false
-	}
-	if f.FuncCallback != nil && !f.FuncCallback(c) {
-		return false
-	}
-	return true
-}
-
-func (f Filter) Or(other Filter) Filter {
-	if len(f.orFilters) == 0 {
-		f.orFilters = []Filter{f, other}
-	} else {
-		f.orFilters = append(f.orFilters, other)
-	}
-	return f
-}
-
-func F(flags FilterFlag) Filter                               { return Filter{flags: flags} }
-func (f Filter) Flag(flag FilterFlag) Filter                  { f.flags |= flag; return f }
-func (f Filter) FromUsers(ids ...int64) Filter                { f.Users = ids; return f }
-func (f Filter) FromChats(ids ...int64) Filter                { f.Chats = ids; return f }
-func (f Filter) FromChannels(ids ...int64) Filter             { f.Channels = ids; return f }
-func (f Filter) MinLen(n int) Filter                          { f.MinLength = n; return f }
-func (f Filter) MaxLen(n int) Filter                          { f.MaxLength = n; return f }
-func (f Filter) WithMediaTypes(t ...string) Filter            { f.MediaTypes = t; return f }
-func (f Filter) WithFunc(fn func(*NewMessage) bool) Filter    { f.Func = fn; return f }
-func (f Filter) CustomCB(fn func(*CallbackQuery) bool) Filter { f.FuncCallback = fn; return f }
-func (f Filter) Blacklist() Filter                            { f.flags |= FBlacklist; return f }
 
 var (
-	FilterPrivate   = IsPrivate
-	FilterGroup     = IsGroup
-	FilterChannel   = IsChannel
-	FilterMedia     = IsMedia
-	FilterCommand   = IsCommand
-	FilterReply     = IsReply
-	FilterForward   = IsForward
-	FilterFromBot   = IsBot
-	FilterMention   = IsMention
-	FilterOutgoing  = IsOutgoing
-	FilterIncoming  = IsIncoming
-	FilterEdited    = IsEdited
-	FilterPhoto     = IsPhoto
-	FilterVideo     = IsVideo
-	FilterDocument  = Filter{flags: FDocument}
-	FilterAudio     = IsAudio
-	FilterSticker   = Filter{flags: FSticker}
-	FilterAnimation = Filter{flags: FAnimation}
-	FilterVoice     = IsVoice
-	FilterVideoNote = Filter{flags: FVideoNote}
-	FilterContact   = Filter{flags: FContact}
-	FilterLocation  = Filter{flags: FLocation}
-	FilterVenue     = Filter{flags: FVenue}
-	FilterPoll      = Filter{flags: FPoll}
-	FilterText      = IsText
+	FilterPrivate   Filter = flagFilter(FPrivate)
+	FilterGroup     Filter = flagFilter(FGroup)
+	FilterChannel   Filter = flagFilter(FChannel)
+	FilterMedia     Filter = flagFilter(FMedia)
+	FilterCommand   Filter = flagFilter(FCommand)
+	FilterReply     Filter = flagFilter(FReply)
+	FilterForward   Filter = flagFilter(FForward)
+	FilterFromBot   Filter = flagFilter(FFromBot)
+	FilterMention   Filter = flagFilter(FMention)
+	FilterOutgoing  Filter = flagFilter(FOutgoing)
+	FilterIncoming  Filter = flagFilter(FIncoming)
+	FilterEdited    Filter = flagFilter(FEdited)
+	FilterPhoto     Filter = flagFilter(FPhoto)
+	FilterVideo     Filter = flagFilter(FVideo)
+	FilterDocument  Filter = flagFilter(FDocument)
+	FilterAudio     Filter = flagFilter(FAudio)
+	FilterSticker   Filter = flagFilter(FSticker)
+	FilterAnimation Filter = flagFilter(FAnimation)
+	FilterVoice     Filter = flagFilter(FVoice)
+	FilterVideoNote Filter = flagFilter(FVideoNote)
+	FilterContact   Filter = flagFilter(FContact)
+	FilterLocation  Filter = flagFilter(FLocation)
+	FilterVenue     Filter = flagFilter(FVenue)
+	FilterPoll      Filter = flagFilter(FPoll)
+	FilterText      Filter = flagFilter(FText)
+)
+
+var (
+	IsPrivate  = FilterPrivate
+	IsGroup    = FilterGroup
+	IsChannel  = FilterChannel
+	IsMedia    = FilterMedia
+	IsCommand  = FilterCommand
+	IsReply    = FilterReply
+	IsForward  = FilterForward
+	IsMention  = FilterMention
+	IsOutgoing = FilterOutgoing
+	IsIncoming = FilterIncoming
+	IsEdited   = FilterEdited
+	IsText     = FilterText
+	IsPhoto    = FilterPhoto
+	IsVideo    = FilterVideo
+	IsAudio    = FilterAudio
+	IsVoice    = FilterVoice
+	IsBot      = FilterFromBot
 )
 
 func addHandleToMap[T Handle](handleMap map[int][]T, handle T) T {
@@ -2863,25 +3194,6 @@ func (c *Client) FetchDifferenceOnStartup(pts int32) {
 	c.FetchDifference(pts, 5000)
 }
 
-type ev any
-
-var (
-	OnMessage        ev = "message"
-	OnCommand        ev = "command"
-	OnCommandShort   ev = "cmd"
-	OnAction         ev = "action"
-	OnEdit           ev = "edit"
-	OnDelete         ev = "delete"
-	OnAlbum          ev = "album"
-	OnInline         ev = "inline"
-	OnCallback       ev = "callback"
-	OnInlineCallback ev = "inlinecallback"
-	OnChosenInline   ev = "choseninline"
-	OnParticipant    ev = "participant"
-	OnJoinRequest    ev = "joinrequest"
-	OnRaw            ev = "raw"
-)
-
 type eventInfo struct {
 	eventType string
 	pattern   string
@@ -2904,11 +3216,8 @@ func parsePattern(pattern any) eventInfo {
 
 		return eventInfo{eventType: strings.ToLower(p)}
 
-	case ev:
-		if s, ok := p.(string); ok {
-			return eventInfo{eventType: s}
-		}
-		return eventInfo{}
+	case EventType:
+		return eventInfo{eventType: string(p)}
 
 	default:
 		return eventInfo{}
@@ -2929,36 +3238,6 @@ var handlerTypes = map[string]string{
 }
 
 // On registers an event handler with flexible pattern matching.
-//
-// Usage patterns:
-//
-//	// Message handlers
-//	client.On("message", handler)              // All messages
-//	client.On("message:hello", handler)        // Messages matching "hello"
-//	client.On(OnMessage, handler)              // Using constant
-//
-//	// Command handlers (multiple formats)
-//	client.On("/start", handler)               // Shortcut for cmd:start
-//	client.On("!help", handler)                // Shortcut for cmd:help
-//	client.On("cmd:start", handler)            // Explicit command
-//	client.On("command:start", handler)        // Full form
-//
-//	// Other events
-//	client.On("callback:data", handler)        // Callback with data pattern
-//	client.On("inline:query", handler)         // Inline query pattern
-//	client.On("edit", handler)                 // Message edits
-//	client.On("delete", handler)               // Message deletions
-//	client.On("album", handler)                // Media albums
-//	client.On("participant", handler)          // Member updates
-//	client.On("joinrequest", handler)          // Join requests
-//
-//	// Raw updates
-//	client.On("raw", handler)                  // All raw updates
-//	client.On("*", handler)                    // Alias for raw
-//	client.On(&UpdateNewMessage{}, handler)   // Specific update type
-//
-//	// Auto-detect from handler signature
-//	client.On(func(m *NewMessage) error {...}) // Detects as message handler
 func (c *Client) On(args ...any) Handle {
 	if len(args) == 0 {
 		c.Log.Error("On: missing event type argument")
@@ -2969,13 +3248,10 @@ func (c *Client) On(args ...any) Handle {
 	var handler any
 	var filters []Filter
 
-	// Parse arguments based on count and types
 	switch len(args) {
 	case 1:
-		// Single arg must be a handler - auto-detect event type
 		handler = args[0]
 	case 2:
-		// pattern + handler, or handler + filter
 		if _, ok := args[1].(Filter); ok {
 			handler = args[0]
 			filters = append(filters, args[1].(Filter))
@@ -2984,7 +3260,6 @@ func (c *Client) On(args ...any) Handle {
 			handler = args[1]
 		}
 	default:
-		// pattern + handler + filters...
 		pattern = args[0]
 		handler = args[1]
 		for _, f := range args[2:] {
@@ -3005,10 +3280,11 @@ func (c *Client) On(args ...any) Handle {
 	switch info.eventType {
 	case "message", "newmessage", "msg":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
-			if info.pattern != "" {
-				return c.AddMessageHandler(info.pattern, h, filters...)
+			p := info.pattern
+			if p == "" {
+				p = string(OnNewMessage)
 			}
-			return c.AddMessageHandler(OnNewMessage, h, filters...)
+			return c.AddMessageHandler(p, h, filters...)
 		}
 		c.Log.Error("On(%s): invalid handler type %T, expected func(*NewMessage) error", info.eventType, handler)
 
@@ -3030,19 +3306,21 @@ func (c *Client) On(args ...any) Handle {
 
 	case "edit", "editmessage":
 		if h, ok := handler.(func(m *NewMessage) error); ok {
-			if info.pattern != "" {
-				return c.AddEditHandler(info.pattern, h, filters...)
+			p := info.pattern
+			if p == "" {
+				p = string(OnEditMessage)
 			}
-			return c.AddEditHandler(OnEditMessage, h, filters...)
+			return c.AddEditHandler(p, h, filters...)
 		}
 		c.Log.Error("On(edit): invalid handler type %T, expected func(*NewMessage) error", handler)
 
 	case "delete", "deletemessage":
 		if h, ok := handler.(func(m *DeleteMessage) error); ok {
-			if info.pattern != "" {
-				return c.AddDeleteHandler(info.pattern, h)
+			p := info.pattern
+			if p == "" {
+				p = string(OnDeleteMessage)
 			}
-			return c.AddDeleteHandler(OnDeleteMessage, h)
+			return c.AddDeleteHandler(p, h)
 		}
 		c.Log.Error("On(delete): invalid handler type %T, expected func(*DeleteMessage) error", handler)
 
@@ -3054,10 +3332,11 @@ func (c *Client) On(args ...any) Handle {
 
 	case "inline", "inlinequery":
 		if h, ok := handler.(func(m *InlineQuery) error); ok {
-			if info.pattern != "" {
-				return c.AddInlineHandler(info.pattern, h)
+			p := info.pattern
+			if p == "" {
+				p = string(OnInlineQuery)
 			}
-			return c.AddInlineHandler(OnInlineQuery, h)
+			return c.AddInlineHandler(p, h)
 		}
 		c.Log.Error("On(inline): invalid handler type %T, expected func(*InlineQuery) error", handler)
 
@@ -3069,19 +3348,21 @@ func (c *Client) On(args ...any) Handle {
 
 	case "callback", "callbackquery":
 		if h, ok := handler.(func(m *CallbackQuery) error); ok {
-			if info.pattern != "" {
-				return c.AddCallbackHandler(info.pattern, h, filters...)
+			p := info.pattern
+			if p == "" {
+				p = string(OnCallbackQuery)
 			}
-			return c.AddCallbackHandler(OnCallbackQuery, h, filters...)
+			return c.AddCallbackHandler(p, h, filters...)
 		}
 		c.Log.Error("On(callback): invalid handler type %T, expected func(*CallbackQuery) error", handler)
 
 	case "inlinecallback", "inlinecallbackquery":
 		if h, ok := handler.(func(m *InlineCallbackQuery) error); ok {
-			if info.pattern != "" {
-				return c.AddInlineCallbackHandler(info.pattern, h)
+			p := info.pattern
+			if p == "" {
+				p = string(OnInlineCallbackQuery)
 			}
-			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, h)
+			return c.AddInlineCallbackHandler(p, h)
 		}
 		c.Log.Error("On(inlinecallback): invalid handler type %T, expected func(*InlineCallbackQuery) error", handler)
 
@@ -3114,19 +3395,19 @@ func (c *Client) On(args ...any) Handle {
 
 		switch h := handler.(type) {
 		case func(m *NewMessage) error:
-			return c.AddMessageHandler(OnNewMessage, h, filters...)
+			return c.AddMessageHandler(string(OnNewMessage), h, filters...)
 		case func(m *DeleteMessage) error:
-			return c.AddDeleteHandler(OnDeleteMessage, h)
+			return c.AddDeleteHandler(string(OnDeleteMessage), h)
 		case func(m *Album) error:
 			return c.AddAlbumHandler(h)
 		case func(m *InlineQuery) error:
-			return c.AddInlineHandler(OnInlineQuery, h)
+			return c.AddInlineHandler(string(OnInlineQuery), h)
 		case func(m *InlineSend) error:
 			return c.AddInlineSendHandler(h)
 		case func(m *CallbackQuery) error:
-			return c.AddCallbackHandler(OnCallbackQuery, h, filters...)
+			return c.AddCallbackHandler(string(OnCallbackQuery), h, filters...)
 		case func(m *InlineCallbackQuery) error:
-			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, h)
+			return c.AddInlineCallbackHandler(string(OnInlineCallbackQuery), h)
 		case func(m *ParticipantUpdate) error:
 			return c.AddParticipantHandler(h)
 		case func(m *JoinRequestUpdate) error:
@@ -3141,44 +3422,127 @@ func (c *Client) On(args ...any) Handle {
 	return nil
 }
 
-func (c *Client) OnMessage(pattern string, handler func(m *NewMessage) error, filters ...Filter) Handle {
-	if pattern == "" {
-		return c.AddMessageHandler(OnNewMessage, handler, filters...)
+// Use adds global middleware to the client
+func (c *Client) Use(middlewares ...Middleware) {
+	if c.dispatcher.middlewareManager == nil {
+		c.dispatcher.middlewareManager = &middlewareManager{}
 	}
-	return c.AddMessageHandler(pattern, handler, filters...)
-}
-
-func (c *Client) OnCommand(command string, handler func(m *NewMessage) error, filters ...Filter) Handle {
-	return c.AddMessageHandler("cmd:"+command, handler, filters...)
-}
-
-func (c *Client) OnCallback(pattern string, handler func(m *CallbackQuery) error) Handle {
-	if pattern == "" {
-		return c.AddCallbackHandler(OnCallbackQuery, handler)
+	for _, m := range middlewares {
+		c.dispatcher.middlewareManager.Use(m)
 	}
-	return c.AddCallbackHandler(pattern, handler)
 }
 
+// Group creates a new handler group
+func (c *Client) Group(groupID int) *HandlerGroup {
+	return &HandlerGroup{client: c, groupID: groupID}
+}
+
+// OnMessage registers a message handler and returns a builder
+func (c *Client) OnMessage(pattern string, handler MessageHandler, filters ...Filter) *MessageHandleBuilder {
+	if pattern == "" {
+		pattern = string(EventNewMessage)
+	}
+	h := c.AddMessageHandler(pattern, handler, filters...)
+
+	if mh, ok := h.(*messageHandle); ok {
+		return &MessageHandleBuilder{
+			handle:     mh,
+			client:     c,
+			registered: true,
+		}
+	}
+	return nil
+}
+
+// OnCommand registers a command handler and returns a builder
+func (c *Client) OnCommand(command string, handler MessageHandler, filters ...Filter) *MessageHandleBuilder {
+	h := c.AddMessageHandler("cmd:"+command, handler, filters...)
+	if mh, ok := h.(*messageHandle); ok {
+		return &MessageHandleBuilder{
+			handle:     mh,
+			client:     c,
+			registered: true,
+		}
+	}
+	return nil
+}
+
+// OnCallback registers a callback handler and returns a builder
+func (c *Client) OnCallback(pattern string, handler CallbackHandler, filters ...Filter) *CallbackHandleBuilder {
+	if pattern == "" {
+		pattern = string(EventCallbackQuery)
+	}
+	h := c.AddCallbackHandler(pattern, handler, filters...)
+	if cb, ok := h.(*callbackHandle); ok {
+		return &CallbackHandleBuilder{
+			handle:     cb,
+			client:     c,
+			registered: true,
+		}
+	}
+	return nil
+}
+
+// OnInlineQuery registers an inline query handler and returns a handle
 func (c *Client) OnInlineQuery(pattern string, handler func(m *InlineQuery) error) Handle {
 	if pattern == "" {
-		return c.AddInlineHandler(OnInlineQuery, handler)
+		pattern = string(EventInlineQuery)
 	}
 	return c.AddInlineHandler(pattern, handler)
 }
 
-func (c *Client) OnEdit(pattern string, handler func(m *NewMessage) error) Handle {
+// OnInlineCallback registers an inline callback handler and returns a handle
+func (c *Client) OnInlineCallback(pattern string, handler func(m *InlineCallbackQuery) error) Handle {
 	if pattern == "" {
-		return c.AddEditHandler(OnEditMessage, handler)
+		pattern = string(EventInlineCallback)
 	}
-	return c.AddEditHandler(pattern, handler)
+	return c.AddInlineCallbackHandler(pattern, handler)
 }
 
-func (c *Client) OnDelete(handler func(m *DeleteMessage) error) Handle {
-	return c.AddDeleteHandler(OnDeleteMessage, handler)
+// OnEdit registers an edit handler and returns a handle
+func (c *Client) OnEdit(pattern string, handler func(m *NewMessage) error, filters ...Filter) Handle {
+	if pattern == "" {
+		pattern = string(EventEditMessage)
+	}
+	return c.AddEditHandler(pattern, handler, filters...)
 }
 
+// OnDelete registers a delete handler and returns a handle
+func (c *Client) OnDelete(pattern string, handler func(m *DeleteMessage) error) Handle {
+	if pattern == "" {
+		pattern = string(EventDeleteMessage)
+	}
+	return c.AddDeleteHandler(pattern, handler)
+}
+
+// OnAlbum registers an album handler and returns a handle
 func (c *Client) OnAlbum(handler func(m *Album) error) Handle {
 	return c.AddAlbumHandler(handler)
+}
+
+// OnChosenInline registers a chosen inline handler and returns a handle
+func (c *Client) OnChosenInline(handler func(m *InlineSend) error) Handle {
+	return c.AddInlineSendHandler(handler)
+}
+
+// OnParticipant registers a participant handler and returns a handle
+func (c *Client) OnParticipant(handler func(m *ParticipantUpdate) error) Handle {
+	return c.AddParticipantHandler(handler)
+}
+
+// OnJoinRequest registers a join request handler and returns a handle
+func (c *Client) OnJoinRequest(handler func(m *JoinRequestUpdate) error) Handle {
+	return c.AddJoinRequestHandler(handler)
+}
+
+// OnRaw registers a raw handler and returns a handle
+func (c *Client) OnRaw(updateType Update, handler func(m Update, c *Client) error) Handle {
+	return c.AddRawHandler(updateType, handler)
+}
+
+// OnE2EMessage registers an E2E message handler and returns a handle
+func (c *Client) OnE2EMessage(handler func(update Update, c *Client) error) Handle {
+	return c.AddE2EHandler(handler)
 }
 
 // SetLifecycleHooks sets the lifecycle hooks for all handlers
@@ -3194,20 +3558,4 @@ func (c *Client) GetHandlerMetrics(handle Handle) *HandlerMetrics {
 		return bh.metrics
 	}
 	return nil
-}
-
-func (c *Client) OnParticipant(handler func(m *ParticipantUpdate) error) Handle {
-	return c.AddParticipantHandler(handler)
-}
-
-func (c *Client) OnJoinRequest(handler func(m *JoinRequestUpdate) error) Handle {
-	return c.AddJoinRequestHandler(handler)
-}
-
-func (c *Client) OnRaw(updateType Update, handler func(m Update, c *Client) error) Handle {
-	return c.AddRawHandler(updateType, handler)
-}
-
-func (c *Client) OnE2EMessage(handler func(update Update, c *Client) error) Handle {
-	return c.AddE2EHandler(handler)
 }

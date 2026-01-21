@@ -18,14 +18,14 @@ func main() {
 	// ============================================
 
 	// Single flag
-	client.On("/start", startHandler, tg.F(tg.FPrivate))
+	client.On("/start", startHandler, tg.IsPrivate)
 
 	// Multiple flags with | (OR them together)
-	client.On("message", mediaHandler, tg.F(tg.FGroup|tg.FMedia))
-	client.On("/admin", adminHandler, tg.F(tg.FPrivate|tg.FCommand))
+	client.On("message", mediaHandler, tg.IsGroup, tg.IsMedia)
+	client.On("/admin", adminHandler, tg.IsPrivate, tg.IsCommand)
 
 	// Photo OR Video in groups
-	client.On("message", photoVideoHandler, tg.F(tg.FGroup), tg.Any(tg.IsPhoto, tg.IsVideo))
+	client.On("message", photoVideoHandler, tg.IsGroup, tg.Any(tg.IsPhoto, tg.IsVideo))
 
 	// ============================================
 	// SIMPLE FILTER VARIABLES (same as bitflags, just pre-wrapped)
@@ -85,12 +85,15 @@ func main() {
 
 	// Private + from specific users + min text length
 	client.On("message", chainedHandler,
-		tg.IsPrivate.FromUsers(123, 456).MinLen(10),
+		tg.IsPrivate,
+		tg.FromUser(123, 456),
+		tg.TextMinLen(10),
 	)
 
 	// Group + blacklist certain users
 	client.On("message", blacklistHandler,
-		tg.IsGroup.FromUsers(999, 888).Blacklist(),
+		tg.IsGroup,
+		tg.Not(tg.FromUser(999, 888)),
 	)
 
 	client.Idle()

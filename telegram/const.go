@@ -21,15 +21,6 @@ const (
 	EntityChannel string = "channel"
 	EntityUnknown string = "unknown"
 
-	OnNewMessage          = "OnNewMessage"
-	OnEditMessage         = "OnEditMessage"
-	OnChatAction          = "OnChatAction"
-	OnInlineQuery         = "OnInlineQuery"
-	OnCallbackQuery       = "OnCallbackQuery"
-	OnInlineCallbackQuery = "OnInlineCallbackQuery"
-	OnChosenInlineResult  = "OnChosenInlineResult"
-	OnDeleteMessage       = "OnDeleteMessage"
-
 	OneTimeMediaTTL = 2147483647
 )
 
