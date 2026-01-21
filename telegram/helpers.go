@@ -2,13 +2,13 @@ package telegram
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math/big"
+	"math/rand/v2"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -59,9 +59,7 @@ func PathIsWritable(path string) bool {
 }
 
 func GenRandInt() int64 {
-	b := make([]byte, 4)
-	rand.Read(b)
-	return int64(int32(binary.BigEndian.Uint32(b)))
+	return int64(int32(rand.Uint32()))
 }
 
 func (c *Client) ResolveMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
@@ -1222,13 +1220,11 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 		if duration <= 10 {
 			return (duration / 2) + 1
 		} else {
-			b := make([]byte, 4)
-			rand.Read(b)
-			n := int32(binary.BigEndian.Uint32(b))
-			if n < 0 {
-				n = -n
+			limit := int(duration) / 2
+			if limit <= 0 {
+				limit = 1
 			}
-			return int64(n%(int32(duration)/2) + 1)
+			return int64(rand.IntN(limit) + 1)
 		}
 	}
 

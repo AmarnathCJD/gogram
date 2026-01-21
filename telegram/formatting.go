@@ -68,7 +68,7 @@ type htmlToken struct {
 }
 
 func simpleHTMLTokenize(html string) []htmlToken {
-	var tokens []htmlToken
+	var tokens = make([]htmlToken, 0, strings.Count(html, "<")+1)
 	i := 0
 
 	for i < len(html) {
@@ -240,7 +240,7 @@ func utf16RuneCountInString(s string) int32 {
 }
 
 func parseTagsToEntity(tags []Tag) []MessageEntity {
-	var entities []MessageEntity
+	entities := make([]MessageEntity, 0, len(tags))
 	for _, tag := range tags {
 		switch tag.Type {
 		case "a":
@@ -320,7 +320,7 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 }
 
 func ParseEntitiesToTags(entities []MessageEntity) []Tag {
-	var tags []Tag
+	tags := make([]Tag, 0, len(entities))
 	for _, entity := range entities {
 		switch entity := entity.(type) {
 		case *MessageEntityBold:

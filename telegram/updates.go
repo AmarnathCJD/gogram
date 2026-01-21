@@ -369,7 +369,12 @@ type albumBox struct {
 func (a *albumBox) WaitAndTrigger(d *UpdateDispatcher, c *Client) {
 	time.Sleep(time.Duration(c.clientData.albumWaitTime) * time.Millisecond)
 
-	for gp, handlers := range d.albumHandles {
+	d.RLock()
+	albumHandles := make(map[int][]*albumHandle, len(d.albumHandles))
+	maps.Copy(albumHandles, d.albumHandles)
+	d.RUnlock()
+
+	for gp, handlers := range albumHandles {
 		for _, handler := range handlers {
 			handle := func(h *albumHandle) error {
 				sort.SliceStable(a.messages, func(i, j int) bool {
@@ -464,6 +469,7 @@ type UpdateDispatcher struct {
 	stopChan              chan struct{}
 	patternCache          *patternCache
 	lifecycleHooks        *LifecycleHooks
+	taskPool              *TaskPool
 }
 
 func (d *UpdateDispatcher) SetPts(pts int32) {
@@ -578,6 +584,7 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		activeAlbums:          make(map[int64]*albumBox),
 		patternCache:          newPatternCache(),
 		lifecycleHooks:        &LifecycleHooks{},
+		taskPool:              NewTaskPool(1000),
 	}
 	c.dispatcher.lastUpdateTimeNano.Store(time.Now().UnixNano())
 	c.dispatcher.logger.Debug("update dispatcher initialized")
@@ -775,7 +782,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 			handlers []*messageHandle
 		}
 
-		var groupsToProcess []groupWithHandlers
+		groupsToProcess := make([]groupWithHandlers, 0, len(allMessageHandles))
 
 		for group, handlers := range allMessageHandles {
 			if group == ConversationGroup || group == DefaultGroup {
@@ -810,12 +817,12 @@ func (c *Client) handleMessageUpdate(update Message) {
 			for _, handler := range defaultHandlers {
 				if handler.IsMatch(msg.Message, c) {
 					wg.Add(1)
-					go func(h *messageHandle) {
+					c.dispatcher.taskPool.Submit(func() {
 						defer wg.Done()
-						if err := handle(h); err != nil && !errors.Is(err, ErrEndGroup) {
+						if err := handle(handler); err != nil && !errors.Is(err, ErrEndGroup) {
 							c.dispatcher.logger.WithError(err).Error("[NewMessageHandler]")
 						}
-					}(handler)
+					})
 				}
 			}
 			wg.Wait()
@@ -854,7 +861,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 				}
 
 				if group == DefaultGroup {
-					go func() {
+					c.dispatcher.taskPool.Submit(func() {
 						err := handle(h)
 						if err != nil {
 							if errors.Is(err, ErrEndGroup) {
@@ -862,7 +869,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 							}
 							c.Log.WithError(err).Error("[ChatActionHandler]")
 						}
-					}()
+					})
 				} else {
 					if err := handle(h); err != nil && errors.Is(err, ErrEndGroup) {
 						break

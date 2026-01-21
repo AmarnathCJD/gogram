@@ -20,6 +20,13 @@ import (
 	"errors"
 )
 
+var chunkPool = sync.Pool{
+	New: func() any {
+		b := make([]byte, 1024*1024)
+		return &b
+	},
+}
+
 type UploadOptions struct {
 	Threads          int                 // Number of concurrent upload workers
 	ChunkSize        int32               // Size of each upload chunk in bytes
@@ -166,12 +173,21 @@ func (s *Source) GetReader() io.Reader {
 		s.closer = file
 		return file
 	case *os.File:
+		if src == nil {
+			return nil
+		}
 		return src
 	case []byte:
 		return bytes.NewReader(src)
 	case *bytes.Buffer:
+		if src == nil {
+			return bytes.NewReader(nil)
+		}
 		return bytes.NewReader(src.Bytes())
 	case *io.Reader:
+		if src == nil {
+			return nil
+		}
 		return *src
 	}
 	return nil
@@ -374,7 +390,14 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 			chunkSize = int(size - offset)
 		}
 
-		data := make([]byte, chunkSize)
+		bufPtr := chunkPool.Get().(*[]byte)
+		defer chunkPool.Put(bufPtr)
+
+		if cap(*bufPtr) < int(chunkSize) {
+			*bufPtr = make([]byte, chunkSize)
+		}
+		data := (*bufPtr)[:chunkSize]
+
 		n, err := readerAt.ReadAt(data, offset)
 		if err != nil && err != io.EOF {
 			return false
