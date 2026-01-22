@@ -129,7 +129,7 @@ func (t *TData) toGogram() ([]*telegram.Session, error) {
 		}
 		sessions = append(sessions, &telegram.Session{
 			Key:      maindcAuthKey,
-			Hostname: telegram.ResolveDataCenterIP(int(maindc), false, false),
+			Hostname: telegram.ResolveDC(int(maindc), false, false),
 		})
 	}
 

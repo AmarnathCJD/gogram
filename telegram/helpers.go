@@ -28,7 +28,12 @@ func FileExists(path string) bool {
 	return err == nil
 }
 
-func ResolveDataCenterIP(dc int, test, ipv6 bool) string {
+func doesSessionFileExist(filePath string) bool {
+	_, ol := os.Stat(filePath)
+	return !os.IsNotExist(ol)
+}
+
+func ResolveDC(dc int, test, ipv6 bool) string {
 	return utils.GetDefaultHostIP(dc, test, ipv6)
 }
 
@@ -1384,8 +1389,8 @@ func packMessage(c *Client, message Message) *NewMessage {
 		m.File = &CustomFile{
 			FileID: FileID,
 			Name:   GetFileName(m.Media()),
-			Size:   getFileSize(m.Media()),
-			Ext:    getFileExt(m.Media()),
+			Size:   GetFileSize(m.Media()),
+			Ext:    GetFileExt(m.Media()),
 		}
 	}
 	return m

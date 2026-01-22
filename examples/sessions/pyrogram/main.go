@@ -35,7 +35,7 @@ func decodePyrogramSessionString(encodedString string) (*telegram.Session, error
 	}
 
 	return &telegram.Session{
-		Hostname: telegram.ResolveDataCenterIP(int(uint8(packedData[0])), packedData[5] != 0, false),
+		Hostname: telegram.ResolveDC(int(uint8(packedData[0])), packedData[5] != 0, false),
 		AppID:    int32(uint32(packedData[1])<<24 | uint32(packedData[2])<<16 | uint32(packedData[3])<<8 | uint32(packedData[4])),
 		Key:      packedData[6 : 6+authKeySize],
 	}, nil
