@@ -66,9 +66,9 @@ func (c *Reader) Read(p []byte) (int, error) {
 			return total, err
 		}
 
-		if nc, ok := r.(net.Conn); ok {
-			_ = nc.SetReadDeadline(time.Now().Add(5 * time.Second))
-		}
+		// if nc, ok := r.(net.Conn); ok {
+		// 	_ = nc.SetReadDeadline(time.Now().Add(5 * time.Second))
+		// }
 
 		n, err := r.Read(p[total:])
 		if n > 0 {
@@ -76,9 +76,9 @@ func (c *Reader) Read(p []byte) (int, error) {
 		}
 
 		if err != nil {
-			if ne, ok := err.(net.Error); ok && ne.Timeout() {
-				continue
-			}
+			// if ne, ok := err.(net.Error); ok && ne.Timeout() {
+			// 	continue
+			// }
 			return total, err
 		}
 	}
