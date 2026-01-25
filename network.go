@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
-	"strings"
 
 	"errors"
 
@@ -84,7 +83,7 @@ sendPacket:
 	m.transportMu.Unlock()
 
 	if errorSendPacket != nil {
-		if maxRetries > 0 && (strings.Contains(errorSendPacket.Error(), "connection was aborted") || strings.Contains(errorSendPacket.Error(), "connection reset")) {
+		if maxRetries > 0 && isBrokenError(errorSendPacket) {
 			maxRetries--
 			err := m.CreateConnection(false)
 			if err == nil && m.transport != nil {

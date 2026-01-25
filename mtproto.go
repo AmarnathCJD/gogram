@@ -950,11 +950,12 @@ func (m *MTProto) stopRoutines() {
 	m.ctxCancelMutex.Unlock()
 
 	m.transportMu.Lock()
-	if m.transport != nil {
-		m.transport.Close()
-		//m.transport = nil
-	}
+	tr := m.transport
 	m.transportMu.Unlock()
+
+	if tr != nil {
+		tr.Close()
+	}
 
 	m.notifyPendingRequestsOfConfigChange()
 }
@@ -1119,6 +1120,10 @@ func isBrokenError(err error) bool {
 	errStr := err.Error()
 	return strings.Contains(errStr, "unexpected error: unexpected EOF") ||
 		strings.Contains(errStr, "required to reconnect!") ||
+		strings.Contains(errStr, "connection reset") ||
+		strings.Contains(errStr, "connection was aborted") ||
+		strings.Contains(errStr, "broken pipe") ||
+		strings.Contains(errStr, "i/o timeout") ||
 		err == io.EOF
 }
 
@@ -1147,7 +1152,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				continue
 			}
 
-			err := m.readMsg()
+			err := m.readMsg(ctx)
 			if err == nil {
 				continue
 			}
@@ -1234,7 +1239,7 @@ func (m *MTProto) handle404Error() error {
 	return nil
 }
 
-func (m *MTProto) readMsg() error {
+func (m *MTProto) readMsg(ctx context.Context) error {
 	m.transportMu.Lock()
 	t := m.transport
 	m.transportMu.Unlock()
@@ -1263,7 +1268,11 @@ func (m *MTProto) readMsg() error {
 		if err != nil {
 			return fmt.Errorf("parsing object: %w", err)
 		}
-		m.serviceChannel <- obj
+		select {
+		case m.serviceChannel <- obj:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 		return nil
 	}
 
