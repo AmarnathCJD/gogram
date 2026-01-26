@@ -531,10 +531,14 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 		err := m.connect(ctx)
 		if err == nil {
 			if attempt > 0 {
-				m.Logger.Info("reconnected (attempt %d/%d)", attempt+1, m.connConfig.MaxAttempts)
+				m.Logger.Info("reconnected successfully after %d attempts", attempt+1)
 			}
 			m.connState.Attempts.Store(0)
 			return nil
+		}
+
+		if m.proxy != nil && m.proxy.Type == "mtproxy" {
+			return fmt.Errorf("mtproxy connection failed: %w", err)
 		}
 
 		if m.terminated.Load() {
@@ -543,7 +547,7 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 
 		delay := min(time.Duration(1<<uint(attempt))*m.connConfig.BaseDelay, m.connConfig.MaxDelay)
 
-		m.Logger.Debug("reconnect failed (%d/%d): %v; retry in %s", attempt+1, m.connConfig.MaxAttempts, err, delay)
+		m.Logger.Debug("reconnection failed (%d/%d): %v; retrying in %s", attempt+1, m.connConfig.MaxAttempts, err, delay)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
