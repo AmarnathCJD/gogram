@@ -223,7 +223,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 	mtproto.sessionId.Store(utils.GenerateSessionID())
 	mtproto.connState.Attempts.Store(0)
 
-	mtproto.Logger.Debug("initializing MTProto client")
+	mtproto.Logger.Debug("mtproto sender initialized")
 
 	if loaded != nil || c.StringSession != "" {
 		mtproto.encrypted.Store(true)
@@ -305,7 +305,7 @@ func (m *MTProto) ImportRawAuth(authKey, authKeyHash []byte, addr string, appID 
 	m.authKey = authKey
 	m.authKeyHash = authKeyHash
 	m.appID = appID
-	m.Logger.Debug("importing raw authentication credentials")
+	m.Logger.Debug("importing raw auth credentials")
 	if err := m.SaveSession(m.memorySession); err != nil {
 		return false, fmt.Errorf("saving session: %w", err)
 	}
@@ -327,7 +327,7 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 	if m.appID == 0 {
 		m.appID = sessionString.AppID
 	}
-	m.Logger.Debug("importing session from string: %s", utils.FmtIP(sessionString.IpAddr))
+	m.Logger.Debug("importing session from string (%s)", utils.FmtIP(sessionString.IpAddr))
 	if err := m.SaveSession(m.memorySession); err != nil {
 		return false, fmt.Errorf("saving session: %w", err)
 	}
@@ -404,7 +404,7 @@ func (m *MTProto) SwitchDc(dc int) error {
 		return fmt.Errorf("dc %d not found in dc list", dc)
 	}
 
-	m.Logger.Debug("initiating migration to DC%d", dc)
+	m.Logger.Debug("migrating to DC%d", dc)
 
 	m.connState.InProgress.Store(true)
 	defer m.connState.InProgress.Store(false)
@@ -416,7 +416,7 @@ func (m *MTProto) SwitchDc(dc int) error {
 	if err := m.sessionStorage.Delete(); err != nil {
 		return err
 	}
-	m.Logger.Debug("cleared old session data")
+	m.Logger.Debug("cleared old session for migration")
 
 	m.authKey = nil
 	m.authKeyHash = nil
@@ -531,7 +531,7 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 		err := m.connect(ctx)
 		if err == nil {
 			if attempt > 0 {
-				m.Logger.Info("reconnected successfully after %d attempts", attempt+1)
+				m.Logger.Info("reconnected (attempt %d/%d)", attempt+1, m.connConfig.MaxAttempts)
 			}
 			m.connState.Attempts.Store(0)
 			return nil
@@ -543,7 +543,7 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 
 		delay := min(time.Duration(1<<uint(attempt))*m.connConfig.BaseDelay, m.connConfig.MaxDelay)
 
-		m.Logger.Debug("reconnection failed (%d/%d): %v; retrying in %s", attempt+1, m.connConfig.MaxAttempts, err, delay)
+		m.Logger.Debug("reconnect failed (%d/%d): %v; retry in %s", attempt+1, m.connConfig.MaxAttempts, err, delay)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -613,12 +613,12 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 
 	if !m.encrypted.Load() {
-		m.Logger.Debug("no auth key found, generating new key")
+		m.Logger.Debug("generating new auth key")
 		err = m.makeAuthKey()
 		if err != nil {
 			return err
 		}
-		m.Logger.Debug("auth key generated successfully")
+		m.Logger.Debug("auth key generated")
 	}
 
 	// Start Perfect Forward Secrecy manager if enabled on the main connection.
@@ -639,7 +639,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 		}
 	}
 
-	m.Logger.Debug("initializing %s transport for DC%d", transportType, dcId)
+	m.Logger.Debug("init transport %s for DC%d", transportType, dcId)
 
 	var err error
 	cfg := transport.CommonConfig{
@@ -676,7 +676,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 	m.transport = newTransport
 	m.transportMu.Unlock()
 
-	m.Logger.Trace("%s transport initialized", transportType)
+	m.Logger.Trace("transport ready")
 
 	if err := m.checkRapidReconnect(); err != nil {
 		return err
@@ -1217,13 +1217,13 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					continue
 				}
 
-				m.Logger.Trace("connection error: %v; reconnecting to %s (%s)", err, utils.FmtIP(m.GetAddr()), m.GetTransportType())
+				m.Logger.Trace("connection lost: %v; reconnecting", err)
 				if reconnErr := m.tryReconnect(); reconnErr != nil {
-					m.Logger.Debug("failed to reconnect: %v", reconnErr)
+					m.Logger.Debug("reconnect failed: %v", reconnErr)
 				}
 
 				if errors.Is(err, io.EOF) {
-					m.Logger.Trace("connection closed by server")
+					m.Logger.Trace("server closed connection (EOF)")
 					return
 				}
 				continue
@@ -1249,9 +1249,9 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 					if strings.Contains(err.Error(), "object with provided crc") {
 						m.Logger.Warn(FormatDecodeError(err))
 					} else if !m.connState.InProgress.Load() {
-						m.Logger.Trace("reading message: %v", err)
+						m.Logger.Trace("read error: %v; reconnecting", err)
 						if err := m.tryReconnect(); err != nil {
-							m.Logger.Debug("failed to reconnect: %v", err)
+							m.Logger.Debug("reconnect failed: %v", err)
 						}
 					} else {
 						m.Logger.Trace("error during active reconnect, waiting")
@@ -1421,7 +1421,7 @@ messageTypeSwitching:
 		if v, ok := obj.(*objects.GzipPacked); ok {
 			obj = v.Obj
 		}
-		m.Logger.Trace("received RPC response: %T (msgID=%d)", obj, message.ReqMsgID)
+		m.Logger.Trace(" RPC < %T (msgID=%d)", obj, message.ReqMsgID)
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			if strings.Contains(err.Error(), "no response channel found") {
