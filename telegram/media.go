@@ -70,9 +70,7 @@ func (wp *WorkerPool) NextWithContext(ctx context.Context) *ExSender {
 	select {
 	case next := <-wp.free:
 		if !next.MTProto.IsTcpActive() {
-			go func(mt *ExSender) {
-				_ = mt.Reconnect(false)
-			}(next)
+			_ = next.Reconnect(false)
 		}
 
 		next.lastUsedMu.Lock()
@@ -219,7 +217,7 @@ func (s *Source) Close() error {
 
 // retryWithBackoff executes a function with retry logic and exponential backoff
 func retryWithBackoff(ctx context.Context, maxRetries int, baseDelay time.Duration, fn func(retryCount int) bool) {
-	for retry := 0; retry < maxRetries; retry++ {
+	for retry := range maxRetries {
 		if fn(retry) {
 			return
 		}
@@ -436,13 +434,12 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		if err != nil {
 			if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
 				if waitTime := GetFloodWait(err); waitTime > 0 {
-					backoff := time.Duration(waitTime+retryCount*retryCount) * time.Second
+					backoff := time.Duration(waitTime) * time.Second
 					c.Log.Debug(fmt.Sprintf("flood wait: sleeping %v (retry %d)", backoff, retryCount))
 					select {
 					case <-uploadCtx.Done():
 						return false
 					case <-time.After(backoff):
-						// After sleeping, return false to trigger retry
 						return false
 					}
 				}
@@ -528,7 +525,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 						return
 					}
 
-					retryWithBackoff(uploadCtx, 3, 200*time.Millisecond, func(retry int) bool {
+					retryWithBackoff(uploadCtx, 3, 100*time.Millisecond, func(retry int) bool {
 						if uploadPart(partNum, retryRound*3+retry) {
 							return true
 						}
@@ -681,7 +678,7 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 
 		var uploadErr error
 		for retry := range 5 {
-			ctx, cancel := context.WithTimeout(uploadCtx, 10*time.Second)
+			ctx, cancel := context.WithTimeout(uploadCtx, 60*time.Second)
 			if isBigFile {
 				_, uploadErr = c.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
 					FileID:         fileId,
@@ -713,7 +710,7 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 				}
 			}
 
-			if MatchError(uploadErr, "timeout") {
+			if MatchError(uploadErr, "timeout") || MatchError(uploadErr, "deadline exceeded") {
 				select {
 				case <-uploadCtx.Done():
 					return nil, uploadCtx.Err()
@@ -801,7 +798,7 @@ func countWorkers(parts int64) int {
 	} else if parts <= 500 {
 		return 10
 	} else {
-		return 12
+		return 8
 	}
 }
 
@@ -811,7 +808,7 @@ func chunkSizeCalc(size int64) int {
 	} else if size < 1024*1024*1024 {
 		return 512 * 1024
 	}
-	return 1024 * 1024
+	return 512 * 1024
 }
 
 type DownloadOptions struct {
@@ -997,13 +994,14 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 			return true
 		}
 
-		ctx, cancel := context.WithTimeout(downloadCtx, 5*time.Second)
+		ctx, cancel := context.WithTimeout(downloadCtx, 60*time.Second)
 		defer cancel()
 
 		sender := w.NextWithContext(ctx)
 		if sender == nil {
 			return false
 		}
+		defer w.FreeWorker(sender)
 
 		part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
 			Location:     location,
@@ -1017,18 +1015,25 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 			time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
 		}
 
-		w.FreeWorker(sender)
-
 		if err != nil {
+			if !sender.MTProto.IsTcpActive() || strings.Contains(err.Error(), "deadline exceeded") {
+				if strings.Contains(err.Error(), "deadline exceeded") {
+					_ = sender.Redial()
+					// brief pause to allow connection to settle/prevent tight loop
+					time.Sleep(250 * time.Millisecond)
+				} else {
+					_ = sender.Reconnect(false)
+				}
+			}
+
 			if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
 				if waitTime := GetFloodWait(err); waitTime > 0 {
-					backoff := time.Duration(waitTime+retryCount*retryCount) * time.Second
+					backoff := time.Duration(waitTime) * time.Second
 					c.Log.Debug(fmt.Sprintf("flood wait: sleeping %v (retry %d)", backoff, retryCount))
 					select {
 					case <-downloadCtx.Done():
 						return false
 					case <-time.After(backoff):
-						// After sleeping, return false to trigger retry
 						return false
 					}
 				}
@@ -1104,7 +1109,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 
 	const maxRetryRounds = 3
-	for round := range maxRetryRounds {
+	for round := 0; round < maxRetryRounds; round++ {
 		var failedParts []int
 		for p := 0; p < totalParts; p++ {
 			if !completedParts[p].Load() {
@@ -1136,8 +1141,8 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 						return
 					}
 
-					retryWithBackoff(downloadCtx, 3, 200*time.Millisecond, func(retry int) bool {
-						if downloadPart(partNum, retryRound*3+retry) {
+					retryWithBackoff(downloadCtx, 5, 100*time.Millisecond, func(retry int) bool {
+						if downloadPart(partNum, retryRound) {
 							return true
 						}
 						return downloadCtx.Err() != nil || globalErr.Load() != nil || cdnRedirect.Load()

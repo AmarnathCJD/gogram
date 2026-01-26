@@ -256,7 +256,7 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 		Ipv6:            m.IpV6,
 		CustomHost:      true,
 		LocalAddr:       m.localAddr,
-		Timeout:         int(m.timeout.Seconds()),
+		Timeout:         int(m.connConfig.Timeout.Seconds()),
 		ReqTimeout:      int(m.reqTimeout.Seconds()),
 		UseWebSocket:    m.useWebSocket,
 		UseWebSocketTLS: m.useWebSocketTLS,
