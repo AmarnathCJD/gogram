@@ -33,6 +33,21 @@ const (
 	defaultPendingAcksThreshold = 10
 )
 
+type ReconnectConfig struct {
+	MaxAttempts int
+	BaseDelay   time.Duration
+	MaxDelay    time.Duration
+	Timeout     time.Duration
+}
+
+type ReconnectState struct {
+	InProgress              atomic.Bool
+	Attempts                atomic.Int32
+	ConsecutiveTimeouts     atomic.Int32
+	ConsecutiveTimeoutStart atomic.Int64
+	LastSuccessfulConnect   atomic.Int64
+}
+
 type MTProto struct {
 	Addr      atomic.Value
 	appID     int32
@@ -94,17 +109,9 @@ type MTProto struct {
 	cdn                   bool
 	terminated            atomic.Bool
 	senderCounters        sync.Map // map[int]int32 - tracks sender count per DC
-	// Reconnection state (consolidated for simplicity)
-	reconnectInProgress   atomic.Bool
-	reconnectAttempts     atomic.Int32
-	consecutiveTimeouts   atomic.Int32
-	lastSuccessfulConnect atomic.Int64 // Unix timestamp
 
-	// Reconnection configuration
-	timeout              time.Duration
-	maxReconnectDelay    time.Duration
-	maxReconnectAttempts int
-	baseReconnectDelay   time.Duration
+	connConfig ReconnectConfig
+	connState  ReconnectState
 
 	useWebSocket    bool
 	useWebSocketTLS bool
@@ -112,7 +119,6 @@ type MTProto struct {
 
 	onMigration func()
 
-	// Message tracking for debugging (maps msgID to request type and timestamp)
 	messageTracker  *utils.SyncIntInt64
 	messageTypesMap sync.Map // msgID -> request type name
 	maxRetryDepth   int      // Maximum retry depth to prevent stack overflow
@@ -198,24 +204,26 @@ func NewMTProto(c Config) (*MTProto, error) {
 		IpV6:                  c.Ipv6,
 		tcpState:              NewTcpState(),
 		DcList:                utils.NewDCOptions(),
-		timeout:               utils.MinSafeDuration(c.Timeout),
-		maxReconnectDelay:     utils.OrDefault(c.MaxReconnectDelay, 15*time.Minute),
-		maxReconnectAttempts:  utils.OrDefault(c.MaxReconnectAttempts, defaultMaxReconnectAttempts),
-		baseReconnectDelay:    utils.OrDefault(c.BaseReconnectDelay, defaultBaseReconnectDelay),
-		useWebSocket:          c.UseWebSocket,
-		useWebSocketTLS:       c.UseWebSocketTLS,
-		enablePFS:             c.EnablePFS,
-		onMigration:           c.OnMigration,
-		messageTracker:        utils.NewSyncIntInt64(),
-		maxRetryDepth:         10, // Maximum retry depth to prevent stack overflow
+		connConfig: ReconnectConfig{
+			Timeout:     utils.MinSafeDuration(c.Timeout),
+			MaxDelay:    utils.OrDefault(c.MaxReconnectDelay, 15*time.Minute),
+			MaxAttempts: utils.OrDefault(c.MaxReconnectAttempts, defaultMaxReconnectAttempts),
+			BaseDelay:   utils.OrDefault(c.BaseReconnectDelay, defaultBaseReconnectDelay),
+		},
+		useWebSocket:    c.UseWebSocket,
+		useWebSocketTLS: c.UseWebSocketTLS,
+		enablePFS:       c.EnablePFS,
+		onMigration:     c.OnMigration,
+		messageTracker:  utils.NewSyncIntInt64(),
+		maxRetryDepth:   10,
 	}
 
 	mtproto.SetAddr(c.ServerHost)
 	mtproto.encrypted.Store(false)
 	mtproto.sessionId.Store(utils.GenerateSessionID())
-	mtproto.reconnectAttempts.Store(0)
+	mtproto.connState.Attempts.Store(0)
 
-	mtproto.Logger.Debug("initializing MTProto client")
+	mtproto.Logger.Debug("mtproto sender initialized")
 
 	if loaded != nil || c.StringSession != "" {
 		mtproto.encrypted.Store(true)
@@ -297,7 +305,7 @@ func (m *MTProto) ImportRawAuth(authKey, authKeyHash []byte, addr string, appID 
 	m.authKey = authKey
 	m.authKeyHash = authKeyHash
 	m.appID = appID
-	m.Logger.Debug("importing raw authentication credentials")
+	m.Logger.Debug("importing raw auth credentials")
 	if err := m.SaveSession(m.memorySession); err != nil {
 		return false, fmt.Errorf("saving session: %w", err)
 	}
@@ -319,7 +327,7 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 	if m.appID == 0 {
 		m.appID = sessionString.AppID
 	}
-	m.Logger.Debug("importing session from string: %s", utils.FmtIP(sessionString.IpAddr))
+	m.Logger.Debug("importing session from string (%s)", utils.FmtIP(sessionString.IpAddr))
 	if err := m.SaveSession(m.memorySession); err != nil {
 		return false, fmt.Errorf("saving session: %w", err)
 	}
@@ -396,10 +404,10 @@ func (m *MTProto) SwitchDc(dc int) error {
 		return fmt.Errorf("dc %d not found in dc list", dc)
 	}
 
-	m.Logger.Debug("initiating migration to DC%d", dc)
+	m.Logger.Debug("migrating to DC%d", dc)
 
-	m.reconnectInProgress.Store(true)
-	defer m.reconnectInProgress.Store(false)
+	m.connState.InProgress.Store(true)
+	defer m.connState.InProgress.Store(false)
 
 	if err := m.Disconnect(); err != nil {
 		return err
@@ -408,7 +416,7 @@ func (m *MTProto) SwitchDc(dc int) error {
 	if err := m.sessionStorage.Delete(); err != nil {
 		return err
 	}
-	m.Logger.Debug("cleared old session data")
+	m.Logger.Debug("cleared old session for migration")
 
 	m.authKey = nil
 	m.authKeyHash = nil
@@ -426,9 +434,10 @@ func (m *MTProto) SwitchDc(dc int) error {
 	m.currentSeqNo.Store(0)
 
 	m.authKey404 = [2]int64{0, 0}
-	m.reconnectAttempts.Store(0)
-	m.consecutiveTimeouts.Store(0)
-	m.lastSuccessfulConnect.Store(0)
+	m.authKey404 = [2]int64{0, 0}
+	m.connState.Attempts.Store(0)
+	m.connState.ConsecutiveTimeouts.Store(0)
+	m.connState.LastSuccessfulConnect.Store(0)
 	m.SetAddr(newAddr)
 
 	m.Logger.Info("migrated to DC%d (%s)", dc, newAddr)
@@ -474,7 +483,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 		LocalAddr:       m.localAddr,
 		AppID:           m.appID,
 		Ipv6:            m.IpV6,
-		Timeout:         int(m.timeout.Seconds()),
+		Timeout:         int(m.connConfig.Timeout.Seconds()),
 		ReqTimeout:      int(m.reqTimeout.Seconds()),
 		UseWebSocket:    m.useWebSocket,
 		UseWebSocketTLS: m.useWebSocketTLS,
@@ -509,7 +518,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 func (m *MTProto) connectWithRetry(ctx context.Context) error {
 	err := m.connect(ctx)
 	if err == nil {
-		m.reconnectAttempts.Store(0)
+		m.connState.Attempts.Store(0)
 		return nil
 	}
 
@@ -518,23 +527,29 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 		return m.connectionHandler(err)
 	}
 
-	for attempt := range m.maxReconnectAttempts {
+	for attempt := range m.connConfig.MaxAttempts {
 		err := m.connect(ctx)
 		if err == nil {
 			if attempt > 0 {
 				m.Logger.Info("reconnected successfully after %d attempts", attempt+1)
 			}
-			m.reconnectAttempts.Store(0)
+			m.connState.Attempts.Store(0)
 			return nil
+		}
+
+		if m.proxy != nil && m.proxy.Type == "mtproxy" {
+			if strings.Contains(err.Error(), "connecting to mtproxy") {
+				return fmt.Errorf("mtproxy connection failed: %w", err)
+			}
 		}
 
 		if m.terminated.Load() {
 			return fmt.Errorf("mtproto terminated during reconnection")
 		}
 
-		delay := min(time.Duration(1<<uint(attempt))*m.baseReconnectDelay, m.maxReconnectDelay)
+		delay := min(time.Duration(1<<uint(attempt))*m.connConfig.BaseDelay, m.connConfig.MaxDelay)
 
-		m.Logger.Debug("reconnection failed (%d/%d): %v; retrying in %s", attempt+1, m.maxReconnectAttempts, err, delay)
+		m.Logger.Debug("reconnection failed (%d/%d): %v; retrying in %s", attempt+1, m.connConfig.MaxAttempts, err, delay)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -543,7 +558,7 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 		}
 	}
 
-	return fmt.Errorf("max reconnection attempts (%d) reached", m.maxReconnectAttempts)
+	return fmt.Errorf("max reconnection attempts (%d) reached", m.connConfig.MaxAttempts)
 }
 
 func (m *MTProto) CreateConnection(withLog bool) error {
@@ -604,12 +619,12 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 
 	if !m.encrypted.Load() {
-		m.Logger.Debug("no auth key found, generating new key")
+		m.Logger.Debug("generating new auth key")
 		err = m.makeAuthKey()
 		if err != nil {
 			return err
 		}
-		m.Logger.Debug("auth key generated successfully")
+		m.Logger.Debug("auth key generated")
 	}
 
 	// Start Perfect Forward Secrecy manager if enabled on the main connection.
@@ -630,13 +645,13 @@ func (m *MTProto) connect(ctx context.Context) error {
 		}
 	}
 
-	m.Logger.Debug("initializing %s transport for DC%d", transportType, dcId)
+	m.Logger.Debug("init transport %s for DC%d", transportType, dcId)
 
 	var err error
 	cfg := transport.CommonConfig{
 		Ctx:         ctx,
 		Host:        utils.FmtIP(m.GetAddr()),
-		Timeout:     m.timeout,
+		Timeout:     m.connConfig.Timeout,
 		Socks:       m.proxy,
 		LocalAddr:   m.localAddr,
 		ModeVariant: uint8(m.mode),
@@ -667,7 +682,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 	m.transport = newTransport
 	m.transportMu.Unlock()
 
-	m.Logger.Trace("%s transport initialized", transportType)
+	m.Logger.Trace("transport ready")
 
 	if err := m.checkRapidReconnect(); err != nil {
 		return err
@@ -836,14 +851,26 @@ func (m *MTProto) makeRequestCtxWithDepth(ctx context.Context, data tl.Object, r
 		}
 
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			count := m.consecutiveTimeouts.Add(1)
+			count := m.connState.ConsecutiveTimeouts.Add(1)
+			if count == 1 {
+				m.connState.ConsecutiveTimeoutStart.Store(time.Now().Unix())
+			}
+
 			if count >= 5 {
-				m.Logger.Warn("5 consecutive timeouts (request=%T, tcp_active=%v, retryDepth=%d); reconnecting", data, m.tcpState.GetActive(), retryDepth)
-				m.consecutiveTimeouts.Store(0)
-				m.tryReconnect()
+				duration := time.Now().Unix() - m.connState.ConsecutiveTimeoutStart.Load()
+				// If 5 timeouts happen within 60 seconds, it's a rapid failure -> reconnect
+				// Otherwise, it might be just slow network -> reset counter to avoid "random" reconnects later
+				if duration < 60 {
+					m.Logger.Debug("5 consecutive timeouts in %ds (request=%T, tcp_active=%v, retryDepth=%d); reconnecting", duration, data, m.tcpState.GetActive(), retryDepth)
+					m.connState.ConsecutiveTimeouts.Store(0)
+					m.tryReconnect()
+				} else {
+					m.Logger.Debug("5 consecutive timeouts in %ds (slow accumulation); resetting counter", duration)
+					m.connState.ConsecutiveTimeouts.Store(0)
+				}
 			}
 		} else {
-			m.consecutiveTimeouts.Store(0)
+			m.connState.ConsecutiveTimeouts.Store(0)
 		}
 
 		err := fmt.Errorf("request timeout: %w", ctx.Err())
@@ -856,7 +883,7 @@ func (m *MTProto) makeRequestCtxWithDepth(ctx context.Context, data tl.Object, r
 		return nil, err
 
 	case resp := <-respChan:
-		m.consecutiveTimeouts.Store(0)
+		m.connState.ConsecutiveTimeouts.Store(0)
 		if msgID != 0 {
 			m.messageTracker.Delete(int(msgID))
 			if reqType, ok := m.messageTypesMap.LoadAndDelete(msgID); ok {
@@ -1000,12 +1027,12 @@ func (m *MTProto) SetTerminated(val bool) {
 }
 
 func (m *MTProto) Reconnect(loggy bool) error {
-	if !m.reconnectInProgress.CompareAndSwap(false, true) {
+	if !m.connState.InProgress.CompareAndSwap(false, true) {
 		m.Logger.Trace("reconnection already in progress, skipping duplicate attempt")
 		time.Sleep(50 * time.Millisecond)
 		return nil
 	}
-	defer m.reconnectInProgress.Store(false)
+	defer m.connState.InProgress.Store(false)
 
 	if m.terminated.Load() {
 		m.Logger.Trace("skipping reconnect: mtproto is terminated")
@@ -1041,6 +1068,33 @@ func (m *MTProto) Reconnect(loggy bool) error {
 		m.Ping()
 	}
 
+	return nil
+}
+
+func (m *MTProto) Redial() error {
+	if !m.connState.InProgress.CompareAndSwap(false, true) {
+		m.Logger.Trace("redialing already in progress")
+		return nil
+	}
+	defer m.connState.InProgress.Store(false)
+
+	m.Logger.Debug("forcing transport redial")
+	m.tcpState.SetActive(false)
+
+	m.transportMu.Lock()
+	if m.transport != nil {
+		m.transport.Close()
+	}
+	m.transportMu.Unlock()
+
+	if err := m.connectWithRetry(context.TODO()); err != nil {
+		m.Logger.WithError(err).Error("redial failed")
+		return err
+	}
+
+	m.tcpState.SetActive(true)
+	m.connState.ConsecutiveTimeouts.Store(0)
+	m.Logger.Debug("transport redial successful")
 	return nil
 }
 
@@ -1093,8 +1147,8 @@ func (m *MTProto) tryReconnect() error {
 // Uses exponential backoff naturally via reconnectAttempts counter
 func (m *MTProto) checkRapidReconnect() error {
 	now := time.Now().Unix()
-	last := m.lastSuccessfulConnect.Load()
-	attempts := m.reconnectAttempts.Load()
+	last := m.connState.LastSuccessfulConnect.Load()
+	attempts := m.connState.Attempts.Load()
 
 	if last > 0 && (now-last) < 5 && attempts >= 10 {
 		m.Logger.Warn("rapid reconnection loop detected: %d attempts within 5 seconds", attempts)
@@ -1105,10 +1159,10 @@ func (m *MTProto) checkRapidReconnect() error {
 	}
 
 	if last > 0 && (now-last) > 30 {
-		m.reconnectAttempts.Store(0)
+		m.connState.Attempts.Store(0)
 	}
 
-	m.lastSuccessfulConnect.Store(now)
+	m.connState.LastSuccessfulConnect.Store(now)
 	return nil
 }
 
@@ -1163,19 +1217,19 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			}
 
 			if isBrokenError(err) {
-				if m.reconnectInProgress.Load() {
+				if m.connState.InProgress.Load() {
 					m.Logger.Trace("connection error but reconnect in progress, sleeping: %v", err)
 					time.Sleep(50 * time.Millisecond)
 					continue
 				}
 
-				m.Logger.Trace("connection error: %v; reconnecting to %s (%s)", err, utils.FmtIP(m.GetAddr()), m.GetTransportType())
+				m.Logger.Trace("connection lost: %v; reconnecting", err)
 				if reconnErr := m.tryReconnect(); reconnErr != nil {
-					m.Logger.Debug("failed to reconnect: %v", reconnErr)
+					m.Logger.Debug("reconnect failed: %v", reconnErr)
 				}
 
 				if errors.Is(err, io.EOF) {
-					m.Logger.Trace("connection closed by server")
+					m.Logger.Trace("server closed connection (EOF)")
 					return
 				}
 				continue
@@ -1200,10 +1254,10 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				if !m.terminated.Load() {
 					if strings.Contains(err.Error(), "object with provided crc") {
 						m.Logger.Warn(FormatDecodeError(err))
-					} else if !m.reconnectInProgress.Load() {
-						m.Logger.Trace("reading message: %v", err)
+					} else if !m.connState.InProgress.Load() {
+						m.Logger.Trace("read error: %v; reconnecting", err)
 						if err := m.tryReconnect(); err != nil {
-							m.Logger.Debug("failed to reconnect: %v", err)
+							m.Logger.Debug("reconnect failed: %v", err)
 						}
 					} else {
 						m.Logger.Trace("error during active reconnect, waiting")
@@ -1373,7 +1427,7 @@ messageTypeSwitching:
 		if v, ok := obj.(*objects.GzipPacked); ok {
 			obj = v.Obj
 		}
-		m.Logger.Trace("received RPC response: %T (msgID=%d)", obj, message.ReqMsgID)
+		m.Logger.Trace(" RPC < %T (msgID=%d)", obj, message.ReqMsgID)
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			if strings.Contains(err.Error(), "no response channel found") {
