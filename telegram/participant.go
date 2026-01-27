@@ -53,18 +53,7 @@ func (pu *ParticipantUpdate) IsAdded() bool {
 		}
 	}
 
-	if pu.Old != nil && pu.New != nil {
-		if _, ok := pu.Old.(*ChannelParticipantBanned); ok {
-			if _, ok := pu.New.(*ChannelParticipantObj); ok {
-				return true
-			}
-		}
-		if _, ok := pu.Old.(*ChannelParticipantLeft); ok {
-			if _, ok := pu.New.(*ChannelParticipantObj); ok {
-				return true
-			}
-		}
-	} else if pu.Old == nil && pu.New != nil {
+	if pu.Old == nil && pu.New != nil {
 		if _, ok := pu.New.(*ChannelParticipantObj); ok {
 			return true
 		} else if _, ok := pu.New.(*ChannelParticipantAdmin); ok {
@@ -85,18 +74,7 @@ func (pu *ParticipantUpdate) IsJoined() bool {
 		}
 	}
 
-	if pu.Old != nil && pu.New != nil {
-		if _, ok := pu.Old.(*ChannelParticipantLeft); ok {
-			if _, ok := pu.New.(*ChannelParticipantObj); ok {
-				return true
-			}
-		}
-		if _, ok := pu.Old.(*ChannelParticipantBanned); ok {
-			if _, ok := pu.New.(*ChannelParticipantObj); ok {
-				return true
-			}
-		}
-	} else if pu.Old == nil && pu.New != nil {
+	if pu.Old == nil && pu.New != nil {
 		if _, ok := pu.New.(*ChannelParticipantObj); ok {
 			return true
 		}
