@@ -416,7 +416,7 @@ func (e AuthCodeType) String() string {
 
 func (e AuthCodeType) CRC() uint32 { return uint32(e) }
 
-type MessagesMessageEmpty uint32
+type MessagesMessageEmpty uint32 // Lets see tl Parser Magic
 
 const (
 	MessagesMessageEmpty MessagesMessageEmpty = 0x3f4e0648
