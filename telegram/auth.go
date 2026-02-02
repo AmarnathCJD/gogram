@@ -157,7 +157,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 				if matchError(err, "The phone code entered was invalid") {
 					fmt.Println("The phone code entered was invalid, please try again!")
 					continue
-				} else if matchError(err, "Two-steps verification is enabled") || matchError(err, "2FA is enabled, use a password to login") {
+				} else if matchError(err, "Two-steps verification is enabled") || matchError(err, "2FA is enabled, use a password to login") { // TODO: Implement matchRPCError
 				acceptPasswordInput:
 					if opts.Password != "" {
 						for {
