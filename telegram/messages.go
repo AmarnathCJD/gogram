@@ -73,11 +73,13 @@ func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMes
 		textMessage = message.MessageText()
 		rawText = message.MessageText()
 		media = message.Media()
+		opt.ReplyMarkup = getValue(opt.ReplyMarkup, *message.ReplyMarkup())
 	case *NewMessage:
 		entities = message.Message.Entities
 		textMessage = message.MessageText()
 		rawText = message.MessageText()
 		media = message.Media()
+		opt.ReplyMarkup = getValue(opt.ReplyMarkup, *message.ReplyMarkup())
 	default:
 		return nil, fmt.Errorf("invalid message type: %s", reflect.TypeOf(message))
 	}
