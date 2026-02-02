@@ -696,6 +696,27 @@ func (c *Client) AccountGetChatThemes(hash int64) (AccountThemes, error) {
 	return resp, nil
 }
 
+type AccountGetCollectibleEmojiStatusesParams struct {
+	Hash int64
+}
+
+func (*AccountGetCollectibleEmojiStatusesParams) CRC() uint32 {
+	return 0x2e7b4543
+}
+
+func (c *Client) AccountGetCollectibleEmojiStatuses(hash int64) (AccountEmojiStatuses, error) {
+	responseData, err := c.MakeRequest(&AccountGetCollectibleEmojiStatusesParams{Hash: hash})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending AccountGetCollectibleEmojiStatuses")
+	}
+
+	resp, ok := responseData.(AccountEmojiStatuses)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type AccountGetConnectedBotsParams struct{}
 
 func (*AccountGetConnectedBotsParams) CRC() uint32 {
@@ -3653,7 +3674,7 @@ type BotsGetBotRecommendationsParams struct {
 }
 
 func (*BotsGetBotRecommendationsParams) CRC() uint32 {
-	return 0x2855be61
+	return 0xa1b70815
 }
 
 func (c *Client) BotsGetBotRecommendations(bot InputUser) (UsersUsers, error) {
@@ -8543,10 +8564,11 @@ type MessagesForwardMessagesParams struct {
 	ScheduleDate       int32                   `tl:"flag:10"`
 	SendAs             InputPeer               `tl:"flag:13"`
 	QuickReplyShortcut InputQuickReplyShortcut `tl:"flag:17"`
+	VideoTimestamp     int32                   `tl:"flag:20"`
 }
 
 func (*MessagesForwardMessagesParams) CRC() uint32 {
-	return 0xd5039208
+	return 0x6d74da08
 }
 
 func (*MessagesForwardMessagesParams) FlagIndex() int {
@@ -8850,27 +8872,6 @@ func (c *Client) MessagesGetBotCallbackAnswer(params *MessagesGetBotCallbackAnsw
 	}
 
 	resp, ok := responseData.(*MessagesBotCallbackAnswer)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesGetBotRecommendationsParams struct {
-	Bot InputUser
-}
-
-func (*MessagesGetBotRecommendationsParams) CRC() uint32 {
-	return 0xa1b70815
-}
-
-func (c *Client) MessagesGetBotRecommendations(bot InputUser) (UsersUsers, error) {
-	responseData, err := c.MakeRequest(&MessagesGetBotRecommendationsParams{Bot: bot})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetBotRecommendations")
-	}
-
-	resp, ok := responseData.(UsersUsers)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -10750,27 +10751,6 @@ func (c *Client) MessagesGetTopReactions(limit int32, hash int64) (MessagesReact
 	}
 
 	resp, ok := responseData.(MessagesReactions)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesGetUniqueStarGiftParams struct {
-	Slug string
-}
-
-func (*MessagesGetUniqueStarGiftParams) CRC() uint32 {
-	return 0xa1974d72
-}
-
-func (c *Client) MessagesGetUniqueStarGift(slug string) (*PaymentsUniqueStarGift, error) {
-	responseData, err := c.MakeRequest(&MessagesGetUniqueStarGiftParams{Slug: slug})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetUniqueStarGift")
-	}
-
-	resp, ok := responseData.(*PaymentsUniqueStarGift)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -14145,16 +14125,16 @@ func (c *Client) PaymentsConnectStarRefBot(peer InputPeer, bot InputUser) (*Paym
 }
 
 type PaymentsConvertStarGiftParams struct {
-	MsgID int32
+	Stargift InputSavedStarGift
 }
 
 func (*PaymentsConvertStarGiftParams) CRC() uint32 {
-	return 0x72770c83
+	return 0x74bf076b
 }
 
 // Convert a received gift » into Telegram Stars: this will permanently destroy the gift, converting it into starGift.`convert_stars` Telegram Stars, added to the user's balance.
-func (c *Client) PaymentsConvertStarGift(msgID int32) (bool, error) {
-	responseData, err := c.MakeRequest(&PaymentsConvertStarGiftParams{MsgID: msgID})
+func (c *Client) PaymentsConvertStarGift(stargift InputSavedStarGift) (bool, error) {
+	responseData, err := c.MakeRequest(&PaymentsConvertStarGiftParams{Stargift: stargift})
 	if err != nil {
 		return false, errors.Wrap(err, "sending PaymentsConvertStarGift")
 	}
@@ -14456,6 +14436,60 @@ func (c *Client) PaymentsGetSavedInfo() (*PaymentsSavedInfo, error) {
 	return resp, nil
 }
 
+type PaymentsGetSavedStarGiftParams struct {
+	Stargift []InputSavedStarGift
+}
+
+func (*PaymentsGetSavedStarGiftParams) CRC() uint32 {
+	return 0xb455a106
+}
+
+func (c *Client) PaymentsGetSavedStarGift(stargift []InputSavedStarGift) (*PaymentsSavedStarGifts, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetSavedStarGiftParams{Stargift: stargift})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetSavedStarGift")
+	}
+
+	resp, ok := responseData.(*PaymentsSavedStarGifts)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsGetSavedStarGiftsParams struct {
+	ExcludeUnsaved   bool `tl:"flag:0,encoded_in_bitflags"`
+	ExcludeSaved     bool `tl:"flag:1,encoded_in_bitflags"`
+	ExcludeUnlimited bool `tl:"flag:2,encoded_in_bitflags"`
+	ExcludeLimited   bool `tl:"flag:3,encoded_in_bitflags"`
+	ExcludeUnique    bool `tl:"flag:4,encoded_in_bitflags"`
+	SortByValue      bool `tl:"flag:5,encoded_in_bitflags"`
+	Peer             InputPeer
+	Offset           string
+	Limit            int32
+}
+
+func (*PaymentsGetSavedStarGiftsParams) CRC() uint32 {
+	return 0x23830de9
+}
+
+func (*PaymentsGetSavedStarGiftsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsGetSavedStarGifts(params *PaymentsGetSavedStarGiftsParams) (*PaymentsSavedStarGifts, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetSavedStarGifts")
+	}
+
+	resp, ok := responseData.(*PaymentsSavedStarGifts)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsGetStarGiftUpgradePreviewParams struct {
 	GiftID int64
 }
@@ -14471,6 +14505,31 @@ func (c *Client) PaymentsGetStarGiftUpgradePreview(giftID int64) (*PaymentsStarG
 	}
 
 	resp, ok := responseData.(*PaymentsStarGiftUpgradePreview)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsGetStarGiftWithdrawalURLParams struct {
+	Stargift InputSavedStarGift
+	Password InputCheckPasswordSRP
+}
+
+func (*PaymentsGetStarGiftWithdrawalURLParams) CRC() uint32 {
+	return 0xd06e93a8
+}
+
+func (c *Client) PaymentsGetStarGiftWithdrawalURL(stargift InputSavedStarGift, password InputCheckPasswordSRP) (*PaymentsStarGiftWithdrawalURL, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarGiftWithdrawalURLParams{
+		Password: password,
+		Stargift: stargift,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetStarGiftWithdrawalURL")
+	}
+
+	resp, ok := responseData.(*PaymentsStarGiftWithdrawalURL)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -14787,49 +14846,21 @@ func (c *Client) PaymentsGetSuggestedStarRefBots(params *PaymentsGetSuggestedSta
 	return resp, nil
 }
 
-type PaymentsGetUserStarGiftParams struct {
-	MsgID []int32
+type PaymentsGetUniqueStarGiftParams struct {
+	Slug string
 }
 
-func (*PaymentsGetUserStarGiftParams) CRC() uint32 {
-	return 0xb502e4a5
+func (*PaymentsGetUniqueStarGiftParams) CRC() uint32 {
+	return 0xa1974d72
 }
 
-func (c *Client) PaymentsGetUserStarGift(msgID []int32) (*PaymentsUserStarGifts, error) {
-	responseData, err := c.MakeRequest(&PaymentsGetUserStarGiftParams{MsgID: msgID})
+func (c *Client) PaymentsGetUniqueStarGift(slug string) (*PaymentsUniqueStarGift, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetUniqueStarGiftParams{Slug: slug})
 	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetUserStarGift")
+		return nil, errors.Wrap(err, "sending PaymentsGetUniqueStarGift")
 	}
 
-	resp, ok := responseData.(*PaymentsUserStarGifts)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type PaymentsGetUserStarGiftsParams struct {
-	UserID InputUser
-	Offset string
-	Limit  int32
-}
-
-func (*PaymentsGetUserStarGiftsParams) CRC() uint32 {
-	return 0x5e72c7e1
-}
-
-// Get the gifts » pinned on a specific user's profile.
-func (c *Client) PaymentsGetUserStarGifts(userID InputUser, offset string, limit int32) (*PaymentsUserStarGifts, error) {
-	responseData, err := c.MakeRequest(&PaymentsGetUserStarGiftsParams{
-		Limit:  limit,
-		Offset: offset,
-		UserID: userID,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending PaymentsGetUserStarGifts")
-	}
-
-	resp, ok := responseData.(*PaymentsUserStarGifts)
+	resp, ok := responseData.(*PaymentsUniqueStarGift)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -14918,12 +14949,12 @@ func (c *Client) PaymentsRequestRecurringPayment(userID InputUser, recurringInit
 }
 
 type PaymentsSaveStarGiftParams struct {
-	Unsave bool `tl:"flag:0,encoded_in_bitflags"`
-	MsgID  int32
+	Unsave   bool `tl:"flag:0,encoded_in_bitflags"`
+	Stargift InputSavedStarGift
 }
 
 func (*PaymentsSaveStarGiftParams) CRC() uint32 {
-	return 0x92fd2aae
+	return 0x2a2a697c
 }
 
 func (*PaymentsSaveStarGiftParams) FlagIndex() int {
@@ -14931,10 +14962,10 @@ func (*PaymentsSaveStarGiftParams) FlagIndex() int {
 }
 
 // Display or remove a received gift » from our profile.
-func (c *Client) PaymentsSaveStarGift(unsave bool, msgID int32) (bool, error) {
+func (c *Client) PaymentsSaveStarGift(unsave bool, stargift InputSavedStarGift) (bool, error) {
 	responseData, err := c.MakeRequest(&PaymentsSaveStarGiftParams{
-		MsgID:  msgID,
-		Unsave: unsave,
+		Stargift: stargift,
+		Unsave:   unsave,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending PaymentsSaveStarGift")
@@ -15004,19 +15035,48 @@ func (c *Client) PaymentsSendStarsForm(formID int64, invoice InputInvoice) (Paym
 	return resp, nil
 }
 
+type PaymentsToggleChatStarGiftNotificationsParams struct {
+	Enabled bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer    InputPeer
+}
+
+func (*PaymentsToggleChatStarGiftNotificationsParams) CRC() uint32 {
+	return 0x60eaefa1
+}
+
+func (*PaymentsToggleChatStarGiftNotificationsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsToggleChatStarGiftNotifications(enabled bool, peer InputPeer) (bool, error) {
+	responseData, err := c.MakeRequest(&PaymentsToggleChatStarGiftNotificationsParams{
+		Enabled: enabled,
+		Peer:    peer,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending PaymentsToggleChatStarGiftNotifications")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsTransferStarGiftParams struct {
-	MsgID int32
-	ToID  InputUser
+	Stargift InputSavedStarGift
+	ToID     InputPeer
 }
 
 func (*PaymentsTransferStarGiftParams) CRC() uint32 {
-	return 0x333fb526
+	return 0x7f18176a
 }
 
-func (c *Client) PaymentsTransferStarGift(msgID int32, toID InputUser) (Updates, error) {
+func (c *Client) PaymentsTransferStarGift(stargift InputSavedStarGift, toID InputPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsTransferStarGiftParams{
-		MsgID: msgID,
-		ToID:  toID,
+		Stargift: stargift,
+		ToID:     toID,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending PaymentsTransferStarGift")
@@ -15031,21 +15091,21 @@ func (c *Client) PaymentsTransferStarGift(msgID int32, toID InputUser) (Updates,
 
 type PaymentsUpgradeStarGiftParams struct {
 	KeepOriginalDetails bool `tl:"flag:0,encoded_in_bitflags"`
-	MsgID               int32
+	Stargift            InputSavedStarGift
 }
 
 func (*PaymentsUpgradeStarGiftParams) CRC() uint32 {
-	return 0xcf4f0781
+	return 0xaed6e4f5
 }
 
 func (*PaymentsUpgradeStarGiftParams) FlagIndex() int {
 	return 0
 }
 
-func (c *Client) PaymentsUpgradeStarGift(keepOriginalDetails bool, msgID int32) (Updates, error) {
+func (c *Client) PaymentsUpgradeStarGift(keepOriginalDetails bool, stargift InputSavedStarGift) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsUpgradeStarGiftParams{
 		KeepOriginalDetails: keepOriginalDetails,
-		MsgID:               msgID,
+		Stargift:            stargift,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending PaymentsUpgradeStarGift")
