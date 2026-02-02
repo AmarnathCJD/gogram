@@ -598,10 +598,10 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 		if result != nil {
 			updates := processUpdates(result)
 			for _, update := range updates {
-				update.PeerID = c.getPeer(Peer)
+				update.(*MessageObj).PeerID = c.getPeer(Peer)
 			}
 
-			results = append(results, packMessages(c, updates)...)
+			results = append(results, PackMessages(c, updates)...)
 		}
 
 		time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)

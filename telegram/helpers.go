@@ -198,8 +198,8 @@ func calculateSha256Hash(localFile string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-func processUpdates(updates Updates) []*MessageObj {
-	var messages []*MessageObj
+func processUpdates(updates Updates) []Message {
+	var messages []Message
 	switch updates := updates.(type) {
 	case *UpdatesObj:
 		for _, update := range updates.Updates {
@@ -941,7 +941,7 @@ func (c *Client) ResolveUsername(username string, ref ...string) (any, error) {
 	}
 }
 
-func packMessages(c *Client, messages []*MessageObj) []*NewMessage {
+func PackMessages(c *Client, messages []Message) []*NewMessage {
 	var (
 		packedMessages []*NewMessage
 	)
