@@ -342,6 +342,54 @@ func (*BotMenuButtonDefault) CRC() uint32 {
 
 func (*BotMenuButtonDefault) ImplementsBotMenuButton() {}
 
+type BroadcastRevenueTransaction interface {
+	tl.Object
+	ImplementsBroadcastRevenueTransaction()
+}
+type BroadcastRevenueTransactionProceeds struct {
+	Amount   int64
+	FromDate int32
+	ToDate   int32
+}
+
+func (*BroadcastRevenueTransactionProceeds) CRC() uint32 {
+	return 0x557e2cc4
+}
+
+func (*BroadcastRevenueTransactionProceeds) ImplementsBroadcastRevenueTransaction() {}
+
+type BroadcastRevenueTransactionRefund struct {
+	Amount   int64
+	Date     int32
+	Provider string
+}
+
+func (*BroadcastRevenueTransactionRefund) CRC() uint32 {
+	return 0x42d30d2e
+}
+
+func (*BroadcastRevenueTransactionRefund) ImplementsBroadcastRevenueTransaction() {}
+
+type BroadcastRevenueTransactionWithdrawal struct {
+	Pending         bool `tl:"flag:0,encoded_in_bitflags"`
+	Failed          bool `tl:"flag:2,encoded_in_bitflags"`
+	Amount          int64
+	Date            int32
+	Provider        string
+	TransactionDate int32  `tl:"flag:1"`
+	TransactionURL  string `tl:"flag:1"`
+}
+
+func (*BroadcastRevenueTransactionWithdrawal) CRC() uint32 {
+	return 0x5a590978
+}
+
+func (*BroadcastRevenueTransactionWithdrawal) FlagIndex() int {
+	return 0
+}
+
+func (*BroadcastRevenueTransactionWithdrawal) ImplementsBroadcastRevenueTransaction() {}
+
 type BusinessAwayMessageSchedule interface {
 	tl.Object
 	ImplementsBusinessAwayMessageSchedule()
@@ -1260,6 +1308,8 @@ type ChannelFull struct {
 	TranslationsDisabled   bool `tl:"flag2:3,encoded_in_bitflags"`
 	StoriesPinnedAvailable bool `tl:"flag2:5,encoded_in_bitflags"`
 	ViewForumAsMessages    bool `tl:"flag2:6,encoded_in_bitflags"`
+	RestrictedSponsored    bool `tl:"flag2:11,encoded_in_bitflags"`
+	CanViewRevenue         bool `tl:"flag2:12,encoded_in_bitflags"`
 	ID                     int64
 	About                  string
 	ParticipantsCount      int32 `tl:"flag:0"`
@@ -2670,6 +2720,30 @@ func (*InputCheckPasswordSRPObj) CRC() uint32 {
 
 func (*InputCheckPasswordSRPObj) ImplementsInputCheckPasswordSRP() {}
 
+type InputCollectible interface {
+	tl.Object
+	ImplementsInputCollectible()
+}
+type InputCollectiblePhone struct {
+	Phone string
+}
+
+func (*InputCollectiblePhone) CRC() uint32 {
+	return 0xa2e214a4
+}
+
+func (*InputCollectiblePhone) ImplementsInputCollectible() {}
+
+type InputCollectibleUsername struct {
+	Username string
+}
+
+func (*InputCollectibleUsername) CRC() uint32 {
+	return 0xe39460a9
+}
+
+func (*InputCollectibleUsername) ImplementsInputCollectible() {}
+
 type InputDialogPeer interface {
 	tl.Object
 	ImplementsInputDialogPeer()
@@ -3557,6 +3631,14 @@ func (*InputPrivacyValueAllowContacts) CRC() uint32 {
 
 func (*InputPrivacyValueAllowContacts) ImplementsInputPrivacyRule() {}
 
+type InputPrivacyValueAllowPremium struct{}
+
+func (*InputPrivacyValueAllowPremium) CRC() uint32 {
+	return 0x77cdc9f1
+}
+
+func (*InputPrivacyValueAllowPremium) ImplementsInputPrivacyRule() {}
+
 type InputPrivacyValueAllowUsers struct {
 	Users []InputUser
 }
@@ -4100,6 +4182,26 @@ type KeyboardButton interface {
 	tl.Object
 	ImplementsKeyboardButton()
 }
+type InputKeyboardButtonRequestPeer struct {
+	NameRequested     bool `tl:"flag:0,encoded_in_bitflags"`
+	UsernameRequested bool `tl:"flag:1,encoded_in_bitflags"`
+	PhotoRequested    bool `tl:"flag:2,encoded_in_bitflags"`
+	Text              string
+	ButtonID          int32
+	PeerType          RequestPeerType
+	MaxQuantity       int32
+}
+
+func (*InputKeyboardButtonRequestPeer) CRC() uint32 {
+	return 0xc9662d05
+}
+
+func (*InputKeyboardButtonRequestPeer) FlagIndex() int {
+	return 0
+}
+
+func (*InputKeyboardButtonRequestPeer) ImplementsKeyboardButton() {}
+
 type InputKeyboardButtonURLAuth struct {
 	RequestWriteAccess bool `tl:"flag:0,encoded_in_bitflags"`
 	Text               string
@@ -4446,6 +4548,7 @@ type MessageObj struct {
 	Pinned               bool `tl:"flag:24,encoded_in_bitflags"`
 	Noforwards           bool `tl:"flag:26,encoded_in_bitflags"`
 	InvertMedia          bool `tl:"flag:27,encoded_in_bitflags"`
+	Offline              bool `tl:"flag2:1,encoded_in_bitflags"`
 	ID                   int32
 	FromID               Peer  `tl:"flag:8"`
 	FromBoostsApplied    int32 `tl:"flag:29"`
@@ -4453,6 +4556,7 @@ type MessageObj struct {
 	SavedPeerID          Peer               `tl:"flag:28"`
 	FwdFrom              *MessageFwdHeader  `tl:"flag:2"`
 	ViaBotID             int64              `tl:"flag:11"`
+	ViaBusinessBotID     int64              `tl:"flag2:0"`
 	ReplyTo              MessageReplyHeader `tl:"flag:3"`
 	Date                 int32
 	Message              string
@@ -4472,11 +4576,11 @@ type MessageObj struct {
 }
 
 func (*MessageObj) CRC() uint32 {
-	return 0xa66c7efc
+	return 0x2357bf25
 }
 
 func (*MessageObj) FlagIndex() int {
-	return 0
+	return 12
 }
 
 func (*MessageObj) ImplementsMessage() {}
@@ -4888,6 +4992,17 @@ func (*MessageActionRequestedPeer) CRC() uint32 {
 }
 
 func (*MessageActionRequestedPeer) ImplementsMessageAction() {}
+
+type MessageActionRequestedPeerSentMe struct {
+	ButtonID int32
+	Peers    []RequestedPeer
+}
+
+func (*MessageActionRequestedPeerSentMe) CRC() uint32 {
+	return 0x93b31848
+}
+
+func (*MessageActionRequestedPeerSentMe) ImplementsMessageAction() {}
 
 type MessageActionScreenshotTaken struct{}
 
@@ -6343,22 +6458,23 @@ type PhoneCall interface {
 	ImplementsPhoneCall()
 }
 type PhoneCallObj struct {
-	P2PAllowed     bool `tl:"flag:5,encoded_in_bitflags"`
-	Video          bool `tl:"flag:6,encoded_in_bitflags"`
-	ID             int64
-	AccessHash     int64
-	Date           int32
-	AdminID        int64
-	ParticipantID  int64
-	GAOrB          []byte
-	KeyFingerprint int64
-	Protocol       *PhoneCallProtocol
-	Connections    []PhoneConnection
-	StartDate      int32
+	P2PAllowed       bool `tl:"flag:5,encoded_in_bitflags"`
+	Video            bool `tl:"flag:6,encoded_in_bitflags"`
+	ID               int64
+	AccessHash       int64
+	Date             int32
+	AdminID          int64
+	ParticipantID    int64
+	GAOrB            []byte
+	KeyFingerprint   int64
+	Protocol         *PhoneCallProtocol
+	Connections      []PhoneConnection
+	StartDate        int32
+	CustomParameters *DataJson `tl:"flag:7"`
 }
 
 func (*PhoneCallObj) CRC() uint32 {
-	return 0x967f7c67
+	return 0x30535af5
 }
 
 func (*PhoneCallObj) FlagIndex() int {
@@ -6681,6 +6797,14 @@ func (*PrivacyValueAllowContacts) CRC() uint32 {
 
 func (*PrivacyValueAllowContacts) ImplementsPrivacyRule() {}
 
+type PrivacyValueAllowPremium struct{}
+
+func (*PrivacyValueAllowPremium) CRC() uint32 {
+	return 0xece9814b
+}
+
+func (*PrivacyValueAllowPremium) ImplementsPrivacyRule() {}
+
 type PrivacyValueAllowUsers struct {
 	Users []int64
 }
@@ -6959,6 +7083,61 @@ func (*RequestPeerTypeUser) FlagIndex() int {
 }
 
 func (*RequestPeerTypeUser) ImplementsRequestPeerType() {}
+
+type RequestedPeer interface {
+	tl.Object
+	ImplementsRequestedPeer()
+}
+type RequestedPeerChannel struct {
+	ChannelID int64
+	Title     string `tl:"flag:0"`
+	Username  string `tl:"flag:1"`
+	Photo     Photo  `tl:"flag:2"`
+}
+
+func (*RequestedPeerChannel) CRC() uint32 {
+	return 0x8ba403e4
+}
+
+func (*RequestedPeerChannel) FlagIndex() int {
+	return 0
+}
+
+func (*RequestedPeerChannel) ImplementsRequestedPeer() {}
+
+type RequestedPeerChat struct {
+	ChatID int64
+	Title  string `tl:"flag:0"`
+	Photo  Photo  `tl:"flag:2"`
+}
+
+func (*RequestedPeerChat) CRC() uint32 {
+	return 0x7307544f
+}
+
+func (*RequestedPeerChat) FlagIndex() int {
+	return 0
+}
+
+func (*RequestedPeerChat) ImplementsRequestedPeer() {}
+
+type RequestedPeerUser struct {
+	UserID    int64
+	FirstName string `tl:"flag:0"`
+	LastName  string `tl:"flag:0"`
+	Username  string `tl:"flag:1"`
+	Photo     Photo  `tl:"flag:2"`
+}
+
+func (*RequestedPeerUser) CRC() uint32 {
+	return 0xd62ff46a
+}
+
+func (*RequestedPeerUser) FlagIndex() int {
+	return 0
+}
+
+func (*RequestedPeerUser) ImplementsRequestedPeer() {}
 
 type RichText interface {
 	tl.Object
@@ -7788,6 +7967,17 @@ func (*UpdateAutoSaveSettings) CRC() uint32 {
 
 func (*UpdateAutoSaveSettings) ImplementsUpdate() {}
 
+type UpdateBotBusinessConnect struct {
+	Connection *BotBusinessConnection
+	Qts        int32
+}
+
+func (*UpdateBotBusinessConnect) CRC() uint32 {
+	return 0x8ae5c97a
+}
+
+func (*UpdateBotBusinessConnect) ImplementsUpdate() {}
+
 type UpdateBotCallbackQuery struct {
 	QueryID       int64
 	UserID        int64
@@ -7846,6 +8036,36 @@ func (*UpdateBotCommands) CRC() uint32 {
 }
 
 func (*UpdateBotCommands) ImplementsUpdate() {}
+
+type UpdateBotDeleteBusinessMessage struct {
+	ConnectionID string
+	Peer         Peer
+	Messages     []int32
+	Qts          int32
+}
+
+func (*UpdateBotDeleteBusinessMessage) CRC() uint32 {
+	return 0xa02a982e
+}
+
+func (*UpdateBotDeleteBusinessMessage) ImplementsUpdate() {}
+
+type UpdateBotEditBusinessMessage struct {
+	ConnectionID   string
+	Message        Message
+	ReplyToMessage Message `tl:"flag:0"`
+	Qts            int32
+}
+
+func (*UpdateBotEditBusinessMessage) CRC() uint32 {
+	return 0x7df587c
+}
+
+func (*UpdateBotEditBusinessMessage) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateBotEditBusinessMessage) ImplementsUpdate() {}
 
 type UpdateBotInlineQuery struct {
 	QueryID  int64
@@ -7924,6 +8144,23 @@ func (*UpdateBotMessageReactions) CRC() uint32 {
 }
 
 func (*UpdateBotMessageReactions) ImplementsUpdate() {}
+
+type UpdateBotNewBusinessMessage struct {
+	ConnectionID   string
+	Message        Message
+	ReplyToMessage Message `tl:"flag:0"`
+	Qts            int32
+}
+
+func (*UpdateBotNewBusinessMessage) CRC() uint32 {
+	return 0x9ddb347c
+}
+
+func (*UpdateBotNewBusinessMessage) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateBotNewBusinessMessage) ImplementsUpdate() {}
 
 type UpdateBotPrecheckoutQuery struct {
 	QueryID          int64
@@ -8555,16 +8792,6 @@ func (*UpdateGroupCallParticipants) CRC() uint32 {
 }
 
 func (*UpdateGroupCallParticipants) ImplementsUpdate() {}
-
-type UpdateGroupInvitePrivacyForbidden struct {
-	UserID int64
-}
-
-func (*UpdateGroupInvitePrivacyForbidden) CRC() uint32 {
-	return 0xccf08ad6
-}
-
-func (*UpdateGroupInvitePrivacyForbidden) ImplementsUpdate() {}
 
 type UpdateInlineBotCallbackQuery struct {
 	QueryID       int64
@@ -9613,6 +9840,7 @@ type UserObj struct {
 	StoriesHidden         bool `tl:"flag2:3,encoded_in_bitflags"`
 	StoriesUnavailable    bool `tl:"flag2:4,encoded_in_bitflags"`
 	ContactRequirePremium bool `tl:"flag2:10,encoded_in_bitflags"`
+	BotBusiness           bool `tl:"flag2:11,encoded_in_bitflags"`
 	ID                    int64
 	AccessHash            int64                `tl:"flag:0"`
 	FirstName             string               `tl:"flag:1"`
@@ -10406,6 +10634,40 @@ func (*ChannelsChannelParticipantsNotModified) CRC() uint32 {
 }
 
 func (*ChannelsChannelParticipantsNotModified) ImplementsChannelsChannelParticipants() {}
+
+type ChannelsSponsoredMessageReportResult interface {
+	tl.Object
+	ImplementsChannelsSponsoredMessageReportResult()
+}
+type ChannelsSponsoredMessageReportResultAdsHidden struct{}
+
+func (*ChannelsSponsoredMessageReportResultAdsHidden) CRC() uint32 {
+	return 0x3e3bcf2f
+}
+
+func (*ChannelsSponsoredMessageReportResultAdsHidden) ImplementsChannelsSponsoredMessageReportResult() {
+}
+
+type ChannelsSponsoredMessageReportResultChooseOption struct {
+	Title   string
+	Options []*SponsoredMessageReportOption
+}
+
+func (*ChannelsSponsoredMessageReportResultChooseOption) CRC() uint32 {
+	return 0x846f9e42
+}
+
+func (*ChannelsSponsoredMessageReportResultChooseOption) ImplementsChannelsSponsoredMessageReportResult() {
+}
+
+type ChannelsSponsoredMessageReportResultReported struct{}
+
+func (*ChannelsSponsoredMessageReportResultReported) CRC() uint32 {
+	return 0xad798849
+}
+
+func (*ChannelsSponsoredMessageReportResultReported) ImplementsChannelsSponsoredMessageReportResult() {
+}
 
 type ChatlistsChatlistInvite interface {
 	tl.Object
