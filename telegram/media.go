@@ -36,6 +36,10 @@ type Source struct {
 	closer io.Closer
 }
 
+type BoxedError struct {
+	error
+}
+
 func (s *Source) GetSizeAndName() (int64, string) {
 	switch src := s.Source.(type) {
 	case string:
@@ -259,7 +263,7 @@ func (c *Client) uploadParallel(reader io.ReaderAt, size int64, fileName string,
 
 					_, readErr := reader.ReadAt(bufObj.b[:thisSize], offset)
 					if readErr != nil && readErr != io.EOF {
-						fatal.Store(fmt.Errorf("read at %d: %w", offset, readErr))
+						fatal.Store(&BoxedError{fmt.Errorf("read at %d: %w", offset, readErr)})
 						pool.Put(bufObj)
 						cancel()
 						return
@@ -300,7 +304,7 @@ func (c *Client) uploadParallel(reader io.ReaderAt, size int64, fileName string,
 							continue
 						}
 
-						fatal.Store(fmt.Errorf("upload part %d: %w", p, upErr))
+						fatal.Store(&BoxedError{fmt.Errorf("upload part %d: %w", p, upErr)})
 						cancel()
 						return
 					}
@@ -318,7 +322,7 @@ func (c *Client) uploadParallel(reader io.ReaderAt, size int64, fileName string,
 	wg.Wait()
 
 	if err := fatal.Load(); err != nil {
-		return nil, err.(error)
+		return nil, err.(*BoxedError).error
 	}
 
 	if finishedParts.Load() != int32(totalParts) {
@@ -530,20 +534,22 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	dest := sanitizePath(getValue(opts.FileName, fileName), fileName)
 
 	const (
-		windowSize = 1 << 20
-		align      = 1024
+		windowSize = 512 * 1024 // 512KB is the maximum limit for UploadGetFile
+		align      = 4096       // Offset and limit must be a multiple of 4KB
 	)
 
 	threads := opts.Threads
 	if threads <= 0 {
 		if size < 20<<20 {
 			threads = 2
+		} else if size < 100<<20 {
+			threads = 8
 		} else {
-			threads = 4
+			threads = 8 // Increase parallelism for larger files
 		}
 	}
-	if threads > 8 {
-		threads = 8
+	if threads > 16 {
+		threads = 16
 	}
 
 	totalWindows := int((size + windowSize - 1) / windowSize)
@@ -601,9 +607,15 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	defer cancel()
 
 	var nextWindow atomic.Int64
+	var finishedCount atomic.Int32
 	var fatal atomic.Value
 	var wg sync.WaitGroup
 	wg.Add(len(senders))
+
+	delay := opts.Delay
+	if delay <= 0 {
+		delay = 50 // Default 50ms delay as requested
+	}
 
 	for _, sender := range senders {
 		go func(s *ExSender) {
@@ -617,26 +629,47 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 				base := int64(w * windowSize)
 				remaining := size - base
-
-				readLen := windowSize
-				if remaining < windowSize {
-					readLen = int(remaining)
+				if remaining <= 0 {
+					return
 				}
-				readLen = max((readLen/align)*align, align)
-				if base+int64(readLen) > int64((w+1)*windowSize) {
-					readLen = windowSize - int(base%windowSize)
+
+				limit := int32(windowSize)
+				if remaining < int64(windowSize) {
+					// Align the last chunk to 4KB but don't exceed remaining + align
+					limit = int32((remaining + int64(align) - 1) / int64(align) * align)
 				}
 
 				req := &UploadGetFileParams{
 					Location: location,
 					Offset:   base,
-					Limit:    int32(readLen),
+					Limit:    limit,
 					Precise:  true,
 				}
 
-				rctx, cancelReq := context.WithTimeout(ctx, 60*time.Second)
-				res, err := s.MakeRequestCtx(rctx, req)
-				cancelReq()
+				var res any
+				var err error
+
+				for i := 0; i < 5; i++ {
+					if ctx.Err() != nil {
+						return
+					}
+					rctx, cancelReq := context.WithTimeout(ctx, 15*time.Second)
+					res, err = s.MakeRequestCtx(rctx, req)
+					cancelReq()
+
+					if err == nil {
+						break
+					}
+
+					if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
+						break
+					}
+
+					if errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "timeout") {
+						continue
+					}
+					break
+				}
 
 				if err != nil {
 					if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
@@ -645,16 +678,18 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 						nextWindow.Add(-1)
 						continue
 					}
-					fatal.Store(err)
+					fatal.Store(&BoxedError{err})
 					cancel()
 					return
 				}
 
 				data := res.(*UploadFileObj).Bytes
+				written := int64(len(data))
+				done.Add(written)
 
 				if outFile != nil {
 					if _, err := outFile.WriteAt(data, base); err != nil {
-						fatal.Store(err)
+						fatal.Store(&BoxedError{err})
 						cancel()
 						return
 					}
@@ -662,8 +697,29 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					copy(memBuf[base:], data)
 				}
 
-				written := int64(len(data))
-				done.Add(written)
+				count := finishedCount.Add(1)
+				if count%10 == 0 || count == int32(totalWindows) {
+					speed := 0.0
+					if tracker != nil {
+						pt := tracker
+						pt.mu.Lock()
+						elapsed := time.Since(pt.startTime).Seconds()
+						if elapsed > 0 {
+							speed = float64(done.Load()) / elapsed
+						}
+						pt.mu.Unlock()
+					} else {
+						elapsed := time.Since(startTime).Seconds()
+						if elapsed > 0 {
+							speed = float64(done.Load()) / elapsed
+						}
+					}
+					c.Log.Debug("downloading %s: %d/%d chunks (speed: %.2f MB/s)", dest, count, totalWindows, speed/1024/1024)
+				}
+
+				if delay > 0 {
+					time.Sleep(time.Duration(delay) * time.Millisecond)
+				}
 			}
 		}(sender)
 	}
@@ -671,7 +727,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	wg.Wait()
 
 	if err := fatal.Load(); err != nil {
-		return "", err.(error)
+		return "", err.(*BoxedError).error
 	}
 
 	done.Store(size)
