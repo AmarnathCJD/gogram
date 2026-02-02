@@ -467,9 +467,11 @@ func (es *ExSenders) Close() {
 }
 
 // CreateExportedSender creates a new exported sender for the given DC
-func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...AuthExportedAuthorization) (*mtproto.MTProto, error) {
+func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
 	const retryLimit = 3 // Retry only once
 	var lastError error
+
+	var authParam = getVariadic(authParams, &AuthExportedAuthorization{})
 
 	for retry := 0; retry <= retryLimit; retry++ {
 		c.Log.Debug("creating exported sender for DC ", dcID)
@@ -506,10 +508,10 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...AuthExpo
 
 		if c.MTProto.GetDC() != exported.GetDC() {
 			var auth *AuthExportedAuthorization
-			if len(authParams) > 0 && authParams[0].ID != 0 && len(authParams[0].Bytes) > 0 {
+			if authParam.ID != 0 {
 				auth = &AuthExportedAuthorization{
-					ID:    authParams[0].ID,
-					Bytes: authParams[0].Bytes,
+					ID:    authParam.ID,
+					Bytes: authParam.Bytes,
 				}
 			} else {
 				c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
@@ -519,6 +521,8 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...AuthExpo
 					c.Log.Error("error exporting auth: ", lastError)
 					continue
 				}
+
+				c.exportedKeys[dcID] = auth
 			}
 
 			initialReq.Query = &AuthImportAuthorizationParams{
@@ -538,6 +542,12 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...AuthExpo
 		c.Log.Debug(fmt.Sprintf("initial request for exported sender %d sent", dcID))
 
 		if err != nil {
+			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") {
+				authParam.ID = 0
+				c.Log.Debug("auth bytes invalid, re-exporting auth")
+				continue
+			}
+
 			lastError = errors.Wrap(err, "making initial request")
 			if retry < retryLimit {
 				c.Log.Debug(fmt.Sprintf("error making initial request, retrying (%d/%d)", retry+1, retryLimit))
@@ -759,4 +769,13 @@ func (c *Client) ToRpcError(err error) *RpcError {
 		Message:     matches[1],
 		Description: matches[2],
 	}
+}
+
+func (c *Client) MatchRPCError(err error, message string) bool {
+	rpcErr := c.ToRpcError(err)
+	if rpcErr == nil {
+		return false
+	}
+
+	return rpcErr.Message == message
 }

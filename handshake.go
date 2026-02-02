@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"time"
 
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
@@ -43,10 +44,12 @@ nonceCreate:
 	if nonceFirst.Cmp(res.Nonce.Int) != 0 {
 		if maxRetries > 0 {
 			maxRetries--
+			time.Sleep(20 * time.Millisecond)
 			goto nonceCreate
 		}
-		return fmt.Errorf("reqPQ: nonce mismatch")
+		return fmt.Errorf("reqPQ: nonce mismatch (%v, %v)", nonceFirst, res.Nonce)
 	}
+
 	found := false
 	for _, b := range res.Fingerprints {
 		if m.cdn {
