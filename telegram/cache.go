@@ -221,7 +221,7 @@ func (c *CACHE) loadFileIntoLocked(path string, expectedOwnerID int64) error {
 		"channels":  len(c.InputPeers.InputChannels),
 		"usernames": len(c.usernameMap),
 		"owner_id":  c.InputPeers.OwnerID,
-	}).Debug("loaded peers from cache")
+	}).Debug("cache loaded")
 
 	return nil
 }
@@ -265,9 +265,9 @@ func (c *CACHE) BindToUser(userID int64) error {
 		if c.fileName != "" {
 			if err := c.loadFileIntoLocked(c.fileName, 0); err != nil {
 				if !os.IsNotExist(err) {
-					c.logger.WithError(err).Debug("failed to load base cache")
+					c.logger.WithError(err).Debug("base cache load failed")
 				} else {
-					c.logger.Debug("no base cache file found, starting empty")
+					c.logger.Debug("base cache missing, starting empty")
 				}
 			}
 		}
@@ -297,7 +297,7 @@ func (c *CACHE) BindToUser(userID int64) error {
 		if err := c.loadFileIntoLocked(target, userID); err != nil {
 			if os.IsNotExist(err) {
 				// No cache file for this user yet, start fresh
-				c.logger.Debug("no existing cache for user %d, starting fresh", userID)
+				c.logger.Debug("cache missing (user %d), starting fresh", userID)
 				c.resetLocked()
 			} else if strings.Contains(err.Error(), "owner mismatch") {
 				// Owner mismatch detected during load - don't use this cache
@@ -309,7 +309,7 @@ func (c *CACHE) BindToUser(userID int64) error {
 			}
 		}
 		c.fileName = target
-		c.logger.Debug("bound cache to user %d: %s", userID, target)
+		c.logger.Debug("cache bound (user %d): %s", userID, target)
 	}
 
 	if c.InputPeers.OwnerID != 0 {
@@ -352,7 +352,7 @@ func (c *CACHE) RebindToUser(userID int64) error {
 			"channels":   len(c.InputPeers.InputChannels),
 			"usernames":  len(c.usernameMap),
 			"cache_file": c.fileName,
-		}).Debug("adopting unbound cache for user %d (keeping current file)", userID)
+		}).Debug("adopting unbound cache (user %d)", userID)
 		c.ensureInputPeersLocked()
 		c.InputPeers.OwnerID = userID
 		return nil
@@ -362,7 +362,7 @@ func (c *CACHE) RebindToUser(userID int64) error {
 		c.logger.WithFields(map[string]any{
 			"old_owner": currentOwner,
 			"new_owner": userID,
-		}).Info("cache owner changed, rebinding to new user")
+		}).Info("cache owner changed, rebinding...")
 		c.resetLocked()
 	}
 
@@ -389,10 +389,10 @@ func (c *CACHE) RebindToUser(userID int64) error {
 				c.resetLocked()
 			}
 		} else {
-			c.logger.Debug("successfully loaded user cache: %s", target)
+			c.logger.Debug("user cache loaded: %s", target)
 		}
 		c.fileName = target
-		c.logger.Debug("rebound cache to user %d: %s", userID, target)
+		c.logger.Debug("cache rebound (user %d): %s", userID, target)
 	}
 
 	// Set owner ID
@@ -533,7 +533,7 @@ func (c *CACHE) enforceSizeLimit() {
 	}
 
 	if removed > 0 {
-		c.logger.Debug("cache limit reached, evicted %d entries (max=%d)", removed, c.maxSize)
+		c.logger.Debug("cache limit: evicted %d entries (max=%d)", removed, c.maxSize)
 	}
 }
 
