@@ -782,13 +782,3 @@ func (*errorSessionConfigsChanged) Error() string {
 func (*errorSessionConfigsChanged) CRC() uint32 {
 	return 0x00000000
 }
-
-type errorReconnectRequired struct{}
-
-func (*errorReconnectRequired) Error() string {
-	return "session configuration was changed, need to repeat request"
-}
-
-func (*errorReconnectRequired) CRC() uint32 {
-	return 0x00000000
-}
