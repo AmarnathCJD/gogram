@@ -94,7 +94,9 @@ func (u *Uploader) Upload() (InputFile, error) {
 	if err := u.Start(); err != nil {
 		return nil, err
 	}
-	u.progress <- Progress{Total: u.Meta.FileSize, Now: u.Meta.FileSize, Done: true}
+	if u.progress != nil {
+		u.progress <- Progress{Total: u.Meta.FileSize, Now: u.Meta.FileSize, Done: true}
+	}
 	return u.saveFile(), nil
 }
 
@@ -158,7 +160,7 @@ func (u *Uploader) allocateWorkers() error {
 		return err
 	}
 	u.Workers = borrowedSenders
-	u.Client.Log.Info("Upload file: ", u.Meta.FileName, " size: ", u.Meta.FileSize, " parts: ", u.Parts, " workers: ", u.Worker)
+	u.Client.Log.Info(fmt.Sprintf("Uploading file %s with %d workers", u.Meta.FileName, len(u.Workers)))
 
 	u.Client.Log.Debug("Allocated workers: ", len(u.Workers), " for file upload")
 	return nil
@@ -292,6 +294,7 @@ func (u *Uploader) uploadParts(w *Client, parts []int32) {
 			u.Meta.Md5Hash.Write(buf)
 			_, err = w.UploadSaveFilePart(u.FileID, i, buf)
 		}
+
 		w.Logger.Debug(fmt.Sprintf("uploaded part %d of %d", i, u.Parts))
 		u.totalDone++
 		if u.progress != nil {
@@ -516,4 +519,3 @@ func GenerateRandomString(n int) string {
 }
 
 // TODO: IMPLEMENT SenderChat Correctly.
-// Add Album Handle and GetMediaGroup Functions.
