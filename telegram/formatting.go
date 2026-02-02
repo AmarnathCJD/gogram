@@ -4,6 +4,7 @@ package telegram
 
 import (
 	"bytes"
+	"fmt"
 	"strconv"
 
 	"strings"
@@ -59,6 +60,10 @@ func supportedTag(tag string) bool {
 		return true
 	}
 	return false
+}
+
+func ParseHTMLToTags(htmlStr string) (string, []Tag, error) {
+	return parseHTMLToTags(htmlStr)
 }
 
 func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
@@ -202,6 +207,112 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 		}
 	}
 	return entities
+}
+
+func ParseEntitiesToTags(entities []MessageEntity) []Tag {
+	var tags []Tag
+	for _, entity := range entities {
+		switch entity := entity.(type) {
+		case *MessageEntityBold:
+			tags = append(tags, Tag{Type: "b", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntityItalic:
+			tags = append(tags, Tag{Type: "i", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntityUnderline:
+			tags = append(tags, Tag{Type: "u", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntityStrike:
+			tags = append(tags, Tag{Type: "s", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntitySpoiler:
+			tags = append(tags, Tag{Type: "spoiler", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntityCode:
+			tags = append(tags, Tag{Type: "code", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntityPre:
+			tags = append(tags, Tag{Type: "pre", Length: entity.Length, Offset: entity.Offset, Attrs: map[string]string{"language": entity.Language}})
+		case *MessageEntityURL:
+			tags = append(tags, Tag{Type: "a", Length: entity.Length, Offset: entity.Offset, Attrs: map[string]string{"href": ""}})
+		case *MessageEntityTextURL:
+			tags = append(tags, Tag{Type: "a", Length: entity.Length, Offset: entity.Offset, Attrs: map[string]string{"href": entity.URL}})
+		case *MessageEntityEmail:
+			tags = append(tags, Tag{Type: "a", Length: entity.Length, Offset: entity.Offset, Attrs: map[string]string{"href": "mailto:"}})
+		case *MessageEntityMention:
+			tags = append(tags, Tag{Type: "mention", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntityBlockquote:
+			tags = append(tags, Tag{Type: "blockquote", Length: entity.Length, Offset: entity.Offset, Attrs: map[string]string{"collapsed": strconv.FormatBool(entity.Collapsed)}})
+		case *MessageEntityCustomEmoji:
+			tags = append(tags, Tag{Type: "emoji", Length: entity.Length, Offset: entity.Offset, Attrs: map[string]string{"id": strconv.FormatInt(entity.DocumentID, 10)}})
+		}
+	}
+	return tags
+}
+
+func InsertTagsIntoText(text string, tags []Tag) string {
+	utf16Text := utf16.Encode([]rune(text))
+	var result strings.Builder
+	openTags := make(map[int][]Tag)
+	closeTags := make(map[int][]Tag)
+
+	for _, tag := range tags {
+		openTags[int(tag.Offset)] = append(openTags[int(tag.Offset)], tag)
+		closeTags[int(tag.Offset+tag.Length)] = append(closeTags[int(tag.Offset+tag.Length)], tag)
+	}
+
+	for i := 0; i < len(utf16Text); i++ {
+		if opening, exists := openTags[i]; exists {
+			for _, tag := range opening {
+				if len(tag.Attrs) > 0 {
+					attrStr := ""
+					for k, v := range tag.Attrs {
+						attrStr += fmt.Sprintf(" %s=\"%s\"", k, v)
+					}
+					result.WriteString(fmt.Sprintf("<%s%s>", tag.Type, attrStr))
+				} else {
+					result.WriteString(fmt.Sprintf("<%s>", tag.Type))
+				}
+			}
+		}
+		result.WriteString(string(utf16.Decode([]uint16{utf16Text[i]})))
+
+		if closing, exists := closeTags[i+1]; exists {
+			for j := len(closing) - 1; j >= 0; j-- {
+				result.WriteString(fmt.Sprintf("</%s>", closing[j].Type))
+			}
+		}
+	}
+
+	return result.String()
+}
+
+func ToMarkdown(htmlStr string) string {
+	replacer := strings.NewReplacer(
+		"<b>", "**",
+		"</b>", "**",
+		"<strong>", "**",
+		"</strong>", "**",
+		"<i>", "*",
+		"</i>", "*",
+		"<em>", "*",
+		"</em>", "*",
+		"<u>", "__",
+		"</u>", "__",
+		"<s>", "~",
+		"</s>", "~",
+		"<code>", "`",
+		"</code>", "`",
+		"<pre>", "```",
+		"</pre>", "```",
+		"<a href=\"", "[",
+		"\">", "](",
+		"</a>", ")",
+		"<spoiler>", "||",
+		"</spoiler>", "||",
+		"<blockquote>", "> ",
+		"<blockquote collapsed=\"false\">", "> ",
+		"</blockquote>", "",
+		"<blockquote collapsed=\"true\">", ">> ",
+		"</blockquote>", "",
+		"<emoji id=\"", "::",
+		"\">", "::",
+	)
+	return replacer.Replace(htmlStr)
 }
 
 func HTMLToMarkdownV2(markdown string) string {
