@@ -575,7 +575,7 @@ func (m *NewMessage) RespondMedia(Media interface{}, Opts ...MediaOptions) (*New
 
 // Delete deletes the message
 func (m *NewMessage) Delete() (*MessagesAffectedMessages, error) {
-	return m.Client.DeleteMessages(m.ChatID(), []int32{m.ID})
+	return m.Client.DeleteMessages(m.Peer, []int32{m.ID})
 }
 
 // React to a message

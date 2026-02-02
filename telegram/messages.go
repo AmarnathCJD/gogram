@@ -759,8 +759,8 @@ func (c *Client) Forward(peerID, fromPeerID interface{}, msgIDs []int32, opts ..
 
 // DeleteMessages deletes messages.
 // This method is a wrapper for messages.deleteMessages.
-func (c *Client) DeleteMessages(peerID interface{}, msgIDs []int32, Revoke ...bool) (*MessagesAffectedMessages, error) {
-	revoke := getVariadic(Revoke, false)
+func (c *Client) DeleteMessages(peerID interface{}, msgIDs []int32, noRevoke ...bool) (*MessagesAffectedMessages, error) {
+	shouldRevoke := getVariadic(noRevoke, false)
 	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
@@ -772,7 +772,7 @@ func (c *Client) DeleteMessages(peerID interface{}, msgIDs []int32, Revoke ...bo
 			AccessHash: peer.AccessHash,
 		}, msgIDs)
 	case *InputPeerChat, *InputPeerUser:
-		return c.MessagesDeleteMessages(revoke, msgIDs)
+		return c.MessagesDeleteMessages(!shouldRevoke, msgIDs)
 	default:
 		return nil, errors.New("invalid peer type")
 	}
@@ -1141,23 +1141,6 @@ func convertOption(s *SendOptions) *MediaOptions {
 		Attributes:    s.Attributes,
 	}
 }
-
-// func getVariadic(v, def interface{}) interface{} {
-// 	if v == nil {
-// 		return def
-// 	}
-// 	rv := reflect.ValueOf(v)
-// 	if rv.Kind() == reflect.Ptr {
-// 		rv = rv.Elem()
-// 	}
-// 	if rv.Kind() != reflect.Slice {
-// 		return v
-// 	}
-// 	if rv.Len() == 0 {
-// 		return def
-// 	}
-// 	return rv.Index(0).Interface()
-// }
 
 func getVariadic[T comparable](opts []T, def T) T {
 	if len(opts) == 0 {
