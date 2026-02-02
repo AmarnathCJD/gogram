@@ -72,7 +72,10 @@ nonceCreate:
 
 	// (encoding) p_q_inner_data
 	pq := big.NewInt(0).SetBytes(res.Pq)
-	p, q := math.Fac(pq)
+	p, q := math.Factorize(pq) // new optimised factorization
+	if p == nil || q == nil {
+		p, q = math.Fac(pq)
+	}
 	nonceSecond := tl.RandomInt256()
 	nonceServer := res.ServerNonce
 
