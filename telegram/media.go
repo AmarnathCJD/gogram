@@ -808,7 +808,7 @@ func chunkSizeCalc(size int64) int {
 	} else if size < 1024*1024*1024 {
 		return 512 * 1024
 	}
-	return 512 * 1024
+	return 1024 * 1024
 }
 
 type DownloadOptions struct {
