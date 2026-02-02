@@ -486,7 +486,7 @@ func (c *Client) SendReaction(peerID interface{}, msgID int32, reaction interfac
 	_, err = c.MessagesSendReaction(&MessagesSendReactionParams{
 		Peer:        peer,
 		Big:         b,
-		AddToRecent: true,
+		AddToRecent: false,
 		MsgID:       msgID,
 		Reaction:    r,
 	})
