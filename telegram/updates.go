@@ -217,7 +217,8 @@ func (d *UpdateDispatcher) GetPts() int32 {
 func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 	c.dispatcher = &UpdateDispatcher{
 		logger: utils.NewLogger("gogram " + getLogPrefix("dispatcher", getVariadic(sessionName, ""))).
-			SetLevel(c.Log.Lev()),
+			SetLevel(c.Log.Lev()).
+			NoColor(!c.Log.Color()),
 	}
 	c.dispatcher.SortTrigger()
 	//go c.fetchChannelGap()
