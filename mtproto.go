@@ -153,7 +153,6 @@ func NewMTProto(c Config) (*MTProto, error) {
 	}
 
 	mtproto.Logger.Debug("initializing mtproto...")
-	mtproto.offsetTime()
 
 	if loaded != nil || c.StringSession != "" {
 		mtproto.encrypted = true
@@ -873,5 +872,6 @@ func (m *MTProto) offsetTime() {
 	}
 
 	m.timeOffset = timeResponse.Unixtime - currentLocalTime
+	m.genMsgID = utils.NewMsgIDGenerator()
 	m.Logger.Info("system time is out of sync, offsetting time by " + strconv.FormatInt(m.timeOffset, 10) + " seconds")
 }
