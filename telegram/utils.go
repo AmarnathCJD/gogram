@@ -560,7 +560,7 @@ func getInlineDocumentType(mimeType string, voiceNote bool) string {
 	}
 }
 
-func sizetoHuman(size int64) string {
+func SizetoHuman(size int64) string {
 	if size < 1024 {
 		return fmt.Sprintf("%d B", size)
 	} else if size < 1024*1024 {
