@@ -104,13 +104,14 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 	}
 
 	for i := 0; i < loopCycles; i++ {
-		if flagsetIndex == i {
+		if flagsetIndex == i && !isBitsetAParsed {
 			optionalBitSetA = d.PopUint()
 			if d.err != nil {
 				d.err = errors.Wrap(d.err, "read bitset")
 				return
 			}
 			isBitsetAParsed = true
+			i = 0
 			continue
 		}
 
@@ -127,6 +128,7 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 				return
 			}
 			if info.version == 1 {
+				fmt.Println("optionalBitSetA", optionalBitSetA, "index", info.index, "flagsetIndex", flagsetIndex)
 				if optionalBitSetA&(1<<info.index) == 0 {
 					continue
 				}
