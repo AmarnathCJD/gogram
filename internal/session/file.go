@@ -17,20 +17,31 @@ import (
 	"github.com/pkg/errors"
 )
 
+const defaultAESKey = "1234567890123456"
+
 type genericFileSessionLoader struct {
 	path       string
 	lastEdited time.Time
 	cached     *Session
+	key        string
 }
 
 var _ SessionLoader = (*genericFileSessionLoader)(nil)
 
-func NewFromFile(path string) SessionLoader {
-	return &genericFileSessionLoader{path: path}
+func NewFromFile(path string, authAesKey string) SessionLoader {
+	if authAesKey == "" {
+		authAesKey = defaultAESKey
+	}
+
+	return &genericFileSessionLoader{path: path, key: authAesKey}
 }
 
 func (l *genericFileSessionLoader) Path() string {
 	return l.path
+}
+
+func (l *genericFileSessionLoader) Key() string {
+	return l.key
 }
 
 func (l *genericFileSessionLoader) Load() (*Session, error) {
@@ -48,7 +59,7 @@ func (l *genericFileSessionLoader) Load() (*Session, error) {
 	}
 
 	data, err := os.ReadFile(l.path)
-	data = decodeBytes(data)
+	data = decodeBytes(data, l.key)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading file")
 	}
@@ -81,7 +92,7 @@ func (l *genericFileSessionLoader) Store(s *Session) error {
 	file.writeSession(s)
 	data, _ := json.Marshal(file)
 
-	return os.WriteFile(l.path, encodeBytes(data), 0600)
+	return os.WriteFile(l.path, encodeBytes(data, l.key), 0600)
 }
 
 func (l *genericFileSessionLoader) Delete() error {
@@ -139,17 +150,13 @@ func decodeInt64ToBase64(i string) (int64, error) {
 	return int64(binary.LittleEndian.Uint64(buf)), nil
 }
 
-const (
-	SessionAESKey = "1234567890123456"
-)
-
-func encodeBytes(b []byte) []byte {
-	aesByte, _ := aes.EncryptAES(b, SessionAESKey)
+func encodeBytes(b []byte, key string) []byte {
+	aesByte, _ := aes.EncryptAES(b, key)
 	return aesByte
 }
 
-func decodeBytes(b []byte) []byte {
-	aesByte, _ := aes.DecryptAES(b, SessionAESKey)
+func decodeBytes(b []byte, key string) []byte {
+	aesByte, _ := aes.DecryptAES(b, key)
 	return aesByte
 }
 
@@ -165,6 +172,10 @@ var _ SessionLoader = (*inMemorySessionLoader)(nil)
 
 func (l *inMemorySessionLoader) Path() string {
 	return ":memory:"
+}
+
+func (l *inMemorySessionLoader) Key() string {
+	return "in-memory"
 }
 
 func (l *inMemorySessionLoader) Load() (*Session, error) {

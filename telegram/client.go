@@ -73,6 +73,7 @@ type ClientConfig struct {
 	Session          string               // The session file to use
 	StringSession    string               // The string session to use
 	SessionName      string               // The name of the session
+	SessionAESKey    string               // The AES key to use for encryption/decryption of the session file
 	ParseMode        string               // The parse mode to use (HTML, Markdown)
 	MemorySession    bool                 // Don't save the session to a file
 	DataCenter       int                  // The data center to connect to (default: 4)
@@ -86,7 +87,7 @@ type ClientConfig struct {
 	Proxy            *url.URL             // The proxy to use (SOCKS5, HTTP)
 	ForceIPv6        bool                 // Force to use IPv6
 	Cache            *CACHE               // The cache to use
-	CacheSenders     bool                 // cache the exported file op sender (TODO: Stabilize this)
+	CacheSenders     bool                 // cache the exported file op sender
 	TransportMode    string               // The transport mode to use (Abridged, Intermediate, Full)
 	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
 	FloodHandler     func(err error) bool // The flood handler to use
@@ -171,6 +172,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 	mtproto, err := mtproto.NewMTProto(mtproto.Config{
 		AppID:       config.AppID,
 		AuthKeyFile: config.Session,
+		AuthAESKey:  config.SessionAESKey,
 		ServerHost:  toIpAddr(),
 		PublicKey:   config.PublicKeys[0],
 		DataCenter:  config.DataCenter,
@@ -784,4 +786,144 @@ func (c *Client) MatchRPCError(err error, message string) bool {
 	}
 
 	return rpcErr.Message == message
+}
+
+// ClientConfigBuilder
+type ClientConfigBuilder struct {
+	config ClientConfig
+}
+
+func NewClientConfigBuilder(appID int32, appHash string) *ClientConfigBuilder {
+	return &ClientConfigBuilder{
+		config: ClientConfig{
+			AppID:   appID,
+			AppHash: appHash,
+			DeviceConfig: DeviceConfig{
+				DeviceModel:   "IPhone",
+				SystemVersion: "17.0",
+				AppVersion:    Version,
+			},
+			DataCenter:    4,               // Default DC
+			ParseMode:     "HTML",          // Default parse mode
+			LogLevel:      utils.InfoLevel, // Default log level
+			TransportMode: "Abridged",      // Default transport mode
+		},
+	}
+}
+
+func (b *ClientConfigBuilder) WithDeviceConfig(deviceModel, systemVersion, appVersion, langCode string) *ClientConfigBuilder {
+	b.config.DeviceConfig = DeviceConfig{
+		DeviceModel:   deviceModel,
+		SystemVersion: systemVersion,
+		AppVersion:    appVersion,
+		LangCode:      langCode,
+	}
+	return b
+}
+
+func (b *ClientConfigBuilder) WithSession(session string, sessionAESKey ...string) *ClientConfigBuilder {
+	b.config.Session = session
+	if len(sessionAESKey) > 0 {
+		b.config.SessionAESKey = sessionAESKey[0]
+	}
+	return b
+}
+
+func (b *ClientConfigBuilder) WithStringSession(stringSession string) *ClientConfigBuilder {
+	b.config.StringSession = stringSession
+	return b
+}
+
+func (b *ClientConfigBuilder) WithParseMode(parseMode string) *ClientConfigBuilder {
+	b.config.ParseMode = parseMode
+	return b
+}
+
+func (b *ClientConfigBuilder) WithDataCenter(dc int) *ClientConfigBuilder {
+	b.config.DataCenter = dc
+	return b
+}
+
+func (b *ClientConfigBuilder) WithProxy(proxyURL *url.URL) *ClientConfigBuilder {
+	b.config.Proxy = proxyURL
+	return b
+}
+
+func (b *ClientConfigBuilder) WithLogLevel(level utils.LogLevel) *ClientConfigBuilder {
+	b.config.LogLevel = level
+	return b
+}
+
+func (b *ClientConfigBuilder) WithMemorySession() *ClientConfigBuilder {
+	b.config.MemorySession = true
+	return b
+}
+
+func (b *ClientConfigBuilder) WithNoUpdates() *ClientConfigBuilder {
+	b.config.NoUpdates = true
+	return b
+}
+
+func (b *ClientConfigBuilder) WithDisableCache() *ClientConfigBuilder {
+	b.config.DisableCache = true
+	return b
+}
+
+func (b *ClientConfigBuilder) WithTestMode() *ClientConfigBuilder {
+	b.config.TestMode = true
+	return b
+}
+
+func (b *ClientConfigBuilder) WithIpAddr(ipAddr string) *ClientConfigBuilder {
+	b.config.IpAddr = ipAddr
+	return b
+}
+
+func (b *ClientConfigBuilder) WithPublicKeys(publicKeys []*rsa.PublicKey) *ClientConfigBuilder {
+	b.config.PublicKeys = publicKeys
+	return b
+}
+
+func (b *ClientConfigBuilder) WithCache(cache *CACHE) *ClientConfigBuilder {
+	b.config.Cache = cache
+	return b
+}
+
+func (b *ClientConfigBuilder) WithCacheSenders() *ClientConfigBuilder {
+	b.config.CacheSenders = true
+	return b
+}
+
+func (b *ClientConfigBuilder) WithSleepThresholdMs(threshold int) *ClientConfigBuilder {
+	b.config.SleepThresholdMs = threshold
+	return b
+}
+
+func (b *ClientConfigBuilder) WithFloodHandler(handler func(err error) bool) *ClientConfigBuilder {
+	b.config.FloodHandler = handler
+	return b
+}
+
+func (b *ClientConfigBuilder) WithErrorHandler(handler func(err error)) *ClientConfigBuilder {
+	b.config.ErrorHandler = handler
+	return b
+}
+
+func (b *ClientConfigBuilder) WithSessionName(name string) *ClientConfigBuilder {
+	b.config.SessionName = name
+	return b
+}
+
+func (b *ClientConfigBuilder) WithTransportMode(mode string) *ClientConfigBuilder {
+	b.config.TransportMode = mode
+	return b
+}
+
+func (b *ClientConfigBuilder) WithLogger(logger *utils.Logger) *ClientConfigBuilder {
+	b.config.Logger = logger
+	return b
+}
+
+func (b *ClientConfigBuilder) Build() ClientConfig {
+	return b.config
 }
