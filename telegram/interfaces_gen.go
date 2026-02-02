@@ -978,7 +978,7 @@ func (*ChannelAdminLogEventActionTogglePreHistoryHidden) CRC() uint32 {
 func (*ChannelAdminLogEventActionTogglePreHistoryHidden) ImplementsChannelAdminLogEventAction() {}
 
 type ChannelAdminLogEventActionToggleSignatureProfiles struct {
-	Value bool
+	NewValue bool
 }
 
 func (*ChannelAdminLogEventActionToggleSignatureProfiles) CRC() uint32 {
@@ -1094,7 +1094,7 @@ func (*ChannelParticipantObj) CRC() uint32 {
 }
 
 func (*ChannelParticipantObj) FlagIndex() int {
-	return 1
+	return 0
 }
 
 func (*ChannelParticipantObj) ImplementsChannelParticipant() {}
@@ -1171,7 +1171,6 @@ func (*ChannelParticipantLeft) ImplementsChannelParticipant() {}
 // Myself
 type ChannelParticipantSelf struct {
 	ViaRequest            bool `tl:"flag:0,encoded_in_bitflags"`
-	ViaInvite             bool `tl:"flag:0,encoded_in_bitflags"`
 	UserID                int64
 	InviterID             int64
 	Date                  int32
@@ -1313,8 +1312,8 @@ type Channel struct {
 	StoriesHidden         bool `tl:"flag2:1,encoded_in_bitflags"`
 	StoriesHiddenMin      bool `tl:"flag2:2,encoded_in_bitflags"`
 	StoriesUnavailable    bool `tl:"flag2:3,encoded_in_bitflags"`
+	SignatureProfiles     bool `tl:"flag2:12,encoded_in_bitflags"`
 	ID                    int64
-	SignatureProfiles     bool  `tl:"flag2:12,encoded_in_bitflags"`
 	AccessHash            int64 `tl:"flag:13"`
 	Title                 string
 	Username              string `tl:"flag:6"`
@@ -1441,8 +1440,8 @@ type ChannelFull struct {
 	CanViewRevenue         bool `tl:"flag2:12,encoded_in_bitflags"`
 	PaidMediaAllowed       bool `tl:"flag2:14,encoded_in_bitflags"`
 	CanViewStarsRevenue    bool `tl:"flag2:15,encoded_in_bitflags"`
-	ID                     int64
 	PaidReactionsAvailable bool `tl:"flag2:16,encoded_in_bitflags"`
+	ID                     int64
 	About                  string
 	ParticipantsCount      int32 `tl:"flag:0"`
 	AdminsCount            int32 `tl:"flag:1"`
@@ -1544,8 +1543,8 @@ type ChatInviteObj struct {
 	Verified                 bool `tl:"flag:7,encoded_in_bitflags"`
 	Scam                     bool `tl:"flag:8,encoded_in_bitflags"`
 	Fake                     bool `tl:"flag:9,encoded_in_bitflags"`
+	CanRefulfillSubscription bool `tl:"flag:11,encoded_in_bitflags"`
 	Title                    string
-	CanRefulfillSubscription bool   `tl:"flag:11,encoded_in_bitflags"`
 	About                    string `tl:"flag:5"`
 	Photo                    Photo
 	ParticipantsCount        int32
@@ -2460,8 +2459,8 @@ type ChatInviteExported struct {
 	UsageLimit          int32                     `tl:"flag:2"`
 	Usage               int32                     `tl:"flag:3"`
 	Requested           int32                     `tl:"flag:7"`
-	Title               string                    `tl:"flag:8"`
 	SubscriptionExpired int32                     `tl:"flag:10"`
+	Title               string                    `tl:"flag:8"`
 	SubscriptionPricing *StarsSubscriptionPricing `tl:"flag:9"`
 }
 

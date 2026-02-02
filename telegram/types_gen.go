@@ -2787,12 +2787,12 @@ func (*PaymentsStarsRevenueWithdrawalURL) CRC() uint32 {
 
 type PaymentsStarsStatus struct {
 	Balance                     int64
-	History                     []*StarsTransaction  `tl:"flag:3"`
 	Subscriptions               []*StarsSubscription `tl:"flag:1"`
-	NextOffset                  string               `tl:"flag:0"`
 	SubscriptionsNextOffset     string               `tl:"flag:2"`
+	SubscriptionsMissingBalance int64                `tl:"flag:4"`
+	History                     []*StarsTransaction  `tl:"flag:3"`
+	NextOffset                  string               `tl:"flag:0"`
 	Chats                       []Chat
-	SubscriptionsMissingBalance int64 `tl:"flag:4"`
 	Users                       []User
 }
 
@@ -3489,8 +3489,8 @@ type SponsoredMessage struct {
 	Message        string
 	Entities       []MessageEntity `tl:"flag:1"`
 	Photo          Photo           `tl:"flag:6"`
-	Color          *PeerColor      `tl:"flag:13"`
 	Media          MessageMedia    `tl:"flag:14"`
+	Color          *PeerColor      `tl:"flag:13"`
 	ButtonText     string
 	SponsorInfo    string `tl:"flag:7"`
 	AdditionalInfo string `tl:"flag:8"`
@@ -3594,10 +3594,9 @@ type StarsTransaction struct {
 	Pending            bool `tl:"flag:4,encoded_in_bitflags"`
 	Failed             bool `tl:"flag:6,encoded_in_bitflags"`
 	Gift               bool `tl:"flag:10,encoded_in_bitflags"`
-	ID                 string
 	Reaction           bool `tl:"flag:11,encoded_in_bitflags"`
+	ID                 string
 	Stars              int64
-	Subscription       bool `tl:"flag:12,encoded_in_bitflags"`
 	Date               int32
 	Peer               StarsTransactionPeer
 	Title              string         `tl:"flag:0"`
