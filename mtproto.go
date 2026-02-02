@@ -577,7 +577,11 @@ messageTypeSwitching:
 		m.Logger.Debug("RPC response: " + fmt.Sprintf("%T", obj))
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
-			return errors.Wrap(err, "writing RPC response")
+			if strings.Contains(err.Error(), "no response channel found") {
+				m.Logger.Error(errors.Wrap(err, "writing RPC response"))
+			} else {
+				return errors.Wrap(err, "writing RPC response")
+			}
 		}
 
 	case *objects.GzipPacked:
