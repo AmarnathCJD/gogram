@@ -6,6 +6,7 @@
 package mtproto
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
@@ -23,6 +24,7 @@ func (m *MTProto) GetSessionID() int64 {
 
 // GetSeqNo returns seqno 🧐
 func (m *MTProto) GetSeqNo() int32 {
+	fmt.Println("seqno:", m.seqNo)
 	return m.seqNo
 }
 
