@@ -826,9 +826,9 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 
 func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 	var (
-		actAsBlacklist      bool
-		actUsers, actGroups []int64
-		inSlice             = func(e int64, s []int64) bool {
+		actAsBlacklist                   bool
+		actUsers, actGroups, actChannels []int64
+		inSlice                          = func(e int64, s []int64) bool {
 			for _, a := range s {
 				if a == e {
 					return true
@@ -856,6 +856,9 @@ func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 			}
 			if len(filter.Chats) > 0 {
 				actGroups = filter.Chats
+			}
+			if len(filter.Channels) > 0 {
+				actChannels = filter.Channels
 			}
 			if filter.Blacklist {
 				actAsBlacklist = true
@@ -897,7 +900,20 @@ func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 		peerCheckGroupPassed = true
 	}
 
-	if !actAsBlacklist && (len(actUsers) > 0 || len(actGroups) > 0) && !(peerCheckUserPassed && peerCheckGroupPassed) {
+	if len(actChannels) > 0 && m.ChannelID() != 0 {
+		if inSlice(m.ChannelID(), actChannels) {
+			if actAsBlacklist {
+				return false
+			}
+			// if the channel is in the blacklist, we should not pass the check
+			peerCheckGroupPassed = true
+		}
+	} else {
+		// if there are no channels in the filter, we should pass the check
+		peerCheckGroupPassed = true
+	}
+
+	if !actAsBlacklist && (len(actUsers) > 0 || len(actGroups) > 0 || len(actChannels) > 0) && !(peerCheckUserPassed && peerCheckGroupPassed) {
 		return false
 	}
 
@@ -934,7 +950,7 @@ func (h *callbackHandle) runFilterChain(c *CallbackQuery, filters []Filter) bool
 
 type Filter struct {
 	Private, Group, Channel, Media, Command, Reply, Forward, FromBot, Blacklist, Mention bool
-	Users, Chats                                                                         []int64
+	Users, Chats, Channels                                                               []int64
 	Func                                                                                 func(m *NewMessage) bool
 	FuncCallback                                                                         func(c *CallbackQuery) bool
 }
@@ -955,6 +971,9 @@ var (
 	}
 	FilterChats = func(chats ...int64) Filter {
 		return Filter{Chats: chats}
+	}
+	FilterChannels = func(channels ...int64) Filter {
+		return Filter{Channels: channels}
 	}
 	FilterFunc = func(f func(m *NewMessage) bool) Filter {
 		return Filter{Func: f}
