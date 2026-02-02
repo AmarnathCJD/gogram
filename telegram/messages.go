@@ -464,7 +464,7 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 		opt.SleepThresholdMs = 5000
 	}
 
-	InputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{FileName: opt.FileName, Thumb: opt.Thumb, ForceDocument: opt.ForceDocument, Attributes: opt.Attributes, TTL: opt.TTL, Spoiler: opt.Spoiler, MimeType: opt.MimeType})
+	InputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{FileName: opt.FileName, Thumb: opt.Thumb, ForceDocument: opt.ForceDocument, Attributes: opt.Attributes, TTL: opt.TTL, Spoiler: opt.Spoiler, MimeType: opt.MimeType, ProgressManager: opt.ProgressManager, UploadThreads: opt.UploadThreads, SkipHash: opt.SkipHash})
 	if multiErr != nil {
 		return nil, multiErr
 	}

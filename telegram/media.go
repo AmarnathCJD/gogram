@@ -174,7 +174,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	var progressTicker = make(chan struct{}, 1)
 
 	if opts.ProgressManager != nil {
+		opts.ProgressManager.SetFileName(source.GetName())
+		opts.ProgressManager.lastPerc = 0
+		opts.ProgressManager.IncCount()
 		opts.ProgressManager.SetTotalSize(size)
+
 		go func() {
 			ticker := time.NewTicker(time.Duration(opts.ProgressManager.editInterval) * time.Second)
 			defer ticker.Stop()
@@ -494,7 +498,11 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	var progressTicker = make(chan struct{}, 1)
 
 	if opts.ProgressManager != nil {
+		opts.ProgressManager.SetFileName(dest)
+		opts.ProgressManager.lastPerc = 0
+		opts.ProgressManager.IncCount()
 		opts.ProgressManager.SetTotalSize(size)
+
 		go func() {
 			ticker := time.NewTicker(time.Duration(opts.ProgressManager.editInterval) * time.Second)
 			defer ticker.Stop()
@@ -746,6 +754,8 @@ type ProgressManager struct {
 	editFunc     func(totalSize, currentSize int64)
 	totalSize    int64
 	lastPerc     float64
+	fileName     string
+	fileCount    int
 }
 
 func NewProgressManager(editInterval int) *ProgressManager {
@@ -780,6 +790,22 @@ func (pm *ProgressManager) WithMessage(msg *NewMessage) func(a, b int64) {
 	return func(a, b int64) {
 		msg.Edit(pm.GetStats(b))
 	}
+}
+
+func (pm *ProgressManager) SetFileName(fileName string) {
+	pm.fileName = fileName
+}
+
+func (pm *ProgressManager) GetFileName() string {
+	return pm.fileName
+}
+
+func (pm *ProgressManager) IncCount() {
+	pm.fileCount++
+}
+
+func (pm *ProgressManager) GetCount() int {
+	return pm.fileCount
 }
 
 func (pm *ProgressManager) GetProgress(currentBytes int64) float64 {
@@ -835,4 +861,25 @@ func (pm *ProgressManager) GenProgressBar(b int64) string {
 	bar += "]"
 
 	return fmt.Sprintf("\r%s %d%%", bar, int(pm.GetProgress(b)))
+}
+
+func MediaDownloadProgress(editMsg *NewMessage, pm *ProgressManager) func(totalBytes, currentBytes int64) {
+	return func(totalBytes int64, currentBytes int64) {
+		text := ""
+		text += "<b>📄 Name:</b> <code>%s</code>\n"
+		text += "<b>💾 File Size:</b> <code>%.2f MiB</code>\n"
+		text += "<b>⌛️ ETA:</b> <code>%s</code>\n"
+		text += "<b>⏱ Speed:</b> <code>%s</code>\n"
+		text += "<b>⚙️ Progress:</b> %s <code>%.2f%%</code>"
+
+		size := float64(totalBytes) / 1024 / 1024
+		eta := pm.GetETA(currentBytes)
+		speed := pm.GetSpeed(currentBytes)
+		percent := pm.GetProgress(currentBytes)
+
+		progressbar := strings.Repeat("■", int(percent/10)) + strings.Repeat("□", 10-int(percent/10))
+
+		message := fmt.Sprintf(text, pm.GetFileName(), size, eta, speed, progressbar, percent)
+		editMsg.Edit(message)
+	}
 }
