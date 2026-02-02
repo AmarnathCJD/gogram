@@ -5,6 +5,7 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  workflow_dispatch:
 
 jobs:
 
@@ -19,11 +20,11 @@ jobs:
         go-version: '1.22'
 
     - name: Build & Run TL Parser
-      run: cd ./internal/cmd/tlgen && go run . && cat ../../../telegram/const.go
+      run: cd ./internal/cmd/tlgen && go run .
 
     - uses: stefanzweifel/git-auto-commit-action@v4
       with:
-        commit_message: "TLParserBot: Auto-Generated TLs"
+        commit_message: "TLParser: Auto-Generated TLs"
         commit_options: "--no-verify"
         repository: .
         commit_user_name: AmarnathCjd
