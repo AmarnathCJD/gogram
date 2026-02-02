@@ -1063,10 +1063,11 @@ type HelpPeerColorOption struct {
 	Colors          HelpPeerColorSet `tl:"flag:1"`
 	DarkColors      HelpPeerColorSet `tl:"flag:2"`
 	ChannelMinLevel int32            `tl:"flag:3"`
+	GroupMinLevel   int32            `tl:"flag:4"`
 }
 
 func (*HelpPeerColorOption) CRC() uint32 {
-	return 0xef8430ab
+	return 0xadec6ebe
 }
 
 func (*HelpPeerColorOption) FlagIndex() int {

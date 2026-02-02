@@ -85,7 +85,7 @@ If you'd like to support Gogram, you can consider:
 - **Feature-Rich**: Built-in support for file uploading, formatting, custom keyboards, message editing, moderation tools and more.
 - **Up-to-date**: Gogram is always in sync with the latest Telegram API changes and additions (`tl-parser` is used to generate the API layer).
 
-#### Current Layer - **172** (Updated on 2024-01-19)
+#### Current Layer - **174** (Updated on 2024-02-18)
 
 ## Installing
 
@@ -145,6 +145,14 @@ client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 - [ ] Documentation for all methods
 - [ ] Stabilize File Uploading/Downloading
 - [ ] Secret Chats Support
+
+## Known Issues
+
+- [ ] File Uploading/Downloading is not stable
+
+## Contributing
+
+Gogram is an open-source project and your contribution is very much appreciated. If you'd like to contribute, simply fork the repository, commit your changes and send a pull request. If you have any questions, feel free to ask.
 
 ## Resources
 

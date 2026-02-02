@@ -379,6 +379,17 @@ func (*ChannelAdminLogEventActionChangeEmojiStatus) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionChangeEmojiStatus) ImplementsChannelAdminLogEventAction() {}
 
+type ChannelAdminLogEventActionChangeEmojiStickerSet struct {
+	PrevStickerset InputStickerSet
+	NewStickerset  InputStickerSet
+}
+
+func (*ChannelAdminLogEventActionChangeEmojiStickerSet) CRC() uint32 {
+	return 0x46d840ab
+}
+
+func (*ChannelAdminLogEventActionChangeEmojiStickerSet) ImplementsChannelAdminLogEventAction() {}
+
 type ChannelAdminLogEventActionChangeHistoryTtl struct {
 	PrevValue int32
 	NewValue  int32
@@ -1255,10 +1266,13 @@ type ChannelFull struct {
 	AvailableReactions     ChatReactions   `tl:"flag:30"`
 	Stories                *PeerStories    `tl:"flag2:4"`
 	Wallpaper              WallPaper       `tl:"flag2:7"`
+	BoostsApplied          int32           `tl:"flag2:8"`
+	BoostsUnrestrict       int32           `tl:"flag2:9"`
+	Emojiset               *StickerSet     `tl:"flag2:10"`
 }
 
 func (*ChannelFull) CRC() uint32 {
-	return 0xf2bcb6f
+	return 0x44c054a7
 }
 
 func (*ChannelFull) FlagIndex() int {
@@ -3580,12 +3594,12 @@ func (*InputReplyToMessage) FlagIndex() int {
 func (*InputReplyToMessage) ImplementsInputReplyTo() {}
 
 type InputReplyToStory struct {
-	UserID  InputUser
+	Peer    InputPeer
 	StoryID int32
 }
 
 func (*InputReplyToStory) CRC() uint32 {
-	return 0x15b0f283
+	return 0x5881323a
 }
 
 func (*InputReplyToStory) ImplementsInputReplyTo() {}
@@ -4376,7 +4390,8 @@ type MessageObj struct {
 	Noforwards        bool `tl:"flag:26,encoded_in_bitflags"`
 	InvertMedia       bool `tl:"flag:27,encoded_in_bitflags"`
 	ID                int32
-	FromID            Peer `tl:"flag:8"`
+	FromID            Peer  `tl:"flag:8"`
+	FromBoostsApplied int32 `tl:"flag:29"`
 	PeerID            Peer
 	SavedPeerID       Peer               `tl:"flag:28"`
 	FwdFrom           *MessageFwdHeader  `tl:"flag:2"`
@@ -4399,7 +4414,7 @@ type MessageObj struct {
 }
 
 func (*MessageObj) CRC() uint32 {
-	return 0x76bec211
+	return 0x1e4c8a69
 }
 
 func (*MessageObj) FlagIndex() int {
@@ -4453,6 +4468,16 @@ type MessageAction interface {
 	tl.Object
 	ImplementsMessageAction()
 }
+type MessageActionBoostApply struct {
+	Boosts int32
+}
+
+func (*MessageActionBoostApply) CRC() uint32 {
+	return 0xcc02aa6d
+}
+
+func (*MessageActionBoostApply) ImplementsMessageAction() {}
+
 type MessageActionBotAllowed struct {
 	AttachMenu  bool   `tl:"flag:1,encoded_in_bitflags"`
 	FromRequest bool   `tl:"flag:3,encoded_in_bitflags"`
@@ -5527,12 +5552,12 @@ func (*MessageReplyHeaderObj) FlagIndex() int {
 func (*MessageReplyHeaderObj) ImplementsMessageReplyHeader() {}
 
 type MessageReplyStoryHeader struct {
-	UserID  int64
+	Peer    Peer
 	StoryID int32
 }
 
 func (*MessageReplyStoryHeader) CRC() uint32 {
-	return 0x9c98bfc1
+	return 0xe5af939
 }
 
 func (*MessageReplyStoryHeader) ImplementsMessageReplyHeader() {}
@@ -7544,6 +7569,7 @@ type StoryItemObj struct {
 	Out              bool `tl:"flag:16,encoded_in_bitflags"`
 	ID               int32
 	Date             int32
+	FromID           Peer            `tl:"flag:18"`
 	FwdFrom          *StoryFwdHeader `tl:"flag:17"`
 	ExpireDate       int32
 	Caption          string          `tl:"flag:0"`
@@ -7556,7 +7582,7 @@ type StoryItemObj struct {
 }
 
 func (*StoryItemObj) CRC() uint32 {
-	return 0xaf6365a1
+	return 0x79b26a24
 }
 
 func (*StoryItemObj) FlagIndex() int {

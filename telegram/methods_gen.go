@@ -4213,6 +4213,31 @@ func (c *Client) ChannelsReportSpam(channel InputChannel, participant InputPeer,
 	return resp, nil
 }
 
+type ChannelsSetBoostsToUnblockRestrictionsParams struct {
+	Channel InputChannel
+	Boosts  int32
+}
+
+func (*ChannelsSetBoostsToUnblockRestrictionsParams) CRC() uint32 {
+	return 0xad399cee
+}
+
+func (c *Client) ChannelsSetBoostsToUnblockRestrictions(channel InputChannel, boosts int32) (Updates, error) {
+	responseData, err := c.MakeRequest(&ChannelsSetBoostsToUnblockRestrictionsParams{
+		Boosts:  boosts,
+		Channel: channel,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending ChannelsSetBoostsToUnblockRestrictions")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type ChannelsSetDiscussionGroupParams struct {
 	Broadcast InputChannel
 	Group     InputChannel
@@ -4229,6 +4254,31 @@ func (c *Client) ChannelsSetDiscussionGroup(broadcast, group InputChannel) (bool
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending ChannelsSetDiscussionGroup")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type ChannelsSetEmojiStickersParams struct {
+	Channel    InputChannel
+	Stickerset InputStickerSet
+}
+
+func (*ChannelsSetEmojiStickersParams) CRC() uint32 {
+	return 0x3cd930b7
+}
+
+func (c *Client) ChannelsSetEmojiStickers(channel InputChannel, stickerset InputStickerSet) (bool, error) {
+	responseData, err := c.MakeRequest(&ChannelsSetEmojiStickersParams{
+		Channel:    channel,
+		Stickerset: stickerset,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending ChannelsSetEmojiStickers")
 	}
 
 	resp, ok := responseData.(bool)
