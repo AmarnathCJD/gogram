@@ -469,13 +469,7 @@ func parseInt32(a any) int32 {
 	}
 }
 
-// Inverse operation of ResolveBotFileID
-// https://core.telegram.org/bots/api#file
-//
-//	Accepted Types:
-//		*MessageMedia
-//		*Document
-//		*Photo
+// PackBotFileID packs a file object to a file-id
 func PackBotFileID(file any) string {
 	var (
 		fID, accessHash int64
@@ -532,84 +526,30 @@ switchFileType:
 		return ""
 	}
 
-	buf := make([]byte, 4+4+8+8)
-	binary.LittleEndian.PutUint32(buf[0:], uint32(fileType))
-	binary.LittleEndian.PutUint32(buf[4:], uint32(dcID))
-	binary.LittleEndian.PutUint64(buf[8:], uint64(fID))
-	binary.LittleEndian.PutUint64(buf[16:], uint64(accessHash))
-	return base64.RawURLEncoding.EncodeToString(RLCEncode(applyXORInt32(buf, 0x00000001)))
+	buf := make([]byte, 4+8+8)
+	binary.LittleEndian.PutUint32(buf[0:], uint32(fileType)|uint32(dcID)<<24)
+	binary.LittleEndian.PutUint64(buf[4:], uint64(fID))
+	binary.LittleEndian.PutUint64(buf[4+8:], uint64(accessHash))
+	return base64.RawURLEncoding.EncodeToString(buf)
 }
 
-// XOR operation with a 32-bit pattern, (obfuscation)
-func applyXORInt32(data []byte, pattern uint32) []byte {
-	xored := make([]byte, len(data))
-	for i := 0; i < len(data); i += 4 {
-		value := binary.LittleEndian.Uint32(data[i:])
-		xoredValue := value ^ pattern
-		binary.LittleEndian.PutUint32(xored[i:], xoredValue)
-	}
-	return xored
-}
-
-// Run-Length Encoding (RLE) algorithm, used to compress data
-func RLCEncode(data []byte) []byte {
-	var encoded []byte
-	count := 0
-
-	for i := 0; i < len(data); i++ {
-		if data[i] == 0 {
-			count++
-		} else {
-			if count > 0 {
-				encoded = append(encoded, 0, byte(count))
-				count = 0
-			}
-			encoded = append(encoded, data[i])
-		}
-	}
-
-	if count > 0 {
-		encoded = append(encoded, 0, byte(count))
-	}
-
-	return encoded
-}
-
-// Inverse operation of RLCEncode
-func RLCDecode(data []byte) []byte {
-	var decoded []byte
-	for i := 0; i < len(data); i++ {
-		if data[i] == 0 {
-			count := int(data[i+1])
-			for j := 0; j < count; j++ {
-				decoded = append(decoded, 0)
-			}
-			i++
-		} else {
-			decoded = append(decoded, data[i])
-		}
-	}
-
-	return decoded
-}
-
+// UnpackBotFileID unpacks a file id to its components
 func UnpackBotFileID(fileID string) (int64, int64, int32, int32) {
 	data, err := base64.RawURLEncoding.DecodeString(fileID)
 	if err != nil {
 		return 0, 0, 0, 0
 	}
 
-	data = applyXORInt32(RLCDecode(data), 0x00000001)
-
-	if len(data) == 24 {
-		fileType := int32(binary.LittleEndian.Uint32(data[0:]))
-		dcID := int32(binary.LittleEndian.Uint32(data[4:]))
-		fID := int64(binary.LittleEndian.Uint64(data[8:]))
-		accessHash := int64(binary.LittleEndian.Uint64(data[16:]))
+	if len(data) == 20 {
+		tmp := binary.LittleEndian.Uint32(data[0:])
+		fileType := int32(tmp & 0x00FFFFFF)
+		dcID := int32((tmp >> 24) & 0xFF)
+		fID := int64(binary.LittleEndian.Uint64(data[4:]))
+		accessHash := int64(binary.LittleEndian.Uint64(data[4+8:]))
 		return fID, accessHash, fileType, dcID
 	}
 
-	// support for old file ids
+	// Compatibility with old file ids
 	if parts := strings.SplitN(string(data), "_", 4); len(parts) == 4 {
 		fileType, _ := strconv.Atoi(parts[0])
 		dcID, _ := strconv.Atoi(parts[1])
@@ -621,13 +561,9 @@ func UnpackBotFileID(fileID string) (int64, int64, int32, int32) {
 	return 0, 0, 0, 0
 }
 
-// Inverse operation of PackBotFileID,
-// https://core.telegram.org/bots/api#file
-//
-//	Accepted Types:
-//		string
-func ResolveBotFileID(fileID string) (MessageMedia, error) {
-	fID, accessHash, fileType, dcID := UnpackBotFileID(fileID)
+// ResolveBotFileID resolves a file id to a MessageMedia object
+func ResolveBotFileID(fileId string) (MessageMedia, error) {
+	fID, accessHash, fileType, dcID := UnpackBotFileID(fileId)
 	if fID == 0 || accessHash == 0 || fileType == 0 || dcID == 0 {
 		return nil, errors.New("failed to resolve file id: unrecognized format")
 	}
