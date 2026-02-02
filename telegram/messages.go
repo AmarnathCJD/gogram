@@ -254,6 +254,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 			Spoiler:         options.Spoiler,
 			MimeType:        options.MimeType,
 			ProgressManager: options.ProgressManager,
+			Inline:          true,
 		})
 		if err != nil {
 			return nil, err
