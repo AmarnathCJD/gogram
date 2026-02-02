@@ -2,16 +2,6 @@
 
 package telegram
 
-type AccessPointRule struct {
-	PhonePrefixRules string
-	DcID             int32
-	Ips              []IpPort
-}
-
-func (*AccessPointRule) CRC() uint32 {
-	return 0x4679b65f
-}
-
 // Telegram Passport authorization form
 type AccountAuthorizationForm struct {
 	RequiredTypes    []SecureRequiredType
@@ -1524,16 +1514,6 @@ func (*GroupCallStreamChannel) CRC() uint32 {
 	return 0x80eb48af
 }
 
-type HelpConfigSimple struct {
-	Date    int32
-	Expires int32
-	Rules   []*AccessPointRule
-}
-
-func (*HelpConfigSimple) CRC() uint32 {
-	return 0x5a592a6c
-}
-
 // Name, ISO code, localized name and phone codes/patterns of a specific country
 type HelpCountry struct {
 	Hidden       bool `tl:"flag:0,encoded_in_bitflags"`
@@ -2948,6 +2928,14 @@ func (*PaymentsSavedInfo) FlagIndex() int {
 	return 0
 }
 
+type PaymentsStarGiftUpgradePreview struct {
+	SampleAttributes []StarGiftAttribute
+}
+
+func (*PaymentsStarGiftUpgradePreview) CRC() uint32 {
+	return 0x167bd90b
+}
+
 // Contains a URL leading to a page where the user will be able to place ads for the channel/bot, paying using Telegram Stars.
 type PaymentsStarsRevenueAdsAccountURL struct {
 	URL string
@@ -3011,6 +2999,15 @@ func (*PaymentsSuggestedStarRefBots) CRC() uint32 {
 
 func (*PaymentsSuggestedStarRefBots) FlagIndex() int {
 	return 0
+}
+
+type PaymentsUniqueStarGift struct {
+	Gift  StarGift
+	Users []User
+}
+
+func (*PaymentsUniqueStarGift) CRC() uint32 {
+	return 0xcaa2f60b
 }
 
 // Gifts displayed on a user's profile.
@@ -3733,14 +3730,6 @@ func (*SponsoredMessageReportOption) CRC() uint32 {
 	return 0x430d3150
 }
 
-type StarGiftUpgradePreview struct {
-	SampleAttributes []StarGiftAttribute
-}
-
-func (*StarGiftUpgradePreview) CRC() uint32 {
-	return 0x167bd90b
-}
-
 // Indo about an affiliate program offered by a bot
 type StarRefProgram struct {
 	BotID               int64
@@ -3897,9 +3886,9 @@ type StarsTransaction struct {
 	Reaction                  bool `tl:"flag:11,encoded_in_bitflags"`
 	StargiftUpgrade           bool `tl:"flag:18,encoded_in_bitflags"`
 	Subscription              bool `tl:"flag:12,encoded_in_bitflags"`
+	Floodskip                 bool `tl:"flag:15,encoded_in_bitflags"`
 	ID                        string
 	Stars                     *StarsAmount
-	Floodskip                 bool `tl:"flag:15,encoded_in_bitflags"`
 	Date                      int32
 	Peer                      StarsTransactionPeer
 	Title                     string         `tl:"flag:0"`
@@ -4581,6 +4570,15 @@ type WebAuthorization struct {
 
 func (*WebAuthorization) CRC() uint32 {
 	return 0xa6f8f452
+}
+
+type WebPagePreview struct {
+	Media MessageMedia
+	Users []User
+}
+
+func (*WebPagePreview) CRC() uint32 {
+	return 0xb53e8b21
 }
 
 // Info about a sent inline webview message
