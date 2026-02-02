@@ -218,15 +218,6 @@ func (*AccountDaysTtl) CRC() uint32 {
 	return 0xb8d0afdf
 }
 
-// Contains the link that must be used to open a [direct link Mini App](https://core.telegram.org/api/bots/webapps#direct-link-mini-apps).
-type AppWebViewResultURL struct {
-	URL string
-}
-
-func (*AppWebViewResultURL) CRC() uint32 {
-	return 0x3c1b4f0d
-}
-
 // Represents a [bot mini app that can be launched from the attachment/side menu »](https://core.telegram.org/api/bots/attach)
 type AttachMenuBot struct {
 	Inactive                 bool `tl:"flag:0,encoded_in_bitflags"`
@@ -1775,6 +1766,19 @@ func (*InputSingleMedia) FlagIndex() int {
 	return 0
 }
 
+type InputStarsTransaction struct {
+	Refund bool `tl:"flag:0,encoded_in_bitflags"`
+	ID     string
+}
+
+func (*InputStarsTransaction) CRC() uint32 {
+	return 0x206ae6d1
+}
+
+func (*InputStarsTransaction) FlagIndex() int {
+	return 0
+}
+
 // Sticker in a stickerset
 type InputStickerSetItem struct {
 	Document   InputDocument
@@ -2705,6 +2709,14 @@ func (*PaymentsSavedInfo) FlagIndex() int {
 	return 0
 }
 
+type PaymentsStarsRevenueAdsAccountURL struct {
+	URL string
+}
+
+func (*PaymentsStarsRevenueAdsAccountURL) CRC() uint32 {
+	return 0x394e7f21
+}
+
 type PaymentsStarsRevenueStats struct {
 	RevenueGraph StatsGraph
 	Status       *StarsRevenueStatus
@@ -3376,15 +3388,6 @@ func (*ShippingOption) CRC() uint32 {
 	return 0xb6213cdf
 }
 
-// Contains the webview URL with appropriate theme parameters added
-type SimpleWebViewResultURL struct {
-	URL string
-}
-
-func (*SimpleWebViewResultURL) CRC() uint32 {
-	return 0x882f76bb
-}
-
 type SmsJob struct {
 	JobID       string
 	PhoneNumber string
@@ -3496,15 +3499,18 @@ type StarsTransaction struct {
 	Stars           int64
 	Date            int32
 	Peer            StarsTransactionPeer
-	Title           string      `tl:"flag:0"`
-	Description     string      `tl:"flag:1"`
-	Photo           WebDocument `tl:"flag:2"`
-	TransactionDate int32       `tl:"flag:5"`
-	TransactionURL  string      `tl:"flag:5"`
+	Title           string         `tl:"flag:0"`
+	Description     string         `tl:"flag:1"`
+	Photo           WebDocument    `tl:"flag:2"`
+	TransactionDate int32          `tl:"flag:5"`
+	TransactionURL  string         `tl:"flag:5"`
+	BotPayload      []byte         `tl:"flag:7"`
+	MsgID           int32          `tl:"flag:8"`
+	ExtendedMedia   []MessageMedia `tl:"flag:9"`
 }
 
 func (*StarsTransaction) CRC() uint32 {
-	return 0xaa00c898
+	return 0x2db5418f
 }
 
 func (*StarsTransaction) FlagIndex() int {
@@ -4147,10 +4153,15 @@ func (*WebViewMessageSent) FlagIndex() int {
 
 // Contains the webview URL with appropriate theme and user info parameters added
 type WebViewResultURL struct {
-	QueryID int64
-	URL     string
+	Fullsize bool  `tl:"flag:1,encoded_in_bitflags"`
+	QueryID  int64 `tl:"flag:0"`
+	URL      string
 }
 
 func (*WebViewResultURL) CRC() uint32 {
-	return 0xc14557c
+	return 0x4d22ff98
+}
+
+func (*WebViewResultURL) FlagIndex() int {
+	return 0
 }
