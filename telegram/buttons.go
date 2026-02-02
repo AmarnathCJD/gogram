@@ -77,6 +77,10 @@ func (kb *KeyboardBuilder) Build() *ReplyInlineMarkup {
 	return &ReplyInlineMarkup{Rows: kb.rows}
 }
 
+func (Button) Text(text string) *KeyboardButtonObj {
+	return &KeyboardButtonObj{Text: text}
+}
+
 func (Button) Force(placeHolder string) *ReplyKeyboardForceReply {
 	return &ReplyKeyboardForceReply{Placeholder: placeHolder}
 }
