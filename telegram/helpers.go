@@ -550,6 +550,35 @@ func (c *Client) GetPeerID(Peer any) int64 {
 	}
 }
 
+func (c *Client) GetPeerType(Peer any) string {
+	switch Peer := Peer.(type) {
+	case *PeerUser, *InputPeerUser, *InputUserObj, *InputUserFromMessage:
+		return EntityUser
+	case *PeerChat, *InputPeerChat:
+		return EntityChat
+	case *PeerChannel, *InputPeerChannel, *InputChannelObj, *InputChannelFromMessage:
+		return EntityChannel
+	case int64, int32, int:
+		peerEntity, err := c.GetInputPeer(getAnyInt(Peer))
+		if peerEntity == nil || err != nil {
+			return EntityUnknown
+		}
+		return c.GetPeerType(peerEntity)
+	case string:
+		peerEntity, err := c.ResolvePeer(Peer)
+		if err != nil {
+			return EntityUnknown
+		}
+		return c.GetPeerType(peerEntity)
+	default:
+		return EntityUnknown
+	}
+}
+
+func (c *Client) IsSelf(Peer any) bool {
+	return c.GetPeerID(Peer) == c.Me().ID
+}
+
 func (c *Client) PeerEquals(a, b any) bool {
 	return c.GetPeerID(a) == c.GetPeerID(b)
 }
@@ -1373,7 +1402,7 @@ func packMessage(c *Client, message Message) *NewMessage {
 		}
 	}
 
-	if (m.Channel != nil && m.Sender != nil) && (m.Sender.ID == m.Channel.ID) {
+	if (m.Channel != nil && m.Sender != nil) && (m.Sender.ID == m.Channel.ID) || (m.Message.FromID != nil && c.GetPeerType(m.Message.FromID) == EntityChannel) {
 		m.SenderChat = c.getChannel(m.Message.FromID)
 	} else {
 		m.SenderChat = &Channel{}
