@@ -29,6 +29,7 @@ type SendOptions struct {
 	TTL              int32               `json:"ttl,omitempty"`
 	Spoiler          bool                `json:"spoiler,omitempty"`
 	ProgressCallback func(int32, int32)  `json:"-"`
+	UploadThreads    int                 `json:"-"`
 	Effect           int64               `json:"effect,omitempty"`
 	Timeouts         int32               `json:"timeouts,omitempty"`
 }
@@ -289,6 +290,7 @@ type MediaOptions struct {
 	TTL              int32               `json:"ttl,omitempty"`
 	Spoiler          bool                `json:"spoiler,omitempty"`
 	ProgressCallback func(int32, int32)  `json:"-"`
+	UploadThreads    int                 `json:"-"`
 }
 
 type MediaMetadata struct {
@@ -302,6 +304,7 @@ type MediaMetadata struct {
 	DisableThumb          bool                `json:"gen_thumb,omitempty"`
 	MimeType              string              `json:"mime_type,omitempty"`
 	ProgressCallback      func(int32, int32)  `json:"-"`
+	UploadThreads         int                 `json:"-"`
 }
 
 // SendMedia sends a media message.
@@ -339,6 +342,7 @@ func (c *Client) SendMedia(peerID, Media interface{}, opts ...*MediaOptions) (*N
 		Spoiler:          opt.Spoiler,
 		MimeType:         opt.MimeType,
 		ProgressCallback: opt.ProgressCallback,
+		UploadThreads:    opt.UploadThreads,
 	})
 
 	if err != nil {
