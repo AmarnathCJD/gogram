@@ -25,6 +25,11 @@ type mimeTypeManager struct {
 	mimeTypes map[string]string
 }
 
+// type ExportedAuthParams struct {
+// 	ID    int64
+// 	Bytes []byte
+// }
+
 func (m *mimeTypeManager) addMime(ext, mime string) {
 	m.mimeTypes[ext] = mime
 }

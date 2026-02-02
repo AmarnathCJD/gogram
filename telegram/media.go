@@ -16,7 +16,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/pkg/errors"
 )
 
@@ -33,30 +32,38 @@ type UploadOptions struct {
 
 type WorkerPool struct {
 	sync.Mutex
-	workers []*mtproto.MTProto
-	free    chan *mtproto.MTProto
+	workers []*ExSender
+	free    chan *ExSender
 }
 
 func NewWorkerPool(size int) *WorkerPool {
 	return &WorkerPool{
-		workers: make([]*mtproto.MTProto, 0, size),
-		free:    make(chan *mtproto.MTProto, size),
+		workers: make([]*ExSender, 0, size),
+		free:    make(chan *ExSender, size),
 	}
 }
 
-func (wp *WorkerPool) AddWorker(s *mtproto.MTProto) {
+func (wp *WorkerPool) AddWorker(s *ExSender) {
 	wp.Lock()
 	defer wp.Unlock()
 	wp.workers = append(wp.workers, s)
 	wp.free <- s // Mark the worker as free immediately
 }
 
-func (wp *WorkerPool) Next() *mtproto.MTProto {
-	return <-wp.free
+func (wp *WorkerPool) Next() *ExSender {
+	next := <-wp.free
+	if !next.MTProto.TcpActive() {
+		next.MTProto.Reconnect(false)
+	}
+	next.lastUsed = time.Now()
+	return next
 }
 
-func (wp *WorkerPool) FreeWorker(s *mtproto.MTProto) {
-	wp.free <- s
+func (wp *WorkerPool) FreeWorker(s *ExSender) {
+	select {
+	case wp.free <- s:
+	default:
+	}
 }
 
 type Source struct {
@@ -169,10 +176,9 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	doneBytes := atomic.Int64{}
 	doneArray := sync.Map{}
 
-	if c.clientData.cacheSenders {
-		c.exSenders.setTTL()
+	if err := initializeWorkers(numWorkers, int32(c.GetDC()), c, w); err != nil {
+		return nil, err
 	}
-	go initializeWorkers(numWorkers, int32(c.GetDC()), c, w)
 
 	var progressTicker = make(chan struct{}, 1)
 
@@ -305,15 +311,6 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 	if opts.ProgressManager != nil {
 		opts.ProgressManager.editFunc(size, size)
-	}
-
-	// destroy created workers
-	if !c.clientData.cacheSenders {
-		for _, worker := range w.workers {
-			if worker != c.MTProto {
-				worker.Terminate()
-			}
-		}
 	}
 
 	if opts.FileName != "" {
@@ -494,12 +491,10 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 
 	c.Log.Info(fmt.Sprintf("file - download: (%s) - (%s) - (%d)", dest, SizetoHuman(size), parts))
-	c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers))
 
-	if c.clientData.cacheSenders {
-		c.exSenders.setTTL()
+	if err := initializeWorkers(numWorkers, dc, c, w); err != nil {
+		return "", err
 	}
-	go initializeWorkers(numWorkers, dc, c, w)
 
 	var sem = make(chan struct{}, numWorkers)
 	var wg sync.WaitGroup
@@ -532,8 +527,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 	MAX_RETRIES := 3
 	var cdnRedirect atomic.Bool
-
-	for p := int64(0); p < parts; p++ {
+	for p := int64(0); p < totalParts; p++ {
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(p int) {
@@ -558,7 +552,6 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					CdnSupported: false,
 				})
 				w.FreeWorker(sender)
-
 				if err != nil {
 					if handleIfFlood(err, c) {
 						continue
@@ -605,7 +598,7 @@ retrySinglePart:
 				wg.Done()
 			}()
 
-			for i := 0; i < MAX_RETRIES; i++ {
+			for range MAX_RETRIES {
 				sender := w.Next()
 				ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 				defer cancel()
@@ -665,15 +658,6 @@ retrySinglePart:
 		opts.ProgressManager.editFunc(size, size)
 	}
 
-	// destroy created workers
-	if !c.clientData.cacheSenders {
-		for _, worker := range w.workers {
-			if worker != c.MTProto {
-				worker.Terminate()
-			}
-		}
-	}
-
 	return dest, nil
 }
 
@@ -687,16 +671,16 @@ func getUndoneParts(doneMap *sync.Map, totalParts int) []int {
 	return undoneSet
 }
 
-func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) {
+func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error {
 	if numWorkers == 1 && dc == int32(c.GetDC()) {
-		w.AddWorker(c.MTProto)
-		return
+		w.AddWorker(&ExSender{c.MTProto, time.Now()})
+		return nil
 	}
 
-	var authParams = ExportedAuthParams{}
+	var authParams = AuthExportedAuthorization{}
 	if dc != int32(c.GetDC()) {
 		if c.exportedKeys == nil {
-			c.exportedKeys = make(map[int]*ExportedAuthParams)
+			c.exportedKeys = make(map[int]*AuthExportedAuthorization)
 		}
 
 		if exportedKey, ok := c.exportedKeys[int(dc)]; ok {
@@ -704,11 +688,10 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) {
 		} else {
 			auth, err := c.AuthExportAuthorization(dc)
 			if err != nil {
-				c.Log.Error(err)
-				return
+				return err
 			}
 
-			authParams = ExportedAuthParams{
+			authParams = AuthExportedAuthorization{
 				ID:    auth.ID,
 				Bytes: auth.Bytes,
 			}
@@ -717,8 +700,8 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) {
 		}
 	}
 
-	numCreate := 0
-	if c.clientData.cacheSenders {
+	go func() {
+		numCreate := 0
 		for dcId, workers := range c.exSenders.senders {
 			if int(dc) == dcId {
 				for _, worker := range workers {
@@ -727,17 +710,22 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) {
 				}
 			}
 		}
-	}
 
-	for i := numCreate; i < numWorkers; i++ {
-		conn, err := c.CreateExportedSender(int(dc), false, authParams)
-		if conn != nil && err == nil {
-			if c.clientData.cacheSenders {
-				c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], conn)
-			}
-			w.AddWorker(conn)
+		if numCreate < numWorkers {
+			c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers-numCreate))
 		}
-	}
+
+		for i := numCreate; i < numWorkers; i++ {
+			conn, err := c.CreateExportedSender(int(dc), false, authParams)
+			if conn != nil && err == nil {
+				sender := &ExSender{conn, time.Now()}
+				c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], sender)
+				w.AddWorker(sender)
+			}
+		}
+	}()
+
+	return nil
 }
 
 // DownloadChunk downloads a file in chunks, useful for downloading specific parts of a file.
@@ -760,7 +748,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 	if end > int(size) {
 		end = int(size)
 	}
-	var sender *mtproto.MTProto
+	var sender *ExSender
 	if c.clientData.cacheSenders {
 		for dcId, workers := range c.exSenders.senders {
 			if int(dc) == dcId {
@@ -773,13 +761,13 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 	}
 
 	if sender == nil {
-		sender, err = c.CreateExportedSender(int(dc), false)
+		mtp, err := c.CreateExportedSender(int(dc), false)
 		if err != nil {
 			return nil, "", err
 		}
 
 		if c.clientData.cacheSenders {
-			c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], sender)
+			c.exSenders.senders[int(dc)] = append(c.exSenders.senders[int(dc)], &ExSender{mtp, time.Now()})
 		}
 	}
 
