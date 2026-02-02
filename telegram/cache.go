@@ -363,6 +363,17 @@ func (c *CACHE) UpdateUser(user *UserObj) bool {
 	c.Lock()
 	defer c.Unlock()
 
+	if user.Min {
+		if userFromCache, ok := c.users[user.ID]; ok {
+			if userFromCache.Min {
+				c.users[user.ID] = user
+			}
+			return false
+		}
+		c.users[user.ID] = user
+		return false
+	}
+
 	if currAccessHash, ok := c.InputPeers.InputUsers[user.ID]; ok {
 		if currAccessHash != user.AccessHash {
 			c.InputPeers.InputUsers[user.ID] = user.AccessHash
@@ -372,9 +383,8 @@ func (c *CACHE) UpdateUser(user *UserObj) bool {
 		return false
 	}
 
-	c.users[user.ID] = user
 	c.InputPeers.InputUsers[user.ID] = user.AccessHash
-
+	c.users[user.ID] = user
 	return true
 }
 
@@ -383,11 +393,24 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 	defer c.Unlock()
 
 	if currAccessHash, ok := c.InputPeers.InputChannels[channel.ID]; ok {
-		if currAccessHash != channel.AccessHash {
+		if activeCh, ok := c.channels[channel.ID]; ok {
+			if activeCh.Min {
+				c.InputPeers.InputChannels[channel.ID] = channel.AccessHash
+				c.channels[channel.ID] = channel
+				return true
+			}
+
+			if !activeCh.Min && channel.Min {
+				return false
+			}
+		}
+
+		if currAccessHash != channel.AccessHash && !channel.Min {
 			c.InputPeers.InputChannels[channel.ID] = channel.AccessHash
 			c.channels[channel.ID] = channel
 			return true
 		}
+
 		return false
 	}
 

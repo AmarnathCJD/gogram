@@ -89,6 +89,7 @@ type ClientConfig struct {
 	TestMode      bool
 	LogLevel      string
 	Proxy         *url.URL
+	TransportMode string
 	FloodHandler  func(err error) bool
 }
 

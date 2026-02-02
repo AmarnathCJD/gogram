@@ -45,6 +45,7 @@ type MTProto struct {
 	memorySession bool
 	tcpActive     bool
 	timeOffset    int64
+	mode          mode.Variant
 
 	authKey []byte
 
@@ -92,6 +93,7 @@ type Config struct {
 	DataCenter int
 	LogLevel   string
 	Proxy      *url.URL
+	Mode       string
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -133,6 +135,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		appID:                 c.AppID,
 		proxy:                 c.Proxy,
 		floodHandler:          func(err error) bool { return false },
+		mode:                  parseTransportMode(c.Mode),
 	}
 
 	mtproto.Logger.Debug("initializing mtproto...")
@@ -150,6 +153,19 @@ func NewMTProto(c Config) (*MTProto, error) {
 	}
 
 	return mtproto, nil
+}
+
+func parseTransportMode(sMode string) mode.Variant {
+	switch sMode {
+	case "modeAbridged":
+		return mode.Abridged
+	case "modeFull":
+		return mode.Full
+	case "modeIntermediate":
+		return mode.Intermediate
+	default:
+		return mode.Abridged
+	}
 }
 
 func (m *MTProto) LoadSession(sess *session.Session) error {
@@ -337,7 +353,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 			Timeout: defaultTimeout,
 			Socks:   m.proxy,
 		},
-		mode.Abridged,
+		m.mode,
 	)
 	if err != nil {
 		return fmt.Errorf("creating transport: %w", err)
@@ -516,7 +532,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 }
 
 func (m *MTProto) handle404Error() {
-	if m.authKey404 == nil || len(m.authKey404) == 0 {
+	if len(m.authKey404) == 0 {
 		m.authKey404 = []int64{1, time.Now().Unix()}
 	} else {
 		if time.Now().Unix()-m.authKey404[1] < 30 { // repeated failures
@@ -526,6 +542,7 @@ func (m *MTProto) handle404Error() {
 		}
 		m.authKey404[1] = time.Now().Unix()
 	}
+
 	if m.authKey404[0] == 4 {
 		m.Logger.Error(errors.New("(last retry: 4) reconnecting due to [AUTH_KEY_INVALID] (code -404)"))
 		err := m.Reconnect(false)
@@ -569,7 +586,7 @@ func (m *MTProto) readMsg() error {
 
 	err = m.processResponse(response)
 	if err != nil {
-		m.Logger.Error(errors.Wrap(err, "decoding unknown object"))
+		m.Logger.Debug(errors.Wrap(err, "decoding unknown object"))
 		return errors.Wrap(err, "incoming update")
 	}
 	return nil
@@ -675,7 +692,7 @@ messageTypeSwitching:
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			if strings.Contains(err.Error(), "no response channel found") {
-				m.Logger.Error(errors.Wrap(err, "writing rpc response"))
+				m.Logger.Debug(errors.Wrap(err, "writing rpc response"))
 			} else {
 				return errors.Wrap(err, "writing rpc response")
 			}

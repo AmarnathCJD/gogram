@@ -16940,7 +16940,7 @@ func (c *Client) UsersGetUsers(id []InputUser) ([]User, error) {
 	resp, ok := responseData.([]User)
 	if !ok {
 		if responseData == nil {
-			return nil, errors.New("response is nil")
+			return nil, errors.New("[USER_ID_INVALID] The user ID is invalid")
 		}
 
 		if _, ok := responseData.([]*UserObj); ok { // Temp Fix till Problem is Identified
