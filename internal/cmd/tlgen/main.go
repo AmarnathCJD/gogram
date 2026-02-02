@@ -489,6 +489,8 @@ null#56730bcc = Null;`}
 		clean = []string{}
 	}
 
+	b = bytes.ReplaceAll(b, []byte(`vector<`), []byte(`Vector<`))
+
 	clean = append(clean, string(b))
 
 	return []byte(strings.Join(clean, "\n"))
