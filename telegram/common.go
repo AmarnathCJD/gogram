@@ -2,13 +2,13 @@ package telegram
 
 import (
 	"net"
-	"reflect"
+	"os"
 	"runtime"
 	"strconv"
 
-	"github.com/pkg/errors"
-	"github.com/xelaj/errs"
 	"fmt"
+
+	"github.com/pkg/errors"
 
 	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/amarnathcjd/gogram/internal/keys"
@@ -36,8 +36,8 @@ const (
 	warnChannelDefaultCapacity = 100
 )
 
-func NewClient(c ClientConfig) (*Client, error) {                                                          about copying big args.
-	if _, err := os.Stat(c.PublicKeysFile) ; err != nil {
+func NewClient(c ClientConfig) (*Client, error) {
+	if _, err := os.Stat(c.PublicKeysFile); err != nil {
 		return nil, fmt.Errorf("publickeysfile not found")
 	}
 	if c.DeviceModel == "" {
