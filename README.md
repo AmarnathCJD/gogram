@@ -24,6 +24,10 @@
 
 </div>
 
+<div align='center'>
+	<img src="https://count.getloli.com/get/@gogram-amarnathcdj?theme=moebooru" alt="Counter" />
+</div>
+
 
 <br>
 
@@ -94,7 +98,7 @@ If you'd like to support Gogram, you can consider:
   <li><strong>up-to-date</strong>: 🔄 gogram is always in sync with the latest telegram api changes and additions (<code>tl-parser</code> is used to generate the api layer).</li>
 </ul>
 
-#### Current Layer - **204** (Updated on 2025-05-28)
+#### Current Layer - **204** (Updated on 2025-05-29)
 
 ## doing stuff
 
