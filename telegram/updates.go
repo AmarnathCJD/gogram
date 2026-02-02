@@ -501,7 +501,13 @@ func (c *Client) handleAlbum(message MessageObj) {
 func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
 	switch msg := m.(type) {
 	case *MessageObj:
-		if c.IdInCache(c.GetPeerID(msg.FromID)) && c.IdInCache(c.GetPeerID(msg.PeerID)) {
+		if (c.IdInCache(c.GetPeerID(msg.FromID)) || func() bool {
+			_, ok := msg.FromID.(*PeerChat)
+			return ok
+		}()) && (c.IdInCache(c.GetPeerID(msg.PeerID)) || func() bool {
+			_, ok := msg.PeerID.(*PeerChat)
+			return ok
+		}()) {
 			c.handleMessageUpdate(msg)
 			return
 		}

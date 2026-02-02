@@ -328,11 +328,11 @@ PeerSwitch:
 	case *UserObj:
 		return &InputPeerUser{UserID: Peer.ID, AccessHash: Peer.AccessHash}, nil
 	case int64, int32, int:
-		PeerEntity, err := c.Cache.GetInputPeer(getAnyInt(PeerID))
-		if PeerEntity == nil {
+		peerEntity, err := c.GetInputPeer(getAnyInt(PeerID))
+		if peerEntity == nil || err != nil {
 			return nil, err
 		}
-		return PeerEntity, nil
+		return peerEntity, nil
 	case string:
 		if i, err := strconv.ParseInt(Peer, 10, 64); err == nil {
 			PeerID = i
@@ -342,16 +342,12 @@ PeerSwitch:
 			return &InputPeerSelf{}, nil
 		}
 
-		// search in cache first
-		for _, peer := range c.Cache.channels {
-			if peer.Username == Peer {
-				return &InputPeerChannel{ChannelID: peer.ID, AccessHash: peer.AccessHash}, nil
+		if peerMap, ok := c.Cache.usernameMap[strings.TrimPrefix(Peer, "@")]; ok {
+			if peerHash, ok := c.Cache.InputPeers.InputChannels[peerMap]; ok {
+				return &InputPeerChannel{ChannelID: peerMap, AccessHash: peerHash}, nil
 			}
-		}
-
-		for _, peer := range c.Cache.users {
-			if peer.Username == Peer {
-				return &InputPeerUser{UserID: peer.ID, AccessHash: peer.AccessHash}, nil
+			if peerHash, ok := c.Cache.InputPeers.InputUsers[peerMap]; ok {
+				return &InputPeerUser{UserID: peerMap, AccessHash: peerHash}, nil
 			}
 		}
 
