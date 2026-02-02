@@ -4973,6 +4973,31 @@ func (c *Client) ChannelsGetLeftChannels(offset int32) (MessagesChats, error) {
 	return resp, nil
 }
 
+type ChannelsGetMessageAuthorParams struct {
+	Channel InputChannel
+	ID      int32
+}
+
+func (*ChannelsGetMessageAuthorParams) CRC() uint32 {
+	return 0xece2a0e6
+}
+
+func (c *Client) ChannelsGetMessageAuthor(channel InputChannel, id int32) (User, error) {
+	responseData, err := c.MakeRequest(&ChannelsGetMessageAuthorParams{
+		Channel: channel,
+		ID:      id,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending ChannelsGetMessageAuthor")
+	}
+
+	resp, ok := responseData.(User)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type ChannelsGetMessagesParams struct {
 	Channel InputChannel
 	ID      []InputMessage
@@ -8681,11 +8706,6 @@ type MessagesForwardMessagesParams struct {
 	DropAuthor         bool                    `tl:"flag:11,encoded_in_bitflags"`
 	DropMediaCaptions  bool                    `tl:"flag:12,encoded_in_bitflags"`
 	Noforwards         bool                    `tl:"flag:14,encoded_in_bitflags"`
-	AllowPaidFloodskip bool                    `tl:"flag:19,encoded_in_bitflags"`
-	FromPeer           InputPeer
-	ID                 []int32
-	RandomID           []int64
-	ToPeer             InputPeer
 	TopMsgID           int32                   `tl:"flag:9"`
 	ScheduleDate       int32                   `tl:"flag:10"`
 	SendAs             InputPeer               `tl:"flag:13"`
