@@ -267,8 +267,7 @@ func (c *Client) InitialRequest() error {
 		utils.SetDCs(dcs)
 	}
 
-	_, err = c.UpdatesGetState()
-	return err
+	return nil
 }
 
 // Establish connection to telegram servers
