@@ -649,8 +649,22 @@ func getUndoneParts(doneMap *sync.Map, totalParts int) []int {
 }
 
 func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) {
+	var authParams = ExportedAuthParams{}
+	if dc != int32(c.GetDC()) {
+		auth, err := c.AuthExportAuthorization(dc)
+		if err != nil {
+			c.Log.Error(err)
+			return
+		}
+
+		authParams = ExportedAuthParams{
+			ID:    auth.ID,
+			Bytes: auth.Bytes,
+		}
+	}
+
 	for i := 0; i < numWorkers; i++ {
-		conn, err := c.CreateExportedSender(int(dc))
+		conn, err := c.CreateExportedSender(int(dc), false, authParams)
 		if conn != nil && err == nil {
 			w.AddWorker(conn)
 		}
@@ -678,7 +692,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		end = int(size)
 	}
 
-	sender, err := c.CreateExportedSender(int(dc))
+	sender, err := c.CreateExportedSender(int(dc), false)
 	if err != nil {
 		return nil, "", err
 	}
