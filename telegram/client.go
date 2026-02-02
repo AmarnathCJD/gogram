@@ -125,7 +125,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 		client.setupDispatcher()
 		if client.IsConnected() {
 			// TODO: Implement same for manual connect Call.
-			client.UpdatesGetState()
+			// client.UpdatesGetState()
 		}
 	}
 	if err := client.clientWarnings(config); err != nil {
@@ -271,7 +271,8 @@ func (c *Client) InitialRequest() error {
 		utils.SetDCs(dcs)
 	}
 
-	return nil
+	_, err = c.UpdatesGetState()
+	return err
 }
 
 // Establish connection to telegram servers
