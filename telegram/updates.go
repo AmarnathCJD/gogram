@@ -1661,7 +1661,7 @@ func (h *inlineCallbackHandle) IsMatch(data []byte, c *Client) bool {
 }
 
 func (h *messageHandle) IsMatch(text string, c *Client) bool {
-	if h.Pattern == nil {
+	if h == nil || h.Pattern == nil {
 		return false
 	}
 	switch Pattern := h.Pattern.(type) {
