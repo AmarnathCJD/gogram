@@ -200,6 +200,10 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 
 		switch p := resp.(type) {
 		case *MessagesDialogsObj:
+			if len(p.Dialogs) == 0 {
+				return dialogs, nil
+			}
+
 			c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 			dialogs = append(dialogs, p.Dialogs...)
 			fetched += len(p.Dialogs)
@@ -219,6 +223,10 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 			}
 
 		case *MessagesDialogsSlice:
+			if len(p.Dialogs) == 0 {
+				return dialogs, nil
+			}
+
 			c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 			dialogs = append(dialogs, p.Dialogs...)
 			fetched += len(p.Dialogs)
@@ -307,6 +315,10 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan erro
 
 			switch p := resp.(type) {
 			case *MessagesDialogsObj:
+				if len(p.Dialogs) == 0 {
+					return
+				}
+
 				c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 				for _, dialog := range p.Dialogs {
 					dialogs <- dialog
@@ -328,6 +340,10 @@ func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan erro
 				}
 
 			case *MessagesDialogsSlice:
+				if len(p.Dialogs) == 0 {
+					return
+				}
+
 				c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 				for _, dialog := range p.Dialogs {
 					dialogs <- dialog
