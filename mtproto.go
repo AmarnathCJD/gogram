@@ -449,7 +449,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 							panic("[AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)")
 						}
 					case *transport.ErrCode:
-						m.Logger.Error(errors.New("[TRANSPORT_ERROR] - " + e.Error()))
+						m.Logger.Error(errors.New("[TRANSPORT_ERROR_CODE] - " + e.Error()))
 					}
 
 					if err := m.Reconnect(false); err != nil {
@@ -465,6 +465,7 @@ func (m *MTProto) readMsg() error {
 	if m.transport == nil {
 		return errors.New("must setup connection before reading messages")
 	}
+
 	response, err := m.transport.ReadMsg()
 	if err != nil {
 		if e, ok := err.(transport.ErrCode); ok {
@@ -490,6 +491,7 @@ func (m *MTProto) readMsg() error {
 
 	err = m.processResponse(response)
 	if err != nil {
+		m.Logger.Error(errors.Wrap(err, "decoding unknown object"))
 		return errors.Wrap(err, "incoming update")
 	}
 	return nil
@@ -504,7 +506,6 @@ func (m *MTProto) processResponse(msg messages.Common) error {
 		data, err = tl.DecodeUnknownObject(msg.GetMsg())
 	}
 	if err != nil {
-		m.Logger.Error(errors.Wrap(err, "decoding unknown object"))
 		return fmt.Errorf("unmarshalling response: %w", err)
 	}
 
