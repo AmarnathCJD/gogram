@@ -4,6 +4,9 @@ package examples
 // https://gist.github.com/AmarnathCJD/bfceefe9efd1a079ab151da54ef3bba2
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -25,12 +28,30 @@ func main() {
 	chat, _ := client.ResolvePeer("chatId")
 	m, _ := client.SendMessage(chat, "Starting File Upload...")
 
-	var pm = telegram.NewProgressManager(5)
-	pm.Edit(func(a, b int64) {
-		client.EditMessage(chat, m.ID, pm.GetStats(a))
-	})
+	var pm = telegram.NewProgressManager(5) // 5: Update every 5 seconds
 
 	client.SendMedia(chat, "<file-name>", &telegram.MediaOptions{
-		ProgressManager: pm,
+		ProgressManager: pm.WithEdit(MediaDownloadProgress("<file-name>", m, pm)),
 	})
+}
+
+func MediaDownloadProgress(fname string, editMsg *telegram.NewMessage, pm *telegram.ProgressManager) func(atotalBytes, currentBytes int64) {
+	return func(totalBytes int64, currentBytes int64) {
+		text := ""
+		text += "<b>📄 Name:</b> <code>%s</code>\n"
+		text += "<b>💾 File Size:</b> <code>%.2f MiB</code>\n"
+		text += "<b>⌛️ ETA:</b> <code>%s</code>\n"
+		text += "<b>⏱ Speed:</b> <code>%s</code>\n"
+		text += "<b>⚙️ Progress:</b> %s <code>%.2f%%</code>"
+
+		size := float64(totalBytes) / 1024 / 1024
+		eta := pm.GetETA(currentBytes)
+		speed := pm.GetSpeed(currentBytes)
+		percent := pm.GetProgress(currentBytes)
+
+		progressbar := strings.Repeat("■", int(percent/10)) + strings.Repeat("□", 10-int(percent/10))
+
+		message := fmt.Sprintf(text, fname, size, eta, speed, progressbar, percent)
+		editMsg.Edit(message)
+	}
 }
