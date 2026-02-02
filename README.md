@@ -85,7 +85,7 @@ If you'd like to support Gogram, you can consider:
 - **Feature-Rich**: Built-in support for file uploading, formatting, custom keyboards, message editing, moderation tools and more.
 - **Up-to-date**: Gogram is always in sync with the latest Telegram API changes and additions (`tl-parser` is used to generate the API layer).
 
-## Current Layer - **172** (Updated on 2024-01-19)
+#### Current Layer - **172** (Updated on 2024-01-19)
 
 ## Installing
 
@@ -137,7 +137,10 @@ client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 
 ## Features TODO
 
-- [x] Support for Flag2.0
+- [x] Basic MTProto implementation (LAYER 172)
+- [x] Updates handling system + Cache
+- [x] HTML, Markdown Parsing, Friendly Methods
+- [x] Support for Flag2.0, Layer 147
 - [ ] WebRTC Calls Support
 - [ ] Documentation for all methods
 - [ ] Stabilize File Uploading/Downloading
