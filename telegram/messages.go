@@ -793,6 +793,7 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 		Filter: &InputMessagesFilterEmpty{},
 	}).(*SearchOption)
 	peer, err := c.ResolvePeer(PeerID)
+
 	if err != nil {
 		return nil, err
 	}
@@ -824,7 +825,7 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 			inputIDs = append(inputIDs, &InputMessageID{ID: id})
 		}
 	case int, int64, int32:
-		inputIDs = append(inputIDs, &InputMessageID{ID: int32(i.(int))})
+		inputIDs = append(inputIDs, &InputMessageID{ID: parseInt32(i)})
 	case *InputMessage:
 		inputIDs = append(inputIDs, *i)
 	case *InputMessagePinned:
@@ -843,7 +844,7 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 		switch peer := peer.(type) {
 		case *InputPeerChannel:
 			result, err = c.ChannelsGetMessages(&InputChannelObj{ChannelID: peer.ChannelID, AccessHash: peer.AccessHash}, inputIDs)
-		case *InputPeerChat, *InputPeerUser:
+		case *InputPeerChat, *InputPeerUser, *InputPeerSelf:
 			result, err = c.MessagesGetMessages(inputIDs)
 		default:
 			return nil, errors.New("invalid peer type to get messages")

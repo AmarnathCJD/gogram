@@ -64,6 +64,19 @@ func getInt(a, b int) int {
 	return a
 }
 
+func parseInt32(a interface{}) int32 {
+	switch a := a.(type) {
+	case int32:
+		return a
+	case int:
+		return int32(a)
+	case int64:
+		return int32(a)
+	default:
+		return 0
+	}
+}
+
 func joinAbsWorkingDir(filename string) string {
 	if filename == "" {
 		filename = "session.dat" // Default filename for session file
