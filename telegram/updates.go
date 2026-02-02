@@ -891,11 +891,11 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 
 		if strings.HasPrefix(Pattern, "cmd:") {
 			//(?i)^[!/-?]ping(?: |$|@botusername)(.*)$
-			Pattern = "(?i)^[!/?]" + strings.TrimPrefix(Pattern, "cmd:")
+			Pattern = "(?i)^[!\\/?]" + strings.TrimPrefix(Pattern, "cmd:")
 			if me := c.Me(); me != nil && me.Username != "" && me.Bot {
 				Pattern += "(?: |$|@" + me.Username + ")(.*)"
 			} else {
-				Pattern += "(.*)"
+				Pattern += "(?: |$)(.*)"
 			}
 		} else {
 			if !strings.HasPrefix(Pattern, "^") {
@@ -1565,9 +1565,9 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 	case OnCommand:
 		if h, ok := handler.(func(m *NewMessage) error); ok {
 			if args != "" {
-				return c.AddMessageHandler("cmd:"+args, h, append(filters, FilterCommand)...)
+				return c.AddMessageHandler("cmd:"+args, h, filters...)
 			}
-			return c.AddMessageHandler(OnNewMessage, h, append(filters, FilterCommand)...)
+			return c.AddMessageHandler(OnNewMessage, h, filters...)
 		}
 	case OnEdit, OnEditMessage:
 		if h, ok := handler.(func(m *NewMessage) error); ok {
