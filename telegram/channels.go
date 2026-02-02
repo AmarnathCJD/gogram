@@ -232,6 +232,7 @@ type ParticipantOptions struct {
 	Offset           int32                     `json:"offset,omitempty"`
 	Limit            int32                     `json:"limit,omitempty"`
 	SleepThresholdMs int32                     `json:"sleep_threshold_ms,omitempty"`
+	ErrorCallback    IterErrorCallback         `json:"-"` // callback for handling errors with progress info
 }
 
 // GetChatMembers returns the members of a chat
@@ -414,6 +415,16 @@ func (c *Client) IterChatMembers(chatID any, Opts ...*ParticipantOptions) (<-cha
 			if err != nil {
 				if handleIfFlood(err, c) {
 					continue
+				}
+				if opts.ErrorCallback != nil {
+					if opts.ErrorCallback(err, &IterProgressInfo{
+						Fetched:      fetched,
+						CurrentBatch: 0,
+						Limit:        opts.Limit,
+						Offset:       req.Offset,
+					}) {
+						continue
+					}
 				}
 				errCh <- err
 				return

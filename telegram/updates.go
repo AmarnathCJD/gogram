@@ -1967,7 +1967,10 @@ func InChat(ids ...int64) Filter   { return chatFilter{chats: ids} }
 func TextMinLen(n int) Filter      { return lengthFilter{min: n} }
 func TextMaxLen(n int) Filter      { return lengthFilter{max: n} }
 
-func Custom(fn func(*NewMessage) bool) Filter            { return customFilter{fn: fn} }
+func Custom(fn func(*NewMessage) bool) Filter { return customFilter{fn: fn} }
+
+var CustomFilter = Custom
+
 func CustomCallback(fn func(*CallbackQuery) bool) Filter { return customCallbackFilter{fn: fn} }
 
 func Not(f Filter) Filter {

@@ -130,15 +130,16 @@ func (c *Client) GetProfilePhotos(userID any, Opts ...*PhotosOptions) ([]UserPho
 }
 
 type DialogOptions struct {
-	OffsetID         int32           // Message ID to start from
-	OffsetDate       int32           // Unix timestamp to start from
-	OffsetPeer       InputPeer       // Peer to start from
-	Limit            int32           // Maximum number of dialogs to return
-	ExcludePinned    bool            // Exclude pinned dialogs from results
-	FolderID         int32           // Folder ID to get dialogs from (0 for main list)
-	Hash             int64           // Hash for caching
-	SleepThresholdMs int32           // Delay between requests in milliseconds
-	Context          context.Context // Context for cancellation
+	OffsetID         int32             // Message ID to start from
+	OffsetDate       int32             // Unix timestamp to start from
+	OffsetPeer       InputPeer         // Peer to start from
+	Limit            int32             // Maximum number of dialogs to return
+	ExcludePinned    bool              // Exclude pinned dialogs from results
+	FolderID         int32             // Folder ID to get dialogs from (0 for main list)
+	Hash             int64             // Hash for caching
+	SleepThresholdMs int32             // Delay between requests in milliseconds
+	Context          context.Context   // Context for cancellation
+	ErrorCallback    IterErrorCallback // callback for handling errors with progress info
 }
 
 type TLDialog struct {
@@ -379,6 +380,16 @@ func (c *Client) IterDialogs(callback func(*TLDialog) error, Opts ...*DialogOpti
 		if handleIfFlood(err, c) {
 			continue
 		} else if err != nil {
+			if options.ErrorCallback != nil {
+				if options.ErrorCallback(err, &IterProgressInfo{
+					Fetched:      int32(fetched),
+					CurrentBatch: 0,
+					Limit:        options.Limit,
+					Offset:       req.OffsetID,
+				}) {
+					continue
+				}
+			}
 			return err
 		}
 
