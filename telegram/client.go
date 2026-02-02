@@ -357,6 +357,10 @@ func (c *Client) SetAppHash(appHash string) {
 	c.clientData.appHash = appHash
 }
 
+// func (c *Client) SetTcpConnection(conn *net.TCPConn) {
+// 	c.MTProto.SetTcpConnection(conn)
+// }
+
 func (c *Client) Me() *UserObj {
 	return c.clientData.me
 }
