@@ -2701,23 +2701,23 @@ func (c *Client) AuthSignIn(phoneNumber, phoneCodeHash, phoneCode string, emailV
 }
 
 type AuthSignUpParams struct {
-	PhoneNumber   string
-	PhoneCodeHash string
-	FirstName     string
-	LastName      string
+	NoJoinedNotifications bool `tl:"flag:0,encoded_in_bitflags"`
+	PhoneNumber           string
+	PhoneCodeHash         string
+	FirstName             string
+	LastName              string
 }
 
 func (*AuthSignUpParams) CRC() uint32 {
-	return 0x80eee427
+	return 0xaac7b717
 }
 
-func (c *Client) AuthSignUp(phoneNumber, phoneCodeHash, firstName, lastName string) (AuthAuthorization, error) {
-	responseData, err := c.MakeRequest(&AuthSignUpParams{
-		FirstName:     firstName,
-		LastName:      lastName,
-		PhoneCodeHash: phoneCodeHash,
-		PhoneNumber:   phoneNumber,
-	})
+func (*AuthSignUpParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AuthSignUp(params *AuthSignUpParams) (AuthAuthorization, error) {
+	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending AuthSignUp")
 	}
@@ -8532,15 +8532,23 @@ func (c *Client) MessagesGetSavedHistory(params *MessagesGetSavedHistoryParams) 
 }
 
 type MessagesGetSavedReactionTagsParams struct {
+	Peer InputPeer `tl:"flag:0"`
 	Hash int64
 }
 
 func (*MessagesGetSavedReactionTagsParams) CRC() uint32 {
-	return 0x761ddacf
+	return 0x3637e05b
 }
 
-func (c *Client) MessagesGetSavedReactionTags(hash int64) (MessagesSavedReactionTags, error) {
-	responseData, err := c.MakeRequest(&MessagesGetSavedReactionTagsParams{Hash: hash})
+func (*MessagesGetSavedReactionTagsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesGetSavedReactionTags(peer InputPeer, hash int64) (MessagesSavedReactionTags, error) {
+	responseData, err := c.MakeRequest(&MessagesGetSavedReactionTagsParams{
+		Hash: hash,
+		Peer: peer,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending MessagesGetSavedReactionTags")
 	}
@@ -14312,9 +14320,9 @@ func (*UsersSetSecureValueErrorsParams) CRC() uint32 {
 	return 0x90c894b5
 }
 
-func (c *Client) UsersSetSecureValueErrors(id InputUser, errorsW []SecureValueError) (bool, error) {
+func (c *Client) UsersSetSecureValueErrors(id InputUser, errorsw []SecureValueError) (bool, error) {
 	responseData, err := c.MakeRequest(&UsersSetSecureValueErrorsParams{
-		Errors: errorsW,
+		Errors: errorsw,
 		ID:     id,
 	})
 	if err != nil {

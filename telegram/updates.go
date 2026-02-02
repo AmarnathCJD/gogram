@@ -12,10 +12,6 @@ import (
 
 const DEF_ALBUM_WAIT_TIME = 600 * time.Millisecond
 
-var (
-	activeAlbums = make(map[int64]*albumBox)
-)
-
 type messageHandle struct {
 	Pattern interface{}
 	Handler func(m *NewMessage) error
@@ -151,6 +147,7 @@ type UpdateDispatcher struct {
 	messageDeleteHandles  []messageDeleteHandle
 	albumHandles          []albumHandle
 	rawHandles            []rawHandle
+	activeAlbums          map[int64]*albumBox
 }
 
 func (c *Client) handleMessageUpdate(update Message) {
@@ -185,7 +182,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 }
 
 func (c *Client) handleAlbum(message MessageObj) {
-	if group, ok := activeAlbums[message.GroupedID]; ok {
+	if group, ok := c.dispatcher.activeAlbums[message.GroupedID]; ok {
 		group.Add(packMessage(c, &message))
 	} else {
 		abox := &albumBox{
@@ -193,7 +190,7 @@ func (c *Client) handleAlbum(message MessageObj) {
 			messages:  []*NewMessage{packMessage(c, &message)},
 			groupedId: message.GroupedID,
 		}
-		activeAlbums[message.GroupedID] = abox
+		c.dispatcher.activeAlbums[message.GroupedID] = abox
 		go func() {
 			<-abox.waitExit
 			for _, handle := range c.dispatcher.albumHandles {
@@ -207,7 +204,7 @@ func (c *Client) handleAlbum(message MessageObj) {
 					}
 				}(handle)
 			}
-			delete(activeAlbums, message.GroupedID)
+			delete(c.dispatcher.activeAlbums, message.GroupedID)
 		}()
 		go abox.Wait()
 	}
@@ -425,6 +422,15 @@ func (h *messageHandle) runFilterChain(m *NewMessage) bool {
 			if filter.Blacklist {
 				actAsBlacklist = true
 			}
+			if filter.Mention && m.Message != nil && !m.Message.Mentioned {
+				return false
+			}
+
+			if filter.Func != nil {
+				if !filter.Func(m) {
+					return false
+				}
+			}
 		}
 	}
 
@@ -451,8 +457,9 @@ func (h *messageHandle) runFilterChain(m *NewMessage) bool {
 }
 
 type Filter struct {
-	Private, Group, Channel, Media, Command, Reply, Forward, FromBot, Blacklist bool
-	Users, Chats                                                                []int64
+	Private, Group, Channel, Media, Command, Reply, Forward, FromBot, Blacklist, Mention bool
+	Users, Chats                                                                         []int64
+	Func                                                                                 func(m *NewMessage) bool
 }
 
 var (
@@ -465,11 +472,15 @@ var (
 	FilterForward   = Filter{Forward: true}
 	FilterFromBot   = Filter{FromBot: true}
 	FilterBlacklist = Filter{Blacklist: true}
+	FilterMention   = Filter{Mention: true}
 	FilterUsers     = func(users ...int64) Filter {
 		return Filter{Users: users}
 	}
 	FilterChats = func(chats ...int64) Filter {
 		return Filter{Chats: chats}
+	}
+	FilterFunc = func(f func(m *NewMessage) bool) Filter {
+		return Filter{Func: f}
 	}
 )
 
