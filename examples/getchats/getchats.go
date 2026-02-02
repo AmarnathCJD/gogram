@@ -32,6 +32,8 @@ func main() {
 		panic(err)
 	}
 
+	// if you are using bot account, use client.Broadcast()
+
 	dialogs, err := client.GetDialogs()
 	if err != nil {
 		panic(err)
