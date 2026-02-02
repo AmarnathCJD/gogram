@@ -1421,6 +1421,7 @@ type ChannelFull struct {
 	RestrictedSponsored    bool `tl:"flag2:11,encoded_in_bitflags"`
 	CanViewRevenue         bool `tl:"flag2:12,encoded_in_bitflags"`
 	PaidMediaAllowed       bool `tl:"flag2:14,encoded_in_bitflags"`
+	CanViewStarsRevenue    bool `tl:"flag2:15,encoded_in_bitflags"`
 	ID                     int64
 	About                  string
 	ParticipantsCount      int32 `tl:"flag:0"`
@@ -5435,6 +5436,24 @@ func (*MessageActionInviteToGroupCall) CRC() uint32 {
 }
 
 func (*MessageActionInviteToGroupCall) ImplementsMessageAction() {}
+
+type MessageActionPaymentRefunded struct {
+	Peer        Peer
+	Currency    string
+	TotalAmount int64
+	Payload     []byte `tl:"flag:0"`
+	Charge      *PaymentCharge
+}
+
+func (*MessageActionPaymentRefunded) CRC() uint32 {
+	return 0x41b3e202
+}
+
+func (*MessageActionPaymentRefunded) FlagIndex() int {
+	return 0
+}
+
+func (*MessageActionPaymentRefunded) ImplementsMessageAction() {}
 
 // A payment was sent
 type MessageActionPaymentSent struct {
