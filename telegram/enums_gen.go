@@ -100,6 +100,7 @@ const (
 	InputPrivacyKeyBirthday          InputPrivacyKey = 0xd65a11cc
 	InputPrivacyKeyChatInvite        InputPrivacyKey = 0xbdfb0426
 	InputPrivacyKeyForwards          InputPrivacyKey = 0xa4dd4c08
+	InputPrivacyKeyNoPaidMessages    InputPrivacyKey = 0xbdc597b4
 	InputPrivacyKeyPhoneCall         InputPrivacyKey = 0xfabadc5f
 	InputPrivacyKeyPhoneNumber       InputPrivacyKey = 0x352dafa
 	InputPrivacyKeyPhoneP2P          InputPrivacyKey = 0xdb9e70d2
@@ -121,6 +122,8 @@ func (e InputPrivacyKey) String() string {
 		return "inputPrivacyKeyChatInvite"
 	case InputPrivacyKey(0xa4dd4c08):
 		return "inputPrivacyKeyForwards"
+	case InputPrivacyKey(0xbdc597b4):
+		return "inputPrivacyKeyNoPaidMessages"
 	case InputPrivacyKey(0xfabadc5f):
 		return "inputPrivacyKeyPhoneCall"
 	case InputPrivacyKey(0x352dafa):
@@ -167,6 +170,7 @@ const (
 	PrivacyKeyBirthday          PrivacyKey = 0x2000a518
 	PrivacyKeyChatInvite        PrivacyKey = 0x500e6dfa
 	PrivacyKeyForwards          PrivacyKey = 0x69ec56a3
+	PrivacyKeyNoPaidMessages    PrivacyKey = 0x17d348d2
 	PrivacyKeyPhoneCall         PrivacyKey = 0x3d662b7b
 	PrivacyKeyPhoneNumber       PrivacyKey = 0xd19ae46d
 	PrivacyKeyPhoneP2P          PrivacyKey = 0x39491cc8
@@ -188,6 +192,8 @@ func (e PrivacyKey) String() string {
 		return "privacyKeyChatInvite"
 	case PrivacyKey(0x69ec56a3):
 		return "privacyKeyForwards"
+	case PrivacyKey(0x17d348d2):
+		return "privacyKeyNoPaidMessages"
 	case PrivacyKey(0x3d662b7b):
 		return "privacyKeyPhoneCall"
 	case PrivacyKey(0xd19ae46d):

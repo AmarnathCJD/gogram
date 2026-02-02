@@ -1366,10 +1366,11 @@ type Channel struct {
 	Level                 int32                `tl:"flag2:10"`
 	SubscriptionUntilDate int32                `tl:"flag2:11"`
 	BotVerificationIcon   int64                `tl:"flag2:13"`
+	SendPaidMessagesStars int64                `tl:"flag2:14"`
 }
 
 func (*Channel) CRC() uint32 {
-	return 0xe00998b7
+	return 0x7482147e
 }
 
 func (*Channel) FlagIndex() int {
@@ -1474,10 +1475,11 @@ type ChannelFull struct {
 	ViewForumAsMessages    bool `tl:"flag2:6,encoded_in_bitflags"`
 	RestrictedSponsored    bool `tl:"flag2:11,encoded_in_bitflags"`
 	CanViewRevenue         bool `tl:"flag2:12,encoded_in_bitflags"`
-	PaidMediaAllowed       bool `tl:"flag2:14,encoded_in_bitflags"`
 	CanViewStarsRevenue    bool `tl:"flag2:15,encoded_in_bitflags"`
+	PaidMediaAllowed       bool `tl:"flag2:14,encoded_in_bitflags"`
 	PaidReactionsAvailable bool `tl:"flag2:16,encoded_in_bitflags"`
 	StargiftsAvailable     bool `tl:"flag2:19,encoded_in_bitflags"`
+	PaidMessagesAvailable  bool `tl:"flag2:20,encoded_in_bitflags"`
 	ID                     int64
 	About                  string
 	ParticipantsCount      int32 `tl:"flag:0"`
@@ -2073,15 +2075,15 @@ func (*DocumentAttributeSticker) ImplementsDocumentAttribute() {}
 
 // Defines a video
 type DocumentAttributeVideo struct {
-	RoundMessage      bool    `tl:"flag:0,encoded_in_bitflags"` // Whether this is a round video
-	SupportsStreaming bool    `tl:"flag:1,encoded_in_bitflags"` // Whether the video supports streaming
-	Nosound           bool    `tl:"flag:3,encoded_in_bitflags"` // Whether the specified document is a video file with no audio tracks (a GIF animation (even as MPEG4), for example)
-	Duration          float64 // Duration in seconds
-	W                 int32   // Video width
-	H                 int32   // Video height
-	PreloadPrefixSize int32   `tl:"flag:2"` // Number of bytes to preload when preloading videos (particularly video stories).
-	VideoStartTs      float64 `tl:"flag:4"` // Floating point UNIX timestamp in seconds, indicating the frame of the video that should be used as static preview and thumbnail.
-	VideoCodec        string  `tl:"flag:5"` // Codec used for the video, i.e. "h264", "h265", or "av1"
+	RoundMessage      bool `tl:"flag:0,encoded_in_bitflags"`
+	SupportsStreaming bool `tl:"flag:1,encoded_in_bitflags"`
+	Nosound           bool `tl:"flag:3,encoded_in_bitflags"`
+	Duration          float64
+	W                 int32
+	H                 int32
+	PreloadPrefixSize int32   `tl:"flag:2"`
+	VideoStartTs      float64 `tl:"flag:4"`
+	VideoCodec        string  `tl:"flag:5"`
 }
 
 func (*DocumentAttributeVideo) CRC() uint32 {
@@ -3529,6 +3531,22 @@ func (*InputInvoicePremiumGiftCode) CRC() uint32 {
 }
 
 func (*InputInvoicePremiumGiftCode) ImplementsInputInvoice() {}
+
+type InputInvoicePremiumGiftStars struct {
+	UserID  InputUser
+	Months  int32
+	Message *TextWithEntities `tl:"flag:0"`
+}
+
+func (*InputInvoicePremiumGiftStars) CRC() uint32 {
+	return 0xdabab2ef
+}
+
+func (*InputInvoicePremiumGiftStars) FlagIndex() int {
+	return 0
+}
+
+func (*InputInvoicePremiumGiftStars) ImplementsInputInvoice() {}
 
 // An invoice slug taken from an invoice deep link or from the <a href="/api/config#premium-invoice-slug">`premium_invoice_slug` app config parameter »</a>
 type InputInvoiceSlug struct {
@@ -5411,10 +5429,11 @@ type MessageObj struct {
 	Effect                  int64                `tl:"flag2:2"`
 	Factcheck               *FactCheck           `tl:"flag2:3"`
 	ReportDeliveryUntilDate int32                `tl:"flag2:5"`
+	PaidMessageStars        int64                `tl:"flag2:6"`
 }
 
 func (*MessageObj) CRC() uint32 {
-	return 0x96fdbbe9
+	return 0xeabcdd4d
 }
 
 func (*MessageObj) FlagIndex() int {
@@ -5838,6 +5857,16 @@ func (*MessageActionLoginUnknownLocation) CRC() uint32 {
 }
 
 func (*MessageActionLoginUnknownLocation) ImplementsMessageAction() {}
+
+type MessageActionPaidMessage struct {
+	Stars int64
+}
+
+func (*MessageActionPaidMessage) CRC() uint32 {
+	return 0x5cd2501f
+}
+
+func (*MessageActionPaidMessage) ImplementsMessageAction() {}
 
 // Describes a payment refund (service message received by both users and bots).
 type MessageActionPaymentRefunded struct {
@@ -8623,6 +8652,36 @@ func (*RequestedPeerUser) FlagIndex() int {
 
 func (*RequestedPeerUser) ImplementsRequestedPeer() {}
 
+type RequirementToContact interface {
+	tl.Object
+	ImplementsRequirementToContact()
+}
+type RequirementToContactEmpty struct{}
+
+func (*RequirementToContactEmpty) CRC() uint32 {
+	return 0x50a9839
+}
+
+func (*RequirementToContactEmpty) ImplementsRequirementToContact() {}
+
+type RequirementToContactPaidMessages struct {
+	StarsAmount int64
+}
+
+func (*RequirementToContactPaidMessages) CRC() uint32 {
+	return 0xb4f67e93
+}
+
+func (*RequirementToContactPaidMessages) ImplementsRequirementToContact() {}
+
+type RequirementToContactPremium struct{}
+
+func (*RequirementToContactPremium) CRC() uint32 {
+	return 0xe581e4e9
+}
+
+func (*RequirementToContactPremium) ImplementsRequirementToContact() {}
+
 type RichText interface {
 	tl.Object
 	ImplementsRichText()
@@ -10957,7 +11016,7 @@ func (*UpdateNotifySettings) ImplementsUpdate() {}
 
 // Contains the current default paid reaction privacy, see here » for more info.
 type UpdatePaidReactionPrivacy struct {
-	Privacy PaidReactionPrivacy // Whether paid reaction privacy is enabled or disabled.
+	Private PaidReactionPrivacy // Whether paid reaction privacy is enabled or disabled.
 }
 
 func (*UpdatePaidReactionPrivacy) CRC() uint32 {
@@ -11926,10 +11985,11 @@ type UserObj struct {
 	ProfileColor          *PeerColor           `tl:"flag2:9"`
 	BotActiveUsers        int32                `tl:"flag2:12"`
 	BotVerificationIcon   int64                `tl:"flag2:14"`
+	SendPaidMessagesStars int64                `tl:"flag2:15"`
 }
 
 func (*UserObj) CRC() uint32 {
-	return 0x4b46c37e
+	return 0x20b1422
 }
 
 func (*UserObj) FlagIndex() int {
