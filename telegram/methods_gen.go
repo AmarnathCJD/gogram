@@ -5709,10 +5709,11 @@ func (c *Client) ChatlistsDeleteExportedInvite(chatlist *InputChatlistDialogFilt
 }
 
 type ChatlistsEditExportedInviteParams struct {
-	Chatlist *InputChatlistDialogFilter
-	Slug     string
-	Title    string      `tl:"flag:1"`
-	Peers    []InputPeer `tl:"flag:2"`
+	Revoked bool `tl:"flag:0,encoded_in_bitflags"`
+    Chatlist InputChatlistDialogFilter
+	Slug  string
+	Title string      `tl:"flag:1"`
+	Peers []InputPeer `tl:"flag:2"`
 }
 
 func (*ChatlistsEditExportedInviteParams) CRC() uint32 {
@@ -5724,13 +5725,8 @@ func (*ChatlistsEditExportedInviteParams) FlagIndex() int {
 }
 
 // Edit a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
-func (c *Client) ChatlistsEditExportedInvite(chatlist *InputChatlistDialogFilter, slug, title string, peers []InputPeer) (*ExportedChatlistInvite, error) {
-	responseData, err := c.MakeRequest(&ChatlistsEditExportedInviteParams{
-		Chatlist: chatlist,
-		Peers:    peers,
-		Slug:     slug,
-		Title:    title,
-	})
+func (c *Client) ChatlistsEditExportedInvite(params *ChatlistsEditExportedInviteParams) (*ExportedChatlistInvite, error) {
+	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending ChatlistsEditExportedInvite")
 	}
@@ -10274,6 +10270,38 @@ func (c *Client) MessagesGetSplitRanges() ([]*MessageRange, error) {
 	return resp, nil
 }
 
+type MessagesGetStatsURLParams struct {
+	Dark   bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer   InputPeer
+	Params string
+}
+
+func (*MessagesGetStatsURLParams) CRC() uint32 {
+	return 0x812c2ae6
+}
+
+func (*MessagesGetStatsURLParams) FlagIndex() int {
+	return 0
+}
+
+// Returns URL with the chat statistics. Currently this method can be used only for channels
+func (c *Client) MessagesGetStatsURL(dark bool, peer InputPeer, params string) (*StatsURL, error) {
+	responseData, err := c.MakeRequest(&MessagesGetStatsURLParams{
+		Dark:   dark,
+		Params: params,
+		Peer:   peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetStatsURL")
+	}
+
+	resp, ok := responseData.(*StatsURL)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesGetStickerSetParams struct {
 	Stickerset InputStickerSet
 	Hash       int32
@@ -12003,11 +12031,11 @@ func (c *Client) MessagesSendMultiMedia(params *MessagesSendMultiMediaParams) (U
 }
 
 type MessagesSendPaidReactionParams struct {
-	Private  bool `tl:"flag:0,encoded_in_bitflags"`
 	Peer     InputPeer
 	MsgID    int32
 	Count    int32
 	RandomID int64
+	Private  bool `tl:"flag:0"`
 }
 
 func (*MessagesSendPaidReactionParams) CRC() uint32 {
