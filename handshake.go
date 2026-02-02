@@ -21,6 +21,9 @@ import (
 // https://core.telegram.org/mtproto/auth_key
 func (m *MTProto) makeAuthKey() error {
 	m.serviceModeActivated = true
+
+	maxRetries := 5
+nonceCreate:
 	nonceFirst := tl.RandomInt128()
 	var (
 		res *objects.ResPQ
@@ -38,6 +41,10 @@ func (m *MTProto) makeAuthKey() error {
 	}
 
 	if nonceFirst.Cmp(res.Nonce.Int) != 0 {
+		if maxRetries > 0 {
+			maxRetries--
+			goto nonceCreate
+		}
 		return fmt.Errorf("reqPQ: nonce mismatch")
 	}
 	found := false
@@ -187,7 +194,7 @@ func (m *MTProto) makeAuthKey() error {
 	m.serviceModeActivated = false
 	m.encrypted = true
 	if err := m.SaveSession(m.memorySession); err != nil {
-		m.Logger.Error("Saving session: ", err)
+		m.Logger.Error("saving session: ", err)
 	}
 	return err
 }

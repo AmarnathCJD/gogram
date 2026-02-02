@@ -505,7 +505,6 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...AuthExpo
 		}
 
 		if c.MTProto.GetDC() != exported.GetDC() {
-			c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
 			var auth *AuthExportedAuthorization
 			if len(authParams) > 0 && authParams[0].ID != 0 && len(authParams[0].Bytes) > 0 {
 				auth = &AuthExportedAuthorization{
@@ -513,6 +512,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...AuthExpo
 					Bytes: authParams[0].Bytes,
 				}
 			} else {
+				c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
 				auth, err = c.AuthExportAuthorization(int32(exported.GetDC()))
 				if err != nil {
 					lastError = errors.Wrap(err, "exporting auth")

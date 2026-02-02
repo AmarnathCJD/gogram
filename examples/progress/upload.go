@@ -28,11 +28,21 @@ func main() {
 	chat, _ := client.ResolvePeer("chatId")
 	m, _ := client.SendMessage(chat, "Starting File Upload...")
 
-	var pm = telegram.NewProgressManager(5) // 5: Update every 5 seconds
-
 	client.SendMedia(chat, "<file-name>", &telegram.MediaOptions{
-		ProgressManager: pm.WithEdit(MediaDownloadProgress("<file-name>", m, pm)),
+		ProgressManager: telegram.NewProgressManager(5).SetMessage(m),
 	})
+
+	// to use custom progress manager
+	// pm := telegram.NewProgressManager(5)
+	// pm.EditFunc(MediaDownloadProgress("<file-name>", m, pm))
+	// client.SendMedia(chat, "<file-name>", &telegram.MediaOptions{
+	// 	ProgressManager: pm,
+	// })
+
+	// same goes for download
+	// &DownloadOptions{ProgressManager: NewProgressManager(5).SetMessage(m)}
+	// &SendOptions{ProgressManager: NewProgressManager(5).SetMessage(m)}
+	// &MediaOptions{ProgressManager: NewProgressManager(5).SetMessage(m)}
 }
 
 func MediaDownloadProgress(fname string, editMsg *telegram.NewMessage, pm *telegram.ProgressManager) func(atotalBytes, currentBytes int64) {

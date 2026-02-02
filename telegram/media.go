@@ -180,25 +180,29 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		return nil, err
 	}
 
-	var progressTicker = make(chan struct{}, 1)
+	stopProgress := make(chan struct{})
+	defer close(stopProgress)
 
 	if opts.ProgressManager != nil {
 		opts.ProgressManager.SetFileName(source.GetName())
 		opts.ProgressManager.lastPerc = 0
 		opts.ProgressManager.IncCount()
 		opts.ProgressManager.SetTotalSize(size)
+		opts.ProgressManager.SetMeta(c.GetDC(), numWorkers)
+
+		opts.ProgressManager.editFunc(size, 0) // Initial edit
 
 		go func() {
-			opts.ProgressManager.editFunc(size, doneBytes.Load()) // Initial edit
 			ticker := time.NewTicker(time.Duration(opts.ProgressManager.editInterval) * time.Second)
 			defer ticker.Stop()
 
 			for {
 				select {
-				case <-progressTicker:
+				case <-stopProgress:
 					return
 				case <-ticker.C:
-					opts.ProgressManager.editFunc(size, doneBytes.Load())
+					current := min(doneBytes.Load(), size)
+					opts.ProgressManager.editFunc(size, current)
 				}
 			}
 		}()
@@ -206,6 +210,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 	MAX_RETRIES := 3
 	sem := make(chan struct{}, numWorkers)
+	defer close(sem)
 
 	for p := int64(0); p < parts; p++ {
 		sem <- struct{}{}
@@ -223,7 +228,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 				wg.Done()
 			}()
 
-			for i := 0; i < MAX_RETRIES; i++ {
+			for range MAX_RETRIES {
 				sender := w.Next()
 				if !IsFsBig {
 					_, err = sender.MakeRequestCtx(context.Background(), &UploadSaveFilePartParams{
@@ -305,9 +310,6 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 			break
 		}
 	}
-
-	close(sem)
-	close(progressTicker)
 
 	if opts.ProgressManager != nil {
 		opts.ProgressManager.editFunc(size, size)
@@ -497,29 +499,35 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 
 	var sem = make(chan struct{}, numWorkers)
+	defer close(sem)
+
 	var wg sync.WaitGroup
 	var doneBytes atomic.Int64
 	var doneArray sync.Map
 
-	var progressTicker = make(chan struct{}, 1)
+	stopProgress := make(chan struct{})
+	defer close(stopProgress)
 
 	if opts.ProgressManager != nil {
 		opts.ProgressManager.SetFileName(dest)
 		opts.ProgressManager.lastPerc = 0
 		opts.ProgressManager.IncCount()
 		opts.ProgressManager.SetTotalSize(size)
+		opts.ProgressManager.SetMeta(int(dc), numWorkers)
+
+		opts.ProgressManager.editFunc(size, 0) // Initial edit
 
 		go func() {
-			opts.ProgressManager.editFunc(size, doneBytes.Load()) // initial edit
 			ticker := time.NewTicker(time.Duration(opts.ProgressManager.editInterval) * time.Second)
 			defer ticker.Stop()
 
 			for {
 				select {
-				case <-progressTicker:
+				case <-stopProgress:
 					return
 				case <-ticker.C:
-					opts.ProgressManager.editFunc(size, doneBytes.Load())
+					current := min(doneBytes.Load(), size)
+					opts.ProgressManager.editFunc(size, current)
 				}
 			}
 		}()
@@ -536,7 +544,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				wg.Done()
 			}()
 
-			for i := 0; i < MAX_RETRIES; i++ {
+			for range MAX_RETRIES {
 				if cdnRedirect.Load() {
 					return
 				}
@@ -627,7 +635,7 @@ retrySinglePart:
 
 				switch v := part.(type) {
 				case *UploadFileObj:
-					c.Log.Debug("seq-downloaded part ", p, "/", totalParts, " len: ", len(v.Bytes)/1024, "KB")
+					c.Log.Debug("downloaded part ", p, "/", totalParts, " len: ", len(v.Bytes)/1024, "KB")
 					fs.WriteAt(v.Bytes, int64(p)*int64(partSize))
 					doneBytes.Add(int64(len(v.Bytes)))
 					doneArray.Store(p, true)
@@ -648,8 +656,6 @@ retrySinglePart:
 	}
 
 	wg.Wait()
-	close(sem)
-	close(progressTicker)
 	if cdnRedirect.Load() {
 		return "", errors.New("cdn redirect not implemented")
 	}
@@ -663,7 +669,7 @@ retrySinglePart:
 
 func getUndoneParts(doneMap *sync.Map, totalParts int) []int {
 	undoneSet := make([]int, 0, totalParts)
-	for i := 0; i < totalParts; i++ {
+	for i := range totalParts {
 		if _, found := doneMap.Load(i); !found {
 			undoneSet = append(undoneSet, i)
 		}
@@ -803,13 +809,35 @@ type ProgressManager struct {
 	lastPerc     float64
 	fileName     string
 	fileCount    int
+	meta         struct {
+		dataCenter int
+		numWorkers int
+	}
 }
 
-func NewProgressManager(editInterval int) *ProgressManager {
-	return &ProgressManager{
+func NewProgressManager(editInterval int, editFunc ...func(totalSize, currentSize int64)) *ProgressManager {
+	var pm = &ProgressManager{
 		startTime:    time.Now().Unix(),
 		editInterval: editInterval,
 	}
+
+	if len(editFunc) > 0 {
+		pm.editFunc = editFunc[0]
+	}
+
+	return pm
+}
+
+func (pm *ProgressManager) SetMessage(msg *NewMessage) *ProgressManager {
+	pm.editFunc = MediaDownloadProgress(msg, pm)
+	return pm
+}
+
+func (pm *ProgressManager) SetInlineMessage(client *Client, inline *InputBotInlineMessageID) *ProgressManager {
+	pm.editFunc = MediaDownloadProgress(&NewMessage{
+		Client: client,
+	}, pm, inline)
+	return pm
 }
 
 // WithEdit sets the edit function for the progress manager.
@@ -824,6 +852,11 @@ func (pm *ProgressManager) Edit(editFunc func(totalSize, currentSize int64)) {
 
 func (pm *ProgressManager) SetTotalSize(totalSize int64) {
 	pm.totalSize = totalSize
+}
+
+func (pm *ProgressManager) SetMeta(dataCenter, numWorkers int) {
+	pm.meta.dataCenter = dataCenter
+	pm.meta.numWorkers = numWorkers
 }
 
 func (pm *ProgressManager) PrintFunc() func(a, b int64) {
@@ -898,7 +931,7 @@ func (pm *ProgressManager) GenProgressBar(b int64) string {
 	progress := int((pm.GetProgress(b) / 100) * float64(barLength))
 	bar := "["
 
-	for i := 0; i < barLength; i++ {
+	for i := range barLength {
 		if i < progress {
 			bar += "="
 		} else {
@@ -910,10 +943,11 @@ func (pm *ProgressManager) GenProgressBar(b int64) string {
 	return fmt.Sprintf("\r%s %d%%", bar, int(pm.GetProgress(b)))
 }
 
-func MediaDownloadProgress(editMsg *NewMessage, pm *ProgressManager) func(totalBytes, currentBytes int64) {
+func MediaDownloadProgress(editMsg *NewMessage, pm *ProgressManager, inline ...*InputBotInlineMessageID) func(totalBytes, currentBytes int64) {
 	return func(totalBytes int64, currentBytes int64) {
 		text := ""
 		text += "<b>📄 Name:</b> <code>%s</code>\n"
+		text += "<b>🈂️ DC ID:</b> <code>%d</code> <b>|</b> <b>⚡Workers:</b> <code>%d</code>\n\n"
 		text += "<b>💾 File Size:</b> <code>%.2f MiB</code>\n"
 		text += "<b>⌛️ ETA:</b> <code>%s</code>\n"
 		text += "<b>⏱ Speed:</b> <code>%s</code>\n"
@@ -926,7 +960,11 @@ func MediaDownloadProgress(editMsg *NewMessage, pm *ProgressManager) func(totalB
 
 		progressbar := strings.Repeat("■", int(percent/10)) + strings.Repeat("□", 10-int(percent/10))
 
-		message := fmt.Sprintf(text, pm.GetFileName(), size, eta, speed, progressbar, percent)
-		editMsg.Edit(message)
+		message := fmt.Sprintf(text, pm.GetFileName(), pm.meta.dataCenter, pm.meta.numWorkers, size, eta, speed, progressbar, percent)
+		if len(inline) > 0 {
+			editMsg.Client.EditMessage(inline[0], 0, message)
+		} else {
+			editMsg.Edit(message)
+		}
 	}
 }
