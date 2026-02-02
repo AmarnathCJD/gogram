@@ -1972,6 +1972,45 @@ func (*EmailVerifyPurposePassport) CRC() uint32 {
 
 func (*EmailVerifyPurposePassport) ImplementsEmailVerifyPurpose() {}
 
+type EmojiGroup interface {
+	tl.Object
+	ImplementsEmojiGroup()
+}
+type EmojiGroupObj struct {
+	Title       string
+	IconEmojiID int64
+	Emoticons   []string
+}
+
+func (*EmojiGroupObj) CRC() uint32 {
+	return 0x7a9abda9
+}
+
+func (*EmojiGroupObj) ImplementsEmojiGroup() {}
+
+type EmojiGroupGreeting struct {
+	Title       string
+	IconEmojiID int64
+	Emoticons   []string
+}
+
+func (*EmojiGroupGreeting) CRC() uint32 {
+	return 0x80d26cc7
+}
+
+func (*EmojiGroupGreeting) ImplementsEmojiGroup() {}
+
+type EmojiGroupPremium struct {
+	Title       string
+	IconEmojiID int64
+}
+
+func (*EmojiGroupPremium) CRC() uint32 {
+	return 0x93bcf34
+}
+
+func (*EmojiGroupPremium) ImplementsEmojiGroup() {}
+
 type EmojiKeyword interface {
 	tl.Object
 	ImplementsEmojiKeyword()
@@ -3094,6 +3133,16 @@ func (*InputInvoiceSlug) CRC() uint32 {
 
 func (*InputInvoiceSlug) ImplementsInputInvoice() {}
 
+type InputInvoiceStars struct {
+	Option *StarsTopupOption
+}
+
+func (*InputInvoiceStars) CRC() uint32 {
+	return 0x1da33ad8
+}
+
+func (*InputInvoiceStars) ImplementsInputInvoice() {}
+
 type InputMedia interface {
 	tl.Object
 	ImplementsInputMedia()
@@ -3206,14 +3255,14 @@ type InputMediaInvoice struct {
 	Photo         *InputWebDocument `tl:"flag:0"`
 	Invoice       *Invoice
 	Payload       []byte
-	Provider      string
+	Provider      string `tl:"flag:3"`
 	ProviderData  *DataJson
 	StartParam    string     `tl:"flag:1"`
 	ExtendedMedia InputMedia `tl:"flag:2"`
 }
 
 func (*InputMediaInvoice) CRC() uint32 {
-	return 0x8eb5a6d5
+	return 0x405fef0d
 }
 
 func (*InputMediaInvoice) FlagIndex() int {
@@ -3968,6 +4017,18 @@ func (*InputStorePaymentPremiumSubscription) FlagIndex() int {
 
 func (*InputStorePaymentPremiumSubscription) ImplementsInputStorePaymentPurpose() {}
 
+type InputStorePaymentStars struct {
+	Stars    int64
+	Currency string
+	Amount   int64
+}
+
+func (*InputStorePaymentStars) CRC() uint32 {
+	return 0x4f0ee8df
+}
+
+func (*InputStorePaymentStars) ImplementsInputStorePaymentPurpose() {}
+
 type InputTheme interface {
 	tl.Object
 	ImplementsInputTheme()
@@ -4575,10 +4636,12 @@ type MessageObj struct {
 	RestrictionReason    []*RestrictionReason `tl:"flag:22"`
 	TtlPeriod            int32                `tl:"flag:25"`
 	QuickReplyShortcutID int32                `tl:"flag:30"`
+	Effect               int64                `tl:"flag2:2"`
+	Factcheck            *FactCheck           `tl:"flag2:3"`
 }
 
 func (*MessageObj) CRC() uint32 {
-	return 0x2357bf25
+	return 0x94345242
 }
 
 func (*MessageObj) FlagIndex() int {
@@ -5168,12 +5231,17 @@ func (*MessageEntityBankCard) CRC() uint32 {
 func (*MessageEntityBankCard) ImplementsMessageEntity() {}
 
 type MessageEntityBlockquote struct {
-	Offset int32
-	Length int32
+	Collapsed bool `tl:"flag:0,encoded_in_bitflags"`
+	Offset    int32
+	Length    int32
 }
 
 func (*MessageEntityBlockquote) CRC() uint32 {
-	return 0x20df5d0
+	return 0xf1ccaaac
+}
+
+func (*MessageEntityBlockquote) FlagIndex() int {
+	return 0
 }
 
 func (*MessageEntityBlockquote) ImplementsMessageEntity() {}
@@ -7704,6 +7772,60 @@ func (*SpeakingInGroupCallAction) CRC() uint32 {
 
 func (*SpeakingInGroupCallAction) ImplementsSendMessageAction() {}
 
+type StarsTransactionPeer interface {
+	tl.Object
+	ImplementsStarsTransactionPeer()
+}
+type StarsTransactionPeerObj struct {
+	Peer Peer
+}
+
+func (*StarsTransactionPeerObj) CRC() uint32 {
+	return 0xd80da15d
+}
+
+func (*StarsTransactionPeerObj) ImplementsStarsTransactionPeer() {}
+
+type StarsTransactionPeerAppStore struct{}
+
+func (*StarsTransactionPeerAppStore) CRC() uint32 {
+	return 0xb457b375
+}
+
+func (*StarsTransactionPeerAppStore) ImplementsStarsTransactionPeer() {}
+
+type StarsTransactionPeerFragment struct{}
+
+func (*StarsTransactionPeerFragment) CRC() uint32 {
+	return 0xe92fd902
+}
+
+func (*StarsTransactionPeerFragment) ImplementsStarsTransactionPeer() {}
+
+type StarsTransactionPeerPlayMarket struct{}
+
+func (*StarsTransactionPeerPlayMarket) CRC() uint32 {
+	return 0x7b560a0b
+}
+
+func (*StarsTransactionPeerPlayMarket) ImplementsStarsTransactionPeer() {}
+
+type StarsTransactionPeerPremiumBot struct{}
+
+func (*StarsTransactionPeerPremiumBot) CRC() uint32 {
+	return 0x250dbaf8
+}
+
+func (*StarsTransactionPeerPremiumBot) ImplementsStarsTransactionPeer() {}
+
+type StarsTransactionPeerUnsupported struct{}
+
+func (*StarsTransactionPeerUnsupported) CRC() uint32 {
+	return 0x95f2bfe4
+}
+
+func (*StarsTransactionPeerUnsupported) ImplementsStarsTransactionPeer() {}
+
 type StatsGraph interface {
 	tl.Object
 	ImplementsStatsGraph()
@@ -8231,6 +8353,17 @@ func (*UpdateBotWebhookJsonQuery) CRC() uint32 {
 }
 
 func (*UpdateBotWebhookJsonQuery) ImplementsUpdate() {}
+
+type UpdateBroadcastRevenueTransactions struct {
+	Peer     Peer
+	Balances *BroadcastRevenueBalances
+}
+
+func (*UpdateBroadcastRevenueTransactions) CRC() uint32 {
+	return 0xdfd961f5
+}
+
+func (*UpdateBroadcastRevenueTransactions) ImplementsUpdate() {}
 
 type UpdateChannel struct {
 	ChannelID int64
@@ -9478,6 +9611,16 @@ func (*UpdateSmsJob) CRC() uint32 {
 
 func (*UpdateSmsJob) ImplementsUpdate() {}
 
+type UpdateStarsBalance struct {
+	Balance int64
+}
+
+func (*UpdateStarsBalance) CRC() uint32 {
+	return 0xfb85198
+}
+
+func (*UpdateStarsBalance) ImplementsUpdate() {}
+
 type UpdateStickerSets struct {
 	Masks  bool `tl:"flag:0,encoded_in_bitflags"`
 	Emojis bool `tl:"flag:1,encoded_in_bitflags"`
@@ -10567,14 +10710,15 @@ func (*AuthSentCodeTypeEmailCode) FlagIndex() int {
 func (*AuthSentCodeTypeEmailCode) ImplementsAuthSentCodeType() {}
 
 type AuthSentCodeTypeFirebaseSms struct {
-	Nonce       []byte `tl:"flag:0"`
-	Receipt     string `tl:"flag:1"`
-	PushTimeout int32  `tl:"flag:1"`
-	Length      int32
+	Nonce              []byte `tl:"flag:0"`
+	PlayIntegrityNonce []byte `tl:"flag:2"`
+	Receipt            string `tl:"flag:1"`
+	PushTimeout        int32  `tl:"flag:1"`
+	Length             int32
 }
 
 func (*AuthSentCodeTypeFirebaseSms) CRC() uint32 {
-	return 0xe57b1432
+	return 0x13c90f17
 }
 
 func (*AuthSentCodeTypeFirebaseSms) FlagIndex() int {
@@ -11157,6 +11301,30 @@ func (*MessagesAllStickersNotModified) CRC() uint32 {
 
 func (*MessagesAllStickersNotModified) ImplementsMessagesAllStickers() {}
 
+type MessagesAvailableEffects interface {
+	tl.Object
+	ImplementsMessagesAvailableEffects()
+}
+type MessagesAvailableEffectsObj struct {
+	Hash      int32
+	Effects   []*AvailableEffect
+	Documents []Document
+}
+
+func (*MessagesAvailableEffectsObj) CRC() uint32 {
+	return 0xbddb616e
+}
+
+func (*MessagesAvailableEffectsObj) ImplementsMessagesAvailableEffects() {}
+
+type MessagesAvailableEffectsNotModified struct{}
+
+func (*MessagesAvailableEffectsNotModified) CRC() uint32 {
+	return 0xd1ed9a5b
+}
+
+func (*MessagesAvailableEffectsNotModified) ImplementsMessagesAvailableEffects() {}
+
 type MessagesAvailableReactions interface {
 	tl.Object
 	ImplementsMessagesAvailableReactions()
@@ -11279,7 +11447,7 @@ type MessagesEmojiGroups interface {
 }
 type MessagesEmojiGroupsObj struct {
 	Hash   int32
-	Groups []*EmojiGroup
+	Groups []EmojiGroup
 }
 
 func (*MessagesEmojiGroupsObj) CRC() uint32 {
@@ -11795,6 +11963,113 @@ func (*PaymentsGiveawayInfoResults) FlagIndex() int {
 }
 
 func (*PaymentsGiveawayInfoResults) ImplementsPaymentsGiveawayInfo() {}
+
+type PaymentsPaymentForm interface {
+	tl.Object
+	ImplementsPaymentsPaymentForm()
+}
+type PaymentsPaymentFormObj struct {
+	CanSaveCredentials bool `tl:"flag:2,encoded_in_bitflags"`
+	PasswordMissing    bool `tl:"flag:3,encoded_in_bitflags"`
+	FormID             int64
+	BotID              int64
+	Title              string
+	Description        string
+	Photo              WebDocument `tl:"flag:5"`
+	Invoice            *Invoice
+	ProviderID         int64
+	URL                string
+	NativeProvider     string                         `tl:"flag:4"`
+	NativeParams       *DataJson                      `tl:"flag:4"`
+	AdditionalMethods  []*PaymentFormMethod           `tl:"flag:6"`
+	SavedInfo          *PaymentRequestedInfo          `tl:"flag:0"`
+	SavedCredentials   []*PaymentSavedCredentialsCard `tl:"flag:1"`
+	Users              []User
+}
+
+func (*PaymentsPaymentFormObj) CRC() uint32 {
+	return 0xa0058751
+}
+
+func (*PaymentsPaymentFormObj) FlagIndex() int {
+	return 0
+}
+
+func (*PaymentsPaymentFormObj) ImplementsPaymentsPaymentForm() {}
+
+type PaymentsPaymentFormStars struct {
+	FormID      int64
+	BotID       int64
+	Title       string
+	Description string
+	Photo       WebDocument `tl:"flag:5"`
+	Invoice     *Invoice
+	Users       []User
+}
+
+func (*PaymentsPaymentFormStars) CRC() uint32 {
+	return 0x7bf6b15c
+}
+
+func (*PaymentsPaymentFormStars) FlagIndex() int {
+	return 0
+}
+
+func (*PaymentsPaymentFormStars) ImplementsPaymentsPaymentForm() {}
+
+type PaymentsPaymentReceipt interface {
+	tl.Object
+	ImplementsPaymentsPaymentReceipt()
+}
+type PaymentsPaymentReceiptObj struct {
+	Date             int32
+	BotID            int64
+	ProviderID       int64
+	Title            string
+	Description      string
+	Photo            WebDocument `tl:"flag:2"`
+	Invoice          *Invoice
+	Info             *PaymentRequestedInfo `tl:"flag:0"`
+	Shipping         *ShippingOption       `tl:"flag:1"`
+	TipAmount        int64                 `tl:"flag:3"`
+	Currency         string
+	TotalAmount      int64
+	CredentialsTitle string
+	Users            []User
+}
+
+func (*PaymentsPaymentReceiptObj) CRC() uint32 {
+	return 0x70c4fe03
+}
+
+func (*PaymentsPaymentReceiptObj) FlagIndex() int {
+	return 0
+}
+
+func (*PaymentsPaymentReceiptObj) ImplementsPaymentsPaymentReceipt() {}
+
+type PaymentsPaymentReceiptStars struct {
+	Date          int32
+	BotID         int64
+	Title         string
+	Description   string
+	Photo         WebDocument `tl:"flag:2"`
+	Invoice       *Invoice
+	Currency      string
+	TotalAmount   int64
+	TransactionID string
+	Users         []User
+}
+
+func (*PaymentsPaymentReceiptStars) CRC() uint32 {
+	return 0xdabbf83a
+}
+
+func (*PaymentsPaymentReceiptStars) FlagIndex() int {
+	return 0
+}
+
+func (*PaymentsPaymentReceiptStars) ImplementsPaymentsPaymentReceipt() {}
 
 type PaymentsPaymentResult interface {
 	tl.Object
