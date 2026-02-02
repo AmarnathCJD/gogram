@@ -53,7 +53,7 @@ func (c *CACHE) flushToFile() {
 		return
 	}
 
-	if _, err := io.WriteString(file, string(data)); err != nil {
+	if _, err := file.WriteString(string(data)); err != nil {
 		c.logger.Error("Error while writing cache.journal: ", err)
 		return
 	}
