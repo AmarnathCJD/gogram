@@ -377,7 +377,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	}
 	dest := getValue(opts.FileName, fileName)
 
-	partSize := 1024 * 512 // 512KB
+	partSize := 2048 * 512 // 1MB
 	if opts.ChunkSize > 0 {
 		partSize = int(opts.ChunkSize)
 	}
@@ -388,15 +388,12 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		if err != nil {
 			return "", err
 		}
-
 		fs.file = file
 	}
-
 	defer fs.Close()
 
 	parts := size / int64(partSize)
 	partOver := size % int64(partSize)
-
 	totalParts := parts
 	if partOver > 0 {
 		totalParts++
@@ -407,10 +404,51 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		numWorkers = opts.Threads
 	}
 
+	w, wPreallocated := c.initializeWorkers(numWorkers, dc)
+
+	if opts.Buffer != nil {
+		dest = ":mem-buffer:"
+		c.Logger.Warn("downloading to buffer (memory) - use with caution")
+	}
+
+	c.Logger.Info(fmt.Sprintf("file - download: (%s) - (%d) - (%d)", dest, size, parts))
+	c.Logger.Info(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, wPreallocated))
+	c.Logger.Debug(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, wPreallocated))
+
+	go c.allocateRemainingWorkers(dc, w, numWorkers, wPreallocated)
+
+	mu := sync.Mutex{}
+	wg := sync.WaitGroup{}
+	var doneArray = make([]bool, totalParts+1)
+	var doneBytes = atomic.Int64{}
+
+	c.downloadParts(&wg, &mu, w, partSize, doneArray, numWorkers, location, &fs, opts, parts, &doneBytes)
+
+	wg.Wait()
+
+	if partOver > 0 {
+		c.downloadLastPart(dc, w, location, partSize, totalParts, parts, &fs, opts, doneArray, partOver, &doneBytes)
+	}
+
+	if opts.ProgressCallback != nil {
+		opts.ProgressCallback(size, doneBytes.Load())
+	}
+
+	if opts.Buffer != nil {
+		c.Logger.Debug("writing to buffer, size: ", len(fs.data))
+		opts.Buffer.Write(fs.data)
+		return "", nil
+	}
+
+	c.retryFailedParts(totalParts, dc, w, doneArray, &fs, opts, location, partSize, &doneBytes)
+	return dest, nil
+}
+
+func (c *Client) initializeWorkers(numWorkers int, dc int32) ([]Sender, int) {
 	w := make([]Sender, numWorkers)
 	wPreallocated := 0
 
-	if pre := c.GetCachedExportedSenders(c.GetDC()); len(pre) > 0 {
+	if pre := c.GetCachedExportedSenders(int(dc)); len(pre) > 0 {
 		for i := 0; i < len(pre); i++ {
 			if wPreallocated >= numWorkers {
 				break
@@ -422,196 +460,229 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 		}
 	}
 
-	if opts.Buffer != nil {
-		dest = ":mem-buffer:"
-		c.Logger.Warn("downloading to buffer (memory) - use with caution")
+	return w, wPreallocated
+}
+
+func (c *Client) allocateRemainingWorkers(dc int32, w []Sender, numWorkers, wPreallocated int) {
+	for i := wPreallocated; i < numWorkers; i++ {
+		c.createAndAppendSender(int(dc), w, i)
 	}
+}
 
-	c.Logger.Info(fmt.Sprintf("file - download: (%s) - (%d) - (%d)", dest, size, parts))
-	c.Logger.Info(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, wPreallocated))
-
-	c.Logger.Debug(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, wPreallocated))
-
-	nW := numWorkers
-	numWorkers = wPreallocated
-
-	doneBytes := atomic.Int64{}
-
-	createAndAppendSender := func(dcId int, senders []Sender, senderIndex int) {
-		conn, err := c.CreateExportedSender(dcId)
-		if conn != nil && err == nil {
-			senders[senderIndex] = Sender{c: conn}
-			go c.AddNewExportedSenderToMap(dcId, conn)
-			numWorkers++
-		}
+func (c *Client) createAndAppendSender(dcId int, senders []Sender, senderIndex int) {
+	conn, err := c.CreateExportedSender(dcId)
+	if conn != nil && err == nil {
+		senders[senderIndex] = Sender{c: conn}
+		go c.AddNewExportedSenderToMap(dcId, conn)
 	}
+}
 
-	go func() {
-		for i := wPreallocated; i < nW; i++ {
-			createAndAppendSender(int(dc), w, i)
-		}
-	}()
-
-	mu := sync.Mutex{}
-	wg := sync.WaitGroup{}
-
+func (c *Client) downloadParts(wg *sync.WaitGroup, mu *sync.Mutex, w []Sender, partSize int, doneArray []bool, numWorkers int, location InputFileLocation, fs *Destination, opts *DownloadOptions, parts int64, doneBytes *atomic.Int64) {
 	for p := int64(0); p < parts; p++ {
 		wg.Add(1)
 		go func(p int64) {
 			for {
 				mu.Lock()
-				found := false
-				var workerIndex int
-				for i := 0; i < numWorkers; i++ {
-					if !w[i].buzy && w[i].c != nil {
-						found = true
-						w[i].buzy = true
-						workerIndex = i
-						break
-					}
-				}
+				found, workerIndex := c.findAvailableWorker(w, numWorkers)
 				mu.Unlock()
 
 				if found {
-					go func(i int, p int) {
-						defer func() {
-							defer wg.Done()
-							mu.Lock()
-							w[i].buzy = false
-							mu.Unlock()
-						}()
-
-						retryCount := 0
-						reqTimeout := 5 * time.Second
-
-					partDownloadStartPoint:
-						c.Logger.Debug(fmt.Sprintf("download part %d/%d in chunks of %d", p, totalParts, partSize/1024))
-
-						resultChan := make(chan UploadFile, 1)
-						errorChan := make(chan error, 1)
-
-						go func() {
-							upl, err := w[i].c.UploadGetFile(&UploadGetFileParams{
-								Location:     location,
-								Offset:       int64(p * partSize),
-								Limit:        int32(partSize),
-								CdnSupported: false,
-							})
-							if err != nil {
-								errorChan <- err
-								return
-							}
-							resultChan <- upl
-						}()
-
-						select {
-						case upl := <-resultChan:
-							if upl == nil {
-								goto partDownloadStartPoint
-							}
-
-							var buffer []byte
-							switch v := upl.(type) {
-							case *UploadFileObj:
-								buffer = v.Bytes
-							case *UploadFileCdnRedirect:
-								panic("CDN redirect not implemented") // TODO
-							}
-
-							_, err := fs.WriteAt(buffer, int64(p*partSize))
-							if err != nil {
-								c.Logger.Error(err)
-							}
-
-							doneBytes.Add(int64(len(buffer)))
-							if opts.ProgressCallback != nil {
-								go opts.ProgressCallback(size, doneBytes.Load())
-							}
-						case err := <-errorChan:
-							if handleIfFlood(err, c) {
-								goto partDownloadStartPoint
-							}
-							c.Logger.Error(err)
-						case <-time.After(reqTimeout):
-							retryCount++
-							if retryCount > 4 {
-								c.Logger.Debug(fmt.Errorf("upload part %d timed out - giving up after %d retries", p, retryCount))
-								return
-							} else if retryCount > 3 {
-								reqTimeout = 6 * time.Second
-							}
-							goto partDownloadStartPoint
-						}
-					}(workerIndex, int(p))
+					go c.downloadPart(wg, mu, w, workerIndex, int(p), partSize, doneArray, location, fs, opts, doneBytes, parts*int64(partSize))
 					break
 				}
 			}
 		}(p)
 	}
+}
 
-	wg.Wait()
+func (c *Client) findAvailableWorker(w []Sender, numWorkers int) (bool, int) {
+	for i := 0; i < numWorkers; i++ {
+		if !w[i].buzy && w[i].c != nil {
+			w[i].buzy = true
+			return true, i
+		}
+	}
+	return false, -1
+}
 
-	if partOver > 0 {
-	downloadLastPartStartPoint:
-		if w[0].c == nil {
-			for i := 0; i < numWorkers; i++ {
-				if w[i].c != nil {
-					w[0].c = w[i].c
-					break
-				}
+func (c *Client) downloadPart(wg *sync.WaitGroup, mu *sync.Mutex, w []Sender, workerIndex, p int, partSize int, doneArray []bool, location InputFileLocation, fs *Destination, opts *DownloadOptions, doneBytes *atomic.Int64, totalBytes int64) {
+	defer wg.Done()
+	defer func() {
+		mu.Lock()
+		w[workerIndex].buzy = false
+		mu.Unlock()
+	}()
+
+	retryCount := 0
+	reqTimeout := 4 * time.Second
+
+partDownloadStartPoint:
+	c.Logger.Debug(fmt.Sprintf("download part %d in chunks of %d", p, partSize/1024))
+
+	resultChan := make(chan UploadFile, 1)
+	errorChan := make(chan error, 1)
+
+	go func() {
+		upl, err := w[workerIndex].c.UploadGetFile(&UploadGetFileParams{
+			Location:     location,
+			Offset:       int64(p * partSize),
+			Limit:        int32(partSize),
+			Precise:      true,
+			CdnSupported: false,
+		})
+		if err != nil {
+			errorChan <- err
+			return
+		}
+		resultChan <- upl
+	}()
+
+	select {
+	case upl := <-resultChan:
+		if upl == nil {
+			goto partDownloadStartPoint
+		}
+
+		c.processDownloadedPart(upl, p, doneArray, fs, partSize, opts, doneBytes, totalBytes)
+	case err := <-errorChan:
+		if handleIfFlood(err, c) {
+			goto partDownloadStartPoint
+		}
+		c.Logger.Error(err)
+	case <-time.After(reqTimeout):
+		retryCount++
+		if retryCount > 2 {
+			c.Logger.Debug(fmt.Errorf("upload part %d timed out - queuing for seq", p))
+			return
+		}
+		goto partDownloadStartPoint
+	}
+}
+
+func (c *Client) processDownloadedPart(upl UploadFile, p int, doneArray []bool, fs *Destination, partSize int, opts *DownloadOptions, doneBytes *atomic.Int64, size int64) {
+	var buffer []byte
+	switch v := upl.(type) {
+	case *UploadFileObj:
+		buffer = v.Bytes
+		doneArray[p] = true
+	case *UploadFileCdnRedirect:
+		panic("CDN redirect not implemented") // TODO
+	}
+
+	_, err := fs.WriteAt(buffer, int64(p*partSize))
+	if err != nil {
+		c.Logger.Error(err)
+	}
+
+	doneBytes.Add(int64(len(buffer)))
+	if opts.ProgressCallback != nil {
+		go opts.ProgressCallback(size, doneBytes.Load())
+	}
+}
+
+func (c *Client) downloadLastPart(dc int32, w []Sender, location InputFileLocation, partSize int, totalParts int64, parts int64, fs *Destination, opts *DownloadOptions, doneArray []bool, partOver int64, doneBytes *atomic.Int64) {
+downloadLastPartStartPoint:
+	if w[0].c == nil {
+		for i := 0; i < len(w); i++ {
+			if w[i].c != nil {
+				w[0].c = w[i].c
+				break
 			}
 		}
+	}
 
-		if w[0].c == nil {
-			createAndAppendSender(int(dc), w, 0)
-		}
+	if w[0].c == nil {
+		c.createAndAppendSender(int(dc), w, 0)
+	}
 
-		if w[0].c == nil {
-			return "", errors.Wrap(errors.New("failed to create sender for dc "+fmt.Sprint(dc)), "download failed")
-		}
+	if w[0].c == nil {
+		c.Logger.Warn(errors.Wrap(errors.New("failed to create sender for dc "+fmt.Sprint(dc)), "download failed"))
+		return
+	}
 
-		c.Logger.Debug(fmt.Sprintf("downloading last part %d/%d in chunks of %d", totalParts-1, totalParts, partOver/1024))
+	c.Logger.Debug(fmt.Sprintf("downloading last part %d in chunks of %d", totalParts-1, partOver/1024))
 
-		buf, err := w[0].c.UploadGetFile(&UploadGetFileParams{
+	retryCount := 0
+	reqTimeout := 4 * time.Second
+
+	resultChan := make(chan UploadFile, 1)
+	errorChan := make(chan error, 1)
+
+	go func() {
+		upl, err := c.UploadGetFile(&UploadGetFileParams{
 			Location:     location,
 			Offset:       int64(int(parts) * partSize),
 			Limit:        int32(partSize),
+			Precise:      true,
 			CdnSupported: false,
 		})
-
-		if err != nil || buf == nil {
-			if handleIfFlood(err, c) {
-				goto downloadLastPartStartPoint
-			}
-			w[0].c.Logger.Warn(err)
+		if err != nil {
+			errorChan <- err
+			return
 		}
-		var buffer []byte
-		switch v := buf.(type) {
-		case *UploadFileObj:
-			buffer = v.Bytes
-			_, err = fs.WriteAt(buffer, int64(int(parts)*partSize))
+		resultChan <- upl
+	}()
+
+	select {
+	case upl := <-resultChan:
+		if upl == nil {
+			goto downloadLastPartStartPoint
+		}
+
+		c.processDownloadedPart(upl, int(parts), doneArray, fs, partSize, opts, doneBytes, parts*int64(partSize))
+	case err := <-errorChan:
+		if handleIfFlood(err, c) {
+			goto downloadLastPartStartPoint
+		}
+		c.Logger.Error(err)
+	case <-time.After(reqTimeout):
+		retryCount++
+		if retryCount > 2 {
+			c.Logger.Debug(fmt.Errorf("upload part %d timed out - queuing for seq", parts))
+			return
+		}
+		goto downloadLastPartStartPoint
+	}
+}
+
+func (c *Client) retryFailedParts(totalParts int64, dc int32, w []Sender, doneArray []bool, fs *Destination, opts *DownloadOptions, location InputFileLocation, partSize int, doneBytes *atomic.Int64) {
+	if w[0].c == nil {
+		for i := 0; i < len(w); i++ {
+			if w[i].c != nil {
+				w[0].c = w[i].c
+				break
+			}
+		}
+	}
+
+	if w[0].c == nil {
+		c.createAndAppendSender(int(dc), w, 0)
+	}
+
+	if w[0].c == nil {
+		c.Logger.Warn(errors.Wrap(errors.New("failed to create sender for dc "+fmt.Sprint(dc)), "download failed"))
+		return
+	}
+
+	for i, v := range doneArray {
+		if !v && i < int(totalParts) {
+			c.Logger.Debug("seq retrying part ", i, " of ", totalParts)
+			upl, err := w[0].c.UploadGetFile(&UploadGetFileParams{
+				Location:     location,
+				Offset:       int64(i * partSize),
+				Limit:        int32(partSize),
+				Precise:      true,
+				CdnSupported: false,
+			})
 
 			if err != nil {
 				c.Logger.Error(err)
+				continue
 			}
-		case *UploadFileCdnRedirect:
-			panic("CDN redirect not implemented") // TODO
-		}
 
-		doneBytes.Add(int64(len(buffer)))
-		if opts.ProgressCallback != nil {
-			go opts.ProgressCallback(size, doneBytes.Load())
+			c.processDownloadedPart(upl, i, doneArray, fs, partSize, opts, doneBytes, totalParts*int64(partSize))
 		}
 	}
-
-	if opts.Buffer != nil {
-		c.Logger.Debug("writing to buffer, size: ", len(fs.data))
-
-		opts.Buffer.Write(fs.data)
-		return "", nil
-	}
-
-	return dest, nil
 }
 
 // ----------------------- Progress Manager -----------------------
