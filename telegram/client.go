@@ -123,10 +123,6 @@ func NewClient(config ClientConfig) (*Client, error) {
 		client.Log.Debug("client is running in no updates mode, no updates will be handled")
 	} else {
 		client.setupDispatcher()
-		if client.IsConnected() {
-			// TODO: Implement same for manual connect Call.
-			// client.UpdatesGetState()
-		}
 	}
 	if err := client.clientWarnings(config); err != nil {
 		return nil, err
@@ -204,7 +200,7 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 }
 
 func (c *Client) setupDispatcher() {
-	c.dispatcher = &UpdateDispatcher{}
+	c.NewUpdateDispatcher()
 	handleUpdaterWrapper := func(u any) bool {
 		return HandleIncomingUpdates(u, c)
 	}
@@ -549,6 +545,7 @@ func (c *Client) Idle() {
 func (c *Client) Stop() error {
 	close(c.stopCh)
 	go c.cleanExportedSenders()
+	c.MTProto.SetTransfer(false) // to stop connection break check.
 	return c.MTProto.Terminate()
 }
 
@@ -570,5 +567,15 @@ func (c *Client) WrapError(err error) error {
 	if err != nil {
 		c.Log.Error(err)
 	}
+	return err
+}
+
+// return only the object, omitting the error
+func (c *Client) W(obj any, err error) any {
+	return obj
+}
+
+// return only the error, omitting the object
+func (c *Client) E(obj any, err error) error {
 	return err
 }

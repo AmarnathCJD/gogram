@@ -781,12 +781,12 @@ func (*errorSessionConfigsChanged) CRC() uint32 {
 	return 0x00000000
 }
 
-//type unexpectedEOFError struct{}
+type errorReconnectRequired struct{}
 
-//func (*unexpectedEOFError) Error() string {
-//	return "unexpected error: unexpected EOF"
-//}
+func (*errorReconnectRequired) Error() string {
+	return "session configuration was changed, need to repeat request"
+}
 
-//func (*unexpectedEOFError) CRC() uint32 {
-//	return 0x00000000
-//}
+func (*errorReconnectRequired) CRC() uint32 {
+	return 0x00000000
+}

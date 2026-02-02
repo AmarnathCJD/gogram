@@ -177,8 +177,8 @@ func (b *CallbackQuery) ForwardTo(ChatID int64, options ...*ForwardOptions) (*Ne
 	return &m[0], nil
 }
 
-func (b *CallbackQuery) Marshal() string {
-	return b.Client.JSON(b.OriginalUpdate)
+func (b *CallbackQuery) Marshal(nointent ...bool) string {
+	return b.Client.JSON(b.OriginalUpdate, nointent)
 }
 
 type InlineCallbackQuery struct {
@@ -255,6 +255,6 @@ func (b *InlineCallbackQuery) IsChannel() bool {
 	return b.ChatType() == EntityChannel
 }
 
-func (b *InlineCallbackQuery) Marshal() string {
-	return b.Client.JSON(b.OriginalUpdate)
+func (b *InlineCallbackQuery) Marshal(nointent ...bool) string {
+	return b.Client.JSON(b.OriginalUpdate, nointent)
 }

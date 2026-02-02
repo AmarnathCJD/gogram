@@ -137,6 +137,11 @@ func (m *NewMessage) IsPrivate() bool {
 	return m.ChatType() == EntityUser
 }
 
+// returns the error only, of a method
+func (m *NewMessage) E(obj any, err error) error {
+	return err
+}
+
 func (m *NewMessage) IsGroup() bool {
 	if m.Channel != nil {
 		return m.ChatType() == EntityChat || (m.ChatType() == EntityChannel && !m.Channel.Broadcast)
@@ -156,8 +161,8 @@ func (m *NewMessage) IsReply() bool {
 	return m.Message.ReplyTo != nil
 }
 
-func (m *NewMessage) Marshal() string {
-	return m.Client.JSON(m.OriginalUpdate)
+func (m *NewMessage) Marshal(nointent ...bool) string {
+	return m.Client.JSON(m.OriginalUpdate, nointent)
 }
 
 func (m *NewMessage) Unmarshal(data []byte) (*NewMessage, error) {
@@ -590,13 +595,13 @@ type Album struct {
 	Messages  []*NewMessage
 }
 
-func (a *Album) Marshal() string {
+func (a *Album) Marshal(nointent ...bool) string {
 	var messages []Message
 	for _, m := range a.Messages {
 		messages = append(messages, m.OriginalUpdate)
 	}
 
-	return a.Client.JSON(messages)
+	return a.Client.JSON(messages, nointent)
 }
 
 func (a *Album) Download(opts ...*DownloadOptions) ([]string, error) {

@@ -279,8 +279,8 @@ func (b *InlineQuery) IsPrivate() bool {
 	return b.PeerType == InlineQueryPeerTypePm || b.PeerType == InlineQueryPeerTypeSameBotPm
 }
 
-func (b *InlineQuery) Marshal() string {
-	return b.Client.JSON(b.OriginalUpdate)
+func (b *InlineQuery) Marshal(nointent ...bool) string {
+	return b.Client.JSON(b.OriginalUpdate, nointent)
 }
 
 func (m *InlineQuery) Args() string {

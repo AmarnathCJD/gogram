@@ -1085,10 +1085,27 @@ func ComputeDigest(algo *PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SH
 }
 
 // easy wrapper for json.MarshalIndent, returns string
-func (c *Client) JSON(object interface{}) string {
+func (c *Client) JSON(object interface{}, nointent ...any) string {
+	if len(nointent) > 0 {
+		switch _noi := nointent[0].(type) {
+		case bool:
+			if _noi {
+				data, err := json.Marshal(object)
+				if err != nil {
+					return fmt.Sprintf("marshal: %s", err)
+				}
+				return string(data)
+			}
+		}
+	}
+
 	data, err := json.MarshalIndent(object, "", "  ")
 	if err != nil {
-		return fmt.Sprintf("Error: %s", err)
+		return fmt.Sprintf("marshal: %s", err)
 	}
 	return string(data)
 }
+
+// func (c *Client) JSON(object interface{}, err error) {
+// 	return
+// }

@@ -8,72 +8,50 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unsafe"
 )
 
-const DEF_ALBUM_WAIT_TIME = 600 * time.Millisecond
+type MessageHandler func(m *NewMessage) error
+type EditHandler func(m *NewMessage) error
+type DeleteHandler func(m *DeleteMessage) error
+type AlbumHandler func(m *Album) error
+type InlineHandler func(m *InlineQuery) error
+type CallbackHandler func(m *CallbackQuery) error
+type InlineCallbackHandler func(m *InlineCallbackQuery) error
+type ParticipantHandler func(m *ParticipantUpdate) error
+type RawHandler func(m Update, c *Client) error
 
 type messageHandle struct {
 	Pattern interface{}
-	Handler func(m *NewMessage) error
+	Handler MessageHandler
 	Filters []Filter
 }
 
 func (c *Client) removeHandle(h interface{}) {
-	switch handle := h.(type) {
-	case *messageHandle:
-		for i, h := range c.dispatcher.messageHandles {
+	removeHandleFromSlice := func(handles []interface{}, handle interface{}) []interface{} {
+		for i, h := range handles {
 			if reflect.DeepEqual(h, handle) {
-				c.dispatcher.messageHandles = append(c.dispatcher.messageHandles[:i], c.dispatcher.messageHandles[i+1:]...)
+				return append(handles[:i], handles[i+1:]...)
 			}
 		}
-	case *albumHandle:
-		for i, h := range c.dispatcher.albumHandles {
-			if reflect.DeepEqual(h, handle) {
-				c.dispatcher.albumHandles = append(c.dispatcher.albumHandles[:i], c.dispatcher.albumHandles[i+1:]...)
-			}
-		}
-	case *chatActionHandle:
-		for i, h := range c.dispatcher.actionHandles {
-			if reflect.DeepEqual(h, handle) {
-				c.dispatcher.actionHandles = append(c.dispatcher.actionHandles[:i], c.dispatcher.actionHandles[i+1:]...)
-			}
-		}
-	case *messageEditHandle:
-		for i, h := range c.dispatcher.messageEditHandles {
-			if reflect.DeepEqual(h, handle) {
-				c.dispatcher.messageEditHandles = append(c.dispatcher.messageEditHandles[:i], c.dispatcher.messageEditHandles[i+1:]...)
-			}
-		}
-	case *inlineHandle:
-		for i, h := range c.dispatcher.inlineHandles {
-			if reflect.DeepEqual(h, handle) {
-				c.dispatcher.inlineHandles = append(c.dispatcher.inlineHandles[:i], c.dispatcher.inlineHandles[i+1:]...)
-			}
-		}
-	case *callbackHandle:
-		for i, h := range c.dispatcher.callbackHandles {
-			if reflect.DeepEqual(h, handle) {
-				c.dispatcher.callbackHandles = append(c.dispatcher.callbackHandles[:i], c.dispatcher.callbackHandles[i+1:]...)
-			}
-		}
-	case *inlineCallbackHandle:
-		for i, h := range c.dispatcher.inlineCallbackHandles {
-			if reflect.DeepEqual(h, handle) {
-				c.dispatcher.inlineCallbackHandles = append(c.dispatcher.inlineCallbackHandles[:i], c.dispatcher.inlineCallbackHandles[i+1:]...)
-			}
-		}
-	case *participantHandle:
-		for i, h := range c.dispatcher.participantHandles {
-			if reflect.DeepEqual(h, handle) {
-				c.dispatcher.participantHandles = append(c.dispatcher.participantHandles[:i], c.dispatcher.participantHandles[i+1:]...)
-			}
-		}
-	case *rawHandle:
-		for i, h := range c.dispatcher.rawHandles {
-			if reflect.DeepEqual(h, handle) {
-				c.dispatcher.rawHandles = append(c.dispatcher.rawHandles[:i], c.dispatcher.rawHandles[i+1:]...)
-			}
-		}
+		return handles
+	}
+
+	handleMap := map[reflect.Type]*[]interface{}{
+		reflect.TypeOf((*messageHandle)(nil)):        (*[]interface{})(unsafe.Pointer(&c.dispatcher.messageHandles)),
+		reflect.TypeOf((*albumHandle)(nil)):          (*[]interface{})(unsafe.Pointer(&c.dispatcher.albumHandles)),
+		reflect.TypeOf((*chatActionHandle)(nil)):     (*[]interface{})(unsafe.Pointer(&c.dispatcher.actionHandles)),
+		reflect.TypeOf((*messageEditHandle)(nil)):    (*[]interface{})(unsafe.Pointer(&c.dispatcher.messageEditHandles)),
+		reflect.TypeOf((*inlineHandle)(nil)):         (*[]interface{})(unsafe.Pointer(&c.dispatcher.inlineHandles)),
+		reflect.TypeOf((*callbackHandle)(nil)):       (*[]interface{})(unsafe.Pointer(&c.dispatcher.callbackHandles)),
+		reflect.TypeOf((*inlineCallbackHandle)(nil)): (*[]interface{})(unsafe.Pointer(&c.dispatcher.inlineCallbackHandles)),
+		reflect.TypeOf((*participantHandle)(nil)):    (*[]interface{})(unsafe.Pointer(&c.dispatcher.participantHandles)),
+		reflect.TypeOf((*rawHandle)(nil)):            (*[]interface{})(unsafe.Pointer(&c.dispatcher.rawHandles)),
+	}
+
+	handleType := reflect.TypeOf(h)
+	if handles, ok := handleMap[handleType]; ok {
+		*handles = removeHandleFromSlice(*handles, h)
 	}
 }
 
@@ -89,7 +67,7 @@ type albumBox struct {
 }
 
 func (a *albumBox) Wait() {
-	time.Sleep(DEF_ALBUM_WAIT_TIME)
+	time.Sleep(600 * time.Millisecond)
 	a.waitExit <- struct{}{}
 }
 
@@ -100,11 +78,11 @@ func (a *albumBox) Add(m *NewMessage) {
 }
 
 type chatActionHandle struct {
-	Handler func(m *NewMessage) error
+	Handler MessageHandler
 }
 type messageEditHandle struct {
 	Pattern interface{}
-	Handler func(m *NewMessage) error
+	Handler MessageHandler
 }
 
 type messageDeleteHandle struct {
@@ -114,17 +92,17 @@ type messageDeleteHandle struct {
 
 type inlineHandle struct {
 	Pattern interface{}
-	Handler func(m *InlineQuery) error
+	Handler InlineHandler
 }
 
 type callbackHandle struct {
 	Pattern interface{}
-	Handler func(m *CallbackQuery) error
+	Handler CallbackHandler
 }
 
 type inlineCallbackHandle struct {
 	Pattern interface{}
-	Handler func(m *InlineCallbackQuery) error
+	Handler InlineCallbackHandler
 }
 
 type participantHandle struct {
@@ -133,7 +111,7 @@ type participantHandle struct {
 
 type rawHandle struct {
 	updateType Update
-	Handler    func(m Update, c *Client) error
+	Handler    RawHandler
 }
 
 type UpdateDispatcher struct {
@@ -148,6 +126,11 @@ type UpdateDispatcher struct {
 	albumHandles          []albumHandle
 	rawHandles            []rawHandle
 	activeAlbums          map[int64]*albumBox
+}
+
+// creates and populates a new UpdateDispatcher
+func (c *Client) NewUpdateDispatcher() {
+	c.dispatcher = &UpdateDispatcher{}
 }
 
 func (c *Client) handleMessageUpdate(update Message) {
@@ -494,7 +477,7 @@ var (
 	}
 )
 
-func (c *Client) AddMessageHandler(pattern interface{}, handler func(m *NewMessage) error, filters ...Filter) messageHandle {
+func (c *Client) AddMessageHandler(pattern interface{}, handler MessageHandler, filters ...Filter) messageHandle {
 	var messageFilters []Filter
 	if len(filters) > 0 {
 		messageFilters = filters
@@ -518,7 +501,7 @@ func (c *Client) AddAlbumHandler(handler func(m *Album) error) albumHandle {
 	return albumHandle{Handler: handler}
 }
 
-func (c *Client) AddActionHandler(handler func(m *NewMessage) error) chatActionHandle {
+func (c *Client) AddActionHandler(handler MessageHandler) chatActionHandle {
 	c.dispatcher.actionHandles = append(c.dispatcher.actionHandles, chatActionHandle{Handler: handler})
 	return chatActionHandle{Handler: handler}
 }
@@ -528,7 +511,7 @@ func (c *Client) AddActionHandler(handler func(m *NewMessage) error) chatActionH
 // Included Updates:
 //   - Message Edited
 //   - Channel Post Edited
-func (c *Client) AddEditHandler(pattern interface{}, handler func(m *NewMessage) error) messageEditHandle {
+func (c *Client) AddEditHandler(pattern interface{}, handler MessageHandler) messageEditHandle {
 	handle := messageEditHandle{Pattern: pattern, Handler: handler}
 	c.dispatcher.messageEditHandles = append(c.dispatcher.messageEditHandles, handle)
 	return handle
@@ -538,7 +521,7 @@ func (c *Client) AddEditHandler(pattern interface{}, handler func(m *NewMessage)
 //
 // Included Updates:
 //   - Inline Query
-func (c *Client) AddInlineHandler(pattern interface{}, handler func(m *InlineQuery) error) inlineHandle {
+func (c *Client) AddInlineHandler(pattern interface{}, handler InlineHandler) inlineHandle {
 	handle := inlineHandle{Pattern: pattern, Handler: handler}
 	c.dispatcher.inlineHandles = append(c.dispatcher.inlineHandles, handle)
 	return handle
@@ -548,7 +531,7 @@ func (c *Client) AddInlineHandler(pattern interface{}, handler func(m *InlineQue
 //
 // Included Updates:
 //   - Callback Query
-func (c *Client) AddCallbackHandler(pattern interface{}, handler func(m *CallbackQuery) error) callbackHandle {
+func (c *Client) AddCallbackHandler(pattern interface{}, handler CallbackHandler) callbackHandle {
 	handle := callbackHandle{Pattern: pattern, Handler: handler}
 	c.dispatcher.callbackHandles = append(c.dispatcher.callbackHandles, handle)
 	return handle
@@ -558,7 +541,7 @@ func (c *Client) AddCallbackHandler(pattern interface{}, handler func(m *Callbac
 //
 // Included Updates:
 //   - Inline Callback Query
-func (c *Client) AddInlineCallbackHandler(pattern interface{}, handler func(m *InlineCallbackQuery) error) inlineCallbackHandle {
+func (c *Client) AddInlineCallbackHandler(pattern interface{}, handler InlineCallbackHandler) inlineCallbackHandle {
 	handle := inlineCallbackHandle{Pattern: pattern, Handler: handler}
 	c.dispatcher.inlineCallbackHandles = append(c.dispatcher.inlineCallbackHandles, handle)
 	return handle
@@ -573,13 +556,13 @@ func (c *Client) AddInlineCallbackHandler(pattern interface{}, handler func(m *I
 //   - Kicked Channel Participant
 //   - Channel Participant Admin
 //   - Channel Participant Creator
-func (c *Client) AddParticipantHandler(handler func(m *ParticipantUpdate) error) participantHandle {
+func (c *Client) AddParticipantHandler(handler ParticipantHandler) participantHandle {
 	handle := participantHandle{Handler: handler}
 	c.dispatcher.participantHandles = append(c.dispatcher.participantHandles, handle)
 	return handle
 }
 
-func (c *Client) AddRawHandler(updateType Update, handler func(m Update, c *Client) error) rawHandle {
+func (c *Client) AddRawHandler(updateType Update, handler RawHandler) rawHandle {
 	handle := rawHandle{updateType: updateType, Handler: handler}
 	c.dispatcher.rawHandles = append(c.dispatcher.rawHandles, handle)
 	return handle
@@ -642,7 +625,7 @@ UpdateTypeSwitching:
 		c.Log.Debug("update gap is too long, requesting getState")
 		c.UpdatesGetState()
 	default:
-		c.Log.Warn("skipping unhanded update (", reflect.TypeOf(u), "): ", c.JSON(u))
+		c.Log.Debug("skipping unhanded update (", reflect.TypeOf(u), "): ", c.JSON(u))
 	}
 	return true
 }
@@ -684,45 +667,98 @@ func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
 	return nil, nil
 }
 
-// TODO: impl like client.On("message", func(m *NewMessage) { ... })
+type ev interface{}
 
-// interface for all common events
-// type ev interface{}
+var (
+	OnMessage        ev = "message"
+	OnEdit           ev = "edit"
+	OnDelete         ev = "delete"
+	OnAlbum          ev = "album"
+	OnInline         ev = "inline"
+	OnCallback       ev = "callback"
+	OnInlineCallback ev = "inlineCallback"
+	OnParticipant    ev = "participant"
+	OnRaw            ev = "raw"
+)
 
-// var (
-// 	OnMessage        ev = "message"
-// 	OnEdit           ev = "edit"
-// 	OnDelete         ev = "delete"
-// 	OnInline         ev = "inline"
-// 	OnCallback       ev = "callback"
-// 	OnInlineCallback ev = "inlineCallback"
-// 	OnParticipant    ev = "participant"
-// 	OnRaw            ev = "raw"
-// )
+type handleInterface interface{}
 
-// type handleInterface interface{}
+func (c *Client) On(pattern any, handler interface{}, filters ...Filter) handleInterface {
+	var patternKey string
+	var args string
 
-// func (c *Client) On(pattern interface{}, handler interface{}, filters ...Filter) handleInterface {
-// 	switch pattern := pattern.(type) {
-// 	case ev:
-// 		switch pattern {
-// 		case OnMessage:
-// 			return c.AddMessageHandler(OnNewMessage, handler, filters...)
-// 		case OnEditMessage:
-// 			return c.AddEditHandler(OnEditMessage, handler)
-// 		case OnInline:
-// 			return c.AddInlineHandler(OnInlineQuery, handler)
-// 		case OnCallback:
-// 			return c.AddCallbackHandler(OnCallbackQuery, handler)
-// 		case OnInlineCallback:
-// 			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, handler)
-// 		case OnParticipant:
-// 			return c.AddParticipantHandler(handler)
-// 		case OnRaw:
-// 			return c.AddRawHandler(Update{}, func(m Update, c *Client) error {
-// 				return handler(packUpdate(c, m))
-// 			})
-// 		}
-// 	}
-// 	return c.AddMessageHandler(pattern, handler, filters...)
-// }
+	if patternStr, ok := pattern.(string); ok {
+		if strings.Contains(patternStr, ":") {
+			parts := strings.SplitN(patternStr, ":", 2)
+			patternKey = strings.TrimSpace(parts[0])
+			args = strings.TrimSpace(parts[1])
+		} else {
+			patternKey = strings.TrimSpace(patternStr)
+		}
+	}
+
+	switch ev(patternKey) {
+	case OnMessage:
+		if h, ok := handler.(func(m *NewMessage) error); ok {
+			if args != "" {
+				return c.AddMessageHandler(args, h, filters...)
+			}
+			return c.AddMessageHandler(OnNewMessage, h, filters...)
+		}
+	case OnEdit:
+		if h, ok := handler.(func(m *NewMessage) error); ok {
+			if args != "" {
+				return c.AddEditHandler(args, h)
+			}
+			return c.AddEditHandler(OnEditMessage, h)
+		}
+	case OnDelete:
+		if h, ok := handler.(func(m *DeleteMessage) error); ok {
+			if args != "" {
+				return c.AddDeleteHandler(args, h)
+			}
+			return c.AddDeleteHandler(OnDeleteMessage, h)
+		}
+	case OnAlbum:
+		if h, ok := handler.(func(m *Album) error); ok {
+			return c.AddAlbumHandler(h)
+		}
+	case OnInline:
+		if h, ok := handler.(func(m *InlineQuery) error); ok {
+			if args != "" {
+				return c.AddInlineHandler(args, h)
+			}
+			return c.AddInlineHandler(OnInlineQuery, h)
+		}
+	case OnCallback:
+		if h, ok := handler.(func(m *CallbackQuery) error); ok {
+			if args != "" {
+				return c.AddCallbackHandler(args, h)
+			}
+			return c.AddCallbackHandler(OnCallbackQuery, h)
+		}
+	case OnInlineCallback:
+		if h, ok := handler.(func(m *InlineCallbackQuery) error); ok {
+			if args != "" {
+				return c.AddInlineCallbackHandler(args, h)
+			}
+			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, h)
+		}
+	case OnParticipant:
+		if h, ok := handler.(func(m *ParticipantUpdate) error); ok {
+			return c.AddParticipantHandler(h)
+		}
+	case OnRaw:
+		if h, ok := handler.(func(m Update, c *Client) error); ok {
+			return c.AddRawHandler(nil, h)
+		}
+	default:
+		if update, ok := pattern.(Update); ok {
+			if h, ok := handler.(func(m Update, c *Client) error); ok {
+				return c.AddRawHandler(update, h)
+			}
+		}
+	}
+
+	return nil
+}

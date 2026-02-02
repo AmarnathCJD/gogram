@@ -28,7 +28,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const defaultTimeout = 30 * time.Second
+const defaultTimeout = 60 * time.Second // after 60 sec without any read/write, lib will try to reconnect
 
 type MTProto struct {
 	Addr          string
@@ -67,7 +67,8 @@ type MTProto struct {
 	serviceChannel       chan tl.Object
 	serviceModeActivated bool
 
-	authKey404 []int64
+	authKey404     []int64
+	shouldTransfer bool
 
 	Logger *utils.Logger
 
@@ -133,6 +134,8 @@ func NewMTProto(c Config) (*MTProto, error) {
 	}
 
 	//mtproto.offsetTime()
+	go mtproto.checkBreaking()
+
 	return mtproto, nil
 }
 
@@ -189,13 +192,17 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 		return false, err
 	}
 	m.authKey, m.authKeyHash, m.Addr, m.appID = sessionString.AuthKey(), sessionString.AuthKeyHash(), sessionString.IpAddr(), sessionString.AppID()
-	m.Logger.Debug("importing Auth from stringSession...")
+	m.Logger.Debug("importing - auth from stringSession...")
 	if !m.memorySession {
 		if err := m.SaveSession(); err != nil {
 			return false, fmt.Errorf("saving session: %w", err)
 		}
 	}
 	return true, nil
+}
+
+func (m *MTProto) SetTransfer(transfer bool) {
+	m.shouldTransfer = transfer
 }
 
 func (m *MTProto) GetDC() int {
@@ -271,9 +278,9 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Info("Connecting to [" + m.Addr + "] - <Tcp> ...")
+		m.Logger.Info(fmt.Sprintf("connecting to [%s] - <Tcp> ...", m.Addr))
 	} else {
-		m.Logger.Debug("Connecting to [" + m.Addr + "] - <Tcp> ...")
+		m.Logger.Debug("connecting to [" + m.Addr + "] - <Tcp> ...")
 	}
 	err := m.connect(ctx)
 	if err != nil {
@@ -282,15 +289,15 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	m.tcpActive = true
 	if withLog {
 		if m.proxy != nil && m.proxy.Host != "" {
-			m.Logger.Info("Connection to (~" + m.proxy.Host + ")[" + m.Addr + "] - <Tcp> established")
+			m.Logger.Info(fmt.Sprintf("connection to (~%s)[%s] - <Tcp> established", m.proxy.Host, m.Addr))
 		} else {
-			m.Logger.Info("Connection to [" + m.Addr + "] - <Tcp> established")
+			m.Logger.Info(fmt.Sprintf("connection to [%s] - <Tcp> established", m.Addr))
 		}
 	} else {
 		if m.proxy != nil && m.proxy.Host != "" {
-			m.Logger.Debug("Connection to (~" + m.proxy.Host + ")[" + m.Addr + "] - <Tcp> established")
+			m.Logger.Debug("connection to (~" + m.proxy.Host + ")[" + m.Addr + "] - <Tcp> established")
 		} else {
-			m.Logger.Debug("Connection to [" + m.Addr + "] - <Tcp> established")
+			m.Logger.Debug("connection to [" + m.Addr + "] - <Tcp> established")
 		}
 	}
 
@@ -323,13 +330,15 @@ func (m *MTProto) connect(ctx context.Context) error {
 		return fmt.Errorf("creating transport: %w", err)
 	}
 
+	m.SetTransfer(true)
+
 	go closeOnCancel(ctx, m.transport)
 	return nil
 }
 
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
 	if !m.TcpActive() {
-		return nil, errors.New("can't make request. connection is not established")
+		_ = m.CreateConnection(false)
 	}
 	resp, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
@@ -346,16 +355,20 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	response := <-resp
 	switch r := response.(type) {
 	case *objects.RpcError:
-		//if err := RpcErrorToNative(r).(*ErrResponseCode); strings.Contains(err.Message, "FLOOD_WAIT_") {
-		//m.Logger.Info("flood wait detected on '" + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf("' request. sleeping for %s", (time.Duration(realErr.AdditionalInfo.(int))*time.Second).String()))
-		//time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
-		//return m.makeRequest(data, expectedTypes...) TODO: implement flood wait correctly
-		//}
+		// if err := RpcErrorToNative(r).(*ErrResponseCode); strings.Contains(err.Message, "FLOOD_WAIT_") {
+		//		m.Logger.Info("flood wait detected on '" + strings.ReplaceAll(reflect.TypeOf(data).Elem().Name(), "Params", "") + fmt.Sprintf("' request. sleeping for %s", (time.Duration(realErr.AdditionalInfo.(int))*time.Second).String()))
+		//		time.Sleep(time.Duration(realErr.AdditionalInfo.(int)) * time.Second)
+		//		return m.makeRequest(data, expectedTypes...) TODO: implement flood wait correctly
+		// }
 		return nil, RpcErrorToNative(r)
 
 	case *errorSessionConfigsChanged:
 		m.Logger.Debug("session configs changed, resending request")
 		return m.makeRequest(data, expectedTypes...)
+
+	case *errorReconnectRequired:
+		m.Logger.Info("req info: " + fmt.Sprintf("%T", data))
+		return nil, errors.New("required to reconnect!")
 	}
 
 	return tl.UnwrapNativeTypes(response), nil
@@ -376,6 +389,12 @@ func (m *MTProto) TcpActive() bool {
 func (m *MTProto) Disconnect() error {
 	m.stopRoutines()
 	m.tcpActive = false
+
+	for _, v := range m.responseChannels.Keys() {
+		ch, _ := m.responseChannels.Get(v)
+		ch <- &errorReconnectRequired{}
+	}
+
 	// m.responseChannels.Close()
 	return nil
 }
@@ -394,18 +413,18 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		return errors.Wrap(err, "disconnecting")
 	}
 	if WithLogs {
-		m.Logger.Info("Reconnecting to [" + m.Addr + "] - <Tcp> ...")
+		m.Logger.Info(fmt.Sprintf("reconnecting to [%s] - <Tcp> ...", m.Addr))
 	}
 
 	err = m.CreateConnection(WithLogs)
 	if err == nil && WithLogs {
-		m.Logger.Info("Reconnected to [" + m.Addr + "] - <Tcp> ...")
+		m.Logger.Info(fmt.Sprintf("reconnected to [%s] - <Tcp>", m.Addr))
 	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
 	})
 
-	m.MakeRequest(&utils.UpdatesGetStateParams{}) // to ask the server to send the updates
+	//m.MakeRequest(&utils.UpdatesGetStateParams{}) // to ask the server to send the updates
 	return errors.Wrap(err, "recreating connection")
 }
 
@@ -567,7 +586,6 @@ messageTypeSwitching:
 		respChannelsBackup = m.responseChannels
 
 		m.responseChannels = utils.NewSyncIntObjectChan()
-
 		m.Reconnect(false)
 
 		for _, k := range respChannelsBackup.Keys() {
@@ -593,7 +611,7 @@ messageTypeSwitching:
 		if badMsg.Code == 16 || badMsg.Code == 17 {
 			m.offsetTime()
 		}
-		m.Logger.Debug("badMsgNotification: " + badMsg.Error())
+		m.Logger.Debug("bad-msg-notification: " + badMsg.Error())
 		return badMsg
 	case *objects.RpcResult:
 		obj := message.Obj
@@ -606,7 +624,7 @@ messageTypeSwitching:
 			if strings.Contains(err.Error(), "no response channel found") {
 				m.Logger.Error(errors.Wrap(err, "writing rpc response"))
 			} else {
-				return errors.Wrap(err, "writing RPC response")
+				return errors.Wrap(err, "writing rpc response")
 			}
 		}
 
@@ -625,7 +643,7 @@ messageTypeSwitching:
 			}
 		}
 		if !processed {
-			m.Logger.Debug("~ unhandled update: " + fmt.Sprintf("%T", message))
+			m.Logger.Debug("unhandled update: " + fmt.Sprintf("%T", message))
 		}
 	}
 
@@ -681,4 +699,21 @@ func closeOnCancel(ctx context.Context, c io.Closer) {
 		defer func() { recover() }()
 		c.Close()
 	}()
+}
+
+func (m *MTProto) checkBreaking() {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if m.shouldTransfer && !m.TcpActive() {
+			m.CreateConnection(false)
+			for i := 0; i < 2; i++ {
+				_, err := m.MakeRequest(&utils.UpdatesGetStateParams{})
+				if err == nil {
+					break
+				}
+			}
+		}
+	}
 }
