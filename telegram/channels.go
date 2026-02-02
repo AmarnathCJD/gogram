@@ -3,6 +3,8 @@
 package telegram
 
 import (
+	"math"
+
 	"github.com/pkg/errors"
 )
 
@@ -11,7 +13,7 @@ import (
 //	Params:
 //	 - chatID: The ID of the chat
 //	 - limit: The maximum number of photos to be returned
-func (c *Client) GetChatPhotos(chatID interface{}, limit ...int32) ([]Photo, error) {
+func (c *Client) GetChatPhotos(chatID any, limit ...int32) ([]Photo, error) {
 	if limit == nil {
 		limit = []int32{1}
 	}
@@ -37,7 +39,7 @@ func (c *Client) GetChatPhotos(chatID interface{}, limit ...int32) ([]Photo, err
 //
 //	Params:
 //	 - chatID: chat id
-func (c *Client) GetChatPhoto(chatID interface{}) (Photo, error) {
+func (c *Client) GetChatPhoto(chatID any) (Photo, error) {
 	photos, err := c.GetChatPhotos(chatID)
 	if err != nil {
 		return &PhotoObj{}, err
@@ -52,7 +54,7 @@ func (c *Client) GetChatPhoto(chatID interface{}) (Photo, error) {
 //
 //	Params:
 //	- Channel: the username or id of the channel or chat
-func (c *Client) JoinChannel(Channel interface{}) error {
+func (c *Client) JoinChannel(Channel any) error {
 	switch p := Channel.(type) {
 	case string:
 		if TG_JOIN_RE.MatchString(p) {
@@ -88,7 +90,7 @@ func (c *Client) JoinChannel(Channel interface{}) error {
 //	Params:
 //	 - Channel: Channel or chat to leave
 //	 - Revoke: If true, the channel will be deleted
-func (c *Client) LeaveChannel(Channel interface{}, Revoke ...bool) error {
+func (c *Client) LeaveChannel(Channel any, Revoke ...bool) error {
 	revokeChat := getVariadic(Revoke, false)
 	channel, err := c.ResolvePeer(Channel)
 	if err != nil {
@@ -132,7 +134,7 @@ type Participant struct {
 //	Params:
 //	 - chatID: The ID of the chat
 //	 - userID: The ID of the user
-func (c *Client) GetChatMember(chatID, userID interface{}) (*Participant, error) {
+func (c *Client) GetChatMember(chatID, userID any) (*Participant, error) {
 	channel, err := c.ResolvePeer(chatID)
 	if err != nil {
 		return nil, err
@@ -207,7 +209,7 @@ type ParticipantOptions struct {
 //	 - filter: The filter to use
 //	 - offset: The offset to use
 //	 - limit: The limit to use
-func (c *Client) GetChatMembers(chatID interface{}, Opts ...*ParticipantOptions) ([]*Participant, int32, error) {
+func (c *Client) GetChatMembers(chatID any, Opts ...*ParticipantOptions) ([]*Participant, int32, error) {
 	channel, err := c.ResolvePeer(chatID)
 	if err != nil {
 		return nil, 0, err
@@ -293,7 +295,7 @@ type AdminOptions struct {
 // Returns:
 //   - bool: True if the operation was successful, False otherwise.
 //   - error: An error if the operation fails.
-func (c *Client) EditAdmin(PeerID, UserID interface{}, Opts ...*AdminOptions) (bool, error) {
+func (c *Client) EditAdmin(PeerID, UserID any, Opts ...*AdminOptions) (bool, error) {
 	opts := getVariadic(Opts, &AdminOptions{IsAdmin: true, Rights: &ChatAdminRights{}, Rank: "Admin"})
 	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
@@ -352,7 +354,7 @@ type BannedOptions struct {
 // Returns:
 //   - bool: True if the operation was successful, False otherwise.
 //   - error: An error if the operation fails.
-func (c *Client) EditBanned(PeerID, UserID interface{}, opts ...*BannedOptions) (bool, error) {
+func (c *Client) EditBanned(PeerID, UserID any, opts ...*BannedOptions) (bool, error) {
 	o := getVariadic(opts, &BannedOptions{Ban: true, Rights: &ChatBannedRights{}})
 	if o.Rights == nil {
 		o.Rights = &ChatBannedRights{}
@@ -399,7 +401,7 @@ func handleChatBan(c *Client, p *InputPeerChat, u InputPeer, o *BannedOptions) (
 	return false, errors.New("user is not a valid InputPeerUser")
 }
 
-func (c *Client) KickParticipant(PeerID, UserID interface{}) (bool, error) {
+func (c *Client) KickParticipant(PeerID, UserID any) (bool, error) {
 	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return false, err
@@ -440,7 +442,7 @@ type TitleOptions struct {
 
 // Edit the title of a chat, channel or self,
 // returns true if successful
-func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...*TitleOptions) (bool, error) {
+func (c *Client) EditTitle(PeerID any, Title string, Opts ...*TitleOptions) (bool, error) {
 	opts := getVariadic(Opts, &TitleOptions{})
 	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
@@ -473,7 +475,7 @@ func (c *Client) EditTitle(PeerID interface{}, Title string, Opts ...*TitleOptio
 //	Params:
 //	 - channelID: the channel ID
 //	 - messageID: the message ID
-func (c *Client) GetStats(channelID interface{}, messageID ...interface{}) (*StatsBroadcastStats, *StatsMessageStats, error) {
+func (c *Client) GetStats(channelID any, messageID ...any) (*StatsBroadcastStats, *StatsMessageStats, error) {
 	peerID, err := c.ResolvePeer(channelID)
 	if err != nil {
 		return nil, nil, err
@@ -520,7 +522,7 @@ type InviteLinkOptions struct {
 //	 - Limit: The maximum number of users that can join the chat using the link
 //	 - Title: The title of the link
 //	 - RequestNeeded: If true, join requests will be needed to join the chat
-func (c *Client) GetChatInviteLink(peerID interface{}, LinkOpts ...*InviteLinkOptions) (ExportedChatInvite, error) {
+func (c *Client) GetChatInviteLink(peerID any, LinkOpts ...*InviteLinkOptions) (ExportedChatInvite, error) {
 	LinkOptions := getVariadic(LinkOpts, &InviteLinkOptions{})
 	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
@@ -568,7 +570,7 @@ func (c *Client) CreateChannel(title string, opts ...*ChannelOptions) (*Channel,
 	return nil, errors.New("empty reply from server")
 }
 
-func (c *Client) DeleteChannel(channelID interface{}) (*Updates, error) {
+func (c *Client) DeleteChannel(channelID any) (*Updates, error) {
 	peer, err := c.ResolvePeer(channelID)
 	if err != nil {
 		return nil, err
@@ -591,24 +593,22 @@ func (c *Client) DeleteChannel(channelID interface{}) (*Updates, error) {
 	return &u, nil
 }
 
-func (c *Client) GetChatJoinRequests(channelID interface{}, lim int) ([]*UserObj, error) {
-	perLimit := 100
+func (c *Client) GetChatJoinRequests(channelID any, lim int, query ...string) ([]*UserObj, error) {
 	var currentOffsetUser InputUser = &InputUserEmpty{}
 	currentOffsetDate := 0
 
-	// Set active limit to lim if it's less than perLimit, else set it to perLimit
-	activeLimit := perLimit
-	if lim < perLimit {
-		activeLimit = lim
+	current := 0
+	if lim <= 0 {
+		lim = math.MaxInt32
 	}
 
-	// Get sendable peer
+	limit := min(lim, 100)
+
 	peer, err := c.ResolvePeer(channelID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Initialize empty slice to store all users
 	var allUsers []*UserObj
 
 	// Loop until lim is reached
@@ -617,33 +617,39 @@ func (c *Client) GetChatJoinRequests(channelID interface{}, lim int) ([]*UserObj
 		chatInviteImporters, err := c.MessagesGetChatInviteImporters(&MessagesGetChatInviteImportersParams{
 			Requested:  true,
 			Peer:       peer,
-			Q:          "",
+			Q:          getVariadic(query, ""),
 			OffsetDate: int32(currentOffsetDate),
 			OffsetUser: currentOffsetUser,
-			Limit:      int32(activeLimit),
+			Limit:      int32(limit),
 		})
 		if err != nil {
 			return nil, err
 		}
 
-		// Add all UserObj objects to allUsers slice
-		for _, user := range chatInviteImporters.Users {
-			if u, ok := user.(*UserObj); ok {
-				allUsers = append(allUsers, u)
-			}
+		if len(chatInviteImporters.Importers) == 0 {
+			break
 		}
 
-		// Decrement lim by activeLimit
-		lim -= activeLimit
+		// Add all UserObj objects to allUsers slice
+		for _, user := range chatInviteImporters.Users {
+			u, ok := user.(*UserObj)
+			if !ok {
+				c.Logger.Debug("user is not a UserObj")
+				continue
+			}
+			allUsers = append(allUsers, u)
+			current++
+		}
 
-		// Break out of loop if lim is reached
-		if lim <= 0 {
+		// Break if limit is reached
+		if current >= lim {
 			break
 		}
 
 		// Set current offset user and date for next iteration
 		if len(chatInviteImporters.Users) > 0 {
-			if u, ok := chatInviteImporters.Users[len(chatInviteImporters.Users)-1].(*UserObj); ok {
+			lastUser := chatInviteImporters.Users[len(chatInviteImporters.Users)-1]
+			if u, ok := lastUser.(*UserObj); ok {
 				currentOffsetUser = &InputUserObj{UserID: u.ID, AccessHash: u.AccessHash}
 			}
 		}
@@ -655,8 +661,19 @@ func (c *Client) GetChatJoinRequests(channelID interface{}, lim int) ([]*UserObj
 	return allUsers, nil
 }
 
+// ApproveJoinRequest approves all pending join requests in a chat
+func (c *Client) ApproveAllJoinRequests(channelID any, invite ...string) error {
+	peer, err := c.ResolvePeer(channelID)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.MessagesHideAllChatJoinRequests(true, peer, getVariadic(invite, ""))
+	return err
+}
+
 // TransferChatOwnership transfers the ownership of a chat to another user
-func (c *Client) TransferChatOwnership(chatID interface{}, userID interface{}, password string) error {
+func (c *Client) TransferChatOwnership(chatID any, userID any, password string) error {
 	var inputChannel *InputChannelObj
 	var inputUser *InputUserObj
 

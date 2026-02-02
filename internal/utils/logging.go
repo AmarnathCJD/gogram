@@ -33,14 +33,28 @@ var (
 	colorCyan   = []byte("\033[0;36m")
 )
 
-func colorize(color []byte, s string) string {
-	return string(color) + s + string(colorOff)
-}
-
 // Logger is the logging struct.
 type Logger struct {
-	Level  int
-	Prefix string
+	Level   int
+	Prefix  string
+	nocolor bool
+}
+
+// NoColor disables colorized output.
+func (l *Logger) NoColor() {
+	l.nocolor = true
+}
+
+// Color enables colorized output. (default)
+func (l *Logger) Color() {
+	l.nocolor = false
+}
+
+func (l *Logger) colorize(color []byte, s string) string {
+	if l.nocolor {
+		return s
+	}
+	return string(color) + s + string(colorOff)
 }
 
 func (l *Logger) Lev() string {
@@ -85,39 +99,39 @@ func (l *Logger) SetLevel(level string) *Logger {
 func (l *Logger) Error(v ...any) {
 	// TODO: runtime.Caller(1)
 	if l.Level <= ErrorLevel {
-		log.Println(colorize(colorRed, "[error]"), l.Prefix, "-", getVariable(v...))
+		log.Println(l.colorize(colorRed, "[error]"), l.Prefix, "-", getVariable(v...))
 	}
 }
 
 func (l *Logger) Warn(v ...any) {
 	if l.Level <= WarnLevel {
-		log.Println(colorize(colorOrange, "[warn] "), l.Prefix, "-", getVariable(v...))
+		log.Println(l.colorize(colorOrange, "[warn] "), l.Prefix, "-", getVariable(v...))
 	}
 }
 
 func (l *Logger) Info(v ...any) {
 	if l.Level <= InfoLevel {
-		log.Println(colorize(colorGreen, "[info] "), l.Prefix, "-", getVariable(v...))
+		log.Println(l.colorize(colorGreen, "[info] "), l.Prefix, "-", getVariable(v...))
 	}
 }
 
 func (l *Logger) Debug(v ...any) {
 	if l.Level <= DebugLevel {
-		log.Println(colorize(colorPurple, "[debug]"), l.Prefix, "-", getVariable(v...))
+		log.Println(l.colorize(colorPurple, "[debug]"), l.Prefix, "-", getVariable(v...))
 	}
 }
 
 func (l *Logger) Trace(v ...any) {
 	if l.Level <= TraceLevel {
-		log.Println(colorize(colorCyan, "[trace]"), l.Prefix, "-", getVariable(v...))
+		log.Println(l.colorize(colorCyan, "[trace]"), l.Prefix, "-", getVariable(v...))
 	}
 }
 
 func (l *Logger) Panic(v ...any) {
-	stack := make([]byte, 1024)
+	stack := make([]byte, 1536)
 	runtime.Stack(stack, false)
 
-	log.Println(colorize(colorCyan, "[panic]"), l.Prefix, "-", getVariable(v...), "\n", colorize(colorOrange, string(stack)))
+	log.Println(l.colorize(colorCyan, "[panic]"), l.Prefix, "-", getVariable(v...), "\n", l.colorize(colorOrange, string(stack)))
 }
 
 // NewLogger returns a new Logger instance.

@@ -59,7 +59,7 @@ func GenRandInt() int64 {
 	return int64(rand.Int31())
 }
 
-func (c *Client) getMultiMedia(m interface{}, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
+func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
 	var media []*InputSingleMedia
 	if attrs == nil {
 		attrs = &MediaMetadata{}
@@ -244,7 +244,7 @@ updateTypeSwitch:
 	return nil
 }
 
-func (c *Client) GetSendablePeer(PeerID interface{}) (InputPeer, error) {
+func (c *Client) GetSendablePeer(PeerID any) (InputPeer, error) {
 PeerSwitch:
 	switch Peer := PeerID.(type) {
 	case nil:
@@ -333,11 +333,11 @@ PeerSwitch:
 }
 
 // ResolvePeer resolves a peer to a sendable peer, searches the cache if the peer is already resolved
-func (c *Client) ResolvePeer(peerToResolve interface{}) (InputPeer, error) {
+func (c *Client) ResolvePeer(peerToResolve any) (InputPeer, error) {
 	return c.GetSendablePeer(peerToResolve)
 }
 
-func (c *Client) GetSendableChannel(PeerID interface{}) (InputChannel, error) {
+func (c *Client) GetSendableChannel(PeerID any) (InputChannel, error) {
 	rawPeer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
@@ -355,7 +355,7 @@ func (c *Client) GetSendableChannel(PeerID interface{}) (InputChannel, error) {
 	}
 }
 
-func (c *Client) GetSendableUser(PeerID interface{}) (InputUser, error) {
+func (c *Client) GetSendableUser(PeerID any) (InputUser, error) {
 	rawPeer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
@@ -373,7 +373,7 @@ func (c *Client) GetSendableUser(PeerID interface{}) (InputUser, error) {
 	}
 }
 
-func (c *Client) GetPeerID(Peer interface{}) int64 {
+func (c *Client) GetPeerID(Peer any) int64 {
 	if Peer == nil {
 		return 0
 	}
@@ -418,11 +418,11 @@ func getAnyInt(v any) int64 {
 	}
 }
 
-func (c *Client) GetSendableMedia(mediaFile interface{}, attr *MediaMetadata) (InputMedia, error) {
+func (c *Client) GetSendableMedia(mediaFile any, attr *MediaMetadata) (InputMedia, error) {
 	return c.getSendableMedia(mediaFile, attr)
 }
 
-func (c *Client) getSendableMedia(mediaFile interface{}, attributes *MediaMetadata) (InputMedia, error) {
+func (c *Client) getSendableMedia(mediaFile any, attributes *MediaMetadata) (InputMedia, error) {
 	attr := getValue(attributes, &MediaMetadata{})
 
 	switch thumb := attr.Thumb.(type) {
@@ -849,7 +849,7 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 	return fi, err
 }
 
-func (c *Client) ResolveUsername(username string) (interface{}, error) {
+func (c *Client) ResolveUsername(username string) (any, error) {
 	resp, err := c.ContactsResolveUsername(strings.TrimPrefix(username, "@"))
 	if err != nil {
 		return nil, errors.Wrap(err, "resolving username")
@@ -1184,8 +1184,12 @@ func ComputeDigest(algo *PasswordKdfAlgoSHA256SHA256Pbkdf2Hmacsha512Iter100000SH
 	return ige.Pad256(value.Bytes())
 }
 
+func (c *Client) Stringify(object any) string {
+	return c.JSON(object)
+}
+
 // easy wrapper for json.MarshalIndent, returns string
-func (c *Client) JSON(object interface{}, nointent ...any) string {
+func (c *Client) JSON(object any, nointent ...any) string {
 	if len(nointent) > 0 {
 		switch _noi := nointent[0].(type) {
 		case bool:

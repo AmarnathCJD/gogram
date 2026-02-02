@@ -116,7 +116,7 @@ func (b *CallbackQuery) IsChannel() bool {
 	return b.ChatType() == EntityChannel
 }
 
-func (b *CallbackQuery) Edit(Text interface{}, options ...*SendOptions) (*NewMessage, error) {
+func (b *CallbackQuery) Edit(Text any, options ...*SendOptions) (*NewMessage, error) {
 	var opts SendOptions
 	if len(options) > 0 {
 		opts = *options[0]
@@ -128,7 +128,7 @@ func (b *CallbackQuery) Delete() (*MessagesAffectedMessages, error) {
 	return b.Client.DeleteMessages(b.Peer, []int32{b.MessageID})
 }
 
-func (b *CallbackQuery) Reply(Text interface{}, options ...*SendOptions) (*NewMessage, error) {
+func (b *CallbackQuery) Reply(Text any, options ...*SendOptions) (*NewMessage, error) {
 	var opts SendOptions
 	if len(options) > 0 {
 		opts = *options[0]
@@ -141,7 +141,7 @@ func (b *CallbackQuery) Reply(Text interface{}, options ...*SendOptions) (*NewMe
 	return b.Client.SendMessage(b.Peer, Text, &opts)
 }
 
-func (b *CallbackQuery) Respond(Text interface{}, options ...*SendOptions) (*NewMessage, error) {
+func (b *CallbackQuery) Respond(Text any, options ...*SendOptions) (*NewMessage, error) {
 	var opts SendOptions
 	if len(options) > 0 {
 		opts = *options[0]
@@ -149,7 +149,7 @@ func (b *CallbackQuery) Respond(Text interface{}, options ...*SendOptions) (*New
 	return b.Client.SendMessage(b.Peer, Text, &opts)
 }
 
-func (b *CallbackQuery) ReplyMedia(Media interface{}, options ...*MediaOptions) (*NewMessage, error) {
+func (b *CallbackQuery) ReplyMedia(Media any, options ...*MediaOptions) (*NewMessage, error) {
 	var opts MediaOptions
 	if len(options) > 0 {
 		opts = *options[0]
@@ -162,7 +162,7 @@ func (b *CallbackQuery) ReplyMedia(Media interface{}, options ...*MediaOptions) 
 	return b.Client.SendMedia(b.Peer, Media, &opts)
 }
 
-func (b *CallbackQuery) RespondMedia(Media interface{}, options ...*MediaOptions) (*NewMessage, error) {
+func (b *CallbackQuery) RespondMedia(Media any, options ...*MediaOptions) (*NewMessage, error) {
 	var opts MediaOptions
 	if len(options) > 0 {
 		opts = *options[0]
@@ -231,7 +231,7 @@ func (b *InlineCallbackQuery) GetSenderID() int64 {
 	return b.SenderID
 }
 
-func (b *InlineCallbackQuery) Edit(Text interface{}, options ...*SendOptions) (*NewMessage, error) {
+func (b *InlineCallbackQuery) Edit(Text any, options ...*SendOptions) (*NewMessage, error) {
 	var opts SendOptions
 	if len(options) > 0 {
 		opts = *options[0]

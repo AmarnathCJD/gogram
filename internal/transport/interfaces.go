@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-type ConnConfig interface{}
+type ConnConfig any
 type Conn io.ReadWriteCloser
 
 type ModeConfig = func(Conn) (Mode, error)

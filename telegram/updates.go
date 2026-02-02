@@ -30,7 +30,7 @@ type RawHandler func(m Update, c *Client) error
 var EndGroup = errors.New("end-group-trigger")
 
 type messageHandle struct {
-	Pattern     interface{}
+	Pattern     any
 	Handler     MessageHandler
 	Filters     []Filter
 	Group       string
@@ -98,7 +98,7 @@ func (h *chatActionHandle) GetGroup() string {
 }
 
 type messageEditHandle struct {
-	Pattern     interface{}
+	Pattern     any
 	Handler     MessageHandler
 	Filters     []Filter
 	Group       string
@@ -116,7 +116,7 @@ func (h *messageEditHandle) GetGroup() string {
 }
 
 type messageDeleteHandle struct {
-	Pattern     interface{}
+	Pattern     any
 	Handler     func(m *DeleteMessage) error
 	Group       string
 	sortTrigger chan any
@@ -133,7 +133,7 @@ func (h *messageDeleteHandle) GetGroup() string {
 }
 
 type inlineHandle struct {
-	Pattern     interface{}
+	Pattern     any
 	Handler     InlineHandler
 	Group       string
 	sortTrigger chan any
@@ -150,7 +150,7 @@ func (h *inlineHandle) GetGroup() string {
 }
 
 type callbackHandle struct {
-	Pattern     interface{}
+	Pattern     any
 	Handler     CallbackHandler
 	Group       string
 	sortTrigger chan any
@@ -167,7 +167,7 @@ func (h *callbackHandle) GetGroup() string {
 }
 
 type inlineCallbackHandle struct {
-	Pattern     interface{}
+	Pattern     any
 	Handler     InlineCallbackHandler
 	Group       string
 	sortTrigger chan any
@@ -868,7 +868,7 @@ var (
 	}
 )
 
-func (c *Client) AddMessageHandler(pattern interface{}, handler MessageHandler, filters ...Filter) Handle {
+func (c *Client) AddMessageHandler(pattern any, handler MessageHandler, filters ...Filter) Handle {
 	var messageFilters []Filter
 	if len(filters) > 0 {
 		messageFilters = filters
@@ -891,7 +891,7 @@ func (c *Client) AddCommandHandler(pattern string, handler MessageHandler, filte
 	return c.AddMessageHandler(pattern, handler, filters...)
 }
 
-func (c *Client) AddDeleteHandler(pattern interface{}, handler func(d *DeleteMessage) error) Handle {
+func (c *Client) AddDeleteHandler(pattern any, handler func(d *DeleteMessage) error) Handle {
 	handle := messageDeleteHandle{
 		Pattern:     pattern,
 		Handler:     handler,
@@ -931,7 +931,7 @@ func (c *Client) AddActionHandler(handler MessageHandler) Handle {
 // Included Updates:
 //   - Message Edited
 //   - Channel Post Edited
-func (c *Client) AddEditHandler(pattern interface{}, handler MessageHandler, filters ...Filter) Handle {
+func (c *Client) AddEditHandler(pattern any, handler MessageHandler, filters ...Filter) Handle {
 	if c.dispatcher.messageEditHandles == nil {
 		c.dispatcher.messageEditHandles = make(map[string][]*messageEditHandle)
 	}
@@ -945,7 +945,7 @@ func (c *Client) AddEditHandler(pattern interface{}, handler MessageHandler, fil
 //
 // Included Updates:
 //   - Inline Query
-func (c *Client) AddInlineHandler(pattern interface{}, handler InlineHandler) Handle {
+func (c *Client) AddInlineHandler(pattern any, handler InlineHandler) Handle {
 	if c.dispatcher.inlineHandles == nil {
 		c.dispatcher.inlineHandles = make(map[string][]*inlineHandle)
 	}
@@ -959,7 +959,7 @@ func (c *Client) AddInlineHandler(pattern interface{}, handler InlineHandler) Ha
 //
 // Included Updates:
 //   - Callback Query
-func (c *Client) AddCallbackHandler(pattern interface{}, handler CallbackHandler) Handle {
+func (c *Client) AddCallbackHandler(pattern any, handler CallbackHandler) Handle {
 	if c.dispatcher.callbackHandles == nil {
 		c.dispatcher.callbackHandles = make(map[string][]*callbackHandle)
 	}
@@ -973,7 +973,7 @@ func (c *Client) AddCallbackHandler(pattern interface{}, handler CallbackHandler
 //
 // Included Updates:
 //   - Inline Callback Query
-func (c *Client) AddInlineCallbackHandler(pattern interface{}, handler InlineCallbackHandler) Handle {
+func (c *Client) AddInlineCallbackHandler(pattern any, handler InlineCallbackHandler) Handle {
 	if c.dispatcher.inlineCallbackHandles == nil {
 		c.dispatcher.inlineCallbackHandles = make(map[string][]*inlineCallbackHandle)
 	}
@@ -1014,7 +1014,7 @@ func (c *Client) AddRawHandler(updateType Update, handler RawHandler) Handle {
 
 // Sort and Handle all the Incoming Updates
 // Many more types to be added
-func HandleIncomingUpdates(u interface{}, c *Client) bool {
+func HandleIncomingUpdates(u any, c *Client) bool {
 UpdateTypeSwitching:
 	switch upd := u.(type) {
 	case *UpdatesObj:
@@ -1069,13 +1069,13 @@ UpdateTypeSwitching:
 		c.Log.Debug("update gap is too long, requesting getState")
 		c.UpdatesGetState()
 	default:
-		c.Log.Debug("skipping unhanded update (", reflect.TypeOf(u), "): ", c.JSON(u))
+		c.Log.Debug("skipping unhanded update type: ", reflect.TypeOf(u), " with value: ", c.JSON(u))
 	}
 	return true
 }
 
 func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
-	c.Logger.Debug("updates.getDifference: (pts: ", Pts, " limit: ", Limit, ")")
+	c.Logger.Debug("getting difference with pts: ", Pts, " and limit: ", Limit)
 
 	updates, err := c.UpdatesGetDifference(&UpdatesGetDifferenceParams{
 		Pts:           Pts - 1,
@@ -1111,7 +1111,7 @@ func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
 	return nil, nil
 }
 
-type ev interface{}
+type ev any
 
 var (
 	OnMessage        ev = "message"
@@ -1126,7 +1126,7 @@ var (
 	OnRaw            ev = "raw"
 )
 
-func (c *Client) On(pattern any, handler interface{}, filters ...Filter) Handle {
+func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 	var patternKey string
 	var args string
 

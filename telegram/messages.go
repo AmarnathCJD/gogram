@@ -11,22 +11,22 @@ import (
 type SendOptions struct {
 	Attributes      []DocumentAttribute `json:"attributes,omitempty"`
 	MimeType        string              `json:"mime_type,omitempty"`
-	Caption         interface{}         `json:"caption,omitempty"`
+	Caption         any                 `json:"caption,omitempty"`
 	ClearDraft      bool                `json:"clear_draft,omitempty"`
 	Entities        []MessageEntity     `json:"entities,omitempty"`
 	FileName        string              `json:"file_name,omitempty"`
 	ForceDocument   bool                `json:"force_document,omitempty"`
 	InvertMedia     bool                `json:"invert_media,omitempty"`
 	LinkPreview     bool                `json:"link_preview,omitempty"`
-	Media           interface{}         `json:"media,omitempty"`
+	Media           any                 `json:"media,omitempty"`
 	NoForwards      bool                `json:"no_forwards,omitempty"`
 	ParseMode       string              `json:"parse_mode,omitempty"`
 	ReplyID         int32               `json:"reply_id,omitempty"`
 	ReplyMarkup     ReplyMarkup         `json:"reply_markup,omitempty"`
 	ScheduleDate    int32               `json:"schedule_date,omitempty"`
-	SendAs          interface{}         `json:"send_as,omitempty"`
+	SendAs          any                 `json:"send_as,omitempty"`
 	Silent          bool                `json:"silent,omitempty"`
-	Thumb           interface{}         `json:"thumb,omitempty"`
+	Thumb           any                 `json:"thumb,omitempty"`
 	TTL             int32               `json:"ttl,omitempty"`
 	Spoiler         bool                `json:"spoiler,omitempty"`
 	ProgressManager *ProgressManager    `json:"-"`
@@ -49,14 +49,14 @@ type SendOptions struct {
 // Note: If the message parameter is a NewMessage or a pointer to a NewMessage, the function will extract the message text and entities from it.
 // If the message parameter is a media object, the function will send the media as a separate message and return a pointer to a NewMessage object containing information about the sent media.
 // If the message parameter is a string, the function will parse it for entities and send it as a text message.
-func (c *Client) SendMessage(peerID, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
+func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &SendOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string
 		rawText     string
-		media       interface{}
+		media       any
 	)
 	switch message := message.(type) {
 	case string:
@@ -143,13 +143,13 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 // Returns:
 //   - NewMessage: Returns a NewMessage object containing the edited message on success.
 //   - error: Returns an error on failure.
-func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
+func (c *Client) EditMessage(peerID any, id int32, message any, opts ...*SendOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &SendOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string
-		media       interface{}
+		media       any
 	)
 	switch message := message.(type) {
 	case string:
@@ -178,7 +178,7 @@ func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, 
 	return c.editMessage(senderPeer, id, textMessage, entities, media, opt)
 }
 
-func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities []MessageEntity, Media interface{}, options *SendOptions) (*NewMessage, error) {
+func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities []MessageEntity, Media any, options *SendOptions) (*NewMessage, error) {
 	var (
 		media InputMedia
 		err   error
@@ -223,7 +223,7 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 	return nil, errors.New("no response for editMessage")
 }
 
-func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string, entities []MessageEntity, Media interface{}, options *SendOptions) (*NewMessage, error) {
+func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string, entities []MessageEntity, Media any, options *SendOptions) (*NewMessage, error) {
 	var (
 		media InputMedia
 		err   error
@@ -285,7 +285,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 type MediaOptions struct {
 	Attributes      []DocumentAttribute `json:"attributes,omitempty"`
 	MimeType        string              `json:"mime_type,omitempty"`
-	Caption         interface{}         `json:"caption,omitempty"`
+	Caption         any                 `json:"caption,omitempty"`
 	ClearDraft      bool                `json:"clear_draft,omitempty"`
 	Entities        []MessageEntity     `json:"entities,omitempty"`
 	FileName        string              `json:"file_name,omitempty"`
@@ -298,9 +298,9 @@ type MediaOptions struct {
 	ReplyID         int32               `json:"reply_id,omitempty"`
 	ReplyMarkup     ReplyMarkup         `json:"reply_markup,omitempty"`
 	ScheduleDate    int32               `json:"schedule_date,omitempty"`
-	SendAs          interface{}         `json:"send_as,omitempty"`
+	SendAs          any                 `json:"send_as,omitempty"`
 	Silent          bool                `json:"silent,omitempty"`
-	Thumb           interface{}         `json:"thumb,omitempty"`
+	Thumb           any                 `json:"thumb,omitempty"`
 	TTL             int32               `json:"ttl,omitempty"`
 	Spoiler         bool                `json:"spoiler,omitempty"`
 	ProgressManager *ProgressManager    `json:"-"`
@@ -310,7 +310,7 @@ type MediaOptions struct {
 type MediaMetadata struct {
 	FileName             string              `json:"file_name,omitempty"`
 	BusinessConnectionId string              `json:"business_connection_id,omitempty"`
-	Thumb                interface{}         `json:"thumb,omitempty"`
+	Thumb                any                 `json:"thumb,omitempty"`
 	Attributes           []DocumentAttribute `json:"attributes,omitempty"`
 	ForceDocument        bool                `json:"force_document,omitempty"`
 	TTL                  int32               `json:"ttl,omitempty"`
@@ -340,7 +340,7 @@ type MediaMetadata struct {
 //   - If the caption in opts is a pointer to a NewMessage, its entities will be used instead.
 //   - If the entities field in opts is not nil, it will override any entities parsed from the caption.
 //   - If send_as in opts is not nil, the message will be sent from the specified peer, otherwise it will be sent from the sender peer.
-func (c *Client) SendMedia(peerID, Media interface{}, opts ...*MediaOptions) (*NewMessage, error) {
+func (c *Client) SendMedia(peerID, Media any, opts ...*MediaOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 
@@ -437,7 +437,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 //   - If the caption in opts is a pointer to a NewMessage, its entities will be used instead.
 //   - If the entities field in opts is not nil, it will override any entities parsed from the caption.
 //   - If send_as in opts is not nil, the messages will be sent from the specified peer, otherwise they will be sent from the sender peer.
-func (c *Client) SendAlbum(peerID, Album interface{}, opts ...*MediaOptions) ([]*NewMessage, error) {
+func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 	var (
@@ -519,7 +519,7 @@ type PollOptions struct {
 	ScheduleDate   int32
 }
 
-func (c *Client) SendPoll(peerID interface{}, question string, options []string, opts ...*PollOptions) (*NewMessage, error) {
+func (c *Client) SendPoll(peerID any, question string, options []string, opts ...*PollOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &PollOptions{})
 	senderPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
@@ -603,7 +603,7 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 }
 
 // SendReaction sends a reaction to a message, which can be an emoji or a custom emoji.
-func (c *Client) SendReaction(peerID interface{}, msgID int32, reaction interface{}, big ...bool) error {
+func (c *Client) SendReaction(peerID any, msgID int32, reaction any, big ...bool) error {
 	b := getVariadic(big, false)
 	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
@@ -625,7 +625,7 @@ func (c *Client) SendReaction(peerID interface{}, msgID int32, reaction interfac
 	return err
 }
 
-func convertReaction(reaction interface{}) ([]Reaction, error) {
+func convertReaction(reaction any) ([]Reaction, error) {
 	var r []Reaction
 	switch v := reaction.(type) {
 	case string:
@@ -666,7 +666,7 @@ func createReactionFromString(s string) Reaction {
 
 // SendDice sends a special dice message.
 // This method calls messages.sendMedia with a dice media.
-func (c *Client) SendDice(peerID interface{}, emoji string) (*NewMessage, error) {
+func (c *Client) SendDice(peerID any, emoji string) (*NewMessage, error) {
 	return c.SendMedia(peerID, &InputMediaDice{Emoticon: emoji})
 }
 
@@ -690,7 +690,7 @@ func (a *ActionResult) Cancel() bool {
 
 // SendAction sends a chat action.
 // This method is a wrapper for messages.setTyping.
-func (c *Client) SendAction(PeerID, Action interface{}, topMsgID ...int32) (*ActionResult, error) {
+func (c *Client) SendAction(PeerID, Action any, topMsgID ...int32) (*ActionResult, error) {
 	peerChat, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
@@ -713,7 +713,7 @@ func (c *Client) SendAction(PeerID, Action interface{}, topMsgID ...int32) (*Act
 
 // SendReadAck sends a read acknowledgement.
 // This method is a wrapper for messages.readHistory.
-func (c *Client) SendReadAck(PeerID interface{}, MaxID ...int32) (*MessagesAffectedMessages, error) {
+func (c *Client) SendReadAck(PeerID any, MaxID ...int32) (*MessagesAffectedMessages, error) {
 	peerChat, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
@@ -725,19 +725,19 @@ func (c *Client) SendReadAck(PeerID interface{}, MaxID ...int32) (*MessagesAffec
 // SendPoll sends a poll. TODO
 
 type ForwardOptions struct {
-	HideCaption  bool        `json:"hide_caption,omitempty"`
-	HideAuthor   bool        `json:"hide_author,omitempty"`
-	Silent       bool        `json:"silent,omitempty"`
-	Protected    bool        `json:"protected,omitempty"`
-	Background   bool        `json:"background,omitempty"`
-	WithMyScore  bool        `json:"with_my_score,omitempty"`
-	SendAs       interface{} `json:"send_as,omitempty"`
-	ScheduleDate int32       `json:"schedule_date,omitempty"`
+	HideCaption  bool  `json:"hide_caption,omitempty"`
+	HideAuthor   bool  `json:"hide_author,omitempty"`
+	Silent       bool  `json:"silent,omitempty"`
+	Protected    bool  `json:"protected,omitempty"`
+	Background   bool  `json:"background,omitempty"`
+	WithMyScore  bool  `json:"with_my_score,omitempty"`
+	SendAs       any   `json:"send_as,omitempty"`
+	ScheduleDate int32 `json:"schedule_date,omitempty"`
 }
 
 // Forward forwards a message.
 // This method is a wrapper for messages.forwardMessages.
-func (c *Client) Forward(peerID, fromPeerID interface{}, msgIDs []int32, opts ...*ForwardOptions) ([]NewMessage, error) {
+func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*ForwardOptions) ([]NewMessage, error) {
 	opt := getVariadic(opts, &ForwardOptions{})
 	toPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
@@ -786,7 +786,7 @@ func (c *Client) Forward(peerID, fromPeerID interface{}, msgIDs []int32, opts ..
 
 // DeleteMessages deletes messages.
 // This method is a wrapper for messages.deleteMessages.
-func (c *Client) DeleteMessages(peerID interface{}, msgIDs []int32, noRevoke ...bool) (*MessagesAffectedMessages, error) {
+func (c *Client) DeleteMessages(peerID any, msgIDs []int32, noRevoke ...bool) (*MessagesAffectedMessages, error) {
 	shouldRevoke := getVariadic(noRevoke, false)
 	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
@@ -820,9 +820,9 @@ func (c *Client) GetCustomEmoji(docIDs ...int64) ([]Document, error) {
 }
 
 type SearchOption struct {
-	IDs      interface{}    `json:"ids,omitempty"`
+	IDs      any            `json:"ids,omitempty"`
 	Query    string         `json:"query,omitempty"`
-	FromUser interface{}    `json:"from_user,omitempty"`
+	FromUser any            `json:"from_user,omitempty"`
 	Offset   int32          `json:"offset,omitempty"`
 	Limit    int32          `json:"limit,omitempty"`
 	Filter   MessagesFilter `json:"filter,omitempty"`
@@ -833,7 +833,7 @@ type SearchOption struct {
 	MinDate  int32          `json:"min_date,omitempty"`
 }
 
-func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMessage, error) {
+func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, error) {
 	opt := getVariadic(Opts, &SearchOption{
 		Filter: &InputMessagesFilterEmpty{},
 	})
@@ -943,7 +943,7 @@ func (c *Client) GetMessages(PeerID interface{}, Opts ...*SearchOption) ([]NewMe
 	return messages, nil
 }
 
-func (c *Client) GetMessageByID(PeerID interface{}, MsgID int32) (*NewMessage, error) {
+func (c *Client) GetMessageByID(PeerID any, MsgID int32) (*NewMessage, error) {
 	resp, err := c.GetMessages(PeerID, &SearchOption{
 		IDs: MsgID,
 	})
@@ -961,7 +961,7 @@ type HistoryOption struct {
 	Offset int32
 }
 
-func (c *Client) GetHistory(PeerID interface{}, opts ...*HistoryOption) ([]NewMessage, error) {
+func (c *Client) GetHistory(PeerID any, opts ...*HistoryOption) ([]NewMessage, error) {
 	peerToAct, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err
@@ -1013,7 +1013,7 @@ type PinOptions struct {
 
 // Pin pins a message.
 // This method is a wrapper for messages.pinMessage.
-func (c *Client) PinMessage(PeerID interface{}, MsgID int32, Opts ...*PinOptions) (Updates, error) {
+func (c *Client) PinMessage(PeerID any, MsgID int32, Opts ...*PinOptions) (Updates, error) {
 	opts := getVariadic(Opts, &PinOptions{})
 	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
@@ -1033,14 +1033,14 @@ func (c *Client) PinMessage(PeerID interface{}, MsgID int32, Opts ...*PinOptions
 }
 
 // UnpinMessage unpins a message.
-func (c *Client) UnpinMessage(PeerID interface{}, MsgID int32, Opts ...*PinOptions) (Updates, error) {
+func (c *Client) UnpinMessage(PeerID any, MsgID int32, Opts ...*PinOptions) (Updates, error) {
 	opts := getVariadic(Opts, &PinOptions{})
 	opts.Unpin = true
 	return c.PinMessage(PeerID, MsgID, opts)
 }
 
 // Gets the current pinned message in a chat
-func (c *Client) GetPinnedMessage(PeerID interface{}) (*NewMessage, error) {
+func (c *Client) GetPinnedMessage(PeerID any) (*NewMessage, error) {
 	resp, err := c.GetMessages(PeerID, &SearchOption{
 		IDs: &InputMessagePinned{},
 	})
@@ -1054,7 +1054,7 @@ func (c *Client) GetPinnedMessage(PeerID interface{}) (*NewMessage, error) {
 }
 
 type InlineOptions struct {
-	Dialog   interface{}
+	Dialog   any
 	Offset   int32
 	Query    string
 	GeoPoint InputGeoPoint
@@ -1068,7 +1068,7 @@ type InlineOptions struct {
 //	  - Offset: The offset to send.
 //	  - Dialog: The chat or channel to send the query to.
 //	  - GeoPoint: The location to send.
-func (c *Client) InlineQuery(peerID interface{}, Options ...*InlineOptions) (*MessagesBotResults, error) {
+func (c *Client) InlineQuery(peerID any, Options ...*InlineOptions) (*MessagesBotResults, error) {
 	options := getVariadic(Options, &InlineOptions{})
 	peer, err := c.ResolvePeer(peerID)
 	if err != nil {
@@ -1103,7 +1103,7 @@ func (c *Client) InlineQuery(peerID interface{}, Options ...*InlineOptions) (*Me
 //	Params:
 //	  - PeerID: The ID of the chat or channel.
 //	  - MsgID: The ID of the message.
-func (c *Client) GetMediaGroup(PeerID interface{}, MsgID int32) ([]NewMessage, error) {
+func (c *Client) GetMediaGroup(PeerID any, MsgID int32) ([]NewMessage, error) {
 	_, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return nil, err

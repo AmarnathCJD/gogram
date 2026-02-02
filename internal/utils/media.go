@@ -364,15 +364,15 @@ func ParseDuration(file string) (int64, error) {
 }
 
 type ReadHandle struct {
-	Params      []interface{}
+	Params      []any
 	BoxInfo     BoxInfo
 	Path        BoxPath
 	ReadPayload func() (box IBox, n uint64, err error)
 	ReadData    func(io.Writer) (n uint64, err error)
-	Expand      func(params ...interface{}) (vals []interface{}, err error)
+	Expand      func(params ...any) (vals []any, err error)
 }
 
-type ReadHandler func(handle *ReadHandle) (val interface{}, err error)
+type ReadHandler func(handle *ReadHandle) (val any, err error)
 
 func ExtractBoxes(r io.ReadSeeker, parent *BoxInfo, paths []BoxPath) ([]*BoxInfo, error) {
 	if len(paths) == 0 {
@@ -387,7 +387,7 @@ func ExtractBoxes(r io.ReadSeeker, parent *BoxInfo, paths []BoxPath) ([]*BoxInfo
 
 	boxes := make([]*BoxInfo, 0, 8)
 
-	handler := func(handle *ReadHandle) (interface{}, error) {
+	handler := func(handle *ReadHandle) (any, error) {
 		path := handle.Path
 		if parent != nil {
 			path = path[1:]
@@ -428,14 +428,14 @@ func matchPath(paths []BoxPath, path BoxPath) (forwardMatch, match bool) {
 	return
 }
 
-func ReadBoxStructure(r io.ReadSeeker, handler ReadHandler, params ...interface{}) ([]interface{}, error) {
+func ReadBoxStructure(r io.ReadSeeker, handler ReadHandler, params ...any) ([]any, error) {
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
 	return readBoxStructure(r, 0, true, nil, Context{}, handler, params)
 }
 
-func ReadBoxStructureFromInternal(r io.ReadSeeker, bi *BoxInfo, handler ReadHandler, params ...interface{}) (interface{}, error) {
+func ReadBoxStructureFromInternal(r io.ReadSeeker, bi *BoxInfo, handler ReadHandler, params ...any) (any, error) {
 	return readBoxStructureFromInternal(r, bi, nil, handler, params)
 }
 
@@ -475,7 +475,7 @@ func (*BaseCustomFieldObject) OnReadField(string, ReadSeeker, uint64, Context) (
 	return 0, false, nil
 }
 
-func readBoxStructureFromInternal(r io.ReadSeeker, bi *BoxInfo, path BoxPath, handler ReadHandler, params []interface{}) (interface{}, error) {
+func readBoxStructureFromInternal(r io.ReadSeeker, bi *BoxInfo, path BoxPath, handler ReadHandler, params []any) (any, error) {
 	if _, err := bi.SeekToPayload(r); err != nil {
 		return nil, err
 	}
@@ -520,7 +520,7 @@ func readBoxStructureFromInternal(r io.ReadSeeker, bi *BoxInfo, path BoxPath, ha
 		return size, nil
 	}
 
-	h.Expand = func(params ...interface{}) ([]interface{}, error) {
+	h.Expand = func(params ...any) ([]any, error) {
 		if childrenOffset == 0 {
 			if _, err := bi.SeekToPayload(r); err != nil {
 				return nil, err
@@ -550,8 +550,8 @@ func readBoxStructureFromInternal(r io.ReadSeeker, bi *BoxInfo, path BoxPath, ha
 	}
 }
 
-func readBoxStructure(r io.ReadSeeker, totalSize uint64, isRoot bool, path BoxPath, ctx Context, handler ReadHandler, params []interface{}) ([]interface{}, error) {
-	vals := make([]interface{}, 0, 8)
+func readBoxStructure(r io.ReadSeeker, totalSize uint64, isRoot bool, path BoxPath, ctx Context, handler ReadHandler, params []any) ([]any, error) {
+	vals := make([]any, 0, 8)
 
 	for isRoot || totalSize >= SmallHeaderSize {
 		bi, err := ReadBoxInfo(r)
