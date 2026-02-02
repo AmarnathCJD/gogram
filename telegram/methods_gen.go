@@ -3337,6 +3337,33 @@ func (c *Client) AuthSignUp(params *AuthSignUpParams) (AuthAuthorization, error)
 	return resp, nil
 }
 
+type BotsAddPreviewMediaParams struct {
+	Bot      InputUser
+	LangCode string
+	Media    InputMedia
+}
+
+func (*BotsAddPreviewMediaParams) CRC() uint32 {
+	return 0x17aeb75a
+}
+
+func (c *Client) BotsAddPreviewMedia(bot InputUser, langCode string, media InputMedia) (*BotPreviewMedia, error) {
+	responseData, err := c.MakeRequest(&BotsAddPreviewMediaParams{
+		Bot:      bot,
+		LangCode: langCode,
+		Media:    media,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending BotsAddPreviewMedia")
+	}
+
+	resp, ok := responseData.(*BotPreviewMedia)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type BotsAllowSendMessageParams struct {
 	Bot InputUser
 }
@@ -3401,6 +3428,62 @@ func (c *Client) BotsCanSendMessage(bot InputUser) (bool, error) {
 	}
 
 	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type BotsDeletePreviewMediaParams struct {
+	Bot      InputUser
+	LangCode string
+	Media    []InputMedia
+}
+
+func (*BotsDeletePreviewMediaParams) CRC() uint32 {
+	return 0x2d0135b3
+}
+
+func (c *Client) BotsDeletePreviewMedia(bot InputUser, langCode string, media []InputMedia) (bool, error) {
+	responseData, err := c.MakeRequest(&BotsDeletePreviewMediaParams{
+		Bot:      bot,
+		LangCode: langCode,
+		Media:    media,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending BotsDeletePreviewMedia")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type BotsEditPreviewMediaParams struct {
+	Bot      InputUser
+	LangCode string
+	Media    InputMedia
+	NewMedia InputMedia
+}
+
+func (*BotsEditPreviewMediaParams) CRC() uint32 {
+	return 0x8525606f
+}
+
+func (c *Client) BotsEditPreviewMedia(bot InputUser, langCode string, media, newMedia InputMedia) (*BotPreviewMedia, error) {
+	responseData, err := c.MakeRequest(&BotsEditPreviewMediaParams{
+		Bot:      bot,
+		LangCode: langCode,
+		Media:    media,
+		NewMedia: newMedia,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending BotsEditPreviewMedia")
+	}
+
+	resp, ok := responseData.(*BotPreviewMedia)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -3485,6 +3568,77 @@ func (c *Client) BotsGetBotMenuButton(userID InputUser) (BotMenuButton, error) {
 	return resp, nil
 }
 
+type BotsGetPopularAppBotsParams struct {
+	Offset string
+	Limit  int32
+}
+
+func (*BotsGetPopularAppBotsParams) CRC() uint32 {
+	return 0xc2510192
+}
+
+func (c *Client) BotsGetPopularAppBots(offset string, limit int32) (*BotsPopularAppBots, error) {
+	responseData, err := c.MakeRequest(&BotsGetPopularAppBotsParams{
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending BotsGetPopularAppBots")
+	}
+
+	resp, ok := responseData.(*BotsPopularAppBots)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type BotsGetPreviewInfoParams struct {
+	Bot      InputUser
+	LangCode string
+}
+
+func (*BotsGetPreviewInfoParams) CRC() uint32 {
+	return 0x423ab3ad
+}
+
+func (c *Client) BotsGetPreviewInfo(bot InputUser, langCode string) (*BotsPreviewInfo, error) {
+	responseData, err := c.MakeRequest(&BotsGetPreviewInfoParams{
+		Bot:      bot,
+		LangCode: langCode,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending BotsGetPreviewInfo")
+	}
+
+	resp, ok := responseData.(*BotsPreviewInfo)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type BotsGetPreviewMediasParams struct {
+	Bot InputUser
+}
+
+func (*BotsGetPreviewMediasParams) CRC() uint32 {
+	return 0xa2a5594d
+}
+
+func (c *Client) BotsGetPreviewMedias(bot InputUser) ([]*BotPreviewMedia, error) {
+	responseData, err := c.MakeRequest(&BotsGetPreviewMediasParams{Bot: bot})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending BotsGetPreviewMedias")
+	}
+
+	resp, ok := responseData.([]*BotPreviewMedia)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type BotsInvokeWebViewCustomMethodParams struct {
 	Bot          InputUser
 	CustomMethod string
@@ -3507,6 +3661,33 @@ func (c *Client) BotsInvokeWebViewCustomMethod(bot InputUser, customMethod strin
 	}
 
 	resp, ok := responseData.(*DataJson)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type BotsReorderPreviewMediasParams struct {
+	Bot      InputUser
+	LangCode string
+	Order    []InputMedia
+}
+
+func (*BotsReorderPreviewMediasParams) CRC() uint32 {
+	return 0xb627f3aa
+}
+
+func (c *Client) BotsReorderPreviewMedias(bot InputUser, langCode string, order []InputMedia) (bool, error) {
+	responseData, err := c.MakeRequest(&BotsReorderPreviewMediasParams{
+		Bot:      bot,
+		LangCode: langCode,
+		Order:    order,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending BotsReorderPreviewMedias")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -6130,6 +6311,7 @@ type ContactsGetTopPeersParams struct {
 	ForwardChats   bool `tl:"flag:5,encoded_in_bitflags"`
 	Groups         bool `tl:"flag:10,encoded_in_bitflags"`
 	Channels       bool `tl:"flag:15,encoded_in_bitflags"`
+	BotsApp        bool `tl:"flag:16,encoded_in_bitflags"`
 	Offset         int32
 	Limit          int32
 	Hash           int64
@@ -11066,6 +11248,36 @@ func (c *Client) MessagesRequestEncryption(userID InputUser, randomID int32, gA 
 	return resp, nil
 }
 
+type MessagesRequestMainWebViewParams struct {
+	Compact     bool `tl:"flag:7,encoded_in_bitflags"`
+	Peer        InputPeer
+	Bot         InputUser
+	StartParam  string    `tl:"flag:1"`
+	ThemeParams *DataJson `tl:"flag:0"`
+	Platform    string
+}
+
+func (*MessagesRequestMainWebViewParams) CRC() uint32 {
+	return 0xc9e01e7b
+}
+
+func (*MessagesRequestMainWebViewParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesRequestMainWebView(params *MessagesRequestMainWebViewParams) (*WebViewResultURL, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesRequestMainWebView")
+	}
+
+	resp, ok := responseData.(*WebViewResultURL)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesRequestSimpleWebViewParams struct {
 	FromSwitchWebview bool `tl:"flag:1,encoded_in_bitflags"`
 	FromSideMenu      bool `tl:"flag:2,encoded_in_bitflags"`
@@ -13256,6 +13468,31 @@ func (c *Client) PaymentsGetSavedInfo() (*PaymentsSavedInfo, error) {
 	}
 
 	resp, ok := responseData.(*PaymentsSavedInfo)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsGetStarsGiftOptionsParams struct {
+	UserID InputUser `tl:"flag:0"`
+}
+
+func (*PaymentsGetStarsGiftOptionsParams) CRC() uint32 {
+	return 0xd3c96bc8
+}
+
+func (*PaymentsGetStarsGiftOptionsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsGetStarsGiftOptions(userID InputUser) ([]*StarsGiftOption, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarsGiftOptionsParams{UserID: userID})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetStarsGiftOptions")
+	}
+
+	resp, ok := responseData.([]*StarsGiftOption)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
