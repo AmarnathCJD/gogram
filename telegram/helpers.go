@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -541,20 +542,35 @@ func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 		//	waveform  []byte
 		)
 
-		cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format_tags=artist,title", "-of", "default=noprint_wrappers=1:nokey=1", path)
+		// ffprobe -v error -show_entries format_tags=artist,title -of json cv.mp3
+		cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format_tags=artist,title", "-of", "json", path)
 		out, err := cmd.Output()
 
 		cmd_duration := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path)
 		out_duration, err_duration := cmd_duration.Output()
 
 		if err == nil {
-			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-			if len(lines) == 2 {
-				performer = strings.TrimSpace(lines[0])
-				title = strings.TrimSpace(lines[1])
-			} else if len(lines) == 1 {
-				performer = strings.TrimSpace(lines[0])
-				title = strings.TrimSpace(lines[0])
+			type ProbeMeta struct {
+				Format struct {
+					Tags struct {
+						Title  string `json:"title"`
+						Artist string `json:"artist"`
+					} `json:"tags"`
+				} `json:"format"`
+			}
+
+			var meta ProbeMeta
+			if err := json.Unmarshal(out, &meta); err == nil {
+				performer = meta.Format.Tags.Artist
+				title = meta.Format.Tags.Title
+			}
+
+			if performer == "" {
+				performer = "Unknown"
+			}
+
+			if title == "" {
+				title = strings.Replace(filepath.Base(path), filepath.Ext(path), "", 1)
 			}
 		}
 
