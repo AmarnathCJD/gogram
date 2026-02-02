@@ -445,7 +445,9 @@ func (c *Client) GetSendableMedia(mediaFile interface{}, attr *MediaMetadata) (I
 	return c.getSendableMedia(mediaFile, attr)
 }
 
-func (c *Client) getSendableMedia(mediaFile interface{}, attr *MediaMetadata) (InputMedia, error) {
+func (c *Client) getSendableMedia(mediaFile interface{}, attributes *MediaMetadata) (InputMedia, error) {
+	attr := getValue(attributes, &MediaMetadata{})
+
 	switch thumb := attr.Thumb.(type) {
 	case InputFile, *InputFile, nil:
 
@@ -461,54 +463,28 @@ mediaTypeSwitch:
 	switch media := mediaFile.(type) {
 	case string:
 		if IsURL(media) {
-			if _, isImage := mimeTypes.MIME(media); isImage {
-				if attr != nil && attr.Inline {
-					upl, err := c.MessagesUploadMedia("", &InputPeerSelf{}, &InputMediaPhotoExternal{URL: media})
-					if err != nil {
-						return nil, err
-					}
-
-					switch upl := upl.(type) {
-					case *MessageMediaPhoto:
-						switch upl.Photo.(type) {
-						case *PhotoObj:
-							return &InputMediaPhoto{ID: &InputPhotoObj{ID: upl.Photo.(*PhotoObj).ID, AccessHash: upl.Photo.(*PhotoObj).AccessHash, FileReference: upl.Photo.(*PhotoObj).FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
-						case *PhotoEmpty:
-							return &InputMediaPhoto{ID: &InputPhotoEmpty{}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
-						}
-					}
+			if _, isImage := mimeTypes.MIME(media); isImage && !attr.ForceDocument {
+				photoExt := &InputMediaPhotoExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}
+				if attr.Inline {
+					return c.uploadToSelf(photoExt)
 				}
 
-				return &InputMediaPhotoExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+				return photoExt, nil
 			}
 
+			documentExt := &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}
 			if attr != nil && attr.Inline {
-				upl, err := c.MessagesUploadMedia("", &InputPeerSelf{}, &InputMediaDocumentExternal{URL: media})
-				if err != nil {
-					return nil, err
-				}
-
-				switch upl := upl.(type) {
-				case *MessageMediaDocument:
-					switch upl.Document.(type) {
-					case *DocumentObj:
-						return &InputMediaDocument{ID: &InputDocumentObj{ID: upl.Document.(*DocumentObj).ID, AccessHash: upl.Document.(*DocumentObj).AccessHash, FileReference: upl.Document.(*DocumentObj).FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
-					case *DocumentEmpty:
-						return &InputMediaDocument{ID: &InputDocumentEmpty{}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
-					}
-				}
+				return c.uploadToSelf(documentExt)
 			}
 
-			return &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+			return documentExt, nil
 		} else {
 			if _, err := os.Stat(media); err == nil {
 				uploadOpts := &UploadOptions{}
-				if attr != nil {
-					if attr.ProgressCallback != nil {
-						uploadOpts.ProgressCallback = attr.ProgressCallback
-					}
-					uploadOpts.Threads = attr.UploadThreads
+				if attr.ProgressCallback != nil {
+					uploadOpts.ProgressCallback = attr.ProgressCallback
 				}
+				uploadOpts.Threads = attr.UploadThreads
 
 				mediaFile, err = c.UploadFile(media, uploadOpts)
 				if err != nil {
@@ -550,7 +526,7 @@ mediaTypeSwitch:
 		case *MessageMediaPoll:
 			return convertPoll(media), nil
 		case *MessageMediaUnsupported:
-			return nil, errors.New("unsupported media type")
+			return nil, errors.New("unsupported media type: MessageMediaUnsupported")
 		default:
 			return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(media).String()))
 		}
@@ -576,8 +552,13 @@ mediaTypeSwitch:
 			mimeType = attr.MimeType
 		}
 
+		uploadedPhoto := &InputMediaUploadedPhoto{File: mediaFile, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}
 		if IsPhoto && !attr.ForceDocument {
-			return &InputMediaUploadedPhoto{File: mediaFile, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+			if attr.Inline {
+				return c.uploadToSelf(uploadedPhoto)
+			}
+
+			return uploadedPhoto, nil
 		} else {
 			mediaAttributes := getValueSlice(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}})
 			hasFileName := false
@@ -605,7 +586,12 @@ mediaTypeSwitch:
 				mediaAttributes = append(mediaAttributes, &DocumentAttributeFilename{FileName: fileName})
 			}
 
-			return &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValueAny(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false), ForceFile: false}, nil
+			uploadedDoc := &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValueAny(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false), ForceFile: false}
+			if attr.Inline {
+				return c.uploadToSelf(uploadedDoc)
+			}
+
+			return uploadedDoc, nil
 		}
 	case []byte, *io.Reader, *bytes.Buffer, *os.File:
 		var uopts *UploadOptions = &UploadOptions{}
@@ -625,6 +611,32 @@ mediaTypeSwitch:
 		return nil, errors.New("media given is nil, cannot send nil media")
 	}
 	return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(mediaFile).String()))
+}
+
+func (c *Client) uploadToSelf(mediaFile InputMedia) (InputMedia, error) {
+	upl, err := c.MessagesUploadMedia("", &InputPeerSelf{}, mediaFile)
+	if err != nil {
+		return nil, err
+	}
+
+	switch upl := upl.(type) {
+	case *MessageMediaPhoto:
+		switch photo := upl.Photo.(type) {
+		case *PhotoObj:
+			return &InputMediaPhoto{ID: &InputPhotoObj{ID: photo.ID, AccessHash: photo.AccessHash, FileReference: photo.FileReference}}, nil
+		case *PhotoEmpty:
+			return &InputMediaPhoto{ID: &InputPhotoEmpty{}}, nil
+		}
+	case *MessageMediaDocument:
+		switch doc := upl.Document.(type) {
+		case *DocumentObj:
+			return &InputMediaDocument{ID: &InputDocumentObj{ID: doc.ID, AccessHash: doc.AccessHash, FileReference: doc.FileReference}}, nil
+		case *DocumentEmpty:
+			return &InputMediaDocument{ID: &InputDocumentEmpty{}}, nil
+		}
+	}
+
+	return nil, errors.New("failed to upload media")
 }
 
 func convertPoll(poll *MessageMediaPoll) *InputMediaPoll {

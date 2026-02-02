@@ -31,6 +31,24 @@ type InputPeerCache struct {
 	InputChats    map[int64]int64 `json:"chats,omitempty"`
 }
 
+func (c *CACHE) SetWriteFile(write bool) {
+	c.writeFile = write
+}
+
+func (c *CACHE) Clear() {
+	c.Lock()
+	defer c.Unlock()
+
+	c.chats = make(map[int64]*ChatObj)
+	c.users = make(map[int64]*UserObj)
+	c.channels = make(map[int64]*Channel)
+	c.InputPeers = &InputPeerCache{
+		InputChannels: make(map[int64]int64),
+		InputUsers:    make(map[int64]int64),
+		InputChats:    make(map[int64]int64),
+	}
+}
+
 func (c *CACHE) ExportJSON() ([]byte, error) {
 	c.RLock()
 	defer c.RUnlock()

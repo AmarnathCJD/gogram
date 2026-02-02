@@ -486,6 +486,27 @@ func parseInt32(a any) int32 {
 	}
 }
 
+func getInlineDocumentType(mimeType string, voiceNote bool) string {
+	if voiceNote {
+		return "voice"
+	}
+
+	switch mimeType {
+	case "audio/mp3", "audio/mpeg", "audio/ogg", "audio/x-flac", "audio/x-alac", "audio/x-wav", "audio/x-m4a", "audio/aac", "audio/opus":
+		return "audio"
+	case "image/gif":
+		return "gif"
+	case "image/jpeg", "image/png":
+		return "photo"
+	case "image/webp", "application/x-tgsticker":
+		return "sticker"
+	case "video/mp4", "video/x-matroksa", "video/webm":
+		return "video"
+	default:
+		return "file"
+	}
+}
+
 // PackBotFileID packs a file object to a file-id
 func PackBotFileID(file any) string {
 	var (
