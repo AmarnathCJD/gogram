@@ -49,6 +49,22 @@ func (m *NewMessage) ReplyID() int32 {
 	return m.ReplyToMsgID()
 }
 
+// return the topic id of the message if it is in a topic
+// if it is a reply to a message, return the topic id of the message
+func (m *NewMessage) TopicID() (int32, bool) {
+	if m.Message.ReplyTo != nil {
+		if reply, ok := m.Message.ReplyTo.(*MessageReplyHeaderObj); ok {
+			if reply.ForumTopic {
+				if reply.ReplyToTopID != 0 {
+					return reply.ReplyToTopID, true
+				}
+				return reply.ReplyToMsgID, true
+			}
+		}
+	}
+	return 0, false
+}
+
 func (m *NewMessage) ReplySenderID() int64 {
 	if m.Message.ReplyTo != nil {
 		return m.Client.GetPeerID(m.Message.ReplyTo.(*MessageReplyHeaderObj).ReplyToPeerID)
