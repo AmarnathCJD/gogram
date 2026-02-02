@@ -28,8 +28,20 @@ var (
 
 const helpMsg = `welcome to gogram's TL generator (c) @amarnathcjd`
 
+type AEQ struct {
+	Force bool
+}
+
 func main() {
-	if len(os.Args) == 0 || len(os.Args) == 1 {
+	var aeq AEQ
+	for _, arg := range os.Args {
+		if arg == "-f" {
+			aeq.Force = true
+			break
+		}
+	}
+
+	if len(os.Args) == 0 || len(os.Args) == 1 || len(os.Args) == 2 {
 		currentLocalAPIVersionFile := filepath.Join(desLOC, "const.go")
 		currentLocalAPIVersion, err := os.ReadFile(currentLocalAPIVersionFile)
 		if err != nil {
@@ -41,13 +53,13 @@ func main() {
 		llayer := reg.FindString(str)
 		llayer = strings.TrimPrefix(llayer, "ApiVersion = ")
 
-		remoteAPIVersion, rlayer, err := getSourceLAYER(llayer)
+		remoteAPIVersion, rlayer, err := getSourceLAYER(llayer, aeq.Force)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 
-		if !strings.EqualFold(llayer, rlayer) {
+		if !strings.EqualFold(llayer, rlayer) || aeq.Force {
 			fmt.Println("Local API version is", llayer, "and remote API version is", rlayer)
 			fmt.Println("Performing update")
 
@@ -87,7 +99,7 @@ func main() {
 	}
 }
 
-func getSourceLAYER(llayer string) ([]byte, string, error) {
+func getSourceLAYER(llayer string, force bool) ([]byte, string, error) {
 	reg := regexp.MustCompile(`// LAYER \d+`)
 
 	for _, source := range API_SOURCES {
@@ -104,7 +116,7 @@ func getSourceLAYER(llayer string) ([]byte, string, error) {
 		rlayer := reg.FindString(string(remoteAPIVersion))
 		rlayer = strings.TrimPrefix(rlayer, "// LAYER ")
 
-		if !strings.EqualFold(llayer, rlayer) {
+		if !strings.EqualFold(llayer, rlayer) || force {
 			rlayer_int, err := strconv.Atoi(rlayer)
 			if err != nil {
 				return nil, "", err
@@ -115,7 +127,7 @@ func getSourceLAYER(llayer string) ([]byte, string, error) {
 				return nil, "", err
 			}
 
-			if rlayer_int > llayer_int {
+			if rlayer_int > llayer_int || force {
 				return remoteAPIVersion, rlayer, nil
 			}
 		} else {
