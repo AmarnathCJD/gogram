@@ -14,6 +14,8 @@ func (g *Generator) generateInit(file *jen.File, _ bool) {
 	initFunc := jen.Func().Id("init").Params().Block(
 		g.createInitStructs(structs...),
 		jen.Line(),
+		g.createCustomInitStructs(),
+		jen.Line(),
 		g.createInitEnums(enums...),
 	)
 
@@ -28,8 +30,15 @@ func (*Generator) createInitStructs(itemNames ...string) jen.Code {
 		structs[i] = jen.Op("&").Id(item).Block()
 	}
 
-	return jen.Qual(tlPackagePath, "RegisterObjects").Call(
+	return jen.Qual(tlPackagePath, "RegisterObjects").CallN(
 		structs...,
+	)
+}
+
+func (g *Generator) createCustomInitStructs() jen.Code {
+	return jen.Qual(tlPackagePath, "RegisterObject").Call(
+		jen.Op("&").Id("MessageObj").Block(),
+		jen.Lit(0xb92f76cf),
 	)
 }
 
@@ -41,7 +50,7 @@ func (*Generator) createInitEnums(itemNames ...string) jen.Code {
 		enums[i] = jen.Id(item)
 	}
 
-	return jen.Qual(tlPackagePath, "RegisterEnums").Call(
+	return jen.Qual(tlPackagePath, "RegisterEnums").CallN(
 		enums...,
 	)
 }
