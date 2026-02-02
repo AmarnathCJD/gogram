@@ -1,4 +1,4 @@
-// Copyright (c) 2023 RoseLoverX
+// Copyright (c) 2024 RoseLoverX
 
 package objects
 
@@ -181,7 +181,7 @@ type RpcError struct {
 }
 
 func (*RpcError) CRC() uint32 {
-	return 0x2144ca19 //nolint:gomnd not magic
+	return 0x2144ca19
 }
 
 type RpcDropAnswer interface {
@@ -194,7 +194,7 @@ type RpcAnswerUnknown struct{}
 func (*RpcAnswerUnknown) ImplementsRpcDropAnswer() {}
 
 func (*RpcAnswerUnknown) CRC() uint32 {
-	return 0x5e2ad36e //nolint:gomnd not magic
+	return 0x5e2ad36e
 }
 
 type RpcAnswerDroppedRunning struct{}
@@ -202,7 +202,7 @@ type RpcAnswerDroppedRunning struct{}
 func (*RpcAnswerDroppedRunning) ImplementsRpcDropAnswer() {}
 
 func (*RpcAnswerDroppedRunning) CRC() uint32 {
-	return 0xcd78e586 //nolint:gomnd not magic
+	return 0xcd78e586
 }
 
 type RpcAnswerDropped struct {
@@ -214,7 +214,7 @@ type RpcAnswerDropped struct {
 func (*RpcAnswerDropped) ImplementsRpcDropAnswer() {}
 
 func (*RpcAnswerDropped) CRC() uint32 {
-	return 0xa43ad8b7 //nolint:gomnd not magic
+	return 0xa43ad8b7
 }
 
 type FutureSalt struct {
@@ -224,7 +224,7 @@ type FutureSalt struct {
 }
 
 func (*FutureSalt) CRC() uint32 {
-	return 0x0949d9dc //nolint:gomnd not magic
+	return 0x0949d9dc
 }
 
 type FutureSalts struct {
@@ -234,7 +234,7 @@ type FutureSalts struct {
 }
 
 func (*FutureSalts) CRC() uint32 {
-	return 0xae500895 //nolint:gomnd not magic
+	return 0xae500895
 }
 
 type Pong struct {
@@ -243,7 +243,7 @@ type Pong struct {
 }
 
 func (*Pong) CRC() uint32 {
-	return 0x347773c5 //nolint:gomnd not magic
+	return 0x347773c5
 }
 
 // destroy_session_ok#e22045fc session_id:long = DestroySessionRes;
@@ -256,15 +256,15 @@ type NewSessionCreated struct {
 }
 
 func (*NewSessionCreated) CRC() uint32 {
-	return 0x9ec20908 //nolint:gomnd not magic
+	return 0x9ec20908
 }
 
-// ! исключение из правил: это оказывается почти-вектор, т.к.
+// Exception from the rule: it turns out to be almost-vector, t.k.
 //
-//	записан как `msg_container#73f1f8dc messages:vector<%Message> = MessageContainer;`
-//	судя по всему, <%Type> означает, что может это неявный вектор???
+// recorded as `msg_container#73f1f8dc messages:vector<%Message> = MessageContainer;`
+// Judging by everything, <%Type> means that this can be an unknown vector???
 //
-// ! возможно разработчики в этот момент поехаи кукухой, я не знаю правда
+// Maybe the developers crowed at this moment, I don't know the truth
 type MessageContainer []*messages.Encrypted
 
 func (*MessageContainer) CRC() uint32 {
@@ -316,7 +316,7 @@ type MsgCopy struct {
 }
 
 func (*MsgCopy) CRC() uint32 {
-	return 0xe06046b2 //nolint:gomnd not magic
+	return 0xe06046b2
 }
 
 type GzipPacked struct {
@@ -346,11 +346,11 @@ func (t *GzipPacked) UnmarshalTL(d *tl.Decoder) error {
 }
 
 func (*GzipPacked) popMessageAsBytes(d *tl.Decoder) ([]byte, error) {
-	// TODO: СТАНДАРТНЫЙ СУКА ПАКЕТ gzip пишет "gzip: invalid header". при этом как я разобрался, в
-	//       сам гзип попадает кусок, который находится за миллиард бит от реального сообщения
-	//       например: сообщение начинается с 0x1f 0x8b 0x08 0x00 ..., но при этом в сам гзип
-	//       отдается кусок, который дальше начала сообщения за 500+ байт
-	//! вот ЭТОТ кусок работает. так что наверное не будем трогать, дай бог чтоб работал
+	// TODO: STANDARD SYSTEM PACKAGE gzip writes "gzip: invalid header". This is how I figured out,
+	// The zip itself drops the bit, which is about a billion bits from the real message
+	// eg: message starts with 0x1f 0x8b 0x08 0x00 ..., but at the same time gzip
+	// returns a fragment, which starts further messages for 500+ bytes
+	// This is how it works. So that we probably won't touch, God forbid that worked
 
 	decompressed := make([]byte, 0, 4096)
 
@@ -372,7 +372,6 @@ func (*GzipPacked) popMessageAsBytes(d *tl.Decoder) ([]byte, error) {
 	}
 
 	return decompressed, nil
-	//? это то что я пытался сделать
 	// data := d.PopMessage()
 	// gz, err := gzip.NewReader(bytes.NewBuffer(data))
 	// check(err)
@@ -388,7 +387,7 @@ type MsgsAck struct {
 }
 
 func (*MsgsAck) CRC() uint32 {
-	return 0x62d6b459 //nolint:gomnd not magic
+	return 0x62d6b459
 }
 
 type BadMsgNotification struct {
@@ -400,7 +399,7 @@ type BadMsgNotification struct {
 func (*BadMsgNotification) ImplementsBadMsgNotification() {}
 
 func (*BadMsgNotification) CRC() uint32 {
-	return 0xa7eff811 //nolint:gomnd not magic
+	return 0xa7eff811
 }
 
 type BadServerSalt struct {

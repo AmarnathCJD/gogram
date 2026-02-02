@@ -218,8 +218,12 @@ func parseDefinition(cur *Cursor) (def definition, err error) {
 		}
 
 		cur.SkipSpaces()
-		if param.Name == "flags" && param.Type == "#" {
+		if param.Name == "flags2" && param.Type == "#" {
 			param.Type = "bitflags"
+			param.Version = 1
+		} else if param.Name == "flags" && param.Type == "#" {
+			param.Type = "bitflags"
+			param.Version = 2
 		}
 
 		def.Params = append(def.Params, param)
@@ -282,6 +286,7 @@ func parseParam(cur *Cursor) (param Parameter, err error) {
 		}
 
 		param.BitToTrigger, err = strconv.Atoi(digits)
+		//fmt.Println(param.BitToTrigger)
 		if err != nil {
 			return param, fmt.Errorf("invalid bitflag index: %s", digits)
 		}
@@ -293,6 +298,32 @@ func parseParam(cur *Cursor) (param Parameter, err error) {
 			return param, fmt.Errorf("expected '?'")
 		}
 		param.IsOptional = true
+		param.Version = 1
+	} else if cur.IsNext("flags2.") {
+		//                       ↓ - курсор здесь
+		// correct_answers:flags.0?Vector<bytes> foo:bar
+
+		// читаем цифры
+		var digits string
+		digits, err = cur.ReadDigits() // read bit index, must be digit
+		if err != nil {
+			return param, fmt.Errorf("read param bitflag: %w", err)
+		}
+
+		param.BitToTrigger, err = strconv.Atoi(digits)
+		//fmt.Println(param.BitToTrigger)
+		if err != nil {
+			return param, fmt.Errorf("invalid bitflag index: %s", digits)
+		}
+
+		//                        ↓ - курсор здесь
+		// correct_answers:flags.0?Vector<bytes> foo:bar
+		// ожидаем знак '?'
+		if !cur.IsNext("?") {
+			return param, fmt.Errorf("expected '?'")
+		}
+		param.IsOptional = true
+		param.Version = 2
 	}
 
 	// читаем тип параметра

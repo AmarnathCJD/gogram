@@ -1,16 +1,15 @@
-// Copyright (c) 2023 RoseLoverX
+// Copyright (c) 2024 RoseLoverX
 
 package tl
 
 const (
-	WordLen   = 4           // размер слова в TL (32 бита)
-	LongLen   = WordLen * 2 // int64 8 байт занимает
-	DoubleLen = WordLen * 2 // float64 8 байт занимает
-	Int128Len = WordLen * 4 // int128 16 байт
-	Int256Len = WordLen * 8 // int256 32 байт
+	WordLen   = 4
+	LongLen   = WordLen * 2 // int64
+	DoubleLen = WordLen * 2 // float64
+	Int128Len = WordLen * 4 // int128
+	Int256Len = WordLen * 8 // int256
 
-	// Блядские магические числа
-	FuckingMagicNumber = 0xfe // 253 элемента максимум можно закодировать в массиве элементов
+	MagicNumber = 0xfe // 253
 
 	// https://core.telegram.org/schema/mtproto
 	CrcVector = 0x1cb5c415

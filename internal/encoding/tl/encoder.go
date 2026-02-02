@@ -1,4 +1,4 @@
-// Copyright (c) 2023 RoseLoverX
+// Copyright (c) 2024 RoseLoverX
 
 package tl
 
@@ -30,7 +30,7 @@ func (c *Encoder) encodeValue(value reflect.Value) {
 		return
 	}
 
-	switch value.Type().Kind() { //nolint:exhaustive has default case
+	switch value.Type().Kind() {
 	case reflect.Uint32:
 		c.PutUint(uint32(value.Uint()))
 
@@ -126,7 +126,7 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 		}
 
 		if info == nil {
-			// если тега нет, то это обязательное поле, значит 100% записываем
+			// If there is no tag, then this is a mandatory field, meaning we write 100%.
 			tmpObjects = append(tmpObjects, v.Field(i))
 			continue
 		}
@@ -142,7 +142,7 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 
 		fieldVal := v.Field(i)
 		if !fieldVal.IsZero() {
-			// тег есть, это 100% опциональное поле
+			// Tag is there, this is 100% optional field
 			flag |= 1 << info.index
 			if info.encodedInBitflag {
 				continue

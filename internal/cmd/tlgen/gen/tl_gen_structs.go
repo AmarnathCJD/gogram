@@ -52,7 +52,7 @@ func (g *Generator) generateStructTypeAndMethods(definition tlparser.Object, imp
 		flagBitIndex := -1 // -1 это если нет опциональных полей вообще
 		if containsOptionalParameters {
 			for i, param := range definition.Parameters {
-				if param.Name == "flags" && param.Type == "bitflags" {
+				if param.Name == "flags" && param.Type == "bitflags" || param.Name == "flags2" && param.Type == "bitflags" {
 					flagBitIndex = i
 				}
 			}
@@ -100,14 +100,18 @@ func (g *Generator) generateStructTypeAndMethods(definition tlparser.Object, imp
 
 func (g *Generator) generateStructParameter(param *tlparser.Parameter) *jen.Statement {
 	goifiedName := goify(param.Name, true)
-	tag := "" // то что в `tl:"..."` находится
+	tag := ""
 	f := jen.Id(goifiedName)
 	if param.IsVector {
 		f = f.Index()
 	}
 
 	if param.IsOptional {
-		tag = fmt.Sprintf("flag:%v", param.BitToTrigger)
+		if param.Version == 1 {
+			tag = fmt.Sprintf("flag:%v", param.BitToTrigger)
+		} else if param.Version == 2 {
+			tag = fmt.Sprintf("flag2:%v", param.BitToTrigger)
+		}
 	}
 
 	if param.Type == "true" {

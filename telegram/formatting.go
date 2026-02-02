@@ -1,3 +1,5 @@
+// Copyright (c) 2024 RoseLoverX
+
 package telegram
 
 import (
@@ -5,7 +7,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	
+
 	"strings"
 	"unicode/utf16"
 
@@ -156,7 +158,7 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 			switch {
 			case tag.Attrs["href"] != "" && strings.HasPrefix(tag.Attrs["href"], "mailto:"):
 				entities = append(entities, &MessageEntityEmail{tag.Offset, tag.Length})
-			
+
 			case tag.Attrs["href"] == "":
 				entities = append(entities, &MessageEntityURL{tag.Offset, tag.Length})
 			default:

@@ -1,4 +1,4 @@
-// Copyright (c) 2023 RoseLoverX
+// Copyright (c) 2024 RoseLoverX
 
 package tl
 
@@ -18,6 +18,7 @@ type fieldTag struct {
 	encodedInBitflag bool // encoded_in_bitflags
 	ignore           bool // -
 	optional         bool // omitempty
+	version          int  // flags||flags2
 }
 
 func parseTag(s reflect.StructTag) (*fieldTag, error) {
@@ -28,7 +29,6 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 
 	tag, err := tags.Get(tagName)
 	if err != nil {
-		// ну не нашли и не нашли, че бубнить то
 		return nil, nil
 	}
 
@@ -40,7 +40,19 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 	}
 
 	var flagIndexSet bool
-	if strings.HasPrefix(tag.Name, "flag:") {
+	if strings.HasPrefix(tag.Name, "flag2:") {
+		num := strings.TrimPrefix(tag.Name, "flag2:")
+		index, err := parseUintMax32(num)
+		info.index = int(index)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parsing index number '%s'", num)
+		}
+
+		info.optional = true
+
+		flagIndexSet = true
+		info.version = 2
+	} else if strings.HasPrefix(tag.Name, "flag:") {
 		num := strings.TrimPrefix(tag.Name, "flag:")
 		index, err := parseUintMax32(num)
 		info.index = int(index)
@@ -48,8 +60,8 @@ func parseTag(s reflect.StructTag) (*fieldTag, error) {
 			return nil, errors.Wrapf(err, "parsing index number '%s'", num)
 		}
 
-		// поля внутри битфлагов всегда optional
 		info.optional = true
+		info.version = 1
 
 		flagIndexSet = true
 	}
@@ -239,9 +251,6 @@ const (
 func parseUintMax32(s string) (uint8, error) {
 	if pos, err := strconv.ParseUint(s, defaultBase, bit32); err == nil {
 		return uint8(pos), nil
-	}
-	if s == "2.0" {
-		return 0, nil
 	}
 
 	return 0, fmt.Errorf("invalid uint32 value: %s", s)

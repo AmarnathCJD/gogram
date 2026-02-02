@@ -1,4 +1,4 @@
-// Copyright (c) 2023 RoseLoverX
+// Copyright (c) 2024 RoseLoverX
 
 package tl
 
@@ -19,8 +19,7 @@ type Unmarshaler interface {
 }
 
 //==========================================================================================================//
-// Next types are specific structs for handling bool types, slice and null as object.                       //
-// See https://github.com/amarnathcjd/gogram/issues/51                                                           //
+// Next types are specific structs for handling bool types, slice and null as object.                       //                                                         //
 //==========================================================================================================//
 
 // PseudoTrue is a support struct which is required to get native

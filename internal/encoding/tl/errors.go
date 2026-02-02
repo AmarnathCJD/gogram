@@ -1,4 +1,5 @@
-// Copyright (c) 2022,RoseLoverX
+// Copyright (c) 2024,RoseLoverX
+
 package tl
 
 import "fmt"

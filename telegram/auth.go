@@ -1,4 +1,4 @@
-// Copyright (c) 2023 RoseLoverX
+// Copyright (c) 2024 RoseLoverX
 
 package telegram
 
@@ -18,6 +18,14 @@ import (
 
 	"github.com/pkg/errors"
 )
+
+// ConnectBot connects to telegram using bot token
+func (c *Client) ConnectBot(botToken string) error {
+	if err := c.Connect(); err != nil {
+		return err
+	}
+	return c.LoginBot(botToken)
+}
 
 // AuthPromt will prompt user to enter phone number or bot token to authorize client
 func (c *Client) AuthPrompt() error {
@@ -93,7 +101,12 @@ func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
 		}
 		return "", err
 	}
-	return resp.PhoneCodeHash, nil
+	switch resp := resp.(type) {
+	case *AuthSentCodeObj:
+		return resp.PhoneCodeHash, nil
+	default:
+		return "", nil
+	}
 }
 
 type LoginOptions struct {
@@ -109,6 +122,11 @@ type LoginOptions struct {
 // Authorize client with phone number, code and phone code hash,
 // If phone code hash is empty, it will be requested from telegram server
 func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, error) {
+	if !c.IsConnected() {
+		if err := c.Connect(); err != nil {
+			return false, err
+		}
+	}
 	if au, _ := c.IsAuthorized(); au {
 		return true, nil
 	}

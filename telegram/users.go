@@ -37,7 +37,7 @@ func (p *UserPhoto) FileSize() int64 {
 	switch p := p.Photo.(type) {
 	case *PhotoObj:
 		if p.VideoSizes != nil {
-			return int64(p.VideoSizes[len(p.VideoSizes)-1].Size)
+			return int64(p.VideoSizes[len(p.VideoSizes)-1].(*VideoSizeObj).Size)
 		}
 		size, _ := getPhotoSize(p.Sizes[len(p.Sizes)-1])
 		return size
@@ -60,7 +60,7 @@ func (p *UserPhoto) InputLocation() (*InputPhotoFileLocation, error) {
 				ID:            photo.ID,
 				AccessHash:    photo.AccessHash,
 				FileReference: photo.FileReference,
-				ThumbSize:     photo.VideoSizes[0].Type,
+				ThumbSize:     photo.VideoSizes[0].(*VideoSizeObj).Type,
 			}, nil
 		}
 		_, thumbSize := getPhotoSize(photo.Sizes[len(photo.Sizes)-1])

@@ -101,13 +101,15 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 		Noforwards:             opt.NoForwards,
 		UpdateStickersetsOrder: false,
 		Peer:                   Peer,
-		ReplyToMsgID:           opt.ReplyID,
-		Message:                Message,
-		RandomID:               GenRandInt(),
-		ReplyMarkup:            opt.ReplyMarkup,
-		Entities:               entities,
-		ScheduleDate:           opt.ScheduleDate,
-		SendAs:                 sendAs,
+		ReplyTo: &InputReplyToMessage{
+			ReplyToMsgID: opt.ReplyID,
+		},
+		Message:      Message,
+		RandomID:     GenRandInt(),
+		ReplyMarkup:  opt.ReplyMarkup,
+		Entities:     entities,
+		ScheduleDate: opt.ScheduleDate,
+		SendAs:       sendAs,
 	})
 	if err != nil {
 		return nil, err
@@ -341,14 +343,16 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 		Noforwards:             opt.NoForwards,
 		UpdateStickersetsOrder: false,
 		Peer:                   Peer,
-		ReplyToMsgID:           opt.ReplyID,
-		Media:                  Media,
-		RandomID:               GenRandInt(),
-		ReplyMarkup:            opt.ReplyMarkup,
-		Message:                Caption,
-		Entities:               entities,
-		ScheduleDate:           opt.ScheduleDate,
-		SendAs:                 sendAs,
+		ReplyTo: &InputReplyToMessage{
+			ReplyToMsgID: opt.ReplyID,
+		},
+		Media:        Media,
+		RandomID:     GenRandInt(),
+		ReplyMarkup:  opt.ReplyMarkup,
+		Message:      Caption,
+		Entities:     entities,
+		ScheduleDate: opt.ScheduleDate,
+		SendAs:       sendAs,
 	})
 	if err != nil {
 		return nil, err
@@ -422,10 +426,12 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 		Noforwards:             opt.NoForwards,
 		UpdateStickersetsOrder: false,
 		Peer:                   Peer,
-		ReplyToMsgID:           opt.ReplyID,
-		ScheduleDate:           opt.ScheduleDate,
-		SendAs:                 sendAs,
-		MultiMedia:             Album,
+		ReplyTo: &InputReplyToMessage{
+			ReplyToMsgID: opt.ReplyID,
+		},
+		ScheduleDate: opt.ScheduleDate,
+		SendAs:       sendAs,
+		MultiMedia:   Album,
 	})
 	if err != nil {
 		return nil, err

@@ -5,8 +5,6 @@ import (
 	"unicode"
 
 	"github.com/dave/jennifer/jen"
-	"github.com/iancoleman/strcase"
-	"github.com/xelaj/go-dry"
 
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
 )
@@ -41,12 +39,12 @@ func maxBitflag(params []tlparser.Parameter) int {
 }
 
 func goify(name string, public bool) string {
-	delim := strcase.ToDelimited(name, '|')
+	delim := ToDelimited(name, '|')
 	delim = strings.ReplaceAll(delim, ".", "|") // strace не видит точки!!
 	splitted := strings.Split(delim, "|")
 	for i, item := range splitted {
 		item = strings.ToLower(item)
-		if dry.SliceContains(capitalizePatterns, item) {
+		if SliceContains(capitalizePatterns, item) {
 			item = strings.ToUpper(item)
 		}
 
@@ -109,4 +107,30 @@ func (g *Generator) typeIdFromSchemaType(t string) *jen.Statement {
 	}
 
 	return item
+}
+
+func SliceContains(slice []string, item string) bool {
+	for _, i := range slice {
+		if i == item {
+			return true
+		}
+	}
+
+	return false
+}
+
+func ToDelimited(s string, delims ...rune) string {
+	if len(delims) == 0 {
+		delims = []rune{'_', '-'}
+	}
+
+	var result []rune
+	for _, r := range s {
+		if unicode.IsUpper(r) {
+			result = append(result, '_')
+		}
+		result = append(result, unicode.ToLower(r))
+	}
+
+	return string(result)
 }

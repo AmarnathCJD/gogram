@@ -1,9 +1,6 @@
 GσGram
 ========
 
-Massive Updates and Bug Fixes on December 2023 :)
-
-
 .. epigraph::
 
   ⚒️ Under Development.
@@ -17,6 +14,9 @@ Gogram is designed to be fast and efficient, and it has no external dependencies
 *If you're looking to build a Telegram client or bot using the Go programming language, Gogram is definitely worth considering. Its open-source nature also means that you can contribute to its development and suggest new features or improvements.*
 
 
+Layer - 170
+
+
 What is this?
 -------------
 
@@ -28,7 +28,7 @@ heavy job for you, so you can focus on developing an application.
 Known Bugs
 ----------
 
-• getFullChannel fails due to flag2.0
+• Find em:)
 
 PRs and Issues are always welcome.
 
@@ -59,8 +59,7 @@ Set-Up Client
          AppID: 0, 
          AppHash: "", 
     })
-    client.Connect()
-    client.LoginBot(botToken) // client.Login(phoneNumber)
+    client.ConnectBot(botToken) // client.Login(phoneNumber)
     client.Idle() // start infinite polling
 
 
@@ -142,8 +141,8 @@ TODO
 - ✔️ Add Update Handle System
 - ✔️ Make a reliable HTML Parser
 - ✔️ Friendly Methods to Handle CallbackQuery, VoiceCalls
-- 🔨 Add Flag2.0 Parser (Then update to Layer-151)
-- 📝 Fix File handling
+- ✔️ Add Flag2.0 Parser (Then update to Layer-170)
+- ✔️ Fix File handling
 - 📝 Write beautiful Docs
 - 📝 Multiple tests
 

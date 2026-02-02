@@ -1,3 +1,5 @@
+// Copyright (c) 2024 RoseLoverX
+
 package telegram
 
 import "github.com/pkg/errors"
@@ -67,9 +69,9 @@ func (Button) Clear() *ReplyKeyboardHide {
 // message.Click() is a function that clicks a button in a message.
 //
 // It takes one optional argument, which can be either:
-//  - the text of the button to click
-//  - the data of the button to click
-//  - the coordinates of the button to click
+//   - the text of the button to click
+//   - the data of the button to click
+//   - the coordinates of the button to click
 //
 // If no argument is given, the first button will be clicked.
 func (m *NewMessage) Click(o ...any) (*MessagesBotCallbackAnswer, error) {

@@ -40,14 +40,14 @@ func (m *NewMessage) MessageText() string {
 
 func (m *NewMessage) ReplyToMsgID() int32 {
 	if m.Message.ReplyTo != nil {
-		return m.Message.ReplyTo.ReplyToMsgID
+		return m.Message.ReplyTo.(*MessageReplyHeaderObj).ReplyToMsgID
 	}
 	return 0
 }
 
 func (m *NewMessage) ReplySenderID() int64 {
 	if m.Message.ReplyTo != nil {
-		return m.Client.GetPeerID(m.Message.ReplyTo.ReplyToPeerID)
+		return m.Client.GetPeerID(m.Message.ReplyTo.(*MessageReplyHeaderObj).ReplyToPeerID)
 	}
 	return 0
 }
@@ -153,7 +153,7 @@ func (m *NewMessage) IsChannel() bool {
 }
 
 func (m *NewMessage) IsReply() bool {
-	return m.Message.ReplyTo != nil && m.Message.ReplyTo.ReplyToMsgID != 0
+	return m.Message.ReplyTo != nil
 }
 
 func (m *NewMessage) Marshal() string {

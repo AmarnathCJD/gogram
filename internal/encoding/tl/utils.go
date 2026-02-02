@@ -1,4 +1,4 @@
-// Copyright (c) 2023 RoseLoverX
+// Copyright (c) 2024 RoseLoverX
 
 package tl
 
@@ -31,7 +31,6 @@ func haveFlag(v any) bool {
 	return false
 }
 
-// ! слайстрикс
 func sliceToInterfaceSlice(in any) []any {
 	if in == nil {
 		return nil

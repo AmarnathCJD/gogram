@@ -63,6 +63,7 @@ func (e BaseTheme) CRC() uint32 { return uint32(e) }
 type InlineQueryPeerType uint32
 
 const (
+	InlineQueryPeerTypeBotPm     InlineQueryPeerType = 0xe3b2d0c
 	InlineQueryPeerTypeBroadcast InlineQueryPeerType = 0x6334ee9a
 	InlineQueryPeerTypeChat      InlineQueryPeerType = 0xd766c50a
 	InlineQueryPeerTypeMegagroup InlineQueryPeerType = 0x5ec4be43
@@ -72,6 +73,8 @@ const (
 
 func (e InlineQueryPeerType) String() string {
 	switch e {
+	case InlineQueryPeerType(0xe3b2d0c):
+		return "inlineQueryPeerTypeBotPM"
 	case InlineQueryPeerType(0x6334ee9a):
 		return "inlineQueryPeerTypeBroadcast"
 	case InlineQueryPeerType(0xd766c50a):
@@ -92,6 +95,7 @@ func (e InlineQueryPeerType) CRC() uint32 { return uint32(e) }
 type InputPrivacyKey uint32
 
 const (
+	InputPrivacyKeyAbout           InputPrivacyKey = 0x3823cc40
 	InputPrivacyKeyAddedByPhone    InputPrivacyKey = 0xd1219bdd
 	InputPrivacyKeyChatInvite      InputPrivacyKey = 0xbdfb0426
 	InputPrivacyKeyForwards        InputPrivacyKey = 0xa4dd4c08
@@ -105,6 +109,8 @@ const (
 
 func (e InputPrivacyKey) String() string {
 	switch e {
+	case InputPrivacyKey(0x3823cc40):
+		return "inputPrivacyKeyAbout"
 	case InputPrivacyKey(0xd1219bdd):
 		return "inputPrivacyKeyAddedByPhone"
 	case InputPrivacyKey(0xbdfb0426):
@@ -131,10 +137,7 @@ func (e InputPrivacyKey) String() string {
 func (e InputPrivacyKey) CRC() uint32 { return uint32(e) }
 
 type Null uint32
-
-const (
-	NullValue Null = 0x56730bcc
-)
+const NullCrc Null = 0x56730bcc
 
 func (e Null) String() string {
 	switch e {
@@ -145,7 +148,7 @@ func (e Null) String() string {
 	}
 }
 
-func (e Null) CRC() uint32 { return uint32(e) }
+func (e Null) CRC() uint32 { return uint32(0x56730bcc) }
 
 type PhoneCallDiscardReason uint32
 
@@ -176,6 +179,7 @@ func (e PhoneCallDiscardReason) CRC() uint32 { return uint32(e) }
 type PrivacyKey uint32
 
 const (
+	PrivacyKeyAbout           PrivacyKey = 0xa486b761
 	PrivacyKeyAddedByPhone    PrivacyKey = 0x42ffd42b
 	PrivacyKeyChatInvite      PrivacyKey = 0x500e6dfa
 	PrivacyKeyForwards        PrivacyKey = 0x69ec56a3
@@ -189,6 +193,8 @@ const (
 
 func (e PrivacyKey) String() string {
 	switch e {
+	case PrivacyKey(0xa486b761):
+		return "privacyKeyAbout"
 	case PrivacyKey(0x42ffd42b):
 		return "privacyKeyAddedByPhone"
 	case PrivacyKey(0x500e6dfa):
@@ -352,10 +358,11 @@ func (e TopPeerCategory) CRC() uint32 { return uint32(e) }
 type AuthCodeType uint32
 
 const (
-	AuthCodeTypeCall       AuthCodeType = 0x741cd3e3
-	AuthCodeTypeFlashCall  AuthCodeType = 0x226ccefb
-	AuthCodeTypeMissedCall AuthCodeType = 0xd61ad6ee
-	AuthCodeTypeSms        AuthCodeType = 0x72a3158c
+	AuthCodeTypeCall        AuthCodeType = 0x741cd3e3
+	AuthCodeTypeFlashCall   AuthCodeType = 0x226ccefb
+	AuthCodeTypeFragmentSms AuthCodeType = 0x6ed998c
+	AuthCodeTypeMissedCall  AuthCodeType = 0xd61ad6ee
+	AuthCodeTypeSms         AuthCodeType = 0x72a3158c
 )
 
 func (e AuthCodeType) String() string {
@@ -364,6 +371,8 @@ func (e AuthCodeType) String() string {
 		return "auth.codeTypeCall"
 	case AuthCodeType(0x226ccefb):
 		return "auth.codeTypeFlashCall"
+	case AuthCodeType(0x6ed998c):
+		return "auth.codeTypeFragmentSms"
 	case AuthCodeType(0xd61ad6ee):
 		return "auth.codeTypeMissedCall"
 	case AuthCodeType(0x72a3158c):
