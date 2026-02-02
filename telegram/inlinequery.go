@@ -428,7 +428,7 @@ func (i *InlineBuilder) Document(document any, options ...*ArticleOptions) *Inli
 
 	result := &InputBotInlineResultDocument{
 		ID:          getValue(opts.ID, fmt.Sprint(GenerateRandomLong())),
-		Type:        getInlineDocumentType(opts.MimeType, opts.VoiceNote),
+		Type:        MimeTypes.GetInlineType(opts.MimeType, opts.VoiceNote),
 		Document:    dc.ID,
 		Title:       opts.Title,
 		Description: opts.Description,

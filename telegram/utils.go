@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -190,6 +189,27 @@ func (m *mimeTypeManager) IsVideoFile(path string) bool {
 	return m.IsStreamableFile(path)
 }
 
+func (m *mimeTypeManager) GetInlineType(mimeType string, voiceNote bool) string {
+	if voiceNote {
+		return "voice"
+	}
+
+	switch mimeType {
+	case "audio/mp3", "audio/mpeg", "audio/ogg", "audio/x-flac", "audio/x-alac", "audio/x-wav", "audio/x-m4a", "audio/aac", "audio/opus":
+		return "audio"
+	case "image/gif":
+		return "gif"
+	case "image/jpeg", "image/png":
+		return "photo"
+	case "image/webp", "application/x-tgsticker":
+		return "sticker"
+	case "video/mp4", "video/x-matroska", "video/webm":
+		return "video"
+	default:
+		return "file"
+	}
+}
+
 var MimeTypes = &mimeTypeManager{
 	mimeTypes:       make(map[string]string),
 	streamableMimes: make(map[string]bool),
@@ -359,7 +379,6 @@ func (m *MTProxy) toInternal() *utils.Proxy {
 }
 
 // ProxyFromURL creates a Proxy from a URL string
-// Supported formats:
 //   - socks4://[userid@]host:port
 //   - socks5://[user:pass@]host:port
 //   - http://[user:pass@]host:port
@@ -483,13 +502,6 @@ func ProxyFromURL(proxyURL string) (Proxy, error) {
 	}
 }
 
-var (
-	regexFloodWait        = regexp.MustCompile(`Please wait (\d+) seconds before repeating the action`)
-	regexFloodWaitBasic   = regexp.MustCompile(`FLOOD_WAIT_(\d+)`)
-	regexFloodWaitPremium = regexp.MustCompile(`FLOOD_PREMIUM_WAIT_(\d+)`)
-	proxyURLRegex         = regexp.MustCompile(`^([a-fA-F0-9]+)@([a-zA-Z0-9\.\-]+):(\d+)$`)
-)
-
 func GetFloodWait(err error) int {
 	if err == nil {
 		return 0
@@ -518,8 +530,8 @@ func MatchError(err error, str string) bool {
 
 type FileLocationOptions struct {
 	ThumbOnly bool      // Get thumbnail location only
-	ThumbSize PhotoSize // Specific thumbnail size to retrieve
 	Video     bool      // Get video version (for animated content)
+	ThumbSize PhotoSize // Specific thumbnail size to retrieve
 }
 
 // GetFileLocation returns file location, datacenter, file size and file name
@@ -683,12 +695,7 @@ func sanitizePath(path string, filename string) string {
 	return path
 }
 
-// Func to get the file name of Media
-//
-//	Accepted types:
-//	 *MessageMedia
-//	 *Document
-//	 *Photo
+// GetFileName returns the file name of Media, if not specified then it generates a random name
 func GetFileName(f any, video ...bool) string {
 	var isVid = getVariadic(video, false)
 
@@ -763,11 +770,8 @@ func GetFileName(f any, video ...bool) string {
 	}
 }
 
-// Func to get the file size of Media
-//
-//	Accepted types:
-//	 *MessageMedia
-func getFileSize(f any) int64 {
+// GetFileSize returns the file size of Media
+func GetFileSize(f any) int64 {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
 		return f.Document.(*DocumentObj).Size
@@ -786,13 +790,8 @@ func getFileSize(f any) int64 {
 	}
 }
 
-// Func to get the file extension of Media
-//
-//	Accepted types:
-//	 *MessageMedia
-//	 *Document
-//	 *Photo
-func getFileExt(f any) string {
+// GetFileExt returns the file extension of Media
+func GetFileExt(f any) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
 		doc := f.Document.(*DocumentObj)
@@ -861,8 +860,6 @@ func IsURL(str string) bool {
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
-var regexPhone = regexp.MustCompile(`^\+?[0-9]{10,13}$`)
-
 func IsPhone(phone string) bool {
 	return regexPhone.MatchString(phone)
 }
@@ -911,27 +908,6 @@ func parseInt32(a any) int32 {
 		return int32(a)
 	default:
 		return 0
-	}
-}
-
-func getInlineDocumentType(mimeType string, voiceNote bool) string {
-	if voiceNote {
-		return "voice"
-	}
-
-	switch mimeType {
-	case "audio/mp3", "audio/mpeg", "audio/ogg", "audio/x-flac", "audio/x-alac", "audio/x-wav", "audio/x-m4a", "audio/aac", "audio/opus":
-		return "audio"
-	case "image/gif":
-		return "gif"
-	case "image/jpeg", "image/png":
-		return "photo"
-	case "image/webp", "application/x-tgsticker":
-		return "sticker"
-	case "video/mp4", "video/x-matroska", "video/webm":
-		return "video"
-	default:
-		return "file"
 	}
 }
 
@@ -1112,11 +1088,6 @@ func ResolveBotFileID(fileId string) (MessageMedia, error) {
 		}, nil
 	}
 	return nil, errors.New("failed to resolve file id: unknown file type")
-}
-
-func doesSessionFileExist(filePath string) bool {
-	_, ol := os.Stat(filePath)
-	return !os.IsNotExist(ol)
 }
 
 func IsFfmpegInstalled() bool {

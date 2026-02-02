@@ -196,6 +196,18 @@ func (d *TLDialog) GetInputPeer(c *Client) (InputPeer, error) {
 	return c.GetSendablePeer(d.Peer)
 }
 
+func (d *TLDialog) GetUser(c *Client) (*UserObj, error) {
+	return c.GetUser(d.GetID())
+}
+
+func (d *TLDialog) GetChat(c *Client) (*ChatObj, error) {
+	return c.GetChat(d.GetID())
+}
+
+func (d *TLDialog) GetChannel(c *Client) (*Channel, error) {
+	return c.GetChannel(d.GetID())
+}
+
 func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]TLDialog, error) {
 	options := getVariadic(Opts, &DialogOptions{
 		Limit:            1,
@@ -474,11 +486,8 @@ func packDialog(dialog Dialog) TLDialog {
 }
 
 // GetCommonChats returns the common chats of a user
-//
-//	Params:
-//	 - userID: The user Identifier
-func (c *Client) GetCommonChats(userID any) ([]Chat, error) {
-	peer, err := c.GetSendableUser(userID)
+func (c *Client) GetCommonChats(userId any) ([]Chat, error) {
+	peer, err := c.GetSendableUser(userId)
 	if err != nil {
 		return nil, err
 	}
@@ -499,21 +508,29 @@ func (c *Client) GetCommonChats(userID any) ([]Chat, error) {
 }
 
 // SetEmojiStatus sets the emoji status of the user
-//
-//	Params:
-//	 - emoji: The emoji status to set
-func (c *Client) SetEmojiStatus(emoji ...any) (bool, error) {
+func (c *Client) SetEmojiStatus(emoji ...EmojiStatus) (bool, error) {
 	var status EmojiStatus
 	if len(emoji) == 0 {
 		status = &EmojiStatusEmpty{}
 	} else {
-		em := emoji[0]
-		_, ok := em.(EmojiStatus)
-		if !ok {
-			return false, errors.New("emoji is not an EmojiStatus")
-		}
-		status = em.(EmojiStatus)
+		status = emoji[0]
 	}
 	_, err := c.AccountUpdateEmojiStatus(status)
 	return err == nil, err
+}
+
+// SetProfileAudio Adds or removes music from profile of the user
+func (c *Client) SetProfileAudio(audio any, unset ...bool) (bool, error) {
+	fi, err := c.ResolveMedia(audio, &MediaMetadata{Inline: true})
+	if err != nil {
+		return false, err
+	}
+
+	switch fi := fi.(type) {
+	case *InputMediaDocument:
+		_, err = c.AccountSaveMusic(len(unset) > 0 && unset[0], fi.ID, nil)
+		return err == nil, err
+	default:
+		return false, errors.New("could not convert audio: " + reflect.TypeOf(fi).String())
+	}
 }
