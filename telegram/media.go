@@ -282,7 +282,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 func handleIfFlood(err error, c *Client) bool {
 	if matchError(err, "FLOOD_WAIT_") || matchError(err, "FLOOD_PREMIUM_WAIT_") {
 		if waitTime := getFloodWait(err); waitTime > 0 {
-			c.Logger.Warn("flood wait ", waitTime, "(s), waiting...")
+			c.Logger.Debug("flood wait ", waitTime, "(s), waiting...")
 			time.Sleep(time.Duration(waitTime) * time.Second)
 			return true
 		}
