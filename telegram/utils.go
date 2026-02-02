@@ -3,11 +3,11 @@
 package telegram
 
 import (
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,6 +17,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"errors"
@@ -24,18 +26,51 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
-// cryptoRandIntn returns a random int in [0, n) using crypto/rand
-func cryptoRandIntn(n int) int {
-	if n <= 0 {
-		return 0
+// TaskPool limits the number of concurrent goroutines
+type TaskPool struct {
+	tasks  chan func()
+	wg     sync.WaitGroup
+	active atomic.Int32
+	closed atomic.Bool
+}
+
+func NewTaskPool(size int) *TaskPool {
+	p := &TaskPool{
+		tasks: make(chan func(), size*100),
 	}
-	b := make([]byte, 4)
-	rand.Read(b)
-	val := int(binary.BigEndian.Uint32(b))
-	if val < 0 {
-		val = -val
+	p.wg.Add(size)
+	for range size {
+		go p.worker()
 	}
-	return val % n
+	return p
+}
+
+func (p *TaskPool) worker() {
+	defer p.wg.Done()
+	for task := range p.tasks {
+		p.active.Add(1)
+		task()
+		p.active.Add(-1)
+	}
+}
+
+func (p *TaskPool) Submit(task func()) {
+	if p.closed.Load() {
+		return
+	}
+	select {
+	case p.tasks <- task:
+	default:
+		p.tasks <- task
+	}
+}
+
+func (p *TaskPool) Close() {
+	if p.closed.Swap(true) {
+		return
+	}
+	close(p.tasks)
+	p.wg.Wait()
 }
 
 type mimeTypeManager struct {
@@ -339,8 +374,7 @@ func ProxyFromURL(proxyURL string) (Proxy, error) {
 
 	u, err := url.Parse(proxyURL)
 	if err != nil {
-		re := regexp.MustCompile(`^([a-fA-F0-9]+)@([a-zA-Z0-9\.\-]+):(\d+)$`)
-		matches := re.FindStringSubmatch(proxyURL)
+		matches := proxyURLRegex.FindStringSubmatch(proxyURL)
 		if len(matches) == 4 {
 			port, _ := strconv.Atoi(matches[3])
 			return &MTProxy{
@@ -453,6 +487,7 @@ var (
 	regexFloodWait        = regexp.MustCompile(`Please wait (\d+) seconds before repeating the action`)
 	regexFloodWaitBasic   = regexp.MustCompile(`FLOOD_WAIT_(\d+)`)
 	regexFloodWaitPremium = regexp.MustCompile(`FLOOD_PREMIUM_WAIT_(\d+)`)
+	proxyURLRegex         = regexp.MustCompile(`^([a-fA-F0-9]+)@([a-zA-Z0-9\.\-]+):(\d+)$`)
 )
 
 func GetFloodWait(err error) int {
@@ -657,6 +692,18 @@ func sanitizePath(path string, filename string) string {
 func GetFileName(f any, video ...bool) string {
 	var isVid = getVariadic(video, false)
 
+	generateName := func(prefix, ext string) string {
+		var b strings.Builder
+		b.Grow(len(prefix) + 25 + len(ext))
+		b.WriteString(prefix)
+		b.WriteByte('_')
+		b.WriteString(time.Now().Format("2006-01-02_15-04-05"))
+		b.WriteByte('_')
+		b.WriteString(strconv.Itoa(rand.IntN(1000)))
+		b.WriteString(ext)
+		return b.String()
+	}
+
 	getDocName := func(doc *DocumentObj) string {
 		for _, attr := range doc.Attributes {
 			if filename, ok := attr.(*DocumentAttributeFilename); ok && filename.FileName != "" {
@@ -664,30 +711,25 @@ func GetFileName(f any, video ...bool) string {
 			}
 		}
 
-		var name string
 		for _, attr := range doc.Attributes {
 			switch attr := attr.(type) {
 			case *DocumentAttributeAudio:
 				if attr.Title != "" {
-					name = attr.Title + ".mp3"
+					return attr.Title + ".mp3"
 				}
 			case *DocumentAttributeVideo:
-				name = fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+				return generateName("video", ".mp4")
 			case *DocumentAttributeAnimated:
-				name = fmt.Sprintf("animation_%s_%d.gif", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+				return generateName("animation", ".gif")
 			case *DocumentAttributeSticker:
-				return fmt.Sprintf("sticker_%s_%d.webp", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+				return generateName("sticker", ".webp")
 			}
 		}
 
-		if name != "" {
-			return name
-		}
-
 		if doc.MimeType != "" {
-			return fmt.Sprintf("file_%s_%d%s", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000), MimeTypes.Ext(doc.MimeType))
+			return generateName("file", MimeTypes.Ext(doc.MimeType))
 		}
-		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		return generateName("file", "")
 	}
 
 	switch f := f.(type) {
@@ -696,28 +738,28 @@ func GetFileName(f any, video ...bool) string {
 		case *DocumentObj:
 			return getDocName(doc)
 		default:
-			return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+			return generateName("file", "")
 		}
 	case *MessageMediaPhoto:
 		if isVid {
-			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+			return generateName("video", ".mp4")
 		}
-		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		return generateName("photo", ".jpg")
 	case *MessageMediaContact:
-		return fmt.Sprintf("contact_%s_%d.vcf", f.FirstName, cryptoRandIntn(1000))
+		return fmt.Sprintf("contact_%s_%d.vcf", f.FirstName, rand.IntN(1000))
 	case *DocumentObj:
 		return getDocName(f)
 	case *PhotoObj:
 		if isVid {
-			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+			return generateName("video", ".mp4")
 		}
-		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		return generateName("photo", ".jpg")
 	case *InputPeerPhotoFileLocation:
-		return fmt.Sprintf("profile_photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		return generateName("profile_photo", ".jpg")
 	case *InputPhotoFileLocation:
-		return fmt.Sprintf("photo_file_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		return generateName("photo_file", ".jpg")
 	default:
-		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		return generateName("file", "")
 	}
 }
 
@@ -798,9 +840,7 @@ func getFileExt(f any) string {
 }
 
 func GenerateRandomLong() int64 {
-	b := make([]byte, 8)
-	rand.Read(b)
-	return int64(binary.BigEndian.Uint64(b))
+	return rand.Int64()
 }
 
 func getPeerUser(userID int64) *PeerUser {
