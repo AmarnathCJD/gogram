@@ -316,6 +316,10 @@ PeerSwitch:
 			return &InputPeerChannel{ChannelID: peerEntity.ID, AccessHash: peerEntity.AccessHash}, nil
 		case *UserObj:
 			return &InputPeerUser{UserID: peerEntity.ID, AccessHash: peerEntity.AccessHash}, nil
+		case *ChannelForbidden:
+			return &InputPeerChannel{ChannelID: peerEntity.ID, AccessHash: peerEntity.AccessHash}, nil
+		case *ChatForbidden:
+			return &InputPeerChat{ChatID: peerEntity.ID}, nil
 		default:
 			return nil, errors.New(fmt.Sprintf("unknown peer type %s", reflect.TypeOf(peerEntity).String()))
 		}
@@ -859,12 +863,21 @@ func (c *Client) ResolveUsername(username string, ref ...string) (any, error) {
 	}
 	c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
 	if len(resp.Users) != 0 {
-		return resp.Users[0].(*UserObj), nil
+		switch User := resp.Users[0].(type) {
+		case *UserObj:
+			return User, nil
+		default:
+			return nil, fmt.Errorf("got wrong response: %s", reflect.TypeOf(resp).String())
+		}
 	} else if len(resp.Chats) != 0 {
 		switch Peer := resp.Chats[0].(type) {
 		case *ChatObj:
 			return Peer, nil
 		case *Channel:
+			return Peer, nil
+		case *ChannelForbidden:
+			return Peer, nil
+		case *ChatForbidden:
 			return Peer, nil
 		default:
 			return nil, fmt.Errorf("got wrong response: %s", reflect.TypeOf(resp).String())
