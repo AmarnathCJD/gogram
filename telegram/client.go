@@ -39,6 +39,7 @@ type clientData struct {
 	appVersion       string
 	langCode         string
 	parseMode        string
+	cacheSenders     bool
 	logLevel         utils.LogLevel
 	sleepThresholdMs int
 	botAcc           bool
@@ -93,6 +94,7 @@ type ClientConfig struct {
 	Proxy            *url.URL             // The proxy to use (SOCKS5, HTTP)
 	ForceIPv6        bool                 // Force to use IPv6
 	Cache            *CACHE               // The cache to use
+	CacheSenders     bool                 // cache the exported file op sender (TODO: Stabilize this)
 	TransportMode    string               // The transport mode to use (Abridged, Intermediate, Full)
 	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
 	FloodHandler     func(err error) bool // The flood handler to use
@@ -267,21 +269,24 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 		c.Log.SetLevel(c.clientData.logLevel)
 	}
 
-	c.exSenders = &exSenders{
-		senders: make(map[int][]*mtproto.MTProto),
-		idleTTL: time.Now().Add(CleanExportedSendersDelay),
-	}
-	go func() {
-
-		for {
-			select {
-			case <-c.stopCh:
-				return
-			case <-time.After(CleanExportedSendersDelay):
-				c.cleanExportedSenders()
-			}
+	if cnf.CacheSenders {
+		c.clientData.cacheSenders = true
+		c.exSenders = &exSenders{
+			senders: make(map[int][]*mtproto.MTProto),
+			idleTTL: time.Now().Add(CleanExportedSendersDelay),
 		}
-	}()
+		go func() {
+
+			for {
+				select {
+				case <-c.stopCh:
+					return
+				case <-time.After(CleanExportedSendersDelay):
+					c.cleanExportedSenders()
+				}
+			}
+		}()
+	}
 }
 
 // initialRequest sends the initial initConnection request
