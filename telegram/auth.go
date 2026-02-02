@@ -214,7 +214,9 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 	for {
 		opts.Code, err = opts.CodeCallback()
 
-		if opts.Code != "" {
+		if opts.Code == "cancel" || opts.Code == "exit" {
+			return nil, errors.New("login canceled")
+		} else if opts.Code != "" {
 			authResp, err := c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
 			if err == nil {
 				return authResp, nil
@@ -267,8 +269,6 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 			} else {
 				return nil, err
 			}
-		} else if opts.Code == "cancel" || opts.Code == "exit" {
-			return nil, errors.New("login canceled")
 		} else {
 			if err, ok := err.(syscall.Errno); ok && err == syscall.EINTR {
 				return nil, errors.New("login canceled")
