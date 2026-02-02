@@ -370,13 +370,13 @@ func (q *QrToken) Wait(timeout ...int32) error {
 	const def int32 = 600 // 10 minutes
 	q.Timeout = getVariadic(timeout, def).(int32)
 	ch := make(chan int)
-	ev := q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update) error {
+	ev := q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update, client *Client) error {
 		ch <- 1
 		return nil
 	})
 	select {
 	case <-ch:
-		go ev.Remove()
+		go q.client.removeHandle(ev)
 		resp, err := q.client.AuthExportLoginToken(q.client.AppID(), q.client.AppHash(), q.IgnoredIDs)
 		if err != nil {
 			return err
@@ -404,7 +404,7 @@ func (q *QrToken) Wait(timeout ...int32) error {
 		}
 		return nil
 	case <-time.After(time.Duration(q.Timeout) * time.Second):
-		go ev.Remove()
+		go q.client.removeHandle(ev)
 		return errors.New("qr login timed out")
 	}
 }

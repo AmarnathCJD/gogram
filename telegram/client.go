@@ -55,6 +55,7 @@ type Client struct {
 	Cache           *CACHE
 	exportedSenders cachedExportedSenders
 	clientData      clientData
+	dispatcher      *UpdateDispatcher
 	wg              sync.WaitGroup
 	stopCh          chan struct{}
 	Log             *utils.Logger
@@ -118,6 +119,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 	}
 	c.MTProto = mtproto
 	c.clientData.appID = mtproto.AppID() // in case the app id was not provided in the config but was in the session
+
 	return nil
 }
 
@@ -139,8 +141,12 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 }
 
 func (c *Client) setupDispatcher() {
-	UpdateHandleDispatcher.client = c
-	c.AddCustomServerRequestHandler(HandleIncomingUpdates)
+	c.dispatcher = &UpdateDispatcher{}
+	handleUpdaterWrapper := func(u any) bool {
+		return HandleIncomingUpdates(u, c)
+	}
+
+	c.AddCustomServerRequestHandler(handleUpdaterWrapper)
 }
 
 func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
@@ -199,6 +205,11 @@ func (c *Client) Connect() error {
 	}
 	// Initial request (invokeWithLayer) must be sent after connection is established
 	return c.InitialRequest()
+}
+
+// Wrapper for Connect()
+func (c *Client) Conn() (*Client, error) {
+	return c, c.Connect()
 }
 
 // Returns true if the client is connected to telegram servers

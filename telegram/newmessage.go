@@ -21,6 +21,12 @@ type NewMessage struct {
 	SenderChat     *Channel
 }
 
+type DeleteMessage struct {
+	Client    *Client
+	ChannelID int64
+	Messages  []int32
+}
+
 type CustomFile struct {
 	Ext    string `json:"ext,omitempty"`
 	FileID string `json:"file_id,omitempty"`

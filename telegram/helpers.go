@@ -653,6 +653,21 @@ func packMessage(c *Client, message Message) *NewMessage {
 	return m
 }
 
+func packDeleteMessage(c *Client, delete Update) *DeleteMessage {
+	var deleteMessage *DeleteMessage = &DeleteMessage{}
+	switch d := delete.(type) {
+	case *UpdateDeleteMessages:
+		deleteMessage.Messages = d.Messages
+		deleteMessage.ChannelID = 0
+	case *UpdateDeleteChannelMessages:
+		deleteMessage.Messages = d.Messages
+		deleteMessage.ChannelID = d.ChannelID
+	}
+
+	deleteMessage.Client = c
+	return deleteMessage
+}
+
 func packInlineQuery(c *Client, query *UpdateBotInlineQuery) *InlineQuery {
 	var (
 		iq = &InlineQuery{}
