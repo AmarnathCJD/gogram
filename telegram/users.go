@@ -132,6 +132,7 @@ type DialogOptions struct {
 	Limit         int32     `json:"limit,omitempty"`
 	ExcludePinned bool      `json:"exclude_pinned,omitempty"`
 	FolderID      int32     `json:"folder_id,omitempty"`
+	Hash          int64     `json:"hash,omitempty"`
 }
 
 type CustomDialog struct{} // TODO
@@ -151,6 +152,9 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 	} else if Options.Limit < 1 {
 		Options.Limit = 1
 	}
+	if Options.OffsetPeer == nil {
+		Options.OffsetPeer = &InputPeerEmpty{}
+	}
 	resp, err := c.MessagesGetDialogs(&MessagesGetDialogsParams{
 		OffsetDate:    Options.OffsetDate,
 		OffsetID:      Options.OffsetID,
@@ -158,6 +162,7 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 		Limit:         Options.Limit,
 		FolderID:      Options.FolderID,
 		ExcludePinned: Options.ExcludePinned,
+		Hash:          Options.Hash,
 	})
 	if err != nil {
 		return nil, err
