@@ -220,7 +220,10 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 	if err := sessionString.Decode(stringSession); err != nil {
 		return false, err
 	}
-	m.authKey, m.authKeyHash, m.Addr, m.appID = sessionString.AuthKey(), sessionString.AuthKeyHash(), sessionString.IpAddr(), sessionString.AppID()
+	m.authKey, m.authKeyHash, m.Addr = sessionString.AuthKey(), sessionString.AuthKeyHash(), sessionString.IpAddr()
+	if m.appID == 0 {
+		m.appID = sessionString.AppID()
+	}
 	m.Logger.Debug("importing - auth from stringSession...")
 	if !m.memorySession {
 		if err := m.SaveSession(); err != nil {
