@@ -48,6 +48,6 @@ func CloseOnCancel(ctx context.Context, c io.Closer) {
 
 func check(err error) {
 	if err != nil {
-		log.Println(err)
+		log.Println(err.Error())
 	}
 }
