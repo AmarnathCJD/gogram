@@ -5,6 +5,7 @@ package session
 import (
 	"encoding/base64"
 	"errors"
+	"strconv"
 	"strings"
 )
 
@@ -62,8 +63,8 @@ func (s *StringSession) Encode() string {
 		string(s.authKey),
 		string(s.authKeyHash),
 		s.ipAddr,
-		string(rune(s.dcID)),
-		string(rune(s.appID)),
+		strconv.Itoa(s.dcID),
+		strconv.FormatInt(int64(s.appID), 10),
 	}
 	return stringPrefix + base64.RawURLEncoding.EncodeToString([]byte(strings.Join(sessionContents, "::")))
 }
@@ -87,9 +88,19 @@ func (s *StringSession) Decode(encoded string) error {
 		case 2:
 			s.ipAddr = v
 		case 3:
-			s.dcID = int(v[0])
+			dcId, err := strconv.Atoi(v)
+			if err != nil {
+				return err
+			}
+
+			s.dcID = dcId
 		case 4:
-			s.appID = int32(v[0])
+			appId, err := strconv.ParseInt(v, 10, 32)
+			if err != nil {
+				return err
+			}
+
+			s.appID = int32(appId)
 		}
 	}
 	return nil
