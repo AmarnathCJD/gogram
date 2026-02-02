@@ -12,9 +12,9 @@ import (
 type LogLevel int
 
 const (
-	// InfoLevel is the lowest level of logging
+	// DebugLevel is the lowest level of logging
 	DebugLevel LogLevel = iota + 1
-	// DebugLevel is the second lowest level of logging
+	// InfoLevel is the second lowest level of logging (default)
 	InfoLevel
 	// WarnLevel is the third highest level of logging
 	WarnLevel
