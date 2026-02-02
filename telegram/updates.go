@@ -3,6 +3,7 @@
 package telegram
 
 import (
+	"context"
 	"reflect"
 	"regexp"
 	"strings"
@@ -23,6 +24,7 @@ type EditHandler func(m *NewMessage) error
 type DeleteHandler func(m *DeleteMessage) error
 type AlbumHandler func(m *Album) error
 type InlineHandler func(m *InlineQuery) error
+type InlineSendHandler func(m *InlineSend) error
 type CallbackHandler func(m *CallbackQuery) error
 type InlineCallbackHandler func(m *InlineCallbackQuery) error
 type ParticipantHandler func(m *ParticipantUpdate) error
@@ -66,14 +68,43 @@ func (h *albumHandle) GetGroup() string {
 
 type albumBox struct {
 	sync.Mutex
-	waitExit  chan struct{}
 	messages  []*NewMessage
 	groupedId int64
 }
 
-func (a *albumBox) Wait() {
+func (a *albumBox) WaitAndTrigger(d *UpdateDispatcher, c *Client) {
 	time.Sleep(600 * time.Millisecond)
-	a.waitExit <- struct{}{}
+
+	for gp, handlers := range d.albumHandles {
+		for _, handler := range handlers {
+			handle := func(h *albumHandle) error {
+				if err := h.Handler(&Album{
+					GroupedID: a.groupedId,
+					Messages:  a.messages,
+					Client:    c,
+				}); err != nil {
+					if errors.Is(err, EndGroup) {
+						return err
+					}
+					c.Log.Error(errors.Wrap(err, "[newAlbum]"))
+				}
+				return nil
+			}
+
+			if strings.EqualFold(gp, "") || strings.EqualFold(strings.TrimSpace(gp), "default") {
+				go handle(handler)
+			} else {
+				if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+					break
+				}
+			}
+		}
+	}
+
+	// delete(d.activeAlbums, a.groupedId)
+	d.Lock()
+	defer d.Unlock()
+	delete(d.activeAlbums, a.groupedId)
 }
 
 func (a *albumBox) Add(m *NewMessage) {
@@ -150,6 +181,22 @@ func (h *inlineHandle) GetGroup() string {
 	return h.Group
 }
 
+type inlineSendHandle struct {
+	Handler     InlineSendHandler
+	Group       string
+	sortTrigger chan any
+}
+
+func (h *inlineSendHandle) SetGroup(group string) Handle {
+	h.Group = group
+	h.sortTrigger <- h
+	return h
+}
+
+func (h *inlineSendHandle) GetGroup() string {
+	return h.Group
+}
+
 type callbackHandle struct {
 	Pattern     any
 	Handler     CallbackHandler
@@ -218,16 +265,17 @@ func (h *rawHandle) GetGroup() string {
 	return h.Group
 }
 
-type openChat struct {
+type openChat struct { // TODO: Implement this
 	accessHash int64
 	closeChan  chan struct{}
 	lastPts    int32
 }
 
 type UpdateDispatcher struct {
-	sync.Mutex
+	sync.RWMutex
 	messageHandles        map[string][]*messageHandle
 	inlineHandles         map[string][]*inlineHandle
+	inlineSendHandles     map[string][]*inlineSendHandle
 	callbackHandles       map[string][]*callbackHandle
 	inlineCallbackHandles map[string][]*inlineCallbackHandle
 	participantHandles    map[string][]*participantHandle
@@ -240,6 +288,20 @@ type UpdateDispatcher struct {
 	sortTrigger           chan any
 	logger                *utils.Logger
 	openChats             map[int64]*openChat
+	nextUpdatesDeadline   time.Time
+	currentPts            int32
+}
+
+func (d *UpdateDispatcher) SetPts(pts int32) {
+	d.Lock()
+	defer d.Unlock()
+	d.currentPts = pts
+}
+
+func (d *UpdateDispatcher) GetPts() int32 {
+	d.RLock()
+	defer d.RUnlock()
+	return d.currentPts
 }
 
 // creates and populates a new UpdateDispatcher
@@ -249,7 +311,7 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 			SetLevel(c.Log.Lev()),
 	}
 	c.dispatcher.SortTrigger()
-	go c.fetchChannelGap()
+	//go c.fetchChannelGap()
 	c.dispatcher.logger.Debug("dispatcher initialized")
 }
 
@@ -367,50 +429,88 @@ func removeHandleFromMap[T any](handle T, handlesMap map[string][]T) {
 
 // ---------------------------- Handle Functions ----------------------------
 
-func (c *Client) handleMessageUpdate(update Message) {
+func (c *Client) handleMessageUpdate(update Message, pts ...int32) {
+	if len(pts) > 0 {
+		if pts[0] == -1 {
+			fetchUpdates(c)
+			return
+		} else {
+			if !c.managePts(pts[0], pts[1]) {
+				return
+			}
+		}
+	}
+
 	switch msg := update.(type) {
 	case *MessageObj:
 		if msg.GroupedID != 0 {
 			c.handleAlbum(*msg)
 		}
 
-		for group, handlers := range c.dispatcher.messageHandles {
-			go func(group string, handlers []*messageHandle) {
-				for _, handler := range handlers {
-					if handler.IsMatch(msg.Message, c) {
-						handle := func(h *messageHandle) error {
-							packed := packMessage(c, msg)
-							if handler.runFilterChain(packed, h.Filters) {
-								defer c.NewRecovery()()
-								if err := h.Handler(packed); err != nil {
-									if errors.Is(err, EndGroup) {
-										return err
-									}
-									c.dispatcher.logger.Error(errors.Wrap(err, "[newMessage]"))
-								}
-							}
-							return nil
-						}
+		wg := sync.WaitGroup{}
+		ctx, cancel := context.WithCancel(context.Background())
 
-						if strings.EqualFold(group, "") || strings.EqualFold(strings.TrimSpace(group), "default") {
-							go handle(handler)
-						} else {
-							if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
-								break
+		packed := packMessage(c, msg)
+		groupFunc := func(group string, handlers []*messageHandle) {
+			defer wg.Done()
+			for _, handler := range handlers {
+				if handler.IsMatch(msg.Message, c) {
+					handle := func(h *messageHandle) error {
+						if handler.runFilterChain(packed, h.Filters) {
+							defer c.NewRecovery()()
+							if err := h.Handler(packed); err != nil {
+								if errors.Is(err, EndGroup) {
+									return err
+								}
+								c.dispatcher.logger.Error(errors.Wrap(err, "[newMessage]"))
 							}
+						}
+						return nil
+					}
+
+					if strings.EqualFold(group, "") || strings.EqualFold(strings.TrimSpace(group), "default") {
+						go handle(handler)
+					} else {
+						if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+							if strings.EqualFold(group, "conversation") {
+								cancel()
+							}
+							break
 						}
 					}
 				}
-
-			}(group, handlers)
+			}
 		}
 
+		if conv, ok := c.dispatcher.messageHandles["conversation"]; ok {
+			wg.Add(1)
+			groupFunc("conversation", conv)
+		}
+
+		for group, handlers := range c.dispatcher.messageHandles {
+			if ctx.Err() != nil {
+				break
+			}
+
+			if strings.EqualFold(group, "conversation") {
+				continue
+			}
+
+			wg.Add(1)
+			go groupFunc(group, handlers)
+		}
+
+		wg.Wait()
+		cancel()
+
 	case *MessageService:
+		packed := packMessage(c, msg)
+
 		for group, handler := range c.dispatcher.actionHandles {
 			for _, h := range handler {
 				handle := func(h *chatActionHandle) error {
 					defer c.NewRecovery()()
-					if err := h.Handler(packMessage(c, msg)); err != nil {
+					if err := h.Handler(packed); err != nil {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
@@ -433,59 +533,38 @@ func (c *Client) handleMessageUpdate(update Message) {
 }
 
 func (c *Client) handleAlbum(message MessageObj) {
+	packed := packMessage(c, &message)
+
+	c.dispatcher.RLock()
 	if group, ok := c.dispatcher.activeAlbums[message.GroupedID]; ok {
-		group.Add(packMessage(c, &message))
+		c.dispatcher.RUnlock()
+		group.Add(packed)
 	} else {
+		c.dispatcher.RUnlock()
 		albBox := &albumBox{
-			waitExit:  make(chan struct{}),
-			messages:  []*NewMessage{packMessage(c, &message)},
+			messages:  []*NewMessage{packed},
 			groupedId: message.GroupedID,
 		}
+		c.dispatcher.Lock()
 		if c.dispatcher.activeAlbums == nil {
 			c.dispatcher.activeAlbums = make(map[int64]*albumBox)
 		}
 		c.dispatcher.activeAlbums[message.GroupedID] = albBox
-		go func() {
-			<-albBox.waitExit
-
-			for gp, handlers := range c.dispatcher.albumHandles {
-				for _, handler := range handlers {
-					handle := func(h *albumHandle) error {
-						if err := h.Handler(&Album{
-							GroupedID: albBox.groupedId,
-							Messages:  albBox.messages,
-							Client:    c,
-						}); err != nil {
-							if errors.Is(err, EndGroup) {
-								return err
-							}
-							c.Log.Error(errors.Wrap(err, "[newAlbum]"))
-						}
-						return nil
-					}
-
-					if strings.EqualFold(gp, "") || strings.EqualFold(strings.TrimSpace(gp), "default") {
-						go handle(handler)
-					} else {
-						if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
-							break
-						}
-					}
-				}
-			}
-
-			c.dispatcher.Lock()
-			delete(c.dispatcher.activeAlbums, message.GroupedID)
-			c.dispatcher.Unlock()
-		}()
-		go albBox.Wait()
+		c.dispatcher.Unlock()
+		albBox.WaitAndTrigger(c.dispatcher, c)
 	}
 }
 
 func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
 	switch msg := m.(type) {
 	case *MessageObj:
-		if c.IdInCache(c.GetPeerID(msg.FromID)) && c.IdInCache(c.GetPeerID(msg.PeerID)) {
+		if (c.IdInCache(c.GetPeerID(msg.FromID)) || func() bool {
+			_, ok := msg.FromID.(*PeerChat)
+			return ok
+		}()) && (c.IdInCache(c.GetPeerID(msg.PeerID)) || func() bool {
+			_, ok := msg.PeerID.(*PeerChat)
+			return ok
+		}()) {
 			c.handleMessageUpdate(msg)
 			return
 		}
@@ -499,13 +578,20 @@ func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
 	}
 }
 
-func (c *Client) handleEditUpdate(update Message) {
+func (c *Client) handleEditUpdate(update Message, pts ...int32) {
+	if len(pts) > 0 {
+		if !c.managePts(pts[0], pts[1]) {
+			return
+		}
+	}
+
 	if msg, ok := update.(*MessageObj); ok {
+		packed := packMessage(c, msg)
+
 		for group, handlers := range c.dispatcher.messageEditHandles {
 			for _, handler := range handlers {
 				if handler.IsMatch(msg.Message) {
 					handle := func(h *messageEditHandle) error {
-						packed := packMessage(c, msg)
 						defer c.NewRecovery()()
 						if handler.runFilterChain(packed, h.Filters) {
 							if err := h.Handler(packed); err != nil {
@@ -532,11 +618,12 @@ func (c *Client) handleEditUpdate(update Message) {
 }
 
 func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
+	packed := packCallbackQuery(c, update)
+
 	for group, handlers := range c.dispatcher.callbackHandles {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Data) {
 				handle := func(h *callbackHandle) error {
-					packed := packCallbackQuery(c, update)
 					if handler.runFilterChain(packed, h.Filters) {
 						defer c.NewRecovery()()
 						if err := h.Handler(packed); err != nil {
@@ -562,11 +649,12 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 }
 
 func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery) {
+	packed := packInlineCallbackQuery(c, update)
+
 	for group, handlers := range c.dispatcher.inlineCallbackHandles {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Data) {
 				handle := func(h *inlineCallbackHandle) error {
-					packed := packInlineCallbackQuery(c, update)
 					defer c.NewRecovery()()
 					if err := h.Handler(packed); err != nil {
 						if errors.Is(err, EndGroup) {
@@ -590,10 +678,11 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 }
 
 func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
+	packed := packChannelParticipant(c, update)
+
 	for group, handlers := range c.dispatcher.participantHandles {
 		for _, handler := range handlers {
 			handle := func(h *participantHandle) error {
-				packed := packChannelParticipant(c, update)
 				defer c.NewRecovery()()
 				if err := h.Handler(packed); err != nil {
 					if errors.Is(err, EndGroup) {
@@ -616,11 +705,12 @@ func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 }
 
 func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
+	packed := packInlineQuery(c, update)
+
 	for group, handlers := range c.dispatcher.inlineHandles {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Query) {
 				handle := func(h *inlineHandle) error {
-					packed := packInlineQuery(c, update)
 					defer c.NewRecovery()()
 					if err := h.Handler(packed); err != nil {
 						if errors.Is(err, EndGroup) {
@@ -643,11 +733,45 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 	}
 }
 
-func (c *Client) handleDeleteUpdate(update Update) {
+func (c *Client) handleInlineSendUpdate(update *UpdateBotInlineSend) {
+	packed := packInlineSend(c, update)
+
+	for group, handlers := range c.dispatcher.inlineSendHandles {
+		for _, handler := range handlers {
+			handle := func(h *inlineSendHandle) error {
+				defer c.NewRecovery()()
+				if err := h.Handler(packed); err != nil {
+					if errors.Is(err, EndGroup) {
+						return err
+					}
+					c.Log.Error(errors.Wrap(err, "[inlineSend]"))
+				}
+				return nil
+			}
+
+			if strings.EqualFold(group, "") || strings.EqualFold(strings.TrimSpace(group), "default") {
+				go handle(handler)
+			} else {
+				if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+					break
+				}
+			}
+		}
+	}
+}
+
+func (c *Client) handleDeleteUpdate(update Update, pts ...int32) {
+	if len(pts) > 0 {
+		if !c.managePts(pts[0], pts[1]) {
+			return
+		}
+	}
+
+	packed := packDeleteMessage(c, update)
+
 	for group, handlers := range c.dispatcher.messageDeleteHandles {
 		for _, handler := range handlers {
 			handle := func(h *messageDeleteHandle) error {
-				packed := packDeleteMessage(c, update)
 				defer c.NewRecovery()()
 				if err := h.Handler(packed); err != nil {
 					if errors.Is(err, EndGroup) {
@@ -672,7 +796,7 @@ func (c *Client) handleDeleteUpdate(update Update) {
 func (c *Client) handleRawUpdate(update Update) {
 	for group, handlers := range c.dispatcher.rawHandles {
 		for _, handler := range handlers {
-			if reflect.TypeOf(update) == reflect.TypeOf(handler.updateType) {
+			if reflect.TypeOf(update) == reflect.TypeOf(handler.updateType) || handler.updateType == nil {
 				handle := func(h *rawHandle) error {
 					defer c.NewRecovery()()
 					if err := h.Handler(update, c); err != nil {
@@ -699,7 +823,7 @@ func (c *Client) handleRawUpdate(update Update) {
 func (h *inlineHandle) IsMatch(text string) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
-		if pattern == OnInlineQuery {
+		if pattern == OnInlineQuery || pattern == OnInline {
 			return true
 		}
 		if !strings.HasPrefix(pattern, "^") {
@@ -716,7 +840,7 @@ func (h *inlineHandle) IsMatch(text string) bool {
 func (e *messageEditHandle) IsMatch(text string) bool {
 	switch pattern := e.Pattern.(type) {
 	case string:
-		if pattern == OnEditMessage {
+		if pattern == OnEditMessage || pattern == OnEdit {
 			return true
 		}
 		p := regexp.MustCompile("^" + pattern)
@@ -731,7 +855,7 @@ func (e *messageEditHandle) IsMatch(text string) bool {
 func (h *callbackHandle) IsMatch(data []byte) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
-		if pattern == OnCallbackQuery {
+		if pattern == OnCallbackQuery || pattern == OnCallback {
 			return true
 		}
 		p := regexp.MustCompile(pattern)
@@ -746,7 +870,7 @@ func (h *callbackHandle) IsMatch(data []byte) bool {
 func (h *inlineCallbackHandle) IsMatch(data []byte) bool {
 	switch pattern := h.Pattern.(type) {
 	case string:
-		if pattern == OnInlineCallbackQuery {
+		if pattern == OnInlineCallbackQuery || pattern == OnInlineCallback {
 			return true
 		}
 		p := regexp.MustCompile(pattern)
@@ -761,7 +885,7 @@ func (h *inlineCallbackHandle) IsMatch(data []byte) bool {
 func (h *messageHandle) IsMatch(text string, c *Client) bool {
 	switch Pattern := h.Pattern.(type) {
 	case string:
-		if Pattern == OnNewMessage {
+		if Pattern == OnNewMessage || Pattern == OnMessage {
 			return true
 		}
 
@@ -835,22 +959,32 @@ func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 		}
 	}
 
-	var peerCheckPassed bool
+	var peerCheckUserPassed bool
+	var peerCheckGroupPassed bool
 
-	if inSlice(m.SenderID(), actUsers) {
-		if actAsBlacklist {
-			return false
+	if len(actUsers) > 0 && m.SenderID() != 0 {
+		if inSlice(m.SenderID(), actUsers) {
+			if actAsBlacklist {
+				return false
+			}
+			peerCheckUserPassed = true
 		}
-		peerCheckPassed = true
-	}
-	if inSlice(m.ChatID(), actGroups) {
-		if actAsBlacklist {
-			return false
-		}
-		peerCheckPassed = true
+	} else {
+		peerCheckUserPassed = true
 	}
 
-	if !actAsBlacklist && (len(actUsers) > 0 || len(actGroups) > 0) && !peerCheckPassed {
+	if len(actGroups) > 0 && m.ChatID() != 0 {
+		if inSlice(m.ChatID(), actGroups) {
+			if actAsBlacklist {
+				return false
+			}
+			peerCheckGroupPassed = true
+		}
+	} else {
+		peerCheckGroupPassed = true
+	}
+
+	if !actAsBlacklist && (len(actUsers) > 0 || len(actGroups) > 0) && !(peerCheckUserPassed && peerCheckGroupPassed) {
 		return false
 	}
 
@@ -1009,6 +1143,17 @@ func (c *Client) AddInlineHandler(pattern any, handler InlineHandler) Handle {
 	return c.dispatcher.inlineHandles["default"][len(c.dispatcher.inlineHandles["default"])-1]
 }
 
+// enable feedback updates from botfather, to recieve these updates.
+func (c *Client) AddInlineSendHandler(handler InlineSendHandler) Handle {
+	if c.dispatcher.inlineSendHandles == nil {
+		c.dispatcher.inlineSendHandles = make(map[string][]*inlineSendHandle)
+	}
+
+	handle := inlineSendHandle{Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
+	c.dispatcher.inlineSendHandles["default"] = append(c.dispatcher.inlineSendHandles["default"], &handle)
+	return c.dispatcher.inlineSendHandles["default"][len(c.dispatcher.inlineSendHandles["default"])-1]
+}
+
 // Handle updates categorized as "UpdateBotCallbackQuery"
 //
 // Included Updates:
@@ -1074,6 +1219,8 @@ func (c *Client) AddRawHandler(updateType Update, handler RawHandler) Handle {
 // Sort and Handle all the Incoming Updates
 // Many more types to be added
 func HandleIncomingUpdates(u any, c *Client) bool {
+	c.dispatcher.nextUpdatesDeadline = time.Now().Add(time.Minute * 15)
+
 UpdateTypeSwitching:
 	switch upd := u.(type) {
 	case *UpdatesObj:
@@ -1081,23 +1228,15 @@ UpdateTypeSwitching:
 		for _, update := range upd.Updates {
 			switch update := update.(type) {
 			case *UpdateNewMessage:
-				go c.handleMessageUpdate(update.Message)
+				go c.handleMessageUpdate(update.Message, update.Pts, update.PtsCount)
 			case *UpdateNewChannelMessage:
-				switch msg := update.Message.(type) {
-				case *MessageObj:
-					for chId := range c.dispatcher.openChats {
-						if chId == c.GetPeerID(msg.PeerID) {
-							c.dispatcher.openChats[chId].lastPts = update.Pts
-						}
-					}
-				}
-				go c.handleMessageUpdate(update.Message)
+				go c.handleMessageUpdate(update.Message, update.Pts, update.PtsCount)
 			case *UpdateNewScheduledMessage:
 				go c.handleMessageUpdate(update.Message)
 			case *UpdateEditMessage:
-				go c.handleEditUpdate(update.Message)
+				go c.handleEditUpdate(update.Message, update.Pts, update.PtsCount)
 			case *UpdateEditChannelMessage:
-				go c.handleEditUpdate(update.Message)
+				go c.handleEditUpdate(update.Message, update.Pts, update.PtsCount)
 			case *UpdateBotInlineQuery:
 				go c.handleInlineUpdate(update)
 			case *UpdateBotCallbackQuery:
@@ -1107,9 +1246,11 @@ UpdateTypeSwitching:
 			case *UpdateChannelParticipant:
 				go c.handleParticipantUpdate(update)
 			case *UpdateDeleteChannelMessages:
-				go c.handleDeleteUpdate(update)
+				go c.handleDeleteUpdate(update, update.Pts, update.PtsCount)
 			case *UpdateDeleteMessages:
-				go c.handleDeleteUpdate(update)
+				go c.handleDeleteUpdate(update, update.Pts, update.PtsCount)
+			case *UpdateBotInlineSend:
+				go c.handleInlineSendUpdate(update)
 			}
 			go c.handleRawUpdate(update)
 		}
@@ -1130,15 +1271,183 @@ UpdateTypeSwitching:
 	case *UpdatesCombined:
 		u = upd.Updates
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
-
 		goto UpdateTypeSwitching
 	case *UpdatesTooLong:
-		c.Log.Debug("update gap is too long, requesting getState")
-		c.UpdatesGetState()
+		c.Log.Debug("too many updates, forcing getDifference")
+		c.handleMessageUpdate(&MessageEmpty{}, -1) // updatesTooLong, too many updates, shall fetch manually
 	default:
 		c.Log.Debug("skipping unhanded update type: ", reflect.TypeOf(u), " with value: ", c.JSON(u))
 	}
 	return true
+}
+
+const GETDIFF_LIMIT = 1000
+
+func fetchUpdates(c *Client) {
+	totalFetched := 0
+
+	req := &UpdatesGetDifferenceParams{
+		Pts:           c.dispatcher.GetPts(),
+		PtsLimit:      GETDIFF_LIMIT,
+		PtsTotalLimit: GETDIFF_LIMIT,
+		Date:          int32(time.Now().Unix()),
+		Qts:           0,
+		QtsLimit:      0,
+	}
+
+	defer func() {
+		c.Log.Debug("force fetched ", totalFetched, " updates")
+	}()
+
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		updates, err := c.MTProto.MakeRequestCtx(ctx, req)
+		if err != nil {
+			c.Log.Error(errors.Wrap(err, "updates.dispatcher.getDifference"))
+			return
+		}
+
+		switch u := updates.(type) {
+		case *UpdatesDifferenceObj:
+			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
+			for _, update := range u.NewMessages {
+				switch update.(type) {
+				case *MessageObj:
+					go c.handleMessageUpdate(update)
+					totalFetched++
+				}
+			}
+
+			if len(u.OtherUpdates) > 0 {
+				totalFetched += len(u.OtherUpdates)
+				HandleIncomingUpdates(UpdatesObj{Updates: u.OtherUpdates}, c)
+			}
+
+			c.dispatcher.SetPts(u.State.Pts)
+			return
+		case *UpdatesDifferenceSlice:
+			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
+			for _, update := range u.NewMessages {
+				switch update.(type) {
+				case *MessageObj:
+					go c.handleMessageUpdate(update)
+					totalFetched++
+				}
+			}
+
+			if len(u.OtherUpdates) > 0 {
+				totalFetched += len(u.OtherUpdates)
+				HandleIncomingUpdates(UpdatesObj{Updates: u.OtherUpdates}, c)
+			}
+
+			c.dispatcher.SetPts(u.IntermediateState.Pts)
+			req.Pts = u.IntermediateState.Pts
+		case *UpdatesDifferenceTooLong:
+			c.dispatcher.SetPts(u.Pts)
+			req.Pts = u.Pts
+		case *UpdatesDifferenceEmpty:
+			return
+		default:
+			c.Log.Debug("skipping unknown update type: ", reflect.TypeOf(u), " with value: ", c.JSON(u))
+			return
+		}
+	}
+}
+
+func (c *Client) managePts(pts int32, ptsCount int32) bool {
+	var currentPts = c.dispatcher.GetPts()
+
+	if currentPts+ptsCount == pts || currentPts == 0 {
+		c.dispatcher.SetPts(pts)
+		return true
+	}
+
+	if currentPts+ptsCount < pts {
+		c.Log.Debug("update gap detected - filling - pts (", currentPts, ") - ptsCount (", ptsCount, ") - pts (", pts, ")")
+		c.dispatcher.SetPts(pts)
+		return true // remaining parts have some issues it seems, I'll address later
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		updates, err := c.MTProto.MakeRequestCtx(ctx, &UpdatesGetDifferenceParams{
+			Pts:           currentPts,
+			PtsLimit:      pts - currentPts,
+			PtsTotalLimit: pts - currentPts,
+			Date:          int32(time.Now().Unix()),
+			Qts:           0,
+			QtsLimit:      0,
+		})
+
+		if err != nil {
+			c.Log.Error(errors.Wrap(err, "updates.dispatcher.getDifference"))
+			return true
+		}
+
+		switch u := updates.(type) {
+		case *UpdatesDifferenceObj:
+			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
+			for _, update := range u.NewMessages {
+				switch update.(type) {
+				case *MessageObj:
+					c.handleMessageUpdate(update)
+				}
+			}
+
+		case *UpdatesDifferenceSlice:
+			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
+			for _, update := range u.NewMessages {
+				switch update.(type) {
+				case *MessageObj:
+					c.handleMessageUpdate(update)
+				}
+			}
+		}
+
+		c.dispatcher.SetPts(pts)
+	} else {
+		return true
+	}
+
+	return true
+}
+
+func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
+	c.Log.Debug("getting difference with pts: ", Pts, " and limit: ", Limit)
+
+	updates, err := c.UpdatesGetDifference(&UpdatesGetDifferenceParams{
+		Pts:           Pts - 1,
+		PtsLimit:      Limit,
+		PtsTotalLimit: Limit,
+		Date:          int32(time.Now().Unix()),
+		Qts:           0,
+		QtsLimit:      Limit,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	switch u := updates.(type) {
+	case *UpdatesDifferenceObj:
+		c.Cache.UpdatePeersToCache(u.Users, u.Chats)
+		for _, update := range u.NewMessages {
+			switch update.(type) {
+			case *MessageObj:
+				return update, nil
+			}
+		}
+
+	case *UpdatesDifferenceSlice:
+		c.Cache.UpdatePeersToCache(u.Users, u.Chats)
+		return u.NewMessages[0], nil
+
+	default:
+		return nil, nil
+	}
+
+	return nil, nil
 }
 
 func (c *Client) OpenChat(channel *InputChannelObj) {
@@ -1174,7 +1483,8 @@ const (
 	GET_CHANNEL_DIFF_INTERVAL = 2000 * time.Millisecond
 )
 
-func (c *Client) fetchChannelGap() {
+// TODO Implement a better way to fetch channel differences
+func (c *Client) FetchGap() {
 	for {
 		for channelID, chat := range c.dispatcher.openChats {
 			chDiff, _ := c.UpdatesGetChannelDifference(&UpdatesGetChannelDifferenceParams{
@@ -1213,43 +1523,6 @@ func (c *Client) fetchChannelGap() {
 	}
 }
 
-func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
-	c.Logger.Debug("getting difference with pts: ", Pts, " and limit: ", Limit)
-
-	updates, err := c.UpdatesGetDifference(&UpdatesGetDifferenceParams{
-		Pts:           Pts - 1,
-		PtsLimit:      Limit,
-		PtsTotalLimit: Limit,
-		Date:          int32(time.Now().Unix()),
-		Qts:           0,
-		QtsLimit:      Limit,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	switch u := updates.(type) {
-	case *UpdatesDifferenceObj:
-		c.Cache.UpdatePeersToCache(u.Users, u.Chats)
-		for _, update := range u.NewMessages {
-			switch update.(type) {
-			case *MessageObj:
-				return update, nil
-			}
-		}
-
-	case *UpdatesDifferenceSlice:
-		c.Cache.UpdatePeersToCache(u.Users, u.Chats)
-		return u.NewMessages[0], nil
-
-	default:
-		return nil, nil
-	}
-
-	return nil, nil
-}
-
 type ev any
 
 var (
@@ -1261,6 +1534,7 @@ var (
 	OnInline         ev = "inline"
 	OnCallback       ev = "callback"
 	OnInlineCallback ev = "inlineCallback"
+	OnChoosenInline  ev = "choosenInline"
 	OnParticipant    ev = "participant"
 	OnRaw            ev = "raw"
 )
@@ -1281,7 +1555,7 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 	}
 
 	switch ev(patternKey) {
-	case OnMessage:
+	case OnMessage, OnNewMessage:
 		if h, ok := handler.(func(m *NewMessage) error); ok {
 			if args != "" {
 				return c.AddMessageHandler(args, h, filters...)
@@ -1295,14 +1569,14 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 			}
 			return c.AddMessageHandler(OnNewMessage, h, append(filters, FilterCommand)...)
 		}
-	case OnEdit:
+	case OnEdit, OnEditMessage:
 		if h, ok := handler.(func(m *NewMessage) error); ok {
 			if args != "" {
 				return c.AddEditHandler(args, h)
 			}
 			return c.AddEditHandler(OnEditMessage, h)
 		}
-	case OnDelete:
+	case OnDelete, OnDeleteMessage:
 		if h, ok := handler.(func(m *DeleteMessage) error); ok {
 			if args != "" {
 				return c.AddDeleteHandler(args, h)
@@ -1313,21 +1587,25 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 		if h, ok := handler.(func(m *Album) error); ok {
 			return c.AddAlbumHandler(h)
 		}
-	case OnInline:
+	case OnInline, OnInlineQuery:
 		if h, ok := handler.(func(m *InlineQuery) error); ok {
 			if args != "" {
 				return c.AddInlineHandler(args, h)
 			}
 			return c.AddInlineHandler(OnInlineQuery, h)
 		}
-	case OnCallback:
+	case OnChoosenInline:
+		if h, ok := handler.(func(m *InlineSend) error); ok {
+			return c.AddInlineSendHandler(h)
+		}
+	case OnCallback, OnCallbackQuery:
 		if h, ok := handler.(func(m *CallbackQuery) error); ok {
 			if args != "" {
 				return c.AddCallbackHandler(args, h)
 			}
 			return c.AddCallbackHandler(OnCallbackQuery, h)
 		}
-	case OnInlineCallback:
+	case OnInlineCallback, OnInlineCallbackQuery, "inlinecallback":
 		if h, ok := handler.(func(m *InlineCallbackQuery) error); ok {
 			if args != "" {
 				return c.AddInlineCallbackHandler(args, h)

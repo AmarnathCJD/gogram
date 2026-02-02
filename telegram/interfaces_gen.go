@@ -1366,10 +1366,11 @@ type Channel struct {
 	Level                 int32                `tl:"flag2:10"`
 	SubscriptionUntilDate int32                `tl:"flag2:11"`
 	BotVerificationIcon   int64                `tl:"flag2:13"`
+	SendPaidMessagesStars int64                `tl:"flag2:14"`
 }
 
 func (*Channel) CRC() uint32 {
-	return 0xe00998b7
+	return 0x7482147e
 }
 
 func (*Channel) FlagIndex() int {
@@ -1477,6 +1478,8 @@ type ChannelFull struct {
 	CanViewStarsRevenue    bool `tl:"flag2:15,encoded_in_bitflags"`
 	PaidMediaAllowed       bool `tl:"flag2:14,encoded_in_bitflags"`
 	PaidReactionsAvailable bool `tl:"flag2:16,encoded_in_bitflags"`
+	StargiftsAvailable     bool `tl:"flag2:19,encoded_in_bitflags"`
+	PaidMessagesAvailable  bool `tl:"flag2:20,encoded_in_bitflags"`
 	ID                     int64
 	About                  string
 	ParticipantsCount      int32 `tl:"flag:0"`
@@ -1519,10 +1522,11 @@ type ChannelFull struct {
 	BoostsUnrestrict       int32            `tl:"flag2:9"`
 	Emojiset               *StickerSet      `tl:"flag2:10"`
 	BotVerification        *BotVerification `tl:"flag2:17"`
+	StargiftsCount         int32            `tl:"flag2:18"`
 }
 
 func (*ChannelFull) CRC() uint32 {
-	return 0x9ff3b858
+	return 0x52d6806b
 }
 
 func (*ChannelFull) FlagIndex() int {
@@ -1869,13 +1873,14 @@ func (*DialogFilterObj) ImplementsDialogFilter() {}
 
 // A folder imported using a chat folder deep link ».
 type DialogFilterChatlist struct {
-	HasMyInvites bool              `tl:"flag:26,encoded_in_bitflags"` // Whether the current user has created some chat folder deep links  to share the folder as well.
-	ID           int32             // ID of the folder
-	Title        *TextWithEntities // Name of the folder (max 12 UTF-8 chars)
-	Emoticon     string            `tl:"flag:25"` // Emoji to use as icon for the folder.
-	Color        int32             `tl:"flag:27"` // A color ID for the folder tag associated to this folder,.
-	PinnedPeers  []InputPeer       // Pinned chats, folders can have unlimited pinned chats
-	IncludePeers []InputPeer       // Chats to include in the folder
+	HasMyInvites   bool `tl:"flag:26,encoded_in_bitflags"`
+	TitleNoanimate bool `tl:"flag:28,encoded_in_bitflags"`
+	ID             int32
+	Title          *TextWithEntities
+	Emoticon       string `tl:"flag:25"`
+	Color          int32  `tl:"flag:27"`
+	PinnedPeers    []InputPeer
+	IncludePeers   []InputPeer
 }
 
 func (*DialogFilterChatlist) CRC() uint32 {
@@ -2070,15 +2075,15 @@ func (*DocumentAttributeSticker) ImplementsDocumentAttribute() {}
 
 // Defines a video
 type DocumentAttributeVideo struct {
-	RoundMessage      bool    `tl:"flag:0,encoded_in_bitflags"` // Whether this is a round video
-	SupportsStreaming bool    `tl:"flag:1,encoded_in_bitflags"` // Whether the video supports streaming
-	Nosound           bool    `tl:"flag:3,encoded_in_bitflags"` // Whether the specified document is a video file with no audio tracks (a GIF animation (even as MPEG4), for example)
-	Duration          float64 // Duration in seconds
-	W                 int32   // Video width
-	H                 int32   // Video height
-	PreloadPrefixSize int32   `tl:"flag:2"` // Number of bytes to preload when preloading videos (particularly video stories).
-	VideoStartTs      float64 `tl:"flag:4"` // Floating point UNIX timestamp in seconds, indicating the frame of the video that should be used as static preview and thumbnail.
-	VideoCodec        string  `tl:"flag:5"` // Codec used for the video, i.e. "h264", "h265", or "av1"
+	RoundMessage      bool `tl:"flag:0,encoded_in_bitflags"`
+	SupportsStreaming bool `tl:"flag:1,encoded_in_bitflags"`
+	Nosound           bool `tl:"flag:3,encoded_in_bitflags"`
+	Duration          float64
+	W                 int32
+	H                 int32
+	PreloadPrefixSize int32   `tl:"flag:2"`
+	VideoStartTs      float64 `tl:"flag:4"`
+	VideoCodec        string  `tl:"flag:5"`
 }
 
 func (*DocumentAttributeVideo) CRC() uint32 {
@@ -2311,14 +2316,42 @@ type EmojiStatus interface {
 
 // An emoji status
 type EmojiStatusObj struct {
-	DocumentID int64 // Custom emoji document ID
+	DocumentID int64
+	Until      int32 `tl:"flag:0"`
 }
 
 func (*EmojiStatusObj) CRC() uint32 {
-	return 0x929b619d
+	return 0xe7ff068a
+}
+
+func (*EmojiStatusObj) FlagIndex() int {
+	return 0
 }
 
 func (*EmojiStatusObj) ImplementsEmojiStatus() {}
+
+type EmojiStatusCollectible struct {
+	CollectibleID     int64
+	DocumentID        int64
+	Title             string
+	Slug              string
+	PatternDocumentID int64
+	CenterColor       int32
+	EdgeColor         int32
+	PatternColor      int32
+	TextColor         int32
+	Until             int32 `tl:"flag:0"`
+}
+
+func (*EmojiStatusCollectible) CRC() uint32 {
+	return 0x7184603b
+}
+
+func (*EmojiStatusCollectible) FlagIndex() int {
+	return 0
+}
+
+func (*EmojiStatusCollectible) ImplementsEmojiStatus() {}
 
 // No emoji status is set
 type EmojiStatusEmpty struct{}
@@ -2329,17 +2362,20 @@ func (*EmojiStatusEmpty) CRC() uint32 {
 
 func (*EmojiStatusEmpty) ImplementsEmojiStatus() {}
 
-// An emoji status valid until the specified date
-type EmojiStatusUntil struct {
-	DocumentID int64 // Custom emoji document ID
-	Until      int32 // This status is valid until this date
+type InputEmojiStatusCollectible struct {
+	CollectibleID int64
+	Until         int32 `tl:"flag:0"`
 }
 
-func (*EmojiStatusUntil) CRC() uint32 {
-	return 0xfa30a8c7
+func (*InputEmojiStatusCollectible) CRC() uint32 {
+	return 0x7141dbf
 }
 
-func (*EmojiStatusUntil) ImplementsEmojiStatus() {}
+func (*InputEmojiStatusCollectible) FlagIndex() int {
+	return 0
+}
+
+func (*InputEmojiStatusCollectible) ImplementsEmojiStatus() {}
 
 type EncryptedChat interface {
 	tl.Object
@@ -2627,28 +2663,29 @@ type GroupCall interface {
 
 // Info about a group call or livestream
 type GroupCallObj struct {
-	JoinMuted               bool   `tl:"flag:1,encoded_in_bitflags"`  // Whether the user should be muted upon joining the call
-	CanChangeJoinMuted      bool   `tl:"flag:2,encoded_in_bitflags"`  // Whether the current user can change the value of the join_muted flag using phone.toggleGroupCallSettings
-	JoinDateAsc             bool   `tl:"flag:6,encoded_in_bitflags"`  // Specifies the ordering to use when locally sorting by date and displaying in the UI group call participants.
-	ScheduleStartSubscribed bool   `tl:"flag:8,encoded_in_bitflags"`  // Whether we subscribed to the scheduled call
-	CanStartVideo           bool   `tl:"flag:9,encoded_in_bitflags"`  // Whether you can start streaming video into the call
-	RecordVideoActive       bool   `tl:"flag:11,encoded_in_bitflags"` // Whether the group call is currently being recorded
-	RtmpStream              bool   `tl:"flag:12,encoded_in_bitflags"` // Whether RTMP streams are allowed
-	ListenersHidden         bool   `tl:"flag:13,encoded_in_bitflags"` // Whether the listeners list is hidden and cannot be fetched using phone.getGroupParticipants. The phone.groupParticipants.count and groupCall.participants_count counters will still include listeners.
-	ID                      int64  // Group call ID
-	AccessHash              int64  // Group call access hash
-	ParticipantsCount       int32  // Participant count
-	Title                   string `tl:"flag:3"`  // Group call title
-	StreamDcID              int32  `tl:"flag:4"`  // DC ID to be used for livestream chunks
-	RecordStartDate         int32  `tl:"flag:5"`  // When was the recording started
-	ScheduleDate            int32  `tl:"flag:7"`  // When is the call scheduled to start
-	UnmutedVideoCount       int32  `tl:"flag:10"` // Number of people currently streaming video into the call
-	UnmutedVideoLimit       int32  // Maximum number of people allowed to stream video into the call
-	Version                 int32  // Version
+	JoinMuted               bool `tl:"flag:1,encoded_in_bitflags"`
+	CanChangeJoinMuted      bool `tl:"flag:2,encoded_in_bitflags"`
+	JoinDateAsc             bool `tl:"flag:6,encoded_in_bitflags"`
+	ScheduleStartSubscribed bool `tl:"flag:8,encoded_in_bitflags"`
+	CanStartVideo           bool `tl:"flag:9,encoded_in_bitflags"`
+	RecordVideoActive       bool `tl:"flag:11,encoded_in_bitflags"`
+	RtmpStream              bool `tl:"flag:12,encoded_in_bitflags"`
+	ListenersHidden         bool `tl:"flag:13,encoded_in_bitflags"`
+	ID                      int64
+	AccessHash              int64
+	ParticipantsCount       int32
+	Title                   string `tl:"flag:3"`
+	StreamDcID              int32  `tl:"flag:4"`
+	RecordStartDate         int32  `tl:"flag:5"`
+	ScheduleDate            int32  `tl:"flag:7"`
+	UnmutedVideoCount       int32  `tl:"flag:10"`
+	UnmutedVideoLimit       int32
+	Version                 int32
+	ConferenceFromCall      int64 `tl:"flag:14"`
 }
 
 func (*GroupCallObj) CRC() uint32 {
-	return 0xd597650c
+	return 0xcdf8d3e3
 }
 
 func (*GroupCallObj) FlagIndex() int {
@@ -3495,6 +3532,22 @@ func (*InputInvoicePremiumGiftCode) CRC() uint32 {
 
 func (*InputInvoicePremiumGiftCode) ImplementsInputInvoice() {}
 
+type InputInvoicePremiumGiftStars struct {
+	UserID  InputUser
+	Months  int32
+	Message *TextWithEntities `tl:"flag:0"`
+}
+
+func (*InputInvoicePremiumGiftStars) CRC() uint32 {
+	return 0xdabab2ef
+}
+
+func (*InputInvoicePremiumGiftStars) FlagIndex() int {
+	return 0
+}
+
+func (*InputInvoicePremiumGiftStars) ImplementsInputInvoice() {}
+
 // An invoice slug taken from an invoice deep link or from the <a href="/api/config#premium-invoice-slug">`premium_invoice_slug` app config parameter »</a>
 type InputInvoiceSlug struct {
 	Slug string // The invoice slug
@@ -3510,13 +3563,13 @@ func (*InputInvoiceSlug) ImplementsInputInvoice() {}
 type InputInvoiceStarGift struct {
 	HideName       bool `tl:"flag:0,encoded_in_bitflags"`
 	IncludeUpgrade bool `tl:"flag:2,encoded_in_bitflags"`
-	UserID         InputPeer
+	Peer           InputPeer
 	GiftID         int64
 	Message        *TextWithEntities `tl:"flag:1"`
 }
 
 func (*InputInvoiceStarGift) CRC() uint32 {
-	return 0x25d8c1d8
+	return 0xe8625e92
 }
 
 func (*InputInvoiceStarGift) FlagIndex() int {
@@ -3526,23 +3579,23 @@ func (*InputInvoiceStarGift) FlagIndex() int {
 func (*InputInvoiceStarGift) ImplementsInputInvoice() {}
 
 type InputInvoiceStarGiftTransfer struct {
-	MsgID int32
-	ToID  InputUser
+	Stargift InputSavedStarGift
+	ToID     InputPeer
 }
 
 func (*InputInvoiceStarGiftTransfer) CRC() uint32 {
-	return 0xae3ba9ed
+	return 0x4a5f5bd9
 }
 
 func (*InputInvoiceStarGiftTransfer) ImplementsInputInvoice() {}
 
 type InputInvoiceStarGiftUpgrade struct {
 	KeepOriginalDetails bool `tl:"flag:0,encoded_in_bitflags"`
-	MsgID               int32
+	Stargift            InputSavedStarGift
 }
 
 func (*InputInvoiceStarGiftUpgrade) CRC() uint32 {
-	return 0x5ebe7262
+	return 0x4d818d5d
 }
 
 func (*InputInvoiceStarGiftUpgrade) FlagIndex() int {
@@ -3594,14 +3647,16 @@ func (*InputMediaDice) ImplementsInputMedia() {}
 
 // Forwarded document
 type InputMediaDocument struct {
-	Spoiler    bool          `tl:"flag:2,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
-	ID         InputDocument // The document to be forwarded.
-	TtlSeconds int32         `tl:"flag:0"` // Time to live of self-destructing document
-	Query      string        `tl:"flag:1"` // Text query or emoji that was used by the user to find this sticker or GIF: used to improve search result relevance.
+	Spoiler        bool `tl:"flag:2,encoded_in_bitflags"`
+	ID             InputDocument
+	VideoCover     InputPhoto `tl:"flag:3"`
+	VideoTimestamp int32      `tl:"flag:4"`
+	TtlSeconds     int32      `tl:"flag:0"`
+	Query          string     `tl:"flag:1"`
 }
 
 func (*InputMediaDocument) CRC() uint32 {
-	return 0x33473058
+	return 0xa8763ab5
 }
 
 func (*InputMediaDocument) FlagIndex() int {
@@ -3612,13 +3667,15 @@ func (*InputMediaDocument) ImplementsInputMedia() {}
 
 // Document that will be downloaded by the telegram servers
 type InputMediaDocumentExternal struct {
-	Spoiler    bool   `tl:"flag:1,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
-	URL        string // URL of the document
-	TtlSeconds int32  `tl:"flag:0"` // Self-destruct time to live of document
+	Spoiler        bool `tl:"flag:1,encoded_in_bitflags"`
+	URL            string
+	TtlSeconds     int32      `tl:"flag:0"`
+	VideoCover     InputPhoto `tl:"flag:2"`
+	VideoTimestamp int32      `tl:"flag:3"`
 }
 
 func (*InputMediaDocumentExternal) CRC() uint32 {
-	return 0xfb52dc99
+	return 0x779600f9
 }
 
 func (*InputMediaDocumentExternal) FlagIndex() int {
@@ -3783,19 +3840,21 @@ func (*InputMediaStory) ImplementsInputMedia() {}
 
 // New document
 type InputMediaUploadedDocument struct {
-	NosoundVideo bool                `tl:"flag:3,encoded_in_bitflags"` // Whether the specified document is a video file with no audio tracks (a GIF animation (even as MPEG4), for example)
-	ForceFile    bool                `tl:"flag:4,encoded_in_bitflags"` // Force the media file to be uploaded as document
-	Spoiler      bool                `tl:"flag:5,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
-	File         InputFile           // The uploaded file
-	Thumb        InputFile           `tl:"flag:2"` // Thumbnail of the document, uploaded as for the file
-	MimeType     string              // MIME type of document
-	Attributes   []DocumentAttribute // Attributes that specify the type of the document (video, audio, voice, sticker, etc.)
-	Stickers     []InputDocument     `tl:"flag:0"` // Attached stickers
-	TtlSeconds   int32               `tl:"flag:1"` // Time to live in seconds of self-destructing document
+	NosoundVideo   bool `tl:"flag:3,encoded_in_bitflags"`
+	ForceFile      bool `tl:"flag:4,encoded_in_bitflags"`
+	Spoiler        bool `tl:"flag:5,encoded_in_bitflags"`
+	File           InputFile
+	Thumb          InputFile `tl:"flag:2"`
+	MimeType       string
+	Attributes     []DocumentAttribute
+	Stickers       []InputDocument `tl:"flag:0"`
+	VideoCover     InputPhoto      `tl:"flag:6"`
+	VideoTimestamp int32           `tl:"flag:7"`
+	TtlSeconds     int32           `tl:"flag:1"`
 }
 
 func (*InputMediaUploadedDocument) CRC() uint32 {
-	return 0x5b38c6c1
+	return 0x37c9330
 }
 
 func (*InputMediaUploadedDocument) FlagIndex() int {
@@ -4312,6 +4371,31 @@ func (*InputReplyToStory) CRC() uint32 {
 }
 
 func (*InputReplyToStory) ImplementsInputReplyTo() {}
+
+type InputSavedStarGift interface {
+	tl.Object
+	ImplementsInputSavedStarGift()
+}
+type InputSavedStarGiftChat struct {
+	Peer    InputPeer
+	SavedID int64
+}
+
+func (*InputSavedStarGiftChat) CRC() uint32 {
+	return 0xf101aa7f
+}
+
+func (*InputSavedStarGiftChat) ImplementsInputSavedStarGift() {}
+
+type InputSavedStarGiftUser struct {
+	MsgID int32
+}
+
+func (*InputSavedStarGiftUser) CRC() uint32 {
+	return 0x69279795
+}
+
+func (*InputSavedStarGiftUser) ImplementsInputSavedStarGift() {}
 
 type InputSecureFile interface {
 	tl.Object
@@ -5226,6 +5310,17 @@ func (*MediaAreaGeoPoint) FlagIndex() int {
 
 func (*MediaAreaGeoPoint) ImplementsMediaArea() {}
 
+type MediaAreaStarGift struct {
+	Coordinates *MediaAreaCoordinates
+	Slug        string
+}
+
+func (*MediaAreaStarGift) CRC() uint32 {
+	return 0x5787686d
+}
+
+func (*MediaAreaStarGift) ImplementsMediaArea() {}
+
 // Represents a reaction bubble.
 type MediaAreaSuggestedReaction struct {
 	Dark        bool                  `tl:"flag:0,encoded_in_bitflags"` // Whether the reaction bubble has a dark background.
@@ -5334,10 +5429,11 @@ type MessageObj struct {
 	Effect                  int64                `tl:"flag2:2"`
 	Factcheck               *FactCheck           `tl:"flag2:3"`
 	ReportDeliveryUntilDate int32                `tl:"flag2:5"`
+	PaidMessageStars        int64                `tl:"flag2:6"`
 }
 
 func (*MessageObj) CRC() uint32 {
-	return 0x96fdbbe9
+	return 0xeabcdd4d
 }
 
 func (*MessageObj) FlagIndex() int {
@@ -5367,10 +5463,10 @@ type MessageService struct {
 	Out                  bool `tl:"flag:1,encoded_in_bitflags"`
 	Mentioned            bool `tl:"flag:4,encoded_in_bitflags"`
 	MediaUnread          bool `tl:"flag:5,encoded_in_bitflags"`
+	ReactionsArePossible bool `tl:"flag:9,encoded_in_bitflags"`
 	Silent               bool `tl:"flag:13,encoded_in_bitflags"`
 	Post                 bool `tl:"flag:14,encoded_in_bitflags"`
 	Legacy               bool `tl:"flag:19,encoded_in_bitflags"`
-	ReactionsArePossible bool `tl:"flag:9,encoded_in_bitflags"`
 	ID                   int32
 	FromID               Peer `tl:"flag:8"`
 	PeerID               Peer
@@ -5762,6 +5858,16 @@ func (*MessageActionLoginUnknownLocation) CRC() uint32 {
 
 func (*MessageActionLoginUnknownLocation) ImplementsMessageAction() {}
 
+type MessageActionPaidMessage struct {
+	Stars int64
+}
+
+func (*MessageActionPaidMessage) CRC() uint32 {
+	return 0x5cd2501f
+}
+
+func (*MessageActionPaidMessage) ImplementsMessageAction() {}
+
 // Describes a payment refund (service message received by both users and bots).
 type MessageActionPaymentRefunded struct {
 	Peer        Peer           // Identifier of the peer that returned the funds.
@@ -5995,10 +6101,13 @@ type MessageActionStarGift struct {
 	ConvertStars int64             `tl:"flag:4"`
 	UpgradeMsgID int32             `tl:"flag:5"`
 	UpgradeStars int64             `tl:"flag:8"`
+	FromID       Peer              `tl:"flag:11"`
+	Peer         Peer              `tl:"flag:12"`
+	SavedID      int64             `tl:"flag:12"`
 }
 
 func (*MessageActionStarGift) CRC() uint32 {
-	return 0xd8f4f0a7
+	return 0x4717e8a4
 }
 
 func (*MessageActionStarGift) FlagIndex() int {
@@ -6015,10 +6124,13 @@ type MessageActionStarGiftUnique struct {
 	Gift          StarGift
 	CanExportAt   int32 `tl:"flag:3"`
 	TransferStars int64 `tl:"flag:4"`
+	FromID        Peer  `tl:"flag:6"`
+	Peer          Peer  `tl:"flag:7"`
+	SavedID       int64 `tl:"flag:7"`
 }
 
 func (*MessageActionStarGiftUnique) CRC() uint32 {
-	return 0x26077b99
+	return 0xacdfcb81
 }
 
 func (*MessageActionStarGiftUnique) FlagIndex() int {
@@ -6462,18 +6574,20 @@ func (*MessageMediaDice) ImplementsMessageMedia() {}
 
 // Document (video, audio, voice, sticker, any media type except photo)
 type MessageMediaDocument struct {
-	Nopremium    bool       `tl:"flag:3,encoded_in_bitflags"` // Whether this is a normal sticker, if not set this is a premium sticker and a premium sticker animation must be played.
-	Spoiler      bool       `tl:"flag:4,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
-	Video        bool       `tl:"flag:6,encoded_in_bitflags"` // Whether this is a video.
-	Round        bool       `tl:"flag:7,encoded_in_bitflags"` // Whether this is a round video.
-	Voice        bool       `tl:"flag:8,encoded_in_bitflags"` // Whether this is a voice message.
-	Document     Document   `tl:"flag:0"`                     // Attached document
-	AltDocuments []Document `tl:"flag:5"`                     // Videos only, contains alternative qualities of the video.
-	TtlSeconds   int32      `tl:"flag:2"`                     // Time to live of self-destructing document
+	Nopremium      bool       `tl:"flag:3,encoded_in_bitflags"`
+	Spoiler        bool       `tl:"flag:4,encoded_in_bitflags"`
+	Video          bool       `tl:"flag:6,encoded_in_bitflags"`
+	Round          bool       `tl:"flag:7,encoded_in_bitflags"`
+	Voice          bool       `tl:"flag:8,encoded_in_bitflags"`
+	Document       Document   `tl:"flag:0"`
+	AltDocuments   []Document `tl:"flag:5"`
+	VideoCover     Photo      `tl:"flag:9"`
+	VideoTimestamp int32      `tl:"flag:10"`
+	TtlSeconds     int32      `tl:"flag:2"`
 }
 
 func (*MessageMediaDocument) CRC() uint32 {
-	return 0xdd570bd5
+	return 0x52d8ccd9
 }
 
 func (*MessageMediaDocument) FlagIndex() int {
@@ -7497,6 +7611,36 @@ func (*PageListOrderedItemText) CRC() uint32 {
 
 func (*PageListOrderedItemText) ImplementsPageListOrderedItem() {}
 
+type PaidReactionPrivacy interface {
+	tl.Object
+	ImplementsPaidReactionPrivacy()
+}
+type PaidReactionPrivacyAnonymous struct{}
+
+func (*PaidReactionPrivacyAnonymous) CRC() uint32 {
+	return 0x1f0c1ad9
+}
+
+func (*PaidReactionPrivacyAnonymous) ImplementsPaidReactionPrivacy() {}
+
+type PaidReactionPrivacyDefault struct{}
+
+func (*PaidReactionPrivacyDefault) CRC() uint32 {
+	return 0x206ad49e
+}
+
+func (*PaidReactionPrivacyDefault) ImplementsPaidReactionPrivacy() {}
+
+type PaidReactionPrivacyPeer struct {
+	Peer InputPeer
+}
+
+func (*PaidReactionPrivacyPeer) CRC() uint32 {
+	return 0xdc6cfcf0
+}
+
+func (*PaidReactionPrivacyPeer) ImplementsPaidReactionPrivacy() {}
+
 type PasswordKdfAlgo interface {
 	tl.Object
 	ImplementsPasswordKdfAlgo()
@@ -7600,23 +7744,24 @@ type PhoneCall interface {
 
 // Phone call
 type PhoneCallObj struct {
-	P2PAllowed       bool               `tl:"flag:5,encoded_in_bitflags"` // Whether P2P connection to the other peer is allowed
-	Video            bool               `tl:"flag:6,encoded_in_bitflags"` // Whether this is a video call
-	ID               int64              // Call ID
-	AccessHash       int64              // Access hash
-	Date             int32              // Date of creation of the call
-	AdminID          int64              // User ID of the creator of the call
-	ParticipantID    int64              // User ID of the other participant in the call
-	GAOrB            []byte             // Parameter for key exchange
-	KeyFingerprint   int64              // Key fingerprint
-	Protocol         *PhoneCallProtocol // Call protocol info to be passed to libtgvoip
-	Connections      []PhoneConnection  // List of endpoints the user can connect to exchange call data
-	StartDate        int32              // When was the call actually started
-	CustomParameters *DataJson          `tl:"flag:7"` // Custom JSON-encoded call parameters to be passed to tgcalls.
+	P2PAllowed       bool `tl:"flag:5,encoded_in_bitflags"`
+	Video            bool `tl:"flag:6,encoded_in_bitflags"`
+	ID               int64
+	AccessHash       int64
+	Date             int32
+	AdminID          int64
+	ParticipantID    int64
+	GAOrB            []byte
+	KeyFingerprint   int64
+	Protocol         *PhoneCallProtocol
+	Connections      []PhoneConnection
+	StartDate        int32
+	CustomParameters *DataJson       `tl:"flag:7"`
+	ConferenceCall   *InputGroupCall `tl:"flag:8"`
 }
 
 func (*PhoneCallObj) CRC() uint32 {
-	return 0x30535af5
+	return 0x3ba5940c
 }
 
 func (*PhoneCallObj) FlagIndex() int {
@@ -8507,6 +8652,36 @@ func (*RequestedPeerUser) FlagIndex() int {
 
 func (*RequestedPeerUser) ImplementsRequestedPeer() {}
 
+type RequirementToContact interface {
+	tl.Object
+	ImplementsRequirementToContact()
+}
+type RequirementToContactEmpty struct{}
+
+func (*RequirementToContactEmpty) CRC() uint32 {
+	return 0x50a9839
+}
+
+func (*RequirementToContactEmpty) ImplementsRequirementToContact() {}
+
+type RequirementToContactPaidMessages struct {
+	StarsAmount int64
+}
+
+func (*RequirementToContactPaidMessages) CRC() uint32 {
+	return 0xb4f67e93
+}
+
+func (*RequirementToContactPaidMessages) ImplementsRequirementToContact() {}
+
+type RequirementToContactPremium struct{}
+
+func (*RequirementToContactPremium) CRC() uint32 {
+	return 0xe581e4e9
+}
+
+func (*RequirementToContactPremium) ImplementsRequirementToContact() {}
+
 type RichText interface {
 	tl.Object
 	ImplementsRichText()
@@ -9164,15 +9339,23 @@ func (*StarGiftObj) ImplementsStarGift() {}
 type StarGiftUnique struct {
 	ID                 int64
 	Title              string
+	Slug               string
 	Num                int32
-	OwnerID            int64
+	OwnerID            Peer   `tl:"flag:0"`
+	OwnerName          string `tl:"flag:1"`
+	OwnerAddress       string `tl:"flag:2"`
 	Attributes         []StarGiftAttribute
 	AvailabilityIssued int32
 	AvailabilityTotal  int32
+	GiftAddress        string `tl:"flag:3"`
 }
 
 func (*StarGiftUnique) CRC() uint32 {
-	return 0x6a1407cd
+	return 0x5c62d151
+}
+
+func (*StarGiftUnique) FlagIndex() int {
+	return 0
 }
 
 func (*StarGiftUnique) ImplementsStarGift() {}
@@ -9209,14 +9392,14 @@ func (*StarGiftAttributeModel) CRC() uint32 {
 func (*StarGiftAttributeModel) ImplementsStarGiftAttribute() {}
 
 type StarGiftAttributeOriginalDetails struct {
-	SenderID    int64 `tl:"flag:0"`
-	RecipientID int64
+	SenderID    Peer `tl:"flag:0"`
+	RecipientID Peer
 	Date        int32
 	Message     *TextWithEntities `tl:"flag:1"`
 }
 
 func (*StarGiftAttributeOriginalDetails) CRC() uint32 {
-	return 0xc02c4f4b
+	return 0xe0bff26c
 }
 
 func (*StarGiftAttributeOriginalDetails) FlagIndex() int {
@@ -10531,12 +10714,16 @@ func (*UpdateGeoLiveViewed) ImplementsUpdate() {}
 
 // A new groupcall was started
 type UpdateGroupCall struct {
-	ChatID int64     // The channel/supergroup where this group call or livestream takes place
-	Call   GroupCall // Info about the group call or livestream
+	ChatID int64 `tl:"flag:0"`
+	Call   GroupCall
 }
 
 func (*UpdateGroupCall) CRC() uint32 {
-	return 0x14b24500
+	return 0x97d64341
+}
+
+func (*UpdateGroupCall) FlagIndex() int {
+	return 0
 }
 
 func (*UpdateGroupCall) ImplementsUpdate() {}
@@ -10829,11 +11016,11 @@ func (*UpdateNotifySettings) ImplementsUpdate() {}
 
 // Contains the current default paid reaction privacy, see here » for more info.
 type UpdatePaidReactionPrivacy struct {
-	Private bool // Whether paid reaction privacy is enabled or disabled.
+	Private PaidReactionPrivacy // Whether paid reaction privacy is enabled or disabled.
 }
 
 func (*UpdatePaidReactionPrivacy) CRC() uint32 {
-	return 0x51ca7aec
+	return 0x8b725fce
 }
 
 func (*UpdatePaidReactionPrivacy) ImplementsUpdate() {}
@@ -11323,8 +11510,8 @@ func (*UpdateSmsJob) CRC() uint32 {
 func (*UpdateSmsJob) ImplementsUpdate() {}
 
 type UpdateStarGiftUpgraded struct {
-	Gift   *UserStarGift
-	ToGift *UserStarGift
+	Gift   *SavedStarGift
+	ToGift *SavedStarGift
 }
 
 func (*UpdateStarGiftUpgraded) CRC() uint32 {
@@ -11798,10 +11985,11 @@ type UserObj struct {
 	ProfileColor          *PeerColor           `tl:"flag2:9"`
 	BotActiveUsers        int32                `tl:"flag2:12"`
 	BotVerificationIcon   int64                `tl:"flag2:14"`
+	SendPaidMessagesStars int64                `tl:"flag2:15"`
 }
 
 func (*UserObj) CRC() uint32 {
-	return 0x4b46c37e
+	return 0x20b1422
 }
 
 func (*UserObj) FlagIndex() int {
@@ -12079,25 +12267,26 @@ type WebPage interface {
 
 // Webpage preview
 type WebPageObj struct {
-	HasLargeMedia bool               `tl:"flag:13,encoded_in_bitflags"` // Whether the size of the media in the preview can be changed.
-	ID            int64              // Preview ID
-	URL           string             // URL of previewed webpage
-	DisplayURL    string             // Webpage URL to be displayed to the user
-	Hash          int32              // Hash used for caching, for more info click here
-	Type          string             `tl:"flag:0"`  // Type of the web page. Can be: article, photo, audio, video, document, profile, app, or something else,.
-	SiteName      string             `tl:"flag:1"`  // Short name of the site (e.g., Google Docs, App Store)
-	Title         string             `tl:"flag:2"`  // Title of the content
-	Description   string             `tl:"flag:3"`  // Content description
-	Photo         Photo              `tl:"flag:4"`  // Image representing the content
-	EmbedURL      string             `tl:"flag:5"`  // URL to show in the embedded preview
-	EmbedType     string             `tl:"flag:5"`  // MIME type of the embedded preview, (e.g., text/html or video/mp4)
-	EmbedWidth    int32              `tl:"flag:6"`  // Width of the embedded preview
-	EmbedHeight   int32              `tl:"flag:6"`  // Height of the embedded preview
-	Duration      int32              `tl:"flag:7"`  // Duration of the content, in seconds
-	Author        string             `tl:"flag:8"`  // Author of the content
-	Document      Document           `tl:"flag:9"`  // Preview of the content as a media file
-	CachedPage    *Page              `tl:"flag:10"` // Page contents in instant view format
-	Attributes    []WebPageAttribute `tl:"flag:12"` // Webpage attributes
+	HasLargeMedia   bool `tl:"flag:13,encoded_in_bitflags"`
+	VideoCoverPhoto bool `tl:"flag:14,encoded_in_bitflags"`
+	ID              int64
+	URL             string
+	DisplayURL      string
+	Hash            int32
+	Type            string             `tl:"flag:0"`
+	SiteName        string             `tl:"flag:1"`
+	Title           string             `tl:"flag:2"`
+	Description     string             `tl:"flag:3"`
+	Photo           Photo              `tl:"flag:4"`
+	EmbedURL        string             `tl:"flag:5"`
+	EmbedType       string             `tl:"flag:5"`
+	EmbedWidth      int32              `tl:"flag:6"`
+	EmbedHeight     int32              `tl:"flag:6"`
+	Duration        int32              `tl:"flag:7"`
+	Author          string             `tl:"flag:8"`
+	Document        Document           `tl:"flag:9"`
+	CachedPage      *Page              `tl:"flag:10"`
+	Attributes      []WebPageAttribute `tl:"flag:12"`
 }
 
 func (*WebPageObj) CRC() uint32 {
@@ -12222,6 +12411,16 @@ func (*WebPageAttributeTheme) FlagIndex() int {
 }
 
 func (*WebPageAttributeTheme) ImplementsWebPageAttribute() {}
+
+type WebPageAttributeUniqueStarGift struct {
+	Gift StarGift
+}
+
+func (*WebPageAttributeUniqueStarGift) CRC() uint32 {
+	return 0xcf6f6db8
+}
+
+func (*WebPageAttributeUniqueStarGift) ImplementsWebPageAttribute() {}
 
 type AccountEmailVerified interface {
 	tl.Object
@@ -14457,3 +14656,28 @@ func (*UploadFileCdnRedirect) CRC() uint32 {
 }
 
 func (*UploadFileCdnRedirect) ImplementsUploadFile() {}
+
+type UsersUsers interface {
+	tl.Object
+	ImplementsUsersUsers()
+}
+type UsersUsersObj struct {
+	Users []User
+}
+
+func (*UsersUsersObj) CRC() uint32 {
+	return 0x62d706b8
+}
+
+func (*UsersUsersObj) ImplementsUsersUsers() {}
+
+type UsersUsersSlice struct {
+	Count int32
+	Users []User
+}
+
+func (*UsersUsersSlice) CRC() uint32 {
+	return 0x315a4974
+}
+
+func (*UsersUsersSlice) ImplementsUsersUsers() {}

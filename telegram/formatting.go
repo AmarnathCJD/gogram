@@ -4,6 +4,7 @@ package telegram
 
 import (
 	"bytes"
+	"fmt"
 	"strconv"
 
 	"strings"
@@ -59,6 +60,10 @@ func supportedTag(tag string) bool {
 		return true
 	}
 	return false
+}
+
+func ParseHTMLToTags(htmlStr string) (string, []Tag, error) {
+	return parseHTMLToTags(htmlStr)
 }
 
 func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
@@ -124,6 +129,15 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 
 	// Return the cleaned text string and tag offsets list
 	cleanedText := strings.TrimSpace(textBuf.String())
+	// for any tag if length is 0, remove it
+	var newTagOffsets []Tag
+	for _, tag := range tagOffsets {
+		if tag.Length > 0 {
+			newTagOffsets = append(newTagOffsets, tag)
+		}
+	}
+	tagOffsets = newTagOffsets
+
 	return cleanedText, tagOffsets, nil
 }
 
@@ -204,14 +218,125 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 	return entities
 }
 
+func ParseEntitiesToTags(entities []MessageEntity) []Tag {
+	var tags []Tag
+	for _, entity := range entities {
+		switch entity := entity.(type) {
+		case *MessageEntityBold:
+			tags = append(tags, Tag{Type: "b", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntityItalic:
+			tags = append(tags, Tag{Type: "i", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntityUnderline:
+			tags = append(tags, Tag{Type: "u", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntityStrike:
+			tags = append(tags, Tag{Type: "s", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntitySpoiler:
+			tags = append(tags, Tag{Type: "spoiler", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntityCode:
+			tags = append(tags, Tag{Type: "code", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntityPre:
+			tags = append(tags, Tag{Type: "pre", Length: entity.Length, Offset: entity.Offset, Attrs: map[string]string{"language": entity.Language}})
+		case *MessageEntityURL:
+			tags = append(tags, Tag{Type: "a", Length: entity.Length, Offset: entity.Offset, Attrs: map[string]string{"href": ""}})
+		case *MessageEntityTextURL:
+			tags = append(tags, Tag{Type: "a", Length: entity.Length, Offset: entity.Offset, Attrs: map[string]string{"href": entity.URL}})
+		case *MessageEntityEmail:
+			tags = append(tags, Tag{Type: "a", Length: entity.Length, Offset: entity.Offset, Attrs: map[string]string{"href": "mailto:"}})
+		case *MessageEntityMention:
+			tags = append(tags, Tag{Type: "mention", Length: entity.Length, Offset: entity.Offset})
+		case *MessageEntityBlockquote:
+			tags = append(tags, Tag{Type: "blockquote", Length: entity.Length, Offset: entity.Offset, Attrs: map[string]string{"collapsed": strconv.FormatBool(entity.Collapsed)}})
+		case *MessageEntityCustomEmoji:
+			tags = append(tags, Tag{Type: "emoji", Length: entity.Length, Offset: entity.Offset, Attrs: map[string]string{"id": strconv.FormatInt(entity.DocumentID, 10)}})
+		}
+	}
+	return tags
+}
+
+func InsertTagsIntoText(text string, tags []Tag) string {
+	utf16Text := utf16.Encode([]rune(text))
+	openTags := make(map[int][]Tag)
+	closeTags := make(map[int][]Tag)
+
+	for _, tag := range tags {
+		openTags[int(tag.Offset)] = append(openTags[int(tag.Offset)], tag)
+		closeTags[int(tag.Offset+tag.Length)] = append(closeTags[int(tag.Offset+tag.Length)], tag)
+	}
+
+	result := make([]uint16, 0, len(utf16Text)*2)
+	for i := 0; i < len(utf16Text); i++ {
+		if opening, exists := openTags[i]; exists {
+			for _, tag := range opening {
+				var utf16tag []uint16
+
+				if len(tag.Attrs) > 0 {
+					attrStr := ""
+					for k, v := range tag.Attrs {
+						attrStr += fmt.Sprintf(" %s=\"%s\"", k, v)
+					}
+
+					utf16tag = utf16.Encode([]rune(fmt.Sprintf("<%s%s>", tag.Type, attrStr)))
+				} else {
+					utf16tag = utf16.Encode([]rune(fmt.Sprintf("<%s>", tag.Type)))
+				}
+
+				result = append(result, utf16tag...)
+			}
+		}
+		result = append(result, utf16Text[i])
+
+		if closing, exists := closeTags[i+1]; exists {
+			for j := len(closing) - 1; j >= 0; j-- {
+				utf16tag := utf16.Encode([]rune(fmt.Sprintf("</%s>", closing[j].Type)))
+				result = append(result, utf16tag...)
+			}
+		}
+	}
+	return string(utf16.Decode(result))
+}
+
+func ToMarkdown(htmlStr string) string {
+	replacer := strings.NewReplacer(
+		"<b>", "**",
+		"</b>", "**",
+		"<strong>", "**",
+		"</strong>", "**",
+		"<i>", "__",
+		"</i>", "__",
+		"<em>", "__",
+		"</em>", "__",
+		"<u>", "--",
+		"</u>", "--",
+		"<s>", "~~",
+		"</s>", "~~",
+		"<code>", "`",
+		"</code>", "`",
+		"<pre>", "```",
+		"</pre>", "```",
+		"<a href=\"", "[",
+		"\">", "](",
+		"</a>", ")",
+		"<spoiler>", "||",
+		"</spoiler>", "||",
+		"<blockquote>", "> ",
+		"<blockquote collapsed=\"false\">", "> ",
+		"</blockquote>", "",
+		"<blockquote collapsed=\"true\">", ">> ",
+		"</blockquote>", "",
+		"<emoji id=\"", "::",
+		"\">", "::",
+	)
+	return replacer.Replace(htmlStr)
+}
+
 func HTMLToMarkdownV2(markdown string) string {
 	markdown, placeholders := handleEscapes(markdown)
 	markdown = convertSyntax(markdown, "**", "<b>", "</b>")
-	markdown = convertSyntax(markdown, "_", "<i>", "</i>")
-	markdown = convertSyntax(markdown, "*", "<i>", "</i>")
+	markdown = convertSyntax(markdown, "__", "<i>", "</i>")
+	markdown = convertSyntax(markdown, "__", "<i>", "</i>")
 	markdown = convertSyntax(markdown, "!!", "<u>", "</u>")
-	markdown = convertSyntax(markdown, "__", "<u>", "</u>")
-	markdown = convertSyntax(markdown, "~", "<s>", "</s>")
+	markdown = convertSyntax(markdown, "--", "<u>", "</u>")
+	markdown = convertSyntax(markdown, "~~", "<s>", "</s>")
 	markdown = convertSyntax(markdown, "||", "<spoiler>", "</spoiler>")
 	markdown = convertCodeSyntax(markdown)
 	markdown = convertCodeBlockSyntax(markdown)

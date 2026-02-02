@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"time"
 
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
@@ -21,6 +22,9 @@ import (
 // https://core.telegram.org/mtproto/auth_key
 func (m *MTProto) makeAuthKey() error {
 	m.serviceModeActivated = true
+
+	maxRetries := 5
+nonceCreate:
 	nonceFirst := tl.RandomInt128()
 	var (
 		res *objects.ResPQ
@@ -38,8 +42,14 @@ func (m *MTProto) makeAuthKey() error {
 	}
 
 	if nonceFirst.Cmp(res.Nonce.Int) != 0 {
-		return fmt.Errorf("reqPQ: nonce mismatch")
+		if maxRetries > 0 {
+			maxRetries--
+			time.Sleep(20 * time.Millisecond)
+			goto nonceCreate
+		}
+		return fmt.Errorf("reqPQ: nonce mismatch (%v, %v)", nonceFirst, res.Nonce)
 	}
+
 	found := false
 	for _, b := range res.Fingerprints {
 		if m.cdn {
@@ -104,7 +114,7 @@ func (m *MTProto) makeAuthKey() error {
 	// check of hash, random bytes trail removing occurs in this func already
 	decodedMessage, err := ige.DecryptMessageWithTempKeys(dhParams.EncryptedAnswer, nonceSecond.Int, nonceServer.Int)
 	if err != nil {
-		m.Logger.Warn(err.Error() + " - <retrying>")
+		m.Logger.Debug(err.Error() + " - retrying")
 		return m.makeAuthKey()
 	}
 
@@ -187,7 +197,7 @@ func (m *MTProto) makeAuthKey() error {
 	m.serviceModeActivated = false
 	m.encrypted = true
 	if err := m.SaveSession(m.memorySession); err != nil {
-		m.Logger.Error("Saving session: ", err)
+		m.Logger.Error("saving session: ", err)
 	}
 	return err
 }

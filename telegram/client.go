@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -27,71 +28,77 @@ import (
 
 const (
 	// The Initial DC to connect to, before auth
-	DefaultDataCenter = 4
+	DefaultDataCenter         = 4
+	CleanExportedSendersDelay = 5 * time.Minute
 )
 
 type clientData struct {
-	appID         int32
-	appHash       string
-	deviceModel   string
-	systemVersion string
-	appVersion    string
-	langCode      string
-	parseMode     string
-	logLevel      utils.LogLevel
-	botAcc        bool
-	me            *UserObj
+	appID            int32
+	appHash          string
+	deviceModel      string
+	systemVersion    string
+	appVersion       string
+	langCode         string
+	parseMode        string
+	logLevel         utils.LogLevel
+	sleepThresholdMs int
+	botAcc           bool
+	me               *UserObj
 }
 
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
-	Cache      *CACHE
-	clientData clientData
-	dispatcher *UpdateDispatcher
-	wg         sync.WaitGroup
-	stopCh     chan struct{}
-	Log        *utils.Logger
+	Cache        *CACHE
+	clientData   clientData
+	dispatcher   *UpdateDispatcher
+	wg           sync.WaitGroup
+	stopCh       chan struct{}
+	exSenders    *ExSenders
+	exportedKeys map[int]*AuthExportedAuthorization
+	Log          *utils.Logger
 }
 
 type DeviceConfig struct {
-	DeviceModel   string
-	SystemVersion string
-	AppVersion    string
-	LangCode      string
+	DeviceModel   string // The device model to use
+	SystemVersion string // The version of the system
+	AppVersion    string // The version of the app
+	LangCode      string // The language code
 }
 
 type ClientConfig struct {
-	AppID         int32
-	AppHash       string
-	DeviceConfig  DeviceConfig
-	Session       string
-	StringSession string
-	SessionName   string
-	ParseMode     string
-	MemorySession bool
-	DataCenter    int
-	IpAddr        string
-	PublicKeys    []*rsa.PublicKey
-	NoUpdates     bool
-	DisableCache  bool
-	TestMode      bool
-	LogLevel      utils.LogLevel
-	Logger        *utils.Logger
-	Proxy         *url.URL
-	ForceIPv6     bool
-	Cache         *CACHE
-	TransportMode string
-	FloodHandler  func(err error) bool
-	ErrorHandler  func(err error)
+	AppID            int32                // The App ID from my.telegram.org
+	AppHash          string               // The App Hash from my.telegram.org
+	DeviceConfig     DeviceConfig         // Device configuration
+	Session          string               // The session file to use
+	StringSession    string               // The string session to use
+	SessionName      string               // The name of the session
+	ParseMode        string               // The parse mode to use (HTML, Markdown)
+	MemorySession    bool                 // Don't save the session to a file
+	DataCenter       int                  // The data center to connect to (default: 4)
+	IpAddr           string               // The IP address of the DC to connect to
+	PublicKeys       []*rsa.PublicKey     // The public keys to verify the server with
+	NoUpdates        bool                 // Don't handle updates
+	DisableCache     bool                 // Disable caching peer and chat information
+	TestMode         bool                 // Use the test data centers
+	LogLevel         utils.LogLevel       // The library log level
+	Logger           *utils.Logger        // The logger to use
+	Proxy            *url.URL             // The proxy to use (SOCKS5, HTTP)
+	ForceIPv6        bool                 // Force to use IPv6
+	Cache            *CACHE               // The cache to use
+	CacheSenders     bool                 // cache the exported file op sender (TODO: Stabilize this)
+	TransportMode    string               // The transport mode to use (Abridged, Intermediate, Full)
+	SleepThresholdMs int                  // The threshold in milliseconds to sleep before flood
+	FloodHandler     func(err error) bool // The flood handler to use
+	ErrorHandler     func(err error)      // The error handler to use
 }
 
 type Session struct {
-	Key      []byte `json:"key,omitempty"`
-	Hash     []byte `json:"hash,omitempty"`
-	Salt     int64  `json:"salt,omitempty"`
-	Hostname string `json:"hostname,omitempty"`
-	AppID    int32  `json:"app_id,omitempty"`
+	Key      []byte `json:"key,omitempty"`      // AUTH_KEY
+	Hash     []byte `json:"hash,omitempty"`     // AUTH_KEY_HASH (SHA1 of AUTH_KEY)
+	Salt     int64  `json:"salt,omitempty"`     // SERVER_SALT
+	Hostname string `json:"hostname,omitempty"` // HOSTNAME (IP address of the DC)
+	AppID    int32  `json:"app_id,omitempty"`   // APP_ID
 }
 
 func (s *Session) Encode() string {
@@ -112,7 +119,9 @@ func NewClient(config ClientConfig) (*Client, error) {
 		client.Log.Prefix = "gogram " + getLogPrefix("client", config.SessionName)
 		config.LogLevel = config.Logger.Lev()
 	} else {
+		config.LogLevel = getValue(config.LogLevel, LogInfo)
 		client.Log = utils.NewLogger("gogram " + getLogPrefix("client", config.SessionName))
+		client.Log.SetLevel(config.LogLevel)
 	}
 
 	config = client.cleanClientConfig(config)
@@ -142,6 +151,8 @@ func NewClient(config ClientConfig) (*Client, error) {
 	if err := client.clientWarnings(config); err != nil {
 		return nil, err
 	}
+
+	client.exSenders = NewExSenders()
 
 	return client, nil
 }
@@ -246,6 +257,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.langCode = getValue(cnf.DeviceConfig.LangCode, "en")
 	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
 	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
+	c.clientData.sleepThresholdMs = getValue(cnf.SleepThresholdMs, 0)
 
 	if cnf.LogLevel == LogDebug {
 		c.Log.SetLevel(LogDebug)
@@ -322,7 +334,7 @@ func (c *Client) Conn() (*Client, error) {
 
 // Returns true if the client is connected to telegram servers
 func (c *Client) IsConnected() bool {
-	return c.MTProto.TcpActive()
+	return c.MTProto.IsTcpActive()
 }
 
 func (c *Client) Start() error {
@@ -378,10 +390,6 @@ func (c *Client) SetAppHash(appHash string) {
 	c.clientData.appHash = appHash
 }
 
-// func (c *Client) SetTcpConnection(conn *net.TCPConn) {
-// 	c.MTProto.SetTcpConnection(conn)
-// }
-
 func (c *Client) Me() *UserObj {
 	if c.clientData.me == nil {
 		me, err := c.GetMe()
@@ -394,17 +402,79 @@ func (c *Client) Me() *UserObj {
 	return c.clientData.me
 }
 
+type ExSenders struct {
+	sync.Mutex
+	senders     map[int][]*ExSender
+	cleanupDone chan struct{}
+}
+
+type ExSender struct {
+	*mtproto.MTProto
+	lastUsed time.Time
+}
+
+func NewExSenders() *ExSenders {
+	es := &ExSenders{
+		senders: make(map[int][]*ExSender),
+	}
+	go es.cleanupLoop()
+	return es
+}
+
+func (es *ExSenders) cleanupLoop() {
+	ticker := time.NewTicker(30 * time.Minute)
+	es.cleanupDone = make(chan struct{})
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			es.cleanupIdleSenders()
+		case <-es.cleanupDone:
+			return
+		}
+	}
+}
+
+func (es *ExSenders) cleanupIdleSenders() {
+	es.Lock()
+	defer es.Unlock()
+
+	for _, senders := range es.senders {
+		for i, sender := range senders {
+			if time.Since(sender.lastUsed) > 30*time.Minute {
+				sender.Terminate()
+				senders[i] = nil
+			}
+		}
+	}
+
+	// Remove nil senders
+	for dcID, senders := range es.senders {
+		var newSenders []*ExSender
+		for _, sender := range senders {
+			if sender != nil {
+				newSenders = append(newSenders, sender)
+			}
+		}
+		es.senders[dcID] = newSenders
+	}
+}
+
+func (es *ExSenders) Close() {
+	close(es.cleanupDone)
+}
+
 // CreateExportedSender creates a new exported sender for the given DC
-func (c *Client) CreateExportedSender(dcID int, cdn ...bool) (*mtproto.MTProto, error) {
-	const retryLimit = 1 // Retry only once
+func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
+	const retryLimit = 3 // Retry only once
 	var lastError error
 
-	for retry := 0; retry <= retryLimit; retry++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
+	var authParam = getVariadic(authParams, &AuthExportedAuthorization{})
 
+	for retry := 0; retry <= retryLimit; retry++ {
 		c.Log.Debug("creating exported sender for DC ", dcID)
-		if len(cdn) > 0 && cdn[0] {
+		if cdn {
 			if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
 				cdnKeysResp, err := c.HelpGetCdnConfig()
 				if err != nil {
@@ -418,7 +488,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn ...bool) (*mtproto.MTProto, 
 			}
 		}
 
-		exported, err := c.MTProto.ExportNewSender(dcID, true, cdn...)
+		exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
 		if err != nil {
 			lastError = errors.Wrap(err, "exporting new sender")
 			c.Log.Error("error exporting new sender: ", lastError)
@@ -436,12 +506,22 @@ func (c *Client) CreateExportedSender(dcID int, cdn ...bool) (*mtproto.MTProto, 
 		}
 
 		if c.MTProto.GetDC() != exported.GetDC() {
-			c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
-			auth, err := c.AuthExportAuthorization(int32(exported.GetDC()))
-			if err != nil {
-				lastError = errors.Wrap(err, "exporting auth")
-				c.Log.Error("error exporting auth: ", lastError)
-				continue
+			var auth *AuthExportedAuthorization
+			if authParam.ID != 0 {
+				auth = &AuthExportedAuthorization{
+					ID:    authParam.ID,
+					Bytes: authParam.Bytes,
+				}
+			} else {
+				c.Log.Info(fmt.Sprintf("exporting auth for data-center %d", exported.GetDC()))
+				auth, err = c.AuthExportAuthorization(int32(exported.GetDC()))
+				if err != nil {
+					lastError = errors.Wrap(err, "exporting auth")
+					c.Log.Error("error exporting auth: ", lastError)
+					continue
+				}
+
+				c.exportedKeys[dcID] = auth
 			}
 
 			initialReq.Query = &AuthImportAuthorizationParams{
@@ -451,18 +531,30 @@ func (c *Client) CreateExportedSender(dcID int, cdn ...bool) (*mtproto.MTProto, 
 		}
 
 		c.Log.Debug("sending initial request...")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
 		_, err = exported.MakeRequestCtx(ctx, &InvokeWithLayerParams{
 			Layer: ApiVersion,
 			Query: initialReq,
 		})
+		c.Log.Debug(fmt.Sprintf("initial request for exported sender %d sent", dcID))
 
 		if err != nil {
+			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") {
+				authParam.ID = 0
+				c.Log.Debug("auth bytes invalid, re-exporting auth")
+				continue
+			}
+
 			lastError = errors.Wrap(err, "making initial request")
 			if retry < retryLimit {
 				c.Log.Debug(fmt.Sprintf("error making initial request, retrying (%d/%d)", retry+1, retryLimit))
 			} else {
-				c.Log.Error("error making initial request, retry limit reached")
+				c.Log.Error(fmt.Sprintf("exported sender: initialRequest: %s", lastError.Error()))
 			}
+
+			time.Sleep(200 * time.Millisecond)
 			continue
 		}
 
@@ -606,7 +698,7 @@ func (c *Client) Idle() {
 		<-sigchan
 		c.Stop()
 	}()
-	go func() { defer c.wg.Done(); <-c.stopCh }()
+	go func() { defer c.wg.Done(); <-c.stopCh; c.exSenders.Close() }()
 	c.wg.Wait()
 }
 
@@ -651,4 +743,38 @@ func (c *Client) W(obj any, err error) any {
 // return only the error, omitting the object
 func (c *Client) E(obj any, err error) error {
 	return err
+}
+
+type RpcError struct {
+	Code        int32
+	Message     string
+	Description string
+}
+
+func (r *RpcError) Error() string {
+	return fmt.Sprintf("%s (%d)", r.Message, r.Code)
+}
+
+func (c *Client) ToRpcError(err error) *RpcError {
+	regex := regexp.MustCompile(`\[(.*)\] (.*) \(code (\d+)\)`)
+	matches := regex.FindStringSubmatch(err.Error())
+	if len(matches) != 4 {
+		return nil
+	}
+
+	code, _ := strconv.Atoi(matches[3])
+	return &RpcError{
+		Code:        int32(code),
+		Message:     matches[1],
+		Description: matches[2],
+	}
+}
+
+func (c *Client) MatchRPCError(err error, message string) bool {
+	rpcErr := c.ToRpcError(err)
+	if rpcErr == nil {
+		return false
+	}
+
+	return rpcErr.Message == message
 }

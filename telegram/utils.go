@@ -25,6 +25,11 @@ type mimeTypeManager struct {
 	mimeTypes map[string]string
 }
 
+// type ExportedAuthParams struct {
+// 	ID    int64
+// 	Bytes []byte
+// }
+
 func (m *mimeTypeManager) addMime(ext, mime string) {
 	m.mimeTypes[ext] = mime
 }
@@ -96,41 +101,41 @@ func (m *mimeTypeManager) MIME(filePath string) (string, bool) {
 	return mime, m.IsPhoto(mime)
 }
 
-var mimeTypes = &mimeTypeManager{
+var MimeTypes = &mimeTypeManager{
 	mimeTypes: make(map[string]string),
 }
 
 func init() {
-	mimeTypes.addMime(".png", "image/png")
-	mimeTypes.addMime(".jpg", "image/jpeg")
-	mimeTypes.addMime(".jpeg", "image/jpeg")
+	MimeTypes.addMime(".png", "image/png")
+	MimeTypes.addMime(".jpg", "image/jpeg")
+	MimeTypes.addMime(".jpeg", "image/jpeg")
 
-	mimeTypes.addMime(".webp", "image/webp")
-	mimeTypes.addMime(".gif", "image/gif")
-	mimeTypes.addMime(".bmp", "image/bmp")
-	mimeTypes.addMime(".tga", "image/x-tga")
-	mimeTypes.addMime(".tiff", "image/tiff")
-	mimeTypes.addMime(".psd", "image/vnd.adobe.photoshop")
+	MimeTypes.addMime(".webp", "image/webp")
+	MimeTypes.addMime(".gif", "image/gif")
+	MimeTypes.addMime(".bmp", "image/bmp")
+	MimeTypes.addMime(".tga", "image/x-tga")
+	MimeTypes.addMime(".tiff", "image/tiff")
+	MimeTypes.addMime(".psd", "image/vnd.adobe.photoshop")
 
-	mimeTypes.addMime(".mp4", "video/mp4")
-	mimeTypes.addMime(".mov", "video/quicktime")
-	mimeTypes.addMime(".avi", "video/avi")
-	mimeTypes.addMime(".flv", "video/x-flv")
-	mimeTypes.addMime(".m4v", "video/x-m4v")
-	mimeTypes.addMime(".mkv", "video/x-matroska")
-	mimeTypes.addMime(".webm", "video/webm")
-	mimeTypes.addMime(".3gp", "video/3gpp")
+	MimeTypes.addMime(".mp4", "video/mp4")
+	MimeTypes.addMime(".mov", "video/quicktime")
+	MimeTypes.addMime(".avi", "video/avi")
+	MimeTypes.addMime(".flv", "video/x-flv")
+	MimeTypes.addMime(".m4v", "video/x-m4v")
+	MimeTypes.addMime(".mkv", "video/x-matroska")
+	MimeTypes.addMime(".webm", "video/webm")
+	MimeTypes.addMime(".3gp", "video/3gpp")
 
-	mimeTypes.addMime(".mp3", "audio/mpeg")
-	mimeTypes.addMime(".m4a", "audio/m4a")
-	mimeTypes.addMime(".aac", "audio/aac")
-	mimeTypes.addMime(".ogg", "audio/ogg")
-	mimeTypes.addMime(".flac", "audio/x-flac")
-	mimeTypes.addMime(".opus", "audio/opus")
-	mimeTypes.addMime(".wav", "audio/wav")
-	mimeTypes.addMime(".alac", "audio/x-alac")
+	MimeTypes.addMime(".mp3", "audio/mpeg")
+	MimeTypes.addMime(".m4a", "audio/m4a")
+	MimeTypes.addMime(".aac", "audio/aac")
+	MimeTypes.addMime(".ogg", "audio/ogg")
+	MimeTypes.addMime(".flac", "audio/x-flac")
+	MimeTypes.addMime(".opus", "audio/opus")
+	MimeTypes.addMime(".wav", "audio/wav")
+	MimeTypes.addMime(".alac", "audio/x-alac")
 
-	mimeTypes.addMime(".tgs", "application/x-tgsticker")
+	MimeTypes.addMime(".tgs", "application/x-tgsticker")
 }
 
 var (
@@ -138,7 +143,7 @@ var (
 	regexCode       = regexp.MustCompile(`code (\d+)`)
 )
 
-func getErrorCode(err error) (int, int) {
+func GetErrorCode(err error) (int, int) {
 	datacenter := 0
 	code := 0
 	if err == nil {
@@ -161,7 +166,7 @@ var (
 	regexFloodWaitPremium = regexp.MustCompile(`FLOOD_PREMIUM_WAIT_(\d+)`)
 )
 
-func getFloodWait(err error) int {
+func GetFloodWait(err error) int {
 	if err == nil {
 		return 0
 	}
@@ -180,15 +185,23 @@ func getFloodWait(err error) int {
 	return 0
 }
 
-func matchError(err error, str string) bool {
+func MatchError(err error, str string) bool {
 	if err != nil {
 		return strings.Contains(err.Error(), str)
 	}
 	return false
 }
 
+type FileLocationOptions struct {
+	ThumbOnly bool
+	ThumbSize PhotoSize
+	Video     bool
+}
+
 // GetFileLocation returns file location, datacenter, file size and file name
-func GetFileLocation(file any) (InputFileLocation, int32, int64, string, error) {
+func GetFileLocation(file any, opts ...FileLocationOptions) (InputFileLocation, int32, int64, string, error) {
+	var opt = getVariadic(opts, FileLocationOptions{})
+
 	var (
 		location   any
 		dataCenter int32 = 4
@@ -237,6 +250,21 @@ mediaMessageSwitch:
 	}
 	switch l := location.(type) {
 	case *DocumentObj:
+		if opt.ThumbOnly {
+			var selectedThumb = l.Thumbs[0]
+			if opt.ThumbSize != nil {
+				selectedThumb = opt.ThumbSize
+			}
+
+			size, sizeType := getPhotoSize(selectedThumb)
+			return &InputDocumentFileLocation{
+				ID:            l.ID,
+				AccessHash:    l.AccessHash,
+				FileReference: l.FileReference,
+				ThumbSize:     sizeType,
+			}, l.DcID, size, GetFileName(l), nil
+		}
+
 		return &InputDocumentFileLocation{
 			ID:            l.ID,
 			AccessHash:    l.AccessHash,
@@ -244,7 +272,27 @@ mediaMessageSwitch:
 			ThumbSize:     "",
 		}, l.DcID, l.Size, GetFileName(l), nil
 	case *PhotoObj:
-		size, sizeType := getPhotoSize(l.Sizes[len(l.Sizes)-1])
+		if len(l.VideoSizes) > 0 && opt.Video {
+			var selectedThumb = l.VideoSizes[len(l.VideoSizes)-1]
+			size, sizeType := getVideoSize(selectedThumb)
+			return &InputPhotoFileLocation{
+				ID:            l.ID,
+				AccessHash:    l.AccessHash,
+				FileReference: l.FileReference,
+				ThumbSize:     sizeType,
+			}, l.DcID, size, GetFileName(l, true), nil
+		}
+
+		var selectedThumb = l.Sizes[len(l.Sizes)-1]
+		if len(opts) > 0 && opts[0].ThumbOnly {
+			if opts[0].ThumbSize != nil {
+				selectedThumb = opts[0].ThumbSize
+			} else {
+				selectedThumb = l.Sizes[0]
+			}
+		}
+
+		size, sizeType := getPhotoSize(selectedThumb)
 		return &InputPhotoFileLocation{
 			ID:            l.ID,
 			AccessHash:    l.AccessHash,
@@ -278,6 +326,15 @@ func getPhotoSize(sizes PhotoSize) (int64, string) {
 	}
 }
 
+func getVideoSize(sizes VideoSize) (int64, string) {
+	switch s := sizes.(type) {
+	case *VideoSizeObj:
+		return int64(s.Size), s.Type
+	}
+
+	return 0, ""
+}
+
 func getMax(a []int32) int32 {
 	if len(a) == 0 {
 		return 0
@@ -308,7 +365,9 @@ func sanitizePath(path string, filename string) string {
 //	 *MessageMedia
 //	 *Document
 //	 *Photo
-func GetFileName(f any) string {
+func GetFileName(f any, video ...bool) string {
+	var isVid = getVariadic(video, false)
+
 	getDocName := func(doc *DocumentObj) string {
 		var name string
 		for _, attr := range doc.Attributes {
@@ -334,7 +393,7 @@ func GetFileName(f any) string {
 		}
 
 		if doc.MimeType != "" {
-			return fmt.Sprintf("file_%s_%d%s", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000), mimeTypes.Ext(doc.MimeType))
+			return fmt.Sprintf("file_%s_%d%s", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000), MimeTypes.Ext(doc.MimeType))
 		}
 		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 	}
@@ -343,12 +402,18 @@ func GetFileName(f any) string {
 	case *MessageMediaDocument:
 		return getDocName(f.Document.(*DocumentObj))
 	case *MessageMediaPhoto:
+		if isVid {
+			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		}
 		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 	case *MessageMediaContact:
 		return fmt.Sprintf("contact_%s_%d.vcf", f.FirstName, rand.Intn(1000))
 	case *DocumentObj:
 		return getDocName(f)
 	case *PhotoObj:
+		if isVid {
+			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
+		}
 		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 	case *InputPeerPhotoFileLocation:
 		return fmt.Sprintf("profile_photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
@@ -392,7 +457,7 @@ func getFileExt(f any) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
 		doc := f.Document.(*DocumentObj)
-		if e := mimeTypes.Ext(doc.MimeType); e != "" {
+		if e := MimeTypes.Ext(doc.MimeType); e != "" {
 			return e
 		}
 		for _, attr := range doc.Attributes {
@@ -531,7 +596,7 @@ func getInlineDocumentType(mimeType string, voiceNote bool) string {
 	}
 }
 
-func sizetoHuman(size int64) string {
+func SizetoHuman(size int64) string {
 	if size < 1024 {
 		return fmt.Sprintf("%d B", size)
 	} else if size < 1024*1024 {

@@ -94,7 +94,7 @@ If you'd like to support Gogram, you can consider:
   <li><strong>up-to-date</strong>: 🔄 gogram is always in sync with the latest telegram api changes and additions (<code>tl-parser</code> is used to generate the api layer).</li>
 </ul>
 
-#### Current Layer - **196** (Updated on 2024-12-29)
+#### Current Layer - **200** (Updated on 2025-03-01)
 
 ## doing stuff
 
@@ -171,11 +171,11 @@ For more examples, check the **[examples](examples)** directory.
 - [x] html, markdown parsing, friendly methods
 - [x] support for flag2.0, layer 147
 - [x] webrtc calls support
-- [ ] documentation for all methods
+- [x] documentation for all methods
 - [x] stabilize file uploading
 - [x] stabilize file downloading
 - [ ] secret chats support
-- [ ] cdn dc support
+- [x] cdn dc support
 - [x] reply markup builder helpers
 - [x] reimplement file downloads (more speed + less cpu usage)
 

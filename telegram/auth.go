@@ -84,7 +84,7 @@ func (c *Client) LoginBot(botToken string) error {
 		c.clientData.botAcc = true
 	}
 	if au, e := c.IsAuthorized(); !au {
-		if dc, code := getErrorCode(e); code == 303 {
+		if dc, code := GetErrorCode(e); code == 303 {
 			err = c.SwitchDc(dc)
 			if err != nil {
 				return err
@@ -108,7 +108,7 @@ func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
 			return c.SendCode(phoneNumber)
 		}
 
-		if dc, code := getErrorCode(err); code == 303 {
+		if dc, code := GetErrorCode(err); code == 303 {
 			err = c.SwitchDc(dc)
 			if err != nil {
 				return "", err
@@ -214,16 +214,18 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 	for {
 		opts.Code, err = opts.CodeCallback()
 
-		if opts.Code != "" {
+		if opts.Code == "cancel" || opts.Code == "exit" {
+			return nil, errors.New("login canceled")
+		} else if opts.Code != "" {
 			authResp, err := c.AuthSignIn(phoneNumber, opts.CodeHash, opts.Code, nil)
 			if err == nil {
 				return authResp, nil
 			}
 
-			if matchError(err, "PHONE_CODE_INVALID") {
+			if MatchError(err, "PHONE_CODE_INVALID") {
 				c.Log.Error(errors.Wrap(err, "invalid phone code"))
 				continue
-			} else if matchError(err, "SESSION_PASSWORD_NEEDED") {
+			} else if MatchError(err, "SESSION_PASSWORD_NEEDED") {
 			acceptPasswordInput:
 				if opts.Password == "" {
 					for {
@@ -256,19 +258,18 @@ func codeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions) (AuthAut
 				_, err = c.AuthCheckPassword(inputPassword)
 				if err != nil {
 					if strings.Contains(err.Error(), "PASSWORD_HASH_INVALID") {
-						fmt.Println("Password is incorrect, please try again!")
+						opts.Password = ""
+						fmt.Println("password is incorrect, please try again!")
 						goto acceptPasswordInput
 					}
 					return nil, err
 				}
 				break
-			} else if matchError(err, "The code is valid but no user with the given number") {
+			} else if MatchError(err, "The code is valid but no user with the given number") {
 				return nil, errors.New("SignUp using official Telegram app is required")
 			} else {
 				return nil, err
 			}
-		} else if opts.Code == "cancel" || opts.Code == "exit" {
-			return nil, errors.New("login canceled")
 		} else {
 			if err, ok := err.(syscall.Errno); ok && err == syscall.EINTR {
 				return nil, errors.New("login canceled")
@@ -506,7 +507,7 @@ func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool
 	})
 
 	if err != nil {
-		if matchError(err, "EMAIL_UNCONFIRMED") {
+		if MatchError(err, "EMAIL_UNCONFIRMED") {
 			if opt.EmailCodeCallback == nil {
 				return false, errors.New("email_code_callback is nil")
 			}

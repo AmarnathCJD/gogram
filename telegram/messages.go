@@ -7,34 +7,36 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/amarnathcjd/gogram"
 	"github.com/pkg/errors"
 )
 
 type SendOptions struct {
-	Attributes      []DocumentAttribute `json:"attributes,omitempty"`
-	MimeType        string              `json:"mime_type,omitempty"`
-	Caption         any                 `json:"caption,omitempty"`
-	ClearDraft      bool                `json:"clear_draft,omitempty"`
-	Entities        []MessageEntity     `json:"entities,omitempty"`
-	FileName        string              `json:"file_name,omitempty"`
-	ForceDocument   bool                `json:"force_document,omitempty"`
-	InvertMedia     bool                `json:"invert_media,omitempty"`
-	LinkPreview     bool                `json:"link_preview,omitempty"`
-	Media           any                 `json:"media,omitempty"`
-	NoForwards      bool                `json:"no_forwards,omitempty"`
-	ParseMode       string              `json:"parse_mode,omitempty"`
-	ReplyID         int32               `json:"reply_id,omitempty"`
-	ReplyMarkup     ReplyMarkup         `json:"reply_markup,omitempty"`
-	ScheduleDate    int32               `json:"schedule_date,omitempty"`
-	SendAs          any                 `json:"send_as,omitempty"`
-	Silent          bool                `json:"silent,omitempty"`
-	Thumb           any                 `json:"thumb,omitempty"`
-	TTL             int32               `json:"ttl,omitempty"`
-	Spoiler         bool                `json:"spoiler,omitempty"`
-	ProgressManager *ProgressManager    `json:"-"`
-	UploadThreads   int                 `json:"-"`
-	Effect          int64               `json:"effect,omitempty"`
-	Timeouts        int32               `json:"timeouts,omitempty"`
+	Attributes      []DocumentAttribute // attributes of the file
+	MimeType        string              // mime type of the file
+	Caption         any                 // caption for the media (takes array of strings or a NewMessage)
+	ClearDraft      bool                // to clear the draft after sending
+	Entities        []MessageEntity     // message formatting entities
+	FileName        string              // file name to be used
+	ForceDocument   bool                // to force the file to be sent as a document
+	InvertMedia     bool                // show media below the caption
+	LinkPreview     bool                // to enable link preview
+	Media           any                 // media to be sent (e.g., photo, video, document)
+	NoForwards      bool                // to disable forwarding (restrict saving)
+	ParseMode       string              // parse mode for the caption (markdown or html)
+	ReplyID         int32               // reply to message ID
+	TopicID         int32               // topic ID for the message to be sent
+	ReplyMarkup     ReplyMarkup         // keyboard to send with the message
+	ScheduleDate    int32               // schedule date for the message
+	SendAs          any                 // to send the message as a different peer
+	Silent          bool                // to send the message silently
+	Thumb           any                 // thumbnail of the file
+	TTL             int32               // time to live for the file (in seconds)
+	Spoiler         bool                // to send the file as a spoiler message
+	ProgressManager *ProgressManager    // progress manager for uploading
+	UploadThreads   int                 // number of worker threads to use for uploading
+	Effect          int64               // effect ID for the media (e.g., animations)
+	Timeouts        int32               // timeouts for conversations (m.Ask())
 }
 
 // SendMessage sends a message to a specified peer using the Telegram API method messages.sendMessage.
@@ -102,6 +104,17 @@ func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMes
 }
 
 func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageEntity, sendAs InputPeer, opt *SendOptions) (*NewMessage, error) {
+	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
+	if opt.ReplyID != 0 {
+		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	} else {
+		if opt.TopicID != 0 && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	}
+
 	updateResp, err := c.MessagesSendMessage(&MessagesSendMessageParams{
 		NoWebpage:              !opt.LinkPreview,
 		Silent:                 opt.Silent,
@@ -111,16 +124,14 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 		UpdateStickersetsOrder: false,
 		InvertMedia:            opt.InvertMedia,
 		Peer:                   Peer,
-		ReplyTo: &InputReplyToMessage{
-			ReplyToMsgID: opt.ReplyID,
-		},
-		Message:      Message,
-		RandomID:     GenRandInt(),
-		ReplyMarkup:  opt.ReplyMarkup,
-		Entities:     entities,
-		ScheduleDate: opt.ScheduleDate,
-		SendAs:       sendAs,
-		Effect:       opt.Effect,
+		ReplyTo:                replyTo,
+		Message:                Message,
+		RandomID:               GenRandInt(),
+		ReplyMarkup:            opt.ReplyMarkup,
+		Entities:               entities,
+		ScheduleDate:           opt.ScheduleDate,
+		SendAs:                 sendAs,
+		Effect:                 opt.Effect,
 	})
 	if err != nil {
 		return nil, err
@@ -202,7 +213,11 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 			return nil, err
 		}
 	}
-	updateResp, err := c.MessagesEditMessage(&MessagesEditMessageParams{
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := c.MakeRequestCtx(ctx, &MessagesEditMessageParams{
 		Peer:         Peer,
 		ID:           id,
 		Message:      Message,
@@ -216,13 +231,17 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 	if err != nil {
 		return nil, err
 	}
-	if updateResp != nil {
-		processed := c.processUpdate(updateResp)
+	if result != nil {
+		processed := c.processUpdate(result.(Updates))
 		processed.PeerID = c.getPeer(Peer)
 		return packMessage(c, processed), nil
 	}
 
-	return nil, errors.New("no response for editMessage")
+	return packMessage(c, &MessageObj{
+		ID:     id,
+		PeerID: c.getPeer(Peer),
+		FromID: &PeerUser{UserID: c.Me().ID},
+	}), nil
 }
 
 func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string, entities []MessageEntity, Media any, options *SendOptions) (*NewMessage, error) {
@@ -240,6 +259,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 			Spoiler:         options.Spoiler,
 			MimeType:        options.MimeType,
 			ProgressManager: options.ProgressManager,
+			Inline:          true,
 		})
 		if err != nil {
 			return nil, err
@@ -257,8 +277,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 	}
 
 	var (
-		editTrue bool
-		dcID     int32
+		dcID int32
 	)
 	switch id := ID.(type) {
 	case *InputBotInlineMessageID64:
@@ -266,71 +285,81 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 	case *InputBotInlineMessageIDObj:
 		dcID = id.DcID
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var sender *gogram.MTProto = c.MTProto
 	if dcID != int32(c.GetDC()) {
-		borrowedSender, borrowError := c.CreateExportedSender(int(dcID))
+		borrowedSender, borrowError := c.CreateExportedSender(int(dcID), false)
 		if borrowError != nil {
 			return nil, borrowError
 		}
-		editTrueAny, err := borrowedSender.MakeRequestCtx(context.Background(), editRequest)
-		if err != nil {
-			return nil, err
-		}
-
-		switch editTrueAny := editTrueAny.(type) {
-		case bool:
-			editTrue = editTrueAny
-		}
-	} else {
-		editTrue, err = c.MessagesEditInlineBotMessage(editRequest)
+		sender = borrowedSender
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 	}
+
+	editTrueAny, err := sender.MakeRequestCtx(ctx, editRequest)
 	if err != nil {
 		return nil, err
 	}
-	if editTrue {
-		return &NewMessage{ID: 0}, nil
+
+	if editTrue, ok := editTrueAny.(bool); ok && editTrue {
+		return &NewMessage{ID: 0, Message: &MessageObj{
+			ID:          0,
+			Message:     Message,
+			ReplyMarkup: options.ReplyMarkup,
+			Entities:    entities,
+		}}, nil
 	}
-	return nil, errors.New("request failed")
+
+	return nil, errors.New("no response for editBotInlineMessage")
 }
 
 type MediaOptions struct {
-	Attributes      []DocumentAttribute `json:"attributes,omitempty"`
-	MimeType        string              `json:"mime_type,omitempty"`
-	Caption         any                 `json:"caption,omitempty"`
-	ClearDraft      bool                `json:"clear_draft,omitempty"`
-	Entities        []MessageEntity     `json:"entities,omitempty"`
-	FileName        string              `json:"file_name,omitempty"`
-	ForceDocument   bool                `json:"force_document,omitempty"`
-	InvertMedia     bool                `json:"invert_media,omitempty"`
-	LinkPreview     bool                `json:"link_preview,omitempty"`
-	NoForwards      bool                `json:"no_forwards,omitempty"`
-	NoSoundVideo    bool                `json:"no_sound_video,omitempty"`
-	ParseMode       string              `json:"parse_mode,omitempty"`
-	ReplyID         int32               `json:"reply_id,omitempty"`
-	ReplyMarkup     ReplyMarkup         `json:"reply_markup,omitempty"`
-	ScheduleDate    int32               `json:"schedule_date,omitempty"`
-	SendAs          any                 `json:"send_as,omitempty"`
-	Silent          bool                `json:"silent,omitempty"`
-	Thumb           any                 `json:"thumb,omitempty"`
-	TTL             int32               `json:"ttl,omitempty"`
-	Spoiler         bool                `json:"spoiler,omitempty"`
-	ProgressManager *ProgressManager    `json:"-"`
-	UploadThreads   int                 `json:"-"`
+	Attributes       []DocumentAttribute // attributes of the file
+	MimeType         string              // mime type of the file
+	Caption          any                 // caption for the media (takes array of strings or a NewMessage)
+	ClearDraft       bool                // to clear the draft after sending
+	Entities         []MessageEntity     // message formatting entities
+	FileName         string              // file name to be used
+	ForceDocument    bool                // to force the file to be sent as a document
+	InvertMedia      bool                // show media below the caption
+	LinkPreview      bool                // to enable link preview
+	NoForwards       bool                // to disable forwarding (restrict saving)
+	NoSoundVideo     bool                // to send the video without sound
+	ParseMode        string              // parse mode for the caption (markdown or html)
+	ReplyID          int32               //	reply to message ID
+	TopicID          int32               // topic ID for the message to be sent
+	ReplyMarkup      ReplyMarkup         // keyboard to send with the message
+	ScheduleDate     int32               // schedule date for the message
+	SendAs           any                 // to send the message as a different peer
+	Silent           bool                // to send the message silently
+	Thumb            any                 // thumbnail of the file
+	TTL              int32               // time to live for the file (in seconds)
+	Spoiler          bool                // to send the file as a spoiler message
+	ProgressManager  *ProgressManager    // progress manager for uploading
+	UploadThreads    int                 // number of worker threads to use for uploading
+	SkipHash         bool                // to skip reusing duplicate files
+	SleepThresholdMs int32               // sleep threshold in milliseconds (in-between chunked operations)
 }
 
 type MediaMetadata struct {
-	FileName             string              `json:"file_name,omitempty"`
-	BusinessConnectionId string              `json:"business_connection_id,omitempty"`
-	Thumb                any                 `json:"thumb,omitempty"`
-	Attributes           []DocumentAttribute `json:"attributes,omitempty"`
-	ForceDocument        bool                `json:"force_document,omitempty"`
-	TTL                  int32               `json:"ttl,omitempty"`
-	Spoiler              bool                `json:"spoiler,omitempty"`
-	DisableThumb         bool                `json:"gen_thumb,omitempty"`
-	MimeType             string              `json:"mime_type,omitempty"`
-	ProgressManager      *ProgressManager    `json:"-"`
-	UploadThreads        int                 `json:"-"`
-	FileAbsPath          string              `json:"-"`
-	Inline               bool                `json:"-"`
+	FileName             string              // file name to be used.
+	BusinessConnectionId string              // business connection id
+	Thumb                any                 // thumbnail of the file
+	Attributes           []DocumentAttribute // attributes of the file
+	ForceDocument        bool                // to force the file to be sent as a document
+	TTL                  int32               // time to live for the file
+	Spoiler              bool                // to send the file as a spoiler message
+	DisableThumb         bool                // disable thumbnail generation
+	MimeType             string              // mime type of the file
+	ProgressManager      *ProgressManager    // progress manager for uploading
+	UploadThreads        int                 // number of worker threads to use for uploading
+	FileAbsPath          string              // absolute path to the file
+	Inline               bool                // to force calling media.uploadMedia (for inline and albums)
+	SkipHash             bool                // to skip reusing duplicate files
 }
 
 // SendMedia sends a media message.
@@ -369,6 +398,7 @@ func (c *Client) SendMedia(peerID, Media any, opts ...*MediaOptions) (*NewMessag
 		MimeType:        opt.MimeType,
 		ProgressManager: opt.ProgressManager,
 		UploadThreads:   opt.UploadThreads,
+		SkipHash:        opt.SkipHash,
 	})
 
 	if err != nil {
@@ -399,7 +429,18 @@ func (c *Client) SendMedia(peerID, Media any, opts ...*MediaOptions) (*NewMessag
 }
 
 func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, entities []MessageEntity, sendAs InputPeer, opt *MediaOptions) (*NewMessage, error) {
-	updateResp, err := c.MessagesSendMedia(&MessagesSendMediaParams{
+	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
+	if opt.ReplyID != 0 {
+		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	} else {
+		if opt.TopicID != 0 && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	}
+
+	result, err := c.MessagesSendMedia(&MessagesSendMediaParams{
 		Silent:                 opt.Silent,
 		Background:             false,
 		ClearDraft:             opt.ClearDraft,
@@ -407,22 +448,20 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 		UpdateStickersetsOrder: false,
 		InvertMedia:            opt.InvertMedia,
 		Peer:                   Peer,
-		ReplyTo: &InputReplyToMessage{
-			ReplyToMsgID: opt.ReplyID,
-		},
-		Media:        Media,
-		RandomID:     GenRandInt(),
-		ReplyMarkup:  opt.ReplyMarkup,
-		Message:      Caption,
-		Entities:     entities,
-		ScheduleDate: opt.ScheduleDate,
-		SendAs:       sendAs,
+		ReplyTo:                replyTo,
+		Media:                  Media,
+		RandomID:               GenRandInt(),
+		ReplyMarkup:            opt.ReplyMarkup,
+		Message:                Caption,
+		Entities:               entities,
+		ScheduleDate:           opt.ScheduleDate,
+		SendAs:                 sendAs,
 	})
 	if err != nil {
 		return nil, err
 	}
-	if updateResp != nil {
-		processed := c.processUpdate(updateResp)
+	if result != nil {
+		processed := c.processUpdate(result)
 		processed.PeerID = c.getPeer(Peer)
 		return packMessage(c, processed), nil
 	}
@@ -451,7 +490,11 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 	opt := getVariadic(opts, &MediaOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 
-	InputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{FileName: opt.FileName, Thumb: opt.Thumb, ForceDocument: opt.ForceDocument, Attributes: opt.Attributes, TTL: opt.TTL, Spoiler: opt.Spoiler, MimeType: opt.MimeType})
+	if opt.SleepThresholdMs == 0 {
+		opt.SleepThresholdMs = 5000
+	}
+
+	InputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{FileName: opt.FileName, Thumb: opt.Thumb, ForceDocument: opt.ForceDocument, Attributes: opt.Attributes, TTL: opt.TTL, Spoiler: opt.Spoiler, MimeType: opt.MimeType, ProgressManager: opt.ProgressManager, UploadThreads: opt.UploadThreads, SkipHash: opt.SkipHash})
 	if multiErr != nil {
 		return nil, multiErr
 	}
@@ -513,47 +556,72 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 }
 
 func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs InputPeer, opt *MediaOptions) ([]*NewMessage, error) {
-	updateResp, err := c.MessagesSendMultiMedia(&MessagesSendMultiMediaParams{
+	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
+	if opt.ReplyID != 0 {
+		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	} else {
+		if opt.TopicID != 0 && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	}
+
+	req := &MessagesSendMultiMediaParams{
 		Silent:                 opt.Silent,
 		Background:             false,
 		ClearDraft:             opt.ClearDraft,
 		Noforwards:             opt.NoForwards,
 		UpdateStickersetsOrder: false,
 		Peer:                   Peer,
-		ReplyTo: &InputReplyToMessage{
-			ReplyToMsgID: opt.ReplyID,
-		},
-		ScheduleDate: opt.ScheduleDate,
-		SendAs:       sendAs,
-		MultiMedia:   Album,
-	})
-	if err != nil {
-		return nil, err
+		ReplyTo:                replyTo,
+		ScheduleDate:           opt.ScheduleDate,
+		SendAs:                 sendAs,
 	}
-	var m []*NewMessage
-	if updateResp != nil {
-		updates := processUpdates(updateResp)
-		for _, update := range updates {
-			update.PeerID = c.getPeer(Peer)
-			m = append(m, packMessage(c, update))
+
+	// split into chunks of 10
+	var chunk []*InputSingleMedia
+	var results []*NewMessage
+	for i := 0; i < len(Album); i += 10 {
+		end := i + 10
+		if end > len(Album) {
+			end = len(Album)
 		}
-	} else {
-		return nil, errors.New("no response for sendAlbum")
+		chunk = Album[i:end]
+
+		req.MultiMedia = chunk
+		result, err := c.MessagesSendMultiMedia(req)
+		if err != nil {
+			return nil, err
+		}
+
+		if result != nil {
+			updates := processUpdates(result)
+			for _, update := range updates {
+				update.PeerID = c.getPeer(Peer)
+			}
+
+			results = append(results, packMessages(c, updates)...)
+		}
+
+		time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
 	}
-	return m, nil
+
+	return results, nil
 }
 
 type PollOptions struct {
-	PublicVoters   bool
-	MCQ            bool
-	IsQuiz         bool
-	ClosePeriod    int32
-	CloseDate      int32
-	Solution       string
-	CorrectAnswers []int
-	ReplyID        int32
-	NoForwards     bool
-	ScheduleDate   int32
+	PublicVoters   bool   // Allow public voters
+	MCQ            bool   // Multiple choice question type poll
+	IsQuiz         bool   // Quiz type poll
+	ClosePeriod    int32  // Close the poll after this period
+	CloseDate      int32  // Close the poll at this date
+	Solution       string // Solution for the poll
+	CorrectAnswers []int  // Correct answers for the poll
+	ReplyID        int32  // Reply to message ID
+	TopicID        int32  // Topic ID for the message to be sent
+	NoForwards     bool   // Disable forwarding
+	ScheduleDate   int32  // Schedule date for the message
 }
 
 func (c *Client) SendPoll(peerID any, question string, options []string, opts ...*PollOptions) (*NewMessage, error) {
@@ -616,11 +684,22 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 		SolutionEntities: solnEntities,
 	}
 
+	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
+	if opt.ReplyID != 0 {
+		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	} else {
+		if opt.TopicID != 0 && opt.TopicID != 1 {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	}
+
 	updateResp, err := c.MessagesSendMedia(&MessagesSendMediaParams{
 		ClearDraft:   false,
 		Noforwards:   opt.NoForwards,
 		Peer:         Peer,
-		ReplyTo:      &InputReplyToMessage{ReplyToMsgID: opt.ReplyID},
+		ReplyTo:      replyTo,
 		Media:        poll,
 		RandomID:     GenRandInt(),
 		ScheduleDate: opt.ScheduleDate,
@@ -756,20 +835,37 @@ func (c *Client) SendReadAck(PeerID any, MaxID ...int32) (*MessagesAffectedMessa
 		return nil, err
 	}
 	maxID := getVariadic(MaxID, int32(0))
-	return c.MessagesReadHistory(peerChat, maxID)
+	switch peer := peerChat.(type) {
+	case *InputPeerChannel:
+		done, err := c.ChannelsReadHistory(&InputChannelObj{
+			ChannelID:  peer.ChannelID,
+			AccessHash: peer.AccessHash,
+		}, maxID)
+		if err != nil {
+			return nil, err
+		} else if !done {
+			return nil, errors.New("failed to read history")
+		}
+
+		return &MessagesAffectedMessages{Pts: 0, PtsCount: 0}, nil
+	case *InputPeerChat, *InputPeerUser:
+		return c.MessagesReadHistory(peerChat, maxID)
+	default:
+		return nil, errors.New("invalid peer type")
+	}
 }
 
 // SendPoll sends a poll. TODO
 
 type ForwardOptions struct {
-	HideCaption  bool  `json:"hide_caption,omitempty"`
-	HideAuthor   bool  `json:"hide_author,omitempty"`
-	Silent       bool  `json:"silent,omitempty"`
-	Protected    bool  `json:"protected,omitempty"`
-	Background   bool  `json:"background,omitempty"`
-	WithMyScore  bool  `json:"with_my_score,omitempty"`
-	SendAs       any   `json:"send_as,omitempty"`
-	ScheduleDate int32 `json:"schedule_date,omitempty"`
+	HideCaption  bool  // whether to drop the original caption
+	HideAuthor   bool  // whether to drop the original author
+	Silent       bool  // whether to send the message silently
+	Noforwards   bool  // whether to disable forwarding
+	Background   bool  // send the message in the background
+	WithMyScore  bool  // whether to include the user's game score
+	SendAs       any   // send the message as a different peer
+	ScheduleDate int32 // schedule date for the message
 }
 
 // Forward forwards a message.
@@ -802,7 +898,7 @@ func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*Forwar
 		RandomID:          randomIDs,
 		Silent:            opt.Silent,
 		Background:        false,
-		Noforwards:        opt.Protected,
+		Noforwards:        opt.Noforwards,
 		ScheduleDate:      opt.ScheduleDate,
 		DropAuthor:        opt.HideAuthor,
 		DropMediaCaptions: opt.HideCaption,
@@ -857,18 +953,18 @@ func (c *Client) GetCustomEmoji(docIDs ...int64) ([]Document, error) {
 }
 
 type SearchOption struct {
-	IDs              any            `json:"ids,omitempty"`
-	Query            string         `json:"query,omitempty"`
-	FromUser         any            `json:"from_user,omitempty"`
-	Offset           int32          `json:"offset,omitempty"`
-	Limit            int32          `json:"limit,omitempty"`
-	Filter           MessagesFilter `json:"filter,omitempty"`
-	TopMsgID         int32          `json:"top_msg_id,omitempty"`
-	MaxID            int32          `json:"max_id,omitempty"`
-	MinID            int32          `json:"min_id,omitempty"`
-	MaxDate          int32          `json:"max_date,omitempty"`
-	MinDate          int32          `json:"min_date,omitempty"`
-	SleepThresholdMs int32          `json:"sleep_threshold,omitempty"`
+	IDs              any            // IDs of the messages to get (bots can use)
+	Query            string         // query to search for
+	FromUser         any            // ID of the user to search from
+	Offset           int32          // offset of the message to search from
+	Limit            int32          // limit of the messages to get
+	Filter           MessagesFilter // filter to use
+	TopMsgID         int32          // ID of the top message
+	MaxID            int32          // maximum ID of the message
+	MinID            int32          // minimum ID of the message
+	MaxDate          int32          // maximum date of the message
+	MinDate          int32          // minimum date of the message
+	SleepThresholdMs int32          // sleep threshold in milliseconds (in-between chunked operations)
 }
 
 func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, error) {
@@ -973,10 +1069,7 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 
 		for {
 			remaining := opt.Limit - int32(len(messages))
-			perReqLimit := int32(100)
-			if remaining < perReqLimit {
-				perReqLimit = remaining
-			}
+			perReqLimit := min(remaining, int32(100))
 			params.Limit = perReqLimit
 
 			result, err = c.MessagesSearch(params)
@@ -988,16 +1081,28 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 			}
 			switch result := result.(type) {
 			case *MessagesChannelMessages:
+				if result.Count == 0 {
+					return messages, nil
+				}
+
 				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 				for _, msg := range result.Messages {
 					messages = append(messages, *packMessage(c, msg))
 				}
 			case *MessagesMessagesObj:
+				if len(result.Messages) == 0 {
+					return messages, nil
+				}
+
 				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 				for _, msg := range result.Messages {
 					messages = append(messages, *packMessage(c, msg))
 				}
 			case *MessagesMessagesSlice:
+				if result.Count == 0 {
+					return messages, nil
+				}
+
 				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 				for _, msg := range result.Messages {
 					messages = append(messages, *packMessage(c, msg))
@@ -1139,10 +1244,7 @@ func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMess
 
 			for {
 				remaining := opt.Limit - int32(len(messages))
-				perReqLimit := int32(100)
-				if remaining < perReqLimit {
-					perReqLimit = remaining
-				}
+				perReqLimit := min(remaining, int32(100))
 				params.Limit = perReqLimit
 
 				result, err = c.MessagesSearch(params)
@@ -1155,16 +1257,28 @@ func (c *Client) IterMessages(PeerID any, Opts ...*SearchOption) (<-chan NewMess
 				}
 				switch result := result.(type) {
 				case *MessagesChannelMessages:
+					if result.Count == 0 {
+						return
+					}
+
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
 						messages = append(messages, *packMessage(c, msg))
 					}
 				case *MessagesMessagesObj:
+					if len(result.Messages) == 0 {
+						return
+					}
+
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
 						messages = append(messages, *packMessage(c, msg))
 					}
 				case *MessagesMessagesSlice:
+					if result.Count == 0 {
+						return
+					}
+
 					c.Cache.UpdatePeersToCache(result.Users, result.Chats)
 					for _, msg := range result.Messages {
 						messages = append(messages, *packMessage(c, msg))
@@ -1204,12 +1318,12 @@ func (c *Client) GetMessageByID(PeerID any, MsgID int32) (*NewMessage, error) {
 }
 
 type HistoryOption struct {
-	Limit            int32
-	Offset           int32
-	OffsetDate       int32
-	MaxID            int32
-	MinID            int32
-	SleepThresholdMs int32
+	Limit            int32 // limit of the messages to get
+	Offset           int32 // offset of the message to search from
+	OffsetDate       int32 // offset date of the message to search from
+	MaxID            int32 // maximum ID of the message
+	MinID            int32 // minimum ID of the message
+	SleepThresholdMs int32 // sleep threshold in milliseconds (in-between chunked operations)
 }
 
 func (c *Client) GetHistory(PeerID any, opts ...*HistoryOption) ([]NewMessage, error) {
@@ -1405,9 +1519,9 @@ func (c *Client) IterHistory(PeerID any, opts ...*HistoryOption) (<-chan NewMess
 }
 
 type PinOptions struct {
-	Unpin     bool `json:"unpin,omitempty"`
-	PmOneside bool `json:"pm_oneside,omitempty"`
-	Silent    bool `json:"silent,omitempty"`
+	Unpin     bool // whether to unpin the message
+	PmOneside bool // whether to pin the message on one side
+	Silent    bool // whether to pin the message silently
 }
 
 // Pin pins a message.
@@ -1453,10 +1567,10 @@ func (c *Client) GetPinnedMessage(PeerID any) (*NewMessage, error) {
 }
 
 type InlineOptions struct {
-	Dialog   any
-	Offset   string
-	Query    string
-	GeoPoint InputGeoPoint
+	Dialog   any           // The chat or channel to send the query to.
+	Offset   string        // The offset to send.
+	Query    string        // The query to send.
+	GeoPoint InputGeoPoint // The location to send.
 }
 
 // InlineQuery performs an inline query and returns the results.
@@ -1591,10 +1705,7 @@ func getVariadic[T comparable](opts []T, def T) T {
 func splitIDsIntoChunks(ids []InputMessage, chunkSize int) [][]InputMessage {
 	var chunks [][]InputMessage
 	for i := 0; i < len(ids); i += chunkSize {
-		end := i + chunkSize
-		if end > len(ids) {
-			end = len(ids)
-		}
+		end := min(i+chunkSize, len(ids))
 		chunks = append(chunks, ids[i:end])
 	}
 	return chunks
