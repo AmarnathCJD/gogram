@@ -15,21 +15,23 @@ import (
 
 var maximumPositionalArguments = 5
 
-func (g *Generator) generateMethods(f *jen.File) {
+func (g *Generator) generateMethods(f *jen.File, d bool) {
 	sort.Slice(g.schema.Methods, func(i, j int) bool {
 		return g.schema.Methods[i].Name < g.schema.Methods[j].Name
 	})
 
-	wg := sync.WaitGroup{}
-	for i, method := range g.schema.Methods {
-		wg.Add(1)
-		go func(method tlparser.Method, i int) {
-			defer wg.Done()
-			g.schema.Methods[i].Comment = g.generateComment(method.Name, "method")
-		}(method, i)
-	}
+	if d {
+		wg := sync.WaitGroup{}
+		for i, method := range g.schema.Methods {
+			wg.Add(1)
+			go func(method tlparser.Method, i int) {
+				defer wg.Done()
+				g.schema.Methods[i].Comment = g.generateComment(method.Name, "method")
+			}(method, i)
+		}
 
-	wg.Wait()
+		wg.Wait()
+	}
 
 	for _, method := range g.schema.Methods {
 
@@ -87,7 +89,7 @@ func (g *Generator) generateComment(name string, _type string) string {
 	ack = strings.ReplaceAll(ack, "<p>", "")
 	//ack = strings.ReplaceAll(ack, "see .", "")
 	a_tag_regex := regexp.MustCompile(`<a href="([^"]*)">([^<]*)</a>`)
-	ack = a_tag_regex.ReplaceAllString(ack, "[$2](https://core.telegram.org/$1)")
+	ack = a_tag_regex.ReplaceAllString(ack, "[$2](https://core.telegram.org$1)")
 
 	code_tag_regex := regexp.MustCompile(`<code>([^<]*)</code>`)
 	ack = code_tag_regex.ReplaceAllString(ack, "`$1`")

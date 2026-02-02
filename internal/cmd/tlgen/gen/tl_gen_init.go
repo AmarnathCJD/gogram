@@ -9,7 +9,7 @@ import (
 var tlPackagePath = "github.com/amarnathcjd/gogram/internal/encoding/tl"
 var errorsPackagePath = "github.com/pkg/errors"
 
-func (g *Generator) generateInit(file *jen.File) {
+func (g *Generator) generateInit(file *jen.File, _ bool) {
 	structs, enums := g.getAllConstructors()
 
 	initFunc := jen.Func().Id("init").Params().Block(

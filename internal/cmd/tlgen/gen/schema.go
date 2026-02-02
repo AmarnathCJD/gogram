@@ -6,11 +6,9 @@ import (
 	"github.com/amarnathcjd/gogram/internal/cmd/tlgen/tlparser"
 )
 
-// для понимания как преобразовано название типа
 type goifiedName = string
 type nativeName = string
 
-// предполагаем, что мы пишем в файл данные через goify, поэтому тут все символы нативные
 type internalSchema struct {
 	InterfaceCommnets    map[nativeName]string
 	Types                map[nativeName][]tlparser.Object
@@ -33,7 +31,6 @@ func createInternalSchema(nativeSchema *tlparser.Schema) (*internalSchema, error
 		Methods:              make([]tlparser.Method, 0),
 	}
 
-	// реверсим, т.к. все обозначается по интерфейсам, а на конструкторы насрать видимо.
 	reversedObjects := make(map[string][]tlparser.Object)
 	for _, obj := range nativeSchema.Objects {
 		if reversedObjects[obj.Interface] == nil {
@@ -44,15 +41,12 @@ func createInternalSchema(nativeSchema *tlparser.Schema) (*internalSchema, error
 	}
 
 	for interfaceName, objects := range reversedObjects {
-		// ну тогда это просто объект с интерфейсом получается, раз не енум и не одиночный объект
 		for _, obj := range objects {
-			// некоторые конструкторы абсолютно идентичны типу по названию
 			if strings.EqualFold(obj.Name, obj.Interface) {
 				obj.Name += "Obj"
 			}
 		}
 
-		// может это енум?
 		if interfaceIsEnum(objects) {
 			enums := make([]enum, len(objects))
 			for i, obj := range objects {

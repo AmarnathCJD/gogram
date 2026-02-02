@@ -30,6 +30,7 @@ const helpMsg = `welcome to gogram's TL generator (c) @amarnathcjd`
 
 type AEQ struct {
 	Force bool
+	D     bool
 }
 
 func main() {
@@ -37,11 +38,14 @@ func main() {
 	for _, arg := range os.Args {
 		if arg == "-f" {
 			aeq.Force = true
-			break
+		}
+
+		if arg == "-d" || arg == "--doc" {
+			aeq.D = true
 		}
 	}
 
-	if len(os.Args) == 0 || len(os.Args) == 1 || len(os.Args) == 2 {
+	if len(os.Args) == 0 || len(os.Args) == 1 || len(os.Args) == 2 || aeq.D || aeq.Force {
 		currentLocalAPIVersionFile := filepath.Join(desLOC, "const.go")
 		currentLocalAPIVersion, err := os.ReadFile(currentLocalAPIVersionFile)
 		if err != nil {
@@ -74,7 +78,7 @@ func main() {
 			file.Seek(0, 0)
 			file.WriteString(string(remoteAPIVersion))
 
-			if err := root(tlLOC, desLOC); err != nil {
+			if err := root(tlLOC, desLOC, aeq.D); err != nil {
 				fmt.Fprintf(os.Stderr, "%s\n", err)
 			} else {
 				fmt.Println("Update completed - Generated code in", desLOC)
@@ -93,7 +97,7 @@ func main() {
 		return
 	}
 
-	if err := root(os.Args[1], os.Args[2]); err != nil {
+	if err := root(os.Args[1], os.Args[2], aeq.D); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
@@ -135,13 +139,13 @@ func getSourceLAYER(llayer string, force bool) ([]byte, string, error) {
 			continue
 		}
 
-		return remoteAPIVersion, rlayer, fmt.Errorf("No update required (Local API version is %s and remote API (TDesktop) version is %s)", llayer, rlayer)
+		return remoteAPIVersion, rlayer, fmt.Errorf("no update required (Local API version is %s and remote API (TDesktop) version is %s)", llayer, rlayer)
 	}
 
-	return nil, "", fmt.Errorf("No update required ~")
+	return nil, "", fmt.Errorf("no update required ~")
 }
 
-func root(tlfile, outdir string) error {
+func root(tlfile, outdir string, d bool) error {
 	startTime := time.Now()
 	b, err := os.ReadFile(tlfile)
 	if err != nil {
@@ -158,7 +162,7 @@ func root(tlfile, outdir string) error {
 		return err
 	}
 
-	err = g.Generate()
+	err = g.Generate(d)
 	if err != nil {
 		return fmt.Errorf("generate code: %w", err)
 	}
