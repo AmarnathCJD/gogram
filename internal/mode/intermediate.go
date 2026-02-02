@@ -47,7 +47,7 @@ func (m *intermediate) ReadMsg() ([]byte, error) {
 
 	size := binary.LittleEndian.Uint32(sizeBuf)
 	msg := make([]byte, int(size))
-	n, err = m.conn.Read(msg)
+	n, err = io.ReadFull(m.conn, msg)
 	if err != nil {
 		return nil, err
 	}
