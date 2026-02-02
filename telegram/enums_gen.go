@@ -142,7 +142,7 @@ func (e InputPrivacyKey) CRC() uint32 { return uint32(e) }
 type Null uint32
 
 const (
-	NullCrc Null = 0x56730bcc
+	Null Null = 0x56730bcc
 )
 
 func (e Null) String() string {
@@ -419,7 +419,7 @@ func (e AuthCodeType) CRC() uint32 { return uint32(e) }
 type MessagesMessageEmpty uint32
 
 const (
-	MessagesMessageEmptyCrc MessagesMessageEmpty = 0x3f4e0648
+	MessagesMessageEmpty MessagesMessageEmpty = 0x3f4e0648
 )
 
 func (e MessagesMessageEmpty) String() string {
