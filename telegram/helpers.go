@@ -925,7 +925,7 @@ func packCallbackQuery(c *Client, query *UpdateBotCallbackQuery) *CallbackQuery 
 	} else if cq.Chat != nil {
 		cq.ChatID = cq.Chat.ID
 	} else {
-		cq.ChatID = 0
+		cq.ChatID = c.GetPeerID(query.Peer)
 	}
 	return cq
 }
