@@ -126,7 +126,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		pendingAcks:           utils.NewSyncSet[int64](),
 		genMsgID:              utils.NewMsgIDGenerator(),
 		serverRequestHandlers: make([]func(i any) bool, 0),
-		Logger:                utils.NewLogger("gogram - mtproto").SetLevel(c.LogLevel),
+		Logger:                utils.NewLogger("gogram [mtproto]").SetLevel(c.LogLevel),
 		memorySession:         c.MemorySession,
 		appID:                 c.AppID,
 		proxy:                 c.Proxy,

@@ -4,6 +4,7 @@ package gogram
 
 import (
 	"fmt"
+	"path/filepath"
 	"reflect"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
@@ -110,7 +111,7 @@ func (m *MTProto) GetSessionID() int64 {
 	return m.sessionId
 }
 
-// GetSeqNo returns seqno 🧐
+// GetSeqNo returns seqno
 func (m *MTProto) GetSeqNo() int32 {
 	return m.currentSeqNo.Load() * 2
 }
@@ -120,7 +121,7 @@ func (m *MTProto) UpdateSeqNo() int32 {
 	return (m.currentSeqNo.Add(1)-1)*2 + 1
 }
 
-// GetServerSalt returns current server salt 🧐
+// GetServerSalt returns current server salt
 func (m *MTProto) GetServerSalt() int64 {
 	return m.serverSalt
 }
@@ -151,7 +152,7 @@ func (m *MTProto) AddCustomServerRequestHandler(handler func(i any) bool) {
 }
 
 func (m *MTProto) SaveSession() (err error) {
-	m.Logger.Debug("saving session -> ", m.sessionStorage.Path())
+	m.Logger.Debug("saving session -> ", filepath.Base(m.sessionStorage.Path()))
 	return m.sessionStorage.Store(&session.Session{
 		Key:      m.authKey,
 		Hash:     m.authKeyHash,
