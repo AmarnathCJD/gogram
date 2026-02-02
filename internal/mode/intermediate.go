@@ -46,6 +46,23 @@ func (m *intermediate) ReadMsg() ([]byte, error) {
 	}
 
 	size := binary.LittleEndian.Uint32(sizeBuf)
+
+	// incase the data byte is too large, its error in first 4 bytes
+	// we read the size of the message, without checking the size
+
+	if size > 1<<30 { // 1GB, arbitrary limit
+		var msg = make([]byte, 1<<18) // 256kb
+		n, err = io.ReadFull(m.conn, msg)
+		if err != nil {
+			return nil, err
+		}
+
+		var msgWithSize = make([]byte, n)
+		copy(msgWithSize, msg[:n])
+
+		return msgWithSize, nil
+	}
+
 	msg := make([]byte, int(size))
 	n, err = io.ReadFull(m.conn, msg)
 	if err != nil {
