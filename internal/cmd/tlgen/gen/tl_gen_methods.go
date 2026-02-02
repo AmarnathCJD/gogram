@@ -110,6 +110,10 @@ func (g *Generator) generateComment(name, _type string) (string, []string) {
 		return "", nil
 	}
 
+	if strings.Contains(ack, `<ul class="dev_layer_select slightly-pull-right nav nav-pills">`) {
+		return "", nil
+	}
+
 	return ack, descs
 }
 
