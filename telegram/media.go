@@ -82,7 +82,7 @@ func (s *Source) GetReader() io.Reader {
 }
 
 func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile, error) {
-	opts := getVariadic(Opts, &UploadOptions{}).(*UploadOptions)
+	opts := getVariadic(Opts, &UploadOptions{})
 	if src == nil {
 		return nil, errors.New("file can not be nil")
 	}
@@ -337,7 +337,7 @@ func (mb *Destination) WriteAt(p []byte, off int64) (n int, err error) {
 }
 
 func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (string, error) {
-	opts := getVariadic(Opts, &DownloadOptions{}).(*DownloadOptions)
+	opts := getVariadic(Opts, &DownloadOptions{})
 	location, dc, size, fileName, err := GetFileLocation(file)
 	if err != nil {
 		return "", err

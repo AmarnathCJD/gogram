@@ -82,7 +82,7 @@ func (p *UserPhoto) InputLocation() (*InputPhotoFileLocation, error) {
 //	 - Limit: The number of photos to return
 //	 - MaxID: The maximum ID of the photo to return
 func (c *Client) GetProfilePhotos(userID interface{}, Opts ...*PhotosOptions) ([]UserPhoto, error) {
-	Options := getVariadic(Opts, &PhotosOptions{}).(*PhotosOptions)
+	Options := getVariadic(Opts, &PhotosOptions{})
 	if Options.Limit > 80 {
 		Options.Limit = 80
 	} else if Options.Limit < 1 {
@@ -146,7 +146,7 @@ type CustomDialog struct{} // TODO
 //	 - ExcludePinned: Whether to exclude pinned dialogs
 //	 - FolderID: The folder ID to get dialogs from
 func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
-	Options := getVariadic(Opts, &DialogOptions{}).(*DialogOptions)
+	Options := getVariadic(Opts, &DialogOptions{})
 	if Options.Limit > 1000 {
 		Options.Limit = 1000
 	} else if Options.Limit < 1 {

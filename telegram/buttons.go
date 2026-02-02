@@ -43,7 +43,7 @@ func (Button) RequestPhone(Text string) *KeyboardButtonRequestPhone {
 }
 
 func (Button) RequestPeer(Text string, ButtonID int32, PeerType RequestPeerType, Max ...int32) *KeyboardButtonRequestPeer {
-	return &KeyboardButtonRequestPeer{Text: Text, ButtonID: ButtonID, PeerType: PeerType, MaxQuantity: getVariadic(Max, int32(0)).(int32)}
+	return &KeyboardButtonRequestPeer{Text: Text, ButtonID: ButtonID, PeerType: PeerType, MaxQuantity: getVariadic(Max, int32(0))}
 }
 
 func (Button) RequestPoll(Text string, Quiz bool) *KeyboardButtonRequestPoll {

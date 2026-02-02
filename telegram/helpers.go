@@ -47,12 +47,12 @@ func GetHostIp(dcID int, test bool) string {
 	if ip, ok := DataCenters[dcID]; ok {
 		return ip
 	}
-	panic("invalid dcID provided")
+	panic("invalid dc-id provided")
 }
 
 func joinAbsWorkingDir(filename string) string {
 	if filename == "" {
-		filename = "session.dat" // Default filename for session file
+		filename = "session.dat" // default filename for session file
 	}
 
 	if !filepath.IsAbs(filename) || !strings.Contains(filename, string(filepath.Separator)) {
@@ -65,12 +65,6 @@ func joinAbsWorkingDir(filename string) string {
 	}
 
 	return filename
-
-	// dirEx, err := os.Executable()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// return filepath.Dir(dirEx)
 }
 
 func PathIsWritable(path string) bool {
@@ -88,7 +82,9 @@ func GenRandInt() int64 {
 
 func (c *Client) getMultiMedia(m interface{}, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
 	var media []*InputSingleMedia
-	var mediaAttributes = getVariadic(attrs, &MediaMetadata{}).(*MediaMetadata)
+	if attrs == nil {
+		attrs = &MediaMetadata{}
+	}
 	var inputMedia []InputMedia
 	switch m := m.(type) {
 	case *InputSingleMedia:
@@ -167,7 +163,7 @@ func (c *Client) getMultiMedia(m interface{}, attrs *MediaMetadata) ([]*InputSin
 	for _, m := range inputMedia {
 		switch m := m.(type) {
 		case *InputMediaUploadedPhoto, *InputMediaUploadedDocument, *InputMediaPhotoExternal, *InputMediaDocumentExternal:
-			uploadedMedia, err := c.MessagesUploadMedia(mediaAttributes.BuissnessConnectionId, &InputPeerSelf{}, m) // Upload if not already cached
+			uploadedMedia, err := c.MessagesUploadMedia(attrs.BuissnessConnectionId, &InputPeerSelf{}, m) // Upload if not already cached
 			if err != nil {
 				return nil, err
 			}

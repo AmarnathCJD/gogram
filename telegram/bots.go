@@ -14,7 +14,7 @@ type InlineSendOptions struct {
 }
 
 func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult, Options ...*InlineSendOptions) (bool, error) {
-	options := getVariadic(Options, &InlineSendOptions{}).(*InlineSendOptions)
+	options := getVariadic(Options, &InlineSendOptions{})
 	options.CacheTime = getValue(options.CacheTime, 60)
 	request := &MessagesSetInlineBotResultsParams{
 		Gallery:    options.Gallery,
@@ -44,7 +44,7 @@ type CallbackOptions struct {
 }
 
 func (c *Client) AnswerCallbackQuery(QueryID int64, Text string, Opts ...*CallbackOptions) (bool, error) {
-	options := getVariadic(Opts, &CallbackOptions{}).(*CallbackOptions)
+	options := getVariadic(Opts, &CallbackOptions{})
 	request := &MessagesSetBotCallbackAnswerParams{
 		QueryID: QueryID,
 		Message: Text,
@@ -66,7 +66,7 @@ func (c *Client) AnswerCallbackQuery(QueryID int64, Text string, Opts ...*Callba
 // BOT COMMANDS
 
 func (c *Client) SetBotCommands(commands []*BotCommand, scope *BotCommandScope, languageCode ...string) (bool, error) {
-	resp, err := c.BotsSetBotCommands(*scope, getVariadic(languageCode, "en").(string), commands)
+	resp, err := c.BotsSetBotCommands(*scope, getVariadic(languageCode, "en"), commands)
 	if err != nil {
 		return false, err
 	}
@@ -74,7 +74,7 @@ func (c *Client) SetBotCommands(commands []*BotCommand, scope *BotCommandScope, 
 }
 
 func (c *Client) SetBotDefaultPrivileges(privileges *ChatAdminRights, ForChannels ...bool) (resp bool, err error) {
-	forCh := getVariadic(ForChannels, true).(bool)
+	forCh := getVariadic(ForChannels, true)
 	if forCh {
 		resp, err = c.BotsSetBotBroadcastDefaultAdminRights(privileges)
 		return

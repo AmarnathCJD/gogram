@@ -131,6 +131,10 @@ func NewMTProto(c Config) (*MTProto, error) {
 		appID:                 c.AppID,
 		proxy:                 c.Proxy,
 	}
+
+	mtproto.Logger.Debug("initializing mtproto...")
+	mtproto.offsetTime()
+
 	if loaded != nil || c.StringSession != "" {
 		mtproto.encrypted = true
 	}
@@ -138,8 +142,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		return nil, errors.Wrap(err, "loading auth")
 	}
 
-	//mtproto.offsetTime()
-	go mtproto.checkBreaking()
+	//go mtproto.checkBreaking()
 
 	return mtproto, nil
 }
@@ -291,6 +294,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 	err := m.connect(ctx)
 	if err != nil {
+		m.Logger.Error(errors.Wrap(err, "creating connection"))
 		return err
 	}
 	m.tcpActive = true
@@ -719,13 +723,10 @@ func MessageRequireToAck(msg tl.Object) bool {
 
 func (m *MTProto) offsetTime() {
 	currentLocalTime := time.Now().Unix()
-	tempClient := http.Client{
-		Timeout: 5 * time.Second,
-	}
+	client := http.Client{Timeout: 5 * time.Second}
 
-	resp, err := tempClient.Get("http://worldtimeapi.org/api/ip")
+	resp, err := client.Get("http://worldtimeapi.org/api/ip")
 	if err != nil {
-		m.Logger.Error(errors.Wrap(err, "offsetting time"))
 		return
 	}
 
@@ -741,7 +742,7 @@ func (m *MTProto) offsetTime() {
 	}
 
 	m.timeOffset = timeResponse.Unixtime - currentLocalTime
-	m.Logger.Error("system time is out of sync, correct it to: " + time.Unix(timeResponse.Unixtime, 0).String())
+	m.Logger.Info("system time is out of sync, offsetting time by " + strconv.FormatInt(m.timeOffset, 10) + " seconds")
 }
 
 func closeOnCancel(ctx context.Context, c io.Closer) {
@@ -752,19 +753,19 @@ func closeOnCancel(ctx context.Context, c io.Closer) {
 	}()
 }
 
-func (m *MTProto) checkBreaking() {
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
+// func (m *MTProto) checkBreaking() {
+// 	ticker := time.NewTicker(2 * time.Second)
+// 	defer ticker.Stop()
 
-	for range ticker.C {
-		if m.shouldTransfer && !m.TcpActive() {
-			m.CreateConnection(false)
-			for i := 0; i < 2; i++ {
-				_, err := m.MakeRequest(&utils.UpdatesGetStateParams{})
-				if err == nil {
-					break
-				}
-			}
-		}
-	}
-}
+// 	for range ticker.C {
+// 		if m.shouldTransfer && !m.TcpActive() {
+// 			//m.CreateConnection(false)
+// 			for i := 0; i < 2; i++ {
+// 				//_, err := m.MakeRequest(&utils.UpdatesGetStateParams{})
+// 				//if err == nil {
+// 					break
+// 				}
+// 			}
+// 		}
+// 	}
+// }
