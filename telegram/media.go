@@ -1203,13 +1203,16 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 
 	var authParams = &AuthExportedAuthorization{}
 	if dc != int32(c.GetDC()) {
+		c.exportedKeysMu.Lock()
 		if c.exportedKeys == nil {
 			c.exportedKeys = make(map[int]*AuthExportedAuthorization)
 		}
 
 		if exportedKey, ok := c.exportedKeys[int(dc)]; ok {
 			authParams = exportedKey
+			c.exportedKeysMu.Unlock()
 		} else {
+			c.exportedKeysMu.Unlock()
 			auth, err := c.AuthExportAuthorization(dc)
 			if err != nil {
 				return err
@@ -1220,7 +1223,9 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 				Bytes: auth.Bytes,
 			}
 
+			c.exportedKeysMu.Lock()
 			c.exportedKeys[int(dc)] = authParams
+			c.exportedKeysMu.Unlock()
 		}
 	}
 

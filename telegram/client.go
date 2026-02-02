@@ -54,16 +54,17 @@ type clientData struct {
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
-	Cache        *CACHE
-	clientData   clientData
-	dispatcher   *UpdateDispatcher
-	wg           sync.WaitGroup
-	stopCh       chan struct{}
-	exSenders    *ExSenders
-	secretChats  *e2e.SecretChatManager
-	exportedKeys map[int]*AuthExportedAuthorization
-	Log          Logger
-	Data         *ContextStore
+	Cache          *CACHE
+	clientData     clientData
+	dispatcher     *UpdateDispatcher
+	wg             sync.WaitGroup
+	stopCh         chan struct{}
+	exSenders      *ExSenders
+	secretChats    *e2e.SecretChatManager
+	exportedKeys   map[int]*AuthExportedAuthorization
+	exportedKeysMu sync.Mutex
+	Log            Logger
+	Data           *ContextStore
 }
 
 type DeviceConfig struct {
@@ -645,10 +646,12 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 					continue
 				}
 
+				c.exportedKeysMu.Lock()
 				if c.exportedKeys == nil {
 					c.exportedKeys = make(map[int]*AuthExportedAuthorization)
 				}
 				c.exportedKeys[dcID] = auth
+				c.exportedKeysMu.Unlock()
 			}
 
 			initialReq.Query = &AuthImportAuthorizationParams{

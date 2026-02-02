@@ -85,7 +85,7 @@ sendPacket:
 	if errorSendPacket != nil {
 		if maxRetries > 0 && isBrokenError(errorSendPacket) {
 			maxRetries--
-			err := m.CreateConnection(false)
+			err := m.Reconnect(false)
 			if err == nil && m.transport != nil {
 				goto sendPacket
 			}
