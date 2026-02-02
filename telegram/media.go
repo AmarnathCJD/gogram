@@ -313,8 +313,6 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		fileName = opts.FileName
 	}
 
-	fmt.Println("done uploading")
-
 	if !IsFsBig {
 		return &InputFileObj{
 			ID:          fileId,
