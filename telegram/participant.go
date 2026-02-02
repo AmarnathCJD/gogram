@@ -127,7 +127,7 @@ func (pu *ParticipantUpdate) IsPromoted() bool {
 		if pu.Old == nil {
 			return true
 		}
-		
+
 		switch pu.Old.(type) {
 		case *ChannelParticipantAdmin, *ChannelParticipantCreator:
 			return false

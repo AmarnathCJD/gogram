@@ -36,8 +36,8 @@ type CACHE struct {
 }
 
 type InputPeerCache struct {
-	InputChannels map[int64]int64 `json:"channels,omitempty"`
-	InputUsers    map[int64]int64 `json:"users,omitempty"`
+	InputChannels map[int64]int64  `json:"channels,omitempty"`
+	InputUsers    map[int64]int64  `json:"users,omitempty"`
 	UsernameMap   map[string]int64 `json:"username_map,omitempty"`
 }
 
@@ -131,22 +131,22 @@ func (c *CACHE) WriteFile() {
 	if c.disabled || c.memory {
 		return
 	}
-	
+
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
-	
+
 	// Debounce: don't write if we wrote recently
 	if time.Since(c.lastWrite) < 2*time.Second {
 		return
 	}
-	
+
 	file, err := os.OpenFile(c.fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		c.logger.Error("error opening cache file: ", err)
 		return
 	}
 	defer file.Close()
-	
+
 	c.RLock()
 	// Sync username map to InputPeers before writing
 	c.InputPeers.UsernameMap = make(map[string]int64, len(c.usernameMap))
@@ -156,7 +156,7 @@ func (c *CACHE) WriteFile() {
 	enc := gob.NewEncoder(file)
 	err = enc.Encode(c.InputPeers)
 	c.RUnlock()
-	
+
 	if err != nil {
 		c.logger.Error("error encoding cache file: ", err)
 	} else {
@@ -187,7 +187,7 @@ func (c *CACHE) ReadFile() {
 	c.Unlock()
 
 	if !c.memory {
-		c.logger.Debug(fmt.Sprintf("loaded %d users, %d channels, %d usernames from cache", 
+		c.logger.Debug(fmt.Sprintf("loaded %d users, %d channels, %d usernames from cache",
 			len(c.InputPeers.InputUsers), len(c.InputPeers.InputChannels), len(c.usernameMap)))
 	}
 }
@@ -232,18 +232,18 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 
 		return nil, fmt.Errorf("there is no channel with id '%d' or missing from cache", peerID)
 	}
-	
+
 	// Chat ID (negative but not -100 prefix)
 	if peerID < 0 {
 		chatID := peerID * -1
 		c.Cache.RLock()
 		_, chatExists := c.Cache.chats[chatID]
 		c.Cache.RUnlock()
-		
+
 		if chatExists {
 			return &InputPeerChat{chatID}, nil
 		}
-		
+
 		// Fallback: try to fetch from Telegram
 		if _, err := c.getChatFromCache(chatID); err == nil {
 			return &InputPeerChat{chatID}, nil
@@ -256,7 +256,7 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	c.Cache.RLock()
 	userHash, userExists := c.Cache.InputPeers.InputUsers[peerID]
 	c.Cache.RUnlock()
-	
+
 	if userExists {
 		return &InputPeerUser{peerID, userHash}, nil
 	}
@@ -270,7 +270,7 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	c.Cache.RLock()
 	channelHash, channelExists := c.Cache.InputPeers.InputChannels[peerID]
 	c.Cache.RUnlock()
-	
+
 	if channelExists {
 		return &InputPeerChannel{peerID, channelHash}, nil
 	}
@@ -433,7 +433,7 @@ func (c *CACHE) UpdateUser(user *UserObj) bool {
 	if user.Username != "" {
 		c.usernameMap[user.Username] = user.ID
 	}
-	
+
 	// Skip min users if we already have full user data
 	if user.Min {
 		if existingUser, ok := c.users[user.ID]; ok && !existingUser.Min {
@@ -447,7 +447,7 @@ func (c *CACHE) UpdateUser(user *UserObj) bool {
 
 	// Full user data - always update
 	c.users[user.ID] = user
-	
+
 	// Check if access hash changed
 	if currAccessHash, ok := c.InputPeers.InputUsers[user.ID]; ok {
 		if currAccessHash != user.AccessHash {
@@ -484,7 +484,7 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 
 	// Full channel data - always update
 	c.channels[channel.ID] = channel
-	
+
 	// Check if access hash changed
 	if currAccessHash, ok := c.InputPeers.InputChannels[channel.ID]; ok {
 		if currAccessHash != channel.AccessHash {
