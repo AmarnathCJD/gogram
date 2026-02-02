@@ -115,19 +115,19 @@ func ParseSchema(source string) (*Schema, error) {
 				},
 			})
 			continue
-		} else {
-			if def.IsEqVector {
-				return nil, errors.New("type can't be a vector")
-			}
-
-			objects = append(objects, Object{
-				Name:       def.Name,
-				Comment:    constructorComment,
-				CRC:        def.CRC,
-				Parameters: def.Params,
-				Interface:  def.EqType,
-			})
 		}
+
+		if def.IsEqVector {
+			return nil, errors.New("type can't be a vector")
+		}
+
+		objects = append(objects, Object{
+			Name:       def.Name,
+			Comment:    constructorComment,
+			CRC:        def.CRC,
+			Parameters: def.Params,
+			Interface:  def.EqType,
+		})
 
 		if nextTypeComment != "" {
 			typeComments[def.EqType] = nextTypeComment
@@ -261,7 +261,7 @@ func parseParam(cur *Cursor) (param Parameter, err error) {
 		}
 
 		param.BitToTrigger, err = strconv.Atoi(digits)
-		//fmt.Println(param.BitToTrigger)
+		// fmt.Println(param.BitToTrigger)
 		if err != nil {
 			return param, fmt.Errorf("invalid bitflag index: %s", digits)
 		}
@@ -281,7 +281,7 @@ func parseParam(cur *Cursor) (param Parameter, err error) {
 		}
 
 		param.BitToTrigger, err = strconv.Atoi(digits)
-		//fmt.Println(param.BitToTrigger)
+		// fmt.Println(param.BitToTrigger)
 		if err != nil {
 			return param, fmt.Errorf("invalid bitflag index: %s", digits)
 		}

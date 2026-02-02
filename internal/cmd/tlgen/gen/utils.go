@@ -102,7 +102,7 @@ func (g *Generator) typeIdFromSchemaType(t string) *jen.Statement {
 		if found {
 			break
 		}
-		//pp.Fprintln(os.Stderr, g.schema)
+		// pp.Fprintln(os.Stderr, g.schema)
 		panic("'" + t + "'")
 	}
 
