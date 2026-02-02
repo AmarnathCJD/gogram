@@ -2207,7 +2207,7 @@ func init() {
 		&WebViewResultURL{})
 
 	tl.RegisterObject(&MessageObj{}, 3106895567)
-	tl.RegisterObject(&KeyboardButtonCallback{}, 3624674796)
+	//tl.RegisterObject(&KeyboardButtonCallback{}, 3624674796)
 
 	tl.RegisterEnums(AttachMenuPeerTypeBotPm,
 		AttachMenuPeerTypeBroadcast,
