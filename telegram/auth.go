@@ -470,6 +470,7 @@ func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool
 	if err != nil {
 		return false, err
 	}
+
 	b := make([]byte, 32)
 	_, err = rand.Read(b)
 	if err != nil {
@@ -498,12 +499,12 @@ func (c *Client) Edit2FA(currPwd, newPwd string, opts ...*PasswordOptions) (bool
 	}
 
 	_, err = c.AccountUpdatePasswordSettings(password, &AccountPasswordInputSettings{
-		NewAlgo:           pwd.NewAlgo,
-		NewPasswordHash:   newPasswordHash,
-		Hint:              opt.Hint,
-		Email:             opt.Email,
-		NewSecureSettings: &SecureSecretSettings{},
+		NewAlgo:         pwd.NewAlgo,
+		NewPasswordHash: newPasswordHash,
+		Hint:            getValue(opt.Hint, "no-hint"),
+		Email:           opt.Email,
 	})
+
 	if err != nil {
 		if matchError(err, "EMAIL_UNCONFIRMED") {
 			if opt.EmailCodeCallback == nil {
