@@ -15,9 +15,7 @@ import (
 
 // A Decoder reads and decodes TL values from an input stream.
 type Decoder struct {
-	buf []byte
-	pos int
-
+	buf *bytes.Reader
 	err error
 
 	// see Decoder.ExpectTypesInInterface description
@@ -32,53 +30,48 @@ func NewDecoder(r io.Reader) (*Decoder, error) {
 		return nil, errors.Wrap(err, "reading data before decoding")
 	}
 
-	return &Decoder{buf: data}, nil
+	return &Decoder{buf: bytes.NewReader(data)}, nil
 }
 
 // ExpectTypesInInterface defines, how decoder must parse implicit objects.
 // how does expectedTypes works:
-// So, imagine: you want parse []int32, but also you can get []int64, or SomeCustomType, or even [][]bool.
-// How to deal it?
-// expectedTypes store your predictions (like "if you got unknown type, parse it as int32, not int64")
-// also, if you have predictions deeper than first unknown type, you can say decoder to use predicted vals
-//
-// So, next time, when you'll have strucre object with interface{} which expect contains []float64 or sort
-// of — use this feature via d.ExpectTypesInInterface()
+// So, imagine we have a struct with a field of type interface{}.
+// It can be possibly any time like []int32, []int64, etc.
+// Here we can define, what types we expect in this interface.
 func (d *Decoder) ExpectTypesInInterface(types ...reflect.Type) {
 	d.expectedTypes = types
 }
 
-func (d *Decoder) read2(n int) []byte {
-	if d.err != nil {
-		return nil
-	}
-
-	m := len(d.buf) - d.pos
-	if n > m {
-		d.err = fmt.Errorf("buffer weren't fully read: want %v bytes, got %v", n, m)
-		return nil
-	}
-	data := d.buf[d.pos : d.pos+n]
-	d.pos += n
-	return data
-}
-
 func (d *Decoder) read(buf []byte) {
-	tmp := d.read2(len(buf))
-	if d.err == nil {
-		copy(buf, tmp)
+	if d.err != nil {
+		return
+	}
+
+	n, err := d.buf.Read(buf)
+	if err != nil {
+		d.unread(n)
+		d.err = err
+		return
+	}
+
+	if n != len(buf) {
+		d.unread(n)
+		d.err = fmt.Errorf("buffer weren't fully read: want %v bytes, got %v", len(buf), n)
+		return
 	}
 }
 
 func (d *Decoder) unread(count int) {
-	d.pos -= count
-	if d.pos < 0 {
-		d.pos = 0
+	for i := 0; i < count; i++ {
+		if d.buf.UnreadByte() != nil {
+			return
+		}
 	}
 }
 
 func (d *Decoder) PopLong() int64 {
-	val := d.read2(LongLen)
+	val := make([]byte, LongLen)
+	d.read(val)
 	if d.err != nil {
 		return 0
 	}
@@ -87,7 +80,8 @@ func (d *Decoder) PopLong() int64 {
 }
 
 func (d *Decoder) PopDouble() float64 {
-	val := d.read2(DoubleLen)
+	val := make([]byte, DoubleLen)
+	d.read(val)
 	if d.err != nil {
 		return 0
 	}
@@ -96,7 +90,8 @@ func (d *Decoder) PopDouble() float64 {
 }
 
 func (d *Decoder) PopUint() uint32 {
-	val := d.read2(WordLen)
+	val := make([]byte, WordLen)
+	d.read(val)
 	if d.err != nil {
 		return 0
 	}
@@ -105,7 +100,13 @@ func (d *Decoder) PopUint() uint32 {
 }
 
 func (d *Decoder) PopRawBytes(size int) []byte {
-	return bytes.Clone(d.read2(size))
+	val := make([]byte, size)
+	d.read(val)
+	if d.err != nil {
+		return nil
+	}
+
+	return val
 }
 
 func (d *Decoder) PopBool() bool {
@@ -146,12 +147,11 @@ func (d *Decoder) PopInt() int32 {
 }
 
 func (d *Decoder) GetRestOfMessage() ([]byte, error) {
-	m := len(d.buf) - d.pos
-	return bytes.Clone(d.read2(m)), d.err
+	return io.ReadAll(d.buf)
 }
 
 func (d *Decoder) DumpWithoutRead() ([]byte, error) {
-	data, err := d.GetRestOfMessage()
+	data, err := io.ReadAll(d.buf)
 	if err != nil {
 		return nil, err
 	}
@@ -208,28 +208,59 @@ func (d *Decoder) popVector(as reflect.Type, ignoreCRC bool) any {
 }
 
 func (d *Decoder) PopMessage() []byte {
-	return bytes.Clone(d.popBytes())
-}
+	val := []byte{0}
 
-func (d *Decoder) popBytes() []byte {
-	tmp := d.PopUint()
-
-	size := int(tmp & 0xff)
-	pad := 0
-
-	switch {
-	case size == 0:
+	d.read(val)
+	if d.err != nil {
 		return nil
-	case size == 254:
-		size = int(tmp >> 8)
-		pad = padding4(size)
-	default:
-		pad = padding4(size + 1)
-		d.unread(3)
 	}
 
-	buf := d.read2(size)
-	_ = d.read2(pad) // padding
+	firstByte := val[0]
+
+	var realSize int
+	var lenNumberSize int
+
+	if firstByte != MagicNumber {
+		realSize = int(firstByte)
+		lenNumberSize = 1
+	} else {
+
+		val = make([]byte, WordLen-1)
+		d.read(val)
+		if d.err != nil {
+			d.err = errors.Wrapf(d.err, "reading last %v bytes of message size", WordLen-1)
+			return nil
+		}
+
+		val = append(val, 0x0)
+
+		realSize = int(binary.LittleEndian.Uint32(val))
+		lenNumberSize = WordLen
+	}
+
+	buf := make([]byte, realSize)
+	d.read(buf)
+	if d.err != nil {
+		d.err = errors.Wrapf(d.err, "reading message data with len of %v", realSize)
+		return nil
+	}
+
+	readLen := lenNumberSize + realSize
+	if readLen%WordLen != 0 {
+		voidBytes := make([]byte, WordLen-readLen%WordLen)
+		d.read(voidBytes)
+		if d.err != nil {
+			d.err = errors.Wrapf(d.err, "reading %v last void bytes", WordLen-readLen%WordLen)
+			return nil
+		}
+
+		for _, b := range voidBytes {
+			if b != 0 {
+				d.err = fmt.Errorf("some of void bytes doesn't equal zero: %#v", voidBytes)
+				return nil
+			}
+		}
+	}
 
 	return buf
 }

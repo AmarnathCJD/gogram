@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math/big"
 	"math/rand"
 	"os"
@@ -200,6 +201,8 @@ func processUpdates(updates Updates) []*MessageObj {
 				messages = append(messages, update.Message.(*MessageObj))
 			case *UpdateEditChannelMessage:
 				messages = append(messages, update.Message.(*MessageObj))
+			case *UpdateBotEditBusinessMessage:
+				messages = append(messages, update.Message.(*MessageObj))
 			}
 		}
 	}
@@ -251,7 +254,7 @@ updateTypeSwitch:
 		upd = &UpdatesObj{Updates: []Update{update.Update}}
 		goto updateTypeSwitch
 	default:
-		fmt.Println("unknown update type", reflect.TypeOf(update).String())
+		log.Println("unknown update type", reflect.TypeOf(upd).String())
 	}
 	return nil
 }
@@ -494,12 +497,10 @@ mediaTypeSwitch:
 		switch media := media.(type) {
 		case *InputFileObj:
 			mimeType, IsPhoto = mimeTypes.MIME(getValue(attr.FileName, media.Name))
-			attr.Attributes = mergeAttrs(attr.Attributes, getAttrs(mimeType))
 			fileName = getValue(attr.FileName, media.Name)
 			mediaFile = media
 		case *InputFileBig:
 			mimeType, IsPhoto = mimeTypes.MIME(getValue(attr.FileName, media.Name))
-			attr.Attributes = mergeAttrs(attr.Attributes, getAttrs(mimeType))
 			fileName = getValue(attr.FileName, media.Name)
 			mediaFile = media
 		}
@@ -771,40 +772,6 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 	return fi, err
 }
 
-func getAttrs(mimeType string) []DocumentAttribute {
-	switch mimeType {
-	case "image/gif":
-		//return []DocumentAttribute{&DocumentAttributeAnimated{}}
-	case "video/mp4", "video/webm", "video/mpeg", "video/matroska", "video/3gpp", "video/3gpp2", "video/x-matroska", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/x-m4v", "video/x-flv":
-		//attrVid := &DocumentAttributeVideo{RoundMessage: false, SupportsStreaming: true, W: 512, H: 512, Duration: 0}
-		//return []DocumentAttribute{attrVid}
-	case "audio/mpeg", "audio/ogg", "audio/x-wav", "audio/x-flac", "audio/x-m4a", "audio/3gpp", "audio/3gpp2", "audio/amr", "audio/amr-wb", "audio/AMR-WB+", "audio/mp4", "audio/x-matroska":
-		//return []DocumentAttribute{&DocumentAttributeAudio{Voice: false}}
-	default:
-		return []DocumentAttribute{}
-	}
-
-	return []DocumentAttribute{}
-}
-
-func mergeAttrs(attrs2, attrs1 []DocumentAttribute) []DocumentAttribute {
-	var attrs = make([]DocumentAttribute, 0)
-	attrs = append(attrs, attrs1...)
-	for _, attr := range attrs2 {
-		var found bool
-		for _, attr1 := range attrs1 {
-			if reflect.TypeOf(attr) == reflect.TypeOf(attr1) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			attrs = append(attrs, attr)
-		}
-	}
-	return attrs
-}
-
 func (c *Client) ResolveUsername(username string) (interface{}, error) {
 	resp, err := c.ContactsResolveUsername(strings.TrimPrefix(username, "@"))
 	if err != nil {
@@ -854,10 +821,14 @@ func packMessage(c *Client, message Message) *NewMessage {
 	default:
 		return nil
 	}
-	if m.Message.FromID != nil {
-		m.Sender = c.getSender(m.Message.FromID)
+	if m.Message.Out {
+		m.Sender = c.Me()
 	} else {
-		m.Sender = c.getSender(m.Message.PeerID)
+		if m.Message.FromID != nil {
+			m.Sender = c.getSender(m.Message.FromID)
+		} else {
+			m.Sender = c.getSender(m.Message.PeerID)
+		}
 	}
 	m.Chat = c.getChat(m.Message.PeerID)
 	m.Channel = c.getChannel(m.Message.PeerID)
