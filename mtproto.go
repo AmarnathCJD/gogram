@@ -537,10 +537,8 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 			return nil
 		}
 
-		if m.proxy != nil && m.proxy.Type == "mtproxy" {
-			if strings.Contains(err.Error(), "connecting to mtproxy") {
-				return fmt.Errorf("mtproxy connection failed: %w", err)
-			}
+		if utils.IsFatalConnectionError(err) {
+			return err
 		}
 
 		if m.terminated.Load() {

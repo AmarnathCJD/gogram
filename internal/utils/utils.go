@@ -322,6 +322,48 @@ func IsTransportError(err error) bool {
 		strings.Contains(errStr, "broken pipe")
 }
 
+func IsFatalConnectionError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+
+	fatalMTProxyErrors := []string{
+		"unsupported secret format",
+		"invalid secret length",
+		"failed to decode secret",
+		"mtproxy secret is required",
+	}
+
+	for _, fatalErr := range fatalMTProxyErrors {
+		if strings.Contains(errStr, fatalErr) {
+			return true
+		}
+	}
+
+	fatalErrors := []string{
+		"unsupported proxy scheme",
+		"unsupported connection type",
+		"socks version not supported",
+		"socks address type not supported",
+		"SOCKS4 only supports",
+		"invalid websocket URL",
+		"invalid Sec-WebSocket-Accept",
+		"invalid local address",
+		"protocol ID must be 4 bytes or less",
+		"mtproxy secret is required",
+	}
+
+	for _, fatalErr := range fatalErrors {
+		if strings.Contains(errStr, fatalErr) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // ------------------ Proxy Configuration ------------------
 
 type Proxy struct {
