@@ -538,3 +538,7 @@ const (
 	ErrBadMsgServerSaltIncorrect BadSystemMessageCode = 48
 	ErrBadMsgInvalidContainer    BadSystemMessageCode = 64
 )
+
+func (e *BadMsgError) GetError() string {
+	return badMsgErrorCodes[uint8(e.Code)]
+}
