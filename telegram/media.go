@@ -521,6 +521,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 
 	MAX_RETRIES := 3
+	var cdnRedirect atomic.Bool
 
 	for p := int64(0); p < parts; p++ {
 		wg.Add(1)
@@ -532,6 +533,9 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 			}()
 
 			for i := 0; i < MAX_RETRIES; i++ {
+				if cdnRedirect.Load() {
+					return
+				}
 				sender := w.Next()
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
@@ -566,7 +570,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					doneBytes.Add(int64(len(v.Bytes)))
 					doneArray.Store(p, true)
 				case *UploadFileCdnRedirect:
-					panic("cdn redirect not implemented") // TODO
+					cdnRedirect.Store(true)
 				case nil:
 					continue
 				default:
@@ -577,6 +581,9 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		}(int(p))
 	}
 	wg.Wait()
+	if cdnRedirect.Load() {
+		return "", errors.New("cdn redirect not implemented")
+	}
 
 retrySinglePart:
 	for _, p := range getUndoneParts(&doneArray, int(totalParts)) {
@@ -757,7 +764,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		case *UploadFileObj:
 			buf = append(buf, v.Bytes...)
 		case *UploadFileCdnRedirect:
-			panic("cdn redirect not implemented") // TODO
+			return nil, "", errors.New("cdn redirect not implemented")
 		}
 	}
 
