@@ -45,7 +45,7 @@ func (*AccountCancelPasswordEmailParams) CRC() uint32 {
 	return 0xc1cbd5b6
 }
 
-// Cancel the code that was sent to verify an email to use as [2FA recovery method](/api/srp).
+// Cancel the code that was sent to verify an email to use as [2FA recovery method](https://core.telegram.org//api/srp).
 func (c *Client) AccountCancelPasswordEmail() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountCancelPasswordEmailParams{})
 	if err != nil {
@@ -149,7 +149,7 @@ func (*AccountClearRecentEmojiStatusesParams) CRC() uint32 {
 	return 0x18201aae
 }
 
-// Clears list of recently used [emoji statuses](/api/emoji-status)
+// Clears list of recently used [emoji statuses](https://core.telegram.org//api/emoji-status)
 func (c *Client) AccountClearRecentEmojiStatuses() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountClearRecentEmojiStatusesParams{})
 	if err != nil {
@@ -171,7 +171,7 @@ func (*AccountConfirmPasswordEmailParams) CRC() uint32 {
 	return 0x8fdf1920
 }
 
-// Verify an email to use as [2FA recovery method](/api/srp).
+// Verify an email to use as [2FA recovery method](https://core.telegram.org//api/srp).
 func (c *Client) AccountConfirmPasswordEmail(code string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountConfirmPasswordEmailParams{Code: code})
 	if err != nil {
@@ -194,7 +194,7 @@ func (*AccountConfirmPhoneParams) CRC() uint32 {
 	return 0x5f2178c3
 }
 
-// Confirm a phone number to cancel account deletion, for more info [click here »](/api/account-deletion)
+// Confirm a phone number to cancel account deletion, for more info [click here »](https://core.telegram.org//api/account-deletion)
 func (c *Client) AccountConfirmPhone(phoneCodeHash, phoneCode string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountConfirmPhoneParams{
 		PhoneCode:     phoneCode,
@@ -272,7 +272,7 @@ func (*AccountDeclinePasswordResetParams) CRC() uint32 {
 	return 0x4c9409f6
 }
 
-// Abort a pending 2FA password reset, [see here for more info »](/api/srp#password-reset)
+// Abort a pending 2FA password reset, [see here for more info »](https://core.telegram.org//api/srp#password-reset)
 func (c *Client) AccountDeclinePasswordReset() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountDeclinePasswordResetParams{})
 	if err != nil {
@@ -365,7 +365,7 @@ func (*AccountDeleteSecureValueParams) CRC() uint32 {
 	return 0xb880bc4b
 }
 
-// Delete stored [Telegram Passport](/passport) documents, [for more info see the passport docs »](/passport/encryption#encryption)
+// Delete stored [Telegram Passport](https://core.telegram.org//passport) documents, [for more info see the passport docs »](https://core.telegram.org//passport/encryption#encryption)
 func (c *Client) AccountDeleteSecureValue(types []SecureValueType) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountDeleteSecureValueParams{Types: types})
 	if err != nil {
@@ -437,7 +437,7 @@ func (*AccountFinishTakeoutSessionParams) FlagIndex() int {
 	return 0
 }
 
-// Terminate a [takeout session, see here » for more info](/api/takeout).
+// Terminate a [takeout session, see here » for more info](https://core.telegram.org//api/takeout).
 func (c *Client) AccountFinishTakeoutSession(success bool) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountFinishTakeoutSessionParams{Success: success})
 	if err != nil {
@@ -477,7 +477,7 @@ func (*AccountGetAllSecureValuesParams) CRC() uint32 {
 	return 0xb288bc7d
 }
 
-// Get all saved [Telegram Passport](/passport) documents, [for more info see the passport docs »](/passport/encryption#encryption)
+// Get all saved [Telegram Passport](https://core.telegram.org//passport) documents, [for more info see the passport docs »](https://core.telegram.org//passport/encryption#encryption)
 func (c *Client) AccountGetAllSecureValues() ([]*SecureValue, error) {
 	responseData, err := c.MakeRequest(&AccountGetAllSecureValuesParams{})
 	if err != nil {
@@ -627,7 +627,7 @@ func (*AccountGetChannelDefaultEmojiStatusesParams) CRC() uint32 {
 	return 0x7727a7d5
 }
 
-// Get a list of default suggested [channel emoji statuses](/api/emoji-status).
+// Get a list of default suggested [channel emoji statuses](https://core.telegram.org//api/emoji-status).
 func (c *Client) AccountGetChannelDefaultEmojiStatuses(hash int64) (AccountEmojiStatuses, error) {
 	responseData, err := c.MakeRequest(&AccountGetChannelDefaultEmojiStatusesParams{Hash: hash})
 	if err != nil {
@@ -649,7 +649,7 @@ func (*AccountGetChannelRestrictedStatusEmojisParams) CRC() uint32 {
 	return 0x35a9e0d5
 }
 
-// Returns fetch the full list of [custom emoji IDs »](/api/custom-emoji) that cannot be used in [channel emoji statuses »](/api/emoji-status).
+// Returns fetch the full list of [custom emoji IDs »](https://core.telegram.org//api/custom-emoji) that cannot be used in [channel emoji statuses »](https://core.telegram.org//api/emoji-status).
 func (c *Client) AccountGetChannelRestrictedStatusEmojis(hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&AccountGetChannelRestrictedStatusEmojisParams{Hash: hash})
 	if err != nil {
@@ -671,7 +671,7 @@ func (*AccountGetChatThemesParams) CRC() uint32 {
 	return 0xd638de89
 }
 
-// Get all available chat [themes »](/api/themes).
+// Get all available chat [themes »](https://core.telegram.org//api/themes).
 func (c *Client) AccountGetChatThemes(hash int64) (AccountThemes, error) {
 	responseData, err := c.MakeRequest(&AccountGetChatThemesParams{Hash: hash})
 	if err != nil {
@@ -752,7 +752,7 @@ func (*AccountGetDefaultBackgroundEmojisParams) CRC() uint32 {
 	return 0xa60ab9ce
 }
 
-// Get a set of suggested [custom emoji stickers](/api/custom-emoji) that can be used in an [accent color pattern](/api/colors).
+// Get a set of suggested [custom emoji stickers](https://core.telegram.org//api/custom-emoji) that can be used in an [accent color pattern](https://core.telegram.org//api/colors).
 func (c *Client) AccountGetDefaultBackgroundEmojis(hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&AccountGetDefaultBackgroundEmojisParams{Hash: hash})
 	if err != nil {
@@ -774,7 +774,7 @@ func (*AccountGetDefaultEmojiStatusesParams) CRC() uint32 {
 	return 0xd6753386
 }
 
-// Get a list of default suggested [emoji statuses](/api/emoji-status)
+// Get a list of default suggested [emoji statuses](https://core.telegram.org//api/emoji-status)
 func (c *Client) AccountGetDefaultEmojiStatuses(hash int64) (AccountEmojiStatuses, error) {
 	responseData, err := c.MakeRequest(&AccountGetDefaultEmojiStatusesParams{Hash: hash})
 	if err != nil {
@@ -796,7 +796,7 @@ func (*AccountGetDefaultGroupPhotoEmojisParams) CRC() uint32 {
 	return 0x915860ae
 }
 
-// Get a set of suggested [custom emoji stickers](/api/custom-emoji) that can be [used as group picture](/api/files#sticker-profile-pictures)
+// Get a set of suggested [custom emoji stickers](https://core.telegram.org//api/custom-emoji) that can be [used as group picture](https://core.telegram.org//api/files#sticker-profile-pictures)
 func (c *Client) AccountGetDefaultGroupPhotoEmojis(hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&AccountGetDefaultGroupPhotoEmojisParams{Hash: hash})
 	if err != nil {
@@ -818,7 +818,7 @@ func (*AccountGetDefaultProfilePhotoEmojisParams) CRC() uint32 {
 	return 0xe2750328
 }
 
-// Get a set of suggested [custom emoji stickers](/api/custom-emoji) that can be [used as profile picture](/api/files#sticker-profile-pictures)
+// Get a set of suggested [custom emoji stickers](https://core.telegram.org//api/custom-emoji) that can be [used as profile picture](https://core.telegram.org//api/files#sticker-profile-pictures)
 func (c *Client) AccountGetDefaultProfilePhotoEmojis(hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&AccountGetDefaultProfilePhotoEmojisParams{Hash: hash})
 	if err != nil {
@@ -860,7 +860,7 @@ func (*AccountGetMultiWallPapersParams) CRC() uint32 {
 	return 0x65ad71dc
 }
 
-// Get info about multiple [wallpapers](/api/wallpapers)
+// Get info about multiple [wallpapers](https://core.telegram.org//api/wallpapers)
 func (c *Client) AccountGetMultiWallPapers(wallpapers []InputWallPaper) ([]WallPaper, error) {
 	responseData, err := c.MakeRequest(&AccountGetMultiWallPapersParams{Wallpapers: wallpapers})
 	if err != nil {
@@ -956,7 +956,7 @@ func (*AccountGetPasswordSettingsParams) CRC() uint32 {
 	return 0x9cd4eaf9
 }
 
-// Get private info associated to the password info (recovery email, telegram [passport](/passport) info &amp; so on)
+// Get private info associated to the password info (recovery email, telegram [passport](https://core.telegram.org//passport) info &amp; so on)
 func (c *Client) AccountGetPasswordSettings(password InputCheckPasswordSRP) (*AccountPasswordSettings, error) {
 	responseData, err := c.MakeRequest(&AccountGetPasswordSettingsParams{Password: password})
 	if err != nil {
@@ -1019,7 +1019,7 @@ func (*AccountGetRecentEmojiStatusesParams) CRC() uint32 {
 	return 0xf578105
 }
 
-// Get recently used [emoji statuses](/api/emoji-status)
+// Get recently used [emoji statuses](https://core.telegram.org//api/emoji-status)
 func (c *Client) AccountGetRecentEmojiStatuses(hash int64) (AccountEmojiStatuses, error) {
 	responseData, err := c.MakeRequest(&AccountGetRecentEmojiStatusesParams{Hash: hash})
 	if err != nil {
@@ -1063,7 +1063,7 @@ func (*AccountGetSecureValueParams) CRC() uint32 {
 	return 0x73665bc2
 }
 
-// Get saved [Telegram Passport](/passport) document, [for more info see the passport docs »](/passport/encryption#encryption)
+// Get saved [Telegram Passport](https://core.telegram.org//passport) document, [for more info see the passport docs »](https://core.telegram.org//passport/encryption#encryption)
 func (c *Client) AccountGetSecureValue(types []SecureValueType) ([]*SecureValue, error) {
 	responseData, err := c.MakeRequest(&AccountGetSecureValueParams{Types: types})
 	if err != nil {
@@ -1163,7 +1163,7 @@ func (*AccountGetWallPaperParams) CRC() uint32 {
 	return 0xfc8ddbea
 }
 
-// Get info about a certain [wallpaper](/api/wallpapers)
+// Get info about a certain [wallpaper](https://core.telegram.org//api/wallpapers)
 func (c *Client) AccountGetWallPaper(wallpaper InputWallPaper) (WallPaper, error) {
 	responseData, err := c.MakeRequest(&AccountGetWallPaperParams{Wallpaper: wallpaper})
 	if err != nil {
@@ -1185,7 +1185,7 @@ func (*AccountGetWallPapersParams) CRC() uint32 {
 	return 0x7967d36
 }
 
-// Returns a list of available [wallpapers](/api/wallpapers).
+// Returns a list of available [wallpapers](https://core.telegram.org//api/wallpapers).
 func (c *Client) AccountGetWallPapers(hash int64) (AccountWallPapers, error) {
 	responseData, err := c.MakeRequest(&AccountGetWallPapersParams{Hash: hash})
 	if err != nil {
@@ -1205,7 +1205,7 @@ func (*AccountGetWebAuthorizationsParams) CRC() uint32 {
 	return 0x182e6d6f
 }
 
-// Get web [login widget](/widgets/login) authorizations
+// Get web [login widget](https://core.telegram.org//widgets/login) authorizations
 func (c *Client) AccountGetWebAuthorizations() (*AccountWebAuthorizations, error) {
 	responseData, err := c.MakeRequest(&AccountGetWebAuthorizationsParams{})
 	if err != nil {
@@ -1237,7 +1237,7 @@ func (*AccountInitTakeoutSessionParams) FlagIndex() int {
 	return 0
 }
 
-// Initialize a [takeout session, see here » for more info](/api/takeout).
+// Initialize a [takeout session, see here » for more info](https://core.telegram.org//api/takeout).
 func (c *Client) AccountInitTakeoutSession(params *AccountInitTakeoutSessionParams) (*AccountTakeout, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -1294,7 +1294,7 @@ func (*AccountInstallWallPaperParams) CRC() uint32 {
 	return 0xfeed5769
 }
 
-// Install [wallpaper](/api/wallpapers)
+// Install [wallpaper](https://core.telegram.org//api/wallpapers)
 func (c *Client) AccountInstallWallPaper(wallpaper InputWallPaper, settings *WallPaperSettings) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountInstallWallPaperParams{
 		Settings:  settings,
@@ -1319,7 +1319,7 @@ func (*AccountInvalidateSignInCodesParams) CRC() uint32 {
 	return 0xca8ae8ba
 }
 
-// Invalidate the specified login codes, see [here »](/api/auth#invalidating-login-codes) for more info.
+// Invalidate the specified login codes, see [here »](https://core.telegram.org//api/auth#invalidating-login-codes) for more info.
 func (c *Client) AccountInvalidateSignInCodes(codes []string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountInvalidateSignInCodesParams{Codes: codes})
 	if err != nil {
@@ -1350,7 +1350,7 @@ func (*AccountRegisterDeviceParams) FlagIndex() int {
 	return 0
 }
 
-// Register device to receive [PUSH notifications](/api/push-updates)
+// Register device to receive [PUSH notifications](https://core.telegram.org//api/push-updates)
 func (c *Client) AccountRegisterDevice(params *AccountRegisterDeviceParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -1450,7 +1450,7 @@ func (*AccountResendPasswordEmailParams) CRC() uint32 {
 	return 0x7a7f2a15
 }
 
-// Resend the code to verify an email to use as [2FA recovery method](/api/srp).
+// Resend the code to verify an email to use as [2FA recovery method](https://core.telegram.org//api/srp).
 func (c *Client) AccountResendPasswordEmail() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResendPasswordEmailParams{})
 	if err != nil {
@@ -1472,7 +1472,7 @@ func (*AccountResetAuthorizationParams) CRC() uint32 {
 	return 0xdf77f3bc
 }
 
-// Log out an active [authorized session](/api/auth) by its hash
+// Log out an active [authorized session](https://core.telegram.org//api/auth) by its hash
 func (c *Client) AccountResetAuthorization(hash int64) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetAuthorizationParams{Hash: hash})
 	if err != nil {
@@ -1512,7 +1512,7 @@ func (*AccountResetPasswordParams) CRC() uint32 {
 	return 0x9308ce1b
 }
 
-// Initiate a 2FA password reset: can only be used if the user is already logged-in, [see here for more info »](/api/srp#password-reset)
+// Initiate a 2FA password reset: can only be used if the user is already logged-in, [see here for more info »](https://core.telegram.org//api/srp#password-reset)
 func (c *Client) AccountResetPassword() (AccountResetPasswordResult, error) {
 	responseData, err := c.MakeRequest(&AccountResetPasswordParams{})
 	if err != nil {
@@ -1532,7 +1532,7 @@ func (*AccountResetWallPapersParams) CRC() uint32 {
 	return 0xbb3b9804
 }
 
-// Delete all installed [wallpapers](/api/wallpapers), reverting to the default wallpaper set.
+// Delete all installed [wallpapers](https://core.telegram.org//api/wallpapers), reverting to the default wallpaper set.
 func (c *Client) AccountResetWallPapers() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetWallPapersParams{})
 	if err != nil {
@@ -1554,7 +1554,7 @@ func (*AccountResetWebAuthorizationParams) CRC() uint32 {
 	return 0x2d01b9ef
 }
 
-// Log out an active web [telegram login](/widgets/login) session
+// Log out an active web [telegram login](https://core.telegram.org//widgets/login) session
 func (c *Client) AccountResetWebAuthorization(hash int64) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetWebAuthorizationParams{Hash: hash})
 	if err != nil {
@@ -1574,7 +1574,7 @@ func (*AccountResetWebAuthorizationsParams) CRC() uint32 {
 	return 0x682d2594
 }
 
-// Reset all active web [telegram login](/widgets/login) sessions
+// Reset all active web [telegram login](https://core.telegram.org//widgets/login) sessions
 func (c *Client) AccountResetWebAuthorizations() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetWebAuthorizationsParams{})
 	if err != nil {
@@ -1706,7 +1706,7 @@ func (*AccountSaveSecureValueParams) CRC() uint32 {
 	return 0x899fe31d
 }
 
-// Securely save [Telegram Passport](/passport) document, [for more info see the passport docs »](/passport/encryption#encryption)
+// Securely save [Telegram Passport](https://core.telegram.org//passport) document, [for more info see the passport docs »](https://core.telegram.org//passport/encryption#encryption)
 func (c *Client) AccountSaveSecureValue(value *InputSecureValue, secureSecretID int64) (*SecureValue, error) {
 	responseData, err := c.MakeRequest(&AccountSaveSecureValueParams{
 		SecureSecretID: secureSecretID,
@@ -1759,7 +1759,7 @@ func (*AccountSaveWallPaperParams) CRC() uint32 {
 	return 0x6c5a5b37
 }
 
-// Install/uninstall [wallpaper](/api/wallpapers)
+// Install/uninstall [wallpaper](https://core.telegram.org//api/wallpapers)
 func (c *Client) AccountSaveWallPaper(wallpaper InputWallPaper, unsave bool, settings *WallPaperSettings) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountSaveWallPaperParams{
 		Settings:  settings,
@@ -1812,7 +1812,7 @@ func (*AccountSendConfirmPhoneCodeParams) CRC() uint32 {
 	return 0x1b3faa88
 }
 
-// Send confirmation code to cancel account deletion, for more info [click here »](/api/account-deletion)
+// Send confirmation code to cancel account deletion, for more info [click here »](https://core.telegram.org//api/account-deletion)
 func (c *Client) AccountSendConfirmPhoneCode(hash string, settings *CodeSettings) (AuthSentCode, error) {
 	responseData, err := c.MakeRequest(&AccountSendConfirmPhoneCodeParams{
 		Hash:     hash,
@@ -1864,7 +1864,7 @@ func (*AccountSendVerifyPhoneCodeParams) CRC() uint32 {
 	return 0xa5a356f9
 }
 
-// Send the verification phone code for telegram [passport](/passport).
+// Send the verification phone code for telegram [passport](https://core.telegram.org//passport).
 func (c *Client) AccountSendVerifyPhoneCode(phoneNumber string, settings *CodeSettings) (AuthSentCode, error) {
 	responseData, err := c.MakeRequest(&AccountSendVerifyPhoneCodeParams{
 		PhoneNumber: phoneNumber,
@@ -2097,7 +2097,7 @@ func (*AccountToggleUsernameParams) CRC() uint32 {
 	return 0x58d6b376
 }
 
-// Activate or deactivate a purchased [fragment.com](https://fragment.com) username associated to the currently logged-in user.
+// Activate or deactivate a purchased [fragment.com](https://core.telegram.org/https://fragment.com) username associated to the currently logged-in user.
 func (c *Client) AccountToggleUsername(username string, active bool) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountToggleUsernameParams{
 		Active:   active,
@@ -2310,7 +2310,7 @@ func (*AccountUpdateColorParams) FlagIndex() int {
 	return 0
 }
 
-// Update the [accent color and background custom emoji »](/api/colors) of the current account.
+// Update the [accent color and background custom emoji »](https://core.telegram.org//api/colors) of the current account.
 func (c *Client) AccountUpdateColor(forProfile bool, color int32, backgroundEmojiID int64) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateColorParams{
 		BackgroundEmojiID: backgroundEmojiID,
@@ -2369,7 +2369,7 @@ func (*AccountUpdateDeviceLockedParams) CRC() uint32 {
 	return 0x38df3532
 }
 
-// When client-side passcode lock feature is enabled, will not show message texts in incoming [PUSH notifications](/api/push-updates).
+// When client-side passcode lock feature is enabled, will not show message texts in incoming [PUSH notifications](https://core.telegram.org//api/push-updates).
 func (c *Client) AccountUpdateDeviceLocked(period int32) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateDeviceLockedParams{Period: period})
 	if err != nil {
@@ -2391,7 +2391,7 @@ func (*AccountUpdateEmojiStatusParams) CRC() uint32 {
 	return 0xfbd3de6b
 }
 
-// Set an [emoji status](/api/emoji-status)
+// Set an [emoji status](https://core.telegram.org//api/emoji-status)
 func (c *Client) AccountUpdateEmojiStatus(emojiStatus EmojiStatus) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateEmojiStatusParams{EmojiStatus: emojiStatus})
 	if err != nil {
@@ -2595,7 +2595,7 @@ func (*AccountUploadRingtoneParams) CRC() uint32 {
 	return 0x831a83a2
 }
 
-// Upload notification sound, use [account.saveRingtone](/method/account.saveRingtone) to convert it and add it to the list of saved notification sounds.
+// Upload notification sound, use [account.saveRingtone](https://core.telegram.org//method/account.saveRingtone) to convert it and add it to the list of saved notification sounds.
 func (c *Client) AccountUploadRingtone(file InputFile, fileName, mimeType string) (Document, error) {
 	responseData, err := c.MakeRequest(&AccountUploadRingtoneParams{
 		File:     file,
@@ -2662,7 +2662,7 @@ func (*AccountUploadWallPaperParams) FlagIndex() int {
 	return 0
 }
 
-// Create and upload a new [wallpaper](/api/wallpapers)
+// Create and upload a new [wallpaper](https://core.telegram.org//api/wallpapers)
 func (c *Client) AccountUploadWallPaper(forChat bool, file InputFile, mimeType string, settings *WallPaperSettings) (WallPaper, error) {
 	responseData, err := c.MakeRequest(&AccountUploadWallPaperParams{
 		File:     file,
@@ -2717,7 +2717,7 @@ func (*AccountVerifyPhoneParams) CRC() uint32 {
 	return 0x4dd3a7f6
 }
 
-// Verify a phone number for telegram [passport](/passport).
+// Verify a phone number for telegram [passport](https://core.telegram.org//passport).
 func (c *Client) AccountVerifyPhone(phoneNumber, phoneCodeHash, phoneCode string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountVerifyPhoneParams{
 		PhoneCode:     phoneCode,
@@ -2821,7 +2821,7 @@ func (*AuthCheckPasswordParams) CRC() uint32 {
 	return 0xd18b4d16
 }
 
-// Try logging to an account protected by a [2FA password](/api/srp).
+// Try logging to an account protected by a [2FA password](https://core.telegram.org//api/srp).
 func (c *Client) AuthCheckPassword(password InputCheckPasswordSRP) (AuthAuthorization, error) {
 	responseData, err := c.MakeRequest(&AuthCheckPasswordParams{Password: password})
 	if err != nil {
@@ -2843,7 +2843,7 @@ func (*AuthCheckRecoveryPasswordParams) CRC() uint32 {
 	return 0xd36bf79
 }
 
-// Check if the [2FA recovery code](/api/srp) sent using [auth.requestPasswordRecovery](/method/auth.requestPasswordRecovery) is valid, before passing it to [auth.recoverPassword](/method/auth.recoverPassword).
+// Check if the [2FA recovery code](https://core.telegram.org//api/srp) sent using [auth.requestPasswordRecovery](https://core.telegram.org//method/auth.requestPasswordRecovery) is valid, before passing it to [auth.recoverPassword](https://core.telegram.org//method/auth.recoverPassword).
 func (c *Client) AuthCheckRecoveryPassword(code string) (bool, error) {
 	responseData, err := c.MakeRequest(&AuthCheckRecoveryPasswordParams{Code: code})
 	if err != nil {
@@ -2912,8 +2912,8 @@ func (*AuthExportLoginTokenParams) CRC() uint32 {
 }
 
 /*
-Generate a login token, for [login via QR code](/api/qr-login).<br>
-The generated login token should be encoded using base64url, then shown as a `tg://login?token=base64encodedtoken` [deep link »](/api/links#qr-code-login-links) in the QR code.
+Generate a login token, for [login via QR code](https://core.telegram.org//api/qr-login).<br>
+The generated login token should be encoded using base64url, then shown as a `tg://login?token=base64encodedtoken` [deep link »](https://core.telegram.org//api/links#qr-code-login-links) in the QR code.
 */
 func (c *Client) AuthExportLoginToken(apiID int32, apiHash string, exceptIds []int64) (AuthLoginToken, error) {
 	responseData, err := c.MakeRequest(&AuthExportLoginTokenParams{
@@ -2996,7 +2996,7 @@ func (*AuthImportLoginTokenParams) CRC() uint32 {
 	return 0x95ac5ce4
 }
 
-// Login using a redirected login token, generated in case of DC mismatch during [QR code login](/api/qr-login).
+// Login using a redirected login token, generated in case of DC mismatch during [QR code login](https://core.telegram.org//api/qr-login).
 func (c *Client) AuthImportLoginToken(token []byte) (AuthLoginToken, error) {
 	responseData, err := c.MakeRequest(&AuthImportLoginTokenParams{Token: token})
 	if err != nil {
@@ -3071,7 +3071,7 @@ func (*AuthRecoverPasswordParams) FlagIndex() int {
 	return 0
 }
 
-// Reset the [2FA password](/api/srp) using the recovery code sent using [auth.requestPasswordRecovery](/method/auth.requestPasswordRecovery).
+// Reset the [2FA password](https://core.telegram.org//api/srp) using the recovery code sent using [auth.requestPasswordRecovery](https://core.telegram.org//method/auth.requestPasswordRecovery).
 func (c *Client) AuthRecoverPassword(code string, newSettings *AccountPasswordInputSettings) (AuthAuthorization, error) {
 	responseData, err := c.MakeRequest(&AuthRecoverPasswordParams{
 		Code:        code,
@@ -3151,7 +3151,7 @@ func (*AuthRequestPasswordRecoveryParams) CRC() uint32 {
 	return 0xd897bc66
 }
 
-// Request recovery code of a [2FA password](/api/srp), only for accounts with a [recovery email configured](/api/srp#email-verification).
+// Request recovery code of a [2FA password](https://core.telegram.org//api/srp), only for accounts with a [recovery email configured](https://core.telegram.org//api/srp#email-verification).
 func (c *Client) AuthRequestPasswordRecovery() (*AuthPasswordRecovery, error) {
 	responseData, err := c.MakeRequest(&AuthRequestPasswordRecoveryParams{})
 	if err != nil {
@@ -3179,7 +3179,7 @@ func (*AuthResendCodeParams) FlagIndex() int {
 	return 0
 }
 
-// Resend the login code via another medium, the phone code type is determined by the return value of the previous auth.sendCode/auth.resendCode: see [login](/api/auth) for more info.
+// Resend the login code via another medium, the phone code type is determined by the return value of the previous auth.sendCode/auth.resendCode: see [login](https://core.telegram.org//api/auth) for more info.
 func (c *Client) AuthResendCode(phoneNumber, phoneCodeHash, reason string) (AuthSentCode, error) {
 	responseData, err := c.MakeRequest(&AuthResendCodeParams{
 		PhoneCodeHash: phoneCodeHash,
@@ -3226,7 +3226,7 @@ func (*AuthResetLoginEmailParams) CRC() uint32 {
 	return 0x7e960193
 }
 
-// Reset the [login email »](https://core.telegram.org/api/auth#email-verification).
+// Reset the [login email »](https://core.telegram.org/https://core.telegram.org/api/auth#email-verification).
 func (c *Client) AuthResetLoginEmail(phoneNumber, phoneCodeHash string) (AuthSentCode, error) {
 	responseData, err := c.MakeRequest(&AuthResetLoginEmailParams{
 		PhoneCodeHash: phoneCodeHash,
@@ -3471,7 +3471,7 @@ func (*BotsGetBotMenuButtonParams) CRC() uint32 {
 	return 0x9c60eb28
 }
 
-// Gets the menu button action for a given user or for all users, previously set using [bots.setBotMenuButton](/method/bots.setBotMenuButton); users can see this information in the [botInfo](/constructor/botInfo) constructor.
+// Gets the menu button action for a given user or for all users, previously set using [bots.setBotMenuButton](https://core.telegram.org//method/bots.setBotMenuButton); users can see this information in the [botInfo](https://core.telegram.org//constructor/botInfo) constructor.
 func (c *Client) BotsGetBotMenuButton(userID InputUser) (BotMenuButton, error) {
 	responseData, err := c.MakeRequest(&BotsGetBotMenuButtonParams{UserID: userID})
 	if err != nil {
@@ -3495,7 +3495,7 @@ func (*BotsInvokeWebViewCustomMethodParams) CRC() uint32 {
 	return 0x87fc5e7
 }
 
-// Send a custom request from a [mini bot app](/api/bots/webapps), triggered by a [web_app_invoke_custom_method event »](/api/web-events#web-app-invoke-custom-method).
+// Send a custom request from a [mini bot app](https://core.telegram.org//api/bots/webapps), triggered by a [web_app_invoke_custom_method event »](https://core.telegram.org//api/web-events#web-app-invoke-custom-method).
 func (c *Client) BotsInvokeWebViewCustomMethod(bot InputUser, customMethod string, params *DataJson) (*DataJson, error) {
 	responseData, err := c.MakeRequest(&BotsInvokeWebViewCustomMethodParams{
 		Bot:          bot,
@@ -3599,7 +3599,7 @@ func (*BotsSetBotBroadcastDefaultAdminRightsParams) CRC() uint32 {
 	return 0x788464e1
 }
 
-// Set the default [suggested admin rights](/api/rights#suggested-bot-rights) for bots being added as admins to channels, see [here for more info on how to handle them »](/api/rights#suggested-bot-rights).
+// Set the default [suggested admin rights](https://core.telegram.org//api/rights#suggested-bot-rights) for bots being added as admins to channels, see [here for more info on how to handle them »](https://core.telegram.org//api/rights#suggested-bot-rights).
 func (c *Client) BotsSetBotBroadcastDefaultAdminRights(adminRights *ChatAdminRights) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsSetBotBroadcastDefaultAdminRightsParams{AdminRights: adminRights})
 	if err != nil {
@@ -3649,7 +3649,7 @@ func (*BotsSetBotGroupDefaultAdminRightsParams) CRC() uint32 {
 	return 0x925ec9ea
 }
 
-// Set the default [suggested admin rights](/api/rights#suggested-bot-rights) for bots being added as admins to groups, see [here for more info on how to handle them »](/api/rights#suggested-bot-rights).
+// Set the default [suggested admin rights](https://core.telegram.org//api/rights#suggested-bot-rights) for bots being added as admins to groups, see [here for more info on how to handle them »](https://core.telegram.org//api/rights#suggested-bot-rights).
 func (c *Client) BotsSetBotGroupDefaultAdminRights(adminRights *ChatAdminRights) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsSetBotGroupDefaultAdminRightsParams{AdminRights: adminRights})
 	if err != nil {
@@ -3702,7 +3702,7 @@ func (*BotsSetBotMenuButtonParams) CRC() uint32 {
 	return 0x4504d54f
 }
 
-// Sets the [menu button action »](/api/bots/menu) for a given user or for all users
+// Sets the [menu button action »](https://core.telegram.org//api/bots/menu) for a given user or for all users
 func (c *Client) BotsSetBotMenuButton(userID InputUser, button BotMenuButton) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsSetBotMenuButtonParams{
 		Button: button,
@@ -3729,7 +3729,7 @@ func (*BotsToggleUsernameParams) CRC() uint32 {
 	return 0x53ca973
 }
 
-// Activate or deactivate a purchased [fragment.com](https://fragment.com) username associated to a bot we own.
+// Activate or deactivate a purchased [fragment.com](https://core.telegram.org/https://fragment.com) username associated to a bot we own.
 func (c *Client) BotsToggleUsername(bot InputUser, username string, active bool) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsToggleUsernameParams{
 		Active:   active,
@@ -3807,7 +3807,7 @@ func (*ChannelsConvertToGigagroupParams) CRC() uint32 {
 	return 0xb290c69
 }
 
-// Convert a [supergroup](/api/channel) to a [gigagroup](/api/channel), when requested by [channel suggestions](/api/config#channel-suggestions).
+// Convert a [supergroup](https://core.telegram.org//api/channel) to a [gigagroup](https://core.telegram.org//api/channel), when requested by [channel suggestions](https://core.telegram.org//api/config#channel-suggestions).
 func (c *Client) ChannelsConvertToGigagroup(channel InputChannel) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsConvertToGigagroupParams{Channel: channel})
 	if err != nil {
@@ -3841,7 +3841,7 @@ func (*ChannelsCreateChannelParams) FlagIndex() int {
 	return 0
 }
 
-// Create a [supergroup/channel](/api/channel).
+// Create a [supergroup/channel](https://core.telegram.org//api/channel).
 func (c *Client) ChannelsCreateChannel(params *ChannelsCreateChannelParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -3872,7 +3872,7 @@ func (*ChannelsCreateForumTopicParams) FlagIndex() int {
 	return 0
 }
 
-// Create a [forum topic](/api/forum); requires <a href="/api/rights">`manage_topics` rights</a>.
+// Create a [forum topic](https://core.telegram.org//api/forum); requires <a href="/api/rights">`manage_topics` rights</a>.
 func (c *Client) ChannelsCreateForumTopic(params *ChannelsCreateForumTopicParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -3916,7 +3916,7 @@ func (*ChannelsDeleteChannelParams) CRC() uint32 {
 	return 0xc0111fe3
 }
 
-// Delete a [channel/supergroup](/api/channel)
+// Delete a [channel/supergroup](https://core.telegram.org//api/channel)
 func (c *Client) ChannelsDeleteChannel(channel InputChannel) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsDeleteChannelParams{Channel: channel})
 	if err != nil {
@@ -3944,7 +3944,7 @@ func (*ChannelsDeleteHistoryParams) FlagIndex() int {
 	return 0
 }
 
-// Delete the history of a [supergroup](/api/channel)
+// Delete the history of a [supergroup](https://core.telegram.org//api/channel)
 func (c *Client) ChannelsDeleteHistory(forEveryone bool, channel InputChannel, maxID int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsDeleteHistoryParams{
 		Channel:     channel,
@@ -3971,7 +3971,7 @@ func (*ChannelsDeleteMessagesParams) CRC() uint32 {
 	return 0x84c1fd4e
 }
 
-// Delete messages in a [channel/supergroup](/api/channel)
+// Delete messages in a [channel/supergroup](https://core.telegram.org//api/channel)
 func (c *Client) ChannelsDeleteMessages(channel InputChannel, id []int32) (*MessagesAffectedMessages, error) {
 	responseData, err := c.MakeRequest(&ChannelsDeleteMessagesParams{
 		Channel: channel,
@@ -4023,7 +4023,7 @@ func (*ChannelsDeleteTopicHistoryParams) CRC() uint32 {
 	return 0x34435f2d
 }
 
-// Delete message history of a [forum topic](/api/forum)
+// Delete message history of a [forum topic](https://core.telegram.org//api/forum)
 func (c *Client) ChannelsDeleteTopicHistory(channel InputChannel, topMsgID int32) (*MessagesAffectedHistory, error) {
 	responseData, err := c.MakeRequest(&ChannelsDeleteTopicHistoryParams{
 		Channel:  channel,
@@ -4051,7 +4051,7 @@ func (*ChannelsEditAdminParams) CRC() uint32 {
 	return 0xd33c8902
 }
 
-// Modify the admin rights of a user in a [supergroup/channel](/api/channel).
+// Modify the admin rights of a user in a [supergroup/channel](https://core.telegram.org//api/channel).
 func (c *Client) ChannelsEditAdmin(channel InputChannel, userID InputUser, adminRights *ChatAdminRights, rank string) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsEditAdminParams{
 		AdminRights: adminRights,
@@ -4080,7 +4080,7 @@ func (*ChannelsEditBannedParams) CRC() uint32 {
 	return 0x96e6cd81
 }
 
-// Ban/unban/kick a user in a [supergroup/channel](/api/channel).
+// Ban/unban/kick a user in a [supergroup/channel](https://core.telegram.org//api/channel).
 func (c *Client) ChannelsEditBanned(channel InputChannel, participant InputPeer, bannedRights *ChatBannedRights) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsEditBannedParams{
 		BannedRights: bannedRights,
@@ -4143,7 +4143,7 @@ func (*ChannelsEditForumTopicParams) FlagIndex() int {
 	return 0
 }
 
-// Edit [forum topic](/api/forum); requires <a href="/api/rights">`manage_topics` rights</a>.
+// Edit [forum topic](https://core.telegram.org//api/forum); requires <a href="/api/rights">`manage_topics` rights</a>.
 func (c *Client) ChannelsEditForumTopic(params *ChannelsEditForumTopicParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -4167,7 +4167,7 @@ func (*ChannelsEditLocationParams) CRC() uint32 {
 	return 0x58e63f6d
 }
 
-// Edit location of geogroup, see [here »](/api/nearby) for more info on geogroups.
+// Edit location of geogroup, see [here »](https://core.telegram.org//api/nearby) for more info on geogroups.
 func (c *Client) ChannelsEditLocation(channel InputChannel, geoPoint InputGeoPoint, address string) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsEditLocationParams{
 		Address:  address,
@@ -4194,7 +4194,7 @@ func (*ChannelsEditPhotoParams) CRC() uint32 {
 	return 0xf12e57c9
 }
 
-// Change the photo of a [channel/supergroup](/api/channel)
+// Change the photo of a [channel/supergroup](https://core.telegram.org//api/channel)
 func (c *Client) ChannelsEditPhoto(channel InputChannel, photo InputChatPhoto) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsEditPhotoParams{
 		Channel: channel,
@@ -4220,7 +4220,7 @@ func (*ChannelsEditTitleParams) CRC() uint32 {
 	return 0x566decd0
 }
 
-// Edit the name of a [channel/supergroup](/api/channel)
+// Edit the name of a [channel/supergroup](https://core.telegram.org//api/channel)
 func (c *Client) ChannelsEditTitle(channel InputChannel, title string) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsEditTitleParams{
 		Channel: channel,
@@ -4252,7 +4252,7 @@ func (*ChannelsExportMessageLinkParams) FlagIndex() int {
 	return 0
 }
 
-// Get link and embed info of a message in a [channel/supergroup](/api/channel)
+// Get link and embed info of a message in a [channel/supergroup](https://core.telegram.org//api/channel)
 func (c *Client) ChannelsExportMessageLink(grouped, thread bool, channel InputChannel, id int32) (*ExportedMessageLink, error) {
 	responseData, err := c.MakeRequest(&ChannelsExportMessageLinkParams{
 		Channel: channel,
@@ -4289,7 +4289,7 @@ func (*ChannelsGetAdminLogParams) FlagIndex() int {
 	return 0
 }
 
-// Get the admin log of a [channel/supergroup](/api/channel)
+// Get the admin log of a [channel/supergroup](https://core.telegram.org//api/channel)
 func (c *Client) ChannelsGetAdminLog(params *ChannelsGetAdminLogParams) (*ChannelsAdminLogResults, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -4317,7 +4317,7 @@ func (*ChannelsGetAdminedPublicChannelsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [channels/supergroups/geogroups](/api/channel) we're admin in. Usually called when the user exceeds the [limit](/constructor/config) for owned public [channels/supergroups/geogroups](/api/channel), and the user is given the choice to remove one of his channels/supergroups/geogroups.
+// Get [channels/supergroups/geogroups](https://core.telegram.org//api/channel) we're admin in. Usually called when the user exceeds the [limit](https://core.telegram.org//constructor/config) for owned public [channels/supergroups/geogroups](https://core.telegram.org//api/channel), and the user is given the choice to remove one of his channels/supergroups/geogroups.
 func (c *Client) ChannelsGetAdminedPublicChannels(byLocation, checkLimit, forPersonal bool) (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetAdminedPublicChannelsParams{
 		ByLocation:  byLocation,
@@ -4369,7 +4369,7 @@ func (*ChannelsGetChannelsParams) CRC() uint32 {
 	return 0xa7f6bbb
 }
 
-// Get info about [channels/supergroups](/api/channel)
+// Get info about [channels/supergroups](https://core.telegram.org//api/channel)
 func (c *Client) ChannelsGetChannels(id []InputChannel) (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetChannelsParams{ID: id})
 	if err != nil {
@@ -4400,7 +4400,7 @@ func (*ChannelsGetForumTopicsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [topics of a forum](/api/forum)
+// Get [topics of a forum](https://core.telegram.org//api/forum)
 func (c *Client) ChannelsGetForumTopics(params *ChannelsGetForumTopicsParams) (*MessagesForumTopics, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -4448,7 +4448,7 @@ func (*ChannelsGetFullChannelParams) CRC() uint32 {
 	return 0x8736a09
 }
 
-// Get full info about a [supergroup](/api/channel#supergroups), [gigagroup](/api/channel#gigagroups) or [channel](/api/channel#channels)
+// Get full info about a [supergroup](https://core.telegram.org//api/channel#supergroups), [gigagroup](https://core.telegram.org//api/channel#gigagroups) or [channel](https://core.telegram.org//api/channel#channels)
 func (c *Client) ChannelsGetFullChannel(channel InputChannel) (*MessagesChatFull, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetFullChannelParams{Channel: channel})
 	if err != nil {
@@ -4468,7 +4468,7 @@ func (*ChannelsGetGroupsForDiscussionParams) CRC() uint32 {
 	return 0xf5dad378
 }
 
-// Get all groups that can be used as [discussion groups](/api/discussion).
+// Get all groups that can be used as [discussion groups](https://core.telegram.org//api/discussion).
 func (c *Client) ChannelsGetGroupsForDiscussion() (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetGroupsForDiscussionParams{})
 	if err != nil {
@@ -4510,7 +4510,7 @@ func (*ChannelsGetLeftChannelsParams) CRC() uint32 {
 	return 0x8341ecc0
 }
 
-// Get a list of [channels/supergroups](/api/channel) we left, requires a [takeout session, see here » for more info](/api/takeout).
+// Get a list of [channels/supergroups](https://core.telegram.org//api/channel) we left, requires a [takeout session, see here » for more info](https://core.telegram.org//api/takeout).
 func (c *Client) ChannelsGetLeftChannels(offset int32) (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetLeftChannelsParams{Offset: offset})
 	if err != nil {
@@ -4533,7 +4533,7 @@ func (*ChannelsGetMessagesParams) CRC() uint32 {
 	return 0xad8c9a23
 }
 
-// Get [channel/supergroup](/api/channel) messages
+// Get [channel/supergroup](https://core.telegram.org//api/channel) messages
 func (c *Client) ChannelsGetMessages(channel InputChannel, id []InputMessage) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetMessagesParams{
 		Channel: channel,
@@ -4559,7 +4559,7 @@ func (*ChannelsGetParticipantParams) CRC() uint32 {
 	return 0xa0ab6cc6
 }
 
-// Get info about a [channel/supergroup](/api/channel) participant
+// Get info about a [channel/supergroup](https://core.telegram.org//api/channel) participant
 func (c *Client) ChannelsGetParticipant(channel InputChannel, participant InputPeer) (*ChannelsChannelParticipant, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetParticipantParams{
 		Channel:     channel,
@@ -4588,7 +4588,7 @@ func (*ChannelsGetParticipantsParams) CRC() uint32 {
 	return 0x77ced9d0
 }
 
-// Get the participants of a [supergroup/channel](/api/channel)
+// Get the participants of a [supergroup/channel](https://core.telegram.org//api/channel)
 func (c *Client) ChannelsGetParticipants(channel InputChannel, filter ChannelParticipantsFilter, offset, limit int32, hash int64) (ChannelsChannelParticipants, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetParticipantsParams{
 		Channel: channel,
@@ -4708,7 +4708,7 @@ func (*ChannelsLeaveChannelParams) CRC() uint32 {
 	return 0xf836aa95
 }
 
-// Leave a [channel/supergroup](/api/channel)
+// Leave a [channel/supergroup](https://core.telegram.org//api/channel)
 func (c *Client) ChannelsLeaveChannel(channel InputChannel) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsLeaveChannelParams{Channel: channel})
 	if err != nil {
@@ -4731,7 +4731,7 @@ func (*ChannelsReadHistoryParams) CRC() uint32 {
 	return 0xcc104937
 }
 
-// Mark [channel/supergroup](/api/channel) history as read
+// Mark [channel/supergroup](https://core.telegram.org//api/channel) history as read
 func (c *Client) ChannelsReadHistory(channel InputChannel, maxID int32) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsReadHistoryParams{
 		Channel: channel,
@@ -4757,7 +4757,7 @@ func (*ChannelsReadMessageContentsParams) CRC() uint32 {
 	return 0xeab5dc38
 }
 
-// Mark [channel/supergroup](/api/channel) message contents as read
+// Mark [channel/supergroup](https://core.telegram.org//api/channel) message contents as read
 func (c *Client) ChannelsReadMessageContents(channel InputChannel, id []int32) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsReadMessageContentsParams{
 		Channel: channel,
@@ -4841,7 +4841,7 @@ func (*ChannelsReportAntiSpamFalsePositiveParams) CRC() uint32 {
 	return 0xa850a693
 }
 
-// Report a [native antispam](/api/antispam) false positive
+// Report a [native antispam](https://core.telegram.org//api/antispam) false positive
 func (c *Client) ChannelsReportAntiSpamFalsePositive(channel InputChannel, msgID int32) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsReportAntiSpamFalsePositiveParams{
 		Channel: channel,
@@ -5003,7 +5003,7 @@ func (*ChannelsSetDiscussionGroupParams) CRC() uint32 {
 	return 0x40582bb2
 }
 
-// Associate a group to a channel as [discussion group](/api/discussion) for that channel
+// Associate a group to a channel as [discussion group](https://core.telegram.org//api/discussion) for that channel
 func (c *Client) ChannelsSetDiscussionGroup(broadcast, group InputChannel) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsSetDiscussionGroupParams{
 		Broadcast: broadcast,
@@ -5080,7 +5080,7 @@ func (*ChannelsToggleAntiSpamParams) CRC() uint32 {
 	return 0x68f3e4eb
 }
 
-// Enable or disable the [native antispam system](/api/antispam).
+// Enable or disable the [native antispam system](https://core.telegram.org//api/antispam).
 func (c *Client) ChannelsToggleAntiSpam(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleAntiSpamParams{
 		Channel: channel,
@@ -5106,7 +5106,7 @@ func (*ChannelsToggleForumParams) CRC() uint32 {
 	return 0xa4298b29
 }
 
-// Enable or disable [forum functionality](/api/forum) in a supergroup.
+// Enable or disable [forum functionality](https://core.telegram.org//api/forum) in a supergroup.
 func (c *Client) ChannelsToggleForum(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleForumParams{
 		Channel: channel,
@@ -5132,7 +5132,7 @@ func (*ChannelsToggleJoinRequestParams) CRC() uint32 {
 	return 0x4c2985b6
 }
 
-// Set whether all users should [request admin approval to join the group »](/api/invites#join-requests).
+// Set whether all users should [request admin approval to join the group »](https://core.telegram.org//api/invites#join-requests).
 func (c *Client) ChannelsToggleJoinRequest(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleJoinRequestParams{
 		Channel: channel,
@@ -5158,7 +5158,7 @@ func (*ChannelsToggleJoinToSendParams) CRC() uint32 {
 	return 0xe4cb9580
 }
 
-// Set whether all users [should join a discussion group in order to comment on a post »](/api/discussion#requiring-users-to-join-the-group)
+// Set whether all users [should join a discussion group in order to comment on a post »](https://core.telegram.org//api/discussion#requiring-users-to-join-the-group)
 func (c *Client) ChannelsToggleJoinToSend(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleJoinToSendParams{
 		Channel: channel,
@@ -5184,7 +5184,7 @@ func (*ChannelsToggleParticipantsHiddenParams) CRC() uint32 {
 	return 0x6a6e7854
 }
 
-// Hide or display the participants list in a [supergroup](/api/channel).
+// Hide or display the participants list in a [supergroup](https://core.telegram.org//api/channel).
 func (c *Client) ChannelsToggleParticipantsHidden(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleParticipantsHiddenParams{
 		Channel: channel,
@@ -5289,7 +5289,7 @@ func (*ChannelsToggleUsernameParams) CRC() uint32 {
 	return 0x50f24105
 }
 
-// Activate or deactivate a purchased [fragment.com](https://fragment.com) username associated to a [supergroup or channel](/api/channel) we own.
+// Activate or deactivate a purchased [fragment.com](https://core.telegram.org/https://fragment.com) username associated to a [supergroup or channel](https://core.telegram.org//api/channel) we own.
 func (c *Client) ChannelsToggleUsername(channel InputChannel, username string, active bool) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleUsernameParams{
 		Active:   active,
@@ -5316,7 +5316,7 @@ func (*ChannelsToggleViewForumAsMessagesParams) CRC() uint32 {
 	return 0x9738bb15
 }
 
-// Users may also choose to display messages from all topics of a [forum](/api/forum) as if they were sent to a normal group, using a "View as messages" setting in the local client: this setting only affects the current account, and is synced to other logged in sessions using this method.
+// Users may also choose to display messages from all topics of a [forum](https://core.telegram.org//api/forum) as if they were sent to a normal group, using a "View as messages" setting in the local client: this setting only affects the current account, and is synced to other logged in sessions using this method.
 func (c *Client) ChannelsToggleViewForumAsMessages(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleViewForumAsMessagesParams{
 		Channel: channel,
@@ -5348,7 +5348,7 @@ func (*ChannelsUpdateColorParams) FlagIndex() int {
 	return 0
 }
 
-// Update the [accent color and background custom emoji »](/api/colors) of a channel.
+// Update the [accent color and background custom emoji »](https://core.telegram.org//api/colors) of a channel.
 func (c *Client) ChannelsUpdateColor(forProfile bool, channel InputChannel, color int32, backgroundEmojiID int64) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsUpdateColorParams{
 		BackgroundEmojiID: backgroundEmojiID,
@@ -5376,7 +5376,7 @@ func (*ChannelsUpdateEmojiStatusParams) CRC() uint32 {
 	return 0xf0d3e6a8
 }
 
-// Set an [emoji status](/api/emoji-status) for a channel.
+// Set an [emoji status](https://core.telegram.org//api/emoji-status) for a channel.
 func (c *Client) ChannelsUpdateEmojiStatus(channel InputChannel, emojiStatus EmojiStatus) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsUpdateEmojiStatusParams{
 		Channel:     channel,
@@ -5403,7 +5403,7 @@ func (*ChannelsUpdatePinnedForumTopicParams) CRC() uint32 {
 	return 0x6c2d9026
 }
 
-// Pin or unpin [forum topics](/api/forum)
+// Pin or unpin [forum topics](https://core.telegram.org//api/forum)
 func (c *Client) ChannelsUpdatePinnedForumTopic(channel InputChannel, topicID int32, pinned bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsUpdatePinnedForumTopicParams{
 		Channel: channel,
@@ -5481,7 +5481,7 @@ func (*ChatlistsCheckChatlistInviteParams) CRC() uint32 {
 	return 0x41c10fff
 }
 
-// Obtain information about a [chat folder deep link »](/api/links#chat-folder-links).
+// Obtain information about a [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links).
 func (c *Client) ChatlistsCheckChatlistInvite(slug string) (ChatlistsChatlistInvite, error) {
 	responseData, err := c.MakeRequest(&ChatlistsCheckChatlistInviteParams{Slug: slug})
 	if err != nil {
@@ -5504,7 +5504,7 @@ func (*ChatlistsDeleteExportedInviteParams) CRC() uint32 {
 	return 0x719c5c5e
 }
 
-// Delete a previously created [chat folder deep link »](/api/links#chat-folder-links).
+// Delete a previously created [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links).
 func (c *Client) ChatlistsDeleteExportedInvite(chatlist *InputChatlistDialogFilter, slug string) (bool, error) {
 	responseData, err := c.MakeRequest(&ChatlistsDeleteExportedInviteParams{
 		Chatlist: chatlist,
@@ -5536,7 +5536,7 @@ func (*ChatlistsEditExportedInviteParams) FlagIndex() int {
 	return 0
 }
 
-// Edit a [chat folder deep link »](/api/links#chat-folder-links).
+// Edit a [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links).
 func (c *Client) ChatlistsEditExportedInvite(chatlist *InputChatlistDialogFilter, slug, title string, peers []InputPeer) (*ExportedChatlistInvite, error) {
 	responseData, err := c.MakeRequest(&ChatlistsEditExportedInviteParams{
 		Chatlist: chatlist,
@@ -5565,7 +5565,7 @@ func (*ChatlistsExportChatlistInviteParams) CRC() uint32 {
 	return 0x8472478e
 }
 
-// Export a [folder »](/api/folders), creating a [chat folder deep link »](/api/links#chat-folder-links).
+// Export a [folder »](https://core.telegram.org//api/folders), creating a [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links).
 func (c *Client) ChatlistsExportChatlistInvite(chatlist *InputChatlistDialogFilter, title string, peers []InputPeer) (*ChatlistsExportedChatlistInvite, error) {
 	responseData, err := c.MakeRequest(&ChatlistsExportChatlistInviteParams{
 		Chatlist: chatlist,
@@ -5591,7 +5591,7 @@ func (*ChatlistsGetChatlistUpdatesParams) CRC() uint32 {
 	return 0x89419521
 }
 
-// Fetch new chats associated with an imported [chat folder deep link »](/api/links#chat-folder-links). Must be invoked at most every `chatlist_update_period` seconds (as per the related [client configuration parameter »](/api/config#chatlist-update-period)).
+// Fetch new chats associated with an imported [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links). Must be invoked at most every `chatlist_update_period` seconds (as per the related [client configuration parameter »](https://core.telegram.org//api/config#chatlist-update-period)).
 func (c *Client) ChatlistsGetChatlistUpdates(chatlist *InputChatlistDialogFilter) (*ChatlistsChatlistUpdates, error) {
 	responseData, err := c.MakeRequest(&ChatlistsGetChatlistUpdatesParams{Chatlist: chatlist})
 	if err != nil {
@@ -5613,7 +5613,7 @@ func (*ChatlistsGetExportedInvitesParams) CRC() uint32 {
 	return 0xce03da83
 }
 
-// List all [chat folder deep links »](/api/links#chat-folder-links) associated to a folder
+// List all [chat folder deep links »](https://core.telegram.org//api/links#chat-folder-links) associated to a folder
 func (c *Client) ChatlistsGetExportedInvites(chatlist *InputChatlistDialogFilter) (*ChatlistsExportedInvites, error) {
 	responseData, err := c.MakeRequest(&ChatlistsGetExportedInvitesParams{Chatlist: chatlist})
 	if err != nil {
@@ -5635,7 +5635,7 @@ func (*ChatlistsGetLeaveChatlistSuggestionsParams) CRC() uint32 {
 	return 0xfdbcd714
 }
 
-// Returns identifiers of pinned or always included chats from a chat folder imported using a [chat folder deep link »](/api/links#chat-folder-links), which are suggested to be left when the chat folder is deleted.
+// Returns identifiers of pinned or always included chats from a chat folder imported using a [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links), which are suggested to be left when the chat folder is deleted.
 func (c *Client) ChatlistsGetLeaveChatlistSuggestions(chatlist *InputChatlistDialogFilter) ([]Peer, error) {
 	responseData, err := c.MakeRequest(&ChatlistsGetLeaveChatlistSuggestionsParams{Chatlist: chatlist})
 	if err != nil {
@@ -5657,7 +5657,7 @@ func (*ChatlistsHideChatlistUpdatesParams) CRC() uint32 {
 	return 0x66e486fb
 }
 
-// Dismiss new pending peers recently added to a [chat folder deep link »](/api/links#chat-folder-links).
+// Dismiss new pending peers recently added to a [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links).
 func (c *Client) ChatlistsHideChatlistUpdates(chatlist *InputChatlistDialogFilter) (bool, error) {
 	responseData, err := c.MakeRequest(&ChatlistsHideChatlistUpdatesParams{Chatlist: chatlist})
 	if err != nil {
@@ -5680,7 +5680,7 @@ func (*ChatlistsJoinChatlistInviteParams) CRC() uint32 {
 	return 0xa6b1e39a
 }
 
-// Import a [chat folder deep link »](/api/links#chat-folder-links), joining some or all the chats in the folder.
+// Import a [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links), joining some or all the chats in the folder.
 func (c *Client) ChatlistsJoinChatlistInvite(slug string, peers []InputPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChatlistsJoinChatlistInviteParams{
 		Peers: peers,
@@ -5706,7 +5706,7 @@ func (*ChatlistsJoinChatlistUpdatesParams) CRC() uint32 {
 	return 0xe089f8f5
 }
 
-// Join channels and supergroups recently added to a [chat folder deep link »](/api/links#chat-folder-links).
+// Join channels and supergroups recently added to a [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links).
 func (c *Client) ChatlistsJoinChatlistUpdates(chatlist *InputChatlistDialogFilter, peers []InputPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChatlistsJoinChatlistUpdatesParams{
 		Chatlist: chatlist,
@@ -5732,7 +5732,7 @@ func (*ChatlistsLeaveChatlistParams) CRC() uint32 {
 	return 0x74fae13a
 }
 
-// Delete a folder imported using a [chat folder deep link »](/api/links#chat-folder-links)
+// Delete a folder imported using a [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links)
 func (c *Client) ChatlistsLeaveChatlist(chatlist *InputChatlistDialogFilter, peers []InputPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChatlistsLeaveChatlistParams{
 		Chatlist: chatlist,
@@ -5757,7 +5757,7 @@ func (*ContactsAcceptContactParams) CRC() uint32 {
 	return 0xf831a20f
 }
 
-// If the [add contact action bar is active](/api/action-bar#add-contact), add that user as contact
+// If the [add contact action bar is active](https://core.telegram.org//api/action-bar#add-contact), add that user as contact
 func (c *Client) ContactsAcceptContact(id InputUser) (Updates, error) {
 	responseData, err := c.MakeRequest(&ContactsAcceptContactParams{ID: id})
 	if err != nil {
@@ -5814,7 +5814,7 @@ func (*ContactsBlockParams) FlagIndex() int {
 	return 0
 }
 
-// Adds a peer to a blocklist, see [here »](/api/block) for more info.
+// Adds a peer to a blocklist, see [here »](https://core.telegram.org//api/block) for more info.
 func (c *Client) ContactsBlock(myStoriesFrom bool, id InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsBlockParams{
 		ID:            id,
@@ -5846,7 +5846,7 @@ func (*ContactsBlockFromRepliesParams) FlagIndex() int {
 	return 0
 }
 
-// Stop getting notifications about [discussion replies](/api/discussion) of a certain user in `@replies`
+// Stop getting notifications about [discussion replies](https://core.telegram.org//api/discussion) of a certain user in `@replies`
 func (c *Client) ContactsBlockFromReplies(deleteMessage, deleteHistory, reportSpam bool, msgID int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&ContactsBlockFromRepliesParams{
 		DeleteHistory: deleteHistory,
@@ -5917,7 +5917,7 @@ func (*ContactsEditCloseFriendsParams) CRC() uint32 {
 	return 0xba6705f0
 }
 
-// Edit the [close friends list, see here »](/api/privacy) for more info.
+// Edit the [close friends list, see here »](https://core.telegram.org//api/privacy) for more info.
 func (c *Client) ContactsEditCloseFriends(id []int64) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsEditCloseFriendsParams{ID: id})
 	if err != nil {
@@ -5937,7 +5937,7 @@ func (*ContactsExportContactTokenParams) CRC() uint32 {
 	return 0xf8654027
 }
 
-// Generates a [temporary profile link](/api/links#temporary-profile-links) for the currently logged-in user.
+// Generates a [temporary profile link](https://core.telegram.org//api/links#temporary-profile-links) for the currently logged-in user.
 func (c *Client) ContactsExportContactToken() (*ExportedContactToken, error) {
 	responseData, err := c.MakeRequest(&ContactsExportContactTokenParams{})
 	if err != nil {
@@ -6063,7 +6063,7 @@ func (*ContactsGetLocatedParams) FlagIndex() int {
 	return 0
 }
 
-// Get users and geochats near you, see [here »](/api/nearby) for more info.
+// Get users and geochats near you, see [here »](https://core.telegram.org//api/nearby) for more info.
 func (c *Client) ContactsGetLocated(background bool, geoPoint InputGeoPoint, selfExpires int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&ContactsGetLocatedParams{
 		Background:  background,
@@ -6087,7 +6087,7 @@ func (*ContactsGetSavedParams) CRC() uint32 {
 	return 0x82f1e39f
 }
 
-// Get all contacts, requires a [takeout session, see here » for more info](/api/takeout).
+// Get all contacts, requires a [takeout session, see here » for more info](https://core.telegram.org//api/takeout).
 func (c *Client) ContactsGetSaved() ([]*SavedPhoneContact, error) {
 	responseData, err := c.MakeRequest(&ContactsGetSavedParams{})
 	if err != nil {
@@ -6165,7 +6165,7 @@ func (*ContactsImportContactTokenParams) CRC() uint32 {
 	return 0x13005788
 }
 
-// Obtain user info from a [temporary profile link](/api/links#temporary-profile-links).
+// Obtain user info from a [temporary profile link](https://core.telegram.org//api/links#temporary-profile-links).
 func (c *Client) ContactsImportContactToken(token string) (User, error) {
 	responseData, err := c.MakeRequest(&ContactsImportContactTokenParams{Token: token})
 	if err != nil {
@@ -6230,7 +6230,7 @@ func (*ContactsResetTopPeerRatingParams) CRC() uint32 {
 	return 0x1ae373ac
 }
 
-// Reset [rating](/api/top-rating) of top peer
+// Reset [rating](https://core.telegram.org//api/top-rating) of top peer
 func (c *Client) ContactsResetTopPeerRating(category TopPeerCategory, peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsResetTopPeerRatingParams{
 		Category: category,
@@ -6331,7 +6331,7 @@ func (*ContactsSetBlockedParams) FlagIndex() int {
 	return 0
 }
 
-// Replace the contents of an entire [blocklist, see here for more info »](/api/block).
+// Replace the contents of an entire [blocklist, see here for more info »](https://core.telegram.org//api/block).
 func (c *Client) ContactsSetBlocked(myStoriesFrom bool, id []InputPeer, limit int32) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsSetBlockedParams{
 		ID:            id,
@@ -6357,7 +6357,7 @@ func (*ContactsToggleTopPeersParams) CRC() uint32 {
 	return 0x8514bdda
 }
 
-// Enable/disable [top peers](/api/top-rating)
+// Enable/disable [top peers](https://core.telegram.org//api/top-rating)
 func (c *Client) ContactsToggleTopPeers(enabled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsToggleTopPeersParams{Enabled: enabled})
 	if err != nil {
@@ -6384,7 +6384,7 @@ func (*ContactsUnblockParams) FlagIndex() int {
 	return 0
 }
 
-// Deletes a peer from a blocklist, see [here »](/api/block) for more info.
+// Deletes a peer from a blocklist, see [here »](https://core.telegram.org//api/block) for more info.
 func (c *Client) ContactsUnblock(myStoriesFrom bool, id InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsUnblockParams{
 		ID:            id,
@@ -6409,7 +6409,7 @@ func (*FoldersEditPeerFoldersParams) CRC() uint32 {
 	return 0x6847d0ab
 }
 
-// Edit peers in [peer folder](/api/folders#peer-folders)
+// Edit peers in [peer folder](https://core.telegram.org//api/folders#peer-folders)
 func (c *Client) FoldersEditPeerFolders(folderPeers []*InputFolderPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&FoldersEditPeerFoldersParams{FolderPeers: folderPeers})
 	if err != nil {
@@ -6475,7 +6475,7 @@ func (*HelpDismissSuggestionParams) CRC() uint32 {
 	return 0xf50dbaa1
 }
 
-// Dismiss a [suggestion, see here for more info »](/api/config#suggestions).
+// Dismiss a [suggestion, see here for more info »](https://core.telegram.org//api/config#suggestions).
 func (c *Client) HelpDismissSuggestion(peer InputPeer, suggestion string) (bool, error) {
 	responseData, err := c.MakeRequest(&HelpDismissSuggestionParams{
 		Peer:       peer,
@@ -6528,7 +6528,7 @@ func (*HelpGetAppConfigParams) CRC() uint32 {
 	return 0x61e3f854
 }
 
-// Get app-specific configuration, see [client configuration](/api/config#client-configuration) for more info on the result.
+// Get app-specific configuration, see [client configuration](https://core.telegram.org//api/config#client-configuration) for more info on the result.
 func (c *Client) HelpGetAppConfig(hash int32) (HelpAppConfig, error) {
 	responseData, err := c.MakeRequest(&HelpGetAppConfigParams{Hash: hash})
 	if err != nil {
@@ -6570,7 +6570,7 @@ func (*HelpGetCdnConfigParams) CRC() uint32 {
 	return 0x52029342
 }
 
-// Get configuration for [CDN](/cdn) file downloads.
+// Get configuration for [CDN](https://core.telegram.org//cdn) file downloads.
 func (c *Client) HelpGetCdnConfig() (*CdnConfig, error) {
 	responseData, err := c.MakeRequest(&HelpGetCdnConfigParams{})
 	if err != nil {
@@ -6638,7 +6638,7 @@ func (*HelpGetDeepLinkInfoParams) CRC() uint32 {
 	return 0x3fedc75f
 }
 
-// Get info about an unsupported deep link, see [here for more info »](/api/links#unsupported-links).
+// Get info about an unsupported deep link, see [here for more info »](https://core.telegram.org//api/links#unsupported-links).
 func (c *Client) HelpGetDeepLinkInfo(path string) (HelpDeepLinkInfo, error) {
 	responseData, err := c.MakeRequest(&HelpGetDeepLinkInfoParams{Path: path})
 	if err != nil {
@@ -6700,7 +6700,7 @@ func (*HelpGetPassportConfigParams) CRC() uint32 {
 	return 0xc661ad08
 }
 
-// Get [passport](/passport) configuration
+// Get [passport](https://core.telegram.org//passport) configuration
 func (c *Client) HelpGetPassportConfig(hash int32) (HelpPassportConfig, error) {
 	responseData, err := c.MakeRequest(&HelpGetPassportConfigParams{Hash: hash})
 	if err != nil {
@@ -6722,7 +6722,7 @@ func (*HelpGetPeerColorsParams) CRC() uint32 {
 	return 0xda80f42f
 }
 
-// Get the set of [accent color palettes »](/api/colors) that can be used for message accents.
+// Get the set of [accent color palettes »](https://core.telegram.org//api/colors) that can be used for message accents.
 func (c *Client) HelpGetPeerColors(hash int32) (HelpPeerColors, error) {
 	responseData, err := c.MakeRequest(&HelpGetPeerColorsParams{Hash: hash})
 	if err != nil {
@@ -6744,7 +6744,7 @@ func (*HelpGetPeerProfileColorsParams) CRC() uint32 {
 	return 0xabcfa9fd
 }
 
-// Get the set of [accent color palettes »](/api/colors) that can be used in profile page backgrounds.
+// Get the set of [accent color palettes »](https://core.telegram.org//api/colors) that can be used in profile page backgrounds.
 func (c *Client) HelpGetPeerProfileColors(hash int32) (HelpPeerColors, error) {
 	responseData, err := c.MakeRequest(&HelpGetPeerProfileColorsParams{Hash: hash})
 	if err != nil {
@@ -7167,7 +7167,7 @@ func (*MessagesAcceptURLAuthParams) FlagIndex() int {
 	return 0
 }
 
-// Use this to accept a Seamless Telegram Login authorization request, for more info [click here »](/api/url-authorization)
+// Use this to accept a Seamless Telegram Login authorization request, for more info [click here »](https://core.telegram.org//api/url-authorization)
 func (c *Client) MessagesAcceptURLAuth(params *MessagesAcceptURLAuthParams) (URLAuthResult, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -7239,7 +7239,7 @@ func (*MessagesCheckHistoryImportParams) CRC() uint32 {
 	return 0x43fe19f3
 }
 
-// Obtains information about a chat export file, generated by a foreign chat app, [click here for more info about imported chats »](/api/import).
+// Obtains information about a chat export file, generated by a foreign chat app, [click here for more info about imported chats »](https://core.telegram.org//api/import).
 func (c *Client) MessagesCheckHistoryImport(importHead string) (*MessagesHistoryImportParsed, error) {
 	responseData, err := c.MakeRequest(&MessagesCheckHistoryImportParams{ImportHead: importHead})
 	if err != nil {
@@ -7261,7 +7261,7 @@ func (*MessagesCheckHistoryImportPeerParams) CRC() uint32 {
 	return 0x5dc60f03
 }
 
-// Check whether chat history exported from another chat app can be [imported into a specific Telegram chat, click here for more info »](/api/import).
+// Check whether chat history exported from another chat app can be [imported into a specific Telegram chat, click here for more info »](https://core.telegram.org//api/import).
 func (c *Client) MessagesCheckHistoryImportPeer(peer InputPeer) (*MessagesCheckedHistoryImportPeer, error) {
 	responseData, err := c.MakeRequest(&MessagesCheckHistoryImportPeerParams{Peer: peer})
 	if err != nil {
@@ -7302,7 +7302,7 @@ func (*MessagesClearAllDraftsParams) CRC() uint32 {
 	return 0x7e58ee9c
 }
 
-// Clear all [drafts](/api/drafts).
+// Clear all [drafts](https://core.telegram.org//api/drafts).
 func (c *Client) MessagesClearAllDrafts() (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesClearAllDraftsParams{})
 	if err != nil {
@@ -7322,7 +7322,7 @@ func (*MessagesClearRecentReactionsParams) CRC() uint32 {
 	return 0x9dfeefb4
 }
 
-// Clear recently used [message reactions](/api/reactions)
+// Clear recently used [message reactions](https://core.telegram.org//api/reactions)
 func (c *Client) MessagesClearRecentReactions() (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesClearRecentReactionsParams{})
 	if err != nil {
@@ -7402,7 +7402,7 @@ func (*MessagesDeleteChatParams) CRC() uint32 {
 	return 0x5bd0ee50
 }
 
-// Delete a [chat](/api/channel)
+// Delete a [chat](https://core.telegram.org//api/channel)
 func (c *Client) MessagesDeleteChat(chatID int64) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesDeleteChatParams{ChatID: chatID})
 	if err != nil {
@@ -7673,7 +7673,7 @@ func (*MessagesDeleteSavedHistoryParams) FlagIndex() int {
 	return 0
 }
 
-// Deletes messages forwarded from a specific peer to [saved messages »](/api/saved-messages).
+// Deletes messages forwarded from a specific peer to [saved messages »](https://core.telegram.org//api/saved-messages).
 func (c *Client) MessagesDeleteSavedHistory(peer InputPeer, maxID, minDate, maxDate int32) (*MessagesAffectedHistory, error) {
 	responseData, err := c.MakeRequest(&MessagesDeleteSavedHistoryParams{
 		MaxDate: maxDate,
@@ -7757,7 +7757,7 @@ func (*MessagesEditChatAboutParams) CRC() uint32 {
 	return 0xdef60797
 }
 
-// Edit the description of a [group/supergroup/channel](/api/channel).
+// Edit the description of a [group/supergroup/channel](https://core.telegram.org//api/channel).
 func (c *Client) MessagesEditChatAbout(peer InputPeer, about string) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesEditChatAboutParams{
 		About: about,
@@ -7784,7 +7784,7 @@ func (*MessagesEditChatAdminParams) CRC() uint32 {
 	return 0xa85bd1c2
 }
 
-// Make a user admin in a [basic group](/api/channel#basic-groups).
+// Make a user admin in a [basic group](https://core.telegram.org//api/channel#basic-groups).
 func (c *Client) MessagesEditChatAdmin(chatID int64, userID InputUser, isAdmin bool) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesEditChatAdminParams{
 		ChatID:  chatID,
@@ -7811,7 +7811,7 @@ func (*MessagesEditChatDefaultBannedRightsParams) CRC() uint32 {
 	return 0xa5866b41
 }
 
-// Edit the default banned rights of a [channel/supergroup/group](/api/channel).
+// Edit the default banned rights of a [channel/supergroup/group](https://core.telegram.org//api/channel).
 func (c *Client) MessagesEditChatDefaultBannedRights(peer InputPeer, bannedRights *ChatBannedRights) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesEditChatDefaultBannedRightsParams{
 		BannedRights: bannedRights,
@@ -8156,8 +8156,8 @@ func (*MessagesGetAllDraftsParams) CRC() uint32 {
 }
 
 /*
-Return all message [drafts](/api/drafts).<br>
-Returns all the latest [updateDraftMessage](/constructor/updateDraftMessage) updates related to all chats with drafts.
+Return all message [drafts](https://core.telegram.org//api/drafts).<br>
+Returns all the latest [updateDraftMessage](https://core.telegram.org//constructor/updateDraftMessage) updates related to all chats with drafts.
 */
 func (c *Client) MessagesGetAllDrafts() (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAllDraftsParams{})
@@ -8236,7 +8236,7 @@ func (*MessagesGetAttachMenuBotParams) CRC() uint32 {
 	return 0x77216192
 }
 
-// Returns attachment menu entry for a [bot mini app that can be launched from the attachment menu »](/api/bots/attach)
+// Returns attachment menu entry for a [bot mini app that can be launched from the attachment menu »](https://core.telegram.org//api/bots/attach)
 func (c *Client) MessagesGetAttachMenuBot(bot InputUser) (*AttachMenuBotsBot, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAttachMenuBotParams{Bot: bot})
 	if err != nil {
@@ -8258,7 +8258,7 @@ func (*MessagesGetAttachMenuBotsParams) CRC() uint32 {
 	return 0x16fcc2cb
 }
 
-// Returns installed attachment menu [bot mini apps »](/api/bots/attach)
+// Returns installed attachment menu [bot mini apps »](https://core.telegram.org//api/bots/attach)
 func (c *Client) MessagesGetAttachMenuBots(hash int64) (AttachMenuBots, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAttachMenuBotsParams{Hash: hash})
 	if err != nil {
@@ -8323,7 +8323,7 @@ func (*MessagesGetAvailableReactionsParams) CRC() uint32 {
 	return 0x18dea0ac
 }
 
-// Obtain available [message reactions »](/api/reactions)
+// Obtain available [message reactions »](https://core.telegram.org//api/reactions)
 func (c *Client) MessagesGetAvailableReactions(hash int32) (MessagesAvailableReactions, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAvailableReactionsParams{Hash: hash})
 	if err != nil {
@@ -8346,7 +8346,7 @@ func (*MessagesGetBotAppParams) CRC() uint32 {
 	return 0x34fdc5c3
 }
 
-// Obtain information about a [direct link Mini App](/api/bots/webapps#direct-link-mini-apps)
+// Obtain information about a [direct link Mini App](https://core.telegram.org//api/bots/webapps#direct-link-mini-apps)
 func (c *Client) MessagesGetBotApp(app InputBotApp, hash int64) (*MessagesBotApp, error) {
 	responseData, err := c.MakeRequest(&MessagesGetBotAppParams{
 		App:  app,
@@ -8483,7 +8483,7 @@ func (*MessagesGetCustomEmojiDocumentsParams) CRC() uint32 {
 	return 0xd9ab0f54
 }
 
-// Fetch [custom emoji stickers »](/api/custom-emoji).
+// Fetch [custom emoji stickers »](https://core.telegram.org//api/custom-emoji).
 func (c *Client) MessagesGetCustomEmojiDocuments(documentID []int64) ([]Document, error) {
 	responseData, err := c.MakeRequest(&MessagesGetCustomEmojiDocumentsParams{DocumentID: documentID})
 	if err != nil {
@@ -8570,7 +8570,7 @@ func (*MessagesGetDialogFiltersParams) CRC() uint32 {
 	return 0xefd48c89
 }
 
-// Get [folders](/api/folders)
+// Get [folders](https://core.telegram.org//api/folders)
 func (c *Client) MessagesGetDialogFilters() (*MessagesDialogFilters, error) {
 	responseData, err := c.MakeRequest(&MessagesGetDialogFiltersParams{})
 	if err != nil {
@@ -8645,7 +8645,7 @@ func (*MessagesGetDiscussionMessageParams) CRC() uint32 {
 	return 0x446972fd
 }
 
-// Get [discussion message](/api/threads) from the [associated discussion group](/api/discussion) of a channel to show it on top of the comment section, without actually joining the group
+// Get [discussion message](https://core.telegram.org//api/threads) from the [associated discussion group](https://core.telegram.org//api/discussion) of a channel to show it on top of the comment section, without actually joining the group
 func (c *Client) MessagesGetDiscussionMessage(peer InputPeer, msgID int32) (*MessagesDiscussionMessage, error) {
 	responseData, err := c.MakeRequest(&MessagesGetDiscussionMessageParams{
 		MsgID: msgID,
@@ -8698,7 +8698,7 @@ func (*MessagesGetEmojiGroupsParams) CRC() uint32 {
 	return 0x7488ce5b
 }
 
-// Represents a list of [emoji categories](/api/custom-emoji#emoji-categories), to be used when selecting [custom emojis](/api/custom-emoji).
+// Represents a list of [emoji categories](https://core.telegram.org//api/custom-emoji#emoji-categories), to be used when selecting [custom emojis](https://core.telegram.org//api/custom-emoji).
 func (c *Client) MessagesGetEmojiGroups(hash int32) (MessagesEmojiGroups, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiGroupsParams{Hash: hash})
 	if err != nil {
@@ -8720,7 +8720,7 @@ func (*MessagesGetEmojiKeywordsParams) CRC() uint32 {
 	return 0x35a0e062
 }
 
-// Get localized [emoji keywords »](/api/custom-emoji#emoji-keywords).
+// Get localized [emoji keywords »](https://core.telegram.org//api/custom-emoji#emoji-keywords).
 func (c *Client) MessagesGetEmojiKeywords(langCode string) (*EmojiKeywordsDifference, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiKeywordsParams{LangCode: langCode})
 	if err != nil {
@@ -8743,7 +8743,7 @@ func (*MessagesGetEmojiKeywordsDifferenceParams) CRC() uint32 {
 	return 0x1508b6af
 }
 
-// Get changed [emoji keywords »](/api/custom-emoji#emoji-keywords).
+// Get changed [emoji keywords »](https://core.telegram.org//api/custom-emoji#emoji-keywords).
 func (c *Client) MessagesGetEmojiKeywordsDifference(langCode string, fromVersion int32) (*EmojiKeywordsDifference, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiKeywordsDifferenceParams{
 		FromVersion: fromVersion,
@@ -8768,7 +8768,7 @@ func (*MessagesGetEmojiKeywordsLanguagesParams) CRC() uint32 {
 	return 0x4e9963b2
 }
 
-// Obtain a list of related languages that must be used when fetching [emoji keyword lists »](/api/custom-emoji#emoji-keywords).
+// Obtain a list of related languages that must be used when fetching [emoji keyword lists »](https://core.telegram.org//api/custom-emoji#emoji-keywords).
 func (c *Client) MessagesGetEmojiKeywordsLanguages(langCodes []string) ([]*EmojiLanguage, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiKeywordsLanguagesParams{LangCodes: langCodes})
 	if err != nil {
@@ -8790,7 +8790,7 @@ func (*MessagesGetEmojiProfilePhotoGroupsParams) CRC() uint32 {
 	return 0x21a548f3
 }
 
-// Represents a list of [emoji categories](/api/custom-emoji#emoji-categories), to be used when selecting custom emojis to set as [profile picture](/api/files#sticker-profile-pictures).
+// Represents a list of [emoji categories](https://core.telegram.org//api/custom-emoji#emoji-categories), to be used when selecting custom emojis to set as [profile picture](https://core.telegram.org//api/files#sticker-profile-pictures).
 func (c *Client) MessagesGetEmojiProfilePhotoGroups(hash int32) (MessagesEmojiGroups, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiProfilePhotoGroupsParams{Hash: hash})
 	if err != nil {
@@ -8812,7 +8812,7 @@ func (*MessagesGetEmojiStatusGroupsParams) CRC() uint32 {
 	return 0x2ecd56cd
 }
 
-// Represents a list of [emoji categories](/api/custom-emoji#emoji-categories), to be used when selecting custom emojis to set as [custom emoji status](/api).
+// Represents a list of [emoji categories](https://core.telegram.org//api/custom-emoji#emoji-categories), to be used when selecting custom emojis to set as [custom emoji status](https://core.telegram.org//api).
 func (c *Client) MessagesGetEmojiStatusGroups(hash int32) (MessagesEmojiGroups, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiStatusGroupsParams{Hash: hash})
 	if err != nil {
@@ -8855,7 +8855,7 @@ func (*MessagesGetEmojiStickersParams) CRC() uint32 {
 	return 0xfbfca18f
 }
 
-// Gets the list of currently installed [custom emoji stickersets](/api/custom-emoji).
+// Gets the list of currently installed [custom emoji stickersets](https://core.telegram.org//api/custom-emoji).
 func (c *Client) MessagesGetEmojiStickers(hash int64) (MessagesAllStickers, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiStickersParams{Hash: hash})
 	if err != nil {
@@ -8877,7 +8877,7 @@ func (*MessagesGetEmojiURLParams) CRC() uint32 {
 	return 0xd5b10c26
 }
 
-// Returns an HTTP URL which can be used to automatically log in into translation platform and suggest new [emoji keywords »](/api/custom-emoji#emoji-keywords). The URL will be valid for 30 seconds after generation.
+// Returns an HTTP URL which can be used to automatically log in into translation platform and suggest new [emoji keywords »](https://core.telegram.org//api/custom-emoji#emoji-keywords). The URL will be valid for 30 seconds after generation.
 func (c *Client) MessagesGetEmojiURL(langCode string) (*EmojiURL, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiURLParams{LangCode: langCode})
 	if err != nil {
@@ -9073,7 +9073,7 @@ func (*MessagesGetFullChatParams) CRC() uint32 {
 	return 0xaeb00b34
 }
 
-// Get full info about a [basic group](/api/channel#basic-groups).
+// Get full info about a [basic group](https://core.telegram.org//api/channel#basic-groups).
 func (c *Client) MessagesGetFullChat(chatID int64) (*MessagesChatFull, error) {
 	responseData, err := c.MakeRequest(&MessagesGetFullChatParams{ChatID: chatID})
 	if err != nil {
@@ -9264,7 +9264,7 @@ func (*MessagesGetMessageReactionsListParams) FlagIndex() int {
 	return 0
 }
 
-// Get [message reaction](/api/reactions) list, along with the sender of each reaction.
+// Get [message reaction](https://core.telegram.org//api/reactions) list, along with the sender of each reaction.
 func (c *Client) MessagesGetMessageReactionsList(params *MessagesGetMessageReactionsListParams) (*MessagesMessageReactionsList, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -9287,7 +9287,7 @@ func (*MessagesGetMessageReadParticipantsParams) CRC() uint32 {
 	return 0x31c1c44f
 }
 
-// Get which users read a specific message: only available for groups and supergroups with less than <a href="/api/config#chat-read-mark-size-threshold">`chat_read_mark_size_threshold` members</a>, read receipts will be stored for <a href="/api/config#chat-read-mark-expire-period">`chat_read_mark_expire_period` seconds after the message was sent</a>, see [client configuration for more info »](/api/config#client-configuration).
+// Get which users read a specific message: only available for groups and supergroups with less than <a href="/api/config#chat-read-mark-size-threshold">`chat_read_mark_size_threshold` members</a>, read receipts will be stored for <a href="/api/config#chat-read-mark-expire-period">`chat_read_mark_expire_period` seconds after the message was sent</a>, see [client configuration for more info »](https://core.telegram.org//api/config#client-configuration).
 func (c *Client) MessagesGetMessageReadParticipants(peer InputPeer, msgID int32) ([]*ReadParticipantDate, error) {
 	responseData, err := c.MakeRequest(&MessagesGetMessageReadParticipantsParams{
 		MsgID: msgID,
@@ -9335,7 +9335,7 @@ func (*MessagesGetMessagesReactionsParams) CRC() uint32 {
 	return 0x8bba90e6
 }
 
-// Get [message reactions »](/api/reactions)
+// Get [message reactions »](https://core.telegram.org//api/reactions)
 func (c *Client) MessagesGetMessagesReactions(peer InputPeer, id []int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesGetMessagesReactionsParams{
 		ID:   id,
@@ -9362,7 +9362,7 @@ func (*MessagesGetMessagesViewsParams) CRC() uint32 {
 	return 0x5784d3e1
 }
 
-// Get and increase the view counter of a message sent or forwarded from a [channel](/api/channel)
+// Get and increase the view counter of a message sent or forwarded from a [channel](https://core.telegram.org//api/channel)
 func (c *Client) MessagesGetMessagesViews(peer InputPeer, id []int32, increment bool) (*MessagesMessageViews, error) {
 	responseData, err := c.MakeRequest(&MessagesGetMessagesViewsParams{
 		ID:        id,
@@ -9552,7 +9552,7 @@ func (*MessagesGetPinnedSavedDialogsParams) CRC() uint32 {
 	return 0xd63d94e0
 }
 
-// Get pinned [saved dialogs, see here »](/api/saved-messages) for more info.
+// Get pinned [saved dialogs, see here »](https://core.telegram.org//api/saved-messages) for more info.
 func (c *Client) MessagesGetPinnedSavedDialogs() (MessagesSavedDialogs, error) {
 	responseData, err := c.MakeRequest(&MessagesGetPinnedSavedDialogsParams{})
 	if err != nil {
@@ -9711,7 +9711,7 @@ func (*MessagesGetRecentReactionsParams) CRC() uint32 {
 	return 0x39461db2
 }
 
-// Get recently used [message reactions](/api/reactions)
+// Get recently used [message reactions](https://core.telegram.org//api/reactions)
 func (c *Client) MessagesGetRecentReactions(limit int32, hash int64) (MessagesReactions, error) {
 	responseData, err := c.MakeRequest(&MessagesGetRecentReactionsParams{
 		Hash:  hash,
@@ -9805,7 +9805,7 @@ func (*MessagesGetSavedDialogsParams) FlagIndex() int {
 	return 0
 }
 
-// Returns the current saved dialog list, see [here »](/api/saved-messages) for more info.
+// Returns the current saved dialog list, see [here »](https://core.telegram.org//api/saved-messages) for more info.
 func (c *Client) MessagesGetSavedDialogs(params *MessagesGetSavedDialogsParams) (MessagesSavedDialogs, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -9856,7 +9856,7 @@ func (*MessagesGetSavedHistoryParams) CRC() uint32 {
 	return 0x3d9a414d
 }
 
-// Returns [saved messages »](/api/saved-messages) forwarded from a specific peer
+// Returns [saved messages »](https://core.telegram.org//api/saved-messages) forwarded from a specific peer
 func (c *Client) MessagesGetSavedHistory(params *MessagesGetSavedHistoryParams) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -9966,7 +9966,7 @@ func (*MessagesGetSearchCountersParams) FlagIndex() int {
 	return 0
 }
 
-// Get the number of results that would be found by a [messages.search](/method/messages.search) call with the same parameters
+// Get the number of results that would be found by a [messages.search](https://core.telegram.org//method/messages.search) call with the same parameters
 func (c *Client) MessagesGetSearchCounters(peer, savedPeerID InputPeer, topMsgID int32, filters []MessagesFilter) ([]*MessagesSearchCounter, error) {
 	responseData, err := c.MakeRequest(&MessagesGetSearchCountersParams{
 		Filters:     filters,
@@ -10123,7 +10123,7 @@ func (*MessagesGetSuggestedDialogFiltersParams) CRC() uint32 {
 	return 0xa29cd42c
 }
 
-// Get [suggested folders](/api/folders)
+// Get [suggested folders](https://core.telegram.org//api/folders)
 func (c *Client) MessagesGetSuggestedDialogFilters() ([]*DialogFilterSuggested, error) {
 	responseData, err := c.MakeRequest(&MessagesGetSuggestedDialogFiltersParams{})
 	if err != nil {
@@ -10146,7 +10146,7 @@ func (*MessagesGetTopReactionsParams) CRC() uint32 {
 	return 0xbb8125ba
 }
 
-// Got popular [message reactions](/api/reactions)
+// Got popular [message reactions](https://core.telegram.org//api/reactions)
 func (c *Client) MessagesGetTopReactions(limit int32, hash int64) (MessagesReactions, error) {
 	responseData, err := c.MakeRequest(&MessagesGetTopReactionsParams{
 		Hash:  hash,
@@ -10236,7 +10236,7 @@ func (*MessagesGetWebPageParams) CRC() uint32 {
 	return 0x8d9692a3
 }
 
-// Get [instant view](https://instantview.telegram.org) page
+// Get [instant view](https://core.telegram.org/https://instantview.telegram.org) page
 func (c *Client) MessagesGetWebPage(url string, hash int32) (*MessagesWebPage, error) {
 	responseData, err := c.MakeRequest(&MessagesGetWebPageParams{
 		Hash: hash,
@@ -10297,7 +10297,7 @@ func (*MessagesHideAllChatJoinRequestsParams) FlagIndex() int {
 	return 0
 }
 
-// Dismiss or approve all [join requests](/api/invites#join-requests) related to a specific chat or channel.
+// Dismiss or approve all [join requests](https://core.telegram.org//api/invites#join-requests) related to a specific chat or channel.
 func (c *Client) MessagesHideAllChatJoinRequests(approved bool, peer InputPeer, link string) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesHideAllChatJoinRequestsParams{
 		Approved: approved,
@@ -10329,7 +10329,7 @@ func (*MessagesHideChatJoinRequestParams) FlagIndex() int {
 	return 0
 }
 
-// Dismiss or approve a chat [join request](/api/invites#join-requests) related to a specific chat or channel.
+// Dismiss or approve a chat [join request](https://core.telegram.org//api/invites#join-requests) related to a specific chat or channel.
 func (c *Client) MessagesHideChatJoinRequest(approved bool, peer InputPeer, userID InputUser) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesHideChatJoinRequestParams{
 		Approved: approved,
@@ -10355,7 +10355,7 @@ func (*MessagesHidePeerSettingsBarParams) CRC() uint32 {
 	return 0x4facb138
 }
 
-// Should be called after the user hides the [report spam/add as contact bar](/api/action-bar) of a new chat, effectively prevents the user from executing the actions specified in the [action bar »](/api/action-bar).
+// Should be called after the user hides the [report spam/add as contact bar](https://core.telegram.org//api/action-bar) of a new chat, effectively prevents the user from executing the actions specified in the [action bar »](https://core.telegram.org//api/action-bar).
 func (c *Client) MessagesHidePeerSettingsBar(peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesHidePeerSettingsBarParams{Peer: peer})
 	if err != nil {
@@ -10401,7 +10401,7 @@ func (*MessagesInitHistoryImportParams) CRC() uint32 {
 	return 0x34090c3b
 }
 
-// Import chat history from a foreign chat app into a specific Telegram chat, [click here for more info about imported chats »](/api/import).
+// Import chat history from a foreign chat app into a specific Telegram chat, [click here for more info about imported chats »](https://core.telegram.org//api/import).
 func (c *Client) MessagesInitHistoryImport(peer InputPeer, file InputFile, mediaCount int32) (*MessagesHistoryImport, error) {
 	responseData, err := c.MakeRequest(&MessagesInitHistoryImportParams{
 		File:       file,
@@ -10483,7 +10483,7 @@ func (*MessagesMigrateChatParams) CRC() uint32 {
 	return 0xa2875319
 }
 
-// Turn a [basic group into a supergroup](/api/channel#migration)
+// Turn a [basic group into a supergroup](https://core.telegram.org//api/channel#migration)
 func (c *Client) MessagesMigrateChat(chatID int64) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesMigrateChatParams{ChatID: chatID})
 	if err != nil {
@@ -10539,7 +10539,7 @@ func (*MessagesRateTranscribedAudioParams) CRC() uint32 {
 	return 0x7f1d072f
 }
 
-// Rate [transcribed voice message](/api/transcribe)
+// Rate [transcribed voice message](https://core.telegram.org//api/transcribe)
 func (c *Client) MessagesRateTranscribedAudio(peer InputPeer, msgID int32, transcriptionID int64, good bool) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesRateTranscribedAudioParams{
 		Good:            good,
@@ -10568,7 +10568,7 @@ func (*MessagesReadDiscussionParams) CRC() uint32 {
 	return 0xf731a9f4
 }
 
-// Mark a [thread](/api/threads) as read
+// Mark a [thread](https://core.telegram.org//api/threads) as read
 func (c *Client) MessagesReadDiscussion(peer InputPeer, msgID, readMaxID int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReadDiscussionParams{
 		MsgID:     msgID,
@@ -10725,7 +10725,7 @@ func (*MessagesReadReactionsParams) FlagIndex() int {
 	return 0
 }
 
-// Mark [message reactions »](/api/reactions) as read
+// Mark [message reactions »](https://core.telegram.org//api/reactions) as read
 func (c *Client) MessagesReadReactions(peer InputPeer, topMsgID int32) (*MessagesAffectedHistory, error) {
 	responseData, err := c.MakeRequest(&MessagesReadReactionsParams{
 		Peer:     peer,
@@ -10834,7 +10834,7 @@ func (*MessagesReorderPinnedSavedDialogsParams) FlagIndex() int {
 	return 0
 }
 
-// Reorder pinned [saved message dialogs »](/api/saved-messages).
+// Reorder pinned [saved message dialogs »](https://core.telegram.org//api/saved-messages).
 func (c *Client) MessagesReorderPinnedSavedDialogs(force bool, order []InputDialogPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReorderPinnedSavedDialogsParams{
 		Force: force,
@@ -10966,7 +10966,7 @@ func (*MessagesReportReactionParams) CRC() uint32 {
 	return 0x3f64c076
 }
 
-// Report a [message reaction](/api/reactions)
+// Report a [message reaction](https://core.telegram.org//api/reactions)
 func (c *Client) MessagesReportReaction(peer InputPeer, id int32, reactionPeer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReportReactionParams{
 		ID:           id,
@@ -10992,7 +10992,7 @@ func (*MessagesReportSpamParams) CRC() uint32 {
 	return 0xcf1592db
 }
 
-// Report a new incoming chat for spam, if the [peer settings](/constructor/peerSettings) of the chat allow us to do that
+// Report a new incoming chat for spam, if the [peer settings](https://core.telegram.org//constructor/peerSettings) of the chat allow us to do that
 func (c *Client) MessagesReportSpam(peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReportSpamParams{Peer: peer})
 	if err != nil {
@@ -11023,7 +11023,7 @@ func (*MessagesRequestAppWebViewParams) FlagIndex() int {
 	return 0
 }
 
-// Open a [bot mini app](/bots/webapps) from a [direct Mini App deep link](/api/links#direct-mini-app-links), sending over user information after user confirmation.
+// Open a [bot mini app](https://core.telegram.org//bots/webapps) from a [direct Mini App deep link](https://core.telegram.org//api/links#direct-mini-app-links), sending over user information after user confirmation.
 func (c *Client) MessagesRequestAppWebView(params *MessagesRequestAppWebViewParams) (*AppWebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -11083,7 +11083,7 @@ func (*MessagesRequestSimpleWebViewParams) FlagIndex() int {
 	return 0
 }
 
-// Open a [bot mini app](/api/bots/webapps).
+// Open a [bot mini app](https://core.telegram.org//api/bots/webapps).
 func (c *Client) MessagesRequestSimpleWebView(params *MessagesRequestSimpleWebViewParams) (*SimpleWebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -11112,7 +11112,7 @@ func (*MessagesRequestURLAuthParams) FlagIndex() int {
 	return 0
 }
 
-// Get more info about a Seamless Telegram Login authorization request, for more info [click here »](/api/url-authorization)
+// Get more info about a Seamless Telegram Login authorization request, for more info [click here »](https://core.telegram.org//api/url-authorization)
 func (c *Client) MessagesRequestURLAuth(peer InputPeer, msgID, buttonID int32, url string) (URLAuthResult, error) {
 	responseData, err := c.MakeRequest(&MessagesRequestURLAuthParams{
 		ButtonID: buttonID,
@@ -11152,7 +11152,7 @@ func (*MessagesRequestWebViewParams) FlagIndex() int {
 	return 0
 }
 
-// Open a [bot mini app](/bots/webapps), sending over user information after user confirmation.
+// Open a [bot mini app](https://core.telegram.org//bots/webapps), sending over user information after user confirmation.
 func (c *Client) MessagesRequestWebView(params *MessagesRequestWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -11210,7 +11210,7 @@ func (*MessagesSaveDraftParams) FlagIndex() int {
 	return 0
 }
 
-// Save a message [draft](/api/drafts) associated to a chat.
+// Save a message [draft](https://core.telegram.org//api/drafts) associated to a chat.
 func (c *Client) MessagesSaveDraft(params *MessagesSaveDraftParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -11331,7 +11331,7 @@ func (*MessagesSearchCustomEmojiParams) CRC() uint32 {
 	return 0x2c11c0d7
 }
 
-// Look for [custom emojis](/api/custom-emoji) associated to a UTF8 emoji
+// Look for [custom emojis](https://core.telegram.org//api/custom-emoji) associated to a UTF8 emoji
 func (c *Client) MessagesSearchCustomEmoji(emoticon string, hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&MessagesSearchCustomEmojiParams{
 		Emoticon: emoticon,
@@ -11362,7 +11362,7 @@ func (*MessagesSearchEmojiStickerSetsParams) FlagIndex() int {
 	return 0
 }
 
-// Search for [custom emoji stickersets »](/api/custom-emoji)
+// Search for [custom emoji stickersets »](https://core.telegram.org//api/custom-emoji)
 func (c *Client) MessagesSearchEmojiStickerSets(excludeFeatured bool, q string, hash int64) (MessagesFoundStickerSets, error) {
 	responseData, err := c.MakeRequest(&MessagesSearchEmojiStickerSetsParams{
 		ExcludeFeatured: excludeFeatured,
@@ -11489,7 +11489,7 @@ func (*MessagesSendBotRequestedPeerParams) CRC() uint32 {
 	return 0x91b2d060
 }
 
-// Send one or more chosen peers, as requested by a [keyboardButtonRequestPeer](/constructor/keyboardButtonRequestPeer) button.
+// Send one or more chosen peers, as requested by a [keyboardButtonRequestPeer](https://core.telegram.org//constructor/keyboardButtonRequestPeer) button.
 func (c *Client) MessagesSendBotRequestedPeer(peer InputPeer, msgID, buttonID int32, requestedPeers []InputPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesSendBotRequestedPeerParams{
 		ButtonID:       buttonID,
@@ -11623,7 +11623,7 @@ func (*MessagesSendInlineBotResultParams) FlagIndex() int {
 	return 0
 }
 
-// Send a result obtained using [messages.getInlineBotResults](/method/messages.getInlineBotResults).
+// Send a result obtained using [messages.getInlineBotResults](https://core.telegram.org//method/messages.getInlineBotResults).
 func (c *Client) MessagesSendInlineBotResult(params *MessagesSendInlineBotResultParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -11745,7 +11745,7 @@ func (*MessagesSendMultiMediaParams) FlagIndex() int {
 	return 0
 }
 
-// Send an [album or grouped media](/api/files#albums-grouped-media)
+// Send an [album or grouped media](https://core.telegram.org//api/files#albums-grouped-media)
 func (c *Client) MessagesSendMultiMedia(params *MessagesSendMultiMediaParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -11882,7 +11882,7 @@ func (*MessagesSendVoteParams) CRC() uint32 {
 	return 0x10ea6184
 }
 
-// Vote in a [poll](/constructor/poll)
+// Vote in a [poll](https://core.telegram.org//constructor/poll)
 func (c *Client) MessagesSendVote(peer InputPeer, msgID int32, options [][]byte) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesSendVoteParams{
 		MsgID:   msgID,
@@ -11911,7 +11911,7 @@ func (*MessagesSendWebViewDataParams) CRC() uint32 {
 	return 0xdc0242c8
 }
 
-// Used by the user to relay data from an opened [reply keyboard bot mini app](/api/bots/webapps) to the bot that owns it.
+// Used by the user to relay data from an opened [reply keyboard bot mini app](https://core.telegram.org//api/bots/webapps) to the bot that owns it.
 func (c *Client) MessagesSendWebViewData(bot InputUser, randomID int64, buttonText, data string) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesSendWebViewDataParams{
 		Bot:        bot,
@@ -11939,7 +11939,7 @@ func (*MessagesSendWebViewResultMessageParams) CRC() uint32 {
 	return 0xa4314f5
 }
 
-// Terminate webview interaction started with [messages.requestWebView](/method/messages.requestWebView), sending the specified message to the chat on behalf of the user.
+// Terminate webview interaction started with [messages.requestWebView](https://core.telegram.org//method/messages.requestWebView), sending the specified message to the chat on behalf of the user.
 func (c *Client) MessagesSendWebViewResultMessage(botQueryID string, result InputBotInlineResult) (*WebViewMessageSent, error) {
 	responseData, err := c.MakeRequest(&MessagesSendWebViewResultMessageParams{
 		BotQueryID: botQueryID,
@@ -12001,7 +12001,7 @@ func (*MessagesSetBotPrecheckoutResultsParams) FlagIndex() int {
 }
 
 /*
-Once the user has confirmed their payment and shipping details, the bot receives an [updateBotPrecheckoutQuery](/constructor/updateBotPrecheckoutQuery) update.<br>
+Once the user has confirmed their payment and shipping details, the bot receives an [updateBotPrecheckoutQuery](https://core.telegram.org//constructor/updateBotPrecheckoutQuery) update.<br>
 Use this method to respond to such pre-checkout queries.<br>
 <strong>Note</strong>: Telegram must receive an answer within 10 seconds after the pre-checkout query was sent.
 */
@@ -12036,7 +12036,7 @@ func (*MessagesSetBotShippingResultsParams) FlagIndex() int {
 	return 0
 }
 
-// If you sent an invoice requesting a shipping address and the parameter is_flexible was specified, the bot will receive an [updateBotShippingQuery](/constructor/updateBotShippingQuery) update. Use this method to reply to shipping queries.
+// If you sent an invoice requesting a shipping address and the parameter is_flexible was specified, the bot will receive an [updateBotShippingQuery](https://core.telegram.org//constructor/updateBotShippingQuery) update. Use this method to reply to shipping queries.
 func (c *Client) MessagesSetBotShippingResults(queryID int64, error string, shippingOptions []*ShippingOption) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesSetBotShippingResultsParams{
 		Error:           error,
@@ -12068,7 +12068,7 @@ func (*MessagesSetChatAvailableReactionsParams) FlagIndex() int {
 	return 0
 }
 
-// Change the set of [message reactions »](/api/reactions) that can be used in a certain group, supergroup or channel
+// Change the set of [message reactions »](https://core.telegram.org//api/reactions) that can be used in a certain group, supergroup or channel
 func (c *Client) MessagesSetChatAvailableReactions(peer InputPeer, availableReactions ChatReactions, reactionsLimit int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesSetChatAvailableReactionsParams{
 		AvailableReactions: availableReactions,
@@ -12129,7 +12129,7 @@ func (*MessagesSetChatWallPaperParams) FlagIndex() int {
 	return 0
 }
 
-// Set a custom [wallpaper »](/api/wallpapers) in a specific private chat with another user.
+// Set a custom [wallpaper »](https://core.telegram.org//api/wallpapers) in a specific private chat with another user.
 func (c *Client) MessagesSetChatWallPaper(params *MessagesSetChatWallPaperParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -12347,7 +12347,7 @@ func (*MessagesSetTypingParams) FlagIndex() int {
 	return 0
 }
 
-// Sends a current user typing event (see [SendMessageAction](/type/SendMessageAction) for all event types) to a conversation partner or group.
+// Sends a current user typing event (see [SendMessageAction](https://core.telegram.org//type/SendMessageAction) for all event types) to a conversation partner or group.
 func (c *Client) MessagesSetTyping(peer InputPeer, topMsgID int32, action SendMessageAction) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesSetTypingParams{
 		Action:   action,
@@ -12376,7 +12376,7 @@ func (*MessagesStartBotParams) CRC() uint32 {
 	return 0xe6df7378
 }
 
-// Start a conversation with a bot using a [deep linking parameter](/api/links#bot-links)
+// Start a conversation with a bot using a [deep linking parameter](https://core.telegram.org//api/links#bot-links)
 func (c *Client) MessagesStartBot(bot InputUser, peer InputPeer, randomID int64, startParam string) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesStartBotParams{
 		Bot:        bot,
@@ -12405,8 +12405,8 @@ func (*MessagesStartHistoryImportParams) CRC() uint32 {
 }
 
 /*
-Complete the [history import process](/api/import), importing all messages into the chat.<br>
-To be called only after initializing the import with [messages.initHistoryImport](/method/messages.initHistoryImport) and uploading all files using [messages.uploadImportedMedia](/method/messages.uploadImportedMedia).
+Complete the [history import process](https://core.telegram.org//api/import), importing all messages into the chat.<br>
+To be called only after initializing the import with [messages.initHistoryImport](https://core.telegram.org//method/messages.initHistoryImport) and uploading all files using [messages.uploadImportedMedia](https://core.telegram.org//method/messages.uploadImportedMedia).
 */
 func (c *Client) MessagesStartHistoryImport(peer InputPeer, importID int64) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesStartHistoryImportParams{
@@ -12438,7 +12438,7 @@ func (*MessagesToggleBotInAttachMenuParams) FlagIndex() int {
 	return 0
 }
 
-// Enable or disable [web bot attachment menu »](/api/bots/attach)
+// Enable or disable [web bot attachment menu »](https://core.telegram.org//api/bots/attach)
 func (c *Client) MessagesToggleBotInAttachMenu(writeAllowed bool, bot InputUser, enabled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesToggleBotInAttachMenuParams{
 		Bot:          bot,
@@ -12516,7 +12516,7 @@ func (*MessagesToggleNoForwardsParams) CRC() uint32 {
 	return 0xb11eafa2
 }
 
-// Enable or disable [content protection](https://telegram.org/blog/protected-content-delete-by-date-and-more) on a channel or chat
+// Enable or disable [content protection](https://core.telegram.org/https://telegram.org/blog/protected-content-delete-by-date-and-more) on a channel or chat
 func (c *Client) MessagesToggleNoForwards(peer InputPeer, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesToggleNoForwardsParams{
 		Enabled: enabled,
@@ -12546,7 +12546,7 @@ func (*MessagesTogglePeerTranslationsParams) FlagIndex() int {
 	return 0
 }
 
-// Show or hide the [real-time chat translation popup](/api/translation) for a certain chat
+// Show or hide the [real-time chat translation popup](https://core.telegram.org//api/translation) for a certain chat
 func (c *Client) MessagesTogglePeerTranslations(disabled bool, peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesTogglePeerTranslationsParams{
 		Disabled: disabled,
@@ -12576,7 +12576,7 @@ func (*MessagesToggleSavedDialogPinParams) FlagIndex() int {
 	return 0
 }
 
-// Pin or unpin a [saved message dialog »](/api/saved-messages).
+// Pin or unpin a [saved message dialog »](https://core.telegram.org//api/saved-messages).
 func (c *Client) MessagesToggleSavedDialogPin(pinned bool, peer InputDialogPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesToggleSavedDialogPinParams{
 		Peer:   peer,
@@ -12636,7 +12636,7 @@ func (*MessagesTranscribeAudioParams) CRC() uint32 {
 	return 0x269e9a49
 }
 
-// [Transcribe voice message](/api/transcribe)
+// [Transcribe voice message](https://core.telegram.org//api/transcribe)
 func (c *Client) MessagesTranscribeAudio(peer InputPeer, msgID int32) (*MessagesTranscribedAudio, error) {
 	responseData, err := c.MakeRequest(&MessagesTranscribeAudioParams{
 		MsgID: msgID,
@@ -12722,7 +12722,7 @@ func (*MessagesUnpinAllMessagesParams) FlagIndex() int {
 	return 0
 }
 
-// [Unpin](/api/pin) all pinned messages
+// [Unpin](https://core.telegram.org//api/pin) all pinned messages
 func (c *Client) MessagesUnpinAllMessages(peer InputPeer, topMsgID int32) (*MessagesAffectedHistory, error) {
 	responseData, err := c.MakeRequest(&MessagesUnpinAllMessagesParams{
 		Peer:     peer,
@@ -12752,7 +12752,7 @@ func (*MessagesUpdateDialogFilterParams) FlagIndex() int {
 	return 0
 }
 
-// Update [folder](/api/folders)
+// Update [folder](https://core.telegram.org//api/folders)
 func (c *Client) MessagesUpdateDialogFilter(id int32, filter DialogFilter) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesUpdateDialogFilterParams{
 		Filter: filter,
@@ -12777,7 +12777,7 @@ func (*MessagesUpdateDialogFiltersOrderParams) CRC() uint32 {
 	return 0xc563c1e4
 }
 
-// Reorder [folders](/api/folders)
+// Reorder [folders](https://core.telegram.org//api/folders)
 func (c *Client) MessagesUpdateDialogFiltersOrder(order []int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesUpdateDialogFiltersOrderParams{Order: order})
 	if err != nil {
@@ -12887,7 +12887,7 @@ func (*MessagesUploadImportedMediaParams) CRC() uint32 {
 	return 0x2a862092
 }
 
-// Upload a media file associated with an [imported chat, click here for more info »](/api/import).
+// Upload a media file associated with an [imported chat, click here for more info »](https://core.telegram.org//api/import).
 func (c *Client) MessagesUploadImportedMedia(peer InputPeer, importID int64, fileName string, media InputMedia) (MessageMedia, error) {
 	responseData, err := c.MakeRequest(&MessagesUploadImportedMediaParams{
 		FileName: fileName,
@@ -12946,7 +12946,7 @@ func (*PaymentsApplyGiftCodeParams) CRC() uint32 {
 	return 0xf6e26854
 }
 
-// Apply a [Telegram Premium giftcode »](/api/giveaways)
+// Apply a [Telegram Premium giftcode »](https://core.telegram.org//api/giveaways)
 func (c *Client) PaymentsApplyGiftCode(slug string) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsApplyGiftCodeParams{Slug: slug})
 	if err != nil {
@@ -13042,7 +13042,7 @@ func (*PaymentsCheckGiftCodeParams) CRC() uint32 {
 	return 0x8e51b4c1
 }
 
-// Obtain information about a [Telegram Premium giftcode »](/api/giveaways)
+// Obtain information about a [Telegram Premium giftcode »](https://core.telegram.org//api/giveaways)
 func (c *Client) PaymentsCheckGiftCode(slug string) (*PaymentsCheckedGiftCode, error) {
 	responseData, err := c.MakeRequest(&PaymentsCheckGiftCodeParams{Slug: slug})
 	if err != nil {
@@ -13094,7 +13094,7 @@ func (*PaymentsExportInvoiceParams) CRC() uint32 {
 	return 0xf91b065
 }
 
-// Generate an [invoice deep link](/api/links#invoice-links)
+// Generate an [invoice deep link](https://core.telegram.org//api/links#invoice-links)
 func (c *Client) PaymentsExportInvoice(invoiceMedia InputMedia) (*PaymentsExportedInvoice, error) {
 	responseData, err := c.MakeRequest(&PaymentsExportInvoiceParams{InvoiceMedia: invoiceMedia})
 	if err != nil {
@@ -13139,7 +13139,7 @@ func (*PaymentsGetGiveawayInfoParams) CRC() uint32 {
 	return 0xf4239425
 }
 
-// Obtain information about a [Telegram Premium giveaway »](/api/giveaways).
+// Obtain information about a [Telegram Premium giveaway »](https://core.telegram.org//api/giveaways).
 func (c *Client) PaymentsGetGiveawayInfo(peer InputPeer, msgID int32) (PaymentsGiveawayInfo, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetGiveawayInfoParams{
 		MsgID: msgID,
@@ -13224,7 +13224,7 @@ func (*PaymentsGetPremiumGiftCodeOptionsParams) FlagIndex() int {
 	return 0
 }
 
-// Obtain a list of Telegram Premium [giveaway/gift code »](/api/giveaways) options.
+// Obtain a list of Telegram Premium [giveaway/gift code »](https://core.telegram.org//api/giveaways) options.
 func (c *Client) PaymentsGetPremiumGiftCodeOptions(boostPeer InputPeer) ([]*PremiumGiftCodeOption, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetPremiumGiftCodeOptionsParams{BoostPeer: boostPeer})
 	if err != nil {
@@ -13341,7 +13341,7 @@ func (*PaymentsLaunchPrepaidGiveawayParams) CRC() uint32 {
 	return 0x5ff58f20
 }
 
-// Launch a [prepaid giveaway »](/api/giveaways).
+// Launch a [prepaid giveaway »](https://core.telegram.org//api/giveaways).
 func (c *Client) PaymentsLaunchPrepaidGiveaway(peer InputPeer, giveawayID int64, purpose InputStorePaymentPurpose) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsLaunchPrepaidGiveawayParams{
 		GiveawayID: giveawayID,
@@ -13540,7 +13540,7 @@ func (*PhoneConfirmCallParams) CRC() uint32 {
 	return 0x2efe1722
 }
 
-// [Complete phone call E2E encryption key exchange »](/api/end-to-end/voice-calls)
+// [Complete phone call E2E encryption key exchange »](https://core.telegram.org//api/end-to-end/voice-calls)
 func (c *Client) PhoneConfirmCall(peer *InputPhoneCall, gA []byte, keyFingerprint int64, protocol *PhoneCallProtocol) (*PhonePhoneCall, error) {
 	responseData, err := c.MakeRequest(&PhoneConfirmCallParams{
 		GA:             gA,
@@ -13713,7 +13713,7 @@ func (*PhoneExportGroupCallInviteParams) FlagIndex() int {
 	return 0
 }
 
-// Get an [invite link](/api/links#video-chat-livestream-links) for a group call or livestream
+// Get an [invite link](https://core.telegram.org//api/links#video-chat-livestream-links) for a group call or livestream
 func (c *Client) PhoneExportGroupCallInvite(canSelfUnmute bool, call *InputGroupCall) (*PhoneExportedGroupCallInvite, error) {
 	responseData, err := c.MakeRequest(&PhoneExportGroupCallInviteParams{
 		Call:          call,
@@ -13808,7 +13808,7 @@ func (*PhoneGetGroupCallStreamChannelsParams) CRC() uint32 {
 
 /*
 Get info about RTMP streams in a group call or livestream.<br>
-This method should be invoked to the same group/channel-related DC used for [downloading livestream chunks](/api/files#downloading-files).<br>
+This method should be invoked to the same group/channel-related DC used for [downloading livestream chunks](https://core.telegram.org//api/files#downloading-files).<br>
 As usual, the media DC is preferred, if available.
 */
 func (c *Client) PhoneGetGroupCallStreamChannels(call *InputGroupCall) (*PhoneGroupCallStreamChannels, error) {
@@ -13833,7 +13833,7 @@ func (*PhoneGetGroupCallStreamRtmpURLParams) CRC() uint32 {
 	return 0xdeb3abbf
 }
 
-// Get RTMP URL and stream key for RTMP livestreams. Can be used even before creating the actual RTMP livestream with [phone.createGroupCall](/method/phone.createGroupCall) (the `rtmp_stream` flag must be set).
+// Get RTMP URL and stream key for RTMP livestreams. Can be used even before creating the actual RTMP livestream with [phone.createGroupCall](https://core.telegram.org//method/phone.createGroupCall) (the `rtmp_stream` flag must be set).
 func (c *Client) PhoneGetGroupCallStreamRtmpURL(peer InputPeer, revoke bool) (*PhoneGroupCallStreamRtmpURL, error) {
 	responseData, err := c.MakeRequest(&PhoneGetGroupCallStreamRtmpURLParams{
 		Peer:   peer,
@@ -14473,7 +14473,7 @@ func (*PremiumApplyBoostParams) FlagIndex() int {
 	return 0
 }
 
-// Apply one or more [boosts »](/api/boost) to a peer.
+// Apply one or more [boosts »](https://core.telegram.org//api/boost) to a peer.
 func (c *Client) PremiumApplyBoost(slots []int32, peer InputPeer) (*PremiumMyBoosts, error) {
 	responseData, err := c.MakeRequest(&PremiumApplyBoostParams{
 		Peer:  peer,
@@ -14532,7 +14532,7 @@ func (*PremiumGetBoostsStatusParams) CRC() uint32 {
 	return 0x42f1f61
 }
 
-// Gets the current [number of boosts](/api/boost) of a channel.
+// Gets the current [number of boosts](https://core.telegram.org//api/boost) of a channel.
 func (c *Client) PremiumGetBoostsStatus(peer InputPeer) (*PremiumBoostsStatus, error) {
 	responseData, err := c.MakeRequest(&PremiumGetBoostsStatusParams{Peer: peer})
 	if err != nil {
@@ -14552,7 +14552,7 @@ func (*PremiumGetMyBoostsParams) CRC() uint32 {
 	return 0xbe77b4a
 }
 
-// Obtain which peers are we currently [boosting](/api/boost), and how many [boost slots](/api/boost) we have left.
+// Obtain which peers are we currently [boosting](https://core.telegram.org//api/boost), and how many [boost slots](https://core.telegram.org//api/boost) we have left.
 func (c *Client) PremiumGetMyBoosts() (*PremiumMyBoosts, error) {
 	responseData, err := c.MakeRequest(&PremiumGetMyBoostsParams{})
 	if err != nil {
@@ -14837,7 +14837,7 @@ func (*StatsGetBroadcastStatsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [channel statistics](/api/stats)
+// Get [channel statistics](https://core.telegram.org//api/stats)
 func (c *Client) StatsGetBroadcastStats(dark bool, channel InputChannel) (*StatsBroadcastStats, error) {
 	responseData, err := c.MakeRequest(&StatsGetBroadcastStatsParams{
 		Channel: channel,
@@ -14867,7 +14867,7 @@ func (*StatsGetMegagroupStatsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [supergroup statistics](/api/stats)
+// Get [supergroup statistics](https://core.telegram.org//api/stats)
 func (c *Client) StatsGetMegagroupStats(dark bool, channel InputChannel) (*StatsMegagroupStats, error) {
 	responseData, err := c.MakeRequest(&StatsGetMegagroupStatsParams{
 		Channel: channel,
@@ -14897,7 +14897,7 @@ func (*StatsGetMessagePublicForwardsParams) CRC() uint32 {
 
 /*
 Obtains a list of messages, indicating to which other public channels was a channel message forwarded.<br>
-Will return a list of [messages](/constructor/message) with `peer_id` equal to the public channel to which this message was forwarded.
+Will return a list of [messages](https://core.telegram.org//constructor/message) with `peer_id` equal to the public channel to which this message was forwarded.
 */
 func (c *Client) StatsGetMessagePublicForwards(channel InputChannel, msgID int32, offset string, limit int32) (*StatsPublicForwards, error) {
 	responseData, err := c.MakeRequest(&StatsGetMessagePublicForwardsParams{
@@ -14931,7 +14931,7 @@ func (*StatsGetMessageStatsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [message statistics](/api/stats)
+// Get [message statistics](https://core.telegram.org//api/stats)
 func (c *Client) StatsGetMessageStats(dark bool, channel InputChannel, msgID int32) (*StatsMessageStats, error) {
 	responseData, err := c.MakeRequest(&StatsGetMessageStatsParams{
 		Channel: channel,
@@ -14960,7 +14960,7 @@ func (*StatsGetStoryPublicForwardsParams) CRC() uint32 {
 	return 0xa6437ef6
 }
 
-// Obtain forwards of a [story](/api/stories) as a message to public chats and reposts by public channels.
+// Obtain forwards of a [story](https://core.telegram.org//api/stories) as a message to public chats and reposts by public channels.
 func (c *Client) StatsGetStoryPublicForwards(peer InputPeer, id int32, offset string, limit int32) (*StatsPublicForwards, error) {
 	responseData, err := c.MakeRequest(&StatsGetStoryPublicForwardsParams{
 		ID:     id,
@@ -14993,7 +14993,7 @@ func (*StatsGetStoryStatsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [statistics](/api/stats) for a certain [story](/api/stories).
+// Get [statistics](https://core.telegram.org//api/stats) for a certain [story](https://core.telegram.org//api/stories).
 func (c *Client) StatsGetStoryStats(dark bool, peer InputPeer, id int32) (*StatsStoryStats, error) {
 	responseData, err := c.MakeRequest(&StatsGetStoryStatsParams{
 		Dark: dark,
@@ -15024,7 +15024,7 @@ func (*StatsLoadAsyncGraphParams) FlagIndex() int {
 	return 0
 }
 
-// Load [channel statistics graph](/api/stats) asynchronously
+// Load [channel statistics graph](https://core.telegram.org//api/stats) asynchronously
 func (c *Client) StatsLoadAsyncGraph(token string, x int64) (StatsGraph, error) {
 	responseData, err := c.MakeRequest(&StatsLoadAsyncGraphParams{
 		Token: token,
@@ -15082,7 +15082,7 @@ func (*StickersChangeStickerParams) FlagIndex() int {
 	return 0
 }
 
-// Update the keywords, emojis or [mask coordinates](/api/stickers#mask-stickers) of a sticker, bots only.
+// Update the keywords, emojis or [mask coordinates](https://core.telegram.org//api/stickers#mask-stickers) of a sticker, bots only.
 func (c *Client) StickersChangeSticker(sticker InputDocument, emoji string, maskCoords *MaskCoords, keywords string) (MessagesStickerSet, error) {
 	responseData, err := c.MakeRequest(&StickersChangeStickerParams{
 		Emoji:      emoji,
@@ -15345,7 +15345,7 @@ func (*StoriesActivateStealthModeParams) FlagIndex() int {
 	return 0
 }
 
-// Activates [stories stealth mode](/api/stories#stealth-mode), see [here »](/api/stories#stealth-mode) for more info.
+// Activates [stories stealth mode](https://core.telegram.org//api/stories#stealth-mode), see [here »](https://core.telegram.org//api/stories#stealth-mode) for more info.
 func (c *Client) StoriesActivateStealthMode(past, future bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&StoriesActivateStealthModeParams{
 		Future: future,
@@ -15393,7 +15393,7 @@ func (*StoriesDeleteStoriesParams) CRC() uint32 {
 	return 0xae59db5f
 }
 
-// Deletes some posted [stories](/api/stories).
+// Deletes some posted [stories](https://core.telegram.org//api/stories).
 func (c *Client) StoriesDeleteStories(peer InputPeer, id []int32) ([]int32, error) {
 	responseData, err := c.MakeRequest(&StoriesDeleteStoriesParams{
 		ID:   id,
@@ -15428,7 +15428,7 @@ func (*StoriesEditStoryParams) FlagIndex() int {
 	return 0
 }
 
-// Edit an uploaded [story](/api/stories)
+// Edit an uploaded [story](https://core.telegram.org//api/stories)
 func (c *Client) StoriesEditStory(params *StoriesEditStoryParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -15451,7 +15451,7 @@ func (*StoriesExportStoryLinkParams) CRC() uint32 {
 	return 0x7b8def20
 }
 
-// Generate a [story deep link](/api/links#story-links) for a specific story
+// Generate a [story deep link](https://core.telegram.org//api/links#story-links) for a specific story
 func (c *Client) StoriesExportStoryLink(peer InputPeer, id int32) (*ExportedStoryLink, error) {
 	responseData, err := c.MakeRequest(&StoriesExportStoryLinkParams{
 		ID:   id,
@@ -15474,7 +15474,7 @@ func (*StoriesGetAllReadPeerStoriesParams) CRC() uint32 {
 	return 0x9b5ae7f9
 }
 
-// Obtain the latest read story ID for all peers when first logging in, returned as a list of [updateReadStories](/constructor/updateReadStories) updates, see [here »](/api/stories#watching-stories) for more info.
+// Obtain the latest read story ID for all peers when first logging in, returned as a list of [updateReadStories](https://core.telegram.org//constructor/updateReadStories) updates, see [here »](https://core.telegram.org//api/stories#watching-stories) for more info.
 func (c *Client) StoriesGetAllReadPeerStories() (Updates, error) {
 	responseData, err := c.MakeRequest(&StoriesGetAllReadPeerStoriesParams{})
 	if err != nil {
@@ -15502,7 +15502,7 @@ func (*StoriesGetAllStoriesParams) FlagIndex() int {
 	return 0
 }
 
-// Fetch the List of active (or active and hidden) stories, see [here »](/api/stories#watching-stories) for more info on watching stories.
+// Fetch the List of active (or active and hidden) stories, see [here »](https://core.telegram.org//api/stories#watching-stories) for more info on watching stories.
 func (c *Client) StoriesGetAllStories(next, hidden bool, state string) (StoriesAllStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetAllStoriesParams{
 		Hidden: hidden,
@@ -15526,7 +15526,7 @@ func (*StoriesGetChatsToSendParams) CRC() uint32 {
 	return 0xa56a8b60
 }
 
-// Obtain a list of channels where the user can post [stories](/api/stories)
+// Obtain a list of channels where the user can post [stories](https://core.telegram.org//api/stories)
 func (c *Client) StoriesGetChatsToSend() (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&StoriesGetChatsToSendParams{})
 	if err != nil {
@@ -15570,7 +15570,7 @@ func (*StoriesGetPeerStoriesParams) CRC() uint32 {
 	return 0x2c4ada50
 }
 
-// Fetch the full active [story list](/api/stories#watching-stories) of a specific peer.
+// Fetch the full active [story list](https://core.telegram.org//api/stories#watching-stories) of a specific peer.
 func (c *Client) StoriesGetPeerStories(peer InputPeer) (*StoriesPeerStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetPeerStoriesParams{Peer: peer})
 	if err != nil {
@@ -15594,7 +15594,7 @@ func (*StoriesGetPinnedStoriesParams) CRC() uint32 {
 	return 0x5821a5dc
 }
 
-// Fetch the [stories](/api/stories#pinned-or-archived-stories) pinned on a peer's profile.
+// Fetch the [stories](https://core.telegram.org//api/stories#pinned-or-archived-stories) pinned on a peer's profile.
 func (c *Client) StoriesGetPinnedStories(peer InputPeer, offsetID, limit int32) (*StoriesStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetPinnedStoriesParams{
 		Limit:    limit,
@@ -15622,7 +15622,7 @@ func (*StoriesGetStoriesArchiveParams) CRC() uint32 {
 	return 0xb4352016
 }
 
-// Fetch the [story archive »](/api/stories#pinned-or-archived-stories) of a peer we control.
+// Fetch the [story archive »](https://core.telegram.org//api/stories#pinned-or-archived-stories) of a peer we control.
 func (c *Client) StoriesGetStoriesArchive(peer InputPeer, offsetID, limit int32) (*StoriesStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetStoriesArchiveParams{
 		Limit:    limit,
@@ -15649,7 +15649,7 @@ func (*StoriesGetStoriesByIDParams) CRC() uint32 {
 	return 0x5774ca74
 }
 
-// Obtain full info about a set of [stories](/api/stories) by their IDs.
+// Obtain full info about a set of [stories](https://core.telegram.org//api/stories) by their IDs.
 func (c *Client) StoriesGetStoriesByID(peer InputPeer, id []int32) (*StoriesStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetStoriesByIDParams{
 		ID:   id,
@@ -15675,7 +15675,7 @@ func (*StoriesGetStoriesViewsParams) CRC() uint32 {
 	return 0x28e16cc8
 }
 
-// Obtain info about the view count, forward count, reactions and recent viewers of one or more [stories](/api/stories).
+// Obtain info about the view count, forward count, reactions and recent viewers of one or more [stories](https://core.telegram.org//api/stories).
 func (c *Client) StoriesGetStoriesViews(peer InputPeer, id []int32) (*StoriesStoryViews, error) {
 	responseData, err := c.MakeRequest(&StoriesGetStoriesViewsParams{
 		ID:   id,
@@ -15709,7 +15709,7 @@ func (*StoriesGetStoryReactionsListParams) FlagIndex() int {
 	return 0
 }
 
-// Get the [reaction](/api/reactions) and interaction list of a [story](/api/stories) posted to a channel, along with the sender of each reaction.
+// Get the [reaction](https://core.telegram.org//api/reactions) and interaction list of a [story](https://core.telegram.org//api/stories) posted to a channel, along with the sender of each reaction.
 func (c *Client) StoriesGetStoryReactionsList(params *StoriesGetStoryReactionsListParams) (*StoriesStoryReactionsList, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -15742,7 +15742,7 @@ func (*StoriesGetStoryViewsListParams) FlagIndex() int {
 	return 0
 }
 
-// Obtain the list of users that have viewed a specific [story we posted](/api/stories)
+// Obtain the list of users that have viewed a specific [story we posted](https://core.telegram.org//api/stories)
 func (c *Client) StoriesGetStoryViewsList(params *StoriesGetStoryViewsListParams) (*StoriesStoryViewsList, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -15791,7 +15791,7 @@ func (*StoriesReadStoriesParams) CRC() uint32 {
 	return 0xa556dac8
 }
 
-// Mark all stories up to a certain ID as read, for a given peer; will emit an [updateReadStories](/constructor/updateReadStories) update to all logged-in sessions.
+// Mark all stories up to a certain ID as read, for a given peer; will emit an [updateReadStories](https://core.telegram.org//constructor/updateReadStories) update to all logged-in sessions.
 func (c *Client) StoriesReadStories(peer InputPeer, maxID int32) ([]int32, error) {
 	responseData, err := c.MakeRequest(&StoriesReadStoriesParams{
 		MaxID: maxID,
@@ -15896,7 +15896,7 @@ func (*StoriesSendStoryParams) FlagIndex() int {
 	return 0
 }
 
-// Uploads a [Telegram Story](/api/stories).
+// Uploads a [Telegram Story](https://core.telegram.org//api/stories).
 func (c *Client) StoriesSendStory(params *StoriesSendStoryParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -15941,7 +15941,7 @@ func (*StoriesTogglePeerStoriesHiddenParams) CRC() uint32 {
 	return 0xbd0415c4
 }
 
-// Hide the active stories of a user, preventing them from being displayed on the action bar on the homescreen, see [here »](/api/stories#hiding-stories-of-other-users) for more info.
+// Hide the active stories of a user, preventing them from being displayed on the action bar on the homescreen, see [here »](https://core.telegram.org//api/stories#hiding-stories-of-other-users) for more info.
 func (c *Client) StoriesTogglePeerStoriesHidden(peer InputPeer, hidden bool) (bool, error) {
 	responseData, err := c.MakeRequest(&StoriesTogglePeerStoriesHiddenParams{
 		Hidden: hidden,
@@ -16058,7 +16058,7 @@ func (*UpdatesGetDifferenceParams) FlagIndex() int {
 	return 0
 }
 
-// Get new [updates](/api/updates).
+// Get new [updates](https://core.telegram.org//api/updates).
 func (c *Client) UpdatesGetDifference(params *UpdatesGetDifferenceParams) (UpdatesDifference, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -16102,7 +16102,7 @@ func (*UploadGetCdnFileParams) CRC() uint32 {
 	return 0x395f69da
 }
 
-// Download a [CDN](/cdn) file.
+// Download a [CDN](https://core.telegram.org//cdn) file.
 func (c *Client) UploadGetCdnFile(fileToken []byte, offset int64, limit int32) (UploadCdnFile, error) {
 	responseData, err := c.MakeRequest(&UploadGetCdnFileParams{
 		FileToken: fileToken,
@@ -16129,7 +16129,7 @@ func (*UploadGetCdnFileHashesParams) CRC() uint32 {
 	return 0x91dc3f31
 }
 
-// Get SHA256 hashes for verifying downloaded [CDN](/cdn) files
+// Get SHA256 hashes for verifying downloaded [CDN](https://core.telegram.org//cdn) files
 func (c *Client) UploadGetCdnFileHashes(fileToken []byte, offset int64) ([]*FileHash, error) {
 	responseData, err := c.MakeRequest(&UploadGetCdnFileHashesParams{
 		FileToken: fileToken,
@@ -16212,7 +16212,7 @@ func (*UploadGetWebFileParams) CRC() uint32 {
 	return 0x24e6818d
 }
 
-// Returns content of a web file, by proxying the request through telegram, see the [webfile docs for more info](/api/files#downloading-webfiles).
+// Returns content of a web file, by proxying the request through telegram, see the [webfile docs for more info](https://core.telegram.org//api/files#downloading-webfiles).
 func (c *Client) UploadGetWebFile(location InputWebFileLocation, offset, limit int32) (*UploadWebFile, error) {
 	responseData, err := c.MakeRequest(&UploadGetWebFileParams{
 		Limit:    limit,
@@ -16239,7 +16239,7 @@ func (*UploadReuploadCdnFileParams) CRC() uint32 {
 	return 0x9b2754a8
 }
 
-// Request a reupload of a certain file to a [CDN DC](/cdn).
+// Request a reupload of a certain file to a [CDN DC](https://core.telegram.org//cdn).
 func (c *Client) UploadReuploadCdnFile(fileToken, requestToken []byte) ([]*FileHash, error) {
 	responseData, err := c.MakeRequest(&UploadReuploadCdnFileParams{
 		FileToken:    fileToken,
@@ -16401,7 +16401,7 @@ func (*UsersSetSecureValueErrorsParams) CRC() uint32 {
 	return 0x90c894b5
 }
 
-// Notify the user that the sent [passport](/passport) data contains some errors The user will not be able to re-submit their Passport data to you until the errors are fixed (the contents of the field for which you returned the error must change).
+// Notify the user that the sent [passport](https://core.telegram.org//passport) data contains some errors The user will not be able to re-submit their Passport data to you until the errors are fixed (the contents of the field for which you returned the error must change).
 func (c *Client) UsersSetSecureValueErrors(id InputUser, errorsw []SecureValueError) (bool, error) {
 	responseData, err := c.MakeRequest(&UsersSetSecureValueErrorsParams{
 		Errors: errorsw,
