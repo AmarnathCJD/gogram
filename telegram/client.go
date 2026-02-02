@@ -88,6 +88,10 @@ type Session struct {
 	AppID    int32  `json:"app_id,omitempty"`
 }
 
+func (s *Session) Encode() string {
+	return session.NewStringSession(s.Key, s.Hash, 0, s.Hostname, s.AppID).Encode()
+}
+
 func NewClient(config ClientConfig) (*Client, error) {
 	client := &Client{wg: sync.WaitGroup{}, Log: utils.NewLogger("gogram - client"), stopCh: make(chan struct{})}
 	config = client.cleanClientConfig(config)
