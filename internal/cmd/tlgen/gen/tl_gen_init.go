@@ -39,6 +39,8 @@ func (g *Generator) createCustomInitStructs() jen.Code {
 	return jen.Qual(tlPackagePath, "RegisterObject").Call(
 		jen.Op("&").Id("MessageObj").Block(),
 		jen.Lit(0xb92f76cf),
+		jen.Op("&").Id("KeyboardButtonCallback").Block(),
+		jen.Lit(0xe62bc960),
 	)
 }
 
