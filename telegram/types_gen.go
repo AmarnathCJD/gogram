@@ -2,16 +2,6 @@
 
 package telegram
 
-type AccessPointRule struct {
-	PhonePrefixRules string
-	DcID             int32
-	Ips              []IpPort
-}
-
-func (*AccessPointRule) CRC() uint32 {
-	return 0x4679b65f
-}
-
 // [Telegram Passport](https://core.telegram.org/passport) authorization form
 type AccountAuthorizationForm struct {
 	RequiredTypes    []SecureRequiredType
@@ -229,6 +219,15 @@ type AccountDaysTtl struct {
 
 func (*AccountDaysTtl) CRC() uint32 {
 	return 0xb8d0afdf
+}
+
+// Contains the link that must be used to open a [direct link Mini App](https://core.telegram.org/api/bots/webapps#direct-link-mini-apps).
+type AppWebViewResultURL struct {
+	URL string
+}
+
+func (*AppWebViewResultURL) CRC() uint32 {
+	return 0x3c1b4f0d
 }
 
 // Represents a [bot mini app that can be launched from the attachment/side menu »](https://core.telegram.org/api/bots/attach)
@@ -1068,6 +1067,35 @@ func (*ConnectedBot) FlagIndex() int {
 	return 0
 }
 
+type ConnectedBotStarRef struct {
+	Revoked            bool `tl:"flag:1,encoded_in_bitflags"`
+	URL                string
+	Date               int32
+	BotID              int64
+	CommissionPermille int32
+	DurationMonths     int32 `tl:"flag:0"`
+	Participants       int64
+	Revenue            int64
+}
+
+func (*ConnectedBotStarRef) CRC() uint32 {
+	return 0x19a13f71
+}
+
+func (*ConnectedBotStarRef) FlagIndex() int {
+	return 0
+}
+
+type ConnectedStarRefBots struct {
+	Count         int32
+	ConnectedBots []*ConnectedBotStarRef
+	Users         []User
+}
+
+func (*ConnectedStarRefBots) CRC() uint32 {
+	return 0x98d5ea1d
+}
+
 // A contact of the current user that is registered in the system.
 type Contact struct {
 	UserID int64
@@ -1223,15 +1251,30 @@ func (*EmojiURL) CRC() uint32 {
 	return 0xa575739d
 }
 
+// Error.
+type Error struct {
+	Code int32
+	Text string
+}
+
+func (*Error) CRC() uint32 {
+	return 0xc4b9f9bb
+}
+
 // Exported [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
 type ExportedChatlistInvite struct {
-	Title string
-	URL   string
-	Peers []Peer
+	Revoked bool `tl:"flag:0,encoded_in_bitflags"`
+	Title   string
+	URL     string
+	Peers   []Peer
 }
 
 func (*ExportedChatlistInvite) CRC() uint32 {
 	return 0xc5181ac
+}
+
+func (*ExportedChatlistInvite) FlagIndex() int {
+	return 0
 }
 
 // Describes a [temporary profile link](https://core.telegram.org/api/links#temporary-profile-links).
@@ -1288,6 +1331,17 @@ type FileHash struct {
 
 func (*FileHash) CRC() uint32 {
 	return 0xf39b035c
+}
+
+// File is currently unavailable.
+type FileLocationUnavailable struct {
+	VolumeID int64
+	LocalID  int32
+	Secret   int64
+}
+
+func (*FileLocationUnavailable) CRC() uint32 {
+	return 0x7c596b46
 }
 
 // Folder
@@ -1460,16 +1514,6 @@ type GroupCallStreamChannel struct {
 
 func (*GroupCallStreamChannel) CRC() uint32 {
 	return 0x80eb48af
-}
-
-type HelpConfigSimple struct {
-	Date    int32
-	Expires int32
-	Rules   []*AccessPointRule
-}
-
-func (*HelpConfigSimple) CRC() uint32 {
-	return 0x5a592a6c
 }
 
 // Name, ISO code, localized name and phone codes/patterns of a specific country
@@ -2632,6 +2676,15 @@ func (*MessagesWebPage) CRC() uint32 {
 	return 0xfd5e12bd
 }
 
+type MessagesWebViewResult struct {
+	Result BotInlineResult
+	Users  []User
+}
+
+func (*MessagesWebViewResult) CRC() uint32 {
+	return 0xaadf159b
+}
+
 // Info about why a specific user could not be [invited »](https://core.telegram.org/api/invites#direct-invites).
 type MissingInvitee struct {
 	PremiumWouldAllowInvite bool `tl:"flag:0,encoded_in_bitflags"`
@@ -2893,7 +2946,7 @@ func (*PaymentsStarsRevenueWithdrawalURL) CRC() uint32 {
 
 // Info about the current [Telegram Star balance and transaction history »](https://core.telegram.org/api/stars#balance-and-transaction-history).
 type PaymentsStarsStatus struct {
-	Balance                     int64
+	Balance                     *StarsAmount
 	Subscriptions               []*StarsSubscription `tl:"flag:1"`
 	SubscriptionsNextOffset     string               `tl:"flag:2"`
 	SubscriptionsMissingBalance int64                `tl:"flag:4"`
@@ -2904,7 +2957,7 @@ type PaymentsStarsStatus struct {
 }
 
 func (*PaymentsStarsStatus) CRC() uint32 {
-	return 0xbbfa316c
+	return 0x6c9ce8ed
 }
 
 func (*PaymentsStarsStatus) FlagIndex() int {
@@ -3554,6 +3607,15 @@ func (*ShippingOption) CRC() uint32 {
 	return 0xb6213cdf
 }
 
+// Contains the webview URL with appropriate theme parameters added
+type SimpleWebViewResultURL struct {
+	URL string
+}
+
+func (*SimpleWebViewResultURL) CRC() uint32 {
+	return 0x882f76bb
+}
+
 // Info about an SMS job.
 type SmsJob struct {
 	JobID       string
@@ -3650,6 +3712,31 @@ func (*StarGift) CRC() uint32 {
 
 func (*StarGift) FlagIndex() int {
 	return 0
+}
+
+type StarRefProgram struct {
+	BotID               int64
+	CommissionPermille  int32
+	DurationMonths      int32        `tl:"flag:0"`
+	EndDate             int32        `tl:"flag:1"`
+	DailyRevenuePerUser *StarsAmount `tl:"flag:2"`
+}
+
+func (*StarRefProgram) CRC() uint32 {
+	return 0xdd0c66f2
+}
+
+func (*StarRefProgram) FlagIndex() int {
+	return 0
+}
+
+type StarsAmount struct {
+	Amount int64
+	Nanos  int32
+}
+
+func (*StarsAmount) CRC() uint32 {
+	return 0xbbb6b4a3
 }
 
 // [Telegram Stars gift option](https://core.telegram.org/api/stars#buying-or-gifting-stars).
@@ -3770,31 +3857,36 @@ func (*StarsTopupOption) FlagIndex() int {
 
 // Represents a [Telegram Stars transaction »](https://core.telegram.org/api/stars).
 type StarsTransaction struct {
-	Refund             bool `tl:"flag:3,encoded_in_bitflags"`
-	Pending            bool `tl:"flag:4,encoded_in_bitflags"`
-	Failed             bool `tl:"flag:6,encoded_in_bitflags"`
-	Gift               bool `tl:"flag:10,encoded_in_bitflags"`
-	Reaction           bool `tl:"flag:11,encoded_in_bitflags"`
-	ID                 string
-	Stars              int64
-	Date               int32
-	Peer               StarsTransactionPeer
-	Title              string         `tl:"flag:0"`
-	Description        string         `tl:"flag:1"`
-	Photo              WebDocument    `tl:"flag:2"`
-	TransactionDate    int32          `tl:"flag:5"`
-	TransactionURL     string         `tl:"flag:5"`
-	BotPayload         []byte         `tl:"flag:7"`
-	MsgID              int32          `tl:"flag:8"`
-	ExtendedMedia      []MessageMedia `tl:"flag:9"`
-	SubscriptionPeriod int32          `tl:"flag:12"`
-	GiveawayPostID     int32          `tl:"flag:13"`
-	Stargift           *StarGift      `tl:"flag:14"`
-	FloodskipNumber    int32          `tl:"flag:15"`
+	Refund                    bool `tl:"flag:3,encoded_in_bitflags"`
+	Pending                   bool `tl:"flag:4,encoded_in_bitflags"`
+	Failed                    bool `tl:"flag:6,encoded_in_bitflags"`
+	Gift                      bool `tl:"flag:10,encoded_in_bitflags"`
+	Reaction                  bool `tl:"flag:11,encoded_in_bitflags"`
+	Subscription              bool `tl:"flag:12,encoded_in_bitflags"`
+	Floodskip                 bool `tl:"flag:15,encoded_in_bitflags"`
+	ID                        string
+	Stars                     *StarsAmount
+	Date                      int32
+	Peer                      StarsTransactionPeer
+	Title                     string         `tl:"flag:0"`
+	Description               string         `tl:"flag:1"`
+	Photo                     WebDocument    `tl:"flag:2"`
+	TransactionDate           int32          `tl:"flag:5"`
+	TransactionURL            string         `tl:"flag:5"`
+	BotPayload                []byte         `tl:"flag:7"`
+	MsgID                     int32          `tl:"flag:8"`
+	ExtendedMedia             []MessageMedia `tl:"flag:9"`
+	SubscriptionPeriod        int32          `tl:"flag:12"`
+	GiveawayPostID            int32          `tl:"flag:13"`
+	Stargift                  *StarGift      `tl:"flag:14"`
+	FloodskipNumber           int32          `tl:"flag:15"`
+	StarrefCommissionPermille int32          `tl:"flag:16"`
+	StarrefPeer               Peer           `tl:"flag:17"`
+	StarrefAmount             *StarsAmount   `tl:"flag:17"`
 }
 
 func (*StarsTransaction) CRC() uint32 {
-	return 0x35d4f276
+	return 0x64dfc926
 }
 
 func (*StarsTransaction) FlagIndex() int {
@@ -4201,6 +4293,21 @@ func (*StoryViews) FlagIndex() int {
 	return 0
 }
 
+type SuggestedStarRefBots struct {
+	Count         int32
+	SuggestedBots []*StarRefProgram
+	Users         []User
+	NextOffset    string `tl:"flag:0"`
+}
+
+func (*SuggestedStarRefBots) CRC() uint32 {
+	return 0xb4d5d859
+}
+
+func (*SuggestedStarRefBots) FlagIndex() int {
+	return 0
+}
+
 // Styled text with [message entities](https://core.telegram.org/api/entities)
 type TextWithEntities struct {
 	Text     string
@@ -4356,10 +4463,11 @@ type UserFull struct {
 	PersonalChannelID       int64                    `tl:"flag2:6"`
 	PersonalChannelMessage  int32                    `tl:"flag2:6"`
 	StargiftsCount          int32                    `tl:"flag2:8"`
+	StarrefProgram          *StarRefProgram          `tl:"flag2:11"`
 }
 
 func (*UserFull) CRC() uint32 {
-	return 0x1f58e369
+	return 0x979d2376
 }
 
 func (*UserFull) FlagIndex() int {
