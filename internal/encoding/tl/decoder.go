@@ -277,20 +277,28 @@ func (d *Decoder) decodeValueGeneral(value reflect.Value) any {
 func (d *Decoder) decodeRegisteredObject() Object {
 	crc := d.PopCRC()
 	if d.err != nil {
-		d.err = errors.Wrap(d.err, "read crc")
+		d.err = errors.Wrap(d.err, "reading crc")
 	}
 
 	var _typ reflect.Type
 
 	switch crc {
 	case CrcVector:
-		_parsedExplicit := false
 		if len(d.expectedTypes) == 0 {
-			d.expectedTypes = append(d.expectedTypes, reflect.TypeOf([]bool{}))
-			_parsedExplicit = true
-			//d.err = &ErrMustParseSlicesExplicitly{}
-			//return nil
+			d.PopUint()          // pop vector length
+			vecCrc := d.PopCRC() // read the crc of the vector<...>
+
+			if vecCrc == CrcTrue || vecCrc == CrcFalse {
+				d.expectedTypes = append(d.expectedTypes, reflect.TypeOf([]bool{}))
+			} else {
+				d.expectedTypes = append(d.expectedTypes, reflect.TypeOf([]Object{}))
+				crc = vecCrc
+			}
+
+			// seek back to initial position
+			d.buf.Seek(-8, 1)
 		}
+
 		_typ = d.expectedTypes[0]
 		d.expectedTypes = d.expectedTypes[1:]
 
@@ -299,21 +307,32 @@ func (d *Decoder) decodeRegisteredObject() Object {
 			return nil
 		}
 
-		if _parsedExplicit {
-			switch res := res.(type) {
-			case []bool:
-				if len(res) > 0 {
-					switch res[0] {
-					case true:
-						return &PseudoTrue{}
-					case false:
-						return &PseudoFalse{}
-					}
+		switch res := res.(type) {
+		case []bool:
+			if len(res) > 0 {
+				switch res[0] {
+				case true:
+					return &PseudoTrue{}
+				case false:
+					return &PseudoFalse{}
 				}
 			}
-		}
+		case []Object:
+			if len(res) == 0 {
+				return &PseudoNil{}
+			}
 
-		return &WrappedSlice{res}
+			if _typ, ok := objectByCrc[crc]; ok {
+				_v := reflect.MakeSlice(reflect.SliceOf(_typ), 0, 0)
+				for _, o := range res {
+					_v = reflect.Append(_v, reflect.ValueOf(o).Convert(_typ))
+				}
+
+				return &WrappedSlice{data: _v.Interface()}
+			}
+		default:
+			return &WrappedSlice{data: res}
+		}
 
 	case CrcFalse:
 		return &PseudoFalse{}
@@ -325,10 +344,9 @@ func (d *Decoder) decodeRegisteredObject() Object {
 		return &PseudoNil{}
 	}
 
-	var ok bool
-	_typ, ok = objectByCrc[crc]
-	if !ok {
+	_typ, ok := objectByCrc[crc]
 
+	if !ok {
 		msg, err := d.DumpWithoutRead()
 		if err != nil {
 			return nil

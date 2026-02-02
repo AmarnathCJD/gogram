@@ -103,6 +103,12 @@ func NewClient(config ClientConfig) (*Client, error) {
 	}
 	if !config.NoUpdates {
 		client.setupDispatcher()
+		client.Log.Warn("client is running in no updates mode, no updates will be handled")
+	} else {
+		if client.IsConnected() {
+			//TODO: Implement same for manual connect Call.
+			client.UpdatesGetState()
+		}
 	}
 	if err := client.clientWarnings(config); err != nil {
 		return nil, err
@@ -207,6 +213,7 @@ func (c *Client) InitialRequest() error {
 	if err != nil {
 		return errors.Wrap(err, "sending invokeWithLayer")
 	}
+
 	return nil
 }
 
