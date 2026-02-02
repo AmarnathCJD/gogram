@@ -395,15 +395,6 @@ func getValue(val interface{}, def interface{}) interface{} {
 	return val
 }
 
-// Internal Function to get the current Working Directory
-func workDirectory() string {
-	ex, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-	return filepath.Dir(ex)
-}
-
 // Inverse operation of ResolveBotFileID
 // https://core.telegram.org/bots/api#file
 //

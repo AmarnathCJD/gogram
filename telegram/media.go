@@ -27,6 +27,28 @@ type UploadOptions struct {
 	ChunkSize int32 `json:"chunk_size,omitempty"`
 	// File name for upload file.
 	FileName string `json:"file_name,omitempty"`
+	// output Progress channel for upload file.
+	ProgressChan chan [2]int64 `json:"-"`
+}
+
+type FileMeta struct {
+	FileName string    `json:"file_name,omitempty"`
+	FileSize int64     `json:"file_size,omitempty"`
+	IsBig    bool      `json:"is_big,omitempty"`
+	Md5Hash  hash.Hash `json:"md_5_hash,omitempty"`
+}
+
+type Uploader struct {
+	*Client
+	Parts     int32       `json:"parts,omitempty"`
+	ChunkSize int32       `json:"chunk_size,omitempty"`
+	Worker    int         `json:"worker,omitempty"`
+	Source    interface{} `json:"source,omitempty"`
+	Workers   []*Client   `json:"workers,omitempty"`
+	wg        *sync.WaitGroup
+	FileID    int64 `json:"file_id,omitempty"`
+	progress  chan [2]int64
+	Meta      FileMeta `json:"meta,omitempty"`
 }
 
 // UploadFile upload file to telegram.
@@ -41,110 +63,100 @@ func (c *Client) UploadFile(file interface{}, Opts ...*UploadOptions) (InputFile
 		Client:    c,
 		ChunkSize: opts.ChunkSize,
 		Worker:    opts.Threads,
+		Meta: FileMeta{
+			FileName: opts.FileName,
+		},
 	}
-	u.Meta.Name = opts.FileName
 	return u.Upload()
 }
 
-type (
-	Uploader struct {
-		*Client
-		Parts     int32
-		ChunkSize int32
-		Worker    int
-		Source    interface{}
-		Workers   []*Client
-		wg        *sync.WaitGroup
-		FileID    int64
-		Meta      struct {
-			Big  bool
-			Hash hash.Hash
-			Name string
-			Size int64
-		}
-	}
-)
-
 func (u *Uploader) Upload() (InputFile, error) {
-	u.Init()
-	u.Start()
-	u.closeWorkers()
-	return u.saveFile()
+	if err := u.Init(); err != nil {
+		return nil, err
+	}
+	if err := u.Start(); err != nil {
+		return nil, err
+	}
+	return u.saveFile(), nil
 }
 
 func (u *Uploader) Init() error {
 	switch s := u.Source.(type) {
 	case string:
-		if u.Meta.Size == 0 {
+		if u.Meta.FileSize == 0 {
 			fi, err := os.Stat(s)
 			if err != nil {
 				return err
 			}
-			u.Meta.Size = fi.Size()
-			u.Meta.Name = fi.Name()
+			u.Meta.FileSize = fi.Size()
+			u.Meta.FileName = fi.Name()
 		}
 	case []byte:
-		u.Meta.Size = int64(len(s))
+		u.Meta.FileSize = int64(len(s))
 	case fs.File:
 		fi, err := s.Stat()
 		if err != nil {
 			return err
 		}
-		u.Meta.Size = fi.Size()
-		u.Meta.Name = fi.Name()
+		u.Meta.FileSize = fi.Size()
+		u.Meta.FileName = fi.Name()
 	case io.Reader:
 		buff := bytes.NewBuffer([]byte{})
-		u.Meta.Size, _ = io.Copy(buff, s)
-		u.Source = bytes.NewReader(buff.Bytes())
-	}
-	if u.Parts == 0 {
-		u.Parts = int32(u.Meta.Size / DEFAULT_PARTS)
-		if u.Parts == 0 {
-			u.Parts = 1
+		fs, err := io.Copy(buff, s)
+		if err != nil {
+			return err
 		}
+		u.Meta.FileSize = fs
+		u.Source = bytes.NewReader(buff.Bytes())
 	}
 	if u.ChunkSize == 0 {
 		u.ChunkSize = DEFAULT_PARTS
 	}
-	if int64(u.ChunkSize) > u.Meta.Size {
-		u.ChunkSize = int32(u.Meta.Size)
+	if int64(u.ChunkSize) > u.Meta.FileSize {
+		u.ChunkSize = int32(u.Meta.FileSize)
+		u.Parts = 1
+		u.Worker = 1
 	}
-	if int32(u.Worker) == 0 {
-		u.Worker = DEFAULT_WORKERS
+	if u.Parts == 0 {
+		u.Parts = int32(u.Meta.FileSize / int64(u.ChunkSize))
+		if u.Meta.FileSize%int64(u.ChunkSize) != 0 {
+			u.Parts++
+		}
 	}
-	// < 10MB
-	if u.Meta.Size < 10*1024*1024 {
-		u.Meta.Big = false
-		u.Meta.Hash = md5.New()
+	u.Worker = getInt(u.Worker, DEFAULT_WORKERS)
+	if u.Meta.FileSize < 10*1024*1024 { // Less than 10MB - use small file upload
+		u.Meta.Md5Hash = md5.New() //if file size is less than 10MB then we need to calculate md5 hash
 	} else {
-		u.Meta.Big = true
+		u.Meta.IsBig = true
 	}
-	u.FileID = GenerateRandomLong()
+	u.FileID = GenerateRandomLong() // Generate random file id
+	u.progress = make(chan [2]int64, 1)
 	u.wg = &sync.WaitGroup{}
 	return nil
 }
 
-func (u *Uploader) allocateWorkers() {
+func (u *Uploader) allocateWorkers() error {
 	borrowedSenders, err := u.Client.BorrowExportedSenders(u.Client.GetDC(), u.Worker)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	u.Workers = borrowedSenders
+	fmt.Println("Allocated workers: ", len(u.Workers), " for file upload")
 
-	u.Client.Log.Debug("Allocated workers: ", len(u.Workers))
+	u.Client.Log.Debug("Allocated workers: ", len(u.Workers), " for file upload")
+	return nil
 }
 
-func (u *Uploader) closeWorkers() {}
+func (u *Uploader) closeWorkers() {} // TODO: close workers after upload
 
-func (u *Uploader) saveFile() (InputFile, error) {
-	if u.Meta.Big {
-		return &InputFileBig{u.FileID, u.Parts, u.Meta.Name}, nil
-	} else {
-		return &InputFileObj{u.FileID, u.Parts, u.Meta.Name, string(u.Meta.Hash.Sum(nil))}, nil
+func (u *Uploader) saveFile() InputFile {
+	if u.Meta.IsBig {
+		return &InputFileBig{u.FileID, u.Parts, u.Meta.FileName}
 	}
+	return &InputFileObj{u.FileID, u.Parts, u.Meta.FileName, string(u.Meta.Md5Hash.Sum(nil))}
 }
 
-func (u *Uploader) DividePartsToWorkers() [][]int32 {
+func (u *Uploader) dividePartsToWorkers() [][]int32 {
 	var (
 		parts  = u.Parts
 		worker = u.Worker
@@ -183,7 +195,7 @@ func (u *Uploader) DividePartsToWorkers() [][]int32 {
 
 func (u *Uploader) Start() error {
 	var (
-		parts = u.DividePartsToWorkers()
+		parts = u.dividePartsToWorkers()
 	)
 	for i, w := range u.Workers {
 		u.wg.Add(1)
@@ -257,10 +269,10 @@ func (u *Uploader) uploadParts(w *Client, parts []int32) {
 			u.Client.Log.Error(err)
 			continue
 		}
-		if u.Meta.Big {
+		if u.Meta.IsBig {
 			_, err = w.UploadSaveBigFilePart(u.FileID, i, u.Parts, buf)
 		} else {
-			u.Meta.Hash.Write(buf)
+			u.Meta.Md5Hash.Write(buf)
 			_, err = w.UploadSaveFilePart(u.FileID, i, buf)
 		}
 		w.Logger.Debug(fmt.Sprintf("uploaded part %d of %d", i, u.Parts))

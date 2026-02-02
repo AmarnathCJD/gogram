@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/amarnathcjd/gogram/internal/utils"
+
 	"github.com/pkg/errors"
 )
 
@@ -332,7 +334,7 @@ PeerSwitch:
 	}
 }
 
-func (*Client) GetPeerID(Peer interface{}) int64 {
+func (c *Client) GetPeerID(Peer interface{}) int64 {
 	switch Peer := Peer.(type) {
 	case *PeerChat:
 		return Peer.ChatID
@@ -423,13 +425,7 @@ mediaTypeSwitch:
 					break
 				}
 				if a, ok := at.(*DocumentAttributeVideo); ok {
-					var duration = int64(getValue(a.Duration, 0).(int32))
-					if a.Duration == 0 {
-						duration = GetVideoDuration(fileName)
-						if duration > 0 {
-							a.Duration = int32(duration)
-						}
-					}
+					var duration = int64(getValue(a.Duration, int32(GetVideoDuration(fileName))).(int32))
 					if a.W == 0 || a.H == 0 {
 						w, h := GetVideoDimensions(fileName)
 						if w > 0 && h > 0 {
@@ -475,7 +471,16 @@ func (c *Client) getThumbValue(thumb interface{}) InputFile {
 	return thumbMedia
 }
 
+func GetMetaDuration(path string) (int64, error) {
+	return utils.ParseDuration(path)
+}
+
 func GetVideoDuration(path string) int64 {
+	if strings.HasSuffix(path, "mp4") {
+		if r, err := GetMetaDuration(path); err == nil {
+			return r / 1000
+		}
+	}
 	cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path)
 	out, err := cmd.Output()
 	if err != nil {
