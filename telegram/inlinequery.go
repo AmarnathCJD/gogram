@@ -4,6 +4,7 @@ package telegram
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 )
@@ -291,6 +292,90 @@ func (m *InlineQuery) Args() string {
 
 func (i *InlineSend) Edit(message any, options ...*SendOptions) (*NewMessage, error) {
 	return i.Client.EditMessage(&i.MsgID, 0, message, options...)
+}
+
+func (i *InlineSend) ChatID() int64 {
+	switch msg := i.MsgID.(type) {
+	case *InputBotInlineMessageIDObj:
+		return int64(math.Abs(float64(msg.ID >> 32)))
+	case *InputBotInlineMessageID64:
+		return int64(math.Abs(float64(msg.OwnerID)))
+	default:
+		return 0
+	}
+}
+
+func (i *InlineSend) AccessHash() int64 {
+	switch msg := i.MsgID.(type) {
+	case *InputBotInlineMessageIDObj:
+		return msg.AccessHash
+	case *InputBotInlineMessageID64:
+		return msg.AccessHash
+	default:
+		return 0
+	}
+}
+
+func (i *InlineSend) MessageID() int32 {
+	switch msg := i.MsgID.(type) {
+	case *InputBotInlineMessageIDObj:
+		return int32(uint32(msg.ID & 0xFFFFFFFF))
+	case *InputBotInlineMessageID64:
+		return msg.ID
+	default:
+		return 0
+	}
+}
+
+func (i *InlineSend) GetPeer() (InputPeer, error) {
+	switch msg := i.MsgID.(type) {
+	case *InputBotInlineMessageIDObj:
+		return &InputPeerChannel{
+			ChannelID:  i.ChatID(),
+			AccessHash: msg.AccessHash,
+		}, nil
+	case *InputBotInlineMessageID64:
+		return &InputPeerChannel{
+			ChannelID:  i.ChatID(),
+			AccessHash: msg.AccessHash,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("unknown message type: %T", i.MsgID)
+}
+
+func (i *InlineSend) GetMessage() (*NewMessage, error) {
+	peer, err := i.Client.ResolvePeer(i.ChatID())
+	if err != nil {
+		peer = &InputPeerChannel{
+			ChannelID:  i.ChatID(),
+			AccessHash: i.AccessHash(),
+		}
+	}
+
+	messages, err := i.Client.GetMessages(peer, &SearchOption{IDs: &InputMessageID{ID: i.MessageID()}})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(messages) == 0 {
+		return nil, fmt.Errorf("message not found")
+	}
+
+	return &messages[0], nil
+}
+
+func (i *InlineSend) GetReplyMessage() (*NewMessage, error) {
+	msg, err := i.GetMessage()
+	if err != nil {
+		return nil, err
+	}
+
+	if !msg.IsReply() {
+		return nil, fmt.Errorf("message is not a reply")
+	}
+
+	return msg.GetReplyMessage()
 }
 
 func (i *InlineSend) Marshal(nointent ...bool) string {

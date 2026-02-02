@@ -521,6 +521,9 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 					continue
 				}
 
+				if c.exportedKeys == nil {
+					c.exportedKeys = make(map[int]*AuthExportedAuthorization)
+				}
 				c.exportedKeys[dcID] = auth
 			}
 
