@@ -210,8 +210,8 @@ type BotInlineMessageMediaInvoice struct {
 	Title                    string      // Product name, 1-32 characters
 	Description              string      // Product description, 1-255 characters
 	Photo                    WebDocument `tl:"flag:0"` // Product photo
-	Currency                 string      // Three-letter ISO 4217 currency code, or 'XTR' for Telegram Stars.
-	TotalAmount              int64       // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Currency                 string      // Three-letter ISO 4217 currency code, or XTR for Telegram Stars.
+	TotalAmount              int64       // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 	ReplyMarkup              ReplyMarkup `tl:"flag:2"` // Inline keyboard
 }
 
@@ -297,11 +297,11 @@ type BotInlineResult interface {
 type BotInlineMediaResult struct {
 	ID          string           // Result ID
 	Type        string           // Result type (see bot API docs)
-	Photo       Photo            `tl:"flag:0"` // If type is 'photo', the photo to send
-	Document    Document         `tl:"flag:1"` // If type is 'document', the document to send
+	Photo       Photo            `tl:"flag:0"` // If type is photo, the photo to send
+	Document    Document         `tl:"flag:1"` // If type is document, the document to send
 	Title       string           `tl:"flag:2"` // Result title
 	Description string           `tl:"flag:3"` // Description
-	SendMessage BotInlineMessage // Depending on the 'type' and on the constructor, contains the caption of the media or the content of the message to be sent instead of the media
+	SendMessage BotInlineMessage // Depending on the type and on the constructor, contains the caption of the media or the content of the message to be sent instead of the media
 }
 
 func (*BotInlineMediaResult) CRC() uint32 {
@@ -409,8 +409,8 @@ type BroadcastRevenueTransactionWithdrawal struct {
 	Amount          int64  // Amount withdrawn
 	Date            int32  // Withdrawal date
 	Provider        string // Payment provider name
-	TransactionDate int32  `tl:"flag:1"` // If neither 'pending' nor 'failed' are set, the transaction was completed successfully, and this field will contain the point in time (Unix timestamp) when the withdrawal was completed successfully.
-	TransactionURL  string `tl:"flag:1"` // If neither 'pending' nor 'failed' are set, the transaction was completed successfully, and this field will contain a URL where the withdrawal transaction can be viewed.
+	TransactionDate int32  `tl:"flag:1"` // If neither pending nor failed are set, the transaction was completed successfully, and this field will contain the point in time (Unix timestamp) when the withdrawal was completed successfully.
+	TransactionURL  string `tl:"flag:1"` // If neither pending nor failed are set, the transaction was completed successfully, and this field will contain a URL where the withdrawal transaction can be viewed.
 }
 
 func (*BroadcastRevenueTransactionWithdrawal) CRC() uint32 {
@@ -1164,7 +1164,7 @@ type ChannelParticipantAdmin struct {
 	PromotedBy  int64            // User that promoted the user to admin
 	Date        int32            // When did the user join
 	AdminRights *ChatAdminRights // Admin rights
-	Rank        string           `tl:"flag:2"` // The role (rank) of the admin in the group: just an arbitrary string, 'admin' by default
+	Rank        string           `tl:"flag:2"` // The role (rank) of the admin in the group: just an arbitrary string, admin by default
 }
 
 func (*ChannelParticipantAdmin) CRC() uint32 {
@@ -1200,7 +1200,7 @@ func (*ChannelParticipantBanned) ImplementsChannelParticipant() {}
 type ChannelParticipantCreator struct {
 	UserID      int64            // User ID
 	AdminRights *ChatAdminRights // Creator admin rights
-	Rank        string           `tl:"flag:0"` // The role (rank) of the group creator in the group: just an arbitrary string, 'admin' by default
+	Rank        string           `tl:"flag:0"` // The role (rank) of the group creator in the group: just an arbitrary string, admin by default
 }
 
 func (*ChannelParticipantCreator) CRC() uint32 {
@@ -1809,8 +1809,8 @@ type DialogObj struct {
 	Pinned              bool `tl:"flag:2,encoded_in_bitflags"` // Is the dialog pinned
 	UnreadMark          bool `tl:"flag:3,encoded_in_bitflags"` // Whether the chat was manually marked as unread
 	ViewForumAsMessages bool `tl:"flag:6,encoded_in_bitflags"` /*
-		Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client.
-		This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
+	Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client.
+	This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
 	*/
 	Peer                 Peer                // The chat
 	TopMessage           int32               // The latest message ID
@@ -1980,7 +1980,7 @@ func (*DocumentObj) ImplementsDocument() {}
 
 // Empty constructor, document doesn't exist.
 type DocumentEmpty struct {
-	ID int64 // Document ID or '0'
+	ID int64 // Document ID or 0
 }
 
 func (*DocumentEmpty) CRC() uint32 {
@@ -2010,8 +2010,8 @@ type DocumentAttributeAudio struct {
 	Title     string `tl:"flag:0"` // Name of song
 	Performer string `tl:"flag:1"` // Performer
 	Waveform  []byte `tl:"flag:2"` /*
-		Waveform: consists in a series of bitpacked 5-bit values.
-		Example implementation: android.
+	Waveform: consists in a series of bitpacked 5-bit values.
+	Example implementation: android.
 	*/
 }
 
@@ -2379,9 +2379,9 @@ type EncryptedChatObj struct {
 	AdminID       int64  // Chat creator ID
 	ParticipantID int64  // ID of the second chat participant
 	GAOrB         []byte /*
-		'B = g ^ b mod p', if the currently authorized user is the chat's creator,
-		or 'A = g ^ a mod p' otherwise
-		See Wikipedia for more info
+	B = g ^ b mod p, if the currently authorized user is the chat's creator,
+	or A = g ^ a mod p otherwise
+	See Wikipedia for more info
 	*/
 	KeyFingerprint int64 // 64-bit fingerprint of received key
 }
@@ -2427,7 +2427,7 @@ type EncryptedChatRequested struct {
 	Date          int32  // Chat creation date
 	AdminID       int64  // Chat creator ID
 	ParticipantID int64  // ID of second chat participant
-	GA            []byte // 'A = g ^ a mod p', see Wikipedia
+	GA            []byte // A = g ^ a mod p, see Wikipedia
 }
 
 func (*EncryptedChatRequested) CRC() uint32 {
@@ -2571,15 +2571,15 @@ type ForumTopicObj struct {
 	Closed bool `tl:"flag:2,encoded_in_bitflags"` // Whether the topic is closed (no messages can be sent to it)
 	Pinned bool `tl:"flag:3,encoded_in_bitflags"` // Whether the topic is pinned
 	Short  bool `tl:"flag:5,encoded_in_bitflags"` /*
-		Whether this constructor is a reduced version of the full topic information.
-		If set, only the 'my', 'closed', 'id', 'date', 'title', 'icon_color', 'icon_emoji_id' and 'from_id' parameters will contain valid information.
-		Reduced info is usually only returned in topic-related admin log events  and in the messages.channelMessages constructor: if needed, full information can be fetched using channels.getForumTopicsByID.
+	Whether this constructor is a reduced version of the full topic information.
+	If set, only the my, closed, id, date, title, icon_color, icon_emoji_id and from_id parameters will contain valid information.
+	Reduced info is usually only returned in topic-related admin log events  and in the messages.channelMessages constructor: if needed, full information can be fetched using channels.getForumTopicsByID.
 	*/
-	Hidden               bool                `tl:"flag:6,encoded_in_bitflags"` // Whether the topic is hidden (only valid for the "General" topic, 'id=1')
+	Hidden               bool                `tl:"flag:6,encoded_in_bitflags"` // Whether the topic is hidden (only valid for the "General" topic, id=1)
 	ID                   int32               // Topic ID
 	Date                 int32               // Topic creation date
 	Title                string              // Topic title
-	IconColor            int32               // If no custom emoji icon is specified, specifies the color of the fallback topic icon (RGB), one of '0x6FB9F0', '0xFFD67E', '0xCB86DB', '0x8EEE98', '0xFF93B2', or '0xFB6F5F'.
+	IconColor            int32               // If no custom emoji icon is specified, specifies the color of the fallback topic icon (RGB), one of 0x6FB9F0, 0xFFD67E, 0xCB86DB, 0x8EEE98, 0xFF93B2, or 0xFB6F5F.
 	IconEmojiID          int64               `tl:"flag:0"` // ID of the custom emoji used as topic icon.
 	TopMessage           int32               // ID of the last message that was sent to this topic
 	ReadInboxMaxID       int32               // Position up to which all incoming messages are read.
@@ -2653,13 +2653,13 @@ type GroupCall interface {
 // Info about a group call or livestream
 type GroupCallObj struct {
 	JoinMuted               bool   `tl:"flag:1,encoded_in_bitflags"`  // Whether the user should be muted upon joining the call
-	CanChangeJoinMuted      bool   `tl:"flag:2,encoded_in_bitflags"`  // Whether the current user can change the value of the 'join_muted' flag using phone.toggleGroupCallSettings
+	CanChangeJoinMuted      bool   `tl:"flag:2,encoded_in_bitflags"`  // Whether the current user can change the value of the join_muted flag using phone.toggleGroupCallSettings
 	JoinDateAsc             bool   `tl:"flag:6,encoded_in_bitflags"`  // Specifies the ordering to use when locally sorting by date and displaying in the UI group call participants.
 	ScheduleStartSubscribed bool   `tl:"flag:8,encoded_in_bitflags"`  // Whether we subscribed to the scheduled call
 	CanStartVideo           bool   `tl:"flag:9,encoded_in_bitflags"`  // Whether you can start streaming video into the call
 	RecordVideoActive       bool   `tl:"flag:11,encoded_in_bitflags"` // Whether the group call is currently being recorded
 	RtmpStream              bool   `tl:"flag:12,encoded_in_bitflags"` // Whether RTMP streams are allowed
-	ListenersHidden         bool   `tl:"flag:13,encoded_in_bitflags"` // Whether the listeners list is hidden and cannot be fetched using phone.getGroupParticipants. The 'phone.groupParticipants.count' and 'groupCall.participants_count' counters will still include listeners.
+	ListenersHidden         bool   `tl:"flag:13,encoded_in_bitflags"` // Whether the listeners list is hidden and cannot be fetched using phone.getGroupParticipants. The phone.groupParticipants.count and groupCall.participants_count counters will still include listeners.
 	ID                      int64  // Group call ID
 	AccessHash              int64  // Group call access hash
 	ParticipantsCount       int32  // Participant count
@@ -2848,7 +2848,7 @@ type InputBotInlineMessageMediaWebPage struct {
 	InvertMedia     bool            `tl:"flag:3,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
 	ForceLargeMedia bool            `tl:"flag:4,encoded_in_bitflags"` // If set, specifies that a large media preview should be used.
 	ForceSmallMedia bool            `tl:"flag:5,encoded_in_bitflags"` // If set, specifies that a small media preview should be used.
-	Optional        bool            `tl:"flag:6,encoded_in_bitflags"` // If not set, a 'WEBPAGE_NOT_FOUND' RPC error will be emitted if a webpage preview cannot be generated for the specified 'url'; otherwise, no error will be emitted (unless the provided message is also empty, in which case a 'MESSAGE_EMPTY' will be emitted, instead).
+	Optional        bool            `tl:"flag:6,encoded_in_bitflags"` // If not set, a WEBPAGE_NOT_FOUND RPC error will be emitted if a webpage preview cannot be generated for the specified url; otherwise, no error will be emitted (unless the provided message is also empty, in which case a MESSAGE_EMPTY will be emitted, instead).
 	Message         string          // The message, can be empty.
 	Entities        []MessageEntity `tl:"flag:1"` // Message entities for styled text
 	URL             string          // The URL to use for the link preview.
@@ -3058,7 +3058,7 @@ func (*InputChatPhotoEmpty) ImplementsInputChatPhoto() {}
 type InputChatUploadedPhoto struct {
 	File             InputFile `tl:"flag:0"` // File saved in parts using the method upload.saveFilePart
 	Video            InputFile `tl:"flag:1"` // Square video for animated profile picture
-	VideoStartTs     float64   `tl:"flag:2"` // Floating point UNIX timestamp in seconds, indicating the frame of the video/sticker that should be used as static preview; can only be used if 'video' or 'video_emoji_markup' is set.
+	VideoStartTs     float64   `tl:"flag:2"` // Floating point UNIX timestamp in seconds, indicating the frame of the video/sticker that should be used as static preview; can only be used if video or video_emoji_markup is set.
 	VideoEmojiMarkup VideoSize `tl:"flag:3"` // Animated sticker profile picture, must contain either a videoSizeEmojiMarkup or a videoSizeStickerMarkup constructor.
 }
 
@@ -3089,8 +3089,8 @@ func (*InputCheckPasswordEmpty) ImplementsInputCheckPasswordSRP() {}
 // Constructor for checking the validity of a 2FA SRP password (see [SRP](https://core.telegram.org/api/srp))
 type InputCheckPasswordSRPObj struct {
 	SRPID int64  // SRP ID
-	A     []byte // 'A' parameter (see SRP)
-	M1    []byte // 'M1' parameter (see SRP)
+	A     []byte // A parameter (see SRP)
+	M1    []byte // M1 parameter (see SRP)
 }
 
 func (*InputCheckPasswordSRPObj) CRC() uint32 {
@@ -3325,7 +3325,7 @@ func (*InputFileLocationObj) ImplementsInputFileLocation() {}
 type InputGroupCallStream struct {
 	Call         *InputGroupCall // Livestream info
 	TimeMs       int64           // Timestamp in milliseconds
-	Scale        int32           // Specifies the duration of the video segment to fetch in milliseconds, by bitshifting '1000' to the right 'scale' times: 'duration_ms := 1000 &gt;&gt; scale'
+	Scale        int32           // Specifies the duration of the video segment to fetch in milliseconds, by bitshifting 1000 to the right scale times: duration_ms := 1000 &gt;&gt; scale
 	VideoChannel int32           `tl:"flag:0"` // Selected video channel
 	VideoQuality int32           `tl:"flag:0"` // Selected video quality (0 = lowest, 1 = medium, 2 = best)
 }
@@ -3362,7 +3362,7 @@ type InputPhotoFileLocation struct {
 	ID            int64  // Photo ID, obtained from the photo object
 	AccessHash    int64  // Photo's access hash, obtained from the photo object
 	FileReference []byte // File reference
-	ThumbSize     string // The PhotoSize to download: must be set to the 'type' field of the desired PhotoSize object of the photo
+	ThumbSize     string // The PhotoSize to download: must be set to the type field of the desired PhotoSize object of the photo
 }
 
 func (*InputPhotoFileLocation) CRC() uint32 {
@@ -3531,7 +3531,7 @@ func (*InputInvoiceSlug) ImplementsInputInvoice() {}
 
 type InputInvoiceStarGift struct {
 	HideName bool `tl:"flag:0,encoded_in_bitflags"`
-	UserID   InputPeer
+	UserID   InputUser
 	GiftID   int64
 	Message  *TextWithEntities `tl:"flag:1"`
 }
@@ -3837,7 +3837,7 @@ func (*InputMediaVenue) ImplementsInputMedia() {}
 type InputMediaWebPage struct {
 	ForceLargeMedia bool   `tl:"flag:0,encoded_in_bitflags"` // If set, specifies that a large media preview should be used.
 	ForceSmallMedia bool   `tl:"flag:1,encoded_in_bitflags"` // If set, specifies that a small media preview should be used.
-	Optional        bool   `tl:"flag:2,encoded_in_bitflags"` // If not set, a 'WEBPAGE_NOT_FOUND' RPC error will be emitted if a webpage preview cannot be generated for the specified 'url'; otherwise, no error will be emitted (unless the provided message is also empty, in which case a 'MESSAGE_EMPTY' will be emitted, instead).
+	Optional        bool   `tl:"flag:2,encoded_in_bitflags"` // If not set, a WEBPAGE_NOT_FOUND RPC error will be emitted if a webpage preview cannot be generated for the specified url; otherwise, no error will be emitted (unless the provided message is also empty, in which case a MESSAGE_EMPTY will be emitted, instead).
 	URL             string // The URL to use for the link preview.
 }
 
@@ -4259,13 +4259,13 @@ type InputReplyTo interface {
 type InputReplyToMessage struct {
 	ReplyToMsgID int32 // The message ID to reply to.
 	TopMsgID     int32 `tl:"flag:0"` /*
-		This field must contain the topic ID only when replying to messages in forum topics different from the "General" topic (i.e. 'reply_to_msg_id' is set and 'reply_to_msg_id != topicID' and 'topicID != 1').
-		If the replied-to message is deleted before the method finishes execution, the value in this field will be used to send the message to the correct topic, instead of the "General" topic.
+	This field must contain the topic ID only when replying to messages in forum topics different from the "General" topic (i.e. reply_to_msg_id is set and reply_to_msg_id != topicID and topicID != 1).
+	If the replied-to message is deleted before the method finishes execution, the value in this field will be used to send the message to the correct topic, instead of the "General" topic.
 	*/
-	ReplyToPeerID InputPeer       `tl:"flag:1"` // Used to reply to messages sent to another chat (specified here), can only be used for non-'protected' chats and messages.
+	ReplyToPeerID InputPeer       `tl:"flag:1"` // Used to reply to messages sent to another chat (specified here), can only be used for non-protected chats and messages.
 	QuoteText     string          `tl:"flag:2"` // Used to quote-reply to only a certain section (specified here) of the original message. The maximum UTF-8 length for quotes is specified in the quote_length_max config key.
-	QuoteEntities []MessageEntity `tl:"flag:3"` // Message entities for styled text from the 'quote_text' field.
-	QuoteOffset   int32           `tl:"flag:4"` // Offset of the message 'quote_text' within the original message (in UTF-16 code units).
+	QuoteEntities []MessageEntity `tl:"flag:3"` // Message entities for styled text from the quote_text field.
+	QuoteOffset   int32           `tl:"flag:4"` // Offset of the message quote_text within the original message (in UTF-16 code units).
 }
 
 func (*InputReplyToMessage) CRC() uint32 {
@@ -4469,7 +4469,7 @@ type InputStorePaymentPurpose interface {
 type InputStorePaymentGiftPremium struct {
 	UserID   InputUser // The user to which the Telegram Premium subscription was gifted
 	Currency string    // Three-letter ISO 4217 currency code
-	Amount   int64     // Price of the product in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Amount   int64     // Price of the product in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*InputStorePaymentGiftPremium) CRC() uint32 {
@@ -4480,14 +4480,15 @@ func (*InputStorePaymentGiftPremium) ImplementsInputStorePaymentPurpose() {}
 
 // Used to gift [Telegram Premium](https://core.telegram.org/api/premium) subscriptions only to some specific subscribers of a channel/supergroup or to some of our contacts, see [here »](https://core.telegram.org/api/giveaways) for more info on giveaways and gifts.
 type InputStorePaymentPremiumGiftCode struct {
-	Users     []InputUser // The users that will receive the Telegram Premium subscriptions.
-	BoostPeer InputPeer   `tl:"flag:0"` // If set, the gifts will be sent on behalf of a channel/supergroup we are an admin of, which will also assign some boosts to it. Otherwise, the gift will be sent directly from the currently logged in user, and we will gain some extra boost slots..
-	Currency  string      // Three-letter ISO 4217 currency code
-	Amount    int64       // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Users     []InputUser
+	BoostPeer InputPeer `tl:"flag:0"`
+	Currency  string
+	Amount    int64
+	Message   *TextWithEntities `tl:"flag:1"`
 }
 
 func (*InputStorePaymentPremiumGiftCode) CRC() uint32 {
-	return 0xa3805f3f
+	return 0xfb790393
 }
 
 func (*InputStorePaymentPremiumGiftCode) FlagIndex() int {
@@ -4507,7 +4508,7 @@ type InputStorePaymentPremiumGiveaway struct {
 	RandomID           int64       // Random ID to avoid resending the giveaway
 	UntilDate          int32       // The end date of the giveaway, must be at most giveaway_period_max seconds in the future;.
 	Currency           string      // Three-letter ISO 4217 currency code
-	Amount             int64       // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Amount             int64       // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*InputStorePaymentPremiumGiveaway) CRC() uint32 {
@@ -4541,7 +4542,7 @@ type InputStorePaymentStarsGift struct {
 	UserID   InputUser // The user to which the stars should be gifted.
 	Stars    int64     // Amount of stars to gift
 	Currency string    // Three-letter ISO 4217 currency code
-	Amount   int64     // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Amount   int64     // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*InputStorePaymentStarsGift) CRC() uint32 {
@@ -4579,7 +4580,7 @@ func (*InputStorePaymentStarsGiveaway) ImplementsInputStorePaymentPurpose() {}
 type InputStorePaymentStarsTopup struct {
 	Stars    int64  // Amount of stars to topup
 	Currency string // Three-letter ISO 4217 currency code
-	Amount   int64  // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Amount   int64  // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*InputStorePaymentStarsTopup) CRC() uint32 {
@@ -4710,10 +4711,10 @@ type InputWebFileLocation interface {
 
 // Used to download an album cover for any music file using [upload.getWebFile](https://core.telegram.org/method/upload.getWebFile), see the [webfile docs for more info »](https://core.telegram.org/api/files#downloading-webfiles).
 type InputWebFileAudioAlbumThumbLocation struct {
-	Small     bool          `tl:"flag:2,encoded_in_bitflags"` // Used to return a thumbnail with '100x100' resolution (instead of the default '600x600')
-	Document  InputDocument `tl:"flag:0"`                     // The audio file in question: must NOT be provided in secret chats, provide the 'title' and 'performer' fields instead.
-	Title     string        `tl:"flag:1"`                     // Song title: should only be used in secret chats, in normal chats provide 'document' instead, as it has more lax rate limits.
-	Performer string        `tl:"flag:1"`                     // Song performer: should only be used in secret chats, in normal chats provide 'document' instead, as it has more lax rate limits.
+	Small     bool          `tl:"flag:2,encoded_in_bitflags"` // Used to return a thumbnail with 100x100 resolution (instead of the default 600x600)
+	Document  InputDocument `tl:"flag:0"`                     // The audio file in question: must NOT be provided in secret chats, provide the title and performer fields instead.
+	Title     string        `tl:"flag:1"`                     // Song title: should only be used in secret chats, in normal chats provide document instead, as it has more lax rate limits.
+	Performer string        `tl:"flag:1"`                     // Song performer: should only be used in secret chats, in normal chats provide document instead, as it has more lax rate limits.
 }
 
 func (*InputWebFileAudioAlbumThumbLocation) CRC() uint32 {
@@ -4728,7 +4729,7 @@ func (*InputWebFileAudioAlbumThumbLocation) ImplementsInputWebFileLocation() {}
 
 // Used to download a server-generated image with the map preview from a [geoPoint](https://core.telegram.org/constructor/geoPoint), see the [webfile docs for more info »](https://core.telegram.org/api/files#downloading-webfiles).
 type InputWebFileGeoPointLocation struct {
-	GeoPoint   InputGeoPoint // Generated from the 'lat', 'long' and 'accuracy_radius' parameters of the geoPoint
+	GeoPoint   InputGeoPoint // Generated from the lat, long and accuracy_radius parameters of the geoPoint
 	AccessHash int64         // Access hash of the geoPoint
 	W          int32         // Map width in pixels before applying scale; 16-1024
 	H          int32         // Map height in pixels before applying scale; 16-1024
@@ -4831,13 +4832,13 @@ type KeyboardButton interface {
 // Prompts the user to select and share one or more peers with the bot using [messages.sendBotRequestedPeer](https://core.telegram.org/method/messages.sendBotRequestedPeer).
 type InputKeyboardButtonRequestPeer struct {
 	NameRequested     bool            `tl:"flag:0,encoded_in_bitflags"` // Set this flag to request the peer's name.
-	UsernameRequested bool            `tl:"flag:1,encoded_in_bitflags"` // Set this flag to request the peer's '@username' (if any).
+	UsernameRequested bool            `tl:"flag:1,encoded_in_bitflags"` // Set this flag to request the peer's @username (if any).
 	PhotoRequested    bool            `tl:"flag:2,encoded_in_bitflags"` // Set this flag to request the peer's photo (if any).
 	Text              string          // Button text
 	ButtonID          int32           // Button ID, to be passed to messages.sendBotRequestedPeer.
 	PeerType          RequestPeerType /*
-		Filtering criteria to use for the peer selection list shown to the user.
-		The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to 'max_quantity') peers of the specified type, if needed.
+	Filtering criteria to use for the peer selection list shown to the user.
+	The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to max_quantity) peers of the specified type, if needed.
 	*/
 	MaxQuantity int32 // Maximum number of peers that can be chosen.
 }
@@ -4858,8 +4859,8 @@ type InputKeyboardButtonURLAuth struct {
 	Text               string // Button text
 	FwdText            string `tl:"flag:1"` // New text of the button in forwarded messages.
 	URL                string /*
-		An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
-		NOTE: You must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
+	An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
+	NOTE: You must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
 	*/
 	Bot InputUser // Username of a bot, which will be used for user authorization. See Setting up a bot for more details. If not specified, the current bot's username will be assumed. The url's domain must be the same as the domain linked with the bot. See Linking your domain to the bot for more details.
 }
@@ -4963,8 +4964,8 @@ type KeyboardButtonRequestPeer struct {
 	Text     string          // Button text
 	ButtonID int32           // Button ID, to be passed to messages.sendBotRequestedPeer.
 	PeerType RequestPeerType /*
-		Filtering criteria to use for the peer selection list shown to the user.
-		The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to 'max_quantity') peers of the specified type, if needed.
+	Filtering criteria to use for the peer selection list shown to the user.
+	The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to max_quantity) peers of the specified type, if needed.
 	*/
 	MaxQuantity int32 // Maximum number of peers that can be chosen.
 }
@@ -5016,7 +5017,7 @@ func (*KeyboardButtonSimpleWebView) ImplementsKeyboardButton() {}
 
 // Button to force a user to switch to inline mode: pressing the button will prompt the user to select one of their chats, open that chat and insert the bot's username and the specified inline query in the input field.
 type KeyboardButtonSwitchInline struct {
-	SamePeer  bool                  `tl:"flag:0,encoded_in_bitflags"` // If set, pressing the button will insert the bot's username and the specified inline 'query' in the current chat's input field.
+	SamePeer  bool                  `tl:"flag:0,encoded_in_bitflags"` // If set, pressing the button will insert the bot's username and the specified inline query in the current chat's input field.
 	Text      string                // Button label
 	Query     string                // The inline query to use
 	PeerTypes []InlineQueryPeerType `tl:"flag:1"` // Filter to use when selecting chats.
@@ -5049,9 +5050,9 @@ type KeyboardButtonURLAuth struct {
 	Text    string // Button label
 	FwdText string `tl:"flag:0"` // New text of the button in forwarded messages.
 	URL     string /*
-		An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
+	An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
 
-		NOTE: Services must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
+	NOTE: Services must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
 	*/
 	ButtonID int32 // ID of the button to pass to messages.requestUrlAuth
 }
@@ -5160,8 +5161,8 @@ func (*InputMediaAreaChannelPost) ImplementsMediaArea() {}
 // Represents a [location tag](https://core.telegram.org/api/stories#media-areas) attached to a [story](https://core.telegram.org/api/stories), with additional venue information.
 type InputMediaAreaVenue struct {
 	Coordinates *MediaAreaCoordinates // The size and location of the media area corresponding to the location sticker on top of the story media.
-	QueryID     int64                 // The 'query_id' from messages.botResults,.
-	ResultID    string                // The 'id' of the chosen result,.
+	QueryID     int64                 // The query_id from messages.botResults,.
+	ResultID    string                // The id of the chosen result,.
 }
 
 func (*InputMediaAreaVenue) CRC() uint32 {
@@ -5283,17 +5284,17 @@ type MessageObj struct {
 	ID                int32 // ID of the message
 	FromID            Peer  `tl:"flag:8"`  // ID of the sender of the message
 	FromBoostsApplied int32 `tl:"flag:29"` /*
-		Supergroups only, contains the number of boosts this user has given the current supergroup, and should be shown in the UI in the header of the message.
-		Only present for incoming messages from non-anonymous supergroup members that have boosted the supergroup.
-		Note that this counter should be locally overridden for non-anonymous <em>outgoing</em> messages, according to the current value of channelFull.'boosts_applied', to ensure the value is correct even for messages sent by the current user before a supergroup was boosted (or after a boost has expired or the number of boosts has changed); do not update this value for incoming messages from other users, even if their boosts have changed.
+	Supergroups only, contains the number of boosts this user has given the current supergroup, and should be shown in the UI in the header of the message.
+	Only present for incoming messages from non-anonymous supergroup members that have boosted the supergroup.
+	Note that this counter should be locally overridden for non-anonymous <em>outgoing</em> messages, according to the current value of channelFull.boosts_applied, to ensure the value is correct even for messages sent by the current user before a supergroup was boosted (or after a boost has expired or the number of boosts has changed); do not update this value for incoming messages from other users, even if their boosts have changed.
 	*/
 	PeerID      Peer // Peer ID, the chat where this message was sent
 	SavedPeerID Peer `tl:"flag:28"` /*
-		Messages fetched from a saved messages dialog  will have 'peer'=inputPeerSelf and the 'saved_peer_id' flag set to the ID of the saved dialog.
+	Messages fetched from a saved messages dialog  will have peer=inputPeerSelf and the saved_peer_id flag set to the ID of the saved dialog.
 	*/
 	FwdFrom              *MessageFwdHeader    `tl:"flag:2"`  // Info about forwarded messages
 	ViaBotID             int64                `tl:"flag:11"` // ID of the inline bot that generated the message
-	ViaBusinessBotID     int64                `tl:"flag2:0"` // Whether the message was sent by the business bot specified in 'via_bot_id' on behalf of the user.
+	ViaBusinessBotID     int64                `tl:"flag2:0"` // Whether the message was sent by the business bot specified in via_bot_id on behalf of the user.
 	ReplyTo              MessageReplyHeader   `tl:"flag:3"`  // Reply information
 	Date                 int32                // Date of the message
 	Message              string               // The message
@@ -5578,7 +5579,7 @@ func (*MessageActionGameScore) ImplementsMessageAction() {}
 
 // A user of the chat is now in proximity of another user
 type MessageActionGeoProximityReached struct {
-	FromID   Peer  // The user or chat that is now in proximity of 'to_id'
+	FromID   Peer  // The user or chat that is now in proximity of to_id
 	ToID     Peer  // The user or chat that subscribed to live geolocation proximity alerts
 	Distance int32 // Distance, in meters (0-100000)
 }
@@ -5591,19 +5592,20 @@ func (*MessageActionGeoProximityReached) ImplementsMessageAction() {}
 
 // Contains a [Telegram Premium giftcode link](https://core.telegram.org/api/links#premium-giftcode-links).
 type MessageActionGiftCode struct {
-	ViaGiveaway    bool   `tl:"flag:0,encoded_in_bitflags"` // If set, this gift code was received from a giveaway  started by a channel/supergroup we're subscribed to.
-	Unclaimed      bool   `tl:"flag:2,encoded_in_bitflags"` // If set, the link was not redeemed yet.
-	BoostPeer      Peer   `tl:"flag:1"`                     // Identifier of the channel/supergroup that created the gift code either directly or through a giveaway: if we import this giftcode link, we will also automatically boost this channel/supergroup.
-	Months         int32  // Duration in months of the gifted Telegram Premium subscription.
-	Slug           string // Slug of the Telegram Premium giftcode link
-	Currency       string `tl:"flag:2"` // Three-letter ISO 4217 currency code
-	Amount         int64  `tl:"flag:2"` // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
-	CryptoCurrency string `tl:"flag:3"` // If set, the gift was made using the specified cryptocurrency.
-	CryptoAmount   int64  `tl:"flag:3"` // If 'crypto_currency' is set, contains the paid amount, in the smallest units of the cryptocurrency.
+	ViaGiveaway    bool `tl:"flag:0,encoded_in_bitflags"`
+	Unclaimed      bool `tl:"flag:2,encoded_in_bitflags"`
+	BoostPeer      Peer `tl:"flag:1"`
+	Months         int32
+	Slug           string
+	Currency       string            `tl:"flag:2"`
+	Amount         int64             `tl:"flag:2"`
+	CryptoCurrency string            `tl:"flag:3"`
+	CryptoAmount   int64             `tl:"flag:3"`
+	Message        *TextWithEntities `tl:"flag:4"`
 }
 
 func (*MessageActionGiftCode) CRC() uint32 {
-	return 0x678c2e09
+	return 0x56d03994
 }
 
 func (*MessageActionGiftCode) FlagIndex() int {
@@ -5614,15 +5616,16 @@ func (*MessageActionGiftCode) ImplementsMessageAction() {}
 
 // Info about a gifted Telegram Premium subscription
 type MessageActionGiftPremium struct {
-	Currency       string // Three-letter ISO 4217 currency code
-	Amount         int64  // Price of the gift in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
-	Months         int32  // Duration of the gifted Telegram Premium subscription
-	CryptoCurrency string `tl:"flag:0"` // If the gift was bought using a cryptocurrency, the cryptocurrency name.
-	CryptoAmount   int64  `tl:"flag:0"` // If the gift was bought using a cryptocurrency, price of the gift in the smallest units of a cryptocurrency.
+	Currency       string
+	Amount         int64
+	Months         int32
+	CryptoCurrency string            `tl:"flag:0"`
+	CryptoAmount   int64             `tl:"flag:0"`
+	Message        *TextWithEntities `tl:"flag:1"`
 }
 
 func (*MessageActionGiftPremium) CRC() uint32 {
-	return 0xc83d6aec
+	return 0x6c6274fa
 }
 
 func (*MessageActionGiftPremium) FlagIndex() int {
@@ -5634,7 +5637,7 @@ func (*MessageActionGiftPremium) ImplementsMessageAction() {}
 // You gifted or were gifted some [Telegram Stars](https://core.telegram.org/api/stars).
 type MessageActionGiftStars struct {
 	Currency       string // Three-letter ISO 4217 currency code
-	Amount         int64  // Price of the gift in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Amount         int64  // Price of the gift in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 	Stars          int64  // Amount of gifted stars
 	CryptoCurrency string `tl:"flag:0"` // If the gift was bought using a cryptocurrency, the cryptocurrency name.
 	CryptoAmount   int64  `tl:"flag:0"` // If the gift was bought using a cryptocurrency, price of the gift in the smallest units of a cryptocurrency.
@@ -5746,8 +5749,8 @@ func (*MessageActionLoginUnknownLocation) ImplementsMessageAction() {}
 // Describes a payment refund (service message received by both users and bots).
 type MessageActionPaymentRefunded struct {
 	Peer        Peer           // Identifier of the peer that returned the funds.
-	Currency    string         // Currency, 'XTR' for Telegram Stars.
-	TotalAmount int64          // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Currency    string         // Currency, XTR for Telegram Stars.
+	TotalAmount int64          // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 	Payload     []byte         `tl:"flag:0"` // Bot specified invoice payload (only received by bots).
 	Charge      *PaymentCharge // Provider payment identifier
 }
@@ -5766,9 +5769,9 @@ func (*MessageActionPaymentRefunded) ImplementsMessageAction() {}
 type MessageActionPaymentSent struct {
 	RecurringInit bool   `tl:"flag:2,encoded_in_bitflags"` // Whether this is the first payment of a recurring payment we just subscribed to
 	RecurringUsed bool   `tl:"flag:3,encoded_in_bitflags"` // Whether this payment is part of a recurring payment
-	Currency      string // Three-letter ISO 4217 currency code, or 'XTR' for Telegram Stars.
-	TotalAmount   int64  // Price of the product in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
-	InvoiceSlug   string `tl:"flag:0"` // An invoice slug taken from an invoice deep link or from the <a href="/api/config#premium-invoice-slug">'premium_invoice_slug' app config parameter </a>
+	Currency      string // Three-letter ISO 4217 currency code, or XTR for Telegram Stars.
+	TotalAmount   int64  // Price of the product in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	InvoiceSlug   string `tl:"flag:0"` // An invoice slug taken from an invoice deep link or from the <a href="/api/config#premium-invoice-slug">premium_invoice_slug app config parameter </a>
 }
 
 func (*MessageActionPaymentSent) CRC() uint32 {
@@ -5785,8 +5788,8 @@ func (*MessageActionPaymentSent) ImplementsMessageAction() {}
 type MessageActionPaymentSentMe struct {
 	RecurringInit    bool                  `tl:"flag:2,encoded_in_bitflags"` // Whether this is the first payment of a recurring payment we just subscribed to
 	RecurringUsed    bool                  `tl:"flag:3,encoded_in_bitflags"` // Whether this payment is part of a recurring payment
-	Currency         string                // Three-letter ISO 4217 currency code, or 'XTR' for Telegram Stars.
-	TotalAmount      int64                 // Price of the product in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Currency         string                // Three-letter ISO 4217 currency code, or XTR for Telegram Stars.
+	TotalAmount      int64                 // Price of the product in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 	Payload          []byte                // Bot specified invoice payload
 	Info             *PaymentRequestedInfo `tl:"flag:0"` // Order info provided by the user
 	ShippingOptionID string                `tl:"flag:1"` // Identifier of the shipping option chosen by the user
@@ -5858,7 +5861,7 @@ func (*MessageActionPrizeStars) ImplementsMessageAction() {}
 
 // Contains info about one or more peers that the we (the user) shared with the bot after clicking on a [keyboardButtonRequestPeer](https://core.telegram.org/constructor/keyboardButtonRequestPeer) button (service message sent by the user).
 type MessageActionRequestedPeer struct {
-	ButtonID int32  // 'button_id' contained in the keyboardButtonRequestPeer
+	ButtonID int32  // button_id contained in the keyboardButtonRequestPeer
 	Peers    []Peer // The shared peers
 }
 
@@ -5870,7 +5873,7 @@ func (*MessageActionRequestedPeer) ImplementsMessageAction() {}
 
 // Contains info about one or more peers that the a user shared with the me (the bot) after clicking on a [keyboardButtonRequestPeer](https://core.telegram.org/constructor/keyboardButtonRequestPeer) button (service message received by the bot).
 type MessageActionRequestedPeerSentMe struct {
-	ButtonID int32           // 'button_id' contained in the keyboardButtonRequestPeer
+	ButtonID int32           // button_id contained in the keyboardButtonRequestPeer
 	Peers    []RequestedPeer // Info about the shared peers.
 }
 
@@ -5927,8 +5930,8 @@ func (*MessageActionSetChatTheme) ImplementsMessageAction() {}
 type MessageActionSetChatWallPaper struct {
 	Same    bool `tl:"flag:0,encoded_in_bitflags"` // If set, indicates the user applied a wallpaper  previously sent by the other user in a messageActionSetChatWallPaper message.
 	ForBoth bool `tl:"flag:1,encoded_in_bitflags"` /*
-		If set, indicates the wallpaper was forcefully applied for both sides, without explicit confirmation from the other side.
-		If the message is incoming, and we did not like the new wallpaper the other user has chosen for us, we can re-set our previous wallpaper just on our side, by invoking messages.setChatWallPaper, providing only the 'revert' flag (and obviously the 'peer' parameter).
+	If set, indicates the wallpaper was forcefully applied for both sides, without explicit confirmation from the other side.
+	If the message is incoming, and we did not like the new wallpaper the other user has chosen for us, we can re-set our previous wallpaper just on our side, by invoking messages.setChatWallPaper, providing only the revert flag (and obviously the peer parameter).
 	*/
 	Wallpaper WallPaper // New wallpaper
 }
@@ -5946,7 +5949,7 @@ func (*MessageActionSetChatWallPaper) ImplementsMessageAction() {}
 // The Time-To-Live of messages in this chat was changed.
 type MessageActionSetMessagesTtl struct {
 	Period          int32 // New Time-To-Live of all messages sent in this chat; if 0, autodeletion was disabled.
-	AutoSettingFrom int64 `tl:"flag:0"` // If set, the chat TTL setting was set not due to a manual change by one of participants, but automatically because one of the participants has the default TTL settings enabled. For example, when a user writes to us for the first time and we have set a default messages TTL of 1 week, this service message (with 'auto_setting_from=our_userid') will be emitted before our first message.
+	AutoSettingFrom int64 `tl:"flag:0"` // If set, the chat TTL setting was set not due to a manual change by one of participants, but automatically because one of the participants has the default TTL settings enabled. For example, when a user writes to us for the first time and we have set a default messages TTL of 1 week, this service message (with auto_setting_from=our_userid) will be emitted before our first message.
 }
 
 func (*MessageActionSetMessagesTtl) CRC() uint32 {
@@ -6013,7 +6016,7 @@ func (*MessageActionTtlChange) ImplementsMessageAction() {}
 // A [forum topic](https://core.telegram.org/api/forum#forum-topics) was created.
 type MessageActionTopicCreate struct {
 	Title       string // Topic name.
-	IconColor   int32  // If no custom emoji icon is specified, specifies the color of the fallback topic icon (RGB), one of '0x6FB9F0', '0xFFD67E', '0xCB86DB', '0x8EEE98', '0xFF93B2', or '0xFB6F5F'.
+	IconColor   int32  // If no custom emoji icon is specified, specifies the color of the fallback topic icon (RGB), one of 0x6FB9F0, 0xFFD67E, 0xCB86DB, 0x8EEE98, 0xFF93B2, or 0xFB6F5F.
 	IconEmojiID int64  `tl:"flag:0"` // ID of the custom emoji used as topic icon.
 }
 
@@ -6032,7 +6035,7 @@ type MessageActionTopicEdit struct {
 	Title       string `tl:"flag:0"` // New topic title.
 	IconEmojiID int64  `tl:"flag:1"` // ID of the new custom emoji used as topic icon, or if it was removed.
 	Closed      bool   `tl:"flag:2"` // Whether the topic was opened or closed.
-	Hidden      bool   `tl:"flag:3"` // Whether the topic was hidden or unhidden (only valid for the "General" topic, 'id=1').
+	Hidden      bool   `tl:"flag:3"` // Whether the topic was hidden or unhidden (only valid for the "General" topic, id=1).
 }
 
 func (*MessageActionTopicEdit) CRC() uint32 {
@@ -6401,7 +6404,7 @@ type MessageMediaContact struct {
 	FirstName   string // Contact's first name
 	LastName    string // Contact's last name
 	Vcard       string // VCARD of contact
-	UserID      int64  // User identifier or '0', if the user with the given phone number is not registered
+	UserID      int64  // User identifier or 0, if the user with the given phone number is not registered
 }
 
 func (*MessageMediaContact) CRC() uint32 {
@@ -6430,7 +6433,7 @@ type MessageMediaDocument struct {
 	Round        bool       `tl:"flag:7,encoded_in_bitflags"` // Whether this is a round video.
 	Voice        bool       `tl:"flag:8,encoded_in_bitflags"` // Whether this is a voice message.
 	Document     Document   `tl:"flag:0"`                     // Attached document
-	AltDocuments []Document `tl:"flag:5"`                     // Currently only used for story videos, may contain an alternative version of the story video, explicitly encoded using H.264 (in MPEG4 transport) at a lower resolution than 'document'.
+	AltDocuments []Document `tl:"flag:5"`                     // Currently only used for story videos, may contain an alternative version of the story video, explicitly encoded using H.264 (in MPEG4 transport) at a lower resolution than document.
 	TtlSeconds   int32      `tl:"flag:2"`                     // Time to live of self-destructing document
 }
 
@@ -6549,9 +6552,9 @@ type MessageMediaInvoice struct {
 	Title                    string               // Product name, 1-32 characters
 	Description              string               // Product description, 1-255 characters
 	Photo                    WebDocument          `tl:"flag:0"` // URL of the product photo for the invoice. Can be a photo of the goods or a marketing image for a service. People like it better when they see what they are paying for.
-	ReceiptMsgID             int32                `tl:"flag:2"` // Message ID of receipt: if set, clients should change the text of the first keyboardButtonBuy button always attached to the message to a localized version of the word 'Receipt'
-	Currency                 string               // Three-letter ISO 4217 currency code, or 'XTR' for Telegram Stars.
-	TotalAmount              int64                // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	ReceiptMsgID             int32                `tl:"flag:2"` // Message ID of receipt: if set, clients should change the text of the first keyboardButtonBuy button always attached to the message to a localized version of the word Receipt
+	Currency                 string               // Three-letter ISO 4217 currency code, or XTR for Telegram Stars.
+	TotalAmount              int64                // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 	StartParam               string               // Unique bot deep-linking parameter that can be used to generate this invoice
 	ExtendedMedia            MessageExtendedMedia `tl:"flag:4"` // Deprecated
 }
@@ -6612,7 +6615,7 @@ type MessageMediaStory struct {
 	ViaMention bool      `tl:"flag:1,encoded_in_bitflags"` // If set, indicates that this someone has mentioned us in this story (i.e. by tagging us in the description) or vice versa, we have mentioned the other peer (if the message is outgoing).
 	Peer       Peer      // Peer that posted the story.
 	ID         int32     // Story ID
-	Story      StoryItem `tl:"flag:0"` // The story itself, if absent fetch it using stories.getStoriesByID and the 'peer'/'id' parameters specified above.
+	Story      StoryItem `tl:"flag:0"` // The story itself, if absent fetch it using stories.getStoriesByID and the peer/id parameters specified above.
 }
 
 func (*MessageMediaStory) CRC() uint32 {
@@ -6689,7 +6692,7 @@ func (*MessagePeerVoteObj) ImplementsMessagePeerVote() {}
 
 // How a peer voted in a poll (reduced constructor, returned if an `option` was provided to [messages.getPollVotes](https://core.telegram.org/method/messages.getPollVotes))
 type MessagePeerVoteInputOption struct {
-	Peer Peer  // The peer that voted for the queried 'option'
+	Peer Peer  // The peer that voted for the queried option
 	Date int32 // When did the peer cast the vote
 }
 
@@ -6728,8 +6731,8 @@ type MessageReplyHeaderObj struct {
 	ReplyMedia       MessageMedia      `tl:"flag:8"`                     // When replying to a media sent by a certain peer to another chat, contains the media of the replied-to message.
 	ReplyToTopID     int32             `tl:"flag:1"`                     // ID of the message that started this message thread
 	QuoteText        string            `tl:"flag:6"`                     // Used to quote-reply to only a certain section (specified here) of the original message.
-	QuoteEntities    []MessageEntity   `tl:"flag:7"`                     // Message entities for styled text from the 'quote_text' field.
-	QuoteOffset      int32             `tl:"flag:10"`                    // Offset of the message 'quote_text' within the original message (in UTF-16 code units).
+	QuoteEntities    []MessageEntity   `tl:"flag:7"`                     // Message entities for styled text from the quote_text field.
+	QuoteOffset      int32             `tl:"flag:10"`                    // Offset of the message quote_text within the original message (in UTF-16 code units).
 }
 
 func (*MessageReplyHeaderObj) CRC() uint32 {
@@ -7790,7 +7793,7 @@ func (*PhotoCachedSize) ImplementsPhotoSize() {}
 
 // Messages with animated stickers can have a compressed svg (&lt; 300 bytes) to show the outline of the sticker before fetching the actual lottie animation.
 type PhotoPathSize struct {
-	Type  string // Always 'j'
+	Type  string // Always j
 	Bytes []byte // Compressed SVG path payload
 }
 
@@ -8176,8 +8179,8 @@ func (*ReplyInlineMarkup) ImplementsReplyMarkup() {}
 type ReplyKeyboardForceReply struct {
 	SingleUse bool `tl:"flag:1,encoded_in_bitflags"` // Requests clients to hide the keyboard as soon as it's been used. The keyboard will still be available, but clients will automatically display the usual letter-keyboard in the chat – the user can press a special button in the input field to see the custom keyboard again.
 	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
-		Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
-		Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
+	Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+	Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
 	*/
 	Placeholder string `tl:"flag:3"` // The placeholder to be shown in the input field when the keyboard is active; 1-64 characters.
 }
@@ -8195,9 +8198,9 @@ func (*ReplyKeyboardForceReply) ImplementsReplyMarkup() {}
 // Hide sent bot keyboard
 type ReplyKeyboardHide struct {
 	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
-		Use this flag if you want to remove the keyboard for specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+	Use this flag if you want to remove the keyboard for specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
 
-		Example: A user votes in a poll, bot returns confirmation message in reply to the vote and removes the keyboard for that user, while still showing the keyboard with poll options to users who haven't voted yet
+	Example: A user votes in a poll, bot returns confirmation message in reply to the vote and removes the keyboard for that user, while still showing the keyboard with poll options to users who haven't voted yet
 	*/
 }
 
@@ -8216,9 +8219,9 @@ type ReplyKeyboardMarkup struct {
 	Resize    bool `tl:"flag:0,encoded_in_bitflags"` // Requests clients to resize the keyboard vertically for optimal fit (e.g., make the keyboard smaller if there are just two rows of buttons). If not set, the custom keyboard is always of the same height as the app's standard keyboard.
 	SingleUse bool `tl:"flag:1,encoded_in_bitflags"` // Requests clients to hide the keyboard as soon as it's been used. The keyboard will still be available, but clients will automatically display the usual letter-keyboard in the chat – the user can press a special button in the input field to see the custom keyboard again.
 	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
-		Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+	Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
 
-		Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
+	Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
 	*/
 	Persistent  bool                 `tl:"flag:4,encoded_in_bitflags"` // Requests clients to always show the keyboard when the regular keyboard is hidden.
 	Rows        []*KeyboardButtonRow // Button row
@@ -9013,29 +9016,6 @@ func (*SpeakingInGroupCallAction) CRC() uint32 {
 
 func (*SpeakingInGroupCallAction) ImplementsSendMessageAction() {}
 
-type StarGifts interface {
-	tl.Object
-	ImplementsStarGifts()
-}
-type StarGiftsObj struct {
-	Hash  int32
-	Gifts []*StarGift
-}
-
-func (*StarGiftsObj) CRC() uint32 {
-	return 0x901689ea
-}
-
-func (*StarGiftsObj) ImplementsStarGifts() {}
-
-type StarGiftsNotModified struct{}
-
-func (*StarGiftsNotModified) CRC() uint32 {
-	return 0xa388a368
-}
-
-func (*StarGiftsNotModified) ImplementsStarGifts() {}
-
 type StarsTransactionPeer interface {
 	tl.Object
 	ImplementsStarsTransactionPeer()
@@ -9491,7 +9471,7 @@ func (*UpdateBotDeleteBusinessMessage) ImplementsUpdate() {}
 type UpdateBotEditBusinessMessage struct {
 	ConnectionID   string  // Business connection ID
 	Message        Message // New message.
-	ReplyToMessage Message `tl:"flag:0"` // The message that 'message' is replying to.
+	ReplyToMessage Message `tl:"flag:0"` // The message that message is replying to.
 	Qts            int32   // New qts value, see updates  for more info.
 }
 
@@ -9592,7 +9572,7 @@ func (*UpdateBotMessageReactions) ImplementsUpdate() {}
 type UpdateBotNewBusinessMessage struct {
 	ConnectionID   string  // Connection ID.
 	Message        Message // New message.
-	ReplyToMessage Message `tl:"flag:0"` // The message that 'message' is replying to.
+	ReplyToMessage Message `tl:"flag:0"` // The message that message is replying to.
 	Qts            int32   // New qts value, see updates  for more info.
 }
 
@@ -9613,8 +9593,8 @@ type UpdateBotPrecheckoutQuery struct {
 	Payload          []byte                // Bot specified invoice payload
 	Info             *PaymentRequestedInfo `tl:"flag:0"` // Order info provided by the user
 	ShippingOptionID string                `tl:"flag:1"` // Identifier of the shipping option chosen by the user
-	Currency         string                // Three-letter ISO 4217 currency code, or 'XTR' for Telegram Stars.
-	TotalAmount      int64                 // Total amount in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	Currency         string                // Three-letter ISO 4217 currency code, or XTR for Telegram Stars.
+	TotalAmount      int64                 // Total amount in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*UpdateBotPrecheckoutQuery) CRC() uint32 {
@@ -9709,7 +9689,7 @@ type UpdateBusinessBotCallbackQuery struct {
 	UserID         int64   // ID of the user that pressed the button
 	ConnectionID   string  // Business connection ID
 	Message        Message // Message that contains the keyboard (also contains info about the chat where the message was sent).
-	ReplyToMessage Message `tl:"flag:2"` // The message that 'message' is replying to.
+	ReplyToMessage Message `tl:"flag:2"` // The message that message is replying to.
 	ChatInstance   int64   // Global identifier, uniquely corresponding to the chat to which the message with the callback button was sent. Useful for high scores in games.
 	Data           []byte  `tl:"flag:0"` // Callback data
 }
@@ -10663,7 +10643,7 @@ func (*UpdatePeerSettings) ImplementsUpdate() {}
 
 // The [wallpaper »](https://core.telegram.org/api/wallpapers) of a given peer has changed.
 type UpdatePeerWallpaper struct {
-	WallpaperOverridden bool      `tl:"flag:1,encoded_in_bitflags"` // Whether the other user has chosen a custom wallpaper for us using messages.setChatWallPaper and the 'for_both' flag,.
+	WallpaperOverridden bool      `tl:"flag:1,encoded_in_bitflags"` // Whether the other user has chosen a custom wallpaper for us using messages.setChatWallPaper and the for_both flag,.
 	Peer                Peer      // The peer where the wallpaper has changed.
 	Wallpaper           WallPaper `tl:"flag:0"` // The new wallpaper, if none the wallpaper was removed and the default wallpaper should be used.
 }
@@ -10817,7 +10797,7 @@ func (*UpdateQuickReplies) ImplementsUpdate() {}
 
 // A new message was added to a [quick reply shortcut »](https://core.telegram.org/api/business#quick-reply-shortcuts).
 type UpdateQuickReplyMessage struct {
-	Message Message // The message that was added (the message.'quick_reply_shortcut_id' field will contain the shortcut ID).
+	Message Message // The message that was added (the message.quick_reply_shortcut_id field will contain the shortcut ID).
 }
 
 func (*UpdateQuickReplyMessage) CRC() uint32 {
@@ -10831,7 +10811,7 @@ type UpdateReadChannelDiscussionInbox struct {
 	ChannelID     int64 // Discussion group ID
 	TopMsgID      int32 // ID of the group message that started the thread (message in linked discussion group)
 	ReadMaxID     int32 // Message ID of latest read incoming message for this thread
-	BroadcastID   int64 `tl:"flag:0"` // If set, contains the ID of the channel that contains the post that started the comment thread in the discussion group ('channel_id')
+	BroadcastID   int64 `tl:"flag:0"` // If set, contains the ID of the channel that contains the post that started the comment thread in the discussion group (channel_id)
 	BroadcastPost int32 `tl:"flag:0"` // If set, contains the ID of the channel post that started the comment thread
 }
 
@@ -10946,7 +10926,7 @@ type UpdateReadMessagesContents struct {
 	Messages []int32 // IDs of read messages
 	Pts      int32   // Event count after generation
 	PtsCount int32   // Number of events that were generated
-	Date     int32   `tl:"flag:0"` // When was the last message in 'messages' marked as read.
+	Date     int32   `tl:"flag:0"` // When was the last message in messages marked as read.
 }
 
 func (*UpdateReadMessagesContents) CRC() uint32 {
@@ -11059,8 +11039,8 @@ type UpdateServiceNotification struct {
 	Popup       bool  `tl:"flag:0,encoded_in_bitflags"` // If set, the message must be displayed in a popup.
 	InvertMedia bool  `tl:"flag:2,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
 	InboxDate   int32 `tl:"flag:1"`                     /*
-		When was the notification received
-		The message must also be stored locally as part of the message history with the user id '777000' (Telegram Notifications).
+	When was the notification received
+	The message must also be stored locally as part of the message history with the user id 777000 (Telegram Notifications).
 	*/
 	Type     string          // String, identical in format and contents to the <a href="/api/errors#error-type">type</a> field in API errors. Describes type of service message. It is acceptable to ignore repeated messages of the same type within a short period of time (15 minutes).
 	Message  string          // Message text
@@ -11170,8 +11150,8 @@ func (*UpdateStory) ImplementsUpdate() {}
 
 // A story was successfully uploaded.
 type UpdateStoryID struct {
-	ID       int32 // The 'id' that was attributed to the story.
-	RandomID int64 // The 'random_id' that was passed to stories.sendStory.
+	ID       int32 // The id that was attributed to the story.
+	RandomID int64 // The random_id that was passed to stories.sendStory.
 }
 
 func (*UpdateStoryID) CRC() uint32 {
@@ -11391,7 +11371,7 @@ type UpdateShortMessage struct {
 	MediaUnread bool               `tl:"flag:5,encoded_in_bitflags"`  // Whether there are some unread mentions in this message
 	Silent      bool               `tl:"flag:13,encoded_in_bitflags"` // If true, the message is a silent message, no notifications should be triggered
 	ID          int32              // The message ID
-	UserID      int64              // The ID of the sender (if 'outgoing' will be the ID of the destination) of the message
+	UserID      int64              // The ID of the sender (if outgoing will be the ID of the destination) of the message
 	Message     string             // The message
 	Pts         int32              // PTS
 	PtsCount    int32              // PTS count
@@ -11526,146 +11506,146 @@ type User interface {
 type UserObj struct {
 	Self    bool `tl:"flag:10,encoded_in_bitflags"` // Whether this user indicates the currently logged in user
 	Contact bool `tl:"flag:11,encoded_in_bitflags"` /*
-		Whether this user is a contact
-		When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+	Whether this user is a contact
+	When updating the local peer database, do not apply changes to this field if the min flag is set.
 	*/
 	MutualContact bool `tl:"flag:12,encoded_in_bitflags"` /*
-		Whether this user is a mutual contact.
-		When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+	Whether this user is a mutual contact.
+	When updating the local peer database, do not apply changes to this field if the min flag is set.
 	*/
 	Deleted bool `tl:"flag:13,encoded_in_bitflags"` /*
-		Whether the account of this user was deleted.
-		Changes to this flag should invalidate the local userFull cache for this user ID,.
+	Whether the account of this user was deleted.
+	Changes to this flag should invalidate the local userFull cache for this user ID,.
 	*/
 	Bot bool `tl:"flag:14,encoded_in_bitflags"` /*
-		Is this user a bot?
-		Changes to this flag should invalidate the local userFull cache for this user ID,.
+	Is this user a bot?
+	Changes to this flag should invalidate the local userFull cache for this user ID,.
 	*/
 	BotChatHistory bool `tl:"flag:15,encoded_in_bitflags"` // Can the bot see all messages in groups?
 	BotNochats     bool `tl:"flag:16,encoded_in_bitflags"` // Can the bot be added to groups?
 	Verified       bool `tl:"flag:17,encoded_in_bitflags"` // Whether this user is verified
-	Restricted     bool `tl:"flag:18,encoded_in_bitflags"` // Access to this user must be restricted for the reason specified in 'restriction_reason'
+	Restricted     bool `tl:"flag:18,encoded_in_bitflags"` // Access to this user must be restricted for the reason specified in restriction_reason
 	Min            bool `tl:"flag:20,encoded_in_bitflags"` // See min
 	BotInlineGeo   bool `tl:"flag:21,encoded_in_bitflags"` // Whether the bot can request our geolocation in inline mode
 	Support        bool `tl:"flag:23,encoded_in_bitflags"` // Whether this is an official support user
 	Scam           bool `tl:"flag:24,encoded_in_bitflags"` // This may be a scam user
-	ApplyMinPhoto  bool `tl:"flag:25,encoded_in_bitflags"` // If set and 'min' is set, the value of 'photo' can be used to update the local database, see the documentation of that flag for more info.
+	ApplyMinPhoto  bool `tl:"flag:25,encoded_in_bitflags"` // If set and min is set, the value of photo can be used to update the local database, see the documentation of that flag for more info.
 	Fake           bool `tl:"flag:26,encoded_in_bitflags"` // If set, this user was reported by many users as a fake or scam user: be careful when interacting with them.
 	BotAttachMenu  bool `tl:"flag:27,encoded_in_bitflags"` // Whether this bot offers an attachment menu web app
 	Premium        bool `tl:"flag:28,encoded_in_bitflags"` /*
-		Whether this user is a Telegram Premium user
-		Changes to this flag should invalidate the local userFull cache for this user ID,.
-		Changes to this flag if the 'self' flag is set should also trigger the following calls, to refresh the respective caches:
-		- The help.getConfig cache
-		- The messages.getTopReactions cache if the 'bot' flag is not set
+	Whether this user is a Telegram Premium user
+	Changes to this flag should invalidate the local userFull cache for this user ID,.
+	Changes to this flag if the self flag is set should also trigger the following calls, to refresh the respective caches:
+	- The help.getConfig cache
+	- The messages.getTopReactions cache if the bot flag is not set
 	*/
 	AttachMenuEnabled bool `tl:"flag:29,encoded_in_bitflags"` /*
-		Whether we installed the attachment menu web app offered by this bot.
-		When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+	Whether we installed the attachment menu web app offered by this bot.
+	When updating the local peer database, do not apply changes to this field if the min flag is set.
 	*/
 	BotCanEdit bool `tl:"flag2:1,encoded_in_bitflags"` /*
-		Whether we can edit the profile picture, name, about text and description of this bot because we own it.
-		When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
-		Changes to this flag (if 'min' is not set) should invalidate the local userFull cache for this user ID.
+	Whether we can edit the profile picture, name, about text and description of this bot because we own it.
+	When updating the local peer database, do not apply changes to this field if the min flag is set.
+	Changes to this flag (if min is not set) should invalidate the local userFull cache for this user ID.
 	*/
 	CloseFriend bool `tl:"flag2:2,encoded_in_bitflags"` /*
-		Whether we marked this user as a close friend,.
-		When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+	Whether we marked this user as a close friend,.
+	When updating the local peer database, do not apply changes to this field if the min flag is set.
 	*/
 	StoriesHidden bool `tl:"flag2:3,encoded_in_bitflags"` /*
-		Whether we have hidden  all active stories of this user.
-		When updating the local peer database, do not apply changes to this field if the 'min' flag is set.
+	Whether we have hidden  all active stories of this user.
+	When updating the local peer database, do not apply changes to this field if the min flag is set.
 	*/
 	StoriesUnavailable    bool `tl:"flag2:4,encoded_in_bitflags"`  // No stories from this user are visible.
 	ContactRequirePremium bool `tl:"flag2:10,encoded_in_bitflags"` /*
-		If set, we can only write to this user if they have already sent some messages to us, if we are subscribed to Telegram Premium, or if they're a mutual contact (user.'mutual_contact').
-		All the secondary conditions listed above must be checked separately to verify whether we can still write to the user, even if this flag is set (i.e. a mutual contact will have this flag set even if we can still write to them, and so on...); to avoid doing these extra checks if we haven't yet cached all the required information (for example while displaying the chat list in the sharing UI) the users.getIsPremiumRequiredToContact method may be invoked instead, passing the list of users currently visible in the UI, returning a list of booleans that directly specify whether we can or cannot write to each user; alternatively, the userFull.'contact_require_premium' flag contains the same (fully checked, i.e. it's not just a copy of this flag) info returned by users.getIsPremiumRequiredToContact.
-		To set this flag for ourselves invoke account.setGlobalPrivacySettings, setting the 'settings.new_noncontact_peers_require_premium' flag.
+	If set, we can only write to this user if they have already sent some messages to us, if we are subscribed to Telegram Premium, or if they're a mutual contact (user.mutual_contact).
+	All the secondary conditions listed above must be checked separately to verify whether we can still write to the user, even if this flag is set (i.e. a mutual contact will have this flag set even if we can still write to them, and so on...); to avoid doing these extra checks if we haven't yet cached all the required information (for example while displaying the chat list in the sharing UI) the users.getIsPremiumRequiredToContact method may be invoked instead, passing the list of users currently visible in the UI, returning a list of booleans that directly specify whether we can or cannot write to each user; alternatively, the userFull.contact_require_premium flag contains the same (fully checked, i.e. it's not just a copy of this flag) info returned by users.getIsPremiumRequiredToContact.
+	To set this flag for ourselves invoke account.setGlobalPrivacySettings, setting the settings.new_noncontact_peers_require_premium flag.
 	*/
 	BotBusiness   bool  `tl:"flag2:11,encoded_in_bitflags"` // Whether this bot can be connected to a user as specified here.
 	BotHasMainApp bool  `tl:"flag2:13,encoded_in_bitflags"` // If set, this bot has configured a Main Mini App.
 	ID            int64 // ID of the user,.
 	AccessHash    int64 `tl:"flag:0"` /*
-		Access hash of the user,.
-		If this flag is set, when updating the local peer database, generate a virtual flag called 'min_access_hash', which is:
-		- Set to 'true' if 'min' is set AND
-		- The 'phone' flag is not set OR
-		- The 'phone' flag is set and the associated phone number string is non-empty
-		- Set to 'false' otherwise.
+	Access hash of the user,.
+	If this flag is set, when updating the local peer database, generate a virtual flag called min_access_hash, which is:
+	- Set to true if min is set AND
+	- The phone flag is not set OR
+	- The phone flag is set and the associated phone number string is non-empty
+	- Set to false otherwise.
 
-		Then, apply both 'access_hash' and 'min_access_hash' to the local database if:
-		- 'min_access_hash' is false OR
-		- 'min_access_hash' is true AND
-		- There is no locally cached object for this user OR
-		- There is no 'access_hash' in the local cache OR
-		- The cached object's 'min_access_hash' is also true
-		If the final merged object stored to the database has the 'min_access_hash' field set to true, the related 'access_hash' is only suitable to use in <a href="/constructor/inputPeerPhotoFileLocation">'inputPeerPhotoFileLocation' </a>, to directly download the profile pictures of users, everywhere else a 'inputPeer*FromMessage' constructor will have to be generated as specified here.
-		Bots can also use min access hashes in some conditions, by passing '0' instead of the min access hash.
+	Then, apply both access_hash and min_access_hash to the local database if:
+	- min_access_hash is false OR
+	- min_access_hash is true AND
+	- There is no locally cached object for this user OR
+	- There is no access_hash in the local cache OR
+	- The cached object's min_access_hash is also true
+	If the final merged object stored to the database has the min_access_hash field set to true, the related access_hash is only suitable to use in <a href="/constructor/inputPeerPhotoFileLocation">inputPeerPhotoFileLocation </a>, to directly download the profile pictures of users, everywhere else a inputPeer*FromMessage constructor will have to be generated as specified here.
+	Bots can also use min access hashes in some conditions, by passing 0 instead of the min access hash.
 	*/
 	FirstName string `tl:"flag:1"` /*
-		First name.
-		When updating the local peer database, apply changes to this field only if:
-		- The 'min' flag is not set OR
-		- The 'min' flag is set AND
-		- The 'min' flag of the locally cached user entry is set.
+	First name.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	- The min flag of the locally cached user entry is set.
 	*/
 	LastName string `tl:"flag:2"` /*
-		Last name.
-		When updating the local peer database, apply changes to this field only if:
-		- The 'min' flag is not set OR
-		- The 'min' flag is set AND
-		- The 'min' flag of the locally cached user entry is set.
+	Last name.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	- The min flag of the locally cached user entry is set.
 	*/
 	Username string `tl:"flag:3"` /*
-		Main active username.
-		When updating the local peer database, apply changes to this field only if:
-		- The 'min' flag is not set OR
-		- The 'min' flag is set AND
-		- The 'min' flag of the locally cached user entry is set.
-		Changes to this flag should invalidate the local userFull cache for this user ID if the above conditions are respected and the 'bot_can_edit' flag is also set.
+	Main active username.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	- The min flag of the locally cached user entry is set.
+	Changes to this flag should invalidate the local userFull cache for this user ID if the above conditions are respected and the bot_can_edit flag is also set.
 	*/
 	Phone string `tl:"flag:4"` /*
-		Phone number.
-		When updating the local peer database, apply changes to this field only if:
-		- The 'min' flag is not set OR
-		- The 'min' flag is set AND
-		- The 'min' flag of the locally cached user entry is set.
+	Phone number.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	- The min flag of the locally cached user entry is set.
 	*/
 	Photo UserProfilePhoto `tl:"flag:5"` /*
-		Profile picture of user.
-		When updating the local peer database, apply changes to this field only if:
-		- The 'min' flag is not set OR
-		- The 'min' flag is set AND
-		- The 'apply_min_photo' flag is set OR
-		- The 'min' flag of the locally cached user entry is set.
+	Profile picture of user.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	- The apply_min_photo flag is set OR
+	- The min flag of the locally cached user entry is set.
 	*/
 	Status UserStatus `tl:"flag:6"` /*
-		Online status of user.
-		When updating the local peer database, apply changes to this field only if:
-		- The 'min' flag is not set OR
-		- The 'min' flag is set AND
-		- The 'min' flag of the locally cached user entry is set OR
-		- The locally cached user entry is equal to userStatusEmpty.
+	Online status of user.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	- The min flag of the locally cached user entry is set OR
+	- The locally cached user entry is equal to userStatusEmpty.
 	*/
 	BotInfoVersion int32 `tl:"flag:14"` /*
-		Version of the bot_info field in userFull, incremented every time it changes.
-		Changes to this flag should invalidate the local userFull cache for this user ID,.
+	Version of the bot_info field in userFull, incremented every time it changes.
+	Changes to this flag should invalidate the local userFull cache for this user ID,.
 	*/
 	RestrictionReason    []*RestrictionReason `tl:"flag:18"` // Contains the reason why access to this user must be restricted.
 	BotInlinePlaceholder string               `tl:"flag:19"` // Inline placeholder for this inline bot
 	LangCode             string               `tl:"flag:22"` // Language code of the user
 	EmojiStatus          EmojiStatus          `tl:"flag:30"` // Emoji status
 	Usernames            []*Username          `tl:"flag2:0"` /*
-		Additional usernames.
-		When updating the local peer database, apply changes to this field only if:
-		- The 'min' flag is not set OR
-		- The 'min' flag is set AND
-		- The 'min' flag of the locally cached user entry is set.
-		Changes to this flag (if the above conditions are respected) should invalidate the local userFull cache for this user ID.
+	Additional usernames.
+	When updating the local peer database, apply changes to this field only if:
+	- The min flag is not set OR
+	- The min flag is set AND
+	- The min flag of the locally cached user entry is set.
+	Changes to this flag (if the above conditions are respected) should invalidate the local userFull cache for this user ID.
 	*/
 	StoriesMaxID int32 `tl:"flag2:5"` /*
-		ID of the maximum read story.
-		When updating the local peer database, do not apply changes to this field if the 'min' flag of the incoming constructor is set.
+	ID of the maximum read story.
+	When updating the local peer database, do not apply changes to this field if the min flag of the incoming constructor is set.
 	*/
 	Color          *PeerColor `tl:"flag2:8"`  // The user's accent color.
 	ProfileColor   *PeerColor `tl:"flag2:9"`  // The user's profile color.
@@ -11684,7 +11664,7 @@ func (*UserObj) ImplementsUser() {}
 
 // Empty constructor, non-existent user.
 type UserEmpty struct {
-	ID int64 // User identifier or '0'
+	ID int64 // User identifier or 0
 }
 
 func (*UserEmpty) CRC() uint32 {
@@ -11822,7 +11802,7 @@ type VideoSize interface {
 
 // An [animated profile picture](https://core.telegram.org/api/files#animated-profile-pictures) in MPEG4 format
 type VideoSizeObj struct {
-	Type         string  // 'u' for animated profile pictures, and 'v' for trimmed and downscaled video previews
+	Type         string  // u for animated profile pictures, and v for trimmed and downscaled video previews
 	W            int32   // Video width
 	H            int32   // Video height
 	Size         int32   // File size
@@ -12066,7 +12046,7 @@ func (*WebPageAttributeStickerSet) ImplementsWebPageAttribute() {}
 type WebPageAttributeStory struct {
 	Peer  Peer      // Peer that posted the story
 	ID    int32     // Story ID
-	Story StoryItem `tl:"flag:0"` // May contain the story, if not the story should be fetched when and if needed using stories.getStoriesByID with the above 'id' and 'peer'.
+	Story StoryItem `tl:"flag:0"` // May contain the story, if not the story should be fetched when and if needed using stories.getStoriesByID with the above id and peer.
 }
 
 func (*WebPageAttributeStory) CRC() uint32 {
@@ -12376,7 +12356,7 @@ type AuthSentCode interface {
 type AuthSentCodeObj struct {
 	Type          AuthSentCodeType // Phone code type
 	PhoneCodeHash string           // Phone code hash, to be stored and later re-used with auth.signIn
-	NextType      AuthCodeType     `tl:"flag:1"` // Phone code type that will be sent next, if the phone code is not received within 'timeout' seconds: to send it use auth.resendCode
+	NextType      AuthCodeType     `tl:"flag:1"` // Phone code type that will be sent next, if the phone code is not received within timeout seconds: to send it use auth.resendCode
 	Timeout       int32            `tl:"flag:2"` // Timeout for reception of the phone code
 }
 
@@ -12453,8 +12433,8 @@ type AuthSentCodeTypeFirebaseSms struct {
 	Nonce                  []byte `tl:"flag:0"` // On Android, the nonce to be used as described in the auth documentation
 	PlayIntegrityProjectID int64  `tl:"flag:2"` // Google Play Integrity project ID
 	PlayIntegrityNonce     []byte `tl:"flag:2"` // Play Integrity API nonce
-	Receipt                string `tl:"flag:1"` // On iOS, must be compared with the 'receipt' extracted from the received push notification.
-	PushTimeout            int32  `tl:"flag:1"` // On iOS: if a push notification with the 'ios_push_secret' isn't received within 'push_timeout' seconds, the 'next_type' authentication method must be used, with auth.resendCode.
+	Receipt                string `tl:"flag:1"` // On iOS, must be compared with the receipt extracted from the received push notification.
+	PushTimeout            int32  `tl:"flag:1"` // On iOS: if a push notification with the ios_push_secret isn't received within push_timeout seconds, the next_type authentication method must be used, with auth.resendCode.
 	Length                 int32  // Length of the code that will be delivered.
 }
 
@@ -13004,7 +12984,7 @@ type HelpTermsOfServiceUpdate interface {
 
 // Info about an update of telegram's terms of service. If the terms of service are declined, then the [account.deleteAccount](https://core.telegram.org/method/account.deleteAccount) method should be called with the reason "Decline ToS update"
 type HelpTermsOfServiceUpdateObj struct {
-	Expires        int32               // New TOS updates will have to be queried using help.getTermsOfServiceUpdate in 'expires' seconds
+	Expires        int32               // New TOS updates will have to be queried using help.getTermsOfServiceUpdate in expires seconds
 	TermsOfService *HelpTermsOfService // New terms of service
 }
 
@@ -13016,7 +12996,7 @@ func (*HelpTermsOfServiceUpdateObj) ImplementsHelpTermsOfServiceUpdate() {}
 
 // No changes were made to telegram's terms of service
 type HelpTermsOfServiceUpdateEmpty struct {
-	Expires int32 // New TOS updates will have to be queried using help.getTermsOfServiceUpdate in 'expires' seconds
+	Expires int32 // New TOS updates will have to be queried using help.getTermsOfServiceUpdate in expires seconds
 }
 
 func (*HelpTermsOfServiceUpdateEmpty) CRC() uint32 {
@@ -13114,7 +13094,7 @@ type MessagesAvailableEffects interface {
 type MessagesAvailableEffectsObj struct {
 	Hash      int32              // Hash used for caching, for more info click here
 	Effects   []*AvailableEffect // Message effects
-	Documents []Document         // Documents specified in the 'effects' constructors.
+	Documents []Document         // Documents specified in the effects constructors.
 }
 
 func (*MessagesAvailableEffectsObj) CRC() uint32 {
@@ -13176,7 +13156,7 @@ func (*MessagesChatsObj) ImplementsMessagesChats() {}
 
 // Partial list of chats, more would have to be fetched with [pagination](https://core.telegram.org/api/offsets)
 type MessagesChatsSlice struct {
-	Count int32  // Total number of results that were found server-side (not all are included in 'chats')
+	Count int32  // Total number of results that were found server-side (not all are included in chats)
 	Chats []Chat // Chats
 }
 
@@ -13416,8 +13396,8 @@ type MessagesChannelMessages struct {
 	Pts            int32 // Event count after generation
 	Count          int32 // Total number of results were found server-side (may not be all included here)
 	OffsetIDOffset int32 `tl:"flag:2"` /*
-		Indicates the absolute position of 'messages[0]' within the total result set with count 'count'.
-		This is useful, for example, if the result was fetched using 'offset_id', and we need to display a 'progress/total' counter (like 'photo 134 of 200', for all media in a chat, we could simply use 'photo ${offset_id_offset} of ${count}'.
+	Indicates the absolute position of messages[0] within the total result set with count count.
+	This is useful, for example, if the result was fetched using offset_id, and we need to display a progress/total counter (like photo 134 of 200, for all media in a chat, we could simply use photo ${offset_id_offset} of ${count}.
 	*/
 	Messages []Message    // Found messages
 	Topics   []ForumTopic // Forum topic information
@@ -13463,10 +13443,10 @@ func (*MessagesMessagesNotModified) ImplementsMessagesMessages() {}
 type MessagesMessagesSlice struct {
 	Inexact        bool  `tl:"flag:1,encoded_in_bitflags"` // If set, indicates that the results may be inexact
 	Count          int32 // Total number of messages in the list
-	NextRate       int32 `tl:"flag:0"` // Rate to use in the 'offset_rate' parameter in the next call to messages.searchGlobal
+	NextRate       int32 `tl:"flag:0"` // Rate to use in the offset_rate parameter in the next call to messages.searchGlobal
 	OffsetIDOffset int32 `tl:"flag:2"` /*
-		Indicates the absolute position of 'messages[0]' within the total result set with count 'count'.
-		This is useful, for example, if the result was fetched using 'offset_id', and we need to display a 'progress/total' counter (like 'photo 134 of 200', for all media in a chat, we could simply use 'photo ${offset_id_offset} of ${count}'.
+	Indicates the absolute position of messages[0] within the total result set with count count.
+	This is useful, for example, if the result was fetched using offset_id, and we need to display a progress/total counter (like photo 134 of 200, for all media in a chat, we could simply use photo ${offset_id_offset} of ${count}.
 	*/
 	Messages []Message // List of messages
 	Chats    []Chat    // List of chats mentioned in messages
@@ -13491,7 +13471,7 @@ type MessagesQuickReplies interface {
 // Info about [quick reply shortcuts »](https://core.telegram.org/api/business#quick-reply-shortcuts).
 type MessagesQuickRepliesObj struct {
 	QuickReplies []*QuickReply // Quick reply shortcuts.
-	Messages     []Message     // Messages mentioned in 'quick_replies'.
+	Messages     []Message     // Messages mentioned in quick_replies.
 	Chats        []Chat        // Mentioned chats
 	Users        []User        // Mentioned users
 }
@@ -13811,7 +13791,7 @@ type PaymentsGiveawayInfoObj struct {
 	Participating         bool   `tl:"flag:0,encoded_in_bitflags"` // The current user is participating in the giveaway.
 	PreparingResults      bool   `tl:"flag:3,encoded_in_bitflags"` // If set, the giveaway has ended and the results are being prepared.
 	StartDate             int32  // When was the giveaway started
-	JoinedTooEarlyDate    int32  `tl:"flag:1"` // The current user can't participate in the giveaway, because they were already a member of the channel when the giveaway started, and the 'only_new_subscribers' was set when starting the giveaway.
+	JoinedTooEarlyDate    int32  `tl:"flag:1"` // The current user can't participate in the giveaway, because they were already a member of the channel when the giveaway started, and the only_new_subscribers was set when starting the giveaway.
 	AdminDisallowedChatID int64  `tl:"flag:2"` // If set, the current user can't participate in the giveaway, because they are an administrator in one of the channels (ID specified in this flag) that created the giveaway.
 	DisallowedCountry     string `tl:"flag:4"` // If set, the current user can't participate in this giveaway, because their phone number is from the specified disallowed country (specified as a two-letter ISO 3166-1 alpha-2 country code).
 }
@@ -13866,19 +13846,19 @@ type PaymentsPaymentFormObj struct {
 	ProviderID         int64       // Payment provider ID.
 	URL                string      // Payment form URL
 	NativeProvider     string      `tl:"flag:4"` /*
-		Payment provider name.
-		One of the following:
-		- 'stripe'
+	Payment provider name.
+	One of the following:
+	- stripe
 	*/
 	NativeParams *DataJson `tl:"flag:4"` /*
-		Contains information about the payment provider, if available, to support it natively without the need for opening the URL.
-		A JSON object that can contain the following fields:
+	Contains information about the payment provider, if available, to support it natively without the need for opening the URL.
+	A JSON object that can contain the following fields:
 
-		- 'apple_pay_merchant_id': Apple Pay merchant ID
-		- 'google_pay_public_key': Google Pay public key
-		- 'need_country': True, if the user country must be provided,
-		- 'need_zip': True, if the user ZIP/postal code must be provided,
-		- 'need_cardholder_name': True, if the cardholder name must be provided
+	- apple_pay_merchant_id: Apple Pay merchant ID
+	- google_pay_public_key: Google Pay public key
+	- need_country: True, if the user country must be provided,
+	- need_zip: True, if the user ZIP/postal code must be provided,
+	- need_cardholder_name: True, if the cardholder name must be provided
 	*/
 	AdditionalMethods []*PaymentFormMethod           `tl:"flag:6"` // Additional payment methods
 	SavedInfo         *PaymentRequestedInfo          `tl:"flag:0"` // Saved server-side order information
@@ -13895,6 +13875,17 @@ func (*PaymentsPaymentFormObj) FlagIndex() int {
 }
 
 func (*PaymentsPaymentFormObj) ImplementsPaymentsPaymentForm() {}
+
+type PaymentsPaymentFormStarGift struct {
+	FormID  int64
+	Invoice *Invoice
+}
+
+func (*PaymentsPaymentFormStarGift) CRC() uint32 {
+	return 0xb425cfe1
+}
+
+func (*PaymentsPaymentFormStarGift) ImplementsPaymentsPaymentForm() {}
 
 // Represents a payment form, for payments to be using [Telegram Stars, see here »](https://core.telegram.org/api/stars) for more info.
 type PaymentsPaymentFormStars struct {
@@ -13937,7 +13928,7 @@ type PaymentsPaymentReceiptObj struct {
 	Shipping         *ShippingOption       `tl:"flag:1"` // Selected shipping option
 	TipAmount        int64                 `tl:"flag:3"` // Tipped amount
 	Currency         string                // Three-letter ISO 4217 currency code
-	TotalAmount      int64                 // Total amount in the smallest units of the currency (integer, not float/double). For example, for a price of 'US$ 1.45' pass 'amount = 145'. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
+	TotalAmount      int64                 // Total amount in the smallest units of the currency (integer, not float/double). For example, for a price of US$ 1.45 pass amount = 145. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 	CredentialsTitle string                // Payment credential name
 	Users            []User                // Users
 }
@@ -13960,7 +13951,7 @@ type PaymentsPaymentReceiptStars struct {
 	Description   string      // Description
 	Photo         WebDocument `tl:"flag:2"` // Product photo
 	Invoice       *Invoice    // Invoice
-	Currency      string      // Currency, always 'XTR'.
+	Currency      string      // Currency, always XTR.
 	TotalAmount   int64       // Amount of Telegram Stars.
 	TransactionID string      // Transaction ID
 	Users         []User      // Info about users mentioned in the other fields.
@@ -14002,6 +13993,29 @@ func (*PaymentsPaymentVerificationNeeded) CRC() uint32 {
 }
 
 func (*PaymentsPaymentVerificationNeeded) ImplementsPaymentsPaymentResult() {}
+
+type PaymentsStarGifts interface {
+	tl.Object
+	ImplementsPaymentsStarGifts()
+}
+type PaymentsStarGiftsObj struct {
+	Hash  int32
+	Gifts []*StarGift
+}
+
+func (*PaymentsStarGiftsObj) CRC() uint32 {
+	return 0x901689ea
+}
+
+func (*PaymentsStarGiftsObj) ImplementsPaymentsStarGifts() {}
+
+type PaymentsStarGiftsNotModified struct{}
+
+func (*PaymentsStarGiftsNotModified) CRC() uint32 {
+	return 0xa388a368
+}
+
+func (*PaymentsStarGiftsNotModified) ImplementsPaymentsStarGifts() {}
 
 type PhotosPhotos interface {
 	tl.Object
@@ -14078,7 +14092,7 @@ type UpdatesChannelDifference interface {
 
 // The new updates
 type UpdatesChannelDifferenceObj struct {
-	Final        bool      `tl:"flag:0,encoded_in_bitflags"` // Whether there are more updates to be fetched using getDifference, starting from the provided 'pts'
+	Final        bool      `tl:"flag:0,encoded_in_bitflags"` // Whether there are more updates to be fetched using getDifference, starting from the provided pts
 	Pts          int32     // The PTS from which to start getting updates the next time
 	Timeout      int32     `tl:"flag:1"` // Clients are supposed to refetch the channel difference after timeout seconds have elapsed, if the user is currently viewing the chat,.
 	NewMessages  []Message // New messages
