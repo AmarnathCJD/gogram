@@ -73,7 +73,7 @@ type MTProto struct {
 	serviceChannel       chan tl.Object
 	serviceModeActivated bool
 
-	authKey404 []int64
+	authKey404 [2]int64
 	IpV6       bool
 
 	Logger *utils.Logger
@@ -98,6 +98,7 @@ type Config struct {
 	Proxy      *url.URL
 	Mode       string
 	Ipv6       bool
+	CustomHost bool
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -155,6 +156,10 @@ func NewMTProto(c Config) (*MTProto, error) {
 		return nil, errors.Wrap(err, "loading auth")
 	}
 
+	if c.CustomHost {
+		mtproto.Addr = c.ServerHost
+	}
+
 	if c.FloodHandler != nil {
 		mtproto.floodHandler = c.FloodHandler
 	}
@@ -177,7 +182,7 @@ func parseTransportMode(sMode string) mode.Variant {
 
 func (m *MTProto) LoadSession(sess *session.Session) error {
 	m.authKey, m.authKeyHash, m.Addr, m.appID = sess.Key, sess.Hash, sess.Hostname, sess.AppID
-	m.Logger.Debug("importing Auth from session...")
+	m.Logger.Debug("importing auth from session...")
 	if !m.memorySession {
 		if err := m.SaveSession(); err != nil {
 			return errors.Wrap(err, "saving session")
@@ -625,7 +630,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 
 func (m *MTProto) handle404Error() {
 	if len(m.authKey404) == 0 {
-		m.authKey404 = []int64{1, time.Now().Unix()}
+		m.authKey404 = [2]int64{1, time.Now().Unix()}
 	} else {
 		if time.Now().Unix()-m.authKey404[1] < 30 { // repeated failures
 			m.authKey404[0]++
@@ -641,7 +646,7 @@ func (m *MTProto) handle404Error() {
 		if err != nil {
 			m.Logger.Error(errors.Wrap(err, "reconnecting"))
 		}
-	} else if m.authKey404[0] > 8 {
+	} else if m.authKey404[0] > 16 {
 		panic("[AUTH_KEY_INVALID] (code -404)")
 	}
 }

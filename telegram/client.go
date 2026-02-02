@@ -148,8 +148,10 @@ func NewClient(config ClientConfig) (*Client, error) {
 }
 
 func (c *Client) setupMTProto(config ClientConfig) error {
+	var customHost bool
 	toIpAddr := func() string {
 		if config.IpAddr != "" {
+			customHost = true
 			return config.IpAddr
 		} else {
 			return utils.GetHostIp(config.DataCenter, config.TestMode, config.ForceIPv6)
@@ -169,6 +171,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		Proxy:         config.Proxy,
 		MemorySession: config.MemorySession,
 		Ipv6:          config.ForceIPv6,
+		CustomHost:    customHost,
 	})
 	if err != nil {
 		return errors.Wrap(err, "creating mtproto client")
