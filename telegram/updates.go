@@ -3,8 +3,6 @@
 package telegram
 
 import (
-	"container/list"
-	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -106,42 +104,6 @@ func (mm *middlewareManager) GetGlobal() []Middleware {
 	mm.RLock()
 	defer mm.RUnlock()
 	return slices.Clone(mm.global)
-}
-
-type LifecycleHooks struct {
-	BeforeHandler func(*NewMessage)
-	AfterHandler  func(*NewMessage, error)
-	OnError       func(error, *NewMessage)
-}
-
-type HandlerMetrics struct {
-	TotalCalls  atomic.Int64
-	Errors      atomic.Int64
-	TotalTimeNs atomic.Int64
-}
-
-func (m *HandlerMetrics) RecordCall(duration time.Duration, err error) {
-	m.TotalCalls.Add(1)
-	if err != nil {
-		m.Errors.Add(1)
-	}
-	m.TotalTimeNs.Add(int64(duration))
-}
-
-func (m *HandlerMetrics) AvgDuration() time.Duration {
-	calls := m.TotalCalls.Load()
-	if calls == 0 {
-		return 0
-	}
-	return time.Duration(m.TotalTimeNs.Load() / calls)
-}
-
-func (m *HandlerMetrics) ErrorRate() float64 {
-	calls := m.TotalCalls.Load()
-	if calls == 0 {
-		return 0
-	}
-	return float64(m.Errors.Load()) / float64(calls)
 }
 
 // HandlerGroup represents a group of handlers with shared configuration
@@ -340,90 +302,6 @@ func (cb *CallbackHandleBuilder) Handle() Handle {
 	return cb.handle
 }
 
-type lruCache struct {
-	sync.Mutex
-	maxSize int
-	items   map[int64]*list.Element
-	list    *list.List
-}
-
-type lruEntry struct {
-	key       int64
-	timestamp time.Time
-}
-
-func newLRUCache(maxSize int) *lruCache {
-	return &lruCache{
-		maxSize: maxSize,
-		items:   make(map[int64]*list.Element),
-		list:    list.New(),
-	}
-}
-
-func (c *lruCache) Add(key int64) {
-	c.Lock()
-	defer c.Unlock()
-
-	if elem, exists := c.items[key]; exists && elem != nil {
-		if entry, ok := elem.Value.(*lruEntry); ok && entry != nil {
-			c.list.MoveToFront(elem)
-			entry.timestamp = time.Now()
-			return
-		}
-		delete(c.items, key)
-		c.list.Remove(elem)
-	}
-
-	entry := &lruEntry{key: key, timestamp: time.Now()}
-	elem := c.list.PushFront(entry)
-	c.items[key] = elem
-
-	if c.list.Len() > c.maxSize {
-		oldest := c.list.Back()
-		if oldest != nil {
-			if entry, ok := oldest.Value.(*lruEntry); ok && entry != nil {
-				delete(c.items, entry.key)
-			}
-			c.list.Remove(oldest)
-		}
-	}
-}
-
-func (c *lruCache) Contains(key int64) bool {
-	c.Lock()
-	defer c.Unlock()
-	_, exists := c.items[key]
-	return exists
-}
-
-func (c *lruCache) TryAdd(key int64) bool {
-	c.Lock()
-	defer c.Unlock()
-
-	if elem, exists := c.items[key]; exists && elem != nil {
-		if _, ok := elem.Value.(*lruEntry); ok {
-			return false
-		}
-		delete(c.items, key)
-		c.list.Remove(elem)
-	}
-
-	entry := &lruEntry{key: key, timestamp: time.Now()}
-	elem := c.list.PushFront(entry)
-	c.items[key] = elem
-
-	if c.list.Len() > c.maxSize {
-		oldest := c.list.Back()
-		if oldest != nil {
-			if entry, ok := oldest.Value.(*lruEntry); ok && entry != nil {
-				delete(c.items, entry.key)
-			}
-			c.list.Remove(oldest)
-		}
-	}
-	return true
-}
-
 type patternCache struct {
 	sync.RWMutex
 	patterns map[string]*regexp.Regexp
@@ -520,7 +398,6 @@ type baseHandle struct {
 	name              string
 	description       string
 	enabled           bool
-	metrics           *HandlerMetrics
 	onGroupChanged    func(int, int)
 	onPriorityChanged func()
 }
@@ -685,18 +562,10 @@ func (a *albumBox) Add(m *NewMessage) {
 	a.messages = append(a.messages, m)
 }
 
-type openChat struct {
-	sync.RWMutex
-	accessHash int64
-	closeChan  chan struct{}
-	lastPts    int32
-	timeout    int32
-}
-
 type channelState struct {
 	pts        int32
+	qts        int32
 	accessHash int64
-	isOpen     bool
 }
 
 // UpdateState represents the current update state
@@ -705,6 +574,12 @@ type UpdateState struct {
 	Qts  int32
 	Seq  int32
 	Date int32
+}
+
+type pendingGap struct {
+	timestamp time.Time
+	start     int32
+	end       int32
 }
 
 type UpdateDispatcher struct {
@@ -724,20 +599,16 @@ type UpdateDispatcher struct {
 	e2eHandles            map[int][]*e2eHandle
 	activeAlbums          map[int64]*albumBox
 	logger                Logger
-	openChats             map[int64]*openChat
 	nextUpdatesDeadline   time.Time
 	lastUpdateTimeNano    atomic.Int64
 	state                 UpdateState
 	channelStates         map[int64]*channelState
-	pendingGaps           map[int32]time.Time
-	processedUpdatesLRU   *lruCache
-	recoveringDifference  bool
-	recoveringChannels    map[int64]bool
+	pendingGaps           []pendingGap
 	stopChan              chan struct{}
 	patternCache          *patternCache
-	lifecycleHooks        *LifecycleHooks
-	taskPool              *TaskPool
 	middlewareManager     *middlewareManager
+	channelDiffAbort      map[int64]chan struct{}
+	channelDiffAbortMu    sync.Mutex
 }
 
 func (d *UpdateDispatcher) SetPts(pts int32) {
@@ -752,18 +623,6 @@ func (d *UpdateDispatcher) GetPts() int32 {
 	return d.state.Pts
 }
 
-func (d *UpdateDispatcher) SetQts(qts int32) {
-	d.Lock()
-	defer d.Unlock()
-	d.state.Qts = qts
-}
-
-func (d *UpdateDispatcher) GetQts() int32 {
-	d.RLock()
-	defer d.RUnlock()
-	return d.state.Qts
-}
-
 func (d *UpdateDispatcher) SetSeq(seq int32) {
 	d.Lock()
 	defer d.Unlock()
@@ -774,6 +633,18 @@ func (d *UpdateDispatcher) GetSeq() int32 {
 	d.RLock()
 	defer d.RUnlock()
 	return d.state.Seq
+}
+
+func (d *UpdateDispatcher) SetQts(qts int32) {
+	d.Lock()
+	defer d.Unlock()
+	d.state.Qts = qts
+}
+
+func (d *UpdateDispatcher) GetQts() int32 {
+	d.RLock()
+	defer d.RUnlock()
+	return d.state.Qts
 }
 
 func (d *UpdateDispatcher) SetDate(date int32) {
@@ -817,24 +688,12 @@ func (u *UpdateDispatcher) UpdateLastUpdateTime() {
 	u.lastUpdateTimeNano.Store(time.Now().UnixNano())
 }
 
-func (u *UpdateDispatcher) getLastUpdateTime() time.Time {
-	return time.Unix(0, u.lastUpdateTimeNano.Load())
-}
-
-func (d *UpdateDispatcher) TryMarkUpdateProcessed(updateID int64) bool {
-	if d.processedUpdatesLRU == nil {
-		return true
-	}
-	return d.processedUpdatesLRU.TryAdd(updateID)
-}
-
 func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 	c.dispatcher = &UpdateDispatcher{
 		logger: c.Log.WithPrefix("gogram " +
 			lp("updates", getVariadic(sessionName, ""))),
 		channelStates:         make(map[int64]*channelState),
-		pendingGaps:           make(map[int32]time.Time),
-		processedUpdatesLRU:   newLRUCache(15000),
+		pendingGaps:           []pendingGap{},
 		stopChan:              make(chan struct{}),
 		messageHandles:        make(map[int][]*messageHandle),
 		inlineHandles:         make(map[int][]*inlineHandle),
@@ -851,14 +710,11 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		e2eHandles:            make(map[int][]*e2eHandle),
 		activeAlbums:          make(map[int64]*albumBox),
 		patternCache:          newPatternCache(),
-		lifecycleHooks:        &LifecycleHooks{},
-		taskPool:              NewTaskPool(1000),
 		middlewareManager:     &middlewareManager{},
+		channelDiffAbort:      make(map[int64]chan struct{}),
 	}
 	c.dispatcher.lastUpdateTimeNano.Store(time.Now().UnixNano())
 	c.dispatcher.logger.Debug("update dispatcher initialized")
-
-	go c.monitorNoUpdatesTimeout()
 }
 
 func (c *Client) RemoveHandle(handle Handle) error {
@@ -969,22 +825,8 @@ func getUpdateTypeID(update Update) uint32 {
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
-		updateID := int64(msg.ID)
-		peerID := c.GetPeerID(msg.PeerID)
-		if peerID == 0 {
-			peerID = c.GetPeerID(msg.FromID)
-		}
-		if peerID != 0 {
-			updateID = (peerID << 32) | int64(msg.ID)
-		}
-
 		if msg.Out {
 			msg.FromID = &PeerUser{UserID: c.Me().ID}
-		}
-
-		if !c.dispatcher.TryMarkUpdateProcessed(updateID) {
-			c.dispatcher.logger.Trace("duplicate message update skipped: %d", updateID)
-			return
 		}
 
 		if msg.GroupedID != 0 {
@@ -998,10 +840,6 @@ func (c *Client) handleMessageUpdate(update Message) {
 			}
 			if h.runFilterChain(packed, h.Filters) {
 				defer c.NewRecovery()()
-				start := time.Now()
-				if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.BeforeHandler != nil {
-					c.dispatcher.lifecycleHooks.BeforeHandler(packed)
-				}
 
 				handler := h.Handler
 				var mids []Middleware
@@ -1018,17 +856,8 @@ func (c *Client) handleMessageUpdate(update Message) {
 				}
 
 				err := handler(packed)
-				if h.metrics != nil {
-					h.metrics.RecordCall(time.Since(start), err)
-				}
 
-				if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.AfterHandler != nil {
-					c.dispatcher.lifecycleHooks.AfterHandler(packed, err)
-				}
 				if err != nil {
-					if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.OnError != nil {
-						c.dispatcher.lifecycleHooks.OnError(err, packed)
-					}
 					return err
 				}
 			}
@@ -1093,29 +922,16 @@ func (c *Client) handleMessageUpdate(update Message) {
 			for _, handler := range defaultHandlers {
 				if handler.IsMatch(msg.Message, c) {
 					h := handler
-					c.dispatcher.taskPool.Submit(func() {
+					go func() {
 						if err := handle(h); err != nil && !errors.Is(err, ErrEndGroup) {
 							c.dispatcher.logger.WithError(err).Error("[NewMessageHandler]")
 						}
-					})
+					}()
 				}
 			}
 		}
 
 	case *MessageService:
-		updateID := int64(msg.ID)
-		peerID := c.GetPeerID(msg.PeerID)
-		if peerID == 0 {
-			peerID = c.GetPeerID(msg.FromID)
-		}
-		if peerID != 0 {
-			updateID = (peerID << 32) | int64(msg.ID)
-		}
-
-		if !c.dispatcher.TryMarkUpdateProcessed(updateID) {
-			c.dispatcher.logger.Trace("duplicate message update skipped: %d", updateID)
-			return
-		}
 
 		packed := packMessage(c, msg)
 		if msg.Out {
@@ -1135,7 +951,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 				}
 
 				if group == DefaultGroup {
-					c.dispatcher.taskPool.Submit(func() {
+					go func() {
 						err := handle(h)
 						if err != nil {
 							if errors.Is(err, ErrEndGroup) {
@@ -1143,7 +959,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 							}
 							c.Log.WithError(err).Error("[ChatActionHandler]")
 						}
-					})
+					}()
 				} else {
 					if err := handle(h); err != nil && errors.Is(err, ErrEndGroup) {
 						break
@@ -1216,10 +1032,6 @@ func (c *Client) handleEditUpdate(update Message) {
 					handle := func(h *messageEditHandle) error {
 						if h.runFilterChain(packed, h.Filters) {
 							defer c.NewRecovery()()
-							start := time.Now()
-							if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.BeforeHandler != nil {
-								c.dispatcher.lifecycleHooks.BeforeHandler(packed)
-							}
 
 							handler := h.Handler
 							var mids []Middleware
@@ -1234,17 +1046,8 @@ func (c *Client) handleEditUpdate(update Message) {
 							}
 
 							err := handler(packed)
-							if h.metrics != nil {
-								h.metrics.RecordCall(time.Since(start), err)
-							}
 
-							if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.AfterHandler != nil {
-								c.dispatcher.lifecycleHooks.AfterHandler(packed, err)
-							}
 							if err != nil {
-								if c.dispatcher.lifecycleHooks != nil && c.dispatcher.lifecycleHooks.OnError != nil {
-									c.dispatcher.lifecycleHooks.OnError(err, packed)
-								}
 								return err
 							}
 						}
@@ -1286,11 +1089,7 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 				handle := func(h *callbackHandle) error {
 					if h.runFilterChain(packed, h.Filters) {
 						defer c.NewRecovery()()
-						start := time.Now()
 						err := h.Handler(packed)
-						if h.metrics != nil {
-							h.metrics.RecordCall(time.Since(start), err)
-						}
 						if err != nil {
 							return err
 						}
@@ -1355,12 +1154,6 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 }
 
 func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
-	updateID := (update.ChannelID << 32) | int64(update.Qts)
-
-	if !c.dispatcher.TryMarkUpdateProcessed(updateID) {
-		return
-	}
-
 	packed := packChannelParticipant(c, update)
 
 	c.dispatcher.RLock()
@@ -1661,7 +1454,7 @@ func (h *inlineCallbackHandle) IsMatch(data []byte, c *Client) bool {
 }
 
 func (h *messageHandle) IsMatch(text string, c *Client) bool {
-	if h == nil || h.Pattern == nil {
+	if h.Pattern == nil {
 		return false
 	}
 	switch Pattern := h.Pattern.(type) {
@@ -2208,7 +2001,6 @@ func (c *Client) AddMessageHandler(pattern any, handler MessageHandler, filters 
 			id:      handleID,
 			Group:   DefaultGroup,
 			enabled: true,
-			metrics: &HandlerMetrics{},
 		},
 	}
 
@@ -2402,416 +2194,631 @@ func (c *Client) AddE2EHandler(handler func(update Update, c *Client) error) Han
 	return addHandleToMap(c.dispatcher.e2eHandles, h)
 }
 
+func commonPtsFromUpdate(u any) (pts int32, ptsCount int32, ok bool) {
+	if u == nil {
+		return 0, 0, false
+	}
+
+	switch up := u.(type) {
+	case *UpdateNewMessage:
+		return normalizePts(up.Pts, up.PtsCount)
+	case *UpdateEditMessage:
+		return normalizePts(up.Pts, up.PtsCount)
+	case *UpdateDeleteMessages:
+		return normalizePts(up.Pts, up.PtsCount)
+	case *UpdateReadHistoryInbox:
+		return normalizePts(up.Pts, up.PtsCount)
+	case *UpdateReadHistoryOutbox:
+		return normalizePts(up.Pts, up.PtsCount)
+	case *UpdateReadMessagesContents:
+		return normalizePts(up.Pts, up.PtsCount)
+	case *UpdatePinnedMessages:
+		return normalizePts(up.Pts, up.PtsCount)
+	case *UpdateWebPage:
+		return normalizePts(up.Pts, up.PtsCount)
+	case *UpdateFolderPeers:
+		return normalizePts(up.Pts, up.PtsCount)
+	case *UpdateShortMessage:
+		return normalizePts(up.Pts, up.PtsCount)
+	case *UpdateShortChatMessage:
+		return normalizePts(up.Pts, up.PtsCount)
+	case *UpdateShortSentMessage:
+		return normalizePts(up.Pts, up.PtsCount)
+	default:
+		return 0, 0, false
+	}
+}
+
+// qtsFromUpdate extracts Qts from an update-like object (if present).
+func qtsFromUpdate(u any) (qts int32, ok bool) {
+	if u == nil {
+		return 0, false
+	}
+
+	switch up := u.(type) {
+	case *UpdateNewEncryptedMessage:
+		return normalizeQts(up.Qts)
+	case *UpdateBotBusinessConnect:
+		return normalizeQts(up.Qts)
+	case *UpdateBotChatBoost:
+		return normalizeQts(up.Qts)
+	case *UpdateBotChatInviteRequester:
+		return normalizeQts(up.Qts)
+	case *UpdateBotDeleteBusinessMessage:
+		return normalizeQts(up.Qts)
+	case *UpdateBotEditBusinessMessage:
+		return normalizeQts(up.Qts)
+	case *UpdateBotMessageReaction:
+		return normalizeQts(up.Qts)
+	case *UpdateBotMessageReactions:
+		return normalizeQts(up.Qts)
+	case *UpdateBotNewBusinessMessage:
+		return normalizeQts(up.Qts)
+	case *UpdateBotPurchasedPaidMedia:
+		return normalizeQts(up.Qts)
+	case *UpdateBotStopped:
+		return normalizeQts(up.Qts)
+	case *UpdateBotSubscriptionExpire:
+		return normalizeQts(up.Qts)
+	case *UpdateChannelParticipant:
+		return normalizeQts(up.Qts)
+	case *UpdateChatParticipant:
+		return normalizeQts(up.Qts)
+	case *UpdateMessagePollVote:
+		return normalizeQts(up.Qts)
+	default:
+		return 0, false
+	}
+}
+
+// channelPtsFromUpdate extracts channel-scoped (ChannelID, Pts, PtsCount) if present.
+func channelPtsFromUpdate(u any) (channelID int64, pts int32, ptsCount int32, ok bool) {
+	if u == nil {
+		return 0, 0, 0, false
+	}
+
+	switch up := u.(type) {
+	case *UpdateDeleteChannelMessages:
+		return normalizeChannelPts(up.ChannelID, up.Pts, up.PtsCount)
+	case *UpdatePinnedChannelMessages:
+		return normalizeChannelPts(up.ChannelID, up.Pts, up.PtsCount)
+	case *UpdateReadChannelInbox:
+		return normalizeChannelPts(up.ChannelID, up.Pts, 1)
+	case *UpdateChannelWebPage:
+		return normalizeChannelPts(up.ChannelID, up.Pts, up.PtsCount)
+	case *UpdateChannelTooLong:
+		return normalizeChannelPts(up.ChannelID, up.Pts, 1)
+	case *UpdateNewChannelMessage:
+		if channelID, ok := channelIDFromMessage(up.Message); ok {
+			return normalizeChannelPts(channelID, up.Pts, up.PtsCount)
+		}
+		return 0, 0, 0, false
+	case *UpdateEditChannelMessage:
+		if channelID, ok := channelIDFromMessage(up.Message); ok {
+			return normalizeChannelPts(channelID, up.Pts, up.PtsCount)
+		}
+		return 0, 0, 0, false
+	default:
+		return 0, 0, 0, false
+	}
+}
+
+func (c *Client) applyUpdateState(update Update) bool {
+	if c == nil || c.dispatcher == nil {
+		return true
+	}
+	if qts, ok := qtsFromUpdate(update); ok {
+		if !c.dispatcher.manageQts(c, qts) {
+			return false
+		}
+	}
+	if channelID, pts, ptsCount, ok := channelPtsFromUpdate(update); ok {
+		if !c.dispatcher.manageChannelPts(c, channelID, pts, ptsCount) {
+			return false
+		}
+	}
+	if pts, ptsCount, ok := commonPtsFromUpdate(update); ok {
+		if !c.dispatcher.managePts(c, pts, ptsCount) {
+			return false
+		}
+	}
+	return true
+}
+
+func (c *Client) dispatchUpdateToHandlers(update Update) {
+	switch update := update.(type) {
+	case *UpdateNewMessage:
+		go c.handleMessageUpdate(update.Message)
+	case *UpdateNewChannelMessage:
+		go c.handleMessageUpdate(update.Message)
+	case *UpdateNewScheduledMessage:
+		go c.handleMessageUpdate(update.Message)
+	case *UpdateEditMessage:
+		go c.handleEditUpdate(update.Message)
+	case *UpdateEditChannelMessage:
+		go c.handleEditUpdate(update.Message)
+	case *UpdateDeleteMessages:
+		go c.handleDeleteUpdate(update)
+	case *UpdateDeleteChannelMessages:
+		go c.handleDeleteUpdate(update)
+	case *UpdateReadHistoryInbox:
+		//
+	case *UpdateReadHistoryOutbox:
+		//
+	case *UpdateWebPage:
+		//
+	case *UpdateReadMessagesContents:
+		//
+	case *UpdateReadChannelInbox:
+		//
+	case *UpdateChannelWebPage:
+		//
+	case *UpdateFolderPeers:
+		//
+	case *UpdatePinnedMessages:
+		//
+	case *UpdatePinnedChannelMessages:
+		//
+	case *UpdateBotInlineQuery:
+		go c.handleInlineUpdate(update)
+	case *UpdateBotCallbackQuery:
+		go c.handleCallbackUpdate(update)
+	case *UpdateInlineBotCallbackQuery:
+		go c.handleInlineCallbackUpdate(update)
+	case *UpdateChannelParticipant:
+		go c.handleParticipantUpdate(update)
+	case *UpdatePendingJoinRequests, *UpdateBotChatInviteRequester:
+		go c.handleJoinRequestUpdate(update)
+	case *UpdateBotInlineSend:
+		go c.handleInlineSendUpdate(update)
+	case *UpdateChannelTooLong:
+		if update.Pts != 0 && c.dispatcher.GetChannelPts(update.ChannelID) == 0 {
+			c.dispatcher.SetChannelPts(update.ChannelID, update.Pts)
+		}
+		c.Log.Trace("[updates] updateChannelTooLong -> triggering getChannelDifference (channel=%d)", update.ChannelID)
+		go c.fetchChannelDifference(update.ChannelID, 5000)
+	case *UpdateEncryption, *UpdateNewEncryptedMessage:
+		go c.HandleSecretChatUpdate(update)
+	}
+}
+
 // HandleIncomingUpdates processes incoming updates and dispatches them to the appropriate handlers.
 func HandleIncomingUpdates(u any, c *Client) bool {
-	// Update last update time for 15-minute timeout monitoring
 	c.dispatcher.UpdateLastUpdateTime()
 	c.dispatcher.nextUpdatesDeadline = time.Now().Add(time.Minute * 15)
 
-UpdateTypeSwitching:
 	switch upd := u.(type) {
 	case *UpdatesObj:
-		if !c.manageSeq(upd.Seq, upd.Seq) {
-			return false
+		if !c.dispatcher.manageSeq(c, upd.Seq, upd.Seq) {
+			return true
 		}
 
+		c.dispatcher.SetDate(upd.Date)
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
 		for _, update := range upd.Updates {
-			switch update := update.(type) {
-			case *UpdateNewMessage:
-				go c.handleMessageUpdate(update.Message)
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateNewChannelMessage:
-				channelID := getChannelIDFromMessage(update.Message)
-				if channelID != 0 {
-					go c.handleMessageUpdate(update.Message)
-					c.manageChannelPts(channelID, update.Pts, update.PtsCount)
-				} else {
-					go c.handleMessageUpdate(update.Message)
-					c.managePts(update.Pts, update.PtsCount)
-				}
-			case *UpdateNewScheduledMessage:
-				go c.handleMessageUpdate(update.Message)
-			case *UpdateEditMessage:
-				go c.handleEditUpdate(update.Message)
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateEditChannelMessage:
-				channelID := getChannelIDFromMessage(update.Message)
-				if channelID != 0 {
-					go c.handleEditUpdate(update.Message)
-					c.manageChannelPts(channelID, update.Pts, update.PtsCount)
-				} else {
-					go c.handleEditUpdate(update.Message)
-					c.managePts(update.Pts, update.PtsCount)
-				}
-			case *UpdateDeleteMessages:
-				go c.handleDeleteUpdate(update)
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateDeleteChannelMessages:
-				go c.handleDeleteUpdate(update)
-				c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount)
-			case *UpdateReadHistoryInbox:
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateReadHistoryOutbox:
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateWebPage:
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateReadMessagesContents:
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateReadChannelInbox:
-				c.manageChannelPts(update.ChannelID, update.Pts, 0)
-			case *UpdateChannelWebPage:
-				c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount)
-			case *UpdateFolderPeers:
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdatePinnedMessages:
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdatePinnedChannelMessages:
-				c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount)
-			case *UpdateBotInlineQuery:
-				go c.handleInlineUpdate(update)
-			case *UpdateBotCallbackQuery:
-				go c.handleCallbackUpdate(update)
-			case *UpdateInlineBotCallbackQuery:
-				go c.handleInlineCallbackUpdate(update)
-			case *UpdateChannelParticipant:
-				go c.handleParticipantUpdate(update)
-			case *UpdatePendingJoinRequests, *UpdateBotChatInviteRequester:
-				go c.handleJoinRequestUpdate(update)
-			case *UpdateBotInlineSend:
-				go c.handleInlineSendUpdate(update)
-			case *UpdateChannelTooLong:
-				currentPts := c.dispatcher.GetChannelPts(update.ChannelID)
-				if update.Pts != 0 {
-					currentPts = update.Pts
-				}
-				go c.FetchChannelDifference(update.ChannelID, currentPts, 50)
-			case *UpdateEncryption, *UpdateNewEncryptedMessage:
-				go c.HandleSecretChatUpdate(update)
+			if !c.applyUpdateState(update) {
+				continue
 			}
+			c.dispatchUpdateToHandlers(update)
 			go c.handleRawUpdate(update)
 		}
 	case *UpdateShort:
 		switch upd := upd.Update.(type) {
 		case *UpdateNewMessage:
+			if !c.applyUpdateState(upd) {
+				return true
+			}
 			go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
 		case *UpdateNewChannelMessage:
-			channelID := getChannelIDFromMessage(upd.Message)
-			if channelID != 0 {
-				go c.handleMessageUpdate(upd.Message)
-				c.manageChannelPts(channelID, upd.Pts, upd.PtsCount)
-			} else {
-				go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
+			if !c.applyUpdateState(upd) {
+				return true
 			}
+			go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
 		case *UpdateChannelTooLong:
-			currentPts := c.dispatcher.GetChannelPts(upd.ChannelID)
-			if upd.Pts != 0 {
-				currentPts = upd.Pts
+			if upd.Pts != 0 && c.dispatcher.GetChannelPts(upd.ChannelID) == 0 {
+				c.dispatcher.SetChannelPts(upd.ChannelID, upd.Pts)
 			}
-			go c.FetchChannelDifference(upd.ChannelID, currentPts, 50)
+			c.Log.Trace("[updates] updateChannelTooLong -> triggering getChannelDifference (channel=%d)", upd.ChannelID)
+			go c.fetchChannelDifference(upd.ChannelID, 5000)
 		}
 		go c.handleRawUpdate(upd.Update)
 	case *UpdateShortMessage:
 		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
+		if !c.dispatcher.managePts(c, upd.Pts, upd.PtsCount) {
+			return true
+		}
 		go c.fetchPeersBeforeUpdate(update, upd.Pts)
 		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdateShortChatMessage:
 		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
+		if pts, ptsCount, ok := commonPtsFromUpdate(upd); ok {
+			if !c.dispatcher.managePts(c, pts, ptsCount) {
+				return true
+			}
+		}
 		go c.fetchPeersBeforeUpdate(update, upd.Pts)
 		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdateShortSentMessage:
 		update := &MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}
+		if pts, ptsCount, ok := commonPtsFromUpdate(upd); ok {
+			if !c.dispatcher.managePts(c, pts, ptsCount) {
+				return true
+			}
+		}
 		go c.fetchPeersBeforeUpdate(update, upd.Pts)
 		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdatesCombined:
-		if !c.manageSeq(upd.Seq, upd.SeqStart) {
-			return false
+		if !c.dispatcher.manageSeq(c, upd.SeqStart, upd.Seq) {
+			return true
 		}
-
-		u = upd.Updates
+		c.dispatcher.SetDate(upd.Date)
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
-		goto UpdateTypeSwitching
-	case *UpdateChannelTooLong:
-		currentPts := c.dispatcher.GetChannelPts(upd.ChannelID)
-		if upd.Pts != 0 {
-			currentPts = upd.Pts
+		for _, update := range upd.Updates {
+			if !c.applyUpdateState(update) {
+				continue
+			}
+			c.dispatchUpdateToHandlers(update)
+			go c.handleRawUpdate(update)
 		}
-		go c.FetchChannelDifference(upd.ChannelID, currentPts, 50)
+	case *UpdateChannelTooLong:
+		if upd.Pts != 0 && c.dispatcher.GetChannelPts(upd.ChannelID) == 0 {
+			c.dispatcher.SetChannelPts(upd.ChannelID, upd.Pts)
+		}
+		c.Log.Trace("[updates] updateChannelTooLong -> triggering getChannelDifference (channel=%d)", upd.ChannelID)
+		c.fetchChannelDifference(upd.ChannelID, 5000)
 	case *UpdatesTooLong:
-		go c.FetchDifference(c.dispatcher.GetPts(), 5000)
+		go c.fetchCommonDifference(5000)
 	default:
 		c.Log.Debug("unhandled update type: %T", upd)
 	}
 	return true
 }
 
-func getChannelIDFromMessage(msg Message) int64 {
-	if m, ok := msg.(*MessageObj); ok {
-		if peer, ok := m.PeerID.(*PeerChannel); ok {
-			return peer.ChannelID
+func (d *UpdateDispatcher) manageSeq(c *Client, seqStart, seqEnd int32) bool {
+	if seqStart == 0 {
+		if seqEnd != 0 {
+			d.Lock()
+			if d.state.Seq < seqEnd {
+				d.state.Seq = seqEnd
+			}
+			d.Unlock()
 		}
+		return true
 	}
-	return 0
+	if seqEnd == 0 {
+		return true
+	}
+
+	d.Lock()
+	localSeq := d.state.Seq
+	if localSeq == 0 {
+		d.state.Seq = seqEnd
+		d.Unlock()
+		return true
+	}
+
+	expectedStart := localSeq + 1
+	if expectedStart == seqStart {
+		d.state.Seq = seqEnd
+		d.Unlock()
+		return true
+	}
+	if expectedStart > seqStart {
+		d.Unlock()
+		return false
+	}
+	d.Unlock()
+
+	if c != nil {
+		c.Log.Debug("[updates] seq gap: got=%d..%d expectedStart=%d gap=%d (localSeq=%d) -> triggering getDifference", seqStart, seqEnd, expectedStart, seqStart-expectedStart, localSeq)
+		go func(client *Client) {
+			if err := client.fetchCommonDifference(5000); err != nil {
+				client.Log.WithError(err).Debug("[getDifference] seq gap")
+			}
+		}(c)
+	}
+	return false
 }
 
-func (c *Client) FetchDifference(fromPts int32, limit int32) {
-	c.dispatcher.Lock()
-	if c.dispatcher.recoveringDifference {
-		c.dispatcher.Unlock()
+func (c *Client) dispatchCommonUpdate(update Update) {
+	if !c.applyUpdateState(update) {
 		return
 	}
-	c.dispatcher.recoveringDifference = true
-	c.dispatcher.Unlock()
+	c.dispatchUpdateToHandlers(update)
+	go c.handleRawUpdate(update)
+}
 
-	defer func() {
-		c.dispatcher.Lock()
-		c.dispatcher.recoveringDifference = false
-		c.dispatcher.Unlock()
-	}()
-
-	if limit == 0 {
-		limit = 5000
-	}
-	if limit > 10000 {
-		limit = 10000
+func (d *UpdateDispatcher) applyStateFrom(state *UpdatesState) {
+	if state == nil {
+		return
 	}
 
-	totalFetched := 0
+	d.SetSeq(state.Seq)
+	d.SetDate(state.Date)
+	d.SetQts(state.Qts)
+	d.SetPts(state.Pts)
+}
 
-	req := &UpdatesGetDifferenceParams{
-		Pts:           fromPts,
+// fetchCommonDifference calls updates.getDifference using the current dispatcher state
+func (c *Client) fetchCommonDifference(limit int32) error {
+	pts := c.dispatcher.GetPts()
+	qts := c.dispatcher.GetQts()
+	date := c.dispatcher.GetDate()
+	if date == 0 {
+		date = int32(time.Now().Unix())
+	}
+	if pts == 0 {
+		if qts != 0 {
+			c.Log.Debug("[updates] getDifference baseline missing (pts=0, qts=%d, date=%d): using pts=1", qts, date)
+		}
+		pts = 1
+	}
+
+	params := &UpdatesGetDifferenceParams{
+		Pts:           pts,
 		PtsLimit:      limit,
 		PtsTotalLimit: limit,
-		Date:          c.dispatcher.GetDate(),
-		Qts:           c.dispatcher.GetQts(),
-		QtsLimit:      limit,
+		Date:          date,
+		Qts:           qts,
+	}
+	if qts != 0 {
+		params.QtsLimit = limit
 	}
 
-	if req.Date == 0 {
-		req.Date = int32(time.Now().Unix())
-	}
-
-	maxIterations := 10
-	iteration := 0
-
-	for iteration < maxIterations {
-		iteration++
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		updates, err := c.MTProto.MakeRequestCtx(ctx, req)
-		cancel()
-
-		if err != nil {
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				continue
+	resp, err := c.UpdatesGetDifference(params)
+	if err != nil {
+		if strings.Contains(err.Error(), "PERSISTENT_TIMESTAMP_EMPTY") {
+			c.Log.WithError(err).Debug("[updates] getDifference rejected (PERSISTENT_TIMESTAMP_EMPTY); seeding state via updates.getState and retrying")
+			st, stErr := c.UpdatesGetState()
+			if stErr != nil {
+				return err
 			}
-			return
-		}
-
-		switch u := updates.(type) {
-		case *UpdatesDifferenceEmpty:
-			c.dispatcher.SetDate(u.Date)
-			c.dispatcher.SetSeq(u.Seq)
-			return
-
-		case *UpdatesDifferenceObj:
-			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
-
-			for _, message := range u.NewMessages {
-				if msg, ok := message.(*MessageObj); ok {
-					go c.handleMessageUpdate(msg)
-					totalFetched++
-				}
+			c.dispatcher.applyStateFrom(st)
+			pts = c.dispatcher.GetPts()
+			qts = c.dispatcher.GetQts()
+			date = c.dispatcher.GetDate()
+			if date == 0 {
+				date = int32(time.Now().Unix())
 			}
-
-			if len(u.OtherUpdates) > 0 {
-				totalFetched += len(u.OtherUpdates)
-				HandleIncomingUpdates(&UpdatesObj{Updates: u.OtherUpdates, Users: u.Users, Chats: u.Chats}, c)
+			if pts == 0 {
+				pts = 1
 			}
-
-			c.dispatcher.SetPts(u.State.Pts)
-			c.dispatcher.SetQts(u.State.Qts)
-			c.dispatcher.SetSeq(u.State.Seq)
-			c.dispatcher.SetDate(u.State.Date)
-			return
-
-		case *UpdatesDifferenceSlice:
-			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
-
-			for _, message := range u.NewMessages {
-				if msg, ok := message.(*MessageObj); ok {
-					go c.handleMessageUpdate(msg)
-					totalFetched++
-				}
+			params = &UpdatesGetDifferenceParams{
+				Pts:           pts,
+				PtsLimit:      limit,
+				PtsTotalLimit: limit,
+				Date:          date,
+				Qts:           qts,
 			}
-
-			if len(u.OtherUpdates) > 0 {
-				totalFetched += len(u.OtherUpdates)
-				HandleIncomingUpdates(&UpdatesObj{Updates: u.OtherUpdates, Users: u.Users, Chats: u.Chats}, c)
+			if qts != 0 {
+				params.QtsLimit = limit
 			}
-
-			c.dispatcher.SetPts(u.IntermediateState.Pts)
-			c.dispatcher.SetQts(u.IntermediateState.Qts)
-			c.dispatcher.SetSeq(u.IntermediateState.Seq)
-			c.dispatcher.SetDate(u.IntermediateState.Date)
-
-			req.Pts = u.IntermediateState.Pts
-			req.Qts = u.IntermediateState.Qts
-			req.Date = u.IntermediateState.Date
-
-		case *UpdatesDifferenceTooLong:
-			c.Log.Debug("difference too long, refetching state (pts=%d, limit=%d, fetched=%d)", u.Pts, limit, totalFetched)
-			c.dispatcher.SetPts(u.Pts)
-
-			state, err := c.UpdatesGetState()
+			resp, err = c.UpdatesGetDifference(params)
 			if err != nil {
-				c.Log.Error("failed to get update state: %v", err)
-				return
+				return err
 			}
-
-			c.dispatcher.SetPts(state.Pts)
-			c.dispatcher.SetQts(state.Qts)
-			c.dispatcher.SetSeq(state.Seq)
-			c.dispatcher.SetDate(state.Date)
-			return
-
-		default:
-			c.Log.Debug("unhandled difference type: %T", updates)
-			return
+		} else {
+			return err
 		}
 	}
 
-	c.Log.Debug("difference fetch limit reached (iterations=%d, pts=%d, fetched=%d)", maxIterations, req.Pts, totalFetched)
-}
-
-func (c *Client) managePts(pts int32, ptsCount int32) bool {
-	var currentPts = c.dispatcher.GetPts()
-
-	if currentPts == 0 {
-		c.dispatcher.SetPts(pts)
-		return true
-	}
-
-	expectedPts := currentPts + ptsCount
-
-	if expectedPts == pts {
-		c.dispatcher.SetPts(pts)
-		return true
-	}
-
-	if expectedPts > pts {
-		return false
-	}
-
-	if expectedPts < pts {
-		gap := pts - expectedPts
-
-		if gap <= 5 {
-			c.dispatcher.SetPts(pts)
-			return true
-		} else if gap > 2000 {
-			c.dispatcher.SetPts(pts)
-			return true
+	switch resp := resp.(type) {
+	case *UpdatesDifferenceEmpty:
+		// No updates; nothing to do.
+	case *UpdatesDifferenceObj:
+		go c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
+		if resp.State != nil {
+			c.dispatcher.applyStateFrom(resp.State)
+		}
+		for _, update := range resp.NewMessages {
+			go c.handleMessageUpdate(update)
 		}
 
-		c.dispatcher.SetPts(pts)
-
-		gapPts := expectedPts
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-
-			newCurrentPts := c.dispatcher.GetPts()
-			if newCurrentPts >= pts {
-				return
-			}
-
-			c.FetchDifference(gapPts, gap+10)
-		}()
-
-		return true
-	}
-
-	return true
-}
-
-func (c *Client) manageSeq(seq int32, seqStart int32) bool {
-	if seq == 0 && seqStart == 0 {
-		return true
-	}
-
-	currentSeq := c.dispatcher.GetSeq()
-
-	if currentSeq == 0 {
-		c.dispatcher.SetSeq(seq)
-		return true
-	}
-
-	expectedSeqStart := currentSeq + 1
-
-	if expectedSeqStart == seqStart {
-		c.dispatcher.SetSeq(seq)
-		return true
-	}
-
-	if expectedSeqStart > seqStart {
-		return false
-	}
-
-	if expectedSeqStart < seqStart {
-		go c.FetchDifference(c.dispatcher.GetPts(), 5000)
-		return false
-	}
-
-	return true
-}
-
-func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bool {
-	var currentPts = c.dispatcher.GetChannelPts(channelID)
-
-	if currentPts == 0 {
-		c.dispatcher.SetChannelPts(channelID, pts)
-		return true
-	}
-
-	expectedPts := currentPts + ptsCount
-
-	if expectedPts == pts {
-		c.dispatcher.SetChannelPts(channelID, pts)
-		return true
-	}
-
-	if expectedPts > pts {
-		return false
-	}
-
-	if expectedPts < pts {
-		gap := pts - expectedPts
-
-		if gap <= 5 {
-			c.dispatcher.SetChannelPts(channelID, pts)
-			return true
-		} else if gap > 1000 {
-			c.dispatcher.SetChannelPts(channelID, pts)
-			return true
+		for _, update := range resp.OtherUpdates {
+			c.dispatchCommonUpdate(update)
+		}
+	case *UpdatesDifferenceSlice:
+		if resp.IntermediateState != nil {
+			c.dispatcher.applyStateFrom(resp.IntermediateState)
+		}
+		for _, update := range resp.NewMessages {
+			go c.handleMessageUpdate(update)
 		}
 
-		c.dispatcher.SetChannelPts(channelID, pts)
+		for _, update := range resp.OtherUpdates {
+			c.dispatchCommonUpdate(update)
+		}
+	}
 
-		gapPts := expectedPts
-		go func() {
-			time.Sleep(500 * time.Millisecond)
+	return nil
+}
 
-			newCurrentPts := c.dispatcher.GetChannelPts(channelID)
-			if newCurrentPts >= pts {
-				return
-			}
+func (c *Client) inputChannelForID(channelID int64) InputChannel {
+	if c != nil && c.Cache != nil {
+		if peer, err := c.Cache.getChannelPeer(channelID); err == nil && peer != nil {
+			return peer
+		}
+		if ch, err := c.getChannelFromCache(channelID); err == nil && ch != nil {
+			return &InputChannelObj{ChannelID: channelID, AccessHash: ch.AccessHash}
+		}
+	}
+	return &InputChannelObj{ChannelID: channelID, AccessHash: 0}
+}
 
-			c.FetchChannelDifference(channelID, gapPts, 100)
-		}()
+// fetchChannelDifference calls updates.getChannelDifference for a single channel using the current dispatcher channel pts.
+func (c *Client) fetchChannelDifference(channelID int64, limit int32) error {
+	if channelID == 0 {
+		return errors.New("channelID is zero")
+	}
 
+	pts := c.dispatcher.GetChannelPts(channelID)
+	resp, err := c.UpdatesGetChannelDifference(&UpdatesGetChannelDifferenceParams{
+		Channel: c.inputChannelForID(channelID),
+		Filter:  &ChannelMessagesFilterEmpty{},
+		Pts:     pts,
+		Limit:   limit,
+	})
+	if err != nil {
+		return err
+	}
+
+	switch resp := resp.(type) {
+	case *UpdatesChannelDifferenceEmpty:
+		// No updates; nothing to do.
+	case *UpdatesChannelDifferenceObj:
+		go c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
+		c.dispatcher.SetChannelPts(channelID, resp.Pts)
+		for _, m := range resp.NewMessages {
+			go c.handleMessageUpdate(m)
+		}
+
+		for _, up := range resp.OtherUpdates {
+			c.dispatchCommonUpdate(up)
+		}
+	case *UpdatesChannelDifferenceTooLong:
+		// Full resync required; nothing to do here.
+	}
+
+	return nil
+}
+
+func (d *UpdateDispatcher) managePts(c *Client, pts, ptsCount int32) bool {
+	if pts == 0 {
+		return true
+	}
+	if ptsCount <= 0 {
+		ptsCount = 1
+	}
+
+	d.Lock()
+	localPts := d.state.Pts
+	if localPts == 0 {
+		d.state.Pts = pts
+		d.Unlock()
 		return true
 	}
 
-	return true
+	localNext := localPts + ptsCount
+	if localNext == pts {
+		d.state.Pts = pts
+		d.Unlock()
+		return true
+	}
+	if localNext > pts {
+		d.Unlock()
+		return false
+	}
+
+	diff := pts - localNext
+	if diff <= 1 {
+		d.state.Pts = pts
+		d.Unlock()
+		return true
+	}
+	d.Unlock()
+
+	if c != nil {
+		c.Log.Debug("[updates] pts gap: got=%d expected=%d diff=%d (localPts=%d ptsCount=%d) -> triggering getDifference", pts, localNext, diff, localPts, ptsCount)
+		if c.MTProto != nil {
+			go func(client *Client) {
+				if err := client.fetchCommonDifference(5000); err != nil {
+					client.Log.WithError(err).Debug("[getDifference] pts gap")
+				}
+			}(c)
+		}
+	}
+	return false
+}
+
+func (d *UpdateDispatcher) manageQts(c *Client, qts int32) bool {
+	if qts == 0 {
+		return true
+	}
+
+	d.Lock()
+	localQts := d.state.Qts
+	if localQts == 0 {
+		d.state.Qts = qts
+		d.Unlock()
+		return true
+	}
+
+	expected := localQts + 1
+	if expected == qts {
+		d.state.Qts = qts
+		d.Unlock()
+		return true
+	}
+	if expected > qts {
+		d.Unlock()
+		return false
+	}
+	d.Unlock()
+
+	// Gap: expected < qts.
+	if c != nil {
+		c.Log.Debug("[updates] qts gap: got=%d expected=%d (localQts=%d) -> triggering getDifference", qts, expected, localQts)
+		go func(client *Client) {
+			if err := client.fetchCommonDifference(5000); err != nil {
+				client.Log.WithError(err).Debug("[getDifference] qts gap")
+			}
+		}(c)
+	}
+	return false
+}
+
+func (d *UpdateDispatcher) manageChannelPts(c *Client, channelID int64, pts, ptsCount int32) bool {
+	if channelID == 0 || pts == 0 {
+		return true
+	}
+	if ptsCount <= 0 {
+		ptsCount = 1
+	}
+
+	d.Lock()
+	if d.channelStates == nil {
+		d.channelStates = make(map[int64]*channelState)
+	}
+	st, ok := d.channelStates[channelID]
+	if !ok {
+		st = &channelState{}
+		d.channelStates[channelID] = st
+	}
+	localPts := st.pts
+	if localPts == 0 {
+		st.pts = pts
+		d.Unlock()
+		return true
+	}
+
+	localNext := localPts + ptsCount
+	if localNext == pts {
+		st.pts = pts
+		d.Unlock()
+		return true
+	}
+	if localNext > pts {
+		d.Unlock()
+		return false
+	}
+
+	diff := pts - localNext
+	if diff <= 1 {
+		st.pts = pts
+		d.Unlock()
+		return true
+	}
+	d.Unlock()
+
+	if c != nil {
+		c.Log.Debug("[updates] channel pts gap: channel=%d got=%d expected=%d diff=%d (localPts=%d ptsCount=%d) -> triggering getChannelDifference", channelID, pts, localNext, diff, localPts, ptsCount)
+		go func(client *Client, chID int64) {
+			if err := client.fetchChannelDifference(chID, 5000); err != nil {
+				client.Log.WithError(err).Debug("[getChannelDifference] channel pts gap (channel=%d)", chID)
+			}
+		}(c, channelID)
+	}
+	return false
 }
 
 func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
@@ -2820,8 +2827,6 @@ func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
 		PtsLimit:      Limit,
 		PtsTotalLimit: Limit,
 		Date:          int32(time.Now().Unix()),
-		Qts:           0,
-		QtsLimit:      Limit,
 	})
 
 	if err != nil {
@@ -2847,351 +2852,6 @@ func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
 	}
 
 	return nil, nil
-}
-
-// FetchChannelDifference fetches updates difference for a specific channel
-// Use limit 10-100 as recommended for channels
-func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit int32) {
-	c.dispatcher.Lock()
-	if c.dispatcher.recoveringChannels == nil {
-		c.dispatcher.recoveringChannels = make(map[int64]bool)
-	}
-	if c.dispatcher.recoveringChannels[channelID] {
-		c.dispatcher.Unlock()
-		return
-	}
-	c.dispatcher.recoveringChannels[channelID] = true
-	c.dispatcher.Unlock()
-
-	defer func() {
-		c.dispatcher.Lock()
-		delete(c.dispatcher.recoveringChannels, channelID)
-		c.dispatcher.Unlock()
-	}()
-
-	if limit == 0 {
-		limit = 50
-	}
-	if limit > 100 {
-		limit = 100
-	}
-
-	c.dispatcher.RLock()
-	channelState, hasState := c.dispatcher.channelStates[channelID]
-	c.dispatcher.RUnlock()
-
-	var accessHash int64
-	if hasState {
-		accessHash = channelState.accessHash
-	}
-
-	if accessHash == 0 {
-		channel := c.getChannel(&PeerChannel{ChannelID: channelID})
-		if channel != nil {
-			accessHash = channel.AccessHash
-		} else {
-			c.Log.Error("channel difference failed: no access hash (channel=%d)", channelID)
-			return
-		}
-	}
-
-	totalFetched := 0
-	maxIterations := 20
-	iteration := 0
-
-	req := &UpdatesGetChannelDifferenceParams{
-		Force:   false,
-		Channel: &InputChannelObj{ChannelID: channelID, AccessHash: accessHash},
-		Filter:  &ChannelMessagesFilterEmpty{},
-		Pts:     fromPts,
-		Limit:   limit,
-	}
-
-	for iteration < maxIterations {
-		iteration++
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		diff, err := c.MTProto.MakeRequestCtx(ctx, req)
-		cancel()
-
-		if err != nil {
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				continue
-			}
-			return
-		}
-
-		switch d := diff.(type) {
-		case *UpdatesChannelDifferenceEmpty:
-			c.dispatcher.SetChannelPts(channelID, d.Pts)
-			return
-
-		case *UpdatesChannelDifferenceObj:
-			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
-
-			for _, message := range d.NewMessages {
-				if msg, ok := message.(*MessageObj); ok {
-					go c.handleMessageUpdate(msg)
-					totalFetched++
-				}
-			}
-
-			if len(d.OtherUpdates) > 0 {
-				totalFetched += len(d.OtherUpdates)
-				HandleIncomingUpdates(&UpdatesObj{Updates: d.OtherUpdates, Users: d.Users, Chats: d.Chats}, c)
-			}
-
-			c.dispatcher.SetChannelPts(channelID, d.Pts)
-
-			if d.Final {
-				return
-			}
-
-			c.dispatcher.RLock()
-			isOpen := channelState != nil && channelState.isOpen
-			c.dispatcher.RUnlock()
-
-			if !isOpen {
-				return
-			}
-
-			req.Pts = d.Pts
-
-		case *UpdatesChannelDifferenceTooLong:
-			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
-			for _, message := range d.Messages {
-				if msg, ok := message.(*MessageObj); ok {
-					go c.handleMessageUpdate(msg)
-					totalFetched++
-				}
-			}
-
-			if dialogChannel, ok := d.Dialog.(*DialogObj); ok {
-				c.dispatcher.SetChannelPts(channelID, dialogChannel.Pts)
-				c.Log.Debug("channel difference too long, refreshing state (channel=%d, pts=%d)", channelID, dialogChannel.Pts)
-
-				if !d.Final {
-					c.dispatcher.RLock()
-					isOpen := channelState != nil && channelState.isOpen
-					c.dispatcher.RUnlock()
-
-					if isOpen {
-						req.Pts = dialogChannel.Pts
-						continue
-					}
-				}
-			}
-
-			return
-
-		default:
-			c.Log.Debug("unhandled channel difference type: %T (channel=%d)", diff, channelID)
-			return
-		}
-	}
-
-	c.Log.Debug("channel difference fetch limit reached (channel=%d, iterations=%d, pts=%d, fetched=%d)", channelID, maxIterations, req.Pts, totalFetched)
-}
-
-// OpenChat starts active polling for a channel to receive updates faster.
-// timeoutSeconds specifies the polling interval in seconds.
-func (c *Client) OpenChat(channel *InputChannelObj, timeoutSeconds int32) {
-	c.dispatcher.Lock()
-	if c.dispatcher.openChats == nil {
-		c.dispatcher.openChats = make(map[int64]*openChat)
-	}
-	if _, ok := c.dispatcher.openChats[channel.ChannelID]; ok {
-		c.dispatcher.Unlock()
-		return
-	}
-	c.dispatcher.Unlock()
-
-	currentPts := c.dispatcher.GetChannelPts(channel.ChannelID)
-	if currentPts == 0 {
-		diff, err := c.UpdatesGetChannelDifference(&UpdatesGetChannelDifferenceParams{
-			Channel: channel,
-			Filter:  &ChannelMessagesFilterEmpty{},
-			Pts:     1,
-			Limit:   1,
-		})
-		if err != nil {
-			c.Log.Error("failed to get channel pts (channel=%d): %v", channel.ChannelID, err)
-			return
-		}
-		switch d := diff.(type) {
-		case *UpdatesChannelDifferenceEmpty:
-			currentPts = d.Pts
-		case *UpdatesChannelDifferenceObj:
-			currentPts = d.Pts
-		case *UpdatesChannelDifferenceTooLong:
-			if dialog, ok := d.Dialog.(*DialogObj); ok {
-				currentPts = dialog.Pts
-			}
-		}
-		if currentPts == 0 {
-			currentPts = 1
-		}
-	}
-
-	chat := &openChat{
-		accessHash: channel.AccessHash,
-		closeChan:  make(chan struct{}),
-		lastPts:    currentPts,
-		timeout:    timeoutSeconds,
-	}
-
-	c.dispatcher.Lock()
-	if _, ok := c.dispatcher.openChats[channel.ChannelID]; ok {
-		c.dispatcher.Unlock()
-		return
-	}
-	c.dispatcher.openChats[channel.ChannelID] = chat
-	// Mark channel as open in channelState for FetchChannelDifference checks
-	if c.dispatcher.channelStates == nil {
-		c.dispatcher.channelStates = make(map[int64]*channelState)
-	}
-	if state, ok := c.dispatcher.channelStates[channel.ChannelID]; ok {
-		state.isOpen = true
-	} else {
-		c.dispatcher.channelStates[channel.ChannelID] = &channelState{
-			pts:        currentPts,
-			accessHash: channel.AccessHash,
-			isOpen:     true,
-		}
-	}
-	c.dispatcher.Unlock()
-
-	go c.pollOpenChat(channel.ChannelID, chat)
-}
-
-// pollOpenChat periodically fetches channel difference for an open chat
-func (c *Client) pollOpenChat(channelID int64, chat *openChat) {
-	var errorCount int
-	const maxBackoff = 60 // max 60 seconds between retries on error
-
-	for {
-		chat.RLock()
-		timeout := time.Duration(chat.timeout) * time.Second
-		lastPts := chat.lastPts
-		chat.RUnlock()
-
-		if timeout < time.Second {
-			timeout = 15 * time.Second
-		}
-
-		// Add exponential backoff on consecutive errors
-		if errorCount > 0 {
-			backoff := min(1<<errorCount, maxBackoff)
-			timeout = time.Duration(backoff) * time.Second
-		}
-
-		select {
-		case <-chat.closeChan:
-			return
-		case <-time.After(timeout):
-		}
-
-		diff, err := c.UpdatesGetChannelDifference(&UpdatesGetChannelDifferenceParams{
-			Channel: &InputChannelObj{ChannelID: channelID, AccessHash: chat.accessHash},
-			Filter:  &ChannelMessagesFilterEmpty{},
-			Pts:     lastPts,
-			Limit:   100,
-		})
-		if err != nil {
-			errorCount++
-			c.Log.Debug("channel poll error (channel=%d, attempt=%d): %v", channelID, errorCount, err)
-			continue
-		}
-		errorCount = 0
-
-		switch d := diff.(type) {
-		case *UpdatesChannelDifferenceEmpty:
-			chat.Lock()
-			chat.timeout = d.Timeout
-			chat.Unlock()
-
-		case *UpdatesChannelDifferenceObj:
-			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
-			for _, msg := range d.NewMessages {
-				if msgObj, ok := msg.(*MessageObj); ok {
-					go c.handleMessageUpdate(msgObj)
-				}
-			}
-			if len(d.OtherUpdates) > 0 {
-				HandleIncomingUpdates(&UpdatesObj{Updates: d.OtherUpdates, Users: d.Users, Chats: d.Chats}, c)
-			}
-			chat.Lock()
-			chat.lastPts = d.Pts
-			chat.timeout = d.Timeout
-			chat.Unlock()
-			c.dispatcher.SetChannelPts(channelID, d.Pts)
-
-		case *UpdatesChannelDifferenceTooLong:
-			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
-			for _, msg := range d.Messages {
-				if msgObj, ok := msg.(*MessageObj); ok {
-					go c.handleMessageUpdate(msgObj)
-				}
-			}
-			chat.Lock()
-			chat.timeout = d.Timeout
-			if dialog, ok := d.Dialog.(*DialogObj); ok {
-				chat.lastPts = dialog.Pts
-				c.dispatcher.SetChannelPts(channelID, dialog.Pts)
-			}
-			chat.Unlock()
-		}
-	}
-}
-
-// CloseChat stops active polling for a channel when user leaves it.
-func (c *Client) CloseChat(channel *InputChannelObj) {
-	c.dispatcher.Lock()
-	defer c.dispatcher.Unlock()
-
-	if c.dispatcher.openChats == nil {
-		return
-	}
-	chat, ok := c.dispatcher.openChats[channel.ChannelID]
-	if !ok {
-		return
-	}
-	close(chat.closeChan)
-	delete(c.dispatcher.openChats, channel.ChannelID)
-	// Mark channel as closed
-	if state, ok := c.dispatcher.channelStates[channel.ChannelID]; ok {
-		state.isOpen = false
-	}
-}
-
-func (c *Client) monitorNoUpdatesTimeout() {
-	ticker := time.NewTicker(15 * time.Minute)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			if time.Since(c.dispatcher.getLastUpdateTime()) > 15*time.Minute {
-				c.Log.Debug("no updates for 15 minutes, fetching difference")
-				c.FetchDifference(c.dispatcher.GetPts(), 5000)
-			}
-		case <-c.dispatcher.stopChan:
-			return
-		}
-	}
-}
-
-// ExportPts exports the current pts value from the dispatcher.
-func (c *Client) ExportPts() int32 {
-	if c.dispatcher == nil {
-		return 0
-	}
-	return c.dispatcher.GetPts()
-}
-
-// FetchDifferenceOnStartup fetches any missed updates since last disconnect.
-// Should be called on startup after logging in to catch up on missed events.
-func (c *Client) FetchDifferenceOnStartup(pts int32) {
-	c.Log.Debug("fetching missed updates (pts=%d)", pts)
-	c.FetchDifference(pts, 5000)
 }
 
 type eventInfo struct {
@@ -3543,19 +3203,4 @@ func (c *Client) OnRaw(updateType Update, handler func(m Update, c *Client) erro
 // OnE2EMessage registers an E2E message handler and returns a handle
 func (c *Client) OnE2EMessage(handler func(update Update, c *Client) error) Handle {
 	return c.AddE2EHandler(handler)
-}
-
-// SetLifecycleHooks sets the lifecycle hooks for all handlers
-func (c *Client) SetLifecycleHooks(hooks *LifecycleHooks) {
-	if c.dispatcher != nil {
-		c.dispatcher.lifecycleHooks = hooks
-	}
-}
-
-// GetHandlerMetrics returns metrics for a specific handler
-func (c *Client) GetHandlerMetrics(handle Handle) *HandlerMetrics {
-	if bh, ok := handle.(*messageHandle); ok {
-		return bh.metrics
-	}
-	return nil
 }

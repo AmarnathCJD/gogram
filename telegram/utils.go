@@ -16,61 +16,12 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"errors"
 
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
-
-// TaskPool limits the number of concurrent goroutines
-type TaskPool struct {
-	tasks  chan func()
-	wg     sync.WaitGroup
-	active atomic.Int32
-	closed atomic.Bool
-}
-
-func NewTaskPool(size int) *TaskPool {
-	p := &TaskPool{
-		tasks: make(chan func(), size*100),
-	}
-	p.wg.Add(size)
-	for range size {
-		go p.worker()
-	}
-	return p
-}
-
-func (p *TaskPool) worker() {
-	defer p.wg.Done()
-	for task := range p.tasks {
-		p.active.Add(1)
-		task()
-		p.active.Add(-1)
-	}
-}
-
-func (p *TaskPool) Submit(task func()) {
-	if p.closed.Load() {
-		return
-	}
-	select {
-	case p.tasks <- task:
-	default:
-		p.tasks <- task
-	}
-}
-
-func (p *TaskPool) Close() {
-	if p.closed.Swap(true) {
-		return
-	}
-	close(p.tasks)
-	p.wg.Wait()
-}
 
 type mimeTypeManager struct {
 	mimeTypes       map[string]string // ext -> mime
