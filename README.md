@@ -170,6 +170,7 @@ client.On("callback:<pattern>", func(cb *telegram.CallbackQuery) error { // clie
 ```
 
 For more examples, check the **[examples](examples)** directory.
+- [x] **[sample modular bot](https://github.com/AmarnathCJD/JuliaBot)**: a simple modular with plugins bot example
 
 ## features
 
