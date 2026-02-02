@@ -602,15 +602,13 @@ func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 		}
 
 		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-		if len(lines) == 3 {
-			dur, _ = strconv.ParseFloat(strings.TrimSpace(lines[2]), 64)
-			width, _ = strconv.ParseInt(strings.TrimSpace(lines[0]), 10, 32)
-			height, _ = strconv.ParseInt(strings.TrimSpace(lines[1]), 10, 32)
-		} else {
-			width, _ = strconv.ParseInt(strings.TrimSpace(lines[0]), 10, 32)
-			height, _ = strconv.ParseInt(strings.TrimSpace(lines[1]), 10, 32)
-			if len(lines) > 4 {
-				dur, _ = strconv.ParseFloat(strings.TrimSpace(lines[4]), 64)
+		for i, line := range lines {
+			if i == 0 {
+				width, _ = strconv.ParseInt(strings.TrimSpace(line), 10, 32)
+			} else if i == 1 {
+				height, _ = strconv.ParseInt(strings.TrimSpace(line), 10, 32)
+			} else if i == len(lines)-1 {
+				dur, _ = strconv.ParseFloat(strings.TrimSpace(line), 64)
 			}
 		}
 

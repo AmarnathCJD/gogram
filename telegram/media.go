@@ -106,6 +106,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 		}
 	}
 
+	c.Logger.Debug(fmt.Sprintf("expected workers: %d, preallocated workers: %d", numWorkers, sendersPreallocated))
 	for i := sendersPreallocated; i < numWorkers; i++ {
 		x, _ := c.CreateExportedSender(c.GetDC())
 		// go c.AddNewExportedSenderToMap(c.GetDC(), x) TODO: Implement this
@@ -130,7 +131,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 					go func(i int, part []byte, p int) {
 						defer wg.Done()
 					uploadStartPoint:
-						c.Logger.Debug("Uploading part", p, "with size", len(part), "in KB:", len(part)/1024, "to", i)
+						c.Logger.Debug(fmt.Sprintf("uploading part %d/%d in chunks of %d", p, totalParts, len(part)/1024))
 						if !IsFsBig {
 							_, err = sender[i].c.UploadSaveFilePart(fileId, int32(p), part)
 							hash.Write(part)
@@ -138,12 +139,8 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 							_, err = sender[i].c.UploadSaveBigFilePart(fileId, int32(p), int32(totalParts), part)
 						}
 						if err != nil {
-							if matchError(err, "FLOOD_WAIT_") {
-								if waitTime := getFloodWait(err); waitTime > 0 {
-									c.Logger.Warn("flood wait", waitTime, "seconds, waiting...")
-									time.Sleep(time.Duration(waitTime) * time.Second)
-									goto uploadStartPoint
-								}
+							if handleIfFlood(err, c) {
+								goto uploadStartPoint
 							}
 							c.Logger.Error(err)
 						}
@@ -170,7 +167,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 		}
 
 	lastPartUploadStartPoint:
-		c.Logger.Debug("Uploading last part", totalParts-1, "with size", len(part), "in KB:", len(part)/1024)
+		c.Logger.Debug(fmt.Sprintf("uploading last part %d/%d in chunks of %d", totalParts-1, totalParts, len(part)/1024))
 		if !IsFsBig {
 			_, err = c.UploadSaveFilePart(fileId, int32(totalParts)-1, part)
 		} else {
@@ -178,12 +175,8 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 		}
 
 		if err != nil {
-			if matchError(err, "FLOOD_WAIT_") {
-				if waitTime := getFloodWait(err); waitTime > 0 {
-					c.Logger.Warn("flood wait", waitTime, "seconds, waiting...")
-					time.Sleep(time.Duration(waitTime) * time.Second)
-					goto lastPartUploadStartPoint
-				}
+			if handleIfFlood(err, c) {
+				goto lastPartUploadStartPoint
 			}
 			c.Logger.Error(err)
 		}
@@ -191,8 +184,6 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 		if opts.ProgressCallback != nil {
 			go opts.ProgressCallback(int32(totalParts), int32(totalParts))
 		}
-
-		c.Logger.Debug("Uploaded last part", totalParts-1, "with size", len(part), "in KB:", len(part)/1024)
 	}
 
 	wg.Wait()
@@ -223,6 +214,18 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 		Parts: int32(totalParts),
 		Name:  prettifyFileName(source),
 	}, nil
+}
+
+func handleIfFlood(err error, c *Client) bool {
+	if matchError(err, "FLOOD_WAIT_") {
+		if waitTime := getFloodWait(err); waitTime > 0 {
+			c.Logger.Warn("flood wait", waitTime, "seconds, waiting...")
+			time.Sleep(time.Duration(waitTime) * time.Second)
+			return true
+		}
+	}
+
+	return false
 }
 
 func prettifyFileName(file string) string {
