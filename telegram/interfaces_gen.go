@@ -977,6 +977,16 @@ func (*ChannelAdminLogEventActionTogglePreHistoryHidden) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionTogglePreHistoryHidden) ImplementsChannelAdminLogEventAction() {}
 
+type ChannelAdminLogEventActionToggleSignatureProfiles struct {
+	Value bool
+}
+
+func (*ChannelAdminLogEventActionToggleSignatureProfiles) CRC() uint32 {
+	return 0x60a79c79
+}
+
+func (*ChannelAdminLogEventActionToggleSignatureProfiles) ImplementsChannelAdminLogEventAction() {}
+
 // Channel signatures were enabled/disabled
 type ChannelAdminLogEventActionToggleSignatures struct {
 	NewValue bool
@@ -1074,12 +1084,17 @@ type ChannelParticipant interface {
 
 // Channel/supergroup participant
 type ChannelParticipantObj struct {
-	UserID int64
-	Date   int32
+	UserID                int64
+	Date                  int32
+	SubscriptionUntilDate int32 `tl:"flag:0"`
 }
 
 func (*ChannelParticipantObj) CRC() uint32 {
-	return 0xc00c07c0
+	return 0xcb397619
+}
+
+func (*ChannelParticipantObj) FlagIndex() int {
+	return 1
 }
 
 func (*ChannelParticipantObj) ImplementsChannelParticipant() {}
@@ -1155,14 +1170,16 @@ func (*ChannelParticipantLeft) ImplementsChannelParticipant() {}
 
 // Myself
 type ChannelParticipantSelf struct {
-	ViaRequest bool `tl:"flag:0,encoded_in_bitflags"`
-	UserID     int64
-	InviterID  int64
-	Date       int32
+	ViaRequest            bool `tl:"flag:0,encoded_in_bitflags"`
+	ViaInvite             bool `tl:"flag:0,encoded_in_bitflags"`
+	UserID                int64
+	InviterID             int64
+	Date                  int32
+	SubscriptionUntilDate int32 `tl:"flag:1"`
 }
 
 func (*ChannelParticipantSelf) CRC() uint32 {
-	return 0x35a8bfa7
+	return 0x4f607bef
 }
 
 func (*ChannelParticipantSelf) FlagIndex() int {
@@ -1273,50 +1290,52 @@ type Chat interface {
 
 // Channel/supergroup info
 type Channel struct {
-	Creator             bool `tl:"flag:0,encoded_in_bitflags"`
-	Left                bool `tl:"flag:2,encoded_in_bitflags"`
-	Broadcast           bool `tl:"flag:5,encoded_in_bitflags"`
-	Verified            bool `tl:"flag:7,encoded_in_bitflags"`
-	Megagroup           bool `tl:"flag:8,encoded_in_bitflags"`
-	Restricted          bool `tl:"flag:9,encoded_in_bitflags"`
-	Signatures          bool `tl:"flag:11,encoded_in_bitflags"`
-	Min                 bool `tl:"flag:12,encoded_in_bitflags"`
-	Scam                bool `tl:"flag:19,encoded_in_bitflags"`
-	HasLink             bool `tl:"flag:20,encoded_in_bitflags"`
-	HasGeo              bool `tl:"flag:21,encoded_in_bitflags"`
-	SlowmodeEnabled     bool `tl:"flag:22,encoded_in_bitflags"`
-	CallActive          bool `tl:"flag:23,encoded_in_bitflags"`
-	CallNotEmpty        bool `tl:"flag:24,encoded_in_bitflags"`
-	Fake                bool `tl:"flag:25,encoded_in_bitflags"`
-	Gigagroup           bool `tl:"flag:26,encoded_in_bitflags"`
-	Noforwards          bool `tl:"flag:27,encoded_in_bitflags"`
-	JoinToSend          bool `tl:"flag:28,encoded_in_bitflags"`
-	JoinRequest         bool `tl:"flag:29,encoded_in_bitflags"`
-	Forum               bool `tl:"flag:30,encoded_in_bitflags"`
-	StoriesHidden       bool `tl:"flag2:1,encoded_in_bitflags"`
-	StoriesHiddenMin    bool `tl:"flag2:2,encoded_in_bitflags"`
-	StoriesUnavailable  bool `tl:"flag2:3,encoded_in_bitflags"`
-	ID                  int64
-	AccessHash          int64 `tl:"flag:13"`
-	Title               string
-	Username            string `tl:"flag:6"`
-	Photo               ChatPhoto
-	Date                int32
-	RestrictionReason   []*RestrictionReason `tl:"flag:9"`
-	AdminRights         *ChatAdminRights     `tl:"flag:14"`
-	BannedRights        *ChatBannedRights    `tl:"flag:15"`
-	DefaultBannedRights *ChatBannedRights    `tl:"flag:18"`
-	ParticipantsCount   int32                `tl:"flag:17"`
-	Usernames           []*Username          `tl:"flag2:0"`
-	StoriesMaxID        int32                `tl:"flag2:4"`
-	Color               *PeerColor           `tl:"flag2:7"`
-	ProfileColor        *PeerColor           `tl:"flag2:8"`
-	EmojiStatus         EmojiStatus          `tl:"flag2:9"`
-	Level               int32                `tl:"flag2:10"`
+	Creator               bool `tl:"flag:0,encoded_in_bitflags"`
+	Left                  bool `tl:"flag:2,encoded_in_bitflags"`
+	Broadcast             bool `tl:"flag:5,encoded_in_bitflags"`
+	Verified              bool `tl:"flag:7,encoded_in_bitflags"`
+	Megagroup             bool `tl:"flag:8,encoded_in_bitflags"`
+	Restricted            bool `tl:"flag:9,encoded_in_bitflags"`
+	Signatures            bool `tl:"flag:11,encoded_in_bitflags"`
+	Min                   bool `tl:"flag:12,encoded_in_bitflags"`
+	Scam                  bool `tl:"flag:19,encoded_in_bitflags"`
+	HasLink               bool `tl:"flag:20,encoded_in_bitflags"`
+	HasGeo                bool `tl:"flag:21,encoded_in_bitflags"`
+	SlowmodeEnabled       bool `tl:"flag:22,encoded_in_bitflags"`
+	CallActive            bool `tl:"flag:23,encoded_in_bitflags"`
+	CallNotEmpty          bool `tl:"flag:24,encoded_in_bitflags"`
+	Fake                  bool `tl:"flag:25,encoded_in_bitflags"`
+	Gigagroup             bool `tl:"flag:26,encoded_in_bitflags"`
+	Noforwards            bool `tl:"flag:27,encoded_in_bitflags"`
+	JoinToSend            bool `tl:"flag:28,encoded_in_bitflags"`
+	JoinRequest           bool `tl:"flag:29,encoded_in_bitflags"`
+	Forum                 bool `tl:"flag:30,encoded_in_bitflags"`
+	StoriesHidden         bool `tl:"flag2:1,encoded_in_bitflags"`
+	StoriesHiddenMin      bool `tl:"flag2:2,encoded_in_bitflags"`
+	StoriesUnavailable    bool `tl:"flag2:3,encoded_in_bitflags"`
+	ID                    int64
+	SignatureProfiles     bool  `tl:"flag2:12,encoded_in_bitflags"`
+	AccessHash            int64 `tl:"flag:13"`
+	Title                 string
+	Username              string `tl:"flag:6"`
+	Photo                 ChatPhoto
+	Date                  int32
+	RestrictionReason     []*RestrictionReason `tl:"flag:9"`
+	AdminRights           *ChatAdminRights     `tl:"flag:14"`
+	BannedRights          *ChatBannedRights    `tl:"flag:15"`
+	DefaultBannedRights   *ChatBannedRights    `tl:"flag:18"`
+	ParticipantsCount     int32                `tl:"flag:17"`
+	Usernames             []*Username          `tl:"flag2:0"`
+	StoriesMaxID          int32                `tl:"flag2:4"`
+	Color                 *PeerColor           `tl:"flag2:7"`
+	ProfileColor          *PeerColor           `tl:"flag2:8"`
+	EmojiStatus           EmojiStatus          `tl:"flag2:9"`
+	Level                 int32                `tl:"flag2:10"`
+	SubscriptionUntilDate int32                `tl:"flag2:11"`
 }
 
 func (*Channel) CRC() uint32 {
-	return 0xaadfc8f
+	return 0xfe4478bd
 }
 
 func (*Channel) FlagIndex() int {
@@ -1423,6 +1442,7 @@ type ChannelFull struct {
 	PaidMediaAllowed       bool `tl:"flag2:14,encoded_in_bitflags"`
 	CanViewStarsRevenue    bool `tl:"flag2:15,encoded_in_bitflags"`
 	ID                     int64
+	PaidReactionsAvailable bool `tl:"flag2:16,encoded_in_bitflags"`
 	About                  string
 	ParticipantsCount      int32 `tl:"flag:0"`
 	AdminsCount            int32 `tl:"flag:1"`
@@ -1516,24 +1536,27 @@ type ChatInvite interface {
 
 // Chat invite info
 type ChatInviteObj struct {
-	Channel           bool `tl:"flag:0,encoded_in_bitflags"`
-	Broadcast         bool `tl:"flag:1,encoded_in_bitflags"`
-	Public            bool `tl:"flag:2,encoded_in_bitflags"`
-	Megagroup         bool `tl:"flag:3,encoded_in_bitflags"`
-	RequestNeeded     bool `tl:"flag:6,encoded_in_bitflags"`
-	Verified          bool `tl:"flag:7,encoded_in_bitflags"`
-	Scam              bool `tl:"flag:8,encoded_in_bitflags"`
-	Fake              bool `tl:"flag:9,encoded_in_bitflags"`
-	Title             string
-	About             string `tl:"flag:5"`
-	Photo             Photo
-	ParticipantsCount int32
-	Participants      []User `tl:"flag:4"`
-	Color             int32
+	Channel                  bool `tl:"flag:0,encoded_in_bitflags"`
+	Broadcast                bool `tl:"flag:1,encoded_in_bitflags"`
+	Public                   bool `tl:"flag:2,encoded_in_bitflags"`
+	Megagroup                bool `tl:"flag:3,encoded_in_bitflags"`
+	RequestNeeded            bool `tl:"flag:6,encoded_in_bitflags"`
+	Verified                 bool `tl:"flag:7,encoded_in_bitflags"`
+	Scam                     bool `tl:"flag:8,encoded_in_bitflags"`
+	Fake                     bool `tl:"flag:9,encoded_in_bitflags"`
+	Title                    string
+	CanRefulfillSubscription bool   `tl:"flag:11,encoded_in_bitflags"`
+	About                    string `tl:"flag:5"`
+	Photo                    Photo
+	ParticipantsCount        int32
+	Participants             []User `tl:"flag:4"`
+	Color                    int32
+	SubscriptionPricing      *StarsSubscriptionPricing `tl:"flag:10"`
+	SubscriptionFormID       int64                     `tl:"flag:12"`
 }
 
 func (*ChatInviteObj) CRC() uint32 {
-	return 0xcde0ec40
+	return 0xfe65389d
 }
 
 func (*ChatInviteObj) FlagIndex() int {
@@ -2426,22 +2449,24 @@ type ExportedChatInvite interface {
 
 // Exported chat invite
 type ChatInviteExported struct {
-	Revoked       bool `tl:"flag:0,encoded_in_bitflags"`
-	Permanent     bool `tl:"flag:5,encoded_in_bitflags"`
-	RequestNeeded bool `tl:"flag:6,encoded_in_bitflags"`
-	Link          string
-	AdminID       int64
-	Date          int32
-	StartDate     int32  `tl:"flag:4"`
-	ExpireDate    int32  `tl:"flag:1"`
-	UsageLimit    int32  `tl:"flag:2"`
-	Usage         int32  `tl:"flag:3"`
-	Requested     int32  `tl:"flag:7"`
-	Title         string `tl:"flag:8"`
+	Revoked             bool `tl:"flag:0,encoded_in_bitflags"`
+	Permanent           bool `tl:"flag:5,encoded_in_bitflags"`
+	RequestNeeded       bool `tl:"flag:6,encoded_in_bitflags"`
+	Link                string
+	AdminID             int64
+	Date                int32
+	StartDate           int32                     `tl:"flag:4"`
+	ExpireDate          int32                     `tl:"flag:1"`
+	UsageLimit          int32                     `tl:"flag:2"`
+	Usage               int32                     `tl:"flag:3"`
+	Requested           int32                     `tl:"flag:7"`
+	Title               string                    `tl:"flag:8"`
+	SubscriptionExpired int32                     `tl:"flag:10"`
+	SubscriptionPricing *StarsSubscriptionPricing `tl:"flag:9"`
 }
 
 func (*ChatInviteExported) CRC() uint32 {
-	return 0xab4a819
+	return 0xa22cbd96
 }
 
 func (*ChatInviteExported) FlagIndex() int {
@@ -3375,6 +3400,15 @@ type InputInvoice interface {
 	tl.Object
 	ImplementsInputInvoice()
 }
+type InputInvoiceChatInviteSubscription struct {
+	Hash string
+}
+
+func (*InputInvoiceChatInviteSubscription) CRC() uint32 {
+	return 0x34e793f1
+}
+
+func (*InputInvoiceChatInviteSubscription) ImplementsInputInvoice() {}
 
 // An invoice contained in a [messageMediaInvoice](https://core.telegram.org/constructor/messageMediaInvoice) message.
 type InputInvoiceMessage struct {
@@ -7699,6 +7733,14 @@ func (*ReactionEmpty) CRC() uint32 {
 }
 
 func (*ReactionEmpty) ImplementsReaction() {}
+
+type ReactionPaid struct{}
+
+func (*ReactionPaid) CRC() uint32 {
+	return 0x523da4eb
+}
+
+func (*ReactionPaid) ImplementsReaction() {}
 
 type RecentMeURL interface {
 	tl.Object
