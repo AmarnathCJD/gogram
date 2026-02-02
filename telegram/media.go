@@ -277,9 +277,16 @@ func prettifyFileName(file string) string {
 	return filepath.Base(file)
 }
 
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func countWorkers(parts int64) int {
 	if parts <= 5 {
-		return int(parts / 2)
+		return max(int(parts/2), 1)
 	} else if parts > 100 {
 		return 20
 	} else if parts > 50 {
@@ -370,10 +377,6 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	numWorkers := countWorkers(parts)
 	if opts.Threads > 0 {
 		numWorkers = opts.Threads
-	}
-
-	if numWorkers == 0 {
-		numWorkers = 1
 	}
 
 	w := make([]Sender, numWorkers)

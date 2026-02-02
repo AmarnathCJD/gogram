@@ -1,21 +1,11 @@
 package telegram
 
 import (
+	"fmt"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
-// Conversation is a struct for conversation with user.
-
-const (
-	// DefaultTimeOut is the default timeout for conversation
-	DefaultTimeOut = 30
-)
-
-var (
-	ErrTimeOut = errors.New("conversation timeout")
-)
+const ConvDefaultTimeOut = int32(60)
 
 type handle interface{}
 
@@ -24,12 +14,12 @@ type Conversation struct {
 	Client    *Client
 	Peer      InputPeer
 	isPrivate bool
-	timeOut   int
+	timeOut   int32
 	openH     []handle
 	lastMsg   *NewMessage
 }
 
-func (c *Client) NewConversation(peer any, isPrivate bool, timeout ...int) (*Conversation, error) {
+func (c *Client) NewConversation(peer any, isPrivate bool, timeout ...int32) (*Conversation, error) {
 	peerID, err := c.ResolvePeer(peer)
 	if err != nil {
 		return nil, err
@@ -38,59 +28,82 @@ func (c *Client) NewConversation(peer any, isPrivate bool, timeout ...int) (*Con
 		Client:    c,
 		Peer:      peerID,
 		isPrivate: isPrivate,
-		timeOut:   getVariadic(timeout, DefaultTimeOut).(int),
+		timeOut:   getVariadic(timeout, ConvDefaultTimeOut).(int32),
 	}, nil
 }
 
 // NewConversation creates a new conversation with user
-func NewConversation(client *Client, peer InputPeer, timeout ...int) *Conversation {
-	c := &Conversation{
+func NewConversation(client *Client, peer InputPeer, timeout ...int32) *Conversation {
+	return &Conversation{
 		Client:  client,
 		Peer:    peer,
-		timeOut: DefaultTimeOut,
+		timeOut: getVariadic(timeout, ConvDefaultTimeOut).(int32),
 	}
-	if len(timeout) > 0 {
-		c.timeOut = timeout[0]
-	}
-	return c
 }
 
 // SetTimeOut sets the timeout for conversation
-func (c *Conversation) SetTimeOut(timeout int) *Conversation {
+func (c *Conversation) SetTimeOut(timeout int32) *Conversation {
 	c.timeOut = timeout
 	return c
 }
 
-func (c *Conversation) SendMessage(text string, opts ...*SendOptions) (*NewMessage, error) {
+func (c *Conversation) Respond(text any, opts ...*SendOptions) (*NewMessage, error) {
 	return c.Client.SendMessage(c.Peer, text, opts...)
 }
 
-func (c *Conversation) SendMedia(media InputMedia, opts ...*MediaOptions) (*NewMessage, error) {
+func (c *Conversation) RespondMedia(media InputMedia, opts ...*MediaOptions) (*NewMessage, error) {
+	return c.Client.SendMedia(c.Peer, media, opts...)
+}
+
+func (c *Conversation) Reply(text any, opts ...*SendOptions) (*NewMessage, error) {
+	var options = getVariadic(opts, &SendOptions{}).(*SendOptions)
+	if options.ReplyID == 0 {
+		if c.lastMsg != nil {
+			options.ReplyID = c.lastMsg.ID
+		}
+	}
+
+	return c.Client.SendMessage(c.Peer, text, opts...)
+}
+
+func (c *Conversation) ReplyMedia(media InputMedia, opts ...*MediaOptions) (*NewMessage, error) {
+	var options = getVariadic(opts, &MediaOptions{}).(*MediaOptions)
+	if options.ReplyID == 0 {
+		if c.lastMsg != nil {
+			options.ReplyID = c.lastMsg.ID
+		}
+	}
+
 	return c.Client.SendMedia(c.Peer, media, opts...)
 }
 
 func (c *Conversation) GetResponse() (*NewMessage, error) {
-	//peerID := c.Client.GetPeerID(c.Peer)
 	resp := make(chan *NewMessage, 1)
 	waitFunc := func(m *NewMessage) error {
 		resp <- m
 		c.lastMsg = m
 		return nil
 	}
-	//var filter = &Filters{}
-	//switch c.Peer.(type) {
-	//case *InputPeerChannel, *InputPeerChat:
-	//	filter.Chats = append(filter.Chats, peerID)
-	//default:
-	//	filter.Users = append(filter.Users, peerID)
-	//	filter.IsPrivate = c.isPrivate
-	//}
-	h := c.Client.AddMessageHandler(OnNewMessage, waitFunc)
+
+	var filters []Filter
+	switch c.Peer.(type) {
+	case *InputPeerChannel, *InputPeerChat:
+		filters = append(filters, FilterChats(c.Client.GetPeerID(c.Peer)))
+	case *InputPeerUser, *InputPeerSelf:
+		filters = append(filters, FilterUsers(c.Client.GetPeerID(c.Peer)))
+	}
+
+	if c.isPrivate {
+		filters = append(filters, FilterPrivate)
+	}
+
+	h := c.Client.On(OnMessage, waitFunc, filters...)
+
 	c.openH = append(c.openH, &h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
 		go c.removeHandle(&h)
-		return nil, ErrTimeOut
+		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
 	case m := <-resp:
 		go c.removeHandle(&h)
 		return m, nil
@@ -98,35 +111,31 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 }
 
 func (c *Conversation) GetEdit() (*NewMessage, error) {
-	peerID := c.Client.GetPeerID(c.Peer)
 	resp := make(chan *NewMessage)
 	waitFunc := func(m *NewMessage) error {
-		IsTrigger := false
-		switch c.Peer.(type) {
-		case *InputPeerChannel, *InputPeerChat:
-			if m.ChatID() == peerID {
-				IsTrigger = true
-			}
-		default:
-			if m.SenderID() == peerID {
-				IsTrigger = true
-			}
-			if c.isPrivate && !m.IsPrivate() {
-				IsTrigger = false
-			}
-		}
-		if IsTrigger {
-			resp <- m
-			c.lastMsg = m
-		}
+		resp <- m
+		c.lastMsg = m
 		return nil
 	}
-	h := c.Client.AddEditHandler(OnEditMessage, waitFunc)
+
+	var filters []Filter
+	switch c.Peer.(type) {
+	case *InputPeerChannel, *InputPeerChat:
+		filters = append(filters, FilterChats(c.Client.GetPeerID(c.Peer)))
+	case *InputPeerUser, *InputPeerSelf:
+		filters = append(filters, FilterUsers(c.Client.GetPeerID(c.Peer)))
+	}
+
+	if c.isPrivate {
+		filters = append(filters, FilterPrivate)
+	}
+
+	h := c.Client.On(OnEdit, waitFunc, filters...)
 	c.openH = append(c.openH, &h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
 		go c.removeHandle(&h)
-		return nil, ErrTimeOut
+		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
 	case m := <-resp:
 		go c.removeHandle(&h)
 		return m, nil
@@ -134,37 +143,33 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 }
 
 func (c *Conversation) GetReply() (*NewMessage, error) {
-	peerID := c.Client.GetPeerID(c.Peer)
 	resp := make(chan *NewMessage)
 	waitFunc := func(m *NewMessage) error {
-		if m.IsReply() {
-			IsTrigger := false
-			switch c.Peer.(type) {
-			case *InputPeerChannel, *InputPeerChat:
-				if m.ChatID() == peerID {
-					IsTrigger = true
-				}
-			default:
-				if m.SenderID() == peerID {
-					IsTrigger = true
-				}
-				if c.isPrivate && !m.IsPrivate() {
-					IsTrigger = false
-				}
-			}
-			if IsTrigger {
-				resp <- m
-				c.lastMsg = m
-			}
-		}
+		resp <- m
+		c.lastMsg = m
 		return nil
 	}
-	h := c.Client.AddMessageHandler(OnNewMessage, waitFunc)
+
+	var filters []Filter
+	switch c.Peer.(type) {
+	case *InputPeerChannel, *InputPeerChat:
+		filters = append(filters, FilterChats(c.Client.GetPeerID(c.Peer)))
+	case *InputPeerUser, *InputPeerSelf:
+		filters = append(filters, FilterUsers(c.Client.GetPeerID(c.Peer)))
+	}
+
+	if c.isPrivate {
+		filters = append(filters, FilterPrivate)
+	}
+
+	filters = append(filters, FilterReply)
+
+	h := c.Client.On(OnMessage, waitFunc, filters...)
 	c.openH = append(c.openH, &h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
 		go c.removeHandle(&h)
-		return nil, ErrTimeOut
+		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
 	case m := <-resp:
 		go c.removeHandle(&h)
 		return m, nil
@@ -185,20 +190,41 @@ func (c *Conversation) WaitEvent(ev *Update) (Update, error) {
 		resp <- u
 		return nil
 	}
-	h := c.Client.AddRawHandler(*ev, waitFunc)
+
+	h := c.Client.On(*ev, waitFunc)
 	c.openH = append(c.openH, &h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
 		go c.removeHandle(&h)
-		return nil, ErrTimeOut
+		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
 	case u := <-resp:
 		go c.removeHandle(&h)
 		return u, nil
 	}
 }
 
-func (*Conversation) WaitRead() {
-	// resp := make(chan *UpdateReadChannelInbox)
+func (c *Conversation) WaitRead() (*UpdateReadChannelInbox, error) {
+	resp := make(chan *UpdateReadChannelInbox)
+	waitFunc := func(u Update) error {
+		switch v := u.(type) {
+		case *UpdateReadChannelInbox:
+			resp <- v
+		}
+
+		return nil
+	}
+
+	h := c.Client.On(&UpdateReadChannelInbox{}, waitFunc)
+	c.openH = append(c.openH, &h)
+
+	select {
+	case <-time.After(time.Duration(c.timeOut) * time.Second):
+		go c.removeHandle(&h)
+		return nil, fmt.Errorf("conversation timeout: %d", c.timeOut)
+	case u := <-resp:
+		go c.removeHandle(&h)
+		return u, nil
+	}
 }
 
 func (c *Conversation) removeHandle(h handle) {
@@ -211,7 +237,7 @@ func (c *Conversation) removeHandle(h handle) {
 	c.Client.removeHandle(h)
 }
 
-// Close closes the conversation
+// close closes the conversation, removing all open event handlers
 func (c *Conversation) Close() {
 	for _, h := range c.openH {
 		c.Client.removeHandle(h)
