@@ -712,7 +712,7 @@ func GatherMediaMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 			switch ext {
 			case ".mp4", ".m4v", ".mov":
 				if info, err := utils.ParseMP4(path); err == nil {
-					dur = float64(info.Duration) / float64(info.Timescale)
+					dur = float64(info.Duration) / 1000.0
 					width = int64(info.Width)
 					height = int64(info.Height)
 				}
@@ -725,7 +725,7 @@ func GatherMediaMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 					info, err = utils.ParseMKV(path)
 				}
 				if err == nil {
-					dur = info.Duration / 1000
+					dur = info.Duration
 					width = int64(info.Width)
 					height = int64(info.Height)
 				}
@@ -758,32 +758,32 @@ func GatherMediaMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 			switch ext {
 			case ".mp3":
 				if info, err := utils.ParseMP3(path); err == nil {
-					audioDur = info.Duration / 1000
+					audioDur = info.Duration
 					title = strings.Replace(filepath.Base(path), ext, "", 1)
 					performer = "Unknown"
 				}
 			case ".m4a":
 				if info, err := utils.ParseM4A(path); err == nil {
-					audioDur = info.Duration / 1000
+					audioDur = info.Duration
 					title = strings.Replace(filepath.Base(path), ext, "", 1)
 					performer = "Unknown"
 				}
 			case ".wav":
 				if info, err := utils.ParseWAV(path); err == nil {
-					audioDur = info.Duration / 1000
+					audioDur = info.Duration
 					title = strings.Replace(filepath.Base(path), ext, "", 1)
 					performer = "Unknown"
 				}
 			case ".flac":
 				if info, err := utils.ParseFLAC(path); err == nil {
-					audioDur = info.Duration / 1000
+					audioDur = info.Duration
 					title = strings.Replace(filepath.Base(path), ext, "", 1)
 					performer = "Unknown"
 				}
 			}
 
 			if audioDur > 0 {
-				dur = float64(audioDur)
+				dur = float64(audioDur) / 1000.0
 
 				for _, attr := range attrs {
 					if att, ok := attr.(*DocumentAttributeAudio); ok {
@@ -953,19 +953,13 @@ func generateWaveformData(samples []int16, bars int) []byte {
 		return make([]byte, bars)
 	}
 
-	samplesPerBar := len(samples) / bars
-	if samplesPerBar < 1 {
-		samplesPerBar = 1
-	}
+	samplesPerBar := max(len(samples)/bars, 1)
 
 	waveform := make([]byte, bars)
 
 	for i := range bars {
 		start := i * samplesPerBar
-		end := start + samplesPerBar
-		if end > len(samples) {
-			end = len(samples)
-		}
+		end := min(start+samplesPerBar, len(samples))
 
 		maxAmplitude := int16(0)
 		for j := start; j < end; j++ {
@@ -978,10 +972,7 @@ func generateWaveformData(samples []int16, bars int) []byte {
 			}
 		}
 
-		normalized := int(float64(maxAmplitude) / 32768.0 * 31.0)
-		if normalized > 31 {
-			normalized = 31
-		}
+		normalized := min(int(float64(maxAmplitude)/32768.0*31.0), 31)
 		waveform[i] = byte(normalized)
 	}
 
@@ -997,10 +988,7 @@ func packWaveform(waveform []byte) []byte {
 		val &= 0x1F
 
 		for bitsLeft := 5; bitsLeft > 0; {
-			bitsInByte := 8 - (bitPos % 8)
-			if bitsInByte > bitsLeft {
-				bitsInByte = bitsLeft
-			}
+			bitsInByte := min(8-(bitPos%8), bitsLeft)
 
 			result[bytePos] |= byte((val >> (bitsLeft - bitsInByte)) << (8 - (bitPos % 8) - bitsInByte))
 
