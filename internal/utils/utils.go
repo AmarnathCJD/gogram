@@ -21,15 +21,15 @@ var DcList = DCOptions{
 		1: {{"149.154.175.58:443", false}},
 		2: {{"149.154.167.50:443", false}},
 		3: {{"149.154.175.100:443", false}},
-		4: {{"149.154.167.91:443", false}},
+		4: {{"149.154.167.91:443", false},
+			{"[2001:067c:04e8:f002::a]:443", true}},
 		5: {{"91.108.56.151:443", false}},
 	},
-}
-
-var TestDataCenters = map[int]string{
-	1: "149.154.175.10:443",
-	2: "149.154.167.40:443",
-	3: "149.154.175.117:443",
+	TestDCs: map[int]string{
+		1: "149.154.175.10:443",
+		2: "149.154.167.40:443",
+		3: "149.154.175.117:443",
+	},
 }
 
 type DC struct {
@@ -38,7 +38,8 @@ type DC struct {
 }
 
 type DCOptions struct {
-	DCS map[int][]DC
+	DCS     map[int][]DC
+	TestDCs map[int]string
 }
 
 func SetDCs(dcs map[int][]DC) {
@@ -59,7 +60,7 @@ func GetHostIp(dc int, test bool, ipv6 bool) string {
 	}
 
 	if test {
-		if addr, ok := TestDataCenters[dc]; ok {
+		if addr, ok := DcList.TestDCs[dc]; ok {
 			return addr
 		}
 	}
@@ -74,7 +75,7 @@ func GetHostIp(dc int, test bool, ipv6 bool) string {
 
 	for _, dc := range dcMap {
 		if !dc.V {
-			return dc.Addr
+			return FmtIp(dc.Addr)
 		}
 	}
 
@@ -99,6 +100,35 @@ func SearchAddr(addr string) int {
 	}
 
 	return 4
+}
+
+func FmtIp(ipv6WithPort string) string {
+	if strings.HasPrefix(ipv6WithPort, "[") || strings.Contains(ipv6WithPort, ".") {
+		return ipv6WithPort
+	}
+
+	lastColon := strings.LastIndex(ipv6WithPort, ":")
+	if lastColon == -1 {
+		return ipv6WithPort
+	}
+
+	address := ipv6WithPort[:lastColon]
+	port := ipv6WithPort[lastColon+1:]
+
+	// 2001:0b28:f23f:f005:0000:0000:0000:000a -> [2001:0b28:f23f:f005::a]
+	// convert 0000:0000:0000:0000:0000:0000:0000:000a -> ::a
+	address = strings.Replace(address, "0000:0000:0000:000", ":", 1)
+	// remove preceding zeros
+	address = strings.Replace(address, ":0", ":", -1)
+
+	return fmt.Sprintf("[%s]:%s", address, port)
+}
+
+func Vtcp(isV6 bool) string {
+	if isV6 {
+		return "Tcp6"
+	}
+	return "Tcp"
 }
 
 type PingParams struct {
