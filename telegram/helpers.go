@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/amarnathcjd/gogram/internal/utils"
-
 	"github.com/pkg/errors"
 )
 
@@ -369,9 +368,14 @@ mediaTypeSwitch:
 			return &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
 		} else {
 			if _, err := os.Stat(media); err == nil {
-				mediaFile, err = c.UploadFile(media, &UploadOptions{
-					ProgressCallback: attr.ProgressCallback,
-				})
+				uploadOpts := &UploadOptions{}
+				if attr != nil {
+					if attr.ProgressCallback != nil {
+						uploadOpts.ProgressCallback = attr.ProgressCallback
+					}
+				}
+
+				mediaFile, err = c.UploadFile(media, uploadOpts)
 				if err != nil {
 					return nil, err
 				}
@@ -432,34 +436,29 @@ mediaTypeSwitch:
 		if IsPhoto {
 			return &InputMediaUploadedPhoto{File: media, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
 		} else {
-			var Attributes = getValue(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}}).([]DocumentAttribute)
+			var mediaAttributes = getValue(attr.Attributes, []DocumentAttribute{&DocumentAttributeFilename{FileName: fileName}}).([]DocumentAttribute)
 			hasFileName := false
-			for _, at := range Attributes {
+			mediaAttributes, dur, _ := gatherVideoMetadata(fileName, mediaAttributes)
+
+			for _, at := range mediaAttributes {
 				if _, ok := at.(*DocumentAttributeFilename); ok {
 					hasFileName = true
-					break
-				}
-				if a, ok := at.(*DocumentAttributeVideo); ok {
-					var duration = int64(getValue(int32(a.Duration), int32(GetVideoDuration(fileName))).(int32))
-					if a.W == 0 || a.H == 0 {
-						w, h := GetVideoDimensions(fileName)
-						if w > 0 && h > 0 {
-							a.W = int32(w)
-							a.H = int32(h)
-						}
-					}
-					if attr.Thumb == nil {
-						thumb, err := ExtractVideoThumb(fileName, duration)
-						if err == nil && len(thumb) > 0 {
-							attr.Thumb, _ = c.UploadFile(thumb)
-						}
-					}
 				}
 			}
+
+			if attr.Thumb == nil {
+				thumbFile, err := c.gatherVideoThumb(fileName, dur)
+				if err != nil {
+					c.Logger.Debug("gathering video thumb", err)
+				} else {
+					attr.Thumb = thumbFile
+				}
+			}
+
 			if !hasFileName {
-				Attributes = append(Attributes, &DocumentAttributeFilename{FileName: fileName})
+				mediaAttributes = append(mediaAttributes, &DocumentAttributeFilename{FileName: fileName})
 			}
-			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: Attributes, Thumb: getValue(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
+			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValue(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool), ForceFile: false}, nil
 		}
 	case []byte, *bytes.Reader:
 		var uopts *UploadOptions = &UploadOptions{}
@@ -481,89 +480,177 @@ mediaTypeSwitch:
 	return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(mediaFile).String()))
 }
 
-func GetVideoDuration(path string) int64 {
-	if strings.HasSuffix(path, "mp4") {
-		if r, err := utils.ParseDuration(path); err == nil {
-			return r / 1000
-		}
-	}
-	cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path)
-	out, err := cmd.Output()
-	if err != nil {
-		return 0
-	}
-	duration, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
-	if err != nil {
-		return 0
-	}
-	return int64(duration)
-}
+func gatherVideoMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttribute, int64, error) {
+	var dur float64
 
-func GetVideoDimensions(path string) (int, int) {
-	cmd := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", path)
-	out, err := cmd.Output()
-	if err != nil {
-		return 0, 0
-	}
-	dimensions := strings.Split(strings.TrimSpace(string(out)), "x")
-	if len(dimensions) != 2 {
-		return 0, 0
-	}
-	width, err := strconv.Atoi(dimensions[0])
-	if err != nil {
-		return 0, 0
-	}
-	height, err := strconv.Atoi(dimensions[1])
-	if err != nil {
-		return 0, 0
-	}
-	return width, height
-}
+	if !IsFfmpegInstalled() {
+		if strings.HasSuffix(path, "mp4") {
+			if r, err := utils.ParseDuration(path); err == nil {
+				if IsStreamableFile(path) {
+					attrs = append(attrs, &DocumentAttributeVideo{
+						RoundMessage:      false,
+						SupportsStreaming: true,
+						W:                 512,
+						H:                 512,
+						Duration:          float64(r / 1000),
+					})
+				}
 
-func ExtractVideoThumb(path string, duration int64) (string, error) {
-	if duration == 0 {
-		duration = 2
-	}
-	// save thumb to file
-	thumbPath := path + ".jpg"
-	cmd := exec.Command("ffmpeg", "-ss", strconv.FormatInt(duration/2, 10), "-i", path, "-vframes", "1", thumbPath)
-	_, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return thumbPath, nil
-}
-
-// TODO: implement this
-func GetAudioMetadata(path string) (performer, title string, duration int32) {
-	dur := GetVideoDuration(path)
-	metadata := make(map[string]string)
-	cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format_tags=artist,title", "-of", "default=noprint_wrappers=1:nokey=1", path)
-	out, err := cmd.Output()
-	if err == nil {
-		lines := strings.Split(strings.TrimSpace(string(out)), "")
-		for _, line := range lines {
-			parts := strings.Split(line, "=")
-			if len(parts) == 2 {
-				metadata[parts[0]] = parts[1]
+				return attrs, int64(r / 1000), nil
 			}
 		}
 	}
-	return metadata["artist"], metadata["title"], int32(dur)
+
+	if IsStreamableFile(path) {
+		var (
+			width  int64
+			height int64
+		)
+
+		cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration:stream=width:stream=height", "-of", "default=noprint_wrappers=1:nokey=1", path)
+		out, err := cmd.Output()
+
+		if err != nil {
+			return attrs, 0, errors.Wrap(err, "gathering video metadata")
+		}
+
+		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+		if len(lines) == 3 {
+			dur, _ = strconv.ParseFloat(strings.TrimSpace(lines[2]), 64)
+			width, _ = strconv.ParseInt(strings.TrimSpace(lines[0]), 10, 32)
+			height, _ = strconv.ParseInt(strings.TrimSpace(lines[1]), 10, 32)
+		}
+
+		attrs = append(attrs, &DocumentAttributeVideo{
+			RoundMessage:      false,
+			SupportsStreaming: true,
+			W:                 int32(width),
+			H:                 int32(height),
+			Duration:          dur,
+		})
+	}
+
+	if filepath.Ext(path) == ".gif" {
+		attrs = append(attrs, &DocumentAttributeAnimated{})
+	}
+
+	if IsAudioFile(path) {
+		var (
+			performer string
+			title     string
+		//	waveform  []byte
+		)
+
+		cmd := exec.Command("ffprobe", "-v", "error", "-show_entries", "format_tags=artist,title", "-of", "default=noprint_wrappers=1:nokey=1", path)
+		out, err := cmd.Output()
+
+		cmd_duration := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path)
+		out_duration, err_duration := cmd_duration.Output()
+
+		if err == nil {
+			lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+			if len(lines) == 2 {
+				performer = strings.TrimSpace(lines[0])
+				title = strings.TrimSpace(lines[1])
+			} else if len(lines) == 1 {
+				performer = strings.TrimSpace(lines[0])
+				title = strings.TrimSpace(lines[0])
+			}
+		}
+
+		if err_duration == nil {
+			dur, _ = strconv.ParseFloat(strings.TrimSpace(string(out_duration)), 64)
+		}
+
+		attrs = append(attrs, &DocumentAttributeAudio{
+			Voice:     false,
+			Performer: performer,
+			Title:     title,
+			Duration:  int32(dur),
+		})
+	}
+
+	return attrs, int64(dur), nil
+}
+
+func IsStreamable(mimeType string) bool {
+	switch mimeType {
+	case "video/mp4", "video/webm", "video/mpeg", "video/matroska", "video/3gpp", "video/3gpp2", "video/x-matroska", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/x-m4v", "video/x-flv":
+		return true
+	default:
+		return false
+	}
+}
+
+func IsStreamableFile(path string) bool {
+	ext := filepath.Ext(path)
+	switch ext {
+	case ".mp4", ".webm", ".mpeg", ".mkv", ".3gpp", ".3gpp2", ".x-matroska", ".quicktime", ".x-msvideo", ".x-ms-wmv", ".x-m4v", ".x-flv":
+		return true
+	default:
+		return false
+	}
+}
+
+func IsAudioFile(path string) bool {
+	ext := filepath.Ext(path)
+	switch ext {
+	case ".mp3", ".ogg", ".wav", ".flac", ".m4a", ".alac", ".vorbis", ".opus":
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error) {
+	if duration == 0 {
+		duration = 2
+	}
+
+	if IsAudioFile(path) {
+		// get embedded album art
+		cmd := exec.Command("ffmpeg", "-i", path, "-vf", "thumbnail", "-frames:v", "1", path+".png")
+		_, err := cmd.Output()
+
+		if err != nil {
+			return nil, errors.Wrap(err, "gathering audio thumb")
+		}
+
+		defer os.Remove(path + ".png")
+		fi, err := c.UploadFile(path + ".png")
+
+		return fi, err
+	}
+
+	// ffmpeg -i input.mp4 -ss 00:00:01.000 -vframes 1 output.png
+
+	cmd := exec.Command("ffmpeg", "-ss", strconv.FormatInt(duration/2, 10), "-i", path, "-vframes", "1", path+".png")
+	_, err := cmd.Output()
+
+	if err != nil {
+		return nil, errors.Wrap(err, "gathering video thumb")
+	}
+
+	defer os.Remove(path + ".png")
+	fi, err := c.UploadFile(path + ".png")
+
+	return fi, err
 }
 
 func getAttrs(mimeType string) []DocumentAttribute {
 	switch mimeType {
 	case "image/gif":
-		return []DocumentAttribute{&DocumentAttributeAnimated{}}
+		//return []DocumentAttribute{&DocumentAttributeAnimated{}}
 	case "video/mp4", "video/webm", "video/mpeg", "video/matroska", "video/3gpp", "video/3gpp2", "video/x-matroska", "video/quicktime", "video/x-msvideo", "video/x-ms-wmv", "video/x-m4v", "video/x-flv":
-		attrVid := &DocumentAttributeVideo{RoundMessage: false, SupportsStreaming: true, W: 512, H: 512, Duration: 0}
-		return []DocumentAttribute{attrVid}
+		//attrVid := &DocumentAttributeVideo{RoundMessage: false, SupportsStreaming: true, W: 512, H: 512, Duration: 0}
+		//return []DocumentAttribute{attrVid}
 	case "audio/mpeg", "audio/ogg", "audio/x-wav", "audio/x-flac", "audio/x-m4a", "audio/3gpp", "audio/3gpp2", "audio/amr", "audio/amr-wb", "audio/AMR-WB+", "audio/mp4", "audio/x-matroska":
-		return []DocumentAttribute{&DocumentAttributeAudio{Voice: false}}
+		//return []DocumentAttribute{&DocumentAttributeAudio{Voice: false}}
 	default:
 		return []DocumentAttribute{}
 	}
+
+	return []DocumentAttribute{}
 }
 
 func mergeAttrs(attrs2, attrs1 []DocumentAttribute) []DocumentAttribute {

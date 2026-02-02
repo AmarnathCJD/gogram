@@ -23,6 +23,17 @@ const (
 	DEFAULT_PARTS   = 512 * 512
 )
 
+type UploadOptions struct {
+	// Worker count for upload file.
+	Threads int `json:"threads,omitempty"`
+	//  Chunk size for upload file.
+	ChunkSize int32 `json:"chunk_size,omitempty"`
+	// File name for upload file.
+	FileName string `json:"file_name,omitempty"`
+	// output Callback for upload progress, total parts and uploaded parts.
+	ProgressCallback func(totalParts int32, uploadedParts int32) `json:"-"`
+}
+
 type Sender struct {
 	buzy bool
 	c    *Client
@@ -179,7 +190,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 		return &InputFileObj{
 			ID:          fileId,
 			Md5Checksum: string(hash.Sum(nil)),
-			Name:        source,
+			Name:        prettifyFileName(source),
 			Parts:       int32(totalParts),
 		}, nil
 	}
@@ -187,8 +198,12 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 	return &InputFileBig{
 		ID:    fileId,
 		Parts: int32(totalParts),
-		Name:  source,
+		Name:  prettifyFileName(source),
 	}, nil
+}
+
+func prettifyFileName(file string) string {
+	return filepath.Base(file)
 }
 
 func countWorkers(parts int64) int {
@@ -201,17 +216,6 @@ func countWorkers(parts int64) int {
 	} else {
 		return 5
 	}
-}
-
-type UploadOptions struct {
-	// Worker count for upload file.
-	Threads int `json:"threads,omitempty"`
-	//  Chunk size for upload file.
-	ChunkSize int32 `json:"chunk_size,omitempty"`
-	// File name for upload file.
-	FileName string `json:"file_name,omitempty"`
-	// output Callback for upload progress, total parts and uploaded parts.
-	ProgressCallback func(totalParts int32, uploadedParts int32) `json:"-"`
 }
 
 type FileMeta struct {
