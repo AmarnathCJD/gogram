@@ -19,7 +19,7 @@ type ReqPQParams struct {
 }
 
 func (*ReqPQParams) CRC() uint32 {
-	return 0x60469778 //nolint:gomnd not magic
+	return 0x60469778
 }
 
 func ReqPQ(m requester, nonce *tl.Int128) (*ResPQ, error) {
@@ -46,7 +46,7 @@ type ReqDHParamsParams struct {
 }
 
 func (*ReqDHParamsParams) CRC() uint32 {
-	return 0xd712e4be //nolint:gomnd not magic
+	return 0xd712e4be
 }
 
 func ReqDHParams(
@@ -80,7 +80,7 @@ type SetClientDHParamsParams struct {
 }
 
 func (*SetClientDHParamsParams) CRC() uint32 {
-	return 0xf5045f1f //nolint:gomnd not magic
+	return 0xf5045f1f
 }
 
 func SetClientDHParams(m requester, nonce, serverNonce *tl.Int128, encryptedData []byte) (SetClientDHParamsAnswer, error) {
@@ -109,7 +109,7 @@ type PingParams struct {
 }
 
 func (*PingParams) CRC() uint32 {
-	return 0x7abe77ec //nolint:gomnd not magic
+	return 0x7abe77ec
 }
 
 func Ping(m requester, pingID int64) (*Pong, error) {

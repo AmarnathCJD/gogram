@@ -36,14 +36,14 @@ func (e *Encoder) write(b []byte) {
 	}
 }
 
-// CheckErr must call after encoding has been finished. if this func returns not nil value, encoding has
-// failed, and you shouldn't use its result
+// CheckErr must be called after encoding has been finished. If this function returns a non-nil value,
+// the encoding has failed, and the resulting data should not be used.
 func (e *Encoder) CheckErr() error {
 	return e.err
 }
 
-// PutBool very specific type. There is a separate constructor under true and false,
-// then we can calculate that these are two crc constants
+// PutBool is a very specific type. Since there are separate constructors for true and false,
+// they can be considered as two CRC constants.
 func (e *Encoder) PutBool(v bool) {
 	crc := CrcFalse
 	if v {
@@ -64,10 +64,9 @@ func (e *Encoder) PutUint(v uint32) {
 	e.write(buf)
 }
 
-// PutCRC is an alias for Encoder.PutUint. It uses only for understanding what your code do (like
-// self-documented code)
+// PutCRC is an alias for Encoder.PutUint. It is used for better code readability and self-documentation.
 func (e *Encoder) PutCRC(v uint32) {
-	e.PutUint(v)
+	e.PutUint(v) // The CRC calculation order is unclear, but it is not necessarily big-endian.
 }
 
 func (e *Encoder) PutInt(v int32) {
@@ -97,7 +96,7 @@ func (e *Encoder) PutMessage(b []byte) {
 	}
 
 	switch {
-	case size == 0: // optimizacion empty string
+	case size == 0: // optimization for empty messages
 		e.PutUint(0)
 		return
 	case size < MagicNumber:

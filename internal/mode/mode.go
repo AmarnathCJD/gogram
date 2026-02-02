@@ -9,12 +9,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Mode is an interface which handles many ways as the connection sides must determine the size of the
-// transmitted messages. Unlike HTTP or UDP connections, raw TCP connections, as well as WebSockets doesn't
-// have a standard way to determine the size of the transmitted or received message: their main purpose is
-// just to transmit bytes with right order. Mode allows the sides of the connection don't analyze traffic or
-// use any end message sequence. In fact, in MTProto world, Mode works like microprotocol, which is packaging
-// messages in the container that announces its size in advance
+// Mode is an interface that defines how the connection sides determine the size of transmitted messages.
+// Unlike HTTP or UDP connections, raw TCP connections and WebSockets don't have a standard way to
+// determine the size of transmitted or received messages. Their main purpose is to transmit bytes in
+// the correct order. Mode allows the connection sides to avoid analyzing traffic or using end-of-message
+// sequences.
+//
+// In the MTProto world, Mode acts like a microprotocol. It packages messages in a container that
+// announces its size in advance.
 type Mode interface {
 	WriteMsg([]byte) error // this is not same as the io.Writer
 	ReadMsg() ([]byte, error)
@@ -104,6 +106,8 @@ func GetVariant(m Mode) (Variant, error) {
 		return Abridged, nil
 	case *intermediate:
 		return Intermediate, nil
+	case *full:
+		return Full, nil
 	default:
 		return Variant(0xff), errors.New("using custom mode, cant't detect")
 	}

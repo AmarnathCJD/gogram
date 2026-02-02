@@ -35,10 +35,14 @@ func dialHTTP(s *url.URL, addr string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Send CONNECT request
 	_, err = fmt.Fprintf(conn, "CONNECT %s HTTP/1.1\r\nHost: %s\r\n", addr, addr)
 	if err != nil {
 		return nil, err
 	}
+
+	// Add Proxy-Authorization header if credentials are provided
 	if s.User != nil && s.User.Username() != "" {
 		username := s.User.Username()
 		password, _ := s.User.Password()
@@ -47,21 +51,28 @@ func dialHTTP(s *url.URL, addr string) (net.Conn, error) {
 			return nil, err
 		}
 	}
+
+	// End the HTTP request
 	_, err = fmt.Fprint(conn, "\r\n")
 	if err != nil {
 		return nil, err
 	}
+
+	// Read the HTTP response
 	buf := make([]byte, 12)
 	_, err = io.ReadFull(conn, buf)
 	if err != nil {
 		return nil, err
 	}
+
+	// Check the response status code
 	if string(buf[:9]) != "HTTP/1.1 " {
-		return nil, errors.New("http connect failed")
+		return nil, errors.New("HTTP connect failed")
 	}
 	if string(buf[9:12]) != "200" {
-		return nil, errors.New("http connect failed")
+		return nil, errors.New("HTTP connect failed")
 	}
+
 	return conn, nil
 }
 
@@ -74,26 +85,31 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	// auth
+
+	// Authentication
 	if s.User != nil && s.User.Username() != "" {
 		username := s.User.Username()
 		password, _ := s.User.Password()
+
 		_, err = conn.Write([]byte{5, 2, 0, 2})
 		if err != nil {
 			return nil, err
 		}
+
 		buf := make([]byte, 2)
 		_, err = io.ReadFull(conn, buf)
 		if err != nil {
 			return nil, err
 		}
+
 		if buf[0] != 5 {
 			return nil, errors.New("socks version not supported")
 		}
+
 		if buf[1] == 0 {
-			// no auth
+			// No authentication required
 		} else if buf[1] == 2 {
-			// username/password
+			// Username/password authentication
 			_, err = conn.Write(append([]byte{1, byte(len(username))}, []byte(username)...))
 			if err != nil {
 				return nil, err
@@ -102,61 +118,69 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 			if err != nil {
 				return nil, err
 			}
+
 			buf = make([]byte, 2)
 			_, err = io.ReadFull(conn, buf)
 			if err != nil {
 				return nil, err
 			}
+
 			if buf[0] != 1 {
 				return nil, errors.New("socks version not supported")
 			}
 			if buf[1] != 0 {
-				return nil, errors.New("socks auth failed")
+				return nil, errors.New("socks authentication failed")
 			}
 		} else {
-			return nil, errors.New("socks auth method not supported")
+			return nil, errors.New("socks authentication method not supported")
 		}
 	} else {
+		// No authentication required
 		_, err = conn.Write([]byte{5, 1, 0})
 		if err != nil {
 			return nil, err
 		}
+
 		buf := make([]byte, 2)
 		_, err = io.ReadFull(conn, buf)
 		if err != nil {
 			return nil, err
 		}
+
 		if buf[0] != 5 {
 			return nil, errors.New("socks version not supported")
 		}
 		if buf[1] != 0 {
-			return nil, errors.New("socks auth failed")
+			return nil, errors.New("socks authentication failed")
 		}
 	}
-	// connect
+
+	// Connect to the target address
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
 	}
+
 	ip := net.ParseIP(host)
 	var atyp byte
 	var dst []byte
+
 	if ip == nil {
-		atyp = 3
+		atyp = 3 // Domain name
 		dst = append([]byte{byte(len(host))}, []byte(host)...)
-	}
-	if ip4 := ip.To4(); ip4 != nil {
-		atyp = 1
+	} else if ip4 := ip.To4(); ip4 != nil {
+		atyp = 1 // IPv4 address
 		dst = ip4
-	}
-	if ip6 := ip.To16(); ip6 != nil {
-		atyp = 4
+	} else if ip6 := ip.To16(); ip6 != nil {
+		atyp = 4 // IPv6 address
 		dst = ip6
 	}
+
 	p, err := strconv.Atoi(port)
 	if err != nil {
 		return nil, err
 	}
+
 	_, err = conn.Write([]byte{5, 1, 0, atyp})
 	if err != nil {
 		return nil, err
@@ -165,24 +189,27 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	buf := make([]byte, 4)
 	_, err = io.ReadFull(conn, buf)
 	if err != nil {
 		return nil, err
 	}
+
 	if buf[0] != 5 {
 		return nil, errors.New("socks version not supported")
 	}
 	if buf[1] != 0 {
-		return nil, errors.New("socks connect failed")
+		return nil, errors.New("socks connection failed")
 	}
+
 	switch buf[3] {
-	case 1:
+	case 1: // IPv4 address
 		_, err = io.ReadFull(conn, buf[:4])
 		if err != nil {
 			return nil, err
 		}
-	case 3:
+	case 3: // Domain name
 		_, err = io.ReadFull(conn, buf[:1])
 		if err != nil {
 			return nil, err
@@ -192,7 +219,7 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 		if err != nil {
 			return nil, err
 		}
-	case 4:
+	case 4: // IPv6 address
 		_, err = io.ReadFull(conn, buf[:16])
 		if err != nil {
 			return nil, err
@@ -200,10 +227,12 @@ func dialSocks5(s *url.URL, addr string) (net.Conn, error) {
 	default:
 		return nil, errors.New("socks address type not supported")
 	}
+
 	_, err = io.ReadFull(conn, buf[:2])
 	if err != nil {
 		return nil, err
 	}
+
 	return conn, nil
 }
 
@@ -212,37 +241,47 @@ func dialSocks4(s *url.URL, addr string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	// connect
+
+	// Connect to the target address
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
 	}
+
 	ip := net.ParseIP(host)
 	if ip == nil {
-		return nil, errors.New("socks4 only support ip address")
+		return nil, errors.New("SOCKS4 only supports IP addresses")
 	}
+
 	ip4 := ip.To4()
 	if ip4 == nil {
-		return nil, errors.New("socks4 only support ipv4 address")
+		return nil, errors.New("SOCKS4 only supports IPv4 addresses")
 	}
+
 	p, err := strconv.Atoi(port)
 	if err != nil {
 		return nil, err
 	}
+
+	// Send SOCKS4 connect request
 	_, err = conn.Write([]byte{4, 1, byte(p >> 8), byte(p), ip4[0], ip4[1], ip4[2], ip4[3], 0})
 	if err != nil {
 		return nil, err
 	}
+
+	// Read the SOCKS4 response
 	buf := make([]byte, 8)
 	_, err = io.ReadFull(conn, buf)
 	if err != nil {
 		return nil, err
 	}
+
 	if buf[0] != 0 {
-		return nil, errors.New("socks version not supported")
+		return nil, errors.New("SOCKS version not supported")
 	}
 	if buf[1] != 90 {
-		return nil, errors.New("socks connect failed")
+		return nil, errors.New("SOCKS connection failed")
 	}
+
 	return conn, nil
 }

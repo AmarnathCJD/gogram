@@ -23,7 +23,8 @@ type Decoder struct {
 }
 
 // NewDecoder returns a new decoder that reads from r.
-// Unfortunately, decoder can't work with part of data, so reader must be read all before decoding.
+//
+// Note: The decoder cannot work with partial data. The entire input must be read before decoding can begin.
 func NewDecoder(r io.Reader) (*Decoder, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -33,11 +34,21 @@ func NewDecoder(r io.Reader) (*Decoder, error) {
 	return &Decoder{buf: bytes.NewReader(data)}, nil
 }
 
-// ExpectTypesInInterface defines, how decoder must parse implicit objects.
-// how does expectedTypes works:
-// So, imagine we have a struct with a field of type interface{}.
-// It can be possibly any time like []int32, []int64, etc.
-// Here we can define, what types we expect in this interface.
+// ExpectTypesInInterface defines how the decoder should parse implicit objects.
+//
+// How `expectedTypes` works:
+//
+// Imagine you want to parse a `[]int32`, but you might also receive `[]int64`, `SomeCustomType`,
+// or even `[][]bool`. How do you handle this?
+//
+// `expectedTypes` stores your predictions. For example, if you encounter an unknown type, it
+// will parse it as `int32` instead of `int64`.
+//
+// If you have predictions deeper than the first unknown type, you can tell the decoder to use those
+// predicted values.
+//
+// So, next time you have a structure with an `interface{}` field that expects to contain `[]float64`
+// or similar, use this feature via `d.ExpectTypesInInterface()`.
 func (d *Decoder) ExpectTypesInInterface(types ...reflect.Type) {
 	d.expectedTypes = types
 }
@@ -139,7 +150,7 @@ func (d *Decoder) PopNull() {
 }
 
 func (d *Decoder) PopCRC() uint32 {
-	return d.PopUint()
+	return d.PopUint() // The CRC calculation appears to be in big-endian order, but it's not entirely clear.
 }
 
 func (d *Decoder) PopInt() int32 {

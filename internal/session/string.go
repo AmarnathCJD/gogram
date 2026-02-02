@@ -13,15 +13,13 @@ var (
 	ErrInvalidSession = errors.New("the session string is invalid/has been tampered with")
 )
 
-type (
-	StringSession struct {
-		authKey     []byte
-		authKeyHash []byte
-		dcID        int
-		ipAddr      string
-		appID       int32
-	}
-)
+type StringSession struct {
+	authKey     []byte
+	authKeyHash []byte
+	dcID        int
+	ipAddr      string
+	appID       int32
+}
 
 func NewStringSession(authKey, authKeyHash []byte, dcID int, ipAddr string, appID int32) *StringSession {
 	return &StringSession{

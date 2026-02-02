@@ -110,7 +110,7 @@ func doAES256IGEdecrypt(data, out, key, iv []byte) error {
 	return c.doAES256IGEdecrypt(data, out)
 }
 
-// DecryptMessageWithTempKeys
+// DecryptMessageWithTempKeys decrypts a message using temporary keys obtained during the Diffie-Hellman key exchange.
 func DecryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) ([]byte, error) {
 	key, iv, errTemp := generateTempKeys(nonceSecond, nonceServer)
 	if errTemp != nil {
@@ -135,7 +135,7 @@ func DecryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) (
 	return nil, errors.New("couldn't trim message: hashes incompatible on more than 16 tries")
 }
 
-// EncryptMessageWithTempKeys
+// EncryptMessageWithTempKeys encrypts a message using temporary keys obtained during the Diffie-Hellman key exchange.
 func EncryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) ([]byte, error) {
 	hash := utils.Sha1Byte(msg)
 
@@ -162,8 +162,9 @@ func encryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) (
 	return encodedWithHash, nil
 }
 
-// https://tlgrm.ru/docs/mtproto/auth_key#server-otvecaet-dvuma-sposobami
-// generateTempKeys.
+// https://core.telegram.org/mtproto/auth_key#server-responds-in-two-ways
+//
+// generateTempKeys generates temporary keys for encryption during the key exchange process.
 func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte, err error) {
 	if nonceSecond == nil {
 		return nil, nil, errors.New("nonceSecond is nil")

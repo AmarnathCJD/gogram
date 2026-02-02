@@ -25,7 +25,7 @@ type InitConnectionParams struct {
 }
 
 func (*InitConnectionParams) CRC() uint32 {
-	return 0xc1cd5ea9 //nolint:gomnd not magic
+	return 0xc1cd5ea9
 }
 
 func (*InitConnectionParams) FlagIndex() int {
@@ -47,7 +47,7 @@ type InvokeWithLayerParams struct {
 }
 
 func (*InvokeWithLayerParams) CRC() uint32 {
-	return 0xda9b0d0d //nolint:gomnd not magic
+	return 0xda9b0d0d
 }
 
 func (m *Client) InvokeWithLayer(layer int, query tl.Object) (tl.Object, error) {
@@ -71,7 +71,7 @@ type InvokeWithTakeoutParams struct {
 }
 
 func (*InvokeWithTakeoutParams) CRC() uint32 {
-	return 0xda9b0d0d //nolint:gomnd not magic
+	return 0xda9b0d0d
 }
 
 func (m *Client) InvokeWithTakeout(takeoutID int, query tl.Object) (tl.Object, error) {
