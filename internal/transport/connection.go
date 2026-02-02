@@ -21,6 +21,7 @@ type tcpConn struct {
 type TCPConnConfig struct {
 	Ctx     context.Context
 	Host    string
+	IpV6    bool
 	Timeout time.Duration
 	Socks   *url.URL
 }

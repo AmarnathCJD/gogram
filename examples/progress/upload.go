@@ -22,18 +22,15 @@ func main() {
 
 	client.LoginBot(botToken)
 
-	var pm *telegram.ProgressManager
 	chat, _ := client.ResolvePeer("chatId")
 	m, _ := client.SendMessage(chat, "Starting File Upload...")
 
+	var pm = telegram.NewProgressManager(5)
+	pm.Edit(func(a, b int64) {
+		client.EditMessage(chat, m.ID, pm.GetStats(a))
+	})
+
 	client.SendMedia(chat, "<file-name>", &telegram.MediaOptions{
-		ProgressCallback: func(total, curr int64) {
-			if pm == nil {
-				pm = telegram.NewProgressManager(total, 5) // 5 seconds edit interval
-			}
-			if pm.ShouldEdit() {
-				client.EditMessage(chat, m.ID, pm.GetStats(curr))
-			}
-		},
+		ProgressManager: pm,
 	})
 }

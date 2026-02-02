@@ -90,6 +90,7 @@ type ClientConfig struct {
 	TestMode      bool
 	LogLevel      string
 	Proxy         *url.URL
+	ForceIPv6     bool
 	TransportMode string
 	FloodHandler  func(err error) bool
 }
@@ -110,7 +111,12 @@ func (s *Session) Encode() string {
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
-	client := &Client{wg: sync.WaitGroup{}, Log: utils.NewLogger("gogram [client]"), stopCh: make(chan struct{})}
+	client := &Client{
+		wg:     sync.WaitGroup{},
+		Log:    utils.NewLogger("gogram [client]"),
+		stopCh: make(chan struct{}),
+	}
+
 	config = client.cleanClientConfig(config)
 	client.setupClientData(config)
 
@@ -149,7 +155,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		if config.IpAddr != "" {
 			return config.IpAddr
 		} else {
-			return GetHostIp(config.DataCenter, config.TestMode)
+			return utils.GetHostIp(config.DataCenter, config.TestMode, config.ForceIPv6)
 		}
 	}
 
@@ -163,6 +169,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		StringSession: config.StringSession,
 		Proxy:         config.Proxy,
 		MemorySession: config.MemorySession,
+		Ipv6:          config.ForceIPv6,
 	})
 	if err != nil {
 		return errors.Wrap(err, "creating mtproto client")
@@ -259,14 +266,14 @@ func (c *Client) InitialRequest() error {
 
 	c.Log.Debug("received initial invokeWithLayer response")
 	if config, ok := serverConfig.(*Config); ok {
-		var dcs = make(map[int][]string)
+		var dcs = make(map[int][]utils.DC)
 		for _, dc := range config.DcOptions {
-			if !dc.Ipv6 && !dc.MediaOnly && !dc.Cdn {
+			if !dc.MediaOnly && !dc.Cdn {
 				if _, ok := dcs[int(dc.ID)]; !ok {
-					dcs[int(dc.ID)] = []string{}
+					dcs[int(dc.ID)] = []utils.DC{}
 				}
 
-				dcs[int(dc.ID)] = append(dcs[int(dc.ID)], dc.IpAddress+":"+strconv.Itoa(int(dc.Port)))
+				dcs[int(dc.ID)] = append(dcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), V: dc.Ipv6})
 			}
 		}
 

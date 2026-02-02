@@ -17,34 +17,74 @@ import (
 // ------------------ Telegram Data Center Configs ------------------
 
 var DcList = DCOptions{
-	DCS: map[int][]string{
-		1: {"149.154.175.58:443"},
-		2: {"149.154.167.50:443"},
-		3: {"149.154.175.100:443"},
-		4: {"149.154.167.91:443"},
-		5: {"91.108.56.151:443"},
+	DCS: map[int][]DC{
+		1: {{"149.154.175.58:443", false}},
+		2: {{"149.154.167.50:443", false}},
+		3: {{"149.154.175.100:443", false}},
+		4: {{"149.154.167.91:443", false}},
+		5: {{"91.108.56.151:443", false}},
 	},
 }
 
-type DCOptions struct {
-	DCS map[int][]string
+var TestDataCenters = map[int]string{
+	1: "149.154.175.10:443",
+	2: "149.154.167.40:443",
+	3: "149.154.175.117:443",
 }
 
-func SetDCs(dcs map[int][]string) {
+type DC struct {
+	Addr string
+	V    bool
+}
+
+type DCOptions struct {
+	DCS map[int][]DC
+}
+
+func SetDCs(dcs map[int][]DC) {
 	DcList.DCS = dcs
 }
 
-func GetAddr(dc int) string {
+func GetAddr(dc int) (string, bool) {
 	if addrs, ok := DcList.DCS[dc]; ok {
-		return addrs[0]
+		return addrs[0].Addr, addrs[0].V
 	}
-	return ""
+	return "", false
+}
+
+func GetHostIp(dc int, test bool, ipv6 bool) string {
+	dcMap, ok := DcList.DCS[dc]
+	if !ok {
+		return ""
+	}
+
+	if test {
+		if addr, ok := TestDataCenters[dc]; ok {
+			return addr
+		}
+	}
+
+	if ipv6 {
+		for _, dc := range dcMap {
+			if dc.V {
+				return dc.Addr
+			}
+		}
+	}
+
+	for _, dc := range dcMap {
+		if !dc.V {
+			return dc.Addr
+		}
+	}
+
+	return dcMap[0].Addr
 }
 
 func SearchAddr(addr string) int {
 	for dc, addrs := range DcList.DCS {
 		for _, a := range addrs {
-			if a == addr {
+			if a.Addr == addr {
 				return dc
 			}
 		}

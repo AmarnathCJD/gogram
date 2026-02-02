@@ -73,6 +73,7 @@ type MTProto struct {
 	serviceModeActivated bool
 
 	authKey404 []int64
+	IpV6       bool
 
 	Logger *utils.Logger
 
@@ -94,6 +95,7 @@ type Config struct {
 	LogLevel   string
 	Proxy      *url.URL
 	Mode       string
+	Ipv6       bool
 }
 
 func NewMTProto(c Config) (*MTProto, error) {
@@ -136,6 +138,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		proxy:                 c.Proxy,
 		floodHandler:          func(err error) bool { return false },
 		mode:                  parseTransportMode(c.Mode),
+		IpV6:                  c.Ipv6,
 	}
 
 	mtproto.Logger.Debug("initializing mtproto...")
@@ -249,7 +252,7 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 	if m.noRedirect {
 		return m, nil
 	}
-	newAddr := utils.GetAddr(dc)
+	newAddr := utils.GetHostIp(dc, false, m.IpV6)
 	if newAddr == "" {
 		return nil, errors.New("dc_id not found")
 	}
@@ -266,6 +269,7 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 		LogLevel:      m.Logger.Lev(),
 		Proxy:         m.proxy,
 		AppID:         m.appID,
+		Ipv6:          m.IpV6,
 	}
 	sender, err := NewMTProto(cfg)
 	if err != nil {
@@ -283,13 +287,24 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 }
 
 func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
-	newAddr := utils.GetAddr(dcID)
+	newAddr := utils.GetHostIp(dcID, false, m.IpV6)
 	execWorkDir, err := os.Executable()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting executable directory")
 	}
 	wd := filepath.Dir(execWorkDir)
-	cfg := Config{DataCenter: dcID, PublicKey: m.publicKey, ServerHost: newAddr, AuthKeyFile: filepath.Join(wd, "exported_sender"), MemorySession: mem, LogLevel: "disabled", Proxy: m.proxy, AppID: m.appID}
+	cfg := Config{
+		DataCenter:    dcID,
+		PublicKey:     m.publicKey,
+		ServerHost:    newAddr,
+		AuthKeyFile:   filepath.Join(wd, "exported_sender"),
+		MemorySession: mem,
+		LogLevel:      "disabled",
+		Proxy:         m.proxy,
+		AppID:         m.appID,
+		Ipv6:          m.IpV6,
+	}
+
 	if dcID == m.GetDC() {
 		cfg.SessionStorage = m.sessionStorage
 	}
@@ -353,6 +368,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 		transport.TCPConnConfig{
 			Ctx:     ctx,
 			Host:    m.Addr,
+			IpV6:    m.IpV6,
 			Timeout: defaultTimeout,
 			Socks:   m.proxy,
 		},
@@ -421,7 +437,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 
 	select {
 	case <-ctx.Done():
-		m.writeRPCResponse(int(msgId), &objects.Null{})
+		go m.writeRPCResponse(int(msgId), &objects.Null{})
 		return nil, ctx.Err()
 	case response := <-resp:
 		switch r := response.(type) {
