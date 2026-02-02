@@ -5,42 +5,52 @@
     <br>
     <b>Telegram MTProto API Framework for Golang</b>
     <br>
+    <b>
     <a href="/">
-        Homepage
+        HOME
     </a>
     •
     <a href="/examples/">
-        Docs
+        DOCS
     </a>
     •
     <a href="https://github.com/amarnathcjd/gogram/releases">
-        Releases
+        RELEASES
     </a>
     •
     <a href="https://t.me/rosexchat">
-        Support
+        SUPPORT
     </a>
+    </b>
 </p>
 
-## GoGram
+## <b>GoGram</b>
 
-> Light Weight, Fast, Elegant Telegram [MTProto API](https://core.telegram.org/api) framework in [Golang](https://golang.org/) for building Telegram clients and bots.
+<p>Light Weight, Fast, Elegant Telegram <b><a href="https://core.telegram.org/api">MTProto API</a></b> framework in <b><a href="https://golang.org/">Golang</a></b> for building Telegram clients and bots.</p>
 
 ## Status
 
 [![GoDoc](https://godoc.org/github.com/amarnathcjd/gogram?status.svg)](https://godoc.org/github.com/amarnathcjd/gogram)
 [![Go Report Card](https://goreportcard.com/badge/github.com/amarnathcjd/gogram)](https://goreportcard.com/report/github.com/amarnathcjd/gogram)
 [![License](https://img.shields.io/github/license/amarnathcjd/gogram.svg)](https://img.shields.io/github/license/amarnathcjd/gogram.svg)
-[![GitHub stars](https://img.shields.io/github/stars/amarnathcjd/gogram.svg?style=social&label=Stars)](
-    https://img.shields.io/github/license/amarnathcjd/gogram.svg?style=social&label=Stars)
-[![GitHub forks](https://img.shields.io/github/forks/amarnathcjd/gogram.svg?style=social&label=Fork)](
-    https://img.shields.io/github/license/amarnathcjd/gogram.svg?style=social&label=Fork)
-[![GitHub issues](https://img.shields.io/github/issues/amarnathcjd/gogram.svg)](
-    https://img.shields.io/github/license/amarnathcjd/gogram.svg
-)
+[![GitHub stars](https://img.shields.io/github/stars/amarnathcjd/gogram.svg?style=social&label=Stars)](https://img.shields.io/github/license/amarnathcjd/gogram.svg?style=social&label=Stars)
+[![GitHub forks](https://img.shields.io/github/forks/amarnathcjd/gogram.svg?style=social&label=Fork)](https://img.shields.io/github/license/amarnathcjd/gogram.svg?style=social&label=Fork)
+[![GitHub issues](https://img.shields.io/github/issues/amarnathcjd/gogram.svg)](https://img.shields.io/github/license/amarnathcjd/gogram.svg)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/amarnathcjd/gogram.svg)](https://img.shields.io/github/license/amarnathcjd/gogram.svg)
 
+⭐️ **Gogram** is a modern, elegant and concurrent [MTProto API](https://core.telegram.org/api)
+framework. It enables you to easily interact with the main Telegram API through a user account (custom client) or a bot
+identity (bot API alternative) using Go.
 
-``` golang
+## Setup
+
+```bash
+go get -u github.com/amarnathcjd/gogram/telegram
+```
+
+## Getting Started
+
+```golang
 package main
 
 import "github.com/amarnathcjd/gogram/telegram"
@@ -55,24 +65,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-	client.ConnectBot("<bot-token>") // or client.Login("<phone-number>") for user account
-	// client.AuthPrompt() // for console-based interactive auth
+	client.ConnectBot("<bot-token>") // or client.Login("<phone-number>") for user account, or client.AuthPrompt() for interactive login
 
 	client.AddMessageHandler(telegram.OnNewMessage, func(message *telegram.NewMessage) error {
 		if message.IsPrivate() {
 			message.Reply("Hello from Gogram!")
 			return nil
 		}
-		return fmt.Errorf("the chat isn't private")
+
+        return nil
 	})
 
 	client.Idle() // block main goroutine until client is closed
 }
 ```
-
-**Gogram** is a modern, elegant and concurrent [MTProto API](https://core.telegram.org/api)
-framework. It enables you to easily interact with the main Telegram API through a user account (custom client) or a bot
-identity (bot API alternative) using Go.
 
 ## Support
 
@@ -93,17 +99,11 @@ If you'd like to support Gogram, you can consider:
 
 #### Current Layer - **181** (Updated on 2024-05-28)
 
-## Installing
-
-``` bash
-go get -u github.com/amarnathcjd/gogram/telegram
-```
-
 ## Doing Stuff
 
 #### Sending a Message
 
-``` golang
+```golang
 client.SendMessage("username", "Hello from Gogram!")
 
 client.SendDice("username", "🎲")
@@ -116,7 +116,7 @@ client.AddMessageHandler("/start", func(m *telegram.Message) error {
 
 #### Sending Media
 
-``` golang
+```golang
 client.SendMedia("username", "<file-name>", &telegram.MediaOptions{ // filename/inputmedia,...
     Caption: "Hello from Gogram!",
     TTL: int32((math.Pow(2, 31) - 1)), //  TTL For OneTimeMedia
@@ -129,7 +129,7 @@ client.SendAlbum("username", []string{"<file-name>", "<file-name>"}, &telegram.M
 
 #### Inline Queries
 
-``` golang
+```golang
 client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 	builder := iq.Builder()
 	builder.Article("<title>", "<description>", "<text>", &telegram.ArticleOptions{
@@ -139,6 +139,8 @@ client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 	return nil
 })
 ```
+
+For more examples, check the [examples](examples) directory.
 
 ## Features TODO
 
@@ -158,11 +160,10 @@ client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 - [x] MessageMediaPoll, UserFull Decode Fails
 - [x] invokeWithLayer channel missing while bad Salt
 - [x] tcp.io.Reader.Read unstable
-- [x] Perfect HTML Parser 
+- [x] Perfect HTML Parser
 - [x] Session File some issues
 - [x] Unidentified RPCError decoding fails
 - [ ] File downloading is not stable
-
 
 ## Contributing
 
@@ -170,8 +171,8 @@ Gogram is an open-source project and your contribution is very much appreciated.
 
 ## Resources
 
-- Documentation: (Coming Soon)
-- Support: [@rosexchat](https://t.me/rosexchat)
+- Documentation: Work in Progress
+- Support: [@rosexchat](https://t.me/rosexchat), [@EvieSupport](https://t.me/EvieSupport)
 
 ## License
 
