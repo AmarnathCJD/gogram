@@ -5,7 +5,6 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -22,13 +21,6 @@ import (
 	"github.com/amarnathcjd/gogram/internal/transport"
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
-
-type ErrResponseCode struct {
-	Code           int
-	Message        string
-	Description    string
-	AdditionalInfo any // some errors has additional data like timeout seconds, dc id etc.
-}
 
 type MTProto struct {
 	addr         string
@@ -285,10 +277,6 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				return
 			default:
 				err := m.readMsg()
-				if err != nil {
-					fmt.Println("readMsg error:", err)
-					os.Exit(1)
-				}
 				switch err {
 				case nil: // skip
 				case context.Canceled:
@@ -296,7 +284,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				case io.EOF:
 					err = m.Reconnect()
 					if err != nil {
-						m.warnError(errors.Wrap(err, "can't reconnect"))
+						fmt.Println("reconnecting failed:", err)
 					}
 				default:
 					check(err)
@@ -314,7 +302,7 @@ func (m *MTProto) readMsg() error {
 	response, err := m.transport.ReadMsg()
 	if err != nil {
 		if e, ok := err.(transport.ErrCode); ok {
-			return fmt.Errorf("%d", e)
+			return &ErrResponseCode{Code: int(e)}
 		}
 		switch err {
 		case io.EOF, context.Canceled:
@@ -326,6 +314,7 @@ func (m *MTProto) readMsg() error {
 
 	if m.serviceModeActivated {
 		var obj tl.Object
+		// сервисные сообщения ГАРАНТИРОВАННО в теле содержат TL.
 		obj, err = tl.DecodeUnknownObject(response.GetMsg())
 		if err != nil {
 			return errors.Wrap(err, "parsing object")
