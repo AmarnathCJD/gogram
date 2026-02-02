@@ -129,14 +129,20 @@ func (m *NewMessage) ChatID() int64 {
 }
 
 func (m *NewMessage) ChannelID() int64 {
-	if m.Message != nil && m.Message.PeerID != nil {
-		switch Peer := m.Message.PeerID.(type) {
+	if m != nil && m.Message != nil && m.Message.PeerID != nil {
+		switch peer := m.Message.PeerID.(type) {
 		case *PeerChannel:
-			return -100_000_000_0000 - Peer.ChannelID
+			if peer != nil {
+				return -100_000_000_0000 - peer.ChannelID
+			}
 		case *PeerChat:
-			return -Peer.ChatID
+			if peer != nil {
+				return -peer.ChatID
+			}
 		case *PeerUser:
-			return Peer.UserID
+			if peer != nil {
+				return peer.UserID
+			}
 		}
 	}
 	return 0
