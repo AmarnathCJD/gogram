@@ -7348,6 +7348,27 @@ func (c *Client) MessagesGetDefaultHistoryTtl() (*DefaultHistoryTtl, error) {
 	return resp, nil
 }
 
+type MessagesGetDefaultTagReactionsParams struct {
+	Hash int64
+}
+
+func (*MessagesGetDefaultTagReactionsParams) CRC() uint32 {
+	return 0xbdf93428
+}
+
+func (c *Client) MessagesGetDefaultTagReactions(hash int64) (MessagesReactions, error) {
+	responseData, err := c.MakeRequest(&MessagesGetDefaultTagReactionsParams{Hash: hash})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetDefaultTagReactions")
+	}
+
+	resp, ok := responseData.(MessagesReactions)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesGetDhConfigParams struct {
 	Version      int32
 	RandomLength int32
@@ -8479,6 +8500,27 @@ func (c *Client) MessagesGetSavedHistory(params *MessagesGetSavedHistoryParams) 
 	}
 
 	resp, ok := responseData.(MessagesMessages)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesGetSavedReactionTagsParams struct {
+	Hash int64
+}
+
+func (*MessagesGetSavedReactionTagsParams) CRC() uint32 {
+	return 0x761ddacf
+}
+
+func (c *Client) MessagesGetSavedReactionTags(hash int64) (MessagesSavedReactionTags, error) {
+	responseData, err := c.MakeRequest(&MessagesGetSavedReactionTagsParams{Hash: hash})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetSavedReactionTags")
+	}
+
+	resp, ok := responseData.(MessagesSavedReactionTags)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -9796,24 +9838,25 @@ func (c *Client) MessagesSaveRecentSticker(attached bool, id InputDocument, unsa
 }
 
 type MessagesSearchParams struct {
-	Peer        InputPeer
-	Q           string
-	FromID      InputPeer `tl:"flag:0"`
-	SavedPeerID InputPeer `tl:"flag:2"`
-	TopMsgID    int32     `tl:"flag:1"`
-	Filter      MessagesFilter
-	MinDate     int32
-	MaxDate     int32
-	OffsetID    int32
-	AddOffset   int32
-	Limit       int32
-	MaxID       int32
-	MinID       int32
-	Hash        int64
+	Peer          InputPeer
+	Q             string
+	FromID        InputPeer  `tl:"flag:0"`
+	SavedPeerID   InputPeer  `tl:"flag:2"`
+	SavedReaction []Reaction `tl:"flag:3"`
+	TopMsgID      int32      `tl:"flag:1"`
+	Filter        MessagesFilter
+	MinDate       int32
+	MaxDate       int32
+	OffsetID      int32
+	AddOffset     int32
+	Limit         int32
+	MaxID         int32
+	MinID         int32
+	Hash          int64
 }
 
 func (*MessagesSearchParams) CRC() uint32 {
-	return 0xa7b4e929
+	return 0x29ee847a
 }
 
 func (*MessagesSearchParams) FlagIndex() int {
@@ -11204,6 +11247,35 @@ func (c *Client) MessagesUpdatePinnedMessage(params *MessagesUpdatePinnedMessage
 	}
 
 	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesUpdateSavedReactionTagParams struct {
+	Reaction Reaction
+	Title    string `tl:"flag:0"`
+}
+
+func (*MessagesUpdateSavedReactionTagParams) CRC() uint32 {
+	return 0x60297dec
+}
+
+func (*MessagesUpdateSavedReactionTagParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesUpdateSavedReactionTag(reaction Reaction, title string) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesUpdateSavedReactionTagParams{
+		Reaction: reaction,
+		Title:    title,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesUpdateSavedReactionTag")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -14194,9 +14266,9 @@ func (*UsersSetSecureValueErrorsParams) CRC() uint32 {
 	return 0x90c894b5
 }
 
-func (c *Client) UsersSetSecureValueErrors(id InputUser, errorsVault []SecureValueError) (bool, error) {
+func (c *Client) UsersSetSecureValueErrors(id InputUser, errorsW []SecureValueError) (bool, error) {
 	responseData, err := c.MakeRequest(&UsersSetSecureValueErrorsParams{
-		Errors: errorsVault,
+		Errors: errorsW,
 		ID:     id,
 	})
 	if err != nil {

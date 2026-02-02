@@ -1495,6 +1495,7 @@ func (*MessageRange) CRC() uint32 {
 type MessageReactions struct {
 	Min             bool `tl:"flag:0,encoded_in_bitflags"`
 	CanSeeList      bool `tl:"flag:2,encoded_in_bitflags"`
+	ReactionsAsTags bool `tl:"flag:3,encoded_in_bitflags"`
 	Results         []*ReactionCount
 	RecentReactions []*MessagePeerReaction `tl:"flag:1"`
 }
@@ -2594,6 +2595,20 @@ type SavedPhoneContact struct {
 
 func (*SavedPhoneContact) CRC() uint32 {
 	return 0x1142bd56
+}
+
+type SavedReactionTag struct {
+	Reaction Reaction
+	Title    string `tl:"flag:0"`
+	Count    int32
+}
+
+func (*SavedReactionTag) CRC() uint32 {
+	return 0xcb6ff828
+}
+
+func (*SavedReactionTag) FlagIndex() int {
+	return 0
 }
 
 type SearchResultPosition struct {

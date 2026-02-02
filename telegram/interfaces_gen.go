@@ -9044,6 +9044,14 @@ func (*UpdateSavedGifs) CRC() uint32 {
 
 func (*UpdateSavedGifs) ImplementsUpdate() {}
 
+type UpdateSavedReactionTags struct{}
+
+func (*UpdateSavedReactionTags) CRC() uint32 {
+	return 0x39c67432
+}
+
+func (*UpdateSavedReactionTags) ImplementsUpdate() {}
+
 type UpdateSavedRingtones struct{}
 
 func (*UpdateSavedRingtones) CRC() uint32 {
@@ -11065,6 +11073,29 @@ func (*MessagesSavedGifsNotModified) CRC() uint32 {
 }
 
 func (*MessagesSavedGifsNotModified) ImplementsMessagesSavedGifs() {}
+
+type MessagesSavedReactionTags interface {
+	tl.Object
+	ImplementsMessagesSavedReactionTags()
+}
+type MessagesSavedReactionTagsObj struct {
+	Tags []*SavedReactionTag
+	Hash int64
+}
+
+func (*MessagesSavedReactionTagsObj) CRC() uint32 {
+	return 0x3259950a
+}
+
+func (*MessagesSavedReactionTagsObj) ImplementsMessagesSavedReactionTags() {}
+
+type MessagesSavedReactionTagsNotModified struct{}
+
+func (*MessagesSavedReactionTagsNotModified) CRC() uint32 {
+	return 0x889b59ef
+}
+
+func (*MessagesSavedReactionTagsNotModified) ImplementsMessagesSavedReactionTags() {}
 
 type MessagesSentEncryptedMessage interface {
 	tl.Object

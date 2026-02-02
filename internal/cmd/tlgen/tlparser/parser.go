@@ -78,6 +78,7 @@ func ParseSchema(source string) (*Schema, error) {
 				}
 
 				paramComments[pname] = strings.TrimSpace(pcomment)
+			case "LAYER":
 			default:
 				return nil, fmt.Errorf("unknown comment type: %s", ctype)
 			}
