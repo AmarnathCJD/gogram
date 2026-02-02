@@ -165,8 +165,6 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 		Hash:          Options.Hash,
 	})
 
-	//n, _ := json.Marshal(resp)
-	//ioutil.WriteFile("n.json", n, 0644)
 	if err != nil {
 		return nil, err
 	}

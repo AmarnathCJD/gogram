@@ -166,7 +166,7 @@ func (c *Client) UploadFile(src interface{}, Opts ...*UploadOptions) (InputFile,
 			_, err = c.UploadSaveBigFilePart(fileId, int32(totalParts)-1, int32(totalParts), part)
 		}
 		if err != nil {
-			fmt.Println(err)
+			c.Logger.Error(err)
 		}
 
 		c.Logger.Debug("Uploaded last part", totalParts-1, "with size", len(part), "in KB:", len(part)/1024)
@@ -464,10 +464,6 @@ func (u *Uploader) uploadParts(w *Client, parts []int32) {
 	for i := parts[0]; i < parts[1]; i++ {
 		//_, err := u.readPart(i)
 		var err error
-		if err != nil {
-			u.Client.Log.Error(err)
-			continue
-		}
 		if u.Meta.IsBig {
 			_, err = w.UploadSaveBigFilePart(u.FileID, i, u.Parts, buf)
 		} else {

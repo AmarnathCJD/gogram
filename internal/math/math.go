@@ -39,7 +39,7 @@ func DoRSAencrypt(block []byte, key *rsa.PublicKey) []byte {
 // Part of diffie hellman's algorithm, how it works - no idea
 func SplitPQ(pq *big.Int) (p1, p2 *big.Int) {
 	// Benchmark: Fac 15x faster than SplitPQ
-	return Fac(pq) // TODO: test extensively for fail cases
+	// TODO: test extensively for fail cases
 	rndmax := big.NewInt(0).SetBit(big.NewInt(0), 64, 1)
 
 	what := big.NewInt(0).Set(pq)
@@ -115,7 +115,7 @@ func SplitPQ(pq *big.Int) (p1, p2 *big.Int) {
 }
 
 func MakeGAB(g int32, g_a, dh_prime *big.Int) (b, g_b, g_ab *big.Int) {
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano())) //nolint: gosec зачем
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	rndmax := big.NewInt(0).SetBit(big.NewInt(0), 2048, 1)
 	b = big.NewInt(0).Rand(rnd, rndmax)
 	g_b = big.NewInt(0).Exp(big.NewInt(int64(g)), b, dh_prime)
