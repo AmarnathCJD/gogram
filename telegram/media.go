@@ -444,7 +444,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	}
 
 	if opts.ProgressCallback != nil {
-		opts.ProgressCallback(size, doneBytes.Load())
+		go opts.ProgressCallback(size, doneBytes.Load())
 	}
 
 	if opts.Buffer != nil {
@@ -455,7 +455,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 
 	c.retryFailedParts(totalParts, dc, w, doneArray, &fs, opts, location, partSize, &doneBytes)
 	if opts.ProgressCallback != nil {
-		opts.ProgressCallback(size, doneBytes.Load())
+		go opts.ProgressCallback(size, size)
 	}
 
 	return dest, nil
@@ -482,7 +482,7 @@ func (c *Client) initializeWorkers(numWorkers int, dc int32) ([]Sender, int) {
 
 func (c *Client) allocateRemainingWorkers(dc int32, w []Sender, numWorkers, wPreallocated int) {
 	for i := wPreallocated; i < numWorkers; i++ {
-		go c.createAndAppendSender(int(dc), w, i)
+		c.createAndAppendSender(int(dc), w, i)
 	}
 }
 
@@ -490,7 +490,7 @@ func (c *Client) createAndAppendSender(dcId int, senders []Sender, senderIndex i
 	conn, err := c.CreateExportedSender(dcId)
 	if conn != nil && err == nil {
 		senders[senderIndex] = Sender{c: conn}
-		go c.AddNewExportedSenderToMap(dcId, conn)
+		c.AddNewExportedSenderToMap(dcId, conn)
 	}
 }
 
@@ -569,26 +569,26 @@ func (c *Client) downloadPart(mu *sync.Mutex, workers []Sender, workerIndex, par
 			resultChan <- upl.(UploadFile)
 		}()
 
+		//TODO: goroutine count in-> != <-out, Identify this.
+
 		select {
 		case upl := <-resultChan:
 			if upl == nil {
 				retryCount++
-				c.Logger.Debug(fmt.Sprintf("Retrying part %d due to nil response", partIndex))
+				c.Logger.Debug(fmt.Sprintf("retrying part %d due to nil response", partIndex))
 				continue
 			}
 			c.processDownloadedPart(upl, partIndex, doneArray, fs, partSize, opts, doneBytes, totalBytes)
 			return
 		case err := <-errorChan:
-			c.Logger.Error(err, fmt.Sprintf("Error in part %d", partIndex))
 			if handleIfFlood(err, c) {
-				retryCount++
-				c.Logger.Debug(fmt.Sprintf("Flood wait detected, retrying part %d", partIndex))
+				c.Logger.Debug(fmt.Sprintf("flood wait detected, retrying part %d", partIndex))
 				continue
 			}
 			return
 		case <-ctx.Done():
 			retryCount++
-			c.Logger.Debug(fmt.Sprintf("Part %d download timed out, retrying", partIndex))
+			c.Logger.Debug(fmt.Sprintf("part %d download timed out, retrying", partIndex))
 		}
 	}
 
@@ -602,7 +602,7 @@ func (c *Client) processDownloadedPart(upl UploadFile, p int, doneArray []bool, 
 		buffer = v.Bytes
 		doneArray[p] = true
 	case *UploadFileCdnRedirect:
-		panic("CDN redirect not implemented") // TODO
+		panic("c-d-n redirect not implemented") // TODO
 	}
 
 	_, err := fs.WriteAt(buffer, int64(p*partSize))
@@ -612,7 +612,7 @@ func (c *Client) processDownloadedPart(upl UploadFile, p int, doneArray []bool, 
 
 	doneBytes.Add(int64(len(buffer)))
 	if opts.ProgressCallback != nil {
-		opts.ProgressCallback(size, doneBytes.Load())
+		go opts.ProgressCallback(size, doneBytes.Load())
 	}
 }
 
@@ -666,7 +666,7 @@ func (c *Client) downloadLastPart(dc int32, w []Sender, location InputFileLocati
 		select {
 		case upl := <-resultChan:
 			if upl == nil {
-				c.Logger.Warn("Received nil result, retrying...")
+				c.Logger.Debug("received nil result, retrying...")
 				retryCount++
 				continue
 			}
@@ -676,7 +676,6 @@ func (c *Client) downloadLastPart(dc int32, w []Sender, location InputFileLocati
 
 		case err := <-errorChan:
 			if handleIfFlood(err, c) {
-				c.Logger.Warn("Flood detected, retrying...")
 				retryCount++
 				continue
 			}
@@ -684,12 +683,12 @@ func (c *Client) downloadLastPart(dc int32, w []Sender, location InputFileLocati
 			return
 
 		case <-ctx.Done():
-			c.Logger.Warn(fmt.Sprintf("Timeout for part %d, retrying... (%d/%d)", parts, retryCount+1, retryLimit))
+			c.Logger.Debug(fmt.Sprintf("timeout for part %d, retrying... (%d/%d)", parts, retryCount+1, retryLimit))
 			retryCount++
 		}
 
 		if retryCount > retryLimit {
-			c.Logger.Debug(fmt.Sprintf("Max retries reached for part %d", parts))
+			c.Logger.Debug(fmt.Sprintf("max retries reached for part %d", parts))
 			return
 		}
 	}
@@ -717,20 +716,7 @@ func (c *Client) retryFailedParts(totalParts int64, dc int32, w []Sender, doneAr
 	for i, v := range doneArray {
 		if !v && i < int(totalParts) {
 			c.Logger.Debug("seq retrying part ", i, " of ", totalParts)
-			upl, err := w[0].c.UploadGetFile(&UploadGetFileParams{
-				Location:     location,
-				Offset:       int64(i * partSize),
-				Limit:        int32(partSize),
-				Precise:      true,
-				CdnSupported: false,
-			})
-
-			if err != nil {
-				c.Logger.Error(err)
-				continue
-			}
-
-			c.processDownloadedPart(upl, i, doneArray, fs, partSize, opts, doneBytes, totalParts*int64(partSize))
+			c.downloadPart(&sync.Mutex{}, w, 0, i, partSize, doneArray, location, fs, opts, doneBytes, totalParts*int64(partSize))
 		}
 	}
 }
