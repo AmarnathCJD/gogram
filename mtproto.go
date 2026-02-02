@@ -264,7 +264,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	ctx, cancelfunc := context.WithCancel(context.Background())
 	m.stopRoutines = cancelfunc
 	if withLog {
-		m.Logger.Info("Connecting to [" + m.Addr + "] - <TCPFull> ...")
+		m.Logger.Info("Connecting to [" + m.Addr + "] - <TCPInterm> ...")
 	}
 	err := m.connect(ctx)
 	if err != nil {
@@ -273,9 +273,9 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	m.tcpActive = true
 	if withLog {
 		if m.socksProxy != nil && m.socksProxy.Host != "" {
-			m.Logger.Info("Connection to (" + m.socksProxy.Host + ")[" + m.Addr + "] - <TCPFull> established")
+			m.Logger.Info("Connection to (" + m.socksProxy.Host + ")[" + m.Addr + "] - <TCPInterm> established")
 		} else {
-			m.Logger.Info("Connection to [" + m.Addr + "] - <TCPFull> established")
+			m.Logger.Info("Connection to [" + m.Addr + "] - <TCPInterm> established")
 		}
 	}
 	m.startReadingResponses(ctx)
@@ -318,7 +318,7 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	resp, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
 		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") {
-			m.Logger.Info("connection closed due to broken pipe, reconnecting to [" + m.Addr + "]" + " - <TCPFull> ...")
+			m.Logger.Info("connection closed due to broken pipe, reconnecting to [" + m.Addr + "]" + " - <TCPInterm> ...")
 			err = m.Reconnect(false)
 			if err != nil {
 				return nil, errors.Wrap(err, "reconnecting")
@@ -367,7 +367,7 @@ func (m *MTProto) Disconnect() error {
 func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
-	m.Logger.Info("terminating connection to [" + m.Addr + "] - <TCPFull> ...")
+	m.Logger.Info("terminating connection to [" + m.Addr + "] - <TCPInterm> ...")
 	m.tcpActive = false
 	return nil
 }
@@ -378,12 +378,12 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 		return errors.Wrap(err, "disconnecting")
 	}
 	if WithLogs {
-		m.Logger.Info("Reconnecting to [" + m.Addr + "] - <TCPFull> ...")
+		m.Logger.Info("Reconnecting to [" + m.Addr + "] - <TCPInterm> ...")
 	}
 
 	err = m.CreateConnection(WithLogs)
 	if err == nil && WithLogs {
-		m.Logger.Info("Reconnected to [" + m.Addr + "] - <TCPFull> ...")
+		m.Logger.Info("Reconnected to [" + m.Addr + "] - <TCPInterm> ...")
 	}
 	m.InvokeRequestWithoutUpdate(&utils.PingParams{
 		PingID: 123456789,
@@ -417,13 +417,13 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 
 				if err != nil {
 					if strings.Contains(err.Error(), "unexpected error: unexpected EOF") {
-						m.Logger.Debug("unexpected EOF, reconnecting to [" + m.Addr + "] - <TCPFull> ...") // TODO: beautify this
+						m.Logger.Debug("unexpected EOF, reconnecting to [" + m.Addr + "] - <TCPInterm> ...") // TODO: beautify this
 						err = m.Reconnect(false)
 						if err != nil {
 							m.Logger.Error(errors.Wrap(err, "reconnecting"))
 						}
 					} else if strings.Contains(err.Error(), "required to reconnect!") { // network is not stable
-						m.Logger.Debug("unstable connection, reconnecting to [" + m.Addr + "] - <TCPFull> ...")
+						m.Logger.Debug("unstable connection, reconnecting to [" + m.Addr + "] - <TCPInterm> ...")
 						err = m.Reconnect(false)
 						if err != nil {
 							m.Logger.Error(errors.Wrap(err, "reconnecting"))
