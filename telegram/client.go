@@ -59,13 +59,14 @@ func (e *exSenders) setTTL() {
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
-	Cache      *CACHE
-	clientData clientData
-	dispatcher *UpdateDispatcher
-	wg         sync.WaitGroup
-	stopCh     chan struct{}
-	exSenders  *exSenders
-	Log        *utils.Logger
+	Cache        *CACHE
+	clientData   clientData
+	dispatcher   *UpdateDispatcher
+	wg           sync.WaitGroup
+	stopCh       chan struct{}
+	exSenders    *exSenders
+	exportedKeys map[int]*ExportedAuthParams
+	Log          *utils.Logger
 }
 
 type DeviceConfig struct {
