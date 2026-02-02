@@ -3,6 +3,8 @@
 package telegram
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -105,7 +107,14 @@ func (c *Client) SetChatMenuButton(userID int64, button *BotMenuButton) (bool, e
 
 // In testing stage, TODO
 // returns list of users and chats in chans
-func (c *Client) Broadcast() (chan User, chan Chat, error) {
+func (c *Client) Broadcast(ctx ...context.Context) (chan User, chan Chat, error) {
+	var ctxC context.Context
+	if len(ctx) > 0 {
+		ctxC = ctx[0]
+	} else {
+		ctxC = context.Background()
+	}
+
 	s, err := c.UpdatesGetState()
 	if err != nil {
 		return nil, nil, err
@@ -132,7 +141,13 @@ func (c *Client) Broadcast() (chan User, chan Chat, error) {
 		defer close(chatChan)
 
 		for req.Pts < endPts {
-			updates, err := c.UpdatesGetDifference(req)
+			select {
+			case <-ctxC.Done():
+				return
+			default:
+			}
+
+			updates, err := c.MakeRequestCtx(ctxC, req)
 			if err != nil {
 				if handleIfFlood(err, c) {
 					continue
@@ -209,4 +224,108 @@ func (c *Client) Broadcast() (chan User, chan Chat, error) {
 	}()
 
 	return userChan, chatChan, nil
+}
+
+// Buy a gift for a user
+func (c *Client) SendNewGift(toPeer any, giftId int64, message ...string) (PaymentsPaymentResult, error) {
+	userPeer, err := c.ResolvePeer(toPeer)
+	if err != nil {
+		return nil, err
+	}
+
+	inv := &InputInvoiceStarGift{
+		Peer:           userPeer,
+		GiftID:         giftId,
+		IncludeUpgrade: false,
+		HideName:       false,
+	}
+
+	if len(message) > 0 {
+		entites, textPart := c.FormatMessage(message[0], c.ParseMode())
+		inv.Message = &TextWithEntities{
+			Text:     textPart,
+			Entities: entites,
+		}
+	}
+
+	form, err := c.PaymentsGetPaymentForm(inv, &DataJson{})
+	if err != nil {
+		return nil, err
+	}
+
+	return c.PaymentsSendStarsForm(form.(*PaymentsPaymentFormObj).FormID, inv)
+}
+
+// Transfer a saved gift to another user (must be a unique gift)
+func (c *Client) SendGift(toPeer any, giftId int64, message ...string) (PaymentsPaymentResult, error) {
+	mygifts, _ := c.PaymentsGetSavedStarGifts(&PaymentsGetSavedStarGiftsParams{
+		Peer: &InputPeerSelf{},
+	})
+
+	userPeer, err := c.ResolvePeer(toPeer)
+	if err != nil {
+		return nil, err
+	}
+
+	var toSend int32
+
+	for _, vx := range mygifts.Gifts {
+		switch v := vx.Gift.(type) {
+		case *StarGiftObj:
+			if v.ID == giftId {
+				toSend = vx.MsgID
+				break
+			}
+		case *StarGiftUnique:
+			if v.ID == giftId {
+				toSend = vx.MsgID
+				break
+			}
+		}
+	}
+
+	if toSend == 0 {
+		return nil, fmt.Errorf("specified unique gift not found")
+	}
+
+	inv := &InputInvoiceStarGiftTransfer{
+		ToID: userPeer,
+		Stargift: &InputSavedStarGiftUser{
+			MsgID: toSend,
+		},
+	}
+
+	form, err := c.PaymentsGetPaymentForm(inv, &DataJson{})
+	if err != nil {
+		return nil, err
+	}
+
+	return c.PaymentsSendStarsForm(form.(*PaymentsPaymentFormStarGift).FormID, inv)
+}
+
+func (c *Client) GetMyGifts(unique ...bool) ([]*StarGift, error) {
+	gifts, err := c.PaymentsGetSavedStarGifts(&PaymentsGetSavedStarGiftsParams{
+		Peer: &InputPeerSelf{},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var uq = getVariadic(unique, false)
+	if !uq {
+		var giftsArray []*StarGift
+		for _, v := range gifts.Gifts {
+			giftsArray = append(giftsArray, &v.Gift)
+		}
+		return giftsArray, nil
+	}
+
+	var uniqueGifts []*StarGift
+	for _, v := range gifts.Gifts {
+		if _, ok := v.Gift.(*StarGiftUnique); ok {
+			uniqueGifts = append(uniqueGifts, &v.Gift)
+		}
+	}
+
+	return uniqueGifts, nil
 }
