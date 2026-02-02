@@ -157,25 +157,25 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 				if matchError(err, "The phone code entered was invalid") {
 					fmt.Println("The phone code entered was invalid, please try again!")
 					continue
-				} else if matchError(err, "Two-steps verification is enabled") {
+				} else if matchError(err, "Two-steps verification is enabled") || matchError(err, "2FA is enabled, use a password to login") {
 				acceptPasswordInput:
 					if opts.Password != "" {
-					  for {
-						passwordInput, err := opts.PasswordCallback()
-						if err != nil {
-							return false, err
+						for {
+							passwordInput, err := opts.PasswordCallback()
+							if err != nil {
+								return false, err
+							}
+							fmt.Printf("Enter password: ")
+							fmt.Scanln(&passwordInput)
+							if passwordInput != "" {
+								opts.Password = passwordInput
+								break
+							} else if passwordInput == "cancel" || passwordInput == "exit" {
+								return false, nil
+							} else {
+								fmt.Println("Invalid password, try again")
+							}
 						}
-						fmt.Printf("Enter password: ")
-						fmt.Scanln(&passwordInput)
-						if passwordInput != "" {
-							opts.Password = passwordInput
-							break
-						} else if passwordInput == "cancel" || passwordInput == "exit" {
-							return false, nil
-						} else {
-							fmt.Println("Invalid password, try again")
-						}
-					  }
 					}
 					AccPassword, err := c.AccountGetPassword()
 					if err != nil {
