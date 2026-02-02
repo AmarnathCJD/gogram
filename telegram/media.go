@@ -324,11 +324,16 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	}, nil
 }
 
+// Internal flood sleep handler
 func handleIfFlood(err error, c *Client) bool {
 	if matchError(err, "FLOOD_WAIT_") || matchError(err, "FLOOD_PREMIUM_WAIT_") {
 		if waitTime := getFloodWait(err); waitTime > 0 {
 			c.Log.Debug("flood wait ", waitTime, "(s), waiting...")
 			time.Sleep(time.Duration(waitTime) * time.Second)
+
+			if c.clientData.sleepThresholdMs > 0 {
+				time.Sleep(time.Duration(c.clientData.sleepThresholdMs) * time.Millisecond)
+			}
 			return true
 		}
 	}
