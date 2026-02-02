@@ -3474,26 +3474,6 @@ func (*BotsCheckDownloadFileParamsParams) CRC() uint32 {
 	return 0x50077589
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>boolFalse#bc799737 = Bool;
-boolTrue#997275b5 = Bool;
----functions---
-<a  href="/method/bots.checkDownloadFileParams"  class="current_page_link" >bots.checkDownloadFileParams</a>#50077589 bot:InputUser file_name:string url:string = Bool;</code></pre>
-*/
 func (c *Client) BotsCheckDownloadFileParams(bot InputUser, fileName, url string) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsCheckDownloadFileParamsParams{
 		Bot:      bot,
@@ -3575,24 +3555,7 @@ func (*BotsGetAdminedBotsParams) CRC() uint32 {
 	return 0xb0711d83
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>---functions---
-<a  href="/method/bots.getAdminedBots"  class="current_page_link" >bots.getAdminedBots</a>#b0711d83 = Vector&lt;User&gt;;</code></pre>
-*/
+// Get a list of bots owned by the current user
 func (c *Client) BotsGetAdminedBots() ([]User, error) {
 	responseData, err := c.MakeRequest(&BotsGetAdminedBotsParams{})
 	if err != nil {
@@ -4029,26 +3992,6 @@ func (*BotsToggleUserEmojiStatusPermissionParams) CRC() uint32 {
 	return 0x6de6392
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>boolFalse#bc799737 = Bool;
-boolTrue#997275b5 = Bool;
----functions---
-<a  href="/method/bots.toggleUserEmojiStatusPermission"  class="current_page_link" >bots.toggleUserEmojiStatusPermission</a>#6de6392 bot:InputUser enabled:Bool = Bool;</code></pre>
-*/
 func (c *Client) BotsToggleUserEmojiStatusPermission(bot InputUser, enabled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsToggleUserEmojiStatusPermissionParams{
 		Bot:     bot,
@@ -4107,25 +4050,7 @@ func (*BotsUpdateStarRefProgramParams) FlagIndex() int {
 	return 0
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>starRefProgram#dd0c66f2 flags:# bot_id:long commission_permille:int duration_months:flags.0?int end_date:flags.1?int daily_revenue_per_user:flags.2?StarsAmount = StarRefProgram;
----functions---
-<a  href="/method/bots.updateStarRefProgram"  class="current_page_link" >bots.updateStarRefProgram</a>#778b5ab3 flags:# bot:InputUser commission_permille:int duration_months:flags.0?int = StarRefProgram;</code></pre>
-*/
+// Create, edit or delete the affiliate program of a bot we own
 func (c *Client) BotsUpdateStarRefProgram(bot InputUser, commissionPermille, durationMonths int32) (*StarRefProgram, error) {
 	responseData, err := c.MakeRequest(&BotsUpdateStarRefProgramParams{
 		Bot:                bot,
@@ -4152,26 +4077,6 @@ func (*BotsUpdateUserEmojiStatusParams) CRC() uint32 {
 	return 0xed9f30c5
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>boolFalse#bc799737 = Bool;
-boolTrue#997275b5 = Bool;
----functions---
-<a  href="/method/bots.updateUserEmojiStatus"  class="current_page_link" >bots.updateUserEmojiStatus</a>#ed9f30c5 user_id:InputUser emoji_status:EmojiStatus = Bool;</code></pre>
-*/
 func (c *Client) BotsUpdateUserEmojiStatus(userID InputUser, emojiStatus EmojiStatus) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsUpdateUserEmojiStatusParams{
 		EmojiStatus: emojiStatus,
@@ -10178,25 +10083,6 @@ func (*MessagesGetPreparedInlineMessageParams) CRC() uint32 {
 	return 0x857ebdb8
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>messages.preparedInlineMessage#ff57708d query_id:long result:BotInlineResult peer_types:Vector&lt;InlineQueryPeerType&gt; cache_time:int users:Vector&lt;User&gt; = messages.PreparedInlineMessage;
----functions---
-<a  href="/method/messages.getPreparedInlineMessage"  class="current_page_link" >messages.getPreparedInlineMessage</a>#857ebdb8 bot:InputUser id:string = messages.PreparedInlineMessage;</code></pre>
-*/
 func (c *Client) MessagesGetPreparedInlineMessage(bot InputUser, id string) (*MessagesPreparedInlineMessage, error) {
 	responseData, err := c.MakeRequest(&MessagesGetPreparedInlineMessageParams{
 		Bot: bot,
@@ -12007,25 +11893,6 @@ func (*MessagesSavePreparedInlineMessageParams) FlagIndex() int {
 	return 0
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>messages.botPreparedInlineMessage#8ecf0511 id:string expire_date:int = messages.BotPreparedInlineMessage;
----functions---
-<a  href="/method/messages.savePreparedInlineMessage"  class="current_page_link" >messages.savePreparedInlineMessage</a>#f21f7f2f flags:# result:InputBotInlineResult user_id:InputUser peer_types:flags.0?Vector&lt;InlineQueryPeerType&gt; = messages.BotPreparedInlineMessage;</code></pre>
-*/
 func (c *Client) MessagesSavePreparedInlineMessage(result InputBotInlineResult, userID InputUser, peerTypes []InlineQueryPeerType) (*MessagesBotPreparedInlineMessage, error) {
 	responseData, err := c.MakeRequest(&MessagesSavePreparedInlineMessageParams{
 		PeerTypes: peerTypes,
@@ -12289,26 +12156,7 @@ func (*MessagesSearchStickersParams) FlagIndex() int {
 	return 0
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>messages.foundStickersNotModified#6010c534 flags:# next_offset:flags.0?int = messages.FoundStickers;
-messages.foundStickers#82c9e290 flags:# next_offset:flags.0?int hash:long stickers:Vector&lt;Document&gt; = messages.FoundStickers;
----functions---
-<a  href="/method/messages.searchStickers"  class="current_page_link" >messages.searchStickers</a>#29b1c66a flags:# emojis:flags.0?true q:string emoticon:string lang_code:Vector&lt;string&gt; offset:int limit:int hash:long = messages.FoundStickers;</code></pre>
-*/
+// Search for stickers using AI-powered keyword search
 func (c *Client) MessagesSearchStickers(params *MessagesSearchStickersParams) (MessagesFoundStickers, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -14002,26 +13850,6 @@ func (*PaymentsBotCancelStarsSubscriptionParams) FlagIndex() int {
 	return 0
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>boolFalse#bc799737 = Bool;
-boolTrue#997275b5 = Bool;
----functions---
-<a  href="/method/payments.botCancelStarsSubscription"  class="current_page_link" >payments.botCancelStarsSubscription</a>#6dfa0622 flags:# restore:flags.0?true user_id:InputUser charge_id:string = Bool;</code></pre>
-*/
 func (c *Client) PaymentsBotCancelStarsSubscription(restore bool, userID InputUser, chargeID string) (bool, error) {
 	responseData, err := c.MakeRequest(&PaymentsBotCancelStarsSubscriptionParams{
 		ChargeID: chargeID,
@@ -14154,25 +13982,7 @@ func (*PaymentsConnectStarRefBotParams) CRC() uint32 {
 	return 0x7ed5348a
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>payments.connectedStarRefBots#98d5ea1d count:int connected_bots:Vector&lt;ConnectedBotStarRef&gt; users:Vector&lt;User&gt; = payments.ConnectedStarRefBots;
----functions---
-<a  href="/method/payments.connectStarRefBot"  class="current_page_link" >payments.connectStarRefBot</a>#7ed5348a peer:InputPeer bot:InputUser = payments.ConnectedStarRefBots;</code></pre>
-*/
+// Join a bot's affiliate program, becoming an affiliate »
 func (c *Client) PaymentsConnectStarRefBot(peer InputPeer, bot InputUser) (*PaymentsConnectedStarRefBots, error) {
 	responseData, err := c.MakeRequest(&PaymentsConnectStarRefBotParams{
 		Bot:  bot,
@@ -14229,25 +14039,7 @@ func (*PaymentsEditConnectedStarRefBotParams) FlagIndex() int {
 	return 0
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>payments.connectedStarRefBots#98d5ea1d count:int connected_bots:Vector&lt;ConnectedBotStarRef&gt; users:Vector&lt;User&gt; = payments.ConnectedStarRefBots;
----functions---
-<a  href="/method/payments.editConnectedStarRefBot"  class="current_page_link" >payments.editConnectedStarRefBot</a>#e4fca4a3 flags:# revoked:flags.0?true peer:InputPeer link:string = payments.ConnectedStarRefBots;</code></pre>
-*/
+// Leave a bot's affiliate program »
 func (c *Client) PaymentsEditConnectedStarRefBot(revoked bool, peer InputPeer, link string) (*PaymentsConnectedStarRefBots, error) {
 	responseData, err := c.MakeRequest(&PaymentsEditConnectedStarRefBotParams{
 		Link:    link,
@@ -14344,25 +14136,7 @@ func (*PaymentsGetConnectedStarRefBotParams) CRC() uint32 {
 	return 0xb7d998f0
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>payments.connectedStarRefBots#98d5ea1d count:int connected_bots:Vector&lt;ConnectedBotStarRef&gt; users:Vector&lt;User&gt; = payments.ConnectedStarRefBots;
----functions---
-<a  href="/method/payments.getConnectedStarRefBot"  class="current_page_link" >payments.getConnectedStarRefBot</a>#b7d998f0 peer:InputPeer bot:InputUser = payments.ConnectedStarRefBots;</code></pre>
-*/
+// Fetch info about a specific bot affiliation »
 func (c *Client) PaymentsGetConnectedStarRefBot(peer InputPeer, bot InputUser) (*PaymentsConnectedStarRefBots, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetConnectedStarRefBotParams{
 		Bot:  bot,
@@ -14394,25 +14168,7 @@ func (*PaymentsGetConnectedStarRefBotsParams) FlagIndex() int {
 	return 0
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>payments.connectedStarRefBots#98d5ea1d count:int connected_bots:Vector&lt;ConnectedBotStarRef&gt; users:Vector&lt;User&gt; = payments.ConnectedStarRefBots;
----functions---
-<a  href="/method/payments.getConnectedStarRefBots"  class="current_page_link" >payments.getConnectedStarRefBots</a>#5869a553 flags:# peer:InputPeer offset_date:flags.2?int offset_link:flags.2?string limit:int = payments.ConnectedStarRefBots;</code></pre>
-*/
+// Fetch all affiliations we have created for a certain peer
 func (c *Client) PaymentsGetConnectedStarRefBots(peer InputPeer, offsetDate int32, offsetLink string, limit int32) (*PaymentsConnectedStarRefBots, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetConnectedStarRefBotsParams{
 		Limit:      limit,
@@ -14855,25 +14611,7 @@ func (*PaymentsGetSuggestedStarRefBotsParams) FlagIndex() int {
 	return 0
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"><code>payments.suggestedStarRefBots#b4d5d859 flags:# count:int suggested_bots:Vector&lt;StarRefProgram&gt; users:Vector&lt;User&gt; next_offset:flags.0?string = payments.SuggestedStarRefBots;
----functions---
-<a  href="/method/payments.getSuggestedStarRefBots"  class="current_page_link" >payments.getSuggestedStarRefBots</a>#d6b48f7 flags:# order_by_revenue:flags.0?true order_by_date:flags.1?true peer:InputPeer offset:string limit:int = payments.SuggestedStarRefBots;</code></pre>
-*/
+// Obtain a list of suggested mini apps with available affiliate programs
 func (c *Client) PaymentsGetSuggestedStarRefBots(params *PaymentsGetSuggestedStarRefBotsParams) (*PaymentsSuggestedStarRefBots, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -14979,23 +14717,6 @@ func (*PaymentsRequestRecurringPaymentParams) CRC() uint32 {
 	return 0x146e958d
 }
 
-/*
-<div class="clearfix">
-
-	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
-	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
-	    <ul class="dropdown-menu">
-	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
-	      <li class="divider"></li>
-	      <li>More...</li>
-	    </ul>
-	  </li>
-	</ul>
-
-</div>
-<pre class="page_scheme"> `Method schema is available as of layer 143. Switch »`</pre>
-*/
 func (c *Client) PaymentsRequestRecurringPayment(userID InputUser, recurringInitCharge string, invoiceMedia InputMedia) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsRequestRecurringPaymentParams{
 		InvoiceMedia:        invoiceMedia,
