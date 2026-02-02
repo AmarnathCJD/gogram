@@ -194,6 +194,7 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 			DisableThumb:     false,
 			MimeType:         options.MimeType,
 			ProgressCallback: options.ProgressCallback,
+			UploadThreads:    options.UploadThreads,
 		})
 		if err != nil {
 			return nil, err
@@ -242,6 +243,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 			return nil, err
 		}
 	}
+
 	editRequest := &MessagesEditInlineBotMessageParams{
 		ID:          ID,
 		Message:     Message,
@@ -251,6 +253,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 		Entities:    entities,
 		Media:       media,
 	}
+
 	var (
 		editTrue bool
 		dcID     int32

@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -26,7 +27,7 @@ func (g *Generator) generateMethods(f *jen.File, d bool) {
 			wg.Add(1)
 			go func(method tlparser.Method, i int) {
 				defer wg.Done()
-				g.schema.Methods[i].Comment = g.generateComment(method.Name, "method")
+				g.schema.Methods[i].Comment, _ = g.generateComment(method.Name, "method")
 			}(method, i)
 		}
 
@@ -65,25 +66,36 @@ func (g *Generator) generateMethods(f *jen.File, d bool) {
 	//	}
 }
 
-func (g *Generator) generateComment(name, _type string) string {
+func (g *Generator) generateComment(name, _type string) (string, []string) {
 	var base = "https://core.telegram.org/" + _type + "/"
+	fmt.Println(base + name)
 	req, _ := http.NewRequest("GET", base+name, http.NoBody)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return ""
+		return "", nil
 	}
 
 	if resp.StatusCode != 200 {
-		return ""
+		return "", nil
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return ""
+		return "", nil
 	}
 
 	ack := string(body)
+	re := regexp.MustCompile(`<td style="text-align: center;">.*?</td>\s*<td>(.*?)</td>`)
+
+	matches := re.FindAllStringSubmatch(ack, -1)
+
+	var descs []string
+
+	for _, match := range matches {
+		descs = append(descs, match[1])
+	}
+
 	ack = strings.Split(ack, "<div id=\"dev_page_content\">")[1]
 	ack = strings.Split(ack, "</p>")[0]
 	ack = strings.ReplaceAll(ack, "<p>", "")
@@ -97,10 +109,10 @@ func (g *Generator) generateComment(name, _type string) string {
 	ack = strings.TrimSpace(ack)
 
 	if strings.Contains(ack, "The page has not been saved") {
-		return ""
+		return "", nil
 	}
 
-	return ack
+	return ack, descs
 }
 
 func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {

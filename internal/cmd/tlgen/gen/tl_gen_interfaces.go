@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"regexp"
 	"sort"
 	"sync"
 
@@ -53,7 +54,23 @@ func (g *Generator) generateInterfaces(f *jen.File, d bool) {
 				wg.Add(1)
 				go func(_type tlparser.Object, i int) {
 					defer wg.Done()
-					structs[i].Comment = g.generateComment(_type.Name, "constructor")
+					comment, pComments := g.generateComment(_type.Name, "constructor")
+					structs[i].Comment = comment
+
+					if pComments != nil && len(pComments) == len(_type.Parameters) {
+						for j := range _type.Parameters {
+							pComments[j] = regexp.MustCompile(`(?i)<a\s+href="([^"]+)"\s*>([^<]+)</a>`).ReplaceAllString(pComments[j], "$2")
+							pComments[j] = regexp.MustCompile(`(?i)<strong>([^<]+)</strong>`).ReplaceAllString(pComments[j], "$1")
+							pComments[j] = regexp.MustCompile(`\[(.+)\]\(.+\)`).ReplaceAllString(pComments[j], "$1")
+							pComments[j] = regexp.MustCompile(`(?i)see here[^.]*`).ReplaceAllString(pComments[j], "")
+							pComments[j] = regexp.MustCompile(`(?i)<code>([^<]+)</code>`).ReplaceAllString(pComments[j], "'$1'")
+							pComments[j] = regexp.MustCompile(`(?i)<br>`).ReplaceAllString(pComments[j], "\n")
+							pComments[j] = regexp.MustCompile(`(?i)»`).ReplaceAllString(pComments[j], "")
+							pComments[j] = regexp.MustCompile(`(?i)\s+\.`).ReplaceAllString(pComments[j], ".")
+							pComments[j] = regexp.MustCompile(`(?i),\s*$`).ReplaceAllString(pComments[j], "")
+							structs[i].Parameters[j].Comment = pComments[j]
+						}
+					}
 				}(_type, i)
 			}
 

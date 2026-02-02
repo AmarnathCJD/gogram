@@ -45,6 +45,10 @@ func (m *NewMessage) ReplyToMsgID() int32 {
 	return 0
 }
 
+func (m *NewMessage) ReplyID() int32 {
+	return m.ReplyToMsgID()
+}
+
 func (m *NewMessage) ReplySenderID() int64 {
 	if m.Message.ReplyTo != nil {
 		return m.Client.GetPeerID(m.Message.ReplyTo.(*MessageReplyHeaderObj).ReplyToPeerID)

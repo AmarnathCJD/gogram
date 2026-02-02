@@ -22,7 +22,7 @@ func (g *Generator) generateSpecificStructs(f *jen.File, d bool) {
 			wg.Add(1)
 			go func(_type tlparser.Object, i int) {
 				defer wg.Done()
-				g.schema.SingleInterfaceTypes[i].Comment = g.generateComment(_type.Name, "constructor")
+				g.schema.SingleInterfaceTypes[i].Comment, _ = g.generateComment(_type.Name, "constructor")
 			}(_type, i)
 		}
 

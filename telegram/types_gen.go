@@ -54,6 +54,7 @@ func (*AccountAutoSaveSettings) CRC() uint32 {
 	return 0x4c3e069d
 }
 
+// Contains info about [business chat deep links »](https://core.telegram.org/api/business#business-chat-links) created by the current account.
 type AccountBusinessChatLinks struct {
 	Links []*BusinessChatLink
 	Chats []Chat
@@ -64,6 +65,7 @@ func (*AccountBusinessChatLinks) CRC() uint32 {
 	return 0xec43a2d1
 }
 
+// Info about currently connected [business bots](https://core.telegram.org/api/business#connected-bots).
 type AccountConnectedBots struct {
 	ConnectedBots []*ConnectedBot
 	Users         []User
@@ -154,6 +156,7 @@ func (*AccountPrivacyRules) CRC() uint32 {
 	return 0x50a04e45
 }
 
+// Contains info about a single resolved [business chat deep link »](https://core.telegram.org/api/business#business-chat-links).
 type AccountResolvedBusinessChatLinks struct {
 	Peer     Peer
 	Message  string
@@ -394,6 +397,7 @@ func (*AutoSaveSettings) FlagIndex() int {
 	return 0
 }
 
+// Represents a [message effect »](https://core.telegram.org/api/effects).
 type AvailableEffect struct {
 	PremiumRequired   bool `tl:"flag:2,encoded_in_bitflags"`
 	ID                int64
@@ -444,6 +448,7 @@ func (*BankCardOpenURL) CRC() uint32 {
 	return 0xf568028a
 }
 
+// [Birthday](https://core.telegram.org/api/profile#birthday) information for a user.
 type Birthday struct {
 	Day   int32
 	Month int32
@@ -481,6 +486,7 @@ func (*Boost) FlagIndex() int {
 	return 0
 }
 
+// Contains info about a [bot business connection](https://core.telegram.org/api/business#connected-bots).
 type BotBusinessConnection struct {
 	CanReply     bool `tl:"flag:0,encoded_in_bitflags"`
 	Disabled     bool `tl:"flag:1,encoded_in_bitflags"`
@@ -528,6 +534,7 @@ func (*BotInfo) FlagIndex() int {
 	return 0
 }
 
+// Represents a [Main Mini App preview media, see here »](https://core.telegram.org/api/bots/webapps#main-mini-app-previews) for more info.
 type BotPreviewMedia struct {
 	Date  int32
 	Media MessageMedia
@@ -548,6 +555,7 @@ func (*BotsBotInfo) CRC() uint32 {
 	return 0xe8a775b0
 }
 
+// Popular [Main Mini Apps](https://core.telegram.org/api/bots/webapps#main-mini-apps), to be used in the [apps tab of global search »](https://core.telegram.org/api/search#apps-tab).
 type BotsPopularAppBots struct {
 	NextOffset string `tl:"flag:0"`
 	Users      []User
@@ -561,6 +569,7 @@ func (*BotsPopularAppBots) FlagIndex() int {
 	return 0
 }
 
+// Contains info about [Main Mini App previews, see here »](https://core.telegram.org/api/bots/webapps#main-mini-app-previews) for more info.
 type BotsPreviewInfo struct {
 	Media     []*BotPreviewMedia
 	LangCodes []string
@@ -570,6 +579,7 @@ func (*BotsPreviewInfo) CRC() uint32 {
 	return 0xca71d64
 }
 
+// Describes [channel ad revenue balances »](https://core.telegram.org/api/revenue).
 type BroadcastRevenueBalances struct {
 	WithdrawalEnabled bool `tl:"flag:0,encoded_in_bitflags"`
 	CurrentBalance    int64
@@ -585,6 +595,7 @@ func (*BroadcastRevenueBalances) FlagIndex() int {
 	return 0
 }
 
+// Describes a [Telegram Business away message](https://core.telegram.org/api/business#away-messages), automatically sent to users writing to us when we're offline, during closing hours, while we're on vacation, or in some other custom time period when we cannot immediately answer to the user.
 type BusinessAwayMessage struct {
 	OfflineOnly bool `tl:"flag:0,encoded_in_bitflags"`
 	ShortcutID  int32
@@ -600,6 +611,7 @@ func (*BusinessAwayMessage) FlagIndex() int {
 	return 0
 }
 
+// Specifies the private chats that a [connected business bot »](https://core.telegram.org/api/business#connected-bots) may receive messages and interact with.
 type BusinessBotRecipients struct {
 	ExistingChats   bool    `tl:"flag:0,encoded_in_bitflags"`
 	NewChats        bool    `tl:"flag:1,encoded_in_bitflags"`
@@ -618,6 +630,7 @@ func (*BusinessBotRecipients) FlagIndex() int {
 	return 0
 }
 
+// Contains info about a [business chat deep link »](https://core.telegram.org/api/business#business-chat-links) created by the current account.
 type BusinessChatLink struct {
 	Link     string
 	Message  string
@@ -634,6 +647,7 @@ func (*BusinessChatLink) FlagIndex() int {
 	return 0
 }
 
+// Describes a [Telegram Business greeting](https://core.telegram.org/api/business#greeting-messages), automatically sent to new users writing to us in private for the first time, or after a certain inactivity period.
 type BusinessGreetingMessage struct {
 	ShortcutID     int32
 	Recipients     *BusinessRecipients
@@ -644,6 +658,7 @@ func (*BusinessGreetingMessage) CRC() uint32 {
 	return 0xe519abab
 }
 
+// [Telegram Business introduction »](https://core.telegram.org/api/business#business-introduction).
 type BusinessIntro struct {
 	Title       string
 	Description string
@@ -658,6 +673,7 @@ func (*BusinessIntro) FlagIndex() int {
 	return 0
 }
 
+// Represents the location of a [Telegram Business »](https://core.telegram.org/api/business#location).
 type BusinessLocation struct {
 	GeoPoint GeoPoint `tl:"flag:0"`
 	Address  string
@@ -671,6 +687,7 @@ func (*BusinessLocation) FlagIndex() int {
 	return 0
 }
 
+// Specifies the chats that <strong>can</strong> receive Telegram Business [away »](https://core.telegram.org/api/business#away-messages) and [greeting »](https://core.telegram.org/api/business#greeting-messages) messages.
 type BusinessRecipients struct {
 	ExistingChats   bool    `tl:"flag:0,encoded_in_bitflags"`
 	NewChats        bool    `tl:"flag:1,encoded_in_bitflags"`
@@ -688,6 +705,7 @@ func (*BusinessRecipients) FlagIndex() int {
 	return 0
 }
 
+// A time interval, indicating the opening hours of a business.
 type BusinessWeeklyOpen struct {
 	StartMinute int32
 	EndMinute   int32
@@ -697,6 +715,7 @@ func (*BusinessWeeklyOpen) CRC() uint32 {
 	return 0x120b1ab9
 }
 
+// Specifies a set of [Telegram Business opening hours](https://core.telegram.org/api/business#opening-hours).
 type BusinessWorkHours struct {
 	OpenNow    bool `tl:"flag:0,encoded_in_bitflags"`
 	TimezoneID string
@@ -1016,6 +1035,7 @@ func (*Config) FlagIndex() int {
 	return 0
 }
 
+// Contains info about a [connected business bot »](https://core.telegram.org/api/business#connected-bots).
 type ConnectedBot struct {
 	CanReply   bool `tl:"flag:0,encoded_in_bitflags"`
 	BotID      int64
@@ -1040,6 +1060,7 @@ func (*Contact) CRC() uint32 {
 	return 0x145ade0b
 }
 
+// Birthday information of a contact.
 type ContactBirthday struct {
 	ContactID int64
 	Birthday  *Birthday
@@ -1059,6 +1080,7 @@ func (*ContactStatus) CRC() uint32 {
 	return 0x16d9703b
 }
 
+// Birthday information of our contacts.
 type ContactsContactBirthdays struct {
 	Contacts []*ContactBirthday
 	Users    []User
@@ -1238,6 +1260,7 @@ func (*ExportedStoryLink) CRC() uint32 {
 	return 0x3fc9053b
 }
 
+// Represents a [fact-check »](https://core.telegram.org/api/factcheck) created by an independent fact-checker.
 type FactCheck struct {
 	NeedCheck bool              `tl:"flag:0,encoded_in_bitflags"`
 	Country   string            `tl:"flag:1"`
@@ -1303,6 +1326,7 @@ func (*FolderPeer) CRC() uint32 {
 	return 0xe9baa668
 }
 
+// A story found using [global story search »](https://core.telegram.org/api/stories#searching-stories).
 type FoundStory struct {
 	Peer  Peer
 	Story StoryItem
@@ -1312,6 +1336,7 @@ func (*FoundStory) CRC() uint32 {
 	return 0xe87acbc0
 }
 
+// Info about a [fragment collectible](https://core.telegram.org/api/fragment).
 type FragmentCollectibleInfo struct {
 	PurchaseDate   int32
 	Currency       string
@@ -1344,6 +1369,7 @@ func (*Game) FlagIndex() int {
 	return 0
 }
 
+// Address optionally associated to a [geoPoint](https://core.telegram.org/constructor/geoPoint).
 type GeoPointAddress struct {
 	CountryIso2 string
 	State       string `tl:"flag:0"`
@@ -1617,6 +1643,7 @@ func (*InputAppEvent) CRC() uint32 {
 	return 0x1d1b1245
 }
 
+// Describes a [Telegram Business away message](https://core.telegram.org/api/business#away-messages), automatically sent to users writing to us when we're offline, during closing hours, while we're on vacation, or in some other custom time period when we cannot immediately answer to the user.
 type InputBusinessAwayMessage struct {
 	OfflineOnly bool `tl:"flag:0,encoded_in_bitflags"`
 	ShortcutID  int32
@@ -1632,6 +1659,7 @@ func (*InputBusinessAwayMessage) FlagIndex() int {
 	return 0
 }
 
+// Specifies the private chats that a [connected business bot »](https://core.telegram.org/api/business#connected-bots) may interact with.
 type InputBusinessBotRecipients struct {
 	ExistingChats   bool        `tl:"flag:0,encoded_in_bitflags"`
 	NewChats        bool        `tl:"flag:1,encoded_in_bitflags"`
@@ -1650,6 +1678,7 @@ func (*InputBusinessBotRecipients) FlagIndex() int {
 	return 0
 }
 
+// Contains info about a [business chat deep link »](https://core.telegram.org/api/business#business-chat-links) to be created by the current account.
 type InputBusinessChatLink struct {
 	Message  string
 	Entities []MessageEntity `tl:"flag:0"`
@@ -1664,6 +1693,7 @@ func (*InputBusinessChatLink) FlagIndex() int {
 	return 0
 }
 
+// Describes a [Telegram Business greeting](https://core.telegram.org/api/business#greeting-messages), automatically sent to new users writing to us in private for the first time, or after a certain inactivity period.
 type InputBusinessGreetingMessage struct {
 	ShortcutID     int32
 	Recipients     *InputBusinessRecipients
@@ -1674,6 +1704,7 @@ func (*InputBusinessGreetingMessage) CRC() uint32 {
 	return 0x194cb3b
 }
 
+// [Telegram Business introduction »](https://core.telegram.org/api/business#business-introduction).
 type InputBusinessIntro struct {
 	Title       string
 	Description string
@@ -1688,6 +1719,7 @@ func (*InputBusinessIntro) FlagIndex() int {
 	return 0
 }
 
+// Specifies the chats that <strong>can</strong> receive Telegram Business [away »](https://core.telegram.org/api/business#away-messages) and [greeting »](https://core.telegram.org/api/business#greeting-messages) messages.
 type InputBusinessRecipients struct {
 	ExistingChats   bool        `tl:"flag:0,encoded_in_bitflags"`
 	NewChats        bool        `tl:"flag:1,encoded_in_bitflags"`
@@ -1831,6 +1863,7 @@ func (*InputSingleMedia) FlagIndex() int {
 	return 0
 }
 
+// Used to fetch info about a [Telegram Star transaction »](https://core.telegram.org/api/stars#balance-and-transaction-history).
 type InputStarsTransaction struct {
 	Refund bool `tl:"flag:0,encoded_in_bitflags"`
 	ID     string
@@ -2270,6 +2303,7 @@ func (*MessagesCheckedHistoryImportPeer) CRC() uint32 {
 	return 0xa24de717
 }
 
+// [Folder and folder tags](https://core.telegram.org/api/folders) information
 type MessagesDialogFilters struct {
 	TagsEnabled bool `tl:"flag:0,encoded_in_bitflags"`
 	Filters     []DialogFilter
@@ -2380,6 +2414,7 @@ func (*MessagesInactiveChats) CRC() uint32 {
 	return 0xa927fec5
 }
 
+// Contains info about successfully or unsuccessfully [invited »](https://core.telegram.org/api/invites#direct-invites) users.
 type MessagesInvitedUsers struct {
 	Updates         Updates
 	MissingInvitees []*MissingInvitee
@@ -2430,6 +2465,7 @@ func (*MessagesMessageViews) CRC() uint32 {
 	return 0xb6c4f543
 }
 
+// The list of [stickersets owned by the current account »](https://core.telegram.org/api/stickers).
 type MessagesMyStickers struct {
 	Count int32
 	Sets  []StickerSetCovered
@@ -2563,6 +2599,7 @@ func (*MessagesWebPage) CRC() uint32 {
 	return 0xfd5e12bd
 }
 
+// Info about why a specific user could not be [invited »](https://core.telegram.org/api/invites#direct-invites).
 type MissingInvitee struct {
 	PremiumWouldAllowInvite bool `tl:"flag:0,encoded_in_bitflags"`
 	PremiumRequiredForPm    bool `tl:"flag:1,encoded_in_bitflags"`
@@ -2605,6 +2642,7 @@ func (*NearestDc) CRC() uint32 {
 	return 0x8e1a1775
 }
 
+// Exact read date of a private message we sent to another user.
 type OutboxReadDate struct {
 	Date int32
 }
@@ -2791,6 +2829,7 @@ func (*PaymentsSavedInfo) FlagIndex() int {
 	return 0
 }
 
+// Contains a URL leading to a page where the user will be able to place ads for the channel/bot, paying using [Telegram Stars](https://core.telegram.org/api/stars#paying-for-ads).
 type PaymentsStarsRevenueAdsAccountURL struct {
 	URL string
 }
@@ -2799,6 +2838,7 @@ func (*PaymentsStarsRevenueAdsAccountURL) CRC() uint32 {
 	return 0x394e7f21
 }
 
+// [Star revenue statistics, see here »](https://core.telegram.org/api/stars) for more info.
 type PaymentsStarsRevenueStats struct {
 	RevenueGraph StatsGraph
 	Status       *StarsRevenueStatus
@@ -2809,6 +2849,7 @@ func (*PaymentsStarsRevenueStats) CRC() uint32 {
 	return 0xc92bb73b
 }
 
+// Contains the URL to use to [withdraw Telegram Star revenue](https://core.telegram.org/api/stars#withdrawing-revenue).
 type PaymentsStarsRevenueWithdrawalURL struct {
 	URL string
 }
@@ -2817,6 +2858,7 @@ func (*PaymentsStarsRevenueWithdrawalURL) CRC() uint32 {
 	return 0x1dab80b7
 }
 
+// Info about the current [Telegram Star balance and transaction history »](https://core.telegram.org/api/stars#balance-and-transaction-history).
 type PaymentsStarsStatus struct {
 	Balance                     int64
 	Subscriptions               []*StarsSubscription `tl:"flag:1"`
@@ -3236,6 +3278,7 @@ func (*PremiumSubscriptionOption) FlagIndex() int {
 	return 0
 }
 
+// A [quick reply shortcut](https://core.telegram.org/api/business#quick-reply-shortcuts).
 type QuickReply struct {
 	ShortcutID int32
 	Shortcut   string
@@ -3262,6 +3305,7 @@ func (*ReactionCount) FlagIndex() int {
 	return 0
 }
 
+// Reaction notification settings, see [here »](https://core.telegram.org/api/reactions#notifications-about-reactions) for more info.
 type ReactionsNotifySettings struct {
 	MessagesNotifyFrom ReactionNotificationsFrom `tl:"flag:0"`
 	StoriesNotifyFrom  ReactionNotificationsFrom `tl:"flag:1"`
@@ -3335,6 +3379,7 @@ func (*SavedPhoneContact) CRC() uint32 {
 	return 0x1142bd56
 }
 
+// Info about a [saved message reaction tag »](https://core.telegram.org/api/saved-messages#tags).
 type SavedReactionTag struct {
 	Reaction Reaction
 	Title    string `tl:"flag:0"`
@@ -3470,6 +3515,7 @@ func (*SimpleWebViewResultURL) CRC() uint32 {
 	return 0x882f76bb
 }
 
+// Info about an SMS job.
 type SmsJob struct {
 	JobID       string
 	PhoneNumber string
@@ -3480,6 +3526,7 @@ func (*SmsJob) CRC() uint32 {
 	return 0xe6a1eeb8
 }
 
+// SMS jobs eligibility
 type SmsjobsEligibleToJoin struct {
 	TermsURL       string
 	MonthlySentSms int32
@@ -3489,6 +3536,7 @@ func (*SmsjobsEligibleToJoin) CRC() uint32 {
 	return 0xdc8b44cf
 }
 
+// Status
 type SmsjobsStatus struct {
 	AllowInternational bool `tl:"flag:0,encoded_in_bitflags"`
 	RecentSent         int32
@@ -3508,7 +3556,7 @@ func (*SmsjobsStatus) FlagIndex() int {
 	return 0
 }
 
-// A [sponsored message](https://core.telegram.orghttps://core.telegram.org/api/sponsored-messages).
+// A [sponsored message](https://core.telegram.org/api/sponsored-messages).
 type SponsoredMessage struct {
 	Recommended    bool `tl:"flag:5,encoded_in_bitflags"`
 	CanReport      bool `tl:"flag:12,encoded_in_bitflags"`
@@ -3533,6 +3581,7 @@ func (*SponsoredMessage) FlagIndex() int {
 	return 0
 }
 
+// A [report option for a sponsored message »](https://core.telegram.org/api/sponsored-messages#reporting-sponsored-messages).
 type SponsoredMessageReportOption struct {
 	Text   string
 	Option []byte
@@ -3542,6 +3591,7 @@ func (*SponsoredMessageReportOption) CRC() uint32 {
 	return 0x430d3150
 }
 
+// [Telegram Stars gift option](https://core.telegram.org/api/stars#buying-or-gifting-stars).
 type StarsGiftOption struct {
 	Extended     bool `tl:"flag:1,encoded_in_bitflags"`
 	Stars        int64
@@ -3591,6 +3641,7 @@ func (*StarsGiveawayWinnersOption) FlagIndex() int {
 	return 0
 }
 
+// Describes [Telegram Star revenue balances »](https://core.telegram.org/api/stars).
 type StarsRevenueStatus struct {
 	WithdrawalEnabled bool `tl:"flag:0,encoded_in_bitflags"`
 	CurrentBalance    int64
@@ -3635,6 +3686,7 @@ func (*StarsSubscriptionPricing) CRC() uint32 {
 	return 0x5416d58
 }
 
+// [Telegram Stars topup option](https://core.telegram.org/api/stars).
 type StarsTopupOption struct {
 	Extended     bool `tl:"flag:1,encoded_in_bitflags"`
 	Stars        int64
@@ -3651,6 +3703,7 @@ func (*StarsTopupOption) FlagIndex() int {
 	return 0
 }
 
+// Represents a [Telegram Stars transaction »](https://core.telegram.org/api/stars).
 type StarsTransaction struct {
 	Refund             bool `tl:"flag:3,encoded_in_bitflags"`
 	Pending            bool `tl:"flag:4,encoded_in_bitflags"`
@@ -3682,6 +3735,7 @@ func (*StarsTransaction) FlagIndex() int {
 	return 0
 }
 
+// [Channel revenue ad statistics, see here »](https://core.telegram.org/api/revenue) for more info.
 type StatsBroadcastRevenueStats struct {
 	TopHoursGraph StatsGraph
 	RevenueGraph  StatsGraph
@@ -3693,6 +3747,7 @@ func (*StatsBroadcastRevenueStats) CRC() uint32 {
 	return 0x5407e297
 }
 
+// [Channel ad revenue transactions »](https://core.telegram.org/api/revenue).
 type StatsBroadcastRevenueTransactions struct {
 	Count        int32
 	Transactions []BroadcastRevenueTransaction
@@ -3702,6 +3757,7 @@ func (*StatsBroadcastRevenueTransactions) CRC() uint32 {
 	return 0x87158466
 }
 
+// Contains the URL to use to [withdraw channel ad revenue](https://core.telegram.org/api/revenue#withdrawing-revenue).
 type StatsBroadcastRevenueWithdrawalURL struct {
 	URL string
 }
@@ -3939,6 +3995,7 @@ func (*StickersSuggestedShortName) CRC() uint32 {
 	return 0x85fea03f
 }
 
+// Stories found using [global story search »](https://core.telegram.org/api/stories#searching-stories).
 type StoriesFoundStories struct {
 	Count      int32
 	Stories    []*FoundStory
@@ -4129,6 +4186,7 @@ func (*ThemeSettings) FlagIndex() int {
 	return 0
 }
 
+// Timezone information.
 type Timezone struct {
 	ID        string
 	Name      string
