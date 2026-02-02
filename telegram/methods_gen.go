@@ -11200,10 +11200,11 @@ type MessagesSaveDraftParams struct {
 	Message     string
 	Entities    []MessageEntity `tl:"flag:3"`
 	Media       InputMedia      `tl:"flag:5"`
+	Effect      int64           `tl:"flag:7"`
 }
 
 func (*MessagesSaveDraftParams) CRC() uint32 {
-	return 0x7ff3b806
+	return 0xd372c5ce
 }
 
 func (*MessagesSaveDraftParams) FlagIndex() int {
@@ -13258,6 +13259,62 @@ func (c *Client) PaymentsGetSavedInfo() (*PaymentsSavedInfo, error) {
 	return resp, nil
 }
 
+type PaymentsGetStarsRevenueStatsParams struct {
+	Dark bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer InputPeer
+}
+
+func (*PaymentsGetStarsRevenueStatsParams) CRC() uint32 {
+	return 0xd91ffad6
+}
+
+func (*PaymentsGetStarsRevenueStatsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsGetStarsRevenueStats(dark bool, peer InputPeer) (*PaymentsStarsRevenueStats, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarsRevenueStatsParams{
+		Dark: dark,
+		Peer: peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetStarsRevenueStats")
+	}
+
+	resp, ok := responseData.(*PaymentsStarsRevenueStats)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsGetStarsRevenueWithdrawalURLParams struct {
+	Peer     InputPeer
+	Stars    int64
+	Password InputCheckPasswordSRP
+}
+
+func (*PaymentsGetStarsRevenueWithdrawalURLParams) CRC() uint32 {
+	return 0x13bbe8b3
+}
+
+func (c *Client) PaymentsGetStarsRevenueWithdrawalURL(peer InputPeer, stars int64, password InputCheckPasswordSRP) (*PaymentsStarsRevenueWithdrawalURL, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarsRevenueWithdrawalURLParams{
+		Password: password,
+		Peer:     peer,
+		Stars:    stars,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetStarsRevenueWithdrawalURL")
+	}
+
+	resp, ok := responseData.(*PaymentsStarsRevenueWithdrawalURL)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsGetStarsStatusParams struct {
 	Peer InputPeer
 }
@@ -13299,27 +13356,24 @@ func (c *Client) PaymentsGetStarsTopupOptions() ([]*StarsTopupOption, error) {
 }
 
 type PaymentsGetStarsTransactionsParams struct {
-	Inbound  bool `tl:"flag:0,encoded_in_bitflags"`
-	Outbound bool `tl:"flag:1,encoded_in_bitflags"`
-	Peer     InputPeer
-	Offset   string
+	Inbound   bool `tl:"flag:0,encoded_in_bitflags"`
+	Outbound  bool `tl:"flag:1,encoded_in_bitflags"`
+	Ascending bool `tl:"flag:2,encoded_in_bitflags"`
+	Peer      InputPeer
+	Offset    string
+	Limit     int32
 }
 
 func (*PaymentsGetStarsTransactionsParams) CRC() uint32 {
-	return 0x673ac2f9
+	return 0x97938d5a
 }
 
 func (*PaymentsGetStarsTransactionsParams) FlagIndex() int {
 	return 0
 }
 
-func (c *Client) PaymentsGetStarsTransactions(inbound, outbound bool, peer InputPeer, offset string) (*PaymentsStarsStatus, error) {
-	responseData, err := c.MakeRequest(&PaymentsGetStarsTransactionsParams{
-		Inbound:  inbound,
-		Offset:   offset,
-		Outbound: outbound,
-		Peer:     peer,
-	})
+func (c *Client) PaymentsGetStarsTransactions(params *PaymentsGetStarsTransactionsParams) (*PaymentsStarsStatus, error) {
+	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending PaymentsGetStarsTransactions")
 	}
@@ -15832,6 +15886,39 @@ func (c *Client) StoriesReport(peer InputPeer, id []int32, reason ReportReason, 
 	}
 
 	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type StoriesSearchPostsParams struct {
+	Hashtag string    `tl:"flag:0"`
+	Area    MediaArea `tl:"flag:1"`
+	Offset  string
+	Limit   int32
+}
+
+func (*StoriesSearchPostsParams) CRC() uint32 {
+	return 0x6cea116a
+}
+
+func (*StoriesSearchPostsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) StoriesSearchPosts(hashtag string, area MediaArea, offset string, limit int32) (*StoriesFoundStories, error) {
+	responseData, err := c.MakeRequest(&StoriesSearchPostsParams{
+		Area:    area,
+		Hashtag: hashtag,
+		Limit:   limit,
+		Offset:  offset,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending StoriesSearchPosts")
+	}
+
+	resp, ok := responseData.(*StoriesFoundStories)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
