@@ -816,6 +816,17 @@ func (*ChannelAdminLogEventActionParticipantMute) CRC() uint32 {
 
 func (*ChannelAdminLogEventActionParticipantMute) ImplementsChannelAdminLogEventAction() {}
 
+type ChannelAdminLogEventActionParticipantSubExtend struct {
+	PrevParticipant ChannelParticipant
+	NewParticipant  ChannelParticipant
+}
+
+func (*ChannelAdminLogEventActionParticipantSubExtend) CRC() uint32 {
+	return 0x64642db3
+}
+
+func (*ChannelAdminLogEventActionParticipantSubExtend) ImplementsChannelAdminLogEventAction() {}
+
 // The admin [rights](https://core.telegram.org/api/rights) of a user were changed
 type ChannelAdminLogEventActionParticipantToggleAdmin struct {
 	PrevParticipant ChannelParticipant
@@ -3595,10 +3606,15 @@ func (*InputMediaInvoice) ImplementsInputMedia() {}
 type InputMediaPaidMedia struct {
 	StarsAmount   int64
 	ExtendedMedia []InputMedia
+	Payload       string `tl:"flag:0"`
 }
 
 func (*InputMediaPaidMedia) CRC() uint32 {
-	return 0xaa661fc3
+	return 0xc4103386
+}
+
+func (*InputMediaPaidMedia) FlagIndex() int {
+	return 0
 }
 
 func (*InputMediaPaidMedia) ImplementsInputMedia() {}
@@ -4432,6 +4448,31 @@ func (*InputStorePaymentStarsGift) CRC() uint32 {
 }
 
 func (*InputStorePaymentStarsGift) ImplementsInputStorePaymentPurpose() {}
+
+type InputStorePaymentStarsGiveaway struct {
+	OnlyNewSubscribers bool `tl:"flag:0,encoded_in_bitflags"`
+	WinnersAreVisible  bool `tl:"flag:3,encoded_in_bitflags"`
+	Stars              int64
+	BoostPeer          InputPeer
+	AdditionalPeers    []InputPeer `tl:"flag:1"`
+	CountriesIso2      []string    `tl:"flag:2"`
+	PrizeDescription   string      `tl:"flag:4"`
+	RandomID           int64
+	UntilDate          int32
+	Currency           string
+	Amount             int64
+	Users              int32
+}
+
+func (*InputStorePaymentStarsGiveaway) CRC() uint32 {
+	return 0x751f08fa
+}
+
+func (*InputStorePaymentStarsGiveaway) FlagIndex() int {
+	return 0
+}
+
+func (*InputStorePaymentStarsGiveaway) ImplementsInputStorePaymentPurpose() {}
 
 type InputStorePaymentStarsTopup struct {
 	Stars    int64
@@ -5457,22 +5498,33 @@ func (*MessageActionGiftStars) FlagIndex() int {
 func (*MessageActionGiftStars) ImplementsMessageAction() {}
 
 // A [giveaway](https://core.telegram.org/api/giveaways) was started.
-type MessageActionGiveawayLaunch struct{}
+type MessageActionGiveawayLaunch struct {
+	Stars int64 `tl:"flag:0"`
+}
 
 func (*MessageActionGiveawayLaunch) CRC() uint32 {
-	return 0x332ba9ed
+	return 0xa80f51e4
+}
+
+func (*MessageActionGiveawayLaunch) FlagIndex() int {
+	return 0
 }
 
 func (*MessageActionGiveawayLaunch) ImplementsMessageAction() {}
 
 // A [giveaway](https://core.telegram.org/api/giveaways) has ended.
 type MessageActionGiveawayResults struct {
+	Stars          bool `tl:"flag:0,encoded_in_bitflags"`
 	WinnersCount   int32
 	UnclaimedCount int32
 }
 
 func (*MessageActionGiveawayResults) CRC() uint32 {
-	return 0x2a9fadc5
+	return 0x87e2f155
+}
+
+func (*MessageActionGiveawayResults) FlagIndex() int {
+	return 0
 }
 
 func (*MessageActionGiveawayResults) ImplementsMessageAction() {}
@@ -5611,6 +5663,24 @@ func (*MessageActionPinMessage) CRC() uint32 {
 }
 
 func (*MessageActionPinMessage) ImplementsMessageAction() {}
+
+type MessageActionPrizeStars struct {
+	Unclaimed     bool `tl:"flag:0,encoded_in_bitflags"`
+	Stars         int64
+	TransactionID string
+	BoostPeer     Peer
+	GiveawayMsgID int32
+}
+
+func (*MessageActionPrizeStars) CRC() uint32 {
+	return 0xb00c47a2
+}
+
+func (*MessageActionPrizeStars) FlagIndex() int {
+	return 0
+}
+
+func (*MessageActionPrizeStars) ImplementsMessageAction() {}
 
 // Contains info about one or more peers that the user shared with the bot after clicking on a [keyboardButtonRequestPeer](https://core.telegram.org/constructor/keyboardButtonRequestPeer) button.
 type MessageActionRequestedPeer struct {
@@ -6195,12 +6265,13 @@ type MessageMediaGiveaway struct {
 	CountriesIso2      []string `tl:"flag:1"`
 	PrizeDescription   string   `tl:"flag:3"`
 	Quantity           int32
-	Months             int32
+	Months             int32 `tl:"flag:4"`
+	Stars              int64 `tl:"flag:5"`
 	UntilDate          int32
 }
 
 func (*MessageMediaGiveaway) CRC() uint32 {
-	return 0xdaad85b0
+	return 0xaa073beb
 }
 
 func (*MessageMediaGiveaway) FlagIndex() int {
@@ -6219,13 +6290,14 @@ type MessageMediaGiveawayResults struct {
 	WinnersCount         int32
 	UnclaimedCount       int32
 	Winners              []int64
-	Months               int32
+	Months               int32  `tl:"flag:4"`
+	Stars                int64  `tl:"flag:5"`
 	PrizeDescription     string `tl:"flag:1"`
 	UntilDate            int32
 }
 
 func (*MessageMediaGiveawayResults) CRC() uint32 {
-	return 0xc6991068
+	return 0xceaa3ea1
 }
 
 func (*MessageMediaGiveawayResults) FlagIndex() int {
@@ -7566,6 +7638,39 @@ func (*PostInteractionCountersStory) CRC() uint32 {
 }
 
 func (*PostInteractionCountersStory) ImplementsPostInteractionCounters() {}
+
+type PrepaidGiveaway interface {
+	tl.Object
+	ImplementsPrepaidGiveaway()
+}
+
+// Contains info about a [prepaid giveaway »](https://core.telegram.org/api/giveaways).
+type PrepaidGiveawayObj struct {
+	ID       int64
+	Months   int32
+	Quantity int32
+	Date     int32
+}
+
+func (*PrepaidGiveawayObj) CRC() uint32 {
+	return 0xb2539d54
+}
+
+func (*PrepaidGiveawayObj) ImplementsPrepaidGiveaway() {}
+
+type PrepaidStarsGiveaway struct {
+	ID       int64
+	Stars    int64
+	Quantity int32
+	Boosts   int32
+	Date     int32
+}
+
+func (*PrepaidStarsGiveaway) CRC() uint32 {
+	return 0x9a9d77e0
+}
+
+func (*PrepaidStarsGiveaway) ImplementsPrepaidGiveaway() {}
 
 type PrivacyRule interface {
 	tl.Object
@@ -9187,6 +9292,18 @@ func (*UpdateBotPrecheckoutQuery) FlagIndex() int {
 }
 
 func (*UpdateBotPrecheckoutQuery) ImplementsUpdate() {}
+
+type UpdateBotPurchasedPaidMedia struct {
+	UserID  int64
+	Payload string
+	Qts     int32
+}
+
+func (*UpdateBotPurchasedPaidMedia) CRC() uint32 {
+	return 0x283bd312
+}
+
+func (*UpdateBotPurchasedPaidMedia) ImplementsUpdate() {}
 
 // This object contains information about an incoming shipping query.
 type UpdateBotShippingQuery struct {
@@ -13178,14 +13295,15 @@ type PaymentsGiveawayInfoResults struct {
 	Winner         bool `tl:"flag:0,encoded_in_bitflags"`
 	Refunded       bool `tl:"flag:1,encoded_in_bitflags"`
 	StartDate      int32
-	GiftCodeSlug   string `tl:"flag:0"`
+	GiftCodeSlug   string `tl:"flag:3"`
+	StarsPrize     int64  `tl:"flag:4"`
 	FinishDate     int32
 	WinnersCount   int32
-	ActivatedCount int32
+	ActivatedCount int32 `tl:"flag:2"`
 }
 
 func (*PaymentsGiveawayInfoResults) CRC() uint32 {
-	return 0xcd5570
+	return 0xe175e66f
 }
 
 func (*PaymentsGiveawayInfoResults) FlagIndex() int {

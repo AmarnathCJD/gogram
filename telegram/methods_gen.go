@@ -9670,6 +9670,25 @@ func (c *Client) MessagesGetOutboxReadDate(peer InputPeer, msgID int32) (*Outbox
 	return resp, nil
 }
 
+type MessagesGetPaidReactionPrivacyParams struct{}
+
+func (*MessagesGetPaidReactionPrivacyParams) CRC() uint32 {
+	return 0x472455aa
+}
+
+func (c *Client) MessagesGetPaidReactionPrivacy() (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesGetPaidReactionPrivacyParams{})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetPaidReactionPrivacy")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesGetPeerDialogsParams struct {
 	Peers []InputDialogPeer
 }
@@ -11992,7 +12011,7 @@ type MessagesSendPaidReactionParams struct {
 }
 
 func (*MessagesSendPaidReactionParams) CRC() uint32 {
-	return 0x25c8fe3e
+	return 0x9dd6a67b
 }
 
 func (*MessagesSendPaidReactionParams) FlagIndex() int {
@@ -13615,6 +13634,25 @@ func (c *Client) PaymentsGetStarsGiftOptions(userID InputUser) ([]*StarsGiftOpti
 	}
 
 	resp, ok := responseData.([]*StarsGiftOption)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsGetStarsGiveawayOptionsParams struct{}
+
+func (*PaymentsGetStarsGiveawayOptionsParams) CRC() uint32 {
+	return 0xbd1efd3e
+}
+
+func (c *Client) PaymentsGetStarsGiveawayOptions() ([]*StarsGiveawayOption, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarsGiveawayOptionsParams{})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetStarsGiveawayOptions")
+	}
+
+	resp, ok := responseData.([]*StarsGiveawayOption)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
