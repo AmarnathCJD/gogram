@@ -8,7 +8,7 @@ import (
 
 const (
 	ApiVersion = 195
-	Version    = "v1.4.7"
+	Version    = "v1.4.8"
 
 	LogDebug   = utils.DebugLevel
 	LogInfo    = utils.InfoLevel
