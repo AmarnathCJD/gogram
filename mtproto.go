@@ -45,6 +45,8 @@ type MTProto struct {
 
 	authKeyHash []byte
 
+	noRedirect bool
+
 	serverSalt int64
 	encrypted  bool
 	sessionId  int64
@@ -195,12 +197,7 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 }
 
 func (m *MTProto) GetDC() int {
-	for dc, addr := range utils.DcList {
-		if addr == m.Addr {
-			return dc
-		}
-	}
-	return 4
+	return utils.SearchAddr(m.Addr)
 }
 
 func (m *MTProto) AppID() int32 {
@@ -212,8 +209,11 @@ func (m *MTProto) SetAppID(appID int32) {
 }
 
 func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
-	newAddr, isValid := utils.DcList[dc]
-	if !isValid {
+	if m.noRedirect {
+		return m, nil
+	}
+	newAddr := utils.GetAddr(dc)
+	if newAddr == "" {
 		return nil, errors.New("invalid data center id provided")
 	}
 	m.sessionStorage.Delete()
@@ -244,19 +244,20 @@ func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
 }
 
 func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
-	newAddr := utils.DcList[dcID]
+	newAddr := utils.GetAddr(dcID)
 	execWorkDir, err := os.Executable()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting executable directory")
 	}
 	wd := filepath.Dir(execWorkDir)
-	cfg := Config{DataCenter: dcID, PublicKey: m.publicKey, ServerHost: newAddr, AuthKeyFile: filepath.Join(wd, "exported_sender"), MemorySession: mem, LogLevel: m.Logger.Lev(), Proxy: m.proxy, AppID: m.appID}
+	cfg := Config{DataCenter: dcID, PublicKey: m.publicKey, ServerHost: newAddr, AuthKeyFile: filepath.Join(wd, "exported_sender"), MemorySession: mem, LogLevel: "disabled", Proxy: m.proxy, AppID: m.appID}
 	if dcID == m.GetDC() {
 		cfg.SessionStorage = m.sessionStorage
 	}
+
 	sender, _ := NewMTProto(cfg)
-	m.Logger.Info("exporting new sender for DC " + strconv.Itoa(dcID))
-	err = sender.CreateConnection(false)
+	sender.noRedirect = true
+	err = sender.CreateConnection(true)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating connection")
 	}

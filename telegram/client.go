@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -27,7 +26,7 @@ import (
 const (
 	// DefaultDC is the default data center id
 	DefaultDataCenter       = 4
-	DisconnectExportedAfter = 30 * time.Second
+	DisconnectExportedAfter = 5 * time.Minute
 )
 
 // TODO: fix session file issue
@@ -44,9 +43,14 @@ type clientData struct {
 	botAcc        bool
 }
 
+type exportedSender struct {
+	client *Client
+	dcID   int
+}
+
 type cachedExportedSenders struct {
 	sync.RWMutex
-	senders map[int][]*Client
+	senders []exportedSender
 }
 
 // Client is the main struct of the library
@@ -116,11 +120,11 @@ func NewClient(config ClientConfig) (*Client, error) {
 		return nil, err
 	}
 	if config.NoUpdates {
-		//client.Log.Warn("client is running in no updates mode, no updates will be handled")
+		client.Log.Debug("client is running in no updates mode, no updates will be handled")
 	} else {
 		client.setupDispatcher()
 		if client.IsConnected() {
-			//TODO: Implement same for manual connect Call.
+			// TODO: Implement same for manual connect Call.
 			client.UpdatesGetState()
 		}
 	}
@@ -162,7 +166,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		return errors.Wrap(err, "creating mtproto client")
 	}
 	c.MTProto = mtproto
-	c.clientData.appID = mtproto.AppID() // in case the app id was not provided in the config but was in the session
+	c.clientData.appID = mtproto.AppID() // in case the appId was not provided in the config but was in the session
 
 	if config.StringSession != "" {
 		if err := c.Connect(); err != nil {
@@ -194,7 +198,7 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 	}
 
 	if !IsFfmpegInstalled() {
-		c.Log.Debug("ffmpeg is not installed, some media features may not work")
+		c.Log.Debug("ffmpeg is not installed, some media metadata may not be available")
 	}
 	return nil
 }
@@ -209,9 +213,7 @@ func (c *Client) setupDispatcher() {
 }
 
 func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
-
 	// if config.Session is a filename, join it with the working directory
-
 	config.Session = joinAbsWorkingDir(config.Session)
 	if config.TestMode {
 		config.DataCenter = 2
@@ -255,13 +257,18 @@ func (c *Client) InitialRequest() error {
 
 	c.Log.Debug("received initial invokeWithLayer response")
 	if config, ok := serverConfig.(*Config); ok {
+		var dcs = make(map[int][]string)
 		for _, dc := range config.DcOptions {
 			if !dc.Ipv6 && !dc.MediaOnly && !dc.Cdn {
-				DataCenters[int(dc.ID)] = dc.IpAddress + ":" + strconv.Itoa(int(dc.Port))
+				if _, ok := dcs[int(dc.ID)]; !ok {
+					dcs[int(dc.ID)] = []string{}
+				}
+
+				dcs[int(dc.ID)] = append(dcs[int(dc.ID)], dc.IpAddress+":"+strconv.Itoa(int(dc.Port)))
 			}
 		}
 
-		utils.SetDCs(DataCenters)
+		utils.SetDCs(dcs)
 	}
 
 	return nil
@@ -324,8 +331,8 @@ func (c *Client) Disconnect() error {
 }
 
 // switchDC permanently switches the data center
-func (c *Client) switchDC(dcID int) error {
-	c.Log.Debug("switching data center to [" + strconv.Itoa(dcID) + "]")
+func (c *Client) switchDc(dcID int) error {
+	c.Log.Debug("switching data center to (" + strconv.Itoa(dcID) + ")")
 	newDcSender, err := c.MTProto.ReconnectToNewDC(dcID)
 	if err != nil {
 		return errors.Wrap(err, "reconnecting to new dc")
@@ -345,24 +352,38 @@ func (c *Client) SetAppHash(appHash string) {
 
 func (c *Client) AddNewExportedSenderToMap(dcID int, sender *Client) {
 	c.exportedSenders.Lock()
-	defer c.exportedSenders.Unlock()
-	if c.exportedSenders.senders == nil {
-		c.exportedSenders.senders = make(map[int][]*Client)
-	}
-	if c.exportedSenders.senders[dcID] == nil {
-		c.exportedSenders.senders[dcID] = make([]*Client, 0)
-	} // TODO: Implement this
-	c.exportedSenders.senders[dcID] = append(c.exportedSenders.senders[dcID], sender)
+	c.exportedSenders.senders = append(
+		c.exportedSenders.senders,
+		exportedSender{client: sender, dcID: dcID},
+	)
+	c.exportedSenders.Unlock()
+
+	go func() {
+		time.Sleep(DisconnectExportedAfter)
+		c.exportedSenders.Lock()
+		defer c.exportedSenders.Unlock()
+
+		for i, s := range c.exportedSenders.senders {
+			if s.client == sender {
+				c.exportedSenders.senders = append(c.exportedSenders.senders[:i], c.exportedSenders.senders[i+1:]...)
+				break
+			}
+		}
+	}() // remove the sender from the map after the expiry time
 }
 
 func (c *Client) GetCachedExportedSenders(dcID int) []*Client {
 	c.exportedSenders.RLock()
 	defer c.exportedSenders.RUnlock()
-	v, ok := c.exportedSenders.senders[dcID]
-	if !ok {
-		return nil
+
+	var senders []*Client
+	for _, sender := range c.exportedSenders.senders {
+		if sender.dcID == dcID {
+			senders = append(senders, sender.client)
+		}
 	}
-	return v
+
+	return senders
 }
 
 // createExportedSender creates a new exported sender
@@ -377,32 +398,14 @@ func (c *Client) CreateExportedSender(dcID int) (*Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "initial request")
 	}
+
 	if c.MTProto.GetDC() != exported.GetDC() {
-		if err := exportedSender.shareAuthWithTimeout(c, exportedSender.MTProto.GetDC()); err != nil {
+		if err := exportedSender.shareAuth(c, exportedSender.MTProto.GetDC()); err != nil {
 			return nil, errors.Wrap(err, "sharing auth")
 		}
 	}
-	c.Log.Debug("exported sender for DC ", exported.GetDC(), " is ready")
+	c.Log.Debug("exported sender for dc ", exported.GetDC(), " is ready")
 	return exportedSender, nil
-}
-
-func (c *Client) shareAuthWithTimeout(main *Client, dcID int) error {
-	// raise timeout error on timeout
-	//timeout := time.After(6 * time.Second)
-	//errMade := make(chan error)
-	//go func() {
-	//	select {
-	//	case <-timeout:
-	//		errMade <- errors.New("sharing authorization timed out")
-	//	case err := <-errMade:
-	//		errMade <- err
-	//	}
-	//}()
-	//go func() {
-	//errMade <-
-	c.shareAuth(main, dcID)
-	//}()
-	return nil
 }
 
 // shareAuth shares authorization with another client
@@ -418,94 +421,15 @@ func (c *Client) shareAuth(main *Client, dcID int) error {
 	return nil
 }
 
-// BorrowExportedSender returns exported senders from cache or creates new ones
-func (c *Client) BorrowExportedSenders(dcID int, count ...int) ([]*Client, error) {
-	c.exportedSenders.Lock()
-	defer c.exportedSenders.Unlock()
-	if c.exportedSenders.senders == nil {
-		c.exportedSenders.senders = make(map[int][]*Client)
-	}
-	countInt := 1
-	if len(count) > 0 {
-		countInt = count[0]
-	}
-	if countInt < 1 {
-		return nil, errors.New("count must be greater than 0")
-	}
-	if countInt > 10 {
-		return nil, errors.New("count must be less than 10")
-	}
-	returned := make([]*Client, 0, countInt)
-	if c.exportedSenders.senders[dcID] == nil || len(c.exportedSenders.senders[dcID]) == 0 {
-		c.exportedSenders.senders[dcID] = make([]*Client, 0, countInt)
-		exportWaitGroup := sync.WaitGroup{}
-		for i := 0; i < countInt; i++ {
-			exportWaitGroup.Add(1)
-			go func() {
-				defer exportWaitGroup.Done()
-				exportedSender, err := c.CreateExportedSender(dcID)
-				if err != nil {
-					const AuthInvalidError = "The provided authorization is invalid"
-					if strings.Contains(err.Error(), AuthInvalidError) {
-						exportedSender, err = c.CreateExportedSender(dcID)
-						if err != nil {
-							return
-						}
-					} else {
-						c.Log.Error("error creating exported sender: ", err)
-					}
-				}
-				returned = append(returned, exportedSender)
-				c.exportedSenders.senders[dcID] = append(c.exportedSenders.senders[dcID], exportedSender)
-			}()
-		}
-		exportWaitGroup.Wait()
-	} else {
-		total := len(c.exportedSenders.senders[dcID])
-		if total < countInt {
-			returned = append(returned, c.exportedSenders.senders[dcID]...)
-			for i := 0; i < countInt-total; i++ {
-				exportedSender, err := c.CreateExportedSender(dcID)
-				if err != nil {
-					return nil, errors.Wrap(err, "creating exported sender")
-				}
-				returned = append(returned, exportedSender)
-				c.exportedSenders.senders[dcID] = append(c.exportedSenders.senders[dcID], exportedSender)
-			}
-		} else {
-			for i := 0; i < countInt; i++ {
-				returned = append(returned, c.exportedSenders.senders[dcID][i])
-			}
-		}
-	}
-	return returned, nil
-}
-
-// borrowSender returns a sender from cache or creates a new one
-func (c *Client) borrowSender(dcID int) (*Client, error) {
-	borrowed, err := c.BorrowExportedSenders(dcID, 1)
-	if err != nil {
-		return nil, errors.Wrap(err, "borrowing exported sender")
-	}
-	return borrowed[0], nil
-}
-
 // cleanExportedSenders terminates all exported senders and removes them from cache
 func (c *Client) cleanExportedSenders() {
-	if c.exportedSenders.senders == nil {
-		return
-	}
 	c.exportedSenders.Lock()
 	defer c.exportedSenders.Unlock()
-	for dcID, senders := range c.exportedSenders.senders {
-		if senders != nil {
-			for i, sender := range senders {
-				sender.Terminate()
-				senders[i] = nil
-			}
-			c.exportedSenders.senders[dcID] = nil
-		}
+
+	for _, sender := range c.exportedSenders.senders {
+		sender.client.Terminate()
 	}
+	c.exportedSenders.senders = nil
 }
 
 // setLogLevel sets the log level for all loggers
@@ -528,7 +452,7 @@ func (c *Client) GetDC() int {
 // This string can be used to import the session later
 func (c *Client) ExportSession() string {
 	authSession, dcId := c.MTProto.ExportAuth()
-	c.Log.Debug("Exporting string session...")
+	c.Log.Debug("exporting string session...")
 	return session.NewStringSession(authSession.Key, authSession.Hash, dcId, authSession.Hostname, authSession.AppID).Encode()
 }
 
@@ -623,6 +547,7 @@ func (c *Client) Idle() {
 // Stop stops the client and disconnects from telegram server
 func (c *Client) Stop() error {
 	close(c.stopCh)
+	go c.cleanExportedSenders()
 	return c.MTProto.Terminate()
 }
 

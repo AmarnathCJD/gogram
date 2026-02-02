@@ -76,7 +76,7 @@ func (c *Client) LoginBot(botToken string) error {
 	}
 	if au, e := c.IsAuthorized(); !au {
 		if dc, code := getErrorCode(e); code == 303 {
-			err = c.switchDC(dc)
+			err = c.switchDc(dc)
 			if err != nil {
 				return err
 			}
@@ -94,7 +94,7 @@ func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
 	})
 	if err != nil {
 		if dc, code := getErrorCode(err); code == 303 {
-			err = c.switchDC(dc)
+			err = c.switchDc(dc)
 			if err != nil {
 				return "", err
 			}
@@ -554,7 +554,7 @@ func (q *QrToken) Wait(timeout ...int32) error {
 	QrResponseSwitch:
 		switch req := resp.(type) {
 		case *AuthLoginTokenMigrateTo:
-			q.client.switchDC(int(req.DcID))
+			q.client.switchDc(int(req.DcID))
 			resp, err = q.client.AuthImportLoginToken(req.Token)
 			if err != nil {
 				return err
@@ -592,7 +592,7 @@ func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 	)
 	switch qr := qr.(type) {
 	case *AuthLoginTokenMigrateTo:
-		c.switchDC(int(qr.DcID))
+		c.switchDc(int(qr.DcID))
 		return c.QRLogin(IgnoreIDs...)
 	case *AuthLoginTokenObj:
 		qrToken = qr.Token

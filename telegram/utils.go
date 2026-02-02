@@ -269,7 +269,7 @@ func getMax(a []int32) int32 {
 	return max
 }
 
-func pathIsDir(path string) bool {
+func PathIsDir(path string) bool {
 	return strings.HasSuffix(path, "/") || strings.HasSuffix(path, "\\")
 }
 
