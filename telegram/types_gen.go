@@ -229,6 +229,15 @@ func (*AccountDaysTtl) CRC() uint32 {
 	return 0xb8d0afdf
 }
 
+// Contains the link that must be used to open a direct link Mini App.
+type AppWebViewResultURL struct {
+	URL string
+}
+
+func (*AppWebViewResultURL) CRC() uint32 {
+	return 0x3c1b4f0d
+}
+
 // Represents a bot mini app that can be launched from the attachment/side menu »
 type AttachMenuBot struct {
 	Inactive                 bool `tl:"flag:0,encoded_in_bitflags"`
@@ -1413,6 +1422,17 @@ type FileHash struct {
 
 func (*FileHash) CRC() uint32 {
 	return 0xf39b035c
+}
+
+// File is currently unavailable.
+type FileLocationUnavailable struct {
+	VolumeID int64
+	LocalID  int32
+	Secret   int64
+}
+
+func (*FileLocationUnavailable) CRC() uint32 {
+	return 0x7c596b46
 }
 
 // Folder
@@ -3669,10 +3689,11 @@ type SavedStarGift struct {
 	TransferStars int64             `tl:"flag:8"`
 	CanTransferAt int32             `tl:"flag:13"`
 	CanResellAt   int32             `tl:"flag:14"`
+	CollectionID  []int32           `tl:"flag:15"`
 }
 
 func (*SavedStarGift) CRC() uint32 {
-	return 0xdfda0499
+	return 0x1ea646df
 }
 
 func (*SavedStarGift) FlagIndex() int {
@@ -3791,6 +3812,15 @@ func (*ShippingOption) CRC() uint32 {
 	return 0xb6213cdf
 }
 
+// Contains the webview URL with appropriate theme parameters added
+type SimpleWebViewResultURL struct {
+	URL string
+}
+
+func (*SimpleWebViewResultURL) CRC() uint32 {
+	return 0x882f76bb
+}
+
 // Info about an SMS job.
 type SmsJob struct {
 	JobID       string
@@ -3893,15 +3923,20 @@ func (*StarGiftAttributeCounter) CRC() uint32 {
 	return 0x2eb1b658
 }
 
-type StarGifts struct {
-	Hash  int32
-	Gifts []StarGift
-	Chats []Chat
-	Users []User
+type StarGiftCollection struct {
+	CollectionID int32
+	Title        string
+	Icon         Document `tl:"flag:0"`
+	GiftsCount   int32
+	Hash         int64
 }
 
-func (*StarGifts) CRC() uint32 {
-	return 0x2ed82995
+func (*StarGiftCollection) CRC() uint32 {
+	return 0x9d6b13b0
+}
+
+func (*StarGiftCollection) FlagIndex() int {
+	return 0
 }
 
 // Indo about an affiliate program offered by a bot
@@ -4542,6 +4577,21 @@ func (*Timezone) CRC() uint32 {
 	return 0xff9289f5
 }
 
+type TlStarsRating struct {
+	Level             int32
+	CurrentLevelStars int64
+	Stars             int64
+	NextLevelStars    int64 `tl:"flag:0"`
+}
+
+func (*TlStarsRating) CRC() uint32 {
+	return 0x1b0e4f07
+}
+
+func (*TlStarsRating) FlagIndex() int {
+	return 0
+}
+
 type TodoCompletion struct {
 	ID          int32
 	CompletedBy int64
@@ -4672,11 +4722,12 @@ type UserFull struct {
 	StarrefProgram          *StarRefProgram          `tl:"flag2:11"`
 	BotVerification         *BotVerification         `tl:"flag2:12"`
 	SendPaidMessagesStars   int64                    `tl:"flag2:14"`
-	DisallowedGifts         *DisallowedGiftsSettings `tl:"flag2:15"`
+	DisallowedStargifts     *DisallowedGiftsSettings `tl:"flag2:15"`
+	StarsRating             `tl:"flag2:17"`
 }
 
 func (*UserFull) CRC() uint32 {
-	return 0x99e78045
+	return 0x29de80be
 }
 
 func (*UserFull) FlagIndex() int {
