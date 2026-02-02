@@ -67,10 +67,6 @@ func (*PingParams) CRC() uint32 {
 
 type UpdatesGetStateParams struct{}
 
-func (*UpdatesGetStateParams) CRC() uint32 {
-	return 0xedd4882a
-}
-
 func NewMsgIDGenerator() func(timeOffset int64) int64 {
 	var (
 		mu        sync.Mutex

@@ -5,6 +5,7 @@ package telegram
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -72,82 +73,72 @@ func NewCache(logLevel string, fileN string) *CACHE {
 // --------- Cache file Functions ---------
 func (c *CACHE) WriteFile() {
 	c.Lock()
-	defer c.Unlock() // necessary?
+	defer c.Unlock()
 
-	if c.file == nil {
-		var err error
-		c.file, err = os.OpenFile(c.fileN, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-		if err != nil {
-			c.logger.Error("error opening cache file: ", err)
-			return
-		}
-
-		defer c.file.Close()
+	file, err := os.OpenFile(c.fileN, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		c.logger.Error("error opening cache file: ", err)
+		return
 	}
+	defer file.Close()
 
-	// write format: 'type:id:access_hash,...'
-	// type: 1 for user, 2 for chat, 3 for channel
+	var buffer strings.Builder
 
 	for id, accessHash := range c.InputPeers.InputUsers {
-		_, _ = c.file.WriteString(fmt.Sprintf("1:%d:%d,", id, accessHash))
-	}
-	for id, accessHash := range c.InputPeers.InputChats {
-		_, _ = c.file.WriteString(fmt.Sprintf("2:%d:%d,", id, accessHash))
-	}
-	for id, accessHash := range c.InputPeers.InputChannels {
-		_, _ = c.file.WriteString(fmt.Sprintf("3:%d:%d,", id, accessHash))
+		buffer.WriteString(fmt.Sprintf("1:%d:%d,", id, accessHash))
 	}
 
-	c.file = nil
+	for id, accessHash := range c.InputPeers.InputChats {
+		buffer.WriteString(fmt.Sprintf("2:%d:%d,", id, accessHash))
+	}
+
+	for id, accessHash := range c.InputPeers.InputChannels {
+		buffer.WriteString(fmt.Sprintf("3:%d:%d,", id, accessHash))
+	}
+
+	if _, err := file.WriteString(buffer.String()); err != nil {
+		c.logger.Error("error writing to cache file: ", err)
+	}
 }
 
 func (c *CACHE) ReadFile() {
+	// Lock only for cache modification
 	c.Lock()
 	defer c.Unlock()
 
-	if c.file == nil {
-		var err error
-		c.file, err = os.Open(c.fileN)
-		if err != nil && !os.IsNotExist(err) {
-			c.logger.Error("error opening cache file: ", err)
-			return
-		}
-
-		defer c.file.Close()
+	file, err := os.Open(c.fileN)
+	if err != nil && !os.IsNotExist(err) {
+		c.logger.Error("error opening cache file: ", err)
+		return
 	}
-
-	// read till each , using buffer
-	// format: 'type:id:access_hash,...'
-
-	_totalLoaded := 0
+	defer file.Close()
 
 	buffer := make([]byte, 1)
 	var data []byte
+	totalLoaded := 0
+
 	for {
-		_, err := c.file.Read(buffer)
+		_, err := file.Read(buffer)
 		if err != nil {
+			if err != io.EOF {
+				c.logger.Debug("error reading from cache file: ", err)
+			}
 			break
 		}
 		if buffer[0] == ',' {
-			// process data
-			// data format: 'type:id:access_hash'
 			data = append(data, buffer[0])
-			// process data
 			if processed := c.processData(data); processed {
-				_totalLoaded++
+				totalLoaded++
 			}
-			// reset data
 			data = nil
 		} else {
 			data = append(data, buffer[0])
 		}
 	}
 
-	if _totalLoaded != 0 {
-		c.logger.Debug("loaded ", _totalLoaded, " peers from cacheFile")
+	if totalLoaded != 0 {
+		c.logger.Debug("loaded ", totalLoaded, " peers from cacheFile")
 	}
-
-	c.file = nil
 }
 
 func (c *CACHE) processData(data []byte) bool {
@@ -184,20 +175,18 @@ func (c *CACHE) processData(data []byte) bool {
 }
 
 func (c *CACHE) getUserPeer(userID int64) (InputUser, error) {
-	for userId, accessHash := range c.InputPeers.InputUsers {
-		if userId == userID {
-			return &InputUserObj{UserID: userId, AccessHash: accessHash}, nil
-		}
+	if userHash, ok := c.InputPeers.InputUsers[userID]; ok {
+		return &InputUserObj{UserID: userID, AccessHash: userHash}, nil
 	}
+
 	return nil, fmt.Errorf("no user with id %d or missing from cache", userID)
 }
 
 func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
-	for channelId, channelHash := range c.InputPeers.InputChannels {
-		if channelId == channelID {
-			return &InputChannelObj{ChannelID: channelId, AccessHash: channelHash}, nil
-		}
+	if channelHash, ok := c.InputPeers.InputChannels[channelID]; ok {
+		return &InputChannelObj{ChannelID: channelID, AccessHash: channelHash}, nil
 	}
+
 	return nil, fmt.Errorf("no channel with id %d or missing from cache", channelID)
 }
 
@@ -215,21 +204,19 @@ func (c *CACHE) GetInputPeer(peerID int64) (InputPeer, error) {
 	}
 	c.RLock()
 	defer c.RUnlock()
-	for userId, userHash := range c.InputPeers.InputUsers {
-		if userId == peerID {
-			return &InputPeerUser{userId, userHash}, nil
-		}
+
+	if userHash, ok := c.InputPeers.InputUsers[peerID]; ok {
+		return &InputPeerUser{peerID, userHash}, nil
 	}
-	for chatId := range c.InputPeers.InputChats {
-		if chatId == peerID {
-			return &InputPeerChat{ChatID: chatId}, nil
-		}
+
+	if _, ok := c.InputPeers.InputChats[peerID]; ok {
+		return &InputPeerChat{ChatID: peerID}, nil
 	}
-	for channelId, channelHash := range c.InputPeers.InputChannels {
-		if channelId == peerID {
-			return &InputPeerChannel{channelId, channelHash}, nil
-		}
+
+	if channelHash, ok := c.InputPeers.InputChannels[peerID]; ok {
+		return &InputPeerChannel{peerID, channelHash}, nil
 	}
+
 	return nil, fmt.Errorf("there is no peer with id %d or missing from cache", peerID)
 }
 
@@ -238,26 +225,30 @@ func (c *CACHE) GetInputPeer(peerID int64) (InputPeer, error) {
 func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 	c.Cache.RLock()
 	defer c.Cache.RUnlock()
-	for _, user := range c.Cache.users {
-		if user.ID == userID {
-			return user, nil
-		}
+
+	if user, found := c.Cache.users[userID]; found {
+		return user, nil
 	}
+
 	userPeer, err := c.Cache.getUserPeer(userID)
 	if err != nil {
 		return nil, err
 	}
+
 	users, err := c.UsersGetUsers([]InputUser{userPeer})
 	if err != nil {
 		return nil, err
 	}
+
 	if len(users) == 0 {
 		return nil, fmt.Errorf("no user with id %d", userID)
 	}
+
 	user, ok := users[0].(*UserObj)
 	if !ok {
-		return nil, fmt.Errorf("no user with id %d", userID)
+		return nil, fmt.Errorf("expected UserObj for id %d, but got different type", userID)
 	}
+
 	return user, nil
 }
 
@@ -265,56 +256,64 @@ func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 	c.Cache.RLock()
 	defer c.Cache.RUnlock()
 
-	for _, channel := range c.Cache.channels {
-		if channel.ID == channelID {
-			return channel, nil
-		}
+	if channel, found := c.Cache.channels[channelID]; found {
+		return channel, nil
 	}
+
 	channelPeer, err := c.Cache.getChannelPeer(channelID)
 	if err != nil {
 		return nil, err
 	}
+
 	channels, err := c.ChannelsGetChannels([]InputChannel{channelPeer})
 	if err != nil {
 		return nil, err
 	}
+
 	channelsObj, ok := channels.(*MessagesChatsObj)
 	if !ok {
-		return nil, fmt.Errorf("no channel with id %d or missing from cache", channelID)
+		return nil, fmt.Errorf("expected MessagesChatsObj for channel id %d, but got different type", channelID)
 	}
+
 	if len(channelsObj.Chats) == 0 {
-		return nil, fmt.Errorf("no channel with id %d or missing from cache", channelID)
+		return nil, fmt.Errorf("no channel with id %d", channelID)
 	}
+
 	channel, ok := channelsObj.Chats[0].(*Channel)
 	if !ok {
-		return nil, fmt.Errorf("no channel with id %d or missing from cache", channelID)
+		return nil, fmt.Errorf("expected Channel for id %d, but got different type", channelID)
 	}
+
 	return channel, nil
 }
 
 func (c *Client) getChatFromCache(chatID int64) (*ChatObj, error) {
 	c.Cache.RLock()
 	defer c.Cache.RUnlock()
-	for _, chat := range c.Cache.chats {
-		if chat.ID == chatID {
-			return chat, nil
-		}
+
+	if chat, found := c.Cache.chats[chatID]; found {
+		return chat, nil
 	}
+
 	chat, err := c.MessagesGetChats([]int64{chatID})
 	if err != nil {
 		return nil, err
 	}
+
 	chatsObj, ok := chat.(*MessagesChatsObj)
 	if !ok {
-		return nil, fmt.Errorf("no chat with id %d or missing from cache", chatID)
+		return nil, fmt.Errorf("expected MessagesChatsObj for chat id %d, but got different type", chatID)
 	}
+
 	if len(chatsObj.Chats) == 0 {
-		return nil, fmt.Errorf("no chat with id %d or missing from cache", chatID)
+		return nil, fmt.Errorf("no chat with id %d", chatID)
 	}
+
 	chatObj, ok := chatsObj.Chats[0].(*ChatObj)
 	if !ok {
-		return nil, fmt.Errorf("no chat with id %d or missing from cache", chatID)
+		return nil, fmt.Errorf("expected ChatObj for id %d, but got different type", chatID)
 	}
+
 	return chatObj, nil
 }
 
@@ -390,6 +389,7 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 		}
 		return false
 	}
+
 	c.channels[channel.ID] = channel
 	c.InputPeers.InputChannels[channel.ID] = channel.AccessHash
 
@@ -410,43 +410,39 @@ func (c *CACHE) UpdateChat(chat *ChatObj) bool {
 	return true
 }
 
-func (cache *CACHE) UpdatePeersToCache(u []User, c []Chat) {
-	_totalUpdates := [2]int{0, 0}
-	for _, user := range u {
-		us, ok := user.(*UserObj)
-		if ok {
-			if upd := cache.UpdateUser(us); upd {
-				_totalUpdates[0]++
-			}
-		}
-	}
-	for _, chat := range c {
-		ch, ok := chat.(*ChatObj)
-		if ok {
-			if upd := cache.UpdateChat(ch); upd {
-				_totalUpdates[1]++
-			}
-		} else {
-			channel, ok := chat.(*Channel)
-			if ok {
-				if upd := cache.UpdateChannel(channel); upd {
-					_totalUpdates[1]++
-				}
+func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
+	totalUpdates := [2]int{0, 0}
+
+	for _, user := range users {
+		if us, ok := user.(*UserObj); ok {
+			if updated := cache.UpdateUser(us); updated {
+				totalUpdates[0]++
 			}
 		}
 	}
 
-	if _totalUpdates[0] != 0 || _totalUpdates[1] != 0 {
+	for _, chat := range chats {
+		if ch, ok := chat.(*ChatObj); ok {
+			if updated := cache.UpdateChat(ch); updated {
+				totalUpdates[1]++
+			}
+		} else if channel, ok := chat.(*Channel); ok {
+			if updated := cache.UpdateChannel(channel); updated {
+				totalUpdates[1]++
+			}
+		}
+	}
+
+	if totalUpdates[0] > 0 || totalUpdates[1] > 0 {
 		if cache.writeFile {
-			go cache.WriteFile() // write to file
+			go cache.WriteFile() // Write to file asynchronously
 		}
-		if _totalUpdates[0] != 0 && _totalUpdates[1] != 0 {
-			cache.logger.Debug("updated ", _totalUpdates[0], "(u) and ", _totalUpdates[1], "(c) to ", cache.fileN, " (u:", len(cache.InputPeers.InputUsers), ", c:", len(cache.InputPeers.InputChats), ")")
-		} else if _totalUpdates[0] != 0 {
-			cache.logger.Debug("updated ", _totalUpdates[0], "(u) to ", cache.fileN, " (u:", len(cache.InputPeers.InputUsers), ", c:", len(cache.InputPeers.InputChats), ")")
-		} else {
-			cache.logger.Debug("updated ", _totalUpdates[1], "(c) to ", cache.fileN, " (u:", len(cache.InputPeers.InputUsers), ", c:", len(cache.InputPeers.InputChats), ")")
-		}
+		cache.logger.Debug(
+			fmt.Sprintf("updated %d users and %d chats to %s (users: %d, chats: %d)",
+				totalUpdates[0], totalUpdates[1], cache.fileN,
+				len(cache.InputPeers.InputUsers), len(cache.InputPeers.InputChats),
+			),
+		)
 	}
 }
 

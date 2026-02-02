@@ -391,9 +391,6 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 	partOver := size % int64(partSize)
 
 	totalParts := parts
-	if partOver > 0 {
-		totalParts++
-	}
 
 	wg := sync.WaitGroup{}
 	numWorkers := countWorkers(parts)
@@ -449,45 +446,78 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 			found := false
 			for i := 0; i < numWorkers; i++ {
 				if !w[i].buzy && w[i].c != nil {
+
 					found = true
-					part := make([]byte, partSize)
 					w[i].buzy = true
-					go func(i int, part []byte, p int) {
-						defer wg.Done()
-					downloadStartPoint:
-						c.Logger.Debug(fmt.Sprintf("downloading part %d/%d in chunks of %d", p, totalParts, len(part)/1024))
-						buf, err := w[i].c.UploadGetFile(&UploadGetFileParams{
-							Location:     location,
-							Offset:       int64(p * partSize),
-							Limit:        int32(partSize),
-							CdnSupported: false,
-						})
+					go func(i int, p int) {
+						defer func() {
+							w[i].buzy = false
+							wg.Done()
+						}()
+						retryCount := 0
+						reqTimeout := 3 * time.Second
 
-						if handleIfFlood(err, c) {
-							goto downloadStartPoint
-						}
+					partDownloadStartPoint:
+						c.Logger.Debug(fmt.Sprintf("download part %d/%d in chunks of %d", p, totalParts, partSize/1024))
 
-						if err != nil || buf == nil {
-							w[i].c.Logger.Warn(err)
-							return
-						}
-						var buffer []byte
-						switch v := buf.(type) {
-						case *UploadFileObj:
-							buffer = v.Bytes
-						case *UploadFileCdnRedirect:
-							return // TODO
-						}
-						_, err = fs.WriteAt(buffer, int64(p*partSize))
-						if err != nil {
+						resultChan := make(chan UploadFile, 1)
+						errorChan := make(chan error, 1)
+
+						go func() {
+							upl, err := w[i].c.UploadGetFile(&UploadGetFileParams{
+								Location:     location,
+								Offset:       int64(p * partSize),
+								Limit:        int32(partSize),
+								CdnSupported: false,
+							})
+							if err != nil {
+								errorChan <- err
+								return
+							}
+							resultChan <- upl
+						}()
+
+						select {
+						case upl := <-resultChan:
+							if upl == nil {
+								goto partDownloadStartPoint
+							}
+
+							var buffer []byte
+							switch v := upl.(type) {
+							case *UploadFileObj:
+								buffer = v.Bytes
+							case *UploadFileCdnRedirect:
+								panic("cdn redirect not impl") // TODO
+							}
+
+							_, err := fs.WriteAt(buffer, int64(p*partSize))
+							if err != nil {
+								c.Logger.Error(err)
+							}
+
+							if opts.ProgressCallback != nil {
+								go opts.ProgressCallback(int32(totalParts), int32(p))
+							}
+							w[i].buzy = false
+						case err := <-errorChan:
+							if handleIfFlood(err, c) {
+								goto partDownloadStartPoint
+							}
 							c.Logger.Error(err)
+							w[i].buzy = false
+						case <-time.After(reqTimeout):
+							c.Logger.Debug(fmt.Errorf("upload part %d timed out - retrying", p))
+							retryCount++
+							if retryCount > 5 {
+								c.Logger.Debug(fmt.Errorf("upload part %d timed out - giving up", p))
+								return
+							} else if retryCount > 3 {
+								reqTimeout = 5 * time.Second
+							}
+							goto partDownloadStartPoint
 						}
-						if opts.ProgressCallback != nil {
-							go opts.ProgressCallback(int32(totalParts), int32(p))
-						}
-						w[i].buzy = false
-					}(i, part, int(p))
-					break
+					}(i, int(p))
 				}
 			}
 
@@ -535,7 +565,7 @@ func (c *Client) DownloadMedia(file interface{}, Opts ...*DownloadOptions) (stri
 				c.Logger.Error(err)
 			}
 		case *UploadFileCdnRedirect:
-			return "", nil // TODO
+			panic("cdn redirect not impl") // TODO
 		}
 
 		if opts.ProgressCallback != nil {

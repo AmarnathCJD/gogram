@@ -225,7 +225,7 @@ func (m *MTProto) SetAppID(appID int32) {
 	m.appID = appID
 }
 
-func (m *MTProto) ReconnectToNewDC(dc int) (*MTProto, error) {
+func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 	if m.noRedirect {
 		return m, nil
 	}
