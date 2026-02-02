@@ -3648,6 +3648,27 @@ func (c *Client) BotsGetBotMenuButton(userID InputUser) (BotMenuButton, error) {
 	return resp, nil
 }
 
+type BotsGetBotRecommendationsParams struct {
+	Bot InputUser
+}
+
+func (*BotsGetBotRecommendationsParams) CRC() uint32 {
+	return 0x2855be61
+}
+
+func (c *Client) BotsGetBotRecommendations(bot InputUser) (UsersUsers, error) {
+	responseData, err := c.MakeRequest(&BotsGetBotRecommendationsParams{Bot: bot})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending BotsGetBotRecommendations")
+	}
+
+	resp, ok := responseData.(UsersUsers)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type BotsGetPopularAppBotsParams struct {
 	Offset string
 	Limit  int32
@@ -3975,6 +3996,39 @@ func (c *Client) BotsSetBotMenuButton(userID InputUser, button BotMenuButton) (b
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending BotsSetBotMenuButton")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type BotsSetCustomVerificationParams struct {
+	Enabled           bool      `tl:"flag:1,encoded_in_bitflags"`
+	Bot               InputUser `tl:"flag:0"`
+	Peer              InputPeer
+	CustomDescription string `tl:"flag:2"`
+}
+
+func (*BotsSetCustomVerificationParams) CRC() uint32 {
+	return 0x8b89dfbd
+}
+
+func (*BotsSetCustomVerificationParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) BotsSetCustomVerification(enabled bool, bot InputUser, peer InputPeer, customDescription string) (bool, error) {
+	responseData, err := c.MakeRequest(&BotsSetCustomVerificationParams{
+		Bot:               bot,
+		CustomDescription: customDescription,
+		Enabled:           enabled,
+		Peer:              peer,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending BotsSetCustomVerification")
 	}
 
 	resp, ok := responseData.(bool)
@@ -6179,26 +6233,6 @@ func (c *Client) ContactsEditCloseFriends(id []int64) (bool, error) {
 	}
 
 	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type ContactsExportCardParams struct{}
-
-func (*ContactsExportCardParams) CRC() uint32 {
-	return 0x84e53737
-}
-
-// Returns the current user&#39;s card that can be later used to contact a Telegram user without knowing his phone number.
-func (c *Client) ContactsExportCard() ([]int32, error) {
-	responseData, err := c.MakeRequest(&ContactsExportCardParams{})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending ContactsExportCard")
-	}
-
-	resp, ok := responseData.([]int32)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -8822,6 +8856,27 @@ func (c *Client) MessagesGetBotCallbackAnswer(params *MessagesGetBotCallbackAnsw
 	return resp, nil
 }
 
+type MessagesGetBotRecommendationsParams struct {
+	Bot InputUser
+}
+
+func (*MessagesGetBotRecommendationsParams) CRC() uint32 {
+	return 0xa1b70815
+}
+
+func (c *Client) MessagesGetBotRecommendations(bot InputUser) (UsersUsers, error) {
+	responseData, err := c.MakeRequest(&MessagesGetBotRecommendationsParams{Bot: bot})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetBotRecommendations")
+	}
+
+	resp, ok := responseData.(UsersUsers)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesGetChatInviteImportersParams struct {
 	Requested           bool `tl:"flag:0,encoded_in_bitflags"`
 	SubscriptionExpired bool `tl:"flag:3,encoded_in_bitflags"`
@@ -10701,6 +10756,27 @@ func (c *Client) MessagesGetTopReactions(limit int32, hash int64) (MessagesReact
 	return resp, nil
 }
 
+type MessagesGetUniqueStarGiftParams struct {
+	Slug string
+}
+
+func (*MessagesGetUniqueStarGiftParams) CRC() uint32 {
+	return 0xa1974d72
+}
+
+func (c *Client) MessagesGetUniqueStarGift(slug string) (*PaymentsUniqueStarGift, error) {
+	responseData, err := c.MakeRequest(&MessagesGetUniqueStarGiftParams{Slug: slug})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetUniqueStarGift")
+	}
+
+	resp, ok := responseData.(*PaymentsUniqueStarGift)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesGetUnreadMentionsParams struct {
 	Peer      InputPeer
 	TopMsgID  int32 `tl:"flag:0"`
@@ -10797,7 +10873,7 @@ type MessagesGetWebPagePreviewParams struct {
 }
 
 func (*MessagesGetWebPagePreviewParams) CRC() uint32 {
-	return 0x8b68b0cc
+	return 0x570d6f6f
 }
 
 func (*MessagesGetWebPagePreviewParams) FlagIndex() int {
@@ -11004,6 +11080,36 @@ func (c *Client) MessagesInstallStickerSet(stickerset InputStickerSet, archived 
 	}
 
 	resp, ok := responseData.(MessagesStickerSetInstallResult)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesJoinGroupCallParams struct {
+	Muted        bool `tl:"flag:0,encoded_in_bitflags"`
+	VideoStopped bool `tl:"flag:2,encoded_in_bitflags"`
+	Call         *InputGroupCall
+	JoinAs       InputPeer
+	InviteHash   string `tl:"flag:1"`
+	Params       *DataJson
+}
+
+func (*MessagesJoinGroupCallParams) CRC() uint32 {
+	return 0xb132ff7b
+}
+
+func (*MessagesJoinGroupCallParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesJoinGroupCall(params *MessagesJoinGroupCallParams) (Updates, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesJoinGroupCall")
+	}
+
+	resp, ok := responseData.(Updates)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -11513,6 +11619,37 @@ func (c *Client) MessagesReportEncryptedSpam(peer *InputEncryptedChat) (bool, er
 	responseData, err := c.MakeRequest(&MessagesReportEncryptedSpamParams{Peer: peer})
 	if err != nil {
 		return false, errors.Wrap(err, "sending MessagesReportEncryptedSpam")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesReportMessagesDeliveryParams struct {
+	Push bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer InputPeer
+	ID   []int32
+}
+
+func (*MessagesReportMessagesDeliveryParams) CRC() uint32 {
+	return 0x5a6d7395
+}
+
+func (*MessagesReportMessagesDeliveryParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesReportMessagesDelivery(push bool, peer InputPeer, id []int32) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesReportMessagesDeliveryParams{
+		ID:   id,
+		Peer: peer,
+		Push: push,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesReportMessagesDelivery")
 	}
 
 	resp, ok := responseData.(bool)
@@ -12047,6 +12184,8 @@ func (c *Client) MessagesSearchEmojiStickerSets(excludeFeatured bool, q string, 
 
 type MessagesSearchGlobalParams struct {
 	BroadcastsOnly bool  `tl:"flag:1,encoded_in_bitflags"`
+	GroupsOnly     bool  `tl:"flag:2,encoded_in_bitflags"`
+	UsersOnly      bool  `tl:"flag:3,encoded_in_bitflags"`
 	FolderID       int32 `tl:"flag:0"`
 	Q              string
 	Filter         MessagesFilter
@@ -14006,20 +14145,16 @@ func (c *Client) PaymentsConnectStarRefBot(peer InputPeer, bot InputUser) (*Paym
 }
 
 type PaymentsConvertStarGiftParams struct {
-	UserID InputUser
-	MsgID  int32
+	MsgID int32
 }
 
 func (*PaymentsConvertStarGiftParams) CRC() uint32 {
-	return 0x421e027
+	return 0x72770c83
 }
 
 // Convert a received gift » into Telegram Stars: this will permanently destroy the gift, converting it into starGift.`convert_stars` Telegram Stars, added to the user's balance.
-func (c *Client) PaymentsConvertStarGift(userID InputUser, msgID int32) (bool, error) {
-	responseData, err := c.MakeRequest(&PaymentsConvertStarGiftParams{
-		MsgID:  msgID,
-		UserID: userID,
-	})
+func (c *Client) PaymentsConvertStarGift(msgID int32) (bool, error) {
+	responseData, err := c.MakeRequest(&PaymentsConvertStarGiftParams{MsgID: msgID})
 	if err != nil {
 		return false, errors.Wrap(err, "sending PaymentsConvertStarGift")
 	}
@@ -14315,6 +14450,27 @@ func (c *Client) PaymentsGetSavedInfo() (*PaymentsSavedInfo, error) {
 	}
 
 	resp, ok := responseData.(*PaymentsSavedInfo)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsGetStarGiftUpgradePreviewParams struct {
+	GiftID int64
+}
+
+func (*PaymentsGetStarGiftUpgradePreviewParams) CRC() uint32 {
+	return 0x9c9abcb1
+}
+
+func (c *Client) PaymentsGetStarGiftUpgradePreview(giftID int64) (*PaymentsStarGiftUpgradePreview, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetStarGiftUpgradePreviewParams{GiftID: giftID})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetStarGiftUpgradePreview")
+	}
+
+	resp, ok := responseData.(*PaymentsStarGiftUpgradePreview)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -14631,6 +14787,27 @@ func (c *Client) PaymentsGetSuggestedStarRefBots(params *PaymentsGetSuggestedSta
 	return resp, nil
 }
 
+type PaymentsGetUserStarGiftParams struct {
+	MsgID []int32
+}
+
+func (*PaymentsGetUserStarGiftParams) CRC() uint32 {
+	return 0xb502e4a5
+}
+
+func (c *Client) PaymentsGetUserStarGift(msgID []int32) (*PaymentsUserStarGifts, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetUserStarGiftParams{MsgID: msgID})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetUserStarGift")
+	}
+
+	resp, ok := responseData.(*PaymentsUserStarGifts)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsGetUserStarGiftsParams struct {
 	UserID InputUser
 	Offset string
@@ -14742,12 +14919,11 @@ func (c *Client) PaymentsRequestRecurringPayment(userID InputUser, recurringInit
 
 type PaymentsSaveStarGiftParams struct {
 	Unsave bool `tl:"flag:0,encoded_in_bitflags"`
-	UserID InputUser
 	MsgID  int32
 }
 
 func (*PaymentsSaveStarGiftParams) CRC() uint32 {
-	return 0x87acf08e
+	return 0x92fd2aae
 }
 
 func (*PaymentsSaveStarGiftParams) FlagIndex() int {
@@ -14755,11 +14931,10 @@ func (*PaymentsSaveStarGiftParams) FlagIndex() int {
 }
 
 // Display or remove a received gift » from our profile.
-func (c *Client) PaymentsSaveStarGift(unsave bool, userID InputUser, msgID int32) (bool, error) {
+func (c *Client) PaymentsSaveStarGift(unsave bool, msgID int32) (bool, error) {
 	responseData, err := c.MakeRequest(&PaymentsSaveStarGiftParams{
 		MsgID:  msgID,
 		Unsave: unsave,
-		UserID: userID,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending PaymentsSaveStarGift")
@@ -14823,6 +14998,60 @@ func (c *Client) PaymentsSendStarsForm(formID int64, invoice InputInvoice) (Paym
 	}
 
 	resp, ok := responseData.(PaymentsPaymentResult)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsTransferStarGiftParams struct {
+	MsgID int32
+	ToID  InputUser
+}
+
+func (*PaymentsTransferStarGiftParams) CRC() uint32 {
+	return 0x333fb526
+}
+
+func (c *Client) PaymentsTransferStarGift(msgID int32, toID InputUser) (Updates, error) {
+	responseData, err := c.MakeRequest(&PaymentsTransferStarGiftParams{
+		MsgID: msgID,
+		ToID:  toID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsTransferStarGift")
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsUpgradeStarGiftParams struct {
+	KeepOriginalDetails bool `tl:"flag:0,encoded_in_bitflags"`
+	MsgID               int32
+}
+
+func (*PaymentsUpgradeStarGiftParams) CRC() uint32 {
+	return 0xcf4f0781
+}
+
+func (*PaymentsUpgradeStarGiftParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsUpgradeStarGift(keepOriginalDetails bool, msgID int32) (Updates, error) {
+	responseData, err := c.MakeRequest(&PaymentsUpgradeStarGiftParams{
+		KeepOriginalDetails: keepOriginalDetails,
+		MsgID:               msgID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsUpgradeStarGift")
+	}
+
+	resp, ok := responseData.(Updates)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -14939,6 +15168,31 @@ func (c *Client) PhoneConfirmCall(peer *InputPhoneCall, gA []byte, keyFingerprin
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending PhoneConfirmCall")
+	}
+
+	resp, ok := responseData.(*PhonePhoneCall)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PhoneCreateConferenceCallParams struct {
+	Peer           *InputPhoneCall
+	KeyFingerprint int64
+}
+
+func (*PhoneCreateConferenceCallParams) CRC() uint32 {
+	return 0xdfc909ab
+}
+
+func (c *Client) PhoneCreateConferenceCall(peer *InputPhoneCall, keyFingerprint int64) (*PhonePhoneCall, error) {
+	responseData, err := c.MakeRequest(&PhoneCreateConferenceCallParams{
+		KeyFingerprint: keyFingerprint,
+		Peer:           peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PhoneCreateConferenceCall")
 	}
 
 	resp, ok := responseData.(*PhonePhoneCall)
@@ -15298,16 +15552,17 @@ func (c *Client) PhoneInviteToGroupCall(call *InputGroupCall, users []InputUser)
 }
 
 type PhoneJoinGroupCallParams struct {
-	Muted        bool `tl:"flag:0,encoded_in_bitflags"`
-	VideoStopped bool `tl:"flag:2,encoded_in_bitflags"`
-	Call         *InputGroupCall
-	JoinAs       InputPeer
-	InviteHash   string `tl:"flag:1"`
-	Params       *DataJson
+	Muted          bool `tl:"flag:0,encoded_in_bitflags"`
+	VideoStopped   bool `tl:"flag:2,encoded_in_bitflags"`
+	Call           *InputGroupCall
+	JoinAs         InputPeer
+	InviteHash     string `tl:"flag:1"`
+	KeyFingerprint int64  `tl:"flag:3"`
+	Params         *DataJson
 }
 
 func (*PhoneJoinGroupCallParams) CRC() uint32 {
-	return 0xb132ff7b
+	return 0xd61e1df3
 }
 
 func (*PhoneJoinGroupCallParams) FlagIndex() int {
@@ -15425,15 +15680,16 @@ func (c *Client) PhoneReceivedCall(peer *InputPhoneCall) (bool, error) {
 }
 
 type PhoneRequestCallParams struct {
-	Video    bool `tl:"flag:0,encoded_in_bitflags"`
-	UserID   InputUser
-	RandomID int32
-	GAHash   []byte
-	Protocol *PhoneCallProtocol
+	Video          bool `tl:"flag:0,encoded_in_bitflags"`
+	UserID         InputUser
+	ConferenceCall *InputGroupCall `tl:"flag:1"`
+	RandomID       int32
+	GAHash         []byte
+	Protocol       *PhoneCallProtocol
 }
 
 func (*PhoneRequestCallParams) CRC() uint32 {
-	return 0x42ff96ed
+	return 0xa6c4600c
 }
 
 func (*PhoneRequestCallParams) FlagIndex() int {
