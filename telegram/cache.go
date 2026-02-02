@@ -21,7 +21,6 @@ type CACHE struct {
 	users      map[int64]*UserObj
 	channels   map[int64]*Channel
 	writeFile  bool
-	file       *os.File
 	InputPeers *InputPeerCache `json:"input_peers,omitempty"`
 	logger     *utils.Logger
 }
@@ -72,9 +71,6 @@ func NewCache(logLevel string, fileN string) *CACHE {
 
 // --------- Cache file Functions ---------
 func (c *CACHE) WriteFile() {
-	c.Lock()
-	defer c.Unlock()
-
 	file, err := os.OpenFile(c.fileN, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		c.logger.Error("error opening cache file: ", err)
@@ -84,6 +80,7 @@ func (c *CACHE) WriteFile() {
 
 	var buffer strings.Builder
 
+	c.Lock()
 	for id, accessHash := range c.InputPeers.InputUsers {
 		buffer.WriteString(fmt.Sprintf("1:%d:%d,", id, accessHash))
 	}
@@ -95,6 +92,7 @@ func (c *CACHE) WriteFile() {
 	for id, accessHash := range c.InputPeers.InputChannels {
 		buffer.WriteString(fmt.Sprintf("3:%d:%d,", id, accessHash))
 	}
+	c.Unlock()
 
 	if _, err := file.WriteString(buffer.String()); err != nil {
 		c.logger.Error("error writing to cache file: ", err)
@@ -102,10 +100,6 @@ func (c *CACHE) WriteFile() {
 }
 
 func (c *CACHE) ReadFile() {
-	// Lock only for cache modification
-	c.Lock()
-	defer c.Unlock()
-
 	file, err := os.Open(c.fileN)
 	if err != nil && !os.IsNotExist(err) {
 		c.logger.Error("error opening cache file: ", err)
@@ -116,7 +110,6 @@ func (c *CACHE) ReadFile() {
 	buffer := make([]byte, 1)
 	var data []byte
 	totalLoaded := 0
-
 	for {
 		_, err := file.Read(buffer)
 		if err != nil {
@@ -160,6 +153,8 @@ func (c *CACHE) processData(data []byte) bool {
 	}
 
 	// process data
+	c.Lock()
+	defer c.Unlock()
 	switch splitData[0] {
 	case "1":
 		c.InputPeers.InputUsers[int64(id)] = int64(accessHash)
@@ -175,6 +170,9 @@ func (c *CACHE) processData(data []byte) bool {
 }
 
 func (c *CACHE) getUserPeer(userID int64) (InputUser, error) {
+	c.RLock()
+	defer c.RUnlock()
+
 	if userHash, ok := c.InputPeers.InputUsers[userID]; ok {
 		return &InputUserObj{UserID: userID, AccessHash: userHash}, nil
 	}
@@ -183,6 +181,9 @@ func (c *CACHE) getUserPeer(userID int64) (InputUser, error) {
 }
 
 func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
+	c.RLock()
+	defer c.RUnlock()
+
 	if channelHash, ok := c.InputPeers.InputChannels[channelID]; ok {
 		return &InputChannelObj{ChannelID: channelID, AccessHash: channelHash}, nil
 	}
@@ -224,11 +225,11 @@ func (c *CACHE) GetInputPeer(peerID int64) (InputPeer, error) {
 
 func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 	c.Cache.RLock()
-	defer c.Cache.RUnlock()
-
 	if user, found := c.Cache.users[userID]; found {
+		c.Cache.RUnlock()
 		return user, nil
 	}
+	c.Cache.RUnlock()
 
 	userPeer, err := c.Cache.getUserPeer(userID)
 	if err != nil {
@@ -254,11 +255,11 @@ func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 
 func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 	c.Cache.RLock()
-	defer c.Cache.RUnlock()
-
 	if channel, found := c.Cache.channels[channelID]; found {
+		c.Cache.RUnlock()
 		return channel, nil
 	}
+	c.Cache.RUnlock()
 
 	channelPeer, err := c.Cache.getChannelPeer(channelID)
 	if err != nil {
@@ -289,11 +290,11 @@ func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 
 func (c *Client) getChatFromCache(chatID int64) (*ChatObj, error) {
 	c.Cache.RLock()
-	defer c.Cache.RUnlock()
-
 	if chat, found := c.Cache.chats[chatID]; found {
+		c.Cache.RUnlock()
 		return chat, nil
 	}
+	c.Cache.RUnlock()
 
 	chat, err := c.MessagesGetChats([]int64{chatID})
 	if err != nil {
@@ -447,6 +448,9 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 }
 
 func (c *Client) GetPeerUser(userID int64) (*InputPeerUser, error) {
+	c.Cache.RLock()
+	defer c.Cache.RUnlock()
+
 	if peer, ok := c.Cache.InputPeers.InputUsers[userID]; ok {
 		return &InputPeerUser{UserID: userID, AccessHash: peer}, nil
 	}
@@ -454,6 +458,8 @@ func (c *Client) GetPeerUser(userID int64) (*InputPeerUser, error) {
 }
 
 func (c *Client) GetPeerChannel(channelID int64) (*InputPeerChannel, error) {
+	c.Cache.RLock()
+	defer c.Cache.RUnlock()
 
 	if peer, ok := c.Cache.InputPeers.InputChannels[channelID]; ok {
 		return &InputPeerChannel{ChannelID: channelID, AccessHash: peer}, nil
@@ -462,6 +468,9 @@ func (c *Client) GetPeerChannel(channelID int64) (*InputPeerChannel, error) {
 }
 
 func (c *Client) IdInCache(id int64) bool {
+	c.Cache.RLock()
+	defer c.Cache.RUnlock()
+
 	_, ok := c.Cache.InputPeers.InputUsers[id]
 	if ok {
 		return true
