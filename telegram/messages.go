@@ -481,7 +481,7 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 			m = append(m, packMessage(c, update))
 		}
 	} else {
-		return nil, errors.New("no response")
+		return nil, errors.New("no response for sendAlbum")
 	}
 	return m, nil
 }
