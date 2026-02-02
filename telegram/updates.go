@@ -213,7 +213,14 @@ func (c *Client) handleAlbum(message MessageObj) {
 	}
 }
 
-func (c *Client) handleMessageUpdateW(_ Message, pts int32) {
+func (c *Client) handleMessageUpdateW(m Message, pts int32) {
+	switch msg := m.(type) {
+	case *MessageObj:
+		if c.IdInCache(c.GetPeerID(msg.FromID)) && c.IdInCache(c.GetPeerID(msg.PeerID)) {
+			c.handleMessageUpdate(msg)
+			return
+		}
+	}
 	updatedMessage, err := c.GetDifference(pts, 1)
 	if err != nil {
 		c.Log.Error("updates.Dispatcher.getDifference -", err)
@@ -623,7 +630,7 @@ UpdateTypeSwitching:
 	case *UpdateShortMessage:
 		go c.handleMessageUpdateW(&MessageObj{Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities}, upd.Pts)
 	case *UpdateShortChatMessage:
-		go c.handleMessageUpdateW(&MessageObj{Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: getPeerUser(upd.ChatID), Date: upd.Date, Entities: upd.Entities}, upd.Pts)
+		go c.handleMessageUpdateW(&MessageObj{Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities}, upd.Pts)
 	case *UpdateShortSentMessage:
 		go c.handleMessageUpdateW(&MessageObj{Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities}, upd.Pts)
 	case *UpdatesCombined:
@@ -641,7 +648,7 @@ UpdateTypeSwitching:
 }
 
 func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
-	c.Logger.Debug("updates.getDifference: [pts: ", Pts, " limit: ", Limit, "]")
+	c.Logger.Debug("updates.getDifference: (pts: ", Pts, " limit: ", Limit, ")")
 
 	updates, err := c.UpdatesGetDifference(&UpdatesGetDifferenceParams{
 		Pts:           Pts - 1,
