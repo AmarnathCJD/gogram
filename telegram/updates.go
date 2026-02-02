@@ -80,9 +80,14 @@ func (c *lruCache) Add(key int64) {
 	defer c.Unlock()
 
 	if elem, exists := c.items[key]; exists {
-		c.list.MoveToFront(elem)
-		elem.Value.(*lruEntry).timestamp = time.Now()
-		return
+		if elem != nil && elem.Value != nil {
+			if entry, ok := elem.Value.(*lruEntry); ok && entry != nil {
+				c.list.MoveToFront(elem)
+				entry.timestamp = time.Now()
+				return
+			}
+		}
+		delete(c.items, key)
 	}
 
 	entry := &lruEntry{key: key, timestamp: time.Now()}
@@ -92,8 +97,10 @@ func (c *lruCache) Add(key int64) {
 	if c.list.Len() > c.maxSize {
 		oldest := c.list.Back()
 		if oldest != nil {
+			if entry, ok := oldest.Value.(*lruEntry); ok && entry != nil {
+				delete(c.items, entry.key)
+			}
 			c.list.Remove(oldest)
-			delete(c.items, oldest.Value.(*lruEntry).key)
 		}
 	}
 }
@@ -109,8 +116,13 @@ func (c *lruCache) TryAdd(key int64) bool {
 	c.Lock()
 	defer c.Unlock()
 
-	if _, exists := c.items[key]; exists {
-		return false
+	if elem, exists := c.items[key]; exists {
+		if elem != nil && elem.Value != nil {
+			if _, ok := elem.Value.(*lruEntry); ok {
+				return false
+			}
+		}
+		delete(c.items, key)
 	}
 
 	entry := &lruEntry{key: key, timestamp: time.Now()}
@@ -120,8 +132,10 @@ func (c *lruCache) TryAdd(key int64) bool {
 	if c.list.Len() > c.maxSize {
 		oldest := c.list.Back()
 		if oldest != nil {
+			if entry, ok := oldest.Value.(*lruEntry); ok && entry != nil {
+				delete(c.items, entry.key)
+			}
 			c.list.Remove(oldest)
-			delete(c.items, oldest.Value.(*lruEntry).key)
 		}
 	}
 	return true
