@@ -40,7 +40,7 @@ type SendOptions struct {
 	Spoiler              bool                     // Hide media behind spoiler overlay
 	Upload               *UploadOptions           // Upload configuration (threads, progress, chunk size)
 	Effect               int64                    // Message effect animation ID
-	Timeouts             int32                    // Response timeout for conversation Ask() calls
+	Timeouts             int32                    // Response timeout for conversation Ask() calls, and delay between updates for StreamMessage
 	AllowPaidStars       int64                    // Stars amount for paid content access
 	PaidFloodSkip        bool                     // Skip flood wait using paid priority
 	SuggestedPost        *SuggestedPost           // Channel post suggestion configuration
@@ -114,6 +114,70 @@ func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMes
 		}
 	}
 	return c.sendMessage(senderPeer, textMessage, entities, sendAs, opt)
+}
+
+// StreamMessage simulates a streaming message by continuously updating the user's draft status
+// only works for bots with topic forums enabled in private chats
+func (c *Client) StreamMessage(peerID any, streamer func(update func(message string)), opts ...*SendOptions) (*NewMessage, error) {
+	opt := getVariadic(opts, &SendOptions{})
+	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
+
+	senderPeer, err := c.ResolvePeer(peerID)
+	if err != nil {
+		return nil, err
+	}
+
+	if opt.SendAs != nil {
+		_, err = c.ResolvePeer(opt.SendAs)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	randomID := GenRandInt()
+	var (
+		lastEdit    time.Time
+		currentText string
+		topMsgID    int32
+	)
+
+	if opt.TopicID != 0 && opt.TopicID != 1 {
+		topMsgID = opt.TopicID
+	}
+
+	var delay time.Duration = 200 * time.Millisecond
+	if opt.Timeouts != 0 {
+		delay = time.Duration(opt.Timeouts) * time.Millisecond
+	}
+
+	updater := func(text string) {
+		if time.Since(lastEdit) < delay {
+			return
+		}
+		lastEdit = time.Now()
+		currentText = text
+
+		statusText := text
+		if len(statusText) > 4000 {
+			statusText = statusText[:4000] + "..."
+		}
+
+		entities, msg := parseEntities(statusText, opt.ParseMode)
+
+		action := &SendMessageTextDraftAction{
+			RandomID: randomID,
+			Text: &TextWithEntities{
+				Text:     msg,
+				Entities: entities,
+			},
+		}
+
+		c.MessagesSetTyping(senderPeer, topMsgID, action)
+	}
+
+	streamer(updater)
+
+	return c.SendMessage(peerID, currentText, opts...)
 }
 
 func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageEntity, sendAs InputPeer, opt *SendOptions) (*NewMessage, error) {
