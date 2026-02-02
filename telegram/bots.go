@@ -2,7 +2,11 @@
 
 package telegram
 
-import "github.com/pkg/errors"
+import (
+	"time"
+
+	"github.com/pkg/errors"
+)
 
 type InlineSendOptions struct {
 	Gallery      bool   `json:"gallery,omitempty"`
@@ -97,4 +101,102 @@ func (c *Client) SetChatMenuButton(userID int64, button *BotMenuButton) (bool, e
 		return false, err
 	}
 	return resp, nil
+}
+
+// In testing stage, TODO
+// returns list of users and chats in chans
+func (c *Client) Broadcast() (chan User, chan Chat, error) {
+	s, err := c.UpdatesGetState()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var startPts int32 = 1
+	endPts := s.Pts
+
+	var users = make(map[int64]User)
+	var chats = make(map[int64]Chat)
+
+	var userChan = make(chan User, 100)
+	var chatChan = make(chan Chat, 100)
+
+	go func() {
+		defer close(userChan)
+		defer close(chatChan)
+
+		for startPts < endPts {
+			updates, err := c.UpdatesGetDifference(&UpdatesGetDifferenceParams{
+				Pts:      startPts,
+				Date:     int32(time.Now().Unix()),
+				PtsLimit: 5000,
+			})
+			if err != nil {
+				if handleIfFlood(err, c) {
+					continue
+				}
+				c.Logger.Error(err)
+				return
+			}
+
+			switch u := updates.(type) {
+			case *UpdatesDifferenceObj:
+				for _, user := range u.Users {
+					switch uz := user.(type) {
+					case *UserObj:
+						if _, ok := users[uz.ID]; !ok {
+							userChan <- uz
+						}
+						users[uz.ID] = uz
+					}
+				}
+				for _, chat := range u.Chats {
+					switch cz := chat.(type) {
+					case *ChatObj:
+						if _, ok := chats[cz.ID]; !ok {
+							chatChan <- cz
+						}
+						chats[cz.ID] = cz
+					case *Channel:
+						if _, ok := chats[cz.ID]; !ok {
+							chatChan <- cz
+						}
+						chats[cz.ID] = cz
+					}
+				}
+			case *UpdatesDifferenceSlice:
+				for _, user := range u.Users {
+					switch uz := user.(type) {
+					case *UserObj:
+						if _, ok := users[uz.ID]; !ok {
+							userChan <- uz
+						}
+						users[uz.ID] = uz
+					}
+				}
+				for _, chat := range u.Chats {
+					switch cz := chat.(type) {
+					case *ChatObj:
+						if _, ok := chats[cz.ID]; !ok {
+							chatChan <- cz
+						}
+						chats[cz.ID] = cz
+					case *Channel:
+						if _, ok := chats[cz.ID]; !ok {
+							chatChan <- cz
+						}
+						chats[cz.ID] = cz
+					}
+				}
+			case *UpdatesDifferenceEmpty:
+				break
+			case *UpdatesDifferenceTooLong:
+				startPts = u.Pts
+			}
+
+			startPts += 5000
+			time.Sleep(250 * time.Millisecond)
+		}
+	}()
+
+	return userChan, chatChan, nil
 }
