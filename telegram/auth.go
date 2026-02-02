@@ -66,6 +66,11 @@ func (c *Client) AuthPrompt() error {
 
 // Authorize client with bot token
 func (c *Client) LoginBot(botToken string) error {
+	if !c.IsConnected() {
+		if err := c.Connect(); err != nil {
+			return err
+		}
+	}
 	if au, _ := c.IsAuthorized(); au {
 		return nil
 	}

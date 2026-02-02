@@ -67,16 +67,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	client.ConnectBot("<bot-token>") // or client.Login("<phone-number>") for user account, or client.AuthPrompt() for interactive login
+	client.LoginBot("<bot-token>") // or client.Login("<phone-number>") for user account, or client.AuthPrompt() for interactive login
 
-	client.AddMessageHandler(telegram.OnNewMessage, func(message *telegram.NewMessage) error {
-		if message.IsPrivate() {
+	client.On(telegram.OnMessage, func(message *telegram.NewMessage) error {
 			message.Reply("Hello from Gogram!")
-			return nil
-		}
-
         	return nil
-	})
+	}, 
+        telegram.FilterPrivate) // waits for private messages only
 
 	client.Idle() // block main goroutine until client is closed
 }
@@ -110,7 +107,7 @@ client.SendMessage("username", "Hello from Gogram!")
 
 client.SendDice("username", "🎲")
 
-client.AddMessageHandler("/start", func(m *telegram.NewMessage) error {
+client.On("message:/start", func(m *telegram.NewMessage) error {
     m.Reply("Hello from Gogram!") // m.Respond("...")
     return nil
 })
@@ -146,13 +143,24 @@ client.SendMedia("username", "<file-name>", &telegram.MediaOptions{
 #### Inline Queries
 
 ```golang
-client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
+client.On("inline:<pattern>", func(iq *telegram.InlineQuery) error {
 	builder := iq.Builder()
 	builder.Article("<title>", "<description>", "<text>", &telegram.ArticleOptions{
 			LinkPreview: true,
 	})
 
 	return nil
+})
+```
+
+#### Callback Queries
+
+```golang
+client.On("callback:<pattern>", func(cb *telegram.CallbackQuery) error {
+    cb.Answer("This is a callback response", &CallbackOptions{
+		Alert: true,
+	})
+    return nil
 })
 ```
 
@@ -181,7 +189,7 @@ Gogram is an open-source project and your contribution is very much appreciated.
 
 ## Resources
 
-- Documentation: [documentation](https://gogramd.vercel.app)
+- Documentation: [documentation](https://gogramd.vercel.app) (not finished yet)
 - Support: [@rosexchat](https://t.me/rosexchat), [@EvieSupport](https://t.me/EvieSupport)
 
 ## License

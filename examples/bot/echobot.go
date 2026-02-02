@@ -1,8 +1,6 @@
 package examples
 
 import (
-	"fmt"
-
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -13,43 +11,26 @@ const (
 )
 
 func main() {
-	// Create a new client
+	// create a new client object
 	client, _ := telegram.NewClient(telegram.ClientConfig{
 		AppID:    appID,
 		AppHash:  appHash,
 		LogLevel: telegram.LogInfo,
 	})
 
-	// Connect to the server
-	if err := client.Connect(); err != nil {
-		panic(err)
-	}
+	client.LoginBot(botToken)
 
-	// Authenticate the client using the bot token
-	if err := client.LoginBot(botToken); err != nil {
-		panic(err)
-	}
+	client.On(telegram.OnMessage, func(message *telegram.NewMessage) error {
+		message.Respond(message)
+		return nil
+	},
+		telegram.FilterPrivate)
 
-	// Add a message handler
-	client.AddMessageHandler(telegram.OnNewMessage, func(message *telegram.NewMessage) error {
-		var (
-			err error
-		)
-		// Print the message
-		fmt.Println(message.Marshal())
-
-		// Send a message
-		if message.IsPrivate() {
-			_, err = message.Respond(message)
-		}
-		return err
-	})
-
-	client.AddMessageHandler("/start", func(message *telegram.NewMessage) error {
+	client.On("message:/start", func(message *telegram.NewMessage) error {
 		message.Reply("Hello, I am a bot!")
 		return nil
 	})
 
-	// Start polling
+	// lock the main routine
 	client.Idle()
 }

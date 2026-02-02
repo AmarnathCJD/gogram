@@ -7,6 +7,9 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
+// supported proxy types
+// socks5, sock4, http, https
+
 const (
 	appID    = 6
 	appHash  = "YOUR_APP_HASH"
@@ -14,25 +17,22 @@ const (
 )
 
 func main() {
-	// Create a new client
+	socks5Proxy := &url.URL{
+		Scheme: "socks5",
+		Host:   "127.0.0.1:1080",
+		// User:   url.UserPassword("username", "password"),
+	}
+
+	// create a new client object
 	client, _ := telegram.NewClient(telegram.ClientConfig{
 		AppID:    appID,
 		AppHash:  appHash,
 		LogLevel: telegram.LogInfo,
-		Proxy: &url.URL{
-			Scheme: "socks5",
-			Host:   "127.0.0.1:1080",
-			// User:   url.UserPassword("username", "password"),
-		},
+		Proxy:    socks5Proxy,
 	})
 
-	// Connect to the server
-	if err := client.Connect(); err != nil {
-		panic(err)
-	}
-
-	// Authenticate the client using the bot token
-	// This will send a code to the phone number if it is not already authenticated
+	// authenticate the client using the bot token
+	// this will send a code to the phone number if it is not already authenticated
 	if _, err := client.Login(phoneNum); err != nil {
 		panic(err)
 	}
