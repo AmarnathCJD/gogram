@@ -36,8 +36,7 @@ func (p *UserPhoto) FileID() string {
 }
 
 func (p *UserPhoto) FileSize() int64 {
-	switch p := p.Photo.(type) {
-	case *PhotoObj:
+	if p, ok := p.Photo.(*PhotoObj); ok {
 		if p.VideoSizes != nil {
 			return int64(p.VideoSizes[len(p.VideoSizes)-1].(*VideoSizeObj).Size)
 		}
@@ -48,8 +47,7 @@ func (p *UserPhoto) FileSize() int64 {
 }
 
 func (p *UserPhoto) DcID() int32 {
-	switch p := p.Photo.(type) {
-	case *PhotoObj:
+	if p, ok := p.Photo.(*PhotoObj); ok {
 		return p.DcID
 	}
 	return 4

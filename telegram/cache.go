@@ -71,7 +71,7 @@ func NewCache(logLevel string, fileN string) *CACHE {
 
 // --------- Cache file Functions ---------
 func (c *CACHE) WriteFile() {
-	file, err := os.OpenFile(c.fileN, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	file, err := os.OpenFile(c.fileN, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		c.logger.Error("error opening cache file: ", err)
 		return

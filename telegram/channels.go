@@ -281,8 +281,18 @@ type AdminOptions struct {
 	Rank    string           `json:"rank,omitempty"`
 }
 
-// Edit Admin rights of a user in a chat,
-// returns true if successful
+// EditAdmin edits the admin rights of a user in a chat.
+//
+// This function modifies the admin permissions of a user within a chat.
+//
+// Args:
+//   - PeerID: The ID of the chat.
+//   - UserID: The ID of the user whose admin rights are to be modified.
+//   - Opts: Optional arguments for setting the user's admin rights.
+//
+// Returns:
+//   - bool: True if the operation was successful, False otherwise.
+//   - error: An error if the operation fails.
 func (c *Client) EditAdmin(PeerID, UserID interface{}, Opts ...*AdminOptions) (bool, error) {
 	opts := getVariadic(Opts, &AdminOptions{IsAdmin: true, Rights: &ChatAdminRights{}, Rank: "Admin"})
 	peer, err := c.ResolvePeer(PeerID)
@@ -330,55 +340,63 @@ type BannedOptions struct {
 	Revoke bool              `json:"revoke,omitempty"`
 }
 
-// Edit Restricted rights of a user in a chat,
-// returns true if successful
+// EditBanned modifies the ban status of a user in a chat or channel.
+//
+// This function can ban, unban, mute, or unmute a user in a chat or channel.
+//
+// Args:
+//   - PeerID: The ID of the chat or channel.
+//   - UserID: The ID of the user to be banned.
+//   - opts: Optional arguments for banning the user.
+//
+// Returns:
+//   - bool: True if the operation was successful, False otherwise.
+//   - error: An error if the operation fails.
 func (c *Client) EditBanned(PeerID, UserID interface{}, opts ...*BannedOptions) (bool, error) {
 	o := getVariadic(opts, &BannedOptions{Ban: true, Rights: &ChatBannedRights{}})
 	if o.Rights == nil {
 		o.Rights = &ChatBannedRights{}
 	}
+
 	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return false, err
 	}
+
 	u, err := c.ResolvePeer(UserID)
 	if err != nil {
 		return false, err
 	}
+
 	switch p := peer.(type) {
 	case *InputPeerChannel:
-		if o.Ban {
-			o.Rights.ViewMessages = true
-		}
-		if o.Unban {
-			o.Rights.ViewMessages = false
-		}
-		if o.Mute {
-			o.Rights.SendMessages = true
-		}
-		if o.Unmute {
-			o.Rights.SendMessages = false
-		}
-		_, err := c.ChannelsEditBanned(&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash}, u, o.Rights)
-		if err != nil {
-			return false, err
-		}
+		return handleChannelBan(c, p, u, o)
 	case *InputPeerChat:
-		if o.Ban || o.Unban || o.Mute || o.Unmute {
-			if u, ok := u.(*InputPeerUser); ok {
-				_, err := c.MessagesDeleteChatUser(o.Revoke, p.ChatID, &InputUserObj{UserID: u.UserID, AccessHash: u.AccessHash})
-				return err == nil, err
-			}
-		} else {
-			if u, ok := u.(*InputPeerUser); ok {
-				_, err := c.MessagesAddChatUser(p.ChatID, &InputUserObj{UserID: u.UserID, AccessHash: u.AccessHash}, 0)
-				return err == nil, err
-			}
-		}
+		return handleChatBan(c, p, u, o)
 	default:
 		return false, errors.New("peer is not a chat or channel")
 	}
-	return true, nil
+}
+
+func handleChannelBan(c *Client, p *InputPeerChannel, u InputPeer, o *BannedOptions) (bool, error) {
+	o.Rights.ViewMessages = o.Ban
+	o.Rights.SendMessages = o.Mute
+
+	_, err := c.ChannelsEditBanned(&InputChannelObj{ChannelID: p.ChannelID, AccessHash: p.AccessHash}, u, o.Rights)
+	return err == nil, err
+}
+
+func handleChatBan(c *Client, p *InputPeerChat, u InputPeer, o *BannedOptions) (bool, error) {
+	if u, ok := u.(*InputPeerUser); ok {
+		if o.Ban || o.Unban || o.Mute || o.Unmute {
+			_, err := c.MessagesDeleteChatUser(o.Revoke, p.ChatID, &InputUserObj{UserID: u.UserID, AccessHash: u.AccessHash})
+			return err == nil, err
+		} else {
+			_, err := c.MessagesAddChatUser(p.ChatID, &InputUserObj{UserID: u.UserID, AccessHash: u.AccessHash}, 0)
+			return err == nil, err
+		}
+	}
+	return false, errors.New("user is not a valid InputPeerUser")
 }
 
 func (c *Client) KickParticipant(PeerID, UserID interface{}) (bool, error) {
@@ -541,8 +559,7 @@ func (c *Client) CreateChannel(title string, opts ...*ChannelOptions) (*Channel,
 	if err != nil {
 		return nil, err
 	}
-	switch u := u.(type) {
-	case *UpdatesObj:
+	if u, ok := u.(*UpdatesObj); ok {
 		chat := u.Chats[0]
 		if ch, ok := chat.(*Channel); ok {
 			return ch, nil

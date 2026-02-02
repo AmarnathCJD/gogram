@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 
@@ -103,7 +104,8 @@ func (g *Generator) typeIdFromSchemaType(t string) *jen.Statement {
 			break
 		}
 		// pp.Fprintln(os.Stderr, g.schema)
-		panic("'" + t + "'")
+		//panic("'" + t + "'")
+		fmt.Println("panic: ", t)
 	}
 
 	return item

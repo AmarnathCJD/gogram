@@ -82,5 +82,5 @@ func (*Generator) generateFile(f func(file *jen.File, d bool), filename string, 
 		return err
 	}
 
-	return os.WriteFile(filename, buf.Bytes(), 0644)
+	return os.WriteFile(filename, buf.Bytes(), 0600)
 }
