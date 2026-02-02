@@ -45,7 +45,7 @@ func (*AccountCancelPasswordEmailParams) CRC() uint32 {
 	return 0xc1cbd5b6
 }
 
-// Cancel the code that was sent to verify an email to use as [2FA recovery method](https://core.telegram.org/api/srp).
+// Cancel the code that was sent to verify an email to use as 2FA recovery method.
 func (c *Client) AccountCancelPasswordEmail() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountCancelPasswordEmailParams{})
 	if err != nil {
@@ -149,7 +149,7 @@ func (*AccountClearRecentEmojiStatusesParams) CRC() uint32 {
 	return 0x18201aae
 }
 
-// Clears list of recently used [emoji statuses](https://core.telegram.org/api/emoji-status)
+// Clears list of recently used emoji statuses
 func (c *Client) AccountClearRecentEmojiStatuses() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountClearRecentEmojiStatusesParams{})
 	if err != nil {
@@ -171,7 +171,7 @@ func (*AccountConfirmPasswordEmailParams) CRC() uint32 {
 	return 0x8fdf1920
 }
 
-// Verify an email to use as [2FA recovery method](https://core.telegram.org/api/srp).
+// Verify an email to use as 2FA recovery method.
 func (c *Client) AccountConfirmPasswordEmail(code string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountConfirmPasswordEmailParams{Code: code})
 	if err != nil {
@@ -194,7 +194,7 @@ func (*AccountConfirmPhoneParams) CRC() uint32 {
 	return 0x5f2178c3
 }
 
-// Confirm a phone number to cancel account deletion, for more info [click here »](https://core.telegram.org/api/account-deletion)
+// Confirm a phone number to cancel account deletion, for more info click here »
 func (c *Client) AccountConfirmPhone(phoneCodeHash, phoneCode string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountConfirmPhoneParams{
 		PhoneCode:     phoneCode,
@@ -219,7 +219,7 @@ func (*AccountCreateBusinessChatLinkParams) CRC() uint32 {
 	return 0x8851e68e
 }
 
-// Create a [business chat deep link »](https://core.telegram.org/api/business#business-chat-links).
+// Create a business chat deep link ».
 func (c *Client) AccountCreateBusinessChatLink(link *InputBusinessChatLink) (*BusinessChatLink, error) {
 	responseData, err := c.MakeRequest(&AccountCreateBusinessChatLinkParams{Link: link})
 	if err != nil {
@@ -273,7 +273,7 @@ func (*AccountDeclinePasswordResetParams) CRC() uint32 {
 	return 0x4c9409f6
 }
 
-// Abort a pending 2FA password reset, [see here for more info »](https://core.telegram.org/api/srp#password-reset)
+// Abort a pending 2FA password reset, see here for more info »
 func (c *Client) AccountDeclinePasswordReset() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountDeclinePasswordResetParams{})
 	if err != nil {
@@ -345,7 +345,7 @@ func (*AccountDeleteBusinessChatLinkParams) CRC() uint32 {
 	return 0x60073674
 }
 
-// Delete a [business chat deep link »](https://core.telegram.org/api/business#business-chat-links).
+// Delete a business chat deep link ».
 func (c *Client) AccountDeleteBusinessChatLink(slug string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountDeleteBusinessChatLinkParams{Slug: slug})
 	if err != nil {
@@ -367,7 +367,7 @@ func (*AccountDeleteSecureValueParams) CRC() uint32 {
 	return 0xb880bc4b
 }
 
-// Delete stored [Telegram Passport](https://core.telegram.org/passport) documents, [for more info see the passport docs »](https://core.telegram.org/passport/encryption#encryption)
+// Delete stored Telegram Passport documents, for more info see the passport docs »
 func (c *Client) AccountDeleteSecureValue(types []SecureValueType) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountDeleteSecureValueParams{Types: types})
 	if err != nil {
@@ -389,7 +389,7 @@ func (*AccountDisablePeerConnectedBotParams) CRC() uint32 {
 	return 0x5e437ed9
 }
 
-// Permanently disconnect a specific chat from all [business bots »](https://core.telegram.org/api/business#connected-bots) (equivalent to specifying it in `recipients.exclude_users` during initial configuration with [account.updateConnectedBot »](https://core.telegram.org/method/account.updateConnectedBot)); to reconnect of a chat disconnected using this method the user must reconnect the entire bot by invoking [account.updateConnectedBot »](https://core.telegram.org/method/account.updateConnectedBot).
+// Permanently disconnect a specific chat from all business bots » (equivalent to specifying it in `recipients.exclude_users` during initial configuration with account.updateConnectedBot »); to reconnect of a chat disconnected using this method the user must reconnect the entire bot by invoking account.updateConnectedBot ».
 func (c *Client) AccountDisablePeerConnectedBot(peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountDisablePeerConnectedBotParams{Peer: peer})
 	if err != nil {
@@ -412,7 +412,7 @@ func (*AccountEditBusinessChatLinkParams) CRC() uint32 {
 	return 0x8c3410af
 }
 
-// Edit a created [business chat deep link »](https://core.telegram.org/api/business#business-chat-links).
+// Edit a created business chat deep link ».
 func (c *Client) AccountEditBusinessChatLink(slug string, link *InputBusinessChatLink) (*BusinessChatLink, error) {
 	responseData, err := c.MakeRequest(&AccountEditBusinessChatLinkParams{
 		Link: link,
@@ -441,7 +441,7 @@ func (*AccountFinishTakeoutSessionParams) FlagIndex() int {
 	return 0
 }
 
-// Terminate a [takeout session, see here » for more info](https://core.telegram.org/api/takeout).
+// Terminate a takeout session, see here » for more info.
 func (c *Client) AccountFinishTakeoutSession(success bool) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountFinishTakeoutSessionParams{Success: success})
 	if err != nil {
@@ -481,7 +481,7 @@ func (*AccountGetAllSecureValuesParams) CRC() uint32 {
 	return 0xb288bc7d
 }
 
-// Get all saved [Telegram Passport](https://core.telegram.org/passport) documents, [for more info see the passport docs »](https://core.telegram.org/passport/encryption#encryption)
+// Get all saved Telegram Passport documents, for more info see the passport docs »
 func (c *Client) AccountGetAllSecureValues() ([]*SecureValue, error) {
 	responseData, err := c.MakeRequest(&AccountGetAllSecureValuesParams{})
 	if err != nil {
@@ -592,10 +592,10 @@ func (*AccountGetBotBusinessConnectionParams) CRC() uint32 {
 }
 
 /*
-Bots may invoke this method to re-fetch the [updateBotBusinessConnect](https://core.telegram.org/constructor/updateBotBusinessConnect) constructor associated with a specific <a href="/api/business#connected-bots">business `connection_id`, see here »</a> for more info on connected business bots.<br>
-This is needed for example for freshly logged in bots that are receiving some [updateBotNewBusinessMessage](https://core.telegram.org/constructor/updateBotNewBusinessMessage), etc. updates because some users have already connected to the bot before it could login.<br>
-In this case, the bot is receiving messages from the business connection, but it hasn't cached the associated [updateBotBusinessConnect](https://core.telegram.org/constructor/updateBotBusinessConnect) with info about the connection (can it reply to messages? etc.) yet, and cannot receive the old ones because they were sent when the bot wasn't logged into the session yet.<br>
-This method can be used to fetch info about a not-yet-cached business connection, and should not be invoked if the info is already cached or to fetch changes, as eventual changes will automatically be sent as new [updateBotBusinessConnect](https://core.telegram.org/constructor/updateBotBusinessConnect) updates to the bot using the usual [update delivery methods »](https://core.telegram.org/api/updates).
+Bots may invoke this method to re-fetch the updateBotBusinessConnect constructor associated with a specific <a href="/api/business#connected-bots">business `connection_id`, see here »</a> for more info on connected business bots.<br>
+This is needed for example for freshly logged in bots that are receiving some updateBotNewBusinessMessage, etc. updates because some users have already connected to the bot before it could login.<br>
+In this case, the bot is receiving messages from the business connection, but it hasn't cached the associated updateBotBusinessConnect with info about the connection (can it reply to messages? etc.) yet, and cannot receive the old ones because they were sent when the bot wasn't logged into the session yet.<br>
+This method can be used to fetch info about a not-yet-cached business connection, and should not be invoked if the info is already cached or to fetch changes, as eventual changes will automatically be sent as new updateBotBusinessConnect updates to the bot using the usual update delivery methods ».
 */
 func (c *Client) AccountGetBotBusinessConnection(connectionID string) (Updates, error) {
 	responseData, err := c.MakeRequest(&AccountGetBotBusinessConnectionParams{ConnectionID: connectionID})
@@ -616,7 +616,7 @@ func (*AccountGetBusinessChatLinksParams) CRC() uint32 {
 	return 0x6f70dde1
 }
 
-// List all created [business chat deep links »](https://core.telegram.org/api/business#business-chat-links).
+// List all created business chat deep links ».
 func (c *Client) AccountGetBusinessChatLinks() (*AccountBusinessChatLinks, error) {
 	responseData, err := c.MakeRequest(&AccountGetBusinessChatLinksParams{})
 	if err != nil {
@@ -638,7 +638,7 @@ func (*AccountGetChannelDefaultEmojiStatusesParams) CRC() uint32 {
 	return 0x7727a7d5
 }
 
-// Get a list of default suggested [channel emoji statuses](https://core.telegram.org/api/emoji-status).
+// Get a list of default suggested channel emoji statuses.
 func (c *Client) AccountGetChannelDefaultEmojiStatuses(hash int64) (AccountEmojiStatuses, error) {
 	responseData, err := c.MakeRequest(&AccountGetChannelDefaultEmojiStatusesParams{Hash: hash})
 	if err != nil {
@@ -660,7 +660,7 @@ func (*AccountGetChannelRestrictedStatusEmojisParams) CRC() uint32 {
 	return 0x35a9e0d5
 }
 
-// Returns fetch the full list of [custom emoji IDs »](https://core.telegram.org/api/custom-emoji) that cannot be used in [channel emoji statuses »](https://core.telegram.org/api/emoji-status).
+// Returns fetch the full list of custom emoji IDs » that cannot be used in channel emoji statuses ».
 func (c *Client) AccountGetChannelRestrictedStatusEmojis(hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&AccountGetChannelRestrictedStatusEmojisParams{Hash: hash})
 	if err != nil {
@@ -682,7 +682,7 @@ func (*AccountGetChatThemesParams) CRC() uint32 {
 	return 0xd638de89
 }
 
-// Get all available chat [themes »](https://core.telegram.org/api/themes).
+// Get all available chat themes ».
 func (c *Client) AccountGetChatThemes(hash int64) (AccountThemes, error) {
 	responseData, err := c.MakeRequest(&AccountGetChatThemesParams{Hash: hash})
 	if err != nil {
@@ -702,7 +702,7 @@ func (*AccountGetConnectedBotsParams) CRC() uint32 {
 	return 0x4ea4c80f
 }
 
-// List all currently connected [business bots »](https://core.telegram.org/api/business#connected-bots)
+// List all currently connected business bots »
 func (c *Client) AccountGetConnectedBots() (*AccountConnectedBots, error) {
 	responseData, err := c.MakeRequest(&AccountGetConnectedBotsParams{})
 	if err != nil {
@@ -764,7 +764,7 @@ func (*AccountGetDefaultBackgroundEmojisParams) CRC() uint32 {
 	return 0xa60ab9ce
 }
 
-// Get a set of suggested [custom emoji stickers](https://core.telegram.org/api/custom-emoji) that can be used in an [accent color pattern](https://core.telegram.org/api/colors).
+// Get a set of suggested custom emoji stickers that can be used in an accent color pattern.
 func (c *Client) AccountGetDefaultBackgroundEmojis(hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&AccountGetDefaultBackgroundEmojisParams{Hash: hash})
 	if err != nil {
@@ -786,7 +786,7 @@ func (*AccountGetDefaultEmojiStatusesParams) CRC() uint32 {
 	return 0xd6753386
 }
 
-// Get a list of default suggested [emoji statuses](https://core.telegram.org/api/emoji-status)
+// Get a list of default suggested emoji statuses
 func (c *Client) AccountGetDefaultEmojiStatuses(hash int64) (AccountEmojiStatuses, error) {
 	responseData, err := c.MakeRequest(&AccountGetDefaultEmojiStatusesParams{Hash: hash})
 	if err != nil {
@@ -808,7 +808,7 @@ func (*AccountGetDefaultGroupPhotoEmojisParams) CRC() uint32 {
 	return 0x915860ae
 }
 
-// Get a set of suggested [custom emoji stickers](https://core.telegram.org/api/custom-emoji) that can be [used as group picture](https://core.telegram.org/api/files#sticker-profile-pictures)
+// Get a set of suggested custom emoji stickers that can be used as group picture
 func (c *Client) AccountGetDefaultGroupPhotoEmojis(hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&AccountGetDefaultGroupPhotoEmojisParams{Hash: hash})
 	if err != nil {
@@ -830,7 +830,7 @@ func (*AccountGetDefaultProfilePhotoEmojisParams) CRC() uint32 {
 	return 0xe2750328
 }
 
-// Get a set of suggested [custom emoji stickers](https://core.telegram.org/api/custom-emoji) that can be [used as profile picture](https://core.telegram.org/api/files#sticker-profile-pictures)
+// Get a set of suggested custom emoji stickers that can be used as profile picture
 func (c *Client) AccountGetDefaultProfilePhotoEmojis(hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&AccountGetDefaultProfilePhotoEmojisParams{Hash: hash})
 	if err != nil {
@@ -872,7 +872,7 @@ func (*AccountGetMultiWallPapersParams) CRC() uint32 {
 	return 0x65ad71dc
 }
 
-// Get info about multiple [wallpapers](https://core.telegram.org/api/wallpapers)
+// Get info about multiple wallpapers
 func (c *Client) AccountGetMultiWallPapers(wallpapers []InputWallPaper) ([]WallPaper, error) {
 	responseData, err := c.MakeRequest(&AccountGetMultiWallPapersParams{Wallpapers: wallpapers})
 	if err != nil {
@@ -968,7 +968,7 @@ func (*AccountGetPasswordSettingsParams) CRC() uint32 {
 	return 0x9cd4eaf9
 }
 
-// Get private info associated to the password info (recovery email, telegram [passport](https://core.telegram.org/passport) info &amp; so on)
+// Get private info associated to the password info (recovery email, telegram passport info &amp; so on)
 func (c *Client) AccountGetPasswordSettings(password InputCheckPasswordSRP) (*AccountPasswordSettings, error) {
 	responseData, err := c.MakeRequest(&AccountGetPasswordSettingsParams{Password: password})
 	if err != nil {
@@ -1010,7 +1010,7 @@ func (*AccountGetReactionsNotifySettingsParams) CRC() uint32 {
 	return 0x6dd654c
 }
 
-// Get the current [reaction notification settings »](https://core.telegram.org/api/reactions#notifications-about-reactions).
+// Get the current reaction notification settings ».
 func (c *Client) AccountGetReactionsNotifySettings() (*ReactionsNotifySettings, error) {
 	responseData, err := c.MakeRequest(&AccountGetReactionsNotifySettingsParams{})
 	if err != nil {
@@ -1032,7 +1032,7 @@ func (*AccountGetRecentEmojiStatusesParams) CRC() uint32 {
 	return 0xf578105
 }
 
-// Get recently used [emoji statuses](https://core.telegram.org/api/emoji-status)
+// Get recently used emoji statuses
 func (c *Client) AccountGetRecentEmojiStatuses(hash int64) (AccountEmojiStatuses, error) {
 	responseData, err := c.MakeRequest(&AccountGetRecentEmojiStatusesParams{Hash: hash})
 	if err != nil {
@@ -1076,7 +1076,7 @@ func (*AccountGetSecureValueParams) CRC() uint32 {
 	return 0x73665bc2
 }
 
-// Get saved [Telegram Passport](https://core.telegram.org/passport) document, [for more info see the passport docs »](https://core.telegram.org/passport/encryption#encryption)
+// Get saved Telegram Passport document, for more info see the passport docs »
 func (c *Client) AccountGetSecureValue(types []SecureValueType) ([]*SecureValue, error) {
 	responseData, err := c.MakeRequest(&AccountGetSecureValueParams{Types: types})
 	if err != nil {
@@ -1176,7 +1176,7 @@ func (*AccountGetWallPaperParams) CRC() uint32 {
 	return 0xfc8ddbea
 }
 
-// Get info about a certain [wallpaper](https://core.telegram.org/api/wallpapers)
+// Get info about a certain wallpaper
 func (c *Client) AccountGetWallPaper(wallpaper InputWallPaper) (WallPaper, error) {
 	responseData, err := c.MakeRequest(&AccountGetWallPaperParams{Wallpaper: wallpaper})
 	if err != nil {
@@ -1198,7 +1198,7 @@ func (*AccountGetWallPapersParams) CRC() uint32 {
 	return 0x7967d36
 }
 
-// Returns a list of available [wallpapers](https://core.telegram.org/api/wallpapers).
+// Returns a list of available wallpapers.
 func (c *Client) AccountGetWallPapers(hash int64) (AccountWallPapers, error) {
 	responseData, err := c.MakeRequest(&AccountGetWallPapersParams{Hash: hash})
 	if err != nil {
@@ -1218,7 +1218,7 @@ func (*AccountGetWebAuthorizationsParams) CRC() uint32 {
 	return 0x182e6d6f
 }
 
-// Get web [login widget](https://core.telegram.org/widgets/login) authorizations
+// Get web login widget authorizations
 func (c *Client) AccountGetWebAuthorizations() (*AccountWebAuthorizations, error) {
 	responseData, err := c.MakeRequest(&AccountGetWebAuthorizationsParams{})
 	if err != nil {
@@ -1250,7 +1250,7 @@ func (*AccountInitTakeoutSessionParams) FlagIndex() int {
 	return 0
 }
 
-// Initialize a [takeout session, see here » for more info](https://core.telegram.org/api/takeout).
+// Initialize a takeout session, see here » for more info.
 func (c *Client) AccountInitTakeoutSession(params *AccountInitTakeoutSessionParams) (*AccountTakeout, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -1307,7 +1307,7 @@ func (*AccountInstallWallPaperParams) CRC() uint32 {
 	return 0xfeed5769
 }
 
-// Install [wallpaper](https://core.telegram.org/api/wallpapers)
+// Install wallpaper
 func (c *Client) AccountInstallWallPaper(wallpaper InputWallPaper, settings *WallPaperSettings) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountInstallWallPaperParams{
 		Settings:  settings,
@@ -1332,7 +1332,7 @@ func (*AccountInvalidateSignInCodesParams) CRC() uint32 {
 	return 0xca8ae8ba
 }
 
-// Invalidate the specified login codes, see [here »](https://core.telegram.org/api/auth#invalidating-login-codes) for more info.
+// Invalidate the specified login codes, see here » for more info.
 func (c *Client) AccountInvalidateSignInCodes(codes []string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountInvalidateSignInCodesParams{Codes: codes})
 	if err != nil {
@@ -1363,7 +1363,7 @@ func (*AccountRegisterDeviceParams) FlagIndex() int {
 	return 0
 }
 
-// Register device to receive [PUSH notifications](https://core.telegram.org/api/push-updates)
+// Register device to receive PUSH notifications
 func (c *Client) AccountRegisterDevice(params *AccountRegisterDeviceParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -1463,7 +1463,7 @@ func (*AccountResendPasswordEmailParams) CRC() uint32 {
 	return 0x7a7f2a15
 }
 
-// Resend the code to verify an email to use as [2FA recovery method](https://core.telegram.org/api/srp).
+// Resend the code to verify an email to use as 2FA recovery method.
 func (c *Client) AccountResendPasswordEmail() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResendPasswordEmailParams{})
 	if err != nil {
@@ -1485,7 +1485,7 @@ func (*AccountResetAuthorizationParams) CRC() uint32 {
 	return 0xdf77f3bc
 }
 
-// Log out an active [authorized session](https://core.telegram.org/api/auth) by its hash
+// Log out an active authorized session by its hash
 func (c *Client) AccountResetAuthorization(hash int64) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetAuthorizationParams{Hash: hash})
 	if err != nil {
@@ -1525,7 +1525,7 @@ func (*AccountResetPasswordParams) CRC() uint32 {
 	return 0x9308ce1b
 }
 
-// Initiate a 2FA password reset: can only be used if the user is already logged-in, [see here for more info »](https://core.telegram.org/api/srp#password-reset)
+// Initiate a 2FA password reset: can only be used if the user is already logged-in, see here for more info »
 func (c *Client) AccountResetPassword() (AccountResetPasswordResult, error) {
 	responseData, err := c.MakeRequest(&AccountResetPasswordParams{})
 	if err != nil {
@@ -1545,7 +1545,7 @@ func (*AccountResetWallPapersParams) CRC() uint32 {
 	return 0xbb3b9804
 }
 
-// Delete all installed [wallpapers](https://core.telegram.org/api/wallpapers), reverting to the default wallpaper set.
+// Delete all installed wallpapers, reverting to the default wallpaper set.
 func (c *Client) AccountResetWallPapers() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetWallPapersParams{})
 	if err != nil {
@@ -1567,7 +1567,7 @@ func (*AccountResetWebAuthorizationParams) CRC() uint32 {
 	return 0x2d01b9ef
 }
 
-// Log out an active web [telegram login](https://core.telegram.org/widgets/login) session
+// Log out an active web telegram login session
 func (c *Client) AccountResetWebAuthorization(hash int64) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetWebAuthorizationParams{Hash: hash})
 	if err != nil {
@@ -1587,7 +1587,7 @@ func (*AccountResetWebAuthorizationsParams) CRC() uint32 {
 	return 0x682d2594
 }
 
-// Reset all active web [telegram login](https://core.telegram.org/widgets/login) sessions
+// Reset all active web telegram login sessions
 func (c *Client) AccountResetWebAuthorizations() (bool, error) {
 	responseData, err := c.MakeRequest(&AccountResetWebAuthorizationsParams{})
 	if err != nil {
@@ -1609,7 +1609,7 @@ func (*AccountResolveBusinessChatLinkParams) CRC() uint32 {
 	return 0x5492e5ee
 }
 
-// Resolve a [business chat deep link »](https://core.telegram.org/api/business#business-chat-links).
+// Resolve a business chat deep link ».
 func (c *Client) AccountResolveBusinessChatLink(slug string) (*AccountResolvedBusinessChatLinks, error) {
 	responseData, err := c.MakeRequest(&AccountResolveBusinessChatLinkParams{Slug: slug})
 	if err != nil {
@@ -1720,7 +1720,7 @@ func (*AccountSaveSecureValueParams) CRC() uint32 {
 	return 0x899fe31d
 }
 
-// Securely save [Telegram Passport](https://core.telegram.org/passport) document, [for more info see the passport docs »](https://core.telegram.org/passport/encryption#encryption)
+// Securely save Telegram Passport document, for more info see the passport docs »
 func (c *Client) AccountSaveSecureValue(value *InputSecureValue, secureSecretID int64) (*SecureValue, error) {
 	responseData, err := c.MakeRequest(&AccountSaveSecureValueParams{
 		SecureSecretID: secureSecretID,
@@ -1773,7 +1773,7 @@ func (*AccountSaveWallPaperParams) CRC() uint32 {
 	return 0x6c5a5b37
 }
 
-// Install/uninstall [wallpaper](https://core.telegram.org/api/wallpapers)
+// Install/uninstall wallpaper
 func (c *Client) AccountSaveWallPaper(wallpaper InputWallPaper, unsave bool, settings *WallPaperSettings) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountSaveWallPaperParams{
 		Settings:  settings,
@@ -1826,7 +1826,7 @@ func (*AccountSendConfirmPhoneCodeParams) CRC() uint32 {
 	return 0x1b3faa88
 }
 
-// Send confirmation code to cancel account deletion, for more info [click here »](https://core.telegram.org/api/account-deletion)
+// Send confirmation code to cancel account deletion, for more info click here »
 func (c *Client) AccountSendConfirmPhoneCode(hash string, settings *CodeSettings) (AuthSentCode, error) {
 	responseData, err := c.MakeRequest(&AccountSendConfirmPhoneCodeParams{
 		Hash:     hash,
@@ -1878,7 +1878,7 @@ func (*AccountSendVerifyPhoneCodeParams) CRC() uint32 {
 	return 0xa5a356f9
 }
 
-// Send the verification phone code for telegram [passport](https://core.telegram.org/passport).
+// Send the verification phone code for telegram passport.
 func (c *Client) AccountSendVerifyPhoneCode(phoneNumber string, settings *CodeSettings) (AuthSentCode, error) {
 	responseData, err := c.MakeRequest(&AccountSendVerifyPhoneCodeParams{
 		PhoneNumber: phoneNumber,
@@ -2043,7 +2043,7 @@ func (*AccountSetReactionsNotifySettingsParams) CRC() uint32 {
 	return 0x316ce548
 }
 
-// Change the [reaction notification settings »](https://core.telegram.org/api/reactions#notifications-about-reactions).
+// Change the reaction notification settings ».
 func (c *Client) AccountSetReactionsNotifySettings(settings *ReactionsNotifySettings) (*ReactionsNotifySettings, error) {
 	responseData, err := c.MakeRequest(&AccountSetReactionsNotifySettingsParams{Settings: settings})
 	if err != nil {
@@ -2066,7 +2066,7 @@ func (*AccountToggleConnectedBotPausedParams) CRC() uint32 {
 	return 0x646e1097
 }
 
-// Pause or unpause a specific chat, temporarily disconnecting it from all [business bots »](https://core.telegram.org/api/business#connected-bots).
+// Pause or unpause a specific chat, temporarily disconnecting it from all business bots ».
 func (c *Client) AccountToggleConnectedBotPaused(peer InputPeer, paused bool) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountToggleConnectedBotPausedParams{
 		Paused: paused,
@@ -2091,7 +2091,7 @@ func (*AccountToggleSponsoredMessagesParams) CRC() uint32 {
 	return 0xb9d9a38d
 }
 
-// Disable or re-enable Telegram ads for the current [Premium](https://core.telegram.org/api/premium) account.
+// Disable or re-enable Telegram ads for the current Premium account.
 func (c *Client) AccountToggleSponsoredMessages(enabled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountToggleSponsoredMessagesParams{Enabled: enabled})
 	if err != nil {
@@ -2114,7 +2114,7 @@ func (*AccountToggleUsernameParams) CRC() uint32 {
 	return 0x58d6b376
 }
 
-// Activate or deactivate a purchased [fragment.com](https://core.telegram.orghttps://fragment.com) username associated to the currently logged-in user.
+// Activate or deactivate a purchased fragment.com username associated to the currently logged-in user.
 func (c *Client) AccountToggleUsername(username string, active bool) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountToggleUsernameParams{
 		Active:   active,
@@ -2171,7 +2171,7 @@ func (*AccountUpdateBirthdayParams) FlagIndex() int {
 	return 0
 }
 
-// Update our [birthday, see here »](https://core.telegram.org/api/profile#birthday) for more info.
+// Update our birthday, see here » for more info.
 func (c *Client) AccountUpdateBirthday(birthday *Birthday) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateBirthdayParams{Birthday: birthday})
 	if err != nil {
@@ -2197,7 +2197,7 @@ func (*AccountUpdateBusinessAwayMessageParams) FlagIndex() int {
 	return 0
 }
 
-// Set a list of [Telegram Business away messages](https://core.telegram.org/api/business#away-messages).
+// Set a list of Telegram Business away messages.
 func (c *Client) AccountUpdateBusinessAwayMessage(message *InputBusinessAwayMessage) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateBusinessAwayMessageParams{Message: message})
 	if err != nil {
@@ -2223,7 +2223,7 @@ func (*AccountUpdateBusinessGreetingMessageParams) FlagIndex() int {
 	return 0
 }
 
-// Set a list of [Telegram Business greeting messages](https://core.telegram.org/api/business#greeting-messages).
+// Set a list of Telegram Business greeting messages.
 func (c *Client) AccountUpdateBusinessGreetingMessage(message *InputBusinessGreetingMessage) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateBusinessGreetingMessageParams{Message: message})
 	if err != nil {
@@ -2249,7 +2249,7 @@ func (*AccountUpdateBusinessIntroParams) FlagIndex() int {
 	return 0
 }
 
-// Set or remove the [Telegram Business introduction »](https://core.telegram.org/api/business#business-introduction).
+// Set or remove the Telegram Business introduction ».
 func (c *Client) AccountUpdateBusinessIntro(intro *InputBusinessIntro) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateBusinessIntroParams{Intro: intro})
 	if err != nil {
@@ -2276,7 +2276,7 @@ func (*AccountUpdateBusinessLocationParams) FlagIndex() int {
 	return 0
 }
 
-// [Businesses »](https://core.telegram.org/api/business#location) may advertise their location using this method, see [here »](https://core.telegram.org/api/business#location) for more info.
+// Businesses » may advertise their location using this method, see here » for more info.
 func (c *Client) AccountUpdateBusinessLocation(geoPoint InputGeoPoint, address string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateBusinessLocationParams{
 		Address:  address,
@@ -2306,8 +2306,8 @@ func (*AccountUpdateBusinessWorkHoursParams) FlagIndex() int {
 }
 
 /*
-Specify a set of [Telegram Business opening hours](https://core.telegram.org/api/business#opening-hours).<br>
-This info will be contained in [userFull](https://core.telegram.org/constructor/userFull).`business_work_hours`.
+Specify a set of Telegram Business opening hours.<br>
+This info will be contained in userFull.`business_work_hours`.
 */
 func (c *Client) AccountUpdateBusinessWorkHours(businessWorkHours *BusinessWorkHours) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateBusinessWorkHoursParams{BusinessWorkHours: businessWorkHours})
@@ -2336,7 +2336,7 @@ func (*AccountUpdateColorParams) FlagIndex() int {
 	return 0
 }
 
-// Update the [accent color and background custom emoji »](https://core.telegram.org/api/colors) of the current account.
+// Update the accent color and background custom emoji » of the current account.
 func (c *Client) AccountUpdateColor(forProfile bool, color int32, backgroundEmojiID int64) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateColorParams{
 		BackgroundEmojiID: backgroundEmojiID,
@@ -2369,7 +2369,7 @@ func (*AccountUpdateConnectedBotParams) FlagIndex() int {
 	return 0
 }
 
-// Connect a [business bot »](https://core.telegram.org/api/business#connected-bots) to the current account, or to change the current connection settings.
+// Connect a business bot » to the current account, or to change the current connection settings.
 func (c *Client) AccountUpdateConnectedBot(canReply, deleted bool, bot InputUser, recipients *InputBusinessBotRecipients) (Updates, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateConnectedBotParams{
 		Bot:        bot,
@@ -2396,7 +2396,7 @@ func (*AccountUpdateDeviceLockedParams) CRC() uint32 {
 	return 0x38df3532
 }
 
-// When client-side passcode lock feature is enabled, will not show message texts in incoming [PUSH notifications](https://core.telegram.org/api/push-updates).
+// When client-side passcode lock feature is enabled, will not show message texts in incoming PUSH notifications.
 func (c *Client) AccountUpdateDeviceLocked(period int32) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateDeviceLockedParams{Period: period})
 	if err != nil {
@@ -2418,7 +2418,7 @@ func (*AccountUpdateEmojiStatusParams) CRC() uint32 {
 	return 0xfbd3de6b
 }
 
-// Set an [emoji status](https://core.telegram.org/api/emoji-status)
+// Set an emoji status
 func (c *Client) AccountUpdateEmojiStatus(emojiStatus EmojiStatus) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdateEmojiStatusParams{EmojiStatus: emojiStatus})
 	if err != nil {
@@ -2492,7 +2492,7 @@ func (*AccountUpdatePersonalChannelParams) CRC() uint32 {
 	return 0xd94305e0
 }
 
-// Associate (or remove) a personal [channel »](https://core.telegram.org/api/channel), that will be listed on our personal [profile page »](https://core.telegram.org/api/profile#personal-channel).
+// Associate (or remove) a personal channel », that will be listed on our personal profile page ».
 func (c *Client) AccountUpdatePersonalChannel(channel InputChannel) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountUpdatePersonalChannelParams{Channel: channel})
 	if err != nil {
@@ -2623,7 +2623,7 @@ func (*AccountUploadRingtoneParams) CRC() uint32 {
 	return 0x831a83a2
 }
 
-// Upload notification sound, use [account.saveRingtone](https://core.telegram.org/method/account.saveRingtone) to convert it and add it to the list of saved notification sounds.
+// Upload notification sound, use account.saveRingtone to convert it and add it to the list of saved notification sounds.
 func (c *Client) AccountUploadRingtone(file InputFile, fileName, mimeType string) (Document, error) {
 	responseData, err := c.MakeRequest(&AccountUploadRingtoneParams{
 		File:     file,
@@ -2690,7 +2690,7 @@ func (*AccountUploadWallPaperParams) FlagIndex() int {
 	return 0
 }
 
-// Create and upload a new [wallpaper](https://core.telegram.org/api/wallpapers)
+// Create and upload a new wallpaper
 func (c *Client) AccountUploadWallPaper(forChat bool, file InputFile, mimeType string, settings *WallPaperSettings) (WallPaper, error) {
 	responseData, err := c.MakeRequest(&AccountUploadWallPaperParams{
 		File:     file,
@@ -2745,7 +2745,7 @@ func (*AccountVerifyPhoneParams) CRC() uint32 {
 	return 0x4dd3a7f6
 }
 
-// Verify a phone number for telegram [passport](https://core.telegram.org/passport).
+// Verify a phone number for telegram passport.
 func (c *Client) AccountVerifyPhone(phoneNumber, phoneCodeHash, phoneCode string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountVerifyPhoneParams{
 		PhoneCode:     phoneCode,
@@ -2849,7 +2849,7 @@ func (*AuthCheckPasswordParams) CRC() uint32 {
 	return 0xd18b4d16
 }
 
-// Try logging to an account protected by a [2FA password](https://core.telegram.org/api/srp).
+// Try logging to an account protected by a 2FA password.
 func (c *Client) AuthCheckPassword(password InputCheckPasswordSRP) (AuthAuthorization, error) {
 	responseData, err := c.MakeRequest(&AuthCheckPasswordParams{Password: password})
 	if err != nil {
@@ -2871,7 +2871,7 @@ func (*AuthCheckRecoveryPasswordParams) CRC() uint32 {
 	return 0xd36bf79
 }
 
-// Check if the [2FA recovery code](https://core.telegram.org/api/srp) sent using [auth.requestPasswordRecovery](https://core.telegram.org/method/auth.requestPasswordRecovery) is valid, before passing it to [auth.recoverPassword](https://core.telegram.org/method/auth.recoverPassword).
+// Check if the 2FA recovery code sent using auth.requestPasswordRecovery is valid, before passing it to auth.recoverPassword.
 func (c *Client) AuthCheckRecoveryPassword(code string) (bool, error) {
 	responseData, err := c.MakeRequest(&AuthCheckRecoveryPasswordParams{Code: code})
 	if err != nil {
@@ -2940,8 +2940,8 @@ func (*AuthExportLoginTokenParams) CRC() uint32 {
 }
 
 /*
-Generate a login token, for [login via QR code](https://core.telegram.org/api/qr-login).<br>
-The generated login token should be encoded using base64url, then shown as a `tg://login?token=base64encodedtoken` [deep link »](https://core.telegram.org/api/links#qr-code-login-links) in the QR code.
+Generate a login token, for login via QR code.<br>
+The generated login token should be encoded using base64url, then shown as a `tg://login?token=base64encodedtoken` deep link » in the QR code.
 */
 func (c *Client) AuthExportLoginToken(apiID int32, apiHash string, exceptIds []int64) (AuthLoginToken, error) {
 	responseData, err := c.MakeRequest(&AuthExportLoginTokenParams{
@@ -3024,7 +3024,7 @@ func (*AuthImportLoginTokenParams) CRC() uint32 {
 	return 0x95ac5ce4
 }
 
-// Login using a redirected login token, generated in case of DC mismatch during [QR code login](https://core.telegram.org/api/qr-login).
+// Login using a redirected login token, generated in case of DC mismatch during QR code login.
 func (c *Client) AuthImportLoginToken(token []byte) (AuthLoginToken, error) {
 	responseData, err := c.MakeRequest(&AuthImportLoginTokenParams{Token: token})
 	if err != nil {
@@ -3099,7 +3099,7 @@ func (*AuthRecoverPasswordParams) FlagIndex() int {
 	return 0
 }
 
-// Reset the [2FA password](https://core.telegram.org/api/srp) using the recovery code sent using [auth.requestPasswordRecovery](https://core.telegram.org/method/auth.requestPasswordRecovery).
+// Reset the 2FA password using the recovery code sent using auth.requestPasswordRecovery.
 func (c *Client) AuthRecoverPassword(code string, newSettings *AccountPasswordInputSettings) (AuthAuthorization, error) {
 	responseData, err := c.MakeRequest(&AuthRecoverPasswordParams{
 		Code:        code,
@@ -3180,7 +3180,7 @@ func (*AuthRequestPasswordRecoveryParams) CRC() uint32 {
 	return 0xd897bc66
 }
 
-// Request recovery code of a [2FA password](https://core.telegram.org/api/srp), only for accounts with a [recovery email configured](https://core.telegram.org/api/srp#email-verification).
+// Request recovery code of a 2FA password, only for accounts with a recovery email configured.
 func (c *Client) AuthRequestPasswordRecovery() (*AuthPasswordRecovery, error) {
 	responseData, err := c.MakeRequest(&AuthRequestPasswordRecoveryParams{})
 	if err != nil {
@@ -3208,7 +3208,7 @@ func (*AuthResendCodeParams) FlagIndex() int {
 	return 0
 }
 
-// Resend the login code via another medium, the phone code type is determined by the return value of the previous auth.sendCode/auth.resendCode: see [login](https://core.telegram.org/api/auth) for more info.
+// Resend the login code via another medium, the phone code type is determined by the return value of the previous auth.sendCode/auth.resendCode: see login for more info.
 func (c *Client) AuthResendCode(phoneNumber, phoneCodeHash, reason string) (AuthSentCode, error) {
 	responseData, err := c.MakeRequest(&AuthResendCodeParams{
 		PhoneCodeHash: phoneCodeHash,
@@ -3255,7 +3255,7 @@ func (*AuthResetLoginEmailParams) CRC() uint32 {
 	return 0x7e960193
 }
 
-// Reset the [login email »](https://core.telegram.orghttps://core.telegram.org/api/auth#email-verification).
+// Reset the login email ».
 func (c *Client) AuthResetLoginEmail(phoneNumber, phoneCodeHash string) (AuthSentCode, error) {
 	responseData, err := c.MakeRequest(&AuthResetLoginEmailParams{
 		PhoneCodeHash: phoneCodeHash,
@@ -3376,7 +3376,7 @@ func (*BotsAddPreviewMediaParams) CRC() uint32 {
 	return 0x17aeb75a
 }
 
-// Add a [main mini app preview, see here »](https://core.telegram.org/api/bots/webapps#main-mini-app-previews) for more info.
+// Add a main mini app preview, see here » for more info.
 func (c *Client) BotsAddPreviewMedia(bot InputUser, langCode string, media InputMedia) (*BotPreviewMedia, error) {
 	responseData, err := c.MakeRequest(&BotsAddPreviewMediaParams{
 		Bot:      bot,
@@ -3474,6 +3474,26 @@ func (*BotsCheckDownloadFileParamsParams) CRC() uint32 {
 	return 0x50077589
 }
 
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>boolFalse#bc799737 = Bool;
+boolTrue#997275b5 = Bool;
+---functions---
+<a  href="/method/bots.checkDownloadFileParams"  class="current_page_link" >bots.checkDownloadFileParams</a>#50077589 bot:InputUser file_name:string url:string = Bool;</code></pre>
+*/
 func (c *Client) BotsCheckDownloadFileParams(bot InputUser, fileName, url string) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsCheckDownloadFileParamsParams{
 		Bot:      bot,
@@ -3501,7 +3521,7 @@ func (*BotsDeletePreviewMediaParams) CRC() uint32 {
 	return 0x2d0135b3
 }
 
-// Delete a [main mini app preview, see here »](https://core.telegram.org/api/bots/webapps#main-mini-app-previews) for more info.
+// Delete a main mini app preview, see here » for more info.
 func (c *Client) BotsDeletePreviewMedia(bot InputUser, langCode string, media []InputMedia) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsDeletePreviewMediaParams{
 		Bot:      bot,
@@ -3530,7 +3550,7 @@ func (*BotsEditPreviewMediaParams) CRC() uint32 {
 	return 0x8525606f
 }
 
-// Edit a [main mini app preview, see here »](https://core.telegram.org/api/bots/webapps#main-mini-app-previews) for more info.
+// Edit a main mini app preview, see here » for more info.
 func (c *Client) BotsEditPreviewMedia(bot InputUser, langCode string, media, newMedia InputMedia) (*BotPreviewMedia, error) {
 	responseData, err := c.MakeRequest(&BotsEditPreviewMediaParams{
 		Bot:      bot,
@@ -3543,6 +3563,43 @@ func (c *Client) BotsEditPreviewMedia(bot InputUser, langCode string, media, new
 	}
 
 	resp, ok := responseData.(*BotPreviewMedia)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type BotsGetAdminedBotsParams struct{}
+
+func (*BotsGetAdminedBotsParams) CRC() uint32 {
+	return 0xb0711d83
+}
+
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>---functions---
+<a  href="/method/bots.getAdminedBots"  class="current_page_link" >bots.getAdminedBots</a>#b0711d83 = Vector&lt;User&gt;;</code></pre>
+*/
+func (c *Client) BotsGetAdminedBots() ([]User, error) {
+	responseData, err := c.MakeRequest(&BotsGetAdminedBotsParams{})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending BotsGetAdminedBots")
+	}
+
+	resp, ok := responseData.([]User)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -3613,7 +3670,7 @@ func (*BotsGetBotMenuButtonParams) CRC() uint32 {
 	return 0x9c60eb28
 }
 
-// Gets the menu button action for a given user or for all users, previously set using [bots.setBotMenuButton](https://core.telegram.org/method/bots.setBotMenuButton); users can see this information in the [botInfo](https://core.telegram.org/constructor/botInfo) constructor.
+// Gets the menu button action for a given user or for all users, previously set using bots.setBotMenuButton; users can see this information in the botInfo constructor.
 func (c *Client) BotsGetBotMenuButton(userID InputUser) (BotMenuButton, error) {
 	responseData, err := c.MakeRequest(&BotsGetBotMenuButtonParams{UserID: userID})
 	if err != nil {
@@ -3636,7 +3693,7 @@ func (*BotsGetPopularAppBotsParams) CRC() uint32 {
 	return 0xc2510192
 }
 
-// Fetch popular [Main Mini Apps](https://core.telegram.org/api/bots/webapps#main-mini-apps), to be used in the [apps tab of global search »](https://core.telegram.org/api/search#apps-tab).
+// Fetch popular Main Mini Apps, to be used in the apps tab of global search ».
 func (c *Client) BotsGetPopularAppBots(offset string, limit int32) (*BotsPopularAppBots, error) {
 	responseData, err := c.MakeRequest(&BotsGetPopularAppBotsParams{
 		Limit:  limit,
@@ -3662,7 +3719,7 @@ func (*BotsGetPreviewInfoParams) CRC() uint32 {
 	return 0x423ab3ad
 }
 
-// Bot owners only, fetch [main mini app preview information, see here »](https://core.telegram.org/api/bots/webapps#main-mini-app-previews) for more info.
+// Bot owners only, fetch main mini app preview information, see here » for more info.
 func (c *Client) BotsGetPreviewInfo(bot InputUser, langCode string) (*BotsPreviewInfo, error) {
 	responseData, err := c.MakeRequest(&BotsGetPreviewInfoParams{
 		Bot:      bot,
@@ -3687,7 +3744,7 @@ func (*BotsGetPreviewMediasParams) CRC() uint32 {
 	return 0xa2a5594d
 }
 
-// Fetch [main mini app previews, see here »](https://core.telegram.org/api/bots/webapps#main-mini-app-previews) for more info.
+// Fetch main mini app previews, see here » for more info.
 func (c *Client) BotsGetPreviewMedias(bot InputUser) ([]*BotPreviewMedia, error) {
 	responseData, err := c.MakeRequest(&BotsGetPreviewMediasParams{Bot: bot})
 	if err != nil {
@@ -3711,7 +3768,7 @@ func (*BotsInvokeWebViewCustomMethodParams) CRC() uint32 {
 	return 0x87fc5e7
 }
 
-// Send a custom request from a [mini bot app](https://core.telegram.org/api/bots/webapps), triggered by a [web_app_invoke_custom_method event »](https://core.telegram.org/api/web-events#web-app-invoke-custom-method).
+// Send a custom request from a mini bot app, triggered by a web_app_invoke_custom_method event ».
 func (c *Client) BotsInvokeWebViewCustomMethod(bot InputUser, customMethod string, params *DataJson) (*DataJson, error) {
 	responseData, err := c.MakeRequest(&BotsInvokeWebViewCustomMethodParams{
 		Bot:          bot,
@@ -3739,7 +3796,7 @@ func (*BotsReorderPreviewMediasParams) CRC() uint32 {
 	return 0xb627f3aa
 }
 
-// Reorder a [main mini app previews, see here »](https://core.telegram.org/api/bots/webapps#main-mini-app-previews) for more info.
+// Reorder a main mini app previews, see here » for more info.
 func (c *Client) BotsReorderPreviewMedias(bot InputUser, langCode string, order []InputMedia) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsReorderPreviewMediasParams{
 		Bot:      bot,
@@ -3843,7 +3900,7 @@ func (*BotsSetBotBroadcastDefaultAdminRightsParams) CRC() uint32 {
 	return 0x788464e1
 }
 
-// Set the default [suggested admin rights](https://core.telegram.org/api/rights#suggested-bot-rights) for bots being added as admins to channels, see [here for more info on how to handle them »](https://core.telegram.org/api/rights#suggested-bot-rights).
+// Set the default suggested admin rights for bots being added as admins to channels, see here for more info on how to handle them ».
 func (c *Client) BotsSetBotBroadcastDefaultAdminRights(adminRights *ChatAdminRights) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsSetBotBroadcastDefaultAdminRightsParams{AdminRights: adminRights})
 	if err != nil {
@@ -3893,7 +3950,7 @@ func (*BotsSetBotGroupDefaultAdminRightsParams) CRC() uint32 {
 	return 0x925ec9ea
 }
 
-// Set the default [suggested admin rights](https://core.telegram.org/api/rights#suggested-bot-rights) for bots being added as admins to groups, see [here for more info on how to handle them »](https://core.telegram.org/api/rights#suggested-bot-rights).
+// Set the default suggested admin rights for bots being added as admins to groups, see here for more info on how to handle them ».
 func (c *Client) BotsSetBotGroupDefaultAdminRights(adminRights *ChatAdminRights) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsSetBotGroupDefaultAdminRightsParams{AdminRights: adminRights})
 	if err != nil {
@@ -3946,7 +4003,7 @@ func (*BotsSetBotMenuButtonParams) CRC() uint32 {
 	return 0x4504d54f
 }
 
-// Sets the [menu button action »](https://core.telegram.org/api/bots/menu) for a given user or for all users
+// Sets the menu button action » for a given user or for all users
 func (c *Client) BotsSetBotMenuButton(userID InputUser, button BotMenuButton) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsSetBotMenuButtonParams{
 		Button: button,
@@ -3972,6 +4029,26 @@ func (*BotsToggleUserEmojiStatusPermissionParams) CRC() uint32 {
 	return 0x6de6392
 }
 
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>boolFalse#bc799737 = Bool;
+boolTrue#997275b5 = Bool;
+---functions---
+<a  href="/method/bots.toggleUserEmojiStatusPermission"  class="current_page_link" >bots.toggleUserEmojiStatusPermission</a>#6de6392 bot:InputUser enabled:Bool = Bool;</code></pre>
+*/
 func (c *Client) BotsToggleUserEmojiStatusPermission(bot InputUser, enabled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsToggleUserEmojiStatusPermissionParams{
 		Bot:     bot,
@@ -3998,7 +4075,7 @@ func (*BotsToggleUsernameParams) CRC() uint32 {
 	return 0x53ca973
 }
 
-// Activate or deactivate a purchased [fragment.com](https://core.telegram.orghttps://fragment.com) username associated to a bot we own.
+// Activate or deactivate a purchased fragment.com username associated to a bot we own.
 func (c *Client) BotsToggleUsername(bot InputUser, username string, active bool) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsToggleUsernameParams{
 		Active:   active,
@@ -4016,6 +4093,56 @@ func (c *Client) BotsToggleUsername(bot InputUser, username string, active bool)
 	return resp, nil
 }
 
+type BotsUpdateStarRefProgramParams struct {
+	Bot                InputUser
+	CommissionPermille int32
+	DurationMonths     int32 `tl:"flag:0"`
+}
+
+func (*BotsUpdateStarRefProgramParams) CRC() uint32 {
+	return 0x778b5ab3
+}
+
+func (*BotsUpdateStarRefProgramParams) FlagIndex() int {
+	return 0
+}
+
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>starRefProgram#dd0c66f2 flags:# bot_id:long commission_permille:int duration_months:flags.0?int end_date:flags.1?int daily_revenue_per_user:flags.2?StarsAmount = StarRefProgram;
+---functions---
+<a  href="/method/bots.updateStarRefProgram"  class="current_page_link" >bots.updateStarRefProgram</a>#778b5ab3 flags:# bot:InputUser commission_permille:int duration_months:flags.0?int = StarRefProgram;</code></pre>
+*/
+func (c *Client) BotsUpdateStarRefProgram(bot InputUser, commissionPermille, durationMonths int32) (*StarRefProgram, error) {
+	responseData, err := c.MakeRequest(&BotsUpdateStarRefProgramParams{
+		Bot:                bot,
+		CommissionPermille: commissionPermille,
+		DurationMonths:     durationMonths,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending BotsUpdateStarRefProgram")
+	}
+
+	resp, ok := responseData.(*StarRefProgram)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type BotsUpdateUserEmojiStatusParams struct {
 	UserID      InputUser
 	EmojiStatus EmojiStatus
@@ -4025,6 +4152,26 @@ func (*BotsUpdateUserEmojiStatusParams) CRC() uint32 {
 	return 0xed9f30c5
 }
 
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>boolFalse#bc799737 = Bool;
+boolTrue#997275b5 = Bool;
+---functions---
+<a  href="/method/bots.updateUserEmojiStatus"  class="current_page_link" >bots.updateUserEmojiStatus</a>#ed9f30c5 user_id:InputUser emoji_status:EmojiStatus = Bool;</code></pre>
+*/
 func (c *Client) BotsUpdateUserEmojiStatus(userID InputUser, emojiStatus EmojiStatus) (bool, error) {
 	responseData, err := c.MakeRequest(&BotsUpdateUserEmojiStatusParams{
 		EmojiStatus: emojiStatus,
@@ -4075,7 +4222,7 @@ func (*ChannelsConvertToGigagroupParams) CRC() uint32 {
 	return 0xb290c69
 }
 
-// Convert a [supergroup](https://core.telegram.org/api/channel) to a [gigagroup](https://core.telegram.org/api/channel), when requested by [channel suggestions](https://core.telegram.org/api/config#channel-suggestions).
+// Convert a supergroup to a gigagroup, when requested by channel suggestions.
 func (c *Client) ChannelsConvertToGigagroup(channel InputChannel) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsConvertToGigagroupParams{Channel: channel})
 	if err != nil {
@@ -4109,7 +4256,7 @@ func (*ChannelsCreateChannelParams) FlagIndex() int {
 	return 0
 }
 
-// Create a [supergroup/channel](https://core.telegram.org/api/channel).
+// Create a supergroup/channel.
 func (c *Client) ChannelsCreateChannel(params *ChannelsCreateChannelParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -4140,7 +4287,7 @@ func (*ChannelsCreateForumTopicParams) FlagIndex() int {
 	return 0
 }
 
-// Create a [forum topic](https://core.telegram.org/api/forum); requires <a href="/api/rights">`manage_topics` rights</a>.
+// Create a forum topic; requires <a href="/api/rights">`manage_topics` rights</a>.
 func (c *Client) ChannelsCreateForumTopic(params *ChannelsCreateForumTopicParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -4184,7 +4331,7 @@ func (*ChannelsDeleteChannelParams) CRC() uint32 {
 	return 0xc0111fe3
 }
 
-// Delete a [channel/supergroup](https://core.telegram.org/api/channel)
+// Delete a channel/supergroup
 func (c *Client) ChannelsDeleteChannel(channel InputChannel) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsDeleteChannelParams{Channel: channel})
 	if err != nil {
@@ -4212,7 +4359,7 @@ func (*ChannelsDeleteHistoryParams) FlagIndex() int {
 	return 0
 }
 
-// Delete the history of a [supergroup](https://core.telegram.org/api/channel)
+// Delete the history of a supergroup
 func (c *Client) ChannelsDeleteHistory(forEveryone bool, channel InputChannel, maxID int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsDeleteHistoryParams{
 		Channel:     channel,
@@ -4239,7 +4386,7 @@ func (*ChannelsDeleteMessagesParams) CRC() uint32 {
 	return 0x84c1fd4e
 }
 
-// Delete messages in a [channel/supergroup](https://core.telegram.org/api/channel)
+// Delete messages in a channel/supergroup
 func (c *Client) ChannelsDeleteMessages(channel InputChannel, id []int32) (*MessagesAffectedMessages, error) {
 	responseData, err := c.MakeRequest(&ChannelsDeleteMessagesParams{
 		Channel: channel,
@@ -4291,7 +4438,7 @@ func (*ChannelsDeleteTopicHistoryParams) CRC() uint32 {
 	return 0x34435f2d
 }
 
-// Delete message history of a [forum topic](https://core.telegram.org/api/forum)
+// Delete message history of a forum topic
 func (c *Client) ChannelsDeleteTopicHistory(channel InputChannel, topMsgID int32) (*MessagesAffectedHistory, error) {
 	responseData, err := c.MakeRequest(&ChannelsDeleteTopicHistoryParams{
 		Channel:  channel,
@@ -4319,7 +4466,7 @@ func (*ChannelsEditAdminParams) CRC() uint32 {
 	return 0xd33c8902
 }
 
-// Modify the admin rights of a user in a [supergroup/channel](https://core.telegram.org/api/channel).
+// Modify the admin rights of a user in a supergroup/channel.
 func (c *Client) ChannelsEditAdmin(channel InputChannel, userID InputUser, adminRights *ChatAdminRights, rank string) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsEditAdminParams{
 		AdminRights: adminRights,
@@ -4348,7 +4495,7 @@ func (*ChannelsEditBannedParams) CRC() uint32 {
 	return 0x96e6cd81
 }
 
-// Ban/unban/kick a user in a [supergroup/channel](https://core.telegram.org/api/channel).
+// Ban/unban/kick a user in a supergroup/channel.
 func (c *Client) ChannelsEditBanned(channel InputChannel, participant InputPeer, bannedRights *ChatBannedRights) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsEditBannedParams{
 		BannedRights: bannedRights,
@@ -4411,7 +4558,7 @@ func (*ChannelsEditForumTopicParams) FlagIndex() int {
 	return 0
 }
 
-// Edit [forum topic](https://core.telegram.org/api/forum); requires <a href="/api/rights">`manage_topics` rights</a>.
+// Edit forum topic; requires <a href="/api/rights">`manage_topics` rights</a>.
 func (c *Client) ChannelsEditForumTopic(params *ChannelsEditForumTopicParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -4435,7 +4582,7 @@ func (*ChannelsEditLocationParams) CRC() uint32 {
 	return 0x58e63f6d
 }
 
-// Edit location of geogroup, see [here »](https://core.telegram.org/api/nearby) for more info on geogroups.
+// Edit location of geogroup, see here » for more info on geogroups.
 func (c *Client) ChannelsEditLocation(channel InputChannel, geoPoint InputGeoPoint, address string) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsEditLocationParams{
 		Address:  address,
@@ -4462,7 +4609,7 @@ func (*ChannelsEditPhotoParams) CRC() uint32 {
 	return 0xf12e57c9
 }
 
-// Change the photo of a [channel/supergroup](https://core.telegram.org/api/channel)
+// Change the photo of a channel/supergroup
 func (c *Client) ChannelsEditPhoto(channel InputChannel, photo InputChatPhoto) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsEditPhotoParams{
 		Channel: channel,
@@ -4488,7 +4635,7 @@ func (*ChannelsEditTitleParams) CRC() uint32 {
 	return 0x566decd0
 }
 
-// Edit the name of a [channel/supergroup](https://core.telegram.org/api/channel)
+// Edit the name of a channel/supergroup
 func (c *Client) ChannelsEditTitle(channel InputChannel, title string) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsEditTitleParams{
 		Channel: channel,
@@ -4520,7 +4667,7 @@ func (*ChannelsExportMessageLinkParams) FlagIndex() int {
 	return 0
 }
 
-// Get link and embed info of a message in a [channel/supergroup](https://core.telegram.org/api/channel)
+// Get link and embed info of a message in a channel/supergroup
 func (c *Client) ChannelsExportMessageLink(grouped, thread bool, channel InputChannel, id int32) (*ExportedMessageLink, error) {
 	responseData, err := c.MakeRequest(&ChannelsExportMessageLinkParams{
 		Channel: channel,
@@ -4557,7 +4704,7 @@ func (*ChannelsGetAdminLogParams) FlagIndex() int {
 	return 0
 }
 
-// Get the admin log of a [channel/supergroup](https://core.telegram.org/api/channel)
+// Get the admin log of a channel/supergroup
 func (c *Client) ChannelsGetAdminLog(params *ChannelsGetAdminLogParams) (*ChannelsAdminLogResults, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -4585,7 +4732,7 @@ func (*ChannelsGetAdminedPublicChannelsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [channels/supergroups/geogroups](https://core.telegram.org/api/channel) we're admin in. Usually called when the user exceeds the [limit](https://core.telegram.org/constructor/config) for owned public [channels/supergroups/geogroups](https://core.telegram.org/api/channel), and the user is given the choice to remove one of his channels/supergroups/geogroups.
+// Get channels/supergroups/geogroups we're admin in. Usually called when the user exceeds the limit for owned public channels/supergroups/geogroups, and the user is given the choice to remove one of his channels/supergroups/geogroups.
 func (c *Client) ChannelsGetAdminedPublicChannels(byLocation, checkLimit, forPersonal bool) (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetAdminedPublicChannelsParams{
 		ByLocation:  byLocation,
@@ -4637,7 +4784,7 @@ func (*ChannelsGetChannelsParams) CRC() uint32 {
 	return 0xa7f6bbb
 }
 
-// Get info about [channels/supergroups](https://core.telegram.org/api/channel)
+// Get info about channels/supergroups
 func (c *Client) ChannelsGetChannels(id []InputChannel) (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetChannelsParams{ID: id})
 	if err != nil {
@@ -4668,7 +4815,7 @@ func (*ChannelsGetForumTopicsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [topics of a forum](https://core.telegram.org/api/forum)
+// Get topics of a forum
 func (c *Client) ChannelsGetForumTopics(params *ChannelsGetForumTopicsParams) (*MessagesForumTopics, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -4716,7 +4863,7 @@ func (*ChannelsGetFullChannelParams) CRC() uint32 {
 	return 0x8736a09
 }
 
-// Get full info about a [supergroup](https://core.telegram.org/api/channel#supergroups), [gigagroup](https://core.telegram.org/api/channel#gigagroups) or [channel](https://core.telegram.org/api/channel#channels)
+// Get full info about a supergroup, gigagroup or channel
 func (c *Client) ChannelsGetFullChannel(channel InputChannel) (*MessagesChatFull, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetFullChannelParams{Channel: channel})
 	if err != nil {
@@ -4736,7 +4883,7 @@ func (*ChannelsGetGroupsForDiscussionParams) CRC() uint32 {
 	return 0xf5dad378
 }
 
-// Get all groups that can be used as [discussion groups](https://core.telegram.org/api/discussion).
+// Get all groups that can be used as discussion groups.
 func (c *Client) ChannelsGetGroupsForDiscussion() (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetGroupsForDiscussionParams{})
 	if err != nil {
@@ -4778,7 +4925,7 @@ func (*ChannelsGetLeftChannelsParams) CRC() uint32 {
 	return 0x8341ecc0
 }
 
-// Get a list of [channels/supergroups](https://core.telegram.org/api/channel) we left, requires a [takeout session, see here » for more info](https://core.telegram.org/api/takeout).
+// Get a list of channels/supergroups we left, requires a takeout session, see here » for more info.
 func (c *Client) ChannelsGetLeftChannels(offset int32) (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetLeftChannelsParams{Offset: offset})
 	if err != nil {
@@ -4801,7 +4948,7 @@ func (*ChannelsGetMessagesParams) CRC() uint32 {
 	return 0xad8c9a23
 }
 
-// Get [channel/supergroup](https://core.telegram.org/api/channel) messages
+// Get channel/supergroup messages
 func (c *Client) ChannelsGetMessages(channel InputChannel, id []InputMessage) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetMessagesParams{
 		Channel: channel,
@@ -4827,7 +4974,7 @@ func (*ChannelsGetParticipantParams) CRC() uint32 {
 	return 0xa0ab6cc6
 }
 
-// Get info about a [channel/supergroup](https://core.telegram.org/api/channel) participant
+// Get info about a channel/supergroup participant
 func (c *Client) ChannelsGetParticipant(channel InputChannel, participant InputPeer) (*ChannelsChannelParticipant, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetParticipantParams{
 		Channel:     channel,
@@ -4856,7 +5003,7 @@ func (*ChannelsGetParticipantsParams) CRC() uint32 {
 	return 0x77ced9d0
 }
 
-// Get the participants of a [supergroup/channel](https://core.telegram.org/api/channel)
+// Get the participants of a supergroup/channel
 func (c *Client) ChannelsGetParticipants(channel InputChannel, filter ChannelParticipantsFilter, offset, limit int32, hash int64) (ChannelsChannelParticipants, error) {
 	responseData, err := c.MakeRequest(&ChannelsGetParticipantsParams{
 		Channel: channel,
@@ -4954,7 +5101,7 @@ func (*ChannelsLeaveChannelParams) CRC() uint32 {
 	return 0xf836aa95
 }
 
-// Leave a [channel/supergroup](https://core.telegram.org/api/channel)
+// Leave a channel/supergroup
 func (c *Client) ChannelsLeaveChannel(channel InputChannel) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsLeaveChannelParams{Channel: channel})
 	if err != nil {
@@ -4977,7 +5124,7 @@ func (*ChannelsReadHistoryParams) CRC() uint32 {
 	return 0xcc104937
 }
 
-// Mark [channel/supergroup](https://core.telegram.org/api/channel) history as read
+// Mark channel/supergroup history as read
 func (c *Client) ChannelsReadHistory(channel InputChannel, maxID int32) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsReadHistoryParams{
 		Channel: channel,
@@ -5003,7 +5150,7 @@ func (*ChannelsReadMessageContentsParams) CRC() uint32 {
 	return 0xeab5dc38
 }
 
-// Mark [channel/supergroup](https://core.telegram.org/api/channel) message contents as read
+// Mark channel/supergroup message contents as read
 func (c *Client) ChannelsReadMessageContents(channel InputChannel, id []int32) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsReadMessageContentsParams{
 		Channel: channel,
@@ -5087,7 +5234,7 @@ func (*ChannelsReportAntiSpamFalsePositiveParams) CRC() uint32 {
 	return 0xa850a693
 }
 
-// Report a [native antispam](https://core.telegram.org/api/antispam) false positive
+// Report a native antispam false positive
 func (c *Client) ChannelsReportAntiSpamFalsePositive(channel InputChannel, msgID int32) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsReportAntiSpamFalsePositiveParams{
 		Channel: channel,
@@ -5170,7 +5317,7 @@ func (*ChannelsSearchPostsParams) CRC() uint32 {
 	return 0xd19f987b
 }
 
-// Globally search for posts from public [channels »](https://core.telegram.org/api/channel) (<em>including</em> those we aren't a member of) containing a specific hashtag.
+// Globally search for posts from public channels » (<em>including</em> those we aren't a member of) containing a specific hashtag.
 func (c *Client) ChannelsSearchPosts(hashtag string, offsetRate int32, offsetPeer InputPeer, offsetID, limit int32) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(&ChannelsSearchPostsParams{
 		Hashtag:    hashtag,
@@ -5199,7 +5346,7 @@ func (*ChannelsSetBoostsToUnblockRestrictionsParams) CRC() uint32 {
 	return 0xad399cee
 }
 
-// Admins with [ban_users admin rights »](https://core.telegram.org/constructor/chatAdminRights) may allow users that apply a certain number of [booosts »](https://core.telegram.org/api/boost) to the group to bypass [slow mode »](https://core.telegram.org/method/channels.toggleSlowMode) and [other »](https://core.telegram.org/api/rights#default-rights) supergroup restrictions, see [here »](https://core.telegram.org/api/boost#bypass-slowmode-and-chat-restrictions) for more info.
+// Admins with ban_users admin rights » may allow users that apply a certain number of booosts » to the group to bypass slow mode » and other » supergroup restrictions, see here » for more info.
 func (c *Client) ChannelsSetBoostsToUnblockRestrictions(channel InputChannel, boosts int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsSetBoostsToUnblockRestrictionsParams{
 		Boosts:  boosts,
@@ -5225,7 +5372,7 @@ func (*ChannelsSetDiscussionGroupParams) CRC() uint32 {
 	return 0x40582bb2
 }
 
-// Associate a group to a channel as [discussion group](https://core.telegram.org/api/discussion) for that channel
+// Associate a group to a channel as discussion group for that channel
 func (c *Client) ChannelsSetDiscussionGroup(broadcast, group InputChannel) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsSetDiscussionGroupParams{
 		Broadcast: broadcast,
@@ -5251,7 +5398,7 @@ func (*ChannelsSetEmojiStickersParams) CRC() uint32 {
 	return 0x3cd930b7
 }
 
-// Set a [custom emoji stickerset](https://core.telegram.org/api/custom-emoji) for supergroups. Only usable after reaching at least the [boost level »](https://core.telegram.org/api/boost) specified in the <a href="/api/config#group-emoji-stickers-level-min">`group_emoji_stickers_level_min` »</a> config parameter.
+// Set a custom emoji stickerset for supergroups. Only usable after reaching at least the boost level » specified in the <a href="/api/config#group-emoji-stickers-level-min">`group_emoji_stickers_level_min` »</a> config parameter.
 func (c *Client) ChannelsSetEmojiStickers(channel InputChannel, stickerset InputStickerSet) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsSetEmojiStickersParams{
 		Channel:    channel,
@@ -5303,7 +5450,7 @@ func (*ChannelsToggleAntiSpamParams) CRC() uint32 {
 	return 0x68f3e4eb
 }
 
-// Enable or disable the [native antispam system](https://core.telegram.org/api/antispam).
+// Enable or disable the native antispam system.
 func (c *Client) ChannelsToggleAntiSpam(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleAntiSpamParams{
 		Channel: channel,
@@ -5329,7 +5476,7 @@ func (*ChannelsToggleForumParams) CRC() uint32 {
 	return 0xa4298b29
 }
 
-// Enable or disable [forum functionality](https://core.telegram.org/api/forum) in a supergroup.
+// Enable or disable forum functionality in a supergroup.
 func (c *Client) ChannelsToggleForum(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleForumParams{
 		Channel: channel,
@@ -5355,7 +5502,7 @@ func (*ChannelsToggleJoinRequestParams) CRC() uint32 {
 	return 0x4c2985b6
 }
 
-// Set whether all users should [request admin approval to join the group »](https://core.telegram.org/api/invites#join-requests).
+// Set whether all users should request admin approval to join the group ».
 func (c *Client) ChannelsToggleJoinRequest(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleJoinRequestParams{
 		Channel: channel,
@@ -5381,7 +5528,7 @@ func (*ChannelsToggleJoinToSendParams) CRC() uint32 {
 	return 0xe4cb9580
 }
 
-// Set whether all users [should join a discussion group in order to comment on a post »](https://core.telegram.org/api/discussion#requiring-users-to-join-the-group)
+// Set whether all users should join a discussion group in order to comment on a post »
 func (c *Client) ChannelsToggleJoinToSend(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleJoinToSendParams{
 		Channel: channel,
@@ -5407,7 +5554,7 @@ func (*ChannelsToggleParticipantsHiddenParams) CRC() uint32 {
 	return 0x6a6e7854
 }
 
-// Hide or display the participants list in a [supergroup](https://core.telegram.org/api/channel).
+// Hide or display the participants list in a supergroup.
 func (c *Client) ChannelsToggleParticipantsHidden(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleParticipantsHiddenParams{
 		Channel: channel,
@@ -5518,7 +5665,7 @@ func (*ChannelsToggleUsernameParams) CRC() uint32 {
 	return 0x50f24105
 }
 
-// Activate or deactivate a purchased [fragment.com](https://core.telegram.orghttps://fragment.com) username associated to a [supergroup or channel](https://core.telegram.org/api/channel) we own.
+// Activate or deactivate a purchased fragment.com username associated to a supergroup or channel we own.
 func (c *Client) ChannelsToggleUsername(channel InputChannel, username string, active bool) (bool, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleUsernameParams{
 		Active:   active,
@@ -5545,7 +5692,7 @@ func (*ChannelsToggleViewForumAsMessagesParams) CRC() uint32 {
 	return 0x9738bb15
 }
 
-// Users may also choose to display messages from all topics of a [forum](https://core.telegram.org/api/forum) as if they were sent to a normal group, using a "View as messages" setting in the local client: this setting only affects the current account, and is synced to other logged in sessions using this method.
+// Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client: this setting only affects the current account, and is synced to other logged in sessions using this method.
 func (c *Client) ChannelsToggleViewForumAsMessages(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleViewForumAsMessagesParams{
 		Channel: channel,
@@ -5577,7 +5724,7 @@ func (*ChannelsUpdateColorParams) FlagIndex() int {
 	return 0
 }
 
-// Update the [accent color and background custom emoji »](https://core.telegram.org/api/colors) of a channel.
+// Update the accent color and background custom emoji » of a channel.
 func (c *Client) ChannelsUpdateColor(forProfile bool, channel InputChannel, color int32, backgroundEmojiID int64) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsUpdateColorParams{
 		BackgroundEmojiID: backgroundEmojiID,
@@ -5605,7 +5752,7 @@ func (*ChannelsUpdateEmojiStatusParams) CRC() uint32 {
 	return 0xf0d3e6a8
 }
 
-// Set an [emoji status](https://core.telegram.org/api/emoji-status) for a channel or supergroup.
+// Set an emoji status for a channel or supergroup.
 func (c *Client) ChannelsUpdateEmojiStatus(channel InputChannel, emojiStatus EmojiStatus) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsUpdateEmojiStatusParams{
 		Channel:     channel,
@@ -5632,7 +5779,7 @@ func (*ChannelsUpdatePinnedForumTopicParams) CRC() uint32 {
 	return 0x6c2d9026
 }
 
-// Pin or unpin [forum topics](https://core.telegram.org/api/forum)
+// Pin or unpin forum topics
 func (c *Client) ChannelsUpdatePinnedForumTopic(channel InputChannel, topicID int32, pinned bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsUpdatePinnedForumTopicParams{
 		Channel: channel,
@@ -5684,7 +5831,7 @@ func (*ChatlistsCheckChatlistInviteParams) CRC() uint32 {
 	return 0x41c10fff
 }
 
-// Obtain information about a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
+// Obtain information about a chat folder deep link ».
 func (c *Client) ChatlistsCheckChatlistInvite(slug string) (ChatlistsChatlistInvite, error) {
 	responseData, err := c.MakeRequest(&ChatlistsCheckChatlistInviteParams{Slug: slug})
 	if err != nil {
@@ -5707,7 +5854,7 @@ func (*ChatlistsDeleteExportedInviteParams) CRC() uint32 {
 	return 0x719c5c5e
 }
 
-// Delete a previously created [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
+// Delete a previously created chat folder deep link ».
 func (c *Client) ChatlistsDeleteExportedInvite(chatlist *InputChatlistDialogFilter, slug string) (bool, error) {
 	responseData, err := c.MakeRequest(&ChatlistsDeleteExportedInviteParams{
 		Chatlist: chatlist,
@@ -5740,7 +5887,7 @@ func (*ChatlistsEditExportedInviteParams) FlagIndex() int {
 	return 0
 }
 
-// Edit a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
+// Edit a chat folder deep link ».
 func (c *Client) ChatlistsEditExportedInvite(params *ChatlistsEditExportedInviteParams) (*ExportedChatlistInvite, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -5764,7 +5911,7 @@ func (*ChatlistsExportChatlistInviteParams) CRC() uint32 {
 	return 0x8472478e
 }
 
-// Export a [folder »](https://core.telegram.org/api/folders), creating a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
+// Export a folder », creating a chat folder deep link ».
 func (c *Client) ChatlistsExportChatlistInvite(chatlist *InputChatlistDialogFilter, title string, peers []InputPeer) (*ChatlistsExportedChatlistInvite, error) {
 	responseData, err := c.MakeRequest(&ChatlistsExportChatlistInviteParams{
 		Chatlist: chatlist,
@@ -5790,7 +5937,7 @@ func (*ChatlistsGetChatlistUpdatesParams) CRC() uint32 {
 	return 0x89419521
 }
 
-// Fetch new chats associated with an imported [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links). Must be invoked at most every `chatlist_update_period` seconds (as per the related [client configuration parameter »](https://core.telegram.org/api/config#chatlist-update-period)).
+// Fetch new chats associated with an imported chat folder deep link ». Must be invoked at most every `chatlist_update_period` seconds (as per the related client configuration parameter »).
 func (c *Client) ChatlistsGetChatlistUpdates(chatlist *InputChatlistDialogFilter) (*ChatlistsChatlistUpdates, error) {
 	responseData, err := c.MakeRequest(&ChatlistsGetChatlistUpdatesParams{Chatlist: chatlist})
 	if err != nil {
@@ -5812,7 +5959,7 @@ func (*ChatlistsGetExportedInvitesParams) CRC() uint32 {
 	return 0xce03da83
 }
 
-// List all [chat folder deep links »](https://core.telegram.org/api/links#chat-folder-links) associated to a folder
+// List all chat folder deep links » associated to a folder
 func (c *Client) ChatlistsGetExportedInvites(chatlist *InputChatlistDialogFilter) (*ChatlistsExportedInvites, error) {
 	responseData, err := c.MakeRequest(&ChatlistsGetExportedInvitesParams{Chatlist: chatlist})
 	if err != nil {
@@ -5834,7 +5981,7 @@ func (*ChatlistsGetLeaveChatlistSuggestionsParams) CRC() uint32 {
 	return 0xfdbcd714
 }
 
-// Returns identifiers of pinned or always included chats from a chat folder imported using a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links), which are suggested to be left when the chat folder is deleted.
+// Returns identifiers of pinned or always included chats from a chat folder imported using a chat folder deep link », which are suggested to be left when the chat folder is deleted.
 func (c *Client) ChatlistsGetLeaveChatlistSuggestions(chatlist *InputChatlistDialogFilter) ([]Peer, error) {
 	responseData, err := c.MakeRequest(&ChatlistsGetLeaveChatlistSuggestionsParams{Chatlist: chatlist})
 	if err != nil {
@@ -5856,7 +6003,7 @@ func (*ChatlistsHideChatlistUpdatesParams) CRC() uint32 {
 	return 0x66e486fb
 }
 
-// Dismiss new pending peers recently added to a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
+// Dismiss new pending peers recently added to a chat folder deep link ».
 func (c *Client) ChatlistsHideChatlistUpdates(chatlist *InputChatlistDialogFilter) (bool, error) {
 	responseData, err := c.MakeRequest(&ChatlistsHideChatlistUpdatesParams{Chatlist: chatlist})
 	if err != nil {
@@ -5879,7 +6026,7 @@ func (*ChatlistsJoinChatlistInviteParams) CRC() uint32 {
 	return 0xa6b1e39a
 }
 
-// Import a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links), joining some or all the chats in the folder.
+// Import a chat folder deep link », joining some or all the chats in the folder.
 func (c *Client) ChatlistsJoinChatlistInvite(slug string, peers []InputPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChatlistsJoinChatlistInviteParams{
 		Peers: peers,
@@ -5905,7 +6052,7 @@ func (*ChatlistsJoinChatlistUpdatesParams) CRC() uint32 {
 	return 0xe089f8f5
 }
 
-// Join channels and supergroups recently added to a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
+// Join channels and supergroups recently added to a chat folder deep link ».
 func (c *Client) ChatlistsJoinChatlistUpdates(chatlist *InputChatlistDialogFilter, peers []InputPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChatlistsJoinChatlistUpdatesParams{
 		Chatlist: chatlist,
@@ -5931,7 +6078,7 @@ func (*ChatlistsLeaveChatlistParams) CRC() uint32 {
 	return 0x74fae13a
 }
 
-// Delete a folder imported using a [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links)
+// Delete a folder imported using a chat folder deep link »
 func (c *Client) ChatlistsLeaveChatlist(chatlist *InputChatlistDialogFilter, peers []InputPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChatlistsLeaveChatlistParams{
 		Chatlist: chatlist,
@@ -5956,7 +6103,7 @@ func (*ContactsAcceptContactParams) CRC() uint32 {
 	return 0xf831a20f
 }
 
-// If the [add contact action bar is active](https://core.telegram.org/api/action-bar#add-contact), add that user as contact
+// If the add contact action bar is active, add that user as contact
 func (c *Client) ContactsAcceptContact(id InputUser) (Updates, error) {
 	responseData, err := c.MakeRequest(&ContactsAcceptContactParams{ID: id})
 	if err != nil {
@@ -6013,7 +6160,7 @@ func (*ContactsBlockParams) FlagIndex() int {
 	return 0
 }
 
-// Adds a peer to a blocklist, see [here »](https://core.telegram.org/api/block) for more info.
+// Adds a peer to a blocklist, see here » for more info.
 func (c *Client) ContactsBlock(myStoriesFrom bool, id InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsBlockParams{
 		ID:            id,
@@ -6045,7 +6192,7 @@ func (*ContactsBlockFromRepliesParams) FlagIndex() int {
 	return 0
 }
 
-// Stop getting notifications about [discussion replies](https://core.telegram.org/api/discussion) of a certain user in `@replies`
+// Stop getting notifications about discussion replies of a certain user in `@replies`
 func (c *Client) ContactsBlockFromReplies(deleteMessage, deleteHistory, reportSpam bool, msgID int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&ContactsBlockFromRepliesParams{
 		DeleteHistory: deleteHistory,
@@ -6116,7 +6263,7 @@ func (*ContactsEditCloseFriendsParams) CRC() uint32 {
 	return 0xba6705f0
 }
 
-// Edit the [close friends list, see here »](https://core.telegram.org/api/privacy) for more info.
+// Edit the close friends list, see here » for more info.
 func (c *Client) ContactsEditCloseFriends(id []int64) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsEditCloseFriendsParams{ID: id})
 	if err != nil {
@@ -6156,7 +6303,7 @@ func (*ContactsExportContactTokenParams) CRC() uint32 {
 	return 0xf8654027
 }
 
-// Generates a [temporary profile link](https://core.telegram.org/api/links#temporary-profile-links) for the currently logged-in user.
+// Generates a temporary profile link for the currently logged-in user.
 func (c *Client) ContactsExportContactToken() (*ExportedContactToken, error) {
 	responseData, err := c.MakeRequest(&ContactsExportContactTokenParams{})
 	if err != nil {
@@ -6176,7 +6323,7 @@ func (*ContactsGetBirthdaysParams) CRC() uint32 {
 	return 0xdaeda864
 }
 
-// Fetch all users with birthdays that fall within +1/-1 days, relative to the current day: this method should be invoked by clients every 6-8 hours, and if the result is non-empty, it should be used to appropriately update locally cached birthday information in [user](https://core.telegram.org/constructor/user).`birthday`.
+// Fetch all users with birthdays that fall within +1/-1 days, relative to the current day: this method should be invoked by clients every 6-8 hours, and if the result is non-empty, it should be used to appropriately update locally cached birthday information in user.`birthday`.
 func (c *Client) ContactsGetBirthdays() (*ContactsContactBirthdays, error) {
 	responseData, err := c.MakeRequest(&ContactsGetBirthdaysParams{})
 	if err != nil {
@@ -6283,7 +6430,7 @@ func (*ContactsGetLocatedParams) FlagIndex() int {
 	return 0
 }
 
-// Get users and geochats near you, see [here »](https://core.telegram.org/api/nearby) for more info.
+// Get users and geochats near you, see here » for more info.
 func (c *Client) ContactsGetLocated(background bool, geoPoint InputGeoPoint, selfExpires int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&ContactsGetLocatedParams{
 		Background:  background,
@@ -6307,7 +6454,7 @@ func (*ContactsGetSavedParams) CRC() uint32 {
 	return 0x82f1e39f
 }
 
-// Get all contacts, requires a [takeout session, see here » for more info](https://core.telegram.org/api/takeout).
+// Get all contacts, requires a takeout session, see here » for more info.
 func (c *Client) ContactsGetSaved() ([]*SavedPhoneContact, error) {
 	responseData, err := c.MakeRequest(&ContactsGetSavedParams{})
 	if err != nil {
@@ -6386,7 +6533,7 @@ func (*ContactsImportCardParams) CRC() uint32 {
 	return 0x4fe196fe
 }
 
-// Returns general information on a user using his previously [exported card](https://core.telegram.orghttps://core.telegram.org/method/contacts.exportCard) as input.<br>The app may use it to open a conversation without knowing the user&#39;s phone number.
+// Returns general information on a user using his previously exported card as input.<br>The app may use it to open a conversation without knowing the user&#39;s phone number.
 func (c *Client) ContactsImportCard(exportCard []int32) (User, error) {
 	responseData, err := c.MakeRequest(&ContactsImportCardParams{ExportCard: exportCard})
 	if err != nil {
@@ -6408,7 +6555,7 @@ func (*ContactsImportContactTokenParams) CRC() uint32 {
 	return 0x13005788
 }
 
-// Obtain user info from a [temporary profile link](https://core.telegram.org/api/links#temporary-profile-links).
+// Obtain user info from a temporary profile link.
 func (c *Client) ContactsImportContactToken(token string) (User, error) {
 	responseData, err := c.MakeRequest(&ContactsImportContactTokenParams{Token: token})
 	if err != nil {
@@ -6473,7 +6620,7 @@ func (*ContactsResetTopPeerRatingParams) CRC() uint32 {
 	return 0x1ae373ac
 }
 
-// Reset [rating](https://core.telegram.org/api/top-rating) of top peer
+// Reset rating of top peer
 func (c *Client) ContactsResetTopPeerRating(category TopPeerCategory, peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsResetTopPeerRatingParams{
 		Category: category,
@@ -6582,7 +6729,7 @@ func (*ContactsSetBlockedParams) FlagIndex() int {
 	return 0
 }
 
-// Replace the contents of an entire [blocklist, see here for more info »](https://core.telegram.org/api/block).
+// Replace the contents of an entire blocklist, see here for more info ».
 func (c *Client) ContactsSetBlocked(myStoriesFrom bool, id []InputPeer, limit int32) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsSetBlockedParams{
 		ID:            id,
@@ -6608,7 +6755,7 @@ func (*ContactsToggleTopPeersParams) CRC() uint32 {
 	return 0x8514bdda
 }
 
-// Enable/disable [top peers](https://core.telegram.org/api/top-rating)
+// Enable/disable top peers
 func (c *Client) ContactsToggleTopPeers(enabled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsToggleTopPeersParams{Enabled: enabled})
 	if err != nil {
@@ -6635,7 +6782,7 @@ func (*ContactsUnblockParams) FlagIndex() int {
 	return 0
 }
 
-// Deletes a peer from a blocklist, see [here »](https://core.telegram.org/api/block) for more info.
+// Deletes a peer from a blocklist, see here » for more info.
 func (c *Client) ContactsUnblock(myStoriesFrom bool, id InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsUnblockParams{
 		ID:            id,
@@ -6660,7 +6807,7 @@ func (*FoldersDeleteFolderParams) CRC() uint32 {
 	return 0x1c295881
 }
 
-// Delete a [peer folder](https://core.telegram.org/api/folders#peer-folders)
+// Delete a peer folder
 func (c *Client) FoldersDeleteFolder(folderID int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&FoldersDeleteFolderParams{FolderID: folderID})
 	if err != nil {
@@ -6682,7 +6829,7 @@ func (*FoldersEditPeerFoldersParams) CRC() uint32 {
 	return 0x6847d0ab
 }
 
-// Edit peers in [peer folder](https://core.telegram.org/api/folders#peer-folders)
+// Edit peers in peer folder
 func (c *Client) FoldersEditPeerFolders(folderPeers []*InputFolderPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&FoldersEditPeerFoldersParams{FolderPeers: folderPeers})
 	if err != nil {
@@ -6704,7 +6851,7 @@ func (*FragmentGetCollectibleInfoParams) CRC() uint32 {
 	return 0xbe1e85ba
 }
 
-// Fetch information about a [fragment collectible, see here »](https://core.telegram.org/api/fragment#fetching-info-about-fragment-collectibles) for more info on the full flow.
+// Fetch information about a fragment collectible, see here » for more info on the full flow.
 func (c *Client) FragmentGetCollectibleInfo(collectible InputCollectible) (*FragmentCollectibleInfo, error) {
 	responseData, err := c.MakeRequest(&FragmentGetCollectibleInfoParams{Collectible: collectible})
 	if err != nil {
@@ -6749,7 +6896,7 @@ func (*HelpDismissSuggestionParams) CRC() uint32 {
 	return 0xf50dbaa1
 }
 
-// Dismiss a [suggestion, see here for more info »](https://core.telegram.org/api/config#suggestions).
+// Dismiss a suggestion, see here for more info ».
 func (c *Client) HelpDismissSuggestion(peer InputPeer, suggestion string) (bool, error) {
 	responseData, err := c.MakeRequest(&HelpDismissSuggestionParams{
 		Peer:       peer,
@@ -6794,31 +6941,6 @@ func (c *Client) HelpEditUserInfo(userID InputUser, message string, entities []M
 	return resp, nil
 }
 
-type HelpGetAppChangelogParams struct {
-	PrevAppVersion string
-}
-
-func (*HelpGetAppChangelogParams) CRC() uint32 {
-	return 0x9010ef6f
-}
-
-/*
-Get changelog of current app.<br>
-Typically, an [updates](https://core.telegram.org/constructor/updates) constructor will be returned, containing one or more [updateServiceNotification](https://core.telegram.org/constructor/updateServiceNotification) updates with app-specific changelogs.
-*/
-func (c *Client) HelpGetAppChangelog(prevAppVersion string) (Updates, error) {
-	responseData, err := c.MakeRequest(&HelpGetAppChangelogParams{PrevAppVersion: prevAppVersion})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending HelpGetAppChangelog")
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type HelpGetAppConfigParams struct {
 	Hash int32
 }
@@ -6827,7 +6949,7 @@ func (*HelpGetAppConfigParams) CRC() uint32 {
 	return 0x61e3f854
 }
 
-// Get app-specific configuration, see [client configuration](https://core.telegram.org/api/config#client-configuration) for more info on the result.
+// Get app-specific configuration, see client configuration for more info on the result.
 func (c *Client) HelpGetAppConfig(hash int32) (HelpAppConfig, error) {
 	responseData, err := c.MakeRequest(&HelpGetAppConfigParams{Hash: hash})
 	if err != nil {
@@ -6869,7 +6991,7 @@ func (*HelpGetCdnConfigParams) CRC() uint32 {
 	return 0x52029342
 }
 
-// Get configuration for [CDN](https://core.telegram.org/cdn) file downloads.
+// Get configuration for CDN file downloads.
 func (c *Client) HelpGetCdnConfig() (*CdnConfig, error) {
 	responseData, err := c.MakeRequest(&HelpGetCdnConfigParams{})
 	if err != nil {
@@ -6937,7 +7059,7 @@ func (*HelpGetDeepLinkInfoParams) CRC() uint32 {
 	return 0x3fedc75f
 }
 
-// Get info about an unsupported deep link, see [here for more info »](https://core.telegram.org/api/links#unsupported-links).
+// Get info about an unsupported deep link, see here for more info ».
 func (c *Client) HelpGetDeepLinkInfo(path string) (HelpDeepLinkInfo, error) {
 	responseData, err := c.MakeRequest(&HelpGetDeepLinkInfoParams{Path: path})
 	if err != nil {
@@ -6999,7 +7121,7 @@ func (*HelpGetPassportConfigParams) CRC() uint32 {
 	return 0xc661ad08
 }
 
-// Get [passport](https://core.telegram.org/passport) configuration
+// Get passport configuration
 func (c *Client) HelpGetPassportConfig(hash int32) (HelpPassportConfig, error) {
 	responseData, err := c.MakeRequest(&HelpGetPassportConfigParams{Hash: hash})
 	if err != nil {
@@ -7021,7 +7143,7 @@ func (*HelpGetPeerColorsParams) CRC() uint32 {
 	return 0xda80f42f
 }
 
-// Get the set of [accent color palettes »](https://core.telegram.org/api/colors) that can be used for message accents.
+// Get the set of accent color palettes » that can be used for message accents.
 func (c *Client) HelpGetPeerColors(hash int32) (HelpPeerColors, error) {
 	responseData, err := c.MakeRequest(&HelpGetPeerColorsParams{Hash: hash})
 	if err != nil {
@@ -7043,7 +7165,7 @@ func (*HelpGetPeerProfileColorsParams) CRC() uint32 {
 	return 0xabcfa9fd
 }
 
-// Get the set of [accent color palettes »](https://core.telegram.org/api/colors) that can be used in profile page backgrounds.
+// Get the set of accent color palettes » that can be used in profile page backgrounds.
 func (c *Client) HelpGetPeerProfileColors(hash int32) (HelpPeerColors, error) {
 	responseData, err := c.MakeRequest(&HelpGetPeerProfileColorsParams{Hash: hash})
 	if err != nil {
@@ -7187,7 +7309,7 @@ func (*HelpGetTimezonesListParams) CRC() uint32 {
 	return 0x49b30240
 }
 
-// Returns timezone information that may be used elsewhere in the API, such as to set [Telegram Business opening hours »](https://core.telegram.org/api/business#opening-hours).
+// Returns timezone information that may be used elsewhere in the API, such as to set Telegram Business opening hours ».
 func (c *Client) HelpGetTimezonesList(hash int32) (HelpTimezonesList, error) {
 	responseData, err := c.MakeRequest(&HelpGetTimezonesListParams{Hash: hash})
 	if err != nil {
@@ -7467,7 +7589,7 @@ func (*MessagesAcceptURLAuthParams) FlagIndex() int {
 	return 0
 }
 
-// Use this to accept a Seamless Telegram Login authorization request, for more info [click here »](https://core.telegram.org/api/url-authorization)
+// Use this to accept a Seamless Telegram Login authorization request, for more info click here »
 func (c *Client) MessagesAcceptURLAuth(params *MessagesAcceptURLAuthParams) (URLAuthResult, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -7539,7 +7661,7 @@ func (*MessagesCheckHistoryImportParams) CRC() uint32 {
 	return 0x43fe19f3
 }
 
-// Obtains information about a chat export file, generated by a foreign chat app, [click here for more info about imported chats »](https://core.telegram.org/api/import).
+// Obtains information about a chat export file, generated by a foreign chat app, click here for more info about imported chats ».
 func (c *Client) MessagesCheckHistoryImport(importHead string) (*MessagesHistoryImportParsed, error) {
 	responseData, err := c.MakeRequest(&MessagesCheckHistoryImportParams{ImportHead: importHead})
 	if err != nil {
@@ -7561,7 +7683,7 @@ func (*MessagesCheckHistoryImportPeerParams) CRC() uint32 {
 	return 0x5dc60f03
 }
 
-// Check whether chat history exported from another chat app can be [imported into a specific Telegram chat, click here for more info »](https://core.telegram.org/api/import).
+// Check whether chat history exported from another chat app can be imported into a specific Telegram chat, click here for more info ».
 func (c *Client) MessagesCheckHistoryImportPeer(peer InputPeer) (*MessagesCheckedHistoryImportPeer, error) {
 	responseData, err := c.MakeRequest(&MessagesCheckHistoryImportPeerParams{Peer: peer})
 	if err != nil {
@@ -7583,7 +7705,7 @@ func (*MessagesCheckQuickReplyShortcutParams) CRC() uint32 {
 	return 0xf1d0fbd3
 }
 
-// Before offering the user the choice to add a message to a [quick reply shortcut](https://core.telegram.org/api/business#quick-reply-shortcuts), to make sure that none of the limits specified [here »](https://core.telegram.org/api/business#quick-reply-shortcuts) were reached.
+// Before offering the user the choice to add a message to a quick reply shortcut, to make sure that none of the limits specified here » were reached.
 func (c *Client) MessagesCheckQuickReplyShortcut(shortcut string) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesCheckQuickReplyShortcutParams{Shortcut: shortcut})
 	if err != nil {
@@ -7603,7 +7725,7 @@ func (*MessagesClearAllDraftsParams) CRC() uint32 {
 	return 0x7e58ee9c
 }
 
-// Clear all [drafts](https://core.telegram.org/api/drafts).
+// Clear all drafts.
 func (c *Client) MessagesClearAllDrafts() (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesClearAllDraftsParams{})
 	if err != nil {
@@ -7623,7 +7745,7 @@ func (*MessagesClearRecentReactionsParams) CRC() uint32 {
 	return 0x9dfeefb4
 }
 
-// Clear recently used [message reactions](https://core.telegram.org/api/reactions)
+// Clear recently used message reactions
 func (c *Client) MessagesClearRecentReactions() (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesClearRecentReactionsParams{})
 	if err != nil {
@@ -7678,6 +7800,7 @@ func (*MessagesClickSponsoredMessageParams) FlagIndex() int {
 	return 0
 }
 
+// Informs the server that the user has interacted with a sponsored message in one of the ways listed here ».
 func (c *Client) MessagesClickSponsoredMessage(media, fullscreen bool, peer InputPeer, randomID []byte) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesClickSponsoredMessageParams{
 		Fullscreen: fullscreen,
@@ -7690,31 +7813,6 @@ func (c *Client) MessagesClickSponsoredMessage(media, fullscreen bool, peer Inpu
 	}
 
 	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesConnectStarRefBotParams struct {
-	Peer InputPeer
-	Bot  InputUser
-}
-
-func (*MessagesConnectStarRefBotParams) CRC() uint32 {
-	return 0x7ed5348a
-}
-
-func (c *Client) MessagesConnectStarRefBot(peer InputPeer, bot InputUser) (*ConnectedStarRefBots, error) {
-	responseData, err := c.MakeRequest(&MessagesConnectStarRefBotParams{
-		Bot:  bot,
-		Peer: peer,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesConnectStarRefBot")
-	}
-
-	resp, ok := responseData.(*ConnectedStarRefBots)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -7761,7 +7859,7 @@ func (*MessagesDeleteChatParams) CRC() uint32 {
 	return 0x5bd0ee50
 }
 
-// Delete a [chat](https://core.telegram.org/api/channel)
+// Delete a chat
 func (c *Client) MessagesDeleteChat(chatID int64) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesDeleteChatParams{ChatID: chatID})
 	if err != nil {
@@ -7842,7 +7940,7 @@ func (*MessagesDeleteFactCheckParams) CRC() uint32 {
 	return 0xd1da940c
 }
 
-// Delete a [fact-check](https://core.telegram.org/api/factcheck) from a message.
+// Delete a fact-check from a message.
 func (c *Client) MessagesDeleteFactCheck(peer InputPeer, msgID int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesDeleteFactCheckParams{
 		MsgID: msgID,
@@ -7955,7 +8053,7 @@ func (*MessagesDeleteQuickReplyMessagesParams) CRC() uint32 {
 	return 0xe105e910
 }
 
-// Delete one or more messages from a [quick reply shortcut](https://core.telegram.org/api/business#quick-reply-shortcuts). This will also emit an [updateDeleteQuickReplyMessages](https://core.telegram.org/constructor/updateDeleteQuickReplyMessages) update.
+// Delete one or more messages from a quick reply shortcut. This will also emit an updateDeleteQuickReplyMessages update.
 func (c *Client) MessagesDeleteQuickReplyMessages(shortcutID int32, id []int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesDeleteQuickReplyMessagesParams{
 		ID:         id,
@@ -7981,8 +8079,8 @@ func (*MessagesDeleteQuickReplyShortcutParams) CRC() uint32 {
 }
 
 /*
-Completely delete a [quick reply shortcut](https://core.telegram.org/api/business#quick-reply-shortcuts).<br>
-This will also emit an [updateDeleteQuickReply](https://core.telegram.org/constructor/updateDeleteQuickReply) update to other logged-in sessions (and <em>no</em> [updateDeleteQuickReplyMessages](https://core.telegram.org/constructor/updateDeleteQuickReplyMessages) updates, even if all the messages in the shortcuts are also deleted by this method).
+Completely delete a quick reply shortcut.<br>
+This will also emit an updateDeleteQuickReply update to other logged-in sessions (and <em>no</em> updateDeleteQuickReplyMessages updates, even if all the messages in the shortcuts are also deleted by this method).
 */
 func (c *Client) MessagesDeleteQuickReplyShortcut(shortcutID int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesDeleteQuickReplyShortcutParams{ShortcutID: shortcutID})
@@ -8038,7 +8136,7 @@ func (*MessagesDeleteSavedHistoryParams) FlagIndex() int {
 	return 0
 }
 
-// Deletes messages forwarded from a specific peer to [saved messages »](https://core.telegram.org/api/saved-messages).
+// Deletes messages forwarded from a specific peer to saved messages ».
 func (c *Client) MessagesDeleteSavedHistory(peer InputPeer, maxID, minDate, maxDate int32) (*MessagesAffectedHistory, error) {
 	responseData, err := c.MakeRequest(&MessagesDeleteSavedHistoryParams{
 		MaxDate: maxDate,
@@ -8122,7 +8220,7 @@ func (*MessagesEditChatAboutParams) CRC() uint32 {
 	return 0xdef60797
 }
 
-// Edit the description of a [group/supergroup/channel](https://core.telegram.org/api/channel).
+// Edit the description of a group/supergroup/channel.
 func (c *Client) MessagesEditChatAbout(peer InputPeer, about string) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesEditChatAboutParams{
 		About: about,
@@ -8149,7 +8247,7 @@ func (*MessagesEditChatAdminParams) CRC() uint32 {
 	return 0xa85bd1c2
 }
 
-// Make a user admin in a [basic group](https://core.telegram.org/api/channel#basic-groups).
+// Make a user admin in a basic group.
 func (c *Client) MessagesEditChatAdmin(chatID int64, userID InputUser, isAdmin bool) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesEditChatAdminParams{
 		ChatID:  chatID,
@@ -8176,7 +8274,7 @@ func (*MessagesEditChatDefaultBannedRightsParams) CRC() uint32 {
 	return 0xa5866b41
 }
 
-// Edit the default banned rights of a [channel/supergroup/group](https://core.telegram.org/api/channel).
+// Edit the default banned rights of a channel/supergroup/group.
 func (c *Client) MessagesEditChatDefaultBannedRights(peer InputPeer, bannedRights *ChatBannedRights) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesEditChatDefaultBannedRightsParams{
 		BannedRights: bannedRights,
@@ -8245,37 +8343,6 @@ func (c *Client) MessagesEditChatTitle(chatID int64, title string) (Updates, err
 	return resp, nil
 }
 
-type MessagesEditConnectedStarRefBotParams struct {
-	Revoked bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer    InputPeer
-	Link    string
-}
-
-func (*MessagesEditConnectedStarRefBotParams) CRC() uint32 {
-	return 0xe4fca4a3
-}
-
-func (*MessagesEditConnectedStarRefBotParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesEditConnectedStarRefBot(revoked bool, peer InputPeer, link string) (*ConnectedStarRefBots, error) {
-	responseData, err := c.MakeRequest(&MessagesEditConnectedStarRefBotParams{
-		Link:    link,
-		Peer:    peer,
-		Revoked: revoked,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesEditConnectedStarRefBot")
-	}
-
-	resp, ok := responseData.(*ConnectedStarRefBots)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesEditExportedChatInviteParams struct {
 	Revoked       bool `tl:"flag:2,encoded_in_bitflags"`
 	Peer          InputPeer
@@ -8318,7 +8385,7 @@ func (*MessagesEditFactCheckParams) CRC() uint32 {
 	return 0x589ee75
 }
 
-// Edit/create a [fact-check](https://core.telegram.org/api/factcheck) on a message.
+// Edit/create a fact-check on a message.
 func (c *Client) MessagesEditFactCheck(peer InputPeer, msgID int32, text *TextWithEntities) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesEditFactCheckParams{
 		MsgID: msgID,
@@ -8413,8 +8480,8 @@ func (*MessagesEditQuickReplyShortcutParams) CRC() uint32 {
 }
 
 /*
-Rename a [quick reply shortcut](https://core.telegram.org/api/business#quick-reply-shortcuts).<br>
-This will emit an [updateQuickReplies](https://core.telegram.org/constructor/updateQuickReplies) update to other logged-in sessions.
+Rename a quick reply shortcut.<br>
+This will emit an updateQuickReplies update to other logged-in sessions.
 */
 func (c *Client) MessagesEditQuickReplyShortcut(shortcutID int32, shortcut string) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesEditQuickReplyShortcutParams{
@@ -8558,25 +8625,6 @@ func (c *Client) MessagesForwardMessages(params *MessagesForwardMessagesParams) 
 	return resp, nil
 }
 
-type MessagesGetAdminedBotsParams struct{}
-
-func (*MessagesGetAdminedBotsParams) CRC() uint32 {
-	return 0xb0711d83
-}
-
-func (c *Client) MessagesGetAdminedBots() ([]int32, error) {
-	responseData, err := c.MakeRequest(&MessagesGetAdminedBotsParams{})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetAdminedBots")
-	}
-
-	resp, ok := responseData.([]int32)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesGetAdminsWithInvitesParams struct {
 	Peer InputPeer
 }
@@ -8628,8 +8676,8 @@ func (*MessagesGetAllDraftsParams) CRC() uint32 {
 }
 
 /*
-Return all message [drafts](https://core.telegram.org/api/drafts).<br>
-Returns all the latest [updateDraftMessage](https://core.telegram.org/constructor/updateDraftMessage) updates related to all chats with drafts.
+Return all message drafts.<br>
+Returns all the latest updateDraftMessage updates related to all chats with drafts.
 */
 func (c *Client) MessagesGetAllDrafts() (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAllDraftsParams{})
@@ -8708,7 +8756,7 @@ func (*MessagesGetAttachMenuBotParams) CRC() uint32 {
 	return 0x77216192
 }
 
-// Returns attachment menu entry for a [bot mini app that can be launched from the attachment menu »](https://core.telegram.org/api/bots/attach)
+// Returns attachment menu entry for a bot mini app that can be launched from the attachment menu »
 func (c *Client) MessagesGetAttachMenuBot(bot InputUser) (*AttachMenuBotsBot, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAttachMenuBotParams{Bot: bot})
 	if err != nil {
@@ -8730,7 +8778,7 @@ func (*MessagesGetAttachMenuBotsParams) CRC() uint32 {
 	return 0x16fcc2cb
 }
 
-// Returns installed attachment menu [bot mini apps »](https://core.telegram.org/api/bots/attach)
+// Returns installed attachment menu bot mini apps »
 func (c *Client) MessagesGetAttachMenuBots(hash int64) (AttachMenuBots, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAttachMenuBotsParams{Hash: hash})
 	if err != nil {
@@ -8774,7 +8822,7 @@ func (*MessagesGetAvailableEffectsParams) CRC() uint32 {
 	return 0xdea20a39
 }
 
-// Fetch the full list of usable [animated message effects »](https://core.telegram.org/api/effects).
+// Fetch the full list of usable animated message effects ».
 func (c *Client) MessagesGetAvailableEffects(hash int32) (MessagesAvailableEffects, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAvailableEffectsParams{Hash: hash})
 	if err != nil {
@@ -8796,7 +8844,7 @@ func (*MessagesGetAvailableReactionsParams) CRC() uint32 {
 	return 0x18dea0ac
 }
 
-// Obtain available [message reactions »](https://core.telegram.org/api/reactions)
+// Obtain available message reactions »
 func (c *Client) MessagesGetAvailableReactions(hash int32) (MessagesAvailableReactions, error) {
 	responseData, err := c.MakeRequest(&MessagesGetAvailableReactionsParams{Hash: hash})
 	if err != nil {
@@ -8819,7 +8867,7 @@ func (*MessagesGetBotAppParams) CRC() uint32 {
 	return 0x34fdc5c3
 }
 
-// Obtain information about a [direct link Mini App](https://core.telegram.org/api/bots/webapps#direct-link-mini-apps)
+// Obtain information about a direct link Mini App
 func (c *Client) MessagesGetBotApp(app InputBotApp, hash int64) (*MessagesBotApp, error) {
 	responseData, err := c.MakeRequest(&MessagesGetBotAppParams{
 		App:  app,
@@ -8949,64 +8997,6 @@ func (c *Client) MessagesGetCommonChats(userID InputUser, maxID int64, limit int
 	return resp, nil
 }
 
-type MessagesGetConnectedStarRefBotParams struct {
-	Peer InputPeer
-	Bot  InputUser
-}
-
-func (*MessagesGetConnectedStarRefBotParams) CRC() uint32 {
-	return 0xb7d998f0
-}
-
-func (c *Client) MessagesGetConnectedStarRefBot(peer InputPeer, bot InputUser) (*ConnectedStarRefBots, error) {
-	responseData, err := c.MakeRequest(&MessagesGetConnectedStarRefBotParams{
-		Bot:  bot,
-		Peer: peer,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetConnectedStarRefBot")
-	}
-
-	resp, ok := responseData.(*ConnectedStarRefBots)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesGetConnectedStarRefBotsParams struct {
-	Peer       InputPeer
-	OffsetDate int32  `tl:"flag:2"`
-	OffsetLink string `tl:"flag:2"`
-	Limit      int32
-}
-
-func (*MessagesGetConnectedStarRefBotsParams) CRC() uint32 {
-	return 0x5869a553
-}
-
-func (*MessagesGetConnectedStarRefBotsParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesGetConnectedStarRefBots(peer InputPeer, offsetDate int32, offsetLink string, limit int32) (*ConnectedStarRefBots, error) {
-	responseData, err := c.MakeRequest(&MessagesGetConnectedStarRefBotsParams{
-		Limit:      limit,
-		OffsetDate: offsetDate,
-		OffsetLink: offsetLink,
-		Peer:       peer,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetConnectedStarRefBots")
-	}
-
-	resp, ok := responseData.(*ConnectedStarRefBots)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type MessagesGetCustomEmojiDocumentsParams struct {
 	DocumentID []int64
 }
@@ -9015,7 +9005,7 @@ func (*MessagesGetCustomEmojiDocumentsParams) CRC() uint32 {
 	return 0xd9ab0f54
 }
 
-// Fetch [custom emoji stickers »](https://core.telegram.org/api/custom-emoji).
+// Fetch custom emoji stickers ».
 func (c *Client) MessagesGetCustomEmojiDocuments(documentID []int64) ([]Document, error) {
 	responseData, err := c.MakeRequest(&MessagesGetCustomEmojiDocumentsParams{DocumentID: documentID})
 	if err != nil {
@@ -9057,7 +9047,7 @@ func (*MessagesGetDefaultTagReactionsParams) CRC() uint32 {
 	return 0xbdf93428
 }
 
-// Fetch a default recommended list of [saved message tag reactions](https://core.telegram.org/api/saved-messages#tags).
+// Fetch a default recommended list of saved message tag reactions.
 func (c *Client) MessagesGetDefaultTagReactions(hash int64) (MessagesReactions, error) {
 	responseData, err := c.MakeRequest(&MessagesGetDefaultTagReactionsParams{Hash: hash})
 	if err != nil {
@@ -9103,7 +9093,7 @@ func (*MessagesGetDialogFiltersParams) CRC() uint32 {
 	return 0xefd48c89
 }
 
-// Get [folders](https://core.telegram.org/api/folders)
+// Get folders
 func (c *Client) MessagesGetDialogFilters() (*MessagesDialogFilters, error) {
 	responseData, err := c.MakeRequest(&MessagesGetDialogFiltersParams{})
 	if err != nil {
@@ -9178,7 +9168,7 @@ func (*MessagesGetDiscussionMessageParams) CRC() uint32 {
 	return 0x446972fd
 }
 
-// Get [discussion message](https://core.telegram.org/api/threads) from the [associated discussion group](https://core.telegram.org/api/discussion) of a channel to show it on top of the comment section, without actually joining the group
+// Get discussion message from the associated discussion group of a channel to show it on top of the comment section, without actually joining the group
 func (c *Client) MessagesGetDiscussionMessage(peer InputPeer, msgID int32) (*MessagesDiscussionMessage, error) {
 	responseData, err := c.MakeRequest(&MessagesGetDiscussionMessageParams{
 		MsgID: msgID,
@@ -9231,7 +9221,7 @@ func (*MessagesGetEmojiGroupsParams) CRC() uint32 {
 	return 0x7488ce5b
 }
 
-// Represents a list of [emoji categories](https://core.telegram.org/api/emoji-categories).
+// Represents a list of emoji categories.
 func (c *Client) MessagesGetEmojiGroups(hash int32) (MessagesEmojiGroups, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiGroupsParams{Hash: hash})
 	if err != nil {
@@ -9253,7 +9243,7 @@ func (*MessagesGetEmojiKeywordsParams) CRC() uint32 {
 	return 0x35a0e062
 }
 
-// Get localized [emoji keywords »](https://core.telegram.org/api/custom-emoji#emoji-keywords).
+// Get localized emoji keywords ».
 func (c *Client) MessagesGetEmojiKeywords(langCode string) (*EmojiKeywordsDifference, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiKeywordsParams{LangCode: langCode})
 	if err != nil {
@@ -9276,7 +9266,7 @@ func (*MessagesGetEmojiKeywordsDifferenceParams) CRC() uint32 {
 	return 0x1508b6af
 }
 
-// Get changed [emoji keywords »](https://core.telegram.org/api/custom-emoji#emoji-keywords).
+// Get changed emoji keywords ».
 func (c *Client) MessagesGetEmojiKeywordsDifference(langCode string, fromVersion int32) (*EmojiKeywordsDifference, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiKeywordsDifferenceParams{
 		FromVersion: fromVersion,
@@ -9301,7 +9291,7 @@ func (*MessagesGetEmojiKeywordsLanguagesParams) CRC() uint32 {
 	return 0x4e9963b2
 }
 
-// Obtain a list of related languages that must be used when fetching [emoji keyword lists »](https://core.telegram.org/api/custom-emoji#emoji-keywords).
+// Obtain a list of related languages that must be used when fetching emoji keyword lists ».
 func (c *Client) MessagesGetEmojiKeywordsLanguages(langCodes []string) ([]*EmojiLanguage, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiKeywordsLanguagesParams{LangCodes: langCodes})
 	if err != nil {
@@ -9323,7 +9313,7 @@ func (*MessagesGetEmojiProfilePhotoGroupsParams) CRC() uint32 {
 	return 0x21a548f3
 }
 
-// Represents a list of [emoji categories](https://core.telegram.org/api/emoji-categories), to be used when selecting custom emojis to set as [profile picture](https://core.telegram.org/api/files#sticker-profile-pictures).
+// Represents a list of emoji categories, to be used when selecting custom emojis to set as profile picture.
 func (c *Client) MessagesGetEmojiProfilePhotoGroups(hash int32) (MessagesEmojiGroups, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiProfilePhotoGroupsParams{Hash: hash})
 	if err != nil {
@@ -9345,7 +9335,7 @@ func (*MessagesGetEmojiStatusGroupsParams) CRC() uint32 {
 	return 0x2ecd56cd
 }
 
-// Represents a list of [emoji categories](https://core.telegram.org/api/emoji-categories), to be used when selecting custom emojis to set as [custom emoji status](https://core.telegram.org/api).
+// Represents a list of emoji categories, to be used when selecting custom emojis to set as custom emoji status.
 func (c *Client) MessagesGetEmojiStatusGroups(hash int32) (MessagesEmojiGroups, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiStatusGroupsParams{Hash: hash})
 	if err != nil {
@@ -9367,7 +9357,7 @@ func (*MessagesGetEmojiStickerGroupsParams) CRC() uint32 {
 	return 0x1dd840f5
 }
 
-// Represents a list of [emoji categories](https://core.telegram.org/api/emoji-categories), to be used when choosing a sticker.
+// Represents a list of emoji categories, to be used when choosing a sticker.
 func (c *Client) MessagesGetEmojiStickerGroups(hash int32) (MessagesEmojiGroups, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiStickerGroupsParams{Hash: hash})
 	if err != nil {
@@ -9389,7 +9379,7 @@ func (*MessagesGetEmojiStickersParams) CRC() uint32 {
 	return 0xfbfca18f
 }
 
-// Gets the list of currently installed [custom emoji stickersets](https://core.telegram.org/api/custom-emoji).
+// Gets the list of currently installed custom emoji stickersets.
 func (c *Client) MessagesGetEmojiStickers(hash int64) (MessagesAllStickers, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiStickersParams{Hash: hash})
 	if err != nil {
@@ -9411,7 +9401,7 @@ func (*MessagesGetEmojiURLParams) CRC() uint32 {
 	return 0xd5b10c26
 }
 
-// Returns an HTTP URL which can be used to automatically log in into translation platform and suggest new [emoji keywords »](https://core.telegram.org/api/custom-emoji#emoji-keywords). The URL will be valid for 30 seconds after generation.
+// Returns an HTTP URL which can be used to automatically log in into translation platform and suggest new emoji keywords ». The URL will be valid for 30 seconds after generation.
 func (c *Client) MessagesGetEmojiURL(langCode string) (*EmojiURL, error) {
 	responseData, err := c.MakeRequest(&MessagesGetEmojiURLParams{LangCode: langCode})
 	if err != nil {
@@ -9491,7 +9481,7 @@ func (*MessagesGetExtendedMediaParams) CRC() uint32 {
 	return 0x84f80814
 }
 
-// Fetch updated information about [paid media, see here »](https://core.telegram.org/api/paid-media) for the full flow.
+// Fetch updated information about paid media, see here » for the full flow.
 func (c *Client) MessagesGetExtendedMedia(peer InputPeer, id []int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesGetExtendedMediaParams{
 		ID:   id,
@@ -9517,7 +9507,7 @@ func (*MessagesGetFactCheckParams) CRC() uint32 {
 	return 0xb9cdc5ee
 }
 
-// Fetch one or more [factchecks, see here »](https://core.telegram.org/api/factcheck) for the full flow.
+// Fetch one or more factchecks, see here » for the full flow.
 func (c *Client) MessagesGetFactCheck(peer InputPeer, msgID []int32) ([]*FactCheck, error) {
 	responseData, err := c.MakeRequest(&MessagesGetFactCheckParams{
 		MsgID: msgID,
@@ -9608,7 +9598,7 @@ func (*MessagesGetFullChatParams) CRC() uint32 {
 	return 0xaeb00b34
 }
 
-// Get full info about a [basic group](https://core.telegram.org/api/channel#basic-groups).
+// Get full info about a basic group.
 func (c *Client) MessagesGetFullChat(chatID int64) (*MessagesChatFull, error) {
 	responseData, err := c.MakeRequest(&MessagesGetFullChatParams{ChatID: chatID})
 	if err != nil {
@@ -9799,7 +9789,7 @@ func (*MessagesGetMessageReactionsListParams) FlagIndex() int {
 	return 0
 }
 
-// Get [message reaction](https://core.telegram.org/api/reactions) list, along with the sender of each reaction.
+// Get message reaction list, along with the sender of each reaction.
 func (c *Client) MessagesGetMessageReactionsList(params *MessagesGetMessageReactionsListParams) (*MessagesMessageReactionsList, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -9822,7 +9812,7 @@ func (*MessagesGetMessageReadParticipantsParams) CRC() uint32 {
 	return 0x31c1c44f
 }
 
-// Get which users read a specific message: only available for groups and supergroups with less than <a href="/api/config#chat-read-mark-size-threshold">`chat_read_mark_size_threshold` members</a>, read receipts will be stored for <a href="/api/config#chat-read-mark-expire-period">`chat_read_mark_expire_period` seconds after the message was sent</a>, see [client configuration for more info »](https://core.telegram.org/api/config#client-configuration).
+// Get which users read a specific message: only available for groups and supergroups with less than <a href="/api/config#chat-read-mark-size-threshold">`chat_read_mark_size_threshold` members</a>, read receipts will be stored for <a href="/api/config#chat-read-mark-expire-period">`chat_read_mark_expire_period` seconds after the message was sent</a>, see client configuration for more info ».
 func (c *Client) MessagesGetMessageReadParticipants(peer InputPeer, msgID int32) ([]*ReadParticipantDate, error) {
 	responseData, err := c.MakeRequest(&MessagesGetMessageReadParticipantsParams{
 		MsgID: msgID,
@@ -9870,7 +9860,7 @@ func (*MessagesGetMessagesReactionsParams) CRC() uint32 {
 	return 0x8bba90e6
 }
 
-// Get [message reactions »](https://core.telegram.org/api/reactions)
+// Get message reactions »
 func (c *Client) MessagesGetMessagesReactions(peer InputPeer, id []int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesGetMessagesReactionsParams{
 		ID:   id,
@@ -9897,7 +9887,7 @@ func (*MessagesGetMessagesViewsParams) CRC() uint32 {
 	return 0x5784d3e1
 }
 
-// Get and increase the view counter of a message sent or forwarded from a [channel](https://core.telegram.org/api/channel)
+// Get and increase the view counter of a message sent or forwarded from a channel
 func (c *Client) MessagesGetMessagesViews(peer InputPeer, id []int32, increment bool) (*MessagesMessageViews, error) {
 	responseData, err := c.MakeRequest(&MessagesGetMessagesViewsParams{
 		ID:        id,
@@ -9924,7 +9914,7 @@ func (*MessagesGetMyStickersParams) CRC() uint32 {
 	return 0xd0b5e1fc
 }
 
-// Fetch all [stickersets »](https://core.telegram.org/api/stickers) owned by the current user.
+// Fetch all stickersets » owned by the current user.
 func (c *Client) MessagesGetMyStickers(offsetID int64, limit int32) (*MessagesMyStickers, error) {
 	responseData, err := c.MakeRequest(&MessagesGetMyStickersParams{
 		Limit:    limit,
@@ -10023,6 +10013,7 @@ func (*MessagesGetPaidReactionPrivacyParams) CRC() uint32 {
 	return 0x472455aa
 }
 
+// Fetches an updatePaidReactionPrivacy update with the current default paid reaction privacy, see here » for more info.
 func (c *Client) MessagesGetPaidReactionPrivacy() (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesGetPaidReactionPrivacyParams{})
 	if err != nil {
@@ -10108,7 +10099,7 @@ func (*MessagesGetPinnedSavedDialogsParams) CRC() uint32 {
 	return 0xd63d94e0
 }
 
-// Get pinned [saved dialogs, see here »](https://core.telegram.org/api/saved-messages) for more info.
+// Get pinned saved dialogs, see here » for more info.
 func (c *Client) MessagesGetPinnedSavedDialogs() (MessagesSavedDialogs, error) {
 	responseData, err := c.MakeRequest(&MessagesGetPinnedSavedDialogsParams{})
 	if err != nil {
@@ -10187,6 +10178,25 @@ func (*MessagesGetPreparedInlineMessageParams) CRC() uint32 {
 	return 0x857ebdb8
 }
 
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>messages.preparedInlineMessage#ff57708d query_id:long result:BotInlineResult peer_types:Vector&lt;InlineQueryPeerType&gt; cache_time:int users:Vector&lt;User&gt; = messages.PreparedInlineMessage;
+---functions---
+<a  href="/method/messages.getPreparedInlineMessage"  class="current_page_link" >messages.getPreparedInlineMessage</a>#857ebdb8 bot:InputUser id:string = messages.PreparedInlineMessage;</code></pre>
+*/
 func (c *Client) MessagesGetPreparedInlineMessage(bot InputUser, id string) (*MessagesPreparedInlineMessage, error) {
 	responseData, err := c.MakeRequest(&MessagesGetPreparedInlineMessageParams{
 		Bot: bot,
@@ -10211,7 +10221,7 @@ func (*MessagesGetQuickRepliesParams) CRC() uint32 {
 	return 0xd483f2a8
 }
 
-// Fetch basic info about all existing [quick reply shortcuts](https://core.telegram.org/api/business#quick-reply-shortcuts).
+// Fetch basic info about all existing quick reply shortcuts.
 func (c *Client) MessagesGetQuickReplies(hash int64) (MessagesQuickReplies, error) {
 	responseData, err := c.MakeRequest(&MessagesGetQuickRepliesParams{Hash: hash})
 	if err != nil {
@@ -10239,7 +10249,7 @@ func (*MessagesGetQuickReplyMessagesParams) FlagIndex() int {
 	return 0
 }
 
-// Fetch (a subset or all) messages in a [quick reply shortcut »](https://core.telegram.org/api/business#quick-reply-shortcuts).
+// Fetch (a subset or all) messages in a quick reply shortcut ».
 func (c *Client) MessagesGetQuickReplyMessages(shortcutID int32, id []int32, hash int64) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(&MessagesGetQuickReplyMessagesParams{
 		Hash:       hash,
@@ -10294,7 +10304,7 @@ func (*MessagesGetRecentReactionsParams) CRC() uint32 {
 	return 0x39461db2
 }
 
-// Get recently used [message reactions](https://core.telegram.org/api/reactions)
+// Get recently used message reactions
 func (c *Client) MessagesGetRecentReactions(limit int32, hash int64) (MessagesReactions, error) {
 	responseData, err := c.MakeRequest(&MessagesGetRecentReactionsParams{
 		Hash:  hash,
@@ -10388,7 +10398,7 @@ func (*MessagesGetSavedDialogsParams) FlagIndex() int {
 	return 0
 }
 
-// Returns the current saved dialog list, see [here »](https://core.telegram.org/api/saved-messages) for more info.
+// Returns the current saved dialog list, see here » for more info.
 func (c *Client) MessagesGetSavedDialogs(params *MessagesGetSavedDialogsParams) (MessagesSavedDialogs, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -10439,7 +10449,7 @@ func (*MessagesGetSavedHistoryParams) CRC() uint32 {
 	return 0x3d9a414d
 }
 
-// Returns [saved messages »](https://core.telegram.org/api/saved-messages) forwarded from a specific peer
+// Returns saved messages » forwarded from a specific peer
 func (c *Client) MessagesGetSavedHistory(params *MessagesGetSavedHistoryParams) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -10466,7 +10476,7 @@ func (*MessagesGetSavedReactionTagsParams) FlagIndex() int {
 	return 0
 }
 
-// Fetch the full list of [saved message tags](https://core.telegram.org/api/saved-messages#tags) created by the user.
+// Fetch the full list of saved message tags created by the user.
 func (c *Client) MessagesGetSavedReactionTags(peer InputPeer, hash int64) (MessagesSavedReactionTags, error) {
 	responseData, err := c.MakeRequest(&MessagesGetSavedReactionTagsParams{
 		Hash: hash,
@@ -10550,7 +10560,7 @@ func (*MessagesGetSearchCountersParams) FlagIndex() int {
 	return 0
 }
 
-// Get the number of results that would be found by a [messages.search](https://core.telegram.org/method/messages.search) call with the same parameters
+// Get the number of results that would be found by a messages.search call with the same parameters
 func (c *Client) MessagesGetSearchCounters(peer, savedPeerID InputPeer, topMsgID int32, filters []MessagesFilter) ([]*MessagesSearchCounter, error) {
 	responseData, err := c.MakeRequest(&MessagesGetSearchCountersParams{
 		Filters:     filters,
@@ -10657,6 +10667,7 @@ func (*MessagesGetSponsoredMessagesParams) CRC() uint32 {
 	return 0x9bd2f439
 }
 
+// Get a list of sponsored messages for a peer, see here » for more info.
 func (c *Client) MessagesGetSponsoredMessages(peer InputPeer) (MessagesSponsoredMessages, error) {
 	responseData, err := c.MakeRequest(&MessagesGetSponsoredMessagesParams{Peer: peer})
 	if err != nil {
@@ -10760,7 +10771,7 @@ func (*MessagesGetSuggestedDialogFiltersParams) CRC() uint32 {
 	return 0xa29cd42c
 }
 
-// Get [suggested folders](https://core.telegram.org/api/folders)
+// Get suggested folders
 func (c *Client) MessagesGetSuggestedDialogFilters() ([]*DialogFilterSuggested, error) {
 	responseData, err := c.MakeRequest(&MessagesGetSuggestedDialogFiltersParams{})
 	if err != nil {
@@ -10768,35 +10779,6 @@ func (c *Client) MessagesGetSuggestedDialogFilters() ([]*DialogFilterSuggested, 
 	}
 
 	resp, ok := responseData.([]*DialogFilterSuggested)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesGetSuggestedStarRefBotsParams struct {
-	OrderByRevenue bool `tl:"flag:0,encoded_in_bitflags"`
-	OrderByDate    bool `tl:"flag:1,encoded_in_bitflags"`
-	Peer           InputPeer
-	Offset         string
-	Limit          int32
-}
-
-func (*MessagesGetSuggestedStarRefBotsParams) CRC() uint32 {
-	return 0xd6b48f7
-}
-
-func (*MessagesGetSuggestedStarRefBotsParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesGetSuggestedStarRefBots(params *MessagesGetSuggestedStarRefBotsParams) (*SuggestedStarRefBots, error) {
-	responseData, err := c.MakeRequest(params)
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesGetSuggestedStarRefBots")
-	}
-
-	resp, ok := responseData.(*SuggestedStarRefBots)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -10812,7 +10794,7 @@ func (*MessagesGetTopReactionsParams) CRC() uint32 {
 	return 0xbb8125ba
 }
 
-// Got popular [message reactions](https://core.telegram.org/api/reactions)
+// Got popular message reactions
 func (c *Client) MessagesGetTopReactions(limit int32, hash int64) (MessagesReactions, error) {
 	responseData, err := c.MakeRequest(&MessagesGetTopReactionsParams{
 		Hash:  hash,
@@ -10902,7 +10884,7 @@ func (*MessagesGetWebPageParams) CRC() uint32 {
 	return 0x8d9692a3
 }
 
-// Get [instant view](https://core.telegram.orghttps://instantview.telegram.org) page
+// Get instant view page
 func (c *Client) MessagesGetWebPage(url string, hash int32) (*MessagesWebPage, error) {
 	responseData, err := c.MakeRequest(&MessagesGetWebPageParams{
 		Hash: hash,
@@ -10990,7 +10972,7 @@ func (*MessagesHideAllChatJoinRequestsParams) FlagIndex() int {
 	return 0
 }
 
-// Dismiss or approve all [join requests](https://core.telegram.org/api/invites#join-requests) related to a specific chat or channel.
+// Dismiss or approve all join requests related to a specific chat or channel.
 func (c *Client) MessagesHideAllChatJoinRequests(approved bool, peer InputPeer, link string) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesHideAllChatJoinRequestsParams{
 		Approved: approved,
@@ -11022,7 +11004,7 @@ func (*MessagesHideChatJoinRequestParams) FlagIndex() int {
 	return 0
 }
 
-// Dismiss or approve a chat [join request](https://core.telegram.org/api/invites#join-requests) related to a specific chat or channel.
+// Dismiss or approve a chat join request related to a specific chat or channel.
 func (c *Client) MessagesHideChatJoinRequest(approved bool, peer InputPeer, userID InputUser) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesHideChatJoinRequestParams{
 		Approved: approved,
@@ -11048,7 +11030,7 @@ func (*MessagesHidePeerSettingsBarParams) CRC() uint32 {
 	return 0x4facb138
 }
 
-// Should be called after the user hides the [report spam/add as contact bar](https://core.telegram.org/api/action-bar) of a new chat, effectively prevents the user from executing the actions specified in the [action bar »](https://core.telegram.org/api/action-bar).
+// Should be called after the user hides the report spam/add as contact bar of a new chat, effectively prevents the user from executing the actions specified in the action bar ».
 func (c *Client) MessagesHidePeerSettingsBar(peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesHidePeerSettingsBarParams{Peer: peer})
 	if err != nil {
@@ -11094,7 +11076,7 @@ func (*MessagesInitHistoryImportParams) CRC() uint32 {
 	return 0x34090c3b
 }
 
-// Import chat history from a foreign chat app into a specific Telegram chat, [click here for more info about imported chats »](https://core.telegram.org/api/import).
+// Import chat history from a foreign chat app into a specific Telegram chat, click here for more info about imported chats ».
 func (c *Client) MessagesInitHistoryImport(peer InputPeer, file InputFile, mediaCount int32) (*MessagesHistoryImport, error) {
 	responseData, err := c.MakeRequest(&MessagesInitHistoryImportParams{
 		File:       file,
@@ -11176,7 +11158,7 @@ func (*MessagesMigrateChatParams) CRC() uint32 {
 	return 0xa2875319
 }
 
-// Turn a [basic group into a supergroup](https://core.telegram.org/api/channel#migration)
+// Turn a basic group into a supergroup
 func (c *Client) MessagesMigrateChat(chatID int64) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesMigrateChatParams{ChatID: chatID})
 	if err != nil {
@@ -11232,7 +11214,7 @@ func (*MessagesRateTranscribedAudioParams) CRC() uint32 {
 	return 0x7f1d072f
 }
 
-// Rate [transcribed voice message](https://core.telegram.org/api/transcribe)
+// Rate transcribed voice message
 func (c *Client) MessagesRateTranscribedAudio(peer InputPeer, msgID int32, transcriptionID int64, good bool) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesRateTranscribedAudioParams{
 		Good:            good,
@@ -11261,7 +11243,7 @@ func (*MessagesReadDiscussionParams) CRC() uint32 {
 	return 0xf731a9f4
 }
 
-// Mark a [thread](https://core.telegram.org/api/threads) as read
+// Mark a thread as read
 func (c *Client) MessagesReadDiscussion(peer InputPeer, msgID, readMaxID int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReadDiscussionParams{
 		MsgID:     msgID,
@@ -11418,7 +11400,7 @@ func (*MessagesReadReactionsParams) FlagIndex() int {
 	return 0
 }
 
-// Mark [message reactions »](https://core.telegram.org/api/reactions) as read
+// Mark message reactions » as read
 func (c *Client) MessagesReadReactions(peer InputPeer, topMsgID int32) (*MessagesAffectedHistory, error) {
 	responseData, err := c.MakeRequest(&MessagesReadReactionsParams{
 		Peer:     peer,
@@ -11527,7 +11509,7 @@ func (*MessagesReorderPinnedSavedDialogsParams) FlagIndex() int {
 	return 0
 }
 
-// Reorder pinned [saved message dialogs »](https://core.telegram.org/api/saved-messages).
+// Reorder pinned saved message dialogs ».
 func (c *Client) MessagesReorderPinnedSavedDialogs(force bool, order []InputDialogPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReorderPinnedSavedDialogsParams{
 		Force: force,
@@ -11552,7 +11534,7 @@ func (*MessagesReorderQuickRepliesParams) CRC() uint32 {
 	return 0x60331907
 }
 
-// Reorder [quick reply shortcuts](https://core.telegram.org/api/business#quick-reply-shortcuts).
+// Reorder quick reply shortcuts.
 func (c *Client) MessagesReorderQuickReplies(order []int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReorderQuickRepliesParams{Order: order})
 	if err != nil {
@@ -11660,7 +11642,7 @@ func (*MessagesReportReactionParams) CRC() uint32 {
 	return 0x3f64c076
 }
 
-// Report a [message reaction](https://core.telegram.org/api/reactions)
+// Report a message reaction
 func (c *Client) MessagesReportReaction(peer InputPeer, id int32, reactionPeer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReportReactionParams{
 		ID:           id,
@@ -11686,7 +11668,7 @@ func (*MessagesReportSpamParams) CRC() uint32 {
 	return 0xcf1592db
 }
 
-// Report a new incoming chat for spam, if the [peer settings](https://core.telegram.org/constructor/peerSettings) of the chat allow us to do that
+// Report a new incoming chat for spam, if the peer settings of the chat allow us to do that
 func (c *Client) MessagesReportSpam(peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesReportSpamParams{Peer: peer})
 	if err != nil {
@@ -11710,6 +11692,7 @@ func (*MessagesReportSponsoredMessageParams) CRC() uint32 {
 	return 0x1af3dbb8
 }
 
+// Report a sponsored message », see here » for more info on the full flow.
 func (c *Client) MessagesReportSponsoredMessage(peer InputPeer, randomID, option []byte) (ChannelsSponsoredMessageReportResult, error) {
 	responseData, err := c.MakeRequest(&MessagesReportSponsoredMessageParams{
 		Option:   option,
@@ -11746,7 +11729,7 @@ func (*MessagesRequestAppWebViewParams) FlagIndex() int {
 	return 0
 }
 
-// Open a [bot mini app](https://core.telegram.org/bots/webapps) from a [direct Mini App deep link](https://core.telegram.org/api/links#direct-mini-app-links), sending over user information after user confirmation.
+// Open a bot mini app from a direct Mini App deep link, sending over user information after user confirmation.
 func (c *Client) MessagesRequestAppWebView(params *MessagesRequestAppWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -11806,7 +11789,7 @@ func (*MessagesRequestMainWebViewParams) FlagIndex() int {
 	return 0
 }
 
-// Open a [Main Mini App](https://core.telegram.org/api/bots/webapps#main-mini-apps).
+// Open a Main Mini App.
 func (c *Client) MessagesRequestMainWebView(params *MessagesRequestMainWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -11840,7 +11823,7 @@ func (*MessagesRequestSimpleWebViewParams) FlagIndex() int {
 	return 0
 }
 
-// Open a [bot mini app](https://core.telegram.org/api/bots/webapps).
+// Open a bot mini app.
 func (c *Client) MessagesRequestSimpleWebView(params *MessagesRequestSimpleWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -11869,7 +11852,7 @@ func (*MessagesRequestURLAuthParams) FlagIndex() int {
 	return 0
 }
 
-// Get more info about a Seamless Telegram Login authorization request, for more info [click here »](https://core.telegram.org/api/url-authorization)
+// Get more info about a Seamless Telegram Login authorization request, for more info click here »
 func (c *Client) MessagesRequestURLAuth(peer InputPeer, msgID, buttonID int32, url string) (URLAuthResult, error) {
 	responseData, err := c.MakeRequest(&MessagesRequestURLAuthParams{
 		ButtonID: buttonID,
@@ -11911,7 +11894,7 @@ func (*MessagesRequestWebViewParams) FlagIndex() int {
 	return 0
 }
 
-// Open a [bot mini app](https://core.telegram.org/bots/webapps), sending over user information after user confirmation.
+// Open a bot mini app, sending over user information after user confirmation.
 func (c *Client) MessagesRequestWebView(params *MessagesRequestWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -11970,7 +11953,7 @@ func (*MessagesSaveDraftParams) FlagIndex() int {
 	return 0
 }
 
-// Save a message [draft](https://core.telegram.org/api/drafts) associated to a chat.
+// Save a message draft associated to a chat.
 func (c *Client) MessagesSaveDraft(params *MessagesSaveDraftParams) (bool, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -12024,6 +12007,25 @@ func (*MessagesSavePreparedInlineMessageParams) FlagIndex() int {
 	return 0
 }
 
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>messages.botPreparedInlineMessage#8ecf0511 id:string expire_date:int = messages.BotPreparedInlineMessage;
+---functions---
+<a  href="/method/messages.savePreparedInlineMessage"  class="current_page_link" >messages.savePreparedInlineMessage</a>#f21f7f2f flags:# result:InputBotInlineResult user_id:InputUser peer_types:flags.0?Vector&lt;InlineQueryPeerType&gt; = messages.BotPreparedInlineMessage;</code></pre>
+*/
 func (c *Client) MessagesSavePreparedInlineMessage(result InputBotInlineResult, userID InputUser, peerTypes []InlineQueryPeerType) (*MessagesBotPreparedInlineMessage, error) {
 	responseData, err := c.MakeRequest(&MessagesSavePreparedInlineMessageParams{
 		PeerTypes: peerTypes,
@@ -12122,7 +12124,7 @@ func (*MessagesSearchCustomEmojiParams) CRC() uint32 {
 	return 0x2c11c0d7
 }
 
-// Look for [custom emojis](https://core.telegram.org/api/custom-emoji) associated to a UTF8 emoji
+// Look for custom emojis associated to a UTF8 emoji
 func (c *Client) MessagesSearchCustomEmoji(emoticon string, hash int64) (EmojiList, error) {
 	responseData, err := c.MakeRequest(&MessagesSearchCustomEmojiParams{
 		Emoticon: emoticon,
@@ -12153,7 +12155,7 @@ func (*MessagesSearchEmojiStickerSetsParams) FlagIndex() int {
 	return 0
 }
 
-// Search for [custom emoji stickersets »](https://core.telegram.org/api/custom-emoji)
+// Search for custom emoji stickersets »
 func (c *Client) MessagesSearchEmojiStickerSets(excludeFeatured bool, q string, hash int64) (MessagesFoundStickerSets, error) {
 	responseData, err := c.MakeRequest(&MessagesSearchEmojiStickerSetsParams{
 		ExcludeFeatured: excludeFeatured,
@@ -12272,6 +12274,7 @@ func (c *Client) MessagesSearchStickerSets(excludeFeatured bool, q string, hash 
 type MessagesSearchStickersParams struct {
 	Emojis   bool `tl:"flag:0,encoded_in_bitflags"`
 	Q        string
+	Emoticon string
 	LangCode []string
 	Offset   int32
 	Limit    int32
@@ -12286,6 +12289,26 @@ func (*MessagesSearchStickersParams) FlagIndex() int {
 	return 0
 }
 
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>messages.foundStickersNotModified#6010c534 flags:# next_offset:flags.0?int = messages.FoundStickers;
+messages.foundStickers#82c9e290 flags:# next_offset:flags.0?int hash:long stickers:Vector&lt;Document&gt; = messages.FoundStickers;
+---functions---
+<a  href="/method/messages.searchStickers"  class="current_page_link" >messages.searchStickers</a>#29b1c66a flags:# emojis:flags.0?true q:string emoticon:string lang_code:Vector&lt;string&gt; offset:int limit:int hash:long = messages.FoundStickers;</code></pre>
+*/
 func (c *Client) MessagesSearchStickers(params *MessagesSearchStickersParams) (MessagesFoundStickers, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -12310,7 +12333,7 @@ func (*MessagesSendBotRequestedPeerParams) CRC() uint32 {
 	return 0x91b2d060
 }
 
-// Send one or more chosen peers, as requested by a [keyboardButtonRequestPeer](https://core.telegram.org/constructor/keyboardButtonRequestPeer) button.
+// Send one or more chosen peers, as requested by a keyboardButtonRequestPeer button.
 func (c *Client) MessagesSendBotRequestedPeer(peer InputPeer, msgID, buttonID int32, requestedPeers []InputPeer) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesSendBotRequestedPeerParams{
 		ButtonID:       buttonID,
@@ -12463,7 +12486,7 @@ func (*MessagesSendInlineBotResultParams) FlagIndex() int {
 	return 0
 }
 
-// Send a result obtained using [messages.getInlineBotResults](https://core.telegram.org/method/messages.getInlineBotResults).
+// Send a result obtained using messages.getInlineBotResults.
 func (c *Client) MessagesSendInlineBotResult(params *MessagesSendInlineBotResultParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -12588,7 +12611,7 @@ func (*MessagesSendMultiMediaParams) FlagIndex() int {
 	return 0
 }
 
-// Send an [album or grouped media](https://core.telegram.org/api/files#albums-grouped-media)
+// Send an album or grouped media
 func (c *Client) MessagesSendMultiMedia(params *MessagesSendMultiMediaParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -12618,6 +12641,7 @@ func (*MessagesSendPaidReactionParams) FlagIndex() int {
 	return 0
 }
 
+// Sends one or more paid Telegram Star reactions », transferring Telegram Stars » to a channel's balance.
 func (c *Client) MessagesSendPaidReaction(params *MessagesSendPaidReactionParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -12642,7 +12666,7 @@ func (*MessagesSendQuickReplyMessagesParams) CRC() uint32 {
 	return 0x6c750de1
 }
 
-// Send a [quick reply shortcut »](https://core.telegram.org/api/business#quick-reply-shortcuts).
+// Send a quick reply shortcut ».
 func (c *Client) MessagesSendQuickReplyMessages(peer InputPeer, shortcutID int32, id []int32, randomID []int64) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesSendQuickReplyMessagesParams{
 		ID:         id,
@@ -12755,7 +12779,7 @@ func (*MessagesSendVoteParams) CRC() uint32 {
 	return 0x10ea6184
 }
 
-// Vote in a [poll](https://core.telegram.org/constructor/poll)
+// Vote in a poll
 func (c *Client) MessagesSendVote(peer InputPeer, msgID int32, options [][]byte) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesSendVoteParams{
 		MsgID:   msgID,
@@ -12784,7 +12808,7 @@ func (*MessagesSendWebViewDataParams) CRC() uint32 {
 	return 0xdc0242c8
 }
 
-// Used by the user to relay data from an opened [reply keyboard bot mini app](https://core.telegram.org/api/bots/webapps) to the bot that owns it.
+// Used by the user to relay data from an opened reply keyboard bot mini app to the bot that owns it.
 func (c *Client) MessagesSendWebViewData(bot InputUser, randomID int64, buttonText, data string) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesSendWebViewDataParams{
 		Bot:        bot,
@@ -12812,7 +12836,7 @@ func (*MessagesSendWebViewResultMessageParams) CRC() uint32 {
 	return 0xa4314f5
 }
 
-// Terminate webview interaction started with [messages.requestWebView](https://core.telegram.org/method/messages.requestWebView), sending the specified message to the chat on behalf of the user.
+// Terminate webview interaction started with messages.requestWebView, sending the specified message to the chat on behalf of the user.
 func (c *Client) MessagesSendWebViewResultMessage(botQueryID string, result InputBotInlineResult) (*WebViewMessageSent, error) {
 	responseData, err := c.MakeRequest(&MessagesSendWebViewResultMessageParams{
 		BotQueryID: botQueryID,
@@ -12874,7 +12898,7 @@ func (*MessagesSetBotPrecheckoutResultsParams) FlagIndex() int {
 }
 
 /*
-Once the user has confirmed their payment and shipping details, the bot receives an [updateBotPrecheckoutQuery](https://core.telegram.org/constructor/updateBotPrecheckoutQuery) update.<br>
+Once the user has confirmed their payment and shipping details, the bot receives an updateBotPrecheckoutQuery update.<br>
 Use this method to respond to such pre-checkout queries.<br>
 <strong>Note</strong>: Telegram must receive an answer within 10 seconds after the pre-checkout query was sent.
 */
@@ -12909,7 +12933,7 @@ func (*MessagesSetBotShippingResultsParams) FlagIndex() int {
 	return 0
 }
 
-// If you sent an invoice requesting a shipping address and the parameter is_flexible was specified, the bot will receive an [updateBotShippingQuery](https://core.telegram.org/constructor/updateBotShippingQuery) update. Use this method to reply to shipping queries.
+// If you sent an invoice requesting a shipping address and the parameter is_flexible was specified, the bot will receive an updateBotShippingQuery update. Use this method to reply to shipping queries.
 func (c *Client) MessagesSetBotShippingResults(queryID int64, error string, shippingOptions []*ShippingOption) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesSetBotShippingResultsParams{
 		Error:           error,
@@ -12942,7 +12966,7 @@ func (*MessagesSetChatAvailableReactionsParams) FlagIndex() int {
 	return 0
 }
 
-// Change the set of [message reactions »](https://core.telegram.org/api/reactions) that can be used in a certain group, supergroup or channel
+// Change the set of message reactions » that can be used in a certain group, supergroup or channel
 func (c *Client) MessagesSetChatAvailableReactions(peer InputPeer, availableReactions ChatReactions, reactionsLimit int32, paidEnabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesSetChatAvailableReactionsParams{
 		AvailableReactions: availableReactions,
@@ -13004,7 +13028,7 @@ func (*MessagesSetChatWallPaperParams) FlagIndex() int {
 	return 0
 }
 
-// Set a custom [wallpaper »](https://core.telegram.org/api/wallpapers) in a specific private chat with another user.
+// Set a custom wallpaper » in a specific private chat with another user.
 func (c *Client) MessagesSetChatWallPaper(params *MessagesSetChatWallPaperParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -13222,7 +13246,7 @@ func (*MessagesSetTypingParams) FlagIndex() int {
 	return 0
 }
 
-// Sends a current user typing event (see [SendMessageAction](https://core.telegram.org/type/SendMessageAction) for all event types) to a conversation partner or group.
+// Sends a current user typing event (see SendMessageAction for all event types) to a conversation partner or group.
 func (c *Client) MessagesSetTyping(peer InputPeer, topMsgID int32, action SendMessageAction) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesSetTypingParams{
 		Action:   action,
@@ -13272,7 +13296,7 @@ func (*MessagesStartBotParams) CRC() uint32 {
 	return 0xe6df7378
 }
 
-// Start a conversation with a bot using a [deep linking parameter](https://core.telegram.org/api/links#bot-links)
+// Start a conversation with a bot using a deep linking parameter
 func (c *Client) MessagesStartBot(bot InputUser, peer InputPeer, randomID int64, startParam string) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesStartBotParams{
 		Bot:        bot,
@@ -13301,8 +13325,8 @@ func (*MessagesStartHistoryImportParams) CRC() uint32 {
 }
 
 /*
-Complete the [history import process](https://core.telegram.org/api/import), importing all messages into the chat.<br>
-To be called only after initializing the import with [messages.initHistoryImport](https://core.telegram.org/method/messages.initHistoryImport) and uploading all files using [messages.uploadImportedMedia](https://core.telegram.org/method/messages.uploadImportedMedia).
+Complete the history import process, importing all messages into the chat.<br>
+To be called only after initializing the import with messages.initHistoryImport and uploading all files using messages.uploadImportedMedia.
 */
 func (c *Client) MessagesStartHistoryImport(peer InputPeer, importID int64) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesStartHistoryImportParams{
@@ -13334,7 +13358,7 @@ func (*MessagesToggleBotInAttachMenuParams) FlagIndex() int {
 	return 0
 }
 
-// Enable or disable [web bot attachment menu »](https://core.telegram.org/api/bots/attach)
+// Enable or disable web bot attachment menu »
 func (c *Client) MessagesToggleBotInAttachMenu(writeAllowed bool, bot InputUser, enabled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesToggleBotInAttachMenuParams{
 		Bot:          bot,
@@ -13360,7 +13384,7 @@ func (*MessagesToggleDialogFilterTagsParams) CRC() uint32 {
 	return 0xfd2dda49
 }
 
-// Enable or disable [folder tags »](https://core.telegram.org/api/folders#folder-tags).
+// Enable or disable folder tags ».
 func (c *Client) MessagesToggleDialogFilterTags(enabled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesToggleDialogFilterTagsParams{Enabled: enabled})
 	if err != nil {
@@ -13413,7 +13437,7 @@ func (*MessagesToggleNoForwardsParams) CRC() uint32 {
 	return 0xb11eafa2
 }
 
-// Enable or disable [content protection](https://core.telegram.orghttps://telegram.org/blog/protected-content-delete-by-date-and-more) on a channel or chat
+// Enable or disable content protection on a channel or chat
 func (c *Client) MessagesToggleNoForwards(peer InputPeer, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesToggleNoForwardsParams{
 		Enabled: enabled,
@@ -13440,6 +13464,7 @@ func (*MessagesTogglePaidReactionPrivacyParams) CRC() uint32 {
 	return 0x849ad397
 }
 
+// Changes the privacy of already sent paid reactions on a specific message.
 func (c *Client) MessagesTogglePaidReactionPrivacy(peer InputPeer, msgID int32, private bool) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesTogglePaidReactionPrivacyParams{
 		MsgID:   msgID,
@@ -13470,7 +13495,7 @@ func (*MessagesTogglePeerTranslationsParams) FlagIndex() int {
 	return 0
 }
 
-// Show or hide the [real-time chat translation popup](https://core.telegram.org/api/translation) for a certain chat
+// Show or hide the real-time chat translation popup for a certain chat
 func (c *Client) MessagesTogglePeerTranslations(disabled bool, peer InputPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesTogglePeerTranslationsParams{
 		Disabled: disabled,
@@ -13500,7 +13525,7 @@ func (*MessagesToggleSavedDialogPinParams) FlagIndex() int {
 	return 0
 }
 
-// Pin or unpin a [saved message dialog »](https://core.telegram.org/api/saved-messages).
+// Pin or unpin a saved message dialog ».
 func (c *Client) MessagesToggleSavedDialogPin(pinned bool, peer InputDialogPeer) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesToggleSavedDialogPinParams{
 		Peer:   peer,
@@ -13560,7 +13585,7 @@ func (*MessagesTranscribeAudioParams) CRC() uint32 {
 	return 0x269e9a49
 }
 
-// [Transcribe voice message](https://core.telegram.org/api/transcribe)
+// Transcribe voice message
 func (c *Client) MessagesTranscribeAudio(peer InputPeer, msgID int32) (*MessagesTranscribedAudio, error) {
 	responseData, err := c.MakeRequest(&MessagesTranscribeAudioParams{
 		MsgID: msgID,
@@ -13646,7 +13671,7 @@ func (*MessagesUnpinAllMessagesParams) FlagIndex() int {
 	return 0
 }
 
-// [Unpin](https://core.telegram.org/api/pin) all pinned messages
+// Unpin all pinned messages
 func (c *Client) MessagesUnpinAllMessages(peer InputPeer, topMsgID int32) (*MessagesAffectedHistory, error) {
 	responseData, err := c.MakeRequest(&MessagesUnpinAllMessagesParams{
 		Peer:     peer,
@@ -13676,7 +13701,7 @@ func (*MessagesUpdateDialogFilterParams) FlagIndex() int {
 	return 0
 }
 
-// Update [folder](https://core.telegram.org/api/folders)
+// Update folder
 func (c *Client) MessagesUpdateDialogFilter(id int32, filter DialogFilter) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesUpdateDialogFilterParams{
 		Filter: filter,
@@ -13701,7 +13726,7 @@ func (*MessagesUpdateDialogFiltersOrderParams) CRC() uint32 {
 	return 0xc563c1e4
 }
 
-// Reorder [folders](https://core.telegram.org/api/folders)
+// Reorder folders
 func (c *Client) MessagesUpdateDialogFiltersOrder(order []int32) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesUpdateDialogFiltersOrderParams{Order: order})
 	if err != nil {
@@ -13758,7 +13783,7 @@ func (*MessagesUpdateSavedReactionTagParams) FlagIndex() int {
 	return 0
 }
 
-// Update the [description of a saved message tag »](https://core.telegram.org/api/saved-messages#tags).
+// Update the description of a saved message tag ».
 func (c *Client) MessagesUpdateSavedReactionTag(reaction Reaction, title string) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesUpdateSavedReactionTagParams{
 		Reaction: reaction,
@@ -13769,37 +13794,6 @@ func (c *Client) MessagesUpdateSavedReactionTag(reaction Reaction, title string)
 	}
 
 	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type MessagesUpdateStarRefProgramParams struct {
-	Bot                InputUser
-	CommissionPermille int32
-	DurationMonths     int32 `tl:"flag:0"`
-}
-
-func (*MessagesUpdateStarRefProgramParams) CRC() uint32 {
-	return 0x778b5ab3
-}
-
-func (*MessagesUpdateStarRefProgramParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesUpdateStarRefProgram(bot InputUser, commissionPermille, durationMonths int32) (*StarRefProgram, error) {
-	responseData, err := c.MakeRequest(&MessagesUpdateStarRefProgramParams{
-		Bot:                bot,
-		CommissionPermille: commissionPermille,
-		DurationMonths:     durationMonths,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending MessagesUpdateStarRefProgram")
-	}
-
-	resp, ok := responseData.(*StarRefProgram)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -13843,7 +13837,7 @@ func (*MessagesUploadImportedMediaParams) CRC() uint32 {
 	return 0x2a862092
 }
 
-// Upload a media file associated with an [imported chat, click here for more info »](https://core.telegram.org/api/import).
+// Upload a media file associated with an imported chat, click here for more info ».
 func (c *Client) MessagesUploadImportedMedia(peer InputPeer, importID int64, fileName string, media InputMedia) (MessageMedia, error) {
 	responseData, err := c.MakeRequest(&MessagesUploadImportedMediaParams{
 		FileName: fileName,
@@ -13903,6 +13897,7 @@ func (*MessagesViewSponsoredMessageParams) CRC() uint32 {
 	return 0x673ad8f1
 }
 
+// Mark a specific sponsored message » as read
 func (c *Client) MessagesViewSponsoredMessage(peer InputPeer, randomID []byte) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesViewSponsoredMessageParams{
 		Peer:     peer,
@@ -13927,7 +13922,7 @@ func (*PaymentsApplyGiftCodeParams) CRC() uint32 {
 	return 0xf6e26854
 }
 
-// Apply a [Telegram Premium giftcode »](https://core.telegram.org/api/giveaways)
+// Apply a Telegram Premium giftcode »
 func (c *Client) PaymentsApplyGiftCode(slug string) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsApplyGiftCodeParams{Slug: slug})
 	if err != nil {
@@ -13994,26 +13989,44 @@ func (c *Client) PaymentsAssignPlayMarketTransaction(receipt *DataJson, purpose 
 }
 
 type PaymentsBotCancelStarsSubscriptionParams struct {
-	Restore     bool `tl:"flag:0,encoded_in_bitflags"`
-	UserID      InputUser
-	InvoiceSlug string `tl:"flag:1"`
-	ChargeID    string `tl:"flag:2"`
+	Restore  bool `tl:"flag:0,encoded_in_bitflags"`
+	UserID   InputUser
+	ChargeID string
 }
 
 func (*PaymentsBotCancelStarsSubscriptionParams) CRC() uint32 {
-	return 0x57f9ece6
+	return 0x6dfa0622
 }
 
 func (*PaymentsBotCancelStarsSubscriptionParams) FlagIndex() int {
 	return 0
 }
 
-func (c *Client) PaymentsBotCancelStarsSubscription(restore bool, userID InputUser, invoiceSlug, chargeID string) (bool, error) {
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>boolFalse#bc799737 = Bool;
+boolTrue#997275b5 = Bool;
+---functions---
+<a  href="/method/payments.botCancelStarsSubscription"  class="current_page_link" >payments.botCancelStarsSubscription</a>#6dfa0622 flags:# restore:flags.0?true user_id:InputUser charge_id:string = Bool;</code></pre>
+*/
+func (c *Client) PaymentsBotCancelStarsSubscription(restore bool, userID InputUser, chargeID string) (bool, error) {
 	responseData, err := c.MakeRequest(&PaymentsBotCancelStarsSubscriptionParams{
-		ChargeID:    chargeID,
-		InvoiceSlug: invoiceSlug,
-		Restore:     restore,
-		UserID:      userID,
+		ChargeID: chargeID,
+		Restore:  restore,
+		UserID:   userID,
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending PaymentsBotCancelStarsSubscription")
@@ -14062,6 +14075,7 @@ func (*PaymentsChangeStarsSubscriptionParams) FlagIndex() int {
 	return 0
 }
 
+// Activate or deactivate a Telegram Star subscription ».
 func (c *Client) PaymentsChangeStarsSubscription(peer InputPeer, subscriptionID string, canceled bool) (bool, error) {
 	responseData, err := c.MakeRequest(&PaymentsChangeStarsSubscriptionParams{
 		Canceled:       canceled,
@@ -14087,7 +14101,7 @@ func (*PaymentsCheckGiftCodeParams) CRC() uint32 {
 	return 0x8e51b4c1
 }
 
-// Obtain information about a [Telegram Premium giftcode »](https://core.telegram.org/api/giveaways)
+// Obtain information about a Telegram Premium giftcode »
 func (c *Client) PaymentsCheckGiftCode(slug string) (*PaymentsCheckedGiftCode, error) {
 	responseData, err := c.MakeRequest(&PaymentsCheckGiftCodeParams{Slug: slug})
 	if err != nil {
@@ -14131,6 +14145,50 @@ func (c *Client) PaymentsClearSavedInfo(credentials, info bool) (bool, error) {
 	return resp, nil
 }
 
+type PaymentsConnectStarRefBotParams struct {
+	Peer InputPeer
+	Bot  InputUser
+}
+
+func (*PaymentsConnectStarRefBotParams) CRC() uint32 {
+	return 0x7ed5348a
+}
+
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>payments.connectedStarRefBots#98d5ea1d count:int connected_bots:Vector&lt;ConnectedBotStarRef&gt; users:Vector&lt;User&gt; = payments.ConnectedStarRefBots;
+---functions---
+<a  href="/method/payments.connectStarRefBot"  class="current_page_link" >payments.connectStarRefBot</a>#7ed5348a peer:InputPeer bot:InputUser = payments.ConnectedStarRefBots;</code></pre>
+*/
+func (c *Client) PaymentsConnectStarRefBot(peer InputPeer, bot InputUser) (*PaymentsConnectedStarRefBots, error) {
+	responseData, err := c.MakeRequest(&PaymentsConnectStarRefBotParams{
+		Bot:  bot,
+		Peer: peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsConnectStarRefBot")
+	}
+
+	resp, ok := responseData.(*PaymentsConnectedStarRefBots)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsConvertStarGiftParams struct {
 	UserID InputUser
 	MsgID  int32
@@ -14140,6 +14198,7 @@ func (*PaymentsConvertStarGiftParams) CRC() uint32 {
 	return 0x421e027
 }
 
+// Convert a received gift » into Telegram Stars: this will permanently destroy the gift, converting it into starGift.`convert_stars` Telegram Stars, added to the user's balance.
 func (c *Client) PaymentsConvertStarGift(userID InputUser, msgID int32) (bool, error) {
 	responseData, err := c.MakeRequest(&PaymentsConvertStarGiftParams{
 		MsgID:  msgID,
@@ -14156,6 +14215,56 @@ func (c *Client) PaymentsConvertStarGift(userID InputUser, msgID int32) (bool, e
 	return resp, nil
 }
 
+type PaymentsEditConnectedStarRefBotParams struct {
+	Revoked bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer    InputPeer
+	Link    string
+}
+
+func (*PaymentsEditConnectedStarRefBotParams) CRC() uint32 {
+	return 0xe4fca4a3
+}
+
+func (*PaymentsEditConnectedStarRefBotParams) FlagIndex() int {
+	return 0
+}
+
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>payments.connectedStarRefBots#98d5ea1d count:int connected_bots:Vector&lt;ConnectedBotStarRef&gt; users:Vector&lt;User&gt; = payments.ConnectedStarRefBots;
+---functions---
+<a  href="/method/payments.editConnectedStarRefBot"  class="current_page_link" >payments.editConnectedStarRefBot</a>#e4fca4a3 flags:# revoked:flags.0?true peer:InputPeer link:string = payments.ConnectedStarRefBots;</code></pre>
+*/
+func (c *Client) PaymentsEditConnectedStarRefBot(revoked bool, peer InputPeer, link string) (*PaymentsConnectedStarRefBots, error) {
+	responseData, err := c.MakeRequest(&PaymentsEditConnectedStarRefBotParams{
+		Link:    link,
+		Peer:    peer,
+		Revoked: revoked,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsEditConnectedStarRefBot")
+	}
+
+	resp, ok := responseData.(*PaymentsConnectedStarRefBots)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsExportInvoiceParams struct {
 	InvoiceMedia InputMedia
 }
@@ -14164,7 +14273,7 @@ func (*PaymentsExportInvoiceParams) CRC() uint32 {
 	return 0xf91b065
 }
 
-// Generate an [invoice deep link](https://core.telegram.org/api/links#invoice-links)
+// Generate an invoice deep link
 func (c *Client) PaymentsExportInvoice(invoiceMedia InputMedia) (*PaymentsExportedInvoice, error) {
 	responseData, err := c.MakeRequest(&PaymentsExportInvoiceParams{InvoiceMedia: invoiceMedia})
 	if err != nil {
@@ -14187,6 +14296,7 @@ func (*PaymentsFulfillStarsSubscriptionParams) CRC() uint32 {
 	return 0xcc5bebb3
 }
 
+// Re-join a private channel associated to an active Telegram Star subscription ».
 func (c *Client) PaymentsFulfillStarsSubscription(peer InputPeer, subscriptionID string) (bool, error) {
 	responseData, err := c.MakeRequest(&PaymentsFulfillStarsSubscriptionParams{
 		Peer:           peer,
@@ -14225,6 +14335,102 @@ func (c *Client) PaymentsGetBankCardData(number string) (*PaymentsBankCardData, 
 	return resp, nil
 }
 
+type PaymentsGetConnectedStarRefBotParams struct {
+	Peer InputPeer
+	Bot  InputUser
+}
+
+func (*PaymentsGetConnectedStarRefBotParams) CRC() uint32 {
+	return 0xb7d998f0
+}
+
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>payments.connectedStarRefBots#98d5ea1d count:int connected_bots:Vector&lt;ConnectedBotStarRef&gt; users:Vector&lt;User&gt; = payments.ConnectedStarRefBots;
+---functions---
+<a  href="/method/payments.getConnectedStarRefBot"  class="current_page_link" >payments.getConnectedStarRefBot</a>#b7d998f0 peer:InputPeer bot:InputUser = payments.ConnectedStarRefBots;</code></pre>
+*/
+func (c *Client) PaymentsGetConnectedStarRefBot(peer InputPeer, bot InputUser) (*PaymentsConnectedStarRefBots, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetConnectedStarRefBotParams{
+		Bot:  bot,
+		Peer: peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetConnectedStarRefBot")
+	}
+
+	resp, ok := responseData.(*PaymentsConnectedStarRefBots)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type PaymentsGetConnectedStarRefBotsParams struct {
+	Peer       InputPeer
+	OffsetDate int32  `tl:"flag:2"`
+	OffsetLink string `tl:"flag:2"`
+	Limit      int32
+}
+
+func (*PaymentsGetConnectedStarRefBotsParams) CRC() uint32 {
+	return 0x5869a553
+}
+
+func (*PaymentsGetConnectedStarRefBotsParams) FlagIndex() int {
+	return 0
+}
+
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>payments.connectedStarRefBots#98d5ea1d count:int connected_bots:Vector&lt;ConnectedBotStarRef&gt; users:Vector&lt;User&gt; = payments.ConnectedStarRefBots;
+---functions---
+<a  href="/method/payments.getConnectedStarRefBots"  class="current_page_link" >payments.getConnectedStarRefBots</a>#5869a553 flags:# peer:InputPeer offset_date:flags.2?int offset_link:flags.2?string limit:int = payments.ConnectedStarRefBots;</code></pre>
+*/
+func (c *Client) PaymentsGetConnectedStarRefBots(peer InputPeer, offsetDate int32, offsetLink string, limit int32) (*PaymentsConnectedStarRefBots, error) {
+	responseData, err := c.MakeRequest(&PaymentsGetConnectedStarRefBotsParams{
+		Limit:      limit,
+		OffsetDate: offsetDate,
+		OffsetLink: offsetLink,
+		Peer:       peer,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetConnectedStarRefBots")
+	}
+
+	resp, ok := responseData.(*PaymentsConnectedStarRefBots)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsGetGiveawayInfoParams struct {
 	Peer  InputPeer
 	MsgID int32
@@ -14234,7 +14440,7 @@ func (*PaymentsGetGiveawayInfoParams) CRC() uint32 {
 	return 0xf4239425
 }
 
-// Obtain information about a [Telegram Premium giveaway »](https://core.telegram.org/api/giveaways).
+// Obtain information about a Telegram Premium giveaway ».
 func (c *Client) PaymentsGetGiveawayInfo(peer InputPeer, msgID int32) (PaymentsGiveawayInfo, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetGiveawayInfoParams{
 		MsgID: msgID,
@@ -14319,7 +14525,7 @@ func (*PaymentsGetPremiumGiftCodeOptionsParams) FlagIndex() int {
 	return 0
 }
 
-// Obtain a list of Telegram Premium [giveaway/gift code »](https://core.telegram.org/api/giveaways) options.
+// Obtain a list of Telegram Premium giveaway/gift code » options.
 func (c *Client) PaymentsGetPremiumGiftCodeOptions(boostPeer InputPeer) ([]*PremiumGiftCodeOption, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetPremiumGiftCodeOptionsParams{BoostPeer: boostPeer})
 	if err != nil {
@@ -14361,6 +14567,7 @@ func (*PaymentsGetStarGiftsParams) CRC() uint32 {
 	return 0xc4563590
 }
 
+// Get a list of available gifts, see here » for more info.
 func (c *Client) PaymentsGetStarGifts(hash int32) (PaymentsStarGifts, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarGiftsParams{Hash: hash})
 	if err != nil {
@@ -14386,7 +14593,7 @@ func (*PaymentsGetStarsGiftOptionsParams) FlagIndex() int {
 	return 0
 }
 
-// Obtain a list of [Telegram Stars gift options »](https://core.telegram.org/api/stars#buying-or-gifting-stars) as [starsGiftOption](https://core.telegram.org/constructor/starsGiftOption) constructors.
+// Obtain a list of Telegram Stars gift options » as starsGiftOption constructors.
 func (c *Client) PaymentsGetStarsGiftOptions(userID InputUser) ([]*StarsGiftOption, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsGiftOptionsParams{UserID: userID})
 	if err != nil {
@@ -14406,6 +14613,7 @@ func (*PaymentsGetStarsGiveawayOptionsParams) CRC() uint32 {
 	return 0xbd1efd3e
 }
 
+// Fetch a list of star giveaway options ».
 func (c *Client) PaymentsGetStarsGiveawayOptions() ([]*StarsGiveawayOption, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsGiveawayOptionsParams{})
 	if err != nil {
@@ -14427,7 +14635,7 @@ func (*PaymentsGetStarsRevenueAdsAccountURLParams) CRC() uint32 {
 	return 0xd1d7efc5
 }
 
-// Returns a URL for a Telegram Ad platform account that can be used to set up advertisements for channel/bot in `peer`, paid using the Telegram Stars owned by the specified `peer`, see [here »](https://core.telegram.org/api/stars#paying-for-ads) for more info.
+// Returns a URL for a Telegram Ad platform account that can be used to set up advertisements for channel/bot in `peer`, paid using the Telegram Stars owned by the specified `peer`, see here » for more info.
 func (c *Client) PaymentsGetStarsRevenueAdsAccountURL(peer InputPeer) (*PaymentsStarsRevenueAdsAccountURL, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsRevenueAdsAccountURLParams{Peer: peer})
 	if err != nil {
@@ -14454,7 +14662,7 @@ func (*PaymentsGetStarsRevenueStatsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [Telegram Star revenue statistics »](https://core.telegram.org/api/stars).
+// Get Telegram Star revenue statistics ».
 func (c *Client) PaymentsGetStarsRevenueStats(dark bool, peer InputPeer) (*PaymentsStarsRevenueStats, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsRevenueStatsParams{
 		Dark: dark,
@@ -14481,7 +14689,7 @@ func (*PaymentsGetStarsRevenueWithdrawalURLParams) CRC() uint32 {
 	return 0x13bbe8b3
 }
 
-// Withdraw funds from a channel or bot's [star balance »](https://core.telegram.org/api/stars#withdrawing-revenue).
+// Withdraw funds from a channel or bot's star balance ».
 func (c *Client) PaymentsGetStarsRevenueWithdrawalURL(peer InputPeer, stars int64, password InputCheckPasswordSRP) (*PaymentsStarsRevenueWithdrawalURL, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsRevenueWithdrawalURLParams{
 		Password: password,
@@ -14507,7 +14715,7 @@ func (*PaymentsGetStarsStatusParams) CRC() uint32 {
 	return 0x104fcfa7
 }
 
-// Get the current [Telegram Stars balance](https://core.telegram.org/api/stars) of the current account (with peer=[inputPeerSelf](https://core.telegram.org/constructor/inputPeerSelf)), or the stars balance of the bot specified in `peer`.
+// Get the current Telegram Stars balance of the current account (with peer=inputPeerSelf), or the stars balance of the bot specified in `peer`.
 func (c *Client) PaymentsGetStarsStatus(peer InputPeer) (*PaymentsStarsStatus, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsStatusParams{Peer: peer})
 	if err != nil {
@@ -14535,6 +14743,7 @@ func (*PaymentsGetStarsSubscriptionsParams) FlagIndex() int {
 	return 0
 }
 
+// Obtain a list of active, expired or cancelled Telegram Star subscriptions ».
 func (c *Client) PaymentsGetStarsSubscriptions(missingBalance bool, peer InputPeer, offset string) (*PaymentsStarsStatus, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsSubscriptionsParams{
 		MissingBalance: missingBalance,
@@ -14558,7 +14767,7 @@ func (*PaymentsGetStarsTopupOptionsParams) CRC() uint32 {
 	return 0xc00ec7d3
 }
 
-// Obtain a list of [Telegram Stars topup options »](https://core.telegram.org/api/stars#buying-or-gifting-stars) as [starsTopupOption](https://core.telegram.org/constructor/starsTopupOption) constructors.
+// Obtain a list of Telegram Stars topup options » as starsTopupOption constructors.
 func (c *Client) PaymentsGetStarsTopupOptions() ([]*StarsTopupOption, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsTopupOptionsParams{})
 	if err != nil {
@@ -14590,7 +14799,7 @@ func (*PaymentsGetStarsTransactionsParams) FlagIndex() int {
 	return 0
 }
 
-// Fetch [Telegram Stars transactions](https://core.telegram.org/api/stars#balance-and-transaction-history).
+// Fetch Telegram Stars transactions.
 func (c *Client) PaymentsGetStarsTransactions(params *PaymentsGetStarsTransactionsParams) (*PaymentsStarsStatus, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -14613,7 +14822,7 @@ func (*PaymentsGetStarsTransactionsByIDParams) CRC() uint32 {
 	return 0x27842d2e
 }
 
-// Obtain info about [Telegram Star transactions »](https://core.telegram.org/api/stars#balance-and-transaction-history) using specific transaction IDs.
+// Obtain info about Telegram Star transactions » using specific transaction IDs.
 func (c *Client) PaymentsGetStarsTransactionsByID(peer InputPeer, id []*InputStarsTransaction) (*PaymentsStarsStatus, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsTransactionsByIDParams{
 		ID:   id,
@@ -14630,6 +14839,54 @@ func (c *Client) PaymentsGetStarsTransactionsByID(peer InputPeer, id []*InputSta
 	return resp, nil
 }
 
+type PaymentsGetSuggestedStarRefBotsParams struct {
+	OrderByRevenue bool `tl:"flag:0,encoded_in_bitflags"`
+	OrderByDate    bool `tl:"flag:1,encoded_in_bitflags"`
+	Peer           InputPeer
+	Offset         string
+	Limit          int32
+}
+
+func (*PaymentsGetSuggestedStarRefBotsParams) CRC() uint32 {
+	return 0xd6b48f7
+}
+
+func (*PaymentsGetSuggestedStarRefBotsParams) FlagIndex() int {
+	return 0
+}
+
+/*
+<div class="clearfix">
+
+	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
+	  <li class="dropdown">
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
+	    <ul class="dropdown-menu">
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
+	      <li class="divider"></li>
+	      <li>More...</li>
+	    </ul>
+	  </li>
+	</ul>
+
+</div>
+<pre class="page_scheme"><code>payments.suggestedStarRefBots#b4d5d859 flags:# count:int suggested_bots:Vector&lt;StarRefProgram&gt; users:Vector&lt;User&gt; next_offset:flags.0?string = payments.SuggestedStarRefBots;
+---functions---
+<a  href="/method/payments.getSuggestedStarRefBots"  class="current_page_link" >payments.getSuggestedStarRefBots</a>#d6b48f7 flags:# order_by_revenue:flags.0?true order_by_date:flags.1?true peer:InputPeer offset:string limit:int = payments.SuggestedStarRefBots;</code></pre>
+*/
+func (c *Client) PaymentsGetSuggestedStarRefBots(params *PaymentsGetSuggestedStarRefBotsParams) (*PaymentsSuggestedStarRefBots, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, errors.Wrap(err, "sending PaymentsGetSuggestedStarRefBots")
+	}
+
+	resp, ok := responseData.(*PaymentsSuggestedStarRefBots)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type PaymentsGetUserStarGiftsParams struct {
 	UserID InputUser
 	Offset string
@@ -14640,6 +14897,7 @@ func (*PaymentsGetUserStarGiftsParams) CRC() uint32 {
 	return 0x5e72c7e1
 }
 
+// Get the gifts » pinned on a specific user's profile.
 func (c *Client) PaymentsGetUserStarGifts(userID InputUser, offset string, limit int32) (*PaymentsUserStarGifts, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetUserStarGiftsParams{
 		Limit:  limit,
@@ -14667,7 +14925,7 @@ func (*PaymentsLaunchPrepaidGiveawayParams) CRC() uint32 {
 	return 0x5ff58f20
 }
 
-// Launch a [prepaid giveaway »](https://core.telegram.org/api/giveaways).
+// Launch a prepaid giveaway ».
 func (c *Client) PaymentsLaunchPrepaidGiveaway(peer InputPeer, giveawayID int64, purpose InputStorePaymentPurpose) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsLaunchPrepaidGiveawayParams{
 		GiveawayID: giveawayID,
@@ -14694,7 +14952,7 @@ func (*PaymentsRefundStarsChargeParams) CRC() uint32 {
 	return 0x25ae8f4a
 }
 
-// Refund a [Telegram Stars](https://core.telegram.org/api/stars) transaction, see [here »](https://core.telegram.org/api/payments#6-refunds) for more info.
+// Refund a Telegram Stars transaction, see here » for more info.
 func (c *Client) PaymentsRefundStarsCharge(userID InputUser, chargeID string) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsRefundStarsChargeParams{
 		ChargeID: chargeID,
@@ -14726,17 +14984,17 @@ func (*PaymentsRequestRecurringPaymentParams) CRC() uint32 {
 
 	<ul class="dev_layer_select slightly-pull-right nav nav-pills">
 	  <li class="dropdown">
-	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 185 <b class="caret"></b></a>
+	    <a class="dropdown-toggle"  onclick="return dropdownClick(this, event)" href="#">Layer 195 <b class="caret"></b></a>
 	    <ul class="dropdown-menu">
-	      <li>[1 &ndash; Base layer](https://core.telegram.org?layer=1)</li><li>[2 &ndash; New userpic notifications](https://core.telegram.org?layer=2)</li><li>[3 &ndash; Send message can trigger link change](https://core.telegram.org?layer=3)</li><li>[4 &ndash; Check-in chats](https://core.telegram.org?layer=4)</li><li>[5 &ndash; Localized SMS, localized notifications](https://core.telegram.org?layer=5)</li><li>[6 &ndash; Foursquare integration](https://core.telegram.org?layer=6)</li><li>[7 &ndash; Added wallPaperSolid](https://core.telegram.org?layer=7)</li><li>[8 &ndash; Added end-to-end encryption](https://core.telegram.org?layer=8)</li><li>[9 &ndash; Improved big files upload perfomance](https://core.telegram.org?layer=9)</li><li>[10 &ndash; Improved chat participants updates](https://core.telegram.org?layer=10)</li><li>[11 &ndash; Improved secret chats](https://core.telegram.org?layer=11)</li><li>[12 &ndash; New dynamic support](https://core.telegram.org?layer=12)</li><li>[13 &ndash; Audio, video MIME; contacts import retry; new secret actions](https://core.telegram.org?layer=13)</li><li>[14 &ndash; Notify settings sync, blacklist sync](https://core.telegram.org?layer=14)</li><li>[15 &ndash; Modified getHistory offset behaviour](https://core.telegram.org?layer=15)</li><li>[16 &ndash; Split sendCode into 2 parts](https://core.telegram.org?layer=16)</li><li>[17 &ndash; Added custom typing, introduced message flags](https://core.telegram.org?layer=17)</li><li>[18 &ndash; Added usernames](https://core.telegram.org?layer=18)</li><li>[23 &ndash; Stickers for secret chats](https://core.telegram.org?layer=23)</li><li>[105 &ndash; Scheduled messages, Cloud themes](https://core.telegram.org?layer=105)</li><li>[108 &ndash; Login with QR code](https://core.telegram.org?layer=108)</li><li>[109 &ndash; Polls v2](https://core.telegram.org?layer=109)</li><li>[110 &ndash; People Nearby 2.0, Bank card entity](https://core.telegram.org?layer=110)</li><li>[111 &ndash; Folders, Broadcast Stats](https://core.telegram.org?layer=111)</li><li>[112 &ndash; Old featured stickers, generic dice, poll timer, poll solution](https://core.telegram.org?layer=112)</li><li>[113 &ndash; PSA](https://core.telegram.org?layer=113)</li><li>[114 &ndash; Video thumbs for GIFs](https://core.telegram.org?layer=114)</li><li>[115 &ndash; Peek Channel Invite](https://core.telegram.org?layer=115)</li><li>[116 &ndash; Group Stats, Profile Videos](https://core.telegram.org?layer=116)</li><li>[117 &ndash; WebRTC Phone Calls](https://core.telegram.org?layer=117)</li><li>[118 &ndash; Callback with 2FA, Countries list](https://core.telegram.org?layer=118)</li><li>[119 &ndash; Comments in channels, Threads, Anonymous Admins](https://core.telegram.org?layer=119)</li><li>[120 &ndash; Multipins, Message Stats, GeoLive v2](https://core.telegram.org?layer=120)</li><li>[121 &ndash; SVG-based Outlines for Stickers](https://core.telegram.org?layer=121)</li><li>[122 &ndash; Voice Chats](https://core.telegram.org?layer=122)</li><li>[123 &ndash; Voice Chat improvements](https://core.telegram.org?layer=123)</li><li>[124 &ndash; Expiring Invite links](https://core.telegram.org?layer=124)</li><li>[125 &ndash; Voice Chats in Broadcasts](https://core.telegram.org?layer=125)</li><li>[126 &ndash; Ban channels in channels](https://core.telegram.org?layer=126)</li><li>[127 &ndash; Payments in channels](https://core.telegram.org?layer=127)</li><li>[128 &ndash; Microthumbs for User/Chat profile photos](https://core.telegram.org?layer=128)</li><li>[129 &ndash; Video Chats](https://core.telegram.org?layer=129)</li><li>[130 &ndash; Custom placeholder for bot reply keyboards](https://core.telegram.org?layer=130)</li><li>[131 &ndash; Reset 2FA Password after a week](https://core.telegram.org?layer=131)</li><li>[132 &ndash; Chat themes](https://core.telegram.org?layer=132)</li><li>[133 &ndash; 64-bit IDs for User/Chat](https://core.telegram.org?layer=133)</li><li>[134 &ndash; Chat Requests, Shared Media Calendar](https://core.telegram.org?layer=134)</li><li>[135 &ndash; Send Message As a Channel](https://core.telegram.org?layer=135)</li><li>[136 &ndash; Reactions](https://core.telegram.org?layer=136)</li><li>[137 &ndash; Translations](https://core.telegram.org?layer=137)</li><li>[138 &ndash; GIF Sticker Packs](https://core.telegram.org?layer=138)</li><li>[139 &ndash; RTMP streaming](https://core.telegram.org?layer=139)</li><li>[140 &ndash; WebApps, Cloud Ringtones](https://core.telegram.org?layer=140)</li><li>[142 &ndash; TCP Reflectors](https://core.telegram.org?layer=142)</li><li>[143 &ndash; Premium Subscription, Cloud Invoices](https://core.telegram.org?layer=143)</li><li>[144 &ndash; Premium as a Gift, Custom Emoji](https://core.telegram.org?layer=144)</li><li>[145 &ndash; Custom Reactions, Statuses, Sign In with email](https://core.telegram.org?layer=145)</li><li>[147 &ndash; Keywords for stickers and emojis](https://core.telegram.org?layer=147)</li><li>[148 &ndash; Forums, collectible usernames](https://core.telegram.org?layer=148)</li><li>[150 &ndash; Pinned forum topics, general topic](https://core.telegram.org?layer=150)</li><li>[151 &ndash; Media spoilers, suggested profile photos](https://core.telegram.org?layer=151)</li><li>[152 &ndash; Real-time translations, Firebase SMS authentication](https://core.telegram.org?layer=152)</li><li>[153 &ndash; Modify created stickersets](https://core.telegram.org?layer=153)</li><li>[155 &ndash; Dates for reactions](https://core.telegram.org?layer=155)</li><li>[158 &ndash; Shared folders, per-chat wallpapers](https://core.telegram.org?layer=158)</li><li>[159 &ndash; Anonymous votes](https://core.telegram.org?layer=159)</li><li>[160 &ndash; Stories](https://core.telegram.org?layer=160)</li><li>[164 &ndash; Stories in Channels](https://core.telegram.org?layer=164)</li><li>[166 &ndash; Giveaways in channels](https://core.telegram.org?layer=166)</li><li>[167 &ndash; Similar channels](https://core.telegram.org?layer=167)</li><li>[168 &ndash; Channel colors](https://core.telegram.org?layer=168)</li><li>[169 &ndash; Multiselection of chats for bots](https://core.telegram.org?layer=169)</li><li>[170 &ndash; Saved Messages 2.0](https://core.telegram.org?layer=170)</li><li>[171 &ndash; Saved Messages 2.0](https://core.telegram.org?layer=171)</li><li>[174 &ndash; Group boosts](https://core.telegram.org?layer=174)</li><li>[176 &ndash; Business](https://core.telegram.org?layer=176)</li><li>[177 &ndash; Business Bots, Birthdays](https://core.telegram.org?layer=177)</li><li>[178 &ndash; Saved Personal channel, Reactions notifications](https://core.telegram.org?layer=178)</li><li>[179 &ndash; Channel revenue stats, phrases in SMS](https://core.telegram.org?layer=179)</li><li>[180 &ndash; Message Effects, Hashtags](https://core.telegram.org?layer=180)</li><li>[181 &ndash; Stars](https://core.telegram.org?layer=181)</li><li>[182 &ndash; Stars Revenue](https://core.telegram.org?layer=182)</li><li>[183 &ndash; Paid posts](https://core.telegram.org?layer=183)</li><li>[184 &ndash; Stars Refunds](https://core.telegram.org?layer=184)</li><li><a href="?layer=185"><strong>185 &ndash; MiniApp Store, Star Gifts</strong></a></li>
+	      <li>1 &ndash; Base layer</li><li>2 &ndash; New userpic notifications</li><li>3 &ndash; Send message can trigger link change</li><li>4 &ndash; Check-in chats</li><li>5 &ndash; Localized SMS, localized notifications</li><li>6 &ndash; Foursquare integration</li><li>7 &ndash; Added wallPaperSolid</li><li>8 &ndash; Added end-to-end encryption</li><li>9 &ndash; Improved big files upload perfomance</li><li>10 &ndash; Improved chat participants updates</li><li>11 &ndash; Improved secret chats</li><li>12 &ndash; New dynamic support</li><li>13 &ndash; Audio, video MIME; contacts import retry; new secret actions</li><li>14 &ndash; Notify settings sync, blacklist sync</li><li>15 &ndash; Modified getHistory offset behaviour</li><li>16 &ndash; Split sendCode into 2 parts</li><li>17 &ndash; Added custom typing, introduced message flags</li><li>18 &ndash; Added usernames</li><li>23 &ndash; Stickers for secret chats</li><li>105 &ndash; Scheduled messages, Cloud themes</li><li>108 &ndash; Login with QR code</li><li>109 &ndash; Polls v2</li><li>110 &ndash; People Nearby 2.0, Bank card entity</li><li>111 &ndash; Folders, Broadcast Stats</li><li>112 &ndash; Old featured stickers, generic dice, poll timer, poll solution</li><li>113 &ndash; PSA</li><li>114 &ndash; Video thumbs for GIFs</li><li>115 &ndash; Peek Channel Invite</li><li>116 &ndash; Group Stats, Profile Videos</li><li>117 &ndash; WebRTC Phone Calls</li><li>118 &ndash; Callback with 2FA, Countries list</li><li>119 &ndash; Comments in channels, Threads, Anonymous Admins</li><li>120 &ndash; Multipins, Message Stats, GeoLive v2</li><li>121 &ndash; SVG-based Outlines for Stickers</li><li>122 &ndash; Voice Chats</li><li>123 &ndash; Voice Chat improvements</li><li>124 &ndash; Expiring Invite links</li><li>125 &ndash; Voice Chats in Broadcasts</li><li>126 &ndash; Ban channels in channels</li><li>127 &ndash; Payments in channels</li><li>128 &ndash; Microthumbs for User/Chat profile photos</li><li>129 &ndash; Video Chats</li><li>130 &ndash; Custom placeholder for bot reply keyboards</li><li>131 &ndash; Reset 2FA Password after a week</li><li>132 &ndash; Chat themes</li><li>133 &ndash; 64-bit IDs for User/Chat</li><li>134 &ndash; Chat Requests, Shared Media Calendar</li><li>135 &ndash; Send Message As a Channel</li><li>136 &ndash; Reactions</li><li>137 &ndash; Translations</li><li>138 &ndash; GIF Sticker Packs</li><li>139 &ndash; RTMP streaming</li><li>140 &ndash; WebApps, Cloud Ringtones</li><li>142 &ndash; TCP Reflectors</li><li>143 &ndash; Premium Subscription, Cloud Invoices</li><li>144 &ndash; Premium as a Gift, Custom Emoji</li><li>145 &ndash; Custom Reactions, Statuses, Sign In with email</li><li>147 &ndash; Keywords for stickers and emojis</li><li>148 &ndash; Forums, collectible usernames</li><li>150 &ndash; Pinned forum topics, general topic</li><li>151 &ndash; Media spoilers, suggested profile photos</li><li>152 &ndash; Real-time translations, Firebase SMS authentication</li><li>153 &ndash; Modify created stickersets</li><li>155 &ndash; Dates for reactions</li><li>158 &ndash; Shared folders, per-chat wallpapers</li><li>159 &ndash; Anonymous votes</li><li>160 &ndash; Stories</li><li>164 &ndash; Stories in Channels</li><li>166 &ndash; Giveaways in channels</li><li>167 &ndash; Similar channels</li><li>168 &ndash; Channel colors</li><li>169 &ndash; Multiselection of chats for bots</li><li>170 &ndash; Saved Messages 2.0</li><li>171 &ndash; Saved Messages 2.0</li><li>174 &ndash; Group boosts</li><li>176 &ndash; Business</li><li>177 &ndash; Business Bots, Birthdays</li><li>178 &ndash; Saved Personal channel, Reactions notifications</li><li>179 &ndash; Channel revenue stats, phrases in SMS</li><li>180 &ndash; Message Effects, Hashtags</li><li>181 &ndash; Stars</li><li>182 &ndash; Stars Revenue</li><li>183 &ndash; Paid posts</li><li>184 &ndash; Stars Refunds</li><li>185 &ndash; MiniApp Store, Star Gifts</li><li>186 &ndash; Channel Subscriptions for Stars</li><li>187 &ndash; Stars Giveaways</li><li>189 &ndash; Stars Gifts</li><li>192 &ndash; Video Qualities, Ads in bots</li><li>194 &ndash; Stars Subscription for Bots</li><li><a href="?layer=195"><strong>195 &ndash; Affiliate Programs for bots</strong></a></li>
 	      <li class="divider"></li>
-	      <li>[More...](https://core.telegram.org/api/layers)</li>
+	      <li>More...</li>
 	    </ul>
 	  </li>
 	</ul>
 
 </div>
-<pre class="page_scheme"> `Method schema is available as of layer 143. [Switch »](https://core.telegram.org?layer=143)`</pre>
+<pre class="page_scheme"> `Method schema is available as of layer 143. Switch »`</pre>
 */
 func (c *Client) PaymentsRequestRecurringPayment(userID InputUser, recurringInitCharge string, invoiceMedia InputMedia) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsRequestRecurringPaymentParams{
@@ -14769,6 +15027,7 @@ func (*PaymentsSaveStarGiftParams) FlagIndex() int {
 	return 0
 }
 
+// Display or remove a received gift » from our profile.
 func (c *Client) PaymentsSaveStarGift(unsave bool, userID InputUser, msgID int32) (bool, error) {
 	responseData, err := c.MakeRequest(&PaymentsSaveStarGiftParams{
 		MsgID:  msgID,
@@ -14826,7 +15085,7 @@ func (*PaymentsSendStarsFormParams) CRC() uint32 {
 	return 0x7998c914
 }
 
-// Make a payment using [Telegram Stars, see here »](https://core.telegram.org/api/stars#using-stars) for more info.
+// Make a payment using Telegram Stars, see here » for more info.
 func (c *Client) PaymentsSendStarsForm(formID int64, invoice InputInvoice) (PaymentsPaymentResult, error) {
 	responseData, err := c.MakeRequest(&PaymentsSendStarsFormParams{
 		FormID:  formID,
@@ -14943,7 +15202,7 @@ func (*PhoneConfirmCallParams) CRC() uint32 {
 	return 0x2efe1722
 }
 
-// [Complete phone call E2E encryption key exchange »](https://core.telegram.org/api/end-to-end/voice-calls)
+// Complete phone call E2E encryption key exchange »
 func (c *Client) PhoneConfirmCall(peer *InputPhoneCall, gA []byte, keyFingerprint int64, protocol *PhoneCallProtocol) (*PhonePhoneCall, error) {
 	responseData, err := c.MakeRequest(&PhoneConfirmCallParams{
 		GA:             gA,
@@ -15116,7 +15375,7 @@ func (*PhoneExportGroupCallInviteParams) FlagIndex() int {
 	return 0
 }
 
-// Get an [invite link](https://core.telegram.org/api/links#video-chat-livestream-links) for a group call or livestream
+// Get an invite link for a group call or livestream
 func (c *Client) PhoneExportGroupCallInvite(canSelfUnmute bool, call *InputGroupCall) (*PhoneExportedGroupCallInvite, error) {
 	responseData, err := c.MakeRequest(&PhoneExportGroupCallInviteParams{
 		Call:          call,
@@ -15211,7 +15470,7 @@ func (*PhoneGetGroupCallStreamChannelsParams) CRC() uint32 {
 
 /*
 Get info about RTMP streams in a group call or livestream.<br>
-This method should be invoked to the same group/channel-related DC used for [downloading livestream chunks](https://core.telegram.org/api/files#downloading-files).<br>
+This method should be invoked to the same group/channel-related DC used for downloading livestream chunks.<br>
 As usual, the media DC is preferred, if available.
 */
 func (c *Client) PhoneGetGroupCallStreamChannels(call *InputGroupCall) (*PhoneGroupCallStreamChannels, error) {
@@ -15236,7 +15495,7 @@ func (*PhoneGetGroupCallStreamRtmpURLParams) CRC() uint32 {
 	return 0xdeb3abbf
 }
 
-// Get RTMP URL and stream key for RTMP livestreams. Can be used even before creating the actual RTMP livestream with [phone.createGroupCall](https://core.telegram.org/method/phone.createGroupCall) (the `rtmp_stream` flag must be set).
+// Get RTMP URL and stream key for RTMP livestreams. Can be used even before creating the actual RTMP livestream with phone.createGroupCall (the `rtmp_stream` flag must be set).
 func (c *Client) PhoneGetGroupCallStreamRtmpURL(peer InputPeer, revoke bool) (*PhoneGroupCallStreamRtmpURL, error) {
 	responseData, err := c.MakeRequest(&PhoneGetGroupCallStreamRtmpURLParams{
 		Peer:   peer,
@@ -15876,7 +16135,7 @@ func (*PremiumApplyBoostParams) FlagIndex() int {
 	return 0
 }
 
-// Apply one or more [boosts »](https://core.telegram.org/api/boost) to a peer.
+// Apply one or more boosts » to a peer.
 func (c *Client) PremiumApplyBoost(slots []int32, peer InputPeer) (*PremiumMyBoosts, error) {
 	responseData, err := c.MakeRequest(&PremiumApplyBoostParams{
 		Peer:  peer,
@@ -15935,7 +16194,7 @@ func (*PremiumGetBoostsStatusParams) CRC() uint32 {
 	return 0x42f1f61
 }
 
-// Gets the current [number of boosts](https://core.telegram.org/api/boost) of a channel/supergroup.
+// Gets the current number of boosts of a channel/supergroup.
 func (c *Client) PremiumGetBoostsStatus(peer InputPeer) (*PremiumBoostsStatus, error) {
 	responseData, err := c.MakeRequest(&PremiumGetBoostsStatusParams{Peer: peer})
 	if err != nil {
@@ -15955,7 +16214,7 @@ func (*PremiumGetMyBoostsParams) CRC() uint32 {
 	return 0xbe77b4a
 }
 
-// Obtain which peers are we currently [boosting](https://core.telegram.org/api/boost), and how many [boost slots](https://core.telegram.org/api/boost) we have left.
+// Obtain which peers are we currently boosting, and how many boost slots we have left.
 func (c *Client) PremiumGetMyBoosts() (*PremiumMyBoosts, error) {
 	responseData, err := c.MakeRequest(&PremiumGetMyBoostsParams{})
 	if err != nil {
@@ -16166,7 +16425,7 @@ func (*StatsGetBroadcastRevenueStatsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [channel ad revenue statistics »](https://core.telegram.org/api/revenue).
+// Get channel ad revenue statistics ».
 func (c *Client) StatsGetBroadcastRevenueStats(dark bool, peer InputPeer) (*StatsBroadcastRevenueStats, error) {
 	responseData, err := c.MakeRequest(&StatsGetBroadcastRevenueStatsParams{
 		Dark: dark,
@@ -16193,7 +16452,7 @@ func (*StatsGetBroadcastRevenueTransactionsParams) CRC() uint32 {
 	return 0x70990b6d
 }
 
-// Fetch [channel ad revenue transaction history »](https://core.telegram.org/api/revenue).
+// Fetch channel ad revenue transaction history ».
 func (c *Client) StatsGetBroadcastRevenueTransactions(peer InputPeer, offset, limit int32) (*StatsBroadcastRevenueTransactions, error) {
 	responseData, err := c.MakeRequest(&StatsGetBroadcastRevenueTransactionsParams{
 		Limit:  limit,
@@ -16220,7 +16479,7 @@ func (*StatsGetBroadcastRevenueWithdrawalURLParams) CRC() uint32 {
 	return 0x9df4faad
 }
 
-// Withdraw funds from a channel's [ad revenue balance »](https://core.telegram.org/api/revenue).
+// Withdraw funds from a channel's ad revenue balance ».
 func (c *Client) StatsGetBroadcastRevenueWithdrawalURL(peer InputPeer, password InputCheckPasswordSRP) (*StatsBroadcastRevenueWithdrawalURL, error) {
 	responseData, err := c.MakeRequest(&StatsGetBroadcastRevenueWithdrawalURLParams{
 		Password: password,
@@ -16250,7 +16509,7 @@ func (*StatsGetBroadcastStatsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [channel statistics](https://core.telegram.org/api/stats)
+// Get channel statistics
 func (c *Client) StatsGetBroadcastStats(dark bool, channel InputChannel) (*StatsBroadcastStats, error) {
 	responseData, err := c.MakeRequest(&StatsGetBroadcastStatsParams{
 		Channel: channel,
@@ -16280,7 +16539,7 @@ func (*StatsGetMegagroupStatsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [supergroup statistics](https://core.telegram.org/api/stats)
+// Get supergroup statistics
 func (c *Client) StatsGetMegagroupStats(dark bool, channel InputChannel) (*StatsMegagroupStats, error) {
 	responseData, err := c.MakeRequest(&StatsGetMegagroupStatsParams{
 		Channel: channel,
@@ -16310,7 +16569,7 @@ func (*StatsGetMessagePublicForwardsParams) CRC() uint32 {
 
 /*
 Obtains a list of messages, indicating to which other public channels was a channel message forwarded.<br>
-Will return a list of [messages](https://core.telegram.org/constructor/message) with `peer_id` equal to the public channel to which this message was forwarded.
+Will return a list of messages with `peer_id` equal to the public channel to which this message was forwarded.
 */
 func (c *Client) StatsGetMessagePublicForwards(channel InputChannel, msgID int32, offset string, limit int32) (*StatsPublicForwards, error) {
 	responseData, err := c.MakeRequest(&StatsGetMessagePublicForwardsParams{
@@ -16344,7 +16603,7 @@ func (*StatsGetMessageStatsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [message statistics](https://core.telegram.org/api/stats)
+// Get message statistics
 func (c *Client) StatsGetMessageStats(dark bool, channel InputChannel, msgID int32) (*StatsMessageStats, error) {
 	responseData, err := c.MakeRequest(&StatsGetMessageStatsParams{
 		Channel: channel,
@@ -16373,7 +16632,7 @@ func (*StatsGetStoryPublicForwardsParams) CRC() uint32 {
 	return 0xa6437ef6
 }
 
-// Obtain forwards of a [story](https://core.telegram.org/api/stories) as a message to public chats and reposts by public channels.
+// Obtain forwards of a story as a message to public chats and reposts by public channels.
 func (c *Client) StatsGetStoryPublicForwards(peer InputPeer, id int32, offset string, limit int32) (*StatsPublicForwards, error) {
 	responseData, err := c.MakeRequest(&StatsGetStoryPublicForwardsParams{
 		ID:     id,
@@ -16406,7 +16665,7 @@ func (*StatsGetStoryStatsParams) FlagIndex() int {
 	return 0
 }
 
-// Get [statistics](https://core.telegram.org/api/stats) for a certain [story](https://core.telegram.org/api/stories).
+// Get statistics for a certain story.
 func (c *Client) StatsGetStoryStats(dark bool, peer InputPeer, id int32) (*StatsStoryStats, error) {
 	responseData, err := c.MakeRequest(&StatsGetStoryStatsParams{
 		Dark: dark,
@@ -16437,7 +16696,7 @@ func (*StatsLoadAsyncGraphParams) FlagIndex() int {
 	return 0
 }
 
-// Load [channel statistics graph](https://core.telegram.org/api/stats) asynchronously
+// Load channel statistics graph asynchronously
 func (c *Client) StatsLoadAsyncGraph(token string, x int64) (StatsGraph, error) {
 	responseData, err := c.MakeRequest(&StatsLoadAsyncGraphParams{
 		Token: token,
@@ -16495,7 +16754,7 @@ func (*StickersChangeStickerParams) FlagIndex() int {
 	return 0
 }
 
-// Update the keywords, emojis or [mask coordinates](https://core.telegram.org/api/stickers#mask-stickers) of a sticker.
+// Update the keywords, emojis or mask coordinates of a sticker.
 func (c *Client) StickersChangeSticker(sticker InputDocument, emoji string, maskCoords *MaskCoords, keywords string) (MessagesStickerSet, error) {
 	responseData, err := c.MakeRequest(&StickersChangeStickerParams{
 		Emoji:      emoji,
@@ -16675,7 +16934,7 @@ func (*StickersReplaceStickerParams) CRC() uint32 {
 	return 0x4696459a
 }
 
-// Replace a sticker in a [stickerset »](https://core.telegram.org/api/stickers).
+// Replace a sticker in a stickerset ».
 func (c *Client) StickersReplaceSticker(sticker InputDocument, newSticker *InputStickerSetItem) (MessagesStickerSet, error) {
 	responseData, err := c.MakeRequest(&StickersReplaceStickerParams{
 		NewSticker: newSticker,
@@ -16759,7 +17018,7 @@ func (*StoriesActivateStealthModeParams) FlagIndex() int {
 	return 0
 }
 
-// Activates [stories stealth mode](https://core.telegram.org/api/stories#stealth-mode), see [here »](https://core.telegram.org/api/stories#stealth-mode) for more info.
+// Activates stories stealth mode, see here » for more info.
 func (c *Client) StoriesActivateStealthMode(past, future bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&StoriesActivateStealthModeParams{
 		Future: future,
@@ -16807,7 +17066,7 @@ func (*StoriesDeleteStoriesParams) CRC() uint32 {
 	return 0xae59db5f
 }
 
-// Deletes some posted [stories](https://core.telegram.org/api/stories).
+// Deletes some posted stories.
 func (c *Client) StoriesDeleteStories(peer InputPeer, id []int32) ([]int32, error) {
 	responseData, err := c.MakeRequest(&StoriesDeleteStoriesParams{
 		ID:   id,
@@ -16842,7 +17101,7 @@ func (*StoriesEditStoryParams) FlagIndex() int {
 	return 0
 }
 
-// Edit an uploaded [story](https://core.telegram.org/api/stories)
+// Edit an uploaded story
 func (c *Client) StoriesEditStory(params *StoriesEditStoryParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -16865,7 +17124,7 @@ func (*StoriesExportStoryLinkParams) CRC() uint32 {
 	return 0x7b8def20
 }
 
-// Generate a [story deep link](https://core.telegram.org/api/links#story-links) for a specific story
+// Generate a story deep link for a specific story
 func (c *Client) StoriesExportStoryLink(peer InputPeer, id int32) (*ExportedStoryLink, error) {
 	responseData, err := c.MakeRequest(&StoriesExportStoryLinkParams{
 		ID:   id,
@@ -16888,7 +17147,7 @@ func (*StoriesGetAllReadPeerStoriesParams) CRC() uint32 {
 	return 0x9b5ae7f9
 }
 
-// Obtain the latest read story ID for all peers when first logging in, returned as a list of [updateReadStories](https://core.telegram.org/constructor/updateReadStories) updates, see [here »](https://core.telegram.org/api/stories#watching-stories) for more info.
+// Obtain the latest read story ID for all peers when first logging in, returned as a list of updateReadStories updates, see here » for more info.
 func (c *Client) StoriesGetAllReadPeerStories() (Updates, error) {
 	responseData, err := c.MakeRequest(&StoriesGetAllReadPeerStoriesParams{})
 	if err != nil {
@@ -16916,7 +17175,7 @@ func (*StoriesGetAllStoriesParams) FlagIndex() int {
 	return 0
 }
 
-// Fetch the List of active (or active and hidden) stories, see [here »](https://core.telegram.org/api/stories#watching-stories) for more info on watching stories.
+// Fetch the List of active (or active and hidden) stories, see here » for more info on watching stories.
 func (c *Client) StoriesGetAllStories(next, hidden bool, state string) (StoriesAllStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetAllStoriesParams{
 		Hidden: hidden,
@@ -16940,7 +17199,7 @@ func (*StoriesGetChatsToSendParams) CRC() uint32 {
 	return 0xa56a8b60
 }
 
-// Obtain a list of channels where the user can post [stories](https://core.telegram.org/api/stories)
+// Obtain a list of channels where the user can post stories
 func (c *Client) StoriesGetChatsToSend() (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&StoriesGetChatsToSendParams{})
 	if err != nil {
@@ -16984,7 +17243,7 @@ func (*StoriesGetPeerStoriesParams) CRC() uint32 {
 	return 0x2c4ada50
 }
 
-// Fetch the full active [story list](https://core.telegram.org/api/stories#watching-stories) of a specific peer.
+// Fetch the full active story list of a specific peer.
 func (c *Client) StoriesGetPeerStories(peer InputPeer) (*StoriesPeerStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetPeerStoriesParams{Peer: peer})
 	if err != nil {
@@ -17008,7 +17267,7 @@ func (*StoriesGetPinnedStoriesParams) CRC() uint32 {
 	return 0x5821a5dc
 }
 
-// Fetch the [stories](https://core.telegram.org/api/stories#pinned-or-archived-stories) pinned on a peer's profile.
+// Fetch the stories pinned on a peer's profile.
 func (c *Client) StoriesGetPinnedStories(peer InputPeer, offsetID, limit int32) (*StoriesStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetPinnedStoriesParams{
 		Limit:    limit,
@@ -17036,7 +17295,7 @@ func (*StoriesGetStoriesArchiveParams) CRC() uint32 {
 	return 0xb4352016
 }
 
-// Fetch the [story archive »](https://core.telegram.org/api/stories#pinned-or-archived-stories) of a peer we control.
+// Fetch the story archive » of a peer we control.
 func (c *Client) StoriesGetStoriesArchive(peer InputPeer, offsetID, limit int32) (*StoriesStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetStoriesArchiveParams{
 		Limit:    limit,
@@ -17063,7 +17322,7 @@ func (*StoriesGetStoriesByIDParams) CRC() uint32 {
 	return 0x5774ca74
 }
 
-// Obtain full info about a set of [stories](https://core.telegram.org/api/stories) by their IDs.
+// Obtain full info about a set of stories by their IDs.
 func (c *Client) StoriesGetStoriesByID(peer InputPeer, id []int32) (*StoriesStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetStoriesByIDParams{
 		ID:   id,
@@ -17089,7 +17348,7 @@ func (*StoriesGetStoriesViewsParams) CRC() uint32 {
 	return 0x28e16cc8
 }
 
-// Obtain info about the view count, forward count, reactions and recent viewers of one or more [stories](https://core.telegram.org/api/stories).
+// Obtain info about the view count, forward count, reactions and recent viewers of one or more stories.
 func (c *Client) StoriesGetStoriesViews(peer InputPeer, id []int32) (*StoriesStoryViews, error) {
 	responseData, err := c.MakeRequest(&StoriesGetStoriesViewsParams{
 		ID:   id,
@@ -17123,7 +17382,7 @@ func (*StoriesGetStoryReactionsListParams) FlagIndex() int {
 	return 0
 }
 
-// Get the [reaction](https://core.telegram.org/api/reactions) and interaction list of a [story](https://core.telegram.org/api/stories) posted to a channel, along with the sender of each reaction.
+// Get the reaction and interaction list of a story posted to a channel, along with the sender of each reaction.
 func (c *Client) StoriesGetStoryReactionsList(params *StoriesGetStoryReactionsListParams) (*StoriesStoryReactionsList, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -17156,7 +17415,7 @@ func (*StoriesGetStoryViewsListParams) FlagIndex() int {
 	return 0
 }
 
-// Obtain the list of users that have viewed a specific [story we posted](https://core.telegram.org/api/stories)
+// Obtain the list of users that have viewed a specific story we posted
 func (c *Client) StoriesGetStoryViewsList(params *StoriesGetStoryViewsListParams) (*StoriesStoryViewsList, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -17205,7 +17464,7 @@ func (*StoriesReadStoriesParams) CRC() uint32 {
 	return 0xa556dac8
 }
 
-// Mark all stories up to a certain ID as read, for a given peer; will emit an [updateReadStories](https://core.telegram.org/constructor/updateReadStories) update to all logged-in sessions.
+// Mark all stories up to a certain ID as read, for a given peer; will emit an updateReadStories update to all logged-in sessions.
 func (c *Client) StoriesReadStories(peer InputPeer, maxID int32) ([]int32, error) {
 	responseData, err := c.MakeRequest(&StoriesReadStoriesParams{
 		MaxID: maxID,
@@ -17268,7 +17527,7 @@ func (*StoriesSearchPostsParams) FlagIndex() int {
 	return 0
 }
 
-// Globally search for [stories](https://core.telegram.org/api/stories) using a hashtag or a [location media area](https://core.telegram.org/api/stories#location-tags), see [here »](https://core.telegram.org/api/stories#searching-stories) for more info on the full flow.
+// Globally search for stories using a hashtag or a location media area, see here » for more info on the full flow.
 func (c *Client) StoriesSearchPosts(params *StoriesSearchPostsParams) (*StoriesFoundStories, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -17340,7 +17599,7 @@ func (*StoriesSendStoryParams) FlagIndex() int {
 	return 0
 }
 
-// Uploads a [Telegram Story](https://core.telegram.org/api/stories).
+// Uploads a Telegram Story.
 func (c *Client) StoriesSendStory(params *StoriesSendStoryParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -17385,7 +17644,7 @@ func (*StoriesTogglePeerStoriesHiddenParams) CRC() uint32 {
 	return 0xbd0415c4
 }
 
-// Hide the active stories of a user, preventing them from being displayed on the action bar on the homescreen, see [here »](https://core.telegram.org/api/stories#hiding-stories-of-other-users) for more info.
+// Hide the active stories of a user, preventing them from being displayed on the action bar on the homescreen, see here » for more info.
 func (c *Client) StoriesTogglePeerStoriesHidden(peer InputPeer, hidden bool) (bool, error) {
 	responseData, err := c.MakeRequest(&StoriesTogglePeerStoriesHiddenParams{
 		Hidden: hidden,
@@ -17439,7 +17698,7 @@ func (*StoriesTogglePinnedToTopParams) CRC() uint32 {
 	return 0xb297e9b
 }
 
-// Pin some stories to the top of the profile, see [here »](https://core.telegram.org/api/stories#pinned-or-archived-stories) for more info.
+// Pin some stories to the top of the profile, see here » for more info.
 func (c *Client) StoriesTogglePinnedToTop(peer InputPeer, id []int32) (bool, error) {
 	responseData, err := c.MakeRequest(&StoriesTogglePinnedToTopParams{
 		ID:   id,
@@ -17503,7 +17762,7 @@ func (*UpdatesGetDifferenceParams) FlagIndex() int {
 	return 0
 }
 
-// Get new [updates](https://core.telegram.org/api/updates).
+// Get new updates.
 func (c *Client) UpdatesGetDifference(params *UpdatesGetDifferenceParams) (UpdatesDifference, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -17547,7 +17806,7 @@ func (*UploadGetCdnFileParams) CRC() uint32 {
 	return 0x395f69da
 }
 
-// Download a [CDN](https://core.telegram.org/cdn) file.
+// Download a CDN file.
 func (c *Client) UploadGetCdnFile(fileToken []byte, offset int64, limit int32) (UploadCdnFile, error) {
 	responseData, err := c.MakeRequest(&UploadGetCdnFileParams{
 		FileToken: fileToken,
@@ -17574,7 +17833,7 @@ func (*UploadGetCdnFileHashesParams) CRC() uint32 {
 	return 0x91dc3f31
 }
 
-// Get SHA256 hashes for verifying downloaded [CDN](https://core.telegram.org/cdn) files
+// Get SHA256 hashes for verifying downloaded CDN files
 func (c *Client) UploadGetCdnFileHashes(fileToken []byte, offset int64) ([]*FileHash, error) {
 	responseData, err := c.MakeRequest(&UploadGetCdnFileHashesParams{
 		FileToken: fileToken,
@@ -17657,7 +17916,7 @@ func (*UploadGetWebFileParams) CRC() uint32 {
 	return 0x24e6818d
 }
 
-// Returns content of a web file, by proxying the request through telegram, see the [webfile docs for more info](https://core.telegram.org/api/files#downloading-webfiles).
+// Returns content of a web file, by proxying the request through telegram, see the webfile docs for more info.
 func (c *Client) UploadGetWebFile(location InputWebFileLocation, offset, limit int32) (*UploadWebFile, error) {
 	responseData, err := c.MakeRequest(&UploadGetWebFileParams{
 		Limit:    limit,
@@ -17684,7 +17943,7 @@ func (*UploadReuploadCdnFileParams) CRC() uint32 {
 	return 0x9b2754a8
 }
 
-// Request a reupload of a certain file to a [CDN DC](https://core.telegram.org/cdn).
+// Request a reupload of a certain file to a CDN DC.
 func (c *Client) UploadReuploadCdnFile(fileToken, requestToken []byte) ([]*FileHash, error) {
 	responseData, err := c.MakeRequest(&UploadReuploadCdnFileParams{
 		FileToken:    fileToken,
@@ -17789,7 +18048,7 @@ func (*UsersGetIsPremiumRequiredToContactParams) CRC() uint32 {
 	return 0xa622aa10
 }
 
-// Check whether we can write to the specified user (this method can only be called by non-[Premium](https://core.telegram.org/api/premium) users), see [here »](https://core.telegram.org/api/privacy#require-premium-for-new-non-contact-users) for more info on the full flow.
+// Check whether we can write to the specified user (this method can only be called by non-Premium users), see here » for more info on the full flow.
 func (c *Client) UsersGetIsPremiumRequiredToContact(id []InputUser) (bool, error) {
 	responseData, err := c.MakeRequest(&UsersGetIsPremiumRequiredToContactParams{ID: id})
 	if err != nil {
@@ -17847,7 +18106,7 @@ func (*UsersSetSecureValueErrorsParams) CRC() uint32 {
 	return 0x90c894b5
 }
 
-// Notify the user that the sent [passport](https://core.telegram.org/passport) data contains some errors The user will not be able to re-submit their Passport data to you until the errors are fixed (the contents of the field for which you returned the error must change).
+// Notify the user that the sent passport data contains some errors The user will not be able to re-submit their Passport data to you until the errors are fixed (the contents of the field for which you returned the error must change).
 func (c *Client) UsersSetSecureValueErrors(id InputUser, errorsw []SecureValueError) (bool, error) {
 	responseData, err := c.MakeRequest(&UsersSetSecureValueErrorsParams{
 		Errors: errorsw,
