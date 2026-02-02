@@ -9,23 +9,25 @@ import (
 )
 
 type SendOptions struct {
-	Attributes    []DocumentAttribute `json:"attributes,omitempty"`
-	Caption       interface{}         `json:"caption,omitempty"`
-	ClearDraft    bool                `json:"clear_draft,omitempty"`
-	Entites       []MessageEntity     `json:"entites,omitempty"`
-	FileName      string              `json:"file_name,omitempty"`
-	ForceDocument bool                `json:"force_document,omitempty"`
-	LinkPreview   bool                `json:"link_preview,omitempty"`
-	Media         interface{}         `json:"media,omitempty"`
-	NoForwards    bool                `json:"no_forwards,omitempty"`
-	ParseMode     string              `json:"parse_mode,omitempty"`
-	ReplyID       int32               `json:"reply_id,omitempty"`
-	ReplyMarkup   ReplyMarkup         `json:"reply_markup,omitempty"`
-	ScheduleDate  int32               `json:"schedule_date,omitempty"`
-	SendAs        interface{}         `json:"send_as,omitempty"`
-	Silent        bool                `json:"silent,omitempty"`
-	Thumb         interface{}         `json:"thumb,omitempty"`
-	TTL           int32               `json:"ttl,omitempty"`
+	Attributes       []DocumentAttribute `json:"attributes,omitempty"`
+	Caption          interface{}         `json:"caption,omitempty"`
+	ClearDraft       bool                `json:"clear_draft,omitempty"`
+	Entites          []MessageEntity     `json:"entites,omitempty"`
+	FileName         string              `json:"file_name,omitempty"`
+	ForceDocument    bool                `json:"force_document,omitempty"`
+	LinkPreview      bool                `json:"link_preview,omitempty"`
+	Media            interface{}         `json:"media,omitempty"`
+	NoForwards       bool                `json:"no_forwards,omitempty"`
+	ParseMode        string              `json:"parse_mode,omitempty"`
+	ReplyID          int32               `json:"reply_id,omitempty"`
+	ReplyMarkup      ReplyMarkup         `json:"reply_markup,omitempty"`
+	ScheduleDate     int32               `json:"schedule_date,omitempty"`
+	SendAs           interface{}         `json:"send_as,omitempty"`
+	Silent           bool                `json:"silent,omitempty"`
+	Thumb            interface{}         `json:"thumb,omitempty"`
+	TTL              int32               `json:"ttl,omitempty"`
+	Spoiler          bool                `json:"spoiler,omitempty"`
+	ProgressCallback func(int32, int32)  `json:"-"`
 }
 
 // SendMessage sends a message to a specified peer using the Telegram API method messages.sendMessage.
@@ -173,11 +175,13 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 	)
 	if Media != nil {
 		media, err = c.getSendableMedia(Media, &MediaMetadata{
-			Attributes:    options.Attributes,
-			TTL:           options.TTL,
-			ForceDocument: options.ForceDocument,
-			Thumb:         options.Thumb,
-			FileName:      options.FileName,
+			Attributes:       options.Attributes,
+			TTL:              options.TTL,
+			ForceDocument:    options.ForceDocument,
+			Thumb:            options.Thumb,
+			FileName:         options.FileName,
+			Spoiler:          options.Spoiler,
+			ProgressCallback: options.ProgressCallback,
 		})
 		if err != nil {
 			return nil, err
@@ -209,11 +213,13 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 	)
 	if Media != nil {
 		media, err = c.getSendableMedia(Media, &MediaMetadata{
-			Attributes:    options.Attributes,
-			TTL:           options.TTL,
-			ForceDocument: options.ForceDocument,
-			Thumb:         options.Thumb,
-			FileName:      options.FileName,
+			Attributes:       options.Attributes,
+			TTL:              options.TTL,
+			ForceDocument:    options.ForceDocument,
+			Thumb:            options.Thumb,
+			FileName:         options.FileName,
+			Spoiler:          options.Spoiler,
+			ProgressCallback: options.ProgressCallback,
 		})
 		if err != nil {
 			return nil, err
@@ -256,31 +262,35 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 }
 
 type MediaOptions struct {
-	Attributes    []DocumentAttribute `json:"attributes,omitempty"`
-	Caption       interface{}         `json:"caption,omitempty"`
-	ClearDraft    bool                `json:"clear_draft,omitempty"`
-	Entites       []MessageEntity     `json:"entities,omitempty"`
-	FileName      string              `json:"file_name,omitempty"`
-	ForceDocument bool                `json:"force_document,omitempty"`
-	LinkPreview   bool                `json:"link_preview,omitempty"`
-	NoForwards    bool                `json:"no_forwards,omitempty"`
-	NoSoundVideo  bool                `json:"no_sound_video,omitempty"`
-	ParseMode     string              `json:"parse_mode,omitempty"`
-	ReplyID       int32               `json:"reply_id,omitempty"`
-	ReplyMarkup   ReplyMarkup         `json:"reply_markup,omitempty"`
-	ScheduleDate  int32               `json:"schedule_date,omitempty"`
-	SendAs        interface{}         `json:"send_as,omitempty"`
-	Silent        bool                `json:"silent,omitempty"`
-	Thumb         interface{}         `json:"thumb,omitempty"`
-	TTL           int32               `json:"ttl,omitempty"`
+	Attributes       []DocumentAttribute `json:"attributes,omitempty"`
+	Caption          interface{}         `json:"caption,omitempty"`
+	ClearDraft       bool                `json:"clear_draft,omitempty"`
+	Entites          []MessageEntity     `json:"entities,omitempty"`
+	FileName         string              `json:"file_name,omitempty"`
+	ForceDocument    bool                `json:"force_document,omitempty"`
+	LinkPreview      bool                `json:"link_preview,omitempty"`
+	NoForwards       bool                `json:"no_forwards,omitempty"`
+	NoSoundVideo     bool                `json:"no_sound_video,omitempty"`
+	ParseMode        string              `json:"parse_mode,omitempty"`
+	ReplyID          int32               `json:"reply_id,omitempty"`
+	ReplyMarkup      ReplyMarkup         `json:"reply_markup,omitempty"`
+	ScheduleDate     int32               `json:"schedule_date,omitempty"`
+	SendAs           interface{}         `json:"send_as,omitempty"`
+	Silent           bool                `json:"silent,omitempty"`
+	Thumb            interface{}         `json:"thumb,omitempty"`
+	TTL              int32               `json:"ttl,omitempty"`
+	Spoiler          bool                `json:"spoiler,omitempty"`
+	ProgressCallback func(int32, int32)  `json:"-"`
 }
 
 type MediaMetadata struct {
-	FileName      string              `json:"file_name,omitempty"`
-	Thumb         interface{}         `json:"thumb,omitempty"`
-	Attributes    []DocumentAttribute `json:"attributes,omitempty"`
-	ForceDocument bool                `json:"force_document,omitempty"`
-	TTL           int32               `json:"ttl,omitempty"`
+	FileName         string              `json:"file_name,omitempty"`
+	Thumb            interface{}         `json:"thumb,omitempty"`
+	Attributes       []DocumentAttribute `json:"attributes,omitempty"`
+	ForceDocument    bool                `json:"force_document,omitempty"`
+	TTL              int32               `json:"ttl,omitempty"`
+	Spoiler          bool                `json:"spoiler,omitempty"`
+	ProgressCallback func(int32, int32)  `json:"-"`
 }
 
 // SendMedia sends a media message.
@@ -303,11 +313,22 @@ type MediaMetadata struct {
 func (c *Client) SendMedia(peerID interface{}, Media interface{}, opts ...*MediaOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
 	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
+
 	var (
 		entities    []MessageEntity
 		textMessage string
 	)
-	sendMedia, err := c.getSendableMedia(Media, &MediaMetadata{FileName: opt.FileName, Thumb: opt.Thumb, ForceDocument: opt.ForceDocument, Attributes: opt.Attributes, TTL: opt.TTL})
+
+	sendMedia, err := c.getSendableMedia(Media, &MediaMetadata{
+		FileName:         opt.FileName,
+		Thumb:            opt.Thumb,
+		ForceDocument:    opt.ForceDocument,
+		Attributes:       opt.Attributes,
+		TTL:              opt.TTL,
+		Spoiler:          opt.Spoiler,
+		ProgressCallback: opt.ProgressCallback,
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +408,7 @@ func (c *Client) SendAlbum(peerID interface{}, Album interface{}, opts ...*Media
 		entities    []MessageEntity
 		textMessage string
 	)
-	InputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{FileName: opt.FileName, Thumb: opt.Thumb, ForceDocument: opt.ForceDocument, Attributes: opt.Attributes, TTL: opt.TTL})
+	InputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{FileName: opt.FileName, Thumb: opt.Thumb, ForceDocument: opt.ForceDocument, Attributes: opt.Attributes, TTL: opt.TTL, Spoiler: opt.Spoiler})
 	if multiErr != nil {
 		return nil, multiErr
 	}
