@@ -129,6 +129,15 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 
 	// Return the cleaned text string and tag offsets list
 	cleanedText := strings.TrimSpace(textBuf.String())
+	// for any tag if length is 0, remove it
+	var newTagOffsets []Tag
+	for _, tag := range tagOffsets {
+		if tag.Length > 0 {
+			newTagOffsets = append(newTagOffsets, tag)
+		}
+	}
+	tagOffsets = newTagOffsets
+
 	return cleanedText, tagOffsets, nil
 }
 
