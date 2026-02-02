@@ -21,7 +21,7 @@ const (
 )
 
 var (
-	API_SOURCES = []string{"https://raw.githubusercontent.com/null-nick/TL-Schema/c3e09f4310413ff49b695dfe78df64044153c905/api.tl",
+	API_SOURCES = []string{"https://raw.githubusercontent.com/null-nick/TL-Schema/main/api.tl",
 		"https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/Telegram/SourceFiles/mtproto/scheme/api.tl",
 	}
 )
