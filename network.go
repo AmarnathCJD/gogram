@@ -186,7 +186,6 @@ func (m *MTProto) SaveSession(mem bool) (err error) {
 		AppID:    m.appID,
 	}
 
-	m.sessionBackup = sess
 	if !mem {
 		m.Logger.Debug("saving session to `", filepath.Base(m.sessionStorage.Path()), "`")
 		return m.sessionStorage.Store(sess)
@@ -209,6 +208,10 @@ func (m *MTProto) _loadSession(s *session.Session) {
 
 func (m *MTProto) reqPQ(nonce *tl.Int128) (*objects.ResPQ, error) {
 	return objects.ReqPQ(m, nonce)
+}
+
+func (m *MTProto) reqPQMulti(nonce *tl.Int128) (*objects.ResPQ, error) {
+	return objects.ReqPQMulti(m, nonce)
 }
 
 func (m *MTProto) reqDHParams(nonce, serverNonce *tl.Int128, p, q []byte, publicKeyFingerprint int64, encryptedData []byte) (objects.ServerDHParams, error) {

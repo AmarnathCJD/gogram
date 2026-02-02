@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -229,6 +230,8 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 		default:
 			return nil, errors.New("could not convert dialogs: " + reflect.TypeOf(resp).String())
 		}
+
+		time.Sleep(20 * time.Millisecond)
 	}
 }
 

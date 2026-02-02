@@ -36,6 +36,28 @@ func ReqPQ(m requester, nonce *tl.Int128) (*ResPQ, error) {
 	return resp, nil
 }
 
+type ReqPQMultiParams struct {
+	Nonce *tl.Int128
+}
+
+func (*ReqPQMultiParams) CRC() uint32 {
+	return 0xbe7e8ef1
+}
+
+func ReqPQMulti(m requester, nonce *tl.Int128) (*ResPQ, error) {
+	data, err := m.MakeRequest(&ReqPQMultiParams{Nonce: nonce})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending ReqPQMulti")
+	}
+
+	resp, ok := data.(*ResPQ)
+	if !ok {
+		return nil, errors.New("got invalid response type: " + reflect.TypeOf(data).String())
+	}
+
+	return resp, nil
+}
+
 type ReqDHParamsParams struct {
 	Nonce                *tl.Int128
 	ServerNonce          *tl.Int128
