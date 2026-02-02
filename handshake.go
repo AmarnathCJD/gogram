@@ -4,11 +4,9 @@ package gogram
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"math/big"
 
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
@@ -16,6 +14,7 @@ import (
 	"github.com/amarnathcjd/gogram/internal/keys"
 	"github.com/amarnathcjd/gogram/internal/math"
 	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
+	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/pkg/errors"
 )
 
@@ -62,7 +61,7 @@ func (m *MTProto) makeAuthKey() error {
 	}
 
 	hashAndMsg := make([]byte, 255)
-	copy(hashAndMsg, append(Sha1(string(message)), message...))
+	copy(hashAndMsg, append(utils.Sha1(string(message)), message...))
 
 	encryptedMessage := math.DoRSAencrypt(hashAndMsg, m.publicKey)
 
@@ -119,8 +118,8 @@ func (m *MTProto) makeAuthKey() error {
 	t4 := make([]byte, 32+1+8)
 	copy(t4[0:], nonceSecond.Bytes())
 	t4[32] = 1
-	copy(t4[33:], Sha1Byte(m.GetAuthKey())[0:8])
-	nonceHash1 := Sha1Byte(t4)[4:20]
+	copy(t4[33:], utils.Sha1Byte(m.GetAuthKey())[0:8])
+	nonceHash1 := utils.Sha1Byte(t4)[4:20]
 	salt := make([]byte, tl.LongLen)
 	copy(salt, nonceSecond.Bytes()[:8])
 	math.Xor(salt, nonceServer.Bytes()[:8])
@@ -134,7 +133,7 @@ func (m *MTProto) makeAuthKey() error {
 		GB:          gB.Bytes(),
 	})
 	if err != nil {
-		log.Printf("TgCrypto - dh: %s", err)
+		m.Logger.Warn("makeAuthKey: failed to marshal client dh inner data")
 		return err
 	}
 
@@ -175,14 +174,4 @@ func (m *MTProto) makeAuthKey() error {
 		}
 	}
 	return err
-}
-
-func Sha1(input string) []byte {
-	r := sha1.Sum([]byte(input))
-	return r[:]
-}
-
-func Sha1Byte(input []byte) []byte {
-	r := sha1.Sum(input)
-	return r[:]
 }
