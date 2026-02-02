@@ -342,6 +342,7 @@ func (c *Client) IsConnected() bool {
 }
 
 func (c *Client) Start() error {
+	c.MTProto.SetTerminated(false) // reset the terminated state
 	if !c.IsConnected() {
 		if err := c.Connect(); err != nil {
 			return err
@@ -353,6 +354,18 @@ func (c *Client) Start() error {
 		}
 	} else if err != nil {
 		return err
+	}
+
+	c.stopCh = make(chan struct{}) // reset the stop channel
+	return nil
+}
+
+func (c *Client) St() error {
+	c.MTProto.SetTerminated(false) // reset the terminated state
+	if !c.IsConnected() {
+		if err := c.Connect(); err != nil {
+			return err
+		}
 	}
 
 	c.stopCh = make(chan struct{}) // reset the stop channel
