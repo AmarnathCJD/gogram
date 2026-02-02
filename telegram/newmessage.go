@@ -210,6 +210,10 @@ func (m *NewMessage) GetSenderChat() *Channel {
 	return m.SenderChat
 }
 
+func (m *NewMessage) Date() int32 {
+	return m.Message.Date
+}
+
 // GetPeer returns the peer of the message
 func (m *NewMessage) GetPeer() (int64, int64) {
 	if m.IsPrivate() {

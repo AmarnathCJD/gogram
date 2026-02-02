@@ -127,13 +127,14 @@ func (c *Client) GetProfilePhotos(userID any, Opts ...*PhotosOptions) ([]UserPho
 }
 
 type DialogOptions struct {
-	OffsetID      int32     `json:"offset_id,omitempty"`
-	OffsetDate    int32     `json:"offset_date,omitempty"`
-	OffsetPeer    InputPeer `json:"offset_peer,omitempty"`
-	Limit         int32     `json:"limit,omitempty"`
-	ExcludePinned bool      `json:"exclude_pinned,omitempty"`
-	FolderID      int32     `json:"folder_id,omitempty"`
-	Hash          int64     `json:"hash,omitempty"`
+	OffsetID         int32     `json:"offset_id,omitempty"`
+	OffsetDate       int32     `json:"offset_date,omitempty"`
+	OffsetPeer       InputPeer `json:"offset_peer,omitempty"`
+	Limit            int32     `json:"limit,omitempty"`
+	ExcludePinned    bool      `json:"exclude_pinned,omitempty"`
+	FolderID         int32     `json:"folder_id,omitempty"`
+	Hash             int64     `json:"hash,omitempty"`
+	SleepThresholdMs int32     `json:"sleep_threshold_ms,omitempty"`
 }
 
 type CustomDialog struct {
@@ -151,36 +152,42 @@ type CustomDialog struct {
 //	 - Limit: The number of dialogs to return
 //	 - ExcludePinned: Whether to exclude pinned dialogs
 //	 - FolderID: The folder ID to get dialogs from
+//	 - Hash: The hash of the dialogs
+//	 - SleepThresholdMs: The sleep threshold in milliseconds, to avoid flooding
 func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
-	Options := getVariadic(Opts, &DialogOptions{})
-	if Options.Limit < 0 {
-		Options.Limit = 1
-	}
-	if Options.OffsetPeer == nil {
-		Options.OffsetPeer = &InputPeerEmpty{}
+	options := getVariadic(Opts, &DialogOptions{
+		Limit:            1,
+		OffsetPeer:       &InputPeerEmpty{},
+		SleepThresholdMs: 20,
+	})
+	if options.OffsetPeer == nil {
+		options.OffsetPeer = &InputPeerEmpty{}
 	}
 
-	var reqLimit int32 = 100
-	if Options.Limit > 0 && Options.Limit < 100 {
-		reqLimit = Options.Limit
+	if options.SleepThresholdMs == 0 {
+		options.SleepThresholdMs = 20
 	}
 
 	var req = &MessagesGetDialogsParams{
-		OffsetDate:    Options.OffsetDate,
-		OffsetID:      Options.OffsetID,
-		OffsetPeer:    Options.OffsetPeer,
-		Limit:         reqLimit,
-		ExcludePinned: Options.ExcludePinned,
-		FolderID:      Options.FolderID,
-		Hash:          Options.Hash,
+		OffsetDate:    options.OffsetDate,
+		OffsetID:      options.OffsetID,
+		OffsetPeer:    options.OffsetPeer,
+		ExcludePinned: options.ExcludePinned,
+		FolderID:      options.FolderID,
+		Hash:          options.Hash,
 	}
 
 	var dialogs []Dialog
+	var fetched int
 
 	for {
-		if len(dialogs) >= int(Options.Limit) && Options.Limit > 0 {
-			return dialogs, nil
+		remaining := options.Limit - int32(fetched)
+		perReqLimit := int32(100)
+		if remaining < perReqLimit {
+			perReqLimit = remaining
 		}
+
+		req.Limit = perReqLimit
 
 		resp, err := c.MessagesGetDialogs(req)
 		if handleIfFlood(err, c) {
@@ -193,9 +200,6 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 		case *MessagesDialogsObj:
 			c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 			dialogs = append(dialogs, p.Dialogs...)
-			if len(p.Dialogs) < 100 {
-				return dialogs, nil
-			}
 			if len(p.Messages) > 0 {
 				if m, ok := p.Messages[len(p.Messages)-1].(*MessageObj); ok {
 					req.OffsetID = m.ID
@@ -205,14 +209,16 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 
 			if lastPeer, err := c.GetSendablePeer(p.Dialogs[len(p.Dialogs)-1].(*DialogObj).Peer); err == nil {
 				req.OffsetPeer = lastPeer
+			}
+
+			fetched += len(p.Dialogs)
+			if len(p.Dialogs) < int(perReqLimit) || fetched >= int(options.Limit) && options.Limit > 0 {
+				return dialogs, nil
 			}
 
 		case *MessagesDialogsSlice:
 			c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 			dialogs = append(dialogs, p.Dialogs...)
-			if len(p.Dialogs) < 100 {
-				return dialogs, nil
-			}
 
 			if len(p.Messages) > 0 {
 				if m, ok := p.Messages[len(p.Messages)-1].(*MessageObj); ok {
@@ -224,6 +230,12 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 			if lastPeer, err := c.GetSendablePeer(p.Dialogs[len(p.Dialogs)-1].(*DialogObj).Peer); err == nil {
 				req.OffsetPeer = lastPeer
 			}
+
+			fetched += len(p.Dialogs)
+			if len(p.Dialogs) < int(perReqLimit) || fetched >= int(options.Limit) && options.Limit > 0 {
+				return dialogs, nil
+			}
+
 		case *MessagesDialogsNotModified:
 			return dialogs, nil
 
@@ -231,8 +243,123 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 			return nil, errors.New("could not convert dialogs: " + reflect.TypeOf(resp).String())
 		}
 
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(time.Duration(options.SleepThresholdMs) * time.Millisecond)
 	}
+}
+
+func (c *Client) IterDialogs(Opts ...*DialogOptions) (<-chan Dialog, <-chan bool, <-chan error) {
+	options := getVariadic(Opts, &DialogOptions{
+		Limit:            1,
+		OffsetPeer:       &InputPeerEmpty{},
+		SleepThresholdMs: 20,
+	})
+
+	if options.OffsetPeer == nil {
+		options.OffsetPeer = &InputPeerEmpty{}
+	}
+
+	if options.SleepThresholdMs == 0 {
+		options.SleepThresholdMs = 20
+	}
+
+	var req = &MessagesGetDialogsParams{
+		OffsetDate:    options.OffsetDate,
+		OffsetID:      options.OffsetID,
+		OffsetPeer:    options.OffsetPeer,
+		ExcludePinned: options.ExcludePinned,
+		FolderID:      options.FolderID,
+		Hash:          options.Hash,
+	}
+
+	dialogs := make(chan Dialog)
+	done := make(chan bool)
+	errs := make(chan error)
+
+	go func() {
+		defer close(dialogs)
+		defer close(done)
+		defer close(errs)
+
+		var fetched int
+
+		for {
+			remaining := options.Limit - int32(fetched)
+			perReqLimit := int32(100)
+			if remaining < perReqLimit {
+				perReqLimit = remaining
+			}
+
+			req.Limit = perReqLimit
+
+			resp, err := c.MessagesGetDialogs(req)
+			if handleIfFlood(err, c) {
+				continue
+			} else if err != nil {
+				errs <- err
+				return
+			}
+
+			switch p := resp.(type) {
+			case *MessagesDialogsObj:
+				c.Cache.UpdatePeersToCache(p.Users, p.Chats)
+				for _, dialog := range p.Dialogs {
+					dialogs <- dialog
+				}
+
+				if len(p.Messages) > 0 {
+					if m, ok := p.Messages[len(p.Messages)-1].(*MessageObj); ok {
+						req.OffsetID = m.ID
+						req.OffsetDate = m.Date
+					}
+				}
+
+				if lastPeer, err := c.GetSendablePeer(p.Dialogs[len(p.Dialogs)-1].(*DialogObj).Peer); err == nil {
+					req.OffsetPeer = lastPeer
+				}
+
+				fetched += len(p.Dialogs)
+				if len(p.Dialogs) < int(perReqLimit) || fetched >= int(options.Limit) && options.Limit > 0 {
+					done <- true
+					return
+				}
+
+			case *MessagesDialogsSlice:
+				c.Cache.UpdatePeersToCache(p.Users, p.Chats)
+				for _, dialog := range p.Dialogs {
+					dialogs <- dialog
+				}
+
+				if len(p.Messages) > 0 {
+					if m, ok := p.Messages[len(p.Messages)-1].(*MessageObj); ok {
+						req.OffsetID = m.ID
+						req.OffsetDate = m.Date
+					}
+				}
+
+				if lastPeer, err := c.GetSendablePeer(p.Dialogs[len(p.Dialogs)-1].(*DialogObj).Peer); err == nil {
+					req.OffsetPeer = lastPeer
+				}
+
+				fetched += len(p.Dialogs)
+				if len(p.Dialogs) < int(perReqLimit) || fetched >= int(options.Limit) && options.Limit > 0 {
+					done <- true
+					return
+				}
+
+			case *MessagesDialogsNotModified:
+				done <- true
+				return
+
+			default:
+				errs <- errors.New("could not convert dialogs: " + reflect.TypeOf(resp).String())
+				return
+			}
+
+			time.Sleep(time.Duration(options.SleepThresholdMs) * time.Millisecond)
+		}
+	}()
+
+	return dialogs, done, errs
 }
 
 // GetCommonChats returns the common chats of a user
