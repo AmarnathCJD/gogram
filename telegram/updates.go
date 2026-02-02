@@ -217,6 +217,7 @@ func (h *rawHandle) GetGroup() string {
 }
 
 type UpdateDispatcher struct {
+	sync.Mutex
 	messageHandles        map[string][]*messageHandle
 	inlineHandles         map[string][]*inlineHandle
 	callbackHandles       map[string][]*callbackHandle
@@ -420,7 +421,7 @@ func (c *Client) handleAlbum(message MessageObj) {
 	if group, ok := c.dispatcher.activeAlbums[message.GroupedID]; ok {
 		group.Add(packMessage(c, &message))
 	} else {
-		abox := &albumBox{
+		albBox := &albumBox{
 			waitExit:  make(chan struct{}),
 			messages:  []*NewMessage{packMessage(c, &message)},
 			groupedId: message.GroupedID,
@@ -428,16 +429,16 @@ func (c *Client) handleAlbum(message MessageObj) {
 		if c.dispatcher.activeAlbums == nil {
 			c.dispatcher.activeAlbums = make(map[int64]*albumBox)
 		}
-		c.dispatcher.activeAlbums[message.GroupedID] = abox
+		c.dispatcher.activeAlbums[message.GroupedID] = albBox
 		go func() {
-			<-abox.waitExit
+			<-albBox.waitExit
 
 			for gp, handlers := range c.dispatcher.albumHandles {
 				for _, handler := range handlers {
 					handle := func(h *albumHandle) error {
 						if err := h.Handler(&Album{
-							GroupedID: abox.groupedId,
-							Messages:  abox.messages,
+							GroupedID: albBox.groupedId,
+							Messages:  albBox.messages,
 							Client:    c,
 						}); err != nil {
 							if errors.Is(err, EndGroup) {
@@ -458,9 +459,11 @@ func (c *Client) handleAlbum(message MessageObj) {
 				}
 			}
 
+			c.dispatcher.Lock()
 			delete(c.dispatcher.activeAlbums, message.GroupedID)
+			c.dispatcher.Unlock()
 		}()
-		go abox.Wait()
+		go albBox.Wait()
 	}
 }
 
