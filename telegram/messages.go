@@ -320,6 +320,7 @@ type MediaMetadata struct {
 	ProgressCallback     func(int64, int64)  `json:"-"`
 	UploadThreads        int                 `json:"-"`
 	FileAbsPath          string              `json:"-"`
+	Inline               bool                `json:"-"`
 }
 
 // SendMedia sends a media message.

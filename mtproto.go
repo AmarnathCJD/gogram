@@ -547,15 +547,13 @@ func (m *MTProto) handle404Error() {
 	}
 
 	if m.authKey404[0] == 4 {
-		m.Logger.Error(errors.New("(last retry: 4) reconnecting due to [AUTH_KEY_INVALID] (code -404)"))
+		m.Logger.Debug("-404 (x4), refreshing connection pipline")
 		err := m.Reconnect(false)
 		if err != nil {
 			m.Logger.Error(errors.Wrap(err, "reconnecting"))
 		}
-	} else if m.authKey404[0] > 4 {
-		panic("[AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)")
-	} else {
-		m.Logger.Error(errors.New("(retry: " + strconv.FormatInt(m.authKey404[0], 10) + ") [AUTH_KEY_INVALID] the auth key is invalid and needs to be reauthenticated (code -404)"))
+	} else if m.authKey404[0] > 8 {
+		panic("[AUTH_KEY_INVALID] (code -404)")
 	}
 }
 

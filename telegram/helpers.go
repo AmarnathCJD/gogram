@@ -441,6 +441,10 @@ func getAnyInt(v any) int64 {
 	}
 }
 
+func (c *Client) GetSendableMedia(mediaFile interface{}, attr *MediaMetadata) (InputMedia, error) {
+	return c.getSendableMedia(mediaFile, attr)
+}
+
 func (c *Client) getSendableMedia(mediaFile interface{}, attr *MediaMetadata) (InputMedia, error) {
 	switch thumb := attr.Thumb.(type) {
 	case InputFile, *InputFile, nil:
@@ -458,8 +462,43 @@ mediaTypeSwitch:
 	case string:
 		if IsURL(media) {
 			if _, isImage := mimeTypes.MIME(media); isImage {
+				if attr != nil && attr.Inline {
+					upl, err := c.MessagesUploadMedia("", &InputPeerSelf{}, &InputMediaPhotoExternal{URL: media})
+					if err != nil {
+						return nil, err
+					}
+
+					switch upl := upl.(type) {
+					case *MessageMediaPhoto:
+						switch upl.Photo.(type) {
+						case *PhotoObj:
+							return &InputMediaPhoto{ID: &InputPhotoObj{ID: upl.Photo.(*PhotoObj).ID, AccessHash: upl.Photo.(*PhotoObj).AccessHash, FileReference: upl.Photo.(*PhotoObj).FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+						case *PhotoEmpty:
+							return &InputMediaPhoto{ID: &InputPhotoEmpty{}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+						}
+					}
+				}
+
 				return &InputMediaPhotoExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
 			}
+
+			if attr != nil && attr.Inline {
+				upl, err := c.MessagesUploadMedia("", &InputPeerSelf{}, &InputMediaDocumentExternal{URL: media})
+				if err != nil {
+					return nil, err
+				}
+
+				switch upl := upl.(type) {
+				case *MessageMediaDocument:
+					switch upl.Document.(type) {
+					case *DocumentObj:
+						return &InputMediaDocument{ID: &InputDocumentObj{ID: upl.Document.(*DocumentObj).ID, AccessHash: upl.Document.(*DocumentObj).AccessHash, FileReference: upl.Document.(*DocumentObj).FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+					case *DocumentEmpty:
+						return &InputMediaDocument{ID: &InputDocumentEmpty{}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+					}
+				}
+			}
+
 			return &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
 		} else {
 			if _, err := os.Stat(media); err == nil {

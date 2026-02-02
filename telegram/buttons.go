@@ -9,59 +9,124 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Button is a helper struct for creating buttons for messages.
 type Button struct{}
+
+type KeyboardBuilder struct {
+	rows []*KeyboardButtonRow
+}
+
+// NewKeyboard initializes a new keyboard builder.
+func NewKeyboard() *KeyboardBuilder {
+	return &KeyboardBuilder{}
+}
+
+// AddRow adds a new row of buttons to the keyboard.
+func (kb *KeyboardBuilder) AddRow(buttons ...KeyboardButton) *KeyboardBuilder {
+	kb.rows = append(kb.rows, &KeyboardButtonRow{Buttons: buttons})
+	return kb
+}
+
+// NewGrid arranges buttons into a grid based on specified rows (x) and columns (y).
+// If there are fewer buttons than x*y, the last row may contain fewer buttons.
+func (kb *KeyboardBuilder) NewGrid(x, y int, buttons ...KeyboardButton) *KeyboardBuilder {
+	totalButtons := len(buttons)
+	for i := 0; i < x && i*y < totalButtons; i++ {
+		endIndex := (i + 1) * y
+		if endIndex > totalButtons {
+			endIndex = totalButtons
+		}
+		rowButtons := buttons[i*y : endIndex]
+		kb.AddRow(rowButtons...)
+	}
+
+	if totalButtons > x*y {
+		kb.AddRow(buttons[x*y:]...)
+	}
+
+	return kb
+}
+
+// NewColumn arranges buttons into a grid based on specified number of buttons (x) per column.
+func (kb *KeyboardBuilder) NewColumn(x int, buttons ...KeyboardButton) *KeyboardBuilder {
+	// i.e x buttons per column
+	for i := 0; i < len(buttons); i += x {
+		endIndex := i + x
+		if endIndex > len(buttons) {
+			endIndex = len(buttons)
+		}
+		kb.AddRow(buttons[i:endIndex]...)
+	}
+	return kb
+}
+
+// NewRow arranges buttons into a grid based on specified number of buttons (y) per row.
+func (kb *KeyboardBuilder) NewRow(y int, buttons ...KeyboardButton) *KeyboardBuilder {
+	// i.e y buttons per row
+	for i := 0; i < y; i++ {
+		var rowButtons []KeyboardButton
+		for j := i; j < len(buttons); j += y {
+			rowButtons = append(rowButtons, buttons[j])
+		}
+		kb.AddRow(rowButtons...)
+	}
+	return kb
+}
+
+// Build finalizes the keyboard and returns the inline markup.
+func (kb *KeyboardBuilder) Build() *ReplyInlineMarkup {
+	return &ReplyInlineMarkup{Rows: kb.rows}
+}
 
 func (Button) Force(placeHolder string) *ReplyKeyboardForceReply {
 	return &ReplyKeyboardForceReply{Placeholder: placeHolder}
 }
 
-func (Button) Auth(Text, URL, ForwardText string, ButtonID int32) *KeyboardButtonURLAuth {
-	return &KeyboardButtonURLAuth{Text: Text, URL: URL, FwdText: ForwardText, ButtonID: ButtonID}
+func (Button) Auth(text, url, forwardText string, buttonID int32) *KeyboardButtonURLAuth {
+	return &KeyboardButtonURLAuth{Text: text, URL: url, FwdText: forwardText, ButtonID: buttonID}
 }
 
-func (Button) URL(Text, URL string) *KeyboardButtonURL {
-	return &KeyboardButtonURL{Text: Text, URL: URL}
+func (Button) URL(text, url string) *KeyboardButtonURL {
+	return &KeyboardButtonURL{Text: text, URL: url}
 }
 
-func (Button) Data(Text, Data string) *KeyboardButtonCallback {
-	return &KeyboardButtonCallback{Text: Text, Data: []byte(Data)}
+func (Button) Data(text, data string) *KeyboardButtonCallback {
+	return &KeyboardButtonCallback{Text: text, Data: []byte(data)}
 }
 
-func (Button) RequestLocation(Text string) *KeyboardButtonRequestGeoLocation {
-	return &KeyboardButtonRequestGeoLocation{Text: Text}
+func (Button) RequestLocation(text string) *KeyboardButtonRequestGeoLocation {
+	return &KeyboardButtonRequestGeoLocation{Text: text}
 }
 
-func (Button) Buy(Text string) *KeyboardButtonBuy {
-	return &KeyboardButtonBuy{Text: Text}
+func (Button) Buy(text string) *KeyboardButtonBuy {
+	return &KeyboardButtonBuy{Text: text}
 }
 
-func (Button) Game(Text string) *KeyboardButtonGame {
-	return &KeyboardButtonGame{Text: Text}
+func (Button) Game(text string) *KeyboardButtonGame {
+	return &KeyboardButtonGame{Text: text}
 }
 
-func (Button) RequestPhone(Text string) *KeyboardButtonRequestPhone {
-	return &KeyboardButtonRequestPhone{Text: Text}
+func (Button) RequestPhone(text string) *KeyboardButtonRequestPhone {
+	return &KeyboardButtonRequestPhone{Text: text}
 }
 
-func (Button) RequestPeer(Text string, ButtonID int32, PeerType RequestPeerType, Max ...int32) *KeyboardButtonRequestPeer {
-	return &KeyboardButtonRequestPeer{Text: Text, ButtonID: ButtonID, PeerType: PeerType, MaxQuantity: getVariadic(Max, int32(0))}
+func (Button) RequestPeer(text string, buttonID int32, peerType RequestPeerType, max ...int32) *KeyboardButtonRequestPeer {
+	return &KeyboardButtonRequestPeer{Text: text, ButtonID: buttonID, PeerType: peerType, MaxQuantity: getVariadic(max, int32(0))}
 }
 
-func (Button) RequestPoll(Text string, Quiz bool) *KeyboardButtonRequestPoll {
-	return &KeyboardButtonRequestPoll{Text: Text, Quiz: Quiz}
+func (Button) RequestPoll(text string, quiz bool) *KeyboardButtonRequestPoll {
+	return &KeyboardButtonRequestPoll{Text: text, Quiz: quiz}
 }
 
-func (Button) SwitchInline(Text string, SamePeer bool, Query string) *KeyboardButtonSwitchInline {
-	return &KeyboardButtonSwitchInline{Text: Text, SamePeer: SamePeer, Query: Query}
+func (Button) SwitchInline(text string, samePeer bool, query string) *KeyboardButtonSwitchInline {
+	return &KeyboardButtonSwitchInline{Text: text, SamePeer: samePeer, Query: query}
 }
 
-func (Button) WebView(Text, URL string) *KeyboardButtonSimpleWebView {
-	return &KeyboardButtonSimpleWebView{Text: Text, URL: URL}
+func (Button) WebView(text, url string) *KeyboardButtonSimpleWebView {
+	return &KeyboardButtonSimpleWebView{Text: text, URL: url}
 }
 
-func (Button) Mention(Text string, UserID int64) *KeyboardButtonUserProfile {
-	return &KeyboardButtonUserProfile{Text: Text, UserID: UserID}
+func (Button) Mention(text string, userID int64) *KeyboardButtonUserProfile {
+	return &KeyboardButtonUserProfile{Text: text, UserID: userID}
 }
 
 func (Button) Row(Buttons ...KeyboardButton) *KeyboardButtonRow {
