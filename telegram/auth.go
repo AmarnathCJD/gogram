@@ -3,6 +3,8 @@
 package telegram
 
 import (
+	"bufio"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -11,6 +13,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -35,21 +38,36 @@ func (c *Client) ConnectBot(botToken string) error {
 	return c.LoginBot(botToken)
 }
 
+// InputProvider is a function type for custom input providers
+type InputProvider func(prompt string) (string, error)
+
 // AuthPrompt prompts the user to enter a phone number or bot token to authorize the client.
-func (c *Client) AuthPrompt() error {
+func (c *Client) AuthPrompt(provider ...InputProvider) error {
 	if authorized, _ := c.IsAuthorized(); authorized {
 		return nil
 	}
 
+	readInput := func(prompt string) (string, error) {
+		fmt.Print(prompt)
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(input), nil
+	}
+
+	if len(provider) > 0 {
+		readInput = provider[0]
+	}
+
 	const maxRetries = 3
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		fmt.Printf("Enter phone number (with country code, e.g., +1234567890) or bot token: ")
-		var input string
-		if _, err := fmt.Scanln(&input); err != nil {
+		input, err := readInput("Enter phone number (with country code, e.g., +1234567890) or bot token: ")
+		if err != nil {
 			return fmt.Errorf("reading input: %w", err)
 		}
 
-		input = strings.TrimSpace(input)
 		if input == "" {
 			fmt.Printf("Empty input received. Please try again (%d/%d)\n", attempt, maxRetries)
 			continue
@@ -62,8 +80,13 @@ func (c *Client) AuthPrompt() error {
 			return nil
 		}
 
-		if phoneRegex.MatchString(input) {
-			if _, err := c.Login(input); err != nil {
+		cleanInput := strings.ReplaceAll(input, " ", "")
+		cleanInput = strings.ReplaceAll(cleanInput, "(", "")
+		cleanInput = strings.ReplaceAll(cleanInput, ")", "")
+		cleanInput = strings.ReplaceAll(cleanInput, "-", "")
+
+		if phoneRegex.MatchString(cleanInput) {
+			if _, err := c.Login(cleanInput); err != nil {
 				return fmt.Errorf("user login failed: %w", err)
 			}
 			return nil
@@ -77,6 +100,14 @@ func (c *Client) AuthPrompt() error {
 
 // LoginBot authenticates the client using a bot token.
 func (c *Client) LoginBot(botToken string) error {
+	return c.loginBotInternal(botToken, 0)
+}
+
+func (c *Client) loginBotInternal(botToken string, depth int) error {
+	if depth > 5 {
+		return errors.New("login failed: maximum DC migration depth exceeded")
+	}
+
 	if botToken == "" {
 		return errors.New("bot token cannot be empty")
 	}
@@ -94,14 +125,14 @@ func (c *Client) LoginBot(botToken string) error {
 	_, err := c.AuthImportBotAuthorization(1, c.AppID(), c.AppHash(), botToken)
 	if err != nil {
 		if MatchError(err, "DC_MIGRATE") {
-			return c.LoginBot(botToken)
+			return c.loginBotInternal(botToken, depth+1)
 		}
 		return fmt.Errorf("importing bot authorization: %w", err)
 	}
 
 	if is, err := c.IsAuthorized(); err != nil || !is {
 		if MatchError(err, "DC_MIGRATE") {
-			return c.LoginBot(botToken)
+			return c.loginBotInternal(botToken, depth+1)
 		}
 	}
 
@@ -156,24 +187,27 @@ func DefaultWrongPasswordCallback(attempt, maxRetries int) bool {
 }
 
 func DefaultCodeCallback() (string, error) {
-	fmt.Printf("Enter authentication code: ")
-	var code string
-	if _, err := fmt.Scanln(&code); err != nil {
+	fmt.Print("Enter authentication code: ")
+	reader := bufio.NewReader(os.Stdin)
+	code, err := reader.ReadString('\n')
+	if err != nil {
 		return "", fmt.Errorf("reading code: %w", err)
 	}
 	return strings.TrimSpace(code), nil
 }
 
 func DefaultPasswordCallback() (string, error) {
-	fmt.Printf("Enter password: ")
-	var password string
-	if _, err := fmt.Scanln(&password); err != nil {
+	fmt.Print("Enter password: ")
+	reader := bufio.NewReader(os.Stdin)
+	password, err := reader.ReadString('\n')
+	if err != nil {
 		return "", fmt.Errorf("reading password: %w", err)
 	}
 	return strings.TrimSpace(password), nil
 }
 
 type LoginOptions struct {
+	Ctx              context.Context
 	Password         string `json:"password,omitempty"`
 	Code             string `json:"code,omitempty"`
 	CodeHash         string `json:"code_hash,omitempty"`
@@ -285,6 +319,12 @@ func applyLoginDefaults(opts *LoginOptions) {
 // CodeAuthAttempt handles the authentication process with code and optional 2FA password.
 func CodeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions, maxRetries int) (AuthAuthorization, error) {
 	for attempt := 1; attempt <= maxRetries; attempt++ {
+		if opts.Ctx != nil {
+			if err := opts.Ctx.Err(); err != nil {
+				return nil, err
+			}
+		}
+
 		code, err := opts.CodeCallback()
 		if err != nil {
 			if errno, ok := err.(syscall.Errno); ok && errno == syscall.EINTR {
@@ -339,6 +379,12 @@ func (c *Client) handlePasswordAuth(opts *LoginOptions, maxRetries int) (AuthAut
 	fmt.Println("Two-factor authentication is enabled.")
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
+		if opts.Ctx != nil {
+			if err := opts.Ctx.Err(); err != nil {
+				return nil, err
+			}
+		}
+
 		password := opts.Password
 
 		if password == "" {
