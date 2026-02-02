@@ -16,6 +16,8 @@ func (c *Client) GetMe() (*UserObj, error) {
 	if !ok {
 		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
 	}
+	c.clientData.me = user
+
 	return user, nil
 }
 
