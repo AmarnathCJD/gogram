@@ -292,6 +292,18 @@ type UpdateDispatcher struct {
 	currentPts            int32
 }
 
+func (d *UpdateDispatcher) SetPts(pts int32) {
+	d.Lock()
+	defer d.Unlock()
+	d.currentPts = pts
+}
+
+func (d *UpdateDispatcher) GetPts() int32 {
+	d.RLock()
+	defer d.RUnlock()
+	return d.currentPts
+}
+
 // creates and populates a new UpdateDispatcher
 func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 	c.dispatcher = &UpdateDispatcher{
@@ -415,7 +427,18 @@ func removeHandleFromMap[T any](handle T, handlesMap map[string][]T) {
 
 // ---------------------------- Handle Functions ----------------------------
 
-func (c *Client) handleMessageUpdate(update Message) {
+func (c *Client) handleMessageUpdate(update Message, pts ...int32) {
+	if len(pts) > 0 {
+		if pts[0] == -1 {
+			fetchUpdates(c)
+			return
+		} else {
+			if !c.managePts(pts[0], pts[1]) {
+				return
+			}
+		}
+	}
+
 	switch msg := update.(type) {
 	case *MessageObj:
 		if msg.GroupedID != 0 {
@@ -553,7 +576,13 @@ func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
 	}
 }
 
-func (c *Client) handleEditUpdate(update Message) {
+func (c *Client) handleEditUpdate(update Message, pts ...int32) {
+	if len(pts) > 0 {
+		if !c.managePts(pts[0], pts[1]) {
+			return
+		}
+	}
+
 	if msg, ok := update.(*MessageObj); ok {
 		packed := packMessage(c, msg)
 
@@ -729,7 +758,13 @@ func (c *Client) handleInlineSendUpdate(update *UpdateBotInlineSend) {
 	}
 }
 
-func (c *Client) handleDeleteUpdate(update Update) {
+func (c *Client) handleDeleteUpdate(update Update, pts ...int32) {
+	if len(pts) > 0 {
+		if !c.managePts(pts[0], pts[1]) {
+			return
+		}
+	}
+
 	packed := packDeleteMessage(c, update)
 
 	for group, handlers := range c.dispatcher.messageDeleteHandles {
@@ -1191,23 +1226,15 @@ UpdateTypeSwitching:
 		for _, update := range upd.Updates {
 			switch update := update.(type) {
 			case *UpdateNewMessage:
-				if ok, _ := managePts(c, update.Pts, update.PtsCount); ok {
-					go c.handleMessageUpdate(update.Message)
-				}
+				go c.handleMessageUpdate(update.Message, update.Pts, update.PtsCount)
 			case *UpdateNewChannelMessage:
-				if ok, _ := managePts(c, update.Pts, update.PtsCount); ok {
-					go c.handleMessageUpdate(update.Message)
-				}
+				go c.handleMessageUpdate(update.Message, update.Pts, update.PtsCount)
 			case *UpdateNewScheduledMessage:
 				go c.handleMessageUpdate(update.Message)
 			case *UpdateEditMessage:
-				if ok, _ := managePts(c, update.Pts, update.PtsCount); ok {
-					go c.handleEditUpdate(update.Message)
-				}
+				go c.handleEditUpdate(update.Message, update.Pts, update.PtsCount)
 			case *UpdateEditChannelMessage:
-				if ok, _ := managePts(c, update.Pts, update.PtsCount); ok {
-					go c.handleEditUpdate(update.Message)
-				}
+				go c.handleEditUpdate(update.Message, update.Pts, update.PtsCount)
 			case *UpdateBotInlineQuery:
 				go c.handleInlineUpdate(update)
 			case *UpdateBotCallbackQuery:
@@ -1217,13 +1244,9 @@ UpdateTypeSwitching:
 			case *UpdateChannelParticipant:
 				go c.handleParticipantUpdate(update)
 			case *UpdateDeleteChannelMessages:
-				if ok, _ := managePts(c, update.Pts, update.PtsCount); ok {
-					go c.handleDeleteUpdate(update)
-				}
+				go c.handleDeleteUpdate(update, update.Pts, update.PtsCount)
 			case *UpdateDeleteMessages:
-				if ok, _ := managePts(c, update.Pts, update.PtsCount); ok {
-					go c.handleDeleteUpdate(update)
-				}
+				go c.handleDeleteUpdate(update, update.Pts, update.PtsCount)
 			case *UpdateBotInlineSend:
 				go c.handleInlineSendUpdate(update)
 			}
@@ -1249,7 +1272,7 @@ UpdateTypeSwitching:
 		goto UpdateTypeSwitching
 	case *UpdatesTooLong:
 		c.Log.Debug("too many updates, forcing getDifference")
-		fetchUpdates(c) // updatesTooLong, too many updates, shall fetch manually
+		c.handleMessageUpdate(&MessageEmpty{}, -1) // updatesTooLong, too many updates, shall fetch manually
 	default:
 		c.Log.Debug("skipping unhanded update type: ", reflect.TypeOf(u), " with value: ", c.JSON(u))
 	}
@@ -1259,8 +1282,10 @@ UpdateTypeSwitching:
 const GETDIFF_LIMIT = 1000
 
 func fetchUpdates(c *Client) {
+	totalFetched := 0
+
 	req := &UpdatesGetDifferenceParams{
-		Pts:           c.dispatcher.currentPts,
+		Pts:           c.dispatcher.GetPts(),
 		PtsLimit:      GETDIFF_LIMIT,
 		PtsTotalLimit: GETDIFF_LIMIT,
 		Date:          int32(time.Now().Unix()),
@@ -1268,11 +1293,17 @@ func fetchUpdates(c *Client) {
 		QtsLimit:      0,
 	}
 
+	defer func() {
+		c.Log.Debug("force fetched ", totalFetched, " updates")
+	}()
+
 	for {
-		c.Log.Debug("getting difference with pts: ", req.Pts, " and limit: ", req.PtsLimit)
-		updates, err := c.UpdatesGetDifference(req)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		updates, err := c.MTProto.MakeRequestCtx(ctx, req)
 		if err != nil {
 			c.Log.Error(errors.Wrap(err, "updates.dispatcher.getDifference"))
+			return
 		}
 
 		switch u := updates.(type) {
@@ -1282,16 +1313,16 @@ func fetchUpdates(c *Client) {
 				switch update.(type) {
 				case *MessageObj:
 					go c.handleMessageUpdate(update)
+					totalFetched++
 				}
 			}
 
 			if len(u.OtherUpdates) > 0 {
+				totalFetched += len(u.OtherUpdates)
 				HandleIncomingUpdates(UpdatesObj{Updates: u.OtherUpdates}, c)
 			}
 
-			c.dispatcher.Lock()
-			c.dispatcher.currentPts = u.State.Pts
-			c.dispatcher.Unlock()
+			c.dispatcher.SetPts(u.State.Pts)
 			return
 		case *UpdatesDifferenceSlice:
 			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
@@ -1299,51 +1330,55 @@ func fetchUpdates(c *Client) {
 				switch update.(type) {
 				case *MessageObj:
 					go c.handleMessageUpdate(update)
+					totalFetched++
 				}
 			}
 
 			if len(u.OtherUpdates) > 0 {
+				totalFetched += len(u.OtherUpdates)
 				HandleIncomingUpdates(UpdatesObj{Updates: u.OtherUpdates}, c)
 			}
 
-			c.dispatcher.Lock()
-			c.dispatcher.currentPts = u.IntermediateState.Pts
-			c.dispatcher.Unlock()
-			req.Pts = c.dispatcher.currentPts
+			c.dispatcher.SetPts(u.IntermediateState.Pts)
+			req.Pts = u.IntermediateState.Pts
 		case *UpdatesDifferenceTooLong:
-			c.dispatcher.currentPts = u.Pts
+			c.dispatcher.SetPts(u.Pts)
+			req.Pts = u.Pts
 		case *UpdatesDifferenceEmpty:
-			break
+			return
+		default:
+			c.Log.Debug("skipping unknown update type: ", reflect.TypeOf(u), " with value: ", c.JSON(u))
+			return
 		}
-
-		req.Pts = c.dispatcher.currentPts
 	}
 }
 
-func managePts(c *Client, pts int32, ptsCount int32) (bool, int) {
-	if c.dispatcher.currentPts+ptsCount == pts || c.dispatcher.currentPts == 0 {
-		c.dispatcher.Lock()
-		c.dispatcher.currentPts = pts
-		c.dispatcher.Unlock()
-		return true, 0
+func (c *Client) managePts(pts int32, ptsCount int32) bool {
+	var currentPts = c.dispatcher.GetPts()
+
+	if currentPts+ptsCount == pts || currentPts == 0 {
+		c.dispatcher.SetPts(pts)
+		return true
 	}
 
-	if c.dispatcher.currentPts+ptsCount < pts {
-		c.Log.Debug("pts is ahead, fetching difference to fill gap")
-		missing := pts - c.dispatcher.currentPts
-		updates, err := c.UpdatesGetDifference(&UpdatesGetDifferenceParams{
-			Pts:           c.dispatcher.currentPts + ptsCount,
-			PtsLimit:      missing,
-			PtsTotalLimit: missing,
+	if currentPts+ptsCount < pts {
+		c.Log.Debug("update gap detected - filling - pts (", currentPts, ") - ptsCount (", ptsCount, ") - pts (", pts, ")")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		updates, err := c.MTProto.MakeRequestCtx(ctx, &UpdatesGetDifferenceParams{
+			Pts:           currentPts,
+			PtsLimit:      pts - currentPts,
+			PtsTotalLimit: pts - currentPts,
 			Date:          int32(time.Now().Unix()),
 			Qts:           0,
 			QtsLimit:      0,
 		})
 
-		c.Log.Debug("getting difference with pts: ", c.dispatcher.currentPts+ptsCount, " and limit: ", missing)
-
 		if err != nil {
 			c.Log.Error(errors.Wrap(err, "updates.dispatcher.getDifference"))
+			return true
 		}
 
 		switch u := updates.(type) {
@@ -1352,37 +1387,26 @@ func managePts(c *Client, pts int32, ptsCount int32) (bool, int) {
 			for _, update := range u.NewMessages {
 				switch update.(type) {
 				case *MessageObj:
-					go c.handleMessageUpdate(update)
+					c.handleMessageUpdate(update)
 				}
 			}
 
-			if len(u.OtherUpdates) > 0 {
-				HandleIncomingUpdates(UpdatesObj{Updates: u.OtherUpdates}, c)
-			}
-
-			c.dispatcher.Lock()
-			c.dispatcher.currentPts = u.State.Pts
-			c.dispatcher.Unlock()
 		case *UpdatesDifferenceSlice:
 			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
 			for _, update := range u.NewMessages {
 				switch update.(type) {
 				case *MessageObj:
-					go c.handleMessageUpdate(update)
+					c.handleMessageUpdate(update)
 				}
 			}
-
-			if len(u.OtherUpdates) > 0 {
-				HandleIncomingUpdates(UpdatesObj{Updates: u.OtherUpdates}, c)
-			}
-
-			c.dispatcher.Lock()
-			c.dispatcher.currentPts = u.IntermediateState.Pts
-			c.dispatcher.Unlock()
 		}
+
+		c.dispatcher.SetPts(pts)
+	} else {
+		return false
 	}
 
-	return false, int(pts - c.dispatcher.currentPts)
+	return true
 }
 
 func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
@@ -1576,7 +1600,7 @@ func (c *Client) On(pattern any, handler any, filters ...Filter) Handle {
 			}
 			return c.AddCallbackHandler(OnCallbackQuery, h)
 		}
-	case OnInlineCallback, OnInlineCallbackQuery:
+	case OnInlineCallback, OnInlineCallbackQuery, "inlinecallback":
 		if h, ok := handler.(func(m *InlineCallbackQuery) error); ok {
 			if args != "" {
 				return c.AddInlineCallbackHandler(args, h)
