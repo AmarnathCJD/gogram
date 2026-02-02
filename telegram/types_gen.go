@@ -2,6 +2,16 @@
 
 package telegram
 
+type AccessPointRule struct {
+	PhonePrefixRules string
+	DcID             int32
+	Ips              []IpPort
+}
+
+func (*AccessPointRule) CRC() uint32 {
+	return 0x4679b65f
+}
+
 // [Telegram Passport](https://core.telegram.org/passport) authorization form
 type AccountAuthorizationForm struct {
 	RequiredTypes    []SecureRequiredType
@@ -1213,16 +1223,6 @@ func (*EmojiURL) CRC() uint32 {
 	return 0xa575739d
 }
 
-// Error.
-type Error struct {
-	Code int32
-	Text string
-}
-
-func (*Error) CRC() uint32 {
-	return 0xc4b9f9bb
-}
-
 // Exported [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
 type ExportedChatlistInvite struct {
 	Title string
@@ -1460,6 +1460,16 @@ type GroupCallStreamChannel struct {
 
 func (*GroupCallStreamChannel) CRC() uint32 {
 	return 0x80eb48af
+}
+
+type HelpConfigSimple struct {
+	Date    int32
+	Expires int32
+	Rules   []*AccessPointRule
+}
+
+func (*HelpConfigSimple) CRC() uint32 {
+	return 0x5a592a6c
 }
 
 // Name, ISO code, localized name and phone codes/patterns of a specific country

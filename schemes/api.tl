@@ -14,8 +14,16 @@ vector#1cb5c415 {t:Type} # [ t ] = Vector t;
 
 error#c4b9f9bb code:int text:string = Error;
 
+ipPort#d433ad73 ipv4:int port:int = IpPort;
+ipPortSecret#37982646 ipv4:int port:int secret:bytes = IpPort;
 null#56730bcc = Null;
 true#3fedd339 = True;
+accessPointRule#4679b65f phone_prefix_rules:string dc_id:int ips:Vector<IpPort> = AccessPointRule;
+help.configSimple#5a592a6c date:int expires:int rules:Vector<AccessPointRule> = help.ConfigSimple;invokeWithBusinessConnectionPrefix#dd289f8e connection_id:string = Error;
+invokeWithGooglePlayIntegrityPrefix#1df92984 nonce:string token:string = Error;
+invokeWithApnsSecretPrefix#0dae54f8 nonce:string secret:string = Error;
+
+---types---
 
 inputPeerEmpty#7f3b18ea = InputPeer;
 inputPeerSelf#7da07ec9 = InputPeer;
