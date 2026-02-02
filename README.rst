@@ -6,9 +6,11 @@ GσGɾαɱ
 
 
 
-**gogram** is a **Pure Golang**
-MTProto_ (Layer 147) library to interact with Telegram's API
-as a user or through a bot account (bot API alternative).
+Gogram is an open-source Telegram MTProto_ client written in the Go programming language (also known as Golang). It provides an easy-to-use API for building applications that interact with the Telegram API.
+
+Gogram is designed to be fast and efficient, and it has no external dependencies, making it easy to use and integrate into your projects. It also supports native entity parser, inter DC requests, and friendlier methods, which can help simplify the process of interacting with Telegram's API.
+
+*If you're looking to build a Telegram client or bot using the Go programming language, Gogram is definitely worth considering. Its open-source nature also means that you can contribute to its development and suggest new features or improvements.*
 
 
 What is this?
@@ -22,7 +24,6 @@ heavy job for you, so you can focus on developing an application.
 Known Bugs
 ----------
 
-• HTML Parser (identical text only first one is detected)
 • getFullChannel fails due to flag2.0
 
 PRs and Issues are always welcome.
