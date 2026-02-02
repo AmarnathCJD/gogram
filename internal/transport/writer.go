@@ -43,7 +43,21 @@ func (c *Reader) begin() {
 	}
 }
 
+func isClosed(ch <-chan int) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+	}
+
+	return false
+}
+
 func (c *Reader) Read(p []byte) (int, error) {
+	if isClosed(c.sizeWant) {
+		return 0, io.EOF
+	}
+
 	select {
 	case <-c.ctx.Done():
 		return 0, c.ctx.Err()
