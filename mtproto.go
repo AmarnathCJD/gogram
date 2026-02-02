@@ -41,10 +41,10 @@ type MTProto struct {
 	proxy     *url.URL
 	transport transport.Transport
 
-	ctxCancel     []context.CancelFunc
+	ctxCancel     context.CancelFunc
 	routineswg    sync.WaitGroup
 	memorySession bool
-	tcpActive     bool
+	tcpActive     atomic.Bool
 	timeOffset    int64
 	mode          mode.Variant
 
@@ -121,11 +121,9 @@ func NewMTProto(c Config) (*MTProto, error) {
 			return nil, errors.Wrap(err, "loading session")
 		}
 	}
-
 	if c.Logger == nil {
 		c.Logger = utils.NewLogger("gogram [mtproto]").SetLevel(utils.InfoLevel)
 	}
-
 	mtproto := &MTProto{
 		sessionStorage:        c.SessionStorage,
 		Addr:                  c.ServerHost,
@@ -332,7 +330,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	m.stopRoutines()
 
 	ctx, cancelfunc := context.WithCancel(context.Background())
-	m.ctxCancel = append(m.ctxCancel, cancelfunc)
+	m.ctxCancel = cancelfunc
 	if withLog {
 		m.Logger.Info(fmt.Sprintf("connecting to [%s] - <%s> ...", utils.FmtIp(m.Addr), utils.Vtcp(m.IpV6)))
 	} else {
@@ -343,7 +341,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 		m.Logger.Error(errors.Wrap(err, "creating connection"))
 		return err
 	}
-	m.tcpActive = true
+	m.tcpActive.Store(true)
 	if withLog {
 		if m.proxy != nil && m.proxy.Host != "" {
 			m.Logger.Info(fmt.Sprintf("connection to (~%s)[%s] - <%s> established", utils.FmtIp(m.proxy.Host), m.Addr, utils.Vtcp(m.IpV6)))
@@ -398,11 +396,12 @@ func (m *MTProto) connect(ctx context.Context) error {
 
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
 	if !m.TcpActive() {
-		_ = m.CreateConnection(false)
+		time.Sleep(20 * time.Millisecond)
 	}
+
 	resp, _, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
-		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") {
+		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") || strings.Contains(err.Error(), "connection was forcibly closed") {
 			m.Logger.Info("connection closed due to broken tcp, reconnecting to [" + m.Addr + "]" + " - <Tcp> ...")
 			err = m.Reconnect(false)
 			if err != nil {
@@ -433,9 +432,10 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 }
 
 func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	if !m.TcpActive() {
-		_ = m.CreateConnection(false)
+	for !m.TcpActive() {
+		time.Sleep(20 * time.Millisecond)
 	}
+
 	resp, msgId, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
 		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") {
@@ -483,21 +483,18 @@ func (m *MTProto) InvokeRequestWithoutUpdate(data tl.Object, expectedTypes ...re
 }
 
 func (m *MTProto) TcpActive() bool {
-	return m.tcpActive
+	return m.tcpActive.Load()
 }
 
 func (m *MTProto) stopRoutines() {
-	newCtxCancel := m.ctxCancel[:0]
-	for _, f := range m.ctxCancel {
-		f() // Call the function
+	if m.ctxCancel != nil {
+		m.ctxCancel()
 	}
-
-	m.ctxCancel = newCtxCancel
 }
 
 func (m *MTProto) Disconnect() error {
+	m.tcpActive.Store(false)
 	m.stopRoutines()
-	m.tcpActive = false
 
 	return nil
 }
@@ -506,7 +503,7 @@ func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
 	m.transport.Close()
-	m.tcpActive = false
+	m.tcpActive.Store(false)
 	return nil
 }
 
@@ -567,7 +564,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			default:
-				if !m.tcpActive {
+				if !m.tcpActive.Load() {
 					m.Logger.Warn("connection is not established with, stopping Updates Queue")
 					return
 				}

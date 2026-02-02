@@ -545,6 +545,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 	wg.Wait()
 
+retrySinglePart:
 	for _, p := range getUndoneParts(&doneArray, int(totalParts)) {
 		wg.Add(1)
 		sem <- struct{}{}
@@ -579,6 +580,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					c.Log.Debug("seq-downloaded part ", p, "/", totalParts, " len: ", len(v.Bytes)/1024, "KB")
 					fs.WriteAt(v.Bytes, int64(p)*int64(partSize))
 					doneBytes.Add(int64(len(v.Bytes)))
+					doneArray.Store(p, true)
 				case *UploadFileCdnRedirect:
 					panic("cdn redirect not implemented") // TODO
 				case nil:
@@ -589,6 +591,10 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				break
 			}
 		}(p)
+	}
+
+	if len(getUndoneParts(&doneArray, int(totalParts))) > 0 { // Loop through failed parts
+		goto retrySinglePart
 	}
 
 	wg.Wait()
