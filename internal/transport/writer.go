@@ -23,6 +23,10 @@ type Reader struct {
 func (c *Reader) begin() {
 	for {
 		select {
+		case <-c.ctx.Done():
+			close(c.data)
+			close(c.sizeWant)
+			return
 		case sizeWant := <-c.sizeWant:
 			buf := make([]byte, sizeWant)
 			n, err := io.ReadFull(c.r, buf)
@@ -35,10 +39,6 @@ func (c *Reader) begin() {
 				panic("read " + strconv.Itoa(n) + ", want " + strconv.Itoa(sizeWant))
 			}
 			c.data <- buf
-		case <-c.ctx.Done():
-			close(c.data)
-			close(c.sizeWant)
-			return
 		}
 	}
 }

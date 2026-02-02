@@ -111,6 +111,10 @@ func (d *Decoder) PopUint() uint32 {
 }
 
 func (d *Decoder) PopRawBytes(size int) []byte {
+	if size < 0 {
+		return nil
+	}
+
 	val := make([]byte, size)
 	d.read(val)
 	if d.err != nil {
