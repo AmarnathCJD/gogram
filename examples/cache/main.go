@@ -16,6 +16,13 @@ func main() {
 		AppID:    appID,
 		AppHash:  appHash,
 		LogLevel: telegram.LogInfo,
+		Cache: telegram.NewCache("cache_file.db", &telegram.CacheConfig{
+			MaxSize:    1000, // TODO
+			LogLevel:   telegram.LogInfo,
+			LogNoColor: true,  // disable color in logs
+			Memory:     true,  // disable writing to disk
+			Disabled:   false, // to totally disable cache
+		}), // if left empty, it will use the default cache 'cache.db', with default config
 	})
 
 	client.LoginBot(botToken)

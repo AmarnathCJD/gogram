@@ -319,7 +319,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 	sender.noRedirect = true
 	sender.exported = true
 
-	if err := sender.CreateConnection(true); err != nil {
+	if err := sender.CreateConnection(false); err != nil {
 		return nil, errors.Wrap(err, "creating connection: exporting")
 	}
 
@@ -591,7 +591,7 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				case context.Canceled:
 					return
 				case io.EOF:
-					m.Logger.Debug("EOF error, reconnecting to [" + m.Addr + "] - <Tcp> ...")
+					m.Logger.Debug("eof error, reconnecting to [" + m.Addr + "] - <Tcp> ...")
 					err = m.Reconnect(false)
 					if err != nil {
 						m.Logger.Error(errors.Wrap(err, "reconnecting"))
@@ -840,7 +840,6 @@ func (m *MTProto) offsetTime() {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&timeResponse); err != nil {
-		m.Logger.Error(errors.Wrap(err, "off-setting time"))
 		return
 	}
 

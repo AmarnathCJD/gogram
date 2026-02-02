@@ -67,6 +67,7 @@ func (c *CACHE) ImportJSON(data []byte) error {
 }
 
 type CacheConfig struct {
+	MaxSize    int // Max size of cache: TODO
 	LogLevel   utils.LogLevel
 	LogNoColor bool
 	Memory     bool

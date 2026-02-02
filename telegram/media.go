@@ -468,6 +468,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 
 	c.Logger.Info(fmt.Sprintf("file - download: (%s) - (%s) - (%d)", dest, sizetoHuman(size), parts))
+	c.Logger.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers))
 
 	go initializeWorkers(numWorkers, dc, c, w)
 
@@ -522,7 +523,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 				if err != nil {
 					c.Log.Debug("part - (", p, ") - retrying... (", err, ")")
-					time.Sleep(time.Millisecond * 10)
+					time.Sleep(time.Millisecond * 5)
 					continue
 				}
 
@@ -570,7 +571,7 @@ retrySinglePart:
 				w.FreeWorker(sender)
 
 				if err != nil {
-					time.Sleep(time.Millisecond * 10)
+					time.Sleep(time.Millisecond * 5)
 					c.Log.Debug("seq-part - (", p, ") - retrying... (", err, ")")
 					continue
 				}
