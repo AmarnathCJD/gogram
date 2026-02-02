@@ -75,8 +75,8 @@ func (t *tcpConn) Read(b []byte) (int, error) {
 
 	n, err := t.reader.Read(b)
 	if err != nil {
-		if e, ok := err.(*net.OpError); ok {
-			if e.Err.Error() == "i/o timeout" {
+		if e, ok := err.(*net.OpError); ok || err == io.ErrClosedPipe {
+			if e.Err.Error() == "i/o timeout" || err == io.ErrClosedPipe {
 				return 0, errors.Wrap(err, "required to reconnect!")
 			}
 		}
