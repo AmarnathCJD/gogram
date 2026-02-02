@@ -877,22 +877,32 @@ func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 		}
 	}
 
-	var peerCheckPassed bool
+	var peerCheckUserPassed bool
+	var peerCheckGroupPassed bool
 
-	if inSlice(m.SenderID(), actUsers) {
-		if actAsBlacklist {
-			return false
+	if len(actUsers) > 0 && m.SenderID() != 0 {
+		if inSlice(m.SenderID(), actUsers) {
+			if actAsBlacklist {
+				return false
+			}
+			peerCheckUserPassed = true
 		}
-		peerCheckPassed = true
-	}
-	if inSlice(m.ChatID(), actGroups) {
-		if actAsBlacklist {
-			return false
-		}
-		peerCheckPassed = true
+	} else {
+		peerCheckUserPassed = true
 	}
 
-	if !actAsBlacklist && (len(actUsers) > 0 || len(actGroups) > 0) && !peerCheckPassed {
+	if len(actGroups) > 0 && m.ChatID() != 0 {
+		if inSlice(m.ChatID(), actGroups) {
+			if actAsBlacklist {
+				return false
+			}
+			peerCheckGroupPassed = true
+		}
+	} else {
+		peerCheckGroupPassed = true
+	}
+
+	if !actAsBlacklist && (len(actUsers) > 0 || len(actGroups) > 0) && !(peerCheckUserPassed && peerCheckGroupPassed) {
 		return false
 	}
 
