@@ -476,7 +476,10 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 			return "", err
 		}
 		fs.file = file
+	} else {
+		fs.data = make([]byte, size)
 	}
+
 	defer fs.Close()
 
 	parts := size / int64(partSize)
@@ -668,6 +671,10 @@ retrySinglePart:
 
 	if opts.ProgressManager != nil {
 		opts.ProgressManager.editFunc(size, size)
+	}
+
+	if opts.Buffer != nil {
+		io.Copy(opts.Buffer, bytes.NewReader(fs.data))
 	}
 
 	return dest, nil
