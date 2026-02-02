@@ -6,6 +6,7 @@ import (
 	cr "crypto/rand"
 	"crypto/sha1"
 	"fmt"
+	"maps"
 	"math/rand"
 	"os"
 	"runtime"
@@ -50,13 +51,26 @@ type DCOptions struct {
 	CdnDCs  map[int][]DC
 }
 
-func SetDCs(dcs map[int][]DC, cdnDcs map[int][]DC) {
+func NewDCOptions() *DCOptions {
+	// make a copy of the default DCOptions
+	opt := &DCOptions{
+		DCS:     make(map[int][]DC),
+		TestDCs: make(map[int]string),
+		CdnDCs:  make(map[int][]DC),
+	}
+	maps.Copy(opt.DCS, DcList.DCS)
+	maps.Copy(opt.TestDCs, DcList.TestDCs)
+	maps.Copy(opt.CdnDCs, DcList.CdnDCs)
+	return opt
+}
+
+func (opt *DCOptions) SetDCs(dcs map[int][]DC, cdnDcs map[int][]DC) {
 	for key, newDCs := range dcs {
-		DcList.DCS[key] = mergeUnique(DcList.DCS[key], newDCs)
+		opt.DCS[key] = mergeUnique(opt.DCS[key], newDCs)
 	}
 
 	for key, newCDNs := range cdnDcs {
-		DcList.CdnDCs[key] = mergeUnique(DcList.CdnDCs[key], newCDNs)
+		opt.CdnDCs[key] = mergeUnique(opt.CdnDCs[key], newCDNs)
 	}
 }
 
@@ -79,21 +93,43 @@ func mergeUnique(existing, new []DC) []DC {
 	return result
 }
 
-func GetAddr(dc int) (string, bool) {
-	if addrs, ok := DcList.DCS[dc]; ok {
+func (opt *DCOptions) GetCdnAddr(dc int) (string, bool) {
+	if addrs, ok := opt.CdnDCs[dc]; ok {
 		return addrs[0].Addr, addrs[0].V
 	}
 	return "", false
 }
 
-func GetCdnAddr(dc int) (string, bool) {
-	if addrs, ok := DcList.CdnDCs[dc]; ok {
-		return addrs[0].Addr, addrs[0].V
+func (opt *DCOptions) GetHostIp(dc int, test bool, ipv6 bool) string {
+	dcMap, ok := opt.DCS[dc]
+	if !ok {
+		return ""
 	}
-	return "", false
+
+	if test {
+		if addr, ok := opt.TestDCs[dc]; ok {
+			return addr
+		}
+	}
+
+	if ipv6 {
+		for _, dc := range dcMap {
+			if dc.V {
+				return dc.Addr
+			}
+		}
+	}
+
+	for _, dc := range dcMap {
+		if !dc.V {
+			return FmtIp(dc.Addr)
+		}
+	}
+
+	return dcMap[0].Addr
 }
 
-func GetHostIp(dc int, test bool, ipv6 bool) string {
+func GetDefaultHostIp(dc int, test bool, ipv6 bool) string {
 	dcMap, ok := DcList.DCS[dc]
 	if !ok {
 		return ""
@@ -122,8 +158,8 @@ func GetHostIp(dc int, test bool, ipv6 bool) string {
 	return dcMap[0].Addr
 }
 
-func SearchAddr(addr string) int {
-	for dc, addrs := range DcList.DCS {
+func (opt *DCOptions) SearchAddr(addr string) int {
+	for dc, addrs := range opt.DCS {
 		for _, a := range addrs {
 			if a.Addr == addr {
 				return dc

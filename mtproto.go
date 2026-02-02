@@ -47,6 +47,7 @@ type MTProto struct {
 	tcpState      *TcpState
 	timeOffset    int64
 	mode          mode.Variant
+	DcList        *utils.DCOptions
 
 	authKey []byte
 
@@ -153,6 +154,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		mode:                  parseTransportMode(c.Mode),
 		IpV6:                  c.Ipv6,
 		tcpState:              NewTcpState(),
+		DcList:                utils.NewDCOptions(),
 	}
 
 	mtproto.Logger.Debug("initializing mtproto...")
@@ -252,7 +254,7 @@ func (m *MTProto) ImportAuth(stringSession string) (bool, error) {
 }
 
 func (m *MTProto) GetDC() int {
-	return utils.SearchAddr(m.Addr)
+	return m.DcList.SearchAddr(m.Addr)
 }
 
 func (m *MTProto) AppID() int32 {
@@ -276,7 +278,7 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 	if m.noRedirect {
 		return m, nil
 	}
-	newAddr := utils.GetHostIp(dc, false, m.IpV6)
+	newAddr := m.DcList.GetHostIp(dc, false, m.IpV6)
 	if newAddr == "" {
 		return nil, errors.New("dc_id not found")
 	}
@@ -314,11 +316,11 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 }
 
 func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, error) {
-	newAddr := utils.GetHostIp(dcID, false, m.IpV6)
+	newAddr := m.DcList.GetHostIp(dcID, false, m.IpV6)
 	logger := utils.NewLogger("gogram [mtproto-exp]").SetLevel(utils.InfoLevel)
 
 	if len(cdn) > 0 && cdn[0] {
-		newAddr, _ = utils.GetCdnAddr(dcID)
+		newAddr, _ = m.DcList.GetCdnAddr(dcID)
 		logger.SetPrefix("gogram [mtproto-cdn]")
 	}
 
