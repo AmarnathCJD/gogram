@@ -426,11 +426,7 @@ func (d *Downloader) Start() (string, error) {
 	return d.FileName, nil
 }
 
-func (d *Downloader) closeWorkers() {
-	for _, w := range d.Workers {
-		w.Terminate()
-	}
-}
+func (d *Downloader) closeWorkers() {} // for now Its Disabled
 
 func (d *Downloader) writeAt(buf []byte, offset int64) error {
 	f, err := os.OpenFile(d.FileName, os.O_WRONLY, 0644)
