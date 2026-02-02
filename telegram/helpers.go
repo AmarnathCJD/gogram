@@ -934,7 +934,7 @@ func packMessage(c *Client, message Message) *NewMessage {
 		FileID := PackBotFileID(m.Media())
 		m.File = &CustomFile{
 			FileID: FileID,
-			Name:   getFileName(m.Media()),
+			Name:   GetFileName(m.Media()),
 			Size:   getFileSize(m.Media()),
 			Ext:    getFileExt(m.Media()),
 		}
