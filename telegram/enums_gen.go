@@ -159,32 +159,6 @@ func (e Null) String() string {
 
 func (e Null) CRC() uint32 { return uint32(e) }
 
-type PhoneCallDiscardReason uint32
-
-const (
-	PhoneCallDiscardReasonBusy       PhoneCallDiscardReason = 0xfaf7e8c9
-	PhoneCallDiscardReasonDisconnect PhoneCallDiscardReason = 0xe095c1a0
-	PhoneCallDiscardReasonHangup     PhoneCallDiscardReason = 0x57adc690
-	PhoneCallDiscardReasonMissed     PhoneCallDiscardReason = 0x85e42301
-)
-
-func (e PhoneCallDiscardReason) String() string {
-	switch e {
-	case PhoneCallDiscardReason(0xfaf7e8c9):
-		return "phoneCallDiscardReasonBusy"
-	case PhoneCallDiscardReason(0xe095c1a0):
-		return "phoneCallDiscardReasonDisconnect"
-	case PhoneCallDiscardReason(0x57adc690):
-		return "phoneCallDiscardReasonHangup"
-	case PhoneCallDiscardReason(0x85e42301):
-		return "phoneCallDiscardReasonMissed"
-	default:
-		return "<UNKNOWN PhoneCallDiscardReason>"
-	}
-}
-
-func (e PhoneCallDiscardReason) CRC() uint32 { return uint32(e) }
-
 type PrivacyKey uint32
 
 const (
