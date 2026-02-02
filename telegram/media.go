@@ -183,6 +183,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		opts.ProgressManager.SetTotalSize(size)
 
 		go func() {
+			opts.ProgressManager.editFunc(size, doneBytes.Load()) // Initial edit
 			ticker := time.NewTicker(time.Duration(opts.ProgressManager.editInterval) * time.Second)
 			defer ticker.Stop()
 
@@ -514,6 +515,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		opts.ProgressManager.SetTotalSize(size)
 
 		go func() {
+			opts.ProgressManager.editFunc(size, doneBytes.Load()) // initial edit
 			ticker := time.NewTicker(time.Duration(opts.ProgressManager.editInterval) * time.Second)
 			defer ticker.Stop()
 
