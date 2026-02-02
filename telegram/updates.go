@@ -683,3 +683,46 @@ func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
 
 	return nil, nil
 }
+
+// TODO: impl like client.On("message", func(m *NewMessage) { ... })
+
+// interface for all common events
+// type ev interface{}
+
+// var (
+// 	OnMessage        ev = "message"
+// 	OnEdit           ev = "edit"
+// 	OnDelete         ev = "delete"
+// 	OnInline         ev = "inline"
+// 	OnCallback       ev = "callback"
+// 	OnInlineCallback ev = "inlineCallback"
+// 	OnParticipant    ev = "participant"
+// 	OnRaw            ev = "raw"
+// )
+
+// type handleInterface interface{}
+
+// func (c *Client) On(pattern interface{}, handler interface{}, filters ...Filter) handleInterface {
+// 	switch pattern := pattern.(type) {
+// 	case ev:
+// 		switch pattern {
+// 		case OnMessage:
+// 			return c.AddMessageHandler(OnNewMessage, handler, filters...)
+// 		case OnEditMessage:
+// 			return c.AddEditHandler(OnEditMessage, handler)
+// 		case OnInline:
+// 			return c.AddInlineHandler(OnInlineQuery, handler)
+// 		case OnCallback:
+// 			return c.AddCallbackHandler(OnCallbackQuery, handler)
+// 		case OnInlineCallback:
+// 			return c.AddInlineCallbackHandler(OnInlineCallbackQuery, handler)
+// 		case OnParticipant:
+// 			return c.AddParticipantHandler(handler)
+// 		case OnRaw:
+// 			return c.AddRawHandler(Update{}, func(m Update, c *Client) error {
+// 				return handler(packUpdate(c, m))
+// 			})
+// 		}
+// 	}
+// 	return c.AddMessageHandler(pattern, handler, filters...)
+// }
