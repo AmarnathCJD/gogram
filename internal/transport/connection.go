@@ -37,6 +37,10 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 		tcpPrefix = "tcp6"
 	}
 
+	if strings.HasPrefix(cfg.Host, ":") {
+		cfg.Host = cfg.Host[1:]
+	}
+
 	tcpAddr, err := net.ResolveTCPAddr(tcpPrefix, cfg.Host)
 	if err != nil {
 		return nil, errors.Wrap(err, "resolving tcp")
