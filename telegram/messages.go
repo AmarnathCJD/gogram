@@ -284,13 +284,14 @@ type MediaOptions struct {
 }
 
 type MediaMetadata struct {
-	FileName         string              `json:"file_name,omitempty"`
-	Thumb            interface{}         `json:"thumb,omitempty"`
-	Attributes       []DocumentAttribute `json:"attributes,omitempty"`
-	ForceDocument    bool                `json:"force_document,omitempty"`
-	TTL              int32               `json:"ttl,omitempty"`
-	Spoiler          bool                `json:"spoiler,omitempty"`
-	ProgressCallback func(int32, int32)  `json:"-"`
+	FileName              string              `json:"file_name,omitempty"`
+	BuissnessConnectionId string              `json:"buissness_connection_id,omitempty"`
+	Thumb                 interface{}         `json:"thumb,omitempty"`
+	Attributes            []DocumentAttribute `json:"attributes,omitempty"`
+	ForceDocument         bool                `json:"force_document,omitempty"`
+	TTL                   int32               `json:"ttl,omitempty"`
+	Spoiler               bool                `json:"spoiler,omitempty"`
+	ProgressCallback      func(int32, int32)  `json:"-"`
 }
 
 // SendMedia sends a media message.

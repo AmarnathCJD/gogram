@@ -26,11 +26,11 @@ jobs:
 
     - uses: stefanzweifel/git-auto-commit-action@v4
       with:
-        commit_message: "TLParser: Auto-Generated TLs"
+        commit_message: "TLParser: Layer Updated"
         commit_options: "--no-verify"
         repository: .
-        commit_user_name: AmarnathCjd
+        commit_user_name: AmarnathCJD
         commit_user_email: 72609355+AmarnathCjd@users.noreply.github.com
-        commit_author: AmarnathCjd <72609355+AmarnathCjd+@users.noreply.github.com>
+        commit_author: AmarnathCJD <72609355+AmarnathCjd+@users.noreply.github.com>
 
 

@@ -48,21 +48,22 @@ func (b *InlineBuilder) Results() []InputBotInlineResult {
 }
 
 type ArticleOptions struct {
-	ID           string                             `json:"id,omitempty"`
-	Title        string                             `json:"title,omitempty"`
-	Description  string                             `json:"description,omitempty"`
-	ExcludeMedia bool                               `json:"exclude_media,omitempty"`
-	Thumb        InputWebDocument                   `json:"thumb,omitempty"`
-	Content      InputWebDocument                   `json:"content,omitempty"`
-	LinkPreview  bool                               `json:"link_preview,omitempty"`
-	ReplyMarkup  ReplyMarkup                        `json:"reply_markup,omitempty"`
-	Entities     []MessageEntity                    `json:"entities,omitempty"`
-	ParseMode    string                             `json:"parse_mode,omitempty"`
-	Caption      string                             `json:"caption,omitempty"`
-	Venue        *InputBotInlineMessageMediaVenue   `json:"venue,omitempty"`
-	Location     *InputBotInlineMessageMediaGeo     `json:"location,omitempty"`
-	Contact      *InputBotInlineMessageMediaContact `json:"contact,omitempty"`
-	Invoice      *InputBotInlineMessageMediaInvoice `json:"invoice,omitempty"`
+	ID                    string                             `json:"id,omitempty"`
+	Title                 string                             `json:"title,omitempty"`
+	Description           string                             `json:"description,omitempty"`
+	ExcludeMedia          bool                               `json:"exclude_media,omitempty"`
+	Thumb                 InputWebDocument                   `json:"thumb,omitempty"`
+	Content               InputWebDocument                   `json:"content,omitempty"`
+	LinkPreview           bool                               `json:"link_preview,omitempty"`
+	ReplyMarkup           ReplyMarkup                        `json:"reply_markup,omitempty"`
+	Entities              []MessageEntity                    `json:"entities,omitempty"`
+	ParseMode             string                             `json:"parse_mode,omitempty"`
+	Caption               string                             `json:"caption,omitempty"`
+	Venue                 *InputBotInlineMessageMediaVenue   `json:"venue,omitempty"`
+	Location              *InputBotInlineMessageMediaGeo     `json:"location,omitempty"`
+	Contact               *InputBotInlineMessageMediaContact `json:"contact,omitempty"`
+	Invoice               *InputBotInlineMessageMediaInvoice `json:"invoice,omitempty"`
+	BuissnessConnectionId string                             `json:"buissness_connection_id,omitempty"`
 }
 
 func (b *InlineBuilder) Article(title, description, text string, options ...*ArticleOptions) InputBotInlineResult {
@@ -106,12 +107,7 @@ func (b *InlineBuilder) Article(title, description, text string, options ...*Art
 }
 
 func (b *InlineBuilder) Photo(photo interface{}, options ...*ArticleOptions) InputBotInlineResult {
-	var opts ArticleOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	} else {
-		opts = ArticleOptions{}
-	}
+	var opts = getVariadic(options, &ArticleOptions{}).(*ArticleOptions)
 	Photo, _ := b.Client.getSendableMedia(photo, &MediaMetadata{})
 	var Image InputPhoto
 PhotoTypeSwitch:
@@ -119,7 +115,7 @@ PhotoTypeSwitch:
 	case *InputMediaPhoto:
 		Image = p.ID
 	case *InputMediaUploadedPhoto:
-		media, err := b.Client.MessagesUploadMedia(&InputPeerSelf{}, p)
+		media, err := b.Client.MessagesUploadMedia(opts.BuissnessConnectionId, &InputPeerSelf{}, p)
 		if err != nil {
 			Image = &InputPhotoEmpty{}
 		}
@@ -162,24 +158,19 @@ PhotoTypeSwitch:
 }
 
 func (b *InlineBuilder) Document(document interface{}, options ...*ArticleOptions) InputBotInlineResult {
-	var opts ArticleOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	} else {
-		opts = ArticleOptions{}
-	}
-	Document, _ := b.Client.getSendableMedia(document, &MediaMetadata{})
+	var opts = getVariadic(options, &ArticleOptions{}).(*ArticleOptions)
+	inputDoc, _ := b.Client.getSendableMedia(document, &MediaMetadata{})
 	var Doc InputDocument
 DocTypeSwitch:
-	switch p := Document.(type) {
+	switch p := inputDoc.(type) {
 	case *InputMediaDocument:
 		Doc = p.ID
 	case *InputMediaUploadedDocument:
-		media, err := b.Client.MessagesUploadMedia(&InputPeerSelf{}, p)
+		media, err := b.Client.MessagesUploadMedia(opts.BuissnessConnectionId, &InputPeerSelf{}, p)
 		if err != nil {
 			Doc = &InputDocumentEmpty{}
 		}
-		Document, _ = b.Client.getSendableMedia(media, &MediaMetadata{})
+		inputDoc, _ = b.Client.getSendableMedia(media, &MediaMetadata{})
 		goto DocTypeSwitch
 	default:
 		b.Client.Logger.Warn("InlineBuilder.Document: Document is not a InputMediaDocument")
