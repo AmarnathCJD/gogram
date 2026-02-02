@@ -29,7 +29,6 @@
 ## Status
 
 [![GoDoc](https://godoc.org/github.com/amarnathcjd/gogram?status.svg)](https://godoc.org/github.com/amarnathcjd/gogram)
-[![GoDoc](https://godoc.org/github.com/amarnathcjd/gogram/telegram?status.svg)](https://godoc.org/github.com/amarnathcjd/gogram/telegram)
 [![Go Report Card](https://goreportcard.com/badge/github.com/amarnathcjd/gogram)](https://goreportcard.com/report/github.com/amarnathcjd/gogram)
 [![License](https://img.shields.io/github/license/amarnathcjd/gogram.svg)](https://img.shields.io/github/license/amarnathcjd/gogram.svg)
 [![GitHub stars](https://img.shields.io/github/stars/amarnathcjd/gogram.svg?style=social&label=Stars)](
@@ -86,9 +85,7 @@ If you'd like to support Gogram, you can consider:
 - **Feature-Rich**: Built-in support for file uploading, formatting, custom keyboards, message editing, moderation tools and more.
 - **Up-to-date**: Gogram is always in sync with the latest Telegram API changes and additions (`tl-parser` is used to generate the API layer).
 
-## Current Layer
-
-MTProto API **Layer 172**
+## Current Layer - **172** (Updated on 2024-01-19)
 
 ## Installing
 
