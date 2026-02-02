@@ -290,8 +290,15 @@ func getMax(a []int32) int32 {
 	return maximum
 }
 
-func PathIsDir(path string) bool {
+func pathIsDir(path string) bool {
 	return strings.HasSuffix(path, "/") || strings.HasSuffix(path, "\\")
+}
+
+func sanitizePath(path string, filename string) string {
+	if pathIsDir(path) {
+		return filepath.Join(path, filename)
+	}
+	return path
 }
 
 // Func to get the file name of Media
