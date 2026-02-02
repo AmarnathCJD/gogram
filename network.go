@@ -36,7 +36,7 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 	// dealing with response channel
 	resp := m.getRespChannel()
 	if isNullableResponse(request) {
-		go func() { resp <- &objects.Null{} }() // goroutine cuz we don't read from it RIGHT NOW
+		resp <- &objects.Null{}
 	} else {
 		m.responseChannels.Add(int(msgID), resp)
 	}

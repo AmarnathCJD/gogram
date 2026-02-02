@@ -100,7 +100,8 @@ type ClientConfig struct {
 	AlbumWaitTime    int64                // The time to wait for album messages (in milliseconds)
 	FloodHandler     func(err error) bool // The flood handler to use
 	ErrorHandler     func(err error)      // The error handler to use
-	Timeout          time.Duration        // Request timeout (no timeout by default)
+	Timeout          time.Duration        // Tcp connection timeout (default: 60s)
+	ReqTimeout       time.Duration        // Rpc request timeout (default: 60s)
 }
 
 type Session struct {
@@ -197,6 +198,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		FloodHandler:  config.FloodHandler,
 		ErrorHandler:  config.ErrorHandler,
 		Timeout:       config.Timeout,
+		ReqTimeout:    config.ReqTimeout,
 	})
 	if err != nil {
 		return errors.Wrap(err, "creating mtproto client")
@@ -982,6 +984,16 @@ func (b *ClientConfigBuilder) WithTransportMode(mode string) *ClientConfigBuilde
 
 func (b *ClientConfigBuilder) WithLogger(logger *utils.Logger) *ClientConfigBuilder {
 	b.config.Logger = logger
+	return b
+}
+
+func (b *ClientConfigBuilder) WithTimeout(timeout time.Duration) *ClientConfigBuilder {
+	b.config.Timeout = timeout
+	return b
+}
+
+func (b *ClientConfigBuilder) WithReqTimeout(reqTimeout time.Duration) *ClientConfigBuilder {
+	b.config.ReqTimeout = reqTimeout
 	return b
 }
 
