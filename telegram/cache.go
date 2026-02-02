@@ -112,9 +112,7 @@ func (c *CACHE) ImportJSON(data []byte) error {
 	return json.Unmarshal(data, c.InputPeers)
 }
 
-var cache = NewCache()
-
-func NewCache() *CACHE {
+func NewCache(logLevel string) *CACHE {
 	c := &CACHE{
 		RWMutex:  &sync.RWMutex{},
 		chats:    make(map[int64]*ChatObj),
@@ -125,7 +123,7 @@ func NewCache() *CACHE {
 			InputUsers:    make(map[int64]int64),
 			InputChats:    make(map[int64]int64),
 		},
-		logger: utils.NewLogger("cache").SetLevel(LIB_LOG_LEVEL),
+		logger: utils.NewLogger("gogram - cache").SetLevel(logLevel),
 	}
 	c.logger.Debug("Cache initialized successfully")
 
@@ -352,6 +350,8 @@ func (cache *CACHE) UpdatePeersToCache(u []User, c []Chat) {
 			}
 		}
 	}
+
+	cache.logger.Debug("Updated cache with ", len(u), " users and ", len(c), " chats")
 }
 
 func (c *Client) GetPeerUser(userID int64) (*InputPeerUser, error) {

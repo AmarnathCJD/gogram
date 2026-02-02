@@ -164,15 +164,18 @@ func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]Dialog, error) {
 		ExcludePinned: Options.ExcludePinned,
 		Hash:          Options.Hash,
 	})
+
+	//n, _ := json.Marshal(resp)
+	//ioutil.WriteFile("n.json", n, 0644)
 	if err != nil {
 		return nil, err
 	}
 	switch p := resp.(type) {
 	case *MessagesDialogsObj:
-		go func() { c.Cache.UpdatePeersToCache(p.Users, p.Chats) }()
+		c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 		return p.Dialogs, nil
 	case *MessagesDialogsSlice:
-		go func() { c.Cache.UpdatePeersToCache(p.Users, p.Chats) }()
+		c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 		return p.Dialogs, nil
 	default:
 		return nil, errors.New("could not convert dialogs: " + reflect.TypeOf(resp).String())
@@ -198,10 +201,10 @@ func (c *Client) GetCommonChats(userID interface{}) ([]Chat, error) {
 	}
 	switch p := resp.(type) {
 	case *MessagesChatsObj:
-		go func() { c.Cache.UpdatePeersToCache([]User{}, p.Chats) }()
+		c.Cache.UpdatePeersToCache([]User{}, p.Chats)
 		return p.Chats, nil
 	case *MessagesChatsSlice:
-		go func() { c.Cache.UpdatePeersToCache([]User{}, p.Chats) }()
+		c.Cache.UpdatePeersToCache([]User{}, p.Chats)
 		return p.Chats, nil
 	default:
 		return nil, errors.New("could not convert chats: " + reflect.TypeOf(resp).String())

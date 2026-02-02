@@ -470,20 +470,21 @@ mediaTypeSwitch:
 			return &InputMediaUploadedDocument{File: media, MimeType: mimeType, Attributes: Attributes, Thumb: getValue(attr.Thumb, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
 		}
 	case []byte, *bytes.Reader:
-		uopts := &UploadOptions{
-			ProgressCallback: attr.ProgressCallback,
-		}
-		if attr != nil && attr.FileName != "" {
-			uopts.FileName = attr.FileName
+		var uopts *UploadOptions = &UploadOptions{}
+		if attr != nil {
+			uopts.ProgressCallback = attr.ProgressCallback
+			if attr.FileName != "" {
+				uopts.FileName = attr.FileName
+			}
 		}
 		var err error
-		mediaFile, err = c.UploadFile(media)
+		mediaFile, err = c.UploadFile(media, uopts)
 		if err != nil {
 			return nil, err
 		}
 		goto mediaTypeSwitch
 	case nil:
-		return nil, errors.New("media is nil")
+		return nil, errors.New("media is nil, cannot send")
 	}
 	return nil, errors.New(fmt.Sprintf("unknown media type: %s", reflect.TypeOf(mediaFile).String()))
 }
