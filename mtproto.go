@@ -94,7 +94,7 @@ type Config struct {
 	ServerHost string
 	PublicKey  *rsa.PublicKey
 	DataCenter int
-	LogLevel   utils.LogLevel
+	Logger     *utils.Logger
 	Proxy      *url.URL
 	Mode       string
 	Ipv6       bool
@@ -122,6 +122,10 @@ func NewMTProto(c Config) (*MTProto, error) {
 		}
 	}
 
+	if c.Logger == nil {
+		c.Logger = utils.NewLogger("gogram [mtproto]").SetLevel(utils.InfoLevel)
+	}
+
 	mtproto := &MTProto{
 		sessionStorage:        c.SessionStorage,
 		Addr:                  c.ServerHost,
@@ -134,7 +138,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		pendingAcks:           utils.NewSyncSet[int64](),
 		genMsgID:              utils.NewMsgIDGenerator(),
 		serverRequestHandlers: make([]func(i any) bool, 0),
-		Logger:                utils.NewLogger("gogram [mtproto]").SetLevel(c.LogLevel),
+		Logger:                c.Logger,
 		memorySession:         c.MemorySession,
 		appID:                 c.AppID,
 		proxy:                 c.Proxy,
@@ -269,7 +273,7 @@ func (m *MTProto) SwitchDc(dc int) (*MTProto, error) {
 		ServerHost:    newAddr,
 		AuthKeyFile:   m.sessionStorage.Path(),
 		MemorySession: m.memorySession,
-		LogLevel:      m.Logger.Lev(),
+		Logger:        m.Logger,
 		Proxy:         m.proxy,
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,
@@ -299,7 +303,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 		ServerHost:    newAddr,
 		AuthKeyFile:   "__exp_" + strconv.Itoa(dcID) + ".dat",
 		MemorySession: mem,
-		LogLevel:      utils.NoLevel,
+		Logger:        m.Logger,
 		Proxy:         m.proxy,
 		AppID:         m.appID,
 		Ipv6:          m.IpV6,

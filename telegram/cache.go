@@ -22,6 +22,7 @@ type CACHE struct {
 	users      map[int64]*UserObj
 	channels   map[int64]*Channel
 	memory     bool
+	disabled   bool
 	InputPeers *InputPeerCache `json:"input_peers,omitempty"`
 	logger     *utils.Logger
 }
@@ -66,8 +67,10 @@ func (c *CACHE) ImportJSON(data []byte) error {
 }
 
 type CacheConfig struct {
-	LogLevel utils.LogLevel
-	Memory   bool
+	LogLevel   utils.LogLevel
+	LogNoColor bool
+	Memory     bool
+	Disabled   bool
 }
 
 func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
@@ -87,22 +90,34 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 			InputChats:    make(map[int64]int64),
 		},
 		memory: opt.Memory,
-		logger: utils.NewLogger("gogram [cache]").SetLevel(opt.LogLevel),
+		logger: utils.NewLogger("gogram [cache]").
+			SetLevel(opt.LogLevel).
+			NoColor(opt.LogNoColor),
 	}
 
-	if !c.memory {
+	if !c.memory && !opt.Disabled {
 		c.logger.Debug("initialized cache (" + c.fileName + ") successfully")
 	}
 
-	if _, err := os.Stat(c.fileName); err == nil && !c.memory {
-		c.ReadFile()
+	if !opt.Disabled {
+		if _, err := os.Stat(c.fileName); err == nil && !c.memory {
+			c.ReadFile()
+		}
 	}
 
 	return c
 }
 
+func (c *CACHE) Disable() *CACHE {
+	c.disabled = true
+	return c
+}
+
 // --------- Cache file Functions ---------
 func (c *CACHE) WriteFile() {
+	if c.disabled || c.memory {
+		return
+	}
 	file, err := os.OpenFile(c.fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		c.logger.Error("error opening cache file: ", err)
@@ -463,6 +478,10 @@ func (c *CACHE) UpdateChat(chat *ChatObj) bool {
 }
 
 func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
+	if cache.disabled {
+		return
+	}
+
 	totalUpdates := [2]int{0, 0}
 
 	for _, user := range users {

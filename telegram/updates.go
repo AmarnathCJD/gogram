@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/pkg/errors"
 )
 
@@ -230,11 +231,15 @@ type UpdateDispatcher struct {
 	rawHandles            map[string][]*rawHandle
 	activeAlbums          map[int64]*albumBox
 	sortTrigger           chan any
+	logger                *utils.Logger
 }
 
 // creates and populates a new UpdateDispatcher
 func (c *Client) NewUpdateDispatcher() {
-	c.dispatcher = &UpdateDispatcher{}
+	c.dispatcher = &UpdateDispatcher{
+		logger: utils.NewLogger("gogram [dispatcher]").
+			SetLevel(c.Log.Lev()),
+	}
 	c.dispatcher.SortTrigger()
 }
 
@@ -371,7 +376,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 									if errors.Is(err, EndGroup) {
 										return err
 									}
-									c.Log.Error(errors.Wrap(err, "updates.dispatcher.message"))
+									c.dispatcher.logger.Error(errors.Wrap(err, "[newMessage]"))
 								}
 							}
 							return nil
@@ -399,7 +404,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "updates.dispatcher.action"))
+						c.Log.Error(errors.Wrap(err, "[chatAction]"))
 					}
 
 					return nil
@@ -444,7 +449,7 @@ func (c *Client) handleAlbum(message MessageObj) {
 							if errors.Is(err, EndGroup) {
 								return err
 							}
-							c.Log.Error(errors.Wrap(err, "updates.dispatcher.album"))
+							c.Log.Error(errors.Wrap(err, "[newAlbum]"))
 						}
 						return nil
 					}
@@ -497,7 +502,7 @@ func (c *Client) handleEditUpdate(update Message) {
 								if errors.Is(err, EndGroup) {
 									return err
 								}
-								c.Log.Error(errors.Wrap(err, "updates.dispatcher.editMessage"))
+								c.Log.Error(errors.Wrap(err, "[editMessage]"))
 							}
 						}
 						return nil
@@ -527,7 +532,7 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "updates.dispatcher.callbackQuery"))
+						c.Log.Error(errors.Wrap(err, "[callbackQuery]"))
 					}
 					return nil
 				}
@@ -555,7 +560,7 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "updates.dispatcher.inlineCallbackQuery"))
+						c.Log.Error(errors.Wrap(err, "[inlineCallbackQuery]"))
 					}
 					return nil
 				}
@@ -582,7 +587,7 @@ func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 					if errors.Is(err, EndGroup) {
 						return err
 					}
-					c.Log.Error(errors.Wrap(err, "updates.dispatcher.participant"))
+					c.Log.Error(errors.Wrap(err, "[participantUpdate]"))
 				}
 				return nil
 			}
@@ -609,7 +614,7 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "updates.dispatcher.inlineQuery"))
+						c.Log.Error(errors.Wrap(err, "[inlineQuery]"))
 					}
 					return nil
 				}
@@ -636,7 +641,7 @@ func (c *Client) handleDeleteUpdate(update Update) {
 					if errors.Is(err, EndGroup) {
 						return err
 					}
-					c.Log.Error(errors.Wrap(err, "updates.dispatcher.deleteMessage"))
+					c.Log.Error(errors.Wrap(err, "[deleteMessage]"))
 				}
 				return nil
 			}
@@ -662,7 +667,7 @@ func (c *Client) handleRawUpdate(update Update) {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
-						c.Log.Error(errors.Wrap(err, "updates.dispatcher.rawUpdate"))
+						c.Log.Error(errors.Wrap(err, "[rawUpdate]"))
 					}
 					return nil
 				}

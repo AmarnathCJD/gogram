@@ -110,17 +110,14 @@ func NewClient(config ClientConfig) (*Client, error) {
 
 	if config.Cache == nil {
 		client.Cache = NewCache("cache.db", &CacheConfig{
-			Memory:   config.DisableCache,
+			Disabled: config.DisableCache,
 			LogLevel: config.LogLevel,
 		})
 	} else {
 		client.Cache = config.Cache
 	}
 
-	client.Cache.memory = config.DisableCache
-	if !config.DisableCache {
-		client.Cache.ReadFile()
-	}
+	client.Cache.disabled = config.DisableCache
 
 	if err := client.setupMTProto(config); err != nil {
 		return nil, err
@@ -147,12 +144,14 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 	}
 
 	mtproto, err := mtproto.NewMTProto(mtproto.Config{
-		AppID:         config.AppID,
-		AuthKeyFile:   config.Session,
-		ServerHost:    toIpAddr(),
-		PublicKey:     config.PublicKeys[0],
-		DataCenter:    config.DataCenter,
-		LogLevel:      config.LogLevel,
+		AppID:       config.AppID,
+		AuthKeyFile: config.Session,
+		ServerHost:  toIpAddr(),
+		PublicKey:   config.PublicKeys[0],
+		DataCenter:  config.DataCenter,
+		Logger: utils.NewLogger("gogram [mtproto]").
+			SetLevel(config.LogLevel).
+			NoColor(!c.Log.Color()),
 		StringSession: config.StringSession,
 		Proxy:         config.Proxy,
 		MemorySession: config.MemorySession,
@@ -231,7 +230,11 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	c.clientData.logLevel = getValue(cnf.LogLevel, LogInfo)
 	c.clientData.parseMode = getValue(cnf.ParseMode, "HTML")
 
-	c.Log.SetLevel(c.clientData.logLevel)
+	if cnf.LogLevel == LogDebug {
+		c.Log.SetLevel(LogDebug)
+	} else {
+		c.Log.SetLevel(c.clientData.logLevel)
+	}
 }
 
 // initialRequest sends the initial initConnection request
@@ -328,7 +331,6 @@ func (c *Client) IsAuthorized() (bool, error) {
 
 // Disconnect from telegram servers
 func (c *Client) Disconnect() error {
-	//go c.cleanExportedSenders()
 	return c.MTProto.Disconnect()
 }
 
@@ -410,19 +412,19 @@ func (c *Client) CreateExportedSender(dcID int) (*mtproto.MTProto, error) {
 			}
 		}
 
-		c.Log.Debug("Sending initial request...")
+		c.Log.Debug("sending initial request...")
 		_, err = exported.MakeRequestCtx(ctx, &InvokeWithLayerParams{
 			Layer: ApiVersion,
 			Query: initialReq,
 		})
-		// _, err = exportedSender.MakeRequestCtx(ctx, &InvokeWithLayerParams{
-		// 	Layer: ApiVersion,
-		// 	Query: initialReq,
-		// })
 
 		if err != nil {
 			lastError = errors.Wrap(err, "making initial request")
-			c.Log.Error(fmt.Sprintf("Attempt %d: Error during initial request: %v", retry+1, lastError))
+			if retry < retryLimit {
+				c.Log.Debug(fmt.Sprintf("error making initial request, retrying (%d/%d)", retry+1, retryLimit))
+			} else {
+				c.Log.Error("error making initial request, retry limit reached")
+			}
 			continue
 		}
 
@@ -436,6 +438,32 @@ func (c *Client) CreateExportedSender(dcID int) (*mtproto.MTProto, error) {
 func (c *Client) SetLogLevel(level utils.LogLevel) {
 	c.Log.Debug("setting library log level to ", level)
 	c.Log.SetLevel(level)
+	if c.Cache != nil {
+		c.Cache.logger.SetLevel(level)
+	}
+	c.MTProto.Logger.SetLevel(level)
+	if c.dispatcher != nil {
+		c.dispatcher.logger.SetLevel(level)
+	}
+}
+
+// disables color for all loggers
+func (c *Client) LogColor(mode bool) {
+	c.Log.Debug("disabling color for all loggers")
+
+	c.Log.NoColor(!mode)
+	if c.Cache != nil {
+		c.Cache.logger.NoColor(!mode)
+	}
+	c.MTProto.Logger.NoColor(!mode)
+	if c.dispatcher != nil {
+		c.dispatcher.logger.NoColor(!mode)
+	}
+}
+
+// SetParseMode sets the parse mode for the client
+func (c *Client) SetParseMode(mode string) {
+	c.clientData.parseMode = mode
 }
 
 // Ping telegram server TCP connection
