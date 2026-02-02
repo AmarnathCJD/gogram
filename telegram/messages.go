@@ -1028,7 +1028,7 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 				return nil, errors.New("invalid peer type to get messages")
 			}
 			if err != nil {
-				return nil, err
+				return messages, err
 			}
 			switch result := result.(type) {
 			case *MessagesChannelMessages:
@@ -1042,11 +1042,13 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 					messages = append(messages, *packMessage(c, msg))
 				}
 			}
-			if len(messages) >= int(opt.Limit) {
+			if len(messages) >= int(opt.Limit) && opt.Limit != 0 {
 				return messages[:opt.Limit], nil
 			}
 			time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
 		}
+
+		return messages, nil
 	} else {
 		if opt.Filter == nil {
 			opt.Filter = &InputMessagesFilterEmpty{}
@@ -1115,7 +1117,7 @@ func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, e
 			}
 
 			messages = append(messages, fetchedMessages...)
-			if len(messages) >= int(opt.Limit) {
+			if len(messages) >= int(opt.Limit) && opt.Limit != 0 {
 				messages = messages[:opt.Limit]
 				break
 			}
