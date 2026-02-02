@@ -583,63 +583,6 @@ func (c *Client) PeerEquals(a, b any) bool {
 	return c.GetPeerID(a) == c.GetPeerID(b)
 }
 
-func normalizePts(pts, ptsCount int32) (int32, int32, bool) {
-	if pts == 0 {
-		return 0, 0, false
-	}
-	if ptsCount <= 0 {
-		ptsCount = 1
-	}
-	return pts, ptsCount, true
-}
-
-func normalizeChannelPts(channelID int64, pts, ptsCount int32) (int64, int32, int32, bool) {
-	if channelID == 0 || pts == 0 {
-		return 0, 0, 0, false
-	}
-	if ptsCount <= 0 {
-		ptsCount = 1
-	}
-	return channelID, pts, ptsCount, true
-}
-
-func normalizeQts(qts int32) (int32, bool) {
-	if qts == 0 {
-		return 0, false
-	}
-	return qts, true
-}
-
-func channelIDFromMessage(m Message) (int64, bool) {
-	if m == nil {
-		return 0, false
-	}
-	switch msg := m.(type) {
-	case *MessageObj:
-		if msg.PeerID != nil {
-			switch peer := msg.PeerID.(type) {
-			case *PeerChannel:
-				return peer.ChannelID, true
-			default:
-				return 0, false
-			}
-		}
-		return 0, false
-	case *MessageService:
-		if msg.PeerID != nil {
-			switch peer := msg.PeerID.(type) {
-			case *PeerChannel:
-				return peer.ChannelID, true
-			default:
-				return 0, false
-			}
-		}
-		return 0, false
-	default:
-		return 0, false
-	}
-}
-
 func getAnyInt(v any) int64 {
 	switch v := v.(type) {
 	case int64:
