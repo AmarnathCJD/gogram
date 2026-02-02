@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"reflect"
 
@@ -26,7 +25,7 @@ type Decoder struct {
 // NewDecoder returns a new decoder that reads from r.
 // Unfortunately, decoder can't work with part of data, so reader must be read all before decoding.
 func NewDecoder(r io.Reader) (*Decoder, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading data before decoding")
 	}
@@ -152,11 +151,11 @@ func (d *Decoder) PopInt() int32 {
 }
 
 func (d *Decoder) GetRestOfMessage() ([]byte, error) {
-	return ioutil.ReadAll(d.buf)
+	return io.ReadAll(d.buf)
 }
 
 func (d *Decoder) DumpWithoutRead() ([]byte, error) {
-	data, err := ioutil.ReadAll(d.buf)
+	data, err := io.ReadAll(d.buf)
 	if err != nil {
 		return nil, err
 	}
