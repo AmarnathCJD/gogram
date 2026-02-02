@@ -455,9 +455,7 @@ func cleanComments(b []byte) []byte {
 
 	// add some bytes to its start
 
-	b = bytes.ReplaceAll(b, []byte(`ipPort#d433ad73 ipv4:int port:int = IpPort;
-ipPortSecret#37982646 ipv4:int port:int secret:bytes = IpPort;
-accessPointRule#4679b65f phone_prefix_rules:string dc_id:int ips:vector<IpPort> = AccessPointRule;
+	b = bytes.ReplaceAll(b, []byte(`accessPointRule#4679b65f phone_prefix_rules:string dc_id:int ips:vector<IpPort> = AccessPointRule;
 help.configSimple#5a592a6c date:int expires:int rules:vector<AccessPointRule> = help.ConfigSimple;
 
 inputPeerPhotoFileLocationLegacy#27d69997 flags:# big:flags.0?true peer:InputPeer volume_id:long local_id:int = InputFileLocation;
@@ -468,12 +466,10 @@ inputStickerSetThumbLegacy#dbaeae9 stickerset:InputStickerSet volume_id:long loc
 test.useConfigSimple = help.ConfigSimple;
 test.parseInputAppEvent = InputAppEvent;
 
-invokeWithBusinessConnectionPrefix#dd289f8e connection_id:string = Error;
-invokeWithGooglePlayIntegrityPrefix#1df92984 nonce:string token:string = Error;
-invokeWithApnsSecretPrefix#0dae54f8 nonce:string secret:string = Error;
-
----types---`), []byte(`null#56730bcc = Null;
-true#3fedd339 = True;`))
+`), []byte(`null#56730bcc = Null;
+true#3fedd339 = True;
+accessPointRule#4679b65f phone_prefix_rules:string dc_id:int ips:Vector<IpPort> = AccessPointRule;
+help.configSimple#5a592a6c date:int expires:int rules:Vector<AccessPointRule> = help.ConfigSimple;`))
 
 	if parsedManually {
 
