@@ -42,7 +42,7 @@ func main() {
 
 		// or
 
-		// msg.React("👍"")
+		// msg.React("👍")
 
 		return nil
 	})
