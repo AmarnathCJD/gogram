@@ -284,9 +284,12 @@ func (d *Decoder) decodeRegisteredObject() Object {
 
 	switch crc {
 	case CrcVector:
+		_parsedExplicit := false
 		if len(d.expectedTypes) == 0 {
-			d.err = &ErrMustParseSlicesExplicitly{}
-			return nil
+			d.expectedTypes = append(d.expectedTypes, reflect.TypeOf([]bool{}))
+			_parsedExplicit = true
+			//d.err = &ErrMustParseSlicesExplicitly{}
+			//return nil
 		}
 		_typ = d.expectedTypes[0]
 		d.expectedTypes = d.expectedTypes[1:]
@@ -294,6 +297,20 @@ func (d *Decoder) decodeRegisteredObject() Object {
 		res := d.popVector(_typ.Elem(), true)
 		if d.err != nil {
 			return nil
+		}
+
+		if _parsedExplicit {
+			switch res := res.(type) {
+			case []bool:
+				if len(res) > 0 {
+					switch res[0] {
+					case true:
+						return &PseudoTrue{}
+					case false:
+						return &PseudoFalse{}
+					}
+				}
+			}
 		}
 
 		return &WrappedSlice{res}
