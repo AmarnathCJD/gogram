@@ -236,7 +236,7 @@ func (b *InlineCallbackQuery) Edit(Text any, options ...*SendOptions) (*NewMessa
 	if len(options) > 0 {
 		opts = *options[0]
 	}
-	return b.Client.EditMessage(b.MsgID, 0, Text, &opts)
+	return b.Client.EditMessage(&b.MsgID, 0, Text, &opts)
 }
 
 func (b *InlineCallbackQuery) ChatType() string {
