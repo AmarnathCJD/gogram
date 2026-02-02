@@ -943,3 +943,12 @@ func GetInputCheckPassword(password string, accountPassword *AccountPassword) (I
 		M1:    res.M1,
 	}, nil
 }
+
+// warpper for json.MarshalIntent, returns string
+func (c *Client) JSON(object interface{}) string {
+	data, err := json.MarshalIndent(object, "", "  ")
+	if err != nil {
+		return fmt.Sprintf("Error: %s", err)
+	}
+	return string(data)
+}

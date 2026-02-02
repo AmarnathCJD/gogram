@@ -15,6 +15,7 @@ import (
 
 type CACHE struct {
 	*sync.RWMutex
+	fileN      string
 	chats      map[int64]*ChatObj
 	users      map[int64]*UserObj
 	channels   map[int64]*Channel
@@ -44,9 +45,10 @@ func (c *CACHE) ImportJSON(data []byte) error {
 	return json.Unmarshal(data, c.InputPeers)
 }
 
-func NewCache(logLevel string) *CACHE {
+func NewCache(logLevel string, fileN string) *CACHE {
 	c := &CACHE{
 		RWMutex:  &sync.RWMutex{},
+		fileN:    fileN + ".db",
 		chats:    make(map[int64]*ChatObj),
 		users:    make(map[int64]*UserObj),
 		channels: make(map[int64]*Channel),
@@ -57,9 +59,10 @@ func NewCache(logLevel string) *CACHE {
 		},
 		logger: utils.NewLogger("gogram - cache").SetLevel(logLevel),
 	}
-	c.logger.Debug("Cache initialized successfully")
 
-	if _, err := os.Stat("session-cache.journal"); err == nil {
+	c.logger.Debug("initialized cache (" + c.fileN + ") successfully")
+
+	if _, err := os.Stat(c.fileN); err == nil && c.writeFile {
 		c.ReadFile()
 	}
 
@@ -73,9 +76,9 @@ func (c *CACHE) WriteFile() {
 
 	if c.file == nil {
 		var err error
-		c.file, err = os.OpenFile("session-cache.journal", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		c.file, err = os.OpenFile(c.fileN, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
-			c.logger.Error("Error opening cache file: ", err)
+			c.logger.Error("error opening cache file: ", err)
 			return
 		}
 
@@ -104,9 +107,9 @@ func (c *CACHE) ReadFile() {
 
 	if c.file == nil {
 		var err error
-		c.file, err = os.Open("session-cache.journal")
-		if err != nil {
-			c.logger.Error("Error opening cache file: ", err)
+		c.file, err = os.Open(c.fileN)
+		if err != nil && !os.IsNotExist(err) {
+			c.logger.Error("error opening cache file: ", err)
 			return
 		}
 
@@ -141,7 +144,7 @@ func (c *CACHE) ReadFile() {
 	}
 
 	if _totalLoaded != 0 {
-		c.logger.Debug("Loaded ", _totalLoaded, " peers from cacheFile")
+		c.logger.Debug("loaded ", _totalLoaded, " peers from cacheFile")
 	}
 
 	c.file = nil
@@ -421,13 +424,15 @@ func (cache *CACHE) UpdatePeersToCache(u []User, c []Chat) {
 	}
 
 	if _totalUpdates[0] != 0 || _totalUpdates[1] != 0 {
-		go cache.WriteFile() // write to file
+		if cache.writeFile {
+			go cache.WriteFile() // write to file
+		}
 		if _totalUpdates[0] != 0 && _totalUpdates[1] != 0 {
-			cache.logger.Debug("Updated ", _totalUpdates[0], " users and ", _totalUpdates[1], " chats/channels to cache")
+			cache.logger.Debug("updated ", _totalUpdates[0], "(u) and ", _totalUpdates[1], "(c) to ", cache.fileN, " (u:", len(cache.InputPeers.InputUsers), ", c:", len(cache.InputPeers.InputChats), ")")
 		} else if _totalUpdates[0] != 0 {
-			cache.logger.Debug("Updated ", _totalUpdates[0], " users to cache")
+			cache.logger.Debug("updated ", _totalUpdates[0], "(u) to ", cache.fileN, " (u:", len(cache.InputPeers.InputUsers), ", c:", len(cache.InputPeers.InputChats), ")")
 		} else {
-			cache.logger.Debug("Updated ", _totalUpdates[1], " chats/channels to cache")
+			cache.logger.Debug("updated ", _totalUpdates[1], "(c) to ", cache.fileN, " (u:", len(cache.InputPeers.InputUsers), ", c:", len(cache.InputPeers.InputChats), ")")
 		}
 	}
 }

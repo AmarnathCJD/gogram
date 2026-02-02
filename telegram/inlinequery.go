@@ -3,7 +3,6 @@
 package telegram
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -271,8 +270,7 @@ func (b *InlineQuery) IsPrivate() bool {
 }
 
 func (b *InlineQuery) Marshal() string {
-	bytes, _ := json.MarshalIndent(b, "", "  ")
-	return string(bytes)
+	return b.Client.JSON(b.OriginalUpdate)
 }
 
 func (m *InlineQuery) Args() string {

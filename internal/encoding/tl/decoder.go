@@ -305,7 +305,8 @@ func (d *Decoder) decodeRegisteredObject() Object {
 
 		res := d.popVector(_typ.Elem(), true)
 		if d.err != nil {
-			return nil
+			//d.err = nil
+			return nil // &PseudoNil{}
 		}
 
 		switch res := res.(type) {
