@@ -109,10 +109,10 @@ func NewClient(config ClientConfig) (*Client, error) {
 
 	if config.Logger != nil {
 		client.Log = config.Logger
-		client.Log.Prefix = "gogram " + getLogPrefix("client ", config.SessionName)
+		client.Log.Prefix = "gogram " + getLogPrefix("client", config.SessionName)
 		config.LogLevel = config.Logger.Lev()
 	} else {
-		client.Log = utils.NewLogger("gogram " + getLogPrefix("client ", config.SessionName))
+		client.Log = utils.NewLogger("gogram " + getLogPrefix("client", config.SessionName))
 	}
 
 	config = client.cleanClientConfig(config)
