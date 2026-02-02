@@ -86,6 +86,7 @@ type ClientConfig struct {
 	Logger           *utils.Logger        // The logger to use
 	Proxy            *url.URL             // The proxy to use (SOCKS5, HTTP)
 	ForceIPv6        bool                 // Force to use IPv6
+	NoPreconnect     bool                 // Don't preconnect to the DC until Connect() is called
 	Cache            *CACHE               // The cache to use
 	CacheSenders     bool                 // cache the exported file op sender
 	TransportMode    string               // The transport mode to use (Abridged, Intermediate, Full)
@@ -193,7 +194,8 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 	c.MTProto = mtproto
 	c.clientData.appID = mtproto.AppID() // in case the appId was not provided in the config but was in the session
 
-	if config.StringSession != "" {
+	if config.StringSession != "" && !config.NoPreconnect {
+		c.Log.Debug("using string session, connecting to telegram servers")
 		if err := c.Connect(); err != nil {
 			return errors.Wrap(err, "connecting to telegram servers")
 		}
