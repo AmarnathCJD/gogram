@@ -49,6 +49,9 @@ func (*Generator) generateMethodCallerFunc(method tlparser.Method) *jen.Statemen
 		assertedType = "int"
 		//firstErrorReturn = jen.Lit(0)
 	}
+	if assertedType == "int256" {
+		assertedType = "*tl.Int256"
+	}
 
 	if method.Response.IsList {
 		assertedType = "[]" + assertedType
