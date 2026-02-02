@@ -229,6 +229,26 @@ func (e PrivacyKey) String() string {
 
 func (e PrivacyKey) CRC() uint32 { return uint32(e) }
 
+type ReactionNotificationsFrom uint32
+
+const (
+	ReactionNotificationsFromAll      ReactionNotificationsFrom = 0x4b9e22a0
+	ReactionNotificationsFromContacts ReactionNotificationsFrom = 0xbac3a61a
+)
+
+func (e ReactionNotificationsFrom) String() string {
+	switch e {
+	case ReactionNotificationsFrom(0x4b9e22a0):
+		return "reactionNotificationsFromAll"
+	case ReactionNotificationsFrom(0xbac3a61a):
+		return "reactionNotificationsFromContacts"
+	default:
+		return "<UNKNOWN ReactionNotificationsFrom>"
+	}
+}
+
+func (e ReactionNotificationsFrom) CRC() uint32 { return uint32(e) }
+
 type ReportReason uint32
 
 const (
