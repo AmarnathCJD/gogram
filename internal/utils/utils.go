@@ -5,9 +5,9 @@ package utils
 import (
 	cr "crypto/rand"
 	"crypto/sha1"
+	"encoding/binary"
 	"fmt"
 	"maps"
-	"math/rand"
 	"os"
 	"runtime"
 	"strings"
@@ -248,8 +248,9 @@ func AuthKeyHash(key []byte) []byte {
 }
 
 func GenerateSessionID() int64 {
-	source := rand.NewSource(time.Now().UnixNano())
-	return rand.New(source).Int63()
+	b := make([]byte, 8)
+	_, _ = cr.Read(b)
+	return int64(binary.BigEndian.Uint64(b))
 }
 
 func FullStack() {

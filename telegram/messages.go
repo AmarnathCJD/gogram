@@ -2,8 +2,9 @@ package telegram
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"reflect"
 	"time"
 
@@ -903,7 +904,9 @@ func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*Forwar
 	}
 	randomIDs := make([]int64, len(msgIDs))
 	for i := range randomIDs {
-		randomIDs[i] = rand.Int63()
+		b := make([]byte, 8)
+		rand.Read(b)
+		randomIDs[i] = int64(binary.BigEndian.Uint64(b))
 	}
 	var sendAs InputPeer
 	if opt.SendAs != nil {
