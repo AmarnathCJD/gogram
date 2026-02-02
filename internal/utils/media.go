@@ -47,7 +47,7 @@ func (box *Box) GetFlags() uint32 {
 }
 
 // CheckFlag checks the flag status
-func (box *Box) CheckFlag(flag uint32) bool {
+func (box *Box) CheckFlag(_ uint32) bool {
 	return true
 }
 
@@ -56,11 +56,11 @@ func (box *Box) SetFlags(uint32) {
 }
 
 // AddFlag adds the flag
-func (box *Box) AddFlag(flag uint32) {
+func (box *Box) AddFlag(_ uint32) {
 }
 
 // RemoveFlag removes the flag
-func (box *Box) RemoveFlag(flag uint32) {
+func (box *Box) RemoveFlag(_ uint32) {
 }
 
 // GetVersion returns the box version
@@ -197,7 +197,7 @@ type IAnyType interface {
 
 type BoxPath []BoxType
 
-func (lhs BoxPath) compareWith(rhs BoxPath) (forwardMatch bool, match bool) {
+func (lhs BoxPath) compareWith(rhs BoxPath) (forwardMatch, match bool) {
 	if len(lhs) > len(rhs) {
 		return false, false
 	}
@@ -270,7 +270,7 @@ type Mvhd struct {
 	NextTrackID        uint32    `mp4:"14,size=32"`
 }
 
-func (*Mvhd) AddFlag(flag uint32) {}
+func (*Mvhd) AddFlag(_ uint32) {}
 
 // GetType returns the BoxType
 func (*Mvhd) GetType() BoxType {
@@ -423,7 +423,7 @@ func ExtractBoxes(r io.ReadSeeker, parent *BoxInfo, paths []BoxPath) ([]*BoxInfo
 func BoxTypeMoov() BoxType { return StrToBoxType("moov") }
 func BoxTypeMvhd() BoxType { return StrToBoxType("mvhd") }
 
-func matchPath(paths []BoxPath, path BoxPath) (forwardMatch bool, match bool) {
+func matchPath(paths []BoxPath, path BoxPath) (forwardMatch, match bool) {
 	for i := range paths {
 		fm, m := path.compareWith(paths[i])
 		forwardMatch = forwardMatch || fm
@@ -1003,7 +1003,7 @@ func buildFieldsAny(t reflect.Type) []*field {
 	}
 }
 
-func buildField(fieldName string, tag string) *field {
+func buildField(fieldName, tag string) *field {
 	f := &field{
 		name: fieldName,
 	}
@@ -1170,7 +1170,7 @@ func (*Meta) GetType() BoxType {
 	return BoxTypeMeta()
 }
 
-func (meta *Meta) BeforeUnmarshal(r io.ReadSeeker, size uint64, ctx Context) (n uint64, override bool, err error) {
+func (meta *Meta) BeforeUnmarshal(r io.ReadSeeker, _ uint64, _ Context) (n uint64, override bool, err error) {
 	// for Apple Quick Time
 	buf := make([]byte, 4)
 	if _, err := io.ReadFull(r, buf); err != nil {
