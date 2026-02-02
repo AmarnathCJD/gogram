@@ -802,20 +802,24 @@ func GetFileSize(f any) int64 {
 func GetFileExt(f any) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
-		doc := f.Document.(*DocumentObj)
-		if e := MimeTypes.Ext(doc.MimeType); e != "" {
-			return e
-		}
-		for _, attr := range doc.Attributes {
-			switch attr.(type) {
-			case *DocumentAttributeAudio:
-				return ".mp3"
-			case *DocumentAttributeVideo:
-				return ".mp4"
-			case *DocumentAttributeAnimated:
-				return ".gif"
-			case *DocumentAttributeSticker:
-				return ".webp"
+		if f.Document != nil {
+			switch doc := f.Document.(type) {
+			case *DocumentObj:
+				if e := MimeTypes.Ext(doc.MimeType); e != "" {
+					return e
+				}
+				for _, attr := range doc.Attributes {
+					switch attr.(type) {
+					case *DocumentAttributeAudio:
+						return ".mp3"
+					case *DocumentAttributeVideo:
+						return ".mp4"
+					case *DocumentAttributeAnimated:
+						return ".gif"
+					case *DocumentAttributeSticker:
+						return ".webp"
+					}
+				}
 			}
 		}
 	case *MessageMediaPhoto:
