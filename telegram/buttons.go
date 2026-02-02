@@ -9,7 +9,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Button struct{}
+type ButtonBuilder struct{}
+
+var Button = ButtonBuilder{}
 
 type KeyboardBuilder struct {
 	rows []*KeyboardButtonRow
@@ -77,71 +79,71 @@ func (kb *KeyboardBuilder) Build() *ReplyInlineMarkup {
 	return &ReplyInlineMarkup{Rows: kb.rows}
 }
 
-func (Button) Text(text string) *KeyboardButtonObj {
+func (ButtonBuilder) Text(text string) *KeyboardButtonObj {
 	return &KeyboardButtonObj{Text: text}
 }
 
-func (Button) Force(placeHolder string) *ReplyKeyboardForceReply {
+func (ButtonBuilder) Force(placeHolder string) *ReplyKeyboardForceReply {
 	return &ReplyKeyboardForceReply{Placeholder: placeHolder}
 }
 
-func (Button) Auth(text, url, forwardText string, buttonID int32) *KeyboardButtonURLAuth {
+func (ButtonBuilder) Auth(text, url, forwardText string, buttonID int32) *KeyboardButtonURLAuth {
 	return &KeyboardButtonURLAuth{Text: text, URL: url, FwdText: forwardText, ButtonID: buttonID}
 }
 
-func (Button) URL(text, url string) *KeyboardButtonURL {
+func (ButtonBuilder) URL(text, url string) *KeyboardButtonURL {
 	return &KeyboardButtonURL{Text: text, URL: url}
 }
 
-func (Button) Data(text, data string) *KeyboardButtonCallback {
+func (ButtonBuilder) Data(text, data string) *KeyboardButtonCallback {
 	return &KeyboardButtonCallback{Text: text, Data: []byte(data)}
 }
 
-func (Button) RequestLocation(text string) *KeyboardButtonRequestGeoLocation {
+func (ButtonBuilder) RequestLocation(text string) *KeyboardButtonRequestGeoLocation {
 	return &KeyboardButtonRequestGeoLocation{Text: text}
 }
 
-func (Button) Buy(text string) *KeyboardButtonBuy {
+func (ButtonBuilder) Buy(text string) *KeyboardButtonBuy {
 	return &KeyboardButtonBuy{Text: text}
 }
 
-func (Button) Game(text string) *KeyboardButtonGame {
+func (ButtonBuilder) Game(text string) *KeyboardButtonGame {
 	return &KeyboardButtonGame{Text: text}
 }
 
-func (Button) RequestPhone(text string) *KeyboardButtonRequestPhone {
+func (ButtonBuilder) RequestPhone(text string) *KeyboardButtonRequestPhone {
 	return &KeyboardButtonRequestPhone{Text: text}
 }
 
-func (Button) RequestPeer(text string, buttonID int32, peerType RequestPeerType, max ...int32) *KeyboardButtonRequestPeer {
+func (ButtonBuilder) RequestPeer(text string, buttonID int32, peerType RequestPeerType, max ...int32) *KeyboardButtonRequestPeer {
 	return &KeyboardButtonRequestPeer{Text: text, ButtonID: buttonID, PeerType: peerType, MaxQuantity: getVariadic(max, int32(0))}
 }
 
-func (Button) RequestPoll(text string, quiz bool) *KeyboardButtonRequestPoll {
+func (ButtonBuilder) RequestPoll(text string, quiz bool) *KeyboardButtonRequestPoll {
 	return &KeyboardButtonRequestPoll{Text: text, Quiz: quiz}
 }
 
-func (Button) SwitchInline(text string, samePeer bool, query string) *KeyboardButtonSwitchInline {
+func (ButtonBuilder) SwitchInline(text string, samePeer bool, query string) *KeyboardButtonSwitchInline {
 	return &KeyboardButtonSwitchInline{Text: text, SamePeer: samePeer, Query: query}
 }
 
-func (Button) WebView(text, url string) *KeyboardButtonSimpleWebView {
+func (ButtonBuilder) WebView(text, url string) *KeyboardButtonSimpleWebView {
 	return &KeyboardButtonSimpleWebView{Text: text, URL: url}
 }
 
-func (Button) Mention(text string, userID int64) *KeyboardButtonUserProfile {
+func (ButtonBuilder) Mention(text string, userID int64) *KeyboardButtonUserProfile {
 	return &KeyboardButtonUserProfile{Text: text, UserID: userID}
 }
 
-func (Button) Row(Buttons ...KeyboardButton) *KeyboardButtonRow {
+func (ButtonBuilder) Row(Buttons ...KeyboardButton) *KeyboardButtonRow {
 	return &KeyboardButtonRow{Buttons: Buttons}
 }
 
-func (Button) Keyboard(Rows ...*KeyboardButtonRow) *ReplyInlineMarkup {
+func (ButtonBuilder) Keyboard(Rows ...*KeyboardButtonRow) *ReplyInlineMarkup {
 	return &ReplyInlineMarkup{Rows: Rows}
 }
 
-func (Button) Clear() *ReplyKeyboardHide {
+func (ButtonBuilder) Clear() *ReplyKeyboardHide {
 	return &ReplyKeyboardHide{}
 }
 

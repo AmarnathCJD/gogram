@@ -171,11 +171,11 @@ For more examples, check the **[examples](examples)** directory.
 - [x] html, markdown parsing, friendly methods
 - [x] support for flag2.0, layer 147
 - [x] webrtc calls support
-- [ ] documentation for all methods
+- [x] documentation for all methods
 - [x] stabilize file uploading
 - [x] stabilize file downloading
 - [ ] secret chats support
-- [ ] cdn dc support
+- [x] cdn dc support
 - [x] reply markup builder helpers
 - [x] reimplement file downloads (more speed + less cpu usage)
 
