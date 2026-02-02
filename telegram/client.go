@@ -89,6 +89,9 @@ type Session struct {
 }
 
 func (s *Session) Encode() string {
+	if s.Hash == nil || len(s.Hash) == 0 {
+		s.Hash = utils.Sha1Byte(s.Key)[12:20]
+	}
 	return session.NewStringSession(s.Key, s.Hash, 0, s.Hostname, s.AppID).Encode()
 }
 
