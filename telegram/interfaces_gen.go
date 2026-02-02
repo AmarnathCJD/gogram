@@ -1333,55 +1333,59 @@ type Chat interface {
 
 // Channel/supergroup info
 type Channel struct {
-	Creator               bool `tl:"flag:0,encoded_in_bitflags"`
-	Left                  bool `tl:"flag:2,encoded_in_bitflags"`
-	Broadcast             bool `tl:"flag:5,encoded_in_bitflags"`
-	Verified              bool `tl:"flag:7,encoded_in_bitflags"`
-	Megagroup             bool `tl:"flag:8,encoded_in_bitflags"`
-	Restricted            bool `tl:"flag:9,encoded_in_bitflags"`
-	Signatures            bool `tl:"flag:11,encoded_in_bitflags"`
-	Min                   bool `tl:"flag:12,encoded_in_bitflags"`
-	Scam                  bool `tl:"flag:19,encoded_in_bitflags"`
-	HasLink               bool `tl:"flag:20,encoded_in_bitflags"`
-	HasGeo                bool `tl:"flag:21,encoded_in_bitflags"`
-	SlowmodeEnabled       bool `tl:"flag:22,encoded_in_bitflags"`
-	CallActive            bool `tl:"flag:23,encoded_in_bitflags"`
-	CallNotEmpty          bool `tl:"flag:24,encoded_in_bitflags"`
-	Fake                  bool `tl:"flag:25,encoded_in_bitflags"`
-	Gigagroup             bool `tl:"flag:26,encoded_in_bitflags"`
-	Noforwards            bool `tl:"flag:27,encoded_in_bitflags"`
-	JoinToSend            bool `tl:"flag:28,encoded_in_bitflags"`
-	JoinRequest           bool `tl:"flag:29,encoded_in_bitflags"`
-	Forum                 bool `tl:"flag:30,encoded_in_bitflags"`
-	StoriesHidden         bool `tl:"flag2:1,encoded_in_bitflags"`
-	StoriesHiddenMin      bool `tl:"flag2:2,encoded_in_bitflags"`
-	StoriesUnavailable    bool `tl:"flag2:3,encoded_in_bitflags"`
-	SignatureProfiles     bool `tl:"flag2:12,encoded_in_bitflags"`
-	Autotranslation       bool `tl:"flag2:15,encoded_in_bitflags"`
-	ID                    int64
-	AccessHash            int64 `tl:"flag:13"`
-	Title                 string
-	Username              string `tl:"flag:6"`
-	Photo                 ChatPhoto
-	Date                  int32
-	RestrictionReason     []*RestrictionReason `tl:"flag:9"`
-	AdminRights           *ChatAdminRights     `tl:"flag:14"`
-	BannedRights          *ChatBannedRights    `tl:"flag:15"`
-	DefaultBannedRights   *ChatBannedRights    `tl:"flag:18"`
-	ParticipantsCount     int32                `tl:"flag:17"`
-	Usernames             []*Username          `tl:"flag2:0"`
-	StoriesMaxID          int32                `tl:"flag2:4"`
-	Color                 *PeerColor           `tl:"flag2:7"`
-	ProfileColor          *PeerColor           `tl:"flag2:8"`
-	EmojiStatus           EmojiStatus          `tl:"flag2:9"`
-	Level                 int32                `tl:"flag2:10"`
-	SubscriptionUntilDate int32                `tl:"flag2:11"`
-	BotVerificationIcon   int64                `tl:"flag2:13"`
-	SendPaidMessagesStars int64                `tl:"flag2:14"`
+	Creator                  bool `tl:"flag:0,encoded_in_bitflags"`
+	Left                     bool `tl:"flag:2,encoded_in_bitflags"`
+	Broadcast                bool `tl:"flag:5,encoded_in_bitflags"`
+	Verified                 bool `tl:"flag:7,encoded_in_bitflags"`
+	Megagroup                bool `tl:"flag:8,encoded_in_bitflags"`
+	Restricted               bool `tl:"flag:9,encoded_in_bitflags"`
+	Signatures               bool `tl:"flag:11,encoded_in_bitflags"`
+	Min                      bool `tl:"flag:12,encoded_in_bitflags"`
+	Scam                     bool `tl:"flag:19,encoded_in_bitflags"`
+	HasLink                  bool `tl:"flag:20,encoded_in_bitflags"`
+	HasGeo                   bool `tl:"flag:21,encoded_in_bitflags"`
+	SlowmodeEnabled          bool `tl:"flag:22,encoded_in_bitflags"`
+	CallActive               bool `tl:"flag:23,encoded_in_bitflags"`
+	CallNotEmpty             bool `tl:"flag:24,encoded_in_bitflags"`
+	Fake                     bool `tl:"flag:25,encoded_in_bitflags"`
+	Gigagroup                bool `tl:"flag:26,encoded_in_bitflags"`
+	Noforwards               bool `tl:"flag:27,encoded_in_bitflags"`
+	JoinToSend               bool `tl:"flag:28,encoded_in_bitflags"`
+	JoinRequest              bool `tl:"flag:29,encoded_in_bitflags"`
+	Forum                    bool `tl:"flag:30,encoded_in_bitflags"`
+	StoriesHidden            bool `tl:"flag2:1,encoded_in_bitflags"`
+	StoriesHiddenMin         bool `tl:"flag2:2,encoded_in_bitflags"`
+	StoriesUnavailable       bool `tl:"flag2:3,encoded_in_bitflags"`
+	SignatureProfiles        bool `tl:"flag2:12,encoded_in_bitflags"`
+	Autotranslation          bool `tl:"flag2:15,encoded_in_bitflags"`
+	BroadcastMessagesAllowed bool `tl:"flag2:16,encoded_in_bitflags"`
+	Monoforum                bool `tl:"flag2:17,encoded_in_bitflags"`
+	ForumTabs                bool `tl:"flag2:19,encoded_in_bitflags"`
+	ID                       int64
+	AccessHash               int64 `tl:"flag:13"`
+	Title                    string
+	Username                 string `tl:"flag:6"`
+	Photo                    ChatPhoto
+	Date                     int32
+	RestrictionReason        []*RestrictionReason `tl:"flag:9"`
+	AdminRights              *ChatAdminRights     `tl:"flag:14"`
+	BannedRights             *ChatBannedRights    `tl:"flag:15"`
+	DefaultBannedRights      *ChatBannedRights    `tl:"flag:18"`
+	ParticipantsCount        int32                `tl:"flag:17"`
+	Usernames                []*Username          `tl:"flag2:0"`
+	StoriesMaxID             int32                `tl:"flag2:4"`
+	Color                    *PeerColor           `tl:"flag2:7"`
+	ProfileColor             *PeerColor           `tl:"flag2:8"`
+	EmojiStatus              EmojiStatus          `tl:"flag2:9"`
+	Level                    int32                `tl:"flag2:10"`
+	SubscriptionUntilDate    int32                `tl:"flag2:11"`
+	BotVerificationIcon      int64                `tl:"flag2:13"`
+	SendPaidMessagesStars    int64                `tl:"flag2:14"`
+	LinkedMonoforumID        int64                `tl:"flag2:18"`
 }
 
 func (*Channel) CRC() uint32 {
-	return 0x7482147e
+	return 0xfe685355
 }
 
 func (*Channel) FlagIndex() int {
@@ -4410,19 +4414,17 @@ type InputReplyTo interface {
 
 // Reply to a message.
 type InputReplyToMessage struct {
-	ReplyToMsgID int32 // The message ID to reply to.
-	TopMsgID     int32 `tl:"flag:0"` /*
-		This field must contain the topic ID only when replying to messages in forum topics different from the "General" topic (i.e. reply_to_msg_id is set and reply_to_msg_id != topicID and topicID != 1).
-		If the replied-to message is deleted before the method finishes execution, the value in this field will be used to send the message to the correct topic, instead of the "General" topic.
-	*/
-	ReplyToPeerID InputPeer       `tl:"flag:1"` // Used to reply to messages sent to another chat (specified here), can only be used for non-protected chats and messages.
-	QuoteText     string          `tl:"flag:2"` // Used to quote-reply to only a certain section (specified here) of the original message. The maximum UTF-8 length for quotes is specified in the quote_length_max config key.
-	QuoteEntities []MessageEntity `tl:"flag:3"` // Message entities for styled text from the quote_text field.
-	QuoteOffset   int32           `tl:"flag:4"` // Offset of the message quote_text within the original message (in UTF-16 code units).
+	ReplyToMsgID    int32
+	TopMsgID        int32           `tl:"flag:0"`
+	ReplyToPeerID   InputPeer       `tl:"flag:1"`
+	QuoteText       string          `tl:"flag:2"`
+	QuoteEntities   []MessageEntity `tl:"flag:3"`
+	QuoteOffset     int32           `tl:"flag:4"`
+	MonoforumPeerID InputPeer       `tl:"flag:5"`
 }
 
 func (*InputReplyToMessage) CRC() uint32 {
-	return 0x22c0f6d5
+	return 0xb07038b0
 }
 
 func (*InputReplyToMessage) FlagIndex() int {
@@ -4430,6 +4432,16 @@ func (*InputReplyToMessage) FlagIndex() int {
 }
 
 func (*InputReplyToMessage) ImplementsInputReplyTo() {}
+
+type InputReplyToMonoForum struct {
+	MonoforumPeerID InputPeer
+}
+
+func (*InputReplyToMonoForum) CRC() uint32 {
+	return 0x69d66c45
+}
+
+func (*InputReplyToMonoForum) ImplementsInputReplyTo() {}
 
 // Reply to a story.
 type InputReplyToStory struct {
@@ -5980,7 +5992,7 @@ type MessageActionPaidMessagesPrice struct {
 }
 
 func (*MessageActionPaidMessagesPrice) CRC() uint32 {
-	return 0xbcd71419
+	return 0x84b88578
 }
 
 func (*MessageActionPaidMessagesPrice) ImplementsMessageAction() {}
@@ -8996,6 +9008,48 @@ func (*TextURL) CRC() uint32 {
 
 func (*TextURL) ImplementsRichText() {}
 
+type SavedDialog interface {
+	tl.Object
+	ImplementsSavedDialog()
+}
+type MonoForumDialog struct {
+	UnreadMark           bool `tl:"flag:3,encoded_in_bitflags"`
+	Peer                 Peer
+	TopMessage           int32
+	ReadInboxMaxID       int32
+	ReadOutboxMaxID      int32
+	UnreadCount          int32
+	UnreadReactionsCount int32
+	Draft                DraftMessage `tl:"flag:1"`
+}
+
+func (*MonoForumDialog) CRC() uint32 {
+	return 0x64407ea7
+}
+
+func (*MonoForumDialog) FlagIndex() int {
+	return 0
+}
+
+func (*MonoForumDialog) ImplementsSavedDialog() {}
+
+// Represents a saved dialog ».
+type SavedDialogObj struct {
+	Pinned     bool  `tl:"flag:2,encoded_in_bitflags"` // Is the dialog pinned
+	Peer       Peer  // The dialog
+	TopMessage int32 // The latest message ID
+}
+
+func (*SavedDialogObj) CRC() uint32 {
+	return 0xbd87cb6c
+}
+
+func (*SavedDialogObj) FlagIndex() int {
+	return 0
+}
+
+func (*SavedDialogObj) ImplementsSavedDialog() {}
+
 type SecureFile interface {
 	tl.Object
 	ImplementsSecureFile()
@@ -10405,13 +10459,14 @@ func (*UpdateChannelPinnedTopics) ImplementsUpdate() {}
 
 // The specified channel/supergroup messages were read
 type UpdateChannelReadMessagesContents struct {
-	ChannelID int64   // Channel/supergroup ID
-	TopMsgID  int32   `tl:"flag:0"` // Forum topic ID.
-	Messages  []int32 // IDs of messages that were read
+	ChannelID   int64
+	TopMsgID    int32 `tl:"flag:0"`
+	SavedPeerID Peer  `tl:"flag:1"`
+	Messages    []int32
 }
 
 func (*UpdateChannelReadMessagesContents) CRC() uint32 {
-	return 0xea29055d
+	return 0x25f324f7
 }
 
 func (*UpdateChannelReadMessagesContents) FlagIndex() int {
@@ -10752,12 +10807,13 @@ func (*UpdateDialogPinned) ImplementsUpdate() {}
 
 // The manual unread mark of a chat was changed
 type UpdateDialogUnreadMark struct {
-	Unread bool       `tl:"flag:0,encoded_in_bitflags"` // Was the chat marked or unmarked as read
-	Peer   DialogPeer // The dialog
+	Unread      bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer        DialogPeer
+	SavedPeerID Peer `tl:"flag:1"`
 }
 
 func (*UpdateDialogUnreadMark) CRC() uint32 {
-	return 0xe16459c3
+	return 0xb658f23e
 }
 
 func (*UpdateDialogUnreadMark) FlagIndex() int {
@@ -10768,13 +10824,14 @@ func (*UpdateDialogUnreadMark) ImplementsUpdate() {}
 
 // Notifies a change of a message draft.
 type UpdateDraftMessage struct {
-	Peer     Peer         // The peer to which the draft is associated
-	TopMsgID int32        `tl:"flag:0"` // ID of the forum topic to which the draft is associated
-	Draft    DraftMessage // The draft
+	Peer        Peer
+	TopMsgID    int32 `tl:"flag:0"`
+	SavedPeerID Peer  `tl:"flag:1"`
+	Draft       DraftMessage
 }
 
 func (*UpdateDraftMessage) CRC() uint32 {
-	return 0x1b49ec6d
+	return 0xedfc111e
 }
 
 func (*UpdateDraftMessage) FlagIndex() int {
@@ -11046,14 +11103,15 @@ func (*UpdateMessagePollVote) ImplementsUpdate() {}
 
 // New message reactions » are available
 type UpdateMessageReactions struct {
-	Peer      Peer              // Peer
-	MsgID     int32             // Message ID
-	TopMsgID  int32             `tl:"flag:0"` // Forum topic ID
-	Reactions *MessageReactions // Reactions
+	Peer        Peer
+	MsgID       int32
+	TopMsgID    int32 `tl:"flag:0"`
+	SavedPeerID Peer  `tl:"flag:1"`
+	Reactions   *MessageReactions
 }
 
 func (*UpdateMessageReactions) CRC() uint32 {
-	return 0x5e1b3cb8
+	return 0x1e297bfa
 }
 
 func (*UpdateMessageReactions) FlagIndex() int {
@@ -11558,6 +11616,30 @@ func (*UpdateReadMessagesContents) FlagIndex() int {
 }
 
 func (*UpdateReadMessagesContents) ImplementsUpdate() {}
+
+type UpdateReadMonoForumInbox struct {
+	ChannelID   int64
+	SavedPeerID Peer
+	ReadMaxID   int32
+}
+
+func (*UpdateReadMonoForumInbox) CRC() uint32 {
+	return 0x77b0e372
+}
+
+func (*UpdateReadMonoForumInbox) ImplementsUpdate() {}
+
+type UpdateReadMonoForumOutbox struct {
+	ChannelID   int64
+	SavedPeerID Peer
+	ReadMaxID   int32
+}
+
+func (*UpdateReadMonoForumOutbox) CRC() uint32 {
+	return 0xa4a79376
+}
+
+func (*UpdateReadMonoForumOutbox) ImplementsUpdate() {}
 
 // Stories of a specific peer were marked as read.
 type UpdateReadStories struct {
@@ -14154,10 +14236,10 @@ type MessagesSavedDialogs interface {
 
 // Represents some saved message dialogs ».
 type MessagesSavedDialogsObj struct {
-	Dialogs  []*SavedDialog // Saved message dialogs.
-	Messages []Message      // List of last messages from each saved dialog
-	Chats    []Chat         // Mentioned chats
-	Users    []User         // Mentioned users
+	Dialogs  []SavedDialog // Saved message dialogs.
+	Messages []Message     // List of last messages from each saved dialog
+	Chats    []Chat        // Mentioned chats
+	Users    []User        // Mentioned users
 }
 
 func (*MessagesSavedDialogsObj) CRC() uint32 {
@@ -14179,11 +14261,11 @@ func (*MessagesSavedDialogsNotModified) ImplementsMessagesSavedDialogs() {}
 
 // Incomplete list of saved message dialogs » with messages and auxiliary data.
 type MessagesSavedDialogsSlice struct {
-	Count    int32          // Total number of saved message dialogs
-	Dialogs  []*SavedDialog // List of saved message dialogs
-	Messages []Message      // List of last messages from dialogs
-	Chats    []Chat         // Mentioned chats
-	Users    []User         // Mentioned users
+	Count    int32         // Total number of saved message dialogs
+	Dialogs  []SavedDialog // List of saved message dialogs
+	Messages []Message     // List of last messages from dialogs
+	Chats    []Chat        // Mentioned chats
+	Users    []User        // Mentioned users
 }
 
 func (*MessagesSavedDialogsSlice) CRC() uint32 {
