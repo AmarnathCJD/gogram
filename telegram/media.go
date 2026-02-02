@@ -20,13 +20,6 @@ import (
 	"errors"
 )
 
-var chunkPool = sync.Pool{
-	New: func() any {
-		b := make([]byte, 1024*1024)
-		return &b
-	},
-}
-
 type UploadOptions struct {
 	Threads          int                 // Number of concurrent upload workers
 	ChunkSize        int32               // Size of each upload chunk in bytes
@@ -36,90 +29,6 @@ type UploadOptions struct {
 	ProgressInterval int                 // Progress callback interval in seconds (default: 5)
 	Delay            int                 // Delay between chunks in milliseconds
 	Ctx              context.Context     // Context for cancellation
-}
-
-type WorkerPool struct {
-	sync.Mutex
-	workers []*ExSender
-	free    chan *ExSender
-}
-
-func NewWorkerPool(size int) *WorkerPool {
-	return &WorkerPool{
-		workers: make([]*ExSender, 0, size),
-		free:    make(chan *ExSender, size),
-	}
-}
-
-func (wp *WorkerPool) AddWorker(s *ExSender) {
-	wp.Lock()
-	wp.workers = append(wp.workers, s)
-	wp.Unlock()
-
-	select {
-	case wp.free <- s:
-	default:
-	}
-}
-
-func (wp *WorkerPool) Next() *ExSender {
-	return wp.NextWithContext(context.Background())
-}
-
-func (wp *WorkerPool) NextWithContext(ctx context.Context) *ExSender {
-	select {
-	case next := <-wp.free:
-		if !next.MTProto.IsTcpActive() {
-			go func(mt *ExSender) {
-				_ = mt.Reconnect(false)
-			}(next)
-		}
-
-		next.lastUsedMu.Lock()
-		next.lastUsed = time.Now()
-		next.lastUsedMu.Unlock()
-		return next
-	case <-ctx.Done():
-		return nil
-	}
-}
-
-func (wp *WorkerPool) WaitReady(ctx context.Context) bool {
-	for {
-		wp.Lock()
-		count := len(wp.workers)
-		wp.Unlock()
-		if count > 0 {
-			return true
-		}
-		select {
-		case <-ctx.Done():
-			return false
-		case <-time.After(50 * time.Millisecond):
-		}
-	}
-}
-
-func (wp *WorkerPool) FreeWorker(s *ExSender) {
-	select {
-	case wp.free <- s:
-	default:
-	}
-}
-
-func (wp *WorkerPool) Close() {
-	wp.Lock()
-	defer wp.Unlock()
-
-	// Drain the free channel
-	for {
-		select {
-		case <-wp.free:
-		default:
-			wp.workers = nil
-			return
-		}
-	}
 }
 
 type Source struct {
@@ -217,545 +126,326 @@ func (s *Source) Close() error {
 	return nil
 }
 
-// retryWithBackoff executes a function with retry logic and exponential backoff
-func retryWithBackoff(ctx context.Context, maxRetries int, baseDelay time.Duration, fn func(retryCount int) bool) {
-	for retry := 0; retry < maxRetries; retry++ {
-		if fn(retry) {
-			return
-		}
-		if ctx.Err() != nil {
-			return
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(baseDelay * time.Duration(retry+1)):
-		}
-	}
-}
-
 func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) {
 	opts := getVariadic(Opts, &UploadOptions{})
-	if src == nil {
-		return nil, errors.New("you must provide a valid file source")
+	if opts.Ctx == nil {
+		opts.Ctx = context.Background()
 	}
 
 	source := &Source{Source: src}
 	defer source.Close()
+
 	size, fileName := source.GetSizeAndName()
-
-	file := source.GetReader()
-	if file == nil {
-		return nil, errors.New("could not get reader from source")
+	if opts.FileName != "" {
+		fileName = opts.FileName
+	}
+	fileName = filepath.Base(fileName)
+	if fileName == "." || fileName == "/" {
+		fileName = "file"
 	}
 
-	readerAt, canSeek := source.GetReaderAt()
-	if !canSeek {
-		return c.uploadSequential(file, size, fileName, opts)
+	readerAt, isSeekable := source.GetReaderAt()
+
+	if isSeekable && size > 0 {
+		return c.uploadParallel(readerAt, size, fileName, opts)
 	}
 
-	partSize := 1024 * 512
+	return c.uploadSequential(source.GetReader(), size, fileName, opts)
+}
+
+func (c *Client) uploadParallel(reader io.ReaderAt, size int64, fileName string, opts *UploadOptions) (InputFile, error) {
+	partSize := int32(512 * 1024)
 	if opts.ChunkSize > 0 {
-		partSize = int(opts.ChunkSize)
+		if opts.ChunkSize%1024 != 0 {
+			return nil, fmt.Errorf("chunk size must be a multiple of 1KB")
+		}
+		partSize = opts.ChunkSize
 	}
-	fileId := GenerateRandomLong()
-	isBigFile := size > 10*1024*1024
 
-	parts := size / int64(partSize)
-	partOver := size % int64(partSize)
-	totalParts := int(parts)
-	if partOver > 0 {
+	totalParts := int(size / int64(partSize))
+	if size%int64(partSize) != 0 {
 		totalParts++
 	}
 
-	// For small files (<10MB), use only main client (pool of 1)
-	numWorkers := countWorkers(int64(totalParts))
-	if size < 10*1024*1024 {
+	isBigFile := size > 10*1024*1024
+	fileID := GenerateRandomLong()
+
+	var fileMD5 string
+	if !isBigFile {
+		h := md5.New()
+		if _, err := io.Copy(h, io.NewSectionReader(reader, 0, size)); err != nil {
+			return nil, fmt.Errorf("compute md5: %w", err)
+		}
+		fileMD5 = hex.EncodeToString(h.Sum(nil))
+	}
+
+	numWorkers := opts.Threads
+	if numWorkers <= 0 {
+		numWorkers = min(totalParts, 16)
+	}
+	if numWorkers > 16 {
+		numWorkers = 16
+	}
+	if numWorkers < 1 {
 		numWorkers = 1
 	}
-	if opts.Threads > 0 {
-		numWorkers = opts.Threads
-	}
 
-	w := NewWorkerPool(numWorkers)
-	defer w.Close()
+	dc := int32(c.GetDC())
 
-	if err := initializeWorkers(numWorkers, int32(c.GetDC()), c, w); err != nil {
+	senders, err := c.createSenders(dc, numWorkers)
+	if err != nil {
 		return nil, err
 	}
 
-	initCtx, initCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	if !w.WaitReady(initCtx) {
-		initCancel()
-		return nil, errors.New("failed to initialize upload workers: timeout")
-	}
-	initCancel()
-
 	c.Log.WithFields(map[string]any{
-		"file_name": source.GetName(),
-		"file_size": SizetoHuman(size),
-		"parts":     totalParts,
-		"workers":   numWorkers,
-	}).Info("starting file upload")
+		"file": fileName, "size": SizetoHuman(size),
+		"parts": totalParts, "workers": numWorkers,
+	}).Info("starting parallel upload")
 
-	var (
-		doneBytes      atomic.Int64
-		completedParts = make([]atomic.Bool, totalParts)
-		globalErr      atomic.Value
-	)
+	ctx, cancel := context.WithCancel(opts.Ctx)
+	defer cancel()
 
-	var progressCallback func(*ProgressInfo)
+	var doneBytes atomic.Int64
 	if opts.ProgressCallback != nil {
-		progressCallback = opts.ProgressCallback
+		pt := newProgressTracker(fileName, size, opts.ProgressCallback, opts.ProgressInterval)
+		pt.start(&doneBytes)
+		defer pt.stop()
 	} else if opts.ProgressManager != nil {
-		opts.ProgressManager.SetFileName(source.GetName())
+		opts.ProgressManager.SetFileName(fileName)
 		opts.ProgressManager.SetTotalSize(size)
-		progressCallback = opts.ProgressManager.getCallback()
+		pt := newProgressTracker(fileName, size, opts.ProgressManager.getCallback(), opts.ProgressInterval)
+		pt.start(&doneBytes)
+		defer pt.stop()
 	}
 
-	var progressTracker *progressTracker
-	if progressCallback != nil {
-		progressTracker = newProgressTracker(source.GetName(), size, progressCallback, opts.ProgressInterval)
-		defer progressTracker.stop()
-		progressCallback(&ProgressInfo{
-			FileName:   source.GetName(),
-			TotalSize:  size,
-			Current:    0,
-			Percentage: 0,
-		})
-		progressTracker.start(&doneBytes)
+	type buffer struct{ b []byte }
+	pool := sync.Pool{
+		New: func() any { return &buffer{b: make([]byte, partSize)} },
 	}
 
-	var uploadCtx context.Context
-	var uploadCancel context.CancelFunc
-	if opts.Ctx != nil {
-		uploadCtx, uploadCancel = context.WithCancel(opts.Ctx)
-	} else {
-		uploadCtx, uploadCancel = context.WithCancel(context.Background())
-	}
-	defer uploadCancel()
-
-	var hash hash.Hash
-	var hashMu sync.Mutex
-	var nextHashPart atomic.Int32
-	var hashPending = make(map[int][]byte)
-	if !isBigFile {
-		hash = md5.New()
+	queue := make(chan int, totalParts)
+	for i := 0; i < totalParts; i++ {
+		queue <- i
 	}
 
-	writeToHash := func(partNum int, data []byte) {
-		if isBigFile || hash == nil {
-			return
-		}
-
-		hashMu.Lock()
-		defer hashMu.Unlock()
-		hashPending[partNum] = data
-
-		next := int(nextHashPart.Load())
-		for {
-			if partData, ok := hashPending[next]; ok {
-				hash.Write(partData)
-				delete(hashPending, next)
-				next++
-				nextHashPart.Store(int32(next))
-			} else {
-				break
-			}
-		}
-	}
-
-	uploadPart := func(partNum int, retryCount int) bool {
-		select {
-		case <-uploadCtx.Done():
-			return false
-		default:
-		}
-
-		if globalErr.Load() != nil {
-			return false
-		}
-
-		if completedParts[partNum].Load() {
-			return true
-		}
-
-		offset := int64(partNum) * int64(partSize)
-		chunkSize := partSize
-		if offset+int64(partSize) > size {
-			chunkSize = int(size - offset)
-		}
-
-		bufPtr := chunkPool.Get().(*[]byte)
-		defer chunkPool.Put(bufPtr)
-
-		if cap(*bufPtr) < int(chunkSize) {
-			*bufPtr = make([]byte, chunkSize)
-		}
-		data := (*bufPtr)[:chunkSize]
-
-		n, err := readerAt.ReadAt(data, offset)
-		if err != nil && err != io.EOF {
-			return false
-		}
-		data = data[:n]
-
-		ctx, cancel := context.WithTimeout(uploadCtx, 10*time.Second)
-		defer cancel()
-
-		sender := w.NextWithContext(ctx)
-		if sender == nil {
-			return false
-		}
-
-		if isBigFile {
-			_, err = sender.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
-				FileID:         fileId,
-				FilePart:       int32(partNum),
-				FileTotalParts: int32(totalParts),
-				Bytes:          data,
-			})
-		} else {
-			_, err = sender.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
-				FileID:   fileId,
-				FilePart: int32(partNum),
-				Bytes:    data,
-			})
-		}
-
-		if opts.Delay > 0 {
-			time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
-		}
-
-		w.FreeWorker(sender)
-
-		if err != nil {
-			if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
-				if waitTime := GetFloodWait(err); waitTime > 0 {
-					backoff := time.Duration(waitTime+retryCount*retryCount) * time.Second
-					c.Log.Debug(fmt.Sprintf("flood wait: sleeping %v (retry %d)", backoff, retryCount))
-					select {
-					case <-uploadCtx.Done():
-						return false
-					case <-time.After(backoff):
-						// After sleeping, return false to trigger retry
-						return false
-					}
-				}
-			}
-
-			if MatchError(err, "timeout") {
-				return false
-			}
-
-			return false
-		}
-
-		writeToHash(partNum, data)
-
-		doneBytes.Add(int64(len(data)))
-		completedParts[partNum].Store(true)
-		return true
-	}
-
+	var finishedParts atomic.Int32
+	var fatal atomic.Value
 	var wg sync.WaitGroup
 
-	partQueue := make(chan int, totalParts)
+	wg.Add(len(senders))
+	for _, sender := range senders {
+		go func(s *ExSender) {
+			defer wg.Done()
 
-	for p := 0; p < totalParts; p++ {
-		partQueue <- p
-	}
-	close(partQueue)
-
-	for i := 0; i < numWorkers; i++ {
-		wg.Go(func() {
-			for partNum := range partQueue {
-				if uploadCtx.Err() != nil || globalErr.Load() != nil {
+			for {
+				select {
+				case <-ctx.Done():
 					return
-				}
-
-				retryWithBackoff(uploadCtx, 5, 100*time.Millisecond, func(retry int) bool {
-					if uploadPart(partNum, retry) {
-						return true
+				case p := <-queue:
+					if ctx.Err() != nil || fatal.Load() != nil {
+						return
 					}
-					return uploadCtx.Err() != nil || globalErr.Load() != nil
-				})
+
+					bufObj := pool.Get().(*buffer)
+					if int32(len(bufObj.b)) != partSize {
+						bufObj.b = make([]byte, partSize)
+					}
+
+					offset := int64(p) * int64(partSize)
+					thisSize := int(partSize)
+					if offset+int64(partSize) > size {
+						thisSize = int(size - offset)
+					}
+
+					_, readErr := reader.ReadAt(bufObj.b[:thisSize], offset)
+					if readErr != nil && readErr != io.EOF {
+						fatal.Store(fmt.Errorf("read at %d: %w", offset, readErr))
+						pool.Put(bufObj)
+						cancel()
+						return
+					}
+
+					reqData := bufObj.b[:thisSize]
+					var upErr error
+
+					rCtx, rCancel := context.WithTimeout(ctx, 60*time.Second)
+					if isBigFile {
+						_, upErr = s.MakeRequestCtx(rCtx, &UploadSaveBigFilePartParams{
+							FileID:         fileID,
+							FilePart:       int32(p),
+							FileTotalParts: int32(totalParts),
+							Bytes:          reqData,
+						})
+					} else {
+						_, upErr = s.MakeRequestCtx(rCtx, &UploadSaveFilePartParams{
+							FileID:   fileID,
+							FilePart: int32(p),
+							Bytes:    reqData,
+						})
+					}
+					rCancel()
+
+					pool.Put(bufObj)
+
+					if upErr != nil {
+						if MatchError(upErr, "FLOOD_WAIT_") || MatchError(upErr, "FLOOD_PREMIUM_WAIT_") {
+							wait := GetFloodWait(upErr)
+							c.Log.Debug("upload flood wait: %ds (worker)", wait)
+							time.Sleep(time.Duration(wait) * time.Second)
+
+							select {
+							case queue <- p:
+							case <-ctx.Done():
+							}
+							continue
+						}
+
+						fatal.Store(fmt.Errorf("upload part %d: %w", p, upErr))
+						cancel()
+						return
+					}
+
+					doneBytes.Add(int64(thisSize))
+					if finishedParts.Add(1) == int32(totalParts) {
+						cancel()
+						return
+					}
+				}
 			}
-		})
+		}(sender)
 	}
 
 	wg.Wait()
 
-	if err := globalErr.Load(); err != nil {
+	if err := fatal.Load(); err != nil {
 		return nil, err.(error)
 	}
 
-	for round := range 3 {
-		var failedParts []int
-		for p := 0; p < totalParts; p++ {
-			if !completedParts[p].Load() {
-				failedParts = append(failedParts, p)
-			}
-		}
-
-		if len(failedParts) == 0 {
-			break
-		}
-
-		c.Log.WithFields(map[string]any{
-			"round":        round + 1,
-			"failed_parts": len(failedParts),
-		}).Debug("retrying failed parts")
-
-		retryQueue := make(chan int, len(failedParts))
-		for _, p := range failedParts {
-			retryQueue <- p
-		}
-		close(retryQueue)
-
-		for i := 0; i < numWorkers && i < len(failedParts); i++ {
-			wg.Add(1)
-			go func(retryRound int) {
-				defer wg.Done()
-				for partNum := range retryQueue {
-					if uploadCtx.Err() != nil || globalErr.Load() != nil {
-						return
-					}
-
-					retryWithBackoff(uploadCtx, 3, 200*time.Millisecond, func(retry int) bool {
-						if uploadPart(partNum, retryRound*3+retry) {
-							return true
-						}
-						return uploadCtx.Err() != nil || globalErr.Load() != nil
-					})
-				}
-			}(round)
-		}
-
-		wg.Wait()
-
-		if err := globalErr.Load(); err != nil {
-			return nil, err.(error)
-		}
+	if finishedParts.Load() != int32(totalParts) {
+		return nil, fmt.Errorf("upload incomplete: %d/%d parts", finishedParts.Load(), totalParts)
 	}
 
-	var missingParts []int
-	for p := 0; p < totalParts; p++ {
-		if !completedParts[p].Load() {
-			missingParts = append(missingParts, p)
-		}
-	}
-
-	if len(missingParts) > 0 {
-		return nil, fmt.Errorf("upload incomplete: %d parts failed (parts: %v)", len(missingParts), missingParts)
-	}
-
-	if progressCallback != nil {
-		progressCallback(&ProgressInfo{
-			FileName:     source.GetName(),
-			TotalSize:    size,
-			Current:      size,
-			CurrentSpeed: 0,
-			AverageSpeed: 0,
-			ETA:          0,
-			Elapsed:      0,
-			Percentage:   100,
-		})
-	}
-
-	if opts.FileName != "" {
-		fileName = opts.FileName
-	}
-
-	c.Log.WithFields(map[string]any{
-		"file_name": source.GetName(),
-		"file_size": SizetoHuman(size),
-		"parts":     totalParts,
-	}).Info("file upload completed")
+	c.Log.WithField("file", fileName).Info("upload complete")
 
 	if isBigFile {
 		return &InputFileBig{
-			ID:    fileId,
+			ID:    fileID,
 			Parts: int32(totalParts),
 			Name:  prettifyFileName(fileName),
 		}, nil
 	}
-
 	return &InputFileObj{
-		ID:          fileId,
-		Md5Checksum: hex.EncodeToString(hash.Sum(nil)),
-		Name:        prettifyFileName(fileName),
+		ID:          fileID,
 		Parts:       int32(totalParts),
+		Name:        prettifyFileName(fileName),
+		Md5Checksum: fileMD5,
 	}, nil
 }
 
 func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, opts *UploadOptions) (InputFile, error) {
-	partSize := 1024 * 512
+	partSize := int32(512 * 1024)
 	if opts.ChunkSize > 0 {
-		partSize = int(opts.ChunkSize)
+		partSize = int32(opts.ChunkSize)
 	}
-	fileId := GenerateRandomLong()
-	isBigFile := size > 10*1024*1024
+	fileID := GenerateRandomLong()
+	isBigFile := size > 10*1024*1024 || size <= 0
 
-	parts := size / int64(partSize)
-	partOver := size % int64(partSize)
-	totalParts := int(parts)
-	if partOver > 0 {
-		totalParts++
-	}
-
-	if size == 0 {
-		totalParts = -1
-		isBigFile = true
-	}
-
-	var hash hash.Hash
+	// MD5 for small files
+	var h hash.Hash
+	var tee io.Reader = file
 	if !isBigFile {
-		hash = md5.New()
-		file = io.TeeReader(file, hash)
+		h = md5.New()
+		tee = io.TeeReader(file, h)
 	}
 
-	var uploadCtx context.Context
-	var uploadCancel context.CancelFunc
-	if opts.Ctx != nil {
-		uploadCtx, uploadCancel = context.WithCancel(opts.Ctx)
-	} else {
-		uploadCtx, uploadCancel = context.WithCancel(context.Background())
+	ctx := opts.Ctx
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	defer uploadCancel()
 
 	var doneBytes atomic.Int64
-	var progressCallback func(*ProgressInfo)
 	if opts.ProgressCallback != nil {
-		progressCallback = opts.ProgressCallback
+		pt := newProgressTracker(fileName, size, opts.ProgressCallback, opts.ProgressInterval)
+		pt.start(&doneBytes)
+		defer pt.stop()
 	} else if opts.ProgressManager != nil {
 		opts.ProgressManager.SetFileName(fileName)
 		opts.ProgressManager.SetTotalSize(size)
-		progressCallback = opts.ProgressManager.getCallback()
+		pt := newProgressTracker(fileName, size, opts.ProgressManager.getCallback(), opts.ProgressInterval)
+		pt.start(&doneBytes)
+		defer pt.stop()
 	}
 
-	var progressTracker *progressTracker
-	if progressCallback != nil {
-		progressTracker = newProgressTracker(fileName, size, progressCallback, opts.ProgressInterval)
-		defer progressTracker.stop()
-		// Mark start of operation
-		progressCallback(&ProgressInfo{
-			FileName:   fileName,
-			TotalSize:  size,
-			Current:    0,
-			Percentage: 0,
-		})
-		progressTracker.start(&doneBytes)
-	}
+	buf := make([]byte, partSize)
+	part := 0
 
-	currentPart := make([]byte, partSize)
-	readBytes, err := io.ReadFull(file, currentPart)
-	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
-		return nil, err
-	}
-	currentPart = currentPart[:readBytes]
-
-	for p := 0; p < totalParts || totalParts == -1; p++ {
-		select {
-		case <-uploadCtx.Done():
-			return nil, uploadCtx.Err()
-		default:
+	for {
+		n, err := io.ReadFull(tee, buf)
+		if n == 0 {
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		nextPart := make([]byte, partSize)
-		readBytes, err := io.ReadFull(file, nextPart)
-		if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
-			return nil, err
-		}
-		nextPart = nextPart[:readBytes]
+		chunk := buf[:n]
 
-		if len(nextPart) == 0 {
-			totalParts = p + 1
-		}
+		// Retry loop
+		for attempts := 0; attempts < 10; attempts++ {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 
-		var uploadErr error
-		for retry := range 5 {
-			ctx, cancel := context.WithTimeout(uploadCtx, 10*time.Second)
+			var reqErr error
 			if isBigFile {
-				_, uploadErr = c.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
-					FileID:         fileId,
-					FilePart:       int32(p),
-					FileTotalParts: int32(totalParts),
-					Bytes:          currentPart,
+				_, reqErr = c.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
+					FileID:         fileID,
+					FilePart:       int32(part),
+					FileTotalParts: -1,
+					Bytes:          chunk,
 				})
 			} else {
-				_, uploadErr = c.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
-					FileID:   fileId,
-					FilePart: int32(p),
-					Bytes:    currentPart,
+				_, reqErr = c.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
+					FileID:   fileID,
+					FilePart: int32(part),
+					Bytes:    chunk,
 				})
 			}
-			cancel()
 
-			if uploadErr == nil {
+			if reqErr == nil {
 				break
 			}
 
-			if MatchError(uploadErr, "FLOOD_WAIT_") || MatchError(uploadErr, "FLOOD_PREMIUM_WAIT_") {
-				if waitTime := GetFloodWait(uploadErr); waitTime > 0 {
-					select {
-					case <-uploadCtx.Done():
-						return nil, uploadCtx.Err()
-					case <-time.After(time.Duration(waitTime+retry*retry) * time.Second):
-						continue
-					}
-				}
+			if MatchError(reqErr, "FLOOD_WAIT_") {
+				wait := GetFloodWait(reqErr)
+				time.Sleep(time.Duration(wait) * time.Second)
+				continue
 			}
+			time.Sleep(time.Duration(attempts) * time.Second)
+		}
 
-			if MatchError(uploadErr, "timeout") {
-				select {
-				case <-uploadCtx.Done():
-					return nil, uploadCtx.Err()
-				default:
-					continue
-				}
-			}
+		doneBytes.Add(int64(n))
+		part++
 
+		if err == io.EOF || n < int(partSize) {
 			break
 		}
-		if uploadErr != nil {
-			return nil, uploadErr
-		}
-
-		doneBytes.Add(int64(len(currentPart)))
-		currentPart = nextPart
-
-		if opts.Delay > 0 {
-			time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
-		}
-	}
-
-	if progressCallback != nil {
-		progressCallback(&ProgressInfo{
-			FileName:   fileName,
-			TotalSize:  size,
-			Current:    size,
-			Percentage: 100,
-		})
-	}
-
-	if opts.FileName != "" {
-		fileName = opts.FileName
 	}
 
 	if isBigFile {
 		return &InputFileBig{
-			ID:    fileId,
-			Parts: int32(totalParts),
+			ID:    fileID,
+			Parts: int32(part),
 			Name:  prettifyFileName(fileName),
 		}, nil
 	}
-
 	return &InputFileObj{
-		ID:          fileId,
-		Md5Checksum: hex.EncodeToString(hash.Sum(nil)),
+		ID:          fileID,
+		Parts:       int32(part),
 		Name:        prettifyFileName(fileName),
-		Parts:       int32(totalParts),
+		Md5Checksum: hex.EncodeToString(h.Sum(nil)),
 	}, nil
 }
 
@@ -777,26 +467,6 @@ func handleIfFlood(err error, c *Client) bool {
 
 func prettifyFileName(file string) string {
 	return filepath.Base(file)
-}
-
-func countWorkers(parts int64) int {
-	if parts <= 5 {
-		return 1
-	} else if parts <= 10 {
-		return 2
-	} else if parts <= 50 {
-		return 3
-	} else if parts <= 100 {
-		return 6
-	} else if parts <= 200 {
-		return 7
-	} else if parts <= 400 {
-		return 8
-	} else if parts <= 500 {
-		return 10
-	} else {
-		return 12
-	}
 }
 
 type DownloadOptions struct {
@@ -1091,77 +761,6 @@ func (c *Client) createSenders(dc int32, n int) ([]*ExSender, error) {
 	return out, nil
 }
 
-func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error {
-	if numWorkers == 1 && dc == int32(c.GetDC()) {
-		w.AddWorker(NewExSender(c.MTProto))
-		return nil
-	}
-
-	var authParams = &AuthExportedAuthorization{}
-	if dc != int32(c.GetDC()) {
-		c.exportedKeysMu.Lock()
-		if c.exportedKeys == nil {
-			c.exportedKeys = make(map[int]*AuthExportedAuthorization)
-		}
-
-		if exportedKey, ok := c.exportedKeys[int(dc)]; ok {
-			authParams = exportedKey
-			c.exportedKeysMu.Unlock()
-		} else {
-			c.exportedKeysMu.Unlock()
-			auth, err := c.AuthExportAuthorization(dc)
-			if err != nil {
-				return err
-			}
-
-			authParams = &AuthExportedAuthorization{
-				ID:    auth.ID,
-				Bytes: auth.Bytes,
-			}
-
-			c.exportedKeysMu.Lock()
-			c.exportedKeys[int(dc)] = authParams
-			c.exportedKeysMu.Unlock()
-		}
-	}
-
-	numCreate := 0
-	existingSenders := c.exSenders.GetSenders(int(dc))
-	for _, worker := range existingSenders {
-		w.AddWorker(worker)
-		numCreate++
-	}
-
-	if numCreate == 0 {
-		conn, err := c.CreateExportedSender(int(dc), false, authParams)
-		if err != nil {
-			return fmt.Errorf("creating initial sender: %w", err)
-		}
-		if conn != nil {
-			sender := NewExSender(conn)
-			c.exSenders.AddSender(int(dc), sender)
-			w.AddWorker(sender)
-			numCreate++
-		}
-	}
-
-	if numCreate < numWorkers {
-		c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers-numCreate))
-		go func() {
-			for i := numCreate; i < numWorkers; i++ {
-				conn, err := c.CreateExportedSender(int(dc), false, authParams)
-				if conn != nil && err == nil {
-					sender := NewExSender(conn)
-					c.exSenders.AddSender(int(dc), sender)
-					w.AddWorker(sender)
-				}
-			}
-		}()
-	}
-
-	return nil
-}
-
 // DownloadChunk downloads a file in chunks, useful for downloading specific parts of a file.
 //
 // start and end are the byte offsets to download.
@@ -1183,25 +782,11 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		end = int(size)
 	}
 
-	w := NewWorkerPool(1)
-	defer w.Close()
-
-	if err := initializeWorkers(1, int32(dc), c, w); err != nil {
+	senderList, err := c.createSenders(int32(dc), 1)
+	if err != nil {
 		return nil, "", err
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if !w.WaitReady(ctx) {
-		return nil, "", errors.New("failed to initialize worker: timeout")
-	}
-
-	sender := w.NextWithContext(ctx)
-	if sender == nil {
-		return nil, "", errors.New("failed to get worker: timeout")
-	}
-	defer w.FreeWorker(sender)
+	sender := senderList[0]
 
 	for curr := start; curr < end; curr += chunkSize {
 		part, err := sender.MakeRequest(&UploadGetFileParams{
