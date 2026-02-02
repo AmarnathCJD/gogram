@@ -3,7 +3,7 @@ package telegram
 import "regexp"
 
 const (
-	ApiVersion = 178
+	ApiVersion = 179
 	Version    = "v2.3.10"
 
 	LogDebug   = "debug"

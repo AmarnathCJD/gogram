@@ -2730,14 +2730,14 @@ type Poll struct {
 	PublicVoters   bool `tl:"flag:1,encoded_in_bitflags"`
 	MultipleChoice bool `tl:"flag:2,encoded_in_bitflags"`
 	Quiz           bool `tl:"flag:3,encoded_in_bitflags"`
-	Question       string
+	Question       *TextWithEntities
 	Answers        []*PollAnswer
 	ClosePeriod    int32 `tl:"flag:4"`
 	CloseDate      int32 `tl:"flag:5"`
 }
 
 func (*Poll) CRC() uint32 {
-	return 0x86e18161
+	return 0x58747131
 }
 
 func (*Poll) FlagIndex() int {
@@ -2745,12 +2745,12 @@ func (*Poll) FlagIndex() int {
 }
 
 type PollAnswer struct {
-	Text   string
+	Text   *TextWithEntities
 	Option []byte
 }
 
 func (*PollAnswer) CRC() uint32 {
-	return 0x6ca9c2e9
+	return 0xff16e2ca
 }
 
 type PollAnswerVoters struct {

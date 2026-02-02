@@ -2979,6 +2979,33 @@ func (c *Client) AuthRecoverPassword(code string, newSettings *AccountPasswordIn
 	return resp, nil
 }
 
+type AuthReportMissingCodeParams struct {
+	PhoneNumber   string
+	PhoneCodeHash string
+	Mnc           string
+}
+
+func (*AuthReportMissingCodeParams) CRC() uint32 {
+	return 0xcb9deff6
+}
+
+func (c *Client) AuthReportMissingCode(phoneNumber, phoneCodeHash, mnc string) (bool, error) {
+	responseData, err := c.MakeRequest(&AuthReportMissingCodeParams{
+		Mnc:           mnc,
+		PhoneCodeHash: phoneCodeHash,
+		PhoneNumber:   phoneNumber,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending AuthReportMissingCode")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type AuthRequestFirebaseSmsParams struct {
 	PhoneNumber    string
 	PhoneCodeHash  string
