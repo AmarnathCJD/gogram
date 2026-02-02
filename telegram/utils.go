@@ -774,7 +774,15 @@ func GetFileName(f any, video ...bool) string {
 func GetFileSize(f any) int64 {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
-		return f.Document.(*DocumentObj).Size
+		if f.Document != nil {
+			switch doc := f.Document.(type) {
+			case *DocumentObj:
+				return doc.Size
+			default:
+				return 0
+			}
+		}
+		return 0
 	case *MessageMediaPhoto:
 		if photo, p := f.Photo.(*PhotoObj); p {
 			if len(photo.Sizes) == 0 {
