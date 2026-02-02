@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -403,6 +404,10 @@ BackToAppsPage:
 	appIdNum, err := strconv.Atoi(appID[1])
 	if err != nil {
 		return 0, "", false, err
+	}
+
+	if appIdNum > math.MaxInt32 || appIdNum < math.MinInt32 {
+		return 0, "", false, errors.New("app id is out of range")
 	}
 
 	return int32(appIdNum), appHash[1], true, nil
