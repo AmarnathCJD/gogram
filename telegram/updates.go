@@ -190,6 +190,9 @@ func (c *Client) handleAlbum(message MessageObj) {
 			messages:  []*NewMessage{packMessage(c, &message)},
 			groupedId: message.GroupedID,
 		}
+		if c.dispatcher.activeAlbums == nil {
+			c.dispatcher.activeAlbums = make(map[int64]*albumBox)
+		}
 		c.dispatcher.activeAlbums[message.GroupedID] = abox
 		go func() {
 			<-abox.waitExit
