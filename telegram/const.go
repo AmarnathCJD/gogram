@@ -55,7 +55,7 @@ var (
 		"upload_document": &SendMessageUploadDocumentAction{},
 		"game":            &SendMessageGamePlayAction{},
 		"cancel":          &SendMessageCancelAction{},
-		"round_video":     &SendMessageUploadRoundAction{},
+		"upload_round":    &SendMessageUploadRoundAction{},
 		"call":            &SpeakingInGroupCallAction{},
 		"record_round":    &SendMessageRecordRoundAction{},
 		"history_import":  &SendMessageHistoryImportAction{},
