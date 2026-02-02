@@ -162,6 +162,7 @@ func (c *Conversation) checkAbort(msg *NewMessage) bool {
 	text := strings.ToLower(strings.TrimSpace(msg.Text()))
 	for _, keyword := range c.abortKeywords {
 		if strings.ToLower(keyword) == text {
+			c.Close()
 			return true
 		}
 	}
@@ -1021,6 +1022,7 @@ func (c *Conversation) buildFilters() []Filter {
 	}
 	if c.isPrivate {
 		filters = append(filters, FilterPrivate)
+		filters = append(filters, Not(FilterGroup), Not(FilterChannel))
 	}
 	return filters
 }
