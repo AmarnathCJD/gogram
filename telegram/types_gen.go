@@ -2,7 +2,7 @@
 
 package telegram
 
-// [Telegram Passport](/passport) authorization form
+// [Telegram Passport](https://core.telegram.org//passport) authorization form
 type AccountAuthorizationForm struct {
 	RequiredTypes    []SecureRequiredType
 	Values           []*SecureValue
@@ -129,7 +129,7 @@ func (*AccountPasswordInputSettings) FlagIndex() int {
 	return 0
 }
 
-// Private info associated to the password info (recovery email, telegram [passport](/passport) info &amp; so on)
+// Private info associated to the password info (recovery email, telegram [passport](https://core.telegram.org//passport) info &amp; so on)
 type AccountPasswordSettings struct {
 	Email          string                `tl:"flag:0"`
 	SecureSettings *SecureSecretSettings `tl:"flag:1"`
@@ -218,7 +218,7 @@ func (*AccountDaysTtl) CRC() uint32 {
 	return 0xb8d0afdf
 }
 
-// Contains the link that must be used to open a [direct link Mini App](/api/bots/webapps#direct-link-mini-apps).
+// Contains the link that must be used to open a [direct link Mini App](https://core.telegram.org//api/bots/webapps#direct-link-mini-apps).
 type AppWebViewResultURL struct {
 	URL string
 }
@@ -227,7 +227,7 @@ func (*AppWebViewResultURL) CRC() uint32 {
 	return 0x3c1b4f0d
 }
 
-// Represents a [bot mini app that can be launched from the attachment/side menu »](/api/bots/attach)
+// Represents a [bot mini app that can be launched from the attachment/side menu »](https://core.telegram.org//api/bots/attach)
 type AttachMenuBot struct {
 	Inactive                 bool `tl:"flag:0,encoded_in_bitflags"`
 	HasSettings              bool `tl:"flag:1,encoded_in_bitflags"`
@@ -249,7 +249,7 @@ func (*AttachMenuBot) FlagIndex() int {
 	return 0
 }
 
-// Represents an attachment menu icon for [bot mini apps »](/api/bots/attach)
+// Represents an attachment menu icon for [bot mini apps »](https://core.telegram.org//api/bots/attach)
 type AttachMenuBotIcon struct {
 	Name   string
 	Icon   Document
@@ -264,7 +264,7 @@ func (*AttachMenuBotIcon) FlagIndex() int {
 	return 0
 }
 
-// Represents an attachment menu icon color for [bot mini apps »](/api/bots/attach)
+// Represents an attachment menu icon color for [bot mini apps »](https://core.telegram.org//api/bots/attach)
 type AttachMenuBotIconColor struct {
 	Name  string
 	Color int32
@@ -274,7 +274,7 @@ func (*AttachMenuBotIconColor) CRC() uint32 {
 	return 0x4576f3f0
 }
 
-// Represents a [bot mini app that can be launched from the attachment menu »](/api/bots/attach)
+// Represents a [bot mini app that can be launched from the attachment menu »](https://core.telegram.org//api/bots/attach)
 type AttachMenuBotsBot struct {
 	Bot   *AttachMenuBot
 	Users []User
@@ -294,7 +294,7 @@ func (*AuthExportedAuthorization) CRC() uint32 {
 	return 0xb434e2b8
 }
 
-// [Future auth token »](/api/auth#future-auth-tokens) to be used on subsequent authorizations
+// [Future auth token »](https://core.telegram.org//api/auth#future-auth-tokens) to be used on subsequent authorizations
 type AuthLoggedOut struct {
 	FutureAuthToken []byte `tl:"flag:0"`
 }
@@ -307,7 +307,7 @@ func (*AuthLoggedOut) FlagIndex() int {
 	return 0
 }
 
-// Recovery info of a [2FA password](/api/srp), only for accounts with a [recovery email configured](/api/srp#email-verification).
+// Recovery info of a [2FA password](https://core.telegram.org//api/srp), only for accounts with a [recovery email configured](https://core.telegram.org//api/srp#email-verification).
 type AuthPasswordRecovery struct {
 	EmailPattern string
 }
@@ -458,7 +458,7 @@ func (*Birthday) FlagIndex() int {
 	return 0
 }
 
-// Info about one or more [boosts](/api/boost) applied by a specific user.
+// Info about one or more [boosts](https://core.telegram.org//api/boost) applied by a specific user.
 type Boost struct {
 	Gift          bool `tl:"flag:1,encoded_in_bitflags"`
 	Giveaway      bool `tl:"flag:2,encoded_in_bitflags"`
@@ -672,7 +672,7 @@ func (*BusinessWorkHours) FlagIndex() int {
 	return 0
 }
 
-// Configuration for [CDN](/cdn) file downloads.
+// Configuration for [CDN](https://core.telegram.org//cdn) file downloads.
 type CdnConfig struct {
 	PublicKeys []*CdnPublicKey
 }
@@ -681,7 +681,7 @@ func (*CdnConfig) CRC() uint32 {
 	return 0x5725e40a
 }
 
-// Public key to use <strong>only</strong> during handshakes to [CDN](/cdn) DCs.
+// Public key to use <strong>only</strong> during handshakes to [CDN](https://core.telegram.org//cdn) DCs.
 type CdnPublicKey struct {
 	DcID      int32
 	PublicKey string
@@ -766,7 +766,7 @@ func (*ChannelsSendAsPeers) CRC() uint32 {
 	return 0xf496b0c6
 }
 
-// Represents the rights of an admin in a [channel/supergroup](/api/channel).
+// Represents the rights of an admin in a [channel/supergroup](https://core.telegram.org//api/channel).
 type ChatAdminRights struct {
 	ChangeInfo     bool `tl:"flag:0,encoded_in_bitflags"`
 	PostMessages   bool `tl:"flag:1,encoded_in_bitflags"`
@@ -804,7 +804,7 @@ func (*ChatAdminWithInvites) CRC() uint32 {
 	return 0xf2ecef23
 }
 
-// Represents the rights of a normal user in a [supergroup/channel/chat](/api/channel). In this case, the flags are inverted: if set, a flag <strong>does not allow</strong> a user to do X.
+// Represents the rights of a normal user in a [supergroup/channel/chat](https://core.telegram.org//api/channel). In this case, the flags are inverted: if set, a flag <strong>does not allow</strong> a user to do X.
 type ChatBannedRights struct {
 	ViewMessages    bool `tl:"flag:0,encoded_in_bitflags"`
 	SendMessages    bool `tl:"flag:1,encoded_in_bitflags"`
@@ -864,7 +864,7 @@ func (*ChatOnlines) CRC() uint32 {
 	return 0xf041e250
 }
 
-// Updated information about a [chat folder deep link »](/api/links#chat-folder-links).
+// Updated information about a [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links).
 type ChatlistsChatlistUpdates struct {
 	MissingPeers []Peer
 	Chats        []Chat
@@ -875,7 +875,7 @@ func (*ChatlistsChatlistUpdates) CRC() uint32 {
 	return 0x93bd878d
 }
 
-// Info about an exported [chat folder deep link »](/api/links#chat-folder-links).
+// Info about an exported [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links).
 type ChatlistsExportedChatlistInvite struct {
 	Filter DialogFilter
 	Invite *ExportedChatlistInvite
@@ -885,7 +885,7 @@ func (*ChatlistsExportedChatlistInvite) CRC() uint32 {
 	return 0x10e6e3a6
 }
 
-// Info about multiple [chat folder deep links »](/api/links#chat-folder-links).
+// Info about multiple [chat folder deep links »](https://core.telegram.org//api/links#chat-folder-links).
 type ChatlistsExportedInvites struct {
 	Invites []*ExportedChatlistInvite
 	Chats   []Chat
@@ -1103,7 +1103,7 @@ func (*DefaultHistoryTtl) CRC() uint32 {
 	return 0x43b46b20
 }
 
-// Suggested [folders](/api/folders)
+// Suggested [folders](https://core.telegram.org//api/folders)
 type DialogFilterSuggested struct {
 	Filter      DialogFilter
 	Description string
@@ -1153,7 +1153,7 @@ func (*Error) CRC() uint32 {
 	return 0xc4b9f9bb
 }
 
-// Exported [chat folder deep link »](/api/links#chat-folder-links).
+// Exported [chat folder deep link »](https://core.telegram.org//api/links#chat-folder-links).
 type ExportedChatlistInvite struct {
 	Title string
 	URL   string
@@ -1164,7 +1164,7 @@ func (*ExportedChatlistInvite) CRC() uint32 {
 	return 0xc5181ac
 }
 
-// Describes a [temporary profile link](/api/links#temporary-profile-links).
+// Describes a [temporary profile link](https://core.telegram.org//api/links#temporary-profile-links).
 type ExportedContactToken struct {
 	URL     string
 	Expires int32
@@ -1184,7 +1184,7 @@ func (*ExportedMessageLink) CRC() uint32 {
 	return 0x5dab1af4
 }
 
-// Represents a [story deep link](/api/stories#story-links).
+// Represents a [story deep link](https://core.telegram.org//api/stories#story-links).
 type ExportedStoryLink struct {
 	Link string
 }
@@ -1405,7 +1405,7 @@ func (*HelpInviteText) CRC() uint32 {
 	return 0x18cb9f78
 }
 
-// Contains info about a [color palette »](/api/colors).
+// Contains info about a [color palette »](https://core.telegram.org//api/colors).
 type HelpPeerColorOption struct {
 	Hidden          bool `tl:"flag:0,encoded_in_bitflags"`
 	ColorID         int32
@@ -1515,7 +1515,7 @@ func (*InlineBotSwitchPm) CRC() uint32 {
 	return 0x3c20629f
 }
 
-// Specifies an [inline mode mini app](/api/bots/webapps#inline-mode-mini-apps) button, shown on top of the inline query results list.
+// Specifies an [inline mode mini app](https://core.telegram.org//api/bots/webapps#inline-mode-mini-apps) button, shown on top of the inline query results list.
 type InlineBotWebView struct {
 	Text string
 	URL  string
@@ -1634,7 +1634,7 @@ func (*InputChatlistDialogFilter) CRC() uint32 {
 	return 0xf3e0da33
 }
 
-// Info about an [MTProxy](/mtproto/mtproto-transports#transport-obfuscation) used to connect.
+// Info about an [MTProxy](https://core.telegram.org//mtproto/mtproto-transports#transport-obfuscation) used to connect.
 type InputClientProxy struct {
 	Address string
 	Port    int32
@@ -1715,7 +1715,7 @@ func (*InputPhoneContact) CRC() uint32 {
 	return 0xf392b7f4
 }
 
-// Secure value, [for more info see the passport docs »](/passport/encryption#encryption)
+// Secure value, [for more info see the passport docs »](https://core.telegram.org//passport/encryption#encryption)
 type InputSecureValue struct {
 	Type        SecureValueType
 	Data        *SecureData       `tl:"flag:0"`
@@ -1735,7 +1735,7 @@ func (*InputSecureValue) FlagIndex() int {
 	return 0
 }
 
-// A single media in an [album or grouped media](/api/files#albums-grouped-media) sent with [messages.sendMultiMedia](/method/messages.sendMultiMedia).
+// A single media in an [album or grouped media](https://core.telegram.org//api/files#albums-grouped-media) sent with [messages.sendMultiMedia](https://core.telegram.org//method/messages.sendMultiMedia).
 type InputSingleMedia struct {
 	Media    InputMedia
 	RandomID int64
@@ -1888,7 +1888,7 @@ func (*LangPackLanguage) FlagIndex() int {
 	return 0
 }
 
-// Position on a photo where a mask should be placed when [attaching stickers to media »](/api/stickers#attached-stickers)
+// Position on a photo where a mask should be placed when [attaching stickers to media »](https://core.telegram.org//api/stickers#attached-stickers)
 type MaskCoords struct {
 	N    int32
 	X    float64
@@ -1966,7 +1966,7 @@ func (*MessageRange) CRC() uint32 {
 	return 0xae30253
 }
 
-// [Message reactions »](/api/reactions)
+// [Message reactions »](https://core.telegram.org//api/reactions)
 type MessageReactions struct {
 	Min             bool `tl:"flag:0,encoded_in_bitflags"`
 	CanSeeList      bool `tl:"flag:2,encoded_in_bitflags"`
@@ -1983,7 +1983,7 @@ func (*MessageReactions) FlagIndex() int {
 	return 0
 }
 
-// Info about [the comment section of a channel post, or a simple message thread](/api/threads)
+// Info about [the comment section of a channel post, or a simple message thread](https://core.telegram.org//api/threads)
 type MessageReplies struct {
 	Comments       bool `tl:"flag:0,encoded_in_bitflags"`
 	Replies        int32
@@ -2060,7 +2060,7 @@ func (*MessagesArchivedStickers) CRC() uint32 {
 	return 0x4fcba9c8
 }
 
-// Contains information about a [direct link Mini App](/api/bots/webapps#direct-link-mini-apps)
+// Contains information about a [direct link Mini App](https://core.telegram.org//api/bots/webapps#direct-link-mini-apps)
 type MessagesBotApp struct {
 	Inactive           bool `tl:"flag:0,encoded_in_bitflags"`
 	RequestWriteAccess bool `tl:"flag:1,encoded_in_bitflags"`
@@ -2124,7 +2124,7 @@ func (*MessagesChatAdminsWithInvites) CRC() uint32 {
 	return 0xb69b72d7
 }
 
-// Full info about a [channel](/api/channel#channels), [supergroup](/api/channel#supergroups), [gigagroup](/api/channel#gigagroups) or [basic group](/api/channel#basic-groups).
+// Full info about a [channel](https://core.telegram.org//api/channel#channels), [supergroup](https://core.telegram.org//api/channel#supergroups), [gigagroup](https://core.telegram.org//api/channel#gigagroups) or [basic group](https://core.telegram.org//api/channel#basic-groups).
 type MessagesChatFull struct {
 	FullChat ChatFull
 	Chats    []Chat
@@ -2146,7 +2146,7 @@ func (*MessagesChatInviteImporters) CRC() uint32 {
 	return 0x81b6b00a
 }
 
-// Contains a confirmation text to be shown to the user, upon [importing chat history, click here for more info »](/api/import).
+// Contains a confirmation text to be shown to the user, upon [importing chat history, click here for more info »](https://core.telegram.org//api/import).
 type MessagesCheckedHistoryImportPeer struct {
 	ConfirmText string
 }
@@ -2168,7 +2168,7 @@ func (*MessagesDialogFilters) FlagIndex() int {
 	return 0
 }
 
-// Information about a [message thread](/api/threads)
+// Information about a [message thread](https://core.telegram.org//api/threads)
 type MessagesDiscussionMessage struct {
 	Messages        []Message
 	MaxID           int32 `tl:"flag:0"`
@@ -2198,7 +2198,7 @@ func (*MessagesExportedChatInvites) CRC() uint32 {
 	return 0xbdc62dcc
 }
 
-// Contains information about multiple [forum topics](/api/forum#forum-topics)
+// Contains information about multiple [forum topics](https://core.telegram.org//api/forum#forum-topics)
 type MessagesForumTopics struct {
 	OrderByCreateDate bool `tl:"flag:0,encoded_in_bitflags"`
 	Count             int32
@@ -2227,7 +2227,7 @@ func (*MessagesHighScores) CRC() uint32 {
 	return 0x9a3bfd99
 }
 
-// ID of a specific [chat import session, click here for more info »](/api/import).
+// ID of a specific [chat import session, click here for more info »](https://core.telegram.org//api/import).
 type MessagesHistoryImport struct {
 	ID int64
 }
@@ -2237,7 +2237,7 @@ func (*MessagesHistoryImport) CRC() uint32 {
 }
 
 /*
-Contains information about a chat export file [generated by a foreign chat app, click here for more info](/api/import).<br>
+Contains information about a chat export file [generated by a foreign chat app, click here for more info](https://core.telegram.org//api/import).<br>
 If neither the `pm` or `group` flags are set, the specified chat export was generated from a chat of unknown type.
 */
 type MessagesHistoryImportParsed struct {
@@ -2348,7 +2348,7 @@ func (*MessagesPeerSettings) CRC() uint32 {
 	return 0x6880b94d
 }
 
-// Indicates how many results would be found by a [messages.search](/method/messages.search) call with the same parameters
+// Indicates how many results would be found by a [messages.search](https://core.telegram.org//method/messages.search) call with the same parameters
 type MessagesSearchCounter struct {
 	Inexact bool `tl:"flag:1,encoded_in_bitflags"`
 	Filter  MessagesFilter
@@ -2394,7 +2394,7 @@ func (*MessagesSearchResultsPositions) CRC() uint32 {
 	return 0x53b22baf
 }
 
-// [Transcribed text from a voice message »](/api/transcribe)
+// [Transcribed text from a voice message »](https://core.telegram.org//api/transcribe)
 type MessagesTranscribedAudio struct {
 	Pending               bool `tl:"flag:0,encoded_in_bitflags"`
 	TranscriptionID       int64
@@ -2411,7 +2411,7 @@ func (*MessagesTranscribedAudio) FlagIndex() int {
 	return 0
 }
 
-// Translated text with [entities](/api/entities)
+// Translated text with [entities](https://core.telegram.org//api/entities)
 type MessagesTranslateResult struct {
 	Result []*TextWithEntities
 }
@@ -2462,7 +2462,7 @@ func (*MissingInvitee) FlagIndex() int {
 	return 0
 }
 
-// Contains information about a single [boost slot »](/api/boost).
+// Contains information about a single [boost slot »](https://core.telegram.org//api/boost).
 type MyBoost struct {
 	Slot              int32
 	Peer              Peer `tl:"flag:0"`
@@ -2498,7 +2498,7 @@ func (*OutboxReadDate) CRC() uint32 {
 	return 0x3bb842ac
 }
 
-// [Instant view](https://instantview.telegram.org) page
+// [Instant view](https://core.telegram.org/https://instantview.telegram.org) page
 type Page struct {
 	Part      bool `tl:"flag:0,encoded_in_bitflags"`
 	Rtl       bool `tl:"flag:1,encoded_in_bitflags"`
@@ -2632,7 +2632,7 @@ func (*PaymentsBankCardData) CRC() uint32 {
 	return 0x3e24e573
 }
 
-// Contains info about a [Telegram Premium giftcode link](/api/links#premium-giftcode-links).
+// Contains info about a [Telegram Premium giftcode link](https://core.telegram.org//api/links#premium-giftcode-links).
 type PaymentsCheckedGiftCode struct {
 	ViaGiveaway   bool  `tl:"flag:2,encoded_in_bitflags"`
 	FromID        Peer  `tl:"flag:4"`
@@ -2653,7 +2653,7 @@ func (*PaymentsCheckedGiftCode) FlagIndex() int {
 	return 0
 }
 
-// Exported [invoice deep link](/api/links#invoice-links)
+// Exported [invoice deep link](https://core.telegram.org//api/links#invoice-links)
 type PaymentsExportedInvoice struct {
 	URL string
 }
@@ -2716,7 +2716,7 @@ func (*PeerBlocked) CRC() uint32 {
 	return 0xe8fd8014
 }
 
-// Represents a [color palette »](/api/colors).
+// Represents a [color palette »](https://core.telegram.org//api/colors).
 type PeerColor struct {
 	Color             int32 `tl:"flag:0"`
 	BackgroundEmojiID int64 `tl:"flag:1"`
@@ -2753,7 +2753,7 @@ func (*PeerNotifySettings) FlagIndex() int {
 	return 0
 }
 
-// List of actions that are possible when interacting with this user, to be shown as suggested actions in the [chat action bar »](/api/action-bar), see [here »](/api/action-bar) for more info.
+// List of actions that are possible when interacting with this user, to be shown as suggested actions in the [chat action bar »](https://core.telegram.org//api/action-bar), see [here »](https://core.telegram.org//api/action-bar) for more info.
 type PeerSettings struct {
 	ReportSpam            bool   `tl:"flag:0,encoded_in_bitflags"`
 	AddContact            bool   `tl:"flag:1,encoded_in_bitflags"`
@@ -2781,7 +2781,7 @@ func (*PeerSettings) FlagIndex() int {
 	return 0
 }
 
-// [Stories](/api/stories) associated to a peer
+// [Stories](https://core.telegram.org//api/stories) associated to a peer
 type PeerStories struct {
 	Peer      Peer
 	MaxReadID int32 `tl:"flag:0"`
@@ -2988,7 +2988,7 @@ func (*PostAddress) CRC() uint32 {
 	return 0x1e8caaeb
 }
 
-// List of [boosts](/api/boost) that were applied to a peer by multiple users.
+// List of [boosts](https://core.telegram.org//api/boost) that were applied to a peer by multiple users.
 type PremiumBoostsList struct {
 	Count      int32
 	Boosts     []*Boost
@@ -3004,7 +3004,7 @@ func (*PremiumBoostsList) FlagIndex() int {
 	return 0
 }
 
-// Contains info about the current [boost status](/api/boost) of a peer.
+// Contains info about the current [boost status](https://core.telegram.org//api/boost) of a peer.
 type PremiumBoostsStatus struct {
 	MyBoost            bool `tl:"flag:2,encoded_in_bitflags"`
 	Level              int32
@@ -3026,7 +3026,7 @@ func (*PremiumBoostsStatus) FlagIndex() int {
 	return 0
 }
 
-// A list of peers we are currently [boosting](/api/boost), and how many [boost slots](/api/boost) we have left.
+// A list of peers we are currently [boosting](https://core.telegram.org//api/boost), and how many [boost slots](https://core.telegram.org//api/boost) we have left.
 type PremiumMyBoosts struct {
 	MyBoosts []*MyBoost
 	Chats    []Chat
@@ -3037,7 +3037,7 @@ func (*PremiumMyBoosts) CRC() uint32 {
 	return 0x9ae228e2
 }
 
-// Contains info about a [giveaway/gift](/api/giveaways) option.
+// Contains info about a [giveaway/gift](https://core.telegram.org//api/giveaways) option.
 type PremiumGiftCodeOption struct {
 	Users         int32
 	Months        int32
@@ -3092,7 +3092,7 @@ func (*PremiumSubscriptionOption) FlagIndex() int {
 	return 0
 }
 
-// Contains info about a [prepaid giveaway »](/api/giveaways).
+// Contains info about a [prepaid giveaway »](https://core.telegram.org//api/giveaways).
 type PrepaidGiveaway struct {
 	ID       int64
 	Months   int32
@@ -3176,7 +3176,7 @@ func (*RestrictionReason) CRC() uint32 {
 	return 0xd072acb4
 }
 
-// Represents a [saved dialog »](/api/saved-messages).
+// Represents a [saved dialog »](https://core.telegram.org//api/saved-messages).
 type SavedDialog struct {
 	Pinned     bool `tl:"flag:2,encoded_in_bitflags"`
 	Peer       Peer
@@ -3228,7 +3228,7 @@ func (*SearchResultPosition) CRC() uint32 {
 	return 0x7f648b67
 }
 
-// Information about found messages sent on a specific day, used to split the `messages` in [messages.searchResultsCalendar](/constructor/messages.searchResultsCalendar) constructors by days.
+// Information about found messages sent on a specific day, used to split the `messages` in [messages.searchResultsCalendar](https://core.telegram.org//constructor/messages.searchResultsCalendar) constructors by days.
 type SearchResultsCalendarPeriod struct {
 	Date     int32
 	MinMsgID int32
@@ -3240,7 +3240,7 @@ func (*SearchResultsCalendarPeriod) CRC() uint32 {
 	return 0xc9b0539f
 }
 
-// Encrypted credentials required to decrypt [telegram passport](/passport) data.
+// Encrypted credentials required to decrypt [telegram passport](https://core.telegram.org//passport) data.
 type SecureCredentialsEncrypted struct {
 	Data   []byte
 	Hash   []byte
@@ -3251,7 +3251,7 @@ func (*SecureCredentialsEncrypted) CRC() uint32 {
 	return 0x33f0ea47
 }
 
-// Secure [passport](/passport) data, for more info [see the passport docs »](/passport/encryption#securedata)
+// Secure [passport](https://core.telegram.org//passport) data, for more info [see the passport docs »](https://core.telegram.org//passport/encryption#securedata)
 type SecureData struct {
 	Data     []byte
 	DataHash []byte
@@ -3376,7 +3376,7 @@ func (*SmsjobsStatus) FlagIndex() int {
 	return 0
 }
 
-// A [sponsored message](https://core.telegram.org/api/sponsored-messages).
+// A [sponsored message](https://core.telegram.org/https://core.telegram.org/api/sponsored-messages).
 type SponsoredMessage struct {
 	Recommended    bool `tl:"flag:5,encoded_in_bitflags"`
 	CanReport      bool `tl:"flag:12,encoded_in_bitflags"`
@@ -3472,7 +3472,7 @@ func (*StatsBroadcastRevenueWithdrawalURL) CRC() uint32 {
 	return 0xec659737
 }
 
-// [Channel statistics](/api/stats).
+// [Channel statistics](https://core.telegram.org//api/stats).
 type StatsBroadcastStats struct {
 	Period                       *StatsDateRangeDays
 	Followers                    *StatsAbsValueAndPrev
@@ -3502,7 +3502,7 @@ func (*StatsBroadcastStats) CRC() uint32 {
 	return 0x396ca5fc
 }
 
-// Supergroup [statistics](/api/stats)
+// Supergroup [statistics](https://core.telegram.org//api/stats)
 type StatsMegagroupStats struct {
 	Period                  *StatsDateRangeDays
 	Members                 *StatsAbsValueAndPrev
@@ -3537,7 +3537,7 @@ func (*StatsMessageStats) CRC() uint32 {
 	return 0x7fe91c14
 }
 
-// Contains info about the forwards of a [story](/api/stories) as a message to public chats and reposts by public channels.
+// Contains info about the forwards of a [story](https://core.telegram.org//api/stories) as a message to public chats and reposts by public channels.
 type StatsPublicForwards struct {
 	Count      int32
 	Forwards   []PublicForward
@@ -3554,7 +3554,7 @@ func (*StatsPublicForwards) FlagIndex() int {
 	return 0
 }
 
-// Contains [statistics](/api/stats) about a [story](/api/stories).
+// Contains [statistics](https://core.telegram.org//api/stats) about a [story](https://core.telegram.org//api/stories).
 type StatsStoryStats struct {
 	ViewsGraph              StatsGraph
 	ReactionsByEmotionGraph StatsGraph
@@ -3574,7 +3574,7 @@ func (*StatsAbsValueAndPrev) CRC() uint32 {
 	return 0xcb43acde
 }
 
-// [Channel statistics](/api/stats) date range
+// [Channel statistics](https://core.telegram.org//api/stats) date range
 type StatsDateRangeDays struct {
 	MinDate int32
 	MaxDate int32
@@ -3618,7 +3618,7 @@ func (*StatsGroupTopPoster) CRC() uint32 {
 }
 
 /*
-[Channel statistics percentage](/api/stats).<br>
+[Channel statistics percentage](https://core.telegram.org//api/stats).<br>
 Compute the percentage simply by doing `part * total / 100`
 */
 type StatsPercentValue struct {
@@ -3651,7 +3651,7 @@ func (*StickerKeyword) CRC() uint32 {
 
 /*
 A stickerpack is a group of stickers associated to the same emoji.<br>
-It is <strong>not</strong> a sticker pack the way it is usually intended, you may be looking for a [StickerSet](/type/StickerSet).
+It is <strong>not</strong> a sticker pack the way it is usually intended, you may be looking for a [StickerSet](https://core.telegram.org//type/StickerSet).
 */
 type StickerPack struct {
 	Emoticon  string
@@ -3701,7 +3701,7 @@ func (*StickersSuggestedShortName) CRC() uint32 {
 	return 0x85fea03f
 }
 
-// [Active story list](/api/stories#watching-stories) of a specific peer.
+// [Active story list](https://core.telegram.org//api/stories#watching-stories) of a specific peer.
 type StoriesPeerStories struct {
 	Stories *PeerStories
 	Chats   []Chat
@@ -3712,7 +3712,7 @@ func (*StoriesPeerStories) CRC() uint32 {
 	return 0xcae68768
 }
 
-// List of [stories](/api/stories#pinned-or-archived-stories)
+// List of [stories](https://core.telegram.org//api/stories#pinned-or-archived-stories)
 type StoriesStories struct {
 	Count       int32
 	Stories     []StoryItem
@@ -3729,7 +3729,7 @@ func (*StoriesStories) FlagIndex() int {
 	return 0
 }
 
-// List of peers that reacted to or intercated with a specific [story](/api/stories)
+// List of peers that reacted to or intercated with a specific [story](https://core.telegram.org//api/stories)
 type StoriesStoryReactionsList struct {
 	Count      int32
 	Reactions  []StoryReaction
@@ -3746,7 +3746,7 @@ func (*StoriesStoryReactionsList) FlagIndex() int {
 	return 0
 }
 
-// Reaction and view counters for a list of [stories](/api/stories)
+// Reaction and view counters for a list of [stories](https://core.telegram.org//api/stories)
 type StoriesStoryViews struct {
 	Views []*StoryViews
 	Users []User
@@ -3756,7 +3756,7 @@ func (*StoriesStoryViews) CRC() uint32 {
 	return 0xde9eed1d
 }
 
-// Reaction and view counters for a [story](/api/stories)
+// Reaction and view counters for a [story](https://core.telegram.org//api/stories)
 type StoriesStoryViewsList struct {
 	Count          int32
 	ViewsCount     int32
@@ -3776,7 +3776,7 @@ func (*StoriesStoryViewsList) FlagIndex() int {
 	return 0
 }
 
-// Information about the current [stealth mode](/api/stories#stealth-mode) session.
+// Information about the current [stealth mode](https://core.telegram.org//api/stories#stealth-mode) session.
 type StoriesStealthMode struct {
 	ActiveUntilDate   int32 `tl:"flag:0"`
 	CooldownUntilDate int32 `tl:"flag:1"`
@@ -3806,7 +3806,7 @@ func (*StoryFwdHeader) FlagIndex() int {
 	return 0
 }
 
-// Aggregated view and reaction information of a [story](/api/stories).
+// Aggregated view and reaction information of a [story](https://core.telegram.org//api/stories).
 type StoryViews struct {
 	HasViewers     bool `tl:"flag:1,encoded_in_bitflags"`
 	ViewsCount     int32
@@ -3824,7 +3824,7 @@ func (*StoryViews) FlagIndex() int {
 	return 0
 }
 
-// Styled text with [message entities](/api/entities)
+// Styled text with [message entities](https://core.telegram.org//api/entities)
 type TextWithEntities struct {
 	Text     string
 	Entities []MessageEntity
@@ -3919,7 +3919,7 @@ func (*UpdatesState) CRC() uint32 {
 	return 0xa56c2a3e
 }
 
-// Represents a chunk of an [HTTP webfile](/api/files) downloaded through telegram's secure MTProto servers
+// Represents a chunk of an [HTTP webfile](https://core.telegram.org//api/files) downloaded through telegram's secure MTProto servers
 type UploadWebFile struct {
 	Size     int32
 	MimeType string
@@ -4011,7 +4011,7 @@ func (*UsersUserFull) CRC() uint32 {
 	return 0x3b6d152e
 }
 
-// [Wallpaper](/api/wallpapers) rendering information.
+// [Wallpaper](https://core.telegram.org//api/wallpapers) rendering information.
 type WallPaperSettings struct {
 	Blur                  bool   `tl:"flag:1,encoded_in_bitflags"`
 	Motion                bool   `tl:"flag:2,encoded_in_bitflags"`
@@ -4032,7 +4032,7 @@ func (*WallPaperSettings) FlagIndex() int {
 	return 0
 }
 
-// Represents a bot logged in using the [Telegram login widget](/widgets/login)
+// Represents a bot logged in using the [Telegram login widget](https://core.telegram.org//widgets/login)
 type WebAuthorization struct {
 	Hash        int64
 	BotID       int64
