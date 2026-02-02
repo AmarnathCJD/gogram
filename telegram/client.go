@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -713,4 +714,29 @@ func (c *Client) W(obj any, err error) any {
 // return only the error, omitting the object
 func (c *Client) E(obj any, err error) error {
 	return err
+}
+
+type RpcError struct {
+	Code        int32
+	Message     string
+	Description string
+}
+
+func (r *RpcError) Error() string {
+	return fmt.Sprintf("%s (%d)", r.Message, r.Code)
+}
+
+func (c *Client) ToRpcError(err error) *RpcError {
+	regex := regexp.MustCompile(`\[(.*)\] (.*) \(code (\d+)\)`)
+	matches := regex.FindStringSubmatch(err.Error())
+	if len(matches) != 4 {
+		return nil
+	}
+
+	code, _ := strconv.Atoi(matches[3])
+	return &RpcError{
+		Code:        int32(code),
+		Message:     matches[1],
+		Description: matches[2],
+	}
 }

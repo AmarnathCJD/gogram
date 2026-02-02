@@ -42,6 +42,7 @@ func NewTCP(cfg TCPConnConfig) (Conn, error) {
 		return nil, errors.Wrap(err, "resolving tcp")
 	}
 	conn, err := net.DialTCP(tcpPrefix, nil, tcpAddr)
+	conn.SetKeepAlive(true)
 	if err != nil {
 		return nil, errors.Wrap(err, "dialing tcp")
 	}
