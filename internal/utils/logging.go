@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 )
 
 const (
@@ -69,9 +71,9 @@ func (l *Logger) SetLevel(level string) *Logger {
 func (l *Logger) Error(v ...any) {
 	if l.Level <= ErrorLevel {
 		if l.WinTerminal() {
-			log.Println(l.Prefix, "- error -", getVariable(v...))
+			l.logWin("error", v...)
 		} else {
-			log.Println(l.Prefix, "-", string("\033[35m")+"Error"+string("\033[0m"), "-", getVariable(v...))
+			log.Println(l.Prefix, "-", string("\033[35m")+"error"+string("\033[0m"), "-", getVariable(v...))
 		}
 	}
 }
@@ -79,7 +81,7 @@ func (l *Logger) Error(v ...any) {
 func (l *Logger) Warn(v ...any) {
 	if l.Level <= WarnLevel {
 		if l.WinTerminal() {
-			log.Println(l.Prefix, "- warning -", getVariable(v...))
+			l.logWin("warn", v...)
 		} else {
 			log.Println(l.Prefix, "-", string("\033[33m")+"warning"+string("\033[0m"), "-", getVariable(v...))
 		}
@@ -89,7 +91,7 @@ func (l *Logger) Warn(v ...any) {
 func (l *Logger) Info(v ...any) {
 	if l.Level <= InfoLevel {
 		if l.WinTerminal() {
-			log.Println(l.Prefix, "-", "info", "-", getVariable(v...))
+			l.logWin("info", v...)
 		} else {
 			log.Println(l.Prefix, "-", string("\033[31m")+"info"+string("\033[0m"), "-", getVariable(v...))
 		}
@@ -99,7 +101,7 @@ func (l *Logger) Info(v ...any) {
 func (l *Logger) Debug(v ...any) {
 	if l.Level <= DebugLevel {
 		if l.WinTerminal() {
-			log.Println(l.Prefix, "-", "debug", "-", getVariable(v...))
+			l.logWin("debug", v...)
 		} else {
 			log.Println(l.Prefix, "-", string("\033[32m")+"debug"+string("\033[0m"), "-", getVariable(v...))
 		}
@@ -108,17 +110,14 @@ func (l *Logger) Debug(v ...any) {
 
 func (l *Logger) Panic(v ...any) {
 	if l.WinTerminal() {
-		log.Println(l.Prefix, "-", "panic", "-", getVariable(v...))
+		l.logWin("panic", v...)
 	} else {
 		log.Println(l.Prefix, "-", string("\033[31m")+"panic"+string("\033[0m"), "-", getVariable(v...))
 	}
 }
 
 func (l *Logger) WinTerminal() bool {
-	if runtime.GOOS == "windows" && os.Getenv("TERM_PROGRAM") != "vscode" {
-		return true
-	}
-	return false
+	return runtime.GOOS == "windows"
 }
 
 // NewLogger returns a new Logger instance.
@@ -136,4 +135,34 @@ func getVariable(v ...any) string {
 		return fmt.Sprint(v[0])
 	}
 	return strings.Trim(fmt.Sprint(v...), "[]")
+}
+
+func (l *Logger) levelColor(lev string) string {
+	lev = strings.ToLower(lev)
+	if lev == "debug" {
+		return "Green"
+	} else if lev == "info" {
+		return "Magenta"
+	} else if lev == "warn" {
+		return "Yellow"
+	} else if lev == "error" {
+		return "Red"
+	} else if lev == "panic" {
+		return "Cyan"
+	}
+	return "White"
+}
+
+// ASCII Is a pain in Windows Terminal,
+// So we use PowerShell to print the logs
+func (l *Logger) logWin(lev string, v ...any) {
+	cmdPref := "Write-Host -NoNewline -ForegroundColor %s '%s '; Write-Host -NoNewline '%s - '; Write-Host -NoNewline -ForegroundColor %s '%s'; Write-Host -ForegroundColor White ' - %s'"
+	cmdPref = fmt.Sprintf(cmdPref, l.levelColor(lev), time.Now().Format("2006/01/02 15:04:05"), l.Prefix, l.levelColor(lev), lev, getVariable(v...))
+	if _, err := exec.LookPath("powershell"); err == nil {
+		cmd := exec.Command("powershell", "-Command", cmdPref)
+		cmd.Stdout = os.Stdout
+		cmd.Run()
+	} else {
+		log.Println(l.Prefix, "-", lev, "-", getVariable(v...))
+	}
 }
