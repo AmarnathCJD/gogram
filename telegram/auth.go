@@ -98,7 +98,13 @@ func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
 		AllowAppHash:  true,
 		CurrentNumber: true,
 	})
+
 	if err != nil {
+		if strings.Contains(err.Error(), "CONNECTION_NOT_INITED") {
+			c.InitialRequest()
+			return c.SendCode(phoneNumber)
+		}
+
 		if dc, code := getErrorCode(err); code == 303 {
 			err = c.SwitchDc(dc)
 			if err != nil {
