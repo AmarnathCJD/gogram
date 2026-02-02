@@ -288,11 +288,25 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 
 	var sender *gogram.MTProto = c.MTProto
 	if dcID != int32(c.GetDC()) {
-		borrowedSender, borrowError := c.CreateExportedSender(int(dcID), false)
-		if borrowError != nil {
-			return nil, borrowError
+		found := false
+		for dcId, workers := range c.exSenders.senders {
+			if int32(dcId) == int32(dcID) {
+				for _, worker := range workers {
+					sender = worker.MTProto
+					found = true
+				}
+			}
 		}
-		sender = borrowedSender
+
+		if !found {
+			senderNew, err := c.CreateExportedSender(int(dcID), false)
+			if err != nil {
+				return nil, err
+			}
+
+			c.exSenders.senders[int(dcID)] = append(c.exSenders.senders[int(dcID)], &ExSender{senderNew, time.Now()})
+			sender = senderNew
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
