@@ -35,13 +35,24 @@ func (*Generator) createInitStructs(itemNames ...string) jen.Code {
 	)
 }
 
+var customStructs = map[string]uint32{
+	"MessageObj":             0xb92f76cf,
+	"KeyboardButtonCallback": 0xe62bc960,
+}
+
 func (g *Generator) createCustomInitStructs() jen.Code {
-	return jen.Qual(tlPackagePath, "RegisterObject").Call(
-		jen.Op("&").Id("MessageObj").Block(),
-		jen.Lit(0xb92f76cf),
-		jen.Op("&").Id("KeyboardButtonCallback").Block(),
-		jen.Lit(0xe62bc960),
-	)
+	var statements []jen.Code
+	for name, crc := range customStructs {
+		statements = append(statements, jen.Qual(tlPackagePath, "RegisterObject").Call(
+			jen.Op("&").Id(name).Block(),
+			jen.Lit(crc),
+		))
+	}
+	return jen.BlockFunc(func(g *jen.Group) {
+		for _, stmt := range statements {
+			g.Add(stmt)
+		}
+	})
 }
 
 func (*Generator) createInitEnums(itemNames ...string) jen.Code {

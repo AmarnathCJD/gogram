@@ -2115,6 +2115,21 @@ func (*KeyboardButtonRow) CRC() uint32 {
 	return 0x77608b83
 }
 
+type KeyboardButtonStyle struct {
+	BgPrimary bool  `tl:"flag:0,encoded_in_bitflags"`
+	BgDanger  bool  `tl:"flag:1,encoded_in_bitflags"`
+	BgSuccess bool  `tl:"flag:2,encoded_in_bitflags"`
+	Icon      int64 `tl:"flag:3"`
+}
+
+func (*KeyboardButtonStyle) CRC() uint32 {
+	return 0x4fdd3430
+}
+
+func (*KeyboardButtonStyle) FlagIndex() int {
+	return 0
+}
+
 // This object represents a portion of the price for goods or services.
 type LabeledPrice struct {
 	Label  string

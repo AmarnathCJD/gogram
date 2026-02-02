@@ -159,7 +159,7 @@ func (ButtonBuilder) SimpleWebView(text, url string) *KeyboardButtonSimpleWebVie
 }
 
 func (ButtonBuilder) Mention(text string, user InputUser) *InputKeyboardButtonUserProfile {
-	return &InputKeyboardButtonUserProfile{Text: text, UserID: user}
+	return &InputKeyboardButtonUserProfile{Text: text, InputUser: user}
 }
 
 func (ButtonBuilder) Copy(text string, copyText string) *KeyboardButtonCopy {

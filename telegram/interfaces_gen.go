@@ -2563,13 +2563,13 @@ type ForumTopic interface {
 
 // Represents a forum topic.
 type ForumTopicObj struct {
-	My                   bool `tl:"flag:1,encoded_in_bitflags"`
-	Closed               bool `tl:"flag:2,encoded_in_bitflags"`
-	Pinned               bool `tl:"flag:3,encoded_in_bitflags"`
-	Short                bool `tl:"flag:5,encoded_in_bitflags"`
-	Hidden               bool `tl:"flag:6,encoded_in_bitflags"`
-	TitleMissing         bool `tl:"flag:7,encoded_in_bitflags"`
-	ID                   int32
+	My                   bool  `tl:"flag:1,encoded_in_bitflags"`
+	Closed               bool  `tl:"flag:2,encoded_in_bitflags"`
+	Pinned               bool  `tl:"flag:3,encoded_in_bitflags"`
+	Short                bool  `tl:"flag:5,encoded_in_bitflags"`
+	Hidden               bool  `tl:"flag:6,encoded_in_bitflags"`
+	TitleMissing         bool  `tl:"flag:7,encoded_in_bitflags"`
+	ID                   int32 `tl:"flag:7"`
 	Date                 int32
 	Peer                 Peer
 	Title                string
@@ -5266,15 +5266,16 @@ func (*InputKeyboardButtonRequestPeer) ImplementsKeyboardButton() {}
 
 // Button to request a user to authorize via URL using Seamless Telegram Login.
 type InputKeyboardButtonURLAuth struct {
-	RequestWriteAccess bool      `tl:"flag:0,encoded_in_bitflags"` // Set this flag to request the permission for your bot to send messages to the user.
-	Text               string    // Button text
-	FwdText            string    `tl:"flag:1"` // New text of the button in forwarded messages.
-	URL                string    // An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data. NOTE: You must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
-	Bot                InputUser // Username of a bot, which will be used for user authorization. See Setting up a bot for more details. If not specified, the current bot's username will be assumed. The url's domain must be the same as the domain linked with the bot. See Linking your domain to the bot for more details.
+	Style              *KeyboardButtonStyle `tl:"flag:10"`
+	RequestWriteAccess bool                 `tl:"flag:0,encoded_in_bitflags"`
+	Text               string
+	FwdText            string `tl:"flag:1"`
+	URL                string
+	Bot                InputUser
 }
 
 func (*InputKeyboardButtonURLAuth) CRC() uint32 {
-	return 0xd02e7fd4
+	return 0x68013e72
 }
 
 func (*InputKeyboardButtonURLAuth) FlagIndex() int {
@@ -5285,47 +5286,63 @@ func (*InputKeyboardButtonURLAuth) ImplementsKeyboardButton() {}
 
 // Button that links directly to a user profile
 type InputKeyboardButtonUserProfile struct {
-	Text   string    // Button text
-	UserID InputUser // User ID
+	Style     *KeyboardButtonStyle `tl:"flag:10"`
+	Text      string
+	InputUser InputUser
 }
 
 func (*InputKeyboardButtonUserProfile) CRC() uint32 {
-	return 0xe988037b
+	return 0x7d5e07c7
+}
+
+func (*InputKeyboardButtonUserProfile) FlagIndex() int {
+	return 0
 }
 
 func (*InputKeyboardButtonUserProfile) ImplementsKeyboardButton() {}
 
 // Bot keyboard button
 type KeyboardButtonObj struct {
-	Text string // Button text
+	Style *KeyboardButtonStyle `tl:"flag:10"`
+	Text  string
 }
 
 func (*KeyboardButtonObj) CRC() uint32 {
-	return 0xa2fa4880
+	return 0x7d170cff
+}
+
+func (*KeyboardButtonObj) FlagIndex() int {
+	return 0
 }
 
 func (*KeyboardButtonObj) ImplementsKeyboardButton() {}
 
 // Button to buy a product
 type KeyboardButtonBuy struct {
-	Text string // Button text
+	Style *KeyboardButtonStyle `tl:"flag:10"`
+	Text  string
 }
 
 func (*KeyboardButtonBuy) CRC() uint32 {
-	return 0xafd93fbb
+	return 0x3fa53905
+}
+
+func (*KeyboardButtonBuy) FlagIndex() int {
+	return 0
 }
 
 func (*KeyboardButtonBuy) ImplementsKeyboardButton() {}
 
 // Callback button
 type KeyboardButtonCallback struct {
-	RequiresPassword bool   `tl:"flag:0,encoded_in_bitflags"` // Whether the user should verify his identity by entering his 2FA SRP parameters to the messages.getBotCallbackAnswer method. NOTE: telegram and the bot WILL NOT have access to the plaintext password, thanks to SRP. This button is mainly used by the official @botfather bot, for verifying the user's identity before transferring ownership of a bot to another user.
-	Text             string // Button text
-	Data             []byte // Callback data
+	RequiresPassword bool                 `tl:"flag:0,encoded_in_bitflags"`
+	Style            *KeyboardButtonStyle `tl:"flag:10"`
+	Text             string
+	Data             []byte
 }
 
 func (*KeyboardButtonCallback) CRC() uint32 {
-	return 0x35bbdb6b
+	return 0xe62bc960
 }
 
 func (*KeyboardButtonCallback) FlagIndex() int {
@@ -5336,71 +5353,97 @@ func (*KeyboardButtonCallback) ImplementsKeyboardButton() {}
 
 // Clipboard button: when clicked, the attached text must be copied to the clipboard.
 type KeyboardButtonCopy struct {
-	Text     string // Title of the button
-	CopyText string // The text that will be copied to the clipboard
+	Style    *KeyboardButtonStyle `tl:"flag:10"`
+	Text     string
+	CopyText string
 }
 
 func (*KeyboardButtonCopy) CRC() uint32 {
-	return 0x75d2698e
+	return 0xbcc4af10
+}
+
+func (*KeyboardButtonCopy) FlagIndex() int {
+	return 0
 }
 
 func (*KeyboardButtonCopy) ImplementsKeyboardButton() {}
 
 // Button to start a game
 type KeyboardButtonGame struct {
-	Text string // Button text
+	Style *KeyboardButtonStyle `tl:"flag:10"`
+	Text  string
 }
 
 func (*KeyboardButtonGame) CRC() uint32 {
-	return 0x50f41ccf
+	return 0x89c590f9
+}
+
+func (*KeyboardButtonGame) FlagIndex() int {
+	return 0
 }
 
 func (*KeyboardButtonGame) ImplementsKeyboardButton() {}
 
 // Button to request a user's geolocation
 type KeyboardButtonRequestGeoLocation struct {
-	Text string // Button text
+	Style *KeyboardButtonStyle `tl:"flag:10"`
+	Text  string
 }
 
 func (*KeyboardButtonRequestGeoLocation) CRC() uint32 {
-	return 0xfc796b3f
+	return 0xaa40f94d
+}
+
+func (*KeyboardButtonRequestGeoLocation) FlagIndex() int {
+	return 0
 }
 
 func (*KeyboardButtonRequestGeoLocation) ImplementsKeyboardButton() {}
 
 // Prompts the user to select and share one or more peers with the bot using messages.sendBotRequestedPeer
 type KeyboardButtonRequestPeer struct {
-	Text        string          // Button text
-	ButtonID    int32           // Button ID, to be passed to messages.sendBotRequestedPeer.
-	PeerType    RequestPeerType // Filtering criteria to use for the peer selection list shown to the user. The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to `max_quantity`) peers of the specified type, if needed.
-	MaxQuantity int32           // Maximum number of peers that can be chosen.
+	Style       *KeyboardButtonStyle `tl:"flag:10"`
+	Text        string
+	ButtonID    int32
+	PeerType    RequestPeerType
+	MaxQuantity int32
 }
 
 func (*KeyboardButtonRequestPeer) CRC() uint32 {
-	return 0x53d7bfd8
+	return 0x5b0f15f5
+}
+
+func (*KeyboardButtonRequestPeer) FlagIndex() int {
+	return 0
 }
 
 func (*KeyboardButtonRequestPeer) ImplementsKeyboardButton() {}
 
 // Button to request a user's phone number
 type KeyboardButtonRequestPhone struct {
-	Text string // Button text
+	Style *KeyboardButtonStyle `tl:"flag:10"`
+	Text  string
 }
 
 func (*KeyboardButtonRequestPhone) CRC() uint32 {
-	return 0xb16a6c29
+	return 0x417efd8f
+}
+
+func (*KeyboardButtonRequestPhone) FlagIndex() int {
+	return 0
 }
 
 func (*KeyboardButtonRequestPhone) ImplementsKeyboardButton() {}
 
 // A button that allows the user to create and send a poll when pressed; available only in private
 type KeyboardButtonRequestPoll struct {
-	Quiz bool   `tl:"flag:0"` // If set, only quiz polls can be sent
-	Text string // Button text
+	Style *KeyboardButtonStyle `tl:"flag:10"`
+	Quiz  bool                 `tl:"flag:0"`
+	Text  string
 }
 
 func (*KeyboardButtonRequestPoll) CRC() uint32 {
-	return 0xbbc7515d
+	return 0x7a11d782
 }
 
 func (*KeyboardButtonRequestPoll) FlagIndex() int {
@@ -5411,26 +5454,32 @@ func (*KeyboardButtonRequestPoll) ImplementsKeyboardButton() {}
 
 // Button to open a bot mini app using messages.requestSimpleWebView, without sending user information to the web app.
 type KeyboardButtonSimpleWebView struct {
-	Text string // Button text
-	URL  string // Web app URL
+	Style *KeyboardButtonStyle `tl:"flag:10"`
+	Text  string
+	URL   string
 }
 
 func (*KeyboardButtonSimpleWebView) CRC() uint32 {
-	return 0xa0c0505c
+	return 0xe15c4370
+}
+
+func (*KeyboardButtonSimpleWebView) FlagIndex() int {
+	return 0
 }
 
 func (*KeyboardButtonSimpleWebView) ImplementsKeyboardButton() {}
 
 // Button to force a user to switch to inline mode: pressing the button will prompt the user to select one of their chats, open that chat and insert the bot's username and the specified inline query in the input field.
 type KeyboardButtonSwitchInline struct {
-	SamePeer  bool                  `tl:"flag:0,encoded_in_bitflags"` // If set, pressing the button will insert the bot's username and the specified inline `query` in the current chat's input field.
-	Text      string                // Button label
-	Query     string                // The inline query to use
-	PeerTypes []InlineQueryPeerType `tl:"flag:1"` // Filter to use when selecting chats.
+	Style     *KeyboardButtonStyle `tl:"flag:10"`
+	SamePeer  bool                 `tl:"flag:0,encoded_in_bitflags"`
+	Text      string
+	Query     string
+	PeerTypes []InlineQueryPeerType `tl:"flag:1"`
 }
 
 func (*KeyboardButtonSwitchInline) CRC() uint32 {
-	return 0x93b9fbb5
+	return 0x991399fc
 }
 
 func (*KeyboardButtonSwitchInline) FlagIndex() int {
@@ -5441,26 +5490,32 @@ func (*KeyboardButtonSwitchInline) ImplementsKeyboardButton() {}
 
 // URL button
 type KeyboardButtonURL struct {
-	Text string // Button label
-	URL  string // URL
+	Style *KeyboardButtonStyle `tl:"flag:10"`
+	Text  string
+	URL   string
 }
 
 func (*KeyboardButtonURL) CRC() uint32 {
-	return 0x258aff05
+	return 0xd80c25ec
+}
+
+func (*KeyboardButtonURL) FlagIndex() int {
+	return 0
 }
 
 func (*KeyboardButtonURL) ImplementsKeyboardButton() {}
 
 // Button to request a user to authorize via URL using Seamless Telegram Login. When the user clicks on such a button, messages.requestUrlAuth should be called, providing the `button_id` and the ID of the container message. The returned urlAuthResultRequest object will contain more details about the authorization request (`request_write_access` if the bot would like to send messages to the user along with the username of the bot which will be used for user authorization). Finally, the user can choose to call messages.acceptUrlAuth to get a urlAuthResultAccepted with the URL to open instead of the `url` of this constructor, or a urlAuthResultDefault, in which case the `url` of this constructor must be opened, instead. If the user refuses the authorization request but still wants to open the link, the `url` of this constructor must be used.
 type KeyboardButtonURLAuth struct {
-	Text     string // Button label
-	FwdText  string `tl:"flag:0"` // New text of the button in forwarded messages.
-	URL      string // An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data. NOTE: Services must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
-	ButtonID int32  // ID of the button to pass to messages.requestUrlAuth
+	Style    *KeyboardButtonStyle `tl:"flag:10"`
+	Text     string
+	FwdText  string `tl:"flag:0"`
+	URL      string
+	ButtonID int32
 }
 
 func (*KeyboardButtonURLAuth) CRC() uint32 {
-	return 0x10b78d29
+	return 0xf51006f9
 }
 
 func (*KeyboardButtonURLAuth) FlagIndex() int {
@@ -5471,24 +5526,34 @@ func (*KeyboardButtonURLAuth) ImplementsKeyboardButton() {}
 
 // Button that links directly to a user profile
 type KeyboardButtonUserProfile struct {
-	Text   string // Button text
-	UserID int64  // User ID
+	Style  *KeyboardButtonStyle `tl:"flag:10"`
+	Text   string
+	UserID int64
 }
 
 func (*KeyboardButtonUserProfile) CRC() uint32 {
-	return 0x308660c1
+	return 0xc0fd5d09
+}
+
+func (*KeyboardButtonUserProfile) FlagIndex() int {
+	return 0
 }
 
 func (*KeyboardButtonUserProfile) ImplementsKeyboardButton() {}
 
 // Button to open a bot mini app using messages.requestWebView, sending over user information after user confirmation.
 type KeyboardButtonWebView struct {
-	Text string // Button text
-	URL  string // Web app url
+	Style *KeyboardButtonStyle `tl:"flag:10"`
+	Text  string
+	URL   string
 }
 
 func (*KeyboardButtonWebView) CRC() uint32 {
-	return 0x13767230
+	return 0xe846b1a0
+}
+
+func (*KeyboardButtonWebView) FlagIndex() int {
+	return 0
 }
 
 func (*KeyboardButtonWebView) ImplementsKeyboardButton() {}
@@ -5820,6 +5885,16 @@ func (*MessageActionBotAllowed) FlagIndex() int {
 }
 
 func (*MessageActionBotAllowed) ImplementsMessageAction() {}
+
+type MessageActionChangeCreator struct {
+	NewCreatorID int64
+}
+
+func (*MessageActionChangeCreator) CRC() uint32 {
+	return 0xe188503b
+}
+
+func (*MessageActionChangeCreator) ImplementsMessageAction() {}
 
 // The channel was created
 type MessageActionChannelCreate struct {
@@ -6196,6 +6271,16 @@ func (*MessageActionLoginUnknownLocation) CRC() uint32 {
 }
 
 func (*MessageActionLoginUnknownLocation) ImplementsMessageAction() {}
+
+type MessageActionNewCreatorPending struct {
+	NewCreatorID int64
+}
+
+func (*MessageActionNewCreatorPending) CRC() uint32 {
+	return 0xb07ed085
+}
+
+func (*MessageActionNewCreatorPending) ImplementsMessageAction() {}
 
 // The price of paid messages in this chat was changed.
 type MessageActionPaidMessagesPrice struct {
@@ -10157,6 +10242,14 @@ func (*StarGiftAttributeRarityRare) CRC() uint32 {
 }
 
 func (*StarGiftAttributeRarityRare) ImplementsStarGiftAttributeRarity() {}
+
+type StarGiftAttributeRarityUncommon struct{}
+
+func (*StarGiftAttributeRarityUncommon) CRC() uint32 {
+	return 0xdbce6389
+}
+
+func (*StarGiftAttributeRarityUncommon) ImplementsStarGiftAttributeRarity() {}
 
 type StarGiftAuctionRound interface {
 	tl.Object

@@ -924,6 +924,7 @@ func init() {
 		&KeyboardButtonRequestPoll{},
 		&KeyboardButtonRow{},
 		&KeyboardButtonSimpleWebView{},
+		&KeyboardButtonStyle{},
 		&KeyboardButtonSwitchInline{},
 		&KeyboardButtonURL{},
 		&KeyboardButtonURLAuth{},
@@ -951,6 +952,7 @@ func init() {
 		&MediaAreaWeather{},
 		&MessageActionBoostApply{},
 		&MessageActionBotAllowed{},
+		&MessageActionChangeCreator{},
 		&MessageActionChannelCreate{},
 		&MessageActionChannelMigrateFrom{},
 		&MessageActionChatAddUser{},
@@ -980,6 +982,7 @@ func init() {
 		&MessageActionHistoryClear{},
 		&MessageActionInviteToGroupCall{},
 		&MessageActionLoginUnknownLocation{},
+		&MessageActionNewCreatorPending{},
 		&MessageActionPaidMessagesPrice{},
 		&MessageActionPaidMessagesRefunded{},
 		&MessageActionPaymentRefunded{},
@@ -1810,6 +1813,7 @@ func init() {
 		&StarGiftAttributeRarityLegendary{},
 		&StarGiftAttributeRarityObj{},
 		&StarGiftAttributeRarityRare{},
+		&StarGiftAttributeRarityUncommon{},
 		&StarGiftAuctionAcquiredGift{},
 		&StarGiftAuctionRoundExtendable{},
 		&StarGiftAuctionRoundObj{},
@@ -2203,6 +2207,7 @@ func init() {
 		&WebViewResultURL{})
 
 	tl.RegisterObject(&MessageObj{}, 3106895567)
+	tl.RegisterObject(&KeyboardButtonCallback{}, 3861629280)
 
 	tl.RegisterEnums(AttachMenuPeerTypeBotPm,
 		AttachMenuPeerTypeBroadcast,
