@@ -3,6 +3,7 @@
 package telegram
 
 import (
+	"context"
 	"reflect"
 	"regexp"
 	"strings"
@@ -419,6 +420,9 @@ func (c *Client) handleMessageUpdate(update Message) {
 			c.handleAlbum(*msg)
 		}
 
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		for group, handlers := range c.dispatcher.messageHandles {
 			go func(group string, handlers []*messageHandle) {
 				for _, handler := range handlers {
@@ -437,16 +441,22 @@ func (c *Client) handleMessageUpdate(update Message) {
 							return nil
 						}
 
+						if ctx.Err() != nil {
+							return
+						}
+
 						if strings.EqualFold(group, "") || strings.EqualFold(strings.TrimSpace(group), "default") {
 							go handle(handler)
 						} else {
 							if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+								if strings.EqualFold(group, "conversation") {
+									cancel()
+								}
 								break
 							}
 						}
 					}
 				}
-
 			}(group, handlers)
 		}
 
