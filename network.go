@@ -60,7 +60,8 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 	} else {
 		seqNo = m.UpdateSeqNo()
 	}
-	if m.transport == nil {
+
+	if m.transport == nil || !m.IsTcpActive() {
 		m.CreateConnection(false)
 		if m.transport == nil {
 			return nil, 0, errors.New("transport is nil, please use SetTransport")

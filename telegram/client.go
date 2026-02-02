@@ -335,7 +335,7 @@ func (c *Client) Conn() (*Client, error) {
 
 // Returns true if the client is connected to telegram servers
 func (c *Client) IsConnected() bool {
-	return c.MTProto.TcpActive()
+	return c.MTProto.IsTcpActive()
 }
 
 func (c *Client) Start() error {
@@ -530,6 +530,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...AuthExpo
 		c.Log.Debug("sending initial request...")
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
+
 		_, err = exported.MakeRequestCtx(ctx, &InvokeWithLayerParams{
 			Layer: ApiVersion,
 			Query: initialReq,
@@ -541,7 +542,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...AuthExpo
 			if retry < retryLimit {
 				c.Log.Debug(fmt.Sprintf("error making initial request, retrying (%d/%d)", retry+1, retryLimit))
 			} else {
-				c.Log.Error(fmt.Sprintf("error making initial request, retry limit reached: %s", lastError.Error()))
+				c.Log.Error(fmt.Sprintf("exported sender: initialRequest: %s", lastError.Error()))
 			}
 
 			time.Sleep(200 * time.Millisecond)
