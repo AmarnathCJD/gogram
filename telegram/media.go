@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -383,6 +384,10 @@ type DownloadOptions struct {
 	DCId int32 `json:"dc_id,omitempty"`
 	// Destination Writer
 	Buffer io.Writer `json:"-"`
+	// Weather to download the thumb only
+	ThumbOnly bool `json:"thumb_only,omitempty"`
+	// Thumb size to download
+	ThumbSize PhotoSize `json:"thumb_size,omitempty"`
 }
 
 type Destination struct {
@@ -417,7 +422,11 @@ func (mb *Destination) Close() error {
 
 func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, error) {
 	opts := getVariadic(Opts, &DownloadOptions{})
-	location, dc, size, fileName, err := GetFileLocation(file)
+
+	location, dc, size, fileName, err := GetFileLocation(file, FileLocationOptions{
+		ThumbOnly: opts.ThumbOnly,
+		ThumbSize: opts.ThumbSize,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -525,6 +534,12 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 					if handleIfFlood(err, c) {
 						continue
 					}
+
+					if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
+						c.Log.Debug(err)
+						return // File reference expired
+					}
+
 					c.Log.Debug(errors.Wrap(err, fmt.Sprintf("part - (%d) - retrying...", p)))
 					continue
 				}
@@ -576,6 +591,11 @@ retrySinglePart:
 					if handleIfFlood(err, c) {
 						continue
 					}
+					if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
+						c.Log.Debug(err)
+						return // File reference expired
+					}
+
 					c.Log.Debug(errors.Wrap(err, fmt.Sprintf("part - (%d) - retrying...", p)))
 					continue
 				}
