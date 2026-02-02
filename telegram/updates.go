@@ -153,6 +153,7 @@ func (h *inlineHandle) GetGroup() string {
 type callbackHandle struct {
 	Pattern     any
 	Handler     CallbackHandler
+	Filters     []Filter
 	Group       string
 	sortTrigger chan any
 }
@@ -235,9 +236,9 @@ type UpdateDispatcher struct {
 }
 
 // creates and populates a new UpdateDispatcher
-func (c *Client) NewUpdateDispatcher() {
+func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 	c.dispatcher = &UpdateDispatcher{
-		logger: utils.NewLogger("gogram [dispatcher]").
+		logger: utils.NewLogger("gogram " + getLogPrefix("dispatcher", getVariadic(sessionName, ""))).
 			SetLevel(c.Log.Lev()),
 	}
 	c.dispatcher.SortTrigger()
@@ -370,7 +371,7 @@ func (c *Client) handleMessageUpdate(update Message) {
 					if handler.IsMatch(msg.Message, c) {
 						handle := func(h *messageHandle) error {
 							packed := packMessage(c, msg)
-							if c.runFilterChain(packed, h.Filters) {
+							if handler.runFilterChain(packed, h.Filters) {
 								defer c.NewRecovery()()
 								if err := h.Handler(packed); err != nil {
 									if errors.Is(err, EndGroup) {
@@ -497,7 +498,7 @@ func (c *Client) handleEditUpdate(update Message) {
 					handle := func(h *messageEditHandle) error {
 						packed := packMessage(c, msg)
 						defer c.NewRecovery()()
-						if c.runFilterChain(packed, h.Filters) {
+						if handler.runFilterChain(packed, h.Filters) {
 							if err := h.Handler(packed); err != nil {
 								if errors.Is(err, EndGroup) {
 									return err
@@ -527,12 +528,14 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 			if handler.IsMatch(update.Data) {
 				handle := func(h *callbackHandle) error {
 					packed := packCallbackQuery(c, update)
-					defer c.NewRecovery()()
-					if err := h.Handler(packed); err != nil {
-						if errors.Is(err, EndGroup) {
-							return err
+					if handler.runFilterChain(packed, h.Filters) {
+						defer c.NewRecovery()()
+						if err := h.Handler(packed); err != nil {
+							if errors.Is(err, EndGroup) {
+								return err
+							}
+							c.Log.Error(errors.Wrap(err, "[callbackQuery]"))
 						}
-						c.Log.Error(errors.Wrap(err, "[callbackQuery]"))
 					}
 					return nil
 				}
@@ -754,8 +757,8 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 		}
 
 		if strings.HasPrefix(Pattern, "cmd:") {
-			//(?i)^[!/-]ping(?: |$|@botusername)(.*)$
-			Pattern = "(?i)^[!/]" + strings.TrimPrefix(Pattern, "cmd:")
+			//(?i)^[!/-?]ping(?: |$|@botusername)(.*)$
+			Pattern = "(?i)^[!/?]" + strings.TrimPrefix(Pattern, "cmd:")
 			if me := c.Me(); me != nil && me.Username != "" && me.Bot {
 				Pattern += "(?: |$|@" + me.Username + ")(.*)"
 			} else {
@@ -775,7 +778,7 @@ func (h *messageHandle) IsMatch(text string, c *Client) bool {
 	return false
 }
 
-func (c *Client) runFilterChain(m *NewMessage, filters []Filter) bool {
+func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 	var (
 		actAsBlacklist      bool
 		actUsers, actGroups []int64
@@ -845,10 +848,39 @@ func (c *Client) runFilterChain(m *NewMessage, filters []Filter) bool {
 	return true
 }
 
+func (h *messageEditHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
+	var message = &messageHandle{}
+	return message.runFilterChain(m, filters)
+}
+
+func (h *callbackHandle) runFilterChain(c *CallbackQuery, filters []Filter) bool {
+	if len(filters) > 0 {
+		for _, filter := range filters {
+			if filter.Private && !c.IsPrivate() || filter.Group && !c.IsGroup() || filter.Channel && !c.IsChannel() {
+				return false
+			}
+			if filter.FromBot {
+				if c.Sender == nil || !c.Sender.Bot {
+					return false
+				}
+			}
+
+			if filter.Func != nil {
+				if !filter.FuncCallback(c) {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
+}
+
 type Filter struct {
 	Private, Group, Channel, Media, Command, Reply, Forward, FromBot, Blacklist, Mention bool
 	Users, Chats                                                                         []int64
 	Func                                                                                 func(m *NewMessage) bool
+	FuncCallback                                                                         func(c *CallbackQuery) bool
 }
 
 var (
@@ -870,6 +902,9 @@ var (
 	}
 	FilterFunc = func(f func(m *NewMessage) bool) Filter {
 		return Filter{Func: f}
+	}
+	FilterFuncCallback = func(f func(c *CallbackQuery) bool) Filter {
+		return Filter{Func: func(m *NewMessage) bool { return true }}
 	}
 )
 
@@ -937,11 +972,16 @@ func (c *Client) AddActionHandler(handler MessageHandler) Handle {
 //   - Message Edited
 //   - Channel Post Edited
 func (c *Client) AddEditHandler(pattern any, handler MessageHandler, filters ...Filter) Handle {
+	var messageFilters []Filter
+	if len(filters) > 0 {
+		messageFilters = filters
+	}
+
 	if c.dispatcher.messageEditHandles == nil {
 		c.dispatcher.messageEditHandles = make(map[string][]*messageEditHandle)
 	}
 
-	handle := messageEditHandle{Pattern: pattern, Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
+	handle := messageEditHandle{Pattern: pattern, Handler: handler, sortTrigger: c.dispatcher.sortTrigger, Filters: messageFilters}
 	c.dispatcher.messageEditHandles["default"] = append(c.dispatcher.messageEditHandles["default"], &handle)
 	return c.dispatcher.messageEditHandles["default"][len(c.dispatcher.messageEditHandles["default"])-1]
 }
@@ -964,12 +1004,17 @@ func (c *Client) AddInlineHandler(pattern any, handler InlineHandler) Handle {
 //
 // Included Updates:
 //   - Callback Query
-func (c *Client) AddCallbackHandler(pattern any, handler CallbackHandler) Handle {
+func (c *Client) AddCallbackHandler(pattern any, handler CallbackHandler, filters ...Filter) Handle {
+	var messageFilters []Filter
+	if len(filters) > 0 {
+		messageFilters = filters
+	}
+
 	if c.dispatcher.callbackHandles == nil {
 		c.dispatcher.callbackHandles = make(map[string][]*callbackHandle)
 	}
 
-	handle := callbackHandle{Pattern: pattern, Handler: handler, sortTrigger: c.dispatcher.sortTrigger}
+	handle := callbackHandle{Pattern: pattern, Handler: handler, sortTrigger: c.dispatcher.sortTrigger, Filters: messageFilters}
 	c.dispatcher.callbackHandles["default"] = append(c.dispatcher.callbackHandles["default"], &handle)
 	return c.dispatcher.callbackHandles["default"][len(c.dispatcher.callbackHandles["default"])-1]
 }

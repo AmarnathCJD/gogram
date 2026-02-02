@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/pkg/errors"
 )
 
@@ -435,6 +436,13 @@ func getPeerUser(userID int64) *PeerUser {
 	}
 }
 
+func getLogPrefix(loggerName string, sessionName string) string {
+	if sessionName == "" {
+		return fmt.Sprintf("[%s]", loggerName)
+	}
+	return fmt.Sprintf("[%s] {%s}", loggerName, sessionName)
+}
+
 func IsURL(str string) bool {
 	u, err := url.Parse(str)
 	return err == nil && u.Scheme != "" && u.Host != ""
@@ -675,4 +683,8 @@ func doesSessionFileExist(filePath string) bool {
 func IsFfmpegInstalled() bool {
 	_, err := exec.LookPath("ffmpeg")
 	return err == nil
+}
+
+func NewLogger(level utils.LogLevel, prefix ...string) *utils.Logger {
+	return utils.NewLogger(getVariadic(prefix, "gogram")).SetLevel(level)
 }

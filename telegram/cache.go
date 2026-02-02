@@ -70,6 +70,7 @@ type CacheConfig struct {
 	MaxSize    int // Max size of cache: TODO
 	LogLevel   utils.LogLevel
 	LogNoColor bool
+	LogName    string
 	Memory     bool
 	Disabled   bool
 }
@@ -90,13 +91,14 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 			InputUsers:    make(map[int64]int64),
 			InputChats:    make(map[int64]int64),
 		},
-		memory: opt.Memory,
-		logger: utils.NewLogger("gogram [cache]").
+		memory:   opt.Memory,
+		disabled: opt.Disabled,
+		logger: utils.NewLogger("gogram " + getLogPrefix("cache", opt.LogName)).
 			SetLevel(opt.LogLevel).
 			NoColor(opt.LogNoColor),
 	}
 
-	if !c.memory && !opt.Disabled {
+	if !opt.Memory && !opt.Disabled {
 		c.logger.Debug("initialized cache (" + c.fileName + ") successfully")
 	}
 
@@ -172,7 +174,7 @@ func (c *CACHE) ReadFile() {
 	}
 
 	defer file.Close()
-	var totalLoaded int
+	var totalLoaded = []int{0, 0, 0}
 
 	c.Lock()
 	for {
@@ -198,18 +200,20 @@ func (c *CACHE) ReadFile() {
 		switch entryType {
 		case 1:
 			c.InputPeers.InputUsers[id] = accessHash
+			totalLoaded[0]++
 		case 2:
 			c.InputPeers.InputChats[id] = accessHash
+			totalLoaded[1]++
 		case 3:
 			c.InputPeers.InputChannels[id] = accessHash
+			totalLoaded[2]++
 		}
 
-		totalLoaded++
 	}
 	c.Unlock()
 
-	if totalLoaded != 0 {
-		c.logger.Debug("loaded ", totalLoaded, " peers from cacheFile")
+	if !c.memory {
+		c.logger.Debug("loaded ", totalLoaded[0], " users, ", totalLoaded[1], " chats, ", totalLoaded[2], " channels from cache")
 	}
 }
 
@@ -486,33 +490,58 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 	totalUpdates := [2]int{0, 0}
 
 	for _, user := range users {
-		if us, ok := user.(*UserObj); ok {
+		switch us := user.(type) {
+		case *UserObj:
 			if updated := cache.UpdateUser(us); updated {
 				totalUpdates[0]++
 			}
+		case *UserEmpty:
 		}
 	}
 
 	for _, chat := range chats {
-		if ch, ok := chat.(*ChatObj); ok {
+		switch ch := chat.(type) {
+		case *ChatObj:
 			if updated := cache.UpdateChat(ch); updated {
 				totalUpdates[1]++
 			}
-		} else if channel, ok := chat.(*Channel); ok {
-			if updated := cache.UpdateChannel(channel); updated {
+		case *Channel:
+			if updated := cache.UpdateChannel(ch); updated {
 				totalUpdates[1]++
 			}
+		case *ChatForbidden:
+			cache.Lock()
+			if _, ok := cache.InputPeers.InputChats[ch.ID]; !ok {
+				cache.chats[ch.ID] = &ChatObj{
+					ID: ch.ID,
+				}
+				cache.InputPeers.InputChats[ch.ID] = ch.ID
+			}
+			cache.Unlock()
+		case *ChannelForbidden:
+			cache.Lock()
+			if _, ok := cache.InputPeers.InputChannels[ch.ID]; !ok {
+				cache.channels[ch.ID] = &Channel{
+					ID:         ch.ID,
+					Broadcast:  ch.Broadcast,
+					Megagroup:  ch.Megagroup,
+					AccessHash: ch.AccessHash,
+					Title:      ch.Title,
+				}
+				cache.InputPeers.InputChannels[ch.ID] = ch.AccessHash
+			}
+			cache.Unlock()
+		case *ChatEmpty:
 		}
 	}
 
 	if totalUpdates[0] > 0 || totalUpdates[1] > 0 {
 		if !cache.memory {
-			go cache.WriteFile() // Write to file asynchronously
+			go cache.WriteFile() // write to file asynchronously
 		}
 		cache.logger.Debug(
-			fmt.Sprintf("updated %d users and %d chats to %s (users: %d, chats: %d)",
-				totalUpdates[0], totalUpdates[1], cache.fileName,
-				len(cache.InputPeers.InputUsers), len(cache.InputPeers.InputChats),
+			fmt.Sprintf("updated %d users %d chats and %d channels in cache (u: %d, c: %d)",
+				totalUpdates[0], totalUpdates[1], totalUpdates[1], len(users), len(chats),
 			),
 		)
 	}
