@@ -654,3 +654,50 @@ func (c *Client) GetChatJoinRequests(channelID interface{}, lim int) ([]*UserObj
 
 	return allUsers, nil
 }
+
+// TransferChatOwnership transfers the ownership of a chat to another user
+func (c *Client) TransferChatOwnership(chatID interface{}, userID interface{}, password string) error {
+	var inputChannel *InputChannelObj
+	var inputUser *InputUserObj
+
+	peer, err := c.ResolvePeer(chatID)
+	if err != nil {
+		return err
+	}
+
+	if channel, ok := peer.(*InputPeerChannel); !ok {
+		return errors.New("chat peer is not a channel")
+	} else {
+		inputChannel = &InputChannelObj{
+			ChannelID:  channel.ChannelID,
+			AccessHash: channel.AccessHash,
+		}
+	}
+
+	user, err := c.ResolvePeer(userID)
+	if err != nil {
+		return err
+	}
+
+	if inpUser, ok := user.(*InputPeerUser); !ok {
+		return errors.New("user peer is not a user")
+	} else {
+		inputUser = &InputUserObj{
+			UserID:     inpUser.UserID,
+			AccessHash: inpUser.AccessHash,
+		}
+	}
+
+	accountPassword, err := c.AccountGetPassword()
+	if err != nil {
+		return err
+	}
+
+	passwordSrp, err := GetInputCheckPassword(password, accountPassword)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.ChannelsEditCreator(inputChannel, inputUser, passwordSrp)
+	return err
+}

@@ -75,6 +75,11 @@ func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 	if !m.IsReply() {
 		return nil, errors.New("message is not a reply")
 	}
+	// switch rep := m.Message.ReplyTo.(type) {
+	// case *MessageReplyHeaderObj:
+
+	// } TODO: Menakked Ahh, So Pinne Nokam, Reply Thingies.
+
 	// try to get message by reply id, cuz if reply is by bot other bots can't get it otherwise
 	messages, err := m.Client.GetMessages(m.ChatID(), &SearchOption{IDs: &InputMessageReplyTo{ID: m.ID}})
 	if err != nil {
