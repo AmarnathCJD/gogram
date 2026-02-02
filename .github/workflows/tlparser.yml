@@ -7,7 +7,7 @@ on:
     branches: [ "master" ]
   workflow_dispatch:
   schedule:
-        - cron: '0 */6 * * *'
+        - cron: '0 */3 * * *'
 
 jobs:
 
@@ -26,11 +26,11 @@ jobs:
 
     - uses: stefanzweifel/git-auto-commit-action@v5
       with:
-        commit_message: "TLParser: Layer Updated"
+        commit_message: "tlgen: update TL schema files"
         commit_options: "--no-verify"
         repository: .
         commit_user_name: AmarnathCJD
-        commit_user_email: 72609355+AmarnathCjd@users.noreply.github.com
-        commit_author: AmarnathCJD <72609355+AmarnathCjd+@users.noreply.github.com>
+        commit_user_email: 72609355+AmarnathCJD@users.noreply.github.com
+        commit_author: AmarnathCJD <72609355+AmarnathCJD+@users.noreply.github.com>
 
 
