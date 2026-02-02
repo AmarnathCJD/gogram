@@ -969,22 +969,8 @@ func getUpdateTypeID(update Update) uint32 {
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
-		updateID := int64(msg.ID)
-		peerID := c.GetPeerID(msg.PeerID)
-		if peerID == 0 {
-			peerID = c.GetPeerID(msg.FromID)
-		}
-		if peerID != 0 {
-			updateID = (peerID << 32) | int64(msg.ID)
-		}
-
 		if msg.Out {
 			msg.FromID = &PeerUser{UserID: c.Me().ID}
-		}
-
-		if !c.dispatcher.TryMarkUpdateProcessed(updateID) {
-			c.dispatcher.logger.Trace("duplicate message update skipped: %d", updateID)
-			return
 		}
 
 		if msg.GroupedID != 0 {
@@ -1355,12 +1341,6 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 }
 
 func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
-	updateID := (update.ChannelID << 32) | int64(update.Qts)
-
-	if !c.dispatcher.TryMarkUpdateProcessed(updateID) {
-		return
-	}
-
 	packed := packChannelParticipant(c, update)
 
 	c.dispatcher.RLock()
@@ -2419,37 +2399,45 @@ UpdateTypeSwitching:
 		for _, update := range upd.Updates {
 			switch update := update.(type) {
 			case *UpdateNewMessage:
-				go c.handleMessageUpdate(update.Message)
-				c.managePts(update.Pts, update.PtsCount)
+				if c.managePts(update.Pts, update.PtsCount) {
+					go c.handleMessageUpdate(update.Message)
+				}
 			case *UpdateNewChannelMessage:
 				channelID := getChannelIDFromMessage(update.Message)
 				if channelID != 0 {
-					go c.handleMessageUpdate(update.Message)
-					c.manageChannelPts(channelID, update.Pts, update.PtsCount)
+					if c.manageChannelPts(channelID, update.Pts, update.PtsCount) {
+						go c.handleMessageUpdate(update.Message)
+					}
 				} else {
-					go c.handleMessageUpdate(update.Message)
-					c.managePts(update.Pts, update.PtsCount)
+					if c.managePts(update.Pts, update.PtsCount) {
+						go c.handleMessageUpdate(update.Message)
+					}
 				}
 			case *UpdateNewScheduledMessage:
 				go c.handleMessageUpdate(update.Message)
 			case *UpdateEditMessage:
-				go c.handleEditUpdate(update.Message)
-				c.managePts(update.Pts, update.PtsCount)
+				if c.managePts(update.Pts, update.PtsCount) {
+					go c.handleEditUpdate(update.Message)
+				}
 			case *UpdateEditChannelMessage:
 				channelID := getChannelIDFromMessage(update.Message)
 				if channelID != 0 {
-					go c.handleEditUpdate(update.Message)
-					c.manageChannelPts(channelID, update.Pts, update.PtsCount)
+					if c.manageChannelPts(channelID, update.Pts, update.PtsCount) {
+						go c.handleEditUpdate(update.Message)
+					}
 				} else {
-					go c.handleEditUpdate(update.Message)
-					c.managePts(update.Pts, update.PtsCount)
+					if c.managePts(update.Pts, update.PtsCount) {
+						go c.handleEditUpdate(update.Message)
+					}
 				}
 			case *UpdateDeleteMessages:
-				go c.handleDeleteUpdate(update)
-				c.managePts(update.Pts, update.PtsCount)
+				if c.managePts(update.Pts, update.PtsCount) {
+					go c.handleDeleteUpdate(update)
+				}
 			case *UpdateDeleteChannelMessages:
-				go c.handleDeleteUpdate(update)
-				c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount)
+				if c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount) {
+					go c.handleDeleteUpdate(update)
+				}
 			case *UpdateReadHistoryInbox:
 				c.managePts(update.Pts, update.PtsCount)
 			case *UpdateReadHistoryOutbox:
@@ -2702,35 +2690,8 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 		return false
 	}
 
-	if expectedPts < pts {
-		gap := pts - expectedPts
-
-		if gap <= 5 {
-			c.dispatcher.SetPts(pts)
-			return true
-		} else if gap > 2000 {
-			c.dispatcher.SetPts(pts)
-			return true
-		}
-
-		c.dispatcher.SetPts(pts)
-
-		gapPts := expectedPts
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-
-			newCurrentPts := c.dispatcher.GetPts()
-			if newCurrentPts >= pts {
-				return
-			}
-
-			c.FetchDifference(gapPts, gap+10)
-		}()
-
-		return true
-	}
-
-	return true
+	go c.FetchDifference(currentPts, 5000)
+	return false
 }
 
 func (c *Client) manageSeq(seq int32, seqStart int32) bool {
@@ -2783,35 +2744,9 @@ func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bo
 		return false
 	}
 
-	if expectedPts < pts {
-		gap := pts - expectedPts
-
-		if gap <= 5 {
-			c.dispatcher.SetChannelPts(channelID, pts)
-			return true
-		} else if gap > 1000 {
-			c.dispatcher.SetChannelPts(channelID, pts)
-			return true
-		}
-
-		c.dispatcher.SetChannelPts(channelID, pts)
-
-		gapPts := expectedPts
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-
-			newCurrentPts := c.dispatcher.GetChannelPts(channelID)
-			if newCurrentPts >= pts {
-				return
-			}
-
-			c.FetchChannelDifference(channelID, gapPts, 100)
-		}()
-
-		return true
-	}
-
-	return true
+	// Gap detected: current state is behind remote state
+	go c.FetchChannelDifference(channelID, currentPts, 100)
+	return false
 }
 
 func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
