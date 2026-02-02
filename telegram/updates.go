@@ -423,54 +423,67 @@ func (c *Client) handleMessageUpdate(update Message) {
 		wg := sync.WaitGroup{}
 		ctx, cancel := context.WithCancel(context.Background())
 
-		for group, handlers := range c.dispatcher.messageHandles {
-			wg.Add(1)
-			go func(group string, handlers []*messageHandle) {
-				defer wg.Done()
-				for _, handler := range handlers {
-					if handler.IsMatch(msg.Message, c) {
-						handle := func(h *messageHandle) error {
-							packed := packMessage(c, msg)
-							if handler.runFilterChain(packed, h.Filters) {
-								defer c.NewRecovery()()
-								if err := h.Handler(packed); err != nil {
-									if errors.Is(err, EndGroup) {
-										return err
-									}
-									c.dispatcher.logger.Error(errors.Wrap(err, "[newMessage]"))
+		packed := packMessage(c, msg)
+		groupFunc := func(group string, handlers []*messageHandle) {
+			defer wg.Done()
+			for _, handler := range handlers {
+				if handler.IsMatch(msg.Message, c) {
+					handle := func(h *messageHandle) error {
+						if handler.runFilterChain(packed, h.Filters) {
+							defer c.NewRecovery()()
+							if err := h.Handler(packed); err != nil {
+								if errors.Is(err, EndGroup) {
+									return err
 								}
+								c.dispatcher.logger.Error(errors.Wrap(err, "[newMessage]"))
 							}
-							return nil
 						}
+						return nil
+					}
 
-						if ctx.Err() != nil {
-							return
-						}
-
-						if strings.EqualFold(group, "") || strings.EqualFold(strings.TrimSpace(group), "default") {
-							go handle(handler)
-						} else {
-							if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
-								if strings.EqualFold(group, "conversation") {
-									cancel()
-								}
-								break
+					if strings.EqualFold(group, "") || strings.EqualFold(strings.TrimSpace(group), "default") {
+						go handle(handler)
+					} else {
+						if err := handle(handler); err != nil && errors.Is(err, EndGroup) {
+							if strings.EqualFold(group, "conversation") {
+								cancel()
 							}
+							break
 						}
 					}
 				}
-			}(group, handlers)
+			}
+		}
+
+		if conv, ok := c.dispatcher.messageHandles["conversation"]; ok {
+			wg.Add(1)
+			groupFunc("conversation", conv)
+		}
+
+		for group, handlers := range c.dispatcher.messageHandles {
+			if ctx.Err() != nil {
+				break
+			}
+
+			if strings.EqualFold(group, "conversation") {
+				continue
+			}
+
+			wg.Add(1)
+			go groupFunc(group, handlers)
 		}
 
 		wg.Wait()
 		cancel()
 
 	case *MessageService:
+		packed := packMessage(c, msg)
+
 		for group, handler := range c.dispatcher.actionHandles {
 			for _, h := range handler {
 				handle := func(h *chatActionHandle) error {
 					defer c.NewRecovery()()
-					if err := h.Handler(packMessage(c, msg)); err != nil {
+					if err := h.Handler(packed); err != nil {
 						if errors.Is(err, EndGroup) {
 							return err
 						}
@@ -493,14 +506,16 @@ func (c *Client) handleMessageUpdate(update Message) {
 }
 
 func (c *Client) handleAlbum(message MessageObj) {
+	packed := packMessage(c, &message)
+
 	c.dispatcher.RLock()
 	if group, ok := c.dispatcher.activeAlbums[message.GroupedID]; ok {
 		c.dispatcher.RUnlock()
-		group.Add(packMessage(c, &message))
+		group.Add(packed)
 	} else {
 		c.dispatcher.RUnlock()
 		albBox := &albumBox{
-			messages:  []*NewMessage{packMessage(c, &message)},
+			messages:  []*NewMessage{packed},
 			groupedId: message.GroupedID,
 		}
 		c.dispatcher.Lock()
@@ -538,11 +553,12 @@ func (c *Client) handleMessageUpdateWith(m Message, pts int32) {
 
 func (c *Client) handleEditUpdate(update Message) {
 	if msg, ok := update.(*MessageObj); ok {
+		packed := packMessage(c, msg)
+
 		for group, handlers := range c.dispatcher.messageEditHandles {
 			for _, handler := range handlers {
 				if handler.IsMatch(msg.Message) {
 					handle := func(h *messageEditHandle) error {
-						packed := packMessage(c, msg)
 						defer c.NewRecovery()()
 						if handler.runFilterChain(packed, h.Filters) {
 							if err := h.Handler(packed); err != nil {
@@ -569,11 +585,12 @@ func (c *Client) handleEditUpdate(update Message) {
 }
 
 func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
+	packed := packCallbackQuery(c, update)
+
 	for group, handlers := range c.dispatcher.callbackHandles {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Data) {
 				handle := func(h *callbackHandle) error {
-					packed := packCallbackQuery(c, update)
 					if handler.runFilterChain(packed, h.Filters) {
 						defer c.NewRecovery()()
 						if err := h.Handler(packed); err != nil {
@@ -599,11 +616,12 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 }
 
 func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery) {
+	packed := packInlineCallbackQuery(c, update)
+
 	for group, handlers := range c.dispatcher.inlineCallbackHandles {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Data) {
 				handle := func(h *inlineCallbackHandle) error {
-					packed := packInlineCallbackQuery(c, update)
 					defer c.NewRecovery()()
 					if err := h.Handler(packed); err != nil {
 						if errors.Is(err, EndGroup) {
@@ -627,10 +645,11 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 }
 
 func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
+	packed := packChannelParticipant(c, update)
+
 	for group, handlers := range c.dispatcher.participantHandles {
 		for _, handler := range handlers {
 			handle := func(h *participantHandle) error {
-				packed := packChannelParticipant(c, update)
 				defer c.NewRecovery()()
 				if err := h.Handler(packed); err != nil {
 					if errors.Is(err, EndGroup) {
@@ -653,11 +672,12 @@ func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 }
 
 func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
+	packed := packInlineQuery(c, update)
+
 	for group, handlers := range c.dispatcher.inlineHandles {
 		for _, handler := range handlers {
 			if handler.IsMatch(update.Query) {
 				handle := func(h *inlineHandle) error {
-					packed := packInlineQuery(c, update)
 					defer c.NewRecovery()()
 					if err := h.Handler(packed); err != nil {
 						if errors.Is(err, EndGroup) {
@@ -681,10 +701,11 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 }
 
 func (c *Client) handleInlineSendUpdate(update *UpdateBotInlineSend) {
+	packed := packInlineSend(c, update)
+
 	for group, handlers := range c.dispatcher.inlineSendHandles {
 		for _, handler := range handlers {
 			handle := func(h *inlineSendHandle) error {
-				packed := packInlineSend(c, update)
 				defer c.NewRecovery()()
 				if err := h.Handler(packed); err != nil {
 					if errors.Is(err, EndGroup) {
@@ -707,10 +728,11 @@ func (c *Client) handleInlineSendUpdate(update *UpdateBotInlineSend) {
 }
 
 func (c *Client) handleDeleteUpdate(update Update) {
+	packed := packDeleteMessage(c, update)
+
 	for group, handlers := range c.dispatcher.messageDeleteHandles {
 		for _, handler := range handlers {
 			handle := func(h *messageDeleteHandle) error {
-				packed := packDeleteMessage(c, update)
 				defer c.NewRecovery()()
 				if err := h.Handler(packed); err != nil {
 					if errors.Is(err, EndGroup) {
