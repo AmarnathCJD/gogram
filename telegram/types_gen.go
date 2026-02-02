@@ -221,15 +221,6 @@ func (*AccountDaysTtl) CRC() uint32 {
 	return 0xb8d0afdf
 }
 
-// Contains the link that must be used to open a [direct link Mini App](https://core.telegram.org/api/bots/webapps#direct-link-mini-apps).
-type AppWebViewResultURL struct {
-	URL string
-}
-
-func (*AppWebViewResultURL) CRC() uint32 {
-	return 0x3c1b4f0d
-}
-
 // Represents a [bot mini app that can be launched from the attachment/side menu »](https://core.telegram.org/api/bots/attach)
 type AttachMenuBot struct {
 	Inactive                 bool `tl:"flag:0,encoded_in_bitflags"`
@@ -1234,18 +1225,13 @@ func (*Error) CRC() uint32 {
 
 // Exported [chat folder deep link »](https://core.telegram.org/api/links#chat-folder-links).
 type ExportedChatlistInvite struct {
-	Revoked bool `tl:"flag:0,encoded_in_bitflags"`
-	Title   string
-	URL     string
-	Peers   []Peer
+	Title string
+	URL   string
+	Peers []Peer
 }
 
 func (*ExportedChatlistInvite) CRC() uint32 {
 	return 0xc5181ac
-}
-
-func (*ExportedChatlistInvite) FlagIndex() int {
-	return 0
 }
 
 // Describes a [temporary profile link](https://core.telegram.org/api/links#temporary-profile-links).
@@ -1302,17 +1288,6 @@ type FileHash struct {
 
 func (*FileHash) CRC() uint32 {
 	return 0xf39b035c
-}
-
-// File is currently unavailable.
-type FileLocationUnavailable struct {
-	VolumeID int64
-	LocalID  int32
-	Secret   int64
-}
-
-func (*FileLocationUnavailable) CRC() uint32 {
-	return 0x7c596b46
 }
 
 // Folder
@@ -2269,6 +2244,15 @@ func (*MessagesBotCallbackAnswer) FlagIndex() int {
 	return 0
 }
 
+type MessagesBotPreparedInlineMessage struct {
+	ID         string
+	ExpireDate int32
+}
+
+func (*MessagesBotPreparedInlineMessage) CRC() uint32 {
+	return 0x8ecf0511
+}
+
 // Result of a query to an inline bot
 type MessagesBotResults struct {
 	Gallery       bool `tl:"flag:0,encoded_in_bitflags"`
@@ -2636,15 +2620,6 @@ type MessagesWebPage struct {
 
 func (*MessagesWebPage) CRC() uint32 {
 	return 0xfd5e12bd
-}
-
-type MessagesWebViewResult struct {
-	Result BotInlineResult
-	Users  []User
-}
-
-func (*MessagesWebViewResult) CRC() uint32 {
-	return 0xaadf159b
 }
 
 // Info about why a specific user could not be [invited »](https://core.telegram.org/api/invites#direct-invites).
@@ -3569,15 +3544,6 @@ func (*ShippingOption) CRC() uint32 {
 	return 0xb6213cdf
 }
 
-// Contains the webview URL with appropriate theme parameters added
-type SimpleWebViewResultURL struct {
-	URL string
-}
-
-func (*SimpleWebViewResultURL) CRC() uint32 {
-	return 0x882f76bb
-}
-
 // Info about an SMS job.
 type SmsJob struct {
 	JobID       string
@@ -3747,6 +3713,7 @@ type StarsSubscription struct {
 	Canceled       bool `tl:"flag:0,encoded_in_bitflags"`
 	CanRefulfill   bool `tl:"flag:1,encoded_in_bitflags"`
 	MissingBalance bool `tl:"flag:2,encoded_in_bitflags"`
+	BotCanceled    bool `tl:"flag:7,encoded_in_bitflags"`
 	ID             string
 	Peer           Peer
 	UntilDate      int32
@@ -3798,8 +3765,6 @@ type StarsTransaction struct {
 	Failed             bool `tl:"flag:6,encoded_in_bitflags"`
 	Gift               bool `tl:"flag:10,encoded_in_bitflags"`
 	Reaction           bool `tl:"flag:11,encoded_in_bitflags"`
-	Subscription       bool `tl:"flag:12,encoded_in_bitflags"`
-	Floodskip          bool `tl:"flag:15,encoded_in_bitflags"`
 	ID                 string
 	Stars              int64
 	Date               int32
