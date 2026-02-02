@@ -96,41 +96,41 @@ func (m *mimeTypeManager) MIME(filePath string) (string, bool) {
 	return mime, m.IsPhoto(mime)
 }
 
-var mimeTypes = &mimeTypeManager{
+var MimeTypes = &mimeTypeManager{
 	mimeTypes: make(map[string]string),
 }
 
 func init() {
-	mimeTypes.addMime(".png", "image/png")
-	mimeTypes.addMime(".jpg", "image/jpeg")
-	mimeTypes.addMime(".jpeg", "image/jpeg")
+	MimeTypes.addMime(".png", "image/png")
+	MimeTypes.addMime(".jpg", "image/jpeg")
+	MimeTypes.addMime(".jpeg", "image/jpeg")
 
-	mimeTypes.addMime(".webp", "image/webp")
-	mimeTypes.addMime(".gif", "image/gif")
-	mimeTypes.addMime(".bmp", "image/bmp")
-	mimeTypes.addMime(".tga", "image/x-tga")
-	mimeTypes.addMime(".tiff", "image/tiff")
-	mimeTypes.addMime(".psd", "image/vnd.adobe.photoshop")
+	MimeTypes.addMime(".webp", "image/webp")
+	MimeTypes.addMime(".gif", "image/gif")
+	MimeTypes.addMime(".bmp", "image/bmp")
+	MimeTypes.addMime(".tga", "image/x-tga")
+	MimeTypes.addMime(".tiff", "image/tiff")
+	MimeTypes.addMime(".psd", "image/vnd.adobe.photoshop")
 
-	mimeTypes.addMime(".mp4", "video/mp4")
-	mimeTypes.addMime(".mov", "video/quicktime")
-	mimeTypes.addMime(".avi", "video/avi")
-	mimeTypes.addMime(".flv", "video/x-flv")
-	mimeTypes.addMime(".m4v", "video/x-m4v")
-	mimeTypes.addMime(".mkv", "video/x-matroska")
-	mimeTypes.addMime(".webm", "video/webm")
-	mimeTypes.addMime(".3gp", "video/3gpp")
+	MimeTypes.addMime(".mp4", "video/mp4")
+	MimeTypes.addMime(".mov", "video/quicktime")
+	MimeTypes.addMime(".avi", "video/avi")
+	MimeTypes.addMime(".flv", "video/x-flv")
+	MimeTypes.addMime(".m4v", "video/x-m4v")
+	MimeTypes.addMime(".mkv", "video/x-matroska")
+	MimeTypes.addMime(".webm", "video/webm")
+	MimeTypes.addMime(".3gp", "video/3gpp")
 
-	mimeTypes.addMime(".mp3", "audio/mpeg")
-	mimeTypes.addMime(".m4a", "audio/m4a")
-	mimeTypes.addMime(".aac", "audio/aac")
-	mimeTypes.addMime(".ogg", "audio/ogg")
-	mimeTypes.addMime(".flac", "audio/x-flac")
-	mimeTypes.addMime(".opus", "audio/opus")
-	mimeTypes.addMime(".wav", "audio/wav")
-	mimeTypes.addMime(".alac", "audio/x-alac")
+	MimeTypes.addMime(".mp3", "audio/mpeg")
+	MimeTypes.addMime(".m4a", "audio/m4a")
+	MimeTypes.addMime(".aac", "audio/aac")
+	MimeTypes.addMime(".ogg", "audio/ogg")
+	MimeTypes.addMime(".flac", "audio/x-flac")
+	MimeTypes.addMime(".opus", "audio/opus")
+	MimeTypes.addMime(".wav", "audio/wav")
+	MimeTypes.addMime(".alac", "audio/x-alac")
 
-	mimeTypes.addMime(".tgs", "application/x-tgsticker")
+	MimeTypes.addMime(".tgs", "application/x-tgsticker")
 }
 
 var (
@@ -138,7 +138,7 @@ var (
 	regexCode       = regexp.MustCompile(`code (\d+)`)
 )
 
-func getErrorCode(err error) (int, int) {
+func GetErrorCode(err error) (int, int) {
 	datacenter := 0
 	code := 0
 	if err == nil {
@@ -161,7 +161,7 @@ var (
 	regexFloodWaitPremium = regexp.MustCompile(`FLOOD_PREMIUM_WAIT_(\d+)`)
 )
 
-func getFloodWait(err error) int {
+func GetFloodWait(err error) int {
 	if err == nil {
 		return 0
 	}
@@ -180,7 +180,7 @@ func getFloodWait(err error) int {
 	return 0
 }
 
-func matchError(err error, str string) bool {
+func MatchError(err error, str string) bool {
 	if err != nil {
 		return strings.Contains(err.Error(), str)
 	}
@@ -363,7 +363,7 @@ func GetFileName(f any) string {
 		}
 
 		if doc.MimeType != "" {
-			return fmt.Sprintf("file_%s_%d%s", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000), mimeTypes.Ext(doc.MimeType))
+			return fmt.Sprintf("file_%s_%d%s", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000), MimeTypes.Ext(doc.MimeType))
 		}
 		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), rand.Intn(1000))
 	}
@@ -421,7 +421,7 @@ func getFileExt(f any) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
 		doc := f.Document.(*DocumentObj)
-		if e := mimeTypes.Ext(doc.MimeType); e != "" {
+		if e := MimeTypes.Ext(doc.MimeType); e != "" {
 			return e
 		}
 		for _, attr := range doc.Attributes {
