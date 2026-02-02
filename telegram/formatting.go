@@ -127,13 +127,22 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 	return cleanedText, tagOffsets, nil
 }
 
+func trimTrailing(input string) string {
+	lastNewlineIndex := strings.LastIndex(input, "\n")
+	if lastNewlineIndex != -1 && strings.TrimSpace(input[lastNewlineIndex:]) == "" {
+		return input[:lastNewlineIndex]
+	}
+
+	return input
+}
+
 // getTextLength returns the length of the text content of a node, including its children
 func getTextLength(n *html.Node) int32 {
 	var tagLength int32 = 0
 	currentNode := n.FirstChild
 	for currentNode != nil {
 		if currentNode.Type == html.TextNode {
-			tagLength += utf16RuneCountInString(strings.TrimSpace(currentNode.Data))
+			tagLength += utf16RuneCountInString(trimTrailing(currentNode.Data))
 		} else if currentNode.Type == html.ElementNode {
 			tagLength += getTextLength(currentNode)
 		}
