@@ -88,8 +88,12 @@ func (c *Conversation) ReplyMedia(media InputMedia, opts ...*MediaOptions) (*New
 func (c *Conversation) GetResponse() (*NewMessage, error) {
 	resp := make(chan *NewMessage, 1)
 	waitFunc := func(m *NewMessage) error {
-		resp <- m
-		c.lastMsg = m
+		select {
+		case resp <- m:
+			c.lastMsg = m
+		default:
+		}
+
 		if c.stopPropagation {
 			return EndGroup
 		}
@@ -125,8 +129,12 @@ func (c *Conversation) GetResponse() (*NewMessage, error) {
 func (c *Conversation) GetEdit() (*NewMessage, error) {
 	resp := make(chan *NewMessage)
 	waitFunc := func(m *NewMessage) error {
-		resp <- m
-		c.lastMsg = m
+		select {
+		case resp <- m:
+			c.lastMsg = m
+		default:
+		}
+
 		if c.stopPropagation {
 			return EndGroup
 		}
@@ -161,8 +169,12 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 func (c *Conversation) GetReply() (*NewMessage, error) {
 	resp := make(chan *NewMessage)
 	waitFunc := func(m *NewMessage) error {
-		resp <- m
-		c.lastMsg = m
+		select {
+		case resp <- m:
+			c.lastMsg = m
+		default:
+		}
+
 		if c.stopPropagation {
 			return EndGroup
 		}
@@ -207,7 +219,11 @@ func (c *Conversation) MarkRead() (*MessagesAffectedMessages, error) {
 func (c *Conversation) WaitEvent(ev Update) (Update, error) {
 	resp := make(chan Update)
 	waitFunc := func(u Update, c *Client) error {
-		resp <- u
+		select {
+		case resp <- u:
+		default:
+		}
+
 		return nil
 	}
 
@@ -228,7 +244,10 @@ func (c *Conversation) WaitRead() (*UpdateReadChannelInbox, error) {
 	waitFunc := func(u Update) error {
 		switch v := u.(type) {
 		case *UpdateReadChannelInbox:
-			resp <- v
+			select {
+			case resp <- v:
+			default:
+			}
 		}
 
 		return nil
@@ -251,7 +270,7 @@ func (c *Conversation) removeHandle(h Handle) {
 	for i, v := range c.openHandlers {
 		if v == h {
 			c.openHandlers = slices.Delete(c.openHandlers, i, i+1)
-			return
+			break
 		}
 	}
 	c.Client.removeHandle(h)
