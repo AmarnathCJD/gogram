@@ -309,6 +309,9 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool) (*MTProto, error) {
 
 	if dcID == m.GetDC() {
 		cfg.SessionStorage = m.sessionStorage
+		cfg.StringSession = session.NewStringSession(
+			m.authKey, m.authKeyHash, dcID, newAddr, m.appID,
+		).Encode()
 	}
 
 	sender, err := NewMTProto(cfg)

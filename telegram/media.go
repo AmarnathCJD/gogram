@@ -522,8 +522,10 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				w.FreeWorker(sender)
 
 				if err != nil {
-					c.Log.Debug("part - (", p, ") - retrying... (", err, ")")
-					time.Sleep(time.Millisecond * 5)
+					if handleIfFlood(err, c) {
+						continue
+					}
+					c.Log.Debug(errors.Wrap(err, fmt.Sprintf("part - (%d) - retrying...", p)))
 					continue
 				}
 
@@ -571,8 +573,10 @@ retrySinglePart:
 				w.FreeWorker(sender)
 
 				if err != nil {
-					time.Sleep(time.Millisecond * 5)
-					c.Log.Debug("seq-part - (", p, ") - retrying... (", err, ")")
+					if handleIfFlood(err, c) {
+						continue
+					}
+					c.Log.Debug(errors.Wrap(err, fmt.Sprintf("part - (%d) - retrying...", p)))
 					continue
 				}
 
