@@ -127,7 +127,7 @@ func (m *NewMessage) ChatType() string {
 		case *PeerChat:
 			return EntityChat
 		case *PeerChannel:
-			if !m.Channel.Broadcast {
+			if m.Channel != nil && !m.Channel.Broadcast {
 				return EntityChat
 			}
 			return EntityChannel
@@ -146,9 +146,6 @@ func (m *NewMessage) E(obj any, err error) error {
 }
 
 func (m *NewMessage) IsGroup() bool {
-	if m.Channel != nil {
-		return m.ChatType() == EntityChat || (m.ChatType() == EntityChannel && !m.Channel.Broadcast)
-	}
 	return m.ChatType() == EntityChat
 }
 
