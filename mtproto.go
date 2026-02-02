@@ -637,7 +637,7 @@ func (m *MTProto) handle404Error() {
 	if len(m.authKey404) == 0 {
 		m.authKey404 = [2]int64{1, time.Now().Unix()}
 	} else {
-		if time.Now().Unix()-m.authKey404[1] < 30 { // repeated failures
+		if time.Now().Unix()-m.authKey404[1] < 2 { // repeated failures
 			m.authKey404[0]++
 		} else {
 			m.authKey404[0] = 1
