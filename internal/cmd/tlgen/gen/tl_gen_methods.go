@@ -1,7 +1,12 @@
 package gen
 
 import (
+	"io"
+	"net/http"
+	"regexp"
 	"sort"
+	"strings"
+	"sync"
 
 	"github.com/dave/jennifer/jen"
 
@@ -15,10 +20,22 @@ func (g *Generator) generateMethods(f *jen.File) {
 		return g.schema.Methods[i].Name < g.schema.Methods[j].Name
 	})
 
+	wg := sync.WaitGroup{}
+	for i, method := range g.schema.Methods {
+		wg.Add(1)
+		go func(method tlparser.Method, i int) {
+			defer wg.Done()
+			g.schema.Methods[i].Comment = g.generateComment(method.Name)
+		}(method, i)
+	}
+
+	wg.Wait()
+
 	for _, method := range g.schema.Methods {
+
 		f.Add(g.generateStructTypeAndMethods(tlparser.Object{
 			Name:       method.Name + "Params",
-			Comment:    method.Comment,
+			Comment:    "",
 			CRC:        method.CRC,
 			Parameters: method.Parameters,
 		}, nil))
@@ -46,15 +63,44 @@ func (g *Generator) generateMethods(f *jen.File) {
 	//	}
 }
 
+func (g *Generator) generateComment(name string) string {
+	var base = "https://core.telegram.org/method/"
+	req, _ := http.NewRequest("GET", base+name, nil)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return ""
+	}
+
+	if resp.StatusCode != 200 {
+		return ""
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+
+	ack := string(body)
+	ack = strings.Split(ack, "<div id=\"dev_page_content\">")[1]
+	ack = strings.Split(ack, "</p>")[0]
+	ack = strings.ReplaceAll(ack, "<p>", "")
+	a_tag_regex := regexp.MustCompile(`<a href="([^"]*)">([^<]*)</a>`)
+	ack = a_tag_regex.ReplaceAllString(ack, "")
+
+	if strings.Contains(ack, "The page has not been saved") {
+		return ""
+	}
+
+	return ack
+}
+
 func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 	resp := g.typeIdFromSchemaType(obj.Response.Type)
 	if obj.Response.IsList {
 		resp = jen.Index().Add(resp)
 	}
 
-	// еще одно злоебучее исключение. проблема в том, что bool это вот как бы и объект, да вот как бы и нет
-	// трабла только в том, что нельзя просто так взять, и получить bool из MakeRequest. так что
-	// возвращаем tl.Bool
 	nuk := jen.Nil()
 	if obj.Response.Type == "Bool" {
 		resp = jen.Op("").Qual("", "bool")
@@ -105,7 +151,7 @@ func (g *Generator) generateArgumentsForMethod(obj *tlparser.Method) []jen.Code 
 		item := jen.Id(goify(p.Name, false))
 		if i == len(obj.Parameters)-1 || p.Type != obj.Parameters[i+1].Type || p.IsVector != obj.Parameters[i+1].IsVector {
 			if p.Type == "bitflags" {
-				continue // ну а зачем?
+				continue
 			}
 
 			if p.IsVector {
@@ -128,7 +174,7 @@ func (g *Generator) generateMethodArgumentForMakingRequest(obj *tlparser.Method)
 	dict := jen.Dict{}
 	for _, p := range obj.Parameters {
 		if p.Type == "bitflags" {
-			continue // ну а зачем?
+			continue
 		}
 
 		dict[jen.Id(goify(p.Name, true))] = jen.Id(goify(p.Name, false))
