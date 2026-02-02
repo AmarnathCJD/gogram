@@ -209,17 +209,23 @@ func processUpdates(updates Updates) []*MessageObj {
 	return messages
 }
 
-func processUpdate(upd Updates) *MessageObj {
+func (c *Client) processUpdate(upd Updates) *MessageObj {
 	if upd == nil {
 		return nil
 	}
 updateTypeSwitch:
 	switch update := upd.(type) {
 	case *UpdateShortSentMessage:
+		fromId, err := c.GetPeer(c.Me().ID)
+		if err != nil {
+			fromId = &PeerUser{}
+		}
+
 		return &MessageObj{
 			ID:        update.ID,
 			PeerID:    &PeerUser{},
 			Date:      update.Date,
+			FromID:    fromId.(*PeerUser),
 			Out:       update.Out,
 			Media:     update.Media,
 			Entities:  update.Entities,
@@ -244,12 +250,16 @@ updateTypeSwitch:
 				ID: upd.ID,
 			}
 		default:
-			fmt.Println("unknown update type", reflect.TypeOf(upd).String())
+			log.Println("unknown update type", reflect.TypeOf(upd).String())
 		}
 	case *UpdateShortMessage:
 		return &MessageObj{Out: update.Out, ID: update.ID, PeerID: &PeerUser{}, Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod}
 	case *UpdateShortChatMessage:
-		return &MessageObj{Out: update.Out, ID: update.ID, PeerID: &PeerChat{}, Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod}
+		chat, err := c.GetPeer(update.ChatID)
+		if err != nil {
+			chat = &PeerChat{}
+		}
+		return &MessageObj{Out: update.Out, ID: update.ID, PeerID: chat.(*PeerChat), Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod}
 	case *UpdateShort:
 		upd = &UpdatesObj{Updates: []Update{update.Update}}
 		goto updateTypeSwitch
@@ -837,7 +847,7 @@ func packMessage(c *Client, message Message) *NewMessage {
 	} else {
 		m.SenderChat = &Channel{}
 	}
-	m.Peer = c.getPeer(m.Message.PeerID)
+	m.Peer = c.getInputPeer(m.Message.PeerID)
 	if m.IsMedia() {
 		FileID := PackBotFileID(m.Media())
 		m.File = &CustomFile{
@@ -981,7 +991,7 @@ func (c *Client) getChannel(PeerID Peer) *Channel {
 	return nil
 }
 
-func (c *Client) getPeer(PeerID Peer) InputPeer {
+func (c *Client) getInputPeer(PeerID Peer) InputPeer {
 	if PeerID == nil {
 		return nil
 	}
@@ -998,6 +1008,21 @@ func (c *Client) getPeer(PeerID Peer) InputPeer {
 		if err == nil {
 			return &InputPeerChannel{ChannelID: PeerID.ChannelID, AccessHash: u.AccessHash}
 		}
+	}
+	return nil
+}
+
+func (c *Client) getPeer(PeerID InputPeer) Peer {
+	if PeerID == nil {
+		return nil
+	}
+	switch PeerID := PeerID.(type) {
+	case *InputPeerUser:
+		return &PeerUser{UserID: PeerID.UserID}
+	case *InputPeerChat:
+		return &PeerChat{ChatID: PeerID.ChatID}
+	case *InputPeerChannel:
+		return &PeerChannel{ChannelID: PeerID.ChannelID}
 	}
 	return nil
 }

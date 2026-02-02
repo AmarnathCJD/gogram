@@ -122,9 +122,12 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 		return nil, err
 	}
 	if updateResp != nil {
-		return packMessage(c, processUpdate(updateResp)), nil
+		processed := c.processUpdate(updateResp)
+		processed.PeerID = c.getPeer(Peer)
+		return packMessage(c, processed), nil
 	}
-	return nil, errors.New("no response")
+
+	return nil, errors.New("no response for sendMessage")
 }
 
 // EditMessage edits a message. This method is a wrapper for messages.editMessage.
@@ -208,9 +211,12 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 		return nil, err
 	}
 	if updateResp != nil {
-		return packMessage(c, processUpdate(updateResp)), nil
+		processed := c.processUpdate(updateResp)
+		processed.PeerID = c.getPeer(Peer)
+		return packMessage(c, processed), nil
 	}
-	return nil, errors.New("no response")
+
+	return nil, errors.New("no response for editMessage")
 }
 
 func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string, entities []MessageEntity, Media interface{}, options *SendOptions) (*NewMessage, error) {
@@ -396,9 +402,12 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 		return nil, err
 	}
 	if updateResp != nil {
-		return packMessage(c, processUpdate(updateResp)), nil
+		processed := c.processUpdate(updateResp)
+		processed.PeerID = c.getPeer(Peer)
+		return packMessage(c, processed), nil
 	}
-	return nil, errors.New("no response")
+
+	return nil, errors.New("no response for sendMedia")
 }
 
 // SendAlbum sends a media album.
@@ -478,6 +487,7 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 	if updateResp != nil {
 		updates := processUpdates(updateResp)
 		for _, update := range updates {
+			update.PeerID = c.getPeer(Peer)
 			m = append(m, packMessage(c, update))
 		}
 	} else {
@@ -574,10 +584,12 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 	}
 
 	if updateResp != nil {
-		return packMessage(c, processUpdate(updateResp)), nil
+		processed := c.processUpdate(updateResp)
+		processed.PeerID = c.getPeer(Peer)
+		return packMessage(c, processed), nil
 	}
 
-	return nil, errors.New("no response")
+	return nil, errors.New("no response for sendPoll")
 }
 
 // SendReaction sends a reaction to a message, which can be an emoji or a custom emoji.
