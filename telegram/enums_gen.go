@@ -95,17 +95,18 @@ func (e InlineQueryPeerType) CRC() uint32 { return uint32(e) }
 type InputPrivacyKey uint32
 
 const (
-	InputPrivacyKeyAbout           InputPrivacyKey = 0x3823cc40
-	InputPrivacyKeyAddedByPhone    InputPrivacyKey = 0xd1219bdd
-	InputPrivacyKeyBirthday        InputPrivacyKey = 0xd65a11cc
-	InputPrivacyKeyChatInvite      InputPrivacyKey = 0xbdfb0426
-	InputPrivacyKeyForwards        InputPrivacyKey = 0xa4dd4c08
-	InputPrivacyKeyPhoneCall       InputPrivacyKey = 0xfabadc5f
-	InputPrivacyKeyPhoneNumber     InputPrivacyKey = 0x352dafa
-	InputPrivacyKeyPhoneP2P        InputPrivacyKey = 0xdb9e70d2
-	InputPrivacyKeyProfilePhoto    InputPrivacyKey = 0x5719bacc
-	InputPrivacyKeyStatusTimestamp InputPrivacyKey = 0x4f96cb18
-	InputPrivacyKeyVoiceMessages   InputPrivacyKey = 0xaee69d68
+	InputPrivacyKeyAbout             InputPrivacyKey = 0x3823cc40
+	InputPrivacyKeyAddedByPhone      InputPrivacyKey = 0xd1219bdd
+	InputPrivacyKeyBirthday          InputPrivacyKey = 0xd65a11cc
+	InputPrivacyKeyChatInvite        InputPrivacyKey = 0xbdfb0426
+	InputPrivacyKeyForwards          InputPrivacyKey = 0xa4dd4c08
+	InputPrivacyKeyPhoneCall         InputPrivacyKey = 0xfabadc5f
+	InputPrivacyKeyPhoneNumber       InputPrivacyKey = 0x352dafa
+	InputPrivacyKeyPhoneP2P          InputPrivacyKey = 0xdb9e70d2
+	InputPrivacyKeyProfilePhoto      InputPrivacyKey = 0x5719bacc
+	InputPrivacyKeyStarGiftsAutoSave InputPrivacyKey = 0xe1732341
+	InputPrivacyKeyStatusTimestamp   InputPrivacyKey = 0x4f96cb18
+	InputPrivacyKeyVoiceMessages     InputPrivacyKey = 0xaee69d68
 )
 
 func (e InputPrivacyKey) String() string {
@@ -128,6 +129,8 @@ func (e InputPrivacyKey) String() string {
 		return "inputPrivacyKeyPhoneP2P"
 	case InputPrivacyKey(0x5719bacc):
 		return "inputPrivacyKeyProfilePhoto"
+	case InputPrivacyKey(0xe1732341):
+		return "inputPrivacyKeyStarGiftsAutoSave"
 	case InputPrivacyKey(0x4f96cb18):
 		return "inputPrivacyKeyStatusTimestamp"
 	case InputPrivacyKey(0xaee69d68):
@@ -185,17 +188,18 @@ func (e PhoneCallDiscardReason) CRC() uint32 { return uint32(e) }
 type PrivacyKey uint32
 
 const (
-	PrivacyKeyAbout           PrivacyKey = 0xa486b761
-	PrivacyKeyAddedByPhone    PrivacyKey = 0x42ffd42b
-	PrivacyKeyBirthday        PrivacyKey = 0x2000a518
-	PrivacyKeyChatInvite      PrivacyKey = 0x500e6dfa
-	PrivacyKeyForwards        PrivacyKey = 0x69ec56a3
-	PrivacyKeyPhoneCall       PrivacyKey = 0x3d662b7b
-	PrivacyKeyPhoneNumber     PrivacyKey = 0xd19ae46d
-	PrivacyKeyPhoneP2P        PrivacyKey = 0x39491cc8
-	PrivacyKeyProfilePhoto    PrivacyKey = 0x96151fed
-	PrivacyKeyStatusTimestamp PrivacyKey = 0xbc2eab30
-	PrivacyKeyVoiceMessages   PrivacyKey = 0x697f414
+	PrivacyKeyAbout             PrivacyKey = 0xa486b761
+	PrivacyKeyAddedByPhone      PrivacyKey = 0x42ffd42b
+	PrivacyKeyBirthday          PrivacyKey = 0x2000a518
+	PrivacyKeyChatInvite        PrivacyKey = 0x500e6dfa
+	PrivacyKeyForwards          PrivacyKey = 0x69ec56a3
+	PrivacyKeyPhoneCall         PrivacyKey = 0x3d662b7b
+	PrivacyKeyPhoneNumber       PrivacyKey = 0xd19ae46d
+	PrivacyKeyPhoneP2P          PrivacyKey = 0x39491cc8
+	PrivacyKeyProfilePhoto      PrivacyKey = 0x96151fed
+	PrivacyKeyStarGiftsAutoSave PrivacyKey = 0x2ca4fdf8
+	PrivacyKeyStatusTimestamp   PrivacyKey = 0xbc2eab30
+	PrivacyKeyVoiceMessages     PrivacyKey = 0x697f414
 )
 
 func (e PrivacyKey) String() string {
@@ -218,6 +222,8 @@ func (e PrivacyKey) String() string {
 		return "privacyKeyPhoneP2P"
 	case PrivacyKey(0x96151fed):
 		return "privacyKeyProfilePhoto"
+	case PrivacyKey(0x2ca4fdf8):
+		return "privacyKeyStarGiftsAutoSave"
 	case PrivacyKey(0xbc2eab30):
 		return "privacyKeyStatusTimestamp"
 	case PrivacyKey(0x697f414):

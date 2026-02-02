@@ -3990,40 +3990,6 @@ func (c *Client) ChannelsCheckUsername(channel InputChannel, username string) (b
 	return resp, nil
 }
 
-type ChannelsClickSponsoredMessageParams struct {
-	Media      bool `tl:"flag:0,encoded_in_bitflags"`
-	Fullscreen bool `tl:"flag:1,encoded_in_bitflags"`
-	Channel    InputChannel
-	RandomID   []byte
-}
-
-func (*ChannelsClickSponsoredMessageParams) CRC() uint32 {
-	return 0x1445d75
-}
-
-func (*ChannelsClickSponsoredMessageParams) FlagIndex() int {
-	return 0
-}
-
-// Informs the server that the user has either:
-func (c *Client) ChannelsClickSponsoredMessage(media, fullscreen bool, channel InputChannel, randomID []byte) (bool, error) {
-	responseData, err := c.MakeRequest(&ChannelsClickSponsoredMessageParams{
-		Channel:    channel,
-		Fullscreen: fullscreen,
-		Media:      media,
-		RandomID:   randomID,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsClickSponsoredMessage")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type ChannelsConvertToGigagroupParams struct {
 	Channel InputChannel
 }
@@ -4855,28 +4821,6 @@ func (c *Client) ChannelsGetSendAs(peer InputPeer) (*ChannelsSendAsPeers, error)
 	return resp, nil
 }
 
-type ChannelsGetSponsoredMessagesParams struct {
-	Channel InputChannel
-}
-
-func (*ChannelsGetSponsoredMessagesParams) CRC() uint32 {
-	return 0xec210fbf
-}
-
-// Get a list of sponsored messages
-func (c *Client) ChannelsGetSponsoredMessages(channel InputChannel) (MessagesSponsoredMessages, error) {
-	responseData, err := c.MakeRequest(&ChannelsGetSponsoredMessagesParams{Channel: channel})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsGetSponsoredMessages")
-	}
-
-	resp, ok := responseData.(MessagesSponsoredMessages)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
 type ChannelsInviteToChannelParams struct {
 	Channel InputChannel
 	Users   []InputUser
@@ -5105,34 +5049,6 @@ func (c *Client) ChannelsReportSpam(channel InputChannel, participant InputPeer,
 	}
 
 	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type ChannelsReportSponsoredMessageParams struct {
-	Channel  InputChannel
-	RandomID []byte
-	Option   []byte
-}
-
-func (*ChannelsReportSponsoredMessageParams) CRC() uint32 {
-	return 0xaf8ff6b9
-}
-
-// Report a [sponsored message »](https://core.telegram.org/api/sponsored-messages), see [here »](https://core.telegram.org/api/sponsored-messages#reporting-sponsored-messages) for more info on the full flow.
-func (c *Client) ChannelsReportSponsoredMessage(channel InputChannel, randomID, option []byte) (ChannelsSponsoredMessageReportResult, error) {
-	responseData, err := c.MakeRequest(&ChannelsReportSponsoredMessageParams{
-		Channel:  channel,
-		Option:   option,
-		RandomID: randomID,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "sending ChannelsReportSponsoredMessage")
-	}
-
-	resp, ok := responseData.(ChannelsSponsoredMessageReportResult)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -5674,32 +5590,6 @@ func (c *Client) ChannelsUpdateUsername(channel InputChannel, username string) (
 	})
 	if err != nil {
 		return false, errors.Wrap(err, "sending ChannelsUpdateUsername")
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
-	}
-	return resp, nil
-}
-
-type ChannelsViewSponsoredMessageParams struct {
-	Channel  InputChannel
-	RandomID []byte
-}
-
-func (*ChannelsViewSponsoredMessageParams) CRC() uint32 {
-	return 0xbeaedb94
-}
-
-// Mark a specific sponsored message as read
-func (c *Client) ChannelsViewSponsoredMessage(channel InputChannel, randomID []byte) (bool, error) {
-	responseData, err := c.MakeRequest(&ChannelsViewSponsoredMessageParams{
-		Channel:  channel,
-		RandomID: randomID,
-	})
-	if err != nil {
-		return false, errors.Wrap(err, "sending ChannelsViewSponsoredMessage")
 	}
 
 	resp, ok := responseData.(bool)
@@ -7556,6 +7446,33 @@ func (c *Client) MessagesCheckChatInvite(hash string) (ChatInvite, error) {
 	return resp, nil
 }
 
+type MessagesCheckDownloadFileParamsParams struct {
+	Bot      InputUser
+	FileName string
+	URL      string
+}
+
+func (*MessagesCheckDownloadFileParamsParams) CRC() uint32 {
+	return 0x50077589
+}
+
+func (c *Client) MessagesCheckDownloadFileParams(bot InputUser, fileName, url string) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesCheckDownloadFileParamsParams{
+		Bot:      bot,
+		FileName: fileName,
+		URL:      url,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesCheckDownloadFileParams")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesCheckHistoryImportParams struct {
 	ImportHead string
 }
@@ -7679,6 +7596,39 @@ func (c *Client) MessagesClearRecentStickers(attached bool) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesClearRecentStickersParams{Attached: attached})
 	if err != nil {
 		return false, errors.Wrap(err, "sending MessagesClearRecentStickers")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesClickSponsoredMessageParams struct {
+	Media      bool `tl:"flag:0,encoded_in_bitflags"`
+	Fullscreen bool `tl:"flag:1,encoded_in_bitflags"`
+	Peer       InputPeer
+	RandomID   []byte
+}
+
+func (*MessagesClickSponsoredMessageParams) CRC() uint32 {
+	return 0xf093465
+}
+
+func (*MessagesClickSponsoredMessageParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesClickSponsoredMessage(media, fullscreen bool, peer InputPeer, randomID []byte) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesClickSponsoredMessageParams{
+		Fullscreen: fullscreen,
+		Media:      media,
+		Peer:       peer,
+		RandomID:   randomID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesClickSponsoredMessage")
 	}
 
 	resp, ok := responseData.(bool)
@@ -8461,6 +8411,7 @@ type MessagesForwardMessagesParams struct {
 	DropAuthor         bool `tl:"flag:11,encoded_in_bitflags"`
 	DropMediaCaptions  bool `tl:"flag:12,encoded_in_bitflags"`
 	Noforwards         bool `tl:"flag:14,encoded_in_bitflags"`
+	AllowPaidFloodskip bool `tl:"flag:19,encoded_in_bitflags"`
 	FromPeer           InputPeer
 	ID                 []int32
 	RandomID           []int64
@@ -10036,6 +9987,31 @@ func (c *Client) MessagesGetPollVotes(params *MessagesGetPollVotesParams) (*Mess
 	return resp, nil
 }
 
+type MessagesGetPreparedInlineMessageParams struct {
+	Bot InputUser
+	ID  string
+}
+
+func (*MessagesGetPreparedInlineMessageParams) CRC() uint32 {
+	return 0x857ebdb8
+}
+
+func (c *Client) MessagesGetPreparedInlineMessage(bot InputUser, id string) (*MessagesPreparedInlineMessage, error) {
+	responseData, err := c.MakeRequest(&MessagesGetPreparedInlineMessageParams{
+		Bot: bot,
+		ID:  id,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetPreparedInlineMessage")
+	}
+
+	resp, ok := responseData.(*MessagesPreparedInlineMessage)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesGetQuickRepliesParams struct {
 	Hash int64
 }
@@ -10476,6 +10452,27 @@ func (c *Client) MessagesGetSplitRanges() ([]*MessageRange, error) {
 	}
 
 	resp, ok := responseData.([]*MessageRange)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesGetSponsoredMessagesParams struct {
+	Peer InputPeer
+}
+
+func (*MessagesGetSponsoredMessagesParams) CRC() uint32 {
+	return 0x9bd2f439
+}
+
+func (c *Client) MessagesGetSponsoredMessages(peer InputPeer) (MessagesSponsoredMessages, error) {
+	responseData, err := c.MakeRequest(&MessagesGetSponsoredMessagesParams{Peer: peer})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetSponsoredMessages")
+	}
+
+	resp, ok := responseData.(MessagesSponsoredMessages)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -11483,9 +11480,37 @@ func (c *Client) MessagesReportSpam(peer InputPeer) (bool, error) {
 	return resp, nil
 }
 
+type MessagesReportSponsoredMessageParams struct {
+	Peer     InputPeer
+	RandomID []byte
+	Option   []byte
+}
+
+func (*MessagesReportSponsoredMessageParams) CRC() uint32 {
+	return 0x1af3dbb8
+}
+
+func (c *Client) MessagesReportSponsoredMessage(peer InputPeer, randomID, option []byte) (ChannelsSponsoredMessageReportResult, error) {
+	responseData, err := c.MakeRequest(&MessagesReportSponsoredMessageParams{
+		Option:   option,
+		Peer:     peer,
+		RandomID: randomID,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesReportSponsoredMessage")
+	}
+
+	resp, ok := responseData.(ChannelsSponsoredMessageReportResult)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesRequestAppWebViewParams struct {
 	WriteAllowed bool `tl:"flag:0,encoded_in_bitflags"`
 	Compact      bool `tl:"flag:7,encoded_in_bitflags"`
+	Fullscreen   bool `tl:"flag:8,encoded_in_bitflags"`
 	Peer         InputPeer
 	App          InputBotApp
 	StartParam   string    `tl:"flag:1"`
@@ -11545,6 +11570,7 @@ func (c *Client) MessagesRequestEncryption(userID InputUser, randomID int32, gA 
 
 type MessagesRequestMainWebViewParams struct {
 	Compact     bool `tl:"flag:7,encoded_in_bitflags"`
+	Fullscreen  bool `tl:"flag:8,encoded_in_bitflags"`
 	Peer        InputPeer
 	Bot         InputUser
 	StartParam  string    `tl:"flag:1"`
@@ -11578,6 +11604,7 @@ type MessagesRequestSimpleWebViewParams struct {
 	FromSwitchWebview bool `tl:"flag:1,encoded_in_bitflags"`
 	FromSideMenu      bool `tl:"flag:2,encoded_in_bitflags"`
 	Compact           bool `tl:"flag:7,encoded_in_bitflags"`
+	Fullscreen        bool `tl:"flag:8,encoded_in_bitflags"`
 	Bot               InputUser
 	URL               string    `tl:"flag:3"`
 	StartParam        string    `tl:"flag:4"`
@@ -11645,6 +11672,7 @@ type MessagesRequestWebViewParams struct {
 	FromBotMenu bool `tl:"flag:4,encoded_in_bitflags"`
 	Silent      bool `tl:"flag:5,encoded_in_bitflags"`
 	Compact     bool `tl:"flag:7,encoded_in_bitflags"`
+	Fullscreen  bool `tl:"flag:8,encoded_in_bitflags"`
 	Peer        InputPeer
 	Bot         InputUser
 	URL         string    `tl:"flag:1"`
@@ -12175,6 +12203,7 @@ type MessagesSendMediaParams struct {
 	Noforwards             bool `tl:"flag:14,encoded_in_bitflags"`
 	UpdateStickersetsOrder bool `tl:"flag:15,encoded_in_bitflags"`
 	InvertMedia            bool `tl:"flag:16,encoded_in_bitflags"`
+	AllowPaidFloodskip     bool `tl:"flag:19,encoded_in_bitflags"`
 	Peer                   InputPeer
 	ReplyTo                InputReplyTo `tl:"flag:0"`
 	Media                  InputMedia
@@ -12218,6 +12247,7 @@ type MessagesSendMessageParams struct {
 	Noforwards             bool `tl:"flag:14,encoded_in_bitflags"`
 	UpdateStickersetsOrder bool `tl:"flag:15,encoded_in_bitflags"`
 	InvertMedia            bool `tl:"flag:16,encoded_in_bitflags"`
+	AllowPaidFloodskip     bool `tl:"flag:19,encoded_in_bitflags"`
 	Peer                   InputPeer
 	ReplyTo                InputReplyTo `tl:"flag:0"`
 	Message                string
@@ -12259,6 +12289,7 @@ type MessagesSendMultiMediaParams struct {
 	Noforwards             bool `tl:"flag:14,encoded_in_bitflags"`
 	UpdateStickersetsOrder bool `tl:"flag:15,encoded_in_bitflags"`
 	InvertMedia            bool `tl:"flag:16,encoded_in_bitflags"`
+	AllowPaidFloodskip     bool `tl:"flag:19,encoded_in_bitflags"`
 	Peer                   InputPeer
 	ReplyTo                InputReplyTo `tl:"flag:0"`
 	MultiMedia             []*InputSingleMedia
@@ -13239,6 +13270,31 @@ func (c *Client) MessagesToggleStickerSets(uninstall, archive, unarchive bool, s
 	return resp, nil
 }
 
+type MessagesToggleUserEmojiStatusPermissionParams struct {
+	Bot     InputUser
+	Enabled bool
+}
+
+func (*MessagesToggleUserEmojiStatusPermissionParams) CRC() uint32 {
+	return 0x6de6392
+}
+
+func (c *Client) MessagesToggleUserEmojiStatusPermission(bot InputUser, enabled bool) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesToggleUserEmojiStatusPermissionParams{
+		Bot:     bot,
+		Enabled: enabled,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesToggleUserEmojiStatusPermission")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesTranscribeAudioParams struct {
 	Peer  InputPeer
 	MsgID int32
@@ -13545,6 +13601,31 @@ func (c *Client) MessagesUploadMedia(businessConnectionID string, peer InputPeer
 	}
 
 	resp, ok := responseData.(MessageMedia)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesViewSponsoredMessageParams struct {
+	Peer     InputPeer
+	RandomID []byte
+}
+
+func (*MessagesViewSponsoredMessageParams) CRC() uint32 {
+	return 0x673ad8f1
+}
+
+func (c *Client) MessagesViewSponsoredMessage(peer InputPeer, randomID []byte) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesViewSponsoredMessageParams{
+		Peer:     peer,
+		RandomID: randomID,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending MessagesViewSponsoredMessage")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -15753,12 +15834,12 @@ func (c *Client) SmsjobsUpdateSettings(allowInternational bool) (bool, error) {
 }
 
 type StatsGetBroadcastRevenueStatsParams struct {
-	Dark    bool `tl:"flag:0,encoded_in_bitflags"`
-	Channel InputChannel
+	Dark bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer InputPeer
 }
 
 func (*StatsGetBroadcastRevenueStatsParams) CRC() uint32 {
-	return 0x75dfb671
+	return 0xf788ee19
 }
 
 func (*StatsGetBroadcastRevenueStatsParams) FlagIndex() int {
@@ -15766,10 +15847,10 @@ func (*StatsGetBroadcastRevenueStatsParams) FlagIndex() int {
 }
 
 // Get [channel ad revenue statistics »](https://core.telegram.org/api/revenue).
-func (c *Client) StatsGetBroadcastRevenueStats(dark bool, channel InputChannel) (*StatsBroadcastRevenueStats, error) {
+func (c *Client) StatsGetBroadcastRevenueStats(dark bool, peer InputPeer) (*StatsBroadcastRevenueStats, error) {
 	responseData, err := c.MakeRequest(&StatsGetBroadcastRevenueStatsParams{
-		Channel: channel,
-		Dark:    dark,
+		Dark: dark,
+		Peer: peer,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending StatsGetBroadcastRevenueStats")
@@ -15783,21 +15864,21 @@ func (c *Client) StatsGetBroadcastRevenueStats(dark bool, channel InputChannel) 
 }
 
 type StatsGetBroadcastRevenueTransactionsParams struct {
-	Channel InputChannel
-	Offset  int32
-	Limit   int32
+	Peer   InputPeer
+	Offset int32
+	Limit  int32
 }
 
 func (*StatsGetBroadcastRevenueTransactionsParams) CRC() uint32 {
-	return 0x69280f
+	return 0x70990b6d
 }
 
 // Fetch [channel ad revenue transaction history »](https://core.telegram.org/api/revenue).
-func (c *Client) StatsGetBroadcastRevenueTransactions(channel InputChannel, offset, limit int32) (*StatsBroadcastRevenueTransactions, error) {
+func (c *Client) StatsGetBroadcastRevenueTransactions(peer InputPeer, offset, limit int32) (*StatsBroadcastRevenueTransactions, error) {
 	responseData, err := c.MakeRequest(&StatsGetBroadcastRevenueTransactionsParams{
-		Channel: channel,
-		Limit:   limit,
-		Offset:  offset,
+		Limit:  limit,
+		Offset: offset,
+		Peer:   peer,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending StatsGetBroadcastRevenueTransactions")
@@ -15811,19 +15892,19 @@ func (c *Client) StatsGetBroadcastRevenueTransactions(channel InputChannel, offs
 }
 
 type StatsGetBroadcastRevenueWithdrawalURLParams struct {
-	Channel  InputChannel
+	Peer     InputPeer
 	Password InputCheckPasswordSRP
 }
 
 func (*StatsGetBroadcastRevenueWithdrawalURLParams) CRC() uint32 {
-	return 0x2a65ef73
+	return 0x9df4faad
 }
 
 // Withdraw funds from a channel's [ad revenue balance »](https://core.telegram.org/api/revenue).
-func (c *Client) StatsGetBroadcastRevenueWithdrawalURL(channel InputChannel, password InputCheckPasswordSRP) (*StatsBroadcastRevenueWithdrawalURL, error) {
+func (c *Client) StatsGetBroadcastRevenueWithdrawalURL(peer InputPeer, password InputCheckPasswordSRP) (*StatsBroadcastRevenueWithdrawalURL, error) {
 	responseData, err := c.MakeRequest(&StatsGetBroadcastRevenueWithdrawalURLParams{
-		Channel:  channel,
 		Password: password,
+		Peer:     peer,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "sending StatsGetBroadcastRevenueWithdrawalURL")
@@ -16854,12 +16935,13 @@ func (c *Client) StoriesReport(peer InputPeer, id []int32, option []byte, messag
 type StoriesSearchPostsParams struct {
 	Hashtag string    `tl:"flag:0"`
 	Area    MediaArea `tl:"flag:1"`
+	Peer    InputPeer `tl:"flag:2"`
 	Offset  string
 	Limit   int32
 }
 
 func (*StoriesSearchPostsParams) CRC() uint32 {
-	return 0x6cea116a
+	return 0xd1810907
 }
 
 func (*StoriesSearchPostsParams) FlagIndex() int {
@@ -16867,13 +16949,8 @@ func (*StoriesSearchPostsParams) FlagIndex() int {
 }
 
 // Globally search for [stories](https://core.telegram.org/api/stories) using a hashtag or a [location media area](https://core.telegram.org/api/stories#location-tags), see [here »](https://core.telegram.org/api/stories#searching-stories) for more info on the full flow.
-func (c *Client) StoriesSearchPosts(hashtag string, area MediaArea, offset string, limit int32) (*StoriesFoundStories, error) {
-	responseData, err := c.MakeRequest(&StoriesSearchPostsParams{
-		Area:    area,
-		Hashtag: hashtag,
-		Limit:   limit,
-		Offset:  offset,
-	})
+func (c *Client) StoriesSearchPosts(params *StoriesSearchPostsParams) (*StoriesFoundStories, error) {
+	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, errors.Wrap(err, "sending StoriesSearchPosts")
 	}
