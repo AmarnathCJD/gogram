@@ -54,6 +54,7 @@ Set-Up Client
          AppID: 0, 
          AppHash: "", 
     })
+    client.Connect()
     client.LoginBot(botToken) // client.Login(phoneNumber)
     client.Idle() // start infinite polling
 
@@ -73,29 +74,38 @@ Doing stuff
 
     message, _ := client.SendMessage("username", "Hello I'm talking to you from gogram!")
     message.Edit("Yep!")
+
     album, _ := client.SendAlbum("username", []string{'file1.jpg', 'file2.jpg'})
     message.GetMediaGroup()
 
     message.ReplyMedia(url, opts)
+
     client.DeleteMessage("username", message.ID)
+
     message.ForwardTo(message.ChatID())
     peer := client.ResolvePeer("username")
     client.GetParticipant("chat", "user")
+
     client.EditAdmin(chatID, userID, &telegram.AdminOptions{
         AdminRights: &telegram.ChatAdminRights{
             AddAdmins: true,
         },
         Rank: "Admin",
     })
+
     client.GetMessages(chatID, &telegram.SearchOptions{Limit: 1})
+
     action, _ := client.SendAction(chat, "typing")
     defer action.Cancel()
+
     client.KickParticipant(chatID, userID)
     client.EditBanned(chatID, userID, &telegram.BannedOptions{Mute: true})
     client.DownloadMedia(message, "download.jpg")
     client.EditTitle("me", "MyNewAmazingName")
-    client.UploadFile("file.txt", true) // Multithreaded upload
+
+    client.UploadFile("file.txt")
     p := client.GetParticipant("chat", "user")
+
     p.CanChangeInfo()
     p.GetRank()
     client.InlineQuery("@pic", &telegram.InlineOptions{Query: "", Dialog: "@chat"})
@@ -108,6 +118,7 @@ Doing stuff
     conv.GetResponse()
     
     client.CreateChannel("Title")
+    
     albumHandle := client.AddAlbumHandler(func (a *telegram.Album) error {
            fmt.Println(a.GroupedID)
            a.Forward(chat_id)

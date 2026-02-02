@@ -36,7 +36,7 @@ type SendOptions struct {
 //	 - Opts: Optional parameters.
 func (c *Client) SendMessage(peerID interface{}, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &SendOptions{}).(*SendOptions)
-	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode)
+	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string
@@ -111,7 +111,7 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 // This method is a wrapper for messages.editMessage.
 func (c *Client) EditMessage(peerID interface{}, id int32, message interface{}, opts ...*SendOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &SendOptions{}).(*SendOptions)
-	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode)
+	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string
@@ -213,9 +213,11 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 		dcID = id.DcID
 	}
 	if dcID != int32(c.GetDC()) {
-		newSender, _ := c.ExportSender(int(dcID))
-		editTrue, err = newSender.MessagesEditInlineBotMessage(editRequest)
-		newSender.Terminate()
+		borrowedSender, borrowError := c.borrowSender(int(dcID))
+		if borrowError != nil {
+			return nil, borrowError
+		}
+		editTrue, err = borrowedSender.MessagesEditInlineBotMessage(editRequest)
 	} else {
 		editTrue, err = c.MessagesEditInlineBotMessage(editRequest)
 	}
@@ -264,7 +266,7 @@ type MediaMetadata struct {
 //	 - Opts: Optional parameters.
 func (c *Client) SendMedia(peerID interface{}, Media interface{}, opts ...*MediaOptions) (*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
-	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode)
+	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string
@@ -329,7 +331,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 //	 - Opts: Optional parameters.
 func (c *Client) SendAlbum(peerID interface{}, Album interface{}, opts ...*MediaOptions) ([]*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{}).(*MediaOptions)
-	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode)
+	opt.ParseMode = getStr(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
 		textMessage string

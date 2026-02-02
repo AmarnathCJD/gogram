@@ -64,25 +64,25 @@ func (l *Logger) SetLevel(level string) *Logger {
 // Log logs a message at the given level.
 func (l *Logger) Error(v ...any) {
 	if l.Level <= ErrorLevel {
-		log.Println(l.Prefix, "[ERROR]", getVariable(v...))
+		log.Println(l.Prefix, "- <error> -", getVariable(v...))
 	}
 }
 
 func (l *Logger) Warn(v ...any) {
 	if l.Level <= WarnLevel {
-		log.Println(l.Prefix, "[WARN]", getVariable(v...))
+		log.Println(l.Prefix, "- <warn> -", getVariable(v...))
 	}
 }
 
 func (l *Logger) Info(v ...any) {
 	if l.Level <= InfoLevel {
-		log.Println(l.Prefix, "[INFO]", getVariable(v...))
+		log.Println(l.Prefix, "- <info> -", getVariable(v...))
 	}
 }
 
 func (l *Logger) Debug(v ...any) {
 	if l.Level <= DebugLevel {
-		log.Println(l.Prefix, "[DEBUG]", getVariable(v...))
+		log.Println(l.Prefix, "- <debug> -", getVariable(v...))
 	}
 }
 

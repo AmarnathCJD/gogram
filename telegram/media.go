@@ -125,30 +125,16 @@ func (u *Uploader) Init() error {
 }
 
 func (u *Uploader) allocateWorkers() {
-	genNewSender := func(c *Client) *Client {
-		cli, err := c.ExportSender(c.GetDC())
-		if err != nil {
-			c.Log.Error(err)
-			return nil
-		}
-		return cli
+	borrowedSenders, err := u.Client.BorrowExportedSenders(u.Client.GetDC(), u.Worker)
+	if err != nil {
+		panic(err)
 	}
-	u.Client.Log.Debug("Allocating Upload Workers; ", u.Worker)
-	for i := 0; i < u.Worker; i++ {
-		newSender := genNewSender(u.Client)
-		if newSender == nil {
-			continue
-		}
-		u.Workers = append(u.Workers, newSender)
-	}
+	u.Workers = borrowedSenders
+
 	u.Client.Log.Debug("Allocated workers: ", len(u.Workers))
 }
 
-func (u *Uploader) closeWorkers() {
-	for _, w := range u.Workers {
-		w.Terminate()
-	}
-}
+func (u *Uploader) closeWorkers() {}
 
 func (u *Uploader) saveFile() (InputFile, error) {
 	if u.Meta.Big {
@@ -378,7 +364,7 @@ func (d *Downloader) onError() {
 
 func (d *Downloader) allocateWorkers() {
 	if d.Worker == 1 {
-		wNew, err := d.Client.ExportSender(int(d.DcID))
+		wNew, err := d.Client.borrowSender(int(d.DcID))
 		if err != nil {
 			d.Client.Log.Error(err)
 		}
@@ -386,17 +372,11 @@ func (d *Downloader) allocateWorkers() {
 		return
 	}
 	wg := &sync.WaitGroup{}
-	for i := 0; i < d.Worker; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			w, err := d.Client.ExportSender(int(d.DcID))
-			if err != nil {
-				d.onError()
-			}
-			d.Workers = append(d.Workers, w)
-		}()
+	bs, err := d.Client.BorrowExportedSenders(int(d.DcID), d.Worker)
+	if err != nil {
+		d.Client.Log.Error(err)
 	}
+	d.Workers = bs
 	wg.Wait()
 }
 

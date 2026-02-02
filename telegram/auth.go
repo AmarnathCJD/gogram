@@ -22,16 +22,16 @@ const (
 
 // Authorize client with bot token
 func (c *Client) LoginBot(botToken string) error {
-	if au, _ := c.IsUserAuthorized(); au {
+	if au, _ := c.IsAuthorized(); au {
 		return nil
 	}
-	_, err := c.AuthImportBotAuthorization(1, c.AppID, c.ApiHash, botToken)
+	_, err := c.AuthImportBotAuthorization(1, c.AppID(), c.AppHash(), botToken)
 	if err == nil {
-		c.bot = true
+		// c.bot = true
 	}
-	if au, e := c.IsUserAuthorized(); !au {
+	if au, e := c.IsAuthorized(); !au {
 		if dc, code := getErrorCode(e); code == 303 {
-			err = c.SwitchDC(dc)
+			err = c.switchDC(dc)
 			if err != nil {
 				return err
 			}
@@ -43,13 +43,13 @@ func (c *Client) LoginBot(botToken string) error {
 
 // sendCode and return phoneCodeHash
 func (c *Client) SendCode(phoneNumber string) (hash string, err error) {
-	resp, err := c.AuthSendCode(phoneNumber, c.AppID, c.ApiHash, &CodeSettings{
+	resp, err := c.AuthSendCode(phoneNumber, c.AppID(), c.AppHash(), &CodeSettings{
 		AllowAppHash:  true,
 		CurrentNumber: true,
 	})
 	if err != nil {
 		if dc, code := getErrorCode(err); code == 303 {
-			err = c.SwitchDC(dc)
+			err = c.switchDC(dc)
 			if err != nil {
 				return "", err
 			}
@@ -72,7 +72,7 @@ type LoginOptions struct {
 // Authorize client with phone number, code and phone code hash,
 // If phone code hash is empty, it will be requested from telegram server
 func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, error) {
-	if au, _ := c.IsUserAuthorized(); au {
+	if au, _ := c.IsAuthorized(); au {
 		return true, nil
 	}
 	var opts *LoginOptions
@@ -175,7 +175,7 @@ AuthResultSwitch:
 	case *AuthAuthorizationObj:
 		switch u := auth.User.(type) {
 		case *UserObj:
-			c.bot = u.Bot
+			// c.bot = u.Bot
 			c.Cache.UpdateUser(u)
 		case *UserEmpty:
 			return false, errors.New("user is empty")
@@ -322,14 +322,14 @@ func (q *QrToken) Wait(timeout ...int32) error {
 	select {
 	case <-ch:
 		go ev.Remove()
-		resp, err := q.client.AuthExportLoginToken(q.client.AppID, q.client.ApiHash, q.IgnoredIDs)
+		resp, err := q.client.AuthExportLoginToken(q.client.AppID(), q.client.AppHash(), q.IgnoredIDs)
 		if err != nil {
 			return err
 		}
 	QrResponseSwitch:
 		switch req := resp.(type) {
 		case *AuthLoginTokenMigrateTo:
-			q.client.SwitchDC(int(req.DcID))
+			q.client.switchDC(int(req.DcID))
 			resp, err = q.client.AuthImportLoginToken(req.Token)
 			if err != nil {
 				return err
@@ -340,7 +340,7 @@ func (q *QrToken) Wait(timeout ...int32) error {
 			case *AuthAuthorizationObj:
 				switch u := u.User.(type) {
 				case *UserObj:
-					q.client.bot = u.Bot
+					// q.client.bot = u.Bot
 					q.client.Cache.UpdateUser(u)
 				case *UserEmpty:
 					return errors.New("authorization user is empty")
@@ -358,7 +358,7 @@ func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 	// Get QR code
 	var ignoreIDs []int64
 	ignoreIDs = append(ignoreIDs, IgnoreIDs...)
-	qr, err := c.AuthExportLoginToken(c.AppID, c.ApiHash, ignoreIDs)
+	qr, err := c.AuthExportLoginToken(c.AppID(), c.AppHash(), ignoreIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +368,7 @@ func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 	)
 	switch qr := qr.(type) {
 	case *AuthLoginTokenMigrateTo:
-		c.SwitchDC(int(qr.DcID))
+		c.switchDC(int(qr.DcID))
 		return c.QRLogin(IgnoreIDs...)
 	case *AuthLoginTokenObj:
 		qrToken = qr.Token
@@ -388,7 +388,7 @@ func (c *Client) QRLogin(IgnoreIDs ...int64) (*QrToken, error) {
 // Logs out from the current account
 func (c *Client) LogOut() error {
 	_, err := c.AuthLogOut()
-	c.bot = false
+	// c.bot = false
 	c.MTProto.DeleteSession()
 	return err
 }

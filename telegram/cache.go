@@ -93,7 +93,7 @@ func NewCache() *CACHE {
 			InputUsers:    make(map[int64]*InputPeerUser),
 			InputChats:    make(map[int64]*InputPeerChat),
 		},
-		logger: utils.NewLogger("Cache").SetLevel(LIB_LOG_LEVEL),
+		logger: utils.NewLogger("cache").SetLevel(LIB_LOG_LEVEL),
 	}
 	c.loadFromFile()
 	go c.periodicallyFlushToFile()

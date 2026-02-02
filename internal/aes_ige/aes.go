@@ -10,6 +10,7 @@ import (
 	"math/big"
 
 	"github.com/amarnathcjd/gogram/internal/utils"
+	"github.com/pkg/errors"
 )
 
 type AesBlock [aes.BlockSize]byte
@@ -112,12 +113,15 @@ func doAES256IGEdecrypt(data, out, key, iv []byte) error {
 }
 
 // DecryptMessageWithTempKeys дешифрует сообщение паролем, которые получены в процессе обмена ключами диффи хеллмана
-func DecryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) []byte {
-	key, iv := generateTempKeys(nonceSecond, nonceServer)
+func DecryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) ([]byte, error) {
+	key, iv, errTemp := generateTempKeys(nonceSecond, nonceServer)
+	if errTemp != nil {
+		return nil, errTemp
+	}
 	decodedWithHash := make([]byte, len(msg))
 	err := doAES256IGEdecrypt(msg, decodedWithHash, key, iv)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	// decodedWithHash := SHA1(answer) + answer + (0-15 рандомных байт); длина должна делиться на 16;
@@ -127,15 +131,15 @@ func DecryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) [
 	// режем последние 0-15 байт ориентируюясь по хешу
 	for i := len(decodedMessage) - 1; i > len(decodedMessage)-16; i-- {
 		if bytes.Equal(decodedHash, utils.Sha1Byte(decodedMessage[:i])) {
-			return decodedMessage[:i]
+			return decodedMessage[:i], nil
 		}
 	}
 
-	panic("couldn't trim message: hashes incompatible on more than 16 tries")
+	return nil, errors.New("couldn't trim message: hashes incompatible on more than 16 tries")
 }
 
 // EncryptMessageWithTempKeys шифрует сообщение паролем, которые получены в процессе обмена ключами диффи хеллмана
-func EncryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) []byte {
+func EncryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) ([]byte, error) {
 	hash := utils.Sha1Byte(msg)
 
 	// добавляем остаток рандомных байт в сообщение, что бы суммарно оно делилось на 16
@@ -147,26 +151,29 @@ func EncryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) [
 	return encryptMessageWithTempKeys(msg, nonceSecond, nonceServer)
 }
 
-func encryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) []byte {
-	key, iv := generateTempKeys(nonceSecond, nonceServer)
+func encryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) ([]byte, error) {
+	key, iv, errTemp := generateTempKeys(nonceSecond, nonceServer)
+	if errTemp != nil {
+		return nil, errTemp
+	}
 
 	encodedWithHash := make([]byte, len(msg))
 	err := doAES256IGEencrypt(msg, encodedWithHash, key, iv)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return encodedWithHash
+	return encodedWithHash, nil
 }
 
 // https://tlgrm.ru/docs/mtproto/auth_key#server-otvecaet-dvuma-sposobami
 // generateTempKeys генерирует временные ключи для шифрования в процессе обемна ключами.
-func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte) {
+func generateTempKeys(nonceSecond, nonceServer *big.Int) (key []byte, iv []byte, err error) {
 	if nonceSecond == nil {
-		panic("nonceSecond is nil")
+		return nil, nil, errors.New("nonceSecond is nil")
 	}
 	if nonceServer == nil {
-		panic("nonceServer is nil")
+		return nil, nil, errors.New("nonceServer is nil")
 	}
 
 	// nonceSecond + nonceServer
@@ -204,5 +211,5 @@ func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte) {
 	// substr (nonceSecond, 0, 4)
 	copy(tmpAESIV[28:], nonceSecond.Bytes()[0:4])
 
-	return tmpAESKey, tmpAESIV
+	return tmpAESKey, tmpAESIV, nil
 }
