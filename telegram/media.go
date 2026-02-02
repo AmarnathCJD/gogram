@@ -300,9 +300,9 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	}
 
 	// destroy created workers
-	for _, worker := range w.workers {
-		worker.Terminate()
-	}
+	// for _, worker := range w.workers {
+	// 	worker.Terminate()
+	// }
 
 	if opts.FileName != "" {
 		fileName = opts.FileName
@@ -636,9 +636,9 @@ retrySinglePart:
 	}
 
 	// destroy created workers
-	for _, worker := range w.workers {
-		worker.Terminate()
-	}
+	// for _, worker := range w.workers {
+	// 	worker.Terminate()
+	// }
 
 	return dest, nil
 }
@@ -668,9 +668,23 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) {
 		}
 	}
 
-	for i := 0; i < numWorkers; i++ {
+	numCreate := 0
+	for dcId, workers := range c.exSenders {
+		if int(dc) == dcId {
+			for _, worker := range workers {
+				w.AddWorker(worker)
+				numCreate++
+			}
+		}
+	}
+
+	for i := numCreate; i < numWorkers; i++ {
 		conn, err := c.CreateExportedSender(int(dc), false, authParams)
 		if conn != nil && err == nil {
+			if c.exSenders == nil {
+				c.exSenders = make(map[int][]*mtproto.MTProto)
+			}
+			c.exSenders[int(dc)] = append(c.exSenders[int(dc)], conn)
 			w.AddWorker(conn)
 		}
 	}

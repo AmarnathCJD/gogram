@@ -27,7 +27,8 @@ import (
 
 const (
 	// The Initial DC to connect to, before auth
-	DefaultDataCenter = 4
+	DefaultDataCenter         = 4
+	CleanExportedSendersDelay = 5 * time.Minute
 )
 
 type clientData struct {
@@ -52,6 +53,7 @@ type Client struct {
 	dispatcher *UpdateDispatcher
 	wg         sync.WaitGroup
 	stopCh     chan struct{}
+	exSenders  map[int][]*mtproto.MTProto
 	Log        *utils.Logger
 }
 
@@ -255,6 +257,17 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 	} else {
 		c.Log.SetLevel(c.clientData.logLevel)
 	}
+
+	go func() {
+		for {
+			select {
+			case <-c.stopCh:
+				return
+			case <-time.After(CleanExportedSendersDelay):
+				c.cleanExportedSenders()
+			}
+		}
+	}()
 }
 
 // initialRequest sends the initial initConnection request
@@ -400,6 +413,18 @@ func (c *Client) Me() *UserObj {
 type ExportedAuthParams struct {
 	ID    int64
 	Bytes []byte
+}
+
+func (c *Client) cleanExportedSenders() {
+	c.Log.Debug("cleaning exported senders")
+	for dcID, sender := range c.exSenders {
+		for _, s := range sender {
+			if s != nil {
+				s.Terminate()
+			}
+		}
+		delete(c.exSenders, dcID)
+	}
 }
 
 // CreateExportedSender creates a new exported sender for the given DC

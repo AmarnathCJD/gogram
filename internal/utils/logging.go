@@ -113,7 +113,7 @@ func (l *Logger) Trace(v ...any) {
 }
 
 func (l *Logger) Panic(v ...any) {
-	stack := make([]byte, 1536)
+	stack := make([]byte, 2048)
 	runtime.Stack(stack, false)
 
 	log.Println(l.colorize(colorCyan, "[panic]"), l.Prefix, "-", getVariable(v...), "\n", l.colorize(colorOrange, string(stack)))
