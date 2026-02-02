@@ -485,7 +485,7 @@ var errorMessages = map[string]string{
 	// next errors was found, but they're too strange and looks like misspelling
 	// "FILE_REFERENCE_*":                  "The file reference expired, it must be refreshed",
 	//! pony floodwait https://core.telegram.org/method/messages.forwardMessages
-	// "P0NY_FLOODWAIT":                    " ", //! No any description provided
+	// "P0NY_FLOODWAIT":                    " ", //! No any description provided
 	// "INPUT_METHOD_INVALID_1192227_X":    "Invalid method",
 	// "INPUT_METHOD_INVALID_1400137063_X": "Invalid method",
 	// "INPUT_METHOD_INVALID_1604042050_X": "Invalid method",
@@ -539,6 +539,14 @@ const (
 	ErrBadMsgInvalidContainer    BadSystemMessageCode = 64
 )
 
-func (e *BadMsgError) GetError() string {
-	return badMsgErrorCodes[uint8(e.Code)]
+// internal errors for internal purposes
+
+type errorSessionConfigsChanged null
+
+func (*errorSessionConfigsChanged) Error() string {
+	return "session configuration was changed, need to repeat request"
+}
+
+func (*errorSessionConfigsChanged) CRC() uint32 {
+	panic("makes no sense")
 }

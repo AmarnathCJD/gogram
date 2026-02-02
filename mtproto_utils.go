@@ -1,15 +1,10 @@
-// Copyright (c) 2020-2021 KHS Films
-//
-// This file is a part of mtproto package.
-// See https://github.com/amarnathcjd/gogramblob/master/LICENSE for details
-
 package mtproto
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
 	"github.com/amarnathcjd/gogram/internal/session"
 	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/pkg/errors"
@@ -24,7 +19,6 @@ func (m *MTProto) GetSessionID() int64 {
 
 // GetSeqNo returns seqno 🧐
 func (m *MTProto) GetSeqNo() int32 {
-	fmt.Println("seqno:", m.seqNo)
 	return m.seqNo
 }
 
@@ -56,6 +50,26 @@ func (m *MTProto) MakeRequestWithHintToDecoder(msg tl.Object, expectedTypes ...r
 
 func (m *MTProto) AddCustomServerRequestHandler(handler customHandlerFunc) {
 	m.serverRequestHandlers = append(m.serverRequestHandlers, handler)
+}
+
+// methods (or functions, you name it), which are taken from here https://core.telegram.org/schema/mtproto
+// in fact, these ones are "aliases" of the methods of the described objects (which
+// are in internal/mtproto/objects). The idea is taken from github.com/xelaj/vk
+
+func (m *MTProto) reqPQ(nonce *tl.Int128) (*objects.ResPQ, error) {
+	return objects.ReqPQ(m, nonce)
+}
+
+func (m *MTProto) reqDHParams(nonce, serverNonce *tl.Int128, p, q []byte, publicKeyFingerprint int64, encryptedData []byte) (objects.ServerDHParams, error) {
+	return objects.ReqDHParams(m, nonce, serverNonce, p, q, publicKeyFingerprint, encryptedData)
+}
+
+func (m *MTProto) setClientDHParams(nonce, serverNonce *tl.Int128, encryptedData []byte) (objects.SetClientDHParamsAnswer, error) {
+	return objects.SetClientDHParams(m, nonce, serverNonce, encryptedData)
+}
+
+func (m *MTProto) ping(pingID int64) (*objects.Pong, error) {
+	return objects.Ping(m, pingID)
 }
 
 func (m *MTProto) warnError(err error) {
