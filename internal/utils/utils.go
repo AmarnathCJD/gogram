@@ -29,14 +29,14 @@ func (*PingParams) CRC() uint32 {
 	return 0x7abe77ec
 }
 
-func GenerateMessageId(prevID int64) int64 {
+func GenerateMessageId(prevID int64, offset int64) int64 {
 	const billion = 1000 * 1000 * 1000
-	unixnano := time.Now().UnixNano()
+	unixnano := time.Now().UnixNano() + (offset * billion)
 	seconds := unixnano / billion
 	nanoseconds := unixnano % billion
 	newID := (seconds << 32) | (nanoseconds & -4)
 	if newID <= prevID {
-		return GenerateMessageId(prevID)
+		return GenerateMessageId(prevID, offset)
 	}
 	return newID
 }
