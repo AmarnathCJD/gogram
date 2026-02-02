@@ -7582,6 +7582,36 @@ func (*PageListOrderedItemText) CRC() uint32 {
 
 func (*PageListOrderedItemText) ImplementsPageListOrderedItem() {}
 
+type PaidReactionPrivacy interface {
+	tl.Object
+	ImplementsPaidReactionPrivacy()
+}
+type PaidReactionPrivacyAnonymous struct{}
+
+func (*PaidReactionPrivacyAnonymous) CRC() uint32 {
+	return 0x1f0c1ad9
+}
+
+func (*PaidReactionPrivacyAnonymous) ImplementsPaidReactionPrivacy() {}
+
+type PaidReactionPrivacyDefault struct{}
+
+func (*PaidReactionPrivacyDefault) CRC() uint32 {
+	return 0x206ad49e
+}
+
+func (*PaidReactionPrivacyDefault) ImplementsPaidReactionPrivacy() {}
+
+type PaidReactionPrivacyPeer struct {
+	Peer InputPeer
+}
+
+func (*PaidReactionPrivacyPeer) CRC() uint32 {
+	return 0xdc6cfcf0
+}
+
+func (*PaidReactionPrivacyPeer) ImplementsPaidReactionPrivacy() {}
+
 type PasswordKdfAlgo interface {
 	tl.Object
 	ImplementsPasswordKdfAlgo()
@@ -9258,10 +9288,11 @@ type StarGiftUnique struct {
 	Attributes         []StarGiftAttribute
 	AvailabilityIssued int32
 	AvailabilityTotal  int32
+	GiftAddress        string `tl:"flag:3"`
 }
 
 func (*StarGiftUnique) CRC() uint32 {
-	return 0xf2fe7e4a
+	return 0x5c62d151
 }
 
 func (*StarGiftUnique) FlagIndex() int {
@@ -10926,11 +10957,11 @@ func (*UpdateNotifySettings) ImplementsUpdate() {}
 
 // Contains the current default paid reaction privacy, see here » for more info.
 type UpdatePaidReactionPrivacy struct {
-	Private bool // Whether paid reaction privacy is enabled or disabled.
+	Privacy PaidReactionPrivacy // Whether paid reaction privacy is enabled or disabled.
 }
 
 func (*UpdatePaidReactionPrivacy) CRC() uint32 {
-	return 0x51ca7aec
+	return 0x8b725fce
 }
 
 func (*UpdatePaidReactionPrivacy) ImplementsUpdate() {}
@@ -12176,55 +12207,26 @@ type WebPage interface {
 
 // Webpage preview
 type WebPageObj struct {
-	HasLargeMedia bool   `tl:"flag:13,encoded_in_bitflags"` // Whether the size of the media in the preview can be changed.
-	ID            int64  // Preview ID
-	URL           string // URL of previewed webpage
-	DisplayURL    string // Webpage URL to be displayed to the user
-	Hash          int32  // Hash used for caching, for more info click here
-	Type          string `tl:"flag:0"` /*
-		Type of the web page. One of the following: <!-- start type -->
-
-		- video
-		- gif
-		- photo
-		- document
-		- profile
-		- telegram_background
-		- telegram_theme
-		- telegram_story
-		- telegram_channel
-		- telegram_channel_request
-		- telegram_megagroup
-		- telegram_chat
-		- telegram_megagroup_request
-		- telegram_chat_request
-		- telegram_album
-		- telegram_message
-		- telegram_bot
-		- telegram_voicechat
-		- telegram_livestream
-		- telegram_user
-		- telegram_botapp
-		- telegram_channel_boost
-		- telegram_group_boost
-		- telegram_giftcode
-		- telegram_stickerset
-
-		<!-- end type -->
-	*/
-	SiteName    string             `tl:"flag:1"`  // Short name of the site (e.g., Google Docs, App Store)
-	Title       string             `tl:"flag:2"`  // Title of the content
-	Description string             `tl:"flag:3"`  // Content description
-	Photo       Photo              `tl:"flag:4"`  // Image representing the content
-	EmbedURL    string             `tl:"flag:5"`  // URL to show in the embedded preview
-	EmbedType   string             `tl:"flag:5"`  // MIME type of the embedded preview, (e.g., text/html or video/mp4)
-	EmbedWidth  int32              `tl:"flag:6"`  // Width of the embedded preview
-	EmbedHeight int32              `tl:"flag:6"`  // Height of the embedded preview
-	Duration    int32              `tl:"flag:7"`  // Duration of the content, in seconds
-	Author      string             `tl:"flag:8"`  // Author of the content
-	Document    Document           `tl:"flag:9"`  // Preview of the content as a media file
-	CachedPage  *Page              `tl:"flag:10"` // Page contents in instant view format
-	Attributes  []WebPageAttribute `tl:"flag:12"` // Webpage attributes
+	HasLargeMedia   bool `tl:"flag:13,encoded_in_bitflags"`
+	VideoCoverPhoto bool `tl:"flag:14,encoded_in_bitflags"`
+	ID              int64
+	URL             string
+	DisplayURL      string
+	Hash            int32
+	Type            string             `tl:"flag:0"`
+	SiteName        string             `tl:"flag:1"`
+	Title           string             `tl:"flag:2"`
+	Description     string             `tl:"flag:3"`
+	Photo           Photo              `tl:"flag:4"`
+	EmbedURL        string             `tl:"flag:5"`
+	EmbedType       string             `tl:"flag:5"`
+	EmbedWidth      int32              `tl:"flag:6"`
+	EmbedHeight     int32              `tl:"flag:6"`
+	Duration        int32              `tl:"flag:7"`
+	Author          string             `tl:"flag:8"`
+	Document        Document           `tl:"flag:9"`
+	CachedPage      *Page              `tl:"flag:10"`
+	Attributes      []WebPageAttribute `tl:"flag:12"`
 }
 
 func (*WebPageObj) CRC() uint32 {
