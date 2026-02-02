@@ -111,7 +111,6 @@ func (c *Client) Broadcast() (chan User, chan Chat, error) {
 		return nil, nil, err
 	}
 
-	var startPts int32 = 1
 	endPts := s.Pts
 
 	var users = make(map[int64]User)
@@ -120,16 +119,20 @@ func (c *Client) Broadcast() (chan User, chan Chat, error) {
 	var userChan = make(chan User, 100)
 	var chatChan = make(chan Chat, 100)
 
+	req := &UpdatesGetDifferenceParams{
+		Pts:           1,
+		Date:          1,
+		PtsLimit:      5000,
+		PtsTotalLimit: 2147483647, // max int32
+		Qts:           1,
+	}
+
 	go func() {
 		defer close(userChan)
 		defer close(chatChan)
 
-		for startPts < endPts {
-			updates, err := c.UpdatesGetDifference(&UpdatesGetDifferenceParams{
-				Pts:      startPts,
-				Date:     int32(time.Now().Unix()),
-				PtsLimit: 5000,
-			})
+		for req.Pts < endPts {
+			updates, err := c.UpdatesGetDifference(req)
 			if err != nil {
 				if handleIfFlood(err, c) {
 					continue
@@ -163,6 +166,10 @@ func (c *Client) Broadcast() (chan User, chan Chat, error) {
 						chats[cz.ID] = cz
 					}
 				}
+
+				req.Pts = u.State.Pts
+				req.Qts = u.State.Qts
+				req.Date = u.State.Date
 			case *UpdatesDifferenceSlice:
 				for _, user := range u.Users {
 					switch uz := user.(type) {
@@ -187,14 +194,17 @@ func (c *Client) Broadcast() (chan User, chan Chat, error) {
 						chats[cz.ID] = cz
 					}
 				}
+
+				req.Pts = u.IntermediateState.Pts
+				req.Qts = u.IntermediateState.Qts
+				req.Date = u.IntermediateState.Date
 			case *UpdatesDifferenceEmpty:
 				break
 			case *UpdatesDifferenceTooLong:
-				startPts = u.Pts
+				endPts = u.Pts
 			}
 
-			startPts += 5000
-			time.Sleep(250 * time.Millisecond)
+			time.Sleep(150 * time.Millisecond)
 		}
 	}()
 
