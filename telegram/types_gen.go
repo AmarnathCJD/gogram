@@ -50,15 +50,6 @@ func (*AccountAutoSaveSettings) CRC() uint32 {
 	return 0x4c3e069d
 }
 
-type AccountConnectedBots struct {
-	ConnectedBots []*ConnectedBot
-	Users         []User
-}
-
-func (*AccountConnectedBots) CRC() uint32 {
-	return 0x17d7f87b
-}
-
 type AccountContentSettings struct {
 	SensitiveEnabled   bool `tl:"flag:0,encoded_in_bitflags"`
 	SensitiveCanChange bool `tl:"flag:1,encoded_in_bitflags"`
@@ -430,84 +421,6 @@ func (*BotsBotInfo) CRC() uint32 {
 	return 0xe8a775b0
 }
 
-type BusinessAwayMessage struct {
-	OfflineOnly bool `tl:"flag:0,encoded_in_bitflags"`
-	ShortcutID  int32
-	Schedule    BusinessAwayMessageSchedule
-	Recipients  *BusinessRecipients
-}
-
-func (*BusinessAwayMessage) CRC() uint32 {
-	return 0xef156a5c
-}
-
-func (*BusinessAwayMessage) FlagIndex() int {
-	return 0
-}
-
-type BusinessGreetingMessage struct {
-	ShortcutID     int32
-	Recipients     *BusinessRecipients
-	NoActivityDays int32
-}
-
-func (*BusinessGreetingMessage) CRC() uint32 {
-	return 0xe519abab
-}
-
-type BusinessLocation struct {
-	GeoPoint GeoPoint `tl:"flag:0"`
-	Address  string
-}
-
-func (*BusinessLocation) CRC() uint32 {
-	return 0xac5c1af7
-}
-
-func (*BusinessLocation) FlagIndex() int {
-	return 0
-}
-
-type BusinessRecipients struct {
-	ExistingChats   bool    `tl:"flag:0,encoded_in_bitflags"`
-	NewChats        bool    `tl:"flag:1,encoded_in_bitflags"`
-	Contacts        bool    `tl:"flag:2,encoded_in_bitflags"`
-	NonContacts     bool    `tl:"flag:3,encoded_in_bitflags"`
-	ExcludeSelected bool    `tl:"flag:5,encoded_in_bitflags"`
-	Users           []int64 `tl:"flag:4"`
-}
-
-func (*BusinessRecipients) CRC() uint32 {
-	return 0x21108ff7
-}
-
-func (*BusinessRecipients) FlagIndex() int {
-	return 0
-}
-
-type BusinessWeeklyOpen struct {
-	StartMinute int32
-	EndMinute   int32
-}
-
-func (*BusinessWeeklyOpen) CRC() uint32 {
-	return 0x120b1ab9
-}
-
-type BusinessWorkHours struct {
-	OpenNow    bool `tl:"flag:0,encoded_in_bitflags"`
-	TimezoneID string
-	WeeklyOpen []*BusinessWeeklyOpen
-}
-
-func (*BusinessWorkHours) CRC() uint32 {
-	return 0x8c92b098
-}
-
-func (*BusinessWorkHours) FlagIndex() int {
-	return 0
-}
-
 type CdnConfig struct {
 	PublicKeys []*CdnPublicKey
 }
@@ -791,20 +704,6 @@ func (*Config) CRC() uint32 {
 }
 
 func (*Config) FlagIndex() int {
-	return 0
-}
-
-type ConnectedBot struct {
-	CanReply   bool `tl:"flag:0,encoded_in_bitflags"`
-	BotID      int64
-	Recipients *BusinessRecipients
-}
-
-func (*ConnectedBot) CRC() uint32 {
-	return 0xe7e999e7
-}
-
-func (*ConnectedBot) FlagIndex() int {
 	return 0
 }
 
@@ -1277,48 +1176,6 @@ type InputAppEvent struct {
 
 func (*InputAppEvent) CRC() uint32 {
 	return 0x1d1b1245
-}
-
-type InputBusinessAwayMessage struct {
-	OfflineOnly bool `tl:"flag:0,encoded_in_bitflags"`
-	ShortcutID  int32
-	Schedule    BusinessAwayMessageSchedule
-	Recipients  *InputBusinessRecipients
-}
-
-func (*InputBusinessAwayMessage) CRC() uint32 {
-	return 0x832175e0
-}
-
-func (*InputBusinessAwayMessage) FlagIndex() int {
-	return 0
-}
-
-type InputBusinessGreetingMessage struct {
-	ShortcutID     int32
-	Recipients     *InputBusinessRecipients
-	NoActivityDays int32
-}
-
-func (*InputBusinessGreetingMessage) CRC() uint32 {
-	return 0x194cb3b
-}
-
-type InputBusinessRecipients struct {
-	ExistingChats   bool        `tl:"flag:0,encoded_in_bitflags"`
-	NewChats        bool        `tl:"flag:1,encoded_in_bitflags"`
-	Contacts        bool        `tl:"flag:2,encoded_in_bitflags"`
-	NonContacts     bool        `tl:"flag:3,encoded_in_bitflags"`
-	ExcludeSelected bool        `tl:"flag:5,encoded_in_bitflags"`
-	Users           []InputUser `tl:"flag:4"`
-}
-
-func (*InputBusinessRecipients) CRC() uint32 {
-	return 0x6f8b32aa
-}
-
-func (*InputBusinessRecipients) FlagIndex() int {
-	return 0
 }
 
 type InputChatlistDialogFilter struct {
@@ -1811,19 +1668,6 @@ type MessagesCheckedHistoryImportPeer struct {
 
 func (*MessagesCheckedHistoryImportPeer) CRC() uint32 {
 	return 0xa24de717
-}
-
-type MessagesDialogFilters struct {
-	TagsEnabled bool `tl:"flag:0,encoded_in_bitflags"`
-	Filters     []DialogFilter
-}
-
-func (*MessagesDialogFilters) CRC() uint32 {
-	return 0x2ad93719
-}
-
-func (*MessagesDialogFilters) FlagIndex() int {
-	return 0
 }
 
 type MessagesDiscussionMessage struct {
@@ -2697,17 +2541,6 @@ func (*PrepaidGiveaway) CRC() uint32 {
 	return 0xb2539d54
 }
 
-type QuickReply struct {
-	ShortcutID int32
-	Shortcut   string
-	TopMessage int32
-	Count      int32
-}
-
-func (*QuickReply) CRC() uint32 {
-	return 0x697102b
-}
-
 type ReactionCount struct {
 	ChosenOrder int32 `tl:"flag:0"`
 	Reaction    Reaction
@@ -2898,44 +2731,6 @@ type SimpleWebViewResultURL struct {
 
 func (*SimpleWebViewResultURL) CRC() uint32 {
 	return 0x882f76bb
-}
-
-type SmsJob struct {
-	JobID       string
-	PhoneNumber string
-	Text        string
-}
-
-func (*SmsJob) CRC() uint32 {
-	return 0xe6a1eeb8
-}
-
-type SmsjobsEligibleToJoin struct {
-	TermsURL       string
-	MonthlySentSms int32
-}
-
-func (*SmsjobsEligibleToJoin) CRC() uint32 {
-	return 0xdc8b44cf
-}
-
-type SmsjobsStatus struct {
-	AllowInternational bool `tl:"flag:0,encoded_in_bitflags"`
-	RecentSent         int32
-	RecentSince        int32
-	RecentRemains      int32
-	TotalSent          int32
-	TotalSince         int32
-	LastGiftSlug       string `tl:"flag:1"`
-	TermsURL           string
-}
-
-func (*SmsjobsStatus) CRC() uint32 {
-	return 0x2aee9191
-}
-
-func (*SmsjobsStatus) FlagIndex() int {
-	return 0
 }
 
 type SponsoredMessage struct {
@@ -3344,16 +3139,6 @@ func (*ThemeSettings) FlagIndex() int {
 	return 0
 }
 
-type Timezone struct {
-	ID        string
-	Name      string
-	UtcOffset int32
-}
-
-func (*Timezone) CRC() uint32 {
-	return 0xff9289f5
-}
-
 type TopPeer struct {
 	Peer   Peer
 	Rating float64
@@ -3421,27 +3206,23 @@ type UserFull struct {
 	BotInfo                 *BotInfo `tl:"flag:3"`
 	PinnedMsgID             int32    `tl:"flag:6"`
 	CommonChatsCount        int32
-	FolderID                int32                    `tl:"flag:11"`
-	TtlPeriod               int32                    `tl:"flag:14"`
-	ThemeEmoticon           string                   `tl:"flag:15"`
-	PrivateForwardName      string                   `tl:"flag:16"`
-	BotGroupAdminRights     *ChatAdminRights         `tl:"flag:17"`
-	BotBroadcastAdminRights *ChatAdminRights         `tl:"flag:18"`
-	PremiumGifts            []*PremiumGiftOption     `tl:"flag:19"`
-	Wallpaper               WallPaper                `tl:"flag:24"`
-	Stories                 *PeerStories             `tl:"flag:25"`
-	BusinessWorkHours       *BusinessWorkHours       `tl:"flag2:0"`
-	BusinessLocation        *BusinessLocation        `tl:"flag2:1"`
-	BusinessGreetingMessage *BusinessGreetingMessage `tl:"flag2:2"`
-	BusinessAwayMessage     *BusinessAwayMessage     `tl:"flag2:3"`
+	FolderID                int32                `tl:"flag:11"`
+	TtlPeriod               int32                `tl:"flag:14"`
+	ThemeEmoticon           string               `tl:"flag:15"`
+	PrivateForwardName      string               `tl:"flag:16"`
+	BotGroupAdminRights     *ChatAdminRights     `tl:"flag:17"`
+	BotBroadcastAdminRights *ChatAdminRights     `tl:"flag:18"`
+	PremiumGifts            []*PremiumGiftOption `tl:"flag:19"`
+	Wallpaper               WallPaper            `tl:"flag:24"`
+	Stories                 *PeerStories         `tl:"flag:25"`
 }
 
 func (*UserFull) CRC() uint32 {
-	return 0x22ff3e85
+	return 0xb9b12c6c
 }
 
 func (*UserFull) FlagIndex() int {
-	return 14
+	return 0
 }
 
 type Username struct {

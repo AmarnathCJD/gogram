@@ -112,19 +112,21 @@ func root(tlfile, outdir string) error {
 
 func getAPILayerFromFile(tlfile string) string {
 	b, err := os.ReadFile(tlfile)
+
 	if err != nil {
 		return "0"
 	}
 
 	// last line:: // LAYER 176
 	lines := strings.Split(string(b), "\n")
+
 	if len(lines) < 2 {
 		return "0"
 	}
 
-	lastLine := lines[len(lines)-1]
+	lastLine := lines[len(lines)-2]
 	if !strings.HasPrefix(lastLine, "// LAYER") {
-		return "0"
+		return strings.TrimSpace(strings.TrimPrefix(lines[len(lines)-1], "// LAYER"))
 	}
 
 	return strings.TrimSpace(strings.TrimPrefix(lastLine, "// LAYER"))
@@ -179,7 +181,6 @@ func minorFixes(outdir string, layer string) {
 	replace(filepath.Join(execWorkDir, "init_gen.go"), `Null,`, `NullCrc,`)
 	if layer != "0" {
 		// replace ApiVersion = 174
-		fmt.Println("Updating ApiVersion to", layer)
 		file, err := os.OpenFile(filepath.Join(execWorkDir, "const.go"), os.O_RDWR|os.O_CREATE, 0644)
 		if err != nil {
 			panic(err)
@@ -194,6 +195,7 @@ func minorFixes(outdir string, layer string) {
 		str := string(content)
 
 		str = reg.ReplaceAllString(str, "ApiVersion = "+layer)
+		fmt.Println("Updated ApiVersion to", layer)
 
 		file.Truncate(0)
 		file.Seek(0, 0)

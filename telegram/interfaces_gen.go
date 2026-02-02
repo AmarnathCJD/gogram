@@ -342,37 +342,6 @@ func (*BotMenuButtonDefault) CRC() uint32 {
 
 func (*BotMenuButtonDefault) ImplementsBotMenuButton() {}
 
-type BusinessAwayMessageSchedule interface {
-	tl.Object
-	ImplementsBusinessAwayMessageSchedule()
-}
-type BusinessAwayMessageScheduleAlways struct{}
-
-func (*BusinessAwayMessageScheduleAlways) CRC() uint32 {
-	return 0xc9b9e2b9
-}
-
-func (*BusinessAwayMessageScheduleAlways) ImplementsBusinessAwayMessageSchedule() {}
-
-type BusinessAwayMessageScheduleCustom struct {
-	StartDate int32
-	EndDate   int32
-}
-
-func (*BusinessAwayMessageScheduleCustom) CRC() uint32 {
-	return 0xcc4d9ecc
-}
-
-func (*BusinessAwayMessageScheduleCustom) ImplementsBusinessAwayMessageSchedule() {}
-
-type BusinessAwayMessageScheduleOutsideWorkHours struct{}
-
-func (*BusinessAwayMessageScheduleOutsideWorkHours) CRC() uint32 {
-	return 0xc3f2f501
-}
-
-func (*BusinessAwayMessageScheduleOutsideWorkHours) ImplementsBusinessAwayMessageSchedule() {}
-
 type ChannelAdminLogEventAction interface {
 	tl.Object
 	ImplementsChannelAdminLogEventAction()
@@ -1599,14 +1568,13 @@ type DialogFilterObj struct {
 	ID              int32
 	Title           string
 	Emoticon        string `tl:"flag:25"`
-	Color           int32  `tl:"flag:27"`
 	PinnedPeers     []InputPeer
 	IncludePeers    []InputPeer
 	ExcludePeers    []InputPeer
 }
 
 func (*DialogFilterObj) CRC() uint32 {
-	return 0x5fb5523b
+	return 0x7438f7e8
 }
 
 func (*DialogFilterObj) FlagIndex() int {
@@ -1620,13 +1588,12 @@ type DialogFilterChatlist struct {
 	ID           int32
 	Title        string
 	Emoticon     string `tl:"flag:25"`
-	Color        int32  `tl:"flag:27"`
 	PinnedPeers  []InputPeer
 	IncludePeers []InputPeer
 }
 
 func (*DialogFilterChatlist) CRC() uint32 {
-	return 0x9fe28ea4
+	return 0xd64a04a8
 }
 
 func (*DialogFilterChatlist) FlagIndex() int {
@@ -3603,30 +3570,6 @@ func (*InputPrivacyValueDisallowUsers) CRC() uint32 {
 
 func (*InputPrivacyValueDisallowUsers) ImplementsInputPrivacyRule() {}
 
-type InputQuickReplyShortcut interface {
-	tl.Object
-	ImplementsInputQuickReplyShortcut()
-}
-type InputQuickReplyShortcutObj struct {
-	Shortcut string
-}
-
-func (*InputQuickReplyShortcutObj) CRC() uint32 {
-	return 0x24596d41
-}
-
-func (*InputQuickReplyShortcutObj) ImplementsInputQuickReplyShortcut() {}
-
-type InputQuickReplyShortcutID struct {
-	ShortcutID int32
-}
-
-func (*InputQuickReplyShortcutID) CRC() uint32 {
-	return 0x1190cf1
-}
-
-func (*InputQuickReplyShortcutID) ImplementsInputQuickReplyShortcut() {}
-
 type InputReplyTo interface {
 	tl.Object
 	ImplementsInputReplyTo()
@@ -4435,44 +4378,43 @@ type Message interface {
 	ImplementsMessage()
 }
 type MessageObj struct {
-	Out                  bool `tl:"flag:1,encoded_in_bitflags"`
-	Mentioned            bool `tl:"flag:4,encoded_in_bitflags"`
-	MediaUnread          bool `tl:"flag:5,encoded_in_bitflags"`
-	Silent               bool `tl:"flag:13,encoded_in_bitflags"`
-	Post                 bool `tl:"flag:14,encoded_in_bitflags"`
-	FromScheduled        bool `tl:"flag:18,encoded_in_bitflags"`
-	Legacy               bool `tl:"flag:19,encoded_in_bitflags"`
-	EditHide             bool `tl:"flag:21,encoded_in_bitflags"`
-	Pinned               bool `tl:"flag:24,encoded_in_bitflags"`
-	Noforwards           bool `tl:"flag:26,encoded_in_bitflags"`
-	InvertMedia          bool `tl:"flag:27,encoded_in_bitflags"`
-	ID                   int32
-	FromID               Peer  `tl:"flag:8"`
-	FromBoostsApplied    int32 `tl:"flag:29"`
-	PeerID               Peer
-	SavedPeerID          Peer               `tl:"flag:28"`
-	FwdFrom              *MessageFwdHeader  `tl:"flag:2"`
-	ViaBotID             int64              `tl:"flag:11"`
-	ReplyTo              MessageReplyHeader `tl:"flag:3"`
-	Date                 int32
-	Message              string
-	Media                MessageMedia         `tl:"flag:9"`
-	ReplyMarkup          ReplyMarkup          `tl:"flag:6"`
-	Entities             []MessageEntity      `tl:"flag:7"`
-	Views                int32                `tl:"flag:10"`
-	Forwards             int32                `tl:"flag:10"`
-	Replies              *MessageReplies      `tl:"flag:23"`
-	EditDate             int32                `tl:"flag:15"`
-	PostAuthor           string               `tl:"flag:16"`
-	GroupedID            int64                `tl:"flag:17"`
-	Reactions            *MessageReactions    `tl:"flag:20"`
-	RestrictionReason    []*RestrictionReason `tl:"flag:22"`
-	TtlPeriod            int32                `tl:"flag:25"`
-	QuickReplyShortcutID int32                `tl:"flag:30"`
+	Out               bool `tl:"flag:1,encoded_in_bitflags"`
+	Mentioned         bool `tl:"flag:4,encoded_in_bitflags"`
+	MediaUnread       bool `tl:"flag:5,encoded_in_bitflags"`
+	Silent            bool `tl:"flag:13,encoded_in_bitflags"`
+	Post              bool `tl:"flag:14,encoded_in_bitflags"`
+	FromScheduled     bool `tl:"flag:18,encoded_in_bitflags"`
+	Legacy            bool `tl:"flag:19,encoded_in_bitflags"`
+	EditHide          bool `tl:"flag:21,encoded_in_bitflags"`
+	Pinned            bool `tl:"flag:24,encoded_in_bitflags"`
+	Noforwards        bool `tl:"flag:26,encoded_in_bitflags"`
+	InvertMedia       bool `tl:"flag:27,encoded_in_bitflags"`
+	ID                int32
+	FromID            Peer  `tl:"flag:8"`
+	FromBoostsApplied int32 `tl:"flag:29"`
+	PeerID            Peer
+	SavedPeerID       Peer               `tl:"flag:28"`
+	FwdFrom           *MessageFwdHeader  `tl:"flag:2"`
+	ViaBotID          int64              `tl:"flag:11"`
+	ReplyTo           MessageReplyHeader `tl:"flag:3"`
+	Date              int32
+	Message           string
+	Media             MessageMedia         `tl:"flag:9"`
+	ReplyMarkup       ReplyMarkup          `tl:"flag:6"`
+	Entities          []MessageEntity      `tl:"flag:7"`
+	Views             int32                `tl:"flag:10"`
+	Forwards          int32                `tl:"flag:10"`
+	Replies           *MessageReplies      `tl:"flag:23"`
+	EditDate          int32                `tl:"flag:15"`
+	PostAuthor        string               `tl:"flag:16"`
+	GroupedID         int64                `tl:"flag:17"`
+	Reactions         *MessageReactions    `tl:"flag:20"`
+	RestrictionReason []*RestrictionReason `tl:"flag:22"`
+	TtlPeriod         int32                `tl:"flag:25"`
 }
 
 func (*MessageObj) CRC() uint32 {
-	return 0xa66c7efc
+	return 0x1e4c8a69
 }
 
 func (*MessageObj) FlagIndex() int {
@@ -8318,27 +8260,6 @@ func (*UpdateDeleteMessages) CRC() uint32 {
 
 func (*UpdateDeleteMessages) ImplementsUpdate() {}
 
-type UpdateDeleteQuickReply struct {
-	ShortcutID int32
-}
-
-func (*UpdateDeleteQuickReply) CRC() uint32 {
-	return 0x53e6f1ec
-}
-
-func (*UpdateDeleteQuickReply) ImplementsUpdate() {}
-
-type UpdateDeleteQuickReplyMessages struct {
-	ShortcutID int32
-	Messages   []int32
-}
-
-func (*UpdateDeleteQuickReplyMessages) CRC() uint32 {
-	return 0x566fe7cd
-}
-
-func (*UpdateDeleteQuickReplyMessages) ImplementsUpdate() {}
-
 type UpdateDeleteScheduledMessages struct {
 	Peer     Peer
 	Messages []int32
@@ -8751,16 +8672,6 @@ func (*UpdateNewMessage) CRC() uint32 {
 
 func (*UpdateNewMessage) ImplementsUpdate() {}
 
-type UpdateNewQuickReply struct {
-	QuickReply *QuickReply
-}
-
-func (*UpdateNewQuickReply) CRC() uint32 {
-	return 0xf53da717
-}
-
-func (*UpdateNewQuickReply) ImplementsUpdate() {}
-
 type UpdateNewScheduledMessage struct {
 	Message Message
 }
@@ -8976,26 +8887,6 @@ func (*UpdatePtsChanged) CRC() uint32 {
 }
 
 func (*UpdatePtsChanged) ImplementsUpdate() {}
-
-type UpdateQuickReplies struct {
-	QuickReplies []*QuickReply
-}
-
-func (*UpdateQuickReplies) CRC() uint32 {
-	return 0xf9470ab2
-}
-
-func (*UpdateQuickReplies) ImplementsUpdate() {}
-
-type UpdateQuickReplyMessage struct {
-	Message Message
-}
-
-func (*UpdateQuickReplyMessage) CRC() uint32 {
-	return 0x3e050d0f
-}
-
-func (*UpdateQuickReplyMessage) ImplementsUpdate() {}
 
 type UpdateReadChannelDiscussionInbox struct {
 	ChannelID     int64
@@ -9226,16 +9117,6 @@ func (*UpdateServiceNotification) FlagIndex() int {
 }
 
 func (*UpdateServiceNotification) ImplementsUpdate() {}
-
-type UpdateSmsJob struct {
-	JobID string
-}
-
-func (*UpdateSmsJob) CRC() uint32 {
-	return 0xf16269d4
-}
-
-func (*UpdateSmsJob) ImplementsUpdate() {}
 
 type UpdateStickerSets struct {
 	Masks  bool `tl:"flag:0,encoded_in_bitflags"`
@@ -10766,29 +10647,6 @@ func (*HelpTermsOfServiceUpdateEmpty) CRC() uint32 {
 
 func (*HelpTermsOfServiceUpdateEmpty) ImplementsHelpTermsOfServiceUpdate() {}
 
-type HelpTimezonesList interface {
-	tl.Object
-	ImplementsHelpTimezonesList()
-}
-type HelpTimezonesListObj struct {
-	Timezones []*Timezone
-	Hash      int32
-}
-
-func (*HelpTimezonesListObj) CRC() uint32 {
-	return 0x7b74ed71
-}
-
-func (*HelpTimezonesListObj) ImplementsHelpTimezonesList() {}
-
-type HelpTimezonesListNotModified struct{}
-
-func (*HelpTimezonesListNotModified) CRC() uint32 {
-	return 0x970708cc
-}
-
-func (*HelpTimezonesListNotModified) ImplementsHelpTimezonesList() {}
-
 type HelpUserInfo interface {
 	tl.Object
 	ImplementsHelpUserInfo()
@@ -11148,31 +11006,6 @@ func (*MessagesMessagesSlice) FlagIndex() int {
 }
 
 func (*MessagesMessagesSlice) ImplementsMessagesMessages() {}
-
-type MessagesQuickReplies interface {
-	tl.Object
-	ImplementsMessagesQuickReplies()
-}
-type MessagesQuickRepliesObj struct {
-	QuickReplies []*QuickReply
-	Messages     []Message
-	Chats        []Chat
-	Users        []User
-}
-
-func (*MessagesQuickRepliesObj) CRC() uint32 {
-	return 0xc68d6695
-}
-
-func (*MessagesQuickRepliesObj) ImplementsMessagesQuickReplies() {}
-
-type MessagesQuickRepliesNotModified struct{}
-
-func (*MessagesQuickRepliesNotModified) CRC() uint32 {
-	return 0x5f91eb5b
-}
-
-func (*MessagesQuickRepliesNotModified) ImplementsMessagesQuickReplies() {}
 
 type MessagesReactions interface {
 	tl.Object
