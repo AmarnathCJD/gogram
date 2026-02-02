@@ -449,27 +449,54 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMessage, error) {
 	opt := getVariadic(opts, &MediaOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
-	var (
-		entities    []MessageEntity
-		textMessage string
-	)
+
 	InputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{FileName: opt.FileName, Thumb: opt.Thumb, ForceDocument: opt.ForceDocument, Attributes: opt.Attributes, TTL: opt.TTL, Spoiler: opt.Spoiler, MimeType: opt.MimeType})
 	if multiErr != nil {
 		return nil, multiErr
 	}
 
 	switch caption := opt.Caption.(type) {
-	case string:
-		entities, textMessage = parseEntities(caption, opt.ParseMode)
-	case *NewMessage:
-		entities = caption.Message.Entities
-		textMessage = caption.MessageText()
+	case string, *NewMessage:
+		var (
+			entities    []MessageEntity
+			textMessage string
+		)
+
+		switch cap := caption.(type) {
+		case string:
+			entities, textMessage = parseEntities(cap, opt.ParseMode)
+		case *NewMessage:
+			entities = cap.Message.Entities
+			textMessage = cap.MessageText()
+		}
+
+		if opt.Entities != nil {
+			entities = opt.Entities
+		}
+
+		if len(InputAlbum) > 0 {
+			InputAlbum[len(InputAlbum)-1].Message = textMessage
+			InputAlbum[len(InputAlbum)-1].Entities = entities
+		}
+
+	case []string, []*NewMessage:
+		if len(InputAlbum) > 0 {
+			switch cap := caption.(type) {
+			case []string:
+				for i, cap := range cap {
+					entities, textMessage := parseEntities(cap, opt.ParseMode)
+					InputAlbum[i].Message = textMessage
+					InputAlbum[i].Entities = entities
+				}
+			case []*NewMessage:
+				for i, cap := range cap {
+					InputAlbum[i].Message = cap.MessageText()
+					InputAlbum[i].Entities = cap.Message.Entities
+				}
+			}
+		}
 	}
-	if opt.Entities != nil {
-		entities = opt.Entities
-	}
-	InputAlbum[len(InputAlbum)-1].Message = textMessage
-	InputAlbum[len(InputAlbum)-1].Entities = entities
+
 	senderPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
