@@ -2,8 +2,6 @@ module github.com/amarnathcjd/gogram/internal/cmd/tlgen
 
 go 1.21
 
-toolchain go1.21.5
-
 require (
 	github.com/amarnathcjd/gogram v0.0.0-20240104124909-6536dce75830
 	github.com/dave/jennifer v1.4.1
