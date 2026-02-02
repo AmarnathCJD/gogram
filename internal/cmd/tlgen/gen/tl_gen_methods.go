@@ -87,7 +87,7 @@ func (g *Generator) generateComment(name string, _type string) string {
 	ack = strings.ReplaceAll(ack, "<p>", "")
 	//ack = strings.ReplaceAll(ack, "see .", "")
 	a_tag_regex := regexp.MustCompile(`<a href="([^"]*)">([^<]*)</a>`)
-	ack = a_tag_regex.ReplaceAllString(ack, "[$2]($1)")
+	ack = a_tag_regex.ReplaceAllString(ack, "[$2](https://core.telegram.org/$1)")
 
 	code_tag_regex := regexp.MustCompile(`<code>([^<]*)</code>`)
 	ack = code_tag_regex.ReplaceAllString(ack, "`$1`")
