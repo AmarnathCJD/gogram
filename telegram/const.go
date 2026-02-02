@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	ApiVersion = 198
+	ApiVersion = 199
 	Version    = "v1.5.5"
 
 	LogDebug   = utils.DebugLevel
@@ -45,7 +45,7 @@ const (
 )
 
 var (
-	USERNAME_RE = regexp.MustCompile(`(?i)(?:@|(?:https?://)?(?:www\.)?(?:telegram\.(?:me|dog)|t\.me)/)([\w\d_]+)`)
+	USERNAME_RE = regexp.MustCompile(`(?i)(?:@|(?:https?:\/\/)?(?:www\.)?(?:telegram\.(?:me|dog)|t\.me)\/)([\w\d_]+)`)
 	TG_JOIN_RE  = regexp.MustCompile(`^(?:https?://)?(?:www\.)?t(?:elegram)?\.(?:org|me|dog)/(?:joinchat/|\+)([\w-]+)$`)
 )
 

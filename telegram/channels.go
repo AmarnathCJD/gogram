@@ -76,6 +76,15 @@ func (c *Client) JoinChannel(Channel any) (bool, error) {
 		}
 
 		return false, errors.New("invalid channel or chat")
+	case *InputPeerChannel, *InputPeerChat, int, int32, int64:
+		return c.joinChannelByPeer(p)
+	case *ChatInviteExported:
+		_, err := c.MessagesImportChatInvite(p.Link)
+		if err != nil {
+			return false, err
+		}
+
+		return true, nil
 	default:
 		return c.joinChannelByPeer(Channel)
 	}
