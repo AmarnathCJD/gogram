@@ -2,6 +2,16 @@
 
 package telegram
 
+type AccessPointRule struct {
+	PhonePrefixRules string
+	DcID             int32
+	Ips              []IpPort
+}
+
+func (*AccessPointRule) CRC() uint32 {
+	return 0x4679b65f
+}
+
 // Telegram Passport authorization form
 type AccountAuthorizationForm struct {
 	RequiredTypes    []SecureRequiredType
@@ -1512,6 +1522,16 @@ type GroupCallStreamChannel struct {
 
 func (*GroupCallStreamChannel) CRC() uint32 {
 	return 0x80eb48af
+}
+
+type HelpConfigSimple struct {
+	Date    int32
+	Expires int32
+	Rules   []*AccessPointRule
+}
+
+func (*HelpConfigSimple) CRC() uint32 {
+	return 0x5a592a6c
 }
 
 // Name, ISO code, localized name and phone codes/patterns of a specific country
@@ -3877,9 +3897,9 @@ type StarsTransaction struct {
 	Reaction                  bool `tl:"flag:11,encoded_in_bitflags"`
 	StargiftUpgrade           bool `tl:"flag:18,encoded_in_bitflags"`
 	Subscription              bool `tl:"flag:12,encoded_in_bitflags"`
-	Floodskip                 bool `tl:"flag:15,encoded_in_bitflags"`
 	ID                        string
 	Stars                     *StarsAmount
+	Floodskip                 bool `tl:"flag:15,encoded_in_bitflags"`
 	Date                      int32
 	Peer                      StarsTransactionPeer
 	Title                     string         `tl:"flag:0"`

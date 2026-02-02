@@ -1783,8 +1783,8 @@ type DialogObj struct {
 	Pinned              bool `tl:"flag:2,encoded_in_bitflags"` // Is the dialog pinned
 	UnreadMark          bool `tl:"flag:3,encoded_in_bitflags"` // Whether the chat was manually marked as unread
 	ViewForumAsMessages bool `tl:"flag:6,encoded_in_bitflags"` /*
-		Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client.
-		This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
+	Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client.
+	This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
 	*/
 	Peer                 Peer                // The chat
 	TopMessage           int32               // The latest message ID
@@ -1869,13 +1869,14 @@ func (*DialogFilterObj) ImplementsDialogFilter() {}
 
 // A folder imported using a chat folder deep link ».
 type DialogFilterChatlist struct {
-	HasMyInvites bool              `tl:"flag:26,encoded_in_bitflags"` // Whether the current user has created some chat folder deep links  to share the folder as well.
-	ID           int32             // ID of the folder
-	Title        *TextWithEntities // Name of the folder (max 12 UTF-8 chars)
-	Emoticon     string            `tl:"flag:25"` // Emoji to use as icon for the folder.
-	Color        int32             `tl:"flag:27"` // A color ID for the folder tag associated to this folder,.
-	PinnedPeers  []InputPeer       // Pinned chats, folders can have unlimited pinned chats
-	IncludePeers []InputPeer       // Chats to include in the folder
+	HasMyInvites   bool `tl:"flag:26,encoded_in_bitflags"`
+	TitleNoanimate bool `tl:"flag:28,encoded_in_bitflags"`
+	ID             int32
+	Title          *TextWithEntities
+	Emoticon       string `tl:"flag:25"`
+	Color          int32  `tl:"flag:27"`
+	PinnedPeers    []InputPeer
+	IncludePeers   []InputPeer
 }
 
 func (*DialogFilterChatlist) CRC() uint32 {
@@ -1985,8 +1986,8 @@ type DocumentAttributeAudio struct {
 	Title     string `tl:"flag:0"` // Name of song
 	Performer string `tl:"flag:1"` // Performer
 	Waveform  []byte `tl:"flag:2"` /*
-		Waveform: consists in a series of bitpacked 5-bit values.
-		Example implementation: android.
+	Waveform: consists in a series of bitpacked 5-bit values.
+	Example implementation: android.
 	*/
 }
 
@@ -2354,9 +2355,9 @@ type EncryptedChatObj struct {
 	AdminID       int64  // Chat creator ID
 	ParticipantID int64  // ID of the second chat participant
 	GAOrB         []byte /*
-		B = g ^ b mod p, if the currently authorized user is the chat's creator,
-		or A = g ^ a mod p otherwise
-		See Wikipedia for more info
+	B = g ^ b mod p, if the currently authorized user is the chat's creator,
+	or A = g ^ a mod p otherwise
+	See Wikipedia for more info
 	*/
 	KeyFingerprint int64 // 64-bit fingerprint of received key
 }
@@ -2546,9 +2547,9 @@ type ForumTopicObj struct {
 	Closed bool `tl:"flag:2,encoded_in_bitflags"` // Whether the topic is closed (no messages can be sent to it)
 	Pinned bool `tl:"flag:3,encoded_in_bitflags"` // Whether the topic is pinned
 	Short  bool `tl:"flag:5,encoded_in_bitflags"` /*
-		Whether this constructor is a reduced version of the full topic information.
-		If set, only the my, closed, id, date, title, icon_color, icon_emoji_id and from_id parameters will contain valid information.
-		Reduced info is usually only returned in topic-related admin log events  and in the messages.channelMessages constructor: if needed, full information can be fetched using channels.getForumTopicsByID.
+	Whether this constructor is a reduced version of the full topic information.
+	If set, only the my, closed, id, date, title, icon_color, icon_emoji_id and from_id parameters will contain valid information.
+	Reduced info is usually only returned in topic-related admin log events  and in the messages.channelMessages constructor: if needed, full information can be fetched using channels.getForumTopicsByID.
 	*/
 	Hidden               bool                `tl:"flag:6,encoded_in_bitflags"` // Whether the topic is hidden (only valid for the "General" topic, id=1)
 	ID                   int32               // Topic ID
@@ -4282,8 +4283,8 @@ type InputReplyTo interface {
 type InputReplyToMessage struct {
 	ReplyToMsgID int32 // The message ID to reply to.
 	TopMsgID     int32 `tl:"flag:0"` /*
-		This field must contain the topic ID only when replying to messages in forum topics different from the "General" topic (i.e. reply_to_msg_id is set and reply_to_msg_id != topicID and topicID != 1).
-		If the replied-to message is deleted before the method finishes execution, the value in this field will be used to send the message to the correct topic, instead of the "General" topic.
+	This field must contain the topic ID only when replying to messages in forum topics different from the "General" topic (i.e. reply_to_msg_id is set and reply_to_msg_id != topicID and topicID != 1).
+	If the replied-to message is deleted before the method finishes execution, the value in this field will be used to send the message to the correct topic, instead of the "General" topic.
 	*/
 	ReplyToPeerID InputPeer       `tl:"flag:1"` // Used to reply to messages sent to another chat (specified here), can only be used for non-protected chats and messages.
 	QuoteText     string          `tl:"flag:2"` // Used to quote-reply to only a certain section (specified here) of the original message. The maximum UTF-8 length for quotes is specified in the quote_length_max config key.
@@ -4779,6 +4780,33 @@ func (*InputWebFileLocationObj) CRC() uint32 {
 
 func (*InputWebFileLocationObj) ImplementsInputWebFileLocation() {}
 
+type IpPort interface {
+	tl.Object
+	ImplementsIpPort()
+}
+type IpPortObj struct {
+	Ipv4 int32
+	Port int32
+}
+
+func (*IpPortObj) CRC() uint32 {
+	return 0xd433ad73
+}
+
+func (*IpPortObj) ImplementsIpPort() {}
+
+type IpPortSecret struct {
+	Ipv4   int32
+	Port   int32
+	Secret []byte
+}
+
+func (*IpPortSecret) CRC() uint32 {
+	return 0x37982646
+}
+
+func (*IpPortSecret) ImplementsIpPort() {}
+
 type JsonValue interface {
 	tl.Object
 	ImplementsJsonValue()
@@ -4861,8 +4889,8 @@ type InputKeyboardButtonRequestPeer struct {
 	Text              string          // Button text
 	ButtonID          int32           // Button ID, to be passed to messages.sendBotRequestedPeer.
 	PeerType          RequestPeerType /*
-		Filtering criteria to use for the peer selection list shown to the user.
-		The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to max_quantity) peers of the specified type, if needed.
+	Filtering criteria to use for the peer selection list shown to the user.
+	The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to max_quantity) peers of the specified type, if needed.
 	*/
 	MaxQuantity int32 // Maximum number of peers that can be chosen.
 }
@@ -4883,8 +4911,8 @@ type InputKeyboardButtonURLAuth struct {
 	Text               string // Button text
 	FwdText            string `tl:"flag:1"` // New text of the button in forwarded messages.
 	URL                string /*
-		An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
-		NOTE: You must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
+	An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
+	NOTE: You must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
 	*/
 	Bot InputUser // Username of a bot, which will be used for user authorization. See Setting up a bot for more details. If not specified, the current bot's username will be assumed. The url's domain must be the same as the domain linked with the bot. See Linking your domain to the bot for more details.
 }
@@ -4989,8 +5017,8 @@ type KeyboardButtonRequestPeer struct {
 	Text     string          // Button text
 	ButtonID int32           // Button ID, to be passed to messages.sendBotRequestedPeer.
 	PeerType RequestPeerType /*
-		Filtering criteria to use for the peer selection list shown to the user.
-		The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to max_quantity) peers of the specified type, if needed.
+	Filtering criteria to use for the peer selection list shown to the user.
+	The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to max_quantity) peers of the specified type, if needed.
 	*/
 	MaxQuantity int32 // Maximum number of peers that can be chosen.
 }
@@ -5075,9 +5103,9 @@ type KeyboardButtonURLAuth struct {
 	Text    string // Button label
 	FwdText string `tl:"flag:0"` // New text of the button in forwarded messages.
 	URL     string /*
-		An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
+	An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data.
 
-		NOTE: Services must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
+	NOTE: Services must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
 	*/
 	ButtonID int32 // ID of the button to pass to messages.requestUrlAuth
 }
@@ -5949,8 +5977,8 @@ func (*MessageActionSetChatTheme) ImplementsMessageAction() {}
 type MessageActionSetChatWallPaper struct {
 	Same    bool `tl:"flag:0,encoded_in_bitflags"` // If set, indicates the user applied a wallpaper  previously sent by the other user in a messageActionSetChatWallPaper message.
 	ForBoth bool `tl:"flag:1,encoded_in_bitflags"` /*
-		If set, indicates the wallpaper was forcefully applied for both sides, without explicit confirmation from the other side.
-		If the message is incoming, and we did not like the new wallpaper the other user has chosen for us, we can re-set our previous wallpaper just on our side, by invoking messages.setChatWallPaper, providing only the revert flag (and obviously the peer parameter).
+	If set, indicates the wallpaper was forcefully applied for both sides, without explicit confirmation from the other side.
+	If the message is incoming, and we did not like the new wallpaper the other user has chosen for us, we can re-set our previous wallpaper just on our side, by invoking messages.setChatWallPaper, providing only the revert flag (and obviously the peer parameter).
 	*/
 	Wallpaper WallPaper // New wallpaper
 }
@@ -5988,8 +6016,8 @@ type MessageActionStarGift struct {
 	Converted    bool `tl:"flag:3,encoded_in_bitflags"`
 	Upgraded     bool `tl:"flag:5,encoded_in_bitflags"`
 	Transferred  bool `tl:"flag:6,encoded_in_bitflags"`
-	CanUpgrade   bool `tl:"flag:10,encoded_in_bitflags"`
 	Refunded     bool `tl:"flag:9,encoded_in_bitflags"`
+	CanUpgrade   bool `tl:"flag:10,encoded_in_bitflags"`
 	Gift         StarGift
 	Message      *TextWithEntities `tl:"flag:1"`
 	ConvertStars int64             `tl:"flag:4"`
@@ -8288,8 +8316,8 @@ func (*ReplyInlineMarkup) ImplementsReplyMarkup() {}
 type ReplyKeyboardForceReply struct {
 	SingleUse bool `tl:"flag:1,encoded_in_bitflags"` // Requests clients to hide the keyboard as soon as it's been used. The keyboard will still be available, but clients will automatically display the usual letter-keyboard in the chat – the user can press a special button in the input field to see the custom keyboard again.
 	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
-		Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
-		Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
+	Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+	Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
 	*/
 	Placeholder string `tl:"flag:3"` // The placeholder to be shown in the input field when the keyboard is active; 1-64 characters.
 }
@@ -8307,9 +8335,9 @@ func (*ReplyKeyboardForceReply) ImplementsReplyMarkup() {}
 // Hide sent bot keyboard
 type ReplyKeyboardHide struct {
 	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
-		Use this flag if you want to remove the keyboard for specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+	Use this flag if you want to remove the keyboard for specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
 
-		Example: A user votes in a poll, bot returns confirmation message in reply to the vote and removes the keyboard for that user, while still showing the keyboard with poll options to users who haven't voted yet
+	Example: A user votes in a poll, bot returns confirmation message in reply to the vote and removes the keyboard for that user, while still showing the keyboard with poll options to users who haven't voted yet
 	*/
 }
 
@@ -8328,9 +8356,9 @@ type ReplyKeyboardMarkup struct {
 	Resize    bool `tl:"flag:0,encoded_in_bitflags"` // Requests clients to resize the keyboard vertically for optimal fit (e.g., make the keyboard smaller if there are just two rows of buttons). If not set, the custom keyboard is always of the same height as the app's standard keyboard.
 	SingleUse bool `tl:"flag:1,encoded_in_bitflags"` // Requests clients to hide the keyboard as soon as it's been used. The keyboard will still be available, but clients will automatically display the usual letter-keyboard in the chat – the user can press a special button in the input field to see the custom keyboard again.
 	Selective bool `tl:"flag:2,encoded_in_bitflags"` /*
-		Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
+	Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message.
 
-		Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
+	Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
 	*/
 	Persistent  bool                 `tl:"flag:4,encoded_in_bitflags"` // Requests clients to always show the keyboard when the regular keyboard is hidden.
 	Rows        []*KeyboardButtonRow // Button row
@@ -10332,8 +10360,8 @@ type UpdateDeleteScheduledMessages struct {
 	Peer         Peer    // Peer
 	Messages     []int32 // Deleted scheduled messages
 	SentMessages []int32 `tl:"flag:0"` /*
-		If set, this update indicates that some scheduled messages were sent (not simply deleted from the schedule queue).
-		In this case, the messages field will contain the scheduled message IDs for the sent messages (initially returned in updateNewScheduledMessage), and sent_messages will contain the real message IDs for the sent messages.
+	If set, this update indicates that some scheduled messages were sent (not simply deleted from the schedule queue).
+	In this case, the messages field will contain the scheduled message IDs for the sent messages (initially returned in updateNewScheduledMessage), and sent_messages will contain the real message IDs for the sent messages.
 	*/
 }
 
@@ -11292,8 +11320,8 @@ type UpdateServiceNotification struct {
 	Popup       bool  `tl:"flag:0,encoded_in_bitflags"` // If set, the message must be displayed in a popup.
 	InvertMedia bool  `tl:"flag:2,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
 	InboxDate   int32 `tl:"flag:1"`                     /*
-		When was the notification received
-		The message must also be stored locally as part of the message history with the user id 777000 (Telegram Notifications).
+	When was the notification received
+	The message must also be stored locally as part of the message history with the user id 777000 (Telegram Notifications).
 	*/
 	Type     string          // String, identical in format and contents to the <a href="/api/errors#error-type">type</a> field in API errors. Describes type of service message. It is acceptable to ignore repeated messages of the same type within a short period of time (15 minutes).
 	Message  string          // Message text
@@ -12079,25 +12107,55 @@ type WebPage interface {
 
 // Webpage preview
 type WebPageObj struct {
-	HasLargeMedia bool               `tl:"flag:13,encoded_in_bitflags"` // Whether the size of the media in the preview can be changed.
-	ID            int64              // Preview ID
-	URL           string             // URL of previewed webpage
-	DisplayURL    string             // Webpage URL to be displayed to the user
-	Hash          int32              // Hash used for caching, for more info click here
-	Type          string             `tl:"flag:0"`  // Type of the web page. Can be: article, photo, audio, video, document, profile, app, or something else,.
-	SiteName      string             `tl:"flag:1"`  // Short name of the site (e.g., Google Docs, App Store)
-	Title         string             `tl:"flag:2"`  // Title of the content
-	Description   string             `tl:"flag:3"`  // Content description
-	Photo         Photo              `tl:"flag:4"`  // Image representing the content
-	EmbedURL      string             `tl:"flag:5"`  // URL to show in the embedded preview
-	EmbedType     string             `tl:"flag:5"`  // MIME type of the embedded preview, (e.g., text/html or video/mp4)
-	EmbedWidth    int32              `tl:"flag:6"`  // Width of the embedded preview
-	EmbedHeight   int32              `tl:"flag:6"`  // Height of the embedded preview
-	Duration      int32              `tl:"flag:7"`  // Duration of the content, in seconds
-	Author        string             `tl:"flag:8"`  // Author of the content
-	Document      Document           `tl:"flag:9"`  // Preview of the content as a media file
-	CachedPage    *Page              `tl:"flag:10"` // Page contents in instant view format
-	Attributes    []WebPageAttribute `tl:"flag:12"` // Webpage attributes
+	HasLargeMedia bool   `tl:"flag:13,encoded_in_bitflags"` // Whether the size of the media in the preview can be changed.
+	ID            int64  // Preview ID
+	URL           string // URL of previewed webpage
+	DisplayURL    string // Webpage URL to be displayed to the user
+	Hash          int32  // Hash used for caching, for more info click here
+	Type          string `tl:"flag:0"` /*
+	Type of the web page. One of the following: <!-- start type -->
+
+	- video
+	- gif
+	- photo
+	- document
+	- profile
+	- telegram_background
+	- telegram_theme
+	- telegram_story
+	- telegram_channel
+	- telegram_channel_request
+	- telegram_megagroup
+	- telegram_chat
+	- telegram_megagroup_request
+	- telegram_chat_request
+	- telegram_album
+	- telegram_message
+	- telegram_bot
+	- telegram_voicechat
+	- telegram_livestream
+	- telegram_user
+	- telegram_botapp
+	- telegram_channel_boost
+	- telegram_group_boost
+	- telegram_giftcode
+	- telegram_stickerset
+
+	<!-- end type -->
+	*/
+	SiteName    string             `tl:"flag:1"`  // Short name of the site (e.g., Google Docs, App Store)
+	Title       string             `tl:"flag:2"`  // Title of the content
+	Description string             `tl:"flag:3"`  // Content description
+	Photo       Photo              `tl:"flag:4"`  // Image representing the content
+	EmbedURL    string             `tl:"flag:5"`  // URL to show in the embedded preview
+	EmbedType   string             `tl:"flag:5"`  // MIME type of the embedded preview, (e.g., text/html or video/mp4)
+	EmbedWidth  int32              `tl:"flag:6"`  // Width of the embedded preview
+	EmbedHeight int32              `tl:"flag:6"`  // Height of the embedded preview
+	Duration    int32              `tl:"flag:7"`  // Duration of the content, in seconds
+	Author      string             `tl:"flag:8"`  // Author of the content
+	Document    Document           `tl:"flag:9"`  // Preview of the content as a media file
+	CachedPage  *Page              `tl:"flag:10"` // Page contents in instant view format
+	Attributes  []WebPageAttribute `tl:"flag:12"` // Webpage attributes
 }
 
 func (*WebPageObj) CRC() uint32 {
@@ -13582,8 +13640,8 @@ type MessagesChannelMessages struct {
 	Pts            int32 // Event count after generation
 	Count          int32 // Total number of results were found server-side (may not be all included here)
 	OffsetIDOffset int32 `tl:"flag:2"` /*
-		Indicates the absolute position of messages[0] within the total result set with count count.
-		This is useful, for example, if the result was fetched using offset_id, and we need to display a progress/total counter (like photo 134 of 200, for all media in a chat, we could simply use photo ${offset_id_offset} of ${count}.
+	Indicates the absolute position of messages[0] within the total result set with count count.
+	This is useful, for example, if the result was fetched using offset_id, and we need to display a progress/total counter (like photo 134 of 200, for all media in a chat, we could simply use photo ${offset_id_offset} of ${count}.
 	*/
 	Messages []Message    // Found messages
 	Topics   []ForumTopic // Forum topic information
@@ -13631,8 +13689,8 @@ type MessagesMessagesSlice struct {
 	Count          int32 // Total number of messages in the list
 	NextRate       int32 `tl:"flag:0"` // Rate to use in the offset_rate parameter in the next call to messages.searchGlobal
 	OffsetIDOffset int32 `tl:"flag:2"` /*
-		Indicates the absolute position of messages[0] within the total result set with count count.
-		This is useful, for example, if the result was fetched using offset_id, and we need to display a progress/total counter (like photo 134 of 200, for all media in a chat, we could simply use photo ${offset_id_offset} of ${count}.
+	Indicates the absolute position of messages[0] within the total result set with count count.
+	This is useful, for example, if the result was fetched using offset_id, and we need to display a progress/total counter (like photo 134 of 200, for all media in a chat, we could simply use photo ${offset_id_offset} of ${count}.
 	*/
 	Messages []Message // List of messages
 	Chats    []Chat    // List of chats mentioned in messages
@@ -14032,19 +14090,19 @@ type PaymentsPaymentFormObj struct {
 	ProviderID         int64       // Payment provider ID.
 	URL                string      // Payment form URL
 	NativeProvider     string      `tl:"flag:4"` /*
-		Payment provider name.
-		One of the following:
-		- stripe
+	Payment provider name.
+	One of the following:
+	- stripe
 	*/
 	NativeParams *DataJson `tl:"flag:4"` /*
-		Contains information about the payment provider, if available, to support it natively without the need for opening the URL.
-		A JSON object that can contain the following fields:
+	Contains information about the payment provider, if available, to support it natively without the need for opening the URL.
+	A JSON object that can contain the following fields:
 
-		- apple_pay_merchant_id: Apple Pay merchant ID
-		- google_pay_public_key: Google Pay public key
-		- need_country: True, if the user country must be provided,
-		- need_zip: True, if the user ZIP/postal code must be provided,
-		- need_cardholder_name: True, if the cardholder name must be provided
+	- apple_pay_merchant_id: Apple Pay merchant ID
+	- google_pay_public_key: Google Pay public key
+	- need_country: True, if the user country must be provided,
+	- need_zip: True, if the user ZIP/postal code must be provided,
+	- need_cardholder_name: True, if the cardholder name must be provided
 	*/
 	AdditionalMethods []*PaymentFormMethod           `tl:"flag:6"` // Additional payment methods
 	SavedInfo         *PaymentRequestedInfo          `tl:"flag:0"` // Saved server-side order information
@@ -14077,9 +14135,9 @@ func (*PaymentsPaymentFormStarGift) ImplementsPaymentsPaymentForm() {}
 // Represents a payment form, for payments to be using Telegram Stars, see here » for more info.
 type PaymentsPaymentFormStars struct {
 	CanSaveCredentials bool `tl:"flag:2,encoded_in_bitflags"`
-	PasswordMissing    bool `tl:"flag:3,encoded_in_bitflags"`
 	FormID             int64
 	BotID              int64
+	PasswordMissing    bool `tl:"flag:3,encoded_in_bitflags"`
 	Title              string
 	Description        string
 	Photo              WebDocument `tl:"flag:5"`
@@ -14457,3 +14515,28 @@ func (*UploadFileCdnRedirect) CRC() uint32 {
 }
 
 func (*UploadFileCdnRedirect) ImplementsUploadFile() {}
+
+type UsersUsers interface {
+	tl.Object
+	ImplementsUsersUsers()
+}
+type UsersUsersObj struct {
+	Users []User
+}
+
+func (*UsersUsersObj) CRC() uint32 {
+	return 0x62d706b8
+}
+
+func (*UsersUsersObj) ImplementsUsersUsers() {}
+
+type UsersUsersSlice struct {
+	Count int32
+	Users []User
+}
+
+func (*UsersUsersSlice) CRC() uint32 {
+	return 0x315a4974
+}
+
+func (*UsersUsersSlice) ImplementsUsersUsers() {}
