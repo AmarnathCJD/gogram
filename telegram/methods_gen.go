@@ -3,10 +3,9 @@
 package telegram
 
 import (
-	"reflect"
-
 	tl "github.com/amarnathcjd/gogram/internal/encoding/tl"
 	errors "github.com/pkg/errors"
+	"reflect"
 )
 
 type AccountAcceptAuthorizationParams struct {
@@ -1738,6 +1737,37 @@ func (c *Client) AccountSaveAutoSaveSettings(params *AccountSaveAutoSaveSettings
 	return resp, nil
 }
 
+type AccountSaveMusicParams struct {
+	Unsave  bool `tl:"flag:0,encoded_in_bitflags"`
+	ID      InputDocument
+	AfterID InputDocument `tl:"flag:1"`
+}
+
+func (*AccountSaveMusicParams) CRC() uint32 {
+	return 0xb26732a9
+}
+
+func (*AccountSaveMusicParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AccountSaveMusic(unsave bool, id, afterID InputDocument) (bool, error) {
+	responseData, err := c.MakeRequest(&AccountSaveMusicParams{
+		AfterID: afterID,
+		ID:      id,
+		Unsave:  unsave,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending AccountSaveMusic")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type AccountSaveRingtoneParams struct {
 	ID     InputDocument
 	Unsave bool
@@ -2056,6 +2086,27 @@ func (c *Client) AccountSetGlobalPrivacySettings(settings *GlobalPrivacySettings
 	}
 
 	resp, ok := responseData.(*GlobalPrivacySettings)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type AccountSetMainProfileTabParams struct {
+	Tab ProfileTab
+}
+
+func (*AccountSetMainProfileTabParams) CRC() uint32 {
+	return 0x5dee78b0
+}
+
+func (c *Client) AccountSetMainProfileTab(tab ProfileTab) (bool, error) {
+	responseData, err := c.MakeRequest(&AccountSetMainProfileTabParams{Tab: tab})
+	if err != nil {
+		return false, errors.Wrap(err, "sending AccountSetMainProfileTab")
+	}
+
+	resp, ok := responseData.(bool)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -5524,6 +5575,31 @@ func (c *Client) ChannelsSetEmojiStickers(channel InputChannel, stickerset Input
 	return resp, nil
 }
 
+type ChannelsSetMainProfileTabParams struct {
+	Channel InputChannel
+	Tab     ProfileTab
+}
+
+func (*ChannelsSetMainProfileTabParams) CRC() uint32 {
+	return 0x3583fcb1
+}
+
+func (c *Client) ChannelsSetMainProfileTab(channel InputChannel, tab ProfileTab) (bool, error) {
+	responseData, err := c.MakeRequest(&ChannelsSetMainProfileTabParams{
+		Channel: channel,
+		Tab:     tab,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "sending ChannelsSetMainProfileTab")
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type ChannelsSetStickersParams struct {
 	Channel    InputChannel
 	Stickerset InputStickerSet
@@ -7846,6 +7922,27 @@ func (c *Client) MessagesAppendTodoList(peer InputPeer, msgID int32, list []*Tod
 	}
 
 	resp, ok := responseData.(Updates)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesCheckCanSendGiftParams struct {
+	GiftID int64
+}
+
+func (*MessagesCheckCanSendGiftParams) CRC() uint32 {
+	return 0xc0c4edc9
+}
+
+func (c *Client) MessagesCheckCanSendGift(giftID int64) (CheckCanSendGiftResult, error) {
+	responseData, err := c.MakeRequest(&MessagesCheckCanSendGiftParams{GiftID: giftID})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesCheckCanSendGift")
+	}
+
+	resp, ok := responseData.(CheckCanSendGiftResult)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -10759,6 +10856,81 @@ func (c *Client) MessagesGetSavedHistory(params *MessagesGetSavedHistoryParams) 
 	return resp, nil
 }
 
+type MessagesGetSavedMusicParams struct {
+	ID     InputUser
+	Offset int32
+	Limit  int32
+	Hash   int64
+}
+
+func (*MessagesGetSavedMusicParams) CRC() uint32 {
+	return 0x788d7fe3
+}
+
+func (c *Client) MessagesGetSavedMusic(id InputUser, offset, limit int32, hash int64) (SavedMusic, error) {
+	responseData, err := c.MakeRequest(&MessagesGetSavedMusicParams{
+		Hash:   hash,
+		ID:     id,
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetSavedMusic")
+	}
+
+	resp, ok := responseData.(SavedMusic)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesGetSavedMusicByIDParams struct {
+	ID        InputUser
+	Documents []InputDocument
+}
+
+func (*MessagesGetSavedMusicByIDParams) CRC() uint32 {
+	return 0x7573a4e9
+}
+
+func (c *Client) MessagesGetSavedMusicByID(id InputUser, documents []InputDocument) (SavedMusic, error) {
+	responseData, err := c.MakeRequest(&MessagesGetSavedMusicByIDParams{
+		Documents: documents,
+		ID:        id,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetSavedMusicByID")
+	}
+
+	resp, ok := responseData.(SavedMusic)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesGetSavedMusicIdsParams struct {
+	Hash int64
+}
+
+func (*MessagesGetSavedMusicIdsParams) CRC() uint32 {
+	return 0xe09d5faf
+}
+
+func (c *Client) MessagesGetSavedMusicIds(hash int64) (SavedMusicIds, error) {
+	responseData, err := c.MakeRequest(&MessagesGetSavedMusicIdsParams{Hash: hash})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetSavedMusicIds")
+	}
+
+	resp, ok := responseData.(SavedMusicIds)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
 type MessagesGetSavedReactionTagsParams struct {
 	Peer InputPeer `tl:"flag:0"`
 	Hash int64
@@ -11136,6 +11308,27 @@ func (c *Client) MessagesGetTopReactions(limit int32, hash int64) (MessagesReact
 	}
 
 	resp, ok := responseData.(MessagesReactions)
+	if !ok {
+		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
+	}
+	return resp, nil
+}
+
+type MessagesGetUniqueStarGiftValueInfoParams struct {
+	Slug string
+}
+
+func (*MessagesGetUniqueStarGiftValueInfoParams) CRC() uint32 {
+	return 0x4365af6b
+}
+
+func (c *Client) MessagesGetUniqueStarGiftValueInfo(slug string) (*UniqueStarGiftValueInfo, error) {
+	responseData, err := c.MakeRequest(&MessagesGetUniqueStarGiftValueInfoParams{Slug: slug})
+	if err != nil {
+		return nil, errors.Wrap(err, "sending MessagesGetUniqueStarGiftValueInfo")
+	}
+
+	resp, ok := responseData.(*UniqueStarGiftValueInfo)
 	if !ok {
 		panic("got invalid response type: " + reflect.TypeOf(responseData).String())
 	}
@@ -15077,16 +15270,18 @@ func (c *Client) PaymentsGetSavedStarGift(stargift []InputSavedStarGift) (*Payme
 }
 
 type PaymentsGetSavedStarGiftsParams struct {
-	ExcludeUnsaved   bool `tl:"flag:0,encoded_in_bitflags"`
-	ExcludeSaved     bool `tl:"flag:1,encoded_in_bitflags"`
-	ExcludeUnlimited bool `tl:"flag:2,encoded_in_bitflags"`
-	ExcludeLimited   bool `tl:"flag:3,encoded_in_bitflags"`
-	ExcludeUnique    bool `tl:"flag:4,encoded_in_bitflags"`
-	SortByValue      bool `tl:"flag:5,encoded_in_bitflags"`
-	Peer             InputPeer
-	CollectionID     int32 `tl:"flag:6"`
-	Offset           string
-	Limit            int32
+	ExcludeUnsaved      bool `tl:"flag:0,encoded_in_bitflags"`
+	ExcludeSaved        bool `tl:"flag:1,encoded_in_bitflags"`
+	ExcludeUnlimited    bool `tl:"flag:2,encoded_in_bitflags"`
+	ExcludeLimited      bool `tl:"flag:3,encoded_in_bitflags"`
+	ExcludeUnique       bool `tl:"flag:4,encoded_in_bitflags"`
+	SortByValue         bool `tl:"flag:5,encoded_in_bitflags"`
+	ExcludeUpgradable   bool `tl:"flag:7,encoded_in_bitflags"`
+	ExcludeUnupgradable bool `tl:"flag:8,encoded_in_bitflags"`
+	Peer                InputPeer
+	CollectionID        int32 `tl:"flag:6"`
+	Offset              string
+	Limit               int32
 }
 
 func (*PaymentsGetSavedStarGiftsParams) CRC() uint32 {
