@@ -154,7 +154,7 @@ client.AddInlineHandler("<pattern>", func(iq *telegram.InlineQuery) error {
 
 ## Known Issues
 
-- [] File Uploading/Downloading is not stable
+- [x] File Uploading/Downloading is not stable
 - [x] MessageMediaPoll, UserFull Decode Fails
 - [x] invokeWithLayer channel missing while bad Salt
 - [x] tcp.io.Reader.Read unstable
