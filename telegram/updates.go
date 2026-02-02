@@ -294,6 +294,9 @@ func (c *Client) RemoveHandle(handle Handle) error {
 		return errors.New("[DISPATCHER_NOT_INITIALIZED] dispatcher is not initialized")
 	}
 
+	c.dispatcher.Lock()
+	defer c.dispatcher.Unlock()
+
 	if err := c.removeHandle(handle); err != nil {
 		return err
 	}
