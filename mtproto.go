@@ -32,6 +32,7 @@ type MTProto struct {
 	Addr          string
 	appID         int32
 	socksProxy    *url.URL
+	socksActive   bool
 	transport     transport.Transport
 	stopRoutines  context.CancelFunc
 	routineswg    sync.WaitGroup
@@ -252,7 +253,11 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 	m.tcpActive = true
 	if withLog {
-		m.Logger.Info("Connection to [" + m.Addr + "] - <TCPFull> established")
+		if m.socksProxy != nil && m.socksProxy.Host != "" {
+			m.Logger.Info("Connection to (" + m.socksProxy.Host + ")[" + m.Addr + "] - <TCPFull> established")
+		} else {
+			m.Logger.Info("Connection to [" + m.Addr + "] - <TCPFull> established")
+		}
 	}
 	m.startReadingResponses(ctx)
 	if !m.encrypted {
