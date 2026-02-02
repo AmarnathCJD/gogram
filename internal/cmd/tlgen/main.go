@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,9 +16,14 @@ import (
 )
 
 const (
-	API_SOURCE = "https://raw.githubusercontent.com/null-nick/TL-Schema/c3e09f4310413ff49b695dfe78df64044153c905/api.tl" // "https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/Telegram/SourceFiles/mtproto/scheme/api.tl"
-	tlLOC      = "../../../schemes/api.tl"
-	desLOC     = "../../../telegram/"
+	tlLOC  = "../../../schemes/api.tl"
+	desLOC = "../../../telegram/"
+)
+
+var (
+	API_SOURCES = []string{"https://raw.githubusercontent.com/null-nick/TL-Schema/c3e09f4310413ff49b695dfe78df64044153c905/api.tl",
+		"https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/Telegram/SourceFiles/mtproto/scheme/api.tl",
+	}
 )
 
 const helpMsg = `welcome to gogram's TL generator (c) @amarnathcjd`
@@ -35,20 +41,11 @@ func main() {
 		llayer := reg.FindString(str)
 		llayer = strings.TrimPrefix(llayer, "ApiVersion = ")
 
-		currentRemoteAPIVersion, err := http.Get(API_SOURCE)
+		remoteAPIVersion, rlayer, err := getSourceLAYER(llayer)
 		if err != nil {
-			panic(err)
+			fmt.Println(err)
+			return
 		}
-
-		remoteAPIVersion, err := io.ReadAll(currentRemoteAPIVersion.Body)
-		if err != nil {
-			panic(err)
-		}
-
-		reg = regexp.MustCompile(`// LAYER \d+`)
-		str = string(remoteAPIVersion)
-		rlayer := reg.FindString(str)
-		rlayer = strings.TrimPrefix(rlayer, "// LAYER ")
 
 		if !strings.EqualFold(llayer, rlayer) {
 			fmt.Println("Local API version is", llayer, "and remote API version is", rlayer)
@@ -88,6 +85,48 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
+}
+
+func getSourceLAYER(llayer string) ([]byte, string, error) {
+	reg := regexp.MustCompile(`// LAYER \d+`)
+
+	for _, source := range API_SOURCES {
+		src, err := http.Get(source)
+		if err != nil {
+			return nil, "", err
+		}
+
+		remoteAPIVersion, err := io.ReadAll(src.Body)
+		if err != nil {
+			return nil, "", err
+		}
+
+		rlayer := reg.FindString(string(remoteAPIVersion))
+		rlayer = strings.TrimPrefix(rlayer, "// LAYER ")
+
+		if !strings.EqualFold(llayer, rlayer) {
+			rlayer_int, err := strconv.Atoi(rlayer)
+			if err != nil {
+				return nil, "", err
+			}
+
+			llayer_int, err := strconv.Atoi(llayer)
+			if err != nil {
+				return nil, "", err
+			}
+
+			if rlayer_int > llayer_int {
+				return remoteAPIVersion, rlayer, nil
+			}
+		} else {
+			fmt.Println("Skipping (<=) ~ Source [", source, "] ("+rlayer+")")
+			continue
+		}
+
+		return remoteAPIVersion, rlayer, fmt.Errorf("No update required (Local API version is %s and remote API (TDesktop) version is %s)", llayer, rlayer)
+	}
+
+	return nil, "", fmt.Errorf("No update required ~")
 }
 
 func root(tlfile, outdir string) error {
@@ -275,9 +314,14 @@ func cleanComments(b []byte) []byte {
 	lines := strings.Split(string(b), "\n")
 	var clean []string
 
+	var parsedManually bool
+
 	for _, line := range lines {
 		if strings.HasPrefix(line, "//") && !strings.Contains(line, "////") {
 			if strings.Contains(line, "Not used") || strings.Contains(line, "Parsed manually") || strings.Contains(line, "https://") {
+				if strings.Contains(line, "Parsed manually") {
+					parsedManually = true
+				}
 				continue
 			}
 		} else if strings.Contains(line, "////") || strings.Contains(line, "{X:Type}") {
@@ -286,6 +330,42 @@ func cleanComments(b []byte) []byte {
 
 		clean = append(clean, line)
 	}
+
+	// replace consecutive 2+ newlines with single newline
+
+	b = []byte(strings.Join(clean, "\n"))
+	lines = strings.Split(string(b), "\n")
+
+	clean = []string{}
+	for i := 0; i < len(lines); i++ {
+		if i+1 < len(lines) && len(lines[i]) == 0 && len(lines[i+1]) == 0 {
+			continue
+		}
+
+		clean = append(clean, lines[i])
+	}
+
+	b = []byte(strings.Join(clean, "\n"))
+
+	// add some bytes to its start
+
+	if parsedManually {
+
+		clean = []string{`boolFalse#bc799737 = Bool;
+boolTrue#997275b5 = Bool;
+	
+true#3fedd339 = True;
+	
+vector#1cb5c415 {t:Type} # [ t ] = Vector t;
+	
+error#c4b9f9bb code:int text:string = Error;
+	
+null#56730bcc = Null;`}
+	} else {
+		clean = []string{}
+	}
+
+	clean = append(clean, string(b))
 
 	return []byte(strings.Join(clean, "\n"))
 }
