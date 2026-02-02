@@ -407,6 +407,8 @@ type DownloadOptions struct {
 	ThumbOnly bool `json:"thumb_only,omitempty"`
 	// Thumb size to download
 	ThumbSize PhotoSize `json:"thumb_size,omitempty"`
+	// Weather to download video file (profile photo, etc)
+	IsVideo bool `json:"is_video,omitempty"`
 }
 
 type Destination struct {
@@ -445,6 +447,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	location, dc, size, fileName, err := GetFileLocation(file, FileLocationOptions{
 		ThumbOnly: opts.ThumbOnly,
 		ThumbSize: opts.ThumbSize,
+		Video:     opts.IsVideo,
 	})
 	if err != nil {
 		return "", err
