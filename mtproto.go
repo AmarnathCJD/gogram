@@ -80,6 +80,7 @@ type MTProto struct {
 
 	serverRequestHandlers []func(i any) bool
 	floodHandler          func(err error) bool
+	errorHandler          func(err error)
 	exported              bool
 }
 
@@ -89,7 +90,9 @@ type Config struct {
 	SessionStorage session.SessionLoader
 	MemorySession  bool
 	AppID          int32
-	FloodHandler   func(err error) bool
+
+	FloodHandler func(err error) bool
+	ErrorHandler func(err error)
 
 	ServerHost string
 	PublicKey  *rsa.PublicKey
@@ -142,6 +145,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		appID:                 c.AppID,
 		proxy:                 c.Proxy,
 		floodHandler:          func(err error) bool { return false },
+		errorHandler:          func(err error) {},
 		mode:                  parseTransportMode(c.Mode),
 		IpV6:                  c.Ipv6,
 	}
@@ -162,6 +166,10 @@ func NewMTProto(c Config) (*MTProto, error) {
 
 	if c.FloodHandler != nil {
 		mtproto.floodHandler = c.FloodHandler
+	}
+
+	if c.ErrorHandler != nil {
+		mtproto.errorHandler = c.ErrorHandler
 	}
 
 	return mtproto, nil
@@ -409,8 +417,8 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 
 	resp, _, err := m.sendPacket(data, expectedTypes...)
 	if err != nil {
-		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") || strings.Contains(err.Error(), "connection was forcibly closed") {
-			m.Logger.Info("connection closed due to broken tcp, reconnecting to [" + m.Addr + "]" + " - <Tcp> ...")
+		if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "transport is closed") || strings.Contains(err.Error(), "connection was forcibly closed") || strings.Contains(err.Error(), "connection reset by peer") || strings.Contains(err.Error(), "broken pipe") {
+			m.Logger.Info(fmt.Sprintf("connection closed due to broken tcp, reconnecting to [%s] - <%s> ...", m.Addr, utils.Vtcp(m.IpV6)))
 			err = m.Reconnect(false)
 			if err != nil {
 				return nil, errors.Wrap(err, "reconnecting")
@@ -429,6 +437,8 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 				return m.makeRequest(data, expectedTypes...)
 			}
 		}
+		m.errorHandler(RpcErrorToNative(r))
+
 		return nil, RpcErrorToNative(r)
 
 	case *errorSessionConfigsChanged:

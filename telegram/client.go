@@ -85,6 +85,7 @@ type ClientConfig struct {
 	Cache         *CACHE
 	TransportMode string
 	FloodHandler  func(err error) bool
+	ErrorHandler  func(err error)
 }
 
 type Session struct {
@@ -172,6 +173,8 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		MemorySession: config.MemorySession,
 		Ipv6:          config.ForceIPv6,
 		CustomHost:    customHost,
+		FloodHandler:  config.FloodHandler,
+		ErrorHandler:  config.ErrorHandler,
 	})
 	if err != nil {
 		return errors.Wrap(err, "creating mtproto client")
