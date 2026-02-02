@@ -535,7 +535,7 @@ func (m *MTProto) Terminate() error {
 	m.stopRoutines()
 	m.responseChannels.Close()
 	if m.transport != nil {
-	    m.transport.Close()
+		m.transport.Close()
 	}
 	m.tcpActive.Store(false)
 	return nil
