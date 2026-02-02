@@ -79,7 +79,8 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 	var parseNode func(*html.Node, int32)
 	var openTags []Tag
 	parseNode = func(n *html.Node, offset int32) {
-		if n.Type == html.ElementNode {
+		switch n.Type {
+		case html.ElementNode:
 			// Only record tag information for non-body, non-html, non-head, non-p tags
 			if supportedTag(n.Data) {
 				tagType := n.Data
@@ -98,7 +99,7 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 				}
 
 			}
-		} else if n.Type == html.TextNode {
+		case html.TextNode:
 			// Write the text content of this node to the buffer
 			textBuf.WriteString(n.Data)
 			offset += utf16RuneCountInString(n.Data)
@@ -155,9 +156,10 @@ func getTextLength(n *html.Node) int32 {
 	var tagLength int32 = 0
 	currentNode := n.FirstChild
 	for currentNode != nil {
-		if currentNode.Type == html.TextNode {
+		switch currentNode.Type {
+		case html.TextNode:
 			tagLength += utf16RuneCountInString(trimTrailing(currentNode.Data))
-		} else if currentNode.Type == html.ElementNode {
+		case html.ElementNode:
 			tagLength += getTextLength(currentNode)
 		}
 		currentNode = currentNode.NextSibling

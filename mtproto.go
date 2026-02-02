@@ -84,6 +84,7 @@ type MTProto struct {
 	errorHandler          func(err error)
 	exported              bool
 	cdn                   bool
+	terminated            atomic.Bool
 }
 
 type Config struct {
@@ -359,6 +360,9 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 }
 
 func (m *MTProto) CreateConnection(withLog bool) error {
+	if m.terminated.Load() {
+		return errors.New("mtproto is terminated, cannot create connection")
+	}
 	m.stopRoutines()
 
 	ctx, cancelfunc := context.WithCancel(context.Background())
@@ -530,6 +534,7 @@ func (m *MTProto) Disconnect() error {
 }
 
 func (m *MTProto) Terminate() error {
+	m.terminated.Store(true)
 	m.stopRoutines()
 	m.responseChannels.Close()
 	if m.transport != nil {
@@ -540,6 +545,9 @@ func (m *MTProto) Terminate() error {
 }
 
 func (m *MTProto) Reconnect(WithLogs bool) error {
+	if m.terminated.Load() {
+		return nil
+	}
 	err := m.Disconnect()
 	if err != nil {
 		return errors.Wrap(err, "disconnecting")
@@ -547,7 +555,6 @@ func (m *MTProto) Reconnect(WithLogs bool) error {
 	if WithLogs {
 		m.Logger.Info(fmt.Sprintf("reconnecting to [%s] - <Tcp> ...", m.Addr))
 	}
-
 	err = m.CreateConnection(WithLogs)
 	if err == nil && WithLogs {
 		m.Logger.Info(fmt.Sprintf("reconnected to [%s] - <Tcp>", m.Addr))
@@ -563,13 +570,12 @@ func (m *MTProto) longPing(ctx context.Context) {
 	defer m.routineswg.Done()
 
 	for {
+		time.Sleep(30 * time.Second)
 		select {
 		case <-ctx.Done():
 			return
 		default:
 			m.tcpState.WaitForActive()
-
-			time.Sleep(30 * time.Second)
 			m.Ping()
 		}
 	}
@@ -636,9 +642,11 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 						m.Logger.Error(errors.New("[TRANSPORT_ERROR_CODE] - " + e.Error()))
 					}
 
-					m.Logger.Debug(errors.Wrap(err, "reading message >>"))
-					// is reconnect required here?
-					m.Reconnect(false)
+					if !m.terminated.Load() {
+						m.Logger.Debug(errors.Wrap(err, "reading message >>"))
+						// is reconnect required here?
+						m.Reconnect(false)
+					}
 				}
 			}
 		}
