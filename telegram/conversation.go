@@ -182,14 +182,14 @@ func (c *Conversation) MarkRead() (*MessagesAffectedMessages, error) {
 	}
 }
 
-func (c *Conversation) WaitEvent(ev *Update) (Update, error) {
+func (c *Conversation) WaitEvent(ev Update) (Update, error) {
 	resp := make(chan Update)
 	waitFunc := func(u Update, c *Client) error {
 		resp <- u
 		return nil
 	}
 
-	h := c.Client.On(*ev, waitFunc)
+	h := c.Client.On(ev, waitFunc)
 	c.openH = append(c.openH, h)
 	select {
 	case <-time.After(time.Duration(c.timeOut) * time.Second):
