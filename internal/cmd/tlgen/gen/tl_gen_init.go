@@ -37,7 +37,7 @@ func (*Generator) createInitStructs(itemNames ...string) jen.Code {
 
 var customStructs = map[string]uint32{
 	"MessageObj":             0xb92f76cf,
-	"KeyboardButtonCallback": 0xe62bc960,
+	"KeyboardButtonCallback": 0xd80c25ec,
 }
 
 func (g *Generator) createCustomInitStructs() jen.Code {
