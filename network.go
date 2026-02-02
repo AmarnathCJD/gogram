@@ -33,10 +33,14 @@ func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (
 		m.expectedTypes.Add(int(msgID), expectedTypes)
 	}
 
-	// dealing with response channel
 	resp := m.getRespChannel()
 	if isNullableResponse(request) {
-		resp <- &objects.Null{}
+		go func() {
+			select {
+			case resp <- &objects.Null{}:
+			default:
+			}
+		}()
 	} else {
 		m.responseChannels.Add(int(msgID), resp)
 	}

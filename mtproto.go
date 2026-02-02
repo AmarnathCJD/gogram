@@ -488,6 +488,7 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 		switch r := response.(type) {
 		case *objects.RpcError:
 			if err := RpcErrorToNative(r).(*ErrResponseCode); strings.Contains(err.Message, "FLOOD_WAIT_") || strings.Contains(err.Message, "FLOOD_PREMIUM_WAIT_") {
+				err.Message = fmt.Sprintf("{%s}", utils.FmtMethod(data))
 				if done := m.floodHandler(err); !done {
 					return nil, RpcErrorToNative(r)
 				} else {
