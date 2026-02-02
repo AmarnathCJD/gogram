@@ -798,14 +798,6 @@ func (*BusinessWorkHours) FlagIndex() int {
 	return 0
 }
 
-type CanSendStoryCount struct {
-	CountRemains int32
-}
-
-func (*CanSendStoryCount) CRC() uint32 {
-	return 0xc387c04e
-}
-
 // Configuration for CDN file downloads.
 type CdnConfig struct {
 	PublicKeys []*CdnPublicKey
@@ -2968,6 +2960,25 @@ func (*PaymentsExportedInvoice) CRC() uint32 {
 	return 0xaed0cbd9
 }
 
+type PaymentsResaleStarGifts struct {
+	Count          int32
+	Gifts          []StarGift
+	NextOffset     string              `tl:"flag:0"`
+	Attributes     []StarGiftAttribute `tl:"flag:1"`
+	AttributesHash int64               `tl:"flag:1"`
+	Chats          []Chat
+	Counters       []*StarGiftAttributeCounter `tl:"flag:2"`
+	Users          []User
+}
+
+func (*PaymentsResaleStarGifts) CRC() uint32 {
+	return 0x947a12df
+}
+
+func (*PaymentsResaleStarGifts) FlagIndex() int {
+	return 0
+}
+
 // Saved server-side order information
 type PaymentsSavedInfo struct {
 	HasSavedCredentials bool                  `tl:"flag:1,encoded_in_bitflags"`
@@ -3566,25 +3577,6 @@ type ReceivedNotifyMessage struct {
 
 func (*ReceivedNotifyMessage) CRC() uint32 {
 	return 0xa384b779
-}
-
-type ResaleStarGifts struct {
-	Count          int32
-	Gifts          []StarGift
-	NextOffset     string              `tl:"flag:0"`
-	Attributes     []StarGiftAttribute `tl:"flag:1"`
-	AttributesHash int64               `tl:"flag:1"`
-	Chats          []Chat
-	Counters       []*StarGiftAttributeCounter `tl:"flag:2"`
-	Users          []User
-}
-
-func (*ResaleStarGifts) CRC() uint32 {
-	return 0x947a12df
-}
-
-func (*ResaleStarGifts) FlagIndex() int {
-	return 0
 }
 
 // Restriction reason.
@@ -4330,6 +4322,14 @@ type StickersSuggestedShortName struct {
 
 func (*StickersSuggestedShortName) CRC() uint32 {
 	return 0x85fea03f
+}
+
+type StoriesCanSendStoryCount struct {
+	CountRemains int32
+}
+
+func (*StoriesCanSendStoryCount) CRC() uint32 {
+	return 0xc387c04e
 }
 
 // Stories found using global story search ».
