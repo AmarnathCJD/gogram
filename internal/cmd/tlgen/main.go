@@ -204,6 +204,29 @@ func minorFixes(outdir string, layer string) {
 		if err != nil {
 			panic(err)
 		}
+
+		// ALSO UPDATE README.md
+
+		rdfile, err := os.OpenFile(filepath.Join(execWorkDir, "../README.md"), os.O_RDWR|os.O_CREATE, 0644)
+		if err != nil {
+			panic(err)
+		}
+
+		rdcontent, err := io.ReadAll(rdfile)
+		if err != nil {
+			panic(err)
+		}
+
+		// #### Current Layer - **174** (Updated on 2024-02-18)
+		reg = regexp.MustCompile(`#### Current Layer - \*\*\d+\*\* \(Updated on \d{4}-\d{2}-\d{2}\)`)
+		str = string(rdcontent)
+
+		str = reg.ReplaceAllString(str, "#### Current Layer - **"+layer+"** (Updated on "+time.Now().Format("2006-01-02")+")")
+		fmt.Println("Updated README.md with ApiVersion", layer)
+
+		rdfile.Truncate(0)
+		rdfile.Seek(0, 0)
+		rdfile.Write([]byte(str))
 	}
 }
 
