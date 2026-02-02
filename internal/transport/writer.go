@@ -43,8 +43,26 @@ func (c *CancelableReader) begin() {
 	}
 }
 
+// func isClosed(ch <-chan int) bool {
+// 	select {
+// 	case <-ch:
+// 		return true
+// 	default:
+// 	}
+// 	return false
+// }
+
 func (c *CancelableReader) Read(p []byte) (int, error) {
-	c.sizeWant <- len(p)
+	// if isClosed(c.sizeWant) {
+	// 	return 0, c.err
+	// }
+
+	select {
+	case <-c.ctx.Done():
+		return 0, c.ctx.Err()
+	case c.sizeWant <- len(p):
+	}
+
 	select {
 	case <-c.ctx.Done():
 		return 0, c.ctx.Err()

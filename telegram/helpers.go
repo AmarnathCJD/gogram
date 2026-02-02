@@ -480,6 +480,8 @@ mediaTypeSwitch:
 		}
 	case InputMedia:
 		return media, nil
+	case *InputMedia:
+		return *media, nil
 	case Photo:
 		switch media := media.(type) {
 		case *PhotoObj:
@@ -487,8 +489,6 @@ mediaTypeSwitch:
 		case *PhotoEmpty:
 			return &InputMediaPhoto{ID: &InputPhotoEmpty{}, TtlSeconds: getValue(attr.TTL, 0).(int32), Spoiler: getValue(attr.Spoiler, false).(bool)}, nil
 		}
-	case *InputMedia:
-		return *media, nil
 	case MessageMedia:
 		switch media := media.(type) {
 		case *MessageMediaPhoto:

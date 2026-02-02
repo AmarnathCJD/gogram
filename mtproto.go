@@ -741,7 +741,7 @@ func (m *MTProto) offsetTime() {
 	}
 
 	m.timeOffset = timeResponse.Unixtime - currentLocalTime
-	m.Logger.Info("system time is out of sync, off-setting time by " + strconv.FormatInt(m.timeOffset, 10) + " seconds")
+	m.Logger.Error("system time is out of sync, correct it to: " + time.Unix(timeResponse.Unixtime, 0).String())
 }
 
 func closeOnCancel(ctx context.Context, c io.Closer) {
