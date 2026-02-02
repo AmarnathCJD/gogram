@@ -56,35 +56,50 @@ func (c *Client) GetChatPhoto(chatID any) (Photo, error) {
 //
 //	Params:
 //	- Channel: the username or id of the channel or chat
-func (c *Client) JoinChannel(Channel any) error {
+func (c *Client) JoinChannel(Channel any) (bool, error) {
 	switch p := Channel.(type) {
 	case string:
 		if TG_JOIN_RE.MatchString(p) {
-			_, err := c.MessagesImportChatInvite(TG_JOIN_RE.FindStringSubmatch(p)[1])
+			result, err := c.MessagesImportChatInvite(TG_JOIN_RE.FindStringSubmatch(p)[1])
 			if err != nil {
-				return err
+				return false, err
 			}
+
+			switch result := result.(type) {
+			case *UpdatesObj:
+				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+			}
+
+			return true, nil
+		} else if USERNAME_RE.MatchString(p) {
+			return c.joinChannelByPeer(USERNAME_RE.FindStringSubmatch(p)[1])
 		}
+
+		return false, errors.New("invalid channel or chat")
 	default:
-		channel, err := c.ResolvePeer(Channel)
-		if err != nil {
-			return err
-		}
-		if chat, ok := channel.(*InputPeerChannel); ok {
-			_, err = c.ChannelsJoinChannel(&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash})
-			if err != nil {
-				return err
-			}
-		} else if chat, ok := channel.(*InputPeerChat); ok {
-			_, err = c.MessagesAddChatUser(chat.ChatID, &InputUserEmpty{}, 0)
-			if err != nil {
-				return err
-			}
-		} else {
-			return errors.New("peer is not a channel or chat")
-		}
+		return c.joinChannelByPeer(Channel)
 	}
-	return nil
+}
+
+func (c *Client) joinChannelByPeer(Channel any) (bool, error) {
+	channel, err := c.ResolvePeer(Channel)
+	if err != nil {
+		return false, err
+	}
+	if chat, ok := channel.(*InputPeerChannel); ok {
+		_, err = c.ChannelsJoinChannel(&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash})
+		if err != nil {
+			return false, err
+		}
+	} else if chat, ok := channel.(*InputPeerChat); ok {
+		_, err = c.MessagesAddChatUser(chat.ChatID, &InputUserEmpty{}, 0)
+		if err != nil {
+			return false, err
+		}
+	} else {
+		return false, errors.New("peer is not a channel or chat")
+	}
+	return true, nil
 }
 
 // LeaveChannel leaves a channel or chat

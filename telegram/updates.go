@@ -218,6 +218,12 @@ func (h *rawHandle) GetGroup() string {
 	return h.Group
 }
 
+type openChat struct {
+	accessHash int64
+	closeChan  chan struct{}
+	lastPts    int32
+}
+
 type UpdateDispatcher struct {
 	sync.Mutex
 	messageHandles        map[string][]*messageHandle
@@ -233,6 +239,7 @@ type UpdateDispatcher struct {
 	activeAlbums          map[int64]*albumBox
 	sortTrigger           chan any
 	logger                *utils.Logger
+	openChats             map[int64]*openChat
 }
 
 // creates and populates a new UpdateDispatcher
@@ -1124,8 +1131,81 @@ UpdateTypeSwitching:
 	return true
 }
 
+func (c *Client) OpenChat(channel *InputChannelObj) {
+	if c.dispatcher.openChats == nil {
+		c.dispatcher.openChats = make(map[int64]*openChat)
+	}
+
+	if _, ok := c.dispatcher.openChats[channel.ChannelID]; ok {
+		return
+	}
+
+	c.dispatcher.openChats[channel.ChannelID] = &openChat{
+		accessHash: channel.AccessHash,
+		closeChan:  make(chan struct{}),
+		lastPts:    0,
+	}
+}
+
+func (c *Client) CloseChat(channel *InputChannelObj) {
+	if c.dispatcher.openChats == nil {
+		return
+	}
+
+	if _, ok := c.dispatcher.openChats[channel.ChannelID]; !ok {
+		return
+	}
+
+	close(c.dispatcher.openChats[channel.ChannelID].closeChan)
+	delete(c.dispatcher.openChats, channel.ChannelID)
+}
+
+const (
+	GET_CHANNEL_DIFF_INTERVAL = 2000 * time.Millisecond
+)
+
+// TODO Implement
+func (c *Client) _fetchGap() {
+	for {
+		for channelID, chat := range c.dispatcher.openChats {
+			chDiff, _ := c.UpdatesGetChannelDifference(&UpdatesGetChannelDifferenceParams{
+				Force:   false,
+				Channel: &InputChannelObj{ChannelID: channelID, AccessHash: chat.accessHash},
+				Pts:     chat.lastPts,
+				Limit:   100,
+				Filter:  &ChannelMessagesFilterEmpty{},
+			})
+
+			if c.dispatcher.openChats[channelID].lastPts != chat.lastPts {
+				c.Log.Debug("channel pts changed, skipping fetch")
+			}
+
+			if chDiff != nil {
+				switch d := chDiff.(type) {
+				case *UpdatesChannelDifferenceEmpty:
+					c.Log.Info("channel difference is empty")
+				case *UpdatesChannelDifferenceObj:
+					c.Cache.UpdatePeersToCache(d.Users, d.Chats)
+					for _, update := range d.NewMessages {
+						switch u := update.(type) {
+						case *MessageObj:
+							c.handleMessageUpdate(u)
+						}
+					}
+				case *UpdatesChannelDifferenceTooLong:
+					c.Log.Debug("channel difference is too long, requesting getState")
+				default:
+					c.Log.Error("unknown channel difference type: ", reflect.TypeOf(d))
+				}
+			}
+		}
+
+		time.Sleep(GET_CHANNEL_DIFF_INTERVAL)
+	}
+}
+
 func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
-	c.Logger.Debug("getting difference with pts: ", Pts, " and limit: ", Limit)
+	c.Log.Debug("getting difference with pts: ", Pts, " and limit: ", Limit)
 
 	updates, err := c.UpdatesGetDifference(&UpdatesGetDifferenceParams{
 		Pts:           Pts - 1,

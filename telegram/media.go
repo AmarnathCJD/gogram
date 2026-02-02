@@ -163,7 +163,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 
 	w := NewWorkerPool(numWorkers)
 
-	c.Logger.Info(fmt.Sprintf("file - upload: (%s) - (%d) - (%d)", source.GetName(), size, parts))
+	c.Log.Info(fmt.Sprintf("file - upload: (%s) - (%d) - (%d)", source.GetName(), size, parts))
 
 	doneBytes := atomic.Int64{}
 	doneArray := sync.Map{}
@@ -197,7 +197,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		part := make([]byte, partSize)
 		_, err := file.Read(part)
 		if err != nil {
-			c.Logger.Error(err)
+			c.Log.Error(err)
 			return nil, err
 		}
 
@@ -230,11 +230,11 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 					if handleIfFlood(err, c) {
 						continue
 					}
-					c.Logger.Debug(err)
+					c.Log.Debug(err)
 					continue
 				}
 
-				c.Logger.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
+				c.Log.Debug(fmt.Sprintf("uploaded part %d/%d in chunks of %d KB", p, totalParts, len(part)/1024))
 
 				doneBytes.Add(int64(len(part)))
 				if !IsFsBig {
@@ -252,7 +252,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		part := make([]byte, partOver)
 		_, err := file.Read(part)
 		if err != nil {
-			c.Logger.Error(err)
+			c.Log.Error(err)
 			return nil, err
 		}
 
@@ -277,7 +277,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 				if handleIfFlood(err, c) {
 					continue
 				}
-				c.Logger.Debug(err)
+				c.Log.Debug(err)
 				continue
 			}
 
@@ -326,7 +326,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 func handleIfFlood(err error, c *Client) bool {
 	if matchError(err, "FLOOD_WAIT_") || matchError(err, "FLOOD_PREMIUM_WAIT_") {
 		if waitTime := getFloodWait(err); waitTime > 0 {
-			c.Logger.Debug("flood wait ", waitTime, "(s), waiting...")
+			c.Log.Debug("flood wait ", waitTime, "(s), waiting...")
 			time.Sleep(time.Duration(waitTime) * time.Second)
 			return true
 		}
@@ -464,11 +464,11 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 	if opts.Buffer != nil {
 		dest = ":mem-buffer:"
-		c.Logger.Warn("downloading to buffer (memory) - use with caution (memory usage)")
+		c.Log.Warn("downloading to buffer (memory) - use with caution (memory usage)")
 	}
 
-	c.Logger.Info(fmt.Sprintf("file - download: (%s) - (%s) - (%d)", dest, sizetoHuman(size), parts))
-	c.Logger.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers))
+	c.Log.Info(fmt.Sprintf("file - download: (%s) - (%s) - (%d)", dest, sizetoHuman(size), parts))
+	c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers))
 
 	go initializeWorkers(numWorkers, dc, c, w)
 
@@ -672,7 +672,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		})
 
 		if err != nil {
-			c.Logger.Error(err)
+			c.Log.Error(err)
 		}
 
 		switch v := part.(type) {
