@@ -46,22 +46,27 @@ package main
 import "github.com/amarnathcjd/gogram/telegram"
 
 func main() {
-    client, err := telegram.NewClient(&telegram.ClientConfig{
-        AppID: 6, AppHash: "<app-hash>",
-        // StringSession: "<string-session>",
-    })
+	client, err := telegram.NewClient(telegram.ClientConfig{
+		AppID: 6, AppHash: "<app-hash>",
+		// StringSession: "<string-session>",
+	})
 
-    client.ConnectBot("<bot-token>") // or client.Login("<phone-number>") for user account
-    // client.AuthPrompt() // for console-based interactive auth
-    
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    client.AddMessageHandler(telegram.OnNewMessage, func(message *telegram.NewMessage) error {
-        if m.IsPrivate() {
-            m.Reply("Hello from Gogram!")
-        }
-    })
+	client.ConnectBot("<bot-token>") // or client.Login("<phone-number>") for user account
+	// client.AuthPrompt() // for console-based interactive auth
 
-    client.Idle() // block main goroutine until client is closed
+	client.AddMessageHandler(telegram.OnNewMessage, func(message *telegram.NewMessage) error {
+		if message.IsPrivate() {
+			message.Reply("Hello from Gogram!")
+			return nil
+		}
+		return fmt.Errorf("the chat isn't private")
+	})
+
+	client.Idle() // block main goroutine until client is closed
 }
 ```
 
@@ -86,7 +91,7 @@ If you'd like to support Gogram, you can consider:
 - **Feature-Rich**: Built-in support for file uploading, formatting, custom keyboards, message editing, moderation tools and more.
 - **Up-to-date**: Gogram is always in sync with the latest Telegram API changes and additions (`tl-parser` is used to generate the API layer).
 
-#### Current Layer - **179** (Updated on 2024-04-27)
+#### Current Layer - **181** (Updated on 2024-05-28)
 
 ## Installing
 

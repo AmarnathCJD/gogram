@@ -201,6 +201,10 @@ func minorFixes(outdir string, layer string) {
 
 	resp, ok := responseData.([]User)
 	if !ok {
+		if responseData == nil {
+			return nil, errors.New("response is nil")
+		}
+
 		if _, ok := responseData.([]*UserObj); ok { // Temp Fix till Problem is Identified
 			var users []User = make([]User, len(responseData.([]*UserObj)))
 			for i, user := range responseData.([]*UserObj) {
@@ -226,7 +230,7 @@ func minorFixes(outdir string, layer string) {
 
 	replace(filepath.Join(execWorkDir, "init_gen.go"), `Null,`, `NullCrc,`)
 	if layer != "0" {
-		// replace ApiVersion = 174
+		// replace eg: ApiVersion = 181
 		file, err := os.OpenFile(filepath.Join(execWorkDir, "const.go"), os.O_RDWR|os.O_CREATE, 0644)
 		if err != nil {
 			panic(err)
@@ -251,7 +255,7 @@ func minorFixes(outdir string, layer string) {
 			panic(err)
 		}
 
-		// ALSO UPDATE README.md
+		// ALSO UPDATE README.md with ApiVersion
 
 		rdfile, err := os.OpenFile(filepath.Join(execWorkDir, "../README.md"), os.O_RDWR|os.O_CREATE, 0644)
 		if err != nil {

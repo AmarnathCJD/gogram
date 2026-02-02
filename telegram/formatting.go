@@ -180,7 +180,11 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 		case "spoiler":
 			entities = append(entities, &MessageEntitySpoiler{tag.Offset, tag.Length})
 		case "quote", "blockquote":
-			entities = append(entities, &MessageEntityBlockquote{tag.Offset, tag.Length})
+			isCollapsed := false
+			if parsed, err := strconv.ParseBool(tag.Attrs["collapsed"]); err == nil {
+				isCollapsed = parsed
+			}
+			entities = append(entities, &MessageEntityBlockquote{isCollapsed, tag.Offset, tag.Length})
 		case "emoji":
 			emoijiId, err := strconv.ParseInt(tag.Attrs["id"], 10, 64)
 			if err != nil {
