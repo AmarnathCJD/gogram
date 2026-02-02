@@ -9,9 +9,11 @@ import (
 	"strings"
 )
 
+type LogLevel int
+
 const (
 	// DebugLevel is the lowest level of logging
-	DebugLevel = iota
+	DebugLevel LogLevel = iota
 	// InfoLevel is the second lowest level of logging
 	InfoLevel
 	// WarnLevel is the third highest level of logging
@@ -35,7 +37,7 @@ var (
 
 // Logger is the logging struct.
 type Logger struct {
-	Level   int
+	Level   LogLevel
 	Prefix  string
 	nocolor bool
 }
@@ -57,41 +59,13 @@ func (l *Logger) colorize(color []byte, s string) string {
 	return string(color) + s + string(colorOff)
 }
 
-func (l *Logger) Lev() string {
-	switch l.Level {
-	case DebugLevel:
-		return "debug"
-	case InfoLevel:
-		return "info"
-	case WarnLevel:
-		return "warn"
-	case ErrorLevel:
-		return "error"
-	case NoLevel:
-		return "disabled"
-	case TraceLevel:
-		return "trace"
-	default:
-		return "info"
-	}
+func (l *Logger) Lev() LogLevel {
+	return l.Level
 }
 
 // SetLevelString sets the level string
-func (l *Logger) SetLevel(level string) *Logger {
-	switch level {
-	case "debug":
-		l.Level = DebugLevel
-	case "info":
-		l.Level = InfoLevel
-	case "warn":
-		l.Level = WarnLevel
-	case "error":
-		l.Level = ErrorLevel
-	case "disabled":
-		l.Level = NoLevel
-	default:
-		l.Level = InfoLevel
-	}
+func (l *Logger) SetLevel(level LogLevel) *Logger {
+	l.Level = level
 	return l
 }
 
