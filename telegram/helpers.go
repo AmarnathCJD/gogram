@@ -406,10 +406,17 @@ PeerSwitch:
 		}
 
 		if peerID, accessHash, isChannel, found := c.Cache.LookupUsername(Peer); found {
-			if isChannel {
-				return &InputPeerChannel{ChannelID: peerID, AccessHash: accessHash}, nil
+			if accessHash == 0 {
+				c.Logger.WithFields(map[string]any{
+					"username": Peer,
+					"peer_id":  peerID,
+				}).Debug("username cache incomplete, refreshing from API")
+			} else {
+				if isChannel {
+					return &InputPeerChannel{ChannelID: peerID, AccessHash: accessHash}, nil
+				}
+				return &InputPeerUser{UserID: peerID, AccessHash: accessHash}, nil
 			}
-			return &InputPeerUser{UserID: peerID, AccessHash: accessHash}, nil
 		}
 
 		peerEntity, err := c.ResolveUsername(Peer)

@@ -516,7 +516,13 @@ func (c *CACHE) enforceSizeLimit() {
 			break
 		}
 		delete(c.InputPeers.InputUsers, userID)
-		delete(c.users, userID)
+		if user, ok := c.users[userID]; ok {
+			// Clean up username mapping
+			if user.Username != "" {
+				delete(c.usernameMap, user.Username)
+			}
+			delete(c.users, userID)
+		}
 		removed++
 	}
 
@@ -527,7 +533,13 @@ func (c *CACHE) enforceSizeLimit() {
 				break
 			}
 			delete(c.InputPeers.InputChannels, channelID)
-			delete(c.channels, channelID)
+			if channel, ok := c.channels[channelID]; ok {
+				// Clean up username mapping
+				if channel.Username != "" {
+					delete(c.usernameMap, channel.Username)
+				}
+				delete(c.channels, channelID)
+			}
 			removed++
 		}
 	}
@@ -663,14 +675,22 @@ func (c *CACHE) LookupUsername(username string) (peerID int64, accessHash int64,
 		return 0, 0, false, false
 	}
 
+	// Check channels first
 	if hash, ok := c.InputPeers.InputChannels[peerID]; ok {
 		return peerID, hash, true, true
 	}
+	// Check users
 	if hash, ok := c.InputPeers.InputUsers[peerID]; ok {
 		return peerID, hash, false, true
 	}
 
-	return 0, 0, false, false
+	// Username exists but access hash is missing - return found=true with 0 hash
+	// Caller should handle by fetching from API
+	c.logger.WithFields(map[string]any{
+		"username": username,
+		"peer_id":  peerID,
+	}).Debug("username in cache but access hash missing, needs refresh")
+	return peerID, 0, false, true
 }
 
 func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
@@ -757,7 +777,19 @@ func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 
 	users, err := c.UsersGetUsers([]InputUser{inputPeerUser})
 	if err != nil {
-		return nil, err
+		// If fetch with cached access hash failed, retry with access hash = 0
+		if err != nil && inputPeerUser.(*InputUserObj).AccessHash != 0 {
+			c.Cache.logger.WithFields(map[string]any{
+				"user_id": userID,
+				"error":   err.Error(),
+			}).Debug("retrying user fetch with access_hash=0")
+			users, err = c.UsersGetUsers([]InputUser{&InputUserObj{UserID: userID, AccessHash: 0}})
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	if len(users) == 0 {
@@ -791,7 +823,18 @@ func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 
 	channels, err := c.ChannelsGetChannels([]InputChannel{inputChannel})
 	if err != nil {
-		return nil, err
+		if inputChannel.(*InputChannelObj).AccessHash != 0 {
+			c.Cache.logger.WithFields(map[string]any{
+				"channel_id": channelID,
+				"error":      err.Error(),
+			}).Debug("retrying channel fetch with access_hash=0")
+			channels, err = c.ChannelsGetChannels([]InputChannel{&InputChannelObj{ChannelID: channelID, AccessHash: 0}})
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	channelsObj, ok := channels.(*MessagesChatsObj)
@@ -888,11 +931,6 @@ func (c *CACHE) UpdateUser(user *UserObj) bool {
 	c.Lock()
 	defer c.Unlock()
 
-	// Update username mapping
-	if user.Username != "" {
-		c.usernameMap[user.Username] = user.ID
-	}
-
 	// Skip min users if we already have full user data
 	if user.Min {
 		if existingUser, ok := c.users[user.ID]; ok && !existingUser.Min {
@@ -901,11 +939,21 @@ func (c *CACHE) UpdateUser(user *UserObj) bool {
 		}
 		// Update even if it's min (for first time or min->min)
 		c.users[user.ID] = user
+		// Don't update username map for min users to avoid inconsistency
 		return false // Don't trigger file write for min users
 	}
 
 	// Full user data - always update
 	c.users[user.ID] = user
+
+	// Update username mapping only for non-min users with access hash
+	if user.Username != "" {
+		c.usernameMap[user.Username] = user.ID
+		// Ensure InputPeers has the mapping too
+		if _, ok := c.InputPeers.InputUsers[user.ID]; !ok {
+			c.InputPeers.InputUsers[user.ID] = user.AccessHash
+		}
+	}
 
 	// Check if access hash changed
 	if currAccessHash, ok := c.InputPeers.InputUsers[user.ID]; ok {
@@ -929,11 +977,6 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 	c.Lock()
 	defer c.Unlock()
 
-	// Update username mapping
-	if channel.Username != "" {
-		c.usernameMap[channel.Username] = channel.ID
-	}
-
 	// Skip min channels if we already have full channel data
 	if channel.Min {
 		if existingCh, ok := c.channels[channel.ID]; ok && !existingCh.Min {
@@ -942,11 +985,21 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 		}
 		// Update even if it's min (for first time or min->min)
 		c.channels[channel.ID] = channel
+		// Don't update username map for min channels to avoid inconsistency
 		return false // Don't trigger file write for min channels
 	}
 
 	// Full channel data - always update
 	c.channels[channel.ID] = channel
+
+	// Update username mapping only for non-min channels with access hash
+	if channel.Username != "" {
+		c.usernameMap[channel.Username] = channel.ID
+		// Ensure InputPeers has the mapping too
+		if _, ok := c.InputPeers.InputChannels[channel.ID]; !ok {
+			c.InputPeers.InputChannels[channel.ID] = channel.AccessHash
+		}
+	}
 
 	// Check if access hash changed
 	if currAccessHash, ok := c.InputPeers.InputChannels[channel.ID]; ok {
