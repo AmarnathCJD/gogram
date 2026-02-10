@@ -700,6 +700,29 @@ type UpdateDispatcher struct {
 	stopChan              chan struct{}
 	patternCache          *patternCache
 	middlewareManager     *middlewareManager
+	processedMsgIDs       *lruCache
+}
+
+func msgDedupeKey(msg *MessageObj) int64 {
+	var peerID int64
+	if msg.PeerID != nil {
+		switch p := msg.PeerID.(type) {
+		case *PeerUser:
+			peerID = p.UserID
+		case *PeerChat:
+			peerID = p.ChatID
+		case *PeerChannel:
+			peerID = p.ChannelID
+		}
+	}
+	return (peerID << 32) ^ int64(msg.ID)
+}
+
+func (d *UpdateDispatcher) TryMarkMsgProcessed(msg *MessageObj) bool {
+	if d.processedMsgIDs == nil {
+		return true
+	}
+	return d.processedMsgIDs.TryAdd(msgDedupeKey(msg))
 }
 
 func (d *UpdateDispatcher) SetPts(pts int32) {
@@ -803,8 +826,9 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 			lp("updates", getVariadic(sessionName, ""))),
 		channelStates:         make(map[int64]*channelState),
 		pendingGaps:           make(map[int32]time.Time),
-		processedPtsLRU:       newLRUCache(20000),
-		processedQtsLRU:       newLRUCache(20000),
+		processedPtsLRU:       newLRUCache(100000),
+		processedQtsLRU:       newLRUCache(100000),
+		processedMsgIDs:       newLRUCache(100000),
 		stopChan:              make(chan struct{}),
 		messageHandles:        make(map[int][]*messageHandle),
 		inlineHandles:         make(map[int][]*inlineHandle),
@@ -937,6 +961,11 @@ func getUpdateTypeID(update Update) uint32 {
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
+		if !c.dispatcher.TryMarkMsgProcessed(msg) {
+			c.dispatcher.logger.Trace("duplicate message skipped: id=%d", msg.ID)
+			return
+		}
+
 		if msg.Out {
 			msg.FromID = &PeerUser{UserID: c.Me().ID}
 		}
@@ -1123,6 +1152,8 @@ func (c *Client) fetchPeersBeforeUpdate(m Message, pts int32) {
 		}
 		if updatedMessage != nil {
 			c.handleMessageUpdate(updatedMessage)
+		} else {
+			c.handleMessageUpdate(msg)
 		}
 	}
 }
@@ -2330,14 +2361,14 @@ UpdateTypeSwitching:
 			case *UpdateNewMessage:
 				if !c.dispatcher.TryMarkPtsProcessed(update.Pts) {
 					c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
-					return true
+					continue
 				}
 				go c.handleMessageUpdate(update.Message)
 				c.managePts(update.Pts, update.PtsCount)
 			case *UpdateNewChannelMessage:
 				if !c.dispatcher.TryMarkPtsProcessed(update.Pts) {
 					c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
-					return true
+					continue
 				}
 				channelID := getChannelIDFromMessage(update.Message)
 				if channelID != 0 {
@@ -2352,14 +2383,14 @@ UpdateTypeSwitching:
 			case *UpdateEditMessage:
 				if !c.dispatcher.TryMarkPtsProcessed(update.Pts) {
 					c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
-					return true
+					continue
 				}
 				go c.handleEditUpdate(update.Message)
 				c.managePts(update.Pts, update.PtsCount)
 			case *UpdateEditChannelMessage:
 				if !c.dispatcher.TryMarkPtsProcessed(update.Pts) {
 					c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
-					return true
+					continue
 				}
 				channelID := getChannelIDFromMessage(update.Message)
 				if channelID != 0 {
@@ -2372,14 +2403,14 @@ UpdateTypeSwitching:
 			case *UpdateDeleteMessages:
 				if !c.dispatcher.TryMarkPtsProcessed(update.Pts) {
 					c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
-					return true
+					continue
 				}
 				go c.handleDeleteUpdate(update)
 				c.managePts(update.Pts, update.PtsCount)
 			case *UpdateDeleteChannelMessages:
 				if !c.dispatcher.TryMarkPtsProcessed(update.Pts) {
 					c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
-					return true
+					continue
 				}
 				go c.handleDeleteUpdate(update)
 				c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount)
@@ -2432,6 +2463,7 @@ UpdateTypeSwitching:
 				return true
 			}
 			go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
+			c.managePts(upd.Pts, upd.PtsCount)
 		case *UpdateNewChannelMessage:
 			if !c.dispatcher.TryMarkPtsProcessed(upd.Pts) {
 				c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
@@ -2443,6 +2475,7 @@ UpdateTypeSwitching:
 				c.manageChannelPts(channelID, upd.Pts, upd.PtsCount)
 			} else {
 				go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
+				c.managePts(upd.Pts, upd.PtsCount)
 			}
 		case *UpdateChannelTooLong:
 			currentPts := c.dispatcher.GetChannelPts(upd.ChannelID)
@@ -2459,6 +2492,7 @@ UpdateTypeSwitching:
 		}
 		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
 		go c.fetchPeersBeforeUpdate(update, upd.Pts)
+		c.managePts(upd.Pts, upd.PtsCount)
 		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdateShortChatMessage:
 		if !c.dispatcher.TryMarkPtsProcessed(upd.Pts) {
@@ -2467,6 +2501,7 @@ UpdateTypeSwitching:
 		}
 		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
 		go c.fetchPeersBeforeUpdate(update, upd.Pts)
+		c.managePts(upd.Pts, upd.PtsCount)
 		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdateShortSentMessage:
 		if !c.dispatcher.TryMarkPtsProcessed(upd.Pts) {
@@ -2475,6 +2510,7 @@ UpdateTypeSwitching:
 		}
 		update := &MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}
 		go c.fetchPeersBeforeUpdate(update, upd.Pts)
+		c.managePts(upd.Pts, upd.PtsCount)
 		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdatesCombined:
 		if !c.manageSeq(upd.Seq, upd.SeqStart) {
