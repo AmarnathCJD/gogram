@@ -35,6 +35,13 @@ func RegisterObjects(obs ...Object) {
 	}
 }
 
+func RegisterObject(o Object, customCRC uint32) {
+	if val, found := objectByCrc[customCRC]; found {
+		panic(fmt.Errorf("object with that crc already registered as %v: 0x%08x", val.String(), customCRC))
+	}
+	objectByCrc[customCRC] = reflect.TypeOf(o)
+}
+
 func RegisterEnums(enums ...Object) {
 	for _, e := range enums {
 		if _, found := enumCrcs[e.CRC()]; found {

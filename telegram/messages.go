@@ -40,7 +40,7 @@ type SendOptions struct {
 	Spoiler              bool                     // Hide media behind spoiler overlay
 	Upload               *UploadOptions           // Upload configuration (threads, progress, chunk size)
 	Effect               int64                    // Message effect animation ID
-	Timeouts             int32                    // Response timeout for conversation Ask() calls
+	Timeouts             int32                    // Response timeout for conversation Ask() calls, and delay between updates for StreamMessage
 	AllowPaidStars       int64                    // Stars amount for paid content access
 	PaidFloodSkip        bool                     // Skip flood wait using paid priority
 	SuggestedPost        *SuggestedPost           // Channel post suggestion configuration
@@ -114,6 +114,70 @@ func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMes
 		}
 	}
 	return c.sendMessage(senderPeer, textMessage, entities, sendAs, opt)
+}
+
+// StreamMessage simulates a streaming message by continuously updating the user's draft status
+// only works for bots with topic forums enabled in private chats
+func (c *Client) StreamMessage(peerID any, streamer func(update func(message string)), opts ...*SendOptions) (*NewMessage, error) {
+	opt := getVariadic(opts, &SendOptions{})
+	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
+
+	senderPeer, err := c.ResolvePeer(peerID)
+	if err != nil {
+		return nil, err
+	}
+
+	if opt.SendAs != nil {
+		_, err = c.ResolvePeer(opt.SendAs)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	randomID := GenRandInt()
+	var (
+		lastEdit    time.Time
+		currentText string
+		topMsgID    int32
+	)
+
+	if opt.TopicID != 0 && opt.TopicID != 1 {
+		topMsgID = opt.TopicID
+	}
+
+	var delay time.Duration = 200 * time.Millisecond
+	if opt.Timeouts != 0 {
+		delay = time.Duration(opt.Timeouts) * time.Millisecond
+	}
+
+	updater := func(text string) {
+		if time.Since(lastEdit) < delay {
+			return
+		}
+		lastEdit = time.Now()
+		currentText = text
+
+		statusText := text
+		if len(statusText) > 4000 {
+			statusText = statusText[:4000] + "..."
+		}
+
+		entities, msg := parseEntities(statusText, opt.ParseMode)
+
+		action := &SendMessageTextDraftAction{
+			RandomID: randomID,
+			Text: &TextWithEntities{
+				Text:     msg,
+				Entities: entities,
+			},
+		}
+
+		c.MessagesSetTyping(senderPeer, topMsgID, action)
+	}
+
+	streamer(updater)
+
+	return c.SendMessage(peerID, currentText, opts...)
 }
 
 func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageEntity, sendAs InputPeer, opt *SendOptions) (*NewMessage, error) {
@@ -1072,21 +1136,32 @@ func (c *Client) GetCustomEmoji(docIDs ...int64) ([]Document, error) {
 }
 
 type SearchOption struct {
-	IDs              any             // IDs of the messages to get (bots can use)
-	Query            string          // query to search for
-	FromUser         any             // ID of the user to search from
-	AddOffset        int32           // Sequential number of the first message to be returned
-	Offset           int32           // offset of the message to search from
-	Limit            int32           // limit of the messages to get
-	Filter           MessagesFilter  // filter to use
-	TopMsgID         int32           // ID of the top message
-	MaxID            int32           // maximum ID of the message
-	MinID            int32           // minimum ID of the message
-	MaxDate          int32           // maximum date of the message
-	MinDate          int32           // minimum date of the message
-	SleepThresholdMs int32           // sleep threshold in milliseconds (in-between chunked operations)
-	Context          context.Context // context for cancellation and timeouts
+	IDs              any               // IDs of the messages to get (bots can use)
+	Query            string            // query to search for
+	FromUser         any               // ID of the user to search from
+	AddOffset        int32             // Sequential number of the first message to be returned
+	Offset           int32             // offset of the message to search from
+	Limit            int32             // limit of the messages to get
+	Filter           MessagesFilter    // filter to use
+	TopMsgID         int32             // ID of the top message
+	MaxID            int32             // maximum ID of the message
+	MinID            int32             // minimum ID of the message
+	MaxDate          int32             // maximum date of the message
+	MinDate          int32             // minimum date of the message
+	SleepThresholdMs int32             // sleep threshold in milliseconds (in-between chunked operations)
+	Context          context.Context   // context for cancellation and timeouts
+	ErrorCallback    IterErrorCallback // callback for handling errors with progress info
 }
+
+type IterProgressInfo struct {
+	Fetched      int32
+	CurrentBatch int32
+	Limit        int32
+	Offset       int32
+}
+
+// Return true to continue iteration after handling the error, false to stop
+type IterErrorCallback func(err error, progress *IterProgressInfo) bool
 
 func (c *Client) GetMessages(PeerID any, Opts ...*SearchOption) ([]NewMessage, error) {
 	opt := getVariadic(Opts, &SearchOption{
@@ -1330,6 +1405,16 @@ func (c *Client) IterMessages(PeerID any, callback func(*NewMessage) error, Opts
 				return errors.New("invalid peer type to get messages")
 			}
 			if err != nil {
+				if opt.ErrorCallback != nil {
+					if opt.ErrorCallback(err, &IterProgressInfo{
+						Fetched:      0,
+						CurrentBatch: int32(len(ids)),
+						Limit:        opt.Limit,
+						Offset:       opt.Offset,
+					}) {
+						continue
+					}
+				}
 				return err
 			}
 			switch result := result.(type) {
@@ -1417,6 +1502,16 @@ func (c *Client) IterMessages(PeerID any, callback func(*NewMessage) error, Opts
 				if handleIfFlood(err, c) {
 					continue
 				}
+				if opt.ErrorCallback != nil {
+					if opt.ErrorCallback(err, &IterProgressInfo{
+						Fetched:      totalFetched,
+						CurrentBatch: 0,
+						Limit:        opt.Limit,
+						Offset:       params.OffsetID,
+					}) {
+						continue
+					}
+				}
 				return err
 			}
 
@@ -1493,12 +1588,13 @@ func (c *Client) GetMessageByID(PeerID any, MsgID int32) (*NewMessage, error) {
 }
 
 type HistoryOption struct {
-	Limit            int32 // limit of the messages to get
-	Offset           int32 // offset of the message to search from
-	OffsetDate       int32 // offset date of the message to search from
-	MaxID            int32 // maximum ID of the message
-	MinID            int32 // minimum ID of the message
-	SleepThresholdMs int32 // sleep threshold in milliseconds (in-between chunked operations)
+	Limit            int32             // limit of the messages to get
+	Offset           int32             // offset of the message to search from
+	OffsetDate       int32             // offset date of the message to search from
+	MaxID            int32             // maximum ID of the message
+	MinID            int32             // minimum ID of the message
+	SleepThresholdMs int32             // sleep threshold in milliseconds (in-between chunked operations)
+	ErrorCallback    IterErrorCallback // callback for handling errors with progress info
 }
 
 func (c *Client) GetHistory(PeerID any, opts ...*HistoryOption) ([]NewMessage, error) {
@@ -1618,6 +1714,16 @@ func (c *Client) IterHistory(PeerID any, callback func(*NewMessage) error, opts 
 		if err != nil {
 			if handleIfFlood(err, c) {
 				continue
+			}
+			if opt.ErrorCallback != nil {
+				if opt.ErrorCallback(err, &IterProgressInfo{
+					Fetched:      int32(fetched),
+					CurrentBatch: 0,
+					Limit:        opt.Limit,
+					Offset:       req.OffsetID,
+				}) {
+					continue
+				}
 			}
 			return err
 		}

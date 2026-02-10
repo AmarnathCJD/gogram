@@ -3,18 +3,17 @@
 package telegram
 
 import (
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -23,20 +22,6 @@ import (
 
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
-
-// cryptoRandIntn returns a random int in [0, n) using crypto/rand
-func cryptoRandIntn(n int) int {
-	if n <= 0 {
-		return 0
-	}
-	b := make([]byte, 4)
-	rand.Read(b)
-	val := int(binary.BigEndian.Uint32(b))
-	if val < 0 {
-		val = -val
-	}
-	return val % n
-}
 
 type mimeTypeManager struct {
 	mimeTypes       map[string]string // ext -> mime
@@ -153,6 +138,27 @@ func (m *mimeTypeManager) IsImageFile(path string) bool {
 
 func (m *mimeTypeManager) IsVideoFile(path string) bool {
 	return m.IsStreamableFile(path)
+}
+
+func (m *mimeTypeManager) GetInlineType(mimeType string, voiceNote bool) string {
+	if voiceNote {
+		return "voice"
+	}
+
+	switch mimeType {
+	case "audio/mp3", "audio/mpeg", "audio/ogg", "audio/x-flac", "audio/x-alac", "audio/x-wav", "audio/x-m4a", "audio/aac", "audio/opus":
+		return "audio"
+	case "image/gif":
+		return "gif"
+	case "image/jpeg", "image/png":
+		return "photo"
+	case "image/webp", "application/x-tgsticker":
+		return "sticker"
+	case "video/mp4", "video/x-matroska", "video/webm":
+		return "video"
+	default:
+		return "file"
+	}
 }
 
 var MimeTypes = &mimeTypeManager{
@@ -324,7 +330,6 @@ func (m *MTProxy) toInternal() *utils.Proxy {
 }
 
 // ProxyFromURL creates a Proxy from a URL string
-// Supported formats:
 //   - socks4://[userid@]host:port
 //   - socks5://[user:pass@]host:port
 //   - http://[user:pass@]host:port
@@ -339,8 +344,7 @@ func ProxyFromURL(proxyURL string) (Proxy, error) {
 
 	u, err := url.Parse(proxyURL)
 	if err != nil {
-		re := regexp.MustCompile(`^([a-fA-F0-9]+)@([a-zA-Z0-9\.\-]+):(\d+)$`)
-		matches := re.FindStringSubmatch(proxyURL)
+		matches := proxyURLRegex.FindStringSubmatch(proxyURL)
 		if len(matches) == 4 {
 			port, _ := strconv.Atoi(matches[3])
 			return &MTProxy{
@@ -449,12 +453,6 @@ func ProxyFromURL(proxyURL string) (Proxy, error) {
 	}
 }
 
-var (
-	regexFloodWait        = regexp.MustCompile(`Please wait (\d+) seconds before repeating the action`)
-	regexFloodWaitBasic   = regexp.MustCompile(`FLOOD_WAIT_(\d+)`)
-	regexFloodWaitPremium = regexp.MustCompile(`FLOOD_PREMIUM_WAIT_(\d+)`)
-)
-
 func GetFloodWait(err error) int {
 	if err == nil {
 		return 0
@@ -483,8 +481,8 @@ func MatchError(err error, str string) bool {
 
 type FileLocationOptions struct {
 	ThumbOnly bool      // Get thumbnail location only
-	ThumbSize PhotoSize // Specific thumbnail size to retrieve
 	Video     bool      // Get video version (for animated content)
+	ThumbSize PhotoSize // Specific thumbnail size to retrieve
 }
 
 // GetFileLocation returns file location, datacenter, file size and file name
@@ -648,14 +646,21 @@ func sanitizePath(path string, filename string) string {
 	return path
 }
 
-// Func to get the file name of Media
-//
-//	Accepted types:
-//	 *MessageMedia
-//	 *Document
-//	 *Photo
+// GetFileName returns the file name of Media, if not specified then it generates a random name
 func GetFileName(f any, video ...bool) string {
 	var isVid = getVariadic(video, false)
+
+	generateName := func(prefix, ext string) string {
+		var b strings.Builder
+		b.Grow(len(prefix) + 25 + len(ext))
+		b.WriteString(prefix)
+		b.WriteByte('_')
+		b.WriteString(time.Now().Format("2006-01-02_15-04-05"))
+		b.WriteByte('_')
+		b.WriteString(strconv.Itoa(rand.IntN(1000)))
+		b.WriteString(ext)
+		return b.String()
+	}
 
 	getDocName := func(doc *DocumentObj) string {
 		for _, attr := range doc.Attributes {
@@ -664,30 +669,25 @@ func GetFileName(f any, video ...bool) string {
 			}
 		}
 
-		var name string
 		for _, attr := range doc.Attributes {
 			switch attr := attr.(type) {
 			case *DocumentAttributeAudio:
 				if attr.Title != "" {
-					name = attr.Title + ".mp3"
+					return attr.Title + ".mp3"
 				}
 			case *DocumentAttributeVideo:
-				name = fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+				return generateName("video", ".mp4")
 			case *DocumentAttributeAnimated:
-				name = fmt.Sprintf("animation_%s_%d.gif", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+				return generateName("animation", ".gif")
 			case *DocumentAttributeSticker:
-				return fmt.Sprintf("sticker_%s_%d.webp", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+				return generateName("sticker", ".webp")
 			}
 		}
 
-		if name != "" {
-			return name
-		}
-
 		if doc.MimeType != "" {
-			return fmt.Sprintf("file_%s_%d%s", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000), MimeTypes.Ext(doc.MimeType))
+			return generateName("file", MimeTypes.Ext(doc.MimeType))
 		}
-		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		return generateName("file", "")
 	}
 
 	switch f := f.(type) {
@@ -696,39 +696,44 @@ func GetFileName(f any, video ...bool) string {
 		case *DocumentObj:
 			return getDocName(doc)
 		default:
-			return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+			return generateName("file", "")
 		}
 	case *MessageMediaPhoto:
 		if isVid {
-			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+			return generateName("video", ".mp4")
 		}
-		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		return generateName("photo", ".jpg")
 	case *MessageMediaContact:
-		return fmt.Sprintf("contact_%s_%d.vcf", f.FirstName, cryptoRandIntn(1000))
+		return fmt.Sprintf("contact_%s_%d.vcf", f.FirstName, rand.IntN(1000))
 	case *DocumentObj:
 		return getDocName(f)
 	case *PhotoObj:
 		if isVid {
-			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+			return generateName("video", ".mp4")
 		}
-		return fmt.Sprintf("photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		return generateName("photo", ".jpg")
 	case *InputPeerPhotoFileLocation:
-		return fmt.Sprintf("profile_photo_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		return generateName("profile_photo", ".jpg")
 	case *InputPhotoFileLocation:
-		return fmt.Sprintf("photo_file_%s_%d.jpg", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		return generateName("photo_file", ".jpg")
 	default:
-		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
+		return generateName("file", "")
 	}
 }
 
-// Func to get the file size of Media
-//
-//	Accepted types:
-//	 *MessageMedia
-func getFileSize(f any) int64 {
+// GetFileSize returns the file size of Media
+func GetFileSize(f any) int64 {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
-		return f.Document.(*DocumentObj).Size
+		if f.Document != nil {
+			switch doc := f.Document.(type) {
+			case *DocumentObj:
+				return doc.Size
+			default:
+				return 0
+			}
+		}
+		return 0
 	case *MessageMediaPhoto:
 		if photo, p := f.Photo.(*PhotoObj); p {
 			if len(photo.Sizes) == 0 {
@@ -744,29 +749,28 @@ func getFileSize(f any) int64 {
 	}
 }
 
-// Func to get the file extension of Media
-//
-//	Accepted types:
-//	 *MessageMedia
-//	 *Document
-//	 *Photo
-func getFileExt(f any) string {
+// GetFileExt returns the file extension of Media
+func GetFileExt(f any) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
-		doc := f.Document.(*DocumentObj)
-		if e := MimeTypes.Ext(doc.MimeType); e != "" {
-			return e
-		}
-		for _, attr := range doc.Attributes {
-			switch attr.(type) {
-			case *DocumentAttributeAudio:
-				return ".mp3"
-			case *DocumentAttributeVideo:
-				return ".mp4"
-			case *DocumentAttributeAnimated:
-				return ".gif"
-			case *DocumentAttributeSticker:
-				return ".webp"
+		if f.Document != nil {
+			switch doc := f.Document.(type) {
+			case *DocumentObj:
+				if e := MimeTypes.Ext(doc.MimeType); e != "" {
+					return e
+				}
+				for _, attr := range doc.Attributes {
+					switch attr.(type) {
+					case *DocumentAttributeAudio:
+						return ".mp3"
+					case *DocumentAttributeVideo:
+						return ".mp4"
+					case *DocumentAttributeAnimated:
+						return ".gif"
+					case *DocumentAttributeSticker:
+						return ".webp"
+					}
+				}
 			}
 		}
 	case *MessageMediaPhoto:
@@ -798,9 +802,7 @@ func getFileExt(f any) string {
 }
 
 func GenerateRandomLong() int64 {
-	b := make([]byte, 8)
-	rand.Read(b)
-	return int64(binary.BigEndian.Uint64(b))
+	return rand.Int64()
 }
 
 func getPeerUser(userID int64) *PeerUser {
@@ -820,8 +822,6 @@ func IsURL(str string) bool {
 	u, err := url.Parse(str)
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
-
-var regexPhone = regexp.MustCompile(`^\+?[0-9]{10,13}$`)
 
 func IsPhone(phone string) bool {
 	return regexPhone.MatchString(phone)
@@ -871,27 +871,6 @@ func parseInt32(a any) int32 {
 		return int32(a)
 	default:
 		return 0
-	}
-}
-
-func getInlineDocumentType(mimeType string, voiceNote bool) string {
-	if voiceNote {
-		return "voice"
-	}
-
-	switch mimeType {
-	case "audio/mp3", "audio/mpeg", "audio/ogg", "audio/x-flac", "audio/x-alac", "audio/x-wav", "audio/x-m4a", "audio/aac", "audio/opus":
-		return "audio"
-	case "image/gif":
-		return "gif"
-	case "image/jpeg", "image/png":
-		return "photo"
-	case "image/webp", "application/x-tgsticker":
-		return "sticker"
-	case "video/mp4", "video/x-matroska", "video/webm":
-		return "video"
-	default:
-		return "file"
 	}
 }
 
@@ -1072,11 +1051,6 @@ func ResolveBotFileID(fileId string) (MessageMedia, error) {
 		}, nil
 	}
 	return nil, errors.New("failed to resolve file id: unknown file type")
-}
-
-func doesSessionFileExist(filePath string) bool {
-	_, ol := os.Stat(filePath)
-	return !os.IsNotExist(ol)
 }
 
 func IsFfmpegInstalled() bool {

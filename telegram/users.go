@@ -130,15 +130,16 @@ func (c *Client) GetProfilePhotos(userID any, Opts ...*PhotosOptions) ([]UserPho
 }
 
 type DialogOptions struct {
-	OffsetID         int32           // Message ID to start from
-	OffsetDate       int32           // Unix timestamp to start from
-	OffsetPeer       InputPeer       // Peer to start from
-	Limit            int32           // Maximum number of dialogs to return
-	ExcludePinned    bool            // Exclude pinned dialogs from results
-	FolderID         int32           // Folder ID to get dialogs from (0 for main list)
-	Hash             int64           // Hash for caching
-	SleepThresholdMs int32           // Delay between requests in milliseconds
-	Context          context.Context // Context for cancellation
+	OffsetID         int32             // Message ID to start from
+	OffsetDate       int32             // Unix timestamp to start from
+	OffsetPeer       InputPeer         // Peer to start from
+	Limit            int32             // Maximum number of dialogs to return
+	ExcludePinned    bool              // Exclude pinned dialogs from results
+	FolderID         int32             // Folder ID to get dialogs from (0 for main list)
+	Hash             int64             // Hash for caching
+	SleepThresholdMs int32             // Delay between requests in milliseconds
+	Context          context.Context   // Context for cancellation
+	ErrorCallback    IterErrorCallback // callback for handling errors with progress info
 }
 
 type TLDialog struct {
@@ -194,6 +195,18 @@ func (d *TLDialog) GetChannelID() int64 {
 
 func (d *TLDialog) GetInputPeer(c *Client) (InputPeer, error) {
 	return c.GetSendablePeer(d.Peer)
+}
+
+func (d *TLDialog) GetUser(c *Client) (*UserObj, error) {
+	return c.GetUser(d.GetID())
+}
+
+func (d *TLDialog) GetChat(c *Client) (*ChatObj, error) {
+	return c.GetChat(d.GetID())
+}
+
+func (d *TLDialog) GetChannel(c *Client) (*Channel, error) {
+	return c.GetChannel(d.GetID())
 }
 
 func (c *Client) GetDialogs(Opts ...*DialogOptions) ([]TLDialog, error) {
@@ -367,6 +380,16 @@ func (c *Client) IterDialogs(callback func(*TLDialog) error, Opts ...*DialogOpti
 		if handleIfFlood(err, c) {
 			continue
 		} else if err != nil {
+			if options.ErrorCallback != nil {
+				if options.ErrorCallback(err, &IterProgressInfo{
+					Fetched:      int32(fetched),
+					CurrentBatch: 0,
+					Limit:        options.Limit,
+					Offset:       req.OffsetID,
+				}) {
+					continue
+				}
+			}
 			return err
 		}
 
@@ -474,11 +497,8 @@ func packDialog(dialog Dialog) TLDialog {
 }
 
 // GetCommonChats returns the common chats of a user
-//
-//	Params:
-//	 - userID: The user Identifier
-func (c *Client) GetCommonChats(userID any) ([]Chat, error) {
-	peer, err := c.GetSendableUser(userID)
+func (c *Client) GetCommonChats(userId any) ([]Chat, error) {
+	peer, err := c.GetSendableUser(userId)
 	if err != nil {
 		return nil, err
 	}
@@ -499,21 +519,29 @@ func (c *Client) GetCommonChats(userID any) ([]Chat, error) {
 }
 
 // SetEmojiStatus sets the emoji status of the user
-//
-//	Params:
-//	 - emoji: The emoji status to set
-func (c *Client) SetEmojiStatus(emoji ...any) (bool, error) {
+func (c *Client) SetEmojiStatus(emoji ...EmojiStatus) (bool, error) {
 	var status EmojiStatus
 	if len(emoji) == 0 {
 		status = &EmojiStatusEmpty{}
 	} else {
-		em := emoji[0]
-		_, ok := em.(EmojiStatus)
-		if !ok {
-			return false, errors.New("emoji is not an EmojiStatus")
-		}
-		status = em.(EmojiStatus)
+		status = emoji[0]
 	}
 	_, err := c.AccountUpdateEmojiStatus(status)
 	return err == nil, err
+}
+
+// SetProfileAudio Adds or removes music from profile of the user
+func (c *Client) SetProfileAudio(audio any, unset ...bool) (bool, error) {
+	fi, err := c.ResolveMedia(audio, &MediaMetadata{Inline: true})
+	if err != nil {
+		return false, err
+	}
+
+	switch fi := fi.(type) {
+	case *InputMediaDocument:
+		_, err = c.AccountSaveMusic(len(unset) > 0 && unset[0], fi.ID, nil)
+		return err == nil, err
+	default:
+		return false, errors.New("could not convert audio: " + reflect.TypeOf(fi).String())
+	}
 }

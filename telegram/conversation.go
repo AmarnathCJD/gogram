@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -161,6 +162,7 @@ func (c *Conversation) checkAbort(msg *NewMessage) bool {
 	text := strings.ToLower(strings.TrimSpace(msg.Text()))
 	for _, keyword := range c.abortKeywords {
 		if strings.ToLower(keyword) == text {
+			c.Close()
 			return true
 		}
 	}
@@ -371,7 +373,7 @@ func (c *Conversation) MarkRead() (*MessagesAffectedMessages, error) {
 	return c.Client.SendReadAck(c.Peer)
 }
 
-func (c *Conversation) WaitClick() (*CallbackQuery, error) {
+func (c *Conversation) WaitClick(match ...string) (*CallbackQuery, error) {
 	c.mu.RLock()
 	if c.closed {
 		c.mu.RUnlock()
@@ -394,7 +396,16 @@ func (c *Conversation) WaitClick() (*CallbackQuery, error) {
 	}
 
 	h := c.Client.On(OnCallbackQuery, waitFunc, CustomCallback(func(b *CallbackQuery) bool {
-		return c.Client.PeerEquals(b.Peer, c.Peer)
+		if !c.Client.PeerEquals(b.Peer, c.Peer) {
+			return false
+		}
+
+		if len(match) > 0 {
+			data := b.DataString()
+			return slices.Contains(match, data)
+		}
+
+		return true
 	}))
 	h.SetGroup(ConversationGroup)
 
@@ -1011,6 +1022,7 @@ func (c *Conversation) buildFilters() []Filter {
 	}
 	if c.isPrivate {
 		filters = append(filters, FilterPrivate)
+		filters = append(filters, Not(FilterGroup), Not(FilterChannel))
 	}
 	return filters
 }

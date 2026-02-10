@@ -54,16 +54,17 @@ type clientData struct {
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
-	Cache        *CACHE
-	clientData   clientData
-	dispatcher   *UpdateDispatcher
-	wg           sync.WaitGroup
-	stopCh       chan struct{}
-	exSenders    *ExSenders
-	secretChats  *e2e.SecretChatManager
-	exportedKeys map[int]*AuthExportedAuthorization
-	Log          Logger
-	Data         *ContextStore
+	Cache          *CACHE
+	clientData     clientData
+	dispatcher     *UpdateDispatcher
+	wg             sync.WaitGroup
+	stopCh         chan struct{}
+	exSenders      *ExSenders
+	secretChats    *e2e.SecretChatManager
+	exportedKeys   map[int]*AuthExportedAuthorization
+	exportedKeysMu sync.Mutex
+	Log            Logger
+	Data           *ContextStore
 }
 
 type DeviceConfig struct {
@@ -216,7 +217,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 	c.clientData.appID = mtproto.AppID() // in case the appId was not provided in the config but was in the session
 
 	if config.StringSession != "" && !config.NoPreconnect {
-		c.Log.Debug("establishing connection to Telegram")
+		c.Log.Debug("connecting to Telegram")
 		if err := c.Connect(); err != nil {
 			return fmt.Errorf("connecting to telegram servers: %w", err)
 		}
@@ -302,7 +303,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 
 // InitialRequest sends the initial initConnection request
 func (c *Client) InitialRequest() error {
-	c.Log.Debug("sending initConnection request (layer %d)", ApiVersion)
+	c.Log.Debug("initializing connection (layer %d)", ApiVersion)
 	request := &InitConnectionParams{
 		ApiID:          c.clientData.appID,
 		DeviceModel:    c.clientData.deviceModel,
@@ -331,7 +332,7 @@ func (c *Client) InitialRequest() error {
 		return fmt.Errorf("sending invokeWithLayer: %w", err)
 	}
 
-	c.Log.Debug("received server configuration")
+	c.Log.Debug("server config received")
 	if config, ok := serverConfig.(*Config); ok {
 		var dcs = make(map[int][]utils.DC)
 		var cdnDcs = make(map[int][]utils.DC)
@@ -363,7 +364,7 @@ func (c *Client) Connect() error {
 		return nil
 	}
 
-	c.Log.Debug("establishing connection to Telegram")
+	c.Log.Debug("connecting to Telegram")
 
 	err := c.MTProto.CreateConnection(true)
 	if err != nil {
@@ -425,7 +426,7 @@ func (c *Client) St() error {
 
 // Returns true if the client is authorized as a user or a bot
 func (c *Client) IsAuthorized() (bool, error) {
-	c.Log.Debug("checking authorization status")
+	c.Log.Debug("checking auth status")
 	_, err := c.UpdatesGetState()
 	if err != nil {
 		return false, err
@@ -440,7 +441,7 @@ func (c *Client) Disconnect() error {
 
 // switchDC permanently switches the data center
 func (c *Client) SwitchDc(dcID int) error {
-	c.Log.Debug("switching to DC%d", dcID)
+	c.Log.Debug("switching DC -> %d", dcID)
 	if err := c.MTProto.SwitchDc(dcID); err != nil {
 		return fmt.Errorf("reconnecting to new dc: %w", err)
 	}
@@ -588,7 +589,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 
 	var authParam = getVariadic(authParams, &AuthExportedAuthorization{})
 
-	c.Log.Debug("creating exported sender for DC%d", dcID)
+	c.Log.Debug("creating exported sender (DC%d)", dcID)
 	if cdn {
 		if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
 			cdnKeysResp, err := c.HelpGetCdnConfig()
@@ -637,7 +638,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 					Bytes: authParam.Bytes,
 				}
 			} else {
-				c.Log.Info("exporting authorization for DC%d", dcID)
+				c.Log.Info("exporting auth (DC%d)", dcID)
 				auth, err = c.AuthExportAuthorization(int32(exported.GetDC()))
 				if err != nil {
 					lastError = fmt.Errorf("exporting auth: %w", err)
@@ -645,10 +646,12 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 					continue
 				}
 
+				c.exportedKeysMu.Lock()
 				if c.exportedKeys == nil {
 					c.exportedKeys = make(map[int]*AuthExportedAuthorization)
 				}
 				c.exportedKeys[dcID] = auth
+				c.exportedKeysMu.Unlock()
 			}
 
 			initialReq.Query = &AuthImportAuthorizationParams{
@@ -657,14 +660,14 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 			}
 		}
 
-		c.Log.Debug("sending initConnection to exported sender")
+		c.Log.Debug("initializing exported sender")
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		_, err = exported.MakeRequestCtx(ctx, &InvokeWithLayerParams{
 			Layer: ApiVersion,
 			Query: initialReq,
 		})
 		cancel()
-		c.Log.Debug("exported sender DC%d ready", dcID)
+		c.Log.Debug("exported sender ready (DC%d)", dcID)
 
 		if err != nil {
 			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") {

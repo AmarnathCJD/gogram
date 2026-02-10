@@ -2,13 +2,13 @@ package telegram
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math/big"
+	"math/rand/v2"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,7 +28,12 @@ func FileExists(path string) bool {
 	return err == nil
 }
 
-func ResolveDataCenterIP(dc int, test, ipv6 bool) string {
+func doesSessionFileExist(filePath string) bool {
+	_, ol := os.Stat(filePath)
+	return !os.IsNotExist(ol)
+}
+
+func ResolveDC(dc int, test, ipv6 bool) string {
 	return utils.GetDefaultHostIP(dc, test, ipv6)
 }
 
@@ -59,9 +64,7 @@ func PathIsWritable(path string) bool {
 }
 
 func GenRandInt() int64 {
-	b := make([]byte, 4)
-	rand.Read(b)
-	return int64(int32(binary.BigEndian.Uint32(b)))
+	return int64(int32(rand.Uint32()))
 }
 
 func (c *Client) ResolveMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
@@ -403,10 +406,17 @@ PeerSwitch:
 		}
 
 		if peerID, accessHash, isChannel, found := c.Cache.LookupUsername(Peer); found {
-			if isChannel {
-				return &InputPeerChannel{ChannelID: peerID, AccessHash: accessHash}, nil
+			if accessHash == 0 {
+				c.Logger.WithFields(map[string]any{
+					"username": Peer,
+					"peer_id":  peerID,
+				}).Debug("username cache incomplete, refreshing from API")
+			} else {
+				if isChannel {
+					return &InputPeerChannel{ChannelID: peerID, AccessHash: accessHash}, nil
+				}
+				return &InputPeerUser{UserID: peerID, AccessHash: accessHash}, nil
 			}
-			return &InputPeerUser{UserID: peerID, AccessHash: accessHash}, nil
 		}
 
 		peerEntity, err := c.ResolveUsername(Peer)
@@ -545,6 +555,35 @@ func (c *Client) GetPeerID(Peer any) int64 {
 	default:
 		return 0
 	}
+}
+
+func (c *Client) GetPeerType(Peer any) string {
+	switch Peer := Peer.(type) {
+	case *PeerUser, *InputPeerUser, *InputUserObj, *InputUserFromMessage:
+		return EntityUser
+	case *PeerChat, *InputPeerChat:
+		return EntityChat
+	case *PeerChannel, *InputPeerChannel, *InputChannelObj, *InputChannelFromMessage:
+		return EntityChannel
+	case int64, int32, int:
+		peerEntity, err := c.GetInputPeer(getAnyInt(Peer))
+		if peerEntity == nil || err != nil {
+			return EntityUnknown
+		}
+		return c.GetPeerType(peerEntity)
+	case string:
+		peerEntity, err := c.ResolvePeer(Peer)
+		if err != nil {
+			return EntityUnknown
+		}
+		return c.GetPeerType(peerEntity)
+	default:
+		return EntityUnknown
+	}
+}
+
+func (c *Client) IsSelf(Peer any) bool {
+	return c.GetPeerID(Peer) == c.Me().ID
 }
 
 func (c *Client) PeerEquals(a, b any) bool {
@@ -1222,13 +1261,11 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 		if duration <= 10 {
 			return (duration / 2) + 1
 		} else {
-			b := make([]byte, 4)
-			rand.Read(b)
-			n := int32(binary.BigEndian.Uint32(b))
-			if n < 0 {
-				n = -n
+			limit := int(duration) / 2
+			if limit <= 0 {
+				limit = 1
 			}
-			return int64(n%(int32(duration)/2) + 1)
+			return int64(rand.IntN(limit) + 1)
 		}
 	}
 
@@ -1372,7 +1409,7 @@ func packMessage(c *Client, message Message) *NewMessage {
 		}
 	}
 
-	if (m.Channel != nil && m.Sender != nil) && (m.Sender.ID == m.Channel.ID) {
+	if (m.Channel != nil && m.Sender != nil) && (m.Sender.ID == m.Channel.ID) || (m.Message.FromID != nil && c.GetPeerType(m.Message.FromID) == EntityChannel) {
 		m.SenderChat = c.getChannel(m.Message.FromID)
 	} else {
 		m.SenderChat = &Channel{}
@@ -1388,8 +1425,8 @@ func packMessage(c *Client, message Message) *NewMessage {
 		m.File = &CustomFile{
 			FileID: FileID,
 			Name:   GetFileName(m.Media()),
-			Size:   getFileSize(m.Media()),
-			Ext:    getFileExt(m.Media()),
+			Size:   GetFileSize(m.Media()),
+			Ext:    GetFileExt(m.Media()),
 		}
 	}
 	return m

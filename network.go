@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
-	"strings"
 
 	"errors"
 
@@ -84,9 +83,9 @@ sendPacket:
 	m.transportMu.Unlock()
 
 	if errorSendPacket != nil {
-		if maxRetries > 0 && (strings.Contains(errorSendPacket.Error(), "connection was aborted") || strings.Contains(errorSendPacket.Error(), "connection reset")) {
+		if maxRetries > 0 && isBrokenError(errorSendPacket) {
 			maxRetries--
-			err := m.CreateConnection(false)
+			err := m.Reconnect(false)
 			if err == nil && m.transport != nil {
 				goto sendPacket
 			}
@@ -183,8 +182,8 @@ func (m *MTProto) SetAuthKey(key []byte) {
 }
 
 func (m *MTProto) MakeRequest(msg tl.Object) (any, error) {
-	if m.timeout > 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), m.timeout)
+	if m.connConfig.Timeout > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), m.connConfig.Timeout)
 		defer cancel()
 		return m.makeRequestCtx(ctx, msg)
 	}

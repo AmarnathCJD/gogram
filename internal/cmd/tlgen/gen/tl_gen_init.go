@@ -14,6 +14,8 @@ func (g *Generator) generateInit(file *jen.File, _ bool) {
 	initFunc := jen.Func().Id("init").Params().Block(
 		g.createInitStructs(structs...),
 		jen.Line(),
+		g.createCustomInitStructs(),
+		jen.Line(),
 		g.createInitEnums(enums...),
 	)
 
@@ -28,9 +30,29 @@ func (*Generator) createInitStructs(itemNames ...string) jen.Code {
 		structs[i] = jen.Op("&").Id(item).Block()
 	}
 
-	return jen.Qual(tlPackagePath, "RegisterObjects").Call(
+	return jen.Qual(tlPackagePath, "RegisterObjects").CallN(
 		structs...,
 	)
+}
+
+var customStructs = map[string]uint32{
+	"MessageObj": 0xb92f76cf,
+	//"KeyboardButtonCallback": 0xd80c25ec,
+}
+
+func (g *Generator) createCustomInitStructs() jen.Code {
+	var statements []jen.Code
+	for name, crc := range customStructs {
+		statements = append(statements, jen.Qual(tlPackagePath, "RegisterObject").Call(
+			jen.Op("&").Id(name).Block(),
+			jen.Lit(crc),
+		))
+	}
+	return jen.BlockFunc(func(g *jen.Group) {
+		for _, stmt := range statements {
+			g.Add(stmt)
+		}
+	})
 }
 
 func (*Generator) createInitEnums(itemNames ...string) jen.Code {
@@ -41,7 +63,7 @@ func (*Generator) createInitEnums(itemNames ...string) jen.Code {
 		enums[i] = jen.Id(item)
 	}
 
-	return jen.Qual(tlPackagePath, "RegisterEnums").Call(
+	return jen.Qual(tlPackagePath, "RegisterEnums").CallN(
 		enums...,
 	)
 }

@@ -557,6 +557,13 @@ func (m *NewMessage) RawText(markdown ...bool) string {
 	}
 }
 
+// SetText sets the text of the message
+func (m *NewMessage) SetText(text string) {
+	entites, rawText := m.Client.FormatMessage(text, m.Client.ParseMode())
+	m.Message.Message = rawText
+	m.Message.Entities = entites
+}
+
 func (m *NewMessage) Args() string {
 	Messages := strings.Split(m.Text(), " ")
 	if len(Messages) < 2 {

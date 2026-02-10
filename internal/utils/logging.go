@@ -51,18 +51,17 @@ func (l LogLevel) String() string {
 }
 
 var (
-	colorReset       = "\033[0m"
-	colorBold        = "\033[1m"
-	colorDim         = "\033[2m"
-	colorRed         = "\033[31m"
-	colorGreen       = "\033[32m"
-	colorYellow      = "\033[33m"
-	colorBlue        = "\033[34m"
-	colorMagenta     = "\033[35m"
-	colorCyan        = "\033[36m"
-	colorWhite       = "\033[37m"
-	colorBrightBlack = "\033[90m"
-	colorBrightRed   = "\033[91m"
+	colorReset     = "\033[0m"
+	colorBold      = "\033[1m"
+	colorDim       = "\033[2m"
+	colorRed       = "\033[31m"
+	colorGreen     = "\033[32m"
+	colorYellow    = "\033[33m"
+	colorBlue      = "\033[34m"
+	colorMagenta   = "\033[35m"
+	colorCyan      = "\033[36m"
+	colorWhite     = "\033[37m"
+	colorBrightRed = "\033[91m"
 )
 
 type LogFormatter interface {
@@ -716,12 +715,13 @@ type TextFormatter struct {
 func (f *TextFormatter) Format(entry *LogEntry) string {
 	var b strings.Builder
 
-	// Use configured timestamp format or default
+	// Timestamp (Fixed width: 12 chars for default 15:04:05.000)
 	timestampFormat := f.TimestampFormat
 	if timestampFormat == "" {
-		timestampFormat = "15:04:05"
+		timestampFormat = "15:04:05.000"
 	}
 	timestamp := entry.Time.Format(timestampFormat)
+
 	if !f.NoColor {
 		b.WriteString(colorDim)
 	}
@@ -730,62 +730,53 @@ func (f *TextFormatter) Format(entry *LogEntry) string {
 		b.WriteString(colorReset)
 	}
 
-	levelText := fmt.Sprintf(" %-5s", entry.Level.String())
+	b.WriteString(" ")
+
+	levelStr := entry.Level.String()
+	if len(levelStr) > 5 {
+		levelStr = levelStr[:5]
+	}
+	if len(levelStr) < 5 {
+		levelStr = levelStr + strings.Repeat(" ", 5-len(levelStr))
+	}
+
 	levelColor := f.getLevelColor(entry.Level)
 	if !f.NoColor && levelColor != "" {
 		b.WriteString(levelColor)
 		b.WriteString(colorBold)
 	}
-	b.WriteString(levelText)
+	b.WriteString(levelStr)
 	if !f.NoColor && levelColor != "" {
 		b.WriteString(colorReset)
 	}
 
+	b.WriteString(" ")
+
 	if entry.Prefix != "" {
-		b.WriteString(" ")
 		if !f.NoColor {
 			b.WriteString(colorDim)
-		}
-		if !f.NoColor {
-			b.WriteString(colorReset)
-			b.WriteString(colorBrightBlack)
+			b.WriteString(colorBlue)
 		}
 		b.WriteString(entry.Prefix)
 		if !f.NoColor {
 			b.WriteString(colorReset)
-			b.WriteString(colorDim)
 		}
-		if !f.NoColor {
-			b.WriteString(colorReset)
-		}
+		b.WriteString(" ")
 	}
 
 	if entry.File != "" && entry.Line > 0 {
+		loc := fmt.Sprintf("%s:%d", entry.File, entry.Line)
+
 		if !f.NoColor {
 			b.WriteString(colorDim)
 		}
-		b.WriteString(" ")
-		b.WriteString(entry.File)
-		b.WriteString(":")
-		b.WriteString(fmt.Sprint(entry.Line))
+		b.WriteString(loc)
 		if !f.NoColor {
 			b.WriteString(colorReset)
 		}
-	}
-
-	if entry.Function != "" {
-		if !f.NoColor {
-			b.WriteString(colorDim)
-		}
 		b.WriteString(" ")
-		b.WriteString(entry.Function)
-		b.WriteString("()")
-		if !f.NoColor {
-			b.WriteString(colorReset)
-		}
 	}
 
-	b.WriteString(" ")
 	if !f.NoColor {
 		msgColor := f.getMessageColor(entry.Level)
 		if msgColor != "" {
@@ -801,14 +792,20 @@ func (f *TextFormatter) Format(entry *LogEntry) string {
 		if !f.NoColor {
 			b.WriteString(colorDim)
 		}
+
+		keys := make([]string, 0, len(entry.Fields))
+		for k := range entry.Fields {
+			keys = append(keys, k)
+		}
+
+		b.WriteString(" [")
 		first := true
 		for k, v := range entry.Fields {
-			if first {
+			if !first {
 				b.WriteString(" ")
-				first = false
-			} else {
-				b.WriteString(", ")
 			}
+			first = false
+
 			b.WriteString(k)
 			b.WriteString("=")
 			if !f.NoColor {
@@ -820,6 +817,7 @@ func (f *TextFormatter) Format(entry *LogEntry) string {
 				b.WriteString(colorDim)
 			}
 		}
+		b.WriteString("]")
 		if !f.NoColor {
 			b.WriteString(colorReset)
 		}

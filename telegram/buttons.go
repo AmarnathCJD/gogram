@@ -28,6 +28,17 @@ func (kb *KeyboardBuilder) AddRow(buttons ...KeyboardButton) *KeyboardBuilder {
 	return kb
 }
 
+// Add adds a single button to the last present row.
+// If no rows exist, a new row is created.
+func (kb *KeyboardBuilder) Add(button KeyboardButton) *KeyboardBuilder {
+	if len(kb.rows) == 0 {
+		kb.rows = append(kb.rows, &KeyboardButtonRow{Buttons: []KeyboardButton{button}})
+	} else {
+		kb.rows[len(kb.rows)-1].Buttons = append(kb.rows[len(kb.rows)-1].Buttons, button)
+	}
+	return kb
+}
+
 // NewGrid arranges buttons into a grid based on specified rows (x) and columns (y).
 // If there are fewer buttons than x*y, the last row may contain fewer buttons.
 func (kb *KeyboardBuilder) NewGrid(x, y int, buttons ...KeyboardButton) *KeyboardBuilder {
@@ -98,6 +109,38 @@ func (ButtonBuilder) Text(text string) *KeyboardButtonObj {
 	return &KeyboardButtonObj{Text: text}
 }
 
+func (kb *KeyboardButtonObj) Primary() *KeyboardButtonObj {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *KeyboardButtonObj) Danger() *KeyboardButtonObj {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *KeyboardButtonObj) Success() *KeyboardButtonObj {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *KeyboardButtonObj) Icon(emojiID int64) *KeyboardButtonObj {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
+}
+
 func (ButtonBuilder) Force(placeHolder string) *ReplyKeyboardForceReply {
 	return &ReplyKeyboardForceReply{Placeholder: placeHolder}
 }
@@ -106,28 +149,252 @@ func (ButtonBuilder) Auth(text, url, forwardText string, bot InputUser, requestW
 	return &InputKeyboardButtonURLAuth{Text: text, URL: url, FwdText: forwardText, Bot: bot, RequestWriteAccess: getVariadic(requestWriteAccess, false)}
 }
 
+func (kb *InputKeyboardButtonURLAuth) Primary() *InputKeyboardButtonURLAuth {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *InputKeyboardButtonURLAuth) Danger() *InputKeyboardButtonURLAuth {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *InputKeyboardButtonURLAuth) Success() *InputKeyboardButtonURLAuth {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *InputKeyboardButtonURLAuth) Icon(emojiID int64) *InputKeyboardButtonURLAuth {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
+}
+
 func (ButtonBuilder) URL(text, url string) *KeyboardButtonURL {
 	return &KeyboardButtonURL{Text: text, URL: url}
+}
+
+func (kb *KeyboardButtonURL) Primary() *KeyboardButtonURL {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *KeyboardButtonURL) Danger() *KeyboardButtonURL {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *KeyboardButtonURL) Success() *KeyboardButtonURL {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *KeyboardButtonURL) Icon(emojiID int64) *KeyboardButtonURL {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
 }
 
 func (ButtonBuilder) Data(text, data string) *KeyboardButtonCallback {
 	return &KeyboardButtonCallback{Text: text, Data: []byte(data)}
 }
 
+func (kb *KeyboardButtonCallback) Primary() *KeyboardButtonCallback {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *KeyboardButtonCallback) Danger() *KeyboardButtonCallback {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *KeyboardButtonCallback) Success() *KeyboardButtonCallback {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *KeyboardButtonCallback) Icon(emojiID int64) *KeyboardButtonCallback {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
+}
+
 func (ButtonBuilder) RequestLocation(text string) *KeyboardButtonRequestGeoLocation {
 	return &KeyboardButtonRequestGeoLocation{Text: text}
+}
+
+func (kb *KeyboardButtonRequestGeoLocation) Primary() *KeyboardButtonRequestGeoLocation {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *KeyboardButtonRequestGeoLocation) Danger() *KeyboardButtonRequestGeoLocation {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *KeyboardButtonRequestGeoLocation) Success() *KeyboardButtonRequestGeoLocation {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *KeyboardButtonRequestGeoLocation) Icon(emojiID int64) *KeyboardButtonRequestGeoLocation {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
 }
 
 func (ButtonBuilder) Buy(text string) *KeyboardButtonBuy {
 	return &KeyboardButtonBuy{Text: text}
 }
 
+func (kb *KeyboardButtonBuy) Primary() *KeyboardButtonBuy {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *KeyboardButtonBuy) Danger() *KeyboardButtonBuy {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *KeyboardButtonBuy) Success() *KeyboardButtonBuy {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *KeyboardButtonBuy) Icon(emojiID int64) *KeyboardButtonBuy {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
+}
+
 func (ButtonBuilder) Game(text string) *KeyboardButtonGame {
 	return &KeyboardButtonGame{Text: text}
 }
 
+func (kb *KeyboardButtonGame) Primary() *KeyboardButtonGame {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *KeyboardButtonGame) Danger() *KeyboardButtonGame {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *KeyboardButtonGame) Success() *KeyboardButtonGame {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *KeyboardButtonGame) Icon(emojiID int64) *KeyboardButtonGame {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
+}
+
 func (ButtonBuilder) RequestPhone(text string) *KeyboardButtonRequestPhone {
 	return &KeyboardButtonRequestPhone{Text: text}
+}
+
+func (kb *KeyboardButtonRequestPhone) Primary() *KeyboardButtonRequestPhone {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *KeyboardButtonRequestPhone) Danger() *KeyboardButtonRequestPhone {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *KeyboardButtonRequestPhone) Success() *KeyboardButtonRequestPhone {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *KeyboardButtonRequestPhone) Icon(emojiID int64) *KeyboardButtonRequestPhone {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
 }
 
 type RequestPeerOptions struct {
@@ -146,24 +413,216 @@ func (ButtonBuilder) RequestPoll(text string, quiz bool) *KeyboardButtonRequestP
 	return &KeyboardButtonRequestPoll{Text: text, Quiz: quiz}
 }
 
+func (kb *KeyboardButtonRequestPoll) Primary() *KeyboardButtonRequestPoll {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *KeyboardButtonRequestPoll) Danger() *KeyboardButtonRequestPoll {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *KeyboardButtonRequestPoll) Success() *KeyboardButtonRequestPoll {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *KeyboardButtonRequestPoll) Icon(emojiID int64) *KeyboardButtonRequestPoll {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
+}
+
 func (ButtonBuilder) SwitchInline(text string, samePeer bool, query string) *KeyboardButtonSwitchInline {
 	return &KeyboardButtonSwitchInline{Text: text, SamePeer: samePeer, Query: query}
+}
+
+func (kb *KeyboardButtonSwitchInline) Primary() *KeyboardButtonSwitchInline {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *KeyboardButtonSwitchInline) Danger() *KeyboardButtonSwitchInline {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *KeyboardButtonSwitchInline) Success() *KeyboardButtonSwitchInline {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *KeyboardButtonSwitchInline) Icon(emojiID int64) *KeyboardButtonSwitchInline {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
 }
 
 func (ButtonBuilder) WebView(text, url string) *KeyboardButtonWebView {
 	return &KeyboardButtonWebView{Text: text, URL: url}
 }
 
+func (kb *KeyboardButtonWebView) Primary() *KeyboardButtonWebView {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *KeyboardButtonWebView) Danger() *KeyboardButtonWebView {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *KeyboardButtonWebView) Success() *KeyboardButtonWebView {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *KeyboardButtonWebView) Icon(emojiID int64) *KeyboardButtonWebView {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
+}
+
 func (ButtonBuilder) SimpleWebView(text, url string) *KeyboardButtonSimpleWebView {
 	return &KeyboardButtonSimpleWebView{Text: text, URL: url}
 }
 
+func (kb *KeyboardButtonSimpleWebView) Primary() *KeyboardButtonSimpleWebView {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *KeyboardButtonSimpleWebView) Danger() *KeyboardButtonSimpleWebView {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *KeyboardButtonSimpleWebView) Success() *KeyboardButtonSimpleWebView {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *KeyboardButtonSimpleWebView) Icon(emojiID int64) *KeyboardButtonSimpleWebView {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
+}
+
 func (ButtonBuilder) Mention(text string, user InputUser) *InputKeyboardButtonUserProfile {
-	return &InputKeyboardButtonUserProfile{Text: text, UserID: user}
+	return &InputKeyboardButtonUserProfile{Text: text, InputUser: user}
+}
+
+func (kb *InputKeyboardButtonUserProfile) Primary() *InputKeyboardButtonUserProfile {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *InputKeyboardButtonUserProfile) Danger() *InputKeyboardButtonUserProfile {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *InputKeyboardButtonUserProfile) Success() *InputKeyboardButtonUserProfile {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *InputKeyboardButtonUserProfile) Icon(emojiID int64) *InputKeyboardButtonUserProfile {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
 }
 
 func (ButtonBuilder) Copy(text string, copyText string) *KeyboardButtonCopy {
 	return &KeyboardButtonCopy{Text: text, CopyText: copyText}
+}
+
+func (kb *KeyboardButtonCopy) Primary() *KeyboardButtonCopy {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgPrimary = true
+	return kb
+}
+
+func (kb *KeyboardButtonCopy) Danger() *KeyboardButtonCopy {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgDanger = true
+	return kb
+}
+
+func (kb *KeyboardButtonCopy) Success() *KeyboardButtonCopy {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.BgSuccess = true
+	return kb
+}
+
+func (kb *KeyboardButtonCopy) Icon(emojiID int64) *KeyboardButtonCopy {
+	if kb.Style == nil {
+		kb.Style = &KeyboardButtonStyle{}
+	}
+	kb.Style.Icon = emojiID
+	return kb
 }
 
 func (ButtonBuilder) Row(Buttons ...KeyboardButton) *KeyboardButtonRow {
