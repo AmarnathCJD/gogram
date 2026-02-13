@@ -778,7 +778,7 @@ func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 	users, err := c.UsersGetUsers([]InputUser{inputPeerUser})
 	if err != nil {
 		// If fetch with cached access hash failed, retry with access hash = 0
-		if err != nil && inputPeerUser.(*InputUserObj).AccessHash != 0 {
+		if inputPeerUser.(*InputUserObj).AccessHash != 0 {
 			c.Cache.logger.WithFields(map[string]any{
 				"user_id": userID,
 				"error":   err.Error(),
