@@ -554,7 +554,7 @@ func (kb *KeyboardButtonSimpleWebView) Icon(emojiID int64) *KeyboardButtonSimple
 }
 
 func (ButtonBuilder) Mention(text string, user InputUser) *InputKeyboardButtonUserProfile {
-	return &InputKeyboardButtonUserProfile{Text: text, UserID: user}
+	return &InputKeyboardButtonUserProfile{Text: text, InputUser: user}
 }
 
 func (kb *InputKeyboardButtonUserProfile) Primary() *InputKeyboardButtonUserProfile {
