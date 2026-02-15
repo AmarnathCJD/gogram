@@ -324,6 +324,29 @@ func (m *NewMessage) GetPeer() (int64, int64) {
 	return 0, 0
 }
 
+func (m *NewMessage) Mention(UserID int64, Name string, markdown ...bool) string {
+	var md = getVariadic(markdown, false)
+	if UserID == 0 {
+		UserID = m.SenderID()
+	}
+	if Name == "" {
+		if m.Sender != nil {
+			Name = m.Sender.FirstName
+			if m.Sender.LastName != "" {
+				Name += " " + m.Sender.LastName
+			}
+		} else {
+			Name = fmt.Sprintf("user%d", UserID)
+		}
+	}
+
+	if md {
+		return fmt.Sprintf("[%s](tg://user?id=%d)", Name, UserID)
+	} else {
+		return fmt.Sprintf("<a href=\"tg://user?id=%d\">%s</a>", UserID, Name)
+	}
+}
+
 func (m *NewMessage) IsForward() bool {
 	return m.Message.FwdFrom != nil
 }
