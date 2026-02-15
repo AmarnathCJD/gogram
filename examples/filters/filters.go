@@ -14,35 +14,35 @@ func main() {
 	}
 
 	// ============================================
-	// USING BITFLAGS DIRECTLY (fastest, cleanest)
+	// CHAT TYPE & STATE FILTERS (Is...)
 	// ============================================
 
-	// Single flag
+	// Single filter
 	client.On("/start", startHandler, tg.IsPrivate)
 
-	// Multiple flags with | (OR them together)
-	client.On("message", mediaHandler, tg.IsGroup, tg.IsMedia)
+	// Multiple filters (AND logic by default)
+	client.On("message", mediaHandler, tg.IsGroup, tg.HasMedia)
 	client.On("/admin", adminHandler, tg.IsPrivate, tg.IsCommand)
 
 	// Photo OR Video in groups
-	client.On("message", photoVideoHandler, tg.IsGroup, tg.Any(tg.IsPhoto, tg.IsVideo))
+	client.On("message", photoVideoHandler, tg.IsGroup, tg.Any(tg.HasPhoto, tg.HasVideo))
 
 	// ============================================
-	// SIMPLE FILTER VARIABLES (same as bitflags, just pre-wrapped)
+	// CONTENT FILTERS (Has...)
 	// ============================================
 
 	client.On("/help", helpHandler, tg.IsPrivate)
-	client.On("message", groupMediaHandler, tg.IsGroup, tg.IsMedia)
+	client.On("message", groupMediaHandler, tg.IsGroup, tg.HasMedia)
 
 	// ============================================
 	// PARAMETERIZED FILTERS
 	// ============================================
 
 	// Only from specific users
-	client.On("message", vipHandler, tg.FromUser(123456, 789012))
+	client.On("message", vipHandler, tg.FromUsers(123456, 789012))
 
 	// Only in specific chats
-	client.On("message", chatHandler, tg.InChat(-100123456789))
+	client.On("message", chatHandler, tg.FromChats(-100123456789))
 
 	// Text length constraints
 	client.On("message", longTextHandler, tg.TextMinLen(10), tg.TextMaxLen(100))
@@ -52,7 +52,7 @@ func main() {
 	// ============================================
 
 	// Any (OR logic)
-	client.On("message", anyMediaHandler, tg.Any(tg.IsPhoto, tg.IsVideo, tg.FilterDocument))
+	client.On("message", anyMediaHandler, tg.Any(tg.HasPhoto, tg.HasVideo, tg.HasDocument))
 
 	// Not - negate
 	client.On("message", notForwardHandler, tg.Not(tg.IsForward))
@@ -60,7 +60,7 @@ func main() {
 	// Complex: Group + (Photo OR Video) + NOT forwarded
 	client.On("message", complexHandler,
 		tg.IsGroup,
-		tg.Any(tg.IsPhoto, tg.IsVideo),
+		tg.Any(tg.HasPhoto, tg.HasVideo),
 		tg.Not(tg.IsForward),
 	)
 
@@ -69,12 +69,12 @@ func main() {
 	// ============================================
 
 	// Inline custom
-	client.On("message", customHandler, tg.Custom(func(m *tg.NewMessage) bool {
+	client.On("message", customHandler, tg.CustomFilter(func(m *tg.NewMessage) bool {
 		return len(m.Text()) > 5 && m.Sender != nil && !m.Sender.Bot
 	}))
 
 	// Reusable custom filter
-	var IsAdmin = tg.Custom(func(m *tg.NewMessage) bool {
+	var IsAdmin = tg.CustomFilter(func(m *tg.NewMessage) bool {
 		return m.SenderID() == 123456789 // your admin ID
 	})
 	client.On("/secret", secretHandler, IsAdmin)
@@ -86,14 +86,14 @@ func main() {
 	// Private + from specific users + min text length
 	client.On("message", chainedHandler,
 		tg.IsPrivate,
-		tg.FromUser(123, 456),
+		tg.FromUsers(123, 456),
 		tg.TextMinLen(10),
 	)
 
 	// Group + blacklist certain users
 	client.On("message", blacklistHandler,
 		tg.IsGroup,
-		tg.Not(tg.FromUser(999, 888)),
+		tg.Not(tg.FromUsers(999, 888)),
 	)
 
 	client.Idle()

@@ -211,23 +211,23 @@ func (hb *MessageHandleBuilder) Description(desc string) *MessageHandleBuilder {
 }
 
 func (hb *MessageHandleBuilder) Private() *MessageHandleBuilder {
-	return hb.Filter(FilterPrivate)
+	return hb.Filter(IsPrivate)
 }
 
 func (hb *MessageHandleBuilder) Groups() *MessageHandleBuilder {
-	return hb.Filter(FilterGroup)
+	return hb.Filter(IsGroup)
 }
 
 func (hb *MessageHandleBuilder) Channels() *MessageHandleBuilder {
-	return hb.Filter(FilterChannel)
+	return hb.Filter(IsChannel)
 }
 
 func (hb *MessageHandleBuilder) From(userIDs ...int64) *MessageHandleBuilder {
-	return hb.Filter(FromUser(userIDs...))
+	return hb.Filter(FromUsers(userIDs...))
 }
 
 func (hb *MessageHandleBuilder) In(chatIDs ...int64) *MessageHandleBuilder {
-	return hb.Filter(InChat(chatIDs...))
+	return hb.Filter(FromChats(chatIDs...))
 }
 
 func (hb *MessageHandleBuilder) Register() Handle {
@@ -279,15 +279,15 @@ func (cb *CallbackHandleBuilder) Name(name string) *CallbackHandleBuilder {
 }
 
 func (cb *CallbackHandleBuilder) Private() *CallbackHandleBuilder {
-	return cb.Filter(FilterPrivate)
+	return cb.Filter(IsPrivate)
 }
 
 func (cb *CallbackHandleBuilder) From(userIDs ...int64) *CallbackHandleBuilder {
-	return cb.Filter(FromUser(userIDs...))
+	return cb.Filter(FromUsers(userIDs...))
 }
 
 func (cb *CallbackHandleBuilder) In(chatIDs ...int64) *CallbackHandleBuilder {
-	return cb.Filter(InChat(chatIDs...))
+	return cb.Filter(FromChats(chatIDs...))
 }
 
 func (cb *CallbackHandleBuilder) Register() Handle {
@@ -437,11 +437,6 @@ func applyMiddlewares(handler MessageHandler, middlewares []Middleware) MessageH
 // WithMiddleware wraps a handler with the provided middlewares
 func WithMiddleware(handler MessageHandler, middlewares ...Middleware) MessageHandler {
 	return applyMiddlewares(handler, middlewares)
-}
-
-// AnyFilter creates a filter that matches if any of the provided filters match
-func AnyFilter(filters ...Filter) Filter {
-	return Any(filters...)
 }
 
 type MessageHandler func(m *NewMessage) error
@@ -1643,9 +1638,27 @@ func (h *messageHandle) runFilterChain(m *NewMessage, filters []Filter) bool {
 }
 
 func (h *messageHandle) hasOutgoingFilter() bool {
-	for _, f := range h.Filters {
-		if f.HasFlag(FOutgoing) {
+	return containsFilter(h.Filters, IsOutgoing)
+}
+
+func containsFilter(filters []Filter, target Filter) bool {
+	for _, f := range filters {
+		if f == target {
 			return true
+		}
+		switch ff := f.(type) {
+		case anyFilter:
+			if containsFilter([]Filter(ff), target) {
+				return true
+			}
+		case allFilter:
+			if containsFilter([]Filter(ff), target) {
+				return true
+			}
+		case notFilter:
+			if containsFilter([]Filter{ff.f}, target) {
+				return true
+			}
 		}
 	}
 	return false
@@ -1669,181 +1682,174 @@ func (h *callbackHandle) runFilterChain(c *CallbackQuery, filters []Filter) bool
 	return true
 }
 
+// Filter is an interface that checks whether a message or callback query matches certain criteria.
 type Filter interface {
 	Check(m *NewMessage) bool
 	CheckCallback(c *CallbackQuery) bool
-	HasFlag(flag FilterFlag) bool
 }
 
-type FilterFlag uint32
+// funcFilter is a simple filter implementation using functions.
+type funcFilter struct {
+	check   func(*NewMessage) bool
+	checkCb func(*CallbackQuery) bool
+}
 
-const (
-	FPrivate FilterFlag = 1 << iota
-	FGroup
-	FChannel
-	FMedia
-	FCommand
-	FReply
-	FForward
-	FFromBot
-	FBlacklist
-	FMention
-	FOutgoing
-	FIncoming
-	FEdited
-	FPhoto
-	FVideo
-	FDocument
-	FAudio
-	FSticker
-	FAnimation
-	FVoice
-	FVideoNote
-	FContact
-	FLocation
-	FVenue
-	FPoll
-	FText
+func (f funcFilter) Check(m *NewMessage) bool {
+	if f.check != nil {
+		return f.check(m)
+	}
+	return true
+}
+
+func (f funcFilter) CheckCallback(c *CallbackQuery) bool {
+	if f.checkCb != nil {
+		return f.checkCb(c)
+	}
+	return true
+}
+
+var (
+	// IsPrivate matches messages from private (1-on-1) chats.
+	IsPrivate Filter = funcFilter{
+		check:   func(m *NewMessage) bool { return m.IsPrivate() },
+		checkCb: func(c *CallbackQuery) bool { return c.IsPrivate() },
+	}
+	// IsGroup matches messages from group chats.
+	IsGroup Filter = funcFilter{
+		check:   func(m *NewMessage) bool { return m.IsGroup() },
+		checkCb: func(c *CallbackQuery) bool { return c.IsGroup() },
+	}
+	// IsChannel matches messages from channels.
+	IsChannel Filter = funcFilter{
+		check:   func(m *NewMessage) bool { return m.IsChannel() },
+		checkCb: func(c *CallbackQuery) bool { return c.IsChannel() },
+	}
 )
 
-type flagFilter FilterFlag
+var (
+	// IsCommand matches messages that contain a bot command.
+	IsCommand Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.IsCommand() },
+	}
+	// IsReply matches messages that are replies to another message.
+	IsReply Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.IsReply() },
+	}
+	// IsForward matches forwarded messages.
+	IsForward Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.IsForward() },
+	}
+	// IsOutgoing matches outgoing messages (sent by the current user).
+	IsOutgoing Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.Message != nil && m.Message.Out },
+	}
+	// IsIncoming matches incoming messages (not sent by the current user).
+	IsIncoming Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.Message != nil && !m.Message.Out },
+	}
+	// IsEdited matches messages that have been edited.
+	IsEdited Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.Message != nil && m.Message.EditDate != 0 },
+	}
+	// IsText matches messages that have non-empty text.
+	IsText Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.Text() != "" },
+	}
+)
 
-func (f flagFilter) Check(m *NewMessage) bool {
-	return f.checkFlags(m)
-}
+var (
+	// FromBot matches messages sent by a bot.
+	FromBot Filter = funcFilter{
+		check:   func(m *NewMessage) bool { return m.Sender != nil && m.Sender.Bot },
+		checkCb: func(c *CallbackQuery) bool { return c.Sender != nil && c.Sender.Bot },
+	}
+	// HasMention matches messages where the current user is mentioned.
+	HasMention Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.Message != nil && m.Message.Mentioned },
+	}
+)
 
-func (f flagFilter) CheckCallback(c *CallbackQuery) bool {
-	flags := FilterFlag(f)
-	if flags&FPrivate != 0 && !c.IsPrivate() {
-		return false
+var (
+	// HasMedia matches messages that contain any media.
+	HasMedia Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.IsMedia() },
 	}
-	if flags&FGroup != 0 && !c.IsGroup() {
-		return false
+	// HasPhoto matches messages that contain a photo.
+	HasPhoto Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.Photo() != nil },
 	}
-	if flags&FChannel != 0 && !c.IsChannel() {
-		return false
+	// HasVideo matches messages that contain a video.
+	HasVideo Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.Video() != nil },
 	}
-	if flags&FFromBot != 0 && (c.Sender == nil || !c.Sender.Bot) {
-		return false
+	// HasDocument matches messages that contain a document.
+	HasDocument Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.Document() != nil },
 	}
-	return true
-}
-
-func (f flagFilter) HasFlag(flag FilterFlag) bool {
-	return FilterFlag(f)&flag != 0
-}
-
-func (f flagFilter) checkFlags(m *NewMessage) bool {
-	flags := FilterFlag(f)
-	if flags&FPrivate != 0 && !m.IsPrivate() {
-		return false
+	// HasAudio matches messages that contain an audio file.
+	HasAudio Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.Audio() != nil },
 	}
-	if flags&FGroup != 0 && !m.IsGroup() {
-		return false
+	// HasSticker matches messages that contain a sticker.
+	HasSticker Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.Sticker() != nil },
 	}
-	if flags&FChannel != 0 && !m.IsChannel() {
-		return false
-	}
-	if flags&FMedia != 0 && !m.IsMedia() {
-		return false
-	}
-	if flags&FCommand != 0 && !m.IsCommand() {
-		return false
-	}
-	if flags&FReply != 0 && !m.IsReply() {
-		return false
-	}
-	if flags&FForward != 0 && !m.IsForward() {
-		return false
-	}
-	if flags&FFromBot != 0 && (m.Sender == nil || !m.Sender.Bot) {
-		return false
-	}
-	if flags&FMention != 0 && (m.Message == nil || !m.Message.Mentioned) {
-		return false
-	}
-	if flags&FOutgoing != 0 && (m.Message == nil || !m.Message.Out) {
-		return false
-	}
-	if flags&FIncoming != 0 && (m.Message == nil || m.Message.Out) {
-		return false
-	}
-	if flags&FEdited != 0 && (m.Message == nil || m.Message.EditDate == 0) {
-		return false
-	}
-	if flags&FText != 0 && m.Text() == "" {
-		return false
-	}
-
-	if flags&FPhoto != 0 && m.Photo() == nil {
-		return false
-	}
-	if flags&FVideo != 0 && m.Video() == nil {
-		return false
-	}
-	if flags&FAudio != 0 && m.Audio() == nil {
-		return false
-	}
-	if flags&FVoice != 0 && m.Voice() == nil {
-		return false
-	}
-	if flags&FDocument != 0 && m.Document() == nil {
-		return false
-	}
-	if flags&FContact != 0 && m.Contact() == nil {
-		return false
-	}
-	if flags&FLocation != 0 {
-		if _, ok := m.Media().(*MessageMediaGeo); !ok {
-			return false
-		}
-	}
-	if flags&FVenue != 0 {
-		if _, ok := m.Media().(*MessageMediaVenue); !ok {
-			return false
-		}
-	}
-	if flags&FPoll != 0 {
-		if _, ok := m.Media().(*MessageMediaPoll); !ok {
-			return false
-		}
-	}
-
-	if flags&FAnimation != 0 {
-		if doc := m.Document(); doc != nil {
-			isAnim := false
-			for _, attr := range doc.Attributes {
-				if _, ok := attr.(*DocumentAttributeAnimated); ok {
-					isAnim = true
-					break
+	// HasAnimation matches messages that contain a GIF/animation.
+	HasAnimation Filter = funcFilter{
+		check: func(m *NewMessage) bool {
+			if doc := m.Document(); doc != nil {
+				for _, attr := range doc.Attributes {
+					if _, ok := attr.(*DocumentAttributeAnimated); ok {
+						return true
+					}
 				}
 			}
-			if !isAnim {
-				return false
-			}
-		} else {
 			return false
-		}
+		},
 	}
-	if flags&FVideoNote != 0 {
-		if doc := m.Document(); doc != nil {
-			isVN := false
-			for _, attr := range doc.Attributes {
-				if v, ok := attr.(*DocumentAttributeVideo); ok && v.RoundMessage {
-					isVN = true
-					break
+	// HasVoice matches messages that contain a voice message.
+	HasVoice Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.Voice() != nil },
+	}
+	// HasVideoNote matches messages that contain a video note (round video).
+	HasVideoNote Filter = funcFilter{
+		check: func(m *NewMessage) bool {
+			if doc := m.Document(); doc != nil {
+				for _, attr := range doc.Attributes {
+					if v, ok := attr.(*DocumentAttributeVideo); ok && v.RoundMessage {
+						return true
+					}
 				}
 			}
-			if !isVN {
-				return false
-			}
-		} else {
 			return false
-		}
+		},
 	}
-
-	return true
-}
+	// HasContact matches messages that contain a contact.
+	HasContact Filter = funcFilter{
+		check: func(m *NewMessage) bool { return m.Contact() != nil },
+	}
+	// HasLocation matches messages that contain a geo location.
+	HasLocation Filter = funcFilter{
+		check: func(m *NewMessage) bool {
+			_, ok := m.Media().(*MessageMediaGeo)
+			return ok
+		},
+	}
+	// HasVenue matches messages that contain a venue.
+	HasVenue Filter = funcFilter{
+		check: func(m *NewMessage) bool {
+			_, ok := m.Media().(*MessageMediaVenue)
+			return ok
+		},
+	}
+	// HasPoll matches messages that contain a poll.
+	HasPoll Filter = funcFilter{
+		check: func(m *NewMessage) bool {
+			_, ok := m.Media().(*MessageMediaPoll)
+			return ok
+		},
+	}
+)
 
 type userFilter struct {
 	users []int64
@@ -1857,8 +1863,6 @@ func (f userFilter) CheckCallback(c *CallbackQuery) bool {
 	return slices.Contains(f.users, c.SenderID)
 }
 
-func (f userFilter) HasFlag(flag FilterFlag) bool { return false }
-
 type chatFilter struct {
 	chats []int64
 }
@@ -1868,13 +1872,8 @@ func (f chatFilter) Check(m *NewMessage) bool {
 }
 
 func (f chatFilter) CheckCallback(c *CallbackQuery) bool {
-	// Callbacks like GameShortName don't always have ChatID easily accessible or consistent?
-	// But usually c.ChatID() is available if message is present.
-	// For simple callbacks, it should work.
 	return slices.Contains(f.chats, c.ChatID)
 }
-
-func (f chatFilter) HasFlag(flag FilterFlag) bool { return false }
 
 type customFilter struct {
 	fn func(*NewMessage) bool
@@ -1886,8 +1885,6 @@ func (f customFilter) Check(m *NewMessage) bool {
 
 func (f customFilter) CheckCallback(c *CallbackQuery) bool { return true }
 
-func (f customFilter) HasFlag(flag FilterFlag) bool { return false }
-
 type customCallbackFilter struct {
 	fn func(*CallbackQuery) bool
 }
@@ -1897,8 +1894,6 @@ func (f customCallbackFilter) Check(m *NewMessage) bool { return true }
 func (f customCallbackFilter) CheckCallback(c *CallbackQuery) bool {
 	return f.fn(c)
 }
-
-func (f customCallbackFilter) HasFlag(flag FilterFlag) bool { return false }
 
 type lengthFilter struct {
 	min int
@@ -1917,7 +1912,6 @@ func (f lengthFilter) Check(m *NewMessage) bool {
 }
 
 func (f lengthFilter) CheckCallback(c *CallbackQuery) bool { return true }
-func (f lengthFilter) HasFlag(flag FilterFlag) bool        { return false }
 
 type anyFilter []Filter
 
@@ -1933,15 +1927,6 @@ func (fs anyFilter) Check(m *NewMessage) bool {
 func (fs anyFilter) CheckCallback(c *CallbackQuery) bool {
 	for _, f := range fs {
 		if f.CheckCallback(c) {
-			return true
-		}
-	}
-	return false
-}
-
-func (fs anyFilter) HasFlag(flag FilterFlag) bool {
-	for _, f := range fs {
-		if f.HasFlag(flag) {
 			return true
 		}
 	}
@@ -1968,15 +1953,6 @@ func (fs allFilter) CheckCallback(c *CallbackQuery) bool {
 	return true
 }
 
-func (fs allFilter) HasFlag(flag FilterFlag) bool {
-	for _, f := range fs {
-		if f.HasFlag(flag) {
-			return true
-		}
-	}
-	return false
-}
-
 type notFilter struct {
 	f Filter
 }
@@ -1989,79 +1965,70 @@ func (n notFilter) CheckCallback(c *CallbackQuery) bool {
 	return !n.f.CheckCallback(c)
 }
 
-func (n notFilter) HasFlag(flag FilterFlag) bool {
-	return n.f.HasFlag(flag)
-}
-
-func FromUser(ids ...int64) Filter { return userFilter{users: ids} }
-func InChat(ids ...int64) Filter   { return chatFilter{chats: ids} }
-func TextMinLen(n int) Filter      { return lengthFilter{min: n} }
-func TextMaxLen(n int) Filter      { return lengthFilter{max: n} }
-
-func Custom(fn func(*NewMessage) bool) Filter { return customFilter{fn: fn} }
-
-var CustomFilter = Custom
-
-func CustomCallback(fn func(*CallbackQuery) bool) Filter { return customCallbackFilter{fn: fn} }
-
-func Not(f Filter) Filter {
-	return notFilter{f: f}
-}
-
+// Any creates a filter that matches if any of the provided filters match (OR logic).
 func Any(fs ...Filter) Filter {
 	return anyFilter(fs)
 }
 
+// All creates a filter that matches only if all provided filters match (AND logic).
 func All(fs ...Filter) Filter {
 	return allFilter(fs)
 }
 
-var (
-	FilterPrivate   Filter = flagFilter(FPrivate)
-	FilterGroup     Filter = flagFilter(FGroup)
-	FilterChannel   Filter = flagFilter(FChannel)
-	FilterMedia     Filter = flagFilter(FMedia)
-	FilterCommand   Filter = flagFilter(FCommand)
-	FilterReply     Filter = flagFilter(FReply)
-	FilterForward   Filter = flagFilter(FForward)
-	FilterFromBot   Filter = flagFilter(FFromBot)
-	FilterMention   Filter = flagFilter(FMention)
-	FilterOutgoing  Filter = flagFilter(FOutgoing)
-	FilterIncoming  Filter = flagFilter(FIncoming)
-	FilterEdited    Filter = flagFilter(FEdited)
-	FilterPhoto     Filter = flagFilter(FPhoto)
-	FilterVideo     Filter = flagFilter(FVideo)
-	FilterDocument  Filter = flagFilter(FDocument)
-	FilterAudio     Filter = flagFilter(FAudio)
-	FilterSticker   Filter = flagFilter(FSticker)
-	FilterAnimation Filter = flagFilter(FAnimation)
-	FilterVoice     Filter = flagFilter(FVoice)
-	FilterVideoNote Filter = flagFilter(FVideoNote)
-	FilterContact   Filter = flagFilter(FContact)
-	FilterLocation  Filter = flagFilter(FLocation)
-	FilterVenue     Filter = flagFilter(FVenue)
-	FilterPoll      Filter = flagFilter(FPoll)
-	FilterText      Filter = flagFilter(FText)
-)
+// Not creates a filter that negates the provided filter.
+func Not(f Filter) Filter {
+	return notFilter{f: f}
+}
+
+// FromUsers creates a filter that matches messages from specific user IDs.
+func FromUsers(ids ...int64) Filter { return userFilter{users: ids} }
+
+// FromChats creates a filter that matches messages from specific chat/channel IDs.
+func FromChats(ids ...int64) Filter { return chatFilter{chats: ids} }
+
+// TextMinLen creates a filter that matches messages with text length >= n.
+func TextMinLen(n int) Filter { return lengthFilter{min: n} }
+
+// TextMaxLen creates a filter that matches messages with text length <= n.
+func TextMaxLen(n int) Filter { return lengthFilter{max: n} }
+
+// Custom creates a filter with a custom check function for messages.
+func CustomFilter(fn func(*NewMessage) bool) Filter { return customFilter{fn: fn} }
+
+// CustomCallback creates a filter with a custom check function for callback queries.
+func CustomCallback(fn func(*CallbackQuery) bool) Filter { return customCallbackFilter{fn: fn} }
 
 var (
-	IsPrivate  = FilterPrivate
-	IsGroup    = FilterGroup
-	IsChannel  = FilterChannel
-	IsMedia    = FilterMedia
-	IsCommand  = FilterCommand
-	IsReply    = FilterReply
-	IsForward  = FilterForward
-	IsMention  = FilterMention
-	IsOutgoing = FilterOutgoing
-	IsIncoming = FilterIncoming
-	IsEdited   = FilterEdited
-	IsText     = FilterText
-	IsPhoto    = FilterPhoto
-	IsVideo    = FilterVideo
-	IsAudio    = FilterAudio
-	IsVoice    = FilterVoice
-	IsBot      = FilterFromBot
+	FilterPrivate   = IsPrivate
+	FilterGroup     = IsGroup
+	FilterChannel   = IsChannel
+	FilterMedia     = HasMedia
+	FilterCommand   = IsCommand
+	FilterReply     = IsReply
+	FilterForward   = IsForward
+	FilterFromBot   = FromBot
+	FilterMention   = HasMention
+	FilterOutgoing  = IsOutgoing
+	FilterIncoming  = IsIncoming
+	FilterEdited    = IsEdited
+	FilterPhoto     = HasPhoto
+	FilterVideo     = HasVideo
+	FilterDocument  = HasDocument
+	FilterAudio     = HasAudio
+	FilterSticker   = HasSticker
+	FilterAnimation = HasAnimation
+	FilterVoice     = HasVoice
+	FilterVideoNote = HasVideoNote
+	FilterContact   = HasContact
+	FilterLocation  = HasLocation
+	FilterVenue     = HasVenue
+	FilterPoll      = HasPoll
+	FilterText      = IsText
+
+	// Deprecated: Use FromUsers instead.
+	FromUser = FromUsers
+	// Deprecated: Use FromChats instead.
+	InChat = FromChats
 )
 
 func addHandleToMap[T Handle](handleMap map[int][]T, handle T) T {

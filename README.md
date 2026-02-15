@@ -69,7 +69,7 @@ func main() {
 	client.On(telegram.OnMessage, func(message *telegram.NewMessage) error { // client.AddMessageHandler
 			message.Reply("Hello from Gogram!")
         		return nil
-	}, telegram.FilterPrivate) // waits for private messages only
+	}, telegram.IsPrivate) // waits for private messages only
 
 	client.Idle() // block main goroutine until client is closed
 }
