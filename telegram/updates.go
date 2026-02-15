@@ -695,29 +695,6 @@ type UpdateDispatcher struct {
 	stopChan              chan struct{}
 	patternCache          *patternCache
 	middlewareManager     *middlewareManager
-	processedMsgIDs       *lruCache
-}
-
-func msgDedupeKey(msg *MessageObj) int64 {
-	var peerID int64
-	if msg.PeerID != nil {
-		switch p := msg.PeerID.(type) {
-		case *PeerUser:
-			peerID = p.UserID
-		case *PeerChat:
-			peerID = p.ChatID
-		case *PeerChannel:
-			peerID = p.ChannelID
-		}
-	}
-	return (peerID << 32) ^ int64(msg.ID)
-}
-
-func (d *UpdateDispatcher) TryMarkMsgProcessed(msg *MessageObj) bool {
-	if d.processedMsgIDs == nil {
-		return true
-	}
-	return d.processedMsgIDs.TryAdd(msgDedupeKey(msg))
 }
 
 func (d *UpdateDispatcher) SetPts(pts int32) {
@@ -823,7 +800,6 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		pendingGaps:           make(map[int32]time.Time),
 		processedPtsLRU:       newLRUCache(100000),
 		processedQtsLRU:       newLRUCache(100000),
-		processedMsgIDs:       newLRUCache(100000),
 		stopChan:              make(chan struct{}),
 		messageHandles:        make(map[int][]*messageHandle),
 		inlineHandles:         make(map[int][]*inlineHandle),
@@ -956,11 +932,6 @@ func getUpdateTypeID(update Update) uint32 {
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
-		if !c.dispatcher.TryMarkMsgProcessed(msg) {
-			c.dispatcher.logger.Trace("duplicate message skipped: id=%d", msg.ID)
-			return
-		}
-
 		if msg.Out {
 			msg.FromID = &PeerUser{UserID: c.Me().ID}
 		}
@@ -2660,28 +2631,41 @@ func (c *Client) managePts(pts int32, ptsCount int32) bool {
 
 	if expectedPts < pts {
 		gap := pts - expectedPts
-
-		if gap <= 5 {
-			c.dispatcher.SetPts(pts)
-			return true
-		} else if gap > 2000 {
-			c.dispatcher.SetPts(pts)
-			return true
-		}
-
 		c.dispatcher.SetPts(pts)
 
-		gapPts := expectedPts
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-
-			newCurrentPts := c.dispatcher.GetPts()
-			if newCurrentPts >= pts {
-				return
+		if !c.clientData.disableGapFetch {
+			if gap <= 10 {
+				gapPts := expectedPts
+				go func() {
+					time.Sleep(300 * time.Millisecond)
+					newCurrentPts := c.dispatcher.GetPts()
+					if newCurrentPts >= pts {
+						return
+					}
+					c.FetchDifference(gapPts, int32(gap*2))
+				}()
+			} else if gap <= 1000 {
+				gapPts := expectedPts
+				go func() {
+					time.Sleep(100 * time.Millisecond)
+					newCurrentPts := c.dispatcher.GetPts()
+					if newCurrentPts >= pts {
+						return
+					}
+					c.FetchDifference(gapPts, int32(gap+50))
+				}()
+			} else {
+				gapPts := expectedPts
+				go func() {
+					time.Sleep(100 * time.Millisecond)
+					newCurrentPts := c.dispatcher.GetPts()
+					if newCurrentPts >= pts {
+						return
+					}
+					c.FetchDifference(gapPts, 1000)
+				}()
 			}
-
-			c.FetchDifference(gapPts, gap+10)
-		}()
+		}
 
 		return true
 	}
@@ -2713,7 +2697,9 @@ func (c *Client) manageSeq(seq int32, seqStart int32) bool {
 	}
 
 	if expectedSeqStart < seqStart {
-		go c.FetchDifference(c.dispatcher.GetPts(), 5000)
+		if !c.clientData.disableGapFetch {
+			go c.FetchDifference(c.dispatcher.GetPts(), 5000)
+		}
 		return false
 	}
 
@@ -2742,27 +2728,41 @@ func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bo
 	if expectedPts < pts {
 		gap := pts - expectedPts
 
-		if gap <= 5 {
-			c.dispatcher.SetChannelPts(channelID, pts)
-			return true
-		} else if gap > 1000 {
-			c.dispatcher.SetChannelPts(channelID, pts)
-			return true
-		}
-
 		c.dispatcher.SetChannelPts(channelID, pts)
 
-		gapPts := expectedPts
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-
-			newCurrentPts := c.dispatcher.GetChannelPts(channelID)
-			if newCurrentPts >= pts {
-				return
+		if !c.clientData.disableGapFetch {
+			if gap <= 10 {
+				gapPts := expectedPts
+				go func() {
+					time.Sleep(300 * time.Millisecond)
+					newCurrentPts := c.dispatcher.GetChannelPts(channelID)
+					if newCurrentPts >= pts {
+						return
+					}
+					c.FetchChannelDifference(channelID, gapPts, int32(gap*2))
+				}()
+			} else if gap <= 500 {
+				gapPts := expectedPts
+				go func() {
+					time.Sleep(100 * time.Millisecond)
+					newCurrentPts := c.dispatcher.GetChannelPts(channelID)
+					if newCurrentPts >= pts {
+						return
+					}
+					c.FetchChannelDifference(channelID, gapPts, int32(gap+50))
+				}()
+			} else {
+				gapPts := expectedPts
+				go func() {
+					time.Sleep(100 * time.Millisecond)
+					newCurrentPts := c.dispatcher.GetChannelPts(channelID)
+					if newCurrentPts >= pts {
+						return
+					}
+					c.FetchChannelDifference(channelID, gapPts, 500)
+				}()
 			}
-
-			c.FetchChannelDifference(channelID, gapPts, 100)
-		}()
+		}
 
 		return true
 	}
