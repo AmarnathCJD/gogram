@@ -37,7 +37,7 @@ func main() {
 
 		message.Reply("download finished")
 		return nil
-	}, telegram.FilterPrivate)
+	}, telegram.IsPrivate)
 
 	client.Idle()
 }

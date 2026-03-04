@@ -49,6 +49,7 @@ type clientData struct {
 	me               *UserObj
 	commandPrefixes  string
 	proxy            Proxy
+	disableGapFetch  bool
 }
 
 // Client is the main struct of the library
@@ -112,6 +113,7 @@ type ClientConfig struct {
 	UseWebSocket     bool                 // Use WebSocket transport instead of TCP
 	UseWebSocketTLS  bool                 // Use secure WebSocket (wss://)
 	EnablePFS        bool                 // Enable Perfect Forward Secrecy with temp auth keys
+	DisableGapFetch  bool                 // Disable automatic gap filling, only fetch difference on UpdatesTooLong/UpdateChannelTooLong
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -288,6 +290,7 @@ func (c *Client) setupClientData(cnf ClientConfig) {
 		albumWaitTime:    getValue(cnf.AlbumWaitTime, 600),
 		commandPrefixes:  getValue(cnf.CommandPrefixes, "/!"),
 		proxy:            cnf.Proxy,
+		disableGapFetch:  cnf.DisableGapFetch,
 	}
 
 	if cnf.DeviceConfig.Params != nil {

@@ -29,7 +29,7 @@ func main() {
 	client.On(telegram.OnMessage, func(message *telegram.NewMessage) error {
 		message.Respond(message)
 		return nil
-	}, telegram.FilterPrivate)
+	}, telegram.IsPrivate)
 
 	client.On("message:/start", func(message *telegram.NewMessage) error {
 		message.Reply("Hello, I am a bot!")

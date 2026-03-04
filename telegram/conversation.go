@@ -336,7 +336,7 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 	}
 
 	filters := c.buildFilters()
-	filters = append(filters, FilterReply)
+	filters = append(filters, IsReply)
 	h := c.Client.On(OnMessage, waitFunc, filters)
 	h.SetGroup(ConversationGroup)
 
@@ -1009,20 +1009,20 @@ func (c *Conversation) buildFilters() []Filter {
 	var filters []Filter
 	switch c.Peer.(type) {
 	case *InputPeerChannel, *InputPeerChat:
-		filters = append(filters, InChat(c.Client.GetPeerID(c.Peer)))
+		filters = append(filters, FromChats(c.Client.GetPeerID(c.Peer)))
 		if c.fromUser != 0 {
-			filters = append(filters, FromUser(c.fromUser))
+			filters = append(filters, FromUsers(c.fromUser))
 		}
 	case *InputPeerUser, *InputPeerSelf:
 		if c.fromUser != 0 {
-			filters = append(filters, FromUser(c.fromUser))
+			filters = append(filters, FromUsers(c.fromUser))
 		} else {
-			filters = append(filters, FromUser(c.Client.GetPeerID(c.Peer)))
+			filters = append(filters, FromUsers(c.Client.GetPeerID(c.Peer)))
 		}
 	}
 	if c.isPrivate {
-		filters = append(filters, FilterPrivate)
-		filters = append(filters, Not(FilterGroup), Not(FilterChannel))
+		filters = append(filters, IsPrivate)
+		filters = append(filters, Not(IsGroup), Not(IsChannel))
 	}
 	return filters
 }
