@@ -2282,9 +2282,18 @@ func (c *Client) AddE2EHandler(handler func(update Update, c *Client) error) Han
 
 // HandleIncomingUpdates processes incoming updates and dispatches them to the appropriate handlers.
 func HandleIncomingUpdates(u any, c *Client) bool {
+	if c == nil {
+		return false
+	}
+
+	d := c.dispatcher
+	if d == nil {
+		return false
+	}
+
 	// Update last update time for 15-minute timeout monitoring
-	c.dispatcher.UpdateLastUpdateTime()
-	c.dispatcher.nextUpdatesDeadline = time.Now().Add(time.Minute * 15)
+	d.UpdateLastUpdateTime()
+	d.nextUpdatesDeadline = time.Now().Add(time.Minute * 15)
 
 UpdateTypeSwitching:
 	switch upd := u.(type) {
@@ -2297,15 +2306,15 @@ UpdateTypeSwitching:
 		for _, update := range upd.Updates {
 			switch update := update.(type) {
 			case *UpdateNewMessage:
-				if !c.dispatcher.TryMarkPtsProcessed(update.Pts) {
-					c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
+				if !d.TryMarkPtsProcessed(update.Pts) {
+					d.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
 					continue
 				}
 				go c.handleMessageUpdate(update.Message)
 				c.managePts(update.Pts, update.PtsCount)
 			case *UpdateNewChannelMessage:
-				if !c.dispatcher.TryMarkPtsProcessed(update.Pts) {
-					c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
+				if !d.TryMarkPtsProcessed(update.Pts) {
+					d.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
 					continue
 				}
 				channelID := getChannelIDFromMessage(update.Message)
@@ -2319,15 +2328,15 @@ UpdateTypeSwitching:
 			case *UpdateNewScheduledMessage:
 				go c.handleMessageUpdate(update.Message)
 			case *UpdateEditMessage:
-				if !c.dispatcher.TryMarkPtsProcessed(update.Pts) {
-					c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
+				if !d.TryMarkPtsProcessed(update.Pts) {
+					d.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
 					continue
 				}
 				go c.handleEditUpdate(update.Message)
 				c.managePts(update.Pts, update.PtsCount)
 			case *UpdateEditChannelMessage:
-				if !c.dispatcher.TryMarkPtsProcessed(update.Pts) {
-					c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
+				if !d.TryMarkPtsProcessed(update.Pts) {
+					d.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
 					continue
 				}
 				channelID := getChannelIDFromMessage(update.Message)
@@ -2339,15 +2348,15 @@ UpdateTypeSwitching:
 					c.managePts(update.Pts, update.PtsCount)
 				}
 			case *UpdateDeleteMessages:
-				if !c.dispatcher.TryMarkPtsProcessed(update.Pts) {
-					c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
+				if !d.TryMarkPtsProcessed(update.Pts) {
+					d.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
 					continue
 				}
 				go c.handleDeleteUpdate(update)
 				c.managePts(update.Pts, update.PtsCount)
 			case *UpdateDeleteChannelMessages:
-				if !c.dispatcher.TryMarkPtsProcessed(update.Pts) {
-					c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
+				if !d.TryMarkPtsProcessed(update.Pts) {
+					d.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
 					continue
 				}
 				go c.handleDeleteUpdate(update)
@@ -2383,7 +2392,7 @@ UpdateTypeSwitching:
 			case *UpdateBotInlineSend:
 				go c.handleInlineSendUpdate(update)
 			case *UpdateChannelTooLong:
-				currentPts := c.dispatcher.GetChannelPts(update.ChannelID)
+				currentPts := d.GetChannelPts(update.ChannelID)
 				if update.Pts != 0 {
 					currentPts = update.Pts
 				}
@@ -2396,15 +2405,15 @@ UpdateTypeSwitching:
 	case *UpdateShort:
 		switch upd := upd.Update.(type) {
 		case *UpdateNewMessage:
-			if !c.dispatcher.TryMarkPtsProcessed(upd.Pts) {
-				c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
+			if !d.TryMarkPtsProcessed(upd.Pts) {
+				d.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
 				return true
 			}
 			go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
 			c.managePts(upd.Pts, upd.PtsCount)
 		case *UpdateNewChannelMessage:
-			if !c.dispatcher.TryMarkPtsProcessed(upd.Pts) {
-				c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
+			if !d.TryMarkPtsProcessed(upd.Pts) {
+				d.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
 				return true
 			}
 			channelID := getChannelIDFromMessage(upd.Message)
@@ -2416,7 +2425,7 @@ UpdateTypeSwitching:
 				c.managePts(upd.Pts, upd.PtsCount)
 			}
 		case *UpdateChannelTooLong:
-			currentPts := c.dispatcher.GetChannelPts(upd.ChannelID)
+			currentPts := d.GetChannelPts(upd.ChannelID)
 			if upd.Pts != 0 {
 				currentPts = upd.Pts
 			}
@@ -2424,8 +2433,8 @@ UpdateTypeSwitching:
 		}
 		go c.handleRawUpdate(upd.Update)
 	case *UpdateShortMessage:
-		if !c.dispatcher.TryMarkPtsProcessed(upd.Pts) {
-			c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
+		if !d.TryMarkPtsProcessed(upd.Pts) {
+			d.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
 			return true
 		}
 		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
@@ -2433,8 +2442,8 @@ UpdateTypeSwitching:
 		c.managePts(upd.Pts, upd.PtsCount)
 		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdateShortChatMessage:
-		if !c.dispatcher.TryMarkPtsProcessed(upd.Pts) {
-			c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
+		if !d.TryMarkPtsProcessed(upd.Pts) {
+			d.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
 			return true
 		}
 		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
@@ -2442,8 +2451,8 @@ UpdateTypeSwitching:
 		c.managePts(upd.Pts, upd.PtsCount)
 		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
 	case *UpdateShortSentMessage:
-		if !c.dispatcher.TryMarkPtsProcessed(upd.Pts) {
-			c.dispatcher.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
+		if !d.TryMarkPtsProcessed(upd.Pts) {
+			d.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
 			return true
 		}
 		update := &MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}
@@ -2459,13 +2468,13 @@ UpdateTypeSwitching:
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
 		goto UpdateTypeSwitching
 	case *UpdateChannelTooLong:
-		currentPts := c.dispatcher.GetChannelPts(upd.ChannelID)
+		currentPts := d.GetChannelPts(upd.ChannelID)
 		if upd.Pts != 0 {
 			currentPts = upd.Pts
 		}
 		go c.FetchChannelDifference(upd.ChannelID, currentPts, 50)
 	case *UpdatesTooLong:
-		go c.FetchDifference(c.dispatcher.GetPts(), 5000)
+		go c.FetchDifference(d.GetPts(), 5000)
 	default:
 		c.Log.Debug("unhandled update type: %T", upd)
 	}

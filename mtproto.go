@@ -1044,12 +1044,10 @@ func (m *MTProto) Reconnect(loggy bool) error {
 		m.Logger.Debug("reconnecting to %s (%s)", utils.FmtIP(m.GetAddr()), m.GetTransportType())
 	}
 
-	err := m.Disconnect()
-	if err != nil {
-		m.Logger.WithError(err).Warn("error during disconnect in reconnect")
-	}
+	m.tcpState.SetActive(false)
+	m.stopRoutines()
 
-	err = m.CreateConnection(loggy)
+	err := m.CreateConnection(loggy)
 	if err != nil {
 		m.Logger.WithError(err).Error("failed to recreate connection")
 		return fmt.Errorf("recreating connection: %w", err)
