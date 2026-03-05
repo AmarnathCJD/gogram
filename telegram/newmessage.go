@@ -274,7 +274,17 @@ func (m *NewMessage) IsChannel() bool {
 }
 
 func (m *NewMessage) IsReply() bool {
-	return m.Message.ReplyTo != nil
+	if m.Message.ReplyTo == nil {
+		return false
+	}
+
+	if m.Channel != nil && m.Channel.Forum {
+		if r, ok := m.Message.ReplyTo.(*MessageReplyHeaderObj); ok {
+			return r.ReplyToTopID != 0
+		}
+	}
+
+	return true
 }
 
 func (m *NewMessage) Marshal(noindent ...bool) string {
