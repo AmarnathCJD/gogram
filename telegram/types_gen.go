@@ -872,6 +872,7 @@ type ChannelAdminLogEventsFilter struct {
 	Send      bool `tl:"flag:16,encoded_in_bitflags"`
 	Forums    bool `tl:"flag:17,encoded_in_bitflags"`
 	SubExtend bool `tl:"flag:18,encoded_in_bitflags"`
+	EditRank  bool `tl:"flag:19,encoded_in_bitflags"`
 }
 
 func (*ChannelAdminLogEventsFilter) CRC() uint32 {
@@ -933,6 +934,7 @@ type ChatAdminRights struct {
 	EditStories          bool `tl:"flag:15,encoded_in_bitflags"`
 	DeleteStories        bool `tl:"flag:16,encoded_in_bitflags"`
 	ManageDirectMessages bool `tl:"flag:17,encoded_in_bitflags"`
+	ManageRanks          bool `tl:"flag:18,encoded_in_bitflags"`
 }
 
 func (*ChatAdminRights) CRC() uint32 {
@@ -976,6 +978,7 @@ type ChatBannedRights struct {
 	SendVoices      bool `tl:"flag:23,encoded_in_bitflags"`
 	SendDocs        bool `tl:"flag:24,encoded_in_bitflags"`
 	SendPlain       bool `tl:"flag:25,encoded_in_bitflags"`
+	EditRank        bool `tl:"flag:26,encoded_in_bitflags"`
 	UntilDate       int32
 }
 
@@ -1341,18 +1344,13 @@ func (*Error) CRC() uint32 {
 
 // Exported chat folder deep link.
 type ExportedChatlistInvite struct {
-	Revoked bool `tl:"flag:0,encoded_in_bitflags"`
-	Title   string
-	URL     string
-	Peers   []Peer
+	Title string
+	URL   string
+	Peers []Peer
 }
 
 func (*ExportedChatlistInvite) CRC() uint32 {
 	return 0xc5181ac
-}
-
-func (*ExportedChatlistInvite) FlagIndex() int {
-	return 0
 }
 
 // Describes a temporary profile link.
@@ -1519,11 +1517,10 @@ func (*GlobalPrivacySettings) FlagIndex() int {
 }
 
 type GroupCallDonor struct {
-	Top       bool `tl:"flag:0,encoded_in_bitflags"`
-	My        bool `tl:"flag:1,encoded_in_bitflags"`
-	Anonymous bool `tl:"flag:2,encoded_in_bitflags"`
-	PeerID    Peer `tl:"flag:3"`
-	Stars     int64
+	Top    bool `tl:"flag:0,encoded_in_bitflags"`
+	My     bool `tl:"flag:1,encoded_in_bitflags"`
+	PeerID Peer `tl:"flag:3"`
+	Stars  int64
 }
 
 func (*GroupCallDonor) CRC() uint32 {
@@ -2812,15 +2809,6 @@ func (*MessagesWebPagePreview) CRC() uint32 {
 	return 0x8c9a88ac
 }
 
-type MessagesWebViewResult struct {
-	Result BotInlineResult
-	Users  []User
-}
-
-func (*MessagesWebViewResult) CRC() uint32 {
-	return 0xaadf159b
-}
-
 // Info about why a specific user could not be invited.
 type MissingInvitee struct {
 	PremiumWouldAllowInvite bool `tl:"flag:0,encoded_in_bitflags"`
@@ -3651,23 +3639,6 @@ func (*PremiumGiftCodeOption) FlagIndex() int {
 	return 0
 }
 
-// Telegram Premium gift option
-type PremiumGiftOption struct {
-	Months       int32
-	Currency     string
-	Amount       int64
-	BotURL       string `tl:"flag:1"`
-	StoreProduct string `tl:"flag:0"`
-}
-
-func (*PremiumGiftOption) CRC() uint32 {
-	return 0x79c059f7
-}
-
-func (*PremiumGiftOption) FlagIndex() int {
-	return 0
-}
-
 // Describes a Telegram Premium subscription option
 type PremiumSubscriptionOption struct {
 	Current            bool   `tl:"flag:1,encoded_in_bitflags"`
@@ -4312,11 +4283,7 @@ type StarsTransaction struct {
 	Failed                      bool `tl:"flag:6,encoded_in_bitflags"`
 	Gift                        bool `tl:"flag:10,encoded_in_bitflags"`
 	Reaction                    bool `tl:"flag:11,encoded_in_bitflags"`
-	Subscription                bool `tl:"flag:12,encoded_in_bitflags"`
-	Floodskip                   bool `tl:"flag:15,encoded_in_bitflags"`
 	StargiftUpgrade             bool `tl:"flag:18,encoded_in_bitflags"`
-	PaidMessage                 bool `tl:"flag:19,encoded_in_bitflags"`
-	PremiumGift                 bool `tl:"flag:20,encoded_in_bitflags"`
 	BusinessTransfer            bool `tl:"flag:21,encoded_in_bitflags"`
 	StargiftResale              bool `tl:"flag:22,encoded_in_bitflags"`
 	PostsSearch                 bool `tl:"flag:24,encoded_in_bitflags"`
@@ -4927,6 +4894,8 @@ type UserFull struct {
 	CanViewRevenue           bool `tl:"flag2:9,encoded_in_bitflags"`
 	BotCanManageEmojiStatus  bool `tl:"flag2:10,encoded_in_bitflags"`
 	DisplayGiftsButton       bool `tl:"flag2:16,encoded_in_bitflags"`
+	NoforwardsMyEnabled      bool `tl:"flag2:23,encoded_in_bitflags"`
+	NoforwardsPeerEnabled    bool `tl:"flag2:24,encoded_in_bitflags"`
 	ID                       int64
 	About                    string `tl:"flag:1"`
 	Settings                 *PeerSettings
