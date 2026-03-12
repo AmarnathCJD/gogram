@@ -1290,6 +1290,10 @@ func (m *MTProto) handle404Error() error {
 }
 
 func (m *MTProto) readMsg(ctx context.Context) error {
+	if m == nil {
+		return fmt.Errorf("MTProto instance is nil")
+	}
+
 	m.transportMu.Lock()
 	t := m.transport
 	m.transportMu.Unlock()

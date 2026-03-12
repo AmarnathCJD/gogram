@@ -1660,19 +1660,20 @@ type Filter interface {
 }
 
 // funcFilter is a simple filter implementation using functions.
+// We use a pointer type to make filter instances comparable by identity.
 type funcFilter struct {
 	check   func(*NewMessage) bool
 	checkCb func(*CallbackQuery) bool
 }
 
-func (f funcFilter) Check(m *NewMessage) bool {
+func (f *funcFilter) Check(m *NewMessage) bool {
 	if f.check != nil {
 		return f.check(m)
 	}
 	return true
 }
 
-func (f funcFilter) CheckCallback(c *CallbackQuery) bool {
+func (f *funcFilter) CheckCallback(c *CallbackQuery) bool {
 	if f.checkCb != nil {
 		return f.checkCb(c)
 	}
@@ -1681,17 +1682,17 @@ func (f funcFilter) CheckCallback(c *CallbackQuery) bool {
 
 var (
 	// IsPrivate matches messages from private (1-on-1) chats.
-	IsPrivate Filter = funcFilter{
+	IsPrivate Filter = &funcFilter{
 		check:   func(m *NewMessage) bool { return m.IsPrivate() },
 		checkCb: func(c *CallbackQuery) bool { return c.IsPrivate() },
 	}
 	// IsGroup matches messages from group chats.
-	IsGroup Filter = funcFilter{
+	IsGroup Filter = &funcFilter{
 		check:   func(m *NewMessage) bool { return m.IsGroup() },
 		checkCb: func(c *CallbackQuery) bool { return c.IsGroup() },
 	}
 	// IsChannel matches messages from channels.
-	IsChannel Filter = funcFilter{
+	IsChannel Filter = &funcFilter{
 		check:   func(m *NewMessage) bool { return m.IsChannel() },
 		checkCb: func(c *CallbackQuery) bool { return c.IsChannel() },
 	}
@@ -1699,74 +1700,74 @@ var (
 
 var (
 	// IsCommand matches messages that contain a bot command.
-	IsCommand Filter = funcFilter{
+	IsCommand Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.IsCommand() },
 	}
 	// IsReply matches messages that are replies to another message.
-	IsReply Filter = funcFilter{
+	IsReply Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.IsReply() },
 	}
 	// IsForward matches forwarded messages.
-	IsForward Filter = funcFilter{
+	IsForward Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.IsForward() },
 	}
 	// IsOutgoing matches outgoing messages (sent by the current user).
-	IsOutgoing Filter = funcFilter{
+	IsOutgoing Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.Message != nil && m.Message.Out },
 	}
 	// IsIncoming matches incoming messages (not sent by the current user).
-	IsIncoming Filter = funcFilter{
+	IsIncoming Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.Message != nil && !m.Message.Out },
 	}
 	// IsEdited matches messages that have been edited.
-	IsEdited Filter = funcFilter{
+	IsEdited Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.Message != nil && m.Message.EditDate != 0 },
 	}
 	// IsText matches messages that have non-empty text.
-	IsText Filter = funcFilter{
+	IsText Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.Text() != "" },
 	}
 )
 
 var (
 	// FromBot matches messages sent by a bot.
-	FromBot Filter = funcFilter{
+	FromBot Filter = &funcFilter{
 		check:   func(m *NewMessage) bool { return m.Sender != nil && m.Sender.Bot },
 		checkCb: func(c *CallbackQuery) bool { return c.Sender != nil && c.Sender.Bot },
 	}
 	// HasMention matches messages where the current user is mentioned.
-	HasMention Filter = funcFilter{
+	HasMention Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.Message != nil && m.Message.Mentioned },
 	}
 )
 
 var (
 	// HasMedia matches messages that contain any media.
-	HasMedia Filter = funcFilter{
+	HasMedia Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.IsMedia() },
 	}
 	// HasPhoto matches messages that contain a photo.
-	HasPhoto Filter = funcFilter{
+	HasPhoto Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.Photo() != nil },
 	}
 	// HasVideo matches messages that contain a video.
-	HasVideo Filter = funcFilter{
+	HasVideo Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.Video() != nil },
 	}
 	// HasDocument matches messages that contain a document.
-	HasDocument Filter = funcFilter{
+	HasDocument Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.Document() != nil },
 	}
 	// HasAudio matches messages that contain an audio file.
-	HasAudio Filter = funcFilter{
+	HasAudio Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.Audio() != nil },
 	}
 	// HasSticker matches messages that contain a sticker.
-	HasSticker Filter = funcFilter{
+	HasSticker Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.Sticker() != nil },
 	}
 	// HasAnimation matches messages that contain a GIF/animation.
-	HasAnimation Filter = funcFilter{
+	HasAnimation Filter = &funcFilter{
 		check: func(m *NewMessage) bool {
 			if doc := m.Document(); doc != nil {
 				for _, attr := range doc.Attributes {
@@ -1779,11 +1780,11 @@ var (
 		},
 	}
 	// HasVoice matches messages that contain a voice message.
-	HasVoice Filter = funcFilter{
+	HasVoice Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.Voice() != nil },
 	}
 	// HasVideoNote matches messages that contain a video note (round video).
-	HasVideoNote Filter = funcFilter{
+	HasVideoNote Filter = &funcFilter{
 		check: func(m *NewMessage) bool {
 			if doc := m.Document(); doc != nil {
 				for _, attr := range doc.Attributes {
@@ -1796,25 +1797,25 @@ var (
 		},
 	}
 	// HasContact matches messages that contain a contact.
-	HasContact Filter = funcFilter{
+	HasContact Filter = &funcFilter{
 		check: func(m *NewMessage) bool { return m.Contact() != nil },
 	}
 	// HasLocation matches messages that contain a geo location.
-	HasLocation Filter = funcFilter{
+	HasLocation Filter = &funcFilter{
 		check: func(m *NewMessage) bool {
 			_, ok := m.Media().(*MessageMediaGeo)
 			return ok
 		},
 	}
 	// HasVenue matches messages that contain a venue.
-	HasVenue Filter = funcFilter{
+	HasVenue Filter = &funcFilter{
 		check: func(m *NewMessage) bool {
 			_, ok := m.Media().(*MessageMediaVenue)
 			return ok
 		},
 	}
 	// HasPoll matches messages that contain a poll.
-	HasPoll Filter = funcFilter{
+	HasPoll Filter = &funcFilter{
 		check: func(m *NewMessage) bool {
 			_, ok := m.Media().(*MessageMediaPoll)
 			return ok
