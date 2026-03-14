@@ -646,6 +646,37 @@ func sanitizePath(path string, filename string) string {
 	return path
 }
 
+func getDocumentExt(doc *DocumentObj) string {
+	for _, attr := range doc.Attributes {
+		if filename, ok := attr.(*DocumentAttributeFilename); ok && filename.FileName != "" {
+			if ext := filepath.Ext(filename.FileName); ext != "" {
+				return ext
+			}
+		}
+	}
+
+	if doc.MimeType != "" {
+		if ext := MimeTypes.Ext(doc.MimeType); ext != "" {
+			return ext
+		}
+	}
+
+	for _, attr := range doc.Attributes {
+		switch attr.(type) {
+		case *DocumentAttributeAudio:
+			return ".mp3"
+		case *DocumentAttributeVideo:
+			return ".mp4"
+		case *DocumentAttributeAnimated:
+			return ".gif"
+		case *DocumentAttributeSticker:
+			return ".webp"
+		}
+	}
+
+	return ""
+}
+
 // GetFileName returns the file name of Media, if not specified then it generates a random name
 func GetFileName(f any, video ...bool) string {
 	var isVid = getVariadic(video, false)
@@ -669,23 +700,25 @@ func GetFileName(f any, video ...bool) string {
 			}
 		}
 
+		ext := getDocumentExt(doc)
+
 		for _, attr := range doc.Attributes {
 			switch attr := attr.(type) {
 			case *DocumentAttributeAudio:
 				if attr.Title != "" {
-					return attr.Title + ".mp3"
+					return attr.Title + getValue(ext, ".mp3")
 				}
 			case *DocumentAttributeVideo:
-				return generateName("video", ".mp4")
+				return generateName("video", getValue(ext, ".mp4"))
 			case *DocumentAttributeAnimated:
-				return generateName("animation", ".gif")
+				return generateName("animation", getValue(ext, ".gif"))
 			case *DocumentAttributeSticker:
-				return generateName("sticker", ".webp")
+				return generateName("sticker", getValue(ext, ".webp"))
 			}
 		}
 
-		if doc.MimeType != "" {
-			return generateName("file", MimeTypes.Ext(doc.MimeType))
+		if ext != "" {
+			return generateName("file", ext)
 		}
 		return generateName("file", "")
 	}
@@ -756,21 +789,7 @@ func GetFileExt(f any) string {
 		if f.Document != nil {
 			switch doc := f.Document.(type) {
 			case *DocumentObj:
-				if e := MimeTypes.Ext(doc.MimeType); e != "" {
-					return e
-				}
-				for _, attr := range doc.Attributes {
-					switch attr.(type) {
-					case *DocumentAttributeAudio:
-						return ".mp3"
-					case *DocumentAttributeVideo:
-						return ".mp4"
-					case *DocumentAttributeAnimated:
-						return ".gif"
-					case *DocumentAttributeSticker:
-						return ".webp"
-					}
-				}
+				return getDocumentExt(doc)
 			}
 		}
 	case *MessageMediaPhoto:
@@ -778,19 +797,8 @@ func GetFileExt(f any) string {
 	case *MessageMediaContact:
 		return ".vcf"
 	case *DocumentObj:
-		for _, attr := range f.Attributes {
-			switch attr := attr.(type) {
-			case *DocumentAttributeFilename:
-				return filepath.Ext(attr.FileName)
-			case *DocumentAttributeAudio:
-				return ".mp3"
-			case *DocumentAttributeVideo:
-				return ".mp4"
-			case *DocumentAttributeAnimated:
-				return ".gif"
-			case *DocumentAttributeSticker:
-				return ".webp"
-			}
+		if ext := getDocumentExt(f); ext != "" {
+			return ext
 		}
 		return ".file"
 	case *PhotoObj:
