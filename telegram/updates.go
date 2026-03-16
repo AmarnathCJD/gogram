@@ -690,6 +690,7 @@ type UpdateDispatcher struct {
 	pendingGaps           map[int32]time.Time
 	processedPtsLRU       *lruCache
 	processedQtsLRU       *lruCache
+	processedMsgLRU       *lruCache
 	recoveringDifference  bool
 	recoveringChannels    map[int64]bool
 	stopChan              chan struct{}
@@ -792,6 +793,13 @@ func (d *UpdateDispatcher) TryMarkQtsProcessed(qts int32) bool {
 	return d.processedQtsLRU.TryAdd(int64(qts))
 }
 
+func (d *UpdateDispatcher) TryMarkMessageProcessed(key int64) bool {
+	if d.processedMsgLRU == nil {
+		return true
+	}
+	return d.processedMsgLRU.TryAdd(key)
+}
+
 func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 	c.dispatcher = &UpdateDispatcher{
 		logger: c.Log.WithPrefix("gogram " +
@@ -800,6 +808,7 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		pendingGaps:           make(map[int32]time.Time),
 		processedPtsLRU:       newLRUCache(100000),
 		processedQtsLRU:       newLRUCache(100000),
+		processedMsgLRU:       newLRUCache(200000),
 		stopChan:              make(chan struct{}),
 		messageHandles:        make(map[int][]*messageHandle),
 		inlineHandles:         make(map[int][]*inlineHandle),
@@ -933,7 +942,14 @@ func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
 		if msg.Out {
-			msg.FromID = &PeerUser{UserID: c.Me().ID}
+			if msg.FromID == nil {
+				if me := c.Me(); me != nil {
+					msg.FromID = &PeerUser{UserID: me.ID}
+				}
+			}
+		}
+		if !c.dispatcher.TryMarkMessageProcessed(messageDedupeKey(msg, false)) {
+			return
 		}
 
 		if msg.GroupedID != 0 {
@@ -1126,6 +1142,16 @@ func (c *Client) fetchPeersBeforeUpdate(m Message, pts int32) {
 
 func (c *Client) handleEditUpdate(update Message) {
 	if msg, ok := update.(*MessageObj); ok {
+		if msg.Out {
+			if msg.FromID == nil {
+				if me := c.Me(); me != nil {
+					msg.FromID = &PeerUser{UserID: me.ID}
+				}
+			}
+		}
+		if !c.dispatcher.TryMarkMessageProcessed(messageDedupeKey(msg, true)) {
+			return
+		}
 		packed := packMessage(c, msg)
 
 		c.dispatcher.RLock()
@@ -1260,8 +1286,7 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 }
 
 func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
-	if !c.dispatcher.TryMarkQtsProcessed(update.Qts) {
-		c.dispatcher.logger.Trace("duplicate participant update skipped: qts=%d", update.Qts)
+	if !c.manageQts(update.Qts) {
 		return
 	}
 
@@ -2296,190 +2321,188 @@ func HandleIncomingUpdates(u any, c *Client) bool {
 	d.UpdateLastUpdateTime()
 	d.nextUpdatesDeadline = time.Now().Add(time.Minute * 15)
 
-UpdateTypeSwitching:
 	switch upd := u.(type) {
 	case *UpdatesObj:
 		if !c.manageSeq(upd.Seq, upd.Seq) {
 			return false
 		}
-
+		c.dispatcher.SetDate(upd.Date)
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
 		for _, update := range upd.Updates {
-			switch update := update.(type) {
-			case *UpdateNewMessage:
-				if !d.TryMarkPtsProcessed(update.Pts) {
-					d.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
-					continue
-				}
-				go c.handleMessageUpdate(update.Message)
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateNewChannelMessage:
-				if !d.TryMarkPtsProcessed(update.Pts) {
-					d.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
-					continue
-				}
-				channelID := getChannelIDFromMessage(update.Message)
-				if channelID != 0 {
-					go c.handleMessageUpdate(update.Message)
-					c.manageChannelPts(channelID, update.Pts, update.PtsCount)
-				} else {
-					go c.handleMessageUpdate(update.Message)
-					c.managePts(update.Pts, update.PtsCount)
-				}
-			case *UpdateNewScheduledMessage:
-				go c.handleMessageUpdate(update.Message)
-			case *UpdateEditMessage:
-				if !d.TryMarkPtsProcessed(update.Pts) {
-					d.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
-					continue
-				}
-				go c.handleEditUpdate(update.Message)
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateEditChannelMessage:
-				if !d.TryMarkPtsProcessed(update.Pts) {
-					d.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
-					continue
-				}
-				channelID := getChannelIDFromMessage(update.Message)
-				if channelID != 0 {
-					go c.handleEditUpdate(update.Message)
-					c.manageChannelPts(channelID, update.Pts, update.PtsCount)
-				} else {
-					go c.handleEditUpdate(update.Message)
-					c.managePts(update.Pts, update.PtsCount)
-				}
-			case *UpdateDeleteMessages:
-				if !d.TryMarkPtsProcessed(update.Pts) {
-					d.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
-					continue
-				}
-				go c.handleDeleteUpdate(update)
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateDeleteChannelMessages:
-				if !d.TryMarkPtsProcessed(update.Pts) {
-					d.logger.Trace("duplicate update skipped: pts=%d", update.Pts)
-					continue
-				}
-				go c.handleDeleteUpdate(update)
-				c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount)
-			case *UpdateReadHistoryInbox:
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateReadHistoryOutbox:
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateWebPage:
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateReadMessagesContents:
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdateReadChannelInbox:
-				c.manageChannelPts(update.ChannelID, update.Pts, 0)
-			case *UpdateChannelWebPage:
-				c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount)
-			case *UpdateFolderPeers:
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdatePinnedMessages:
-				c.managePts(update.Pts, update.PtsCount)
-			case *UpdatePinnedChannelMessages:
-				c.manageChannelPts(update.ChannelID, update.Pts, update.PtsCount)
-			case *UpdateBotInlineQuery:
-				go c.handleInlineUpdate(update)
-			case *UpdateBotCallbackQuery:
-				go c.handleCallbackUpdate(update)
-			case *UpdateInlineBotCallbackQuery:
-				go c.handleInlineCallbackUpdate(update)
-			case *UpdateChannelParticipant:
-				go c.handleParticipantUpdate(update)
-			case *UpdatePendingJoinRequests, *UpdateBotChatInviteRequester:
-				go c.handleJoinRequestUpdate(update)
-			case *UpdateBotInlineSend:
-				go c.handleInlineSendUpdate(update)
-			case *UpdateChannelTooLong:
-				currentPts := d.GetChannelPts(update.ChannelID)
-				if update.Pts != 0 {
-					currentPts = update.Pts
-				}
-				go c.FetchChannelDifference(update.ChannelID, currentPts, 50)
-			case *UpdateEncryption, *UpdateNewEncryptedMessage:
-				go c.HandleSecretChatUpdate(update)
-			}
-			go c.handleRawUpdate(update)
+			c.applyIncomingUpdate(update)
 		}
-	case *UpdateShort:
-		switch upd := upd.Update.(type) {
-		case *UpdateNewMessage:
-			if !d.TryMarkPtsProcessed(upd.Pts) {
-				d.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
-				return true
-			}
-			go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
-			c.managePts(upd.Pts, upd.PtsCount)
-		case *UpdateNewChannelMessage:
-			if !d.TryMarkPtsProcessed(upd.Pts) {
-				d.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
-				return true
-			}
-			channelID := getChannelIDFromMessage(upd.Message)
-			if channelID != 0 {
-				go c.handleMessageUpdate(upd.Message)
-				c.manageChannelPts(channelID, upd.Pts, upd.PtsCount)
-			} else {
-				go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
-				c.managePts(upd.Pts, upd.PtsCount)
-			}
-		case *UpdateChannelTooLong:
-			currentPts := d.GetChannelPts(upd.ChannelID)
-			if upd.Pts != 0 {
-				currentPts = upd.Pts
-			}
-			go c.FetchChannelDifference(upd.ChannelID, currentPts, 50)
-		}
-		go c.handleRawUpdate(upd.Update)
-	case *UpdateShortMessage:
-		if !d.TryMarkPtsProcessed(upd.Pts) {
-			d.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
-			return true
-		}
-		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
-		go c.fetchPeersBeforeUpdate(update, upd.Pts)
-		c.managePts(upd.Pts, upd.PtsCount)
-		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
-	case *UpdateShortChatMessage:
-		if !d.TryMarkPtsProcessed(upd.Pts) {
-			d.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
-			return true
-		}
-		update := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
-		go c.fetchPeersBeforeUpdate(update, upd.Pts)
-		c.managePts(upd.Pts, upd.PtsCount)
-		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
-	case *UpdateShortSentMessage:
-		if !d.TryMarkPtsProcessed(upd.Pts) {
-			d.logger.Trace("duplicate update skipped: pts=%d", upd.Pts)
-			return true
-		}
-		update := &MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}
-		go c.fetchPeersBeforeUpdate(update, upd.Pts)
-		c.managePts(upd.Pts, upd.PtsCount)
-		go c.handleRawUpdate(&UpdateNewMessage{Message: update, Pts: upd.Pts, PtsCount: 0})
+		return true
 	case *UpdatesCombined:
 		if !c.manageSeq(upd.Seq, upd.SeqStart) {
 			return false
 		}
-
-		u = upd.Updates
+		c.dispatcher.SetDate(upd.Date)
 		go c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
-		goto UpdateTypeSwitching
+		for _, update := range upd.Updates {
+			c.applyIncomingUpdate(update)
+		}
+		return true
+	case *UpdateShort:
+		c.dispatcher.SetDate(upd.Date)
+		c.applyIncomingUpdate(upd.Update)
+		return true
+	case *UpdateShortMessage:
+		if !c.managePts(upd.Pts, upd.PtsCount) {
+			return true
+		}
+		msg := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
+		go c.fetchPeersBeforeUpdate(msg, upd.Pts)
+		go c.handleRawUpdate(&UpdateNewMessage{Message: msg, Pts: upd.Pts, PtsCount: upd.PtsCount})
+		return true
+	case *UpdateShortChatMessage:
+		if !c.managePts(upd.Pts, upd.PtsCount) {
+			return true
+		}
+		msg := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
+		go c.fetchPeersBeforeUpdate(msg, upd.Pts)
+		go c.handleRawUpdate(&UpdateNewMessage{Message: msg, Pts: upd.Pts, PtsCount: upd.PtsCount})
+		return true
+	case *UpdateShortSentMessage:
+		if !c.managePts(upd.Pts, upd.PtsCount) {
+			return true
+		}
+		msg := &MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}
+		go c.fetchPeersBeforeUpdate(msg, upd.Pts)
+		go c.handleRawUpdate(&UpdateNewMessage{Message: msg, Pts: upd.Pts, PtsCount: upd.PtsCount})
+		return true
 	case *UpdateChannelTooLong:
 		currentPts := d.GetChannelPts(upd.ChannelID)
 		if upd.Pts != 0 {
 			currentPts = upd.Pts
 		}
 		go c.FetchChannelDifference(upd.ChannelID, currentPts, 50)
+		return true
 	case *UpdatesTooLong:
 		go c.FetchDifference(d.GetPts(), 5000)
+		return true
 	default:
 		c.Log.Debug("unhandled update type: %T", upd)
+		return true
 	}
-	return true
+}
+
+func (c *Client) applyIncomingUpdate(update Update) {
+	if update == nil {
+		return
+	}
+
+	switch upd := update.(type) {
+	case *UpdateNewMessage:
+		if !c.managePts(upd.Pts, upd.PtsCount) {
+			return
+		}
+		go c.handleMessageUpdate(upd.Message)
+	case *UpdateNewChannelMessage:
+		channelID := getChannelIDFromMessage(upd.Message)
+		if channelID != 0 {
+			if !c.manageChannelPts(channelID, upd.Pts, upd.PtsCount) {
+				return
+			}
+		} else if !c.managePts(upd.Pts, upd.PtsCount) {
+			return
+		}
+		go c.handleMessageUpdate(upd.Message)
+	case *UpdateNewScheduledMessage:
+		go c.handleMessageUpdate(upd.Message)
+	case *UpdateEditMessage:
+		if !c.managePts(upd.Pts, upd.PtsCount) {
+			return
+		}
+		go c.handleEditUpdate(upd.Message)
+	case *UpdateEditChannelMessage:
+		channelID := getChannelIDFromMessage(upd.Message)
+		if channelID != 0 {
+			if !c.manageChannelPts(channelID, upd.Pts, upd.PtsCount) {
+				return
+			}
+		} else if !c.managePts(upd.Pts, upd.PtsCount) {
+			return
+		}
+		go c.handleEditUpdate(upd.Message)
+	case *UpdateDeleteMessages:
+		if !c.managePts(upd.Pts, upd.PtsCount) {
+			return
+		}
+		go c.handleDeleteUpdate(upd)
+	case *UpdateDeleteChannelMessages:
+		if !c.manageChannelPts(upd.ChannelID, upd.Pts, upd.PtsCount) {
+			return
+		}
+		go c.handleDeleteUpdate(upd)
+	case *UpdateReadHistoryInbox:
+		if !c.managePts(upd.Pts, upd.PtsCount) {
+			return
+		}
+	case *UpdateReadHistoryOutbox:
+		if !c.managePts(upd.Pts, upd.PtsCount) {
+			return
+		}
+	case *UpdateWebPage:
+		if !c.managePts(upd.Pts, upd.PtsCount) {
+			return
+		}
+	case *UpdateReadMessagesContents:
+		if !c.managePts(upd.Pts, upd.PtsCount) {
+			return
+		}
+	case *UpdateReadChannelInbox:
+		if !c.manageChannelPts(upd.ChannelID, upd.Pts, 0) {
+			return
+		}
+	case *UpdateChannelWebPage:
+		if !c.manageChannelPts(upd.ChannelID, upd.Pts, upd.PtsCount) {
+			return
+		}
+	case *UpdateFolderPeers:
+		if !c.managePts(upd.Pts, upd.PtsCount) {
+			return
+		}
+	case *UpdatePinnedMessages:
+		if !c.managePts(upd.Pts, upd.PtsCount) {
+			return
+		}
+	case *UpdatePinnedChannelMessages:
+		if !c.manageChannelPts(upd.ChannelID, upd.Pts, upd.PtsCount) {
+			return
+		}
+	case *UpdateBotInlineQuery:
+		go c.handleInlineUpdate(upd)
+	case *UpdateBotCallbackQuery:
+		go c.handleCallbackUpdate(upd)
+	case *UpdateInlineBotCallbackQuery:
+		go c.handleInlineCallbackUpdate(upd)
+	case *UpdateChannelParticipant:
+		go c.handleParticipantUpdate(upd)
+	case *UpdatePendingJoinRequests:
+		go c.handleJoinRequestUpdate(upd)
+	case *UpdateBotChatInviteRequester:
+		if !c.manageQts(upd.Qts) {
+			return
+		}
+		go c.handleJoinRequestUpdate(upd)
+	case *UpdateBotInlineSend:
+		go c.handleInlineSendUpdate(upd)
+	case *UpdateChannelTooLong:
+		currentPts := c.dispatcher.GetChannelPts(upd.ChannelID)
+		if upd.Pts != 0 {
+			currentPts = upd.Pts
+		}
+		go c.FetchChannelDifference(upd.ChannelID, currentPts, 50)
+	case *UpdateNewEncryptedMessage:
+		if !c.manageQts(upd.Qts) {
+			return
+		}
+		go c.HandleSecretChatUpdate(upd)
+	case *UpdateEncryption:
+		go c.HandleSecretChatUpdate(upd)
+	}
+
+	go c.handleRawUpdate(update)
 }
 
 func getChannelIDFromMessage(msg Message) int64 {
@@ -2489,6 +2512,46 @@ func getChannelIDFromMessage(msg Message) int64 {
 		}
 	}
 	return 0
+}
+
+func messagePeerKey(peer Peer) int64 {
+	switch p := peer.(type) {
+	case *PeerUser:
+		return p.UserID
+	case *PeerChat:
+		return -p.ChatID
+	case *PeerChannel:
+		return -(p.ChannelID << 1)
+	default:
+		return 0
+	}
+}
+
+func messageDedupeKey(msg *MessageObj, isEdit bool) int64 {
+	if msg == nil {
+		return 0
+	}
+	var peerKey int64
+	if msg.Out {
+		peerKey = messagePeerKey(msg.FromID)
+		if peerKey == 0 {
+			peerKey = messagePeerKey(msg.PeerID)
+		}
+	} else {
+		peerKey = messagePeerKey(msg.PeerID)
+		if peerKey == 0 {
+			peerKey = messagePeerKey(msg.FromID)
+		}
+	}
+	key := (peerKey << 32) ^ int64(uint32(msg.ID))
+	if isEdit {
+		key ^= int64(msg.EditDate) << 1
+		key ^= 0x5f356495
+	}
+	if msg.Out {
+		key ^= 1 << 62
+	}
+	return key
 }
 
 func (c *Client) FetchDifference(fromPts int32, limit int32) {
@@ -2621,163 +2684,212 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 }
 
 func (c *Client) managePts(pts int32, ptsCount int32) bool {
-	var currentPts = c.dispatcher.GetPts()
+	if pts == 0 {
+		return true
+	}
 
+	d := c.dispatcher
+	d.Lock()
+	currentPts := d.state.Pts
 	if currentPts == 0 {
-		c.dispatcher.SetPts(pts)
+		d.state.Pts = pts
+		d.Unlock()
 		return true
 	}
 
 	expectedPts := currentPts + ptsCount
-
 	if expectedPts == pts {
-		c.dispatcher.SetPts(pts)
+		d.state.Pts = pts
+		d.Unlock()
 		return true
 	}
 
 	if expectedPts > pts {
+		d.Unlock()
 		return false
 	}
 
-	if expectedPts < pts {
-		gap := pts - expectedPts
-		c.dispatcher.SetPts(pts)
-
-		if !c.clientData.disableGapFetch {
-			if gap <= 10 {
-				gapPts := expectedPts
-				go func() {
-					time.Sleep(300 * time.Millisecond)
-					newCurrentPts := c.dispatcher.GetPts()
-					if newCurrentPts >= pts {
-						return
-					}
-					c.FetchDifference(gapPts, int32(gap*2))
-				}()
-			} else if gap <= 1000 {
-				gapPts := expectedPts
-				go func() {
-					time.Sleep(100 * time.Millisecond)
-					newCurrentPts := c.dispatcher.GetPts()
-					if newCurrentPts >= pts {
-						return
-					}
-					c.FetchDifference(gapPts, int32(gap+50))
-				}()
-			} else {
-				gapPts := expectedPts
-				go func() {
-					time.Sleep(100 * time.Millisecond)
-					newCurrentPts := c.dispatcher.GetPts()
-					if newCurrentPts >= pts {
-						return
-					}
-					c.FetchDifference(gapPts, 1000)
-				}()
-			}
-		}
-
-		return true
+	if c.clientData.disableGapFetch || d.recoveringDifference {
+		d.Unlock()
+		return false
 	}
 
-	return true
+	fromPts := currentPts
+	d.Unlock()
+
+	go func(targetPts int32) {
+		time.Sleep(300 * time.Millisecond)
+		if c.dispatcher.GetPts() >= targetPts {
+			return
+		}
+		c.FetchDifference(fromPts, 5000)
+	}(pts)
+
+	return false
 }
 
 func (c *Client) manageSeq(seq int32, seqStart int32) bool {
-	if seq == 0 && seqStart == 0 {
+	if seqStart == 0 {
+		if seq == 0 {
+			return true
+		}
+		d := c.dispatcher
+		d.Lock()
+		if seq > d.state.Seq {
+			d.state.Seq = seq
+		}
+		d.Unlock()
 		return true
 	}
 
-	currentSeq := c.dispatcher.GetSeq()
+	d := c.dispatcher
+	d.Lock()
+	currentSeq := d.state.Seq
 
 	if currentSeq == 0 {
-		c.dispatcher.SetSeq(seq)
+		d.state.Seq = seq
+		d.Unlock()
 		return true
 	}
 
 	expectedSeqStart := currentSeq + 1
 
 	if expectedSeqStart == seqStart {
-		c.dispatcher.SetSeq(seq)
+		d.state.Seq = seq
+		d.Unlock()
 		return true
 	}
 
 	if expectedSeqStart > seqStart {
+		d.Unlock()
 		return false
 	}
 
-	if expectedSeqStart < seqStart {
-		if !c.clientData.disableGapFetch {
-			go c.FetchDifference(c.dispatcher.GetPts(), 5000)
+	if c.clientData.disableGapFetch || d.recoveringDifference {
+		d.Unlock()
+		return false
+	}
+
+	currentPts := d.state.Pts
+	d.Unlock()
+
+	go func(targetSeqStart int32) {
+		time.Sleep(300 * time.Millisecond)
+		if c.dispatcher.GetSeq()+1 >= targetSeqStart {
+			return
 		}
-		return false
-	}
+		c.FetchDifference(currentPts, 5000)
+	}(seqStart)
 
-	return true
+	return false
 }
 
 func (c *Client) manageChannelPts(channelID int64, pts int32, ptsCount int32) bool {
-	var currentPts = c.dispatcher.GetChannelPts(channelID)
+	if pts == 0 {
+		return true
+	}
 
+	d := c.dispatcher
+	d.Lock()
+	if d.channelStates == nil {
+		d.channelStates = make(map[int64]*channelState)
+	}
+	state := d.channelStates[channelID]
+	if state == nil {
+		d.channelStates[channelID] = &channelState{pts: pts}
+		d.Unlock()
+		return true
+	}
+
+	currentPts := state.pts
 	if currentPts == 0 {
-		c.dispatcher.SetChannelPts(channelID, pts)
+		state.pts = pts
+		d.Unlock()
 		return true
 	}
 
 	expectedPts := currentPts + ptsCount
-
 	if expectedPts == pts {
-		c.dispatcher.SetChannelPts(channelID, pts)
+		state.pts = pts
+		d.Unlock()
 		return true
 	}
 
 	if expectedPts > pts {
+		d.Unlock()
 		return false
 	}
 
-	if expectedPts < pts {
-		gap := pts - expectedPts
+	if c.clientData.disableGapFetch {
+		d.Unlock()
+		return false
+	}
 
-		c.dispatcher.SetChannelPts(channelID, pts)
+	if d.recoveringChannels == nil {
+		d.recoveringChannels = make(map[int64]bool)
+	}
+	if d.recoveringChannels[channelID] {
+		d.Unlock()
+		return false
+	}
 
-		if !c.clientData.disableGapFetch {
-			if gap <= 10 {
-				gapPts := expectedPts
-				go func() {
-					time.Sleep(300 * time.Millisecond)
-					newCurrentPts := c.dispatcher.GetChannelPts(channelID)
-					if newCurrentPts >= pts {
-						return
-					}
-					c.FetchChannelDifference(channelID, gapPts, int32(gap*2))
-				}()
-			} else if gap <= 500 {
-				gapPts := expectedPts
-				go func() {
-					time.Sleep(100 * time.Millisecond)
-					newCurrentPts := c.dispatcher.GetChannelPts(channelID)
-					if newCurrentPts >= pts {
-						return
-					}
-					c.FetchChannelDifference(channelID, gapPts, int32(gap+50))
-				}()
-			} else {
-				gapPts := expectedPts
-				go func() {
-					time.Sleep(100 * time.Millisecond)
-					newCurrentPts := c.dispatcher.GetChannelPts(channelID)
-					if newCurrentPts >= pts {
-						return
-					}
-					c.FetchChannelDifference(channelID, gapPts, 500)
-				}()
-			}
+	fromPts := currentPts
+	d.Unlock()
+
+	go func(targetPts int32) {
+		time.Sleep(300 * time.Millisecond)
+		if c.dispatcher.GetChannelPts(channelID) >= targetPts {
+			return
 		}
+		c.FetchChannelDifference(channelID, fromPts, 50)
+	}(pts)
 
+	return false
+}
+
+func (c *Client) manageQts(qts int32) bool {
+	if qts == 0 {
 		return true
 	}
 
-	return true
+	d := c.dispatcher
+	d.Lock()
+	currentQts := d.state.Qts
+	if currentQts == 0 {
+		d.state.Qts = qts
+		d.Unlock()
+		return true
+	}
+
+	expectedQts := currentQts + 1
+	if expectedQts == qts {
+		d.state.Qts = qts
+		d.Unlock()
+		return true
+	}
+
+	if expectedQts > qts {
+		d.Unlock()
+		return false
+	}
+
+	if c.clientData.disableGapFetch || d.recoveringDifference {
+		d.Unlock()
+		return false
+	}
+
+	currentPts := d.state.Pts
+	d.Unlock()
+
+	go func(targetQts int32) {
+		time.Sleep(300 * time.Millisecond)
+		if c.dispatcher.GetQts() >= targetQts {
+			return
+		}
+		c.FetchDifference(currentPts, 5000)
+	}(qts)
+
+	return false
 }
 
 func (c *Client) GetDifference(Pts, Limit int32) (Message, error) {
