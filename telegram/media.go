@@ -1108,8 +1108,8 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		return "", err.(error)
 	}
 
-	const maxRetryRounds = 3
-	for round := 0; round < maxRetryRounds; round++ {
+	const maxRetryRounds = 10
+	for round := range maxRetryRounds {
 		var failedParts []int
 		for p := 0; p < totalParts; p++ {
 			if !completedParts[p].Load() {
