@@ -352,6 +352,7 @@ func (c *lruCache) TryAdd(key int64) bool {
 	return true
 }
 
+// shardedLRU reduces lock contention by hashing keys across shards.
 type shardedLRU struct {
 	shards []*lruCache
 }
@@ -399,6 +400,8 @@ func newPatternCache() *patternCache {
 	return &patternCache{}
 }
 
+// counterBox keeps monotonically increasing counters (pts/qts) ordered and deduplicated.
+// It buffers out-of-order updates, detects gaps, and optionally triggers a fetch to fill them.
 type counterBox struct {
 	sync.Mutex
 	name       string
@@ -430,8 +433,11 @@ func newCounterBox(name string, logger Logger, fetch func(from, target int32), o
 	}
 }
 
+// process enforces ordering using Telegram semantics where counter represents the value *after* applying the update.
+// If the counter is contiguous, apply() is executed immediately; otherwise it is buffered and a gap fetch is triggered.
 func (b *counterBox) process(counter, count int32, apply func()) bool {
 	if counter == 0 {
+		// Some updates carry no counter; process eagerly.
 		apply()
 		return true
 	}
@@ -439,8 +445,12 @@ func (b *counterBox) process(counter, count int32, apply func()) bool {
 	b.Lock()
 	defer b.Unlock()
 
-	prev := max(counter-count, 0)
+	prev := counter - count
+	if prev < 0 {
+		prev = 0
+	}
 
+	// First seen value: accept and set baseline.
 	if b.current == 0 {
 		b.current = counter
 		b.recordAdvance(counter)
@@ -449,10 +459,12 @@ func (b *counterBox) process(counter, count int32, apply func()) bool {
 		return true
 	}
 
+	// Duplicate or stale update.
 	if counter <= b.current {
 		return false
 	}
 
+	// Happy path: contiguous advance.
 	if prev == b.current {
 		b.current = counter
 		b.recordAdvance(counter)
@@ -461,6 +473,7 @@ func (b *counterBox) process(counter, count int32, apply func()) bool {
 		return true
 	}
 
+	// Gap detected: store and trigger gap fetch if not already recovering.
 	b.pending[counter] = append(b.pending[counter], pendingCounter{counter: counter, count: count, apply: apply, arrived: time.Now()})
 	b.triggerGapLocked(prev, counter)
 	return false
