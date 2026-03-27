@@ -1277,7 +1277,7 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 // chunkSize is the size of each chunk to download.
 //
 // Note: chunkSize must be a multiple of 1048576 (1MB)
-func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]byte, string, error) {
+func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int, ctxs ...context.Context) ([]byte, string, error) {
 	var buf []byte
 	input, dc, size, name, err := GetFileLocation(media)
 	if err != nil {
@@ -1299,14 +1299,24 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		return nil, "", err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	var chunkCtx context.Context
+	var chunkCancel context.CancelFunc
+	if len(ctxs) > 0 {
+		chunkCtx, chunkCancel = context.WithCancel(ctxs[0])
+	} else {
+		chunkCtx, chunkCancel = context.WithCancel(context.Background())
+	}
+	defer chunkCancel()
+	/*
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	*/
 
-	if !w.WaitReady(ctx) {
+	if !w.WaitReady(chunkCtx) {
 		return nil, "", errors.New("failed to initialize worker: timeout")
 	}
 
-	sender := w.NextWithContext(ctx)
+	sender := w.NextWithContext(chunkCtx)
 	if sender == nil {
 		return nil, "", errors.New("failed to get worker: timeout")
 	}
