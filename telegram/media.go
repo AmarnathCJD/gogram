@@ -1331,7 +1331,8 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int, ctx
 		})
 
 		if err != nil {
-			c.Log.Error(err)
+			// c.Log.Error(err)
+			return nil, "", err
 		}
 
 		switch v := part.(type) {
