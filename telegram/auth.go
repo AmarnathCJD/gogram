@@ -820,7 +820,7 @@ func (q *QrToken) Renew() error {
 		return err
 	}
 
-	q.qrBase64 = qrMake.Base64PNG(512)
+	q.qrBase64 = qrMake.Base64PNG(256)
 	q.qrSmall = qrMake.ToSmallString(false)
 	return nil
 }
@@ -856,7 +856,14 @@ func (q *QrToken) WaitLogin(timeout ...int32) error {
 			q.client.SwitchDc(int(req.DcID))
 			resp, err = q.client.AuthImportLoginToken(req.Token)
 			if err != nil {
-				return err
+				if MatchError(err, "SESSION_PASSWORD_NEEDED") {
+					resp, err = q.handleQrPasswordAuth()
+					if err != nil {
+						return err
+					}
+				} else {
+					return err
+				}
 			}
 			goto QrResponseSwitch
 		case *AuthLoginTokenSuccess:
@@ -911,6 +918,22 @@ func (c *Client) QRLogin(options ...QrOptions) (*QrToken, error) {
 			return nil, err
 		}
 		return c.QRLogin(options...)
+	case *AuthLoginTokenSuccess:
+		switch u := qr.Authorization.(type) {
+		case *AuthAuthorizationObj:
+			switch user := u.User.(type) {
+			case *UserObj:
+				c.Cache.UpdateUser(user)
+			}
+		}
+		return &QrToken{
+			passwordCallback: opts.PasswordCallback,
+			onWrongPassword:  opts.OnWrongPassword,
+			maxRetries:       opts.MaxRetries,
+			client:           c,
+			ignoredIDs:       opts.IgnoredIDs,
+			timeout:          opts.Timeout,
+		}, nil
 
 	case *AuthLoginTokenObj:
 		qrHash := base64.RawURLEncoding.EncodeToString(qr.Token)
@@ -921,7 +944,7 @@ func (c *Client) QRLogin(options ...QrOptions) (*QrToken, error) {
 		}
 
 		return &QrToken{
-			qrBase64:         qrCodeMaker.Base64PNG(512),
+			qrBase64:         qrCodeMaker.Base64PNG(256),
 			qrSmall:          qrCodeMaker.ToSmallString(true),
 			passwordCallback: opts.PasswordCallback,
 			onWrongPassword:  opts.OnWrongPassword,
