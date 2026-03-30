@@ -820,7 +820,7 @@ func (q *QrToken) Renew() error {
 		return err
 	}
 
-	q.qrBase64 = qrMake.Base64PNG(0)
+	q.qrBase64 = qrMake.Base64PNG(512)
 	q.qrSmall = qrMake.ToSmallString(false)
 	return nil
 }
@@ -872,12 +872,16 @@ func (q *QrToken) WaitLogin(timeout ...int32) error {
 					return fmt.Errorf("unexpected user type received after qr login: %T", u)
 				}
 			}
+		case *AuthLoginTokenObj:
+			return fmt.Errorf("scan received but login not approved, please try scanning again")
+		default:
+			return fmt.Errorf("unexpected response type after scan: %T", resp)
 		}
-		return nil
 	case <-time.After(time.Duration(q.timeout) * time.Second):
 		go q.client.removeHandle(ev)
 		return fmt.Errorf("qr login wait timeout after %d seconds", q.timeout)
 	}
+	return nil
 }
 
 type QrOptions struct {
@@ -917,7 +921,7 @@ func (c *Client) QRLogin(options ...QrOptions) (*QrToken, error) {
 		}
 
 		return &QrToken{
-			qrBase64:         qrCodeMaker.Base64PNG(0),
+			qrBase64:         qrCodeMaker.Base64PNG(512),
 			qrSmall:          qrCodeMaker.ToSmallString(true),
 			passwordCallback: opts.PasswordCallback,
 			onWrongPassword:  opts.OnWrongPassword,
