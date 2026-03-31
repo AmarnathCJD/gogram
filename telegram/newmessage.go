@@ -695,7 +695,11 @@ func (m *NewMessage) Reply(Text any, Opts ...*SendOptions) (*NewMessage, error) 
 	if len(Opts) == 0 {
 		Opts = append(Opts, &SendOptions{ReplyID: m.ID})
 	} else {
-		Opts[0].ReplyID = m.ID
+		if Opts[0] != nil {
+			Opts[0].ReplyID = m.ID
+		} else {
+			Opts = append(Opts, &SendOptions{ReplyID: m.ID})
+		}
 	}
 	resp, err := m.Client.SendMessage(m.ChannelID(), Text, Opts[0])
 	if resp == nil {
