@@ -1793,25 +1793,26 @@ type Dialog interface {
 
 // Chat
 type DialogObj struct {
-	Pinned               bool                `tl:"flag:2,encoded_in_bitflags"` // Is the dialog pinned
-	UnreadMark           bool                `tl:"flag:3,encoded_in_bitflags"` // Whether the chat was manually marked as unread
-	ViewForumAsMessages  bool                `tl:"flag:6,encoded_in_bitflags"` // Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client. This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
-	Peer                 Peer                // The chat
-	TopMessage           int32               // The latest message ID
-	ReadInboxMaxID       int32               // Position up to which all incoming messages are read.
-	ReadOutboxMaxID      int32               // Position up to which all outgoing messages are read.
-	UnreadCount          int32               // Number of unread messages
-	UnreadMentionsCount  int32               // Number of unread mentions
-	UnreadReactionsCount int32               // Number of unread reactions to messages you sent
-	NotifySettings       *PeerNotifySettings // Notification settings
-	Pts                  int32               `tl:"flag:0"` // PTS
-	Draft                DraftMessage        `tl:"flag:1"` // Message draft
-	FolderID             int32               `tl:"flag:4"` // Peer folder ID, for more info click here
-	TtlPeriod            int32               `tl:"flag:5"` // Time-to-live of all messages sent in this dialog
+	Pinned               bool `tl:"flag:2,encoded_in_bitflags"`
+	UnreadMark           bool `tl:"flag:3,encoded_in_bitflags"`
+	ViewForumAsMessages  bool `tl:"flag:6,encoded_in_bitflags"`
+	Peer                 Peer
+	TopMessage           int32
+	ReadInboxMaxID       int32
+	ReadOutboxMaxID      int32
+	UnreadCount          int32
+	UnreadMentionsCount  int32
+	UnreadReactionsCount int32
+	UnreadPollVotesCount int32
+	NotifySettings       *PeerNotifySettings
+	Pts                  int32        `tl:"flag:0"`
+	Draft                DraftMessage `tl:"flag:1"`
+	FolderID             int32        `tl:"flag:4"`
+	TtlPeriod            int32        `tl:"flag:5"`
 }
 
 func (*DialogObj) CRC() uint32 {
-	return 0xd58a08c6
+	return 0xfc89f7f3
 }
 
 func (*DialogObj) FlagIndex() int {
@@ -2580,31 +2581,32 @@ type ForumTopic interface {
 
 // Represents a forum topic.
 type ForumTopicObj struct {
-	My                   bool  `tl:"flag:1,encoded_in_bitflags"` // Whether the topic was created by the current user
-	Closed               bool  `tl:"flag:2,encoded_in_bitflags"` // Whether the topic is closed (no messages can be sent to it)
-	Pinned               bool  `tl:"flag:3,encoded_in_bitflags"` // Whether the topic is pinned
-	Short                bool  `tl:"flag:5,encoded_in_bitflags"` // Whether this constructor is a reduced version of the full topic information. If set, only the `my`, `closed`, `id`, `date`, `title`, `icon_color`, `icon_emoji_id` and `from_id` parameters will contain valid information. Reduced info is usually only returned in topic-related admin log events and in the messages.channelMessages constructor: if needed, full information can be fetched using channels.getForumTopicsByID.
-	Hidden               bool  `tl:"flag:6,encoded_in_bitflags"` // Whether the topic is hidden (only valid for the "General" topic, `id=1`)
-	TitleMissing         bool  `tl:"flag:7,encoded_in_bitflags"`
-	ID                   int32 // Topic ID
-	Date                 int32 // Topic creation date
+	My                   bool `tl:"flag:1,encoded_in_bitflags"`
+	Closed               bool `tl:"flag:2,encoded_in_bitflags"`
+	Pinned               bool `tl:"flag:3,encoded_in_bitflags"`
+	Short                bool `tl:"flag:5,encoded_in_bitflags"`
+	Hidden               bool `tl:"flag:6,encoded_in_bitflags"`
+	TitleMissing         bool `tl:"flag:7,encoded_in_bitflags"`
+	ID                   int32
+	Date                 int32
 	Peer                 Peer
-	Title                string              // Topic title
-	IconColor            int32               // If no custom emoji icon is specified, specifies the color of the fallback topic icon (RGB), one of `0x6FB9F0`, `0xFFD67E`, `0xCB86DB`, `0x8EEE98`, `0xFF93B2`, or `0xFB6F5F`.
-	IconEmojiID          int64               `tl:"flag:0"` // ID of the custom emoji used as topic icon.
-	TopMessage           int32               // ID of the last message that was sent to this topic
-	ReadInboxMaxID       int32               // Position up to which all incoming messages are read.
-	ReadOutboxMaxID      int32               // Position up to which all outgoing messages are read.
-	UnreadCount          int32               // Number of unread messages
-	UnreadMentionsCount  int32               // Number of unread mentions
-	UnreadReactionsCount int32               // Number of unread reactions to messages you sent
-	FromID               Peer                // ID of the peer that created the topic
-	NotifySettings       *PeerNotifySettings // Notification settings
-	Draft                DraftMessage        `tl:"flag:4"` // Message draft
+	Title                string
+	IconColor            int32
+	IconEmojiID          int64 `tl:"flag:0"`
+	TopMessage           int32
+	ReadInboxMaxID       int32
+	ReadOutboxMaxID      int32
+	UnreadCount          int32
+	UnreadMentionsCount  int32
+	UnreadReactionsCount int32
+	UnreadPollVotesCount int32
+	FromID               Peer
+	NotifySettings       *PeerNotifySettings
+	Draft                DraftMessage `tl:"flag:4"`
 }
 
 func (*ForumTopicObj) CRC() uint32 {
-	return 0xcdff0eca
+	return 0xfcdad815
 }
 
 func (*ForumTopicObj) FlagIndex() int {
@@ -3614,8 +3616,9 @@ func (*InputInvoiceMessage) CRC() uint32 {
 
 func (*InputInvoiceMessage) ImplementsInputInvoice() {}
 
+// Used to pay for login codes, in case of high cost of SMS verification codes for the user's country/provider
 type InputInvoicePremiumAuthCode struct {
-	Purpose InputStorePaymentPurpose
+	Purpose InputStorePaymentPurpose // Must contain an inputStorePaymentAuthCode.
 }
 
 func (*InputInvoicePremiumAuthCode) CRC() uint32 {
@@ -3702,8 +3705,9 @@ func (*InputInvoiceStarGiftAuctionBid) FlagIndex() int {
 
 func (*InputInvoiceStarGiftAuctionBid) ImplementsInputInvoice() {}
 
+// Used to pay for for the removal of the starGiftAttributeOriginalDetails attribute from a collectible gift
 type InputInvoiceStarGiftDropOriginalDetails struct {
-	Stargift InputSavedStarGift
+	Stargift InputSavedStarGift // The collectible gift whose starGiftAttributeOriginalDetails attribute should be removed.
 }
 
 func (*InputInvoiceStarGiftDropOriginalDetails) CRC() uint32 {
@@ -3941,13 +3945,15 @@ func (*InputMediaPaidMedia) ImplementsInputMedia() {}
 
 // Forwarded photo
 type InputMediaPhoto struct {
-	Spoiler    bool       `tl:"flag:1,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
-	ID         InputPhoto // Photo to be forwarded
-	TtlSeconds int32      `tl:"flag:0"` // Time to live in seconds of self-destructing photo
+	Spoiler    bool `tl:"flag:1,encoded_in_bitflags"`
+	LivePhoto  bool `tl:"flag:2,encoded_in_bitflags"`
+	ID         InputPhoto
+	TtlSeconds int32         `tl:"flag:0"`
+	Video      InputDocument `tl:"flag:2"`
 }
 
 func (*InputMediaPhoto) CRC() uint32 {
-	return 0xb3ba0635
+	return 0xe3af4434
 }
 
 func (*InputMediaPhoto) FlagIndex() int {
@@ -3975,14 +3981,16 @@ func (*InputMediaPhotoExternal) ImplementsInputMedia() {}
 
 // A poll
 type InputMediaPoll struct {
-	Poll             *Poll           // The poll to send
-	CorrectAnswers   [][]byte        `tl:"flag:0"` // Correct answer IDs (for quiz polls)
-	Solution         string          `tl:"flag:1"` // Explanation of quiz solution
-	SolutionEntities []MessageEntity `tl:"flag:1"` // Message entities for styled text
+	Poll             *Poll
+	CorrectAnswers   []int32         `tl:"flag:0"`
+	AttachedMedia    InputMedia      `tl:"flag:3"`
+	Solution         string          `tl:"flag:1"`
+	SolutionEntities []MessageEntity `tl:"flag:1"`
+	SolutionMedia    InputMedia      `tl:"flag:2"`
 }
 
 func (*InputMediaPoll) CRC() uint32 {
-	return 0xf94e5f1
+	return 0x883a4108
 }
 
 func (*InputMediaPoll) FlagIndex() int {
@@ -4053,14 +4061,16 @@ func (*InputMediaUploadedDocument) ImplementsInputMedia() {}
 
 // Photo
 type InputMediaUploadedPhoto struct {
-	Spoiler    bool            `tl:"flag:2,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
-	File       InputFile       // The uploaded file
-	Stickers   []InputDocument `tl:"flag:0"` // Attached mask stickers
-	TtlSeconds int32           `tl:"flag:1"` // Time to live in seconds of self-destructing photo
+	Spoiler    bool `tl:"flag:2,encoded_in_bitflags"`
+	LivePhoto  bool `tl:"flag:3,encoded_in_bitflags"`
+	File       InputFile
+	Stickers   []InputDocument `tl:"flag:0"`
+	TtlSeconds int32           `tl:"flag:1"`
+	Video      InputDocument   `tl:"flag:3"`
 }
 
 func (*InputMediaUploadedPhoto) CRC() uint32 {
-	return 0x1e287d04
+	return 0x7d8375da
 }
 
 func (*InputMediaUploadedPhoto) FlagIndex() int {
@@ -4581,18 +4591,19 @@ type InputReplyTo interface {
 
 // Reply to a message.
 type InputReplyToMessage struct {
-	ReplyToMsgID    int32           // The message ID to reply to.
-	TopMsgID        int32           `tl:"flag:0"` // This field must contain the topic ID only when replying to messages in forum topics different from the "General" topic (i.e. `reply_to_msg_id` is set and `reply_to_msg_id != topicID` and `topicID != 1`). If the replied-to message is deleted before the method finishes execution, the value in this field will be used to send the message to the correct topic, instead of the "General" topic.
-	ReplyToPeerID   InputPeer       `tl:"flag:1"` // Used to reply to messages sent to another chat (specified here), can only be used for non-`protected` chats and messages.
-	QuoteText       string          `tl:"flag:2"` // Used to quote-reply to only a certain section (specified here) of the original message. The maximum UTF-8 length for quotes is specified in the quote_length_max config key.
-	QuoteEntities   []MessageEntity `tl:"flag:3"` // Message entities for styled text from the `quote_text` field.
-	QuoteOffset     int32           `tl:"flag:4"` // Offset of the message `quote_text` within the original message (in UTF-16 code units).
-	MonoforumPeerID InputPeer       `tl:"flag:5"` // Must be set to the ID of the topic when replying to a message within a monoforum topic.
-	TodoItemID      int32           `tl:"flag:6"` // Can be set to reply to the specified item of a todo list.
+	ReplyToMsgID    int32
+	TopMsgID        int32           `tl:"flag:0"`
+	ReplyToPeerID   InputPeer       `tl:"flag:1"`
+	QuoteText       string          `tl:"flag:2"`
+	QuoteEntities   []MessageEntity `tl:"flag:3"`
+	QuoteOffset     int32           `tl:"flag:4"`
+	MonoforumPeerID InputPeer       `tl:"flag:5"`
+	TodoItemID      int32           `tl:"flag:6"`
+	PollOption      []byte          `tl:"flag:7"`
 }
 
 func (*InputReplyToMessage) CRC() uint32 {
-	return 0x869fbe10
+	return 0x3bd4b7c2
 }
 
 func (*InputReplyToMessage) FlagIndex() int {
@@ -6272,6 +6283,16 @@ func (*MessageActionInviteToGroupCall) CRC() uint32 {
 
 func (*MessageActionInviteToGroupCall) ImplementsMessageAction() {}
 
+type MessageActionManagedBotCreated struct {
+	BotID int64
+}
+
+func (*MessageActionManagedBotCreated) CRC() uint32 {
+	return 0x16605e3e
+}
+
+func (*MessageActionManagedBotCreated) ImplementsMessageAction() {}
+
 type MessageActionNewCreatorPending struct {
 	NewCreatorID int64
 }
@@ -6425,6 +6446,26 @@ func (*MessageActionPinMessage) CRC() uint32 {
 }
 
 func (*MessageActionPinMessage) ImplementsMessageAction() {}
+
+type MessageActionPollAppendAnswer struct {
+	Answer PollAnswer
+}
+
+func (*MessageActionPollAppendAnswer) CRC() uint32 {
+	return 0x9da1cd6c
+}
+
+func (*MessageActionPollAppendAnswer) ImplementsMessageAction() {}
+
+type MessageActionPollDeleteAnswer struct {
+	Answer PollAnswer
+}
+
+func (*MessageActionPollDeleteAnswer) CRC() uint32 {
+	return 0x399674dc
+}
+
+func (*MessageActionPollDeleteAnswer) ImplementsMessageAction() {}
 
 // You won some Telegram Stars in a Telegram Star giveaway.
 type MessageActionPrizeStars struct {
@@ -6633,7 +6674,7 @@ type MessageActionStarGiftUnique struct {
 	ResaleAmount             StarsAmount `tl:"flag:8"`  // Resale price of the gift.
 	CanTransferAt            int32       `tl:"flag:9"`  // If set, indicates that the current gift can't be transferred yet: the owner will be able to transfer it at the specified unixtime.
 	CanResellAt              int32       `tl:"flag:10"` // If set, indicates that the current gift can't be resold yet: the owner will be able to put it up for sale at the specified unixtime.
-	DropOriginalDetailsStars int64       `tl:"flag:12"`
+	DropOriginalDetailsStars int64       `tl:"flag:12"` // If set, the starGiftAttributeOriginalDetails attribute of this gift may be removed by paying the specified amount of stars
 	CanCraftAt               int32       `tl:"flag:15"`
 }
 
@@ -6647,8 +6688,9 @@ func (*MessageActionStarGiftUnique) FlagIndex() int {
 
 func (*MessageActionStarGiftUnique) ImplementsMessageAction() {}
 
+// A new birthday was suggested using users.suggestBirthday
 type MessageActionSuggestBirthday struct {
-	Birthday *Birthday
+	Birthday *Birthday // The suggested birthday.
 }
 
 func (*MessageActionSuggestBirthday) CRC() uint32 {
@@ -6902,6 +6944,40 @@ func (*MessageEntityCustomEmoji) CRC() uint32 {
 }
 
 func (*MessageEntityCustomEmoji) ImplementsMessageEntity() {}
+
+type MessageEntityDiffDelete struct {
+	Offset int32
+	Length int32
+}
+
+func (*MessageEntityDiffDelete) CRC() uint32 {
+	return 0x652c1c5
+}
+
+func (*MessageEntityDiffDelete) ImplementsMessageEntity() {}
+
+type MessageEntityDiffInsert struct {
+	Offset int32
+	Length int32
+}
+
+func (*MessageEntityDiffInsert) CRC() uint32 {
+	return 0x71777116
+}
+
+func (*MessageEntityDiffInsert) ImplementsMessageEntity() {}
+
+type MessageEntityDiffReplace struct {
+	Offset  int32
+	Length  int32
+	OldText string
+}
+
+func (*MessageEntityDiffReplace) CRC() uint32 {
+	return 0xc6c1e5a7
+}
+
+func (*MessageEntityDiffReplace) ImplementsMessageEntity() {}
 
 // Message entity representing an email@example.com.
 type MessageEntityEmail struct {
@@ -7315,13 +7391,15 @@ func (*MessageMediaPaidMedia) ImplementsMessageMedia() {}
 
 // Attached photo.
 type MessageMediaPhoto struct {
-	Spoiler    bool  `tl:"flag:3,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
-	Photo      Photo `tl:"flag:0"`                     // Photo
-	TtlSeconds int32 `tl:"flag:2"`                     // Time to live in seconds of self-destructing photo
+	Spoiler    bool     `tl:"flag:3,encoded_in_bitflags"`
+	LivePhoto  bool     `tl:"flag:4,encoded_in_bitflags"`
+	Photo      Photo    `tl:"flag:0"`
+	TtlSeconds int32    `tl:"flag:2"`
+	Video      Document `tl:"flag:4"`
 }
 
 func (*MessageMediaPhoto) CRC() uint32 {
-	return 0x695150d7
+	return 0xe216eb63
 }
 
 func (*MessageMediaPhoto) FlagIndex() int {
@@ -7332,12 +7410,17 @@ func (*MessageMediaPhoto) ImplementsMessageMedia() {}
 
 // Poll
 type MessageMediaPoll struct {
-	Poll    *Poll        // The poll
-	Results *PollResults // The results of the poll
+	Poll          *Poll
+	Results       *PollResults
+	AttachedMedia MessageMedia `tl:"flag:0"`
 }
 
 func (*MessageMediaPoll) CRC() uint32 {
-	return 0x4bd6e798
+	return 0x773f4e66
+}
+
+func (*MessageMediaPoll) FlagIndex() int {
+	return 0
 }
 
 func (*MessageMediaPoll) ImplementsMessageMedia() {}
@@ -7485,22 +7568,23 @@ type MessageReplyHeader interface {
 
 // Message replies and thread information
 type MessageReplyHeaderObj struct {
-	ReplyToScheduled bool              `tl:"flag:2,encoded_in_bitflags"` // This is a reply to a scheduled message.
-	ForumTopic       bool              `tl:"flag:3,encoded_in_bitflags"` // Whether this message was sent in a forum topic (except for the General topic).
-	Quote            bool              `tl:"flag:9,encoded_in_bitflags"` // Whether this message is quoting a part of another message.
-	ReplyToMsgID     int32             `tl:"flag:4"`                     // ID of message to which this message is replying
-	ReplyToPeerID    Peer              `tl:"flag:0"`                     // For replies sent in channel discussion threads of which the current user is not a member, the discussion group ID
-	ReplyFrom        *MessageFwdHeader `tl:"flag:5"`                     // When replying to a message sent by a certain peer to another chat, contains info about the peer that originally sent the message to that other chat.
-	ReplyMedia       MessageMedia      `tl:"flag:8"`                     // When replying to a media sent by a certain peer to another chat, contains the media of the replied-to message.
-	ReplyToTopID     int32             `tl:"flag:1"`                     // ID of the message that started this message thread
-	QuoteText        string            `tl:"flag:6"`                     // Used to quote-reply to only a certain section (specified here) of the original message.
-	QuoteEntities    []MessageEntity   `tl:"flag:7"`                     // Message entities for styled text from the `quote_text` field.
-	QuoteOffset      int32             `tl:"flag:10"`                    // Offset of the message `quote_text` within the original message (in UTF-16 code units).
-	TodoItemID       int32             `tl:"flag:11"`                    // Can be set to reply to the specified item of a todo list.
+	ReplyToScheduled bool              `tl:"flag:2,encoded_in_bitflags"`
+	ForumTopic       bool              `tl:"flag:3,encoded_in_bitflags"`
+	Quote            bool              `tl:"flag:9,encoded_in_bitflags"`
+	ReplyToMsgID     int32             `tl:"flag:4"`
+	ReplyToPeerID    Peer              `tl:"flag:0"`
+	ReplyFrom        *MessageFwdHeader `tl:"flag:5"`
+	ReplyMedia       MessageMedia      `tl:"flag:8"`
+	ReplyToTopID     int32             `tl:"flag:1"`
+	QuoteText        string            `tl:"flag:6"`
+	QuoteEntities    []MessageEntity   `tl:"flag:7"`
+	QuoteOffset      int32             `tl:"flag:10"`
+	TodoItemID       int32             `tl:"flag:11"`
+	PollOption       []byte            `tl:"flag:12"`
 }
 
 func (*MessageReplyHeaderObj) CRC() uint32 {
-	return 0x6917560b
+	return 0x1b97dd66
 }
 
 func (*MessageReplyHeaderObj) FlagIndex() int {
@@ -7639,6 +7723,14 @@ func (*InputMessagesFilterPinned) CRC() uint32 {
 }
 
 func (*InputMessagesFilterPinned) ImplementsMessagesFilter() {}
+
+type InputMessagesFilterPoll struct{}
+
+func (*InputMessagesFilterPoll) CRC() uint32 {
+	return 0xfa2bc90a
+}
+
+func (*InputMessagesFilterPoll) ImplementsMessagesFilter() {}
 
 // Return only round videos
 type InputMessagesFilterRoundVideo struct{}
@@ -8747,6 +8839,44 @@ func (*PhotoStrippedSize) CRC() uint32 {
 
 func (*PhotoStrippedSize) ImplementsPhotoSize() {}
 
+type PollAnswer interface {
+	tl.Object
+	ImplementsPollAnswer()
+}
+type InputPollAnswer struct {
+	Text  *TextWithEntities
+	Media InputMedia `tl:"flag:0"`
+}
+
+func (*InputPollAnswer) CRC() uint32 {
+	return 0x199fed96
+}
+
+func (*InputPollAnswer) FlagIndex() int {
+	return 0
+}
+
+func (*InputPollAnswer) ImplementsPollAnswer() {}
+
+// A possible answer of a poll
+type PollAnswerObj struct {
+	Text    *TextWithEntities
+	Option  []byte
+	Media   MessageMedia `tl:"flag:0"`
+	AddedBy Peer         `tl:"flag:1"`
+	Date    int32        `tl:"flag:1"`
+}
+
+func (*PollAnswerObj) CRC() uint32 {
+	return 0x4b7d786a
+}
+
+func (*PollAnswerObj) FlagIndex() int {
+	return 0
+}
+
+func (*PollAnswerObj) ImplementsPollAnswer() {}
+
 type PostInteractionCounters interface {
 	tl.Object
 	ImplementsPostInteractionCounters()
@@ -9224,6 +9354,22 @@ func (*RequestPeerTypeChat) FlagIndex() int {
 }
 
 func (*RequestPeerTypeChat) ImplementsRequestPeerType() {}
+
+type RequestPeerTypeCreateBot struct {
+	BotManaged        bool   `tl:"flag:0,encoded_in_bitflags"`
+	SuggestedName     string `tl:"flag:1"`
+	SuggestedUsername string `tl:"flag:2"`
+}
+
+func (*RequestPeerTypeCreateBot) CRC() uint32 {
+	return 0x3e81e078
+}
+
+func (*RequestPeerTypeCreateBot) FlagIndex() int {
+	return 0
+}
+
+func (*RequestPeerTypeCreateBot) ImplementsRequestPeerType() {}
 
 // Choose a user.
 type RequestPeerTypeUser struct {
@@ -10343,7 +10489,7 @@ type StarsAmount interface {
 // Describes a real (i.e. possibly decimal) amount of Telegram Stars.
 type StarsAmountObj struct {
 	Amount int64 // The integer amount of Telegram Stars.
-	Nanos  int32 // The decimal amount of Telegram Stars, expressed as nanostars (i.e. 1 nanostar is equal to `1/1'000'000'000`th (one billionth) of a Telegram Star). This field may also be negative (the allowed range is -999999999 to 999999999).
+	Nanos  int32 // The decimal amount of Telegram Stars, expressed as nanostars (i.e. 1 nanostar is equal to `1/1_000_000_000`th (one billionth) of a Telegram Star). This field may also be negative (the allowed range is from `-999_999_999` to `999_999_999`).
 }
 
 func (*StarsAmountObj) CRC() uint32 {
@@ -10546,32 +10692,33 @@ type StoryItem interface {
 
 // Represents a story.
 type StoryItemObj struct {
-	Pinned           bool            `tl:"flag:5,encoded_in_bitflags"`  // Whether this story is pinned on the user's profile
-	Public           bool            `tl:"flag:7,encoded_in_bitflags"`  // Whether this story is public and can be viewed by everyone
-	CloseFriends     bool            `tl:"flag:8,encoded_in_bitflags"`  // Whether this story can only be viewed by our close friends
-	Min              bool            `tl:"flag:9,encoded_in_bitflags"`  // Full information about this story was omitted for space and performance reasons; use stories.getStoriesByID to fetch full info about this story when and if needed.
-	Noforwards       bool            `tl:"flag:10,encoded_in_bitflags"` // Whether this story is protected and thus cannot be forwarded; clients should also prevent users from saving attached media (i.e. videos should only be streamed, photos should be kept in RAM, et cetera).
-	Edited           bool            `tl:"flag:11,encoded_in_bitflags"` // Indicates whether the story was edited.
-	Contacts         bool            `tl:"flag:12,encoded_in_bitflags"` // Whether this story can only be viewed by our contacts
-	SelectedContacts bool            `tl:"flag:13,encoded_in_bitflags"` // Whether this story can only be viewed by a select list of our contacts
-	Out              bool            `tl:"flag:16,encoded_in_bitflags"` // indicates whether we sent this story.
-	ID               int32           // ID of the story.
-	Date             int32           // When was the story posted.
-	FromID           Peer            `tl:"flag:18"` // Sender of the story.
-	FwdFrom          *StoryFwdHeader `tl:"flag:17"` // For reposted stories, contains info about the original story.
-	ExpireDate       int32           // When does the story expire.
-	Caption          string          `tl:"flag:0"` // Story caption.
-	Entities         []MessageEntity `tl:"flag:1"` // Message entities for styled text
-	Media            MessageMedia    // Story media.
-	MediaAreas       []MediaArea     `tl:"flag:14"` // List of media areas
-	Privacy          []PrivacyRule   `tl:"flag:2"`  // Privacy rules indicating who can and can't view this story
-	Views            *StoryViews     `tl:"flag:3"`  // View date and reaction information
-	SentReaction     Reaction        `tl:"flag:15"` // The reaction we sent.
-	Albums           []int32         `tl:"flag:19"` // Albums this story is part of.
+	Pinned           bool `tl:"flag:5,encoded_in_bitflags"`
+	Public           bool `tl:"flag:7,encoded_in_bitflags"`
+	CloseFriends     bool `tl:"flag:8,encoded_in_bitflags"`
+	Min              bool `tl:"flag:9,encoded_in_bitflags"`
+	Noforwards       bool `tl:"flag:10,encoded_in_bitflags"`
+	Edited           bool `tl:"flag:11,encoded_in_bitflags"`
+	Contacts         bool `tl:"flag:12,encoded_in_bitflags"`
+	SelectedContacts bool `tl:"flag:13,encoded_in_bitflags"`
+	Out              bool `tl:"flag:16,encoded_in_bitflags"`
+	ID               int32
+	Date             int32
+	FromID           Peer            `tl:"flag:18"`
+	FwdFrom          *StoryFwdHeader `tl:"flag:17"`
+	ExpireDate       int32
+	Caption          string          `tl:"flag:0"`
+	Entities         []MessageEntity `tl:"flag:1"`
+	Media            MessageMedia
+	MediaAreas       []MediaArea   `tl:"flag:14"`
+	Privacy          []PrivacyRule `tl:"flag:2"`
+	Views            *StoryViews   `tl:"flag:3"`
+	SentReaction     Reaction      `tl:"flag:15"`
+	Albums           []int32       `tl:"flag:19"`
+	Music            Document      `tl:"flag:20"`
 }
 
 func (*StoryItemObj) CRC() uint32 {
-	return 0xedf164f1
+	return 0x16a4b93c
 }
 
 func (*StoryItemObj) FlagIndex() int {
@@ -11758,6 +11905,18 @@ func (*UpdateLoginToken) CRC() uint32 {
 
 func (*UpdateLoginToken) ImplementsUpdate() {}
 
+type UpdateManagedBot struct {
+	UserID int64
+	BotID  int64
+	Qts    int32
+}
+
+func (*UpdateManagedBot) CRC() uint32 {
+	return 0x4880ed9a
+}
+
+func (*UpdateManagedBot) ImplementsUpdate() {}
+
 // You bought a paid media : this update contains the revealed media.
 type UpdateMessageExtendedMedia struct {
 	Peer          Peer                   // Peer where the paid media was posted
@@ -11785,13 +11944,16 @@ func (*UpdateMessageID) ImplementsUpdate() {}
 
 // The results of a poll have changed
 type UpdateMessagePoll struct {
-	PollID  int64        // Poll ID
-	Poll    *Poll        `tl:"flag:0"` // If the server knows the client hasn't cached this poll yet, the poll itself
-	Results *PollResults // New poll results
+	Peer     Peer  `tl:"flag:1"`
+	MsgID    int32 `tl:"flag:1"`
+	TopMsgID int32 `tl:"flag:2"`
+	PollID   int64
+	Poll     *Poll `tl:"flag:0"`
+	Results  *PollResults
 }
 
 func (*UpdateMessagePoll) CRC() uint32 {
-	return 0xaca1657b
+	return 0xd64c522b
 }
 
 func (*UpdateMessagePoll) FlagIndex() int {
@@ -11802,14 +11964,15 @@ func (*UpdateMessagePoll) ImplementsUpdate() {}
 
 // A specific peer has voted in a poll
 type UpdateMessagePollVote struct {
-	PollID  int64    // Poll ID
-	Peer    Peer     // The peer that voted in the poll
-	Options [][]byte // Chosen option(s)
-	Qts     int32    // New qts value, see updates for more info.
+	PollID    int64
+	Peer      Peer
+	Options   [][]byte
+	Positions []int32
+	Qts       int32
 }
 
 func (*UpdateMessagePollVote) CRC() uint32 {
-	return 0x24f40e77
+	return 0x7699f014
 }
 
 func (*UpdateMessagePollVote) ImplementsUpdate() {}
@@ -12137,10 +12300,11 @@ func (*UpdatePinnedDialogs) FlagIndex() int {
 
 func (*UpdatePinnedDialogs) ImplementsUpdate() {}
 
+// A forum topic was pinned or unpinned.
 type UpdatePinnedForumTopic struct {
-	Pinned  bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer    Peer
-	TopicID int32
+	Pinned  bool  `tl:"flag:0,encoded_in_bitflags"` // Whether the topic was pinned or unpinned
+	Peer    Peer  // The supergroup forum, private chat (for forum-enabled bots) or bot forum (for users) where the topic is located.
+	TopicID int32 // The topic ID
 }
 
 func (*UpdatePinnedForumTopic) CRC() uint32 {
@@ -12153,9 +12317,10 @@ func (*UpdatePinnedForumTopic) FlagIndex() int {
 
 func (*UpdatePinnedForumTopic) ImplementsUpdate() {}
 
+// The pinned topics of a forum have changed.
 type UpdatePinnedForumTopics struct {
-	Peer  Peer
-	Order []int32 `tl:"flag:0"`
+	Peer  Peer    // The supergroup forum, private chat (for forum-enabled bots) or bot forum (for users) where the topic is located.
+	Order []int32 `tl:"flag:0"` // Ordered list containing the IDs of all pinned topics.
 }
 
 func (*UpdatePinnedForumTopics) CRC() uint32 {
@@ -12330,7 +12495,7 @@ func (*UpdateReadFeaturedStickers) ImplementsUpdate() {}
 type UpdateReadHistoryInbox struct {
 	FolderID         int32 `tl:"flag:0"` // Peer folder ID, for more info click here
 	Peer             Peer  // Peer
-	TopMsgID         int32 `tl:"flag:1"`
+	TopMsgID         int32 `tl:"flag:1"` // If set, the messages were read only within the specified bot forum topic.
 	MaxID            int32 // Maximum ID of messages read
 	StillUnreadCount int32 // Number of messages that are still unread
 	Pts              int32 // Event count after generation
@@ -12758,7 +12923,7 @@ func (*UpdateUserStatus) ImplementsUpdate() {}
 // The user is preparing a message; typing, recording, uploading, etc. This update is valid for 6 seconds. If no further updates of this kind are received after 6 seconds, it should be considered that the user stopped doing whatever they were doing
 type UpdateUserTyping struct {
 	UserID   int64             // User id
-	TopMsgID int32             `tl:"flag:0"`
+	TopMsgID int32             `tl:"flag:0"` // If set, this notification was sent within a bot forum topic.
 	Action   SendMessageAction // Action type
 }
 
@@ -12965,21 +13130,23 @@ func (*URLAuthResultDefault) ImplementsURLAuthResult() {}
 
 // Details about the authorization request, for more info click here
 type URLAuthResultRequest struct {
-	RequestWriteAccess bool     `tl:"flag:0,encoded_in_bitflags"` // Whether the bot would like to send messages to the user
-	RequestPhoneNumber bool     `tl:"flag:1,encoded_in_bitflags"`
-	MatchCodesFirst    bool     `tl:"flag:5,encoded_in_bitflags"`
-	Bot                User     // Username of a bot, which will be used for user authorization. If not specified, the current bot's username will be assumed. The url's domain must be the same as the domain linked with the bot. See Linking your domain to the bot for more details.
-	Domain             string   // The domain name of the website on which the user will log in.
+	RequestWriteAccess bool `tl:"flag:0,encoded_in_bitflags"`
+	RequestPhoneNumber bool `tl:"flag:1,encoded_in_bitflags"`
+	MatchCodesFirst    bool `tl:"flag:5,encoded_in_bitflags"`
+	IsApp              bool `tl:"flag:6,encoded_in_bitflags"`
+	Bot                User
+	Domain             string
 	Browser            string   `tl:"flag:2"`
 	Platform           string   `tl:"flag:2"`
 	Ip                 string   `tl:"flag:2"`
 	Region             string   `tl:"flag:2"`
 	MatchCodes         []string `tl:"flag:3"`
 	UserIDHint         int64    `tl:"flag:4"`
+	VerifiedAppName    string   `tl:"flag:7"`
 }
 
 func (*URLAuthResultRequest) CRC() uint32 {
-	return 0xf8f8eb1e
+	return 0x3cd623ec
 }
 
 func (*URLAuthResultRequest) FlagIndex() int {
@@ -12995,53 +13162,54 @@ type User interface {
 
 // Indicates info about a certain user.
 type UserObj struct {
-	Self                    bool                 `tl:"flag:10,encoded_in_bitflags"` // Whether this user indicates the currently logged in user
-	Contact                 bool                 `tl:"flag:11,encoded_in_bitflags"` // Whether this user is a contact When updating the local peer database, do not apply changes to this field if the `min` flag is set.
-	MutualContact           bool                 `tl:"flag:12,encoded_in_bitflags"` // Whether this user is a mutual contact. When updating the local peer database, do not apply changes to this field if the `min` flag is set.
-	Deleted                 bool                 `tl:"flag:13,encoded_in_bitflags"` // Whether the account of this user was deleted. Changes to this flag should invalidate the local userFull cache for this user ID
-	Bot                     bool                 `tl:"flag:14,encoded_in_bitflags"` // Is this user a bot? Changes to this flag should invalidate the local userFull cache for this user ID
-	BotChatHistory          bool                 `tl:"flag:15,encoded_in_bitflags"` // Can the bot see all messages in groups?
-	BotNochats              bool                 `tl:"flag:16,encoded_in_bitflags"` // Can the bot be added to groups?
-	Verified                bool                 `tl:"flag:17,encoded_in_bitflags"` // Whether this user is verified
-	Restricted              bool                 `tl:"flag:18,encoded_in_bitflags"` // Access to this user must be restricted for the reason specified in `restriction_reason`
-	Min                     bool                 `tl:"flag:20,encoded_in_bitflags"` // See min
-	BotInlineGeo            bool                 `tl:"flag:21,encoded_in_bitflags"` // Whether the bot can request our geolocation in inline mode
-	Support                 bool                 `tl:"flag:23,encoded_in_bitflags"` // Whether this is an official support user
-	Scam                    bool                 `tl:"flag:24,encoded_in_bitflags"` // This may be a scam user
-	ApplyMinPhoto           bool                 `tl:"flag:25,encoded_in_bitflags"` // If set and `min` is set, the value of `photo` can be used to update the local database
-	Fake                    bool                 `tl:"flag:26,encoded_in_bitflags"` // If set, this user was reported by many users as a fake or scam user: be careful when interacting with them.
-	BotAttachMenu           bool                 `tl:"flag:27,encoded_in_bitflags"` // Whether this bot offers an attachment menu web app
-	Premium                 bool                 `tl:"flag:28,encoded_in_bitflags"` // Whether this user is a Telegram Premium user Changes to this flag should invalidate the local userFull cache for this user ID Changes to this flag if the `self` flag is set should also trigger the following calls, to refresh the respective caches: - The help.getConfig cache - The messages.getTopReactions cache if the `bot` flag is not set
-	AttachMenuEnabled       bool                 `tl:"flag:29,encoded_in_bitflags"` // Whether we installed the attachment menu web app offered by this bot. When updating the local peer database, do not apply changes to this field if the `min` flag is set.
-	BotCanEdit              bool                 `tl:"flag2:1,encoded_in_bitflags"` // Whether we can edit the profile picture, name, about text and description of this bot because we own it. When updating the local peer database, do not apply changes to this field if the `min` flag is set. Changes to this flag (if `min` is not set) should invalidate the local userFull cache for this user ID.
-	CloseFriend             bool                 `tl:"flag2:2,encoded_in_bitflags"` // Whether we marked this user as a close friend When updating the local peer database, do not apply changes to this field if the `min` flag is set.
-	StoriesHidden           bool                 `tl:"flag2:3,encoded_in_bitflags"` // Whether we have hidden all active stories of this user. When updating the local peer database, do not apply changes to this field if the `min` flag is set.
-	StoriesUnavailable      bool                 `tl:"flag2:4,encoded_in_bitflags"` // No stories from this user are visible.
-	ContactRequirePremium   bool                 `tl:"flag2:10,encoded_in_bitflags"`
-	BotBusiness             bool                 `tl:"flag2:11,encoded_in_bitflags"` // Whether this bot can be connected to a user as specified here.
-	BotHasMainApp           bool                 `tl:"flag2:13,encoded_in_bitflags"` // If set, this bot has configured a Main Mini App.
-	BotForumView            bool                 `tl:"flag2:16,encoded_in_bitflags"`
-	BotForumCanManageTopics bool                 `tl:"flag2:17,encoded_in_bitflags"`
-	ID                      int64                // ID of the user
-	AccessHash              int64                `tl:"flag:0"`   // Access hash of the user If this flag is set, when updating the local peer database, generate a virtual flag called `min_access_hash`, which is: - Set to `true` if `min` is set AND -- The `phone` flag is not set OR -- The `phone` flag is set and the associated phone number string is non-empty - Set to `false` otherwise. Then, apply both `access_hash` and `min_access_hash` to the local database if: - `min_access_hash` is false OR - `min_access_hash` is true AND -- There is no locally cached object for this user OR -- There is no `access_hash` in the local cache OR -- The cached object's `min_access_hash` is also true If the final merged object stored to the database has the `min_access_hash` field set to true, the related `access_hash` is only suitable to use in `inputPeerPhotoFileLocation`, to directly download the profile pictures of users, everywhere else a `inputPeer*FromMessage` constructor will have to be generated as specified here. Bots can also use min access hashes in some conditions, by passing `0` instead of the min access hash.
-	FirstName               string               `tl:"flag:1"`   // First name. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `min` flag of the locally cached user entry is set.
-	LastName                string               `tl:"flag:2"`   // Last name. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `min` flag of the locally cached user entry is set.
-	Username                string               `tl:"flag:3"`   // Main active username. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `min` flag of the locally cached user entry is set. Changes to this flag should invalidate the local userFull cache for this user ID if the above conditions are respected and the `bot_can_edit` flag is also set.
-	Phone                   string               `tl:"flag:4"`   // Phone number. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `min` flag of the locally cached user entry is set.
-	Photo                   UserProfilePhoto     `tl:"flag:5"`   // Profile picture of user. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `apply_min_photo` flag is set OR -- The `min` flag of the locally cached user entry is set.
-	Status                  UserStatus           `tl:"flag:6"`   // Online status of user. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `min` flag of the locally cached user entry is set OR -- The locally cached user entry is equal to userStatusEmpty.
-	BotInfoVersion          int32                `tl:"flag:14"`  // Version of the bot_info field in userFull, incremented every time it changes. Changes to this flag should invalidate the local userFull cache for this user ID
-	RestrictionReason       []*RestrictionReason `tl:"flag:18"`  // Contains the reason why access to this user must be restricted.
-	BotInlinePlaceholder    string               `tl:"flag:19"`  // Inline placeholder for this inline bot
-	LangCode                string               `tl:"flag:22"`  // Language code of the user
-	EmojiStatus             EmojiStatus          `tl:"flag:30"`  // Emoji status
-	Usernames               []*Username          `tl:"flag2:0"`  // Additional usernames. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `min` flag of the locally cached user entry is set. Changes to this flag (if the above conditions are respected) should invalidate the local userFull cache for this user ID.
-	StoriesMaxID            *RecentStory         `tl:"flag2:5"`  // ID of the maximum read story. When updating the local peer database, do not apply changes to this field if the `min` flag of the incoming constructor is set.
-	Color                   PeerColor            `tl:"flag2:8"`  // The user's accent color.
-	ProfileColor            PeerColor            `tl:"flag2:9"`  // The user's profile color.
-	BotActiveUsers          int32                `tl:"flag2:12"` // Monthly Active Users (MAU) of this bot (may be absent for small bots).
-	BotVerificationIcon     int64                `tl:"flag2:14"` // Describes a bot verification icon.
-	SendPaidMessagesStars   int64                `tl:"flag2:15"` // If set, the user has enabled paid messages, we <em>might</em> need to pay the specified amount of Stars to send them messages, depending on the configured exceptions: check userFull.`send_paid_messages_stars` or users.getRequirementsToContact to see if the currently logged in user actually has to pay or not
+	Self                    bool `tl:"flag:10,encoded_in_bitflags"`
+	Contact                 bool `tl:"flag:11,encoded_in_bitflags"`
+	MutualContact           bool `tl:"flag:12,encoded_in_bitflags"`
+	Deleted                 bool `tl:"flag:13,encoded_in_bitflags"`
+	Bot                     bool `tl:"flag:14,encoded_in_bitflags"`
+	BotChatHistory          bool `tl:"flag:15,encoded_in_bitflags"`
+	BotNochats              bool `tl:"flag:16,encoded_in_bitflags"`
+	Verified                bool `tl:"flag:17,encoded_in_bitflags"`
+	Restricted              bool `tl:"flag:18,encoded_in_bitflags"`
+	Min                     bool `tl:"flag:20,encoded_in_bitflags"`
+	BotInlineGeo            bool `tl:"flag:21,encoded_in_bitflags"`
+	Support                 bool `tl:"flag:23,encoded_in_bitflags"`
+	Scam                    bool `tl:"flag:24,encoded_in_bitflags"`
+	ApplyMinPhoto           bool `tl:"flag:25,encoded_in_bitflags"`
+	Fake                    bool `tl:"flag:26,encoded_in_bitflags"`
+	BotAttachMenu           bool `tl:"flag:27,encoded_in_bitflags"`
+	Premium                 bool `tl:"flag:28,encoded_in_bitflags"`
+	AttachMenuEnabled       bool `tl:"flag:29,encoded_in_bitflags"`
+	BotCanEdit              bool `tl:"flag2:1,encoded_in_bitflags"`
+	CloseFriend             bool `tl:"flag2:2,encoded_in_bitflags"`
+	StoriesHidden           bool `tl:"flag2:3,encoded_in_bitflags"`
+	StoriesUnavailable      bool `tl:"flag2:4,encoded_in_bitflags"`
+	ContactRequirePremium   bool `tl:"flag2:10,encoded_in_bitflags"`
+	BotBusiness             bool `tl:"flag2:11,encoded_in_bitflags"`
+	BotHasMainApp           bool `tl:"flag2:13,encoded_in_bitflags"`
+	BotForumView            bool `tl:"flag2:16,encoded_in_bitflags"`
+	BotForumCanManageTopics bool `tl:"flag2:17,encoded_in_bitflags"`
+	BotCanManageBots        bool `tl:"flag2:18,encoded_in_bitflags"`
+	ID                      int64
+	AccessHash              int64                `tl:"flag:0"`
+	FirstName               string               `tl:"flag:1"`
+	LastName                string               `tl:"flag:2"`
+	Username                string               `tl:"flag:3"`
+	Phone                   string               `tl:"flag:4"`
+	Photo                   UserProfilePhoto     `tl:"flag:5"`
+	Status                  UserStatus           `tl:"flag:6"`
+	BotInfoVersion          int32                `tl:"flag:14"`
+	RestrictionReason       []*RestrictionReason `tl:"flag:18"`
+	BotInlinePlaceholder    string               `tl:"flag:19"`
+	LangCode                string               `tl:"flag:22"`
+	EmojiStatus             EmojiStatus          `tl:"flag:30"`
+	Usernames               []*Username          `tl:"flag2:0"`
+	StoriesMaxID            *RecentStory         `tl:"flag2:5"`
+	Color                   PeerColor            `tl:"flag2:8"`
+	ProfileColor            PeerColor            `tl:"flag2:9"`
+	BotActiveUsers          int32                `tl:"flag2:12"`
+	BotVerificationIcon     int64                `tl:"flag2:14"`
+	SendPaidMessagesStars   int64                `tl:"flag2:15"`
 }
 
 func (*UserObj) CRC() uint32 {
@@ -13835,14 +14003,14 @@ func (*AuthSentCodeObj) FlagIndex() int {
 
 func (*AuthSentCodeObj) ImplementsAuthSentCode() {}
 
-// Official apps may receive this constructor, indicating that due to the high cost of SMS verification codes for the user's country/provider, the user must purchase a Telegram Premium subscription in order to proceed with the login/signup.
+// Official apps may receive this constructor, indicating that due to the high cost of SMS verification codes for the user's country/provider, the user must purchase a Telegram Premium subscription in order to proceed with the login/signup
 type AuthSentCodePaymentRequired struct {
-	StoreProduct        string // Store identifier of the Telegram Premium subscription.
+	StoreProduct        string // For official apps, tore identifier of the Telegram Premium subscription.
 	PhoneCodeHash       string // Phone code hash, to be stored and later re-used with auth.signIn
 	SupportEmailAddress string // An email address that can be contacted for more information about this request.
 	SupportEmailSubject string // The mandatory subject for the email.
-	Currency            string
-	Amount              int64
+	Currency            string // Three-letter ISO 4217 currency code.
+	Amount              int64  // Total price in the smallest units of the currency (integer, not float/double). For example, for a price of `US$ 1.45` pass `amount = 145`. See the exp parameter in currencies.json, it shows the number of digits past the decimal point for each currency (2 for the majority of currencies).
 }
 
 func (*AuthSentCodePaymentRequired) CRC() uint32 {

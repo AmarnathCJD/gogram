@@ -3112,6 +3112,7 @@ func (*AuthCheckPaidAuthParams) CRC() uint32 {
 	return 0x56e59f9c
 }
 
+// Checks the status of a login payment.
 func (c *Client) AuthCheckPaidAuth(phoneNumber, phoneCodeHash string, formID int64) (AuthSentCode, error) {
 	responseData, err := c.MakeRequest(&AuthCheckPaidAuthParams{
 		FormID:        formID,
@@ -3833,6 +3834,60 @@ func (c *Client) BotsCheckDownloadFileParams(bot InputUser, fileName, url string
 	return resp, nil
 }
 
+type BotsCheckUsernameParams struct {
+	Username string
+}
+
+func (*BotsCheckUsernameParams) CRC() uint32 {
+	return 0x87f2219b
+}
+
+func (c *Client) BotsCheckUsername(username string) (bool, error) {
+	responseData, err := c.MakeRequest(&BotsCheckUsernameParams{Username: username})
+	if err != nil {
+		return false, fmt.Errorf("sending BotsCheckUsername: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type BotsCreateBotParams struct {
+	ViaDeeplink bool `tl:"flag:0,encoded_in_bitflags"`
+	Name        string
+	Username    string
+	ManagerID   InputUser
+}
+
+func (*BotsCreateBotParams) CRC() uint32 {
+	return 0xe5b17f2b
+}
+
+func (*BotsCreateBotParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) BotsCreateBot(viaDeeplink bool, name, username string, managerID InputUser) (User, error) {
+	responseData, err := c.MakeRequest(&BotsCreateBotParams{
+		ManagerID:   managerID,
+		Name:        name,
+		Username:    username,
+		ViaDeeplink: viaDeeplink,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending BotsCreateBot: %w", err)
+	}
+
+	resp, ok := responseData.(User)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type BotsDeletePreviewMediaParams struct {
 	Bot      InputUser
 	LangCode string
@@ -3885,6 +3940,31 @@ func (c *Client) BotsEditPreviewMedia(bot InputUser, langCode string, media, new
 	}
 
 	resp, ok := responseData.(*BotPreviewMedia)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type BotsExportBotTokenParams struct {
+	Bot    InputUser
+	Revoke bool
+}
+
+func (*BotsExportBotTokenParams) CRC() uint32 {
+	return 0xbd0d99eb
+}
+
+func (c *Client) BotsExportBotToken(bot InputUser, revoke bool) (*BotsExportedBotToken, error) {
+	responseData, err := c.MakeRequest(&BotsExportBotTokenParams{
+		Bot:    bot,
+		Revoke: revoke,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending BotsExportBotToken: %w", err)
+	}
+
+	resp, ok := responseData.(*BotsExportedBotToken)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -4085,6 +4165,31 @@ func (c *Client) BotsGetPreviewMedias(bot InputUser) ([]*BotPreviewMedia, error)
 	return resp, nil
 }
 
+type BotsGetRequestedWebViewButtonParams struct {
+	Bot         InputUser
+	WebappReqID string
+}
+
+func (*BotsGetRequestedWebViewButtonParams) CRC() uint32 {
+	return 0xbf25b7f3
+}
+
+func (c *Client) BotsGetRequestedWebViewButton(bot InputUser, webappReqID string) (KeyboardButton, error) {
+	responseData, err := c.MakeRequest(&BotsGetRequestedWebViewButtonParams{
+		Bot:         bot,
+		WebappReqID: webappReqID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending BotsGetRequestedWebViewButton: %w", err)
+	}
+
+	resp, ok := responseData.(KeyboardButton)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type BotsInvokeWebViewCustomMethodParams struct {
 	Bot          InputUser
 	CustomMethod string
@@ -4163,6 +4268,31 @@ func (c *Client) BotsReorderUsernames(bot InputUser, order []string) (bool, erro
 	resp, ok := responseData.(bool)
 	if !ok {
 		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type BotsRequestWebViewButtonParams struct {
+	UserID InputUser
+	Button KeyboardButton
+}
+
+func (*BotsRequestWebViewButtonParams) CRC() uint32 {
+	return 0x31a2a35e
+}
+
+func (c *Client) BotsRequestWebViewButton(userID InputUser, button KeyboardButton) (*BotsRequestedButton, error) {
+	responseData, err := c.MakeRequest(&BotsRequestWebViewButtonParams{
+		Button: button,
+		UserID: userID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending BotsRequestWebViewButton: %w", err)
+	}
+
+	resp, ok := responseData.(*BotsRequestedButton)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -4791,34 +4921,6 @@ func (c *Client) ChannelsEditBanned(channel InputChannel, participant InputPeer,
 	return resp, nil
 }
 
-type ChannelsEditCreatorParams struct {
-	Channel  InputChannel
-	UserID   InputUser
-	Password InputCheckPasswordSRP
-}
-
-func (*ChannelsEditCreatorParams) CRC() uint32 {
-	return 0x8f38cd1f
-}
-
-// Transfer channel ownership
-func (c *Client) ChannelsEditCreator(channel InputChannel, userID InputUser, password InputCheckPasswordSRP) (Updates, error) {
-	responseData, err := c.MakeRequest(&ChannelsEditCreatorParams{
-		Channel:  channel,
-		Password: password,
-		UserID:   userID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("sending ChannelsEditCreator: %w", err)
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type ChannelsEditLocationParams struct {
 	Channel  InputChannel
 	GeoPoint InputGeoPoint
@@ -5061,27 +5163,6 @@ func (c *Client) ChannelsGetFullChannel(channel InputChannel) (*MessagesChatFull
 	}
 
 	resp, ok := responseData.(*MessagesChatFull)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type ChannelsGetFutureCreatorAfterLeaveParams struct {
-	Channel InputChannel
-}
-
-func (*ChannelsGetFutureCreatorAfterLeaveParams) CRC() uint32 {
-	return 0xa00918af
-}
-
-func (c *Client) ChannelsGetFutureCreatorAfterLeave(channel InputChannel) (User, error) {
-	responseData, err := c.MakeRequest(&ChannelsGetFutureCreatorAfterLeaveParams{Channel: channel})
-	if err != nil {
-		return nil, fmt.Errorf("sending ChannelsGetFutureCreatorAfterLeave: %w", err)
-	}
-
-	resp, ok := responseData.(User)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -7063,6 +7144,7 @@ func (*ContactsUpdateContactNoteParams) CRC() uint32 {
 	return 0x139f63fb
 }
 
+// Update the private note associated to a contact
 func (c *Client) ContactsUpdateContactNote(id InputUser, note *TextWithEntities) (bool, error) {
 	responseData, err := c.MakeRequest(&ContactsUpdateContactNoteParams{
 		ID:   id,
@@ -7891,6 +7973,33 @@ func (c *Client) MessagesAddChatUser(chatID int64, userID InputUser, fwdLimit in
 	return resp, nil
 }
 
+type MessagesAddPollAnswerParams struct {
+	Peer   InputPeer
+	MsgID  int32
+	Answer PollAnswer
+}
+
+func (*MessagesAddPollAnswerParams) CRC() uint32 {
+	return 0x19bc4b6d
+}
+
+func (c *Client) MessagesAddPollAnswer(peer InputPeer, msgID int32, answer PollAnswer) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesAddPollAnswerParams{
+		Answer: answer,
+		MsgID:  msgID,
+		Peer:   peer,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesAddPollAnswer: %w", err)
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type MessagesAppendTodoListParams struct {
 	Peer  InputPeer
 	MsgID int32
@@ -8130,6 +8239,35 @@ func (c *Client) MessagesClickSponsoredMessage(media, fullscreen bool, randomID 
 	return resp, nil
 }
 
+type MessagesComposeMessageWithAiParams struct {
+	Proofread       bool `tl:"flag:0,encoded_in_bitflags"`
+	Emojify         bool `tl:"flag:3,encoded_in_bitflags"`
+	Text            *TextWithEntities
+	TranslateToLang string `tl:"flag:1"`
+	ChangeTone      string `tl:"flag:2"`
+}
+
+func (*MessagesComposeMessageWithAiParams) CRC() uint32 {
+	return 0xfd426afe
+}
+
+func (*MessagesComposeMessageWithAiParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesComposeMessageWithAi(params *MessagesComposeMessageWithAiParams) (*MessagesComposedMessageWithAi, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesComposeMessageWithAi: %w", err)
+	}
+
+	resp, ok := responseData.(*MessagesComposedMessageWithAi)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type MessagesCreateChatParams struct {
 	Users     []InputUser
 	Title     string
@@ -8180,6 +8318,7 @@ func (*MessagesCreateForumTopicParams) FlagIndex() int {
 	return 0
 }
 
+// Create a forum topic.
 func (c *Client) MessagesCreateForumTopic(params *MessagesCreateForumTopicParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -8407,6 +8546,33 @@ func (c *Client) MessagesDeletePhoneCallHistory(revoke bool) (*MessagesAffectedF
 	return resp, nil
 }
 
+type MessagesDeletePollAnswerParams struct {
+	Peer   InputPeer
+	MsgID  int32
+	Option []byte
+}
+
+func (*MessagesDeletePollAnswerParams) CRC() uint32 {
+	return 0xac8505a5
+}
+
+func (c *Client) MessagesDeletePollAnswer(peer InputPeer, msgID int32, option []byte) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesDeletePollAnswerParams{
+		MsgID:  msgID,
+		Option: option,
+		Peer:   peer,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesDeletePollAnswer: %w", err)
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type MessagesDeleteQuickReplyMessagesParams struct {
 	ShortcutID int32
 	ID         []int32
@@ -8546,6 +8712,7 @@ func (*MessagesDeleteTopicHistoryParams) CRC() uint32 {
 	return 0xd2816f10
 }
 
+// Delete message history of a forum topic
 func (c *Client) MessagesDeleteTopicHistory(peer InputPeer, topMsgID int32) (*MessagesAffectedHistory, error) {
 	responseData, err := c.MakeRequest(&MessagesDeleteTopicHistoryParams{
 		Peer:     peer,
@@ -8855,6 +9022,7 @@ func (*MessagesEditForumTopicParams) FlagIndex() int {
 	return 0
 }
 
+// Edit forum topic.
 func (c *Client) MessagesEditForumTopic(params *MessagesEditForumTopicParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -10048,6 +10216,7 @@ func (*MessagesGetForumTopicsParams) FlagIndex() int {
 	return 0
 }
 
+// Get topics of a forum
 func (c *Client) MessagesGetForumTopics(params *MessagesGetForumTopicsParams) (*MessagesForumTopics, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -10070,6 +10239,7 @@ func (*MessagesGetForumTopicsByIDParams) CRC() uint32 {
 	return 0xaf0a4a08
 }
 
+// Get forum topics by their ID
 func (c *Client) MessagesGetForumTopicsByID(peer InputPeer, topics []int32) (*MessagesForumTopics, error) {
 	responseData, err := c.MakeRequest(&MessagesGetForumTopicsByIDParams{
 		Peer:   peer,
@@ -10631,19 +10801,21 @@ func (c *Client) MessagesGetPinnedSavedDialogs() (MessagesSavedDialogs, error) {
 }
 
 type MessagesGetPollResultsParams struct {
-	Peer  InputPeer
-	MsgID int32
+	Peer     InputPeer
+	MsgID    int32
+	PollHash int64
 }
 
 func (*MessagesGetPollResultsParams) CRC() uint32 {
-	return 0x73bb643b
+	return 0xeda3e33b
 }
 
 // Get poll results
-func (c *Client) MessagesGetPollResults(peer InputPeer, msgID int32) (Updates, error) {
+func (c *Client) MessagesGetPollResults(peer InputPeer, msgID int32, pollHash int64) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesGetPollResultsParams{
-		MsgID: msgID,
-		Peer:  peer,
+		MsgID:    msgID,
+		Peer:     peer,
+		PollHash: pollHash,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("sending MessagesGetPollResults: %w", err)
@@ -11354,6 +11526,37 @@ func (c *Client) MessagesGetUnreadMentions(params *MessagesGetUnreadMentionsPara
 	return resp, nil
 }
 
+type MessagesGetUnreadPollVotesParams struct {
+	Peer      InputPeer
+	TopMsgID  int32 `tl:"flag:0"`
+	OffsetID  int32
+	AddOffset int32
+	Limit     int32
+	MaxID     int32
+	MinID     int32
+}
+
+func (*MessagesGetUnreadPollVotesParams) CRC() uint32 {
+	return 0x43286cf2
+}
+
+func (*MessagesGetUnreadPollVotesParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesGetUnreadPollVotes(params *MessagesGetUnreadPollVotesParams) (MessagesMessages, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesGetUnreadPollVotes: %w", err)
+	}
+
+	resp, ok := responseData.(MessagesMessages)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type MessagesGetUnreadReactionsParams struct {
 	Peer        InputPeer
 	TopMsgID    int32     `tl:"flag:0"`
@@ -11874,6 +12077,35 @@ func (c *Client) MessagesReadMessageContents(id []int32) (*MessagesAffectedMessa
 	return resp, nil
 }
 
+type MessagesReadPollVotesParams struct {
+	Peer     InputPeer
+	TopMsgID int32 `tl:"flag:0"`
+}
+
+func (*MessagesReadPollVotesParams) CRC() uint32 {
+	return 0x1720b4d8
+}
+
+func (*MessagesReadPollVotesParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) MessagesReadPollVotes(peer InputPeer, topMsgID int32) (*MessagesAffectedHistory, error) {
+	responseData, err := c.MakeRequest(&MessagesReadPollVotesParams{
+		Peer:     peer,
+		TopMsgID: topMsgID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesReadPollVotes: %w", err)
+	}
+
+	resp, ok := responseData.(*MessagesAffectedHistory)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type MessagesReadReactionsParams struct {
 	Peer        InputPeer
 	TopMsgID    int32     `tl:"flag:0"`
@@ -12024,6 +12256,7 @@ func (*MessagesReorderPinnedForumTopicsParams) FlagIndex() int {
 	return 0
 }
 
+// Reorder pinned forum topics
 func (c *Client) MessagesReorderPinnedForumTopics(force bool, peer InputPeer, order []int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesReorderPinnedForumTopicsParams{
 		Force: force,
@@ -12209,6 +12442,31 @@ func (c *Client) MessagesReportMessagesDelivery(push bool, peer InputPeer, id []
 	return resp, nil
 }
 
+type MessagesReportMusicListenParams struct {
+	ID               InputDocument
+	ListenedDuration int32
+}
+
+func (*MessagesReportMusicListenParams) CRC() uint32 {
+	return 0xddbcd819
+}
+
+func (c *Client) MessagesReportMusicListen(id InputDocument, listenedDuration int32) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesReportMusicListenParams{
+		ID:               id,
+		ListenedDuration: listenedDuration,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending MessagesReportMusicListen: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type MessagesReportReactionParams struct {
 	Peer         InputPeer
 	ID           int32
@@ -12228,6 +12486,31 @@ func (c *Client) MessagesReportReaction(peer InputPeer, id int32, reactionPeer I
 	})
 	if err != nil {
 		return false, fmt.Errorf("sending MessagesReportReaction: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesReportReadMetricsParams struct {
+	Peer    InputPeer
+	Metrics []*InputMessageReadMetric
+}
+
+func (*MessagesReportReadMetricsParams) CRC() uint32 {
+	return 0x4067c5e6
+}
+
+func (c *Client) MessagesReportReadMetrics(peer InputPeer, metrics []*InputMessageReadMetric) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesReportReadMetricsParams{
+		Metrics: metrics,
+		Peer:    peer,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending MessagesReportReadMetrics: %w", err)
 	}
 
 	resp, ok := responseData.(bool)
@@ -12858,23 +13141,23 @@ func (c *Client) MessagesSearchStickers(params *MessagesSearchStickersParams) (M
 
 type MessagesSendBotRequestedPeerParams struct {
 	Peer           InputPeer
-	MsgID          int32
+	MsgID          int32  `tl:"flag:0"`
+	WebappReqID    string `tl:"flag:1"`
 	ButtonID       int32
 	RequestedPeers []InputPeer
 }
 
 func (*MessagesSendBotRequestedPeerParams) CRC() uint32 {
-	return 0x91b2d060
+	return 0x6c5cf2a7
+}
+
+func (*MessagesSendBotRequestedPeerParams) FlagIndex() int {
+	return 0
 }
 
 // Send one or more chosen peers, as requested by a keyboardButtonRequestPeer button.
-func (c *Client) MessagesSendBotRequestedPeer(peer InputPeer, msgID, buttonID int32, requestedPeers []InputPeer) (Updates, error) {
-	responseData, err := c.MakeRequest(&MessagesSendBotRequestedPeerParams{
-		ButtonID:       buttonID,
-		MsgID:          msgID,
-		Peer:           peer,
-		RequestedPeers: requestedPeers,
-	})
+func (c *Client) MessagesSendBotRequestedPeer(params *MessagesSendBotRequestedPeerParams) (Updates, error) {
+	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, fmt.Errorf("sending MessagesSendBotRequestedPeer: %w", err)
 	}
@@ -13843,21 +14126,23 @@ type MessagesSummarizeTextParams struct {
 	Peer   InputPeer
 	ID     int32
 	ToLang string `tl:"flag:0"`
+	Tone   string `tl:"flag:2"`
 }
 
 func (*MessagesSummarizeTextParams) CRC() uint32 {
-	return 0x9d4104e2
+	return 0xabbbd346
 }
 
 func (*MessagesSummarizeTextParams) FlagIndex() int {
 	return 0
 }
 
-func (c *Client) MessagesSummarizeText(peer InputPeer, id int32, toLang string) (*TextWithEntities, error) {
+func (c *Client) MessagesSummarizeText(peer InputPeer, id int32, toLang, tone string) (*TextWithEntities, error) {
 	responseData, err := c.MakeRequest(&MessagesSummarizeTextParams{
 		ID:     id,
 		Peer:   peer,
 		ToLang: toLang,
+		Tone:   tone,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("sending MessagesSummarizeText: %w", err)
@@ -14199,10 +14484,11 @@ type MessagesTranslateTextParams struct {
 	ID     []int32             `tl:"flag:0"`
 	Text   []*TextWithEntities `tl:"flag:1"`
 	ToLang string
+	Tone   string `tl:"flag:2"`
 }
 
 func (*MessagesTranslateTextParams) CRC() uint32 {
-	return 0x63183030
+	return 0xa5eec345
 }
 
 func (*MessagesTranslateTextParams) FlagIndex() int {
@@ -14210,13 +14496,8 @@ func (*MessagesTranslateTextParams) FlagIndex() int {
 }
 
 // Translate a given text.
-func (c *Client) MessagesTranslateText(peer InputPeer, id []int32, text []*TextWithEntities, toLang string) (*MessagesTranslateResult, error) {
-	responseData, err := c.MakeRequest(&MessagesTranslateTextParams{
-		ID:     id,
-		Peer:   peer,
-		Text:   text,
-		ToLang: toLang,
-	})
+func (c *Client) MessagesTranslateText(params *MessagesTranslateTextParams) (*MessagesTranslateResult, error) {
+	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, fmt.Errorf("sending MessagesTranslateText: %w", err)
 	}
@@ -14344,6 +14625,7 @@ func (*MessagesUpdatePinnedForumTopicParams) CRC() uint32 {
 	return 0x175df251
 }
 
+// Pin or unpin forum topics
 func (c *Client) MessagesUpdatePinnedForumTopic(peer InputPeer, topicID int32, pinned bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesUpdatePinnedForumTopicParams{
 		Peer:    peer,
@@ -15189,6 +15471,7 @@ type PaymentsGetResaleStarGiftsParams struct {
 	SortByPrice    bool  `tl:"flag:1,encoded_in_bitflags"`
 	SortByNum      bool  `tl:"flag:2,encoded_in_bitflags"`
 	ForCraft       bool  `tl:"flag:4,encoded_in_bitflags"`
+	StarsOnly      bool  `tl:"flag:5,encoded_in_bitflags"`
 	AttributesHash int64 `tl:"flag:0"`
 	GiftID         int64
 	Attributes     []StarGiftAttributeID `tl:"flag:3"`
@@ -15629,7 +15912,7 @@ func (*PaymentsGetStarsStatusParams) FlagIndex() int {
 	return 0
 }
 
-// Get the current Telegram Stars balance of the current account (with peer=inputPeerSelf), or the stars balance of the bot specified in `peer`.
+// Get the current Telegram Stars balance of the current account (with peer=inputPeerSelf), or the stars balance of the bot or channel specified in `peer`.
 func (c *Client) PaymentsGetStarsStatus(ton bool, peer InputPeer) (*PaymentsStarsStatus, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarsStatusParams{
 		Peer: peer,
@@ -18521,10 +18804,11 @@ type StoriesEditStoryParams struct {
 	Caption      string             `tl:"flag:1"`
 	Entities     []MessageEntity    `tl:"flag:1"`
 	PrivacyRules []InputPrivacyRule `tl:"flag:2"`
+	Music        InputDocument      `tl:"flag:4"`
 }
 
 func (*StoriesEditStoryParams) CRC() uint32 {
-	return 0xb583ba46
+	return 0x2c63a72b
 }
 
 func (*StoriesEditStoryParams) FlagIndex() int {
@@ -18633,6 +18917,7 @@ func (*StoriesGetAllReadPeerStoriesParams) CRC() uint32 {
 	return 0x9b5ae7f9
 }
 
+// Obtain the latest read story ID for all peers when first logging in, returned as a list of updateReadStories updates
 func (c *Client) StoriesGetAllReadPeerStories() (Updates, error) {
 	responseData, err := c.MakeRequest(&StoriesGetAllReadPeerStoriesParams{})
 	if err != nil {
@@ -18660,6 +18945,7 @@ func (*StoriesGetAllStoriesParams) FlagIndex() int {
 	return 0
 }
 
+// Fetch the List of active (or active and hidden) stories
 func (c *Client) StoriesGetAllStories(next, hidden bool, state string) (StoriesAllStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetAllStoriesParams{
 		Hidden: hidden,
@@ -18683,6 +18969,7 @@ func (*StoriesGetChatsToSendParams) CRC() uint32 {
 	return 0xa56a8b60
 }
 
+// Obtain a list of channels where the user can post stories
 func (c *Client) StoriesGetChatsToSend() (MessagesChats, error) {
 	responseData, err := c.MakeRequest(&StoriesGetChatsToSendParams{})
 	if err != nil {
@@ -18704,6 +18991,7 @@ func (*StoriesGetPeerMaxIDsParams) CRC() uint32 {
 	return 0x78499170
 }
 
+// Get the IDs of the maximum read stories for a set of peers.
 func (c *Client) StoriesGetPeerMaxIDs(id []InputPeer) ([]*RecentStory, error) {
 	responseData, err := c.MakeRequest(&StoriesGetPeerMaxIDsParams{ID: id})
 	if err != nil {
@@ -18725,6 +19013,7 @@ func (*StoriesGetPeerStoriesParams) CRC() uint32 {
 	return 0x2c4ada50
 }
 
+// Fetch the full active story list of a specific peer.
 func (c *Client) StoriesGetPeerStories(peer InputPeer) (*StoriesPeerStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetPeerStoriesParams{Peer: peer})
 	if err != nil {
@@ -18748,6 +19037,7 @@ func (*StoriesGetPinnedStoriesParams) CRC() uint32 {
 	return 0x5821a5dc
 }
 
+// Fetch the stories pinned on a peer's profile.
 func (c *Client) StoriesGetPinnedStories(peer InputPeer, offsetID, limit int32) (*StoriesStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetPinnedStoriesParams{
 		Limit:    limit,
@@ -18775,6 +19065,7 @@ func (*StoriesGetStoriesArchiveParams) CRC() uint32 {
 	return 0xb4352016
 }
 
+// Fetch the story archive of a peer we control.
 func (c *Client) StoriesGetStoriesArchive(peer InputPeer, offsetID, limit int32) (*StoriesStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetStoriesArchiveParams{
 		Limit:    limit,
@@ -18801,6 +19092,7 @@ func (*StoriesGetStoriesByIDParams) CRC() uint32 {
 	return 0x5774ca74
 }
 
+// Obtain full info about a set of stories by their IDs.
 func (c *Client) StoriesGetStoriesByID(peer InputPeer, id []int32) (*StoriesStories, error) {
 	responseData, err := c.MakeRequest(&StoriesGetStoriesByIDParams{
 		ID:   id,
@@ -18826,6 +19118,7 @@ func (*StoriesGetStoriesViewsParams) CRC() uint32 {
 	return 0x28e16cc8
 }
 
+// Obtain info about the view count, forward count, reactions and recent viewers of one or more stories.
 func (c *Client) StoriesGetStoriesViews(peer InputPeer, id []int32) (*StoriesStoryViews, error) {
 	responseData, err := c.MakeRequest(&StoriesGetStoriesViewsParams{
 		ID:   id,
@@ -19089,14 +19382,15 @@ type StoriesSendStoryParams struct {
 	Entities     []MessageEntity `tl:"flag:1"`
 	PrivacyRules []InputPrivacyRule
 	RandomID     int64
-	Period       int32     `tl:"flag:3"`
-	FwdFromID    InputPeer `tl:"flag:6"`
-	FwdFromStory int32     `tl:"flag:6"`
-	Albums       []int32   `tl:"flag:8"`
+	Period       int32         `tl:"flag:3"`
+	FwdFromID    InputPeer     `tl:"flag:6"`
+	FwdFromStory int32         `tl:"flag:6"`
+	Albums       []int32       `tl:"flag:8"`
+	Music        InputDocument `tl:"flag:9"`
 }
 
 func (*StoriesSendStoryParams) CRC() uint32 {
-	return 0x737fc2ec
+	return 0x8f9e6898
 }
 
 func (*StoriesSendStoryParams) FlagIndex() int {
@@ -19757,6 +20051,7 @@ func (*UsersSuggestBirthdayParams) CRC() uint32 {
 	return 0xfc533372
 }
 
+// Suggest a birthday to another user
 func (c *Client) UsersSuggestBirthday(id InputUser, birthday *Birthday) (Updates, error) {
 	responseData, err := c.MakeRequest(&UsersSuggestBirthdayParams{
 		Birthday: birthday,

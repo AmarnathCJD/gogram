@@ -791,18 +791,18 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 		})
 	}
 
-	var answers []*PollAnswer
+	var answers []PollAnswer
 	for i, option := range actualOptions {
-		answers = append(answers, &PollAnswer{
+		answers = append(answers, &PollAnswerObj{
 			Text:   option,
 			Option: []byte{byte(i)},
 		})
 	}
 
-	correctAnswers := [][]byte{}
+	correctAnswers := []int32{}
 	if len(opt.CorrectAnswers) > 0 {
 		for _, answer := range opt.CorrectAnswers {
-			correctAnswers = append(correctAnswers, []byte{byte(answer)})
+			correctAnswers = append(correctAnswers, int32(answer))
 		}
 	}
 

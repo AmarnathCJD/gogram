@@ -1020,7 +1020,7 @@ func (c *Client) ApproveAllJoinRequests(channel any, invite ...string) error {
 
 // TransferChatOwnership transfers the ownership of a chat to another user
 func (c *Client) TransferChatOwnership(chatID any, userID any, password string) error {
-	peer, err := c.GetSendableChannel(chatID)
+	peer, err := c.GetSendablePeer(chatID)
 	if err != nil {
 		return err
 	}
@@ -1040,7 +1040,7 @@ func (c *Client) TransferChatOwnership(chatID any, userID any, password string) 
 		return err
 	}
 
-	_, err = c.ChannelsEditCreator(peer, user, passwordSrp)
+	_, err = c.MessagesEditChatCreator(peer, user, passwordSrp)
 	return err
 }
 

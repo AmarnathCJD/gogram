@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strings"
@@ -120,6 +121,18 @@ func (wp *WorkerPool) Close() {
 	}
 }
 
+// ReaderAtSource wraps an io.ReaderAt with a known size for parallel uploads.
+// Use this when you have a custom source that supports random-access reads —
+// it enables multi-worker parallel uploads without buffering the entire content.
+//
+//	src := &telegram.ReaderAtSource{Reader: myReaderAt, Size: fileSize, Name: "data.bin"}
+//	client.UploadFile(src)
+type ReaderAtSource struct {
+	Reader io.ReaderAt
+	Size   int64
+	Name   string
+}
+
 type Source struct {
 	Source any
 	closer io.Closer
@@ -140,7 +153,22 @@ func (s *Source) GetSizeAndName() (int64, string) {
 		return stat.Size(), src.Name()
 	case []byte:
 		return int64(len(src)), ""
-	case *io.Reader:
+	case *bytes.Reader:
+		return src.Size(), ""
+	case *bytes.Buffer:
+		return int64(src.Len()), ""
+	case ReaderAtSource:
+		return src.Size, src.Name
+	case *ReaderAtSource:
+		return src.Size, src.Name
+	case io.ReadSeeker:
+		size, err := src.Seek(0, io.SeekEnd)
+		if err != nil {
+			return 0, ""
+		}
+		_, _ = src.Seek(0, io.SeekStart)
+		return size, ""
+	case io.Reader, *io.Reader:
 		return 0, ""
 	}
 	return 0, ""
@@ -157,6 +185,10 @@ func (s *Source) GetName() string {
 		return file.Name()
 	case *os.File:
 		return src.Name()
+	case ReaderAtSource:
+		return src.Name
+	case *ReaderAtSource:
+		return src.Name
 	}
 	return ""
 }
@@ -177,11 +209,24 @@ func (s *Source) GetReader() io.Reader {
 		return src
 	case []byte:
 		return bytes.NewReader(src)
+	case *bytes.Reader:
+		return src
 	case *bytes.Buffer:
 		if src == nil {
 			return bytes.NewReader(nil)
 		}
 		return bytes.NewReader(src.Bytes())
+	case ReaderAtSource:
+		return &readerAtToReader{r: src.Reader, off: 0}
+	case *ReaderAtSource:
+		return &readerAtToReader{r: src.Reader, off: 0}
+	case io.ReadSeeker:
+		if closer, ok := src.(io.Closer); ok {
+			s.closer = closer
+		}
+		return src
+	case io.Reader:
+		return src
 	case *io.Reader:
 		if src == nil {
 			return nil
@@ -204,6 +249,12 @@ func (s *Source) GetReaderAt() (io.ReaderAt, bool) {
 		return src, true
 	case []byte:
 		return bytes.NewReader(src), true
+	case *bytes.Reader:
+		return src, true
+	case ReaderAtSource:
+		return src.Reader, true
+	case *ReaderAtSource:
+		return src.Reader, true
 	}
 	return nil, false
 }
@@ -213,6 +264,17 @@ func (s *Source) Close() error {
 		return s.closer.Close()
 	}
 	return nil
+}
+
+type readerAtToReader struct {
+	r   io.ReaderAt
+	off int64
+}
+
+func (r *readerAtToReader) Read(p []byte) (n int, err error) {
+	n, err = r.r.ReadAt(p, r.off)
+	r.off += int64(n)
+	return
 }
 
 // retryWithBackoff executes a function with retry logic and exponential backoff
@@ -230,6 +292,16 @@ func retryWithBackoff(ctx context.Context, maxRetries int, baseDelay time.Durati
 		case <-time.After(baseDelay * time.Duration(retry+1)):
 		}
 	}
+}
+
+func downloadRetryDelay(attempt int) time.Duration {
+	const (
+		base    = 200 * time.Millisecond
+		maximum = 10 * time.Second
+	)
+	exp := min(attempt, 6)
+	ceiling := min(time.Duration(1<<uint(exp))*base, maximum)
+	return time.Duration(rand.Int64N(int64(ceiling) + 1))
 }
 
 func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) {
@@ -820,23 +892,38 @@ type DownloadOptions struct {
 	ProgressInterval int                 // Progress callback interval in seconds (default: 5)
 	Delay            int                 // Delay between chunks in milliseconds
 	DCId             int32               // Datacenter ID where file is stored
-	Buffer           io.Writer           // Custom writer for download output
-	ThumbOnly        bool                // Download thumbnail only
-	ThumbSize        PhotoSize           // Specific thumbnail size to download
-	IsVideo          bool                // Download video version (for animated profiles)
-	Ctx              context.Context     // Context for cancellation
+	// Buffer is the download destination. Supported types:
+	//   io.WriterAt (*os.File, custom) — parallel writes, no intermediate buffer (fastest)
+	//   io.Writer (*bytes.Buffer, net.Conn, etc.) — buffered, copied at end
+	// If nil, the file is written to FileName on disk.
+	Buffer    any
+	ThumbOnly bool            // Download thumbnail only
+	ThumbSize PhotoSize       // Specific thumbnail size to download
+	IsVideo   bool            // Download video version (for animated profiles)
+	Ctx       context.Context // Context for cancellation
 }
 
 type Destination struct {
-	data []byte
-	file *os.File
+	data     []byte
+	file     *os.File
+	writerAt io.WriterAt
+	mu       sync.Mutex
 }
 
 func (mb *Destination) WriteAt(p []byte, off int64) (n int, err error) {
 	if mb.file != nil {
 		return mb.file.WriteAt(p, off)
 	}
-	copy(mb.data[off:], p)
+	if mb.writerAt != nil {
+		return mb.writerAt.WriteAt(p, off)
+	}
+	mb.mu.Lock()
+	defer mb.mu.Unlock()
+	end := off + int64(len(p))
+	if end > int64(len(mb.data)) {
+		return 0, fmt.Errorf("write at offset %d (len %d) exceeds buffer size %d", off, len(p), len(mb.data))
+	}
+	copy(mb.data[off:end], p)
 	return len(p), nil
 }
 
@@ -883,7 +970,14 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		}
 		fs.file = file
 	} else {
-		fs.data = make([]byte, size)
+		switch buf := opts.Buffer.(type) {
+		case io.WriterAt:
+			fs.writerAt = buf
+		case io.Writer:
+			fs.data = make([]byte, size)
+		default:
+			return "", fmt.Errorf("unsupported Buffer type %T: must implement io.WriterAt or io.Writer", opts.Buffer)
+		}
 	}
 
 	defer fs.Close()
@@ -907,7 +1001,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	w := NewWorkerPool(numWorkers)
 	defer w.Close()
 
-	if err := initializeWorkers(numWorkers, dc, c, w); err != nil {
+	if err := initializeWorkers(numWorkers, dc, c, w, opts.Ctx); err != nil {
 		return "", err
 	}
 
@@ -923,8 +1017,12 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	defer downloadLog.Flush()
 
 	if opts.Buffer != nil {
-		dest = ":mem-buffer:"
-		c.Log.WithField("size", size).Warn("downloading to buffer (memory) - use with caution (memory usage)")
+		if _, isWriterAt := opts.Buffer.(io.WriterAt); isWriterAt {
+			dest = ":direct-writer:"
+		} else {
+			dest = ":mem-buffer:"
+			c.Log.WithField("size", size).Warn("downloading to memory buffer - use with caution (memory usage)")
+		}
 	}
 
 	c.Log.WithFields(map[string]any{
@@ -1055,8 +1153,9 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 				downloadLog.recordFailure(partNum, writeErr, sender)
 				return false
 			}
-			doneBytes.Add(int64(len(v.Bytes)))
-			completedParts[partNum].Store(true)
+			if completedParts[partNum].CompareAndSwap(false, true) {
+				doneBytes.Add(int64(len(v.Bytes)))
+			}
 			downloadLog.recordSuccess(partNum, sender)
 			return true
 
@@ -1072,28 +1171,76 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		}
 	}
 
-	var wg sync.WaitGroup
+	const maxPartAttempts = 20
 
-	partQueue := make(chan int, totalParts)
-
-	for p := 0; p < totalParts; p++ {
-		partQueue <- p
+	type partWork struct {
+		partNum int
+		attempt int
 	}
-	close(partQueue)
 
+	workQueue := make(chan partWork, totalParts+numWorkers*2)
+	for p := 0; p < totalParts; p++ {
+		workQueue <- partWork{p, 0}
+	}
+
+	var pendingParts atomic.Int64
+	pendingParts.Store(int64(totalParts))
+	allDone := make(chan struct{})
+
+	markPartDone := func() {
+		if pendingParts.Add(-1) == 0 {
+			close(allDone)
+		}
+	}
+
+	scheduleRetry := func(w partWork) {
+		delay := downloadRetryDelay(w.attempt)
+		go func() {
+			select {
+			case <-downloadCtx.Done():
+				markPartDone()
+			case <-time.After(delay):
+				select {
+				case workQueue <- w:
+				case <-downloadCtx.Done():
+					markPartDone()
+				}
+			}
+		}()
+	}
+
+	var wg sync.WaitGroup
 	for i := 0; i < numWorkers; i++ {
 		wg.Go(func() {
-			for partNum := range partQueue {
-				if downloadCtx.Err() != nil || globalErr.Load() != nil || cdnRedirect.Load() {
+			for {
+				select {
+				case <-allDone:
 					return
-				}
-
-				retryWithBackoff(downloadCtx, 5, 100*time.Millisecond, func(retry int) bool {
-					if downloadPart(partNum, retry) {
-						return true
+				case <-downloadCtx.Done():
+					return
+				case work := <-workQueue:
+					shouldStop := downloadCtx.Err() != nil || globalErr.Load() != nil || cdnRedirect.Load()
+					if shouldStop || completedParts[work.partNum].Load() {
+						markPartDone()
+						continue
 					}
-					return downloadCtx.Err() != nil || globalErr.Load() != nil || cdnRedirect.Load()
-				})
+
+					if downloadPart(work.partNum, work.attempt) {
+						markPartDone()
+						continue
+					}
+
+					nextAttempt := work.attempt + 1
+					terminal := nextAttempt >= maxPartAttempts ||
+						downloadCtx.Err() != nil ||
+						globalErr.Load() != nil ||
+						cdnRedirect.Load()
+					if terminal {
+						markPartDone()
+					} else {
+						scheduleRetry(partWork{work.partNum, nextAttempt})
+					}
+				}
 			}
 		})
 	}
@@ -1106,60 +1253,6 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 	if err := globalErr.Load(); err != nil {
 		return "", err.(error)
-	}
-
-	const maxRetryRounds = 10
-	for round := range maxRetryRounds {
-		var failedParts []int
-		for p := 0; p < totalParts; p++ {
-			if !completedParts[p].Load() {
-				failedParts = append(failedParts, p)
-			}
-		}
-
-		if len(failedParts) == 0 {
-			break
-		}
-
-		c.Log.WithFields(map[string]any{
-			"round":        round + 1,
-			"failed_parts": len(failedParts),
-		}).Debug("retrying failed parts")
-
-		retryQueue := make(chan int, len(failedParts))
-		for _, p := range failedParts {
-			retryQueue <- p
-		}
-		close(retryQueue)
-
-		for i := 0; i < numWorkers && i < len(failedParts); i++ {
-			wg.Add(1)
-			go func(retryRound int) {
-				defer wg.Done()
-				for partNum := range retryQueue {
-					if downloadCtx.Err() != nil || globalErr.Load() != nil || cdnRedirect.Load() {
-						return
-					}
-
-					retryWithBackoff(downloadCtx, 5, 100*time.Millisecond, func(retry int) bool {
-						if downloadPart(partNum, retryRound) {
-							return true
-						}
-						return downloadCtx.Err() != nil || globalErr.Load() != nil || cdnRedirect.Load()
-					})
-				}
-			}(round)
-		}
-
-		wg.Wait()
-
-		if cdnRedirect.Load() {
-			return "", fmt.Errorf("cdn redirect not implemented")
-		}
-
-		if err := globalErr.Load(); err != nil {
-			return "", err.(error)
-		}
 	}
 
 	var missingParts []int
@@ -1186,9 +1279,11 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		})
 	}
 
-	if opts.Buffer != nil {
-		if _, err := io.Copy(opts.Buffer, bytes.NewReader(fs.data)); err != nil {
-			return "", fmt.Errorf("failed to copy to buffer: %w", err)
+	if fs.data != nil {
+		if w, ok := opts.Buffer.(io.Writer); ok {
+			if _, err := io.Copy(w, bytes.NewReader(fs.data)); err != nil {
+				return "", fmt.Errorf("failed to copy to buffer: %w", err)
+			}
 		}
 	}
 
@@ -1200,7 +1295,7 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	return dest, nil
 }
 
-func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error {
+func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool, ctx ...context.Context) error {
 	if numWorkers == 1 && dc == int32(c.GetDC()) {
 		w.AddWorker(NewExSender(c.MTProto))
 		return nil
@@ -1255,9 +1350,16 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool) error
 	}
 
 	if numCreate < numWorkers {
+		bgCtx := context.Background()
+		if len(ctx) > 0 && ctx[0] != nil {
+			bgCtx = ctx[0]
+		}
 		c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers-numCreate))
 		go func() {
 			for i := numCreate; i < numWorkers; i++ {
+				if bgCtx.Err() != nil {
+					return
+				}
 				conn, err := c.CreateExportedSender(int(dc), false, authParams)
 				if conn != nil && err == nil {
 					sender := NewExSender(conn)
