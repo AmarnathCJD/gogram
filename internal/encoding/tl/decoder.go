@@ -3,16 +3,12 @@
 package tl
 
 import (
-	"bytes"
 	"fmt"
 	"reflect"
 )
 
 func DecodeUnknownObject(data []byte, expectNextTypes ...reflect.Type) (Object, error) {
-	d, err := NewDecoder(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
+	d := NewDecoderBytes(data)
 	if len(expectNextTypes) > 0 {
 		d.ExpectTypesInInterface(expectNextTypes...)
 	}

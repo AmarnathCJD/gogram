@@ -32,6 +32,11 @@ func NewDecoder(r io.Reader) (*Decoder, error) {
 	return &Decoder{buf: bytes.NewReader(data)}, nil
 }
 
+// NewDecoderBytes returns a new decoder that reads from b.
+func NewDecoderBytes(b []byte) *Decoder {
+	return &Decoder{buf: bytes.NewReader(b)}
+}
+
 // ExpectTypesInInterface defines how the decoder should parse implicit objects.
 //
 // How `expectedTypes` works:
