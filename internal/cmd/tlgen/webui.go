@@ -92,6 +92,9 @@ func startWebUI() {
 	http.HandleFunc("/api/missing-type/response", handleMissingTypeResponse)
 
 	port := ":8080"
+	if len(os.Args) > 1 {
+		port = ":" + os.Args[1]
+	}
 	log.Printf("INFO: Starting web UI on http://localhost%s\n", port)
 	fmt.Printf("Open http://localhost%s in your browser\n", port)
 
