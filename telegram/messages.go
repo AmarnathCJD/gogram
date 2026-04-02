@@ -1614,7 +1614,7 @@ func (c *Client) GetHistory(PeerID any, opts ...*HistoryOption) ([]NewMessage, e
 	req := &MessagesGetHistoryParams{
 		Peer:       peerToAct,
 		OffsetID:   opt.Offset,
-		OffsetDate: 0,
+		OffsetDate: opt.OffsetDate,
 		MaxID:      opt.MaxID,
 		MinID:      opt.MinID,
 	}
@@ -1696,7 +1696,7 @@ func (c *Client) IterHistory(PeerID any, callback func(*NewMessage) error, opts 
 	req := &MessagesGetHistoryParams{
 		Peer:       peerToAct,
 		OffsetID:   opt.Offset,
-		OffsetDate: 0,
+		OffsetDate: opt.OffsetDate,
 		MaxID:      opt.MaxID,
 		MinID:      opt.MinID,
 	}
