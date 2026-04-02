@@ -921,10 +921,14 @@ func convertPoll(poll *MessageMediaPoll) *InputMediaPoll {
 		SolutionEntities: poll.Results.SolutionEntities,
 	}
 
-	var correctAnswers [][]byte
+	var correctAnswers []int32
 	for _, answer := range poll.Results.Results {
 		if answer.Correct {
-			correctAnswers = append(correctAnswers, answer.Option)
+			var option int32
+			for _, b := range answer.Option {
+				option = (option << 8) | int32(b)
+			}
+			correctAnswers = append(correctAnswers, option)
 		}
 	}
 

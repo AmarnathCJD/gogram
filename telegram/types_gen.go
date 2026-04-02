@@ -635,6 +635,14 @@ func (*BotsBotInfo) CRC() uint32 {
 	return 0xe8a775b0
 }
 
+type BotsExportedBotToken struct {
+	Token string
+}
+
+func (*BotsExportedBotToken) CRC() uint32 {
+	return 0x3c60b621
+}
+
 // Popular Main Mini Apps, to be used in the apps tab of global search.
 type BotsPopularAppBots struct {
 	NextOffset string `tl:"flag:0"`
@@ -657,6 +665,14 @@ type BotsPreviewInfo struct {
 
 func (*BotsPreviewInfo) CRC() uint32 {
 	return 0xca71d64
+}
+
+type BotsRequestedButton struct {
+	WebappReqID string
+}
+
+func (*BotsRequestedButton) CRC() uint32 {
+	return 0xf13bbcd7
 }
 
 // Describes a Telegram Business away message, automatically sent to users writing to us when we're offline, during closing hours, while we're on vacation, or in some other custom time period when we cannot immediately answer to the user.
@@ -1923,6 +1939,19 @@ func (*InputFolderPeer) CRC() uint32 {
 	return 0xfbd2c296
 }
 
+type InputMessageReadMetric struct {
+	MsgID                         int32
+	ViewID                        int64
+	TimeInViewMs                  int32
+	ActiveTimeInViewMs            int32
+	HeightToViewportRatioPermille int32
+	SeenRangeRatioPermille        int32
+}
+
+func (*InputMessageReadMetric) CRC() uint32 {
+	return 0x402b4495
+}
+
 // Notification settings.
 type InputPeerNotifySettings struct {
 	ShowPreviews      bool              `tl:"flag:0"`
@@ -2480,6 +2509,19 @@ type MessagesCheckedHistoryImportPeer struct {
 
 func (*MessagesCheckedHistoryImportPeer) CRC() uint32 {
 	return 0xa24de717
+}
+
+type MessagesComposedMessageWithAi struct {
+	ResultText *TextWithEntities
+	DiffText   *TextWithEntities `tl:"flag:0"`
+}
+
+func (*MessagesComposedMessageWithAi) CRC() uint32 {
+	return 0x90d7adfa
+}
+
+func (*MessagesComposedMessageWithAi) FlagIndex() int {
+	return 0
 }
 
 // Folder and folder tags information
@@ -3485,45 +3527,42 @@ func (*PhotosPhoto) CRC() uint32 {
 
 // Poll
 type Poll struct {
-	ID             int64
-	Closed         bool `tl:"flag:0,encoded_in_bitflags"`
-	PublicVoters   bool `tl:"flag:1,encoded_in_bitflags"`
-	MultipleChoice bool `tl:"flag:2,encoded_in_bitflags"`
-	Quiz           bool `tl:"flag:3,encoded_in_bitflags"`
-	Question       *TextWithEntities
-	Answers        []*PollAnswer
-	ClosePeriod    int32 `tl:"flag:4"`
-	CloseDate      int32 `tl:"flag:5"`
+	ID                    int64
+	Closed                bool `tl:"flag:0,encoded_in_bitflags"`
+	PublicVoters          bool `tl:"flag:1,encoded_in_bitflags"`
+	MultipleChoice        bool `tl:"flag:2,encoded_in_bitflags"`
+	Quiz                  bool `tl:"flag:3,encoded_in_bitflags"`
+	OpenAnswers           bool `tl:"flag:6,encoded_in_bitflags"`
+	RevotingDisabled      bool `tl:"flag:7,encoded_in_bitflags"`
+	ShuffleAnswers        bool `tl:"flag:8,encoded_in_bitflags"`
+	HideResultsUntilClose bool `tl:"flag:9,encoded_in_bitflags"`
+	Creator               bool `tl:"flag:10,encoded_in_bitflags"`
+	Question              *TextWithEntities
+	Answers               []PollAnswer
+	ClosePeriod           int32 `tl:"flag:4"`
+	CloseDate             int32 `tl:"flag:5"`
+	Hash                  int64
 }
 
 func (*Poll) CRC() uint32 {
-	return 0x58747131
+	return 0xb8425be9
 }
 
 func (*Poll) FlagIndex() int {
 	return 1
 }
 
-// A possible answer of a poll
-type PollAnswer struct {
-	Text   *TextWithEntities
-	Option []byte
-}
-
-func (*PollAnswer) CRC() uint32 {
-	return 0xff16e2ca
-}
-
 // A poll answer, and how users voted on it
 type PollAnswerVoters struct {
-	Chosen  bool `tl:"flag:0,encoded_in_bitflags"`
-	Correct bool `tl:"flag:1,encoded_in_bitflags"`
-	Option  []byte
-	Voters  int32
+	Chosen       bool `tl:"flag:0,encoded_in_bitflags"`
+	Correct      bool `tl:"flag:1,encoded_in_bitflags"`
+	Option       []byte
+	Voters       int32  `tl:"flag:2"`
+	RecentVoters []Peer `tl:"flag:2"`
 }
 
 func (*PollAnswerVoters) CRC() uint32 {
-	return 0x3b6ddad2
+	return 0x3645230a
 }
 
 func (*PollAnswerVoters) FlagIndex() int {
@@ -3533,15 +3572,17 @@ func (*PollAnswerVoters) FlagIndex() int {
 // Results of poll
 type PollResults struct {
 	Min              bool                `tl:"flag:0,encoded_in_bitflags"`
+	HasUnreadVotes   bool                `tl:"flag:6,encoded_in_bitflags"`
 	Results          []*PollAnswerVoters `tl:"flag:1"`
 	TotalVoters      int32               `tl:"flag:2"`
 	RecentVoters     []Peer              `tl:"flag:3"`
 	Solution         string              `tl:"flag:4"`
 	SolutionEntities []MessageEntity     `tl:"flag:4"`
+	SolutionMedia    MessageMedia        `tl:"flag:5"`
 }
 
 func (*PollResults) CRC() uint32 {
-	return 0x7adf2420
+	return 0xba7bb15e
 }
 
 func (*PollResults) FlagIndex() int {
@@ -3688,14 +3729,15 @@ func (*ReactionCount) FlagIndex() int {
 
 // Reaction notification settings
 type ReactionsNotifySettings struct {
-	MessagesNotifyFrom ReactionNotificationsFrom `tl:"flag:0"`
-	StoriesNotifyFrom  ReactionNotificationsFrom `tl:"flag:1"`
-	Sound              NotificationSound
-	ShowPreviews       bool
+	MessagesNotifyFrom  ReactionNotificationsFrom `tl:"flag:0"`
+	StoriesNotifyFrom   ReactionNotificationsFrom `tl:"flag:1"`
+	PollVotesNotifyFrom ReactionNotificationsFrom `tl:"flag:2"`
+	Sound               NotificationSound
+	ShowPreviews        bool
 }
 
 func (*ReactionsNotifySettings) CRC() uint32 {
-	return 0x56e34970
+	return 0x71e4ea58
 }
 
 func (*ReactionsNotifySettings) FlagIndex() int {
@@ -4114,6 +4156,7 @@ func (*StarGiftCollection) FlagIndex() int {
 	return 0
 }
 
+// Indicates the price for a gift upgrade starting from a specific point in time.
 type StarGiftUpgradePrice struct {
 	Date         int32
 	UpgradeStars int64
@@ -4896,6 +4939,7 @@ type UserFull struct {
 	DisplayGiftsButton       bool `tl:"flag2:16,encoded_in_bitflags"`
 	NoforwardsMyEnabled      bool `tl:"flag2:23,encoded_in_bitflags"`
 	NoforwardsPeerEnabled    bool `tl:"flag2:24,encoded_in_bitflags"`
+	UnofficialSecurityRisk   bool `tl:"flag2:26,encoded_in_bitflags"`
 	ID                       int64
 	About                    string `tl:"flag:1"`
 	Settings                 *PeerSettings
@@ -4933,10 +4977,11 @@ type UserFull struct {
 	MainTab                  ProfileTab               `tl:"flag2:20"`
 	SavedMusic               Document                 `tl:"flag2:21"`
 	Note                     *TextWithEntities        `tl:"flag2:22"`
+	BotManagerID             int64                    `tl:"flag2:25"`
 }
 
 func (*UserFull) CRC() uint32 {
-	return 0xa02bc13e
+	return 0x6cbe645
 }
 
 func (*UserFull) FlagIndex() int {
