@@ -54,11 +54,7 @@ func (msg *Encrypted) Serialize(client MessageInformator, seqNo int32) ([]byte, 
 func DeserializeEncrypted(data, authKey []byte) (*Encrypted, error) {
 	msg := new(Encrypted)
 
-	buf := bytes.NewBuffer(data)
-	d, err := tl.NewDecoder(buf)
-	if err != nil {
-		return nil, err
-	}
+	d := tl.NewDecoderBytes(data)
 	keyHash := d.PopRawBytes(tl.LongLen)
 	if !bytes.Equal(keyHash, utils.AuthKeyHash(authKey)) {
 		return nil, errors.New("wrong encryption key")
@@ -70,11 +66,7 @@ func DeserializeEncrypted(data, authKey []byte) (*Encrypted, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decrypting message: %w", err)
 	}
-	buf = bytes.NewBuffer(decrypted)
-	d, err = tl.NewDecoder(buf)
-	if err != nil {
-		return nil, err
-	}
+	d = tl.NewDecoderBytes(decrypted)
 	msg.Salt = d.PopLong()
 	msg.SessionID = d.PopLong()
 	msg.MsgID = d.PopLong()
@@ -129,7 +121,7 @@ func (msg *Unencrypted) Serialize(_ MessageInformator) ([]byte, error) {
 
 func DeserializeUnencrypted(data []byte) (*Unencrypted, error) {
 	msg := new(Unencrypted)
-	d, _ := tl.NewDecoder(bytes.NewBuffer(data))
+	d := tl.NewDecoderBytes(data)
 	_ = d.PopRawBytes(tl.LongLen) // authKeyHash, always 0 if unencrypted
 
 	msg.MsgID = d.PopLong()
