@@ -106,33 +106,33 @@ func (d *Decoder) unread(count int) {
 }
 
 func (d *Decoder) PopLong() int64 {
-	val := make([]byte, LongLen)
-	d.read(val)
+	var val [LongLen]byte
+	d.read(val[:])
 	if d.err != nil {
 		return 0
 	}
 
-	return int64(binary.LittleEndian.Uint64(val))
+	return int64(binary.LittleEndian.Uint64(val[:]))
 }
 
 func (d *Decoder) PopDouble() float64 {
-	val := make([]byte, DoubleLen)
-	d.read(val)
+	var val [DoubleLen]byte
+	d.read(val[:])
 	if d.err != nil {
 		return 0
 	}
 
-	return math.Float64frombits(binary.LittleEndian.Uint64(val))
+	return math.Float64frombits(binary.LittleEndian.Uint64(val[:]))
 }
 
 func (d *Decoder) PopUint() uint32 {
-	val := make([]byte, WordLen)
-	d.read(val)
+	var val [WordLen]byte
+	d.read(val[:])
 	if d.err != nil {
 		return 0
 	}
 
-	return binary.LittleEndian.Uint32(val)
+	return binary.LittleEndian.Uint32(val[:])
 }
 
 func (d *Decoder) PopRawBytes(size int) []byte {
@@ -248,14 +248,13 @@ func (d *Decoder) popVector(as reflect.Type, ignoreCRC bool) any {
 }
 
 func (d *Decoder) PopMessage() []byte {
-	val := []byte{0}
-
-	d.read(val)
+	var first [1]byte
+	d.read(first[:])
 	if d.err != nil {
 		return nil
 	}
 
-	firstByte := val[0]
+	firstByte := first[0]
 
 	var realSize int
 	var lenNumberSize int
@@ -264,17 +263,14 @@ func (d *Decoder) PopMessage() []byte {
 		realSize = int(firstByte)
 		lenNumberSize = 1
 	} else {
-
-		val = make([]byte, WordLen-1)
-		d.read(val)
+		var sizeBuf [WordLen - 1]byte
+		d.read(sizeBuf[:])
 		if d.err != nil {
 			d.err = fmt.Errorf("reading last %v bytes of message size: %w", WordLen-1, d.err)
 			return nil
 		}
 
-		val = append(val, 0x0)
-
-		realSize = int(binary.LittleEndian.Uint32(val))
+		realSize = int(uint32(sizeBuf[0]) | uint32(sizeBuf[1])<<8 | uint32(sizeBuf[2])<<16)
 		lenNumberSize = WordLen
 	}
 
@@ -300,16 +296,17 @@ func (d *Decoder) PopMessage() []byte {
 
 	readLen := lenNumberSize + realSize
 	if readLen%WordLen != 0 {
-		voidBytes := make([]byte, WordLen-readLen%WordLen)
-		d.read(voidBytes)
+		pad := WordLen - readLen%WordLen
+		var voidBytes [WordLen - 1]byte
+		d.read(voidBytes[:pad])
 		if d.err != nil {
-			d.err = fmt.Errorf("reading %v last void bytes: %w", WordLen-readLen%WordLen, d.err)
+			d.err = fmt.Errorf("reading %v last void bytes: %w", pad, d.err)
 			return nil
 		}
 
-		for _, b := range voidBytes {
+		for _, b := range voidBytes[:pad] {
 			if b != 0 {
-				d.err = fmt.Errorf("some of void bytes doesn't equal zero: %#v", voidBytes)
+				d.err = fmt.Errorf("some of void bytes doesn't equal zero: %#v", voidBytes[:pad])
 				return nil
 			}
 		}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 )
 
 type Encoder struct {
@@ -59,9 +60,9 @@ func (e *Encoder) putUint8(v uint8) {
 }
 
 func (e *Encoder) PutUint(v uint32) {
-	buf := make([]byte, WordLen)
-	binary.LittleEndian.PutUint32(buf, v)
-	e.write(buf)
+	var buf [WordLen]byte
+	binary.LittleEndian.PutUint32(buf[:], v)
+	e.write(buf[:])
 }
 
 // PutCRC is an alias for Encoder.PutUint. It is used for better code readability and self-documentation.
@@ -74,15 +75,15 @@ func (e *Encoder) PutInt(v int32) {
 }
 
 func (e *Encoder) PutLong(v int64) {
-	buf := make([]byte, LongLen)
-	binary.LittleEndian.PutUint64(buf, uint64(v))
-	e.write(buf)
+	var buf [LongLen]byte
+	binary.LittleEndian.PutUint64(buf[:], uint64(v))
+	e.write(buf[:])
 }
 
 func (e *Encoder) PutDouble(v float64) {
-	buf := make([]byte, DoubleLen)
-	binary.LittleEndian.PutUint64(buf, math.Float64bits(v))
-	e.write(buf)
+	var buf [DoubleLen]byte
+	binary.LittleEndian.PutUint64(buf[:], math.Float64bits(v))
+	e.write(buf[:])
 }
 
 func (e *Encoder) PutMessage(b []byte) {
@@ -116,7 +117,40 @@ func (e *Encoder) PutMessage(b []byte) {
 }
 
 func (e *Encoder) PutString(msg string) {
-	e.PutMessage([]byte(msg))
+	size := len(msg)
+	pad := 0
+
+	maxLen := 1 << 24 // 3 bytes 24 bits, the first one is 0xfe, the remaining 3 times the length
+	if size > maxLen {
+		e.err = fmt.Errorf("message entity too large: expect less than %v, got %v", maxLen, size)
+		return
+	}
+
+	switch {
+	case size == 0: // optimization for empty messages
+		e.PutUint(0)
+		return
+	case size < MagicNumber:
+		pad = padding4(size + 1)
+		e.putUint8(uint8(size))
+	default:
+		pad = padding4(size)
+		e.PutUint(uint32(size)<<8 | MagicNumber)
+	}
+
+	if e.err == nil {
+		n, err := io.WriteString(e.w, msg)
+		if err != nil {
+			e.err = err
+		} else if n != len(msg) {
+			e.err = &ErrorPartialWrite{Has: n, Want: len(msg)}
+		}
+	}
+
+	if pad > 0 {
+		var zero [4]byte
+		e.write(zero[:pad])
+	}
 }
 
 func (e *Encoder) PutRawBytes(b []byte) {
@@ -124,5 +158,25 @@ func (e *Encoder) PutRawBytes(b []byte) {
 }
 
 func (e *Encoder) PutVector(v any) {
-	e.encodeVector(sliceToInterfaceSlice(v)...)
+	if v == nil {
+		e.PutCRC(CrcVector)
+		e.PutUint(0)
+		return
+	}
+
+	slice := reflect.ValueOf(v)
+	if slice.Kind() != reflect.Slice {
+		panic("not a slice: " + slice.Type().String())
+	}
+
+	e.PutCRC(CrcVector)
+	e.PutUint(uint32(slice.Len()))
+
+	for i := range slice.Len() {
+		e.encodeValue(slice.Index(i))
+		if e.err != nil {
+			e.err = fmt.Errorf("[%v]: %w", i, e.err)
+			return
+		}
+	}
 }

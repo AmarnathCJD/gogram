@@ -74,7 +74,7 @@ func (c *Encoder) encodeValue(value reflect.Value) {
 			break
 		}
 
-		c.encodeVector(sliceToInterfaceSlice(value.Interface())...)
+		c.encodeVectorValue(value)
 
 	case reflect.Int, reflect.Int8, reflect.Int16,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint64:
@@ -117,26 +117,14 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 	// 3) definitely struct (we don't call encodeStruct(), only in c.encodeValue())
 	// 4) not nil (structs can't be nil, only pointers and interfaces)
 	c.PutCRC(o.CRC())
-	var tmpObjects = make([]reflect.Value, 0, v.NumField())
-
 	vtyp := v.Type()
 	cachedTags := GetCachedTags(vtyp)
+	numFields := v.NumField()
 
-	for i := 0; i < v.NumField(); i++ {
-		// THIS PART is appending to object meta value, that actually don't writing in real encodeValue
-		if hasFlagsField && flagIndex == i {
-			tmpObjects = append(tmpObjects, reflect.ValueOf(0))
-		}
-
+	for i := 0; i < numFields; i++ {
 		info := cachedTags[i]
 
-		if info == nil {
-			// If there is no tag, then this is a mandatory field, meaning we write 100%.
-			tmpObjects = append(tmpObjects, v.Field(i))
-			continue
-		}
-
-		if info.ignore {
+		if info == nil || info.ignore {
 			continue
 		}
 
@@ -146,28 +134,52 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 		}
 
 		fieldVal := v.Field(i)
-		// explicit tag forces encoding even when zero value
 		if !fieldVal.IsZero() || info.explicit {
-			// Tag is there, this is 100% optional field
 			flag |= 1 << info.index
+		}
+	}
+
+	for i := 0; i < numFields; i++ {
+		if hasFlagsField && flagIndex == i {
+			c.PutUint(flag)
+			if c.err != nil {
+				return
+			}
+		}
+
+		info := cachedTags[i]
+		if info != nil {
+			if info.ignore {
+				continue
+			}
+
+			fieldVal := v.Field(i)
+			if fieldVal.IsZero() && !info.explicit {
+				continue
+			}
 			if info.encodedInBitflag {
 				continue
 			}
 
-			tmpObjects = append(tmpObjects, v.Field(i))
+			c.encodeValue(fieldVal)
+		} else {
+			c.encodeValue(v.Field(i))
+		}
+
+		if c.err != nil {
+			return
 		}
 	}
+}
 
-	for i, elem := range tmpObjects {
-		// if you asking, wtf is here: continuing, cause we injected int value (native int, not int32), so we
-		// CAN skip this iter
-		if hasFlagsField && flagIndex == i {
-			c.PutUint(flag)
-			continue
-		}
+func (c *Encoder) encodeVectorValue(slice reflect.Value) {
+	c.PutCRC(CrcVector)
+	c.PutUint(uint32(slice.Len()))
 
-		c.encodeValue(elem)
+	for i := 0; i < slice.Len(); i++ {
+		c.encodeValue(slice.Index(i))
 		if c.err != nil {
+			c.err = fmt.Errorf("[%v]: %w", i, c.err)
 			return
 		}
 	}
@@ -179,8 +191,9 @@ func (c *Encoder) encodeVector(slice ...any) {
 
 	for i, item := range slice {
 		c.encodeValue(reflect.ValueOf(item))
-		if c.CheckErr() != nil {
+		if c.err != nil {
 			c.err = fmt.Errorf("[%v]: %w", i, c.err)
+			return
 		}
 	}
 }

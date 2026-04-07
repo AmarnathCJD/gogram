@@ -54,13 +54,20 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 
 	vtyp := value.Type()
 	cachedTags := GetCachedTags(vtyp)
+	hasTaggedFields := false
+	for _, info := range cachedTags {
+		if info != nil && !info.ignore {
+			hasTaggedFields = true
+			break
+		}
+	}
 
 	var optionalBitSetA uint32
 	var optionalBitSetB uint32
 
 	var flagsetIndex = -1
-	if haveFlag(value.Interface()) {
-		indexGetter, ok := reflect.New(vtyp).Interface().(FlagIndexGetter)
+	if hasTaggedFields {
+		indexGetter, ok := o.(FlagIndexGetter)
 		if !ok {
 			d.err = fmt.Errorf("type %s has type bit flag tags, but doesn't implement tl.FlagIndexGetter", value.Type().String())
 			return
