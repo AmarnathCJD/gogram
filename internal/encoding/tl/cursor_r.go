@@ -9,7 +9,29 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"sync"
 )
+
+const largeBufferThreshold = 128 * 1024 // 128KB
+
+// LargeBytePool reuses large byte buffers (>= 128KB) to reduce heap
+// allocations during file downloads. Callers that receive a large []byte
+// from TL decoding should call ReleaseLargeBuffer when done with it.
+var LargeBytePool = sync.Pool{
+	New: func() any {
+		b := make([]byte, 1024*1024) // 1MB default
+		return &b
+	},
+}
+
+// ReleaseLargeBuffer returns a large byte buffer to the pool for reuse.
+// It is safe to call with any slice (small slices are ignored).
+func ReleaseLargeBuffer(buf []byte) {
+	if cap(buf) >= largeBufferThreshold {
+		buf = buf[:cap(buf)]
+		LargeBytePool.Put(&buf)
+	}
+}
 
 // A Decoder reads and decodes TL values from an input stream.
 type Decoder struct {
@@ -256,10 +278,23 @@ func (d *Decoder) PopMessage() []byte {
 		lenNumberSize = WordLen
 	}
 
-	buf := make([]byte, realSize)
+	var buf []byte
+	var pooled *[]byte
+	if realSize >= largeBufferThreshold {
+		pooled = LargeBytePool.Get().(*[]byte)
+		if cap(*pooled) < realSize {
+			*pooled = make([]byte, realSize)
+		}
+		buf = (*pooled)[:realSize]
+	} else {
+		buf = make([]byte, realSize)
+	}
 	d.read(buf)
 	if d.err != nil {
 		d.err = fmt.Errorf("reading message data with len of %v: %w", realSize, d.err)
+		if pooled != nil {
+			LargeBytePool.Put(pooled)
+		}
 		return nil
 	}
 

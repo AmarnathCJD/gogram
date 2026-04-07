@@ -1,4 +1,4 @@
-// Copyright (c) 2025 @AmarnathCJD
+﻿// Copyright (c) 2025 @AmarnathCJD
 
 package telegram
 
@@ -19,14 +19,14 @@ import (
 	"time"
 
 	"errors"
+
+	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
-var chunkPool = sync.Pool{
-	New: func() any {
-		b := make([]byte, 1024*1024)
-		return &b
-	},
-}
+// chunkPool is shared between upload and download to reuse large byte
+// buffers and reduce GC pressure. It lives in the tl package so the
+// decoder can also draw from it when deserializing file chunks.
+var chunkPool = &tl.LargeBytePool
 
 type UploadOptions struct {
 	Threads          int                 // Number of concurrent upload workers
@@ -1150,11 +1150,16 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		switch v := part.(type) {
 		case *UploadFileObj:
 			if _, writeErr := fs.WriteAt(v.Bytes, int64(partNum)*int64(partSize)); writeErr != nil {
+				tl.ReleaseLargeBuffer(v.Bytes)
+				v.Bytes = nil
 				downloadLog.recordFailure(partNum, writeErr, sender)
 				return false
 			}
+			n := len(v.Bytes)
+			tl.ReleaseLargeBuffer(v.Bytes)
+			v.Bytes = nil
 			if completedParts[partNum].CompareAndSwap(false, true) {
-				doneBytes.Add(int64(len(v.Bytes)))
+				doneBytes.Add(int64(n))
 			}
 			downloadLog.recordSuccess(partNum, sender)
 			return true
@@ -1429,6 +1434,8 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		switch v := part.(type) {
 		case *UploadFileObj:
 			buf = append(buf, v.Bytes...)
+			tl.ReleaseLargeBuffer(v.Bytes)
+			v.Bytes = nil
 		case *UploadFileCdnRedirect:
 			return nil, "", fmt.Errorf("cdn redirect not implemented")
 		}
