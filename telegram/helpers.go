@@ -205,20 +205,23 @@ func calculateSha256Hash(localFile string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	defer file.Close()
-	// calculate sha256 hash
-	// if file is too large take a hash of the first 10MB
 
-	if stat, err := file.Stat(); err == nil && stat.Size() > 50*1024*200 {
-		hash := sha256.New()
-		if _, err := io.CopyN(hash, file, 50*1024*200); err != nil {
+	stat, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+
+	hash := sha256.New()
+	const maxSize = 50 * 1024 * 200
+
+	if stat.Size() > maxSize {
+		if _, err := io.CopyN(hash, file, maxSize); err != nil {
 			return "", err
 		}
-
 		return fmt.Sprintf("%x", hash.Sum(nil)), nil
 	}
-	hash := sha256.New()
+
 	if _, err := io.Copy(hash, file); err != nil {
 		return "", err
 	}
@@ -231,15 +234,25 @@ func processUpdates(updates Updates) []Message {
 	processMessage := func(upd Update) {
 		switch update := upd.(type) {
 		case *UpdateNewMessage:
-			messages = append(messages, update.Message.(*MessageObj))
+			if msg, ok := update.Message.(*MessageObj); ok {
+				messages = append(messages, msg)
+			}
 		case *UpdateNewChannelMessage:
-			messages = append(messages, update.Message.(*MessageObj))
+			if msg, ok := update.Message.(*MessageObj); ok {
+				messages = append(messages, msg)
+			}
 		case *UpdateEditMessage:
-			messages = append(messages, update.Message.(*MessageObj))
+			if msg, ok := update.Message.(*MessageObj); ok {
+				messages = append(messages, msg)
+			}
 		case *UpdateEditChannelMessage:
-			messages = append(messages, update.Message.(*MessageObj))
+			if msg, ok := update.Message.(*MessageObj); ok {
+				messages = append(messages, msg)
+			}
 		case *UpdateBotEditBusinessMessage:
-			messages = append(messages, update.Message.(*MessageObj))
+			if msg, ok := update.Message.(*MessageObj); ok {
+				messages = append(messages, msg)
+			}
 		}
 	}
 
@@ -1185,17 +1198,20 @@ func GenerateWaveformWithFFmpeg(filename string) ([]byte, error) {
 }
 
 func generateWaveformData(samples []int16, bars int) []byte {
-	if len(samples) == 0 {
-		return make([]byte, bars)
+	if len(samples) == 0 || bars <= 0 {
+		return make([]byte, max(bars, 0))
 	}
 
 	samplesPerBar := max(len(samples)/bars, 1)
-
 	waveform := make([]byte, bars)
 
 	for i := range bars {
 		start := i * samplesPerBar
 		end := min(start+samplesPerBar, len(samples))
+
+		if start >= len(samples) {
+			break
+		}
 
 		maxAmplitude := int16(0)
 		for j := start; j < end; j++ {
@@ -1245,52 +1261,42 @@ func (c *Client) gatherVideoThumb(path string, duration int64) (InputFile, error
 		duration = 2
 	}
 
-	if MimeTypes.IsAudioFile(path) {
-		// get embedded album art
-		cmd := exec.Command("ffmpeg", "-i", path, "-vf", "scale=200:100:force_original_aspect_ratio=increase,thumbnail", "-frames:v", "1", path+".png")
-		_, err := cmd.CombinedOutput()
+	thumbPath := path + ".png"
+	defer os.Remove(thumbPath)
 
-		if err != nil {
+	if MimeTypes.IsAudioFile(path) {
+		cmd := exec.Command("ffmpeg", "-i", path, "-vf", "scale=200:100:force_original_aspect_ratio=increase,thumbnail", "-frames:v", "1", thumbPath)
+		if _, err := cmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("gathering audio thumb: %w", err)
 		}
-
-		defer os.Remove(path + ".png")
-		fi, err := c.UploadFile(path + ".png")
-
-		return fi, err
+		return c.UploadFile(thumbPath)
 	}
 
-	// ffmpeg -i input.mp4 -ss 00:00:01.000 -vframes 1 output.png
 	getPosition := func(duration int64) int64 {
 		if duration <= 10 {
 			return (duration / 2) + 1
-		} else {
-			limit := int(duration) / 2
-			if limit <= 0 {
-				limit = 1
-			}
-			return int64(rand.IntN(limit) + 1)
 		}
+		limit := int(duration) / 2
+		if limit <= 0 {
+			limit = 1
+		}
+		return int64(rand.IntN(limit) + 1)
 	}
 
-	cmd := exec.Command("ffmpeg", "-ss", strconv.FormatInt(getPosition(duration), 10), "-i", path, "-vframes", "1", path+".png")
-	_, err := cmd.Output()
-
-	if err != nil {
+	cmd := exec.Command("ffmpeg", "-ss", strconv.FormatInt(getPosition(duration), 10), "-i", path, "-vframes", "1", thumbPath)
+	if _, err := cmd.Output(); err != nil {
 		return nil, fmt.Errorf("gathering video thumb: %w", err)
 	}
 
-	defer os.Remove(path + ".png")
-	fi, err := c.UploadFile(path + ".png")
-
-	return fi, err
+	return c.UploadFile(thumbPath)
 }
 
 // ResolveUsername resolves a username to a user or chat Peer
 func (c *Client) ResolveUsername(username string, ref ...string) (any, error) {
+	username = strings.TrimPrefix(strings.TrimSpace(username), "@")
 	var referer = getVariadic(ref, "")
 
-	resp, err := c.ContactsResolveUsername(strings.TrimPrefix(username, "@"), referer)
+	resp, err := c.ContactsResolveUsername(username, referer)
 	if err != nil {
 		return nil, fmt.Errorf("resolving username: %w", err)
 	}

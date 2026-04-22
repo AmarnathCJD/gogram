@@ -96,8 +96,9 @@ type MTProto struct {
 	serviceChannel       chan tl.Object
 	serviceModeActivated bool
 
-	authKey404 [2]int64
-	IpV6       bool
+	authKey404Count atomic.Int64
+	authKey404Time  atomic.Int64
+	IpV6            bool
 
 	Logger *utils.Logger
 
@@ -170,13 +171,23 @@ func NewMTProto(c Config) (*MTProto, error) {
 	loaded, err := c.SessionStorage.Load()
 	if err != nil {
 		if !AnyError(err, session.ErrFileNotExists, session.ErrPathNotFound, session.ErrNotImplementedInJS) {
-			// if the error is not because of file not found or path not found, return the error
-			// else, continue with the execution
-			// check if you have write permission in the directory
-			if _, err := os.OpenFile(filepath.Dir(c.AuthKeyFile), os.O_WRONLY, 0222); err != nil {
-				return nil, fmt.Errorf("check if you have write permission in the directory: %w", err)
+			// if the error is not because of file not found or path not found
+			if !c.MemorySession {
+				dir := filepath.Dir(c.AuthKeyFile)
+				if info, err := os.Stat(dir); err == nil {
+					if info.IsDir() {
+						if testFile, err := os.CreateTemp(dir, ".write-test-*"); err != nil {
+							c.Logger.Warn("no write permission in session directory %s: %v", dir, err)
+						} else {
+							testFile.Close()
+							os.Remove(testFile.Name())
+						}
+					} else {
+						c.Logger.Warn("session directory path is not a directory: %s", dir)
+					}
+				}
 			}
-			return nil, fmt.Errorf("loading session: %w", err)
+			c.Logger.Warn("failed to load session: %v", err)
 		}
 	}
 	if c.Logger == nil {
@@ -433,8 +444,8 @@ func (m *MTProto) SwitchDc(dc int) error {
 	m.pendingAcks = utils.NewSyncSet[int64]()
 	m.currentSeqNo.Store(0)
 
-	m.authKey404 = [2]int64{0, 0}
-	m.authKey404 = [2]int64{0, 0}
+	m.authKey404Count.Store(0)
+	m.authKey404Time.Store(0)
 	m.connState.Attempts.Store(0)
 	m.connState.ConsecutiveTimeouts.Store(0)
 	m.connState.LastSuccessfulConnect.Store(0)
@@ -883,9 +894,9 @@ func (m *MTProto) makeRequestCtxWithDepth(ctx context.Context, data tl.Object, r
 	case resp := <-respChan:
 		m.connState.ConsecutiveTimeouts.Store(0)
 		if msgID != 0 {
+			sentTime, exists := m.messageTracker.Get(int(msgID))
 			m.messageTracker.Delete(int(msgID))
 			if reqType, ok := m.messageTypesMap.LoadAndDelete(msgID); ok {
-				sentTime, exists := m.messageTracker.Get(int(msgID))
 				if exists {
 					duration := time.Now().Unix() - sentTime
 					m.Logger.Trace("response received: %s -> %T (msgID=%d, latency=%ds, d=%d)",
@@ -1266,23 +1277,30 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 }
 
 func (m *MTProto) handle404Error() error {
-	if m.authKey404[0] == 0 && m.authKey404[1] == 0 {
-		m.authKey404 = [2]int64{1, time.Now().Unix()}
+	count := m.authKey404Count.Load()
+	lastTime := m.authKey404Time.Load()
+
+	if count == 0 && lastTime == 0 {
+		m.authKey404Count.Store(1)
+		m.authKey404Time.Store(time.Now().Unix())
 	} else {
 		currentTime := time.Now().Unix()
-		if currentTime-m.authKey404[1] < 2 { // time frame to check if the error is repeating
-			m.authKey404[0]++
+		if currentTime-lastTime < 2 { // time frame to check if the error is repeating
+			m.authKey404Count.Add(1)
+			count = m.authKey404Count.Load()
 		} else {
-			m.authKey404 = [2]int64{1, currentTime}
+			m.authKey404Count.Store(1)
+			m.authKey404Time.Store(currentTime)
+			count = 1
 		}
 	}
 
-	if m.authKey404[0] > 4 && m.authKey404[0] < 16 {
-		m.Logger.Debug("auth key error occurred %d times, reconnecting", m.authKey404[0])
+	if count > 4 && count < 16 {
+		m.Logger.Debug("auth key error occurred %d times, reconnecting", count)
 		if err := m.tryReconnect(); err != nil {
 			return err
 		}
-	} else if m.authKey404[0] >= 16 {
+	} else if count >= 16 {
 		m.errorHandler(ErrAuthKeyInvalid)
 		return ErrAuthKeyInvalid
 	}
