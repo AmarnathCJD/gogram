@@ -26,8 +26,11 @@ import (
 )
 
 var (
-	botTokenRegex = regexp.MustCompile(`^\d{8,10}:[A-Za-z0-9_-]{35}$`)
-	phoneRegex    = regexp.MustCompile(`^\+?[1-9]\d{6,14}$`)
+	botTokenRegex   = regexp.MustCompile(`^\d{8,10}:[A-Za-z0-9_-]{35}$`)
+	phoneRegex      = regexp.MustCompile(`^\+?[1-9]\d{6,14}$`)
+	appIDRegex      = regexp.MustCompile(`<label for="app_id".*?>.*?</label>\s*<div.*?>\s*<span.*?><strong>(\d+)</strong></span>`)
+	appHashRegex    = regexp.MustCompile(`<label for="app_hash".*?>.*?</label>\s*<div.*?>\s*<span.*?>([a-fA-F0-9]+)</span>`)
+	hiddenHashRegex = regexp.MustCompile(`<input type="hidden" name="hash" value="([a-fA-F0-9]+)"\/>`)
 )
 
 // ConnectBot connects to telegram using bot token
@@ -38,8 +41,15 @@ func (c *Client) ConnectBot(botToken string) error {
 	return c.LoginBot(botToken)
 }
 
-// InputProvider is a function type for custom input providers
 type InputProvider func(prompt string) (string, error)
+
+func cleanPhoneNumber(phone string) string {
+	phone = strings.ReplaceAll(phone, " ", "")
+	phone = strings.ReplaceAll(phone, "(", "")
+	phone = strings.ReplaceAll(phone, ")", "")
+	phone = strings.ReplaceAll(phone, "-", "")
+	return phone
+}
 
 // AuthPrompt prompts the user to enter a phone number or bot token to authorize the client.
 func (c *Client) AuthPrompt(provider ...InputProvider) error {
@@ -80,10 +90,7 @@ func (c *Client) AuthPrompt(provider ...InputProvider) error {
 			return nil
 		}
 
-		cleanInput := strings.ReplaceAll(input, " ", "")
-		cleanInput = strings.ReplaceAll(cleanInput, "(", "")
-		cleanInput = strings.ReplaceAll(cleanInput, ")", "")
-		cleanInput = strings.ReplaceAll(cleanInput, "-", "")
+		cleanInput := cleanPhoneNumber(input)
 
 		if phoneRegex.MatchString(cleanInput) {
 			if _, err := c.Login(cleanInput); err != nil {
@@ -270,11 +277,18 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 		c.Log.WithError(err).Warn("failed to save session")
 	}
 
+	if auth == nil {
+		return false, nil
+	}
+
 	switch auth := auth.(type) {
 	case *AuthAuthorizationSignUpRequired:
 		return false, errors.New("this phone number is not registered. Please sign up via the official Telegram app")
 
 	case *AuthAuthorizationObj:
+		if auth == nil {
+			return false, errors.New("authorization object is nil")
+		}
 		switch user := auth.User.(type) {
 		case *UserObj:
 			c.clientData.botAcc = user.Bot
@@ -287,8 +301,6 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 		default:
 			return false, fmt.Errorf("unexpected user type: %T", user)
 		}
-	case nil:
-		return false, nil
 
 	default:
 		return false, fmt.Errorf("unexpected authorization type: %T", auth)
@@ -442,16 +454,23 @@ type ScrapeConfig struct {
 	PhoneNum          string
 	WebCodeCallback   func() (string, error)
 	CreateIfNotExists bool
+	HTTPTimeout       time.Duration
 }
 
 func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, error) {
 	var conf = getVariadic(config, &ScrapeConfig{
 		CreateIfNotExists: true,
+		HTTPTimeout:       10 * time.Second,
 	})
 
 	if conf.PhoneNum == "" {
 		fmt.Printf("Enter phone number (with country code [+1xxx]): ")
 		fmt.Scanln(&conf.PhoneNum)
+	}
+
+	conf.PhoneNum = cleanPhoneNumber(conf.PhoneNum)
+	if !phoneRegex.MatchString(conf.PhoneNum) {
+		return 0, "", false, errors.New("invalid phone number format")
 	}
 
 	if conf.WebCodeCallback == nil {
@@ -464,7 +483,7 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 	}
 
 	customClient := &http.Client{
-		Timeout: time.Second * 10,
+		Timeout: conf.HTTPTimeout,
 	}
 
 	formData := url.Values{}
@@ -481,6 +500,7 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 	if err != nil || respCode.StatusCode != 200 {
 		return 0, "", false, err
 	}
+	defer respCode.Body.Close()
 
 	var result struct {
 		RandomHash string `json:"random_hash"`
@@ -511,6 +531,7 @@ func (c *Client) ScrapeAppConfig(config ...*ScrapeConfig) (int32, string, bool, 
 	if err != nil || respLogin.StatusCode != 200 {
 		return 0, "", false, err
 	}
+	defer respLogin.Body.Close()
 
 	cookies := respLogin.Cookies()
 	ALREADY_TRIED_CREATION := false
@@ -529,22 +550,18 @@ BackToAppsPage:
 	if err != nil || respScrape.StatusCode != 200 {
 		return 0, "", false, err
 	}
+	defer respScrape.Body.Close()
 
 	body, err := io.ReadAll(respScrape.Body)
 	if err != nil {
 		return 0, "", false, err
 	}
 
-	appIDRegex := regexp.MustCompile(`<label for="app_id".*?>.*?</label>\s*<div.*?>\s*<span.*?><strong>(\d+)</strong></span>`)
-	appHashRegex := regexp.MustCompile(`<label for="app_hash".*?>.*?</label>\s*<div.*?>\s*<span.*?>([a-fA-F0-9]+)</span>`)
-
 	appID := appIDRegex.FindStringSubmatch(string(body))
 	appHash := appHashRegex.FindStringSubmatch(string(body))
 
 	if len(appID) < 2 || len(appHash) < 2 || strings.Contains(string(body), "Create new application") && !ALREADY_TRIED_CREATION {
 		ALREADY_TRIED_CREATION = true
-		// assume app is not created, create app
-		hiddenHashRegex := regexp.MustCompile(`<input type="hidden" name="hash" value="([a-fA-F0-9]+)"\/>`)
 		hiddenHash := hiddenHashRegex.FindStringSubmatch(string(body))
 		if len(hiddenHash) < 2 {
 			return 0, "", false, errors.New("creation hash not found, try manual creation")
@@ -581,6 +598,7 @@ BackToAppsPage:
 		if err != nil || respCreateApp.StatusCode != 200 {
 			return 0, "", false, err
 		}
+		respCreateApp.Body.Close()
 
 		goto BackToAppsPage
 	}
