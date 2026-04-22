@@ -55,7 +55,7 @@ func (c *Client) GetGroupCall(chatId any) (*InputGroupCall, error) {
 	}
 
 	if inPeer, ok := resolvedPeer.(*InputPeerChannel); !ok {
-		return nil, fmt.Errorf("resolved peer is not a channel")
+		return nil, fmt.Errorf("resolved peer is not a channel, but %T", resolvedPeer)
 	} else {
 		fullchannel, err := c.ChannelsGetFullChannel(
 			&InputChannelObj{

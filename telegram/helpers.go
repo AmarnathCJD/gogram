@@ -479,9 +479,9 @@ func (c *Client) GetSendableChannel(PeerID any) (InputChannel, error) {
 	case *InputPeerChannelFromMessage:
 		return &InputChannelFromMessage{Peer: rawPeer.Peer, MsgID: rawPeer.MsgID, ChannelID: rawPeer.ChannelID}, nil
 	case *InputPeerChat, *InputPeerUser:
-		return nil, fmt.Errorf("given peer is not a channel")
+		return nil, fmt.Errorf("given peer is not a channel, but %T", rawPeer)
 	default:
-		return nil, fmt.Errorf("failed to get sendable channel, unknown type %s", reflect.TypeOf(rawPeer).String())
+		return nil, fmt.Errorf("failed to get sendable channel, unknown type %T", rawPeer)
 	}
 }
 
@@ -497,9 +497,9 @@ func (c *Client) GetSendableUser(PeerID any) (InputUser, error) {
 	case *InputPeerUserFromMessage:
 		return &InputUserFromMessage{Peer: rawPeer.Peer, MsgID: rawPeer.MsgID, UserID: rawPeer.UserID}, nil
 	case *InputPeerChat, *InputPeerChannel:
-		return nil, fmt.Errorf("given peer is not a user")
+		return nil, fmt.Errorf("given peer is not a user, but %T", rawPeer)
 	default:
-		return nil, fmt.Errorf("failed to get sendable user, unknown type %s", reflect.TypeOf(rawPeer).String())
+		return nil, fmt.Errorf("failed to get sendable user, unknown type %T", rawPeer)
 	}
 }
 

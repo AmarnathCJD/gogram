@@ -1879,7 +1879,7 @@ func (c *Client) InlineQuery(peerID any, Options ...*InlineOptions) (*MessagesBo
 	}
 	bot, ok := peer.(*InputPeerUser)
 	if !ok {
-		return nil, errors.New("peer is not a bot")
+		return nil, fmt.Errorf("peer is not a bot, but %T", peer)
 	}
 	resp, err := c.MessagesGetInlineBotResults(&MessagesGetInlineBotResultsParams{
 		Bot:      &InputUserObj{UserID: bot.UserID, AccessHash: bot.AccessHash},
