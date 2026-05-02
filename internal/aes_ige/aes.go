@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/subtle"
 	"fmt"
 	"math/big"
 
@@ -442,7 +443,7 @@ func DecryptMessageMTProto(key []byte, msgKey []byte, encrypted []byte, isOrigin
 	msgKeyLarge := h.Sum(nil)
 	expectedMsgKey := msgKeyLarge[8:24]
 
-	if !bytes.Equal(msgKey, expectedMsgKey) {
+	if subtle.ConstantTimeCompare(msgKey, expectedMsgKey) != 1 {
 		return nil, errors.New("msg_key mismatch")
 	}
 

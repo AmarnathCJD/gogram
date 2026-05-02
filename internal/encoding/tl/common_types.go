@@ -27,7 +27,11 @@ func RandomInt128() *Int128 {
 // MarshalTL implements tl marshaler from this package. Just don't use it by your hands, tl.Encoder does all
 // what you need
 func (i *Int128) MarshalTL(e *Encoder) error {
-	e.PutRawBytes(BigIntBytes(i.Int, Int128Len*bitsInByte))
+	b, err := BigIntBytes(i.Int, Int128Len*bitsInByte)
+	if err != nil {
+		return err
+	}
+	e.PutRawBytes(b)
 	return nil
 }
 
@@ -63,7 +67,11 @@ func RandomInt256() *Int256 {
 // MarshalTL implements tl marshaler from this package. Just don't use it by your hands, tl.Encoder does all
 // what you need
 func (i *Int256) MarshalTL(e *Encoder) error {
-	e.PutRawBytes(BigIntBytes(i.Int, Int256Len*bitsInByte))
+	b, err := BigIntBytes(i.Int, Int256Len*bitsInByte)
+	if err != nil {
+		return err
+	}
+	e.PutRawBytes(b)
 	return nil
 }
 

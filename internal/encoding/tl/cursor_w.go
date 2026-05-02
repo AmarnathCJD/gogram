@@ -166,7 +166,8 @@ func (e *Encoder) PutVector(v any) {
 
 	slice := reflect.ValueOf(v)
 	if slice.Kind() != reflect.Slice {
-		panic("not a slice: " + slice.Type().String())
+		e.err = fmt.Errorf("PutVector: not a slice: %s", slice.Type().String())
+		return
 	}
 
 	e.PutCRC(CrcVector)

@@ -208,7 +208,8 @@ func (d *Decoder) decodeValue(value reflect.Value) {
 			}
 		}
 	default:
-		panic("unknown kind of value: " + value.Type().String())
+		d.err = fmt.Errorf("unknown kind of value: %s", value.Type().String())
+		return
 	}
 
 	if d.err != nil {
@@ -241,7 +242,8 @@ func (d *Decoder) decodeValueGeneral(value reflect.Value) any {
 		val = string(d.PopMessage())
 
 	case reflect.Chan, reflect.Func, reflect.Uintptr, reflect.UnsafePointer:
-		panic(value.Kind().String() + " is not supported")
+		d.err = fmt.Errorf("%s is not supported", value.Kind().String())
+		return nil
 
 	case reflect.Struct:
 		d.err = fmt.Errorf("%v must implement tl.Object for decoding (also it must be pointer)", value.Type())

@@ -34,7 +34,27 @@ func (m *MTProto) makeTempAuthKey(expiresIn int32) error {
 	return m.makeAuthKeyInternal(expiresIn)
 }
 
+const maxAuthKeyDecryptRetries = 5
+
 func (m *MTProto) makeAuthKeyInternal(expiresIn int32) error {
+	for attempt := 0; ; attempt++ {
+		err := m.makeAuthKeyOnce(expiresIn)
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, errAuthKeyDecryptRetry) {
+			return err
+		}
+		if attempt+1 >= maxAuthKeyDecryptRetries {
+			return fmt.Errorf("auth key generation: decrypt failed after %d attempts: %w", maxAuthKeyDecryptRetries, err)
+		}
+		m.Logger.WithError(err).Debugf("decrypt failed - retrying auth key generation (attempt %d/%d)", attempt+2, maxAuthKeyDecryptRetries)
+	}
+}
+
+var errAuthKeyDecryptRetry = errors.New("auth key decrypt failed")
+
+func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
 	isTemp := expiresIn > 0
 
 	m.serviceModeActivated = true
@@ -124,7 +144,10 @@ func (m *MTProto) makeAuthKeyInternal(expiresIn int32) error {
 	hashAndMsg := make([]byte, 255)
 	copy(hashAndMsg, append(utils.Sha1(string(message)), message...))
 
-	encryptedMessage := math.DoRSAencrypt(hashAndMsg, m.publicKey)
+	encryptedMessage, err := math.DoRSAencrypt(hashAndMsg, m.publicKey)
+	if err != nil {
+		return fmt.Errorf("rsa encrypt: %w", err)
+	}
 
 	keyFingerprint := int64(binary.LittleEndian.Uint64(keys.RSAFingerprint(m.publicKey)))
 	dhResponse, err := m.reqDHParams(nonceFirst, nonceServer, p.Bytes(), q.Bytes(), keyFingerprint, encryptedMessage)
@@ -145,8 +168,7 @@ func (m *MTProto) makeAuthKeyInternal(expiresIn int32) error {
 
 	decodedMessage, err := ige.DecryptMessageWithTempKeys(dhParams.EncryptedAnswer, nonceSecond.Int, nonceServer.Int)
 	if err != nil {
-		m.Logger.WithError(err).Debug("decrypt failed - retrying auth key generation")
-		return m.makeAuthKeyInternal(expiresIn)
+		return fmt.Errorf("%w: %w", errAuthKeyDecryptRetry, err)
 	}
 
 	data, err := tl.DecodeUnknownObject(decodedMessage)

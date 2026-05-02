@@ -30,9 +30,13 @@ func (*Generator) createInitStructs(itemNames ...string) jen.Code {
 		structs[i] = jen.Op("&").Id(item).Block()
 	}
 
-	return jen.Qual(tlPackagePath, "RegisterObjects").CallN(
-		structs...,
+	stmt := jen.Qual(tlPackagePath, "RegisterObjects").Call(
+		jen.Custom(jen.Options{
+			Multi: true,
+		}, structs...),
 	)
+
+	return stmt
 }
 
 var customStructs = map[string]uint32{
@@ -63,7 +67,9 @@ func (*Generator) createInitEnums(itemNames ...string) jen.Code {
 		enums[i] = jen.Id(item)
 	}
 
-	return jen.Qual(tlPackagePath, "RegisterEnums").CallN(
-		enums...,
+	return jen.Qual(tlPackagePath, "RegisterEnums").Call(
+		jen.Custom(jen.Options{
+			Multi: true,
+		}, enums...),
 	)
 }

@@ -184,16 +184,3 @@ func (c *Encoder) encodeVectorValue(slice reflect.Value) {
 		}
 	}
 }
-
-func (c *Encoder) encodeVector(slice ...any) {
-	c.PutCRC(CrcVector)
-	c.PutUint(uint32(len(slice)))
-
-	for i, item := range slice {
-		c.encodeValue(reflect.ValueOf(item))
-		if c.err != nil {
-			c.err = fmt.Errorf("[%v]: %w", i, c.err)
-			return
-		}
-	}
-}

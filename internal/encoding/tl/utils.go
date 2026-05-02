@@ -6,41 +6,12 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
-	"reflect"
+	"slices"
 )
 
 func padding4(size int) int {
 	t := (-uint64(size)) & 3
 	return int(t)
-}
-
-func haveFlag(v any) bool {
-	typ := reflect.TypeOf(v)
-	cachedTags := GetCachedTags(typ)
-	for _, info := range cachedTags {
-		if info != nil && !info.ignore {
-			return true
-		}
-	}
-	return false
-}
-
-func sliceToInterfaceSlice(in any) []any {
-	if in == nil {
-		return nil
-	}
-
-	ival := reflect.ValueOf(in)
-	if ival.Type().Kind() != reflect.Slice {
-		panic("not a slice: " + ival.Type().String())
-	}
-
-	res := make([]any, ival.Len())
-	for i := 0; i < ival.Len(); i++ {
-		res[i] = ival.Index(i).Interface()
-	}
-
-	return res
 }
 
 func RandomBytes(size int) []byte {
@@ -61,23 +32,19 @@ var BitLengths = []int{
 	1 << 11, // 2048
 }
 
-func BigIntBytes(v *big.Int, bitsize int) []byte {
+func BigIntBytes(v *big.Int, bitsize int) ([]byte, error) {
 	vbytes := v.Bytes()
 	vbytesLen := len(vbytes)
-	for i, b := range BitLengths {
-		if b == bitsize {
-			break
-		}
 
-		if i == len(BitLengths)-1 {
-			panic(fmt.Errorf("bitsize not squaring by 2: bitsize %v", bitsize))
-		}
+	known := slices.Contains(BitLengths, bitsize)
+	if !known {
+		return nil, fmt.Errorf("BigIntBytes: bitsize not a power of two in 8..2048: %d", bitsize)
 	}
 
 	offset := bitsize/8 - vbytesLen
 	if offset < 0 {
-		panic(fmt.Errorf("bitsize too small: have %v, want at least %v", bitsize, vbytes))
+		return nil, fmt.Errorf("BigIntBytes: value too large for bitsize: have %d bytes, max %d", vbytesLen, bitsize/8)
 	}
 
-	return append(make([]byte, offset), vbytes...)
+	return append(make([]byte, offset), vbytes...), nil
 }

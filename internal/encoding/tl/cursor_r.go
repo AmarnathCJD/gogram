@@ -13,6 +13,7 @@ import (
 )
 
 const largeBufferThreshold = 128 * 1024 // 128KB
+const maxVectorElements = 1 << 24
 
 // LargeBytePool reuses large byte buffers (>= 128KB) to reduce heap
 // allocations during file downloads. Callers that receive a large []byte
@@ -227,6 +228,16 @@ func (d *Decoder) popVector(as reflect.Type, ignoreCRC bool) any {
 		return nil
 	}
 
+	if size > maxVectorElements {
+		d.err = fmt.Errorf("vector size %d exceeds max %d", size, maxVectorElements)
+		return nil
+	}
+
+	if int(size) > d.buf.Len() {
+		d.err = fmt.Errorf("vector size %d exceeds remaining input %d", size, d.buf.Len())
+		return nil
+	}
+
 	x := reflect.MakeSlice(reflect.SliceOf(as), int(size), int(size))
 	for i := 0; i < int(size); i++ {
 		var val reflect.Value
@@ -272,6 +283,11 @@ func (d *Decoder) PopMessage() []byte {
 
 		realSize = int(uint32(sizeBuf[0]) | uint32(sizeBuf[1])<<8 | uint32(sizeBuf[2])<<16)
 		lenNumberSize = WordLen
+	}
+	
+	if realSize > d.buf.Len() {
+		d.err = fmt.Errorf("message size %d exceeds remaining input %d", realSize, d.buf.Len())
+		return nil
 	}
 
 	var buf []byte

@@ -4,6 +4,7 @@ package math
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"fmt"
 	"math"
 	"math/big"
 	"math/bits"
@@ -13,9 +14,9 @@ import (
 // This is a custom algorithm for MTProto. The Telegram documentation does not specify
 // whether this encryption follows OAEP or any other standard padding scheme.
 // Use only for MTProto protocol blocks, not for general-purpose RSA encryption.
-func DoRSAencrypt(block []byte, key *rsa.PublicKey) []byte {
+func DoRSAencrypt(block []byte, key *rsa.PublicKey) ([]byte, error) {
 	if len(block) != math.MaxUint8 {
-		panic("block size isn't equal 255 bytes")
+		return nil, fmt.Errorf("DoRSAencrypt: block size must be %d bytes, got %d", math.MaxUint8, len(block))
 	}
 	z := big.NewInt(0).SetBytes(block)
 	exponent := big.NewInt(int64(key.E))
@@ -25,7 +26,7 @@ func DoRSAencrypt(block []byte, key *rsa.PublicKey) []byte {
 	res := make([]byte, 256)
 	copy(res, c.Bytes())
 
-	return res
+	return res, nil
 }
 
 func MakeGAB(g int32, g_a, dh_prime *big.Int) (b, g_b, g_ab *big.Int) {
