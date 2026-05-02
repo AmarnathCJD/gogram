@@ -1307,10 +1307,13 @@ func (c *Client) handleMessageUpdate(update Message) {
 		}
 
 	case *MessageService:
-		packed := packMessage(c, msg)
 		if msg.Out {
 			return
 		}
+		if !c.dispatcher.TryMarkMessageProcessed(serviceMessageDedupeKey(msg)) {
+			return
+		}
+		packed := packMessage(c, msg)
 
 		c.dispatcher.RLock()
 		actionHandles := make(map[int][]*chatActionHandle)
@@ -2720,24 +2723,38 @@ func messageDedupeKey(msg *MessageObj, isEdit bool) int64 {
 	if msg == nil {
 		return 0
 	}
-	var peerKey int64
-	if msg.Out {
-		peerKey = messagePeerKey(msg.FromID)
-		if peerKey == 0 {
-			peerKey = messagePeerKey(msg.PeerID)
-		}
-	} else {
-		peerKey = messagePeerKey(msg.PeerID)
-		if peerKey == 0 {
-			peerKey = messagePeerKey(msg.FromID)
-		}
-	}
-	key := (peerKey << 32) ^ int64(uint32(msg.ID))
+	key := dedupeKeyFromFields(msg.ID, msg.FromID, msg.PeerID, msg.Out)
 	if isEdit {
 		key ^= int64(msg.EditDate) << 1
 		key ^= 0x5f356495
 	}
-	if msg.Out {
+	return key
+}
+
+func serviceMessageDedupeKey(msg *MessageService) int64 {
+	if msg == nil {
+		return 0
+	}
+	key := dedupeKeyFromFields(msg.ID, msg.FromID, msg.PeerID, msg.Out)
+	key ^= 0x73767063
+	return key
+}
+
+func dedupeKeyFromFields(id int32, fromID Peer, peerID Peer, out bool) int64 {
+	var peerKey int64
+	if out {
+		peerKey = messagePeerKey(fromID)
+		if peerKey == 0 {
+			peerKey = messagePeerKey(peerID)
+		}
+	} else {
+		peerKey = messagePeerKey(peerID)
+		if peerKey == 0 {
+			peerKey = messagePeerKey(fromID)
+		}
+	}
+	key := (peerKey << 32) ^ int64(uint32(id))
+	if out {
 		key ^= 1 << 62
 	}
 	return key
@@ -2927,7 +2944,8 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
 
 			for _, message := range u.NewMessages {
-				if msg, ok := message.(*MessageObj); ok {
+				switch msg := message.(type) {
+				case *MessageObj, *MessageService:
 					go c.handleMessageUpdate(msg)
 					totalFetched++
 				}
@@ -2948,7 +2966,8 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
 
 			for _, message := range u.NewMessages {
-				if msg, ok := message.(*MessageObj); ok {
+				switch msg := message.(type) {
+				case *MessageObj, *MessageService:
 					go c.handleMessageUpdate(msg)
 					totalFetched++
 				}
@@ -3169,7 +3188,11 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
 
 			for _, message := range d.NewMessages {
-				if msg, ok := message.(*MessageObj); ok {
+				switch msg := message.(type) {
+				case *MessageObj:
+					go c.handleMessageUpdate(msg)
+					totalFetched++
+				case *MessageService:
 					go c.handleMessageUpdate(msg)
 					totalFetched++
 				}
@@ -3199,7 +3222,8 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 		case *UpdatesChannelDifferenceTooLong:
 			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
 			for _, message := range d.Messages {
-				if msg, ok := message.(*MessageObj); ok {
+				switch msg := message.(type) {
+				case *MessageObj, *MessageService:
 					go c.handleMessageUpdate(msg)
 					totalFetched++
 				}
@@ -3352,8 +3376,9 @@ func (c *Client) pollOpenChat(channelID int64, chat *openChat) {
 		case *UpdatesChannelDifferenceObj:
 			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
 			for _, msg := range d.NewMessages {
-				if msgObj, ok := msg.(*MessageObj); ok {
-					go c.handleMessageUpdate(msgObj)
+				switch m := msg.(type) {
+				case *MessageObj, *MessageService:
+					go c.handleMessageUpdate(m)
 				}
 			}
 			if len(d.OtherUpdates) > 0 {
@@ -3368,8 +3393,9 @@ func (c *Client) pollOpenChat(channelID int64, chat *openChat) {
 		case *UpdatesChannelDifferenceTooLong:
 			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
 			for _, msg := range d.Messages {
-				if msgObj, ok := msg.(*MessageObj); ok {
-					go c.handleMessageUpdate(msgObj)
+				switch m := msg.(type) {
+				case *MessageObj, *MessageService:
+					go c.handleMessageUpdate(m)
 				}
 			}
 			chat.Lock()
