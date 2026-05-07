@@ -258,8 +258,8 @@ func root(tlfile, outdir string, d bool, rlayer string) error {
 	log.Println("INFO: Applying minor fixes")
 	minorFixes(outdir, rlayer)
 	if err != nil {
-		log.Printf("WARN: Generation completed with errors (ignored): %v\n", err)
-		return fmt.Errorf("generate code: error (ignored)")
+		log.Printf("ERROR: Code generation failed: %+v\n", err)
+		return fmt.Errorf("generate code: %w", err)
 	}
 
 	log.Printf("INFO: Code generation completed in %v\n", time.Since(startTime))

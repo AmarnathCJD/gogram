@@ -98,6 +98,7 @@ func (*AccountPaidMessagesRevenue) CRC() uint32 {
 	return 0x1e109708
 }
 
+// Passkey registration options
 type AccountPasskeyRegistrationOptions struct {
 	Options *DataJson
 }
@@ -106,6 +107,7 @@ func (*AccountPasskeyRegistrationOptions) CRC() uint32 {
 	return 0xe16b5ce1
 }
 
+// List of passkeys associated to the current account.
 type AccountPasskeys struct {
 	Passkeys []*Passkey
 }
@@ -246,6 +248,15 @@ func (*AccountDaysTtl) CRC() uint32 {
 	return 0xb8d0afdf
 }
 
+type AiComposeToneExample struct {
+	From *TextWithEntities
+	To   *TextWithEntities
+}
+
+func (*AiComposeToneExample) CRC() uint32 {
+	return 0xf1d628ec
+}
+
 // Represents a bot mini app that can be launched from the attachment/side menu
 type AttachMenuBot struct {
 	Inactive                 bool `tl:"flag:0,encoded_in_bitflags"`
@@ -303,6 +314,7 @@ func (*AttachMenuBotsBot) CRC() uint32 {
 	return 0x93bf667f
 }
 
+// Describes a bid in an auction.
 type AuctionBidLevel struct {
 	Pos    int32
 	Amount int64
@@ -336,6 +348,7 @@ func (*AuthLoggedOut) FlagIndex() int {
 	return 0
 }
 
+// Passkey login options
 type AuthPasskeyLoginOptions struct {
 	Options *DataJson
 }
@@ -621,6 +634,19 @@ func (*BotVerifierSettings) CRC() uint32 {
 }
 
 func (*BotVerifierSettings) FlagIndex() int {
+	return 0
+}
+
+type BotsAccessSettings struct {
+	Restricted bool   `tl:"flag:0,encoded_in_bitflags"`
+	AddUsers   []User `tl:"flag:1"`
+}
+
+func (*BotsAccessSettings) CRC() uint32 {
+	return 0xdd1fbf93
+}
+
+func (*BotsAccessSettings) FlagIndex() int {
 	return 0
 }
 
@@ -995,6 +1021,7 @@ type ChatBannedRights struct {
 	SendDocs        bool `tl:"flag:24,encoded_in_bitflags"`
 	SendPlain       bool `tl:"flag:25,encoded_in_bitflags"`
 	EditRank        bool `tl:"flag:26,encoded_in_bitflags"`
+	SendReactions   bool `tl:"flag:27,encoded_in_bitflags"`
 	UntilDate       int32
 }
 
@@ -2141,6 +2168,7 @@ func (*KeyboardButtonRow) CRC() uint32 {
 	return 0x77608b83
 }
 
+// This constructor allows setting a custom background color and custom emoji label for a button
 type KeyboardButtonStyle struct {
 	BgPrimary bool  `tl:"flag:0,encoded_in_bitflags"`
 	BgDanger  bool  `tl:"flag:1,encoded_in_bitflags"`
@@ -2511,6 +2539,7 @@ func (*MessagesCheckedHistoryImportPeer) CRC() uint32 {
 	return 0xa24de717
 }
 
+// Represents a message modified by AI.
 type MessagesComposedMessageWithAi struct {
 	ResultText *TextWithEntities
 	DiffText   *TextWithEntities `tl:"flag:0"`
@@ -2981,6 +3010,7 @@ func (*PageTableRow) CRC() uint32 {
 	return 0xe0c0c5e5
 }
 
+// Human-readable info about a passkey associated to an account, returned when creating a passkey or listing passkeys.
 type Passkey struct {
 	ID              string
 	Name            string
@@ -3146,6 +3176,7 @@ func (*PaymentsSavedStarGifts) FlagIndex() int {
 	return 0
 }
 
+// Describes all the gifts that the current user won in an auction.
 type PaymentsStarGiftAuctionAcquiredGifts struct {
 	Gifts []*StarGiftAuctionAcquiredGift
 	Users []User
@@ -3156,6 +3187,7 @@ func (*PaymentsStarGiftAuctionAcquiredGifts) CRC() uint32 {
 	return 0x7d5bd1f0
 }
 
+// Describes a collectible gift auction.
 type PaymentsStarGiftAuctionState struct {
 	Gift      StarGift
 	State     StarGiftAuctionState
@@ -3537,15 +3569,17 @@ type Poll struct {
 	ShuffleAnswers        bool `tl:"flag:8,encoded_in_bitflags"`
 	HideResultsUntilClose bool `tl:"flag:9,encoded_in_bitflags"`
 	Creator               bool `tl:"flag:10,encoded_in_bitflags"`
+	SubscribersOnly       bool `tl:"flag:11,encoded_in_bitflags"`
 	Question              *TextWithEntities
 	Answers               []PollAnswer
-	ClosePeriod           int32 `tl:"flag:4"`
-	CloseDate             int32 `tl:"flag:5"`
+	ClosePeriod           int32    `tl:"flag:4"`
+	CloseDate             int32    `tl:"flag:5"`
+	CountriesIso2         []string `tl:"flag:12"`
 	Hash                  int64
 }
 
 func (*Poll) CRC() uint32 {
-	return 0xb8425be9
+	return 0x966e2dbf
 }
 
 func (*Poll) FlagIndex() int {
@@ -3573,6 +3607,7 @@ func (*PollAnswerVoters) FlagIndex() int {
 type PollResults struct {
 	Min              bool                `tl:"flag:0,encoded_in_bitflags"`
 	HasUnreadVotes   bool                `tl:"flag:6,encoded_in_bitflags"`
+	CanViewStats     bool                `tl:"flag:7,encoded_in_bitflags"`
 	Results          []*PollAnswerVoters `tl:"flag:1"`
 	TotalVoters      int32               `tl:"flag:2"`
 	RecentVoters     []Peer              `tl:"flag:3"`
@@ -4073,6 +4108,7 @@ func (*SponsoredPeer) FlagIndex() int {
 	return 0
 }
 
+// Contains info about an auction where the user has placed a bid.
 type StarGiftActiveAuctionState struct {
 	Gift      StarGift
 	State     StarGiftAuctionState
@@ -4093,6 +4129,7 @@ func (*StarGiftAttributeCounter) CRC() uint32 {
 	return 0x2eb1b658
 }
 
+// Describes a gift that the current user won in an auction.
 type StarGiftAuctionAcquiredGift struct {
 	NameHidden bool `tl:"flag:0,encoded_in_bitflags"`
 	Peer       Peer
@@ -4112,6 +4149,7 @@ func (*StarGiftAuctionAcquiredGift) FlagIndex() int {
 	return 0
 }
 
+// Contains information about the current user's state in an auction.
 type StarGiftAuctionUserState struct {
 	Returned      bool  `tl:"flag:1,encoded_in_bitflags"`
 	BidAmount     int64 `tl:"flag:0"`
@@ -4431,6 +4469,14 @@ type StatsMessageStats struct {
 
 func (*StatsMessageStats) CRC() uint32 {
 	return 0x7fe91c14
+}
+
+type StatsPollStats struct {
+	VotesGraph StatsGraph
+}
+
+func (*StatsPollStats) CRC() uint32 {
+	return 0x2999beed
 }
 
 // Contains info about the forwards of a story as a message to public chats and reposts by public channels.

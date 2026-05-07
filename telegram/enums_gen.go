@@ -380,6 +380,7 @@ type TopPeerCategory uint32
 
 const (
 	TopPeerCategoryBotsApp        TopPeerCategory = 0xfd9e7bec
+	TopPeerCategoryBotsGuestChat  TopPeerCategory = 0x6c24f3dd
 	TopPeerCategoryBotsInline     TopPeerCategory = 0x148677e2
 	TopPeerCategoryBotsPm         TopPeerCategory = 0xab661b5b
 	TopPeerCategoryChannels       TopPeerCategory = 0x161d9628
@@ -394,6 +395,8 @@ func (e TopPeerCategory) String() string {
 	switch e {
 	case TopPeerCategory(0xfd9e7bec):
 		return "topPeerCategoryBotsApp"
+	case TopPeerCategory(0x6c24f3dd):
+		return "topPeerCategoryBotsGuestChat"
 	case TopPeerCategory(0x148677e2):
 		return "topPeerCategoryBotsInline"
 	case TopPeerCategory(0xab661b5b):

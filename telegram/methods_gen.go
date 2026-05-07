@@ -368,6 +368,7 @@ func (*AccountDeletePasskeyParams) CRC() uint32 {
 	return 0xf5b5563f
 }
 
+// Delete a passkey associated to the current account
 func (c *Client) AccountDeletePasskey(id string) (bool, error) {
 	responseData, err := c.MakeRequest(&AccountDeletePasskeyParams{ID: id})
 	if err != nil {
@@ -1015,6 +1016,7 @@ func (*AccountGetPasskeysParams) CRC() uint32 {
 	return 0xea1f0c52
 }
 
+// List the passkeys associated to the current account that can be used to log in
 func (c *Client) AccountGetPasskeys() (*AccountPasskeys, error) {
 	responseData, err := c.MakeRequest(&AccountGetPasskeysParams{})
 	if err != nil {
@@ -1376,6 +1378,7 @@ func (*AccountInitPasskeyRegistrationParams) CRC() uint32 {
 	return 0x429547e8
 }
 
+// Initialize passkey registration for the current account
 func (c *Client) AccountInitPasskeyRegistration() (*AccountPasskeyRegistrationOptions, error) {
 	responseData, err := c.MakeRequest(&AccountInitPasskeyRegistrationParams{})
 	if err != nil {
@@ -1542,6 +1545,7 @@ func (*AccountRegisterPasskeyParams) CRC() uint32 {
 	return 0x55b41fd6
 }
 
+// Complete passkey registration for the current account
 func (c *Client) AccountRegisterPasskey(credential InputPasskeyCredential) (*Passkey, error) {
 	responseData, err := c.MakeRequest(&AccountRegisterPasskeyParams{Credential: credential})
 	if err != nil {
@@ -3024,6 +3028,181 @@ func (c *Client) AccountVerifyPhone(phoneNumber, phoneCodeHash, phoneCode string
 	return resp, nil
 }
 
+type AicomposeCreateToneParams struct {
+	DisplayAuthor bool `tl:"flag:0,encoded_in_bitflags"`
+	EmojiID       int64
+	Title         string
+	Prompt        string
+}
+
+func (*AicomposeCreateToneParams) CRC() uint32 {
+	return 0x4aa83913
+}
+
+func (*AicomposeCreateToneParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AicomposeCreateTone(displayAuthor bool, emojiID int64, title, prompt string) (AiComposeTone, error) {
+	responseData, err := c.MakeRequest(&AicomposeCreateToneParams{
+		DisplayAuthor: displayAuthor,
+		EmojiID:       emojiID,
+		Prompt:        prompt,
+		Title:         title,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending AicomposeCreateTone: %w", err)
+	}
+
+	resp, ok := responseData.(AiComposeTone)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AicomposeDeleteToneParams struct {
+	Tone InputAiComposeTone
+}
+
+func (*AicomposeDeleteToneParams) CRC() uint32 {
+	return 0xdd39316a
+}
+
+func (c *Client) AicomposeDeleteTone(tone InputAiComposeTone) (bool, error) {
+	responseData, err := c.MakeRequest(&AicomposeDeleteToneParams{Tone: tone})
+	if err != nil {
+		return false, fmt.Errorf("sending AicomposeDeleteTone: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AicomposeGetToneParams struct {
+	Tone InputAiComposeTone
+}
+
+func (*AicomposeGetToneParams) CRC() uint32 {
+	return 0xb2e8ba03
+}
+
+func (c *Client) AicomposeGetTone(tone InputAiComposeTone) (AicomposeTones, error) {
+	responseData, err := c.MakeRequest(&AicomposeGetToneParams{Tone: tone})
+	if err != nil {
+		return nil, fmt.Errorf("sending AicomposeGetTone: %w", err)
+	}
+
+	resp, ok := responseData.(AicomposeTones)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AicomposeGetToneExampleParams struct {
+	Tone InputAiComposeTone
+	Num  int32
+}
+
+func (*AicomposeGetToneExampleParams) CRC() uint32 {
+	return 0xd1b4ab14
+}
+
+func (c *Client) AicomposeGetToneExample(tone InputAiComposeTone, num int32) (*AiComposeToneExample, error) {
+	responseData, err := c.MakeRequest(&AicomposeGetToneExampleParams{
+		Num:  num,
+		Tone: tone,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending AicomposeGetToneExample: %w", err)
+	}
+
+	resp, ok := responseData.(*AiComposeToneExample)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AicomposeGetTonesParams struct {
+	Hash int64
+}
+
+func (*AicomposeGetTonesParams) CRC() uint32 {
+	return 0xabd59201
+}
+
+func (c *Client) AicomposeGetTones(hash int64) (AicomposeTones, error) {
+	responseData, err := c.MakeRequest(&AicomposeGetTonesParams{Hash: hash})
+	if err != nil {
+		return nil, fmt.Errorf("sending AicomposeGetTones: %w", err)
+	}
+
+	resp, ok := responseData.(AicomposeTones)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AicomposeSaveToneParams struct {
+	Tone   InputAiComposeTone
+	Unsave bool
+}
+
+func (*AicomposeSaveToneParams) CRC() uint32 {
+	return 0x1782cbb1
+}
+
+func (c *Client) AicomposeSaveTone(tone InputAiComposeTone, unsave bool) (bool, error) {
+	responseData, err := c.MakeRequest(&AicomposeSaveToneParams{
+		Tone:   tone,
+		Unsave: unsave,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending AicomposeSaveTone: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AicomposeUpdateToneParams struct {
+	Tone          InputAiComposeTone
+	DisplayAuthor bool   `tl:"flag:0"`
+	EmojiID       int64  `tl:"flag:1"`
+	Title         string `tl:"flag:2"`
+	Prompt        string `tl:"flag:3"`
+}
+
+func (*AicomposeUpdateToneParams) CRC() uint32 {
+	return 0x903bcf59
+}
+
+func (*AicomposeUpdateToneParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AicomposeUpdateTone(params *AicomposeUpdateToneParams) (AiComposeTone, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, fmt.Errorf("sending AicomposeUpdateTone: %w", err)
+	}
+
+	resp, ok := responseData.(AiComposeTone)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type AuthAcceptLoginTokenParams struct {
 	Token []byte
 }
@@ -3260,6 +3439,7 @@ func (*AuthFinishPasskeyLoginParams) FlagIndex() int {
 	return 0
 }
 
+// Complete login with a passkey over an unauthenticated connection
 func (c *Client) AuthFinishPasskeyLogin(credential InputPasskeyCredential, fromDcID int32, fromAuthKeyID int64) (AuthAuthorization, error) {
 	responseData, err := c.MakeRequest(&AuthFinishPasskeyLoginParams{
 		Credential:    credential,
@@ -3392,6 +3572,7 @@ func (*AuthInitPasskeyLoginParams) CRC() uint32 {
 	return 0x518ad0b7
 }
 
+// Initialize login with a passkey over an unauthenticated connection
 func (c *Client) AuthInitPasskeyLogin(apiID int32, apiHash string) (*AuthPasskeyLoginOptions, error) {
 	responseData, err := c.MakeRequest(&AuthInitPasskeyLoginParams{
 		APIHash: apiHash,
@@ -3916,6 +4097,37 @@ func (c *Client) BotsDeletePreviewMedia(bot InputUser, langCode string, media []
 	return resp, nil
 }
 
+type BotsEditAccessSettingsParams struct {
+	Restricted bool `tl:"flag:0,encoded_in_bitflags"`
+	Bot        InputUser
+	AddUsers   []InputUser `tl:"flag:1"`
+}
+
+func (*BotsEditAccessSettingsParams) CRC() uint32 {
+	return 0x31813cd8
+}
+
+func (*BotsEditAccessSettingsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) BotsEditAccessSettings(restricted bool, bot InputUser, addUsers []InputUser) (bool, error) {
+	responseData, err := c.MakeRequest(&BotsEditAccessSettingsParams{
+		AddUsers:   addUsers,
+		Bot:        bot,
+		Restricted: restricted,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending BotsEditAccessSettings: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type BotsEditPreviewMediaParams struct {
 	Bot      InputUser
 	LangCode string
@@ -3965,6 +4177,27 @@ func (c *Client) BotsExportBotToken(bot InputUser, revoke bool) (*BotsExportedBo
 	}
 
 	resp, ok := responseData.(*BotsExportedBotToken)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type BotsGetAccessSettingsParams struct {
+	Bot InputUser
+}
+
+func (*BotsGetAccessSettingsParams) CRC() uint32 {
+	return 0x213853a3
+}
+
+func (c *Client) BotsGetAccessSettings(bot InputUser) (*BotsAccessSettings, error) {
+	responseData, err := c.MakeRequest(&BotsGetAccessSettingsParams{Bot: bot})
+	if err != nil {
+		return nil, fmt.Errorf("sending BotsGetAccessSettings: %w", err)
+	}
+
+	resp, ok := responseData.(*BotsAccessSettings)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -6856,6 +7089,7 @@ type ContactsGetTopPeersParams struct {
 	Groups         bool `tl:"flag:10,encoded_in_bitflags"`
 	Channels       bool `tl:"flag:15,encoded_in_bitflags"`
 	BotsApp        bool `tl:"flag:16,encoded_in_bitflags"`
+	BotsGuestchat  bool `tl:"flag:17,encoded_in_bitflags"`
 	Offset         int32
 	Limit          int32
 	Hash           int64
@@ -8243,18 +8477,19 @@ type MessagesComposeMessageWithAiParams struct {
 	Proofread       bool `tl:"flag:0,encoded_in_bitflags"`
 	Emojify         bool `tl:"flag:3,encoded_in_bitflags"`
 	Text            *TextWithEntities
-	TranslateToLang string `tl:"flag:1"`
-	ChangeTone      string `tl:"flag:2"`
+	TranslateToLang string             `tl:"flag:1"`
+	Tone            InputAiComposeTone `tl:"flag:2"`
 }
 
 func (*MessagesComposeMessageWithAiParams) CRC() uint32 {
-	return 0xfd426afe
+	return 0xdaecc589
 }
 
 func (*MessagesComposeMessageWithAiParams) FlagIndex() int {
 	return 0
 }
 
+// Invokes telegram's AI Editor that can translate, transform, fixup and/or emojify your message in a number of different ways, privately powered by Cocoon
 func (c *Client) MessagesComposeMessageWithAi(params *MessagesComposeMessageWithAiParams) (*MessagesComposedMessageWithAi, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -8516,6 +8751,58 @@ func (c *Client) MessagesDeleteMessages(revoke bool, id []int32) (*MessagesAffec
 	resp, ok := responseData.(*MessagesAffectedMessages)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesDeleteParticipantReactionParams struct {
+	Peer        InputPeer
+	MsgID       int32
+	Participant InputPeer
+}
+
+func (*MessagesDeleteParticipantReactionParams) CRC() uint32 {
+	return 0xe3b7f82c
+}
+
+func (c *Client) MessagesDeleteParticipantReaction(peer InputPeer, msgID int32, participant InputPeer) (Updates, error) {
+	responseData, err := c.MakeRequest(&MessagesDeleteParticipantReactionParams{
+		MsgID:       msgID,
+		Participant: participant,
+		Peer:        peer,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesDeleteParticipantReaction: %w", err)
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesDeleteParticipantReactionsParams struct {
+	Peer        InputPeer
+	Participant InputPeer
+}
+
+func (*MessagesDeleteParticipantReactionsParams) CRC() uint32 {
+	return 0xa0b80cf8
+}
+
+func (c *Client) MessagesDeleteParticipantReactions(peer, participant InputPeer) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesDeleteParticipantReactionsParams{
+		Participant: participant,
+		Peer:        peer,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending MessagesDeleteParticipantReactions: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8876,6 +9163,7 @@ func (*MessagesEditChatParticipantRankParams) CRC() uint32 {
 	return 0xa00f32b0
 }
 
+// Edit a group participant's tag.
 func (c *Client) MessagesEditChatParticipantRank(peer, participant InputPeer, rank string) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesEditChatParticipantRankParams{
 		Participant: participant,
@@ -10752,6 +11040,37 @@ func (c *Client) MessagesGetPeerSettings(peer InputPeer) (*MessagesPeerSettings,
 	}
 
 	resp, ok := responseData.(*MessagesPeerSettings)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type MessagesGetPersonalChannelHistoryParams struct {
+	UserID InputUser
+	Limit  int32
+	MaxID  int32
+	MinID  int32
+	Hash   int64
+}
+
+func (*MessagesGetPersonalChannelHistoryParams) CRC() uint32 {
+	return 0x55fb0996
+}
+
+func (c *Client) MessagesGetPersonalChannelHistory(userID InputUser, limit, maxID, minID int32, hash int64) (MessagesMessages, error) {
+	responseData, err := c.MakeRequest(&MessagesGetPersonalChannelHistoryParams{
+		Hash:   hash,
+		Limit:  limit,
+		MaxID:  maxID,
+		MinID:  minID,
+		UserID: userID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending MessagesGetPersonalChannelHistory: %w", err)
+	}
+
+	resp, ok := responseData.(MessagesMessages)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -13689,6 +14008,31 @@ func (c *Client) MessagesSetBotCallbackAnswer(params *MessagesSetBotCallbackAnsw
 	return resp, nil
 }
 
+type MessagesSetBotGuestChatResultParams struct {
+	QueryID int64
+	Result  InputBotInlineResult
+}
+
+func (*MessagesSetBotGuestChatResultParams) CRC() uint32 {
+	return 0x52b08db
+}
+
+func (c *Client) MessagesSetBotGuestChatResult(queryID int64, result InputBotInlineResult) (bool, error) {
+	responseData, err := c.MakeRequest(&MessagesSetBotGuestChatResultParams{
+		QueryID: queryID,
+		Result:  result,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending MessagesSetBotGuestChatResult: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type MessagesSetBotPrecheckoutResultsParams struct {
 	Success bool `tl:"flag:1,encoded_in_bitflags"`
 	QueryID int64
@@ -14137,6 +14481,7 @@ func (*MessagesSummarizeTextParams) FlagIndex() int {
 	return 0
 }
 
+// Summarize the contents of a message with AI
 func (c *Client) MessagesSummarizeText(peer InputPeer, id int32, toLang, tone string) (*TextWithEntities, error) {
 	responseData, err := c.MakeRequest(&MessagesSummarizeTextParams{
 		ID:     id,
@@ -15589,6 +15934,7 @@ func (*PaymentsGetStarGiftActiveAuctionsParams) CRC() uint32 {
 	return 0xa5d0514d
 }
 
+// Fetches all currently active gift auctions where the user has placed a bid.
 func (c *Client) PaymentsGetStarGiftActiveAuctions(hash int64) (PaymentsStarGiftActiveAuctions, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarGiftActiveAuctionsParams{Hash: hash})
 	if err != nil {
@@ -15610,6 +15956,7 @@ func (*PaymentsGetStarGiftAuctionAcquiredGiftsParams) CRC() uint32 {
 	return 0x6ba2cbec
 }
 
+// Fetches all the gifts that the current user won in an auction.
 func (c *Client) PaymentsGetStarGiftAuctionAcquiredGifts(giftID int64) (*PaymentsStarGiftAuctionAcquiredGifts, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarGiftAuctionAcquiredGiftsParams{GiftID: giftID})
 	if err != nil {
@@ -15632,6 +15979,7 @@ func (*PaymentsGetStarGiftAuctionStateParams) CRC() uint32 {
 	return 0x5c9ff4d6
 }
 
+// Returns info about a collectible gift auction ; also subscribes the user to auction updates
 func (c *Client) PaymentsGetStarGiftAuctionState(auction InputStarGiftAuction, version int32) (*PaymentsStarGiftAuctionState, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarGiftAuctionStateParams{
 		Auction: auction,
@@ -16954,7 +17302,7 @@ func (*PhoneGetCallConfigParams) CRC() uint32 {
 	return 0x55451fa9
 }
 
-// Get phone call configuration to be passed to libtgvoip's shared config
+// DEPRECATED: Get phone call configuration to be passed to the libtgvoip (deprecated) shared config.
 func (c *Client) PhoneGetCallConfig() (*DataJson, error) {
 	responseData, err := c.MakeRequest(&PhoneGetCallConfigParams{})
 	if err != nil {
@@ -17326,7 +17674,7 @@ func (*PhoneReceivedCallParams) CRC() uint32 {
 	return 0x17d54f61
 }
 
-// Optional: notify the server that the user is currently busy in a call: this will automatically refuse all incoming phone calls until the current phone call is ended.
+// Optional: notify the server that the user is currently busy in a call: this will automatically refuse all incoming phone calls until the current phone call is ended
 func (c *Client) PhoneReceivedCall(peer *InputPhoneCall) (bool, error) {
 	responseData, err := c.MakeRequest(&PhoneReceivedCallParams{Peer: peer})
 	if err != nil {
@@ -17405,7 +17753,7 @@ func (*PhoneSaveCallLogParams) CRC() uint32 {
 	return 0x41248786
 }
 
-// Save phone call debug information
+// Deprecated: send libtgvoip phone call debug information
 func (c *Client) PhoneSaveCallLog(peer *InputPhoneCall, file InputFile) (bool, error) {
 	responseData, err := c.MakeRequest(&PhoneSaveCallLogParams{
 		File: file,
@@ -17594,7 +17942,7 @@ func (*PhoneSetCallRatingParams) FlagIndex() int {
 	return 0
 }
 
-// Rate a call, returns info about the rating message sent to the official VoIP bot.
+// Rate a call, returns info about the rating message sent to the official VoIP bot
 func (c *Client) PhoneSetCallRating(userInitiative bool, peer *InputPhoneCall, rating int32, comment string) (Updates, error) {
 	responseData, err := c.MakeRequest(&PhoneSetCallRatingParams{
 		Comment:        comment,
@@ -18274,6 +18622,37 @@ func (c *Client) StatsGetMessageStats(dark bool, channel InputChannel, msgID int
 	}
 
 	resp, ok := responseData.(*StatsMessageStats)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type StatsGetPollStatsParams struct {
+	Dark  bool `tl:"flag:0,encoded_in_bitflags"`
+	Peer  InputPeer
+	MsgID int32
+}
+
+func (*StatsGetPollStatsParams) CRC() uint32 {
+	return 0xc27dfa68
+}
+
+func (*StatsGetPollStatsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) StatsGetPollStats(dark bool, peer InputPeer, msgID int32) (*StatsPollStats, error) {
+	responseData, err := c.MakeRequest(&StatsGetPollStatsParams{
+		Dark:  dark,
+		MsgID: msgID,
+		Peer:  peer,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending StatsGetPollStats: %w", err)
+	}
+
+	resp, ok := responseData.(*StatsPollStats)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}

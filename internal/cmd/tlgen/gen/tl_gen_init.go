@@ -32,7 +32,8 @@ func (*Generator) createInitStructs(itemNames ...string) jen.Code {
 
 	stmt := jen.Qual(tlPackagePath, "RegisterObjects").Call(
 		jen.Custom(jen.Options{
-			Multi: true,
+			Separator: ",",
+			Multi:     true,
 		}, structs...),
 	)
 
@@ -69,7 +70,8 @@ func (*Generator) createInitEnums(itemNames ...string) jen.Code {
 
 	return jen.Qual(tlPackagePath, "RegisterEnums").Call(
 		jen.Custom(jen.Options{
-			Multi: true,
+			Separator: ",",
+			Multi:     true,
 		}, enums...),
 	)
 }

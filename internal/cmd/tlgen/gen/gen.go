@@ -94,7 +94,12 @@ func (*Generator) generateFile(f func(file *jen.File, d bool), filename string, 
 	buf := bytes.NewBuffer([]byte{})
 	if err := file.Render(buf); err != nil {
 		log.Printf("ERROR: Failed to render file %s: %v\n", filename, err)
-		return err
+		dumpPath := filename + ".broken"
+		if writeErr := os.WriteFile(dumpPath, buf.Bytes(), 0600); writeErr == nil {
+			log.Printf("ERROR: Wrote partial output to %s for inspection\n", dumpPath)
+			return fmt.Errorf("render %s: %w (partial output saved to %s)", filename, err, dumpPath)
+		}
+		return fmt.Errorf("render %s: %w", filename, err)
 	}
 
 	if err := os.WriteFile(filename, buf.Bytes(), 0600); err != nil {
