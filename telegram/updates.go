@@ -63,8 +63,7 @@ const (
 	OnInlineCallbackQuery = EventInlineCallback
 )
 
-// Middleware wraps a handler to add cross-cutting concerns
-type Middleware func(MessageHandler) MessageHandler
+type Middleware = func(MessageHandler) MessageHandler
 
 type MiddlewareChain struct {
 	middlewares []Middleware
@@ -93,7 +92,17 @@ func (mc *MiddlewareChain) Add(m Middleware) *MiddlewareChain {
 
 type middlewareManager struct {
 	sync.RWMutex
-	global []Middleware
+	global         []Middleware
+	edit           []func(EditHandler) EditHandler
+	delete         []func(DeleteHandler) DeleteHandler
+	album          []func(AlbumHandler) AlbumHandler
+	inline         []func(InlineHandler) InlineHandler
+	inlineSend     []func(InlineSendHandler) InlineSendHandler
+	callback       []func(CallbackHandler) CallbackHandler
+	inlineCallback []func(InlineCallbackHandler) InlineCallbackHandler
+	participant    []func(ParticipantHandler) ParticipantHandler
+	joinRequest    []func(PendingJoinHandler) PendingJoinHandler
+	raw            []func(RawHandler) RawHandler
 }
 
 func (mm *middlewareManager) Use(middleware Middleware) {
@@ -106,6 +115,66 @@ func (mm *middlewareManager) GetGlobal() []Middleware {
 	mm.RLock()
 	defer mm.RUnlock()
 	return slices.Clone(mm.global)
+}
+
+func (mm *middlewareManager) edits() []func(EditHandler) EditHandler {
+	mm.RLock()
+	defer mm.RUnlock()
+	return slices.Clone(mm.edit)
+}
+
+func (mm *middlewareManager) deletes() []func(DeleteHandler) DeleteHandler {
+	mm.RLock()
+	defer mm.RUnlock()
+	return slices.Clone(mm.delete)
+}
+
+func (mm *middlewareManager) albums() []func(AlbumHandler) AlbumHandler {
+	mm.RLock()
+	defer mm.RUnlock()
+	return slices.Clone(mm.album)
+}
+
+func (mm *middlewareManager) inlines() []func(InlineHandler) InlineHandler {
+	mm.RLock()
+	defer mm.RUnlock()
+	return slices.Clone(mm.inline)
+}
+
+func (mm *middlewareManager) inlineSends() []func(InlineSendHandler) InlineSendHandler {
+	mm.RLock()
+	defer mm.RUnlock()
+	return slices.Clone(mm.inlineSend)
+}
+
+func (mm *middlewareManager) callbacks() []func(CallbackHandler) CallbackHandler {
+	mm.RLock()
+	defer mm.RUnlock()
+	return slices.Clone(mm.callback)
+}
+
+func (mm *middlewareManager) inlineCallbacks() []func(InlineCallbackHandler) InlineCallbackHandler {
+	mm.RLock()
+	defer mm.RUnlock()
+	return slices.Clone(mm.inlineCallback)
+}
+
+func (mm *middlewareManager) participants() []func(ParticipantHandler) ParticipantHandler {
+	mm.RLock()
+	defer mm.RUnlock()
+	return slices.Clone(mm.participant)
+}
+
+func (mm *middlewareManager) joinRequests() []func(PendingJoinHandler) PendingJoinHandler {
+	mm.RLock()
+	defer mm.RUnlock()
+	return slices.Clone(mm.joinRequest)
+}
+
+func (mm *middlewareManager) raws() []func(RawHandler) RawHandler {
+	mm.RLock()
+	defer mm.RUnlock()
+	return slices.Clone(mm.raw)
 }
 
 // HandlerGroup represents a group of handlers with shared configuration
@@ -605,20 +674,19 @@ func (c *patternCache) Get(pattern string) (*regexp.Regexp, error) {
 	return reg, nil
 }
 
-func applyMiddlewares(handler MessageHandler, middlewares []Middleware) MessageHandler {
-	if len(middlewares) == 0 {
-		return handler
-	}
-	final := handler
+func applyChain[H any](handler H, middlewares []func(H) H) H {
 	for i := len(middlewares) - 1; i >= 0; i-- {
-		final = middlewares[i](final)
+		handler = middlewares[i](handler)
 	}
-	return final
+	return handler
 }
 
-// WithMiddleware wraps a handler with the provided middlewares
+func applyMiddlewares(handler MessageHandler, middlewares []Middleware) MessageHandler {
+	return applyChain(handler, middlewares)
+}
+
 func WithMiddleware(handler MessageHandler, middlewares ...Middleware) MessageHandler {
-	return applyMiddlewares(handler, middlewares)
+	return applyChain(handler, middlewares)
 }
 
 type MessageHandler func(m *NewMessage) error
@@ -700,7 +768,7 @@ type messageHandle struct {
 
 type albumHandle struct {
 	baseHandle
-	Handler func(alb *Album) error
+	Handler AlbumHandler
 }
 
 type chatActionHandle struct {
@@ -718,7 +786,7 @@ type messageEditHandle struct {
 type messageDeleteHandle struct {
 	baseHandle
 	Pattern any
-	Handler func(m *DeleteMessage) error
+	Handler DeleteHandler
 }
 
 type inlineHandle struct {
@@ -788,7 +856,11 @@ func (a *albumBox) WaitAndTrigger(d *UpdateDispatcher, c *Client) {
 					return a.messages[i].ID < a.messages[j].ID
 				})
 
-				return h.Handler(&Album{
+				hf := h.Handler
+				if mm := c.dispatcher.middlewareManager; mm != nil {
+					hf = applyChain(hf, mm.albums())
+				}
+				return hf(&Album{
 					GroupedID: a.groupedId,
 					Messages:  a.messages,
 					Client:    c,
@@ -1324,7 +1396,11 @@ func (c *Client) handleMessageUpdate(update Message) {
 			for _, h := range handler {
 				handle := func(h *chatActionHandle) error {
 					defer c.NewRecovery()()
-					return h.Handler(packed)
+					hf := h.Handler
+					if mm := c.dispatcher.middlewareManager; mm != nil {
+						hf = applyChain(hf, mm.GetGlobal())
+					}
+					return hf(packed)
 				}
 
 				if group == DefaultGroup {
@@ -1422,19 +1498,12 @@ func (c *Client) handleEditUpdate(update Message) {
 						if h.runFilterChain(packed, h.Filters) {
 							defer c.NewRecovery()()
 
-							handler := h.Handler
-							var mids []Middleware
-
-							c.dispatcher.RLock()
-							if c.dispatcher.middlewareManager != nil {
-								mids = append(mids, c.dispatcher.middlewareManager.global...)
-							}
-							c.dispatcher.RUnlock()
-							if len(mids) > 0 {
-								handler = applyMiddlewares(handler, mids)
+							hf := EditHandler(h.Handler)
+							if mm := c.dispatcher.middlewareManager; mm != nil {
+								hf = applyChain(hf, mm.edits())
 							}
 
-							err := handler(packed)
+							err := hf(packed)
 							if err != nil {
 								return err
 							}
@@ -1477,7 +1546,11 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 				handle := func(h *callbackHandle) error {
 					if h.runFilterChain(packed, h.Filters) {
 						defer c.NewRecovery()()
-						err := h.Handler(packed)
+						hf := h.Handler
+						if mm := c.dispatcher.middlewareManager; mm != nil {
+							hf = applyChain(hf, mm.callbacks())
+						}
+						err := hf(packed)
 						if err != nil {
 							return err
 						}
@@ -1518,7 +1591,11 @@ func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery
 			if handler.IsMatch(update.Data, c) {
 				handle := func(h *inlineCallbackHandle) error {
 					defer c.NewRecovery()()
-					return h.Handler(packed)
+					hf := h.Handler
+					if mm := c.dispatcher.middlewareManager; mm != nil {
+						hf = applyChain(hf, mm.inlineCallbacks())
+					}
+					return hf(packed)
 				}
 
 				if group == DefaultGroup {
@@ -1553,7 +1630,11 @@ func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 		for _, handler := range handlers {
 			handle := func(h *participantHandle) error {
 				defer c.NewRecovery()()
-				return h.Handler(packed)
+				hf := h.Handler
+				if mm := c.dispatcher.middlewareManager; mm != nil {
+					hf = applyChain(hf, mm.participants())
+				}
+				return hf(packed)
 			}
 
 			if group == DefaultGroup {
@@ -1588,7 +1669,11 @@ func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
 			if handler.IsMatch(update.Query, c) {
 				handle := func(h *inlineHandle) error {
 					defer c.NewRecovery()()
-					return h.Handler(packed)
+					hf := h.Handler
+					if mm := c.dispatcher.middlewareManager; mm != nil {
+						hf = applyChain(hf, mm.inlines())
+					}
+					return hf(packed)
 				}
 
 				if group == DefaultGroup {
@@ -1623,7 +1708,11 @@ func (c *Client) handleInlineSendUpdate(update *UpdateBotInlineSend) {
 		for _, handler := range handlers {
 			handle := func(h *inlineSendHandle) error {
 				defer c.NewRecovery()()
-				return h.Handler(packed)
+				hf := h.Handler
+				if mm := c.dispatcher.middlewareManager; mm != nil {
+					hf = applyChain(hf, mm.inlineSends())
+				}
+				return hf(packed)
 			}
 
 			if group == DefaultGroup {
@@ -1657,7 +1746,11 @@ func (c *Client) handleDeleteUpdate(update Update) {
 		for _, handler := range handlers {
 			handle := func(h *messageDeleteHandle) error {
 				defer c.NewRecovery()()
-				return h.Handler(packed)
+				hf := h.Handler
+				if mm := c.dispatcher.middlewareManager; mm != nil {
+					hf = applyChain(hf, mm.deletes())
+				}
+				return hf(packed)
 			}
 
 			if group == DefaultGroup {
@@ -1697,7 +1790,11 @@ func (c *Client) handleJoinRequestUpdate(update Update) {
 		for _, handler := range handlers {
 			handle := func(h *joinRequestHandle) error {
 				defer c.NewRecovery()()
-				return h.Handler(packed)
+				hf := h.Handler
+				if mm := c.dispatcher.middlewareManager; mm != nil {
+					hf = applyChain(hf, mm.joinRequests())
+				}
+				return hf(packed)
 			}
 
 			if group == DefaultGroup {
@@ -1735,7 +1832,11 @@ func (c *Client) handleRawUpdate(update Update) {
 			if handler.updateTypeID == updateTypeID || handler.updateTypeID == 0 {
 				handle := func(h *rawHandle) error {
 					defer c.NewRecovery()()
-					return h.Handler(update, c)
+					hf := h.Handler
+					if mm := c.dispatcher.middlewareManager; mm != nil {
+						hf = applyChain(hf, mm.raws())
+					}
+					return hf(update, c)
 				}
 
 				if group == DefaultGroup {
@@ -3695,6 +3796,68 @@ func (c *Client) Use(middlewares ...Middleware) {
 	}
 	for _, m := range middlewares {
 		c.dispatcher.middlewareManager.Use(m)
+	}
+}
+
+func Use[H any](c *Client, middlewares ...func(H) H) {
+	if len(middlewares) == 0 {
+		return
+	}
+	if c.dispatcher.middlewareManager == nil {
+		c.dispatcher.middlewareManager = &middlewareManager{}
+	}
+	mm := c.dispatcher.middlewareManager
+	mm.Lock()
+	defer mm.Unlock()
+
+	var zero H
+	switch any(zero).(type) {
+	case MessageHandler:
+		for _, mw := range middlewares {
+			mm.global = append(mm.global, any(mw).(func(MessageHandler) MessageHandler))
+		}
+	case EditHandler:
+		for _, mw := range middlewares {
+			mm.edit = append(mm.edit, any(mw).(func(EditHandler) EditHandler))
+		}
+	case DeleteHandler:
+		for _, mw := range middlewares {
+			mm.delete = append(mm.delete, any(mw).(func(DeleteHandler) DeleteHandler))
+		}
+	case AlbumHandler:
+		for _, mw := range middlewares {
+			mm.album = append(mm.album, any(mw).(func(AlbumHandler) AlbumHandler))
+		}
+	case InlineHandler:
+		for _, mw := range middlewares {
+			mm.inline = append(mm.inline, any(mw).(func(InlineHandler) InlineHandler))
+		}
+	case InlineSendHandler:
+		for _, mw := range middlewares {
+			mm.inlineSend = append(mm.inlineSend, any(mw).(func(InlineSendHandler) InlineSendHandler))
+		}
+	case CallbackHandler:
+		for _, mw := range middlewares {
+			mm.callback = append(mm.callback, any(mw).(func(CallbackHandler) CallbackHandler))
+		}
+	case InlineCallbackHandler:
+		for _, mw := range middlewares {
+			mm.inlineCallback = append(mm.inlineCallback, any(mw).(func(InlineCallbackHandler) InlineCallbackHandler))
+		}
+	case ParticipantHandler:
+		for _, mw := range middlewares {
+			mm.participant = append(mm.participant, any(mw).(func(ParticipantHandler) ParticipantHandler))
+		}
+	case PendingJoinHandler:
+		for _, mw := range middlewares {
+			mm.joinRequest = append(mm.joinRequest, any(mw).(func(PendingJoinHandler) PendingJoinHandler))
+		}
+	case RawHandler:
+		for _, mw := range middlewares {
+			mm.raw = append(mm.raw, any(mw).(func(RawHandler) RawHandler))
+		}
+	default:
+		panic(fmt.Sprintf("telegram.Use: unsupported handler type %T", zero))
 	}
 }
 

@@ -455,6 +455,7 @@ type MediaOptions struct {
 	Upload               *UploadOptions           // Upload configuration (threads, progress, chunk size)
 	SkipHash             bool                     // Disable file deduplication by hash lookup
 	SleepThresholdMs     int32                    // Delay between chunk operations in milliseconds
+	Effect               int64                    // Message effect animation ID
 	AllowPaidStars       int64                    // Stars amount for paid content access
 	PaidFloodSkip        bool                     // Skip flood wait using paid priority
 	SuggestedPost        *SuggestedPost           // Channel post suggestion configuration
@@ -575,6 +576,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 		ScheduleDate:           opt.ScheduleDate,
 		ScheduleRepeatPeriod:   opt.ScheduleRepeatPeriod,
 		SendAs:                 sendAs,
+		Effect:                 opt.Effect,
 		AllowPaidStars:         opt.AllowPaidStars,
 		AllowPaidFloodskip:     opt.PaidFloodSkip,
 		SuggestedPost:          opt.SuggestedPost,
@@ -720,10 +722,13 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 		Noforwards:             opt.NoForwards,
 		UpdateStickersetsOrder: false,
 		InvertMedia:            opt.InvertMedia,
+		AllowPaidFloodskip:     opt.PaidFloodSkip,
 		Peer:                   Peer,
 		ReplyTo:                replyTo,
 		ScheduleDate:           opt.ScheduleDate,
 		SendAs:                 sendAs,
+		Effect:                 opt.Effect,
+		AllowPaidStars:         opt.AllowPaidStars,
 	}
 
 	// split into chunks of 10
@@ -1953,27 +1958,35 @@ func (c *Client) GetMediaGroup(PeerID any, MsgID int32) ([]NewMessage, error) {
 
 func convertOption(s *SendOptions) *MediaOptions {
 	return &MediaOptions{
-		ReplyID:       s.ReplyID,
-		MimeType:      s.MimeType,
-		Caption:       s.Caption,
-		ParseMode:     s.ParseMode,
-		Silent:        s.Silent,
-		LinkPreview:   s.LinkPreview,
-		InvertMedia:   s.InvertMedia,
-		ReplyMarkup:   s.ReplyMarkup,
-		ClearDraft:    s.ClearDraft,
-		NoForwards:    s.NoForwards,
-		ScheduleDate:  s.ScheduleDate,
-		SendAs:        s.SendAs,
-		Thumb:         s.Thumb,
-		TTL:           s.TTL,
-		Entities:      s.Entities,
-		ForceDocument: s.ForceDocument,
-		Spoiler:       s.Spoiler,
-		TopicID:       s.TopicID,
-		Upload:        s.Upload,
-		FileName:      s.FileName,
-		Attributes:    s.Attributes,
+		ReplyID:              s.ReplyID,
+		ReplyTo:              s.ReplyTo,
+		MimeType:             s.MimeType,
+		Caption:              s.Caption,
+		ParseMode:            s.ParseMode,
+		Silent:               s.Silent,
+		LinkPreview:          s.LinkPreview,
+		InvertMedia:          s.InvertMedia,
+		ReplyMarkup:          s.ReplyMarkup,
+		ClearDraft:           s.ClearDraft,
+		NoForwards:           s.NoForwards,
+		UpdateStickerOrder:   s.UpdateStickerOrder,
+		ScheduleDate:         s.ScheduleDate,
+		ScheduleRepeatPeriod: s.ScheduleRepeatPeriod,
+		SendAs:               s.SendAs,
+		Thumb:                s.Thumb,
+		TTL:                  s.TTL,
+		Entities:             s.Entities,
+		ForceDocument:        s.ForceDocument,
+		Spoiler:              s.Spoiler,
+		TopicID:              s.TopicID,
+		Upload:               s.Upload,
+		FileName:             s.FileName,
+		Attributes:           s.Attributes,
+		Effect:               s.Effect,
+		AllowPaidStars:       s.AllowPaidStars,
+		PaidFloodSkip:        s.PaidFloodSkip,
+		SuggestedPost:        s.SuggestedPost,
+		QuickReplyShortcut:   s.QuickReplyShortcut,
 	}
 }
 
