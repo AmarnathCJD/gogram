@@ -109,13 +109,13 @@ func (*InvokeWithTakeoutParams) CRC() uint32 {
 	return 0xaca9fd2e
 }
 
-func (c *Client) InvokeWithTakeout(takeoutID int, query tl.Object) (tl.Object, error) {
+func (c *Client) InvokeWithTakeout(takeoutID int64, query tl.Object) (tl.Object, error) {
 	data, err := c.MakeRequest(&InvokeWithTakeoutParams{
-		TakeoutID: int64(takeoutID),
+		TakeoutID: takeoutID,
 		Query:     query,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("sending InvokeWithLayer: %w", err)
+		return nil, fmt.Errorf("sending InvokeWithTakeout: %w", err)
 	}
 
 	return data.(tl.Object), nil
