@@ -465,8 +465,11 @@ func (*AccountFinishTakeoutSessionParams) FlagIndex() int {
 }
 
 // Terminate a takeout session
-func (c *Client) AccountFinishTakeoutSession(success bool) (bool, error) {
-	responseData, err := c.MakeRequest(&AccountFinishTakeoutSessionParams{Success: success})
+func (c *Client) AccountFinishTakeoutSession(takeoutID int64, success bool) (bool, error) {
+	responseData, err := c.MakeRequest(&InvokeWithTakeoutParams{
+		TakeoutID: takeoutID,
+		Query:     &AccountFinishTakeoutSessionParams{Success: success},
+})
 	if err != nil {
 		return false, fmt.Errorf("sending AccountFinishTakeoutSession: %w", err)
 	}
