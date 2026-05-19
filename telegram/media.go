@@ -892,6 +892,7 @@ type DownloadOptions struct {
 	ProgressInterval int                 // Progress callback interval in seconds (default: 5)
 	Delay            int                 // Delay between chunks in milliseconds
 	DCId             int32               // Datacenter ID where file is stored
+	TakeoutID        int64               // Download file using takeout api
 	// Buffer is the download destination. Supported types:
 	//   io.WriterAt (*os.File, custom) — parallel writes, no intermediate buffer (fastest)
 	//   io.Writer (*bytes.Buffer, net.Conn, etc.) — buffered, copied at end
@@ -1101,13 +1102,22 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 		}
 		defer w.FreeWorker(sender)
 
-		part, err := sender.MakeRequestCtx(ctx, &UploadGetFileParams{
+		var getFileRequest tl.Object
+		getFileRequest = &UploadGetFileParams{
 			Location:     location,
 			Offset:       int64(partNum * partSize),
 			Limit:        int32(partSize),
 			Precise:      true,
 			CdnSupported: false,
-		})
+		}
+		if opts.TakeoutID != 0 {
+			getFileRequest = &InvokeWithTakeoutParams{
+				TakeoutID: opts.TakeoutID,
+				Query:     getFileRequest,
+			}
+		}
+
+		part, err := sender.MakeRequestCtx(ctx, getFileRequest)
 
 		if opts.Delay > 0 {
 			time.Sleep(time.Duration(opts.Delay) * time.Millisecond)
@@ -1139,6 +1149,12 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 
 			if strings.Contains(err.Error(), "FILE_REFERENCE_EXPIRED") {
 				globalErr.Store(errors.New("file reference expired"))
+				downloadCancel()
+				return false
+			}
+
+			if strings.Contains(err.Error(), "TAKEOUT_INVALID") {
+				globalErr.Store(errors.New("takeout id invalid"))
 				downloadCancel()
 				return false
 			}
