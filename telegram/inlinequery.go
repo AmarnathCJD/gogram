@@ -41,6 +41,59 @@ type InlineSend struct {
 	Client         *Client
 }
 
+type GuestChatQuery struct {
+	OriginalUpdate    *UpdateBotGuestChatQuery
+	QueryID           int64
+	Message           *NewMessage
+	ReferenceMessages []*NewMessage
+	Client            *Client
+}
+
+func (g *GuestChatQuery) Answer(result InputBotInlineResult) (InputBotInlineMessageID, error) {
+	return g.Client.MessagesSetBotGuestChatResult(g.QueryID, result)
+}
+
+func (g *GuestChatQuery) Builder() *InlineBuilder {
+	return &InlineBuilder{
+		Client:        g.Client,
+		QueryID:       g.QueryID,
+		InlineResults: []InputBotInlineResult{},
+	}
+}
+
+func (g *GuestChatQuery) AnswerWith(b *InlineBuilder) (InputBotInlineMessageID, error) {
+	if b == nil || b.err != nil {
+		if b != nil {
+			return nil, b.err
+		}
+		return nil, fmt.Errorf("nil builder")
+	}
+	if len(b.InlineResults) == 0 {
+		return &InputBotInlineMessageID64{}, fmt.Errorf("no results to answer")
+	}
+	return g.Client.MessagesSetBotGuestChatResult(g.QueryID, b.InlineResults[0])
+}
+
+func (g *GuestChatQuery) Article(title, description, text string, options ...*ArticleOptions) (InputBotInlineMessageID, error) {
+	return g.AnswerWith(g.Builder().Article(title, description, text, options...))
+}
+
+func (g *GuestChatQuery) Text(text string, options ...*ArticleOptions) (InputBotInlineMessageID, error) {
+	return g.AnswerWith(g.Builder().Text(text, options...))
+}
+
+func (g *GuestChatQuery) Photo(photo any, options ...*ArticleOptions) (InputBotInlineMessageID, error) {
+	return g.AnswerWith(g.Builder().Photo(photo, options...))
+}
+
+func (g *GuestChatQuery) Document(document any, options ...*ArticleOptions) (InputBotInlineMessageID, error) {
+	return g.AnswerWith(g.Builder().Document(document, options...))
+}
+
+func (g *GuestChatQuery) Game(id, shortName string, options ...*ArticleOptions) (InputBotInlineMessageID, error) {
+	return g.AnswerWith(g.Builder().Game(id, shortName, options...))
+}
+
 func (i *InlineQuery) Answer(results []InputBotInlineResult, options ...*InlineSendOptions) (bool, error) {
 	var opts InlineSendOptions
 	if len(options) > 0 {
@@ -339,6 +392,29 @@ func (i *InlineBuilder) Article(title, description, text string, options ...*Art
 	i.InlineResults = append(i.InlineResults, result)
 	i.lastResult = result
 	return i
+}
+
+func (i *InlineBuilder) Text(text string, options ...*ArticleOptions) *InlineBuilder {
+	opts := getVariadic(options, &ArticleOptions{})
+	title := opts.Title
+	if title == "" {
+		title = firstLine(text, 40)
+		if title == "" {
+			title = "Result"
+		}
+	}
+	return i.Article(title, opts.Description, text, options...)
+}
+
+func firstLine(s string, max int) string {
+	s = strings.TrimSpace(s)
+	if idx := strings.IndexAny(s, "\r\n"); idx >= 0 {
+		s = s[:idx]
+	}
+	if max > 0 && len(s) > max {
+		s = strings.TrimSpace(s[:max]) + "…"
+	}
+	return s
 }
 
 func (i *InlineBuilder) Photo(photo any, options ...*ArticleOptions) *InlineBuilder {

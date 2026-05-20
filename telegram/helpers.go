@@ -1530,6 +1530,22 @@ func packInlineQuery(c *Client, query *UpdateBotInlineQuery) *InlineQuery {
 	return iq
 }
 
+func packGuestChatQuery(c *Client, query *UpdateBotGuestChatQuery) *GuestChatQuery {
+	g := &GuestChatQuery{
+		OriginalUpdate: query,
+		QueryID:        query.QueryID,
+		Client:         c,
+		Message:        packMessage(c, query.Message),
+	}
+	if len(query.ReferenceMessages) > 0 {
+		g.ReferenceMessages = make([]*NewMessage, 0, len(query.ReferenceMessages))
+		for _, m := range query.ReferenceMessages {
+			g.ReferenceMessages = append(g.ReferenceMessages, packMessage(c, m))
+		}
+	}
+	return g
+}
+
 func packInlineSend(c *Client, query *UpdateBotInlineSend) *InlineSend {
 	var (
 		is = &InlineSend{}

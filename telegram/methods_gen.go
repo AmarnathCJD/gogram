@@ -8359,6 +8359,7 @@ func (*MessagesCheckURLAuthMatchCodeParams) CRC() uint32 {
 	return 0xc9a47b0b
 }
 
+// Validate the match code selected by the user against the code shown on the login page, as part of the OAuth authorization flow.
 func (c *Client) MessagesCheckURLAuthMatchCode(url, matchCode string) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesCheckURLAuthMatchCodeParams{
 		MatchCode: matchCode,
@@ -8575,6 +8576,7 @@ func (*MessagesDeclineURLAuthParams) CRC() uint32 {
 	return 0x35436bbc
 }
 
+// Decline an incoming OAuth authorization request, notifying the server that the user refused the login request.
 func (c *Client) MessagesDeclineURLAuth(url string) (bool, error) {
 	responseData, err := c.MakeRequest(&MessagesDeclineURLAuthParams{URL: url})
 	if err != nil {
@@ -9110,6 +9112,7 @@ func (*MessagesEditChatCreatorParams) CRC() uint32 {
 	return 0xf743b857
 }
 
+// Transfer the ownership of a basic group, supergroup or channel to another user
 func (c *Client) MessagesEditChatCreator(peer InputPeer, userID InputUser, password InputCheckPasswordSRP) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesEditChatCreatorParams{
 		Password: password,
@@ -10574,6 +10577,7 @@ func (*MessagesGetFutureChatCreatorAfterLeaveParams) CRC() uint32 {
 	return 0x3b7d0ea6
 }
 
+// Group/channel owners only: returns the ID of the user that will become the new owner of the group if we decide to leave the group
 func (c *Client) MessagesGetFutureChatCreatorAfterLeave(peer InputPeer) (User, error) {
 	responseData, err := c.MakeRequest(&MessagesGetFutureChatCreatorAfterLeaveParams{Peer: peer})
 	if err != nil {
@@ -10630,7 +10634,7 @@ func (*MessagesGetHistoryParams) CRC() uint32 {
 	return 0x4423e6c5
 }
 
-// Returns the conversation history with one interlocutor / within a chat
+// Returns the message history in a peer.
 func (c *Client) MessagesGetHistory(params *MessagesGetHistoryParams) (MessagesMessages, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
@@ -14014,21 +14018,21 @@ type MessagesSetBotGuestChatResultParams struct {
 }
 
 func (*MessagesSetBotGuestChatResultParams) CRC() uint32 {
-	return 0x52b08db
+	return 0xb8f106e3
 }
 
-func (c *Client) MessagesSetBotGuestChatResult(queryID int64, result InputBotInlineResult) (bool, error) {
+func (c *Client) MessagesSetBotGuestChatResult(queryID int64, result InputBotInlineResult) (InputBotInlineMessageID, error) {
 	responseData, err := c.MakeRequest(&MessagesSetBotGuestChatResultParams{
 		QueryID: queryID,
 		Result:  result,
 	})
 	if err != nil {
-		return false, fmt.Errorf("sending MessagesSetBotGuestChatResult: %w", err)
+		return nil, fmt.Errorf("sending MessagesSetBotGuestChatResult: %w", err)
 	}
 
-	resp, ok := responseData.(bool)
+	resp, ok := responseData.(InputBotInlineMessageID)
 	if !ok {
-		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -14598,7 +14602,7 @@ func (*MessagesToggleNoForwardsParams) FlagIndex() int {
 	return 0
 }
 
-// Enable or disable content protection on a channel or chat
+// Enable or disable content protection on a channel, group or private chat.
 func (c *Client) MessagesToggleNoForwards(peer InputPeer, enabled bool, requestMsgID int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&MessagesToggleNoForwardsParams{
 		Enabled:      enabled,
@@ -15448,6 +15452,7 @@ func (*PaymentsCraftStarGiftParams) CRC() uint32 {
 	return 0xb0f9684f
 }
 
+// Craft a new collectible gift by combining 1 to 4 owned collectible gifts of the same base gift type.
 func (c *Client) PaymentsCraftStarGift(stargift []InputSavedStarGift) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsCraftStarGiftParams{Stargift: stargift})
 	if err != nil {
@@ -15687,6 +15692,7 @@ func (*PaymentsGetCraftStarGiftsParams) CRC() uint32 {
 	return 0xfd05dd00
 }
 
+// Obtain owned collectible gifts of a specific type that can be used for crafting.
 func (c *Client) PaymentsGetCraftStarGifts(giftID int64, offset string, limit int32) (*PaymentsSavedStarGifts, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetCraftStarGiftsParams{
 		GiftID: giftID,
@@ -16030,6 +16036,7 @@ func (*PaymentsGetStarGiftUpgradeAttributesParams) CRC() uint32 {
 	return 0x6d038b58
 }
 
+// Obtains the full list of just the collectible attributes that may appear for a gift type once it's upgraded to a collectible gift.
 func (c *Client) PaymentsGetStarGiftUpgradeAttributes(giftID int64) (*PaymentsStarGiftUpgradeAttributes, error) {
 	responseData, err := c.MakeRequest(&PaymentsGetStarGiftUpgradeAttributesParams{GiftID: giftID})
 	if err != nil {
@@ -16561,6 +16568,7 @@ func (*PaymentsResolveStarGiftOfferParams) FlagIndex() int {
 	return 0
 }
 
+// Accept or decline a previously received collectible gift purchase offer
 func (c *Client) PaymentsResolveStarGiftOffer(decline bool, offerMsgID int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&PaymentsResolveStarGiftOfferParams{
 		Decline:    decline,
@@ -16655,6 +16663,7 @@ func (*PaymentsSendStarGiftOfferParams) FlagIndex() int {
 	return 0
 }
 
+// Send an offer to purchase a collectible gift
 func (c *Client) PaymentsSendStarGiftOffer(params *PaymentsSendStarGiftOfferParams) (Updates, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {

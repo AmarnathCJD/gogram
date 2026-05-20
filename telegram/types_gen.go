@@ -3201,6 +3201,7 @@ func (*PaymentsStarGiftAuctionState) CRC() uint32 {
 	return 0x6b39f4ec
 }
 
+// List of just the collectible attributes that may appear for a gift type once it's upgraded to a collectible gift.
 type PaymentsStarGiftUpgradeAttributes struct {
 	Attributes []StarGiftAttribute
 }
@@ -4167,6 +4168,7 @@ func (*StarGiftAuctionUserState) FlagIndex() int {
 	return 0
 }
 
+// Contains the default background palette of a gift type.
 type StarGiftBackground struct {
 	CenterColor int32
 	EdgeColor   int32
