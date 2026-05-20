@@ -506,7 +506,6 @@ func newCounterBox(name string, logger Logger, fetch func(from, target int32), o
 // If the counter is contiguous, apply() is executed immediately; otherwise it is buffered and a gap fetch is triggered.
 func (b *counterBox) process(counter, count int32, apply func()) bool {
 	if counter == 0 {
-		// Some updates carry no counter; process eagerly.
 		apply()
 		return true
 	}
@@ -519,7 +518,6 @@ func (b *counterBox) process(counter, count int32, apply func()) bool {
 		prev = 0
 	}
 
-	// First seen value: accept and set baseline.
 	if b.current == 0 {
 		b.current = counter
 		b.recordAdvance(counter)
@@ -528,12 +526,15 @@ func (b *counterBox) process(counter, count int32, apply func()) bool {
 		return true
 	}
 
-	// Duplicate or stale update.
-	if counter <= b.current {
+	if counter == b.current {
+		b.runUnlocked(apply)
+		return true
+	}
+
+	if counter < b.current {
 		return false
 	}
 
-	// Happy path: contiguous advance.
 	if prev == b.current {
 		b.current = counter
 		b.recordAdvance(counter)
@@ -542,7 +543,7 @@ func (b *counterBox) process(counter, count int32, apply func()) bool {
 		return true
 	}
 
-	// Gap detected: store and trigger gap fetch if not already recovering.
+	b.logger.Debug("counterBox=%s gap counter=%d count=%d boxCurrent=%d -> buffering", b.name, counter, count, b.current)
 	b.pending[counter] = append(b.pending[counter], pendingCounter{counter: counter, count: count, apply: apply, arrived: time.Now()})
 	b.triggerGapLocked(prev, counter)
 	return false
@@ -2733,10 +2734,6 @@ func (c *Client) applyIncomingUpdate(update Update) {
 	}
 
 	meta := extractUpdateMeta(update)
-	if meta.pts != 0 && meta.ptsCount == 0 {
-		meta.ptsCount = 1
-	}
-
 	c.processWithState(meta, func() {
 		c.dispatchUpdate(update)
 	})
@@ -2911,7 +2908,6 @@ func extractUpdateMeta(update Update) updateMeta {
 		meta.ptsCount = upd.PtsCount
 	case *UpdateReadChannelInbox:
 		meta.pts = upd.Pts
-		meta.ptsCount = 1
 		meta.channel = upd.ChannelID
 	case *UpdateChannelWebPage:
 		meta.pts = upd.Pts
@@ -2961,7 +2957,9 @@ func (c *Client) processWithState(meta updateMeta, apply func()) bool {
 	}
 
 	if meta.pts != 0 && meta.ptsCount == 0 {
-		meta.ptsCount = 1
+		applyCheckpoint(d, meta)
+		apply()
+		return true
 	}
 
 	if meta.qts != 0 && d.globalQtsBox != nil {
@@ -2980,6 +2978,20 @@ func (c *Client) processWithState(meta updateMeta, apply func()) bool {
 
 	apply()
 	return true
+}
+
+func applyCheckpoint(d *UpdateDispatcher, meta updateMeta) {
+	if meta.channel != 0 {
+		if box := d.getChannelBox(meta.channel); box != nil {
+			if meta.pts > box.currentValue() {
+				box.forceSet(meta.pts)
+			}
+		}
+		return
+	}
+	if d.globalPtsBox != nil && meta.pts > d.globalPtsBox.currentValue() {
+		d.globalPtsBox.forceSet(meta.pts)
+	}
 }
 
 func (c *Client) FetchDifference(fromPts int32, limit int32) {
@@ -3147,6 +3159,7 @@ func (c *Client) manageSeq(seq int32, seqStart int32) bool {
 
 	if expectedSeqStart > seqStart {
 		d.Unlock()
+		c.Log.Debug("manageSeq stale seq=%d seqStart=%d currentSeq=%d -> drop", seq, seqStart, currentSeq)
 		return false
 	}
 
