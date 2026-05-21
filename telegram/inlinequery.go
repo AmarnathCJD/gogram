@@ -3,7 +3,10 @@
 package telegram
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 )
 
@@ -92,6 +95,118 @@ func (g *GuestChatQuery) Document(document any, options ...*ArticleOptions) (Inp
 
 func (g *GuestChatQuery) Game(id, shortName string, options ...*ArticleOptions) (InputBotInlineMessageID, error) {
 	return g.AnswerWith(g.Builder().Game(id, shortName, options...))
+}
+
+func (g *GuestChatQuery) Reply(media any, options ...*ArticleOptions) (InputBotInlineMessageID, error) {
+	b := g.Builder().Media(media, options...)
+	return g.AnswerWith(b)
+}
+
+func (g *GuestChatQuery) ReplyMedia(media any, options ...*ArticleOptions) (InputBotInlineMessageID, error) {
+	if media == nil {
+		return nil, fmt.Errorf("inline media: nil")
+	}
+	if _, ok := media.(string); ok {
+		s := media.(string)
+		if !IsURL(s) {
+			if _, err := os.Stat(s); err != nil {
+				return nil, fmt.Errorf("inline media: %q is not a file path or URL", s)
+			}
+		}
+	}
+	res, err := g.Client.getSendableInlineMedia(media, options...)
+	if err != nil {
+		return nil, err
+	}
+	return g.Client.MessagesSetBotGuestChatResult(g.QueryID, res)
+}
+
+func (i *InlineBuilder) Media(media any, options ...*ArticleOptions) *InlineBuilder {
+	if i.err != nil {
+		return i
+	}
+
+	if media == nil {
+		i.err = fmt.Errorf("inline media: nil")
+		return i
+	}
+
+	switch v := media.(type) {
+	case string:
+		if !IsURL(v) {
+			if _, err := os.Stat(v); err != nil {
+				return i.Text(v, options...)
+			}
+		}
+	case []byte, *bytes.Buffer, *os.File, *io.Reader:
+	case InputBotInlineResult:
+		i.InlineResults = append(i.InlineResults, v)
+		i.lastResult = v
+		return i
+	}
+
+	res, err := i.Client.getSendableInlineMedia(media, options...)
+	if err != nil {
+		i.err = err
+		return i
+	}
+
+	i.InlineResults = append(i.InlineResults, res)
+	i.lastResult = res
+	return i
+}
+
+func (c *Client) getSendableInlineMedia(mediaFile any, options ...*ArticleOptions) (InputBotInlineResult, error) {
+	opts := getVariadic(options, &ArticleOptions{})
+
+	inputMedia, err := c.getSendableMedia(mediaFile, &MediaMetadata{
+		Inline:        true,
+		ForceDocument: opts.ForceDocument,
+		MimeType:      opts.MimeType,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("inline media: %w", err)
+	}
+
+	entities, text := parseEntities(opts.Caption, getValue(opts.ParseMode, c.ParseMode()))
+	var defaultMsg InputBotInlineMessage = &InputBotInlineMessageMediaAuto{
+		Message:     text,
+		Entities:    entities,
+		ReplyMarkup: opts.ReplyMarkup,
+	}
+
+	if opts.ExcludeMedia {
+		defaultMsg = &InputBotInlineMessageText{
+			Message:     text,
+			Entities:    entities,
+			ReplyMarkup: opts.ReplyMarkup,
+			NoWebpage:   !opts.LinkPreview,
+			InvertMedia: opts.InvertMedia,
+		}
+	}
+
+	id := getValue(opts.ID, fmt.Sprint(GenerateRandomLong()))
+
+	switch m := inputMedia.(type) {
+	case *InputMediaPhoto:
+		return &InputBotInlineResultPhoto{
+			ID:          id,
+			Type:        "photo",
+			Photo:       m.ID,
+			SendMessage: selectMessageType(opts, defaultMsg),
+		}, nil
+	case *InputMediaDocument:
+		return &InputBotInlineResultDocument{
+			ID:          id,
+			Type:        MimeTypes.GetInlineType(opts.MimeType, opts.VoiceNote),
+			Document:    m.ID,
+			Title:       opts.Title,
+			Description: opts.Description,
+			SendMessage: selectMessageType(opts, defaultMsg),
+		}, nil
+	}
+
+	return nil, fmt.Errorf("inline media: unsupported resolved media type %T", inputMedia)
 }
 
 func (i *InlineQuery) Answer(results []InputBotInlineResult, options ...*InlineSendOptions) (bool, error) {
@@ -322,20 +437,48 @@ func (i *InlineBuilder) WithInvertMedia(invert bool) *InlineBuilder {
 }
 
 func selectMessageType(opts *ArticleOptions, defaultMsg InputBotInlineMessage) InputBotInlineMessage {
+	var msg InputBotInlineMessage
 	switch {
 	case opts.Venue != nil:
-		return opts.Venue
+		msg = opts.Venue
 	case opts.Location != nil:
-		return opts.Location
+		msg = opts.Location
 	case opts.Contact != nil:
-		return opts.Contact
+		msg = opts.Contact
 	case opts.Invoice != nil:
-		return opts.Invoice
+		msg = opts.Invoice
 	case opts.WebPage != nil:
-		return opts.WebPage
+		msg = opts.WebPage
 	default:
 		return defaultMsg
 	}
+
+	if opts.ReplyMarkup != nil {
+		switch m := msg.(type) {
+		case *InputBotInlineMessageMediaVenue:
+			if m.ReplyMarkup == nil {
+				m.ReplyMarkup = opts.ReplyMarkup
+			}
+		case *InputBotInlineMessageMediaGeo:
+			if m.ReplyMarkup == nil {
+				m.ReplyMarkup = opts.ReplyMarkup
+			}
+		case *InputBotInlineMessageMediaContact:
+			if m.ReplyMarkup == nil {
+				m.ReplyMarkup = opts.ReplyMarkup
+			}
+		case *InputBotInlineMessageMediaInvoice:
+			if m.ReplyMarkup == nil {
+				m.ReplyMarkup = opts.ReplyMarkup
+			}
+		case *InputBotInlineMessageMediaWebPage:
+			if m.ReplyMarkup == nil {
+				m.ReplyMarkup = opts.ReplyMarkup
+			}
+		}
+	}
+
+	return msg
 }
 
 type ArticleOptions struct {
