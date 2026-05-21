@@ -292,8 +292,13 @@ func (t *MessageContainer) MarshalTL(e *tl.Encoder) error {
 	return e.CheckErr()
 }
 
+const maxContainerMessages = 1024
+
 func (t *MessageContainer) UnmarshalTL(d *tl.Decoder) error {
 	count := int(d.PopInt())
+	if count < 0 || count > maxContainerMessages {
+		return fmt.Errorf("msg_container: invalid message count %d (max %d)", count, maxContainerMessages)
+	}
 	arr := make([]*messages.Encrypted, count)
 	for i := 0; i < count; i++ {
 		msg := new(messages.Encrypted)

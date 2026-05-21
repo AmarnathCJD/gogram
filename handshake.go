@@ -187,61 +187,93 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
 		return fmt.Errorf("decode: server nonce mismatch")
 	}
 
-	_, gB, gAB := math.MakeGAB(dhi.G, big.NewInt(0).SetBytes(dhi.GA), big.NewInt(0).SetBytes(dhi.DhPrime))
-
-	authKey := gAB.Bytes()
-	if authKey[0] == 0 {
-		authKey = authKey[1:]
+	dhPrime := big.NewInt(0).SetBytes(dhi.DhPrime)
+	gA := big.NewInt(0).SetBytes(dhi.GA)
+	if err := math.ValidateDHParams(dhi.G, gA, dhPrime); err != nil {
+		return fmt.Errorf("dh params: %w", err)
 	}
 
-	t4 := make([]byte, 32+1+8)
-	copy(t4[0:], nonceSecond.Bytes())
-	t4[32] = 1
-	copy(t4[33:], utils.Sha1Byte(authKey)[0:8])
-	nonceHash1 := utils.Sha1Byte(t4)[4:20]
-	salt := make([]byte, tl.LongLen)
-	copy(salt, nonceSecond.Bytes()[:8])
-	math.XOR(salt, nonceServer.Bytes()[:8])
-	newSalt := int64(binary.LittleEndian.Uint64(salt))
+	const maxDHGenAttempts = 5
+	var authKey []byte
+	var newSalt int64
+	var nonceHash1 []byte
+	var retryID int64
 
-	clientDHData, err := tl.Marshal(&objects.ClientDHInnerData{
-		Nonce:       nonceFirst,
-		ServerNonce: nonceServer,
-		Retry:       0,
-		GB:          gB.Bytes(),
-	})
-	if err != nil {
-		m.Logger.WithField("error", err).Debug("makeAuthKey: failed to marshal client dh inner data")
-		return err
-	}
+	for attempt := 0; attempt < maxDHGenAttempts; attempt++ {
+		_, gB, gAB := math.MakeGAB(dhi.G, gA, dhPrime)
+		if err := math.ValidateGB(gB, dhPrime); err != nil {
+			return fmt.Errorf("dh params: %w", err)
+		}
 
-	encryptedMessage, err = ige.EncryptMessageWithTempKeys(clientDHData, nonceSecond.Int, nonceServer.Int)
-	if err != nil {
-		return errors.New("dh: " + err.Error())
-	}
+		authKey = gAB.Bytes()
+		if authKey[0] == 0 {
+			authKey = authKey[1:]
+		}
 
-	dhGenStatus, err := m.setClientDHParams(nonceFirst, nonceServer, encryptedMessage)
-	if err != nil {
-		return errors.New("dh: " + err.Error())
-	}
+		t4 := make([]byte, 32+1+8)
+		copy(t4[0:], nonceSecond.Bytes())
+		t4[32] = 1
+		copy(t4[33:], utils.Sha1Byte(authKey)[0:8])
+		nonceHash1 = utils.Sha1Byte(t4)[4:20]
+		salt := make([]byte, tl.LongLen)
+		copy(salt, nonceSecond.Bytes()[:8])
+		math.XOR(salt, nonceServer.Bytes()[:8])
+		newSalt = int64(binary.LittleEndian.Uint64(salt))
 
-	dhg, ok := dhGenStatus.(*objects.DHGenOk)
-	if !ok {
-		return fmt.Errorf("invalid response")
+		clientDHData, err := tl.Marshal(&objects.ClientDHInnerData{
+			Nonce:       nonceFirst,
+			ServerNonce: nonceServer,
+			Retry:       retryID,
+			GB:          gB.Bytes(),
+		})
+		if err != nil {
+			m.Logger.WithField("error", err).Debug("makeAuthKey: failed to marshal client dh inner data")
+			return err
+		}
+
+		encryptedMessage, err = ige.EncryptMessageWithTempKeys(clientDHData, nonceSecond.Int, nonceServer.Int)
+		if err != nil {
+			return errors.New("dh: " + err.Error())
+		}
+
+		dhGenStatus, err := m.setClientDHParams(nonceFirst, nonceServer, encryptedMessage)
+		if err != nil {
+			return errors.New("dh: " + err.Error())
+		}
+
+		switch dhg := dhGenStatus.(type) {
+		case *objects.DHGenOk:
+			if nonceFirst.Cmp(dhg.Nonce.Int) != 0 {
+				return fmt.Errorf("handshake: Wrong nonce: %v, %v", nonceFirst, dhg.Nonce)
+			}
+			if nonceServer.Cmp(dhg.ServerNonce.Int) != 0 {
+				return fmt.Errorf("handshake: Wrong server_nonce: %v, %v", nonceServer, dhg.ServerNonce)
+			}
+			if !bytes.Equal(nonceHash1, dhg.NewNonceHash1.Bytes()) {
+				return fmt.Errorf(
+					"handshake: Wrong new_nonce_hash1: %v, %v",
+					hex.EncodeToString(nonceHash1),
+					hex.EncodeToString(dhg.NewNonceHash1.Bytes()),
+				)
+			}
+			goto dhGenSuccess
+		case *objects.DHGenRetry:
+			if nonceFirst.Cmp(dhg.Nonce.Int) != 0 || nonceServer.Cmp(dhg.ServerNonce.Int) != 0 {
+				return fmt.Errorf("dh_gen_retry: nonce mismatch")
+			}
+			authKeyAuxHash := utils.Sha1Byte(authKey)[:8]
+			retryID = int64(binary.LittleEndian.Uint64(authKeyAuxHash))
+			m.Logger.Debug("dh_gen_retry: regenerating g_b (attempt %d/%d)", attempt+2, maxDHGenAttempts)
+			continue
+		case *objects.DHGenFail:
+			return fmt.Errorf("dh_gen_fail: server rejected auth key generation")
+		default:
+			return fmt.Errorf("dh_gen: unexpected response %T", dhGenStatus)
+		}
 	}
-	if nonceFirst.Cmp(dhg.Nonce.Int) != 0 {
-		return fmt.Errorf("handshake: Wrong nonce: %v, %v", nonceFirst, dhg.Nonce)
-	}
-	if nonceServer.Cmp(dhg.ServerNonce.Int) != 0 {
-		return fmt.Errorf("handshake: Wrong server_nonce: %v, %v", nonceServer, dhg.ServerNonce)
-	}
-	if !bytes.Equal(nonceHash1, dhg.NewNonceHash1.Bytes()) {
-		return fmt.Errorf(
-			"handshake: Wrong new_nonce_hash1: %v, %v",
-			hex.EncodeToString(nonceHash1),
-			hex.EncodeToString(dhg.NewNonceHash1.Bytes()),
-		)
-	}
+	return fmt.Errorf("dh_gen: exhausted %d retry attempts", maxDHGenAttempts)
+
+dhGenSuccess:
 
 	if isTemp {
 		m.tempAuthKey = authKey

@@ -42,6 +42,46 @@ func MakeGAB(g int32, g_a, dh_prime *big.Int) (b, g_b, g_ab *big.Int) {
 	return
 }
 
+func ValidateDHParams(g int32, g_a, dh_prime *big.Int) error {
+	if dh_prime == nil || g_a == nil {
+		return fmt.Errorf("dh: nil parameter")
+	}
+	if dh_prime.BitLen() != 2048 {
+		return fmt.Errorf("dh: dh_prime is not 2048 bits (got %d)", dh_prime.BitLen())
+	}
+	if !dh_prime.ProbablyPrime(20) {
+		return fmt.Errorf("dh: dh_prime is not prime")
+	}
+	if g < 2 || g > 7 {
+		return fmt.Errorf("dh: g out of range [2, 7]: %d", g)
+	}
+
+	two := big.NewInt(2)
+	upper := new(big.Int).Sub(dh_prime, two)
+	if g_a.Cmp(two) < 0 || g_a.Cmp(upper) > 0 {
+		return fmt.Errorf("dh: g_a out of range [2, dh_prime-2]")
+	}
+
+	lowerSafe := new(big.Int).SetBit(big.NewInt(0), 1984, 1)
+	upperSafe := new(big.Int).Sub(dh_prime, lowerSafe)
+	if g_a.Cmp(lowerSafe) < 0 || g_a.Cmp(upperSafe) > 0 {
+		return fmt.Errorf("dh: g_a outside recommended range [2^1984, dh_prime-2^1984]")
+	}
+	return nil
+}
+
+func ValidateGB(g_b, dh_prime *big.Int) error {
+	if g_b == nil || dh_prime == nil {
+		return fmt.Errorf("dh: nil parameter")
+	}
+	two := big.NewInt(2)
+	upper := new(big.Int).Sub(dh_prime, two)
+	if g_b.Cmp(two) < 0 || g_b.Cmp(upper) > 0 {
+		return fmt.Errorf("dh: g_b out of range [2, dh_prime-2]")
+	}
+	return nil
+}
+
 func XOR(dst, src []byte) {
 	for i := range dst {
 		dst[i] ^= src[i]

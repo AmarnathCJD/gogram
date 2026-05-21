@@ -31,6 +31,7 @@ const (
 	defaultBaseReconnectDelay   = 2 * time.Second
 	defaultPingInterval         = 30 * time.Second
 	defaultPendingAcksThreshold = 10
+	maxMsgsAckPerBatch          = 8192
 )
 
 type ReconnectConfig struct {
@@ -1409,6 +1410,31 @@ messageTypeSwitching:
 		m.pendingAcks.Add(message.AnswerMsgID)
 		return nil
 
+	case *objects.MsgsStateReq:
+		info := make([]byte, len(message.MsgIDs))
+		for i, id := range message.MsgIDs {
+			if m.pendingAcks.Has(id) {
+				info[i] = 0x04
+			} else {
+				info[i] = 0x01
+			}
+		}
+		go func() {
+			if _, err := m.MakeRequest(&objects.MsgsStateInfo{ReqMsgID: int64(msg.GetMsgID()), Info: info}); err != nil {
+				m.Logger.Debug("msgs_state_info: %v", err)
+			}
+		}()
+		return nil
+
+	case *objects.MsgResendReq:
+		for _, id := range message.MsgIDs {
+			m.pendingAcks.Add(id)
+		}
+		return nil
+
+	case *objects.MsgsAllInfo:
+		return nil
+
 	case *objects.Pong:
 		if !m.exported && !m.cdn {
 			m.Logger.Debug("received pong (id=%d)", message.PingID)
@@ -1477,9 +1503,12 @@ messageTypeSwitching:
 	if m.pendingAcks.Len() >= defaultPendingAcksThreshold {
 		m.Logger.Trace("sending %d pending acknowledgments", m.pendingAcks.Len())
 
-		_, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: m.pendingAcks.Keys()})
-		if err != nil {
-			return fmt.Errorf("sending acks: %w", err)
+		ids := m.pendingAcks.Keys()
+		for start := 0; start < len(ids); start += maxMsgsAckPerBatch {
+			end := min(start + maxMsgsAckPerBatch, len(ids))
+			if _, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: ids[start:end]}); err != nil {
+				return fmt.Errorf("sending acks: %w", err)
+			}
 		}
 
 		m.pendingAcks.Clear()
