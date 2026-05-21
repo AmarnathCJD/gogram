@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
@@ -14,25 +15,32 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
-
-	"errors"
 
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
 type mimeTypeManager struct {
 	mimeTypes       map[string]string // ext -> mime
+	mimeToExt       map[string]string // mime -> preferred ext (reverse lookup)
 	streamableMimes map[string]bool   // streamable video mime types
 	streamableExts  map[string]bool   // streamable video extensions
 	audioExts       map[string]bool   // audio file extensions
 	imageExts       map[string]bool   // image file extensions
+
+	mimeMatchCache sync.Map // URL -> mime (cache for remote HEAD/GET lookups)
 }
 
 func (m *mimeTypeManager) addMime(ext, mime string) {
 	m.mimeTypes[ext] = mime
+	if _, exists := m.mimeToExt[mime]; !exists {
+		m.mimeToExt[mime] = ext
+	}
 }
 
 func (m *mimeTypeManager) match(filePath string) string {
@@ -44,41 +52,13 @@ func (m *mimeTypeManager) match(filePath string) string {
 			}
 		}
 
-		req, err := http.NewRequest("HEAD", filePath, nil)
-		if err != nil {
-			return ""
+		if cached, ok := m.mimeMatchCache.Load(filePath); ok {
+			return cached.(string)
 		}
 
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 6.1; rv:60.0) Gecko/20100101 Firefox/60.0")
-		HTTPClient := &http.Client{Timeout: 4 * time.Second}
-
-		resp, err := HTTPClient.Do(req)
-		if err != nil {
-			return ""
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode == 200 && resp.Header.Get("Content-Type") != "" {
-			return resp.Header.Get("Content-Type")
-		}
-
-		req, err = http.NewRequest("GET", filePath, nil)
-		if err != nil {
-			return ""
-		}
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 6.1; rv:60.0) Gecko/20100101 Firefox/60.0")
-		req.Header.Set("Range", "bytes=0-0")
-
-		resp, err = HTTPClient.Do(req)
-		if err != nil {
-			return ""
-		}
-		defer resp.Body.Close()
-
-		if (resp.StatusCode == 200 || resp.StatusCode == 206) && resp.Header.Get("Content-Type") != "" {
-			return resp.Header.Get("Content-Type")
-		}
-		return ""
+		mime := remoteMimeLookup(filePath)
+		m.mimeMatchCache.Store(filePath, mime)
+		return mime
 	}
 
 	ext := strings.ToLower(filepath.Ext(filePath))
@@ -99,17 +79,52 @@ func (m *mimeTypeManager) match(filePath string) string {
 	return http.DetectContentType(buffer)
 }
 
-func (m *mimeTypeManager) Ext(mime string) string {
-	for ext, mimeType := range m.mimeTypes {
-		if mimeType == mime {
-			return ext
+func remoteMimeLookup(rawURL string) string {
+	client := &http.Client{Timeout: 4 * time.Second}
+	ua := "Mozilla/5.0 (Windows NT 6.1; rv:60.0) Gecko/20100101 Firefox/60.0"
+
+	req, err := http.NewRequest(http.MethodHead, rawURL, nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("User-Agent", ua)
+
+	if resp, err := client.Do(req); err == nil {
+		resp.Body.Close()
+		if resp.StatusCode == 200 && resp.Header.Get("Content-Type") != "" {
+			return resp.Header.Get("Content-Type")
 		}
+	}
+
+	req, err = http.NewRequest(http.MethodGet, rawURL, nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("User-Agent", ua)
+	req.Header.Set("Range", "bytes=0-0")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if (resp.StatusCode == 200 || resp.StatusCode == 206) && resp.Header.Get("Content-Type") != "" {
+		return resp.Header.Get("Content-Type")
 	}
 	return ""
 }
 
+func (m *mimeTypeManager) Ext(mime string) string {
+	return m.mimeToExt[mime]
+}
+
 func (m *mimeTypeManager) IsPhoto(mime string) bool {
-	return strings.HasPrefix(mime, "image/") && !strings.Contains(mime, "image/webp")
+	switch mime {
+	case "image/jpeg", "image/png", "image/gif":
+		return true
+	}
+	return false
 }
 
 func (m *mimeTypeManager) MIME(filePath string) (string, bool) {
@@ -163,6 +178,7 @@ func (m *mimeTypeManager) GetInlineType(mimeType string, voiceNote bool) string 
 
 var MimeTypes = &mimeTypeManager{
 	mimeTypes:       make(map[string]string),
+	mimeToExt:       make(map[string]string),
 	streamableMimes: make(map[string]bool),
 	streamableExts:  make(map[string]bool),
 	audioExts:       make(map[string]bool),
@@ -225,10 +241,7 @@ func init() {
 }
 
 func parseInt64(s string) (int64, error) {
-	s = strings.TrimSpace(s)
-	var n int64
-	_, err := fmt.Sscanf(s, "%d", &n)
-	return n, err
+	return strconv.ParseInt(strings.TrimSpace(s), 10, 64)
 }
 
 type Proxy interface {
@@ -346,7 +359,10 @@ func ProxyFromURL(proxyURL string) (Proxy, error) {
 	if err != nil {
 		matches := proxyURLRegex.FindStringSubmatch(proxyURL)
 		if len(matches) == 4 {
-			port, _ := strconv.Atoi(matches[3])
+			port, perr := strconv.Atoi(matches[3])
+			if perr != nil {
+				return nil, fmt.Errorf("invalid proxy port %q: %w", matches[3], perr)
+			}
 			return &MTProxy{
 				BaseProxy: BaseProxy{
 					Host: matches[2],
@@ -367,7 +383,11 @@ func ProxyFromURL(proxyURL string) (Proxy, error) {
 	var port int
 	portStr := u.Port()
 	if portStr != "" {
-		port, _ = strconv.Atoi(portStr)
+		p, perr := strconv.Atoi(portStr)
+		if perr != nil {
+			return nil, fmt.Errorf("invalid proxy port %q: %w", portStr, perr)
+		}
+		port = p
 	} else {
 		switch scheme {
 		case "socks4", "socks4a", "socks5", "socks5h":
@@ -438,7 +458,11 @@ func ProxyFromURL(proxyURL string) (Proxy, error) {
 			host = u.Hostname()
 		}
 		if portQuery := q.Get("port"); portQuery != "" {
-			port, _ = strconv.Atoi(portQuery)
+			p, perr := strconv.Atoi(portQuery)
+			if perr != nil {
+				return nil, fmt.Errorf("invalid tg proxy port %q: %w", portQuery, perr)
+			}
+			port = p
 		}
 		return &MTProxy{
 			BaseProxy: BaseProxy{
@@ -458,17 +482,13 @@ func GetFloodWait(err error) int {
 		return 0
 	}
 
-	if regexFloodWait.MatchString(err.Error()) {
-		wait, _ := strconv.Atoi(regexFloodWait.FindStringSubmatch(err.Error())[1])
-		return wait
-	} else if regexFloodWaitBasic.MatchString(err.Error()) {
-		wait, _ := strconv.Atoi(regexFloodWaitBasic.FindStringSubmatch(err.Error())[1])
-		return wait
-	} else if regexFloodWaitPremium.MatchString(err.Error()) {
-		wait, _ := strconv.Atoi(regexFloodWaitPremium.FindStringSubmatch(err.Error())[1])
-		return wait
+	msg := err.Error()
+	for _, re := range []*regexp.Regexp{regexFloodWait, regexFloodWaitBasic, regexFloodWaitPremium} {
+		if m := re.FindStringSubmatch(msg); len(m) > 1 {
+			wait, _ := strconv.Atoi(m[1])
+			return wait
+		}
 	}
-
 	return 0
 }
 
@@ -538,9 +558,14 @@ mediaMessageSwitch:
 	switch l := location.(type) {
 	case *DocumentObj:
 		if opt.ThumbOnly {
-			var selectedThumb = l.Thumbs[0]
-			if opt.ThumbSize != nil {
+			var selectedThumb PhotoSize
+			switch {
+			case opt.ThumbSize != nil:
 				selectedThumb = opt.ThumbSize
+			case len(l.Thumbs) > 0:
+				selectedThumb = l.Thumbs[len(l.Thumbs)-1]
+			default:
+				return nil, 0, 0, "", errors.New("document has no thumbnails")
 			}
 
 			size, sizeType := getPhotoSize(selectedThumb)
@@ -570,13 +595,18 @@ mediaMessageSwitch:
 			}, l.DcID, size, GetFileName(l, true), nil
 		}
 
-		var selectedThumb = l.Sizes[len(l.Sizes)-1]
-		if len(opts) > 0 && opts[0].ThumbOnly {
-			if opts[0].ThumbSize != nil {
-				selectedThumb = opts[0].ThumbSize
-			} else {
-				selectedThumb = l.Sizes[0]
-			}
+		if len(l.Sizes) == 0 {
+			return nil, 0, 0, "", errors.New("photo has no sizes")
+		}
+
+		var selectedThumb PhotoSize
+		switch {
+		case opt.ThumbOnly && opt.ThumbSize != nil:
+			selectedThumb = opt.ThumbSize
+		case opt.ThumbOnly:
+			selectedThumb = l.Sizes[len(l.Sizes)-1]
+		default:
+			selectedThumb = l.Sizes[len(l.Sizes)-1]
 		}
 
 		size, sizeType := getPhotoSize(selectedThumb)
@@ -626,17 +656,15 @@ func getMax(a []int32) int32 {
 	if len(a) == 0 {
 		return 0
 	}
-	var maximum = a[0]
-	for _, v := range a {
-		if v > maximum {
-			maximum = v
-		}
-	}
-	return maximum
+	return slices.Max(a)
 }
 
 func pathIsDir(path string) bool {
-	return strings.HasSuffix(path, "/") || strings.HasSuffix(path, "\\")
+	if strings.HasSuffix(path, "/") || strings.HasSuffix(path, "\\") {
+		return true
+	}
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 func sanitizePath(path string, filename string) string {
@@ -662,8 +690,11 @@ func getDocumentExt(doc *DocumentObj) string {
 	}
 
 	for _, attr := range doc.Attributes {
-		switch attr.(type) {
+		switch a := attr.(type) {
 		case *DocumentAttributeAudio:
+			if a.Voice {
+				return ".ogg"
+			}
 			return ".mp3"
 		case *DocumentAttributeVideo:
 			return ".mp4"
@@ -768,18 +799,32 @@ func GetFileSize(f any) int64 {
 		}
 		return 0
 	case *MessageMediaPhoto:
-		if photo, p := f.Photo.(*PhotoObj); p {
-			if len(photo.Sizes) == 0 {
-				return 0
-			}
-			s, _ := getPhotoSize(photo.Sizes[len(photo.Sizes)-1])
-			return s
-		} else {
+		photo, ok := f.Photo.(*PhotoObj)
+		if !ok || len(photo.Sizes) == 0 {
 			return 0
 		}
+		return largestPhotoSize(photo.Sizes)
 	default:
 		return 0
 	}
+}
+
+func largestPhotoSize(sizes []PhotoSize) int64 {
+	var best int64
+	for _, s := range sizes {
+		switch s.(type) {
+		case *PhotoSizeEmpty, *PhotoStrippedSize, *PhotoCachedSize:
+			continue
+		}
+		if v, _ := getPhotoSize(s); v > best {
+			best = v
+		}
+	}
+	if best == 0 {
+		v, _ := getPhotoSize(sizes[len(sizes)-1])
+		return v
+	}
+	return best
 }
 
 // GetFileExt returns the file extension of Media
@@ -819,16 +864,33 @@ func getPeerUser(userID int64) *PeerUser {
 	}
 }
 
+var lpCache sync.Map
+
 func lp(loggerName string, sessionName string) string {
-	if sessionName == "" {
-		return fmt.Sprintf("[%s]", loggerName)
+	key := loggerName + "\x00" + sessionName
+	if v, ok := lpCache.Load(key); ok {
+		return v.(string)
 	}
-	return fmt.Sprintf("[%s-%s]", loggerName, sessionName)
+	var s string
+	if sessionName == "" {
+		s = "[" + loggerName + "]"
+	} else {
+		s = "[" + loggerName + "-" + sessionName + "]"
+	}
+	lpCache.Store(key, s)
+	return s
 }
 
 func IsURL(str string) bool {
 	u, err := url.Parse(str)
-	return err == nil && u.Scheme != "" && u.Host != ""
+	if err != nil || u.Host == "" {
+		return false
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "http", "https":
+		return true
+	}
+	return false
 }
 
 func IsPhone(phone string) bool {
@@ -883,14 +945,23 @@ func parseInt32(a any) int32 {
 }
 
 func SizetoHuman(size int64) string {
-	if size < 1024 {
+	const (
+		KiB = 1024
+		MiB = 1024 * KiB
+		GiB = 1024 * MiB
+		TiB = 1024 * GiB
+	)
+	switch {
+	case size < KiB:
 		return fmt.Sprintf("%d B", size)
-	} else if size < 1024*1024 {
-		return fmt.Sprintf("%.2f KB", float64(size)/1024)
-	} else if size < 1024*1024*1024 {
-		return fmt.Sprintf("%.2f MB", float64(size)/1024/1024)
-	} else {
-		return fmt.Sprintf("%.2f GB", float64(size)/1024/1024/1024)
+	case size < MiB:
+		return fmt.Sprintf("%.2f KiB", float64(size)/KiB)
+	case size < GiB:
+		return fmt.Sprintf("%.2f MiB", float64(size)/MiB)
+	case size < TiB:
+		return fmt.Sprintf("%.2f GiB", float64(size)/GiB)
+	default:
+		return fmt.Sprintf("%.2f TiB", float64(size)/TiB)
 	}
 }
 
@@ -1067,25 +1138,33 @@ func IsFfmpegInstalled() bool {
 }
 
 func MarshalWithTypeName(v any, noindent ...bool) string {
+	if v == nil {
+		return "null"
+	}
 	rv := reflect.ValueOf(v)
 	rt := reflect.TypeOf(v)
 
 	if rt.Kind() == reflect.Pointer {
 		if rv.IsNil() {
-			return "{}"
+			return "null"
 		}
 		rt = rt.Elem()
 		rv = rv.Elem()
 	}
 
 	if rt.Kind() != reflect.Struct {
-		return "{}"
+		b, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Sprintf("%v", v)
+		}
+		return string(b)
 	}
 
 	typeName := rt.Name()
+	visited := make(map[uintptr]bool)
 
 	result := map[string]any{
-		typeName: buildRecursive(rv, false),
+		typeName: buildRecursive(rv, visited),
 	}
 
 	var b []byte
@@ -1097,26 +1176,33 @@ func MarshalWithTypeName(v any, noindent ...bool) string {
 		b, err = json.MarshalIndent(result, "", "  ")
 	}
 	if err != nil {
-		return "{}"
+		return fmt.Sprintf("%+v", v)
 	}
 
 	return string(b)
 }
 
-func buildRecursive(v reflect.Value, _ bool) any {
+func buildRecursive(v reflect.Value, visited map[uintptr]bool) any {
 	switch v.Kind() {
 
 	case reflect.Interface:
 		if v.IsNil() {
 			return nil
 		}
-		return buildRecursive(v.Elem(), false)
+		return buildRecursive(v.Elem(), visited)
 
 	case reflect.Pointer:
 		if v.IsNil() {
 			return nil
 		}
-		return buildRecursive(v.Elem(), false)
+		ptr := v.Pointer()
+		if visited[ptr] {
+			return "<cyclic>"
+		}
+		visited[ptr] = true
+		out := buildRecursive(v.Elem(), visited)
+		delete(visited, ptr)
+		return out
 
 	case reflect.Struct:
 		out := make(map[string]any)
@@ -1126,25 +1212,30 @@ func buildRecursive(v reflect.Value, _ bool) any {
 			if f.PkgPath != "" {
 				continue
 			}
-
-			name := f.Name
-
-			out[name] = buildRecursive(v.Field(i), false)
+			out[f.Name] = buildRecursive(v.Field(i), visited)
 		}
 		return out
 
 	case reflect.Slice, reflect.Array:
 		arr := make([]any, v.Len())
 		for i := 0; i < v.Len(); i++ {
-			arr[i] = buildRecursive(v.Index(i), false)
+			arr[i] = buildRecursive(v.Index(i), visited)
 		}
 		return arr
 
 	case reflect.Map:
 		out := make(map[string]any)
 		for _, key := range v.MapKeys() {
-			strKey := fmt.Sprintf("%v", key.Interface())
-			out[strKey] = buildRecursive(v.MapIndex(key), false)
+			var strKey string
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						strKey = fmt.Sprintf("<key:%v>", r)
+					}
+				}()
+				strKey = fmt.Sprintf("%v", key.Interface())
+			}()
+			out[strKey] = buildRecursive(v.MapIndex(key), visited)
 		}
 		return out
 

@@ -160,9 +160,16 @@ func (c *Client) getSendableInlineMedia(mediaFile any, options ...*ArticleOption
 	opts := getVariadic(options, &ArticleOptions{})
 
 	inputMedia, err := c.getSendableMedia(mediaFile, &MediaMetadata{
-		Inline:        true,
-		ForceDocument: opts.ForceDocument,
-		MimeType:      opts.MimeType,
+		Inline:         true,
+		ForceDocument:  opts.ForceDocument,
+		MimeType:       opts.MimeType,
+		NoSoundVideo:   opts.NoSoundVideo,
+		VideoCover:     opts.VideoCover,
+		VideoTimestamp: opts.VideoTimestamp,
+		LivePhoto:      opts.LivePhoto,
+		Video:          opts.Video,
+		Stickers:       opts.Stickers,
+		Query:          opts.Query,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("inline media: %w", err)
@@ -503,6 +510,13 @@ type ArticleOptions struct {
 	WebPage              *InputBotInlineMessageMediaWebPage // Web page preview
 	BusinessConnectionId string                             // Business connection ID
 	VoiceNote            bool                               // Send as voice note
+	NoSoundVideo         bool                               // Mark uploaded video as having no audio track
+	VideoCover           InputPhoto                         // Custom video cover photo
+	VideoTimestamp       int32                              // Start playback at this timestamp (seconds)
+	LivePhoto            bool                               // Treat photo as live photo (paired with Video)
+	Video                InputDocument                      // Companion video for a live photo
+	Stickers             []InputDocument                    // Attached stickers / mask stickers
+	Query                string                             // Inline search query that surfaced this document/sticker
 }
 
 func (i *InlineBuilder) Article(title, description, text string, options ...*ArticleOptions) *InlineBuilder {

@@ -17,6 +17,8 @@ type InlineSendOptions struct {
 	Private      bool   // Results visible only to the requesting user
 	SwitchPm     string // Text for the "Switch to PM" above inline results
 	SwitchPmText string // Deep link parameter for start= in Switch to PM
+	SwitchWebView     string // Text for "Switch to WebView" button (for game bots)
+	SwitchWebViewURL string // URL for "Switch to WebView" button (for game bots)
 }
 
 func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult, Options ...*InlineSendOptions) (bool, error) {
@@ -34,6 +36,12 @@ func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult
 		request.SwitchPm = &InlineBotSwitchPm{
 			Text:       options.SwitchPm,
 			StartParam: getValue(options.SwitchPmText, "start"),
+		}
+	}
+	if options.SwitchWebView != "" && options.SwitchWebViewURL != "" {
+		request.SwitchWebview = &InlineBotWebView{
+			Text: options.SwitchWebView,
+			URL:  options.SwitchWebViewURL,
 		}
 	}
 	resp, err := c.MessagesSetInlineBotResults(request)

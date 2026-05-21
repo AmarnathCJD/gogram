@@ -65,7 +65,6 @@ type Client struct {
 	exportedKeys   map[int]*AuthExportedAuthorization
 	exportedKeysMu sync.Mutex
 	Log            Logger
-	Data           *ContextStore
 }
 
 type DeviceConfig struct {
@@ -164,7 +163,6 @@ func NewClient(config ClientConfig) (*Client, error) {
 	}
 
 	client.exSenders = NewExSenders()
-	client.Data = NewContextStore()
 
 	return client, nil
 }

@@ -15,8 +15,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
 
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/session"
@@ -39,19 +37,16 @@ func ResolveDC(dc int, test, ipv6 bool) string {
 
 func joinAbsWorkingDir(filename string) string {
 	if filename == "" {
-		filename = "session.dat" // default filename for session file
+		filename = "session.dat"
 	}
-
-	if !filepath.IsAbs(filename) || !strings.Contains(filename, string(filepath.Separator)) {
-		workDir, err := os.Getwd()
-		if err != nil {
-			return filename
-		}
-
-		return filepath.Join(workDir, filename)
+	if filepath.IsAbs(filename) {
+		return filename
 	}
-
-	return filename
+	workDir, err := os.Getwd()
+	if err != nil {
+		return filename
+	}
+	return filepath.Join(workDir, filename)
 }
 
 func PathIsWritable(path string) bool {
@@ -64,7 +59,7 @@ func PathIsWritable(path string) bool {
 }
 
 func GenRandInt() int64 {
-	return int64(int32(rand.Uint32()))
+	return rand.Int64()
 }
 
 func (c *Client) ResolveMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
@@ -72,115 +67,120 @@ func (c *Client) ResolveMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleM
 }
 
 func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
-	var signatures = make([]string, 0)
-
-	var media []*InputSingleMedia
 	if attrs == nil {
 		attrs = &MediaMetadata{}
+	} else {
+		cloned := *attrs
+		attrs = &cloned
+	}
+	attrs.Inline = true
+
+	var media []*InputSingleMedia
+	var inputMedia []InputMedia
+
+	resolveSlice := func(items []any) error {
+		for _, it := range items {
+			mediaObj, err := c.getSendableMedia(it, attrs)
+			if err != nil {
+				return err
+			}
+			inputMedia = append(inputMedia, mediaObj)
+		}
+		return nil
 	}
 
-	attrs.Inline = true // force to call media.uploadToSelf
-	var inputMedia []InputMedia
 	switch m := m.(type) {
 	case *InputSingleMedia:
 		media = append(media, m)
 	case []*InputSingleMedia:
 		media = m
 	case []NewMessage:
-		for _, msg := range m {
-			if md := msg.Media(); md != nil {
-				mediaObj, err := c.getSendableMedia(md, attrs)
-				if err != nil {
-					return nil, err
-				}
-				inputMedia = append(inputMedia, mediaObj)
+		items := make([]any, 0, len(m))
+		for i := range m {
+			if md := m[i].Media(); md != nil {
+				items = append(items, md)
 			}
+		}
+		if err := resolveSlice(items); err != nil {
+			return nil, err
 		}
 	case []*NewMessage:
+		items := make([]any, 0, len(m))
 		for _, msg := range m {
 			if md := msg.Media(); md != nil {
-				mediaObj, err := c.getSendableMedia(md, attrs)
-				if err != nil {
-					return nil, err
-				}
-				inputMedia = append(inputMedia, mediaObj)
+				items = append(items, md)
 			}
+		}
+		if err := resolveSlice(items); err != nil {
+			return nil, err
 		}
 	case []InputMedia:
-		for _, m := range m {
-			mediaObj, err := c.getSendableMedia(m, attrs)
-			if err != nil {
-				return nil, err
-			}
-			inputMedia = append(inputMedia, mediaObj)
+		items := make([]any, len(m))
+		for i, v := range m {
+			items[i] = v
+		}
+		if err := resolveSlice(items); err != nil {
+			return nil, err
 		}
 	case []InputFile:
-		for _, m := range m {
-			mediaObj, err := c.getSendableMedia(m, attrs)
-			if err != nil {
-				return nil, err
-			}
-			inputMedia = append(inputMedia, mediaObj)
+		items := make([]any, len(m))
+		for i, v := range m {
+			items[i] = v
+		}
+		if err := resolveSlice(items); err != nil {
+			return nil, err
 		}
 	case []MessageMedia:
-		for _, m := range m {
-			mediaObj, err := c.getSendableMedia(m, attrs)
-			if err != nil {
-				return nil, err
-			}
-			inputMedia = append(inputMedia, mediaObj)
+		items := make([]any, len(m))
+		for i, v := range m {
+			items[i] = v
+		}
+		if err := resolveSlice(items); err != nil {
+			return nil, err
 		}
 	case []Document:
-		for _, m := range m {
-			mediaObj, err := c.getSendableMedia(m, attrs)
-			if err != nil {
-				return nil, err
-			}
-			inputMedia = append(inputMedia, mediaObj)
+		items := make([]any, len(m))
+		for i, v := range m {
+			items[i] = v
+		}
+		if err := resolveSlice(items); err != nil {
+			return nil, err
 		}
 	case []Photo:
-		for _, m := range m {
-			mediaObj, err := c.getSendableMedia(m, attrs)
-			if err != nil {
-				return nil, err
-			}
-			inputMedia = append(inputMedia, mediaObj)
+		items := make([]any, len(m))
+		for i, v := range m {
+			items[i] = v
+		}
+		if err := resolveSlice(items); err != nil {
+			return nil, err
 		}
 	case []string:
-		for _, m := range m {
-			if !IsURL(m) && !attrs.SkipHash {
-				signature, err := calculateSha256Hash(m)
+		signatures := make(map[string]int, len(m))
+		for _, item := range m {
+			if !IsURL(item) && !attrs.SkipHash {
+				signature, err := calculateSha256Hash(item)
 				if err != nil {
 					return nil, err
 				}
-
-				var found bool
-				for i, sig := range signatures {
-					if sig == signature {
-						inputMedia = append(inputMedia, inputMedia[i])
-						found = true
-						break
-					}
-				}
-
-				signatures = append(signatures, signature)
-				if found {
+				if sig, ok := signatures[signature]; ok {
+					inputMedia = append(inputMedia, inputMedia[sig])
 					continue
 				}
+				signatures[signature] = len(inputMedia)
 			}
-			mediaObj, err := c.getSendableMedia(m, attrs)
+			mediaObj, err := c.getSendableMedia(item, attrs)
 			if err != nil {
 				return nil, err
 			}
 			inputMedia = append(inputMedia, mediaObj)
 		}
 	case [][]byte:
-		for _, m := range m {
-			mediaObj, err := c.getSendableMedia(m, attrs)
-			if err != nil {
-				return nil, err
-			}
-			inputMedia = append(inputMedia, mediaObj)
+		items := make([]any, len(m))
+		for i, v := range m {
+			items[i] = v
+		}
+		if err := resolveSlice(items); err != nil {
+			return nil, err
 		}
 	case string, InputFile, InputMedia, MessageMedia, []byte, Photo, Document:
 		mediaObj, err := c.getSendableMedia(m, attrs)
@@ -314,6 +314,9 @@ updateTypeSwitch:
 			TtlPeriod: update.TtlPeriod,
 		}
 	case *UpdatesObj:
+		if len(update.Updates) == 0 {
+			return nil
+		}
 		upd := update.Updates[0]
 		for _, u := range update.Updates {
 			switch u.(type) {
@@ -323,15 +326,25 @@ updateTypeSwitch:
 		}
 		switch upd := upd.(type) {
 		case *UpdateNewMessage:
-			return upd.Message.(*MessageObj)
+			if msg, ok := upd.Message.(*MessageObj); ok {
+				return msg
+			}
 		case *UpdateNewChannelMessage:
-			return upd.Message.(*MessageObj)
+			if msg, ok := upd.Message.(*MessageObj); ok {
+				return msg
+			}
 		case *UpdateEditMessage:
-			return upd.Message.(*MessageObj)
+			if msg, ok := upd.Message.(*MessageObj); ok {
+				return msg
+			}
 		case *UpdateEditChannelMessage:
-			return upd.Message.(*MessageObj)
+			if msg, ok := upd.Message.(*MessageObj); ok {
+				return msg
+			}
 		case *UpdateBotEditBusinessMessage:
-			return upd.Message.(*MessageObj)
+			if msg, ok := upd.Message.(*MessageObj); ok {
+				return msg
+			}
 		case *UpdateMessageID:
 			return &MessageObj{
 				ID: upd.ID,
@@ -626,6 +639,8 @@ func (c *Client) GetSendableMedia(mediaFile any, attr *MediaMetadata) (InputMedi
 
 func (c *Client) getSendableMedia(mediaFile any, attributes *MediaMetadata) (InputMedia, error) {
 	attr := getValue(attributes, &MediaMetadata{})
+	ttl := attr.TTL
+	spoiler := attr.Spoiler
 	var thumbnail InputFile
 
 	switch thumb := attr.Thumb.(type) {
@@ -646,7 +661,7 @@ mediaTypeSwitch:
 	case string:
 		if IsURL(media) {
 			if _, isImage := MimeTypes.MIME(media); isImage && !attr.ForceDocument {
-				photoExt := &InputMediaPhotoExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}
+				photoExt := &InputMediaPhotoExternal{URL: media, TtlSeconds: ttl, Spoiler: spoiler}
 				if attr.Inline {
 					return c.uploadToSelf(photoExt)
 				}
@@ -654,10 +669,7 @@ mediaTypeSwitch:
 				return photoExt, nil
 			}
 
-			if attr == nil {
-				return nil, fmt.Errorf("attributes cannot be nil")
-			}
-			documentExt := &InputMediaDocumentExternal{URL: media, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}
+			documentExt := &InputMediaDocumentExternal{URL: media, TtlSeconds: ttl, Spoiler: spoiler, VideoCover: attr.VideoCover, VideoTimestamp: attr.VideoTimestamp}
 			if attr.Inline {
 				return c.uploadToSelf(documentExt)
 			}
@@ -688,26 +700,37 @@ mediaTypeSwitch:
 	case Document:
 		switch media := media.(type) {
 		case *DocumentObj:
-			return &InputMediaDocument{ID: &InputDocumentObj{ID: media.ID, AccessHash: media.AccessHash, FileReference: media.FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+			return &InputMediaDocument{ID: &InputDocumentObj{ID: media.ID, AccessHash: media.AccessHash, FileReference: media.FileReference}, TtlSeconds: ttl, Spoiler: spoiler, VideoCover: attr.VideoCover, VideoTimestamp: attr.VideoTimestamp, Query: attr.Query}, nil
 		case *DocumentEmpty:
-			return &InputMediaDocument{ID: &InputDocumentEmpty{}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+			return &InputMediaDocument{ID: &InputDocumentEmpty{}, TtlSeconds: ttl, Spoiler: spoiler}, nil
 		}
 	case Photo:
 		switch media := media.(type) {
 		case *PhotoObj:
-			return &InputMediaPhoto{ID: &InputPhotoObj{ID: media.ID, AccessHash: media.AccessHash, FileReference: media.FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+			return &InputMediaPhoto{ID: &InputPhotoObj{ID: media.ID, AccessHash: media.AccessHash, FileReference: media.FileReference}, TtlSeconds: ttl, Spoiler: spoiler, LivePhoto: attr.LivePhoto, Video: attr.Video}, nil
 		case *PhotoEmpty:
-			return &InputMediaPhoto{ID: &InputPhotoEmpty{}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+			return &InputMediaPhoto{ID: &InputPhotoEmpty{}, TtlSeconds: ttl, Spoiler: spoiler}, nil
 		}
 	case MessageMedia:
 		switch media := media.(type) {
 		case *MessageMediaPhoto:
-			Photo := media.Photo.(*PhotoObj)
-			return &InputMediaPhoto{ID: &InputPhotoObj{ID: Photo.ID, AccessHash: Photo.AccessHash, FileReference: Photo.FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+			photo, ok := media.Photo.(*PhotoObj)
+			if !ok {
+				return &InputMediaPhoto{ID: &InputPhotoEmpty{}, TtlSeconds: ttl, Spoiler: spoiler}, nil
+			}
+			return &InputMediaPhoto{ID: &InputPhotoObj{ID: photo.ID, AccessHash: photo.AccessHash, FileReference: photo.FileReference}, TtlSeconds: ttl, Spoiler: spoiler, LivePhoto: attr.LivePhoto, Video: attr.Video}, nil
 		case *MessageMediaDocument:
-			return &InputMediaDocument{ID: &InputDocumentObj{ID: media.Document.(*DocumentObj).ID, AccessHash: media.Document.(*DocumentObj).AccessHash, FileReference: media.Document.(*DocumentObj).FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+			doc, ok := media.Document.(*DocumentObj)
+			if !ok {
+				return &InputMediaDocument{ID: &InputDocumentEmpty{}, TtlSeconds: ttl, Spoiler: spoiler}, nil
+			}
+			return &InputMediaDocument{ID: &InputDocumentObj{ID: doc.ID, AccessHash: doc.AccessHash, FileReference: doc.FileReference}, TtlSeconds: ttl, Spoiler: spoiler, VideoCover: attr.VideoCover, VideoTimestamp: attr.VideoTimestamp, Query: attr.Query}, nil
 		case *MessageMediaGeo:
-			return &InputMediaGeoPoint{GeoPoint: &InputGeoPointObj{Lat: media.Geo.(*GeoPointObj).Lat, Long: media.Geo.(*GeoPointObj).Long}}, nil
+			geo, ok := media.Geo.(*GeoPointObj)
+			if !ok {
+				return nil, fmt.Errorf("geo point is empty")
+			}
+			return &InputMediaGeoPoint{GeoPoint: &InputGeoPointObj{Lat: geo.Lat, Long: geo.Long}}, nil
 		case *MessageMediaGame:
 			return &InputMediaGame{ID: &InputGameID{ID: media.Game.ID, AccessHash: media.Game.AccessHash}}, nil
 		case *MessageMediaContact:
@@ -717,12 +740,16 @@ mediaTypeSwitch:
 		case *MessageMediaPoll:
 			return convertPoll(media), nil
 		case *MessageMediaVenue:
-			return &InputMediaVenue{GeoPoint: &InputGeoPointObj{Lat: media.Geo.(*GeoPointObj).Lat, Long: media.Geo.(*GeoPointObj).Long}, Title: media.Title, Address: media.Address, Provider: media.Provider, VenueID: media.VenueID, VenueType: media.VenueType}, nil
+			geo, ok := media.Geo.(*GeoPointObj)
+			if !ok {
+				return nil, fmt.Errorf("venue geo point is empty")
+			}
+			return &InputMediaVenue{GeoPoint: &InputGeoPointObj{Lat: geo.Lat, Long: geo.Long}, Title: media.Title, Address: media.Address, Provider: media.Provider, VenueID: media.VenueID, VenueType: media.VenueType}, nil
 		case *MessageMediaWebPage:
-			switch media.Webpage.(type) {
+			switch wp := media.Webpage.(type) {
 			case *WebPageObj:
-				return &InputMediaWebPage{URL: media.Webpage.(*WebPageObj).URL, ForceLargeMedia: media.ForceLargeMedia, ForceSmallMedia: media.ForceSmallMedia}, nil
-			case *WebPageEmpty:
+				return &InputMediaWebPage{URL: wp.URL, ForceLargeMedia: media.ForceLargeMedia, ForceSmallMedia: media.ForceSmallMedia}, nil
+			case *WebPageEmpty, *WebPageNotModified, *WebPagePending:
 				return &InputMediaWebPage{URL: "", ForceLargeMedia: media.ForceLargeMedia, ForceSmallMedia: media.ForceSmallMedia}, nil
 			}
 		case *MessageMediaToDo:
@@ -735,8 +762,12 @@ mediaTypeSwitch:
 			return &InputMediaStory{Peer: inputPeer, ID: media.ID}, nil
 		case *MessageMediaPaidMedia:
 			var medias []InputMedia
-			for _, m := range media.ExtendedMedia {
-				mediaObj, err := c.getSendableMedia(m, attr)
+			for _, em := range media.ExtendedMedia {
+				obj, ok := em.(*MessageExtendedMediaObj)
+				if !ok {
+					continue
+				}
+				mediaObj, err := c.getSendableMedia(obj.Media, attr)
 				if err != nil {
 					return nil, err
 				}
@@ -770,7 +801,7 @@ mediaTypeSwitch:
 			mimeType = attr.MimeType
 		}
 
-		uploadedPhoto := &InputMediaUploadedPhoto{File: mediaFile, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}
+		uploadedPhoto := &InputMediaUploadedPhoto{File: mediaFile, TtlSeconds: ttl, Spoiler: spoiler, LivePhoto: attr.LivePhoto, Video: attr.Video, Stickers: attr.Stickers}
 		if IsPhoto && !attr.ForceDocument {
 			if attr.Inline {
 				return c.uploadToSelf(uploadedPhoto)
@@ -786,8 +817,9 @@ mediaTypeSwitch:
 			}
 
 			for _, at := range mediaAttributes {
-				if _, ok := at.(*DocumentAttributeFilename); ok {
-					attributedFileName = at.(*DocumentAttributeFilename).FileName
+				if fn, ok := at.(*DocumentAttributeFilename); ok {
+					attributedFileName = fn.FileName
+					break
 				}
 			}
 
@@ -804,7 +836,7 @@ mediaTypeSwitch:
 				mediaAttributes = append(mediaAttributes, &DocumentAttributeFilename{FileName: fileName})
 			}
 
-			uploadedDoc := &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValueAny(thumbnail, &InputFileObj{}).(InputFile), TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false), ForceFile: getValue(attr.ForceDocument, false)}
+			uploadedDoc := &InputMediaUploadedDocument{File: mediaFile, MimeType: mimeType, Attributes: mediaAttributes, Thumb: getValueAny(thumbnail, &InputFileObj{}).(InputFile), TtlSeconds: ttl, Spoiler: spoiler, ForceFile: attr.ForceDocument, NosoundVideo: attr.NoSoundVideo, VideoCover: attr.VideoCover, VideoTimestamp: attr.VideoTimestamp, Stickers: attr.Stickers}
 			if attr.Inline {
 				return c.uploadToSelf(uploadedDoc)
 			}
@@ -813,14 +845,14 @@ mediaTypeSwitch:
 		}
 	case []byte, *io.Reader, *bytes.Buffer, *os.File:
 		var uopts *UploadOptions
-		if attr != nil && attr.Upload != nil {
+		if attr.Upload != nil {
 			uopts = attr.Upload
 			if attr.FileName != "" && uopts.FileName == "" {
 				uopts.FileName = attr.FileName
 			}
 		} else {
 			uopts = &UploadOptions{}
-			if attr != nil && attr.FileName != "" {
+			if attr.FileName != "" {
 				uopts.FileName = attr.FileName
 			}
 		}
@@ -912,15 +944,27 @@ func (c *Client) getMediaCacheKey(media InputMedia) string {
 	case *InputMediaUploadedPhoto:
 		switch file := m.File.(type) {
 		case *InputFileObj:
+			if file.Name == "" {
+				return ""
+			}
 			return fmt.Sprintf("photo_upload:%d:%s", file.ID, file.Name)
 		case *InputFileBig:
+			if file.Name == "" {
+				return ""
+			}
 			return fmt.Sprintf("photo_upload:%d:%s", file.ID, file.Name)
 		}
 	case *InputMediaUploadedDocument:
 		switch file := m.File.(type) {
 		case *InputFileObj:
+			if file.Name == "" {
+				return ""
+			}
 			return fmt.Sprintf("doc_upload:%d:%s", file.ID, file.Name)
 		case *InputFileBig:
+			if file.Name == "" {
+				return ""
+			}
 			return fmt.Sprintf("doc_upload:%d:%s", file.ID, file.Name)
 		}
 	}
@@ -1069,9 +1113,14 @@ func GatherMediaMetadata(path string, attrs []DocumentAttribute) ([]DocumentAttr
 		}
 
 		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-		dur, _ = strconv.ParseFloat(strings.TrimSpace(lines[len(lines)-1]), 64)
+		if len(lines) > 0 {
+			dur, _ = strconv.ParseFloat(strings.TrimSpace(lines[len(lines)-1]), 64)
+		}
 
-		for _, line := range lines {
+		for i, line := range lines {
+			if i == len(lines)-1 {
+				break
+			}
 			line = strings.TrimSpace(line)
 			if w, err := strconv.ParseInt(line, 10, 32); err == nil {
 				if width == 0 {
@@ -1373,7 +1422,9 @@ func packMessage(c *Client, message Message) *NewMessage {
 	m.Channel = c.getChannel(m.Message.PeerID)
 
 	if m.Channel != nil && m.Channel.Min {
-		if actualChannel, err := c.ChannelsGetChannels([]InputChannel{&InputChannelObj{ChannelID: m.Channel.ID, AccessHash: m.Channel.AccessHash}}); err == nil {
+		if cached, err := c.GetChannel(m.Channel.ID); err == nil && cached != nil && !cached.Min {
+			m.Channel = cached
+		} else if actualChannel, err := c.ChannelsGetChannels([]InputChannel{&InputChannelObj{ChannelID: m.Channel.ID, AccessHash: m.Channel.AccessHash}}); err == nil {
 			switch actualChannels := actualChannel.(type) {
 			case *MessagesChatsObj:
 				if len(actualChannels.Chats) > 0 {
@@ -1782,245 +1833,14 @@ func (r *RpcError) Error() string {
 }
 
 func (c *Client) Stringify(object any) string {
-	return c.JSON(object)
-}
-
-// easy wrapper for json.MarshalIndent, returns string
-func (c *Client) JSON(object any, noindent ...any) string {
 	return MarshalWithTypeName(object, true)
 }
 
-// GetTyped retrieves a typed value from the ContextStore
-func GetTyped[T any](cs *ContextStore, key string) (T, bool) {
-	var zero T
-	val, ok := cs.GetOk(key)
-	if !ok {
-		return zero, false
+func (c *Client) JSON(object any, noindent ...bool) string {
+	indent := true
+	if len(noindent) > 0 {
+		indent = !noindent[0]
 	}
-	typed, ok := val.(T)
-	return typed, ok
+	return MarshalWithTypeName(object, indent)
 }
 
-// GetScopedTyped retrieves a typed scoped value from the ContextStore
-func GetScopedTyped[T any](cs *ContextStore, id int64, key string) (T, bool) {
-	return GetTyped[T](cs, cs.scopedKey(id, key))
-}
-
-type ContextStore struct {
-	mu    sync.RWMutex
-	data  map[string]*contextEntry
-	stopC chan struct{}
-}
-
-type contextEntry struct {
-	value     any
-	expiresAt time.Time
-	hasTTL    bool
-}
-
-func NewContextStore() *ContextStore {
-	cs := &ContextStore{
-		data:  make(map[string]*contextEntry),
-		stopC: make(chan struct{}),
-	}
-	go cs.cleanupLoop()
-	return cs
-}
-
-func (cs *ContextStore) cleanupLoop() {
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			cs.cleanup()
-		case <-cs.stopC:
-			return
-		}
-	}
-}
-
-func (cs *ContextStore) cleanup() {
-	cs.mu.Lock()
-	defer cs.mu.Unlock()
-	now := time.Now()
-	for key, entry := range cs.data {
-		if entry.hasTTL && now.After(entry.expiresAt) {
-			delete(cs.data, key)
-		}
-	}
-}
-
-func (cs *ContextStore) Close()              { close(cs.stopC) }
-func (cs *ContextStore) Has(key string) bool { _, ok := cs.GetOk(key); return ok }
-func (cs *ContextStore) Len() int            { return len(cs.Keys()) }
-
-func (cs *ContextStore) Set(key string, value any) {
-	cs.mu.Lock()
-	defer cs.mu.Unlock()
-	cs.data[key] = &contextEntry{value: value, hasTTL: false}
-}
-
-func (cs *ContextStore) SetWithTTL(key string, value any, ttl time.Duration) {
-	cs.mu.Lock()
-	defer cs.mu.Unlock()
-	cs.data[key] = &contextEntry{value: value, expiresAt: time.Now().Add(ttl), hasTTL: true}
-}
-
-func (cs *ContextStore) Get(key string) any {
-	cs.mu.RLock()
-	defer cs.mu.RUnlock()
-	entry, ok := cs.data[key]
-	if !ok || (entry.hasTTL && time.Now().After(entry.expiresAt)) {
-		return nil
-	}
-	return entry.value
-}
-
-func (cs *ContextStore) GetOk(key string) (any, bool) {
-	cs.mu.RLock()
-	defer cs.mu.RUnlock()
-	entry, ok := cs.data[key]
-	if !ok || (entry.hasTTL && time.Now().After(entry.expiresAt)) {
-		return nil, false
-	}
-	return entry.value, true
-}
-
-func (cs *ContextStore) Delete(key string) {
-	cs.mu.Lock()
-	defer cs.mu.Unlock()
-	delete(cs.data, key)
-}
-
-func (cs *ContextStore) scopedKey(id int64, key string) string {
-	return strconv.FormatInt(id, 10) + ":" + key
-}
-
-func (cs *ContextStore) SetScoped(id int64, key string, value any) {
-	cs.Set(cs.scopedKey(id, key), value)
-}
-func (cs *ContextStore) GetScoped(id int64, key string) any { return cs.Get(cs.scopedKey(id, key)) }
-func (cs *ContextStore) GetScopedOk(id int64, key string) (any, bool) {
-	return cs.GetOk(cs.scopedKey(id, key))
-}
-func (cs *ContextStore) DeleteScoped(id int64, key string)   { cs.Delete(cs.scopedKey(id, key)) }
-func (cs *ContextStore) HasScoped(id int64, key string) bool { return cs.Has(cs.scopedKey(id, key)) }
-func (cs *ContextStore) IncrementScoped(id int64, key string) int {
-	return cs.Increment(cs.scopedKey(id, key))
-}
-
-func (cs *ContextStore) SetScopedWithTTL(id int64, key string, value any, ttl time.Duration) {
-	cs.SetWithTTL(cs.scopedKey(id, key), value, ttl)
-}
-
-func (cs *ContextStore) DeleteByPrefix(prefix string) int {
-	cs.mu.Lock()
-	defer cs.mu.Unlock()
-	count := 0
-	for key := range cs.data {
-		if strings.HasPrefix(key, prefix) {
-			delete(cs.data, key)
-			count++
-		}
-	}
-	return count
-}
-
-func (cs *ContextStore) DeleteByScope(id int64) int {
-	return cs.DeleteByPrefix(strconv.FormatInt(id, 10) + ":")
-}
-
-func (cs *ContextStore) GetInt(key string, defaultVal int) int {
-	if val := cs.Get(key); val != nil {
-		switch v := val.(type) {
-		case int:
-			return v
-		case int32:
-			return int(v)
-		case int64:
-			return int(v)
-		}
-	}
-	return defaultVal
-}
-
-func (cs *ContextStore) GetString(key string, defaultVal string) string {
-	if val := cs.Get(key); val != nil {
-		if s, ok := val.(string); ok {
-			return s
-		}
-	}
-	return defaultVal
-}
-
-func (cs *ContextStore) GetBool(key string, defaultVal bool) bool {
-	if val := cs.Get(key); val != nil {
-		if b, ok := val.(bool); ok {
-			return b
-		}
-	}
-	return defaultVal
-}
-
-func (cs *ContextStore) Increment(key string) int {
-	cs.mu.Lock()
-	defer cs.mu.Unlock()
-	entry, ok := cs.data[key]
-	if !ok || (entry.hasTTL && time.Now().After(entry.expiresAt)) {
-		cs.data[key] = &contextEntry{value: 1, hasTTL: false}
-		return 1
-	}
-	switch v := entry.value.(type) {
-	case int:
-		entry.value = v + 1
-		return v + 1
-	case int32:
-		entry.value = v + 1
-		return int(v + 1)
-	case int64:
-		entry.value = v + 1
-		return int(v + 1)
-	default:
-		cs.data[key] = &contextEntry{value: 1, hasTTL: false}
-		return 1
-	}
-}
-
-func (cs *ContextStore) Keys() []string {
-	cs.mu.RLock()
-	defer cs.mu.RUnlock()
-	now := time.Now()
-	keys := make([]string, 0, len(cs.data))
-	for key, entry := range cs.data {
-		if !entry.hasTTL || now.Before(entry.expiresAt) {
-			keys = append(keys, key)
-		}
-	}
-	return keys
-}
-
-func (cs *ContextStore) Clear() {
-	cs.mu.Lock()
-	defer cs.mu.Unlock()
-	cs.data = make(map[string]*contextEntry)
-}
-
-func (cs *ContextStore) SetOrUpdate(key string, defaultVal any, updateFn func(current any) any) any {
-	cs.mu.Lock()
-	defer cs.mu.Unlock()
-	entry, ok := cs.data[key]
-	if !ok || (entry.hasTTL && time.Now().After(entry.expiresAt)) {
-		cs.data[key] = &contextEntry{value: defaultVal, hasTTL: false}
-		return defaultVal
-	}
-	newVal := updateFn(entry.value)
-	entry.value = newVal
-	return newVal
-}
-
-func (cs *ContextStore) String() string {
-	cs.mu.RLock()
-	defer cs.mu.RUnlock()
-	return fmt.Sprintf("ContextStore{entries: %d}", len(cs.data))
-}

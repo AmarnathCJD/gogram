@@ -45,6 +45,13 @@ type SendOptions struct {
 	PaidFloodSkip        bool                     // Skip flood wait using paid priority
 	SuggestedPost        *SuggestedPost           // Channel post suggestion configuration
 	QuickReplyShortcut   *InputQuickReplyShortcut // Quick reply shortcut binding
+	NoSoundVideo         bool                     // Mark uploaded video as having no audio track
+	VideoCover           InputPhoto               // Custom video cover photo
+	VideoTimestamp       int32                    // Start playback at this timestamp (seconds)
+	LivePhoto            bool                     // Treat photo as live photo (paired with Video)
+	Video                InputDocument            // Companion video for a live photo
+	Stickers             []InputDocument          // Attached stickers / mask stickers
+	Query                string                   // Inline search query that surfaced this document/sticker
 }
 
 // SendMessage sends a message to a specified peer using the Telegram API method messages.sendMessage.
@@ -292,15 +299,22 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 	)
 	if Media != nil {
 		media, err = c.getSendableMedia(Media, &MediaMetadata{
-			FileName:      options.FileName,
-			Thumb:         options.Thumb,
-			Attributes:    options.Attributes,
-			ForceDocument: options.ForceDocument,
-			TTL:           options.TTL,
-			Spoiler:       options.Spoiler,
-			DisableThumb:  false,
-			MimeType:      options.MimeType,
-			Upload:        options.Upload,
+			FileName:       options.FileName,
+			Thumb:          options.Thumb,
+			Attributes:     options.Attributes,
+			ForceDocument:  options.ForceDocument,
+			TTL:            options.TTL,
+			Spoiler:        options.Spoiler,
+			DisableThumb:   false,
+			MimeType:       options.MimeType,
+			Upload:         options.Upload,
+			NoSoundVideo:   options.NoSoundVideo,
+			VideoCover:     options.VideoCover,
+			VideoTimestamp: options.VideoTimestamp,
+			LivePhoto:      options.LivePhoto,
+			Video:          options.Video,
+			Stickers:       options.Stickers,
+			Query:          options.Query,
 		})
 		if err != nil {
 			return nil, err
@@ -349,15 +363,22 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 	)
 	if Media != nil {
 		media, err = c.getSendableMedia(Media, &MediaMetadata{
-			Attributes:    options.Attributes,
-			TTL:           options.TTL,
-			ForceDocument: options.ForceDocument,
-			Thumb:         options.Thumb,
-			FileName:      options.FileName,
-			Spoiler:       options.Spoiler,
-			MimeType:      options.MimeType,
-			Upload:        options.Upload,
-			Inline:        true,
+			Attributes:     options.Attributes,
+			TTL:            options.TTL,
+			ForceDocument:  options.ForceDocument,
+			Thumb:          options.Thumb,
+			FileName:       options.FileName,
+			Spoiler:        options.Spoiler,
+			MimeType:       options.MimeType,
+			Upload:         options.Upload,
+			Inline:         true,
+			NoSoundVideo:   options.NoSoundVideo,
+			VideoCover:     options.VideoCover,
+			VideoTimestamp: options.VideoTimestamp,
+			LivePhoto:      options.LivePhoto,
+			Video:          options.Video,
+			Stickers:       options.Stickers,
+			Query:          options.Query,
 		})
 		if err != nil {
 			return nil, err
@@ -460,6 +481,12 @@ type MediaOptions struct {
 	PaidFloodSkip        bool                     // Skip flood wait using paid priority
 	SuggestedPost        *SuggestedPost           // Channel post suggestion configuration
 	QuickReplyShortcut   *InputQuickReplyShortcut // Quick reply shortcut binding
+	VideoCover           InputPhoto               // Custom video cover photo
+	VideoTimestamp       int32                    // Start playback at this timestamp (seconds)
+	LivePhoto            bool                     // Treat photo as live photo (paired with Video)
+	Video                InputDocument            // Companion video for a live photo
+	Stickers             []InputDocument          // Attached stickers / mask stickers
+	Query                string                   // Inline search query that surfaced this document/sticker
 }
 
 type MediaMetadata struct {
@@ -476,6 +503,13 @@ type MediaMetadata struct {
 	FileAbsPath          string              // Source file absolute path (set automatically)
 	Inline               bool                // Force uploadMedia call (required for inline/albums)
 	SkipHash             bool                // Disable file deduplication by hash lookup
+	NoSoundVideo         bool                // Mark uploaded video as having no audio track
+	VideoCover           InputPhoto          // Custom video cover photo (videos / documents)
+	VideoTimestamp       int32               // Start playback at this timestamp (seconds)
+	LivePhoto            bool                // Treat photo as live photo (paired with Video)
+	Video                InputDocument       // Companion video for a live photo
+	Stickers             []InputDocument     // Attached stickers / mask stickers
+	Query                string              // Inline search query that surfaced this document/sticker
 }
 
 // SendMedia sends a media message.
@@ -505,15 +539,22 @@ func (c *Client) SendMedia(peerID, Media any, opts ...*MediaOptions) (*NewMessag
 	)
 
 	sendMedia, err := c.getSendableMedia(Media, &MediaMetadata{
-		FileName:      opt.FileName,
-		Thumb:         opt.Thumb,
-		ForceDocument: opt.ForceDocument,
-		Attributes:    opt.Attributes,
-		TTL:           opt.TTL,
-		Spoiler:       opt.Spoiler,
-		MimeType:      opt.MimeType,
-		Upload:        opt.Upload,
-		SkipHash:      opt.SkipHash,
+		FileName:       opt.FileName,
+		Thumb:          opt.Thumb,
+		ForceDocument:  opt.ForceDocument,
+		Attributes:     opt.Attributes,
+		TTL:            opt.TTL,
+		Spoiler:        opt.Spoiler,
+		MimeType:       opt.MimeType,
+		Upload:         opt.Upload,
+		SkipHash:       opt.SkipHash,
+		NoSoundVideo:   opt.NoSoundVideo,
+		VideoCover:     opt.VideoCover,
+		VideoTimestamp: opt.VideoTimestamp,
+		LivePhoto:      opt.LivePhoto,
+		Video:          opt.Video,
+		Stickers:       opt.Stickers,
+		Query:          opt.Query,
 	})
 
 	if err != nil {
@@ -625,15 +666,22 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 	}
 
 	inputAlbum, multiErr := c.getMultiMedia(Album, &MediaMetadata{
-		FileName:      opt.FileName,
-		Thumb:         opt.Thumb,
-		ForceDocument: opt.ForceDocument,
-		Attributes:    opt.Attributes,
-		TTL:           opt.TTL,
-		Spoiler:       opt.Spoiler,
-		MimeType:      opt.MimeType,
-		Upload:        opt.Upload,
-		SkipHash:      opt.SkipHash,
+		FileName:       opt.FileName,
+		Thumb:          opt.Thumb,
+		ForceDocument:  opt.ForceDocument,
+		Attributes:     opt.Attributes,
+		TTL:            opt.TTL,
+		Spoiler:        opt.Spoiler,
+		MimeType:       opt.MimeType,
+		Upload:         opt.Upload,
+		SkipHash:       opt.SkipHash,
+		NoSoundVideo:   opt.NoSoundVideo,
+		VideoCover:     opt.VideoCover,
+		VideoTimestamp: opt.VideoTimestamp,
+		LivePhoto:      opt.LivePhoto,
+		Video:          opt.Video,
+		Stickers:       opt.Stickers,
+		Query:          opt.Query,
 	})
 
 	if multiErr != nil {
