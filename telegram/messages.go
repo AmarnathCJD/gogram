@@ -199,6 +199,7 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 		} else {
 			if opt.TopicID != 0 && opt.TopicID != 1 {
 				replyTo.TopMsgID = opt.TopicID
+				replyTo.ReplyToMsgID = opt.TopicID
 			}
 		}
 	}
@@ -596,6 +597,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 		} else {
 			if opt.TopicID != 0 && opt.TopicID != 1 {
 				replyTo.TopMsgID = opt.TopicID
+				replyTo.ReplyToMsgID = opt.TopicID
 			}
 		}
 	}
@@ -760,6 +762,7 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 	} else {
 		if opt.TopicID != 0 && opt.TopicID != 1 {
 			replyTo.TopMsgID = opt.TopicID
+			replyTo.ReplyToMsgID = opt.TopicID
 		}
 	}
 
@@ -892,6 +895,7 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 	} else {
 		if opt.TopicID != 0 && opt.TopicID != 1 {
 			replyTo.TopMsgID = opt.TopicID
+			replyTo.ReplyToMsgID = opt.TopicID
 		}
 	}
 
@@ -1118,6 +1122,7 @@ func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*Forwar
 
 	updateResp, err := c.MessagesForwardMessages(&MessagesForwardMessagesParams{
 		ReplyTo:            reply,
+		TopMsgID:           opt.TopicID,
 		ToPeer:             toPeer,
 		FromPeer:           fromPeer,
 		ID:                 msgIDs,
