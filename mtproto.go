@@ -741,6 +741,14 @@ func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (an
 	return m.makeRequestCtx(ctx, data, expectedTypes...)
 }
 
+// 1. 定义一个控制递归层数的 key 类型（防止与其他 context key 冲突）
+type retryKeyType struct{}
+
+var retryKey retryKeyType
+
+// 2. 定义最大递归/重试次数常量
+const maxRetries = 3
+
 func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) (any, error) {
 	if err := m.tcpState.WaitForActive(ctx); err != nil {
 		return nil, fmt.Errorf("waiting for active tcp state: %w", err)
@@ -755,7 +763,22 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 		if reconnErr := m.Reconnect(false); reconnErr != nil {
 			return nil, fmt.Errorf("reconnecting: %w", reconnErr)
 		}
-		return m.makeRequestCtx(ctx, data, expectedTypes...)
+
+		// ====== 3. 核心修改：拦截无限递归 ======
+		retries := 0
+		if val := ctx.Value(retryKey); val != nil {
+			retries = val.(int)
+		}
+
+		if retries >= maxRetries {
+			m.Logger.Errorf("[FATAL LOOP] Aborting request %T to avoid stack overflow. Reached max retries: %d", data, maxRetries)
+			return nil, fmt.Errorf("request aborted: exceeded maximum transport error retries (%d)", maxRetries)
+		}
+
+		// 将重试次数 +1 并注入到新的 context 中传给下一层
+		retryCtx := context.WithValue(ctx, retryKey, retries+1)
+		return m.makeRequestCtx(retryCtx, data, expectedTypes...)
+		// ======================================
 	}
 
 	select {
