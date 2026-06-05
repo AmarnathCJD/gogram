@@ -2312,7 +2312,6 @@ func init() {
 		&WebPagePending{},
 		&WebPageURLPending{},
 		&WebViewMessageSent{},
-		&WebViewResultURL{},
 		&WebViewResultURL{})
 
 	{
