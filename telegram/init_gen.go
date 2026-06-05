@@ -482,7 +482,6 @@ func init() {
 		&ChatFullObj{},
 		&ChatInviteAlready{},
 		&ChatInviteExported{},
-		&ChatInviteExported{},
 		&ChatInviteImporter{},
 		&ChatInviteJoinResultOk{},
 		&ChatInviteJoinResultWebView{},
