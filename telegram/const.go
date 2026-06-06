@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	ApiVersion = 227
+	ApiVersion = 225
 	Version    = "v1.7.4"
 
 	ModeAbridged           = "modeAbridged"

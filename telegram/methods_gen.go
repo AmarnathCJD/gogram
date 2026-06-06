@@ -4,9 +4,8 @@ package telegram
 
 import (
 	"fmt"
-	"reflect"
-
 	tl "github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"reflect"
 )
 
 type AccountAcceptAuthorizationParams struct {
@@ -6078,27 +6077,19 @@ func (c *Client) ChannelsToggleForum(channel InputChannel, enabled, tabs bool) (
 }
 
 type ChannelsToggleJoinRequestParams struct {
-	ApplyToInvites bool `tl:"flag:1,encoded_in_bitflags"`
-	Channel        InputChannel
-	Enabled        bool
-	GuardBot       InputUser `tl:"flag:0"`
+	Channel InputChannel
+	Enabled bool
 }
 
 func (*ChannelsToggleJoinRequestParams) CRC() uint32 {
-	return 0xecc2618
-}
-
-func (*ChannelsToggleJoinRequestParams) FlagIndex() int {
-	return 0
+	return 0x4c2985b6
 }
 
 // Set whether all users should request admin approval to join the group.
-func (c *Client) ChannelsToggleJoinRequest(applyToInvites bool, channel InputChannel, enabled bool, guardBot InputUser) (Updates, error) {
+func (c *Client) ChannelsToggleJoinRequest(channel InputChannel, enabled bool) (Updates, error) {
 	responseData, err := c.MakeRequest(&ChannelsToggleJoinRequestParams{
-		ApplyToInvites: applyToInvites,
-		Channel:        channel,
-		Enabled:        enabled,
-		GuardBot:       guardBot,
+		Channel: channel,
+		Enabled: enabled,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("sending ChannelsToggleJoinRequest: %w", err)
@@ -6468,7 +6459,6 @@ func (c *Client) ChatlistsDeleteExportedInvite(chatlist *InputChatlistDialogFilt
 }
 
 type ChatlistsEditExportedInviteParams struct {
-	Revoked  bool `tl:"flag:0,encoded_in_bitflags"`
 	Chatlist *InputChatlistDialogFilter
 	Slug     string
 	Title    string      `tl:"flag:1"`
@@ -6484,8 +6474,13 @@ func (*ChatlistsEditExportedInviteParams) FlagIndex() int {
 }
 
 // Edit a chat folder deep link.
-func (c *Client) ChatlistsEditExportedInvite(params *ChatlistsEditExportedInviteParams) (*ExportedChatlistInvite, error) {
-	responseData, err := c.MakeRequest(params)
+func (c *Client) ChatlistsEditExportedInvite(chatlist *InputChatlistDialogFilter, slug, title string, peers []InputPeer) (*ExportedChatlistInvite, error) {
+	responseData, err := c.MakeRequest(&ChatlistsEditExportedInviteParams{
+		Chatlist: chatlist,
+		Peers:    peers,
+		Slug:     slug,
+		Title:    title,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("sending ChatlistsEditExportedInvite: %w", err)
 	}
@@ -7122,28 +7117,6 @@ func (c *Client) ContactsGetTopPeers(params *ContactsGetTopPeersParams) (Contact
 	return resp, nil
 }
 
-type ContactsImportCardParams struct {
-	ExportCard []int32
-}
-
-func (*ContactsImportCardParams) CRC() uint32 {
-	return 0x4fe196fe
-}
-
-// Returns general information on a user using his previously exported card as input. The app may use it to open a conversation without knowing the user's phone number.
-func (c *Client) ContactsImportCard(exportCard []int32) (User, error) {
-	responseData, err := c.MakeRequest(&ContactsImportCardParams{ExportCard: exportCard})
-	if err != nil {
-		return nil, fmt.Errorf("sending ContactsImportCard: %w", err)
-	}
-
-	resp, ok := responseData.(User)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type ContactsImportContactTokenParams struct {
 	Token string
 }
@@ -7418,27 +7391,6 @@ func (c *Client) ContactsUpdateContactNote(id InputUser, note *TextWithEntities)
 	resp, ok := responseData.(bool)
 	if !ok {
 		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type FoldersDeleteFolderParams struct {
-	FolderID int32
-}
-
-func (*FoldersDeleteFolderParams) CRC() uint32 {
-	return 0x1c295881
-}
-
-func (c *Client) FoldersDeleteFolder(folderID int32) (Updates, error) {
-	responseData, err := c.MakeRequest(&FoldersDeleteFolderParams{FolderID: folderID})
-	if err != nil {
-		return nil, fmt.Errorf("sending FoldersDeleteFolder: %w", err)
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -8552,27 +8504,6 @@ func (c *Client) MessagesComposeMessageWithAi(params *MessagesComposeMessageWith
 	return resp, nil
 }
 
-type MessagesConfirmBotConnectionParams struct {
-	BotID InputUser
-}
-
-func (*MessagesConfirmBotConnectionParams) CRC() uint32 {
-	return 0x67ed1f68
-}
-
-func (c *Client) MessagesConfirmBotConnection(botID InputUser) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesConfirmBotConnectionParams{BotID: botID})
-	if err != nil {
-		return false, fmt.Errorf("sending MessagesConfirmBotConnection: %w", err)
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type MessagesCreateChatParams struct {
 	Users     []InputUser
 	Title     string
@@ -9087,25 +9018,6 @@ func (c *Client) MessagesDeleteTopicHistory(peer InputPeer, topMsgID int32) (*Me
 	return resp, nil
 }
 
-type MessagesDeleteWebBrowserSettingsExceptionsParams struct{}
-
-func (*MessagesDeleteWebBrowserSettingsExceptionsParams) CRC() uint32 {
-	return 0x86a0765d
-}
-
-func (c *Client) MessagesDeleteWebBrowserSettingsExceptions() (WebBrowserSettings, error) {
-	responseData, err := c.MakeRequest(&MessagesDeleteWebBrowserSettingsExceptionsParams{})
-	if err != nil {
-		return nil, fmt.Errorf("sending MessagesDeleteWebBrowserSettingsExceptions: %w", err)
-	}
-
-	resp, ok := responseData.(WebBrowserSettings)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type MessagesDiscardEncryptionParams struct {
 	DeleteHistory bool `tl:"flag:0,encoded_in_bitflags"`
 	ChatID        int32
@@ -9419,15 +9331,14 @@ type MessagesEditInlineBotMessageParams struct {
 	NoWebpage   bool `tl:"flag:1,encoded_in_bitflags"`
 	InvertMedia bool `tl:"flag:16,encoded_in_bitflags"`
 	ID          InputBotInlineMessageID
-	Message     string            `tl:"flag:11"`
-	Media       InputMedia        `tl:"flag:14"`
-	ReplyMarkup ReplyMarkup       `tl:"flag:2"`
-	Entities    []MessageEntity   `tl:"flag:3"`
-	RichMessage *InputRichMessage `tl:"flag:23"`
+	Message     string          `tl:"flag:11"`
+	Media       InputMedia      `tl:"flag:14"`
+	ReplyMarkup ReplyMarkup     `tl:"flag:2"`
+	Entities    []MessageEntity `tl:"flag:3"`
 }
 
 func (*MessagesEditInlineBotMessageParams) CRC() uint32 {
-	return 0xa423bb51
+	return 0x83557dba
 }
 
 func (*MessagesEditInlineBotMessageParams) FlagIndex() int {
@@ -9453,18 +9364,17 @@ type MessagesEditMessageParams struct {
 	InvertMedia          bool `tl:"flag:16,encoded_in_bitflags"`
 	Peer                 InputPeer
 	ID                   int32
-	Message              string            `tl:"flag:11"`
-	Media                InputMedia        `tl:"flag:14"`
-	ReplyMarkup          ReplyMarkup       `tl:"flag:2"`
-	Entities             []MessageEntity   `tl:"flag:3"`
-	ScheduleDate         int32             `tl:"flag:15"`
-	ScheduleRepeatPeriod int32             `tl:"flag:18"`
-	QuickReplyShortcutID int32             `tl:"flag:17"`
-	RichMessage          *InputRichMessage `tl:"flag:23"`
+	Message              string          `tl:"flag:11"`
+	Media                InputMedia      `tl:"flag:14"`
+	ReplyMarkup          ReplyMarkup     `tl:"flag:2"`
+	Entities             []MessageEntity `tl:"flag:3"`
+	ScheduleDate         int32           `tl:"flag:15"`
+	ScheduleRepeatPeriod int32           `tl:"flag:18"`
+	QuickReplyShortcutID int32           `tl:"flag:17"`
 }
 
 func (*MessagesEditMessageParams) CRC() uint32 {
-	return 0xb106e66c
+	return 0x51e842e1
 }
 
 func (*MessagesEditMessageParams) FlagIndex() int {
@@ -9507,31 +9417,6 @@ func (c *Client) MessagesEditQuickReplyShortcut(shortcutID int32, shortcut strin
 	resp, ok := responseData.(bool)
 	if !ok {
 		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type MessagesExportBotTokenParams struct {
-	BotID  int64
-	Revoke bool
-}
-
-func (*MessagesExportBotTokenParams) CRC() uint32 {
-	return 0x63b089
-}
-
-func (c *Client) MessagesExportBotToken(botID int64, revoke bool) (BotsExportedBotToken, error) {
-	responseData, err := c.MakeRequest(&MessagesExportBotTokenParams{
-		BotID:  botID,
-		Revoke: revoke,
-	})
-	if err != nil {
-		return BotsExportedBotToken{}, fmt.Errorf("sending MessagesExportBotToken: %w", err)
-	}
-	resp, ok := responseData.(BotsExportedBotToken)
-	if !ok {
-		return BotsExportedBotToken{}, fmt.Errorf("got invalid response type: %s",
-			reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9590,33 +9475,6 @@ func (c *Client) MessagesFaveSticker(id InputDocument, unfave bool) (bool, error
 	resp, ok := responseData.(bool)
 	if !ok {
 		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type MessagesForwardMessageParams struct {
-	Peer     InputPeer
-	ID       int32
-	RandomID int64
-}
-
-func (*MessagesForwardMessageParams) CRC() uint32 {
-	return 0x33963bf9
-}
-
-func (c *Client) MessagesForwardMessage(peer InputPeer, id int32, randomID int64) (Updates, error) {
-	responseData, err := c.MakeRequest(&MessagesForwardMessageParams{
-		ID:       id,
-		Peer:     peer,
-		RandomID: randomID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("sending MessagesForwardMessage: %w", err)
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -9683,27 +9541,6 @@ func (c *Client) MessagesGetAdminsWithInvites(peer InputPeer) (*MessagesChatAdmi
 	}
 
 	resp, ok := responseData.(*MessagesChatAdminsWithInvites)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type MessagesGetAllChatsParams struct {
-	ExceptIds []int64
-}
-
-func (*MessagesGetAllChatsParams) CRC() uint32 {
-	return 0x875f74be
-}
-
-func (c *Client) MessagesGetAllChats(exceptIds []int64) (MessagesChats, error) {
-	responseData, err := c.MakeRequest(&MessagesGetAllChatsParams{ExceptIds: exceptIds})
-	if err != nil {
-		return nil, fmt.Errorf("sending MessagesGetAllChats: %w", err)
-	}
-
-	resp, ok := responseData.(MessagesChats)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -11882,38 +11719,6 @@ func (c *Client) MessagesGetSponsoredMessages(peer InputPeer, msgID int32) (Mess
 	return resp, nil
 }
 
-type MessagesGetStatsURLParams struct {
-	Dark   bool `tl:"flag:0,encoded_in_bitflags"`
-	Peer   InputPeer
-	Params string
-}
-
-func (*MessagesGetStatsURLParams) CRC() uint32 {
-	return 0x812c2ae6
-}
-
-func (*MessagesGetStatsURLParams) FlagIndex() int {
-	return 0
-}
-
-// Returns URL with the chat statistics. Currently this method can be used only for channels
-func (c *Client) MessagesGetStatsURL(dark bool, peer InputPeer, params string) (*StatsURL, error) {
-	responseData, err := c.MakeRequest(&MessagesGetStatsURLParams{
-		Dark:   dark,
-		Params: params,
-		Peer:   peer,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("sending MessagesGetStatsURL: %w", err)
-	}
-
-	resp, ok := responseData.(*StatsURL)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type MessagesGetStickerSetParams struct {
 	Stickerset InputStickerSet
 	Hash       int32
@@ -12108,27 +11913,6 @@ func (c *Client) MessagesGetUnreadReactions(params *MessagesGetUnreadReactionsPa
 	return resp, nil
 }
 
-type MessagesGetWebBrowserSettingsParams struct {
-	Hash int64
-}
-
-func (*MessagesGetWebBrowserSettingsParams) CRC() uint32 {
-	return 0x56655768
-}
-
-func (c *Client) MessagesGetWebBrowserSettings(hash int64) (WebBrowserSettings, error) {
-	responseData, err := c.MakeRequest(&MessagesGetWebBrowserSettingsParams{Hash: hash})
-	if err != nil {
-		return nil, fmt.Errorf("sending MessagesGetWebBrowserSettings: %w", err)
-	}
-
-	resp, ok := responseData.(WebBrowserSettings)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type MessagesGetWebPageParams struct {
 	URL  string
 	Hash int32
@@ -12179,33 +11963,6 @@ func (c *Client) MessagesGetWebPagePreview(message string, entities []MessageEnt
 	}
 
 	resp, ok := responseData.(*MessagesWebPagePreview)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type MessagesGetWebViewResultParams struct {
-	Peer    InputPeer
-	Bot     InputUser
-	QueryID int64
-}
-
-func (*MessagesGetWebViewResultParams) CRC() uint32 {
-	return 0x22b6c214
-}
-
-func (c *Client) MessagesGetWebViewResult(peer InputPeer, bot InputUser, queryID int64) (*MessagesWebViewResult, error) {
-	responseData, err := c.MakeRequest(&MessagesGetWebViewResultParams{
-		Bot:     bot,
-		Peer:    peer,
-		QueryID: queryID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("sending MessagesGetWebViewResult: %w", err)
-	}
-
-	resp, ok := responseData.(*MessagesWebViewResult)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -13154,13 +12911,13 @@ func (*MessagesRequestAppWebViewParams) FlagIndex() int {
 }
 
 // Open a bot mini app from a direct Mini App deep link, sending over user information after user confirmation.
-func (c *Client) MessagesRequestAppWebView(params *MessagesRequestAppWebViewParams) (*MessagesWebViewResult, error) {
+func (c *Client) MessagesRequestAppWebView(params *MessagesRequestAppWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, fmt.Errorf("sending MessagesRequestAppWebView: %w", err)
 	}
 
-	resp, ok := responseData.(*MessagesWebViewResult)
+	resp, ok := responseData.(*WebViewResultURL)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -13214,13 +12971,13 @@ func (*MessagesRequestMainWebViewParams) FlagIndex() int {
 }
 
 // Open a Main Mini App.
-func (c *Client) MessagesRequestMainWebView(params *MessagesRequestMainWebViewParams) (*MessagesWebViewResult, error) {
+func (c *Client) MessagesRequestMainWebView(params *MessagesRequestMainWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, fmt.Errorf("sending MessagesRequestMainWebView: %w", err)
 	}
 
-	resp, ok := responseData.(*MessagesWebViewResult)
+	resp, ok := responseData.(*WebViewResultURL)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -13248,13 +13005,13 @@ func (*MessagesRequestSimpleWebViewParams) FlagIndex() int {
 }
 
 // Open a bot mini app.
-func (c *Client) MessagesRequestSimpleWebView(params *MessagesRequestSimpleWebViewParams) (*MessagesWebViewResult, error) {
+func (c *Client) MessagesRequestSimpleWebView(params *MessagesRequestSimpleWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, fmt.Errorf("sending MessagesRequestSimpleWebView: %w", err)
 	}
 
-	resp, ok := responseData.(*MessagesWebViewResult)
+	resp, ok := responseData.(*WebViewResultURL)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -13315,13 +13072,13 @@ func (*MessagesRequestWebViewParams) FlagIndex() int {
 }
 
 // Open a bot mini app, sending over user information after user confirmation.
-func (c *Client) MessagesRequestWebView(params *MessagesRequestWebViewParams) (*MessagesWebViewResult, error) {
+func (c *Client) MessagesRequestWebView(params *MessagesRequestWebViewParams) (*WebViewResultURL, error) {
 	responseData, err := c.MakeRequest(params)
 	if err != nil {
 		return nil, fmt.Errorf("sending MessagesRequestWebView: %w", err)
 	}
 
-	resp, ok := responseData.(*MessagesWebViewResult)
+	resp, ok := responseData.(*WebViewResultURL)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -13360,15 +13117,14 @@ type MessagesSaveDraftParams struct {
 	ReplyTo       InputReplyTo `tl:"flag:4"`
 	Peer          InputPeer
 	Message       string
-	Entities      []MessageEntity   `tl:"flag:3"`
-	Media         InputMedia        `tl:"flag:5"`
-	Effect        int64             `tl:"flag:7"`
-	SuggestedPost *SuggestedPost    `tl:"flag:8"`
-	RichMessage   *InputRichMessage `tl:"flag:9"`
+	Entities      []MessageEntity `tl:"flag:3"`
+	Media         InputMedia      `tl:"flag:5"`
+	Effect        int64           `tl:"flag:7"`
+	SuggestedPost *SuggestedPost  `tl:"flag:8"`
 }
 
 func (*MessagesSaveDraftParams) CRC() uint32 {
-	return 0xad0fa15c
+	return 0x54ae308e
 }
 
 func (*MessagesSaveDraftParams) FlagIndex() int {
@@ -13934,11 +13690,10 @@ type MessagesSendMessageParams struct {
 	Effect                 int64                   `tl:"flag:18"`
 	AllowPaidStars         int64                   `tl:"flag:21"`
 	SuggestedPost          *SuggestedPost          `tl:"flag:22"`
-	RichMessage            *InputRichMessage       `tl:"flag:23"`
 }
 
 func (*MessagesSendMessageParams) CRC() uint32 {
-	return 0xfef48f62
+	return 0x545cd15a
 }
 
 func (*MessagesSendMessageParams) FlagIndex() int {
@@ -14659,27 +14414,6 @@ func (c *Client) MessagesSetTyping(peer InputPeer, topMsgID int32, action SendMe
 	return resp, nil
 }
 
-type MessagesSetWebViewResultParams struct {
-	QueryID int64
-}
-
-func (*MessagesSetWebViewResultParams) CRC() uint32 {
-	return 0xe41cd11d
-}
-
-func (c *Client) MessagesSetWebViewResult(queryID int64) (bool, error) {
-	responseData, err := c.MakeRequest(&MessagesSetWebViewResultParams{QueryID: queryID})
-	if err != nil {
-		return false, fmt.Errorf("sending MessagesSetWebViewResult: %w", err)
-	}
-
-	resp, ok := responseData.(bool)
-	if !ok {
-		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type MessagesStartBotParams struct {
 	Bot        InputUser
 	Peer       InputPeer
@@ -15068,37 +14802,6 @@ func (c *Client) MessagesToggleTodoCompleted(peer InputPeer, msgID int32, comple
 	return resp, nil
 }
 
-type MessagesToggleWebBrowserSettingsExceptionParams struct {
-	Delete              bool `tl:"flag:1,encoded_in_bitflags"`
-	OpenExternalBrowser bool `tl:"flag:0"`
-	URL                 string
-}
-
-func (*MessagesToggleWebBrowserSettingsExceptionParams) CRC() uint32 {
-	return 0x60ed4229
-}
-
-func (*MessagesToggleWebBrowserSettingsExceptionParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesToggleWebBrowserSettingsException(delete bool, openExternalBrowser bool, url string) (Updates, error) {
-	responseData, err := c.MakeRequest(&MessagesToggleWebBrowserSettingsExceptionParams{
-		Delete:              delete,
-		OpenExternalBrowser: openExternalBrowser,
-		URL:                 url,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("sending MessagesToggleWebBrowserSettingsException: %w", err)
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
 type MessagesTranscribeAudioParams struct {
 	Peer  InputPeer
 	MsgID int32
@@ -15345,35 +15048,6 @@ func (c *Client) MessagesUpdateSavedReactionTag(reaction Reaction, title string)
 	resp, ok := responseData.(bool)
 	if !ok {
 		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type MessagesUpdateWebBrowserSettingsParams struct {
-	OpenExternalBrowser bool `tl:"flag:0,encoded_in_bitflags"`
-	DisplayCloseButton  bool `tl:"flag:1,encoded_in_bitflags"`
-}
-
-func (*MessagesUpdateWebBrowserSettingsParams) CRC() uint32 {
-	return 0x9adf82fe
-}
-
-func (*MessagesUpdateWebBrowserSettingsParams) FlagIndex() int {
-	return 0
-}
-
-func (c *Client) MessagesUpdateWebBrowserSettings(openExternalBrowser, displayCloseButton bool) (WebBrowserSettings, error) {
-	responseData, err := c.MakeRequest(&MessagesUpdateWebBrowserSettingsParams{
-		DisplayCloseButton:  displayCloseButton,
-		OpenExternalBrowser: openExternalBrowser,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("sending MessagesUpdateWebBrowserSettings: %w", err)
-	}
-
-	resp, ok := responseData.(WebBrowserSettings)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -16877,33 +16551,6 @@ func (c *Client) PaymentsReorderStarGiftCollections(peer InputPeer, order []int3
 	resp, ok := responseData.(bool)
 	if !ok {
 		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}
-	return resp, nil
-}
-
-type PaymentsRequestRecurringPaymentParams struct {
-	UserID              InputUser
-	RecurringInitCharge string
-	InvoiceMedia        InputMedia
-}
-
-func (*PaymentsRequestRecurringPaymentParams) CRC() uint32 {
-	return 0x146e958d
-}
-
-func (c *Client) PaymentsRequestRecurringPayment(userID InputUser, recurringInitCharge string, invoiceMedia InputMedia) (Updates, error) {
-	responseData, err := c.MakeRequest(&PaymentsRequestRecurringPaymentParams{
-		InvoiceMedia:        invoiceMedia,
-		RecurringInitCharge: recurringInitCharge,
-		UserID:              userID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("sending PaymentsRequestRecurringPayment: %w", err)
-	}
-
-	resp, ok := responseData.(Updates)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }

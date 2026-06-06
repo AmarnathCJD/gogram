@@ -308,21 +308,6 @@ func (*BotInlineMessageMediaWebPage) FlagIndex() int {
 
 func (*BotInlineMessageMediaWebPage) ImplementsBotInlineMessage() {}
 
-type BotInlineMessageRichMessage struct {
-	ReplyMarkup ReplyMarkup `tl:"flag:2"`
-	RichMessage *RichMessage
-}
-
-func (*BotInlineMessageRichMessage) CRC() uint32 {
-	return 0xa617e7b
-}
-
-func (*BotInlineMessageRichMessage) FlagIndex() int {
-	return 0
-}
-
-func (*BotInlineMessageRichMessage) ImplementsBotInlineMessage() {}
-
 // Send a simple text message
 type BotInlineMessageText struct {
 	NoWebpage   bool            `tl:"flag:0,encoded_in_bitflags"` // Disable webpage preview
@@ -596,17 +581,6 @@ func (*ChannelAdminLogEventActionChangeStickerSet) CRC() uint32 {
 }
 
 func (*ChannelAdminLogEventActionChangeStickerSet) ImplementsChannelAdminLogEventAction() {}
-
-type ChannelAdminLogEventActionChangeTheme struct {
-	PrevValue string
-	NewValue  string
-}
-
-func (*ChannelAdminLogEventActionChangeTheme) CRC() uint32 {
-	return 0xfe69018d
-}
-
-func (*ChannelAdminLogEventActionChangeTheme) ImplementsChannelAdminLogEventAction() {}
 
 // Channel/supergroup title was changed
 type ChannelAdminLogEventActionChangeTitle struct {
@@ -1432,22 +1406,21 @@ func (*ChannelForbidden) ImplementsChat() {}
 
 // Info about a group.
 type ChatObj struct {
-	Creator             bool `tl:"flag:0,encoded_in_bitflags"`
-	Kicked              bool `tl:"flag:1,encoded_in_bitflags"`
-	Left                bool `tl:"flag:2,encoded_in_bitflags"`
-	Deactivated         bool `tl:"flag:5,encoded_in_bitflags"`
-	CallActive          bool `tl:"flag:23,encoded_in_bitflags"`
-	CallNotEmpty        bool `tl:"flag:24,encoded_in_bitflags"`
-	Noforwards          bool `tl:"flag:25,encoded_in_bitflags"`
-	ID                  int64
-	Title               string
-	Photo               ChatPhoto
-	ParticipantsCount   int32
-	Date                int32
-	Version             int32
-	MigratedTo          InputChannel      `tl:"flag:6"`
-	AdminRights         *ChatAdminRights  `tl:"flag:14"`
-	DefaultBannedRights *ChatBannedRights `tl:"flag:18"`
+	Creator             bool              `tl:"flag:0,encoded_in_bitflags"`  // Whether the current user is the creator of the group
+	Left                bool              `tl:"flag:2,encoded_in_bitflags"`  // Whether the current user has left the group
+	Deactivated         bool              `tl:"flag:5,encoded_in_bitflags"`  // Whether the group was migrated
+	CallActive          bool              `tl:"flag:23,encoded_in_bitflags"` // Whether a group call is currently active
+	CallNotEmpty        bool              `tl:"flag:24,encoded_in_bitflags"` // Whether there's anyone in the group call
+	Noforwards          bool              `tl:"flag:25,encoded_in_bitflags"` // Whether this group is protected, thus does not allow forwarding messages from it
+	ID                  int64             // ID of the group
+	Title               string            // Title
+	Photo               ChatPhoto         // Chat photo
+	ParticipantsCount   int32             // Participant count
+	Date                int32             // Date of creation of the group
+	Version             int32             // Used in basic groups to reorder updates and make sure that all of them were received.
+	MigratedTo          InputChannel      `tl:"flag:6"`  // Means this chat was upgraded to a supergroup
+	AdminRights         *ChatAdminRights  `tl:"flag:14"` // Admin rights of the user in the group
+	DefaultBannedRights *ChatBannedRights `tl:"flag:18"` // Default banned rights of all users in the group
 }
 
 func (*ChatObj) CRC() uint32 {
@@ -1490,77 +1463,76 @@ type ChatFull interface {
 
 // Full info about a channel, supergroup or gigagroup.
 type ChannelFull struct {
-	CanViewParticipants    bool `tl:"flag:3,encoded_in_bitflags"`
-	CanSetUsername         bool `tl:"flag:6,encoded_in_bitflags"`
-	CanSetStickers         bool `tl:"flag:7,encoded_in_bitflags"`
-	HiddenPrehistory       bool `tl:"flag:10,encoded_in_bitflags"`
-	CanSetLocation         bool `tl:"flag:16,encoded_in_bitflags"`
-	HasScheduled           bool `tl:"flag:19,encoded_in_bitflags"`
-	CanViewStats           bool `tl:"flag:20,encoded_in_bitflags"`
-	Blocked                bool `tl:"flag:22,encoded_in_bitflags"`
-	CanDeleteChannel       bool `tl:"flag2:0,encoded_in_bitflags"`
-	Antispam               bool `tl:"flag2:1,encoded_in_bitflags"`
-	ParticipantsHidden     bool `tl:"flag2:2,encoded_in_bitflags"`
-	TranslationsDisabled   bool `tl:"flag2:3,encoded_in_bitflags"`
-	StoriesPinnedAvailable bool `tl:"flag2:5,encoded_in_bitflags"`
-	ViewForumAsMessages    bool `tl:"flag2:6,encoded_in_bitflags"`
-	RestrictedSponsored    bool `tl:"flag2:11,encoded_in_bitflags"`
-	CanViewRevenue         bool `tl:"flag2:12,encoded_in_bitflags"`
-	PaidMediaAllowed       bool `tl:"flag2:14,encoded_in_bitflags"`
-	CanViewStarsRevenue    bool `tl:"flag2:15,encoded_in_bitflags"`
-	PaidReactionsAvailable bool `tl:"flag2:16,encoded_in_bitflags"`
-	StargiftsAvailable     bool `tl:"flag2:19,encoded_in_bitflags"`
-	PaidMessagesAvailable  bool `tl:"flag2:20,encoded_in_bitflags"`
-	ID                     int64
-	About                  string
-	ParticipantsCount      int32 `tl:"flag:0"`
-	AdminsCount            int32 `tl:"flag:1"`
-	KickedCount            int32 `tl:"flag:2"`
-	BannedCount            int32 `tl:"flag:2"`
-	OnlineCount            int32 `tl:"flag:13"`
-	ReadInboxMaxID         int32
-	ReadOutboxMaxID        int32
-	UnreadCount            int32
-	ChatPhoto              Photo
-	NotifySettings         *PeerNotifySettings
-	ExportedInvite         ChatInviteExported `tl:"flag:23"`
-	BotInfo                []*BotInfo
-	MigratedFromChatID     int64           `tl:"flag:4"`
-	MigratedFromMaxID      int32           `tl:"flag:4"`
-	PinnedMsgID            int32           `tl:"flag:5"`
-	Stickerset             *StickerSet     `tl:"flag:8"`
-	AvailableMinID         int32           `tl:"flag:9"`
-	FolderID               int32           `tl:"flag:11"`
-	LinkedChatID           int64           `tl:"flag:14"`
-	Location               ChannelLocation `tl:"flag:15"`
-	SlowmodeSeconds        int32           `tl:"flag:17"`
-	SlowmodeNextSendDate   int32           `tl:"flag:18"`
-	StatsDc                int32           `tl:"flag:12"`
-	Pts                    int32
-	Call                   InputGroupCall   `tl:"flag:21"`
-	TtlPeriod              int32            `tl:"flag:24"`
-	PendingSuggestions     []string         `tl:"flag:25"`
-	GroupcallDefaultJoinAs Peer             `tl:"flag:26"`
-	ThemeEmoticon          string           `tl:"flag:27"`
-	RequestsPending        int32            `tl:"flag:28"`
-	RecentRequesters       []int64          `tl:"flag:28"`
-	DefaultSendAs          Peer             `tl:"flag:29"`
-	AvailableReactions     ChatReactions    `tl:"flag:30"`
-	ReactionsLimit         int32            `tl:"flag2:13"`
-	Stories                *PeerStories     `tl:"flag2:4"`
-	Wallpaper              WallPaper        `tl:"flag2:7"`
-	BoostsApplied          int32            `tl:"flag2:8"`
-	BoostsUnrestrict       int32            `tl:"flag2:9"`
-	Emojiset               *StickerSet      `tl:"flag2:10"`
-	BotVerification        *BotVerification `tl:"flag2:17"`
-	StargiftsCount         int32            `tl:"flag2:18"`
-	SendPaidMessagesStars  int64            `tl:"flag2:21"`
-	MainTab                ProfileTab       `tl:"flag2:22"`
-	GuardBotID             int64            `tl:"flag2:23"`
+	CanViewParticipants    bool                `tl:"flag:3,encoded_in_bitflags"`   // Can we view the participant list?
+	CanSetUsername         bool                `tl:"flag:6,encoded_in_bitflags"`   // Can we set the channel's username?
+	CanSetStickers         bool                `tl:"flag:7,encoded_in_bitflags"`   // Can we associate a stickerpack to the supergroup?
+	HiddenPrehistory       bool                `tl:"flag:10,encoded_in_bitflags"`  // Is the history before we joined hidden to us?
+	CanSetLocation         bool                `tl:"flag:16,encoded_in_bitflags"`  // Can we set the geolocation of this group (for geogroups)
+	HasScheduled           bool                `tl:"flag:19,encoded_in_bitflags"`  // Whether scheduled messages are available
+	CanViewStats           bool                `tl:"flag:20,encoded_in_bitflags"`  // Can the user view channel/supergroup statistics
+	Blocked                bool                `tl:"flag:22,encoded_in_bitflags"`  // Whether any anonymous admin of this supergroup was blocked: if set, you won't receive messages from anonymous group admins in discussion replies via @replies
+	CanDeleteChannel       bool                `tl:"flag2:0,encoded_in_bitflags"`  // Can we delete this channel?
+	Antispam               bool                `tl:"flag2:1,encoded_in_bitflags"`  // Whether native antispam functionality is enabled in this supergroup.
+	ParticipantsHidden     bool                `tl:"flag2:2,encoded_in_bitflags"`  // Whether the participant list is hidden.
+	TranslationsDisabled   bool                `tl:"flag2:3,encoded_in_bitflags"`  // Whether the real-time chat translation popup should be hidden.
+	StoriesPinnedAvailable bool                `tl:"flag2:5,encoded_in_bitflags"`  // Whether this user has some pinned stories.
+	ViewForumAsMessages    bool                `tl:"flag2:6,encoded_in_bitflags"`  // Users may also choose to display messages from all topics of a forum as if they were sent to a normal group, using a "View as messages" setting in the local client. This setting only affects the current account, and is synced to other logged in sessions using the channels.toggleViewForumAsMessages method; invoking this method will update the value of this flag.
+	RestrictedSponsored    bool                `tl:"flag2:11,encoded_in_bitflags"` // Whether ads on this channel were disabled as specified here (this flag is only visible to the owner of the channel).
+	CanViewRevenue         bool                `tl:"flag2:12,encoded_in_bitflags"` // If set, this user can view ad revenue statistics for this channel.
+	PaidMediaAllowed       bool                `tl:"flag2:14,encoded_in_bitflags"` // Whether the current user can send or forward paid media to this channel.
+	CanViewStarsRevenue    bool                `tl:"flag2:15,encoded_in_bitflags"` // If set, this user can view Telegram Star revenue statistics for this channel.
+	PaidReactionsAvailable bool                `tl:"flag2:16,encoded_in_bitflags"` // If set, users may send paid Telegram Star reactions to messages of this channel.
+	StargiftsAvailable     bool                `tl:"flag2:19,encoded_in_bitflags"` // If set, users may send Gifts to this channel.
+	PaidMessagesAvailable  bool                `tl:"flag2:20,encoded_in_bitflags"` // If set, admins may enable enable paid messages in this supergroup.
+	ID                     int64               // ID of the channel
+	About                  string              // Info about the channel
+	ParticipantsCount      int32               `tl:"flag:0"`  // Number of participants of the channel
+	AdminsCount            int32               `tl:"flag:1"`  // Number of channel admins
+	KickedCount            int32               `tl:"flag:2"`  // Number of users kicked from the channel
+	BannedCount            int32               `tl:"flag:2"`  // Number of users banned from the channel
+	OnlineCount            int32               `tl:"flag:13"` // Number of users currently online
+	ReadInboxMaxID         int32               // Position up to which all incoming messages are read.
+	ReadOutboxMaxID        int32               // Position up to which all outgoing messages are read.
+	UnreadCount            int32               // Count of unread messages
+	ChatPhoto              Photo               // Channel picture
+	NotifySettings         *PeerNotifySettings // Notification settings
+	ExportedInvite         ExportedChatInvite  `tl:"flag:23"` // Invite link
+	BotInfo                []*BotInfo          // Info about bots in the channel/supergroup
+	MigratedFromChatID     int64               `tl:"flag:4"`  // The chat ID from which this group was migrated
+	MigratedFromMaxID      int32               `tl:"flag:4"`  // The message ID in the original chat at which this group was migrated
+	PinnedMsgID            int32               `tl:"flag:5"`  // Message ID of the last pinned message
+	Stickerset             *StickerSet         `tl:"flag:8"`  // Associated stickerset
+	AvailableMinID         int32               `tl:"flag:9"`  // Identifier of a maximum unavailable message in a channel due to hidden history.
+	FolderID               int32               `tl:"flag:11"` // Peer folder ID, for more info click here
+	LinkedChatID           int64               `tl:"flag:14"` // ID of the linked discussion chat for channels (and vice versa, the ID of the linked channel for discussion chats).
+	Location               ChannelLocation     `tl:"flag:15"` // Location of the geogroup
+	SlowmodeSeconds        int32               `tl:"flag:17"` // If specified, users in supergroups will only be able to send one message every `slowmode_seconds` seconds
+	SlowmodeNextSendDate   int32               `tl:"flag:18"` // Indicates when the user will be allowed to send another message in the supergroup (unixtime)
+	StatsDc                int32               `tl:"flag:12"` // If set, specifies the DC to use for fetching channel statistics
+	Pts                    int32               // Latest PTS for this channel
+	Call                   InputGroupCall      `tl:"flag:21"`  // Livestream or group call information
+	TtlPeriod              int32               `tl:"flag:24"`  // Time-To-Live of messages in this channel or supergroup
+	PendingSuggestions     []string            `tl:"flag:25"`  // A list of suggested actions for the supergroup admin
+	GroupcallDefaultJoinAs Peer                `tl:"flag:26"`  // When using phone.getGroupCallJoinAs to get a list of peers that can be used to join a group call, this field indicates the peer that should be selected by default.
+	ThemeEmoticon          string              `tl:"flag:27"`  // Emoji representing a specific chat theme
+	RequestsPending        int32               `tl:"flag:28"`  // Pending join requests
+	RecentRequesters       []int64             `tl:"flag:28"`  // IDs of users who requested to join recently
+	DefaultSendAs          Peer                `tl:"flag:29"`  // Default peer used for sending messages to this channel
+	AvailableReactions     ChatReactions       `tl:"flag:30"`  // Allowed message reactions
+	ReactionsLimit         int32               `tl:"flag2:13"` // This flag may be used to impose a custom limit of unique reactions (i.e. a customizable version of appConfig.reactions_uniq_max).
+	Stories                *PeerStories        `tl:"flag2:4"`  // Channel stories
+	Wallpaper              WallPaper           `tl:"flag2:7"`  // Wallpaper
+	BoostsApplied          int32               `tl:"flag2:8"`  // The number of boosts the current user has applied to the current <em>supergroup</em>.
+	BoostsUnrestrict       int32               `tl:"flag2:9"`  // The number of boosts this <em>supergroup</em> requires to bypass slowmode and other restrictions
+	Emojiset               *StickerSet         `tl:"flag2:10"` // Custom emoji stickerset associated to the current <em>supergroup</em>, set using channels.setEmojiStickers after reaching the appropriate boost level
+	BotVerification        *BotVerification    `tl:"flag2:17"` // Bot verification icon
+	StargiftsCount         int32               `tl:"flag2:18"` // Admins with chatAdminRights.`post_messages` rights will see the total number of received gifts, everyone else will see the number of gifts added to the channel's profile.
+	SendPaidMessagesStars  int64               `tl:"flag2:21"` // If set and bigger than 0, this supergroup, monoforum or the monoforum associated to this channel has enabled paid messages and we <em>must</em> pay the specified amount of Stars to send messages to it This flag will be set both for the monoforum and for channelFull of the associated channel). If set and equal to 0, the monoforum requires payment in general but we were exempted from paying.
+	MainTab                ProfileTab          `tl:"flag2:22"` // The main tab for the channel's profile
 }
 
 func (*ChannelFull) CRC() uint32 {
-	return 0xa04e8d3a
+	return 0xe4e0b29d
 }
 
 func (*ChannelFull) FlagIndex() int {
@@ -1579,7 +1551,7 @@ type ChatFullObj struct {
 	Participants           ChatParticipants    // Participant list
 	ChatPhoto              Photo               `tl:"flag:2"` // Chat photo
 	NotifySettings         *PeerNotifySettings // Notification settings
-	ExportedInvite         ChatInviteExported  `tl:"flag:13"` // Chat invite
+	ExportedInvite         ExportedChatInvite  `tl:"flag:13"` // Chat invite
 	BotInfo                []*BotInfo          `tl:"flag:3"`  // Info about bots that are in this chat
 	PinnedMsgID            int32               `tl:"flag:6"`  // Message ID of the last pinned message
 	FolderID               int32               `tl:"flag:11"` // Peer folder ID, for more info click here
@@ -1662,32 +1634,6 @@ func (*ChatInvitePeek) CRC() uint32 {
 }
 
 func (*ChatInvitePeek) ImplementsChatInvite() {}
-
-type ChatInviteJoinResult interface {
-	tl.Object
-	ImplementsChatInviteJoinResult()
-}
-type ChatInviteJoinResultOk struct {
-	Updates Updates
-}
-
-func (*ChatInviteJoinResultOk) CRC() uint32 {
-	return 0x445663a7
-}
-
-func (*ChatInviteJoinResultOk) ImplementsChatInviteJoinResult() {}
-
-type ChatInviteJoinResultWebView struct {
-	BotID   int64
-	Webview WebViewResultURL
-	Users   []User
-}
-
-func (*ChatInviteJoinResultWebView) CRC() uint32 {
-	return 0x2f51c337
-}
-
-func (*ChatInviteJoinResultWebView) ImplementsChatInviteJoinResult() {}
 
 type ChatParticipant interface {
 	tl.Object
@@ -2201,20 +2147,19 @@ type DraftMessage interface {
 
 // Represents a message draft.
 type DraftMessageObj struct {
-	NoWebpage     bool         `tl:"flag:1,encoded_in_bitflags"`
-	InvertMedia   bool         `tl:"flag:6,encoded_in_bitflags"`
-	ReplyTo       InputReplyTo `tl:"flag:4"`
-	Message       string
-	Entities      []MessageEntity `tl:"flag:3"`
-	Media         InputMedia      `tl:"flag:5"`
-	Date          int32
-	Effect        int64          `tl:"flag:7"`
-	SuggestedPost *SuggestedPost `tl:"flag:8"`
-	RichMessage   *RichMessage   `tl:"flag:9"`
+	NoWebpage     bool            `tl:"flag:1,encoded_in_bitflags"` // Whether no webpage preview will be generated
+	InvertMedia   bool            `tl:"flag:6,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
+	ReplyTo       InputReplyTo    `tl:"flag:4"`                     // If set, indicates that the message should be sent in reply to the specified message or story.
+	Message       string          // The draft
+	Entities      []MessageEntity `tl:"flag:3"` // Message entities for styled text.
+	Media         InputMedia      `tl:"flag:5"` // Media.
+	Date          int32           // Date of last update of the draft.
+	Effect        int64           `tl:"flag:7"` // A message effect that should be played as specified here.
+	SuggestedPost *SuggestedPost  `tl:"flag:8"` // Used to suggest a post to a channel
 }
 
 func (*DraftMessageObj) CRC() uint32 {
-	return 0x60fe3294
+	return 0x96eaa5eb
 }
 
 func (*DraftMessageObj) FlagIndex() int {
@@ -4167,18 +4112,17 @@ func (*InputMediaTodo) ImplementsInputMedia() {}
 
 // New document
 type InputMediaUploadedDocument struct {
-	NosoundVideo   bool `tl:"flag:3,encoded_in_bitflags"`
-	ForceFile      bool `tl:"flag:4,encoded_in_bitflags"`
-	Spoiler        bool `tl:"flag:5,encoded_in_bitflags"`
-	LivePhoto      bool `tl:"flag:8,encoded_in_bitflags"`
-	File           InputFile
-	Thumb          InputFile `tl:"flag:2"`
-	MimeType       string
-	Attributes     []DocumentAttribute
-	Stickers       []InputDocument `tl:"flag:0"`
-	VideoCover     InputPhoto      `tl:"flag:6"`
-	VideoTimestamp int32           `tl:"flag:7"`
-	TtlSeconds     int32           `tl:"flag:1"`
+	NosoundVideo   bool                `tl:"flag:3,encoded_in_bitflags"` // Whether to send the file as a video even if it doesn't have an audio track (i.e. if set, the documentAttributeAnimated attribute will not be set even for videos without audio)
+	ForceFile      bool                `tl:"flag:4,encoded_in_bitflags"` // Force the media file to be uploaded as document
+	Spoiler        bool                `tl:"flag:5,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
+	File           InputFile           // The uploaded file
+	Thumb          InputFile           `tl:"flag:2"` // Thumbnail of the document, uploaded as for the file
+	MimeType       string              // MIME type of document
+	Attributes     []DocumentAttribute // Attributes that specify the type of the document (video, audio, voice, sticker, etc.)
+	Stickers       []InputDocument     `tl:"flag:0"` // Attached stickers
+	VideoCover     InputPhoto          `tl:"flag:6"` // Start playing the video at the specified timestamp (seconds).
+	VideoTimestamp int32               `tl:"flag:7"` // Start playing the video at the specified timestamp (seconds).
+	TtlSeconds     int32               `tl:"flag:1"` // Time to live in seconds of self-destructing document
 }
 
 func (*InputMediaUploadedDocument) CRC() uint32 {
@@ -5406,44 +5350,6 @@ func (*JsonString) CRC() uint32 {
 
 func (*JsonString) ImplementsJsonValue() {}
 
-type JoinChatBotResult interface {
-	tl.Object
-	ImplementsJoinChatBotResult()
-}
-type JoinChatBotResultApproved struct{}
-
-func (*JoinChatBotResultApproved) CRC() uint32 {
-	return 0xae152a69
-}
-
-func (*JoinChatBotResultApproved) ImplementsJoinChatBotResult() {}
-
-type JoinChatBotResultDeclined struct{}
-
-func (*JoinChatBotResultDeclined) CRC() uint32 {
-	return 0xefa0194
-}
-
-func (*JoinChatBotResultDeclined) ImplementsJoinChatBotResult() {}
-
-type JoinChatBotResultQueued struct{}
-
-func (*JoinChatBotResultQueued) CRC() uint32 {
-	return 0x98a3a840
-}
-
-func (*JoinChatBotResultQueued) ImplementsJoinChatBotResult() {}
-
-type JoinChatBotResultWebView struct {
-	URL string
-}
-
-func (*JoinChatBotResultWebView) CRC() uint32 {
-	return 0xd6e3b813
-}
-
-func (*JoinChatBotResultWebView) ImplementsJoinChatBotResult() {}
-
 type KeyboardButton interface {
 	tl.Object
 	ImplementsKeyboardButton()
@@ -5955,59 +5861,58 @@ type Message interface {
 
 // A message
 type MessageObj struct {
-	Out                     bool `tl:"flag:1,encoded_in_bitflags"`
-	Mentioned               bool `tl:"flag:4,encoded_in_bitflags"`
-	MediaUnread             bool `tl:"flag:5,encoded_in_bitflags"`
-	Silent                  bool `tl:"flag:13,encoded_in_bitflags"`
-	Post                    bool `tl:"flag:14,encoded_in_bitflags"`
-	FromScheduled           bool `tl:"flag:18,encoded_in_bitflags"`
-	Legacy                  bool `tl:"flag:19,encoded_in_bitflags"`
-	EditHide                bool `tl:"flag:21,encoded_in_bitflags"`
-	Pinned                  bool `tl:"flag:24,encoded_in_bitflags"`
-	Noforwards              bool `tl:"flag:26,encoded_in_bitflags"`
-	InvertMedia             bool `tl:"flag:27,encoded_in_bitflags"`
-	Offline                 bool `tl:"flag2:1,encoded_in_bitflags"`
-	VideoProcessingPending  bool `tl:"flag2:4,encoded_in_bitflags"`
-	PaidSuggestedPostStars  bool `tl:"flag2:8,encoded_in_bitflags"`
-	PaidSuggestedPostTon    bool `tl:"flag2:9,encoded_in_bitflags"`
-	ID                      int32
-	FromID                  Peer   `tl:"flag:8"`
-	FromBoostsApplied       int32  `tl:"flag:29"`
-	FromRank                string `tl:"flag2:12"`
-	PeerID                  Peer
-	SavedPeerID             Peer               `tl:"flag:28"`
-	FwdFrom                 *MessageFwdHeader  `tl:"flag:2"`
-	ViaBotID                int64              `tl:"flag:11"`
-	ViaBusinessBotID        int64              `tl:"flag2:0"`
-	GuestchatViaFrom        Peer               `tl:"flag2:19"`
-	ReplyTo                 MessageReplyHeader `tl:"flag:3"`
-	Date                    int32
-	Message                 string
-	Media                   MessageMedia         `tl:"flag:9"`
-	ReplyMarkup             ReplyMarkup          `tl:"flag:6"`
-	Entities                []MessageEntity      `tl:"flag:7"`
-	Views                   int32                `tl:"flag:10"`
-	Forwards                int32                `tl:"flag:10"`
-	Replies                 *MessageReplies      `tl:"flag:23"`
-	EditDate                int32                `tl:"flag:15"`
-	PostAuthor              string               `tl:"flag:16"`
-	GroupedID               int64                `tl:"flag:17"`
-	Reactions               *MessageReactions    `tl:"flag:20"`
-	RestrictionReason       []*RestrictionReason `tl:"flag:22"`
-	TtlPeriod               int32                `tl:"flag:25"`
-	QuickReplyShortcutID    int32                `tl:"flag:30"`
-	Effect                  int64                `tl:"flag2:2"`
-	Factcheck               *FactCheck           `tl:"flag2:3"`
-	ReportDeliveryUntilDate int32                `tl:"flag2:5"`
-	PaidMessageStars        int64                `tl:"flag2:6"`
-	SuggestedPost           *SuggestedPost       `tl:"flag2:7"`
-	ScheduleRepeatPeriod    int32                `tl:"flag2:10"`
+	Out                     bool                 `tl:"flag:1,encoded_in_bitflags"`  // Is this an outgoing message
+	Mentioned               bool                 `tl:"flag:4,encoded_in_bitflags"`  // Whether we were mentioned in this message
+	MediaUnread             bool                 `tl:"flag:5,encoded_in_bitflags"`  // Whether there are unread media attachments in this message
+	Silent                  bool                 `tl:"flag:13,encoded_in_bitflags"` // Whether this is a silent message (no notification triggered)
+	Post                    bool                 `tl:"flag:14,encoded_in_bitflags"` // Whether this is a channel post
+	FromScheduled           bool                 `tl:"flag:18,encoded_in_bitflags"` // Whether this is a scheduled message
+	Legacy                  bool                 `tl:"flag:19,encoded_in_bitflags"` // This is a legacy message: it has to be refetched with the new layer
+	EditHide                bool                 `tl:"flag:21,encoded_in_bitflags"` // Whether the message should be shown as not modified to the user, even if an edit date is present
+	Pinned                  bool                 `tl:"flag:24,encoded_in_bitflags"` // Whether this message is pinned
+	Noforwards              bool                 `tl:"flag:26,encoded_in_bitflags"` // Whether this message is protected and thus cannot be forwarded; clients should also prevent users from saving attached media (i.e. videos should only be streamed, photos should be kept in RAM, et cetera).
+	InvertMedia             bool                 `tl:"flag:27,encoded_in_bitflags"` // If set, any eventual webpage preview will be shown on top of the message instead of at the bottom.
+	Offline                 bool                 `tl:"flag2:1,encoded_in_bitflags"` // If set, the message was sent because of a scheduled action by the message sender, for example, as away, or a greeting service message.
+	VideoProcessingPending  bool                 `tl:"flag2:4,encoded_in_bitflags"` // The video contained in the message is currently being processed by the server (i.e. to generate alternative qualities, that will be contained in the final messageMediaDocument.`alt_document`), and will be sent once the video is processed, which will happen approximately at the specified `date` (i.e. messages with this flag set should be treated similarly to scheduled messages, but instead of the scheduled date, `date` contains the estimated conversion date).
+	PaidSuggestedPostStars  bool                 `tl:"flag2:8,encoded_in_bitflags"` // Set if this is a suggested channel post that was paid using Telegram Stars.
+	PaidSuggestedPostTon    bool                 `tl:"flag2:9,encoded_in_bitflags"` // Set if this is a suggested channel post that was paid using Toncoins.
+	ID                      int32                // ID of the message
+	FromID                  Peer                 `tl:"flag:8"`   // ID of the sender of the message
+	FromBoostsApplied       int32                `tl:"flag:29"`  // Supergroups only, contains the number of boosts this user has given the current supergroup, and should be shown in the UI in the header of the message. Only present for incoming messages from non-anonymous supergroup members that have boosted the supergroup. Note that this counter should be locally overridden for non-anonymous <em>outgoing</em> messages, according to the current value of channelFull.`boosts_applied`, to ensure the value is correct even for messages sent by the current user before a supergroup was boosted (or after a boost has expired or the number of boosts has changed); do not update this value for incoming messages from other users, even if their boosts have changed.
+	FromRank                string               `tl:"flag2:12"` // Only in supergroups (never basic groups, where this information is contained elsewhere ), contains the sender's tag.
+	PeerID                  Peer                 // Peer ID, the chat where this message was sent
+	SavedPeerID             Peer                 `tl:"flag:28"` // Messages from a saved messages dialog will have `peer`=inputPeerSelf and the `saved_peer_id` flag set to the ID of the saved dialog. Messages from a monoforum will have `peer`=ID of the monoforum and the `saved_peer_id` flag set to the ID of a topic.
+	FwdFrom                 *MessageFwdHeader    `tl:"flag:2"`  // Info about forwarded messages
+	ViaBotID                int64                `tl:"flag:11"` // ID of the inline bot that generated the message
+	ViaBusinessBotID        int64                `tl:"flag2:0"` // Whether the message was sent by the business bot specified in `via_bot_id` on behalf of the user.
+	GuestchatViaFrom        Peer                 `tl:"flag2:19"`
+	ReplyTo                 MessageReplyHeader   `tl:"flag:3"` // Reply information
+	Date                    int32                // Date of the message
+	Message                 string               // The message
+	Media                   MessageMedia         `tl:"flag:9"`   // Media attachment
+	ReplyMarkup             ReplyMarkup          `tl:"flag:6"`   // Reply markup (bot/inline keyboards)
+	Entities                []MessageEntity      `tl:"flag:7"`   // Message entities for styled text
+	Views                   int32                `tl:"flag:10"`  // View count for channel posts
+	Forwards                int32                `tl:"flag:10"`  // Forward counter
+	Replies                 *MessageReplies      `tl:"flag:23"`  // Info about post comments (for channels) or message replies (for groups)
+	EditDate                int32                `tl:"flag:15"`  // Last edit date of this message
+	PostAuthor              string               `tl:"flag:16"`  // Name of the author of this message for channel posts (with signatures enabled)
+	GroupedID               int64                `tl:"flag:17"`  // Multiple media messages sent using messages.sendMultiMedia with the same grouped ID indicate an album or media group
+	Reactions               *MessageReactions    `tl:"flag:20"`  // Reactions to this message
+	RestrictionReason       []*RestrictionReason `tl:"flag:22"`  // Contains the reason why access to this message must be restricted.
+	TtlPeriod               int32                `tl:"flag:25"`  // Time To Live of the message, once message.date+message.ttl_period === time(), the message will be deleted on the server, and must be deleted locally as well.
+	QuickReplyShortcutID    int32                `tl:"flag:30"`  // If set, this message is a quick reply shortcut message (note that quick reply shortcut messages <em>sent</em> to a private chat will <em>not</em> have this field set).
+	Effect                  int64                `tl:"flag2:2"`  // A message effect that should be played as specified here.
+	Factcheck               *FactCheck           `tl:"flag2:3"`  // Represents a fact-check.
+	ReportDeliveryUntilDate int32                `tl:"flag2:5"`  // Used for Telegram Gateway verification messages: if set and the current unixtime is bigger than the specified unixtime, invoke messages.reportMessagesDelivery passing the ID and the peer of this message as soon as it is received by the client (optionally batching requests for the same peer).
+	PaidMessageStars        int64                `tl:"flag2:6"`  // The amount of stars the sender has paid to send the message
+	SuggestedPost           *SuggestedPost       `tl:"flag2:7"`  // Used to suggest a post to a channel
+	ScheduleRepeatPeriod    int32                `tl:"flag2:10"` // Once sent, this message will be automatically re-scheduled to be re-sent again this many seconds in the future
 	SummaryFromLanguage     string               `tl:"flag2:11"`
-	RichMessage             *RichMessage         `tl:"flag2:13"`
 }
 
 func (*MessageObj) CRC() uint32 {
-	return 0x7600b9d3
+	return 0x95ef6f2b
 }
 
 func (*MessageObj) FlagIndex() int {
@@ -6255,14 +6160,6 @@ func (*MessageActionContactSignUp) CRC() uint32 {
 
 func (*MessageActionContactSignUp) ImplementsMessageAction() {}
 
-type MessageActionCreatedBroadcastList struct{}
-
-func (*MessageActionCreatedBroadcastList) CRC() uint32 {
-	return 0x55555557
-}
-
-func (*MessageActionCreatedBroadcastList) ImplementsMessageAction() {}
-
 // Custom action (most likely not supported by the current layer, an upgrade might be needed)
 type MessageActionCustomAction struct {
 	Message string // Action message
@@ -6472,17 +6369,6 @@ func (*MessageActionInviteToGroupCall) CRC() uint32 {
 
 func (*MessageActionInviteToGroupCall) ImplementsMessageAction() {}
 
-type MessageActionLoginUnknownLocation struct {
-	Title   string
-	Address string
-}
-
-func (*MessageActionLoginUnknownLocation) CRC() uint32 {
-	return 0x555555f5
-}
-
-func (*MessageActionLoginUnknownLocation) ImplementsMessageAction() {}
-
 type MessageActionManagedBotCreated struct {
 	BotID int64
 }
@@ -6641,14 +6527,6 @@ func (*MessageActionPhoneCall) FlagIndex() int {
 
 func (*MessageActionPhoneCall) ImplementsMessageAction() {}
 
-type MessageActionPhoneNumberRequest struct{}
-
-func (*MessageActionPhoneNumberRequest) CRC() uint32 {
-	return 0x1baa035
-}
-
-func (*MessageActionPhoneNumberRequest) ImplementsMessageAction() {}
-
 // A message was pinned
 type MessageActionPinMessage struct{}
 
@@ -6799,26 +6677,25 @@ func (*MessageActionSetMessagesTtl) ImplementsMessageAction() {}
 
 // You received a gift
 type MessageActionStarGift struct {
-	NameHidden         bool `tl:"flag:0,encoded_in_bitflags"`
-	Saved              bool `tl:"flag:2,encoded_in_bitflags"`
-	Converted          bool `tl:"flag:3,encoded_in_bitflags"`
-	Upgraded           bool `tl:"flag:5,encoded_in_bitflags"`
-	Transferred        bool `tl:"flag:6,encoded_in_bitflags"`
-	CanUpgrade         bool `tl:"flag:10,encoded_in_bitflags"`
-	Refunded           bool `tl:"flag:9,encoded_in_bitflags"`
-	PrepaidUpgrade     bool `tl:"flag:13,encoded_in_bitflags"`
-	UpgradeSeparate    bool `tl:"flag:16,encoded_in_bitflags"`
-	AuctionAcquired    bool `tl:"flag:17,encoded_in_bitflags"`
-	Gift               StarGift
-	Message            *TextWithEntities `tl:"flag:1"`
-	ConvertStars       int64             `tl:"flag:4"`
-	UpgradeMsgID       int32             `tl:"flag:5"`
-	UpgradeStars       int64             `tl:"flag:8"`
-	FromID             Peer              `tl:"flag:11"`
-	Peer               Peer              `tl:"flag:12"`
-	SavedID            int64             `tl:"flag:12"`
-	PrepaidUpgradeHash string            `tl:"flag:14"`
-	GiftMsgID          int32             `tl:"flag:15"`
+	NameHidden         bool              `tl:"flag:0,encoded_in_bitflags"`  // If set, the name of the sender of the gift will be hidden if the destination user decides to display the gift on their profile
+	Saved              bool              `tl:"flag:2,encoded_in_bitflags"`  // Whether this gift was added to the destination user's profile (may be toggled using payments.saveStarGift and fetched using payments.getSavedStarGifts)
+	Converted          bool              `tl:"flag:3,encoded_in_bitflags"`  // Whether this gift was converted to Telegram Stars and cannot be displayed on the profile anymore.
+	Upgraded           bool              `tl:"flag:5,encoded_in_bitflags"`  // This gift was upgraded to a collectible gift.
+	Refunded           bool              `tl:"flag:9,encoded_in_bitflags"`  // This gift is not available anymore because a request to refund the payment related to this gift was made, and the money was returned.
+	CanUpgrade         bool              `tl:"flag:10,encoded_in_bitflags"` // If set, this gift can be upgraded to a collectible gift; can only be set for the receiver of a gift.
+	PrepaidUpgrade     bool              `tl:"flag:13,encoded_in_bitflags"` // The sender has already pre-paid for the upgrade of this gift to a collectible gift.
+	UpgradeSeparate    bool              `tl:"flag:16,encoded_in_bitflags"` // This service message is the notification of a separate pre-payment for the upgrade of a gift we own.
+	AuctionAcquired    bool              `tl:"flag:17,encoded_in_bitflags"` // If set, this gift was acquired in a collectible gifts auction.
+	Gift               StarGift          // Info about the gift
+	Message            *TextWithEntities `tl:"flag:1"`  // Additional message from the sender of the gift
+	ConvertStars       int64             `tl:"flag:4"`  // The receiver of this gift may convert it to this many Telegram Stars, instead of displaying it on their profile page. `convert_stars` will be equal to `stars` only if the gift was bought using recently bought Telegram Stars, otherwise it will be less than `stars`.
+	UpgradeMsgID       int32             `tl:"flag:5"`  // If set, this gift was upgraded to a collectible gift, and the corresponding messageActionStarGiftUnique is available at the specified message ID.
+	UpgradeStars       int64             `tl:"flag:8"`  // The number of Telegram Stars the user can pay to convert the gift into a collectible gift.
+	FromID             Peer              `tl:"flag:11"` // Sender of the gift (unset for anonymous gifts).
+	Peer               Peer              `tl:"flag:12"` // Receiver of the gift.
+	SavedID            int64             `tl:"flag:12"` // For channel gifts, ID to use in inputSavedStarGiftChat constructors.
+	PrepaidUpgradeHash string            `tl:"flag:14"` // Hash to prepay for a gift upgrade separately.
+	GiftMsgID          int32             `tl:"flag:15"` // For separate upgrades, the identifier of the message with the gift whose upgrade was prepaid (only valid for the receiver of the service message).
 	ToID               Peer              `tl:"flag:18"`
 	GiftNum            int32             `tl:"flag:19"`
 }
@@ -6835,7 +6712,7 @@ func (*MessageActionStarGift) ImplementsMessageAction() {}
 
 // Contains an offer to purchase a collectible gift
 type MessageActionStarGiftPurchaseOffer struct {
-	Accepted  int32       `tl:"flag:0"`                     // If set, the gift owner accepted this offer.
+	Accepted  bool        `tl:"flag:0,encoded_in_bitflags"` // If set, the gift owner accepted this offer.
 	Declined  bool        `tl:"flag:1,encoded_in_bitflags"` // If set, the gift owner declined this offer.
 	Gift      StarGift    // The collectible gift the offer is about.
 	Price     StarsAmount // Offered price.
@@ -6969,16 +6846,6 @@ func (*MessageActionSuggestedPostSuccess) CRC() uint32 {
 
 func (*MessageActionSuggestedPostSuccess) ImplementsMessageAction() {}
 
-type MessageActionTtlChange struct {
-	Ttl int32
-}
-
-func (*MessageActionTtlChange) CRC() uint32 {
-	return 0x55555552
-}
-
-func (*MessageActionTtlChange) ImplementsMessageAction() {}
-
 // Items were appended to the todo list.
 type MessageActionTodoAppendTasks struct {
 	List []*TodoItem // Appended items.
@@ -7037,24 +6904,6 @@ func (*MessageActionTopicEdit) FlagIndex() int {
 }
 
 func (*MessageActionTopicEdit) ImplementsMessageAction() {}
-
-type MessageActionUserJoined struct{}
-
-func (*MessageActionUserJoined) CRC() uint32 {
-	return 0x55555550
-}
-
-func (*MessageActionUserJoined) ImplementsMessageAction() {}
-
-type MessageActionUserUpdatedPhoto struct {
-	NewUserPhoto UserProfilePhoto
-}
-
-func (*MessageActionUserUpdatedPhoto) CRC() uint32 {
-	return 0x55555551
-}
-
-func (*MessageActionUserUpdatedPhoto) ImplementsMessageAction() {}
 
 // Data from an opened reply keyboard bot mini app was relayed to the bot that owns it (user side service message).
 type MessageActionWebViewDataSent struct {
@@ -7479,18 +7328,16 @@ func (*MessageMediaDice) ImplementsMessageMedia() {}
 
 // Document (video, audio, voice, sticker, any media type except photo)
 type MessageMediaDocument struct {
-	Nopremium      bool       `tl:"flag:3,encoded_in_bitflags"`
-	Spoiler        bool       `tl:"flag:4,encoded_in_bitflags"`
-	Video          bool       `tl:"flag:6,encoded_in_bitflags"`
-	Round          bool       `tl:"flag:7,encoded_in_bitflags"`
-	Voice          bool       `tl:"flag:8,encoded_in_bitflags"`
-	LivePhoto      bool       `tl:"flag:11,encoded_in_bitflags"`
-	Webpage        WebPage    `tl:"flag:12"`
-	Document       Document   `tl:"flag:0"`
-	AltDocuments   []Document `tl:"flag:5"`
-	VideoCover     Photo      `tl:"flag:9"`
-	VideoTimestamp int32      `tl:"flag:10"`
-	TtlSeconds     int32      `tl:"flag:2"`
+	Nopremium      bool       `tl:"flag:3,encoded_in_bitflags"` // Whether this is a normal sticker, if not set this is a premium sticker and a premium sticker animation must be played.
+	Spoiler        bool       `tl:"flag:4,encoded_in_bitflags"` // Whether this media should be hidden behind a spoiler warning
+	Video          bool       `tl:"flag:6,encoded_in_bitflags"` // Whether this is a video.
+	Round          bool       `tl:"flag:7,encoded_in_bitflags"` // Whether this is a round video.
+	Voice          bool       `tl:"flag:8,encoded_in_bitflags"` // Whether this is a voice message.
+	Document       Document   `tl:"flag:0"`                     // Attached document
+	AltDocuments   []Document `tl:"flag:5"`                     // Videos only, contains alternative qualities of the video.
+	VideoCover     Photo      `tl:"flag:9"`                     // Custom video cover.
+	VideoTimestamp int32      `tl:"flag:10"`                    // Start playing the video at the specified timestamp (seconds).
+	TtlSeconds     int32      `tl:"flag:2"`                     // Time to live of self-destructing document
 }
 
 func (*MessageMediaDocument) CRC() uint32 {
@@ -7954,14 +7801,6 @@ func (*InputMessagesFilterPhotoVideo) CRC() uint32 {
 
 func (*InputMessagesFilterPhotoVideo) ImplementsMessagesFilter() {}
 
-type InputMessagesFilterPhotoVideoDocuments struct{}
-
-func (*InputMessagesFilterPhotoVideoDocuments) CRC() uint32 {
-	return 0xd95e73bb
-}
-
-func (*InputMessagesFilterPhotoVideoDocuments) ImplementsMessagesFilter() {}
-
 // Filter for messages containing photos.
 type InputMessagesFilterPhotos struct{}
 
@@ -8138,19 +7977,6 @@ type PageBlock interface {
 	tl.Object
 	ImplementsPageBlock()
 }
-type InputPageBlockMap struct {
-	Geo     InputGeoPoint
-	Zoom    int32
-	W       int32
-	H       int32
-	Caption *PageCaption
-}
-
-func (*InputPageBlockMap) CRC() uint32 {
-	return 0x574b617f
-}
-
-func (*InputPageBlockMap) ImplementsPageBlock() {}
 
 // Link to section within the page itself (like `<a href="#target">anchor</a>`)
 type PageBlockAnchor struct {
@@ -8198,17 +8024,6 @@ func (*PageBlockBlockquote) CRC() uint32 {
 }
 
 func (*PageBlockBlockquote) ImplementsPageBlock() {}
-
-type PageBlockBlockquoteBlocks struct {
-	Blocks  []PageBlock
-	Caption RichText
-}
-
-func (*PageBlockBlockquoteBlocks) CRC() uint32 {
-	return 0xe6e47c4
-}
-
-func (*PageBlockBlockquoteBlocks) ImplementsPageBlock() {}
 
 // Reference to a telegram channel
 type PageBlockChannel struct {
@@ -8331,66 +8146,6 @@ func (*PageBlockHeader) CRC() uint32 {
 
 func (*PageBlockHeader) ImplementsPageBlock() {}
 
-type PageBlockHeading1 struct {
-	Text RichText
-}
-
-func (*PageBlockHeading1) CRC() uint32 {
-	return 0xbaff072f
-}
-
-func (*PageBlockHeading1) ImplementsPageBlock() {}
-
-type PageBlockHeading2 struct {
-	Text RichText
-}
-
-func (*PageBlockHeading2) CRC() uint32 {
-	return 0x96b2aec
-}
-
-func (*PageBlockHeading2) ImplementsPageBlock() {}
-
-type PageBlockHeading3 struct {
-	Text RichText
-}
-
-func (*PageBlockHeading3) CRC() uint32 {
-	return 0x67e731ad
-}
-
-func (*PageBlockHeading3) ImplementsPageBlock() {}
-
-type PageBlockHeading4 struct {
-	Text RichText
-}
-
-func (*PageBlockHeading4) CRC() uint32 {
-	return 0xb532772b
-}
-
-func (*PageBlockHeading4) ImplementsPageBlock() {}
-
-type PageBlockHeading5 struct {
-	Text RichText
-}
-
-func (*PageBlockHeading5) CRC() uint32 {
-	return 0xdbbe6c6a
-}
-
-func (*PageBlockHeading5) ImplementsPageBlock() {}
-
-type PageBlockHeading6 struct {
-	Text RichText
-}
-
-func (*PageBlockHeading6) CRC() uint32 {
-	return 0x682a41a9
-}
-
-func (*PageBlockHeading6) ImplementsPageBlock() {}
-
 // Kicker
 type PageBlockKicker struct {
 	Text RichText // Contents
@@ -8428,30 +8183,13 @@ func (*PageBlockMap) CRC() uint32 {
 
 func (*PageBlockMap) ImplementsPageBlock() {}
 
-type PageBlockMath struct {
-	Source string
-}
-
-func (*PageBlockMath) CRC() uint32 {
-	return 0x59080c20
-}
-
-func (*PageBlockMath) ImplementsPageBlock() {}
-
 // Ordered list of IV blocks
 type PageBlockOrderedList struct {
-	Reversed bool `tl:"flag:2,encoded_in_bitflags"`
-	Items    []PageListOrderedItem
-	Start    int32  `tl:"flag:0,explicit"`
-	Type     string `tl:"flag:1"`
+	Items []PageListOrderedItem // List items
 }
 
 func (*PageBlockOrderedList) CRC() uint32 {
-	return 0x1fd6f6c1
-}
-
-func (*PageBlockOrderedList) FlagIndex() int {
-	return 0
+	return 0x9a8ae1e1
 }
 
 func (*PageBlockOrderedList) ImplementsPageBlock() {}
@@ -8469,11 +8207,10 @@ func (*PageBlockParagraph) ImplementsPageBlock() {}
 
 // A photo
 type PageBlockPhoto struct {
-	Spoiler   bool `tl:"flag:1,encoded_in_bitflags"`
-	PhotoID   int64
-	Caption   *PageCaption
-	URL       string `tl:"flag:0"`
-	WebpageID int64  `tl:"flag:0"`
+	PhotoID   int64        // Photo ID
+	Caption   *PageCaption // Caption
+	URL       string       `tl:"flag:0"` // HTTP URL of page the photo leads to when clicked
+	WebpageID int64        `tl:"flag:0"` // ID of preview of the page the photo leads to when clicked
 }
 
 func (*PageBlockPhoto) CRC() uint32 {
@@ -8574,16 +8311,6 @@ func (*PageBlockTable) FlagIndex() int {
 
 func (*PageBlockTable) ImplementsPageBlock() {}
 
-type PageBlockThinking struct {
-	Text RichText
-}
-
-func (*PageBlockThinking) CRC() uint32 {
-	return 0x3c29a3e2
-}
-
-func (*PageBlockThinking) ImplementsPageBlock() {}
-
 // Title
 type PageBlockTitle struct {
 	Text RichText // Title
@@ -8606,11 +8333,10 @@ func (*PageBlockUnsupported) ImplementsPageBlock() {}
 
 // Video
 type PageBlockVideo struct {
-	Autoplay bool `tl:"flag:0,encoded_in_bitflags"`
-	Loop     bool `tl:"flag:1,encoded_in_bitflags"`
-	Spoiler  bool `tl:"flag:2,encoded_in_bitflags"`
-	VideoID  int64
-	Caption  *PageCaption
+	Autoplay bool         `tl:"flag:0,encoded_in_bitflags"` // Whether the video is set to autoplay
+	Loop     bool         `tl:"flag:1,encoded_in_bitflags"` // Whether the video is set to loop
+	VideoID  int64        // Video ID
+	Caption  *PageCaption // Caption
 }
 
 func (*PageBlockVideo) CRC() uint32 {
@@ -8630,34 +8356,22 @@ type PageListItem interface {
 
 // List item
 type PageListItemBlocks struct {
-	Checkbox bool `tl:"flag:0,encoded_in_bitflags"`
-	Checked  bool `tl:"flag:1,encoded_in_bitflags"`
-	Blocks   []PageBlock
+	Blocks []PageBlock // Blocks
 }
 
 func (*PageListItemBlocks) CRC() uint32 {
-	return 0x63ca67aa
-}
-
-func (*PageListItemBlocks) FlagIndex() int {
-	return 0
+	return 0x25e073fc
 }
 
 func (*PageListItemBlocks) ImplementsPageListItem() {}
 
 // List item
 type PageListItemText struct {
-	Checkbox bool `tl:"flag:0,encoded_in_bitflags"`
-	Checked  bool `tl:"flag:1,encoded_in_bitflags"`
-	Text     RichText
+	Text RichText // Text
 }
 
 func (*PageListItemText) CRC() uint32 {
-	return 0x2f58683c
-}
-
-func (*PageListItemText) FlagIndex() int {
-	return 0
+	return 0xb92fb6cd
 }
 
 func (*PageListItemText) ImplementsPageListItem() {}
@@ -8669,40 +8383,24 @@ type PageListOrderedItem interface {
 
 // Ordered list of IV blocks
 type PageListOrderedItemBlocks struct {
-	Checkbox bool   `tl:"flag:0,encoded_in_bitflags"`
-	Checked  bool   `tl:"flag:1,encoded_in_bitflags"`
-	Num      string `tl:"flag:2"`
-	Blocks   []PageBlock
-	Value    int32  `tl:"flag:3"`
-	Type     string `tl:"flag:4"`
+	Num    string      // Number of element within ordered list
+	Blocks []PageBlock // Item contents
 }
 
 func (*PageListOrderedItemBlocks) CRC() uint32 {
-	return 0x8ff2d5f0
-}
-
-func (*PageListOrderedItemBlocks) FlagIndex() int {
-	return 0
+	return 0x98dd8936
 }
 
 func (*PageListOrderedItemBlocks) ImplementsPageListOrderedItem() {}
 
 // Ordered list of text items
 type PageListOrderedItemText struct {
-	Checkbox bool   `tl:"flag:0,encoded_in_bitflags"`
-	Checked  bool   `tl:"flag:1,encoded_in_bitflags"`
-	Num      string `tl:"flag:2"`
-	Text     RichText
-	Value    int32  `tl:"flag:3"`
-	Type     string `tl:"flag:4"`
+	Num  string   // Number of element within ordered list
+	Text RichText // Text
 }
 
 func (*PageListOrderedItemText) CRC() uint32 {
-	return 0x15031189
-}
-
-func (*PageListOrderedItemText) FlagIndex() int {
-	return 0
+	return 0x5e068047
 }
 
 func (*PageListOrderedItemText) ImplementsPageListOrderedItem() {}
@@ -9720,9 +9418,9 @@ type RequestPeerType interface {
 // Choose a channel
 type RequestPeerTypeBroadcast struct {
 	Creator         bool             `tl:"flag:0,encoded_in_bitflags"` // Whether to allow only choosing channels that were created by the current user.
-	HasUsername     bool             `tl:"flag:3,encoded_in_bitflags"` // If specified, allows only choosing channels with or without a username, according to the value of Bool.
-	UserAdminRights *ChatAdminRights // If specified, allows only choosing channels where the current user is an admin with at least the specified admin rights.
-	BotAdminRights  *ChatAdminRights // If specified, allows only choosing channels where the bot is an admin with at least the specified admin rights.
+	HasUsername     bool             `tl:"flag:3"`                     // If specified, allows only choosing channels with or without a username, according to the value of Bool.
+	UserAdminRights *ChatAdminRights `tl:"flag:1"`                     // If specified, allows only choosing channels where the current user is an admin with at least the specified admin rights.
+	BotAdminRights  *ChatAdminRights `tl:"flag:2"`                     // If specified, allows only choosing channels where the bot is an admin with at least the specified admin rights.
 }
 
 func (*RequestPeerTypeBroadcast) CRC() uint32 {
@@ -9738,11 +9436,11 @@ func (*RequestPeerTypeBroadcast) ImplementsRequestPeerType() {}
 // Choose a chat or supergroup
 type RequestPeerTypeChat struct {
 	Creator         bool             `tl:"flag:0,encoded_in_bitflags"` // Whether to allow only choosing chats or supergroups that were created by the current user.
-	HasUsername     bool             `tl:"flag:3,encoded_in_bitflags"` // Whether to allow only choosing chats or supergroups where the bot is a participant.
-	BotParticipant  bool             `tl:"flag:5,encoded_in_bitflags"` // If specified, allows only choosing channels with or without a username, according to the value of Bool.
-	Forum           bool             `tl:"flag:4,encoded_in_bitflags"` // If specified, allows only choosing chats or supergroups that are or aren't forums, according to the value of Bool.
-	UserAdminRights *ChatAdminRights `tl:"flag:5"`                     // If specified, allows only choosing chats or supergroups where the current user is an admin with at least the specified admin rights.
-	BotAdminRights  *ChatAdminRights `tl:"flag:5"`                     // If specified, allows only choosing chats or supergroups where the bot is an admin with at least the specified admin rights.
+	BotParticipant  bool             `tl:"flag:5,encoded_in_bitflags"` // Whether to allow only choosing chats or supergroups where the bot is a participant.
+	HasUsername     bool             `tl:"flag:3"`                     // If specified, allows only choosing channels with or without a username, according to the value of Bool.
+	Forum           bool             `tl:"flag:4"`                     // If specified, allows only choosing chats or supergroups that are or aren't forums, according to the value of Bool.
+	UserAdminRights *ChatAdminRights `tl:"flag:1"`                     // If specified, allows only choosing chats or supergroups where the current user is an admin with at least the specified admin rights.
+	BotAdminRights  *ChatAdminRights `tl:"flag:2"`                     // If specified, allows only choosing chats or supergroups where the bot is an admin with at least the specified admin rights.
 }
 
 func (*RequestPeerTypeChat) CRC() uint32 {
@@ -9897,46 +9595,6 @@ func (*TextAnchor) CRC() uint32 {
 
 func (*TextAnchor) ImplementsRichText() {}
 
-type TextAutoEmail struct {
-	Text RichText
-}
-
-func (*TextAutoEmail) CRC() uint32 {
-	return 0xc556a45d
-}
-
-func (*TextAutoEmail) ImplementsRichText() {}
-
-type TextAutoPhone struct {
-	Text RichText
-}
-
-func (*TextAutoPhone) CRC() uint32 {
-	return 0x24c26789
-}
-
-func (*TextAutoPhone) ImplementsRichText() {}
-
-type TextAutoURL struct {
-	Text RichText
-}
-
-func (*TextAutoURL) CRC() uint32 {
-	return 0xac6a83aa
-}
-
-func (*TextAutoURL) ImplementsRichText() {}
-
-type TextBankCard struct {
-	Text RichText
-}
-
-func (*TextBankCard) CRC() uint32 {
-	return 0xb956812d
-}
-
-func (*TextBankCard) ImplementsRichText() {}
-
 // Bold text
 type TextBold struct {
 	Text RichText // Text
@@ -9948,26 +9606,6 @@ func (*TextBold) CRC() uint32 {
 
 func (*TextBold) ImplementsRichText() {}
 
-type TextBotCommand struct {
-	Text RichText
-}
-
-func (*TextBotCommand) CRC() uint32 {
-	return 0x2ff29d3
-}
-
-func (*TextBotCommand) ImplementsRichText() {}
-
-type TextCashtag struct {
-	Text RichText
-}
-
-func (*TextCashtag) CRC() uint32 {
-	return 0x7b9e1801
-}
-
-func (*TextCashtag) ImplementsRichText() {}
-
 // Concatenation of rich texts
 type TextConcat struct {
 	Texts []RichText // Concatenated rich texts
@@ -9978,38 +9616,6 @@ func (*TextConcat) CRC() uint32 {
 }
 
 func (*TextConcat) ImplementsRichText() {}
-
-type TextCustomEmoji struct {
-	DocumentID int64
-	Alt        string
-}
-
-func (*TextCustomEmoji) CRC() uint32 {
-	return 0xa26156c0
-}
-
-func (*TextCustomEmoji) ImplementsRichText() {}
-
-type TextDate struct {
-	Relative  bool `tl:"flag:0,encoded_in_bitflags"`
-	ShortTime bool `tl:"flag:1,encoded_in_bitflags"`
-	LongTime  bool `tl:"flag:2,encoded_in_bitflags"`
-	ShortDate bool `tl:"flag:3,encoded_in_bitflags"`
-	LongDate  bool `tl:"flag:4,encoded_in_bitflags"`
-	DayOfWeek bool `tl:"flag:5,encoded_in_bitflags"`
-	Text      RichText
-	Date      int32
-}
-
-func (*TextDate) CRC() uint32 {
-	return 0xa5b45e2b
-}
-
-func (*TextDate) FlagIndex() int {
-	return 0
-}
-
-func (*TextDate) ImplementsRichText() {}
 
 // Rich text email link
 type TextEmail struct {
@@ -10042,16 +9648,6 @@ func (*TextFixed) CRC() uint32 {
 }
 
 func (*TextFixed) ImplementsRichText() {}
-
-type TextHashtag struct {
-	Text RichText
-}
-
-func (*TextHashtag) CRC() uint32 {
-	return 0x519524ea
-}
-
-func (*TextHashtag) ImplementsRichText() {}
 
 // Inline image
 type TextImage struct {
@@ -10088,37 +9684,6 @@ func (*TextMarked) CRC() uint32 {
 
 func (*TextMarked) ImplementsRichText() {}
 
-type TextMath struct {
-	Source string
-}
-
-func (*TextMath) CRC() uint32 {
-	return 0x9d2eac97
-}
-
-func (*TextMath) ImplementsRichText() {}
-
-type TextMention struct {
-	Text RichText
-}
-
-func (*TextMention) CRC() uint32 {
-	return 0xcd24cf44
-}
-
-func (*TextMention) ImplementsRichText() {}
-
-type TextMentionName struct {
-	Text   RichText
-	UserID int64
-}
-
-func (*TextMentionName) CRC() uint32 {
-	return 0x1a9fbfc
-}
-
-func (*TextMentionName) ImplementsRichText() {}
-
 // Rich text linked to a phone number
 type TextPhone struct {
 	Text  RichText // Text
@@ -10141,16 +9706,6 @@ func (*TextPlain) CRC() uint32 {
 }
 
 func (*TextPlain) ImplementsRichText() {}
-
-type TextSpoiler struct {
-	Text RichText
-}
-
-func (*TextSpoiler) CRC() uint32 {
-	return 0x4c2a5d62
-}
-
-func (*TextSpoiler) ImplementsRichText() {}
 
 // <del>Strikethrough</del> text
 type TextStrike struct {
@@ -10617,17 +10172,6 @@ func (*SendMessageRecordVideoAction) CRC() uint32 {
 
 func (*SendMessageRecordVideoAction) ImplementsSendMessageAction() {}
 
-type SendMessageRichMessageDraftAction struct {
-	RandomID    int64
-	RichMessage *RichMessage
-}
-
-func (*SendMessageRichMessageDraftAction) CRC() uint32 {
-	return 0xa2cb24f9
-}
-
-func (*SendMessageRichMessageDraftAction) ImplementsSendMessageAction() {}
-
 // Used by bots to implement live message streaming.
 type SendMessageTextDraftAction struct {
 	RandomID int64             // Live draft ID: used by graphical clients to slightly change the rendering behavior
@@ -10720,35 +10264,34 @@ type StarGift interface {
 
 // Represents a star gift
 type StarGiftObj struct {
-	Limited             bool `tl:"flag:0,encoded_in_bitflags"`
-	SoldOut             bool `tl:"flag:1,encoded_in_bitflags"`
-	Birthday            bool `tl:"flag:2,encoded_in_bitflags"`
-	CanUpgrade          bool `tl:"flag:3,encoded_in_bitflags"`
-	RequirePremium      bool `tl:"flag:7,encoded_in_bitflags"`
-	LimitedPerUser      bool `tl:"flag:8,encoded_in_bitflags"`
-	PeerColorAvailable  bool `tl:"flag:10,encoded_in_bitflags"`
-	Auction             bool `tl:"flag:11,encoded_in_bitflags"`
-	ID                  int64
-	Sticker             Document
-	Stars               int64
-	AvailabilityRemains int32 `tl:"flag:0"`
-	AvailabilityTotal   int32 `tl:"flag:0"`
-	AvailabilityResale  int64 `tl:"flag:4"`
-	ConvertStars        int64
-	FirstSaleDate       int32               `tl:"flag:1"`
-	LastSaleDate        int32               `tl:"flag:1"`
-	UpgradeStars        int64               `tl:"flag:3"`
-	ResellMinStars      int64               `tl:"flag:4"`
-	Title               string              `tl:"flag:5"`
-	ReleasedBy          Peer                `tl:"flag:6"`
-	PerUserTotal        int32               `tl:"flag:8"`
-	PerUserRemains      int32               `tl:"flag:8"`
-	LockedUntilDate     int32               `tl:"flag:9"`
-	AuctionSlug         string              `tl:"flag:11"`
-	GiftsPerRound       int32               `tl:"flag:11"`
-	AuctionStartDate    int32               `tl:"flag:11"`
-	UpgradeVariants     int32               `tl:"flag:12"`
-	Background          *StarGiftBackground `tl:"flag:13"`
+	Limited             bool                `tl:"flag:0,encoded_in_bitflags"`  // Whether this is a limited-supply gift.
+	SoldOut             bool                `tl:"flag:1,encoded_in_bitflags"`  // Whether this gift sold out and cannot be bought anymore.
+	Birthday            bool                `tl:"flag:2,encoded_in_bitflags"`  // Whether this is a birthday-themed gift
+	RequirePremium      bool                `tl:"flag:7,encoded_in_bitflags"`  // This gift can only be bought by users with a Premium subscription.
+	LimitedPerUser      bool                `tl:"flag:8,encoded_in_bitflags"`  // If set, the maximum number of gifts of this type that can be owned by a single user is limited and specified in `per_user_total`, and the remaining slots for the current user in `per_user_remains`.
+	PeerColorAvailable  bool                `tl:"flag:10,encoded_in_bitflags"` // If set, collectible gifts of this type may be used to generate a message color palette and pattern.
+	Auction             bool                `tl:"flag:11,encoded_in_bitflags"` // If set, this is a collectible gift that can only be bought through a collectible gift auction.
+	ID                  int64               // Identifier of the gift
+	Sticker             Document            // Sticker that represents the gift.
+	Stars               int64               // Price of the gift in Telegram Stars.
+	AvailabilityRemains int32               `tl:"flag:0"` // For limited-supply gifts: the remaining number of gifts that may be bought.
+	AvailabilityTotal   int32               `tl:"flag:0"` // For limited-supply gifts: the total number of gifts that was available in the initial supply.
+	AvailabilityResale  int64               `tl:"flag:4"` // The total number of (upgraded to collectibles) gifts of this type currently on resale
+	ConvertStars        int64               // The receiver of this gift may convert it to this many Telegram Stars, instead of displaying it on their profile page. `convert_stars` will be equal to `stars` only if the gift was bought using recently bought Telegram Stars, otherwise it will be less than `stars`.
+	FirstSaleDate       int32               `tl:"flag:1"`  // For sold out gifts only: when was the gift first bought.
+	LastSaleDate        int32               `tl:"flag:1"`  // For sold out gifts only: when was the gift last bought.
+	UpgradeStars        int64               `tl:"flag:3"`  // The number of Telegram Stars the user can pay to convert the gift into a collectible gift.
+	ResellMinStars      int64               `tl:"flag:4"`  // The minimum price in Stars for gifts of this type currently on resale.
+	Title               string              `tl:"flag:5"`  // Title of the gift
+	ReleasedBy          Peer                `tl:"flag:6"`  // This gift was released by the specified peer.
+	PerUserTotal        int32               `tl:"flag:8"`  // Maximum number of gifts of this type that can be owned by any user.
+	PerUserRemains      int32               `tl:"flag:8"`  // Remaining number of gifts of this type that can be owned by the current user.
+	LockedUntilDate     int32               `tl:"flag:9"`  // If set, the specified gift <em>possibly</em> cannot be sent until the specified date
+	AuctionSlug         string              `tl:"flag:11"` // Always set for gifts that can be bought on auctions, contains the auction deep link slug.
+	GiftsPerRound       int32               `tl:"flag:11"` // Always set for gifts that can be bought on auctions, contains the number of gifts of this kind that are distributed on every round.
+	AuctionStartDate    int32               `tl:"flag:11"` // Always set for gifts that can be bought on auctions, contains the UNIX timestamp indicating when will the auction start (or when the auction started, if it points to the past).
+	UpgradeVariants     int32               `tl:"flag:12"` // Total number of possible collectible variants for this gift type.
+	Background          *StarGiftBackground `tl:"flag:13"` // Default background palette for this gift type, used when rendering gift cards and previews before a specific collectible backdrop is chosen.
 }
 
 func (*StarGiftObj) CRC() uint32 {
@@ -11743,19 +11286,6 @@ func (*UpdateBotStopped) CRC() uint32 {
 
 func (*UpdateBotStopped) ImplementsUpdate() {}
 
-type UpdateBotSubscriptionExpire struct {
-	UserID    int64
-	Payload   string
-	UntilDate int32
-	Qts       int32
-}
-
-func (*UpdateBotSubscriptionExpire) CRC() uint32 {
-	return 0xa8ae3eb1
-}
-
-func (*UpdateBotSubscriptionExpire) ImplementsUpdate() {}
-
 // A new incoming event; for bots only
 type UpdateBotWebhookJson struct {
 	Data *DataJson // The event
@@ -12483,18 +12013,6 @@ func (*UpdateInlineBotCallbackQuery) FlagIndex() int {
 
 func (*UpdateInlineBotCallbackQuery) ImplementsUpdate() {}
 
-type UpdateJoinChatWebViewDecision struct {
-	Peer    Peer
-	QueryID int64
-	Result  JoinChatBotResult
-}
-
-func (*UpdateJoinChatWebViewDecision) CRC() uint32 {
-	return 0xbdac7e70
-}
-
-func (*UpdateJoinChatWebViewDecision) ImplementsUpdate() {}
-
 // Language pack updated
 type UpdateLangPack struct {
 	Difference *LangPackDifference // Changed strings
@@ -12654,10 +12172,10 @@ func (*UpdateMoveStickerSetToTop) ImplementsUpdate() {}
 // A new session logged into the current user's account through an unknown device.
 type UpdateNewAuthorization struct {
 	Unconfirmed bool   `tl:"flag:0,encoded_in_bitflags"` // Whether the session is unconfirmed
-	Hash        int64  `tl:"flag:0"`                     // Hash used for caching, for more info click here
-	Date        int32  `tl:"flag:0"`                     // Authorization date
-	Device      string `tl:"flag:0"`                     // Name of device, for example <em>Android</em>
-	Location    string `tl:"flag:0"`                     // Location, for example <em>USA, NY (IP=1.2.3.4)</em>
+	Hash        int64  // Hash used for caching, for more info click here
+	Date        int32  `tl:"flag:0"` // Authorization date
+	Device      string `tl:"flag:0"` // Name of device, for example <em>Android</em>
+	Location    string `tl:"flag:0"` // Location, for example <em>USA, NY (IP=1.2.3.4)</em>
 }
 
 func (*UpdateNewAuthorization) CRC() uint32 {
@@ -12669,24 +12187,6 @@ func (*UpdateNewAuthorization) FlagIndex() int {
 }
 
 func (*UpdateNewAuthorization) ImplementsUpdate() {}
-
-type UpdateNewBotConnection struct {
-	Confirmed bool `tl:"flag:0,encoded_in_bitflags"`
-	BotID     int64
-	Date      int32  `tl:"flag:1"`
-	Device    string `tl:"flag:1"`
-	Location  string `tl:"flag:1"`
-}
-
-func (*UpdateNewBotConnection) CRC() uint32 {
-	return 0xb22083a6
-}
-
-func (*UpdateNewBotConnection) FlagIndex() int {
-	return 0
-}
-
-func (*UpdateNewBotConnection) ImplementsUpdate() {}
 
 // A new message was sent in a channel/supergroup
 type UpdateNewChannelMessage struct {
@@ -13482,22 +12982,6 @@ func (*UpdateTheme) CRC() uint32 {
 
 func (*UpdateTheme) ImplementsUpdate() {}
 
-type UpdateTranscribeAudio struct {
-	Final           bool `tl:"flag:0,encoded_in_bitflags"`
-	TranscriptionID int64
-	Text            string
-}
-
-func (*UpdateTranscribeAudio) CRC() uint32 {
-	return 0x88617090
-}
-
-func (*UpdateTranscribeAudio) FlagIndex() int {
-	return 0
-}
-
-func (*UpdateTranscribeAudio) ImplementsUpdate() {}
-
 // A pending voice message transcription initiated with messages.transcribeAudio was updated.
 type UpdateTranscribedAudio struct {
 	Pending         bool   `tl:"flag:0,encoded_in_bitflags"` // Whether this transcription is still pending and further updateTranscribedAudio about it will be sent in the future.
@@ -13595,37 +13079,6 @@ func (*UpdateUserTyping) FlagIndex() int {
 
 func (*UpdateUserTyping) ImplementsUpdate() {}
 
-type UpdateWebBrowserException struct {
-	Delete              bool `tl:"flag:1,encoded_in_bitflags"`
-	OpenExternalBrowser bool `tl:"flag:0"`
-	Exception           *WebDomainException
-}
-
-func (*UpdateWebBrowserException) CRC() uint32 {
-	return 0x140502d1
-}
-
-func (*UpdateWebBrowserException) FlagIndex() int {
-	return 0
-}
-
-func (*UpdateWebBrowserException) ImplementsUpdate() {}
-
-type UpdateWebBrowserSettings struct {
-	OpenExternalBrowser bool `tl:"flag:0,encoded_in_bitflags"`
-	DisplayCloseButton  bool `tl:"flag:1,encoded_in_bitflags"`
-}
-
-func (*UpdateWebBrowserSettings) CRC() uint32 {
-	return 0xc39a2ade
-}
-
-func (*UpdateWebBrowserSettings) FlagIndex() int {
-	return 0
-}
-
-func (*UpdateWebBrowserSettings) ImplementsUpdate() {}
-
 // An instant view webpage preview was generated
 type UpdateWebPage struct {
 	Webpage  WebPage // Webpage preview
@@ -13669,13 +13122,13 @@ func (*UpdateShort) ImplementsUpdates() {}
 
 // Shortened constructor containing info on one new incoming text message from a chat
 type UpdateShortChatMessage struct {
-	Out         bool               `tl:"flag:1,encoded_in_bitflags"` // Whether the message is outgoing
-	ID          int32              `tl:"flag:13"`                    // Whether we were mentioned in this message
-	Mentioned   bool               `tl:"flag:4,encoded_in_bitflags"` // Whether the message contains some unread mentions
-	FromID      int64              // If true, the message is a silent message, no notifications should be triggered
-	MediaUnread bool               `tl:"flag:5,encoded_in_bitflags"` // ID of the message
-	ChatID      int64              // ID of the sender of the message
-	Silent      bool               `tl:"flag:13,encoded_in_bitflags"` // ID of the chat where the message was sent
+	Out         bool               `tl:"flag:1,encoded_in_bitflags"`  // Whether the message is outgoing
+	Mentioned   bool               `tl:"flag:4,encoded_in_bitflags"`  // Whether we were mentioned in this message
+	MediaUnread bool               `tl:"flag:5,encoded_in_bitflags"`  // Whether the message contains some unread mentions
+	Silent      bool               `tl:"flag:13,encoded_in_bitflags"` // If true, the message is a silent message, no notifications should be triggered
+	ID          int32              // ID of the message
+	FromID      int64              // ID of the sender of the message
+	ChatID      int64              // ID of the chat where the message was sent
 	Message     string             // Message
 	Pts         int32              // PTS
 	PtsCount    int32              // PTS count
@@ -13699,13 +13152,13 @@ func (*UpdateShortChatMessage) ImplementsUpdates() {}
 
 // Info about a message sent to (received from) another user
 type UpdateShortMessage struct {
-	Out         bool               `tl:"flag:1,encoded_in_bitflags"` // Whether the message is outgoing
-	ID          int32              `tl:"flag:13"`                    // Whether we were mentioned in the message
-	Mentioned   bool               `tl:"flag:4,encoded_in_bitflags"` // Whether there are some unread mentions in this message
-	UserID      int64              // If true, the message is a silent message, no notifications should be triggered
-	MediaUnread bool               `tl:"flag:5,encoded_in_bitflags"` // The message ID
-	Message     string             // The ID of the sender (if `outgoing` will be the ID of the destination) of the message
-	Silent      bool               `tl:"flag:13,encoded_in_bitflags"` // The message
+	Out         bool               `tl:"flag:1,encoded_in_bitflags"`  // Whether the message is outgoing
+	Mentioned   bool               `tl:"flag:4,encoded_in_bitflags"`  // Whether we were mentioned in the message
+	MediaUnread bool               `tl:"flag:5,encoded_in_bitflags"`  // Whether there are some unread mentions in this message
+	Silent      bool               `tl:"flag:13,encoded_in_bitflags"` // If true, the message is a silent message, no notifications should be triggered
+	ID          int32              // The message ID
+	UserID      int64              // The ID of the sender (if `outgoing` will be the ID of the destination) of the message
+	Message     string             // The message
 	Pts         int32              // PTS
 	PtsCount    int32              // PTS count
 	Date        int32              // date
@@ -13729,7 +13182,7 @@ func (*UpdateShortMessage) ImplementsUpdates() {}
 // Shortened constructor containing info on one outgoing message to a contact (the destination chat has to be extracted from the method call that returned this object).
 type UpdateShortSentMessage struct {
 	Out       bool            `tl:"flag:1,encoded_in_bitflags"` // Whether the message is outgoing
-	ID        int32           `tl:"flag:1"`                     // ID of the sent message
+	ID        int32           // ID of the sent message
 	Pts       int32           // PTS
 	PtsCount  int32           // PTS count
 	Date      int32           // date
@@ -13851,56 +13304,55 @@ type User interface {
 
 // Indicates info about a certain user.
 type UserObj struct {
-	Self                    bool `tl:"flag:10,encoded_in_bitflags"`
-	Contact                 bool `tl:"flag:11,encoded_in_bitflags"`
-	MutualContact           bool `tl:"flag:12,encoded_in_bitflags"`
-	Deleted                 bool `tl:"flag:13,encoded_in_bitflags"`
-	Bot                     bool `tl:"flag:14,encoded_in_bitflags"`
-	BotChatHistory          bool `tl:"flag:15,encoded_in_bitflags"`
-	BotNochats              bool `tl:"flag:16,encoded_in_bitflags"`
-	Verified                bool `tl:"flag:17,encoded_in_bitflags"`
-	Restricted              bool `tl:"flag:18,encoded_in_bitflags"`
-	Min                     bool `tl:"flag:20,encoded_in_bitflags"`
-	BotInlineGeo            bool `tl:"flag:21,encoded_in_bitflags"`
-	Support                 bool `tl:"flag:23,encoded_in_bitflags"`
-	Scam                    bool `tl:"flag:24,encoded_in_bitflags"`
-	ApplyMinPhoto           bool `tl:"flag:25,encoded_in_bitflags"`
-	Fake                    bool `tl:"flag:26,encoded_in_bitflags"`
-	BotAttachMenu           bool `tl:"flag:27,encoded_in_bitflags"`
-	Premium                 bool `tl:"flag:28,encoded_in_bitflags"`
-	AttachMenuEnabled       bool `tl:"flag:29,encoded_in_bitflags"`
-	BotCanEdit              bool `tl:"flag2:1,encoded_in_bitflags"`
-	CloseFriend             bool `tl:"flag2:2,encoded_in_bitflags"`
-	StoriesHidden           bool `tl:"flag2:3,encoded_in_bitflags"`
-	StoriesUnavailable      bool `tl:"flag2:4,encoded_in_bitflags"`
-	ContactRequirePremium   bool `tl:"flag2:10,encoded_in_bitflags"`
-	BotBusiness             bool `tl:"flag2:11,encoded_in_bitflags"`
-	BotHasMainApp           bool `tl:"flag2:13,encoded_in_bitflags"`
-	BotForumView            bool `tl:"flag2:16,encoded_in_bitflags"`
-	BotForumCanManageTopics bool `tl:"flag2:17,encoded_in_bitflags"`
-	BotCanManageBots        bool `tl:"flag2:18,encoded_in_bitflags"`
-	BotGuestchat            bool `tl:"flag2:19,encoded_in_bitflags"`
-	BotGuard                bool `tl:"flag2:20,encoded_in_bitflags"`
-	ID                      int64
-	AccessHash              int64                `tl:"flag:0"`
-	FirstName               string               `tl:"flag:1"`
-	LastName                string               `tl:"flag:2"`
-	Username                string               `tl:"flag:3"`
-	Phone                   string               `tl:"flag:4"`
-	Photo                   UserProfilePhoto     `tl:"flag:5"`
-	Status                  UserStatus           `tl:"flag:6"`
-	BotInfoVersion          int32                `tl:"flag:14"`
-	RestrictionReason       []*RestrictionReason `tl:"flag:18"`
-	BotInlinePlaceholder    string               `tl:"flag:19"`
-	LangCode                string               `tl:"flag:22"`
-	EmojiStatus             EmojiStatus          `tl:"flag:30"`
-	Usernames               []*Username          `tl:"flag2:0"`
-	StoriesMaxID            *RecentStory         `tl:"flag2:5"`
-	Color                   PeerColor            `tl:"flag2:8"`
-	ProfileColor            PeerColor            `tl:"flag2:9"`
-	BotActiveUsers          int32                `tl:"flag2:12"`
-	BotVerificationIcon     int64                `tl:"flag2:14"`
-	SendPaidMessagesStars   int64                `tl:"flag2:15"`
+	Self                    bool                 `tl:"flag:10,encoded_in_bitflags"` // Whether this user indicates the currently logged in user
+	Contact                 bool                 `tl:"flag:11,encoded_in_bitflags"` // Whether this user is a contact When updating the local peer database, do not apply changes to this field if the `min` flag is set.
+	MutualContact           bool                 `tl:"flag:12,encoded_in_bitflags"` // Whether this user is a mutual contact. When updating the local peer database, do not apply changes to this field if the `min` flag is set.
+	Deleted                 bool                 `tl:"flag:13,encoded_in_bitflags"` // Whether the account of this user was deleted. Changes to this flag should invalidate the local userFull cache for this user ID
+	Bot                     bool                 `tl:"flag:14,encoded_in_bitflags"` // Is this user a bot? Changes to this flag should invalidate the local userFull cache for this user ID
+	BotChatHistory          bool                 `tl:"flag:15,encoded_in_bitflags"` // Can the bot see all messages in groups?
+	BotNochats              bool                 `tl:"flag:16,encoded_in_bitflags"` // Can the bot be added to groups?
+	Verified                bool                 `tl:"flag:17,encoded_in_bitflags"` // Whether this user is verified
+	Restricted              bool                 `tl:"flag:18,encoded_in_bitflags"` // Access to this user must be restricted for the reason specified in `restriction_reason`
+	Min                     bool                 `tl:"flag:20,encoded_in_bitflags"` // See min
+	BotInlineGeo            bool                 `tl:"flag:21,encoded_in_bitflags"` // Whether the bot can request our geolocation in inline mode
+	Support                 bool                 `tl:"flag:23,encoded_in_bitflags"` // Whether this is an official support user
+	Scam                    bool                 `tl:"flag:24,encoded_in_bitflags"` // This may be a scam user
+	ApplyMinPhoto           bool                 `tl:"flag:25,encoded_in_bitflags"` // If set and `min` is set, the value of `photo` can be used to update the local database
+	Fake                    bool                 `tl:"flag:26,encoded_in_bitflags"` // If set, this user was reported by many users as a fake or scam user: be careful when interacting with them.
+	BotAttachMenu           bool                 `tl:"flag:27,encoded_in_bitflags"` // Whether this bot offers an attachment menu web app
+	Premium                 bool                 `tl:"flag:28,encoded_in_bitflags"` // Whether this user is a Telegram Premium user Changes to this flag should invalidate the local userFull cache for this user ID Changes to this flag if the `self` flag is set should also trigger the following calls, to refresh the respective caches: - The help.getConfig cache - The messages.getTopReactions cache if the `bot` flag is not set
+	AttachMenuEnabled       bool                 `tl:"flag:29,encoded_in_bitflags"` // Whether we installed the attachment menu web app offered by this bot. When updating the local peer database, do not apply changes to this field if the `min` flag is set.
+	BotCanEdit              bool                 `tl:"flag2:1,encoded_in_bitflags"` // Whether we can edit the profile picture, name, about text and description of this bot because we own it. When updating the local peer database, do not apply changes to this field if the `min` flag is set. Changes to this flag (if `min` is not set) should invalidate the local userFull cache for this user ID.
+	CloseFriend             bool                 `tl:"flag2:2,encoded_in_bitflags"` // Whether we marked this user as a close friend When updating the local peer database, do not apply changes to this field if the `min` flag is set.
+	StoriesHidden           bool                 `tl:"flag2:3,encoded_in_bitflags"` // Whether we have hidden all active stories of this user. When updating the local peer database, do not apply changes to this field if the `min` flag is set.
+	StoriesUnavailable      bool                 `tl:"flag2:4,encoded_in_bitflags"` // No stories from this user are visible.
+	ContactRequirePremium   bool                 `tl:"flag2:10,encoded_in_bitflags"`
+	BotBusiness             bool                 `tl:"flag2:11,encoded_in_bitflags"` // Whether this bot can be connected to a user as specified here.
+	BotHasMainApp           bool                 `tl:"flag2:13,encoded_in_bitflags"` // If set, this bot has configured a Main Mini App.
+	BotForumView            bool                 `tl:"flag2:16,encoded_in_bitflags"` // If set, this bot supports bot forum topics.
+	BotForumCanManageTopics bool                 `tl:"flag2:17,encoded_in_bitflags"` // If set, this bot supports bot forum topics, and users (not just the bot!) are allowed to create and manage bot forum topics in their private chat with the bot.
+	BotCanManageBots        bool                 `tl:"flag2:18,encoded_in_bitflags"`
+	BotGuestchat            bool                 `tl:"flag2:19,encoded_in_bitflags"`
+	ID                      int64                // ID of the user
+	AccessHash              int64                `tl:"flag:0"`   // Access hash of the user If this flag is set, when updating the local peer database, generate a virtual flag called `min_access_hash`, which is: - Set to `true` if `min` is set AND -- The `phone` flag is not set OR -- The `phone` flag is set and the associated phone number string is non-empty - Set to `false` otherwise. Then, apply both `access_hash` and `min_access_hash` to the local database if: - `min_access_hash` is false OR - `min_access_hash` is true AND -- There is no locally cached object for this user OR -- There is no `access_hash` in the local cache OR -- The cached object's `min_access_hash` is also true If the final merged object stored to the database has the `min_access_hash` field set to true, the related `access_hash` is only suitable to use in `inputPeerPhotoFileLocation`, to directly download the profile pictures of users, everywhere else a `inputPeer*FromMessage` constructor will have to be generated as specified here. Bots can also use min access hashes in some conditions, by passing `0` instead of the min access hash.
+	FirstName               string               `tl:"flag:1"`   // First name. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `min` flag of the locally cached user entry is set.
+	LastName                string               `tl:"flag:2"`   // Last name. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `min` flag of the locally cached user entry is set.
+	Username                string               `tl:"flag:3"`   // Main active username. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `min` flag of the locally cached user entry is set. Changes to this flag should invalidate the local userFull cache for this user ID if the above conditions are respected and the `bot_can_edit` flag is also set.
+	Phone                   string               `tl:"flag:4"`   // Phone number. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `min` flag of the locally cached user entry is set.
+	Photo                   UserProfilePhoto     `tl:"flag:5"`   // Profile picture of user. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `apply_min_photo` flag is set OR -- The `min` flag of the locally cached user entry is set.
+	Status                  UserStatus           `tl:"flag:6"`   // Online status of user. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `min` flag of the locally cached user entry is set OR -- The locally cached user entry is equal to userStatusEmpty.
+	BotInfoVersion          int32                `tl:"flag:14"`  // Version of the bot_info field in userFull, incremented every time it changes. Changes to this flag should invalidate the local userFull cache for this user ID
+	RestrictionReason       []*RestrictionReason `tl:"flag:18"`  // Contains the reason why access to this user must be restricted.
+	BotInlinePlaceholder    string               `tl:"flag:19"`  // Inline placeholder for this inline bot
+	LangCode                string               `tl:"flag:22"`  // Language code of the user
+	EmojiStatus             EmojiStatus          `tl:"flag:30"`  // Emoji status
+	Usernames               []*Username          `tl:"flag2:0"`  // Additional usernames. When updating the local peer database, apply changes to this field only if: - The `min` flag is not set OR - The `min` flag is set AND -- The `min` flag of the locally cached user entry is set. Changes to this flag (if the above conditions are respected) should invalidate the local userFull cache for this user ID.
+	StoriesMaxID            *RecentStory         `tl:"flag2:5"`  // ID of the maximum read story. When updating the local peer database, do not apply changes to this field if the `min` flag of the incoming constructor is set.
+	Color                   PeerColor            `tl:"flag2:8"`  // The user's accent color.
+	ProfileColor            PeerColor            `tl:"flag2:9"`  // The user's profile color.
+	BotActiveUsers          int32                `tl:"flag2:12"` // Monthly Active Users (MAU) of this bot (may be absent for small bots).
+	BotVerificationIcon     int64                `tl:"flag2:14"` // Describes a bot verification icon.
+	SendPaidMessagesStars   int64                `tl:"flag2:15"` // If set, the user has enabled paid messages, we <em>might</em> need to pay the specified amount of Stars to send them messages, depending on the configured exceptions: check userFull.`send_paid_messages_stars` or users.getRequirementsToContact to see if the currently logged in user actually has to pay or not
 }
 
 func (*UserObj) CRC() uint32 {
@@ -13970,14 +13422,6 @@ func (*UserStatusEmpty) CRC() uint32 {
 }
 
 func (*UserStatusEmpty) ImplementsUserStatus() {}
-
-type UserStatusHidden struct{}
-
-func (*UserStatusHidden) CRC() uint32 {
-	return 0xcf7d64b1
-}
-
-func (*UserStatusHidden) ImplementsUserStatus() {}
 
 // Online status: last seen last month
 type UserStatusLastMonth struct {
@@ -14141,36 +13585,6 @@ func (*WallPaperNoFile) FlagIndex() int {
 
 func (*WallPaperNoFile) ImplementsWallPaper() {}
 
-type WebBrowserSettings interface {
-	tl.Object
-	ImplementsWebBrowserSettings()
-}
-type WebBrowserSettingsObj struct {
-	OpenExternalBrowser bool `tl:"flag:0,encoded_in_bitflags"`
-	DisplayCloseButton  bool `tl:"flag:1,encoded_in_bitflags"`
-	ExternalExceptions  []*WebDomainException
-	InappExceptions     []*WebDomainException
-	Hash                int64
-}
-
-func (*WebBrowserSettingsObj) CRC() uint32 {
-	return 0x79eb8cb3
-}
-
-func (*WebBrowserSettingsObj) FlagIndex() int {
-	return 0
-}
-
-func (*WebBrowserSettingsObj) ImplementsWebBrowserSettings() {}
-
-type WebBrowserSettingsNotModified struct{}
-
-func (*WebBrowserSettingsNotModified) CRC() uint32 {
-	return 0xc31c8f4e
-}
-
-func (*WebBrowserSettingsNotModified) ImplementsWebBrowserSettings() {}
-
 type WebDocument interface {
 	tl.Object
 	ImplementsWebDocument()
@@ -14291,16 +13705,6 @@ func (*WebPagePending) FlagIndex() int {
 }
 
 func (*WebPagePending) ImplementsWebPage() {}
-
-type WebPageURLPending struct {
-	URL string
-}
-
-func (*WebPageURLPending) CRC() uint32 {
-	return 0xd41a5167
-}
-
-func (*WebPageURLPending) ImplementsWebPage() {}
 
 type WebPageAttribute interface {
 	tl.Object
@@ -16423,15 +15827,13 @@ func (*PaymentsPaymentFormStarGift) ImplementsPaymentsPaymentForm() {}
 
 // Represents a payment form, for payments to be using Telegram Stars
 type PaymentsPaymentFormStars struct {
-	CanSaveCredentials bool `tl:"flag:2,encoded_in_bitflags"`
-	PasswordMissing    bool `tl:"flag:3,encoded_in_bitflags"`
-	FormID             int64
-	BotID              int64
-	Title              string
-	Description        string
-	Photo              WebDocument `tl:"flag:5"`
-	Invoice            *Invoice
-	Users              []User
+	FormID      int64       // Form ID.
+	BotID       int64       // Bot ID.
+	Title       string      // Form title
+	Description string      // Description
+	Photo       WebDocument `tl:"flag:5"` // Product photo
+	Invoice     *Invoice    // Invoice
+	Users       []User      // Info about users mentioned in the other fields.
 }
 
 func (*PaymentsPaymentFormStars) CRC() uint32 {
