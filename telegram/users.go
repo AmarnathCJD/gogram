@@ -11,11 +11,11 @@ import (
 
 // GetMe returns the current user
 func (c *Client) GetMe() (*UserObj, error) {
-	resp, err := c.UsersGetFullUser(&InputUserSelf{})
+	resp, err := c.UsersGetUsers([]InputUser{&InputUserSelf{}})
 	if err != nil {
 		return nil, fmt.Errorf("getting user: %w", err)
 	}
-	user, ok := resp.Users[0].(*UserObj)
+	user, ok := resp[0].(*UserObj)
 	if !ok {
 		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
 	}
