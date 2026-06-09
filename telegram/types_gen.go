@@ -1177,10 +1177,17 @@ type ConnectedBot struct {
 	BotID      int64
 	Recipients *BusinessBotRecipients
 	Rights     *BusinessBotRights
+	Device     string `tl:"flag:0"`
+	Date       int32  `tl:"flag:1"`
+	Location   string `tl:"flag:2"`
 }
 
 func (*ConnectedBot) CRC() uint32 {
-	return 0xcd64636c
+	return 0x33ed001
+}
+
+func (*ConnectedBot) FlagIndex() int {
+	return 0
 }
 
 // Info about an active affiliate program we have with a Mini App
@@ -3824,6 +3831,22 @@ func (*RestrictionReason) CRC() uint32 {
 	return 0xd072acb4
 }
 
+type RichMessage struct {
+	Rtl       bool `tl:"flag:0,encoded_in_bitflags"`
+	Part      bool `tl:"flag:1,encoded_in_bitflags"`
+	Blocks    []PageBlock
+	Photos    []Photo
+	Documents []Document
+}
+
+func (*RichMessage) CRC() uint32 {
+	return 0xbaf39d8b
+}
+
+func (*RichMessage) FlagIndex() int {
+	return 0
+}
+
 // Saved contact
 type SavedPhoneContact struct {
 	Phone     string
@@ -5100,6 +5123,21 @@ func (*WebAuthorization) CRC() uint32 {
 	return 0xa6f8f452
 }
 
+type WebDomainException struct {
+	Domain  string
+	URL     string
+	Title   string
+	Favicon int64 `tl:"flag:0"`
+}
+
+func (*WebDomainException) CRC() uint32 {
+	return 0x933ca597
+}
+
+func (*WebDomainException) FlagIndex() int {
+	return 0
+}
+
 // Info about a sent inline webview message
 type WebViewMessageSent struct {
 	MsgID InputBotInlineMessageID `tl:"flag:0"`
@@ -5117,6 +5155,7 @@ func (*WebViewMessageSent) FlagIndex() int {
 type WebViewResultURL struct {
 	Fullsize   bool  `tl:"flag:1,encoded_in_bitflags"`
 	Fullscreen bool  `tl:"flag:2,encoded_in_bitflags"`
+	SameOrigin bool  `tl:"flag:3,encoded_in_bitflags"`
 	QueryID    int64 `tl:"flag:0"`
 	URL        string
 }
