@@ -564,16 +564,52 @@ func convertCodeBlockSyntax(markdown string) string {
 	return markdown
 }
 
-var linkRegex = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
-
 func convertLinksSyntax(markdown string) string {
-	return linkRegex.ReplaceAllStringFunc(markdown, func(m string) string {
-		parts := linkRegex.FindStringSubmatch(m)
-		if len(parts) < 3 {
-			return m
+	var b strings.Builder
+	b.Grow(len(markdown))
+	i := 0
+	for i < len(markdown) {
+		if markdown[i] != '[' {
+			b.WriteByte(markdown[i])
+			i++
+			continue
 		}
-		return fmt.Sprintf(`<a href="%s">%s</a>`, htmlEscape(parts[2]), htmlEscape(parts[1]))
-	})
+		// find matching ']'
+		end := strings.IndexByte(markdown[i+1:], ']')
+		if end < 0 || i+1+end+1 >= len(markdown) || markdown[i+1+end+1] != '(' {
+			b.WriteByte(markdown[i])
+			i++
+			continue
+		}
+		labelStart := i + 1
+		labelEnd := i + 1 + end
+		urlStart := labelEnd + 2
+		// scan url with paren-depth tracking so URLs containing '(' / ')' work
+		depth := 1
+		j := urlStart
+		for j < len(markdown) && depth > 0 {
+			switch markdown[j] {
+			case '(':
+				depth++
+			case ')':
+				depth--
+			}
+			if depth == 0 {
+				break
+			}
+			j++
+		}
+		if depth != 0 {
+			b.WriteByte(markdown[i])
+			i++
+			continue
+		}
+		label := markdown[labelStart:labelEnd]
+		url := markdown[urlStart:j]
+		fmt.Fprintf(&b, `<a href="%s">%s</a>`, htmlEscape(url), htmlEscape(label))
+		i = j + 1
+	}
+	return b.String()
 }
 
 func convertEmojiSyntax(markdown string) string {
