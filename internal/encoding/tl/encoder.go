@@ -148,7 +148,7 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 	}
 
 	flag2Emitted := !hasFlag2
-	for i := 0; i < numFields; i++ {
+	for i := range numFields {
 		if hasFlagsField && flagIndex == i {
 			c.PutUint(flag)
 			if c.err != nil {
