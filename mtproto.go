@@ -628,6 +628,8 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	if !m.exported && !m.cdn {
 		m.routineswg.Add(1)
 		go m.longPing(ctx)
+		m.routineswg.Add(1)
+		go m.saltRefresher(ctx)
 	}
 
 	if !m.encrypted.Load() {
@@ -1139,6 +1141,38 @@ func (m *MTProto) Redial() error {
 	return nil
 }
 
+// saltRefresher rotates the server salt proactively so we don't have to
+// wait for a bad_server_salt notification to learn the current one.
+func (m *MTProto) saltRefresher(ctx context.Context) {
+	defer m.routineswg.Done()
+
+	const interval = 25 * time.Minute
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if !m.encrypted.Load() || !m.tcpState.GetActive() {
+				continue
+			}
+			reqCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			resp, err := m.MakeRequestCtx(reqCtx, &objects.GetFutureSaltsParams{Num: 64})
+			cancel()
+			if err != nil {
+				m.Logger.Debug("salt refresh failed: %v", err)
+				continue
+			}
+			if salts, ok := resp.(*objects.FutureSalts); ok && len(salts.Salts) > 0 {
+				m.serverSalt.Store(salts.Salts[0].Salt)
+				m.Logger.Trace("salt refreshed (%d future salts received)", len(salts.Salts))
+			}
+		}
+	}
+}
+
 // keep pinging to keep the connection alive
 func (m *MTProto) longPing(ctx context.Context) {
 	defer m.routineswg.Done()
@@ -1165,9 +1199,14 @@ func (m *MTProto) Ping() time.Duration {
 		return 0
 	}
 	start := time.Now()
-	m.Logger.Trace("sending ping")
-	if err := m.InvokeRequestWithoutUpdate(&utils.PingParams{
-		PingID: time.Now().Unix(),
+	m.Logger.Trace("sending ping_delay_disconnect")
+	disconnectDelay := int32(defaultPingInterval/time.Second) * 3
+	if disconnectDelay < 75 {
+		disconnectDelay = 75
+	}
+	if err := m.InvokeRequestWithoutUpdate(&objects.PingDelayDisconnectParams{
+		PingID:          time.Now().Unix(),
+		DisconnectDelay: disconnectDelay,
 	}); err != nil {
 		m.Logger.Debug("ping failed: %v", err)
 		return -1

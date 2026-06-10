@@ -65,6 +65,17 @@ func (c *Client) setMe(u *UserObj) {
 	c.clientData.meMu.Unlock()
 }
 
+func (c *Client) resetStopCh() {
+	if c.stopCh != nil {
+		select {
+		case <-c.stopCh:
+		default:
+			close(c.stopCh)
+		}
+	}
+	c.stopCh = make(chan struct{})
+}
+
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
@@ -422,7 +433,7 @@ func (c *Client) Start() error {
 		return err
 	}
 
-	c.stopCh = make(chan struct{}) // reset the stop channel
+	c.resetStopCh()
 	return nil
 }
 
@@ -434,7 +445,7 @@ func (c *Client) St() error {
 		}
 	}
 
-	c.stopCh = make(chan struct{}) // reset the stop channel
+	c.resetStopCh()
 	return nil
 }
 
@@ -937,9 +948,10 @@ func (c *Client) CheckErr(_ any, err error) error {
 	return err
 }
 
+var rpcErrorRegex = regexp.MustCompile(`\[(.*)\] (.*) \(code (\d+)\)`)
+
 func (c *Client) ToRpcError(err error) *RpcError {
-	regex := regexp.MustCompile(`\[(.*)\] (.*) \(code (\d+)\)`)
-	matches := regex.FindStringSubmatch(err.Error())
+	matches := rpcErrorRegex.FindStringSubmatch(err.Error())
 	if len(matches) != 4 {
 		return nil
 	}

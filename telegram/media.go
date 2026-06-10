@@ -845,19 +845,26 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 }
 
 func handleIfFlood(err error, c *Client) bool {
-	if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
-		if waitTime := GetFloodWait(err); waitTime > 0 {
-			c.Log.Debug("sleeping for flood wait %s", waitTime, "(s)...", waitTime)
-			time.Sleep(time.Duration(waitTime) * time.Second)
-
-			if c.clientData.sleepThresholdMs > 0 {
-				time.Sleep(time.Duration(c.clientData.sleepThresholdMs) * time.Millisecond)
-			}
-			return true
-		}
+	if !MatchError(err, "FLOOD_WAIT_") && !MatchError(err, "FLOOD_PREMIUM_WAIT_") {
+		return false
 	}
-
-	return false
+	waitTime := GetFloodWait(err)
+	if waitTime <= 0 {
+		return false
+	}
+	c.Log.Debug("flood wait: sleeping %ds", waitTime)
+	total := time.Duration(waitTime) * time.Second
+	if c.clientData.sleepThresholdMs > 0 {
+		total += time.Duration(c.clientData.sleepThresholdMs) * time.Millisecond
+	}
+	timer := time.NewTimer(total)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return true
+	case <-c.stopCh:
+		return false
+	}
 }
 
 func prettifyFileName(file string) string {
