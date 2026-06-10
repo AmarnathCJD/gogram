@@ -917,6 +917,9 @@ type DownloadOptions struct {
 	ThumbSize PhotoSize       // Specific thumbnail size to download
 	IsVideo   bool            // Download video version (for animated profiles)
 	Ctx       context.Context // Context for cancellation
+	// Resume picks up an interrupted download from a sidecar <dest>.partstate
+	// file. Only supported for known-size file downloads (Buffer == nil).
+	Resume bool
 }
 
 type downloadErrKind int
@@ -954,17 +957,28 @@ type downloadDestination struct {
 	mu       sync.Mutex
 }
 
-func newDownloadDestination(name string, size int64, buffer any) (*downloadDestination, error) {
+func newDownloadDestination(name string, size int64, buffer any, resume bool) (*downloadDestination, error) {
 	d := &downloadDestination{name: name}
 	if buffer == nil {
-		file, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0666)
+		flags := os.O_CREATE | os.O_RDWR
+		if !resume {
+			flags |= os.O_TRUNC
+		}
+		file, err := os.OpenFile(name, flags, 0666)
 		if err != nil {
 			return nil, err
 		}
 		if size > 0 {
-			if err := file.Truncate(size); err != nil {
+			info, err := file.Stat()
+			if err != nil {
 				file.Close()
 				return nil, err
+			}
+			if info.Size() != size {
+				if err := file.Truncate(size); err != nil {
+					file.Close()
+					return nil, err
+				}
 			}
 		}
 		d.file = file
@@ -1039,6 +1053,9 @@ type downloadJob struct {
 	cdnMu    sync.Mutex
 	cdn      *cdnRedirect
 	cdnPools map[int32]*WorkerPool
+
+	resume       *resumeState
+	resumeStopCh chan struct{}
 }
 
 type cdnRedirect struct {
@@ -1062,9 +1079,20 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	if job.log != nil {
 		defer job.log.Flush()
 	}
+	if job.resume != nil {
+		job.resumeStopCh = make(chan struct{})
+		job.resume.startFlusher(job.resumeStopCh, 2*time.Second, c.Log)
+		defer close(job.resumeStopCh)
+	}
 
 	if err := job.run(); err != nil {
 		return "", err
+	}
+	if job.resume != nil {
+		if err := job.resume.flush(); err != nil {
+			c.Log.Debug("resume state final flush failed: %v", err)
+		}
+		job.resume.remove()
 	}
 
 	current := job.doneBytes.Load()
@@ -1116,7 +1144,22 @@ func (c *Client) newDownloadJob(file any, opts *DownloadOptions) (*downloadJob, 
 		partSize = int(opts.ChunkSize)
 	}
 
-	destination, err := newDownloadDestination(dest, size, opts.Buffer)
+	resumeRequested := opts.Resume && size > 0 && opts.Buffer == nil
+	var resume *resumeState
+	if resumeRequested {
+		locKey := locationKey(location)
+		statePath := resumeStatePath(dest)
+		if loaded, lerr := loadResumeState(statePath, size, partSize, locKey); lerr == nil {
+			resume = loaded
+		} else {
+			if !os.IsNotExist(lerr) {
+				c.Log.Debug("resume state ignored (%s): %v", statePath, lerr)
+			}
+			resume = newResumeState(statePath, size, partSize, locKey)
+		}
+	}
+
+	destination, err := newDownloadDestination(dest, size, opts.Buffer, resume != nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1162,6 +1205,10 @@ func (c *Client) newDownloadJob(file any, opts *DownloadOptions) (*downloadJob, 
 		workers:     workers,
 		destination: destination,
 		ctx:         ctx,
+		resume:      resume,
+	}
+	if resume != nil {
+		job.doneBytes.Store(resume.completedBytes())
 	}
 
 	if opts.ProgressCallback != nil {
@@ -1265,12 +1312,19 @@ func (j *downloadJob) runKnownSize() error {
 				n := len(data)
 				tl.ReleaseLargeBuffer(result.data)
 				j.doneBytes.Add(int64(n))
+				if j.resume != nil {
+					j.resume.mark(result.part.index)
+				}
 				j.log.recordSuccess(result.part.index, nil)
 			}
 		})
 	}
 
 	for p := range totalParts {
+		if j.resume != nil && j.resume.has(p) {
+			j.log.recordSuccess(p, nil)
+			continue
+		}
 		offset := int64(p) * int64(j.partSize)
 		select {
 		case <-ctx.Done():
@@ -2212,4 +2266,234 @@ func MediaDownloadProgress(editMsg *NewMessage, inline ...*InputBotInlineMessage
 			editMsg.Edit(message)
 		}
 	}
+}
+
+const (
+	resumeMagic   uint32 = 0x444C5231
+	resumeVersion uint16 = 1
+)
+
+type resumeState struct {
+	mu         sync.Mutex
+	path       string
+	size       int64
+	partSize   int
+	totalParts int
+	locKey     []byte
+	bitmap     []byte
+	dirty      bool
+}
+
+func resumeStatePath(dest string) string {
+	return dest + ".partstate"
+}
+
+func locationKey(loc InputFileLocation) []byte {
+	if loc == nil {
+		return nil
+	}
+	buf := make([]byte, 4+8+8)
+	binary.LittleEndian.PutUint32(buf[0:4], loc.CRC())
+	switch v := loc.(type) {
+	case *InputDocumentFileLocation:
+		binary.LittleEndian.PutUint64(buf[4:12], uint64(v.ID))
+		binary.LittleEndian.PutUint64(buf[12:20], uint64(v.AccessHash))
+	case *InputPhotoFileLocation:
+		binary.LittleEndian.PutUint64(buf[4:12], uint64(v.ID))
+		binary.LittleEndian.PutUint64(buf[12:20], uint64(v.AccessHash))
+	case *InputEncryptedFileLocation:
+		binary.LittleEndian.PutUint64(buf[4:12], uint64(v.ID))
+		binary.LittleEndian.PutUint64(buf[12:20], uint64(v.AccessHash))
+	case *InputFileLocationObj:
+		binary.LittleEndian.PutUint64(buf[4:12], uint64(v.VolumeID))
+		binary.LittleEndian.PutUint64(buf[12:20], uint64(v.Secret))
+	default:
+		return buf[:4]
+	}
+	return buf
+}
+
+func newResumeState(path string, size int64, partSize int, locKey []byte) *resumeState {
+	totalParts := int((size + int64(partSize) - 1) / int64(partSize))
+	return &resumeState{
+		path:       path,
+		size:       size,
+		partSize:   partSize,
+		totalParts: totalParts,
+		locKey:     locKey,
+		bitmap:     make([]byte, (totalParts+7)/8),
+	}
+}
+
+func loadResumeState(path string, size int64, partSize int, locKey []byte) (*resumeState, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	header := make([]byte, 32)
+	if _, err := io.ReadFull(f, header); err != nil {
+		return nil, fmt.Errorf("read header: %w", err)
+	}
+	if binary.LittleEndian.Uint32(header[0:4]) != resumeMagic {
+		return nil, errors.New("not a resume state file")
+	}
+	if binary.LittleEndian.Uint16(header[4:6]) != resumeVersion {
+		return nil, errors.New("unsupported resume state version")
+	}
+	storedSize := int64(binary.LittleEndian.Uint64(header[8:16]))
+	storedPartSize := int(binary.LittleEndian.Uint32(header[16:20]))
+	storedTotalParts := int(binary.LittleEndian.Uint32(header[20:24]))
+	locKeyLen := int(binary.LittleEndian.Uint32(header[24:28]))
+
+	if storedSize != size || storedPartSize != partSize {
+		return nil, errors.New("size or partSize changed")
+	}
+	expectedTotal := int((size + int64(partSize) - 1) / int64(partSize))
+	if storedTotalParts != expectedTotal {
+		return nil, errors.New("totalParts mismatch")
+	}
+
+	storedLocKey := make([]byte, locKeyLen)
+	if locKeyLen > 0 {
+		if _, err := io.ReadFull(f, storedLocKey); err != nil {
+			return nil, fmt.Errorf("read locKey: %w", err)
+		}
+	}
+	if len(locKey) > 0 && len(storedLocKey) > 0 {
+		if !bytes.Equal(locKey, storedLocKey) {
+			return nil, errors.New("location key mismatch")
+		}
+	}
+
+	bitmapLen := (storedTotalParts + 7) / 8
+	bitmap := make([]byte, bitmapLen)
+	if _, err := io.ReadFull(f, bitmap); err != nil {
+		return nil, fmt.Errorf("read bitmap: %w", err)
+	}
+
+	return &resumeState{
+		path:       path,
+		size:       size,
+		partSize:   partSize,
+		totalParts: storedTotalParts,
+		locKey:     locKey,
+		bitmap:     bitmap,
+	}, nil
+}
+
+func (s *resumeState) has(part int) bool {
+	if part < 0 || part >= s.totalParts {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.bitmap[part/8]&(1<<(part%8)) != 0
+}
+
+func (s *resumeState) mark(part int) {
+	if part < 0 || part >= s.totalParts {
+		return
+	}
+	s.mu.Lock()
+	mask := byte(1 << (part % 8))
+	if s.bitmap[part/8]&mask == 0 {
+		s.bitmap[part/8] |= mask
+		s.dirty = true
+	}
+	s.mu.Unlock()
+}
+
+func (s *resumeState) completedBytes() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var total int64
+	for p := 0; p < s.totalParts; p++ {
+		if s.bitmap[p/8]&(1<<(p%8)) != 0 {
+			partLen := int64(s.partSize)
+			offset := int64(p) * int64(s.partSize)
+			if remaining := s.size - offset; remaining < partLen {
+				partLen = remaining
+			}
+			total += partLen
+		}
+	}
+	return total
+}
+
+func (s *resumeState) flush() error {
+	s.mu.Lock()
+	if !s.dirty {
+		s.mu.Unlock()
+		return nil
+	}
+	bitmap := make([]byte, len(s.bitmap))
+	copy(bitmap, s.bitmap)
+	s.dirty = false
+	s.mu.Unlock()
+
+	tmp := s.path + ".tmp"
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	if err != nil {
+		return err
+	}
+	header := make([]byte, 32)
+	binary.LittleEndian.PutUint32(header[0:4], resumeMagic)
+	binary.LittleEndian.PutUint16(header[4:6], resumeVersion)
+	binary.LittleEndian.PutUint64(header[8:16], uint64(s.size))
+	binary.LittleEndian.PutUint32(header[16:20], uint32(s.partSize))
+	binary.LittleEndian.PutUint32(header[20:24], uint32(s.totalParts))
+	binary.LittleEndian.PutUint32(header[24:28], uint32(len(s.locKey)))
+	if _, err := f.Write(header); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if len(s.locKey) > 0 {
+		if _, err := f.Write(s.locKey); err != nil {
+			f.Close()
+			os.Remove(tmp)
+			return err
+		}
+	}
+	if _, err := f.Write(bitmap); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return os.Rename(tmp, s.path)
+}
+
+func (s *resumeState) remove() {
+	_ = os.Remove(s.path)
+}
+
+func (s *resumeState) startFlusher(stop <-chan struct{}, interval time.Duration, log Logger) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				if err := s.flush(); err != nil && log != nil {
+					log.Debug("resume state final flush failed: %v", err)
+				}
+				return
+			case <-ticker.C:
+				if err := s.flush(); err != nil && log != nil {
+					log.Debug("resume state flush failed: %v", err)
+				}
+			}
+		}
+	}()
 }
