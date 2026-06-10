@@ -128,7 +128,7 @@ func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMes
 // is rejected.
 func (c *Client) ScheduleMessage(peerID, message any, at time.Time, opts ...*SendOptions) (*NewMessage, error) {
 	if at.IsZero() || !at.After(time.Now()) {
-		return nil, errors.New("ScheduleMessage: time must be in the future")
+		return nil, errors.New("time must be in the future")
 	}
 	opt := getVariadic(opts, &SendOptions{})
 	opt.ScheduleDate = int32(at.Unix())
@@ -138,7 +138,7 @@ func (c *Client) ScheduleMessage(peerID, message any, at time.Time, opts ...*Sen
 // ScheduleMedia is the media equivalent of ScheduleMessage.
 func (c *Client) ScheduleMedia(peerID, media any, at time.Time, opts ...*MediaOptions) (*NewMessage, error) {
 	if at.IsZero() || !at.After(time.Now()) {
-		return nil, errors.New("ScheduleMedia: time must be in the future")
+		return nil, errors.New("time must be in the future")
 	}
 	opt := getVariadic(opts, &MediaOptions{})
 	opt.ScheduleDate = int32(at.Unix())

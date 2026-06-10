@@ -186,7 +186,7 @@ func (c *Client) EditStory(peerID any, storyID int32, opts ...*EditStoryOptions)
 
 func (c *Client) DeleteStory(peerID any, ids ...int32) ([]int32, error) {
 	if len(ids) == 0 {
-		return nil, errors.New("DeleteStory: at least one story id required")
+		return nil, errors.New("at least one story id required")
 	}
 	peer, err := c.GetSendablePeer(peerID)
 	if err != nil {
@@ -197,7 +197,7 @@ func (c *Client) DeleteStory(peerID any, ids ...int32) ([]int32, error) {
 
 func (c *Client) GetStories(peerID any, ids ...int32) ([]StoryItem, error) {
 	if len(ids) == 0 {
-		return nil, errors.New("GetStories: at least one story id required")
+		return nil, errors.New("at least one story id required")
 	}
 	peer, err := c.GetSendablePeer(peerID)
 	if err != nil {
