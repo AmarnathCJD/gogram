@@ -966,8 +966,13 @@ func (m *MTProto) handleRPCResult(data tl.Object, response tl.Object, expectedTy
 		// handle session-killed errors (code 401) — auth key invalidated server-side
 		if rpcError.Code == 401 {
 			switch rpcError.Message {
-			case "AUTH_KEY_UNREGISTERED", "AUTH_KEY_INVALID", "USER_DEACTIVATED",
-				"USER_DEACTIVATED_BAN", "SESSION_REVOKED", "SESSION_EXPIRED":
+			case "AUTH_KEY_UNREGISTERED", "AUTH_KEY_INVALID":
+				m.Logger.Debug("auth key not yet registered: %s", rpcError.Message)
+				if m.errorHandler != nil {
+					m.errorHandler(rpcError)
+				}
+				return nil, rpcError
+			case "USER_DEACTIVATED", "USER_DEACTIVATED_BAN", "SESSION_REVOKED", "SESSION_EXPIRED":
 				m.Logger.Error("session killed by server: %s", rpcError.Message)
 				if m.errorHandler != nil {
 					m.errorHandler(rpcError)
