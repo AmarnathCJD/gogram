@@ -46,10 +46,23 @@ type clientData struct {
 	sleepThresholdMs int
 	albumWaitTime    int64
 	botAcc           bool
+	meMu             sync.RWMutex
 	me               *UserObj
 	commandPrefixes  string
 	proxy            Proxy
 	disableGapFetch  bool
+}
+
+func (c *Client) getMe() *UserObj {
+	c.clientData.meMu.RLock()
+	defer c.clientData.meMu.RUnlock()
+	return c.clientData.me
+}
+
+func (c *Client) setMe(u *UserObj) {
+	c.clientData.meMu.Lock()
+	c.clientData.me = u
+	c.clientData.meMu.Unlock()
 }
 
 // Client is the main struct of the library
@@ -459,15 +472,15 @@ func (c *Client) SetAppHash(appHash string) {
 }
 
 func (c *Client) Me() *UserObj {
-	if c.clientData.me == nil {
-		me, err := c.GetMe()
-		if err != nil {
-			return &UserObj{}
-		}
-		c.clientData.me = me
+	if cached := c.getMe(); cached != nil {
+		return cached
 	}
-
-	return c.clientData.me
+	me, err := c.GetMe()
+	if err != nil {
+		return &UserObj{}
+	}
+	c.setMe(me)
+	return me
 }
 
 type ExSenders struct {
@@ -854,6 +867,7 @@ func (c *Client) Terminate() error {
 func (c *Client) Idle() {
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigchan)
 
 	select {
 	case <-sigchan:

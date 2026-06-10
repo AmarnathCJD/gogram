@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -118,10 +119,21 @@ type CACHE struct {
 	mediaCache   map[string]*CachedMedia
 	mediaCacheMu sync.RWMutex
 
+	peerRecency map[int64]uint64
+	recencySeq  uint64
+
 	wipeScheduled atomic.Bool
 	writePending  atomic.Bool
 	lastWrite     time.Time
 	writeMu       sync.Mutex
+}
+
+func (c *CACHE) touchPeer(id int64) {
+	if c.peerRecency == nil {
+		c.peerRecency = make(map[int64]uint64)
+	}
+	c.recencySeq++
+	c.peerRecency[id] = c.recencySeq
 }
 
 type CachedMedia struct {
@@ -495,11 +507,12 @@ func (c *CACHE) Disable() *CACHE {
 	return c
 }
 
-// enforceSizeLimit removes oldest entries if cache exceeds maxSize
-// Must be called while holding write lock
+// enforceSizeLimit evicts the least-recently-touched peers when the cache
+// exceeds maxSize. Recency is tracked via touchPeer on every write/refresh.
+// Must be called while holding the write lock.
 func (c *CACHE) enforceSizeLimit() {
 	if c.maxSize <= 0 {
-		return // unlimited
+		return
 	}
 
 	totalSize := len(c.InputPeers.InputUsers) + len(c.InputPeers.InputChannels)
@@ -508,48 +521,53 @@ func (c *CACHE) enforceSizeLimit() {
 	}
 
 	excess := totalSize - c.maxSize
-	removed := 0
+	type entry struct {
+		id      int64
+		recency uint64
+		isUser  bool
+	}
+	candidates := make([]entry, 0, totalSize)
+	for id := range c.InputPeers.InputUsers {
+		candidates = append(candidates, entry{id: id, recency: c.peerRecency[id], isUser: true})
+	}
+	for id := range c.InputPeers.InputChannels {
+		candidates = append(candidates, entry{id: id, recency: c.peerRecency[id], isUser: false})
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].recency < candidates[j].recency
+	})
 
-	// Remove oldest users first (simple strategy: remove arbitrary entries)
-	for userID := range c.InputPeers.InputUsers {
+	removed := 0
+	for _, e := range candidates {
 		if removed >= excess {
 			break
 		}
-		delete(c.InputPeers.InputUsers, userID)
-		if user, ok := c.users[userID]; ok {
-			// Clean up username mapping
-			if user.Username != "" {
-				delete(c.usernameMap, user.Username)
+		if e.isUser {
+			delete(c.InputPeers.InputUsers, e.id)
+			if user, ok := c.users[e.id]; ok {
+				if user.Username != "" {
+					delete(c.usernameMap, user.Username)
+				}
+				delete(c.users, e.id)
 			}
-			delete(c.users, userID)
-		}
-		removed++
-	}
-
-	// If still need to remove more, remove channels
-	if removed < excess {
-		for channelID := range c.InputPeers.InputChannels {
-			if removed >= excess {
-				break
-			}
-			delete(c.InputPeers.InputChannels, channelID)
-			if channel, ok := c.channels[channelID]; ok {
-				// Clean up username mapping
+		} else {
+			delete(c.InputPeers.InputChannels, e.id)
+			if channel, ok := c.channels[e.id]; ok {
 				if channel.Username != "" {
 					delete(c.usernameMap, channel.Username)
 				}
-				delete(c.channels, channelID)
+				delete(c.channels, e.id)
 			}
-			removed++
 		}
+		delete(c.peerRecency, e.id)
+		removed++
 	}
 
 	if removed > 0 {
-		c.logger.Debug("cache limit: evicted %d entries (max=%d)", removed, c.maxSize)
+		c.logger.Debug("cache limit: evicted %d LRU entries (max=%d)", removed, c.maxSize)
 	}
 }
 
-// --------- Cache file Functions ---------
 func (c *CACHE) WriteFile() {
 	if c.disabled || c.memory {
 		return
@@ -757,8 +775,6 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	return nil, fmt.Errorf("there is no peer with id '%d' or missing from cache", peerID)
 }
 
-// ------------------ Get Chat/Channel/User From Cache/Telegram ------------------
-
 func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 	c.Cache.RLock()
 	if user, found := c.Cache.users[userID]; found {
@@ -886,8 +902,6 @@ func (c *Client) getChatFromCache(chatID int64) (*ChatObj, error) {
 	return chatObj, nil
 }
 
-// ----------------- Get User/Channel/Chat from cache -----------------
-
 func (c *Client) GetUser(userID int64) (*UserObj, error) {
 	user, err := c.getUserFromCache(userID)
 	if err != nil {
@@ -925,8 +939,6 @@ func (c *Client) GetPeer(peerID int64) (any, error) {
 	}
 }
 
-// ----------------- Update User/Channel/Chat in cache -----------------
-
 func (c *CACHE) UpdateUser(user *UserObj) bool {
 	c.Lock()
 	defer c.Unlock()
@@ -945,6 +957,7 @@ func (c *CACHE) UpdateUser(user *UserObj) bool {
 
 	// Full user data - always update
 	c.users[user.ID] = user
+	c.touchPeer(user.ID)
 
 	// Update username mapping only for non-min users with access hash
 	if user.Username != "" {
@@ -991,6 +1004,7 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 
 	// Full channel data - always update
 	c.channels[channel.ID] = channel
+	c.touchPeer(channel.ID)
 
 	// Update username mapping only for non-min channels with access hash
 	if channel.Username != "" {

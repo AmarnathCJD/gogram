@@ -84,11 +84,16 @@ func (m *paddedIntermediate) ReadMsg() ([]byte, error) {
 		return nil, err
 	}
 
-	// Payload must be 4-byte aligned; padding is whatever remains (0..15 bytes)
-	payloadLen := total - (total % tl.WordLen)
-	if payloadLen < 0 || payloadLen > len(buf) {
-		return nil, fmt.Errorf("invalid payload length %d for total %d", payloadLen, total)
+	if len(buf) >= 24 {
+		authKeyID := binary.LittleEndian.Uint64(buf[:8])
+		if authKeyID != 0 && len(buf)%16 != 8 {
+			buf = buf[:((len(buf)-8)/16)*16+8]
+		} else if authKeyID == 0 && len(buf)%tl.WordLen != 0 {
+			buf = buf[:(len(buf)/tl.WordLen)*tl.WordLen]
+		}
+	} else if len(buf)%tl.WordLen != 0 {
+		buf = buf[:(len(buf)/tl.WordLen)*tl.WordLen]
 	}
 
-	return buf[:payloadLen], nil
+	return buf, nil
 }

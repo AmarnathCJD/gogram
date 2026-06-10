@@ -19,7 +19,7 @@ func (c *Client) GetMe() (*UserObj, error) {
 	if !ok {
 		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
 	}
-	c.clientData.me = user
+	c.setMe(user)
 	if c.Cache != nil {
 		if err := c.Cache.BindToUser(user.ID); err != nil {
 			c.Log.WithError(err).Warn("failed to bind cache to user")

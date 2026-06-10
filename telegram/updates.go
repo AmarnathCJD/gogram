@@ -856,7 +856,15 @@ type albumBox struct {
 }
 
 func (a *albumBox) WaitAndTrigger(d *UpdateDispatcher, c *Client) {
-	time.Sleep(time.Duration(c.clientData.albumWaitTime) * time.Millisecond)
+	waitMs := c.clientData.albumWaitTime
+	if waitMs <= 0 {
+		waitMs = 600
+	}
+	select {
+	case <-time.After(time.Duration(waitMs) * time.Millisecond):
+	case <-c.stopCh:
+		return
+	}
 
 	d.RLock()
 	albumHandles := make(map[int][]*albumHandle, len(d.albumHandles))
@@ -2811,7 +2819,6 @@ func (c *Client) dispatchUpdate(update Update) {
 	switch upd := update.(type) {
 	case *UpdateNewMessage:
 		go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
-		go c.handleMessageUpdate(upd.Message)
 	case *UpdateNewChannelMessage:
 		go c.handleMessageUpdate(upd.Message)
 	case *UpdateNewScheduledMessage:
@@ -3516,7 +3523,10 @@ func (c *Client) OpenChat(channel *InputChannelObj, timeoutSeconds int32) {
 // pollOpenChat periodically fetches channel difference for an open chat
 func (c *Client) pollOpenChat(channelID int64, chat *openChat) {
 	var errorCount int
-	const maxBackoff = 60 // max 60 seconds between retries on error
+	const (
+		maxBackoff     = 60
+		maxConsecutive = 15
+	)
 
 	for {
 		chat.RLock()
@@ -3528,7 +3538,6 @@ func (c *Client) pollOpenChat(channelID int64, chat *openChat) {
 			timeout = 15 * time.Second
 		}
 
-		// Add exponential backoff on consecutive errors
 		if errorCount > 0 {
 			backoff := min(1<<errorCount, maxBackoff)
 			timeout = time.Duration(backoff) * time.Second
@@ -3536,6 +3545,8 @@ func (c *Client) pollOpenChat(channelID int64, chat *openChat) {
 
 		select {
 		case <-chat.closeChan:
+			return
+		case <-c.stopCh:
 			return
 		case <-time.After(timeout):
 		}
@@ -3549,6 +3560,10 @@ func (c *Client) pollOpenChat(channelID int64, chat *openChat) {
 		if err != nil {
 			errorCount++
 			c.Log.Debug("channel poll error (channel=%d, attempt=%d): %v", channelID, errorCount, err)
+			if errorCount >= maxConsecutive {
+				c.Log.Warn("channel poll stopped (channel=%d, %d consecutive errors): %v", channelID, errorCount, err)
+				return
+			}
 			continue
 		}
 		errorCount = 0

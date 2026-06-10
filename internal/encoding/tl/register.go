@@ -5,13 +5,28 @@ package tl
 import (
 	"fmt"
 	"reflect"
+	"sync"
 )
 
 var (
-	// used by decoder, guaranteed that types are convertible to tl.Object
-	objectByCrc = make(map[uint32]reflect.Type) // this value setting by registerObject(), DO NOT CALL IT BY HANDS
+	registryMu  sync.RWMutex
+	objectByCrc = make(map[uint32]reflect.Type)
 	enumCrcs    = make(map[uint32]struct{})
 )
+
+func lookupObjectType(crc uint32) (reflect.Type, bool) {
+	registryMu.RLock()
+	t, ok := objectByCrc[crc]
+	registryMu.RUnlock()
+	return t, ok
+}
+
+func isEnumCRC(crc uint32) bool {
+	registryMu.RLock()
+	_, ok := enumCrcs[crc]
+	registryMu.RUnlock()
+	return ok
+}
 
 func registerObject(o Object) {
 	if o == nil {
@@ -26,6 +41,8 @@ func registerEnum(o Object) {
 }
 
 func RegisterObjects(obs ...Object) {
+	registryMu.Lock()
+	defer registryMu.Unlock()
 	for _, o := range obs {
 		if val, found := objectByCrc[o.CRC()]; found {
 			panic(fmt.Errorf("object with that crc already registered as %v: 0x%08x", val.String(), o.CRC()))
@@ -36,6 +53,8 @@ func RegisterObjects(obs ...Object) {
 }
 
 func RegisterObject(o Object, customCRC uint32) {
+	registryMu.Lock()
+	defer registryMu.Unlock()
 	if val, found := objectByCrc[customCRC]; found {
 		panic(fmt.Errorf("object with that crc already registered as %v: 0x%08x", val.String(), customCRC))
 	}
@@ -43,6 +62,8 @@ func RegisterObject(o Object, customCRC uint32) {
 }
 
 func RegisterEnums(enums ...Object) {
+	registryMu.Lock()
+	defer registryMu.Unlock()
 	for _, e := range enums {
 		if _, found := enumCrcs[e.CRC()]; found {
 			panic(fmt.Errorf("enum with that crc already registered"))

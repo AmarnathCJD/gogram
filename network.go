@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"time"
 
 	"errors"
 
@@ -119,22 +120,31 @@ func safeSend(ch chan tl.Object, obj tl.Object) (err error) {
 
 	select {
 	case ch <- obj:
-		return nil // Successfully sent
+		return nil
 	default:
-		return fmt.Errorf("channel is full or closed")
+	}
+
+	select {
+	case ch <- obj:
+		return nil
+	case <-time.After(safeSendTimeout):
+		return fmt.Errorf("channel send timed out after %s", safeSendTimeout)
 	}
 }
+
+const safeSendTimeout = 2 * time.Second
 
 func (m *MTProto) getRespChannel() chan tl.Object {
 	if m.serviceModeActivated {
 		return m.serviceChannel
 	}
-	return make(chan tl.Object)
+	return make(chan tl.Object, 1)
 }
 
 func isNotContentRelated(t tl.Object) bool {
 	switch t.(type) {
 	case *objects.PingParams,
+		*utils.PingParams,
 		*objects.MsgsAck,
 		*objects.GzipPacked:
 		return true
@@ -145,7 +155,7 @@ func isNotContentRelated(t tl.Object) bool {
 
 func isNullableResponse(t tl.Object) bool {
 	switch t.(type) {
-	case *objects.Pong, *objects.MsgsAck:
+	case *objects.Pong, *objects.MsgsAck, *utils.PingParams, *objects.PingParams:
 		return true
 	default:
 		return false
@@ -182,8 +192,8 @@ func (m *MTProto) SetAuthKey(key []byte) {
 }
 
 func (m *MTProto) MakeRequest(msg tl.Object) (any, error) {
-	if m.connConfig.Timeout > 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), m.connConfig.Timeout)
+	if m.reqTimeout > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
 		defer cancel()
 		return m.makeRequestCtx(ctx, msg)
 	}
@@ -202,7 +212,9 @@ func (m *MTProto) MakeRequestWithHintToDecoder(msg tl.Object, expectedTypes ...r
 }
 
 func (m *MTProto) AddCustomServerRequestHandler(handler func(i any) bool) {
+	m.serverRequestHandlersMu.Lock()
 	m.serverRequestHandlers = append(m.serverRequestHandlers, handler)
+	m.serverRequestHandlersMu.Unlock()
 }
 
 func (m *MTProto) SaveSession(mem bool) (err error) {

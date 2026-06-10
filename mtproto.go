@@ -103,8 +103,9 @@ type MTProto struct {
 
 	Logger *utils.Logger
 
-	serverRequestHandlers []func(i any) bool
-	floodHandler          func(err error) bool
+	serverRequestHandlersMu sync.RWMutex
+	serverRequestHandlers   []func(i any) bool
+	floodHandler            func(err error) bool
 	errorHandler          func(err error) bool
 	connectionHandler     func(err error) error
 	exported              bool
@@ -625,6 +626,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	m.startReadingResponses(ctx)
 
 	if !m.exported && !m.cdn {
+		m.routineswg.Add(1)
 		go m.longPing(ctx)
 	}
 
@@ -924,7 +926,9 @@ func (m *MTProto) handleRPCResult(data tl.Object, response tl.Object, expectedTy
 
 		// handle dc migration (code 303)
 		if rpcError.Code == 303 {
-			if strings.HasPrefix(rpcError.Message, "USER_MIGRATE_") || strings.HasPrefix(rpcError.Message, "PHONE_MIGRATE_") {
+			if strings.HasPrefix(rpcError.Message, "USER_MIGRATE_") ||
+				strings.HasPrefix(rpcError.Message, "PHONE_MIGRATE_") ||
+				strings.HasPrefix(rpcError.Message, "NETWORK_MIGRATE_") {
 				if dcIDStr := utils.RegexpDCMigrate.FindStringSubmatch(rpcError.Description); len(dcIDStr) == 2 {
 					if dcID, err := strconv.Atoi(dcIDStr[1]); err == nil {
 						if err := m.SwitchDc(dcID); err == nil {
@@ -937,6 +941,19 @@ func (m *MTProto) handleRPCResult(data tl.Object, response tl.Object, expectedTy
 				}
 			}
 			return nil, rpcError
+		}
+
+		// handle session-killed errors (code 401) — auth key invalidated server-side
+		if rpcError.Code == 401 {
+			switch rpcError.Message {
+			case "AUTH_KEY_UNREGISTERED", "AUTH_KEY_INVALID", "USER_DEACTIVATED",
+				"USER_DEACTIVATED_BAN", "SESSION_REVOKED", "SESSION_EXPIRED":
+				m.Logger.Error("session killed by server: %s", rpcError.Message)
+				if m.errorHandler != nil {
+					m.errorHandler(rpcError)
+				}
+				return nil, rpcError
+			}
 		}
 
 		// handle flood wait errors (code 420)
@@ -988,13 +1005,27 @@ func (m *MTProto) stopRoutines() {
 
 	m.transportMu.Lock()
 	tr := m.transport
+	m.transport = nil
 	m.transportMu.Unlock()
 
 	if tr != nil {
-		tr.Close()
+		_ = tr.Close()
 	}
 
 	m.notifyPendingRequestsOfConfigChange()
+}
+
+func (m *MTProto) clearTransientState() {
+	if m.pendingAcks != nil {
+		m.pendingAcks.Clear()
+	}
+	if m.messageTracker != nil {
+		m.messageTracker.Clear()
+	}
+	m.messageTypesMap.Range(func(k, _ any) bool {
+		m.messageTypesMap.Delete(k)
+		return true
+	})
 }
 
 func (m *MTProto) Disconnect() error {
@@ -1013,6 +1044,7 @@ func (m *MTProto) Disconnect() error {
 		m.Logger.Debug("timeout waiting for routines to stop on disconnect")
 	}
 
+	m.clearTransientState()
 	return nil
 }
 
@@ -1020,10 +1052,11 @@ func (m *MTProto) Terminate() error {
 	m.terminated.Store(true)
 	m.stopRoutines()
 	m.responseChannels.Close()
+	m.clearTransientState()
 
 	m.transportMu.Lock()
 	if m.transport != nil {
-		m.transport.Close()
+		_ = m.transport.Close()
 		m.transport = nil
 	}
 	m.transportMu.Unlock()
@@ -1108,7 +1141,6 @@ func (m *MTProto) Redial() error {
 
 // keep pinging to keep the connection alive
 func (m *MTProto) longPing(ctx context.Context) {
-	m.routineswg.Add(1)
 	defer m.routineswg.Done()
 
 	ticker := time.NewTicker(defaultPingInterval)
@@ -1427,12 +1459,22 @@ messageTypeSwitching:
 		return nil
 
 	case *objects.MsgResendReq:
-		for _, id := range message.MsgIDs {
-			m.pendingAcks.Add(id)
-		}
+		m.Logger.Debug("server requested resend of %d msg(s); retrying pending requests", len(message.MsgIDs))
+		m.notifyPendingRequestsOfConfigChange()
 		return nil
 
 	case *objects.MsgsAllInfo:
+		for i, id := range message.MsgIDs {
+			if i >= len(message.Info) {
+				break
+			}
+			state := message.Info[i] & 0x07
+			if state == 0x01 || state == 0x02 || state == 0x03 {
+				m.Logger.Debug("server lost msg %d (state=%d); triggering resend", id, state)
+				m.notifyPendingRequestsOfConfigChange()
+				return nil
+			}
+		}
 		return nil
 
 	case *objects.Pong:
@@ -1489,7 +1531,10 @@ messageTypeSwitching:
 
 	default:
 		processed := false
-		for _, f := range m.serverRequestHandlers {
+		m.serverRequestHandlersMu.RLock()
+		handlers := m.serverRequestHandlers
+		m.serverRequestHandlersMu.RUnlock()
+		for _, f := range handlers {
 			processed = f(message)
 			if processed {
 				break

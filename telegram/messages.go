@@ -409,13 +409,9 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 	var sender *gogram.MTProto = c.MTProto
 	if dcID != int32(c.GetDC()) {
 		found := false
-		for dcId, workers := range c.exSenders.senders {
-			if int32(dcId) == int32(dcID) {
-				for _, worker := range workers {
-					sender = worker.MTProto
-					found = true
-				}
-			}
+		for _, worker := range c.exSenders.GetSenders(int(dcID)) {
+			sender = worker.MTProto
+			found = true
 		}
 
 		if !found {
@@ -423,8 +419,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 			if err != nil {
 				return nil, err
 			}
-
-			c.exSenders.senders[int(dcID)] = append(c.exSenders.senders[int(dcID)], NewExSender(senderNew))
+			c.exSenders.AddSender(int(dcID), NewExSender(senderNew))
 			sender = senderNew
 		}
 	}

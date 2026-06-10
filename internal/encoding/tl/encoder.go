@@ -101,7 +101,7 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 	}
 
 	var hasFlagsField bool
-	var flag uint32
+	var flag, flag2 uint32
 	var flagIndex int
 	g, ok := v.Interface().(FlagIndexGetter)
 	if ok {
@@ -111,16 +111,13 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 
 	v = reflect.Indirect(v)
 
-	// what we checked and what we know about value:
-	// 1) it's not Marshaler (marshaler object already parsing in c.encodeValue())
-	// 2) implements tl.Object
-	// 3) definitely struct (we don't call encodeStruct(), only in c.encodeValue())
-	// 4) not nil (structs can't be nil, only pointers and interfaces)
 	c.PutCRC(o.CRC())
 	vtyp := v.Type()
 	cachedTags := GetCachedTags(vtyp)
 	numFields := v.NumField()
 
+	hasFlag2 := false
+	firstFlag2FieldIndex := -1
 	for i := 0; i < numFields; i++ {
 		info := cachedTags[i]
 
@@ -134,11 +131,23 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 		}
 
 		fieldVal := v.Field(i)
-		if !fieldVal.IsZero() || info.explicit {
-			flag |= 1 << info.index
+		set := !fieldVal.IsZero() || info.explicit
+		if info.version == 2 {
+			if firstFlag2FieldIndex < 0 {
+				firstFlag2FieldIndex = i
+			}
+			hasFlag2 = true
+			if set {
+				flag2 |= 1 << info.index
+			}
+		} else {
+			if set {
+				flag |= 1 << info.index
+			}
 		}
 	}
 
+	flag2Emitted := !hasFlag2
 	for i := 0; i < numFields; i++ {
 		if hasFlagsField && flagIndex == i {
 			c.PutUint(flag)
@@ -148,6 +157,14 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 		}
 
 		info := cachedTags[i]
+		if hasFlag2 && !flag2Emitted && info != nil && info.version == 2 && i == firstFlag2FieldIndex {
+			c.PutUint(flag2)
+			flag2Emitted = true
+			if c.err != nil {
+				return
+			}
+		}
+
 		if info != nil {
 			if info.ignore {
 				continue
@@ -169,6 +186,10 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 		if c.err != nil {
 			return
 		}
+	}
+
+	if hasFlag2 && !flag2Emitted {
+		c.PutUint(flag2)
 	}
 }
 
