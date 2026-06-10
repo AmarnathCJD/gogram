@@ -120,10 +120,6 @@ func (m *SecretChatManager) AcceptSecretChat(chatID int32, accessHash int64, use
 	// Compute key fingerprint
 	fingerprint := ComputeKeyFingerprint(dh.SharedKey)
 
-	// Debug logging
-	fmt.Printf("RESPONDER: Computed shared key (first 32 bytes): %x\n", dh.SharedKey[:32])
-	fmt.Printf("RESPONDER: Key fingerprint: %d\n", fingerprint)
-
 	chat := &SecretChat{
 		ID:              chatID,
 		AccessHash:      accessHash,
@@ -172,11 +168,6 @@ func (m *SecretChatManager) CompleteKeyExchange(chatID int32, gB []byte, fingerp
 	// We computed: key = g_b^a mod p
 	// These should be equal: g^(ab) mod p
 	expectedFingerprint := ComputeKeyFingerprint(chat.DH.SharedKey)
-
-	// Debug logging
-	fmt.Printf("ORIGINATOR: Computed shared key (first 32 bytes): %x\n", chat.DH.SharedKey[:32])
-	fmt.Printf("ORIGINATOR: Our fingerprint: %d\n", expectedFingerprint)
-	fmt.Printf("ORIGINATOR: Received fingerprint: %d\n", fingerprint)
 
 	if expectedFingerprint != fingerprint {
 		return fmt.Errorf("key fingerprint mismatch: expected %d, got %d", expectedFingerprint, fingerprint)

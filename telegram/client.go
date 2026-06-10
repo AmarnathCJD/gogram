@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"regexp"
@@ -256,7 +255,7 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 	}
 	if !doesSessionFileExist(config.Session) && config.StringSession == "" && (c.AppID() == 0 || c.AppHash() == "") {
 		if c.AppID() == 0 {
-			log.Print("app id is empty, fetch from api.telegram.org? (y/n): ")
+			fmt.Print("app id is empty, fetch from api.telegram.org? (y/n): ")
 			if !utils.AskForConfirmation() {
 				return errors.New("your app id is empty, please provide it")
 			} else {

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"reflect"
 	"regexp"
 	"slices"
 	"sort"
@@ -1259,31 +1260,23 @@ func removeHandleFromMap[T handleWithID](handle T, handlesMap map[int][]T) {
 }
 
 var (
-	updateTypeIDs   = make(map[string]uint32)
-	updateTypeIDMu  sync.RWMutex
-	nextTypeIDValue uint32 = 1
+	updateTypeIDs   sync.Map // map[reflect.Type]uint32
+	nextTypeIDValue atomic.Uint32
 )
 
 func getUpdateTypeID(update Update) uint32 {
 	if update == nil {
 		return 0
 	}
-	typeName := fmt.Sprintf("%T", update)
-	updateTypeIDMu.RLock()
-	if id, ok := updateTypeIDs[typeName]; ok {
-		updateTypeIDMu.RUnlock()
-		return id
+	t := reflect.TypeOf(update)
+	if id, ok := updateTypeIDs.Load(t); ok {
+		return id.(uint32)
 	}
-	updateTypeIDMu.RUnlock()
-
-	updateTypeIDMu.Lock()
-	defer updateTypeIDMu.Unlock()
-	if id, ok := updateTypeIDs[typeName]; ok {
-		return id
+	id := nextTypeIDValue.Add(1)
+	actual, loaded := updateTypeIDs.LoadOrStore(t, id)
+	if loaded {
+		return actual.(uint32)
 	}
-	id := nextTypeIDValue
-	nextTypeIDValue++
-	updateTypeIDs[typeName] = id
 	return id
 }
 
