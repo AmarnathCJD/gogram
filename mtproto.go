@@ -111,6 +111,7 @@ type MTProto struct {
 	exported              bool
 	cdn                   bool
 	terminated            atomic.Bool
+	shuttingDown          atomic.Bool
 	senderCounters        sync.Map // map[int]int32 - tracks sender count per DC
 
 	connConfig ReconnectConfig
@@ -576,6 +577,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	if m.terminated.Load() {
 		return fmt.Errorf("mtproto is terminated, cannot create connection")
 	}
+	m.shuttingDown.Store(false)
 	m.stopRoutines()
 
 	m.transportMu.Lock()
@@ -799,6 +801,9 @@ func (m *MTProto) makeRequestCtx(ctx context.Context, data tl.Object, expectedTy
 }
 
 func (m *MTProto) makeRequestCtxWithDepth(ctx context.Context, data tl.Object, retryDepth int, expectedTypes ...reflect.Type) (any, error) {
+	if m.shuttingDown.Load() || m.terminated.Load() {
+		return nil, errShuttingDown
+	}
 	if retryDepth >= m.maxRetryDepth {
 		return nil, fmt.Errorf("maximum retry depth exceeded (%d) - aborting request", m.maxRetryDepth)
 	}
@@ -960,6 +965,9 @@ func (m *MTProto) handleRPCResult(data tl.Object, response tl.Object, expectedTy
 
 		// handle flood wait errors (code 420)
 		if strings.Contains(rpcError.Message, "FLOOD_WAIT_") || strings.Contains(rpcError.Message, "FLOOD_PREMIUM_WAIT_") {
+			if m.shuttingDown.Load() || m.terminated.Load() {
+				return nil, rpcError
+			}
 			if m.floodHandler(rpcError) {
 				ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
 				defer cancel()
@@ -972,6 +980,9 @@ func (m *MTProto) handleRPCResult(data tl.Object, response tl.Object, expectedTy
 		return nil, rpcError
 
 	case *errorSessionConfigsChanged:
+		if m.shuttingDown.Load() || m.terminated.Load() {
+			return nil, errShuttingDown
+		}
 		if m.exported {
 			m.Logger.Trace("session config changed, retrying request")
 		} else {
@@ -979,7 +990,6 @@ func (m *MTProto) handleRPCResult(data tl.Object, response tl.Object, expectedTy
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
 		defer cancel()
-		// Start fresh with depth 0 for session config changes
 		return m.makeRequestCtxWithDepth(ctx, data, 0, expectedTypes...)
 	}
 
@@ -1031,19 +1041,22 @@ func (m *MTProto) clearTransientState() {
 }
 
 func (m *MTProto) Disconnect() error {
+	m.shuttingDown.Store(true)
 	m.tcpState.SetActive(false)
 	m.stopRoutines()
+
 	done := make(chan struct{})
 	go func() {
 		m.routineswg.Wait()
 		close(done)
 	}()
 
+	const fastWait = 2 * time.Second
 	select {
 	case <-done:
 		m.Logger.Trace("all routines stopped gracefully")
-	case <-time.After(10 * time.Second):
-		m.Logger.Debug("timeout waiting for routines to stop on disconnect")
+	case <-time.After(fastWait):
+		m.Logger.Debug("disconnect: %s elapsed, routines still running; abandoning", fastWait)
 	}
 
 	m.clearTransientState()
@@ -1051,6 +1064,7 @@ func (m *MTProto) Disconnect() error {
 }
 
 func (m *MTProto) Terminate() error {
+	m.shuttingDown.Store(true)
 	m.terminated.Store(true)
 	m.stopRoutines()
 	m.responseChannels.Close()
@@ -1079,9 +1093,9 @@ func (m *MTProto) Reconnect(loggy bool) error {
 	}
 	defer m.connState.InProgress.Store(false)
 
-	if m.terminated.Load() {
-		m.Logger.Trace("skipping reconnect: mtproto is terminated")
-		return nil
+	if m.terminated.Load() || m.shuttingDown.Load() {
+		m.Logger.Trace("skipping reconnect: mtproto is terminated or shutting down")
+		return errShuttingDown
 	}
 
 	startTime := time.Now()
@@ -1215,12 +1229,17 @@ func (m *MTProto) Ping() time.Duration {
 }
 
 func (m *MTProto) tryReconnect() error {
+	if m.shuttingDown.Load() || m.terminated.Load() {
+		return errShuttingDown
+	}
 	if err := m.Reconnect(false); err != nil {
 		m.Logger.Debug("reconnect failed: %v", err)
 		return err
 	}
 	return nil
 }
+
+var errShuttingDown = errors.New("mtproto: shutting down")
 
 // checkRapidReconnect detects rapid reconnection loops that indicate connection instability
 // Uses exponential backoff naturally via reconnectAttempts counter
@@ -1275,6 +1294,9 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				return
 			default:
 			}
+			if m.shuttingDown.Load() || m.terminated.Load() {
+				return
+			}
 
 			if err := m.tcpState.WaitForActive(ctx); err != nil {
 				if errors.Is(err, context.Canceled) {
@@ -1283,6 +1305,9 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 				}
 				m.Logger.Trace("tcp wait error: %v", err)
 				continue
+			}
+			if m.shuttingDown.Load() || m.terminated.Load() {
+				return
 			}
 
 			err := m.readMsg(ctx)
@@ -1296,15 +1321,26 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			}
 
 			if isBrokenError(err) {
+				if m.shuttingDown.Load() || m.terminated.Load() {
+					m.Logger.Trace("connection error during shutdown, exiting read loop: %v", err)
+					return
+				}
 				if m.connState.InProgress.Load() {
 					m.Logger.Trace("connection error but reconnect in progress, sleeping: %v", err)
-					time.Sleep(50 * time.Millisecond)
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(50 * time.Millisecond):
+					}
 					continue
 				}
 
 				m.Logger.Trace("connection lost: %v; reconnecting", err)
 				if reconnErr := m.tryReconnect(); reconnErr != nil {
 					m.Logger.Debug("reconnect failed: %v", reconnErr)
+					if errors.Is(reconnErr, errShuttingDown) {
+						return
+					}
 				}
 
 				if errors.Is(err, io.EOF) {
@@ -1330,17 +1366,25 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 			case errors.As(err, &transErr):
 				m.Logger.Debug("transport error code: %d - %s", int64(*transErr), transErr.Error())
 			default:
-				if !m.terminated.Load() {
-					if strings.Contains(err.Error(), "object with provided crc") {
-						m.Logger.Warn(FormatDecodeError(err))
-					} else if !m.connState.InProgress.Load() {
-						m.Logger.Trace("read error: %v; reconnecting", err)
-						if err := m.tryReconnect(); err != nil {
-							m.Logger.Debug("reconnect failed: %v", err)
+				if m.shuttingDown.Load() || m.terminated.Load() {
+					return
+				}
+				if strings.Contains(err.Error(), "object with provided crc") {
+					m.Logger.Warn(FormatDecodeError(err))
+				} else if !m.connState.InProgress.Load() {
+					m.Logger.Trace("read error: %v; reconnecting", err)
+					if err := m.tryReconnect(); err != nil {
+						m.Logger.Debug("reconnect failed: %v", err)
+						if errors.Is(err, errShuttingDown) {
+							return
 						}
-					} else {
-						m.Logger.Trace("error during active reconnect, waiting")
-						time.Sleep(50 * time.Millisecond)
+					}
+				} else {
+					m.Logger.Trace("error during active reconnect, waiting")
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(50 * time.Millisecond):
 					}
 				}
 			}
