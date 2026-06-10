@@ -212,7 +212,7 @@ func (c *Client) StartGroupCall(peer any, opts ...*StartGroupCallOptions) (Input
 	if call := extractGroupCall(upd); call != nil {
 		return call, nil
 	}
-	return nil, errors.New("StartGroupCall: no GroupCall in response")
+	return nil, errors.New("no GroupCall in response")
 }
 
 func extractGroupCall(upd Updates) InputGroupCall {
@@ -237,7 +237,7 @@ func extractGroupCall(upd Updates) InputGroupCall {
 
 func (c *Client) DiscardGroupCall(call InputGroupCall) error {
 	if call == nil {
-		return errors.New("DiscardGroupCall: call is nil")
+		return errors.New("call is nil")
 	}
 	_, err := c.PhoneDiscardGroupCall(call)
 	return err
@@ -245,7 +245,7 @@ func (c *Client) DiscardGroupCall(call InputGroupCall) error {
 
 func (c *Client) EditGroupCallTitle(call InputGroupCall, title string) error {
 	if call == nil {
-		return errors.New("EditGroupCallTitle: call is nil")
+		return errors.New("call is nil")
 	}
 	_, err := c.PhoneEditGroupCallTitle(call, title)
 	return err
@@ -253,7 +253,7 @@ func (c *Client) EditGroupCallTitle(call InputGroupCall, title string) error {
 
 func (c *Client) StartScheduledGroupCall(call InputGroupCall) error {
 	if call == nil {
-		return errors.New("StartScheduledGroupCall: call is nil")
+		return errors.New("call is nil")
 	}
 	_, err := c.PhoneStartScheduledGroupCall(call)
 	return err
@@ -261,7 +261,7 @@ func (c *Client) StartScheduledGroupCall(call InputGroupCall) error {
 
 func (c *Client) ExportGroupCallInvite(call InputGroupCall, canSelfUnmute bool) (string, error) {
 	if call == nil {
-		return "", errors.New("ExportGroupCallInvite: call is nil")
+		return "", errors.New("call is nil")
 	}
 	resp, err := c.PhoneExportGroupCallInvite(canSelfUnmute, call)
 	if err != nil {
@@ -272,10 +272,10 @@ func (c *Client) ExportGroupCallInvite(call InputGroupCall, canSelfUnmute bool) 
 
 func (c *Client) InviteToGroupCall(call InputGroupCall, users ...any) error {
 	if call == nil {
-		return errors.New("InviteToGroupCall: call is nil")
+		return errors.New("call is nil")
 	}
 	if len(users) == 0 {
-		return errors.New("InviteToGroupCall: at least one user required")
+		return errors.New("at least one user required")
 	}
 	inputs := make([]InputUser, 0, len(users))
 	for _, u := range users {
@@ -310,10 +310,10 @@ type GroupCallParticipantPatch struct {
 
 func (c *Client) EditGroupCallParticipant(call InputGroupCall, participant any, change *GroupCallParticipantPatch) error {
 	if call == nil {
-		return errors.New("EditGroupCallParticipant: call is nil")
+		return errors.New("call is nil")
 	}
 	if change == nil {
-		return errors.New("EditGroupCallParticipant: change required")
+		return errors.New("change required")
 	}
 	p, err := c.ResolvePeer(participant)
 	if err != nil {
@@ -361,7 +361,7 @@ func (c *Client) RaiseHand(call InputGroupCall, participant any, raised bool) er
 
 func (c *Client) GetGroupCallParticipants(call InputGroupCall, limit int32) ([]GroupCallParticipant, error) {
 	if call == nil {
-		return nil, errors.New("GetGroupCallParticipants: call is nil")
+		return nil, errors.New("call is nil")
 	}
 	if limit <= 0 {
 		limit = 100
@@ -379,7 +379,7 @@ func (c *Client) GetGroupCallParticipants(call InputGroupCall, limit int32) ([]G
 
 func (c *Client) ToggleGroupCallRecord(call InputGroupCall, start bool, title string, video, videoPortrait bool) error {
 	if call == nil {
-		return errors.New("ToggleGroupCallRecord: call is nil")
+		return errors.New("call is nil")
 	}
 	_, err := c.PhoneToggleGroupCallRecord(&PhoneToggleGroupCallRecordParams{
 		Call:          call,
@@ -393,7 +393,7 @@ func (c *Client) ToggleGroupCallRecord(call InputGroupCall, start bool, title st
 
 func (c *Client) SetDefaultSendAs(call InputGroupCall, sendAs any) error {
 	if call == nil {
-		return errors.New("SetDefaultSendAs: call is nil")
+		return errors.New("call is nil")
 	}
 	p, err := c.ResolvePeer(sendAs)
 	if err != nil {
@@ -405,7 +405,7 @@ func (c *Client) SetDefaultSendAs(call InputGroupCall, sendAs any) error {
 
 func (c *Client) LeaveGroupCall(call InputGroupCall, source int32) error {
 	if call == nil {
-		return errors.New("LeaveGroupCall: call is nil")
+		return errors.New("call is nil")
 	}
 	_, err := c.PhoneLeaveGroupCall(call, source)
 	return err
