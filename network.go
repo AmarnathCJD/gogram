@@ -45,20 +45,6 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 		m.responseChannels.Add(int(msgID), resp)
 	}
 
-	var data messages.Common
-	if m.encrypted.Load() {
-		data = &messages.Encrypted{
-			Msg:         msg,
-			MsgID:       msgID,
-			AuthKeyHash: m.authKeyHash,
-		}
-	} else {
-		data = &messages.Unencrypted{
-			Msg:   msg,
-			MsgID: msgID,
-		}
-	}
-
 	var seqNo int32
 	if isNotContentRelated(request) {
 		seqNo = m.GetSeqNo()
@@ -70,6 +56,39 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 		err := m.CreateConnection(false)
 		if err != nil || m.transport == nil {
 			return nil, 0, errors.New("failed to establish connection, transport is nil")
+		}
+	}
+
+	if isBatchable(request) && m.encrypted.Load() && !m.serviceModeActivated && !m.shuttingDown.Load() {
+		ps := &pendingSend{
+			msg:   msg,
+			msgID: msgID,
+			seqNo: seqNo,
+			done:  make(chan error, 1),
+		}
+		select {
+		case m.pendingSendCh <- ps:
+		default:
+			goto directWrite
+		}
+		if err := <-ps.done; err != nil {
+			return nil, msgID, fmt.Errorf("writing message: %w", err)
+		}
+		return resp, msgID, nil
+	}
+
+directWrite:
+	var data messages.Common
+	if m.encrypted.Load() {
+		data = &messages.Encrypted{
+			Msg:         msg,
+			MsgID:       msgID,
+			AuthKeyHash: m.authKeyHash,
+		}
+	} else {
+		data = &messages.Unencrypted{
+			Msg:   msg,
+			MsgID: msgID,
 		}
 	}
 

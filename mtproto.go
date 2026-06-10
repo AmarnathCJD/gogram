@@ -126,6 +126,15 @@ type MTProto struct {
 	messageTracker  *utils.SyncIntInt64
 	messageTypesMap sync.Map // msgID -> request type name
 	maxRetryDepth   int      // Maximum retry depth to prevent stack overflow
+
+	pendingSendCh chan *pendingSend
+}
+
+type pendingSend struct {
+	msg   []byte
+	msgID int64
+	seqNo int32
+	done  chan error // closed when written (success) or carries write error
 }
 
 type Config struct {
@@ -230,6 +239,7 @@ func NewMTProto(c Config) (*MTProto, error) {
 		onMigration:     c.OnMigration,
 		messageTracker:  utils.NewSyncIntInt64(),
 		maxRetryDepth:   10,
+		pendingSendCh:   make(chan *pendingSend, 256),
 	}
 
 	mtproto.SetAddr(c.ServerHost)
@@ -626,6 +636,9 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 	}
 
 	m.startReadingResponses(ctx)
+
+	m.routineswg.Add(1)
+	go m.sendWriter(ctx)
 
 	if !m.exported && !m.cdn {
 		m.routineswg.Add(1)
@@ -1153,6 +1166,172 @@ func (m *MTProto) Redial() error {
 	m.connState.ConsecutiveTimeouts.Store(0)
 	m.Logger.Debug("transport redial successful")
 	return nil
+}
+
+var batchableCRCs = map[uint32]struct{}{
+	0xb304a621: {}, // upload.saveFilePart
+	0xde7b673d: {}, // upload.saveBigFilePart
+	0xbe5335be: {}, // upload.getFile
+	0x395f69da: {}, // upload.getCdnFile
+}
+
+func isBatchable(req tl.Object) bool {
+	if req == nil {
+		return false
+	}
+	_, ok := batchableCRCs[req.CRC()]
+	return ok
+}
+
+const (
+	maxBatchMessages = 1020
+	maxBatchBytes    = 700 * 1024
+)
+
+func (m *MTProto) sendWriter(ctx context.Context) {
+	defer m.routineswg.Done()
+	defer m.drainPendingSends(errShuttingDown)
+
+	batch := make([]*pendingSend, 0, 32)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case first, ok := <-m.pendingSendCh:
+			if !ok {
+				return
+			}
+			if m.shuttingDown.Load() || m.terminated.Load() {
+				first.fail(errShuttingDown)
+				return
+			}
+			batch = append(batch, first)
+			batchBytes := len(first.msg)
+			drain := true
+			for drain && len(batch) < maxBatchMessages && batchBytes < maxBatchBytes {
+				select {
+				case next, ok := <-m.pendingSendCh:
+					if !ok {
+						drain = false
+						break
+					}
+					batch = append(batch, next)
+					batchBytes += len(next.msg)
+				default:
+					drain = false
+				}
+			}
+			m.writeBatch(batch)
+			batch = batch[:0]
+		}
+	}
+}
+
+func (m *MTProto) drainPendingSends(err error) {
+	for {
+		select {
+		case p, ok := <-m.pendingSendCh:
+			if !ok {
+				return
+			}
+			p.fail(err)
+		default:
+			return
+		}
+	}
+}
+
+func (p *pendingSend) fail(err error) {
+	if p.done != nil {
+		select {
+		case p.done <- err:
+		default:
+		}
+		close(p.done)
+	}
+}
+
+func (p *pendingSend) ok() {
+	if p.done != nil {
+		close(p.done)
+	}
+}
+
+func (m *MTProto) writeBatch(batch []*pendingSend) {
+	if len(batch) == 0 {
+		return
+	}
+
+	if len(batch) == 1 {
+		p := batch[0]
+		env := &messages.Encrypted{
+			Msg:         p.msg,
+			MsgID:       p.msgID,
+			AuthKeyHash: m.authKeyHash,
+		}
+		m.transportMu.Lock()
+		tr := m.transport
+		var err error
+		if tr != nil {
+			err = tr.WriteMsg(env, p.seqNo)
+		} else {
+			err = errors.New("transport closed before write")
+		}
+		m.transportMu.Unlock()
+		if err != nil {
+			p.fail(err)
+			return
+		}
+		p.ok()
+		return
+	}
+
+	inner := make(objects.MessageContainer, len(batch))
+	for i, p := range batch {
+		inner[i] = &messages.Encrypted{
+			Msg:   p.msg,
+			MsgID: p.msgID,
+			SeqNo: p.seqNo,
+		}
+	}
+	body, err := tl.Marshal(&inner)
+	if err != nil {
+		for _, p := range batch {
+			p.fail(fmt.Errorf("marshaling container: %w", err))
+		}
+		return
+	}
+
+	env := &messages.Encrypted{
+		Msg:         body,
+		MsgID:       m.genMsgID(m.timeOffset.Load()),
+		AuthKeyHash: m.authKeyHash,
+	}
+	containerSeqNo := m.GetSeqNo()
+
+	m.transportMu.Lock()
+	tr := m.transport
+	if tr == nil {
+		m.transportMu.Unlock()
+		err := errors.New("transport closed before write")
+		for _, p := range batch {
+			p.fail(err)
+		}
+		return
+	}
+	err = tr.WriteMsg(env, containerSeqNo)
+	m.transportMu.Unlock()
+
+	if err != nil {
+		for _, p := range batch {
+			p.fail(err)
+		}
+		return
+	}
+	for _, p := range batch {
+		p.ok()
+	}
+	m.Logger.Trace("batched %d file IO msgs (%d bytes) into msg_container", len(batch), len(body))
 }
 
 // saltRefresher rotates the server salt proactively so we don't have to
