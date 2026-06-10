@@ -123,6 +123,28 @@ func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMes
 	return c.sendMessage(senderPeer, textMessage, entities, sendAs, opt)
 }
 
+// ScheduleMessage sends a message to be delivered at the given time. Telegram
+// supports scheduled messages up to 365 days in the future; a zero or past time
+// is rejected.
+func (c *Client) ScheduleMessage(peerID, message any, at time.Time, opts ...*SendOptions) (*NewMessage, error) {
+	if at.IsZero() || !at.After(time.Now()) {
+		return nil, errors.New("ScheduleMessage: time must be in the future")
+	}
+	opt := getVariadic(opts, &SendOptions{})
+	opt.ScheduleDate = int32(at.Unix())
+	return c.SendMessage(peerID, message, opt)
+}
+
+// ScheduleMedia is the media equivalent of ScheduleMessage.
+func (c *Client) ScheduleMedia(peerID, media any, at time.Time, opts ...*MediaOptions) (*NewMessage, error) {
+	if at.IsZero() || !at.After(time.Now()) {
+		return nil, errors.New("ScheduleMedia: time must be in the future")
+	}
+	opt := getVariadic(opts, &MediaOptions{})
+	opt.ScheduleDate = int32(at.Unix())
+	return c.SendMedia(peerID, media, opt)
+}
+
 // StreamMessage simulates a streaming message by continuously updating the user's draft status
 // only works for bots with topic forums enabled in private chats
 func (c *Client) StreamMessage(peerID any, streamer func(update func(message string)), opts ...*SendOptions) (*NewMessage, error) {
