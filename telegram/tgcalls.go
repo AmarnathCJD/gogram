@@ -3,15 +3,8 @@
 package telegram
 
 import (
-	"bytes"
-	"context"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"strings"
-	"sync"
 	"time"
 )
 
@@ -190,856 +183,230 @@ func (c *Client) GetGroupCallStream(chatId any) (*GroupCallStream, error) {
 	}, nil
 }
 
-type StreamState int
 
-const (
-	StreamStateIdle StreamState = iota
-	StreamStatePlaying
-	StreamStatePaused
-	StreamStateStopped
-)
-
-func (s StreamState) String() string {
-	switch s {
-	case StreamStateIdle:
-		return "idle"
-	case StreamStatePlaying:
-		return "playing"
-	case StreamStatePaused:
-		return "paused"
-	case StreamStateStopped:
-		return "stopped"
-	default:
-		return "unknown"
-	}
+type StartGroupCallOptions struct {
+	Title        string
+	ScheduleDate time.Time
+	RTMP         bool
 }
 
-var (
-	ErrFFmpegNotFound  = errors.New("ffmpeg not found in PATH")
-	ErrStreamPlaying   = errors.New("stream already playing")
-	ErrStreamNotPaused = errors.New("stream not paused")
-	ErrNoRTMPURL       = errors.New("RTMP URL not set, call FetchRTMPURL() first")
-	ErrNoInputSource   = errors.New("no input source available")
-	ErrFileNotFound    = errors.New("input file not found")
-)
-
-type RTMPStream struct {
-	chatID     int64
-	rtmpURL    string
-	rtmpKey    string
-	client     *Client
-	state      StreamState
-	cmd        *exec.Cmd
-	stdin      io.WriteCloser
-	stderr     bytes.Buffer
-	cancelFunc context.CancelFunc
-	mu         sync.Mutex
-	inputFile  string
-	inputData  []byte
-	loopCount  int
-	bitrate    string
-	audioBit   string
-	frameRate  int
-	startTime  time.Time
-	pausedAt   time.Duration
-	seekPos    time.Duration
-	lastError  error
-	onError    func(int64, error)
-	onEnd      func(int64)
-	audioOnly  bool
-	imageFile  string
-	muted      bool
-}
-
-type RTMPConfig struct {
-	Bitrate   string // Video bitrate (e.g., "2000k")
-	AudioBit  string // Audio bitrate (e.g., "96k")
-	FrameRate int    // Video frame rate (default: 30)
-	LoopCount int    // Number of times to loop (-1 for infinite)
-}
-
-func DefaultRTMPConfig() *RTMPConfig {
-	return &RTMPConfig{
-		Bitrate:   "2000k",
-		AudioBit:  "96k",
-		FrameRate: 30,
-		LoopCount: -1,
-	}
-}
-
-func (c *Client) NewRTMPStream(chatID int64, config ...*RTMPConfig) (*RTMPStream, error) {
-	// Check if ffmpeg is available
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
-		return nil, ErrFFmpegNotFound
-	}
-
-	if len(config) == 0 {
-		config = append(config, DefaultRTMPConfig())
-	}
-
-	rtmpConfig := config[0]
-
-	return &RTMPStream{
-		chatID:    chatID,
-		client:    c,
-		state:     StreamStateIdle,
-		loopCount: rtmpConfig.LoopCount,
-		bitrate:   rtmpConfig.Bitrate,
-		audioBit:  rtmpConfig.AudioBit,
-		frameRate: rtmpConfig.FrameRate,
-	}, nil
-}
-
-// FetchRTMPURL fetches the RTMP URL and stream key from Telegram.
-// NOTE: This can only be called by user accounts, not bot accounts.
-// Bot accounts will receive an error. For bots, use SetURL() and SetKey() manually.
-func (s *RTMPStream) FetchRTMPURL() error {
-	peer, err := s.client.ResolvePeer(s.chatID)
+func (c *Client) StartGroupCall(peer any, opts ...*StartGroupCallOptions) (InputGroupCall, error) {
+	opt := getVariadic(opts, &StartGroupCallOptions{})
+	resolved, err := c.ResolvePeer(peer)
 	if err != nil {
-		return fmt.Errorf("failed to resolve peer: %w", err)
+		return nil, err
 	}
-	rtmpInfo, err := s.client.PhoneGetGroupCallStreamRtmpURL(false, peer, false)
+	params := &PhoneCreateGroupCallParams{
+		Peer:       resolved,
+		RandomID:   int32(GenRandInt()),
+		Title:      opt.Title,
+		RtmpStream: opt.RTMP,
+	}
+	if !opt.ScheduleDate.IsZero() {
+		params.ScheduleDate = int32(opt.ScheduleDate.Unix())
+	}
+	upd, err := c.PhoneCreateGroupCall(params)
 	if err != nil {
-		return fmt.Errorf("failed to fetch RTMP URL: %w", err)
+		return nil, err
 	}
-	s.mu.Lock()
-	s.rtmpURL = rtmpInfo.URL
-	s.rtmpKey = rtmpInfo.Key
-	s.mu.Unlock()
-	return nil
+	if call := extractGroupCall(upd); call != nil {
+		return call, nil
+	}
+	return nil, errors.New("StartGroupCall: no GroupCall in response")
 }
 
-func (s *RTMPStream) SetURL(url string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.rtmpURL = url
-}
-
-func (s *RTMPStream) SetKey(key string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.rtmpKey = key
-}
-
-func (s *RTMPStream) SetFullURL(fullURL string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if fullURL == "" {
-		return fmt.Errorf("RTMP URL cannot be empty")
-	}
-
-	if !bytes.Contains([]byte(fullURL), []byte("rtmp://")) && !bytes.Contains([]byte(fullURL), []byte("rtmps://")) {
-		return fmt.Errorf("invalid RTMP URL: must start with rtmp:// or rtmps://")
-	}
-
-	var url, key string
-
-	// Try /s/ separator first (Telegram format)
-	if parts := bytes.SplitN([]byte(fullURL), []byte("/s/"), 2); len(parts) == 2 {
-		url = string(parts[0]) + "/s/"
-		key = string(parts[1])
-	} else if parts := bytes.SplitN([]byte(fullURL), []byte("/"), 4); len(parts) >= 4 {
-		url = string(parts[0]) + "//" + string(parts[1]) + "/" + string(parts[2]) + "/"
-		key = string(parts[3])
-	} else {
-		return fmt.Errorf("invalid RTMP URL format: expected rtmp://host/app/streamkey or similar")
-	}
-
-	if url == "" || key == "" {
-		return fmt.Errorf("failed to parse URL: both URL and key must be non-empty")
-	}
-
-	s.rtmpURL = url
-	s.rtmpKey = key
-	return nil
-}
-
-func (s *RTMPStream) GetURL() string {
-	return s.rtmpURL
-}
-
-func (s *RTMPStream) GetKey() string {
-	return s.rtmpKey
-}
-
-func (s *RTMPStream) GetFullURL() string {
-	return s.rtmpURL + s.rtmpKey
-}
-
-// RefreshRTMPURL fetches a new RTMP URL and stream key (revokes the old one).
-// NOTE: This can only be called by user accounts, not bot accounts.
-func (s *RTMPStream) RefreshRTMPURL() error {
-	peer, err := s.client.ResolvePeer(s.chatID)
-	if err != nil {
-		return fmt.Errorf("failed to resolve peer: %w", err)
-	}
-
-	rtmpInfo, err := s.client.PhoneGetGroupCallStreamRtmpURL(false, peer, true)
-	if err != nil {
-		return fmt.Errorf("failed to refresh RTMP URL: %w", err)
-	}
-	s.mu.Lock()
-	s.rtmpURL = rtmpInfo.URL
-	s.rtmpKey = rtmpInfo.Key
-	s.mu.Unlock()
-	return nil
-}
-
-func (s *RTMPStream) State() StreamState {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.state
-}
-
-// Play starts streaming from a file path (string) or raw bytes ([]byte)
-func (s *RTMPStream) Play(source any) error {
-	// Validate RTMP URL is set
-	if s.rtmpURL == "" || s.rtmpKey == "" {
-		return ErrNoRTMPURL
-	}
-
-	s.mu.Lock()
-	if s.state == StreamStatePlaying {
-		s.mu.Unlock()
-		return ErrStreamPlaying
-	}
-
-	switch src := source.(type) {
-	case string:
-		// Check if file exists
-		if _, err := os.Stat(src); err != nil {
-			s.mu.Unlock()
-			if os.IsNotExist(err) {
-				return fmt.Errorf("%w: %s", ErrFileNotFound, src)
+func extractGroupCall(upd Updates) InputGroupCall {
+	scan := func(updates []Update) InputGroupCall {
+		for _, u := range updates {
+			if g, ok := u.(*UpdateGroupCall); ok {
+				if call, ok := g.Call.(*GroupCallObj); ok {
+					return &InputGroupCallObj{ID: call.ID, AccessHash: call.AccessHash}
+				}
 			}
-			return fmt.Errorf("failed to access file: %w", err)
 		}
-		s.inputFile = src
-		s.inputData = nil
-		s.mu.Unlock()
-		return s.startFFmpeg(src, false)
-	case []byte:
-		if len(src) == 0 {
-			s.mu.Unlock()
-			return errors.New("empty byte input")
-		}
-		s.inputData = src
-		s.inputFile = ""
-		s.mu.Unlock()
-		return s.startFFmpeg("pipe:0", true)
-	default:
-		s.mu.Unlock()
-		return fmt.Errorf("unsupported source type: expected string or []byte, got %T", source)
+		return nil
 	}
+	switch v := upd.(type) {
+	case *UpdatesObj:
+		return scan(v.Updates)
+	case *UpdateShort:
+		return scan([]Update{v.Update})
+	}
+	return nil
 }
 
-func (s *RTMPStream) startFFmpeg(input string, pipeInput bool) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	s.cancelFunc = cancel
+func (c *Client) DiscardGroupCall(call InputGroupCall) error {
+	if call == nil {
+		return errors.New("DiscardGroupCall: call is nil")
+	}
+	_, err := c.PhoneDiscardGroupCall(call)
+	return err
+}
 
-	args := s.buildFFmpegArgs(input)
-	s.cmd = exec.CommandContext(ctx, "ffmpeg", args...)
+func (c *Client) EditGroupCallTitle(call InputGroupCall, title string) error {
+	if call == nil {
+		return errors.New("EditGroupCallTitle: call is nil")
+	}
+	_, err := c.PhoneEditGroupCallTitle(call, title)
+	return err
+}
 
-	// Reset and capture stderr for error messages
-	s.stderr.Reset()
-	s.cmd.Stderr = &s.stderr
-	s.cmd.Stdout = nil
+func (c *Client) StartScheduledGroupCall(call InputGroupCall) error {
+	if call == nil {
+		return errors.New("StartScheduledGroupCall: call is nil")
+	}
+	_, err := c.PhoneStartScheduledGroupCall(call)
+	return err
+}
 
-	if pipeInput {
-		stdin, err := s.cmd.StdinPipe()
+func (c *Client) ExportGroupCallInvite(call InputGroupCall, canSelfUnmute bool) (string, error) {
+	if call == nil {
+		return "", errors.New("ExportGroupCallInvite: call is nil")
+	}
+	resp, err := c.PhoneExportGroupCallInvite(canSelfUnmute, call)
+	if err != nil {
+		return "", err
+	}
+	return resp.Link, nil
+}
+
+func (c *Client) InviteToGroupCall(call InputGroupCall, users ...any) error {
+	if call == nil {
+		return errors.New("InviteToGroupCall: call is nil")
+	}
+	if len(users) == 0 {
+		return errors.New("InviteToGroupCall: at least one user required")
+	}
+	inputs := make([]InputUser, 0, len(users))
+	for _, u := range users {
+		peer, err := c.ResolvePeer(u)
 		if err != nil {
-			cancel()
-			return fmt.Errorf("failed to get stdin pipe: %w", err)
+			return fmt.Errorf("resolve user: %w", err)
 		}
-		s.stdin = stdin
+		inputs = append(inputs, toInputUser(peer))
 	}
-
-	if err := s.cmd.Start(); err != nil {
-		cancel()
-		return fmt.Errorf("failed to start ffmpeg: %w", err)
-	}
-
-	s.mu.Lock()
-	s.state = StreamStatePlaying
-	s.startTime = time.Now()
-	s.lastError = nil
-	s.mu.Unlock()
-
-	if pipeInput && s.inputData != nil {
-		go func() {
-			defer s.stdin.Close()
-			s.stdin.Write(s.inputData)
-		}()
-	}
-
-	go func() {
-		err := s.cmd.Wait()
-		s.mu.Lock()
-		// Don't reset state if paused or stopped
-		if s.state == StreamStatePlaying {
-			s.state = StreamStateIdle
-			// Check for ffmpeg errors (non-zero exit and not cancelled)
-			if err != nil && ctx.Err() == nil {
-				errMsg := s.stderr.String()
-				if errMsg != "" {
-					s.lastError = fmt.Errorf("ffmpeg error: %s", errMsg)
-				} else {
-					s.lastError = fmt.Errorf("ffmpeg exited with error: %w", err)
-				}
-				if s.onError != nil {
-					go s.onError(s.chatID, s.lastError)
-				}
-			} else {
-				// Stream ended normally (no error)
-				if s.onEnd != nil {
-					go s.onEnd(s.chatID)
-				}
-			}
-		}
-		s.mu.Unlock()
-	}()
-
-	return nil
+	_, err := c.PhoneInviteToGroupCall(call, inputs)
+	return err
 }
 
-func (s *RTMPStream) buildFFmpegArgs(input string) []string {
-	args := []string{}
-
-	if s.seekPos > 0 {
-		args = append(args, "-ss", fmt.Sprintf("%.3f", s.seekPos.Seconds()))
+func toInputUser(p InputPeer) InputUser {
+	switch v := p.(type) {
+	case *InputPeerUser:
+		return &InputUserObj{UserID: v.UserID, AccessHash: v.AccessHash}
+	case *InputPeerSelf:
+		return &InputUserSelf{}
 	}
-
-	args = append(args, "-re")
-
-	// If audio-only with static image
-	if s.audioOnly && s.imageFile != "" {
-		// Add static image as loop input
-		args = append(args,
-			"-loop", "1",
-			"-i", s.imageFile,
-		)
-
-		// Add audio input
-		if s.loopCount != 0 {
-			args = append(args, "-stream_loop", fmt.Sprintf("%d", s.loopCount))
-		}
-		args = append(args, "-i", input)
-
-		// Map video from image and audio from input
-		args = append(args,
-			"-map", "0:v", // Video from image (first input)
-			"-map", "1:a", // Audio from audio file (second input)
-			"-c:v", "libx264",
-			"-preset", "superfast",
-			"-b:v", s.bitrate,
-			"-maxrate", s.bitrate,
-			"-bufsize", s.doubleBitrate(),
-			"-pix_fmt", "yuv420p",
-			"-r", fmt.Sprintf("%d", s.frameRate),
-			"-g", fmt.Sprintf("%d", s.frameRate),
-			"-threads", "0",
-		)
-
-		if s.muted {
-			// anullsrc
-			args = append(args,
-				"-c:a", "aac",
-				"-b:a", s.audioBit,
-				"-ac", "2",
-				"-ar", "44100",
-				"-af", "volume=0",
-			)
-		} else {
-			args = append(args,
-				"-c:a", "aac",
-				"-b:a", s.audioBit,
-				"-ac", "2",
-				"-ar", "44100",
-			)
-		}
-
-		args = append(args,
-			"-shortest",
-			"-f", "flv",
-			"-rtmp_buffer", "100",
-			"-rtmp_live", "live",
-			s.GetFullURL(),
-		)
-	} else {
-		if s.loopCount != 0 {
-			args = append(args, "-stream_loop", fmt.Sprintf("%d", s.loopCount))
-		}
-
-		args = append(args,
-			"-i", input,
-			"-c:v", "libx264",
-			"-preset", "superfast",
-			"-b:v", s.bitrate,
-			"-maxrate", s.bitrate,
-			"-bufsize", s.doubleBitrate(),
-			"-pix_fmt", "yuv420p",
-			"-g", fmt.Sprintf("%d", s.frameRate),
-			"-threads", "0",
-		)
-
-		if s.muted {
-			args = append(args,
-				"-c:a", "aac",
-				"-b:a", s.audioBit,
-				"-ac", "2",
-				"-ar", "44100",
-				"-af", "volume=0",
-			)
-		} else {
-			args = append(args,
-				"-c:a", "aac",
-				"-b:a", s.audioBit,
-				"-ac", "2",
-				"-ar", "44100",
-			)
-		}
-
-		args = append(args,
-			"-f", "flv",
-			"-rtmp_buffer", "100",
-			"-rtmp_live", "live",
-			s.GetFullURL(),
-		)
-	}
-
-	return args
+	return &InputUserEmpty{}
 }
 
-func (s *RTMPStream) doubleBitrate() string {
-	var val int
-	fmt.Sscanf(s.bitrate, "%dk", &val)
-	return fmt.Sprintf("%dk", val*2)
+type GroupCallParticipantPatch struct {
+	Muted              *bool
+	RaiseHand          *bool
+	VideoStopped       *bool
+	VideoPaused        *bool
+	PresentationPaused *bool
+	Volume             *int32
 }
 
-func (s *RTMPStream) Pause() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.state != StreamStatePlaying {
-		return fmt.Errorf("cannot pause: stream is %s", s.state)
+func (c *Client) EditGroupCallParticipant(call InputGroupCall, participant any, change *GroupCallParticipantPatch) error {
+	if call == nil {
+		return errors.New("EditGroupCallParticipant: call is nil")
 	}
-
-	s.pausedAt = time.Since(s.startTime) + s.seekPos
-
-	if s.cancelFunc != nil {
-		s.cancelFunc()
+	if change == nil {
+		return errors.New("EditGroupCallParticipant: change required")
 	}
-	s.state = StreamStatePaused
-	return nil
-}
-
-func (s *RTMPStream) Resume() error {
-	s.mu.Lock()
-	if s.state != StreamStatePaused {
-		s.mu.Unlock()
-		return ErrStreamNotPaused
-	}
-
-	s.seekPos = s.pausedAt
-	s.mu.Unlock()
-
-	if s.inputFile != "" {
-		return s.startFFmpeg(s.inputFile, false)
-	} else if s.inputData != nil {
-		return s.startFFmpeg("pipe:0", true)
-	}
-	return ErrNoInputSource
-}
-
-// Seek to a specific position (only works with file input)
-func (s *RTMPStream) Seek(position time.Duration) error {
-	s.mu.Lock()
-	if s.inputFile == "" {
-		s.mu.Unlock()
-		return errors.New("seek only supported for file input")
-	}
-
-	if position < 0 {
-		s.mu.Unlock()
-		return errors.New("seek position cannot be negative")
-	}
-
-	wasPlaying := s.state == StreamStatePlaying
-	s.seekPos = position
-	s.mu.Unlock()
-
-	if wasPlaying {
-		s.Stop()
-		return s.startFFmpeg(s.inputFile, false)
-	}
-	return nil
-}
-
-// CurrentPosition returns the current playback position
-func (s *RTMPStream) CurrentPosition() time.Duration {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	switch s.state {
-	case StreamStatePlaying:
-		return time.Since(s.startTime) + s.seekPos
-	case StreamStatePaused:
-		return s.pausedAt
-	default:
-		return 0
-	}
-}
-
-// LastError returns the last error that occurred during streaming
-func (s *RTMPStream) LastError() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.lastError
-}
-
-// OnError sets a callback function that will be called when an error occurs
-func (s *RTMPStream) OnError(fn func(int64, error)) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.onError = fn
-}
-
-// OnEnd sets a callback function that will be called when the stream ends normally
-func (s *RTMPStream) OnEnd(fn func(int64)) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.onEnd = fn
-}
-
-// Mute mutes the audio stream by restarting FFmpeg with volume=0 filter
-func (s *RTMPStream) Mute() error {
-	s.mu.Lock()
-	if s.muted {
-		s.mu.Unlock()
-		return nil
-	}
-
-	if s.state != StreamStatePlaying {
-		s.mu.Unlock()
-		return fmt.Errorf("cannot mute: stream is %s", s.state)
-	}
-
-	s.muted = true
-	wasPlaying := s.state == StreamStatePlaying
-	currentPos := time.Since(s.startTime) + s.seekPos
-	s.mu.Unlock()
-
-	if wasPlaying {
-		s.Stop()
-		s.mu.Lock()
-		s.seekPos = currentPos
-		s.mu.Unlock()
-
-		if s.inputFile != "" {
-			return s.startFFmpeg(s.inputFile, false)
-		} else if s.inputData != nil {
-			return s.startFFmpeg("pipe:0", true)
-		}
-	}
-
-	return nil
-}
-
-// Unmute unmutes the audio stream by restarting FFmpeg without volume filter
-func (s *RTMPStream) Unmute() error {
-	s.mu.Lock()
-	if !s.muted {
-		s.mu.Unlock()
-		return nil
-	}
-
-	if s.state != StreamStatePlaying {
-		s.mu.Unlock()
-		return fmt.Errorf("cannot unmute: stream is %s", s.state)
-	}
-
-	s.muted = false
-	wasPlaying := s.state == StreamStatePlaying
-	currentPos := time.Since(s.startTime) + s.seekPos
-	s.mu.Unlock()
-
-	if wasPlaying {
-		s.Stop()
-		s.mu.Lock()
-		s.seekPos = currentPos
-		s.mu.Unlock()
-
-		if s.inputFile != "" {
-			return s.startFFmpeg(s.inputFile, false)
-		} else if s.inputData != nil {
-			return s.startFFmpeg("pipe:0", true)
-		}
-	}
-
-	return nil
-}
-
-// IsMuted returns whether the audio is currently muted
-func (s *RTMPStream) IsMuted() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.muted
-}
-
-func (s *RTMPStream) Stop() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.state == StreamStateIdle || s.state == StreamStateStopped {
-		return nil
-	}
-
-	s.state = StreamStateStopped
-
-	if s.cancelFunc != nil {
-		s.cancelFunc()
-	}
-
-	if s.stdin != nil {
-		s.stdin.Close()
-	}
-
-	if s.cmd != nil && s.cmd.Process != nil {
-		s.cmd.Process.Kill()
-	}
-
-	return nil
-}
-
-func (s *RTMPStream) SetBitrate(bitrate string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.bitrate = bitrate
-}
-
-func (s *RTMPStream) SetAudioBitrate(bitrate string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.audioBit = bitrate
-}
-
-func (s *RTMPStream) SetFrameRate(fps int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.frameRate = fps
-}
-
-func (s *RTMPStream) SetLoopCount(count int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.loopCount = count
-}
-
-// StartPipe starts the RTMP stream expecting data to be fed via FeedChunk().
-// Use this when you want to stream data progressively in chunks.
-func (s *RTMPStream) StartPipe() error {
-	if s.rtmpURL == "" || s.rtmpKey == "" {
-		return ErrNoRTMPURL
-	}
-
-	s.mu.Lock()
-	if s.state == StreamStatePlaying {
-		s.mu.Unlock()
-		return ErrStreamPlaying
-	}
-	s.inputFile = ""
-	s.inputData = nil
-	s.mu.Unlock()
-
-	return s.startFFmpegPipe()
-}
-
-func (s *RTMPStream) startFFmpegPipe() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	s.cancelFunc = cancel
-
-	args := s.buildFFmpegPipeArgs()
-	s.cmd = exec.CommandContext(ctx, "ffmpeg", args...)
-
-	s.stderr.Reset()
-	s.cmd.Stderr = &s.stderr
-	s.cmd.Stdout = nil
-
-	stdin, err := s.cmd.StdinPipe()
+	p, err := c.ResolvePeer(participant)
 	if err != nil {
-		cancel()
-		return fmt.Errorf("failed to get stdin pipe: %w", err)
+		return err
 	}
-	s.stdin = stdin
-
-	if err := s.cmd.Start(); err != nil {
-		cancel()
-		return fmt.Errorf("failed to start ffmpeg: %w", err)
+	params := &PhoneEditGroupCallParticipantParams{
+		Call:        call,
+		Participant: p,
 	}
-
-	s.mu.Lock()
-	s.state = StreamStatePlaying
-	s.startTime = time.Now()
-	s.lastError = nil
-	s.mu.Unlock()
-
-	go func() {
-		err := s.cmd.Wait()
-		s.mu.Lock()
-		if s.state == StreamStatePlaying {
-			s.state = StreamStateIdle
-			if err != nil && ctx.Err() == nil {
-				errMsg := s.stderr.String()
-				if errMsg != "" {
-					s.lastError = fmt.Errorf("ffmpeg error: %s", errMsg)
-				} else {
-					s.lastError = fmt.Errorf("ffmpeg exited with error: %w", err)
-				}
-				if s.onError != nil {
-					go s.onError(s.chatID, s.lastError)
-				}
-			} else {
-				if s.onEnd != nil {
-					go s.onEnd(s.chatID)
-				}
-			}
-		}
-		s.mu.Unlock()
-	}()
-
-	return nil
+	if change.Muted != nil {
+		params.Muted = *change.Muted
+	}
+	if change.RaiseHand != nil {
+		params.RaiseHand = *change.RaiseHand
+	}
+	if change.VideoStopped != nil {
+		params.VideoStopped = *change.VideoStopped
+	}
+	if change.VideoPaused != nil {
+		params.VideoPaused = *change.VideoPaused
+	}
+	if change.PresentationPaused != nil {
+		params.PresentationPaused = *change.PresentationPaused
+	}
+	if change.Volume != nil {
+		params.Volume = *change.Volume
+	}
+	_, err = c.PhoneEditGroupCallParticipant(params)
+	return err
 }
 
-func (s *RTMPStream) buildFFmpegPipeArgs() []string {
-	return []string{
-		"-re",
-		"-i", "pipe:0",
-		"-c:v", "libx264",
-		"-preset", "superfast",
-		"-b:v", s.bitrate,
-		"-maxrate", s.bitrate,
-		"-bufsize", s.doubleBitrate(),
-		"-pix_fmt", "yuv420p",
-		"-g", fmt.Sprintf("%d", s.frameRate),
-		"-threads", "0",
-		"-c:a", "aac",
-		"-b:a", s.audioBit,
-		"-ac", "2",
-		"-ar", "44100",
-		"-f", "flv",
-		"-rtmp_buffer", "100",
-		"-rtmp_live", "live",
-		s.GetFullURL(),
-	}
+func (c *Client) MuteParticipant(call InputGroupCall, participant any) error {
+	muted := true
+	return c.EditGroupCallParticipant(call, participant, &GroupCallParticipantPatch{Muted: &muted})
 }
 
-// FeedChunk writes a chunk of data to the RTMP stream.
-// Must call StartPipe() first to initialize the stream.
-// Returns error if stream is not playing or write fails.
-func (s *RTMPStream) FeedChunk(data []byte) error {
-	s.mu.Lock()
-	if s.state != StreamStatePlaying {
-		s.mu.Unlock()
-		return fmt.Errorf("cannot feed chunk: stream is %s", s.state)
-	}
-	if s.stdin == nil {
-		s.mu.Unlock()
-		return errors.New("stdin pipe not initialized, call StartPipe() first")
-	}
-	s.mu.Unlock()
+func (c *Client) UnmuteParticipant(call InputGroupCall, participant any) error {
+	muted := false
+	return c.EditGroupCallParticipant(call, participant, &GroupCallParticipantPatch{Muted: &muted})
+}
 
-	_, err := s.stdin.Write(data)
+func (c *Client) RaiseHand(call InputGroupCall, participant any, raised bool) error {
+	return c.EditGroupCallParticipant(call, participant, &GroupCallParticipantPatch{RaiseHand: &raised})
+}
+
+func (c *Client) GetGroupCallParticipants(call InputGroupCall, limit int32) ([]GroupCallParticipant, error) {
+	if call == nil {
+		return nil, errors.New("GetGroupCallParticipants: call is nil")
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	resp, err := c.PhoneGetGroupParticipants(call, nil, nil, "", limit)
 	if err != nil {
-		return fmt.Errorf("failed to write chunk: %w", err)
+		return nil, err
 	}
-	return nil
+	out := make([]GroupCallParticipant, len(resp.Participants))
+	for i, p := range resp.Participants {
+		out[i] = *p
+	}
+	return out, nil
 }
 
-// FeedReader reads from an io.Reader and feeds data to the RTMP stream.
-// This is useful for streaming from HTTP responses, files, etc.
-// Must call StartPipe() first.
-func (s *RTMPStream) FeedReader(r io.Reader) error {
-	s.mu.Lock()
-	if s.state != StreamStatePlaying {
-		s.mu.Unlock()
-		return fmt.Errorf("cannot feed reader: stream is %s", s.state)
+func (c *Client) ToggleGroupCallRecord(call InputGroupCall, start bool, title string, video, videoPortrait bool) error {
+	if call == nil {
+		return errors.New("ToggleGroupCallRecord: call is nil")
 	}
-	if s.stdin == nil {
-		s.mu.Unlock()
-		return errors.New("stdin pipe not initialized, call StartPipe() first")
-	}
-	s.mu.Unlock()
+	_, err := c.PhoneToggleGroupCallRecord(&PhoneToggleGroupCallRecordParams{
+		Call:          call,
+		Start:         start,
+		Video:         video,
+		Title:         title,
+		VideoPortrait: videoPortrait,
+	})
+	return err
+}
 
-	_, err := io.Copy(s.stdin, r)
+func (c *Client) SetDefaultSendAs(call InputGroupCall, sendAs any) error {
+	if call == nil {
+		return errors.New("SetDefaultSendAs: call is nil")
+	}
+	p, err := c.ResolvePeer(sendAs)
 	if err != nil {
-		return fmt.Errorf("failed to copy from reader: %w", err)
+		return err
 	}
-	return nil
+	_, err = c.PhoneSaveDefaultSendAs(call, p)
+	return err
 }
 
-// ClosePipe closes the stdin pipe, signaling EOF to ffmpeg.
-// Call this when you're done feeding data.
-func (s *RTMPStream) ClosePipe() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.stdin != nil {
-		return s.stdin.Close()
+func (c *Client) LeaveGroupCall(call InputGroupCall, source int32) error {
+	if call == nil {
+		return errors.New("LeaveGroupCall: call is nil")
 	}
-	return nil
-}
-
-// PlayAudioWithImage streams audio with a static image as background.
-func (s *RTMPStream) PlayAudioWithImage(audioSource any, imageSource string) error {
-	if s.rtmpURL == "" || s.rtmpKey == "" {
-		return ErrNoRTMPURL
-	}
-
-	isURL := strings.HasPrefix(imageSource, "http://") || strings.HasPrefix(imageSource, "https://")
-
-	if !isURL {
-		if _, err := os.Stat(imageSource); err != nil {
-			if os.IsNotExist(err) {
-				return fmt.Errorf("%w: %s", ErrFileNotFound, imageSource)
-			}
-			return fmt.Errorf("failed to access image file: %w", err)
-		}
-	}
-
-	s.mu.Lock()
-	if s.state == StreamStatePlaying {
-		s.mu.Unlock()
-		return ErrStreamPlaying
-	}
-
-	s.audioOnly = true
-	s.imageFile = imageSource
-
-	switch src := audioSource.(type) {
-	case string:
-		if _, err := os.Stat(src); err != nil {
-			s.mu.Unlock()
-			if os.IsNotExist(err) {
-				return fmt.Errorf("%w: %s", ErrFileNotFound, src)
-			}
-			return fmt.Errorf("failed to access audio file: %w", err)
-		}
-		s.inputFile = src
-		s.inputData = nil
-		s.mu.Unlock()
-		return s.startFFmpeg(src, false)
-	case []byte:
-		if len(src) == 0 {
-			s.mu.Unlock()
-			return errors.New("empty byte input")
-		}
-		s.inputData = src
-		s.inputFile = ""
-		s.mu.Unlock()
-		return s.startFFmpeg("pipe:0", true)
-	default:
-		s.mu.Unlock()
-		return fmt.Errorf("unsupported source type: expected string or []byte, got %T", audioSource)
-	}
+	_, err := c.PhoneLeaveGroupCall(call, source)
+	return err
 }
