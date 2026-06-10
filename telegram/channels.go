@@ -79,13 +79,17 @@ func (c *Client) JoinChannel(channel any) (*Channel, error) {
 				return nil, err
 			}
 
-			if updates, ok := result.(*UpdatesObj); ok {
-				c.Cache.UpdatePeersToCache(updates.Users, updates.Chats)
-				for _, chat := range updates.Chats {
-					if ch, ok := chat.(*Channel); ok {
-						return ch, nil
+			if res, ok := result.(*MessagesChatInviteJoinResultOk); ok {
+				if updates, ok := res.Updates.(*UpdatesObj); ok {
+					c.Cache.UpdatePeersToCache(updates.Users, updates.Chats)
+					for _, chat := range updates.Chats {
+						if ch, ok := chat.(*Channel); ok {
+							return ch, nil
+						}
 					}
 				}
+			} else if _, ok := result.(*MessagesChatInviteJoinResultWebView); ok {
+				return nil, errors.New("join via webview is not supported")
 			}
 			return nil, nil
 		}
