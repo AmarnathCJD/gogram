@@ -683,3 +683,417 @@ func convertBlockquoteSyntax(markdown string) string {
 
 	return result.String()
 }
+
+type RichBuilder struct {
+	mode       string
+	body       string
+	rtl        bool
+	noAutoLink bool
+	photos     []InputPhoto
+	docs       []InputDocument
+	users      []InputUser
+	blocks     []PageBlock
+	pending    []*pendingAttach
+	resolved   bool
+}
+
+type pendingAttach struct {
+	kind     string
+	source   any
+	upload   *UploadOptions
+	mimeType string
+	fileName string
+}
+
+func NewRichMessage() *RichBuilder {
+	return &RichBuilder{mode: "markdown"}
+}
+
+func (r *RichBuilder) Markdown(text string) *RichBuilder {
+	r.mode = "markdown"
+	r.body = text
+	r.blocks = nil
+	return r
+}
+
+func (r *RichBuilder) HTML(text string) *RichBuilder {
+	r.mode = "html"
+	r.body = text
+	r.blocks = nil
+	return r
+}
+
+func (r *RichBuilder) Blocks(blocks ...PageBlock) *RichBuilder {
+	r.mode = "obj"
+	r.body = ""
+	r.blocks = append(r.blocks, blocks...)
+	return r
+}
+
+func (r *RichBuilder) AddBlock(block PageBlock) *RichBuilder {
+	r.mode = "obj"
+	r.blocks = append(r.blocks, block)
+	return r
+}
+
+func (r *RichBuilder) RTL() *RichBuilder {
+	r.rtl = true
+	return r
+}
+
+func (r *RichBuilder) NoAutoLink() *RichBuilder {
+	r.noAutoLink = true
+	return r
+}
+
+func (r *RichBuilder) AddPhoto(source any, opts ...*UploadOptions) *RichBuilder {
+	r.pending = append(r.pending, &pendingAttach{
+		kind:   "photo",
+		source: source,
+		upload: getVariadic(opts, (*UploadOptions)(nil)),
+	})
+	return r
+}
+
+func (r *RichBuilder) AddDocument(source any, opts ...*UploadOptions) *RichBuilder {
+	r.pending = append(r.pending, &pendingAttach{
+		kind:   "document",
+		source: source,
+		upload: getVariadic(opts, (*UploadOptions)(nil)),
+	})
+	return r
+}
+
+func (r *RichBuilder) AddVideo(source any, opts ...*UploadOptions) *RichBuilder {
+	r.pending = append(r.pending, &pendingAttach{
+		kind:     "document",
+		source:   source,
+		upload:   getVariadic(opts, (*UploadOptions)(nil)),
+		mimeType: "video/mp4",
+	})
+	return r
+}
+
+func (r *RichBuilder) AddAudio(source any, opts ...*UploadOptions) *RichBuilder {
+	r.pending = append(r.pending, &pendingAttach{
+		kind:     "document",
+		source:   source,
+		upload:   getVariadic(opts, (*UploadOptions)(nil)),
+		mimeType: "audio/mpeg",
+	})
+	return r
+}
+
+func (r *RichBuilder) AttachPhoto(photo InputPhoto) *RichBuilder {
+	r.photos = append(r.photos, photo)
+	return r
+}
+
+func (r *RichBuilder) AttachDocument(doc InputDocument) *RichBuilder {
+	r.docs = append(r.docs, doc)
+	return r
+}
+
+func (r *RichBuilder) AddUser(user any) *RichBuilder {
+	r.pending = append(r.pending, &pendingAttach{kind: "user", source: user})
+	return r
+}
+
+func (r *RichBuilder) AttachUser(user InputUser) *RichBuilder {
+	r.users = append(r.users, user)
+	return r
+}
+
+func (r *RichBuilder) Carousel(items ...PageBlock) *RichBuilder {
+	r.mode = "obj"
+	r.blocks = append(r.blocks, &PageBlockCollage{Items: items})
+	return r
+}
+
+func (r *RichBuilder) Slideshow(items ...PageBlock) *RichBuilder {
+	r.mode = "obj"
+	r.blocks = append(r.blocks, &PageBlockSlideshow{Items: items})
+	return r
+}
+
+func (r *RichBuilder) Paragraph(text string) *RichBuilder {
+	r.mode = "obj"
+	r.blocks = append(r.blocks, &PageBlockParagraph{Text: &TextPlain{Text: text}})
+	return r
+}
+
+func (r *RichBuilder) Heading(text string) *RichBuilder {
+	r.mode = "obj"
+	r.blocks = append(r.blocks, &PageBlockHeader{Text: &TextPlain{Text: text}})
+	return r
+}
+
+func (r *RichBuilder) Divider() *RichBuilder {
+	r.mode = "obj"
+	r.blocks = append(r.blocks, &PageBlockDivider{})
+	return r
+}
+
+func (r *RichBuilder) PhotoBlock(photo InputPhoto, caption string) *RichBuilder {
+	id := photoID(photo)
+	r.photos = append(r.photos, photo)
+	r.mode = "obj"
+	r.blocks = append(r.blocks, &PageBlockPhoto{
+		PhotoID: id,
+		Caption: &PageCaption{Text: &TextPlain{Text: caption}, Credit: &TextEmpty{}},
+	})
+	return r
+}
+
+func (r *RichBuilder) VideoBlock(doc InputDocument, caption string, autoplay, loop bool) *RichBuilder {
+	id := documentID(doc)
+	r.docs = append(r.docs, doc)
+	r.mode = "obj"
+	r.blocks = append(r.blocks, &PageBlockVideo{
+		Autoplay: autoplay,
+		Loop:     loop,
+		VideoID:  id,
+		Caption:  &PageCaption{Text: &TextPlain{Text: caption}, Credit: &TextEmpty{}},
+	})
+	return r
+}
+
+func photoID(p InputPhoto) int64 {
+	if v, ok := p.(*InputPhotoObj); ok {
+		return v.ID
+	}
+	return 0
+}
+
+func documentID(d InputDocument) int64 {
+	if v, ok := d.(*InputDocumentObj); ok {
+		return v.ID
+	}
+	return 0
+}
+
+func (r *RichBuilder) Latex(s string) *RichBuilder {
+	r.body += ConvertLatex(s)
+	if r.mode == "" {
+		r.mode = "markdown"
+	}
+	return r
+}
+
+func (r *RichBuilder) resolve(c *Client) error {
+	if r.resolved {
+		return nil
+	}
+	for _, p := range r.pending {
+		switch p.kind {
+		case "photo":
+			if p.source == nil {
+				continue
+			}
+			if ph, ok := p.source.(InputPhoto); ok {
+				r.photos = append(r.photos, ph)
+				continue
+			}
+			media, err := c.GetSendableMedia(p.source, &MediaMetadata{Upload: p.upload, Inline: true})
+			if err != nil {
+				return fmt.Errorf("attach photo: %w", err)
+			}
+			if mp, ok := media.(*InputMediaPhoto); ok {
+				r.photos = append(r.photos, mp.ID)
+			} else {
+				return fmt.Errorf("attach photo: not a photo (got %T)", media)
+			}
+		case "document":
+			if p.source == nil {
+				continue
+			}
+			if dc, ok := p.source.(InputDocument); ok {
+				r.docs = append(r.docs, dc)
+				continue
+			}
+			media, err := c.GetSendableMedia(p.source, &MediaMetadata{
+				Upload:   p.upload,
+				MimeType: p.mimeType,
+				FileName: p.fileName,
+				Inline:   true,
+			})
+			if err != nil {
+				return fmt.Errorf("attach document: %w", err)
+			}
+			if md, ok := media.(*InputMediaDocument); ok {
+				r.docs = append(r.docs, md.ID)
+			} else {
+				return fmt.Errorf("attach document: not a document (got %T)", media)
+			}
+		case "user":
+			user, err := c.GetSendableUser(p.source)
+			if err != nil {
+				return fmt.Errorf("resolve user mention: %w", err)
+			}
+			r.users = append(r.users, user)
+		}
+	}
+	r.pending = nil
+	r.resolved = true
+	if r.mode == "markdown" && containsLatex(r.body) {
+		r.body = ConvertLatex(r.body)
+	}
+	return nil
+}
+
+func (r *RichBuilder) build() InputRichMessage {
+	switch r.mode {
+	case "html":
+		return &InputRichMessageHtml{
+			Rtl:        r.rtl,
+			Noautolink: r.noAutoLink,
+			Html:       r.body,
+			Photos:     r.photos,
+			Documents:  r.docs,
+			Users:      r.users,
+		}
+	case "obj":
+		return &InputRichMessageObj{
+			Rtl:        r.rtl,
+			Noautolink: r.noAutoLink,
+			Blocks:     r.blocks,
+			Photos:     r.photos,
+			Documents:  r.docs,
+			Users:      r.users,
+		}
+	default:
+		return &InputRichMessageMarkdown{
+			Rtl:        r.rtl,
+			Noautolink: r.noAutoLink,
+			Markdown:   r.body,
+			Photos:     r.photos,
+			Documents:  r.docs,
+			Users:      r.users,
+		}
+	}
+}
+
+var latexSymbols = map[string]string{
+	`\alpha`: "α", `\beta`: "β", `\gamma`: "γ", `\delta`: "δ", `\epsilon`: "ε",
+	`\varepsilon`: "ε", `\zeta`: "ζ", `\eta`: "η", `\theta`: "θ", `\vartheta`: "ϑ",
+	`\iota`: "ι", `\kappa`: "κ", `\lambda`: "λ", `\mu`: "μ", `\nu`: "ν",
+	`\xi`: "ξ", `\pi`: "π", `\varpi`: "ϖ", `\rho`: "ρ", `\varrho`: "ϱ",
+	`\sigma`: "σ", `\varsigma`: "ς", `\tau`: "τ", `\upsilon`: "υ", `\phi`: "φ",
+	`\varphi`: "ϕ", `\chi`: "χ", `\psi`: "ψ", `\omega`: "ω",
+	`\Gamma`: "Γ", `\Delta`: "Δ", `\Theta`: "Θ", `\Lambda`: "Λ", `\Xi`: "Ξ",
+	`\Pi`: "Π", `\Sigma`: "Σ", `\Upsilon`: "Υ", `\Phi`: "Φ", `\Psi`: "Ψ", `\Omega`: "Ω",
+
+	`\pm`: "±", `\mp`: "∓", `\times`: "×", `\div`: "÷", `\cdot`: "·",
+	`\ast`: "∗", `\star`: "⋆", `\circ`: "∘", `\bullet`: "•",
+	`\neq`: "≠", `\ne`: "≠", `\leq`: "≤", `\le`: "≤", `\geq`: "≥", `\ge`: "≥",
+	`\ll`: "≪", `\gg`: "≫", `\approx`: "≈", `\equiv`: "≡", `\sim`: "∼",
+	`\simeq`: "≃", `\cong`: "≅", `\propto`: "∝",
+	`\infty`: "∞", `\partial`: "∂", `\nabla`: "∇", `\sqrt`: "√",
+
+	`\in`: "∈", `\notin`: "∉", `\ni`: "∋", `\subset`: "⊂", `\supset`: "⊃",
+	`\subseteq`: "⊆", `\supseteq`: "⊇", `\cup`: "∪", `\cap`: "∩",
+	`\setminus`: "∖", `\emptyset`: "∅", `\varnothing`: "∅",
+
+	`\forall`: "∀", `\exists`: "∃", `\nexists`: "∄", `\neg`: "¬", `\lnot`: "¬",
+	`\land`: "∧", `\wedge`: "∧", `\lor`: "∨", `\vee`: "∨",
+	`\implies`: "⇒", `\Rightarrow`: "⇒", `\iff`: "⇔", `\Leftrightarrow`: "⇔",
+	`\to`: "→", `\rightarrow`: "→", `\leftarrow`: "←", `\Leftarrow`: "⇐",
+	`\mapsto`: "↦", `\uparrow`: "↑", `\downarrow`: "↓",
+
+	`\sum`: "∑", `\prod`: "∏", `\int`: "∫", `\iint`: "∬", `\iiint`: "∭",
+	`\oint`: "∮", `\coprod`: "∐", `\bigcup`: "⋃", `\bigcap`: "⋂",
+	`\bigvee`: "⋁", `\bigwedge`: "⋀", `\bigoplus`: "⊕", `\bigotimes`: "⊗",
+
+	`\hbar`: "ℏ", `\ell`: "ℓ", `\Re`: "ℜ", `\Im`: "ℑ", `\aleph`: "ℵ",
+	`\degree`: "°", `\angle`: "∠", `\perp`: "⊥", `\parallel`: "∥",
+	`\dots`: "…", `\ldots`: "…", `\cdots`: "⋯", `\vdots`: "⋮", `\ddots`: "⋱",
+	`\prime`: "′", `\dagger`: "†", `\ddagger`: "‡",
+	`\copyright`: "©", `\pounds`: "£", `\euro`: "€",
+
+	`\quad`: " ", `\qquad`: "  ", `\,`: " ", `\;`: " ", `\:`: " ", `\!`: "",
+	`\left`: "", `\right`: "", `\big`: "", `\Big`: "", `\bigg`: "", `\Bigg`: "",
+	`\displaystyle`: "", `\textstyle`: "", `\mathrm`: "", `\mathit`: "",
+	`\mathbf`: "", `\mathsf`: "", `\mathtt`: "", `\mathcal`: "", `\mathbb`: "",
+}
+
+var (
+	supDigitMap = map[rune]rune{
+		'0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+		'5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+		'+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾',
+		'n': 'ⁿ', 'i': 'ⁱ',
+	}
+	subDigitMap = map[rune]rune{
+		'0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+		'5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
+		'+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎',
+		'a': 'ₐ', 'e': 'ₑ', 'i': 'ᵢ', 'o': 'ₒ', 'x': 'ₓ',
+	}
+	latexCmdRe   = regexp.MustCompile(`\\[a-zA-Z]+`)
+	supScriptRe  = regexp.MustCompile(`\^(\{([^{}]+)\}|(\w))`)
+	subScriptRe  = regexp.MustCompile(`_(\{([^{}]+)\}|(\w))`)
+	fracRe       = regexp.MustCompile(`\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}`)
+	sqrtRe       = regexp.MustCompile(`\\sqrt\s*\{([^{}]+)\}`)
+	mathInlineRe = regexp.MustCompile(`\$([^$\n]+)\$`)
+	mathBlockRe  = regexp.MustCompile(`\$\$([\s\S]+?)\$\$`)
+)
+
+func containsLatex(s string) bool {
+	return strings.ContainsAny(s, "$\\") && (strings.Contains(s, "$") || latexCmdRe.MatchString(s))
+}
+
+func ConvertLatex(s string) string {
+	s = mathBlockRe.ReplaceAllStringFunc(s, func(m string) string {
+		inner := strings.TrimPrefix(strings.TrimSuffix(m, "$$"), "$$")
+		return "\n" + convertLatexInner(inner) + "\n"
+	})
+	s = mathInlineRe.ReplaceAllStringFunc(s, func(m string) string {
+		inner := strings.TrimPrefix(strings.TrimSuffix(m, "$"), "$")
+		return convertLatexInner(inner)
+	})
+	return s
+}
+
+func convertLatexInner(s string) string {
+	s = fracRe.ReplaceAllString(s, "($1)/($2)")
+	s = sqrtRe.ReplaceAllString(s, "√($1)")
+
+	s = latexCmdRe.ReplaceAllStringFunc(s, func(cmd string) string {
+		if rep, ok := latexSymbols[cmd]; ok {
+			return rep
+		}
+		return cmd
+	})
+
+	s = supScriptRe.ReplaceAllStringFunc(s, func(m string) string {
+		content := stripGroup(strings.TrimPrefix(m, "^"))
+		return mapScript(content, supDigitMap)
+	})
+	s = subScriptRe.ReplaceAllStringFunc(s, func(m string) string {
+		content := stripGroup(strings.TrimPrefix(m, "_"))
+		return mapScript(content, subDigitMap)
+	})
+
+	s = strings.ReplaceAll(s, "{", "")
+	s = strings.ReplaceAll(s, "}", "")
+	return s
+}
+
+func stripGroup(s string) string {
+	if strings.HasPrefix(s, "{") && strings.HasSuffix(s, "}") {
+		return s[1 : len(s)-1]
+	}
+	return s
+}
+
+func mapScript(s string, table map[rune]rune) string {
+	var b strings.Builder
+	for _, r := range s {
+		if mapped, ok := table[r]; ok {
+			b.WriteRune(mapped)
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
