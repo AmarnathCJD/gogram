@@ -441,4 +441,287 @@ func escapeJSON(s string) string {
 	return string(b)
 }
 
-const indexHTML = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TL Generator - Gogram</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f9fa;color:#1a1a1a;line-height:1.6;padding:20px 20px 60px;min-height:100vh;position:relative}.container{max-width:1400px;margin:0 auto}.header{display:flex;align-items:center;gap:16px;margin-bottom:32px}.icon{width:48px;height:48px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;color:white;font-weight:bold;box-shadow:0 4px 12px rgba(102,126,234,0.3)}.header-text h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-0.5px;color:#111827}.header-text .subtitle{color:#6b7280;font-size:14px;margin:4px 0 0}h2{margin:0 0 18px;font-size:16px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:0.5px;font-size:13px}.section{margin-bottom:20px;padding:24px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.04)}.input-group{display:flex;gap:8px;margin-bottom:16px;align-items:center}.input-group input[type="text"]{flex:1;padding:10px 14px;border:1px solid #d4d4d4;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:13px;transition:border-color 0.2s}.input-group input[type="text"]:focus{outline:none;border-color:#2563eb}.btn-group{display:flex;gap:10px;flex-wrap:wrap}button{padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;font-family:'Inter',sans-serif;transition:all 0.2s}button:hover{background:#1d4ed8;transform:translateY(-1px);box-shadow:0 4px 12px rgba(37,99,235,0.2)}button:disabled{background:#d4d4d4;cursor:not-allowed;transform:none;box-shadow:none}button.secondary{background:#f5f5f5;color:#2c2c2c;border:1px solid #e5e5e5}button.secondary:hover{background:#ebebeb;box-shadow:0 2px 8px rgba(0,0,0,0.08)}.checkbox-group{display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap}.checkbox-group label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#404040}.checkbox-group input[type="checkbox"]{width:18px;height:18px;cursor:pointer}.diff-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.diff-item{padding:16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px}.diff-item h3{font-size:13px;margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280}.diff-list{max-height:220px;overflow-y:auto;font-size:13px}.diff-list::-webkit-scrollbar{width:6px}.diff-list::-webkit-scrollbar-thumb{background:#d4d4d4;border-radius:3px}.diff-list div{padding:5px 0;font-family:'JetBrains Mono',monospace;font-size:12px}.new{color:#059669;font-weight:500}.deleted{color:#dc2626;font-weight:500}.updated{color:#2563eb;font-weight:500}.log-panel{background:#0d1117;color:#c9d1d9;padding:0;border-radius:8px;height:480px;overflow:hidden;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.5;border:1px solid #30363d}.log-header{background:#161b22;border-bottom:1px solid #30363d;padding:10px 16px;display:flex;align-items:center;justify-content:space-between}.log-header-title{font-size:12px;color:#8b949e;font-weight:500;text-transform:uppercase;letter-spacing:0.5px}.log-content{padding:16px;height:calc(480px - 42px);overflow-y:auto;white-space:pre-wrap;word-wrap:break-word}.log-content::-webkit-scrollbar{width:10px}.log-content::-webkit-scrollbar-track{background:#0d1117}.log-content::-webkit-scrollbar-thumb{background:#30363d;border-radius:5px;border:2px solid #0d1117}.log-content::-webkit-scrollbar-thumb:hover{background:#484f58}.log-line{margin:0;padding:4px 0;font-size:12.5px}.log-info{color:#58a6ff}.log-warn{color:#d29922}.log-error{color:#f85149}.layer-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:20px}.layer-card{background:white;border-radius:8px;padding:20px;border:1px solid #e5e7eb;box-shadow:0 1px 3px 0 rgba(0,0,0,0.1);transition:all 0.2s ease}.layer-card:hover{box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06);border-color:#d1d5db}.layer-card-label{font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:#6b7280;font-weight:600;margin-bottom:8px}.layer-card-value{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:#1f2937}.layer-card.local .layer-card-value{color:#059669}.layer-card.remote .layer-card-value{color:#2563eb}.missing-type-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:1000}.missing-type-content{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:28px;border-radius:16px;max-width:650px;width:90%;box-shadow:0 20px 50px rgba(0,0,0,0.3)}.missing-type-content h3{margin-bottom:16px;font-size:20px;color:#1a1a1a}.missing-type-content textarea{width:100%;min-height:120px;padding:12px;border:1px solid #d4d4d4;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:13px;margin-bottom:16px;resize:vertical}.missing-type-content textarea:focus{outline:none;border-color:#2563eb}.missing-type-content .hint{font-size:13px;color:#6b7280;margin-bottom:16px;line-height:1.7}.missing-type-content .hint code{background:#f5f5f5;padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#dc2626}@media (max-width:768px){.diff-grid{grid-template-columns:1fr}.layer-info{grid-template-columns:1fr}.btn-group{flex-direction:column}button{width:100%}}footer{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid #e5e7eb;padding:16px 20px;text-align:right;font-size:13px;color:#6b7280;box-shadow:0 -1px 3px 0 rgba(0,0,0,0.1)}footer a{color:#667eea;text-decoration:none;font-weight:500}footer a:hover{text-decoration:underline}</style></head><body><div class="container"><div class="header"><div class="icon"><i class="fas fa-code"></i></div><div class="header-text"><h1>TL Generator</h1><div class="subtitle">Telegram Type Language Schema Generator for Gogram</div></div></div><div class="section"><h2>Schema Comparison</h2><div class="layer-info"><div class="layer-card local"><div class="layer-card-label">Local Layer</div><div class="layer-card-value" id="localLayer">-</div></div><div class="layer-card remote"><div class="layer-card-label">Remote Layer</div><div class="layer-card-value" id="remoteLayer">-</div></div></div><div class="input-group"><input type="text" id="customUrl" placeholder="Custom remote URL (optional)"><button onclick="loadDiff()" class="secondary">Compare</button></div><div id="diffResult" class="diff-grid"></div></div><div class="section"><h2>Generation Options</h2><div class="checkbox-group"><label><input type="checkbox" id="flagDocs"> Generate Docs</label><label><input type="checkbox" id="flagForce"> Force Update</label><label><input type="checkbox" id="flagLocal"> Use Local Schema</label></div><div class="input-group"><input type="text" id="genCustomUrl" placeholder="Custom remote URL (optional)"><button onclick="generate()">Start Generation</button></div></div><div class="section"><h2>Logs</h2><button onclick="clearLogs()" class="secondary" style="margin-bottom:12px">Clear Logs</button><div class="log-panel"><div class="log-header"><span class="log-header-title">Console Output</span></div><div id="logs" class="log-content"></div></div></div></div><footer>Copyright © 2025 <a href="https://github.com/AmarnathCJD" target="_blank">AmarnathCJD</a></footer><div id="missingTypeModal" class="missing-type-modal"><div class="missing-type-content"><h3>Missing Type: <span id="missingTypeName"></span></h3><div class="hint">Enter TL definition or Go type name:<br>Example: <code>payments.starGiftAuction#abc123 gifts:Vector&lt;Gift&gt; = StarGiftAuction;</code><br>Or: <code>string</code>, <code>int32</code>, <code>[]byte</code></div><textarea id="missingTypeInput" placeholder="Enter TL definition or Go type..."></textarea><div class="btn-group"><button onclick="submitMissingType()">Submit</button><button onclick="skipMissingType()" class="secondary">Skip (use interface{})</button></div></div></div><script>let logsDiv=document.getElementById('logs'),diffResultDiv=document.getElementById('diffResult'),missingTypeModal=document.getElementById('missingTypeModal'),logSource=null,missingTypeSource=null;function loadDiff(){const customUrl=document.getElementById('customUrl').value.trim(),url='/api/diff',options=customUrl?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remote_url:customUrl})}:{};fetch(url,options).then(r=>r.json()).then(data=>{if(data.error){diffResultDiv.innerHTML='<div style="color:#d00">Error: '+data.error+'</div>';return}document.getElementById('localLayer').textContent=data.local_layer;document.getElementById('remoteLayer').textContent=data.remote_layer;diffResultDiv.innerHTML=formatDiffSection('New Types',data.new_types,'new')+formatDiffSection('Deleted Types',data.deleted_types,'deleted')+formatDiffSection('Updated Types',data.updated_types,'updated')+formatDiffSection('New Methods',data.new_methods,'new')+formatDiffSection('Deleted Methods',data.deleted_methods,'deleted')+formatDiffSection('Updated Methods',data.updated_methods,'updated')})}function formatDiffSection(title,items,className){if(!items||items.length===0)return '';return '<div class="diff-item"><h3>'+title+' ('+items.length+')</h3><div class="diff-list">'+items.map(i=>'<div class="'+className+'">'+escapeHtml(i)+'</div>').join('')+'</div></div>'}function generate(){const customUrl=document.getElementById('genCustomUrl').value.trim(),req={force:document.getElementById('flagForce').checked,docs:document.getElementById('flagDocs').checked,local:document.getElementById('flagLocal').checked,remote_url:customUrl};fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)}).then(r=>r.json()).then(data=>{appendLog('[UI] Generation started...')})}function connectLogs(){if(logSource)logSource.close();logSource=new EventSource('/api/logs');logSource.onmessage=e=>{const line=JSON.parse(e.data);appendLog(line)}}function connectMissingType(){if(missingTypeSource)missingTypeSource.close();missingTypeSource=new EventSource('/api/missing-type');missingTypeSource.onmessage=e=>{const data=JSON.parse(e.data);showMissingTypeModal(data.type)}}function appendLog(line){const div=document.createElement('div');div.className='log-line';if(line.includes('ERROR'))div.classList.add('log-error');else if(line.includes('WARN'))div.classList.add('log-warn');else if(line.includes('INFO'))div.classList.add('log-info');div.textContent=line;logsDiv.appendChild(div);logsDiv.scrollTop=logsDiv.scrollHeight}function clearLogs(){logsDiv.innerHTML=''}function showMissingTypeModal(typeName){document.getElementById('missingTypeName').textContent=typeName;document.getElementById('missingTypeInput').value='';missingTypeModal.style.display='block'}function submitMissingType(){const input=document.getElementById('missingTypeInput').value.trim();fetch('/api/missing-type/response',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:input||''})}).then(()=>{missingTypeModal.style.display='none'})}function skipMissingType(){submitMissingType()}function escapeHtml(text){const div=document.createElement('div');div.textContent=text;return div.innerHTML}connectLogs();connectMissingType();loadDiff()</script></body></html>`
+const indexHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tlgen · gogram</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#fafafa;--surface:#fff;--surface-2:#fafbfc;--border:#e5e7eb;--border-soft:#eef0f3;
+  --text:#0f172a;--muted:#64748b;--dim:#94a3b8;
+  --accent:#2563eb;--accent-hover:#1e40af;--accent-soft:rgba(37,99,235,.12);
+  --green:#059669;--red:#dc2626;--amber:#d97706;
+  --input-bg:#fff;--hover:#f3f4f6;--chip-bg:#f1f5f9;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+:root[data-theme=dark]{
+  --bg:#0d1117;--surface:#161b22;--surface-2:#1a1f29;--border:#21262d;--border-soft:#1c2128;
+  --text:#e6edf3;--muted:#8b949e;--dim:#6e7681;
+  --accent:#58a6ff;--accent-hover:#79b8ff;--accent-soft:rgba(88,166,255,.16);
+  --green:#3fb950;--red:#f85149;--amber:#d29922;
+  --input-bg:#0d1117;--hover:#1f262f;--chip-bg:#1f262f;
+}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.5;font-size:13px}
+.app{max-width:1180px;margin:0 auto;padding:18px 22px 64px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13px;letter-spacing:-.01em}
+.brand .sub{color:var(--muted);font-weight:400;font-size:12px;margin-left:4px}
+.theme-toggle{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:5px 9px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.theme-toggle:hover{color:var(--text);background:var(--hover)}
+.grid-two{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:16px}
+@media (max-width:880px){.grid-two{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px}
+.card h2{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.layer-row{display:flex;align-items:baseline;gap:18px;margin-bottom:10px}
+.layer-cell{display:flex;align-items:baseline;gap:6px}
+.layer-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);font-weight:600}
+.layer-val{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--text)}
+.layer-val.local{color:var(--green)}.layer-val.remote{color:var(--accent)}
+.layer-arrow{color:var(--dim);font-size:11px}
+.row-input{display:flex;gap:6px;align-items:center;margin-bottom:8px}
+input[type=text],select{flex:1;padding:6px 9px;border:1px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:12px;background:var(--input-bg);color:var(--text);outline:0;transition:border-color .15s,box-shadow .15s}
+input[type=text]:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+select{flex:0 1 auto;min-width:170px;cursor:pointer}
+button{padding:6px 11px;background:var(--text);color:var(--bg);border:0;border-radius:5px;font:inherit;font-size:12px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background-color .15s,border-color .15s}
+button:hover{opacity:.88}
+button.primary{background:var(--accent);color:#fff}button.primary:hover{background:var(--accent-hover);opacity:1}
+button.secondary{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+button.secondary:hover{background:var(--hover)}
+button.ghost{background:transparent;color:var(--muted);border:0}button.ghost:hover{color:var(--text);background:var(--hover)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.diff-summary{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:10px}
+.diff-stat{padding:8px 10px;border:1px solid var(--border-soft);border-radius:5px;background:var(--surface-2)}
+.diff-stat-num{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--text);line-height:1}
+.diff-stat-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);font-weight:600;margin-top:4px}
+.diff-stat.green .diff-stat-num{color:var(--green)}
+.diff-stat.red .diff-stat-num{color:var(--red)}
+.diff-stat.amber .diff-stat-num{color:var(--amber)}
+.diff-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
+.diff-bucket{border:1px solid var(--border-soft);border-radius:5px;overflow:hidden;background:var(--surface-2)}
+.diff-bucket-head{padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.diff-bucket-count{font-family:var(--mono);color:var(--text)}
+.diff-list{max-height:180px;overflow-y:auto;padding:4px 0}
+.diff-list::-webkit-scrollbar{width:5px}
+.diff-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.diff-list div{padding:2px 10px;font-family:var(--mono);font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.diff-list .new{color:var(--green)}.diff-list .updated{color:var(--accent)}.diff-list .deleted{color:var(--red)}
+.toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.flags{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;padding-top:4px}
+.flags label{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text);user-select:none}
+.flags input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--accent)}
+.flags .hint{color:var(--muted);font-size:11px}
+.logs-section{margin-top:16px}
+.log-panel{background:#0d1117;color:#c9d1d9;border-radius:6px;overflow:hidden;font-family:var(--mono);font-size:12px;border:1px solid #1a1f29}
+.log-head{background:#161b22;border-bottom:1px solid #1a1f29;padding:6px 12px;display:flex;align-items:center;justify-content:space-between}
+.log-head-title{font-size:10px;color:#8b949e;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.log-actions{display:flex;gap:4px}
+.log-actions button{background:transparent;border:0;color:#8b949e;font-size:10px;padding:3px 7px;border-radius:3px}
+.log-actions button:hover{background:#1f262f;color:#c9d1d9}
+.log-content{padding:10px 14px;height:340px;overflow-y:auto;white-space:pre-wrap;word-wrap:break-word;line-height:1.5}
+.log-content::-webkit-scrollbar{width:8px}
+.log-content::-webkit-scrollbar-track{background:#0d1117}
+.log-content::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px;border:2px solid #0d1117}
+.log-line{padding:1px 0;font-size:11.5px}
+.log-info{color:#58a6ff}.log-warn{color:#d29922}.log-error{color:#f85149}
+.modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(3px);z-index:1000}
+.modal-content{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surface);padding:20px 22px;border-radius:8px;max-width:600px;width:92%;box-shadow:0 18px 40px rgba(0,0,0,.25);border:1px solid var(--border)}
+.modal-content h3{margin-bottom:10px;font-size:15px;color:var(--text);font-weight:600}
+.modal-content textarea{width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:12px;margin-bottom:10px;resize:vertical;outline:0}
+.modal-content textarea:focus{border-color:var(--accent)}
+.modal-content .hint{font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.55}
+.modal-content .hint code{background:var(--chip-bg);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:11px;color:var(--accent)}
+.modal-actions{display:flex;gap:6px}
+footer{margin-top:24px;padding-top:14px;border-top:1px solid var(--border);text-align:center;font-size:11px;color:var(--dim)}
+footer a{color:var(--muted);text-decoration:none}
+footer a:hover{color:var(--accent)}
+.empty{padding:14px;text-align:center;color:var(--dim);font-size:12px;background:var(--surface-2);border:1px dashed var(--border-soft);border-radius:5px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      tlgen
+      <span class="sub">· gogram schema generator</span>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle" title="Toggle theme">
+      <i class="fas fa-moon" id="themeIcon"></i><span id="themeLabel">Dark</span>
+    </button>
+  </div>
+
+  <div class="grid-two">
+    <div class="card">
+      <h2>Schema diff</h2>
+      <div class="layer-row">
+        <div class="layer-cell"><span class="layer-label">Local</span><span class="layer-val local" id="localLayer">—</span></div>
+        <span class="layer-arrow">→</span>
+        <div class="layer-cell"><span class="layer-label">Remote</span><span class="layer-val remote" id="remoteLayer">—</span></div>
+      </div>
+      <div class="row-input">
+        <select id="diffSource" onchange="applySource('customUrl',this)">
+          <option value="">Quick pick…</option>
+          <option value="https://raw.githubusercontent.com/TGScheme/Schema/main/main_api.tl">TGScheme/Schema (main)</option>
+          <option value="https://raw.githubusercontent.com/tdlib/td/refs/heads/master/td/generate/scheme/telegram_api.tl">tdlib/td (master)</option>
+          <option value="https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/Telegram/SourceFiles/mtproto/scheme/api.tl">tdesktop (dev)</option>
+        </select>
+        <input type="text" id="customUrl" placeholder="https://… (or pick above)">
+        <button onclick="loadDiff()" class="secondary"><i class="fas fa-arrows-rotate"></i>Compare</button>
+      </div>
+      <div class="diff-summary" id="diffSummary"></div>
+      <div class="diff-details" id="diffResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>Generate</h2>
+      <div class="flags">
+        <label><input type="checkbox" id="flagDocs"> <span>Docs</span></label>
+        <label><input type="checkbox" id="flagForce"> <span>Force</span></label>
+        <label><input type="checkbox" id="flagLocal"> <span>Local schema</span></label>
+      </div>
+      <div class="row-input">
+        <select id="genSource" onchange="applySource('genCustomUrl',this)">
+          <option value="">Quick pick…</option>
+          <option value="https://raw.githubusercontent.com/TGScheme/Schema/main/main_api.tl">TGScheme/Schema (main)</option>
+          <option value="https://raw.githubusercontent.com/tdlib/td/refs/heads/master/td/generate/scheme/telegram_api.tl">tdlib/td (master)</option>
+          <option value="https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/Telegram/SourceFiles/mtproto/scheme/api.tl">tdesktop (dev)</option>
+        </select>
+        <input type="text" id="genCustomUrl" placeholder="Custom URL (or pick above)">
+      </div>
+      <div class="toolbar">
+        <button onclick="generate()" class="primary"><i class="fas fa-play"></i>Run</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card logs-section">
+    <h2 style="margin-bottom:8px">Logs</h2>
+    <div class="log-panel">
+      <div class="log-head">
+        <span class="log-head-title">stdout</span>
+        <div class="log-actions"><button onclick="clearLogs()">clear</button></div>
+      </div>
+      <div id="logs" class="log-content"></div>
+    </div>
+  </div>
+
+  <footer>© 2025 <a href="https://github.com/AmarnathCJD" target="_blank">@AmarnathCJD</a> · <a href="https://github.com/amarnathcjd/gogram" target="_blank">gogram</a></footer>
+</div>
+
+<div id="missingTypeModal" class="modal">
+  <div class="modal-content">
+    <h3>Missing type: <span id="missingTypeName" style="font-family:var(--mono);color:var(--accent)"></span></h3>
+    <div class="hint">Enter a TL definition or Go type. Examples:<br>
+      <code>payments.starGiftAuction#abc123 gifts:Vector&lt;Gift&gt; = StarGiftAuction;</code><br>
+      <code>string</code> · <code>int32</code> · <code>[]byte</code>
+    </div>
+    <textarea id="missingTypeInput" placeholder="TL definition or Go type…"></textarea>
+    <div class="modal-actions">
+      <button onclick="submitMissingType()" class="primary">Submit</button>
+      <button onclick="skipMissingType()" class="secondary">Skip (use any)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let logsDiv=document.getElementById('logs'),diffResultDiv=document.getElementById('diffResult'),diffSummary=document.getElementById('diffSummary'),missingTypeModal=document.getElementById('missingTypeModal'),logSource=null,missingTypeSource=null;
+
+function loadDiff(){
+  const customUrl=document.getElementById('customUrl').value.trim();
+  const url='/api/diff';
+  const options=customUrl?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remote_url:customUrl})}:{};
+  fetch(url,options).then(r=>r.json()).then(data=>{
+    if(data.error){diffResultDiv.innerHTML='<div class="empty" style="color:var(--red)">Error: '+data.error+'</div>';return}
+    document.getElementById('localLayer').textContent=data.local_layer;
+    document.getElementById('remoteLayer').textContent=data.remote_layer;
+    diffSummary.innerHTML=summaryStat('New types',data.new_types,'green')+summaryStat('Updated types',data.updated_types,'amber')+summaryStat('Deleted types',data.deleted_types,'red')+summaryStat('New methods',data.new_methods,'green')+summaryStat('Updated methods',data.updated_methods,'amber')+summaryStat('Deleted methods',data.deleted_methods,'red');
+    const sections=[
+      ['New types',data.new_types,'new'],
+      ['Updated types',data.updated_types,'updated'],
+      ['Deleted types',data.deleted_types,'deleted'],
+      ['New methods',data.new_methods,'new'],
+      ['Updated methods',data.updated_methods,'updated'],
+      ['Deleted methods',data.deleted_methods,'deleted'],
+    ];
+    diffResultDiv.innerHTML=sections.map(([t,i,c])=>formatBucket(t,i,c)).join('')||'<div class="empty">No differences detected.</div>';
+  })
+}
+function summaryStat(label,items,tone){
+  const n=(items||[]).length;
+  return '<div class="diff-stat '+tone+'"><div class="diff-stat-num">'+n+'</div><div class="diff-stat-lbl">'+label+'</div></div>';
+}
+function formatBucket(title,items,className){
+  if(!items||items.length===0)return '';
+  return '<div class="diff-bucket"><div class="diff-bucket-head"><span>'+title+'</span><span class="diff-bucket-count">'+items.length+'</span></div><div class="diff-list">'+items.map(i=>'<div class="'+className+'">'+escapeHtml(i)+'</div>').join('')+'</div></div>';
+}
+function generate(){
+  const customUrl=document.getElementById('genCustomUrl').value.trim();
+  const req={
+    force:document.getElementById('flagForce').checked,
+    docs:document.getElementById('flagDocs').checked,
+    local:document.getElementById('flagLocal').checked,
+    remote_url:customUrl,
+  };
+  fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)}).then(r=>r.json()).then(()=>{appendLog('[UI] Generation started…')})
+}
+function connectLogs(){
+  if(logSource)logSource.close();
+  logSource=new EventSource('/api/logs');
+  logSource.onmessage=e=>{appendLog(JSON.parse(e.data))}
+}
+function connectMissingType(){
+  if(missingTypeSource)missingTypeSource.close();
+  missingTypeSource=new EventSource('/api/missing-type');
+  missingTypeSource.onmessage=e=>{showMissingTypeModal(JSON.parse(e.data).type)}
+}
+function appendLog(line){
+  const div=document.createElement('div');
+  div.className='log-line';
+  if(line.includes('ERROR'))div.classList.add('log-error');
+  else if(line.includes('WARN'))div.classList.add('log-warn');
+  else if(line.includes('INFO'))div.classList.add('log-info');
+  div.textContent=line;
+  logsDiv.appendChild(div);
+  logsDiv.scrollTop=logsDiv.scrollHeight;
+}
+function clearLogs(){logsDiv.innerHTML=''}
+function showMissingTypeModal(name){document.getElementById('missingTypeName').textContent=name;document.getElementById('missingTypeInput').value='';missingTypeModal.style.display='block'}
+function submitMissingType(){
+  const input=document.getElementById('missingTypeInput').value.trim();
+  fetch('/api/missing-type/response',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:input||''})}).then(()=>{missingTypeModal.style.display='none'})
+}
+function skipMissingType(){submitMissingType()}
+function escapeHtml(text){const d=document.createElement('div');d.textContent=text;return d.innerHTML}
+
+function applySource(targetId,sel){
+  if(!sel.value)return;
+  document.getElementById(targetId).value=sel.value;
+  if(targetId==='customUrl')loadDiff();
+}
+
+function setTheme(mode){
+  document.documentElement.setAttribute('data-theme',mode);
+  try{localStorage.setItem('tlgen-theme',mode)}catch(e){}
+  const icon=document.getElementById('themeIcon');
+  const label=document.getElementById('themeLabel');
+  if(mode==='dark'){icon.className='fas fa-sun';label.textContent='Light'}
+  else{icon.className='fas fa-moon';label.textContent='Dark'}
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')||'light';
+  setTheme(cur==='dark'?'light':'dark');
+}
+(function initTheme(){
+  let saved='light';
+  try{saved=localStorage.getItem('tlgen-theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}catch(e){}
+  setTheme(saved);
+})();
+
+connectLogs();connectMissingType();loadDiff();
+</script>
+</body>
+</html>`
