@@ -17481,7 +17481,7 @@ func (*PhoneExportGroupCallInviteParams) FlagIndex() int {
 	return 0
 }
 
-// Get an invite link for a group call or livestream
+// Get an invite link for a video chat/livestream ; cannot be used for live stories or conference calls.
 func (c *Client) PhoneExportGroupCallInvite(canSelfUnmute bool, call InputGroupCall) (*PhoneExportedGroupCallInvite, error) {
 	responseData, err := c.MakeRequest(&PhoneExportGroupCallInviteParams{
 		Call:          call,
@@ -17555,7 +17555,7 @@ func (*PhoneGetGroupCallChainBlocksParams) CRC() uint32 {
 	return 0xee9f88a6
 }
 
-// Fetch the blocks of a conference blockchain.
+// Fetch the blocks of a conference blockchain, returns an updateGroupCallChainBlocks to be handled as specifiede here.
 func (c *Client) PhoneGetGroupCallChainBlocks(call InputGroupCall, subChainID, offset, limit int32) (Updates, error) {
 	responseData, err := c.MakeRequest(&PhoneGetGroupCallChainBlocksParams{
 		Call:       call,
@@ -17745,7 +17745,7 @@ func (*PhoneInviteToGroupCallParams) CRC() uint32 {
 	return 0x7b393160
 }
 
-// Invite a set of users to a group call.
+// Invite a set of users to a video chat/livestream ; cannot be used for live stories or conference calls.
 func (c *Client) PhoneInviteToGroupCall(call InputGroupCall, users []InputUser) (Updates, error) {
 	responseData, err := c.MakeRequest(&PhoneInviteToGroupCallParams{
 		Call:  call,

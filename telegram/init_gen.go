@@ -890,6 +890,8 @@ func init() {
 		&InputReplyToMessage{},
 		&InputReplyToMonoForum{},
 		&InputReplyToStory{},
+		&InputRichFileDocument{},
+		&InputRichFilePhoto{},
 		&InputRichMessageHtml{},
 		&InputRichMessageMarkdown{},
 		&InputRichMessageObj{},

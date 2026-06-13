@@ -4747,6 +4747,32 @@ func (*InputReplyToStory) CRC() uint32 {
 
 func (*InputReplyToStory) ImplementsInputReplyTo() {}
 
+type InputRichFile interface {
+	tl.Object
+	ImplementsInputRichFile()
+}
+type InputRichFileDocument struct {
+	ID       string
+	Document InputDocument
+}
+
+func (*InputRichFileDocument) CRC() uint32 {
+	return 0x83281dbd
+}
+
+func (*InputRichFileDocument) ImplementsInputRichFile() {}
+
+type InputRichFilePhoto struct {
+	ID    string
+	Photo InputPhoto
+}
+
+func (*InputRichFilePhoto) CRC() uint32 {
+	return 0x9b00622b
+}
+
+func (*InputRichFilePhoto) ImplementsInputRichFile() {}
+
 type InputRichMessage interface {
 	tl.Object
 	ImplementsInputRichMessage()
@@ -4774,13 +4800,11 @@ type InputRichMessageHtml struct {
 	Rtl        bool `tl:"flag:0,encoded_in_bitflags"`
 	Noautolink bool `tl:"flag:1,encoded_in_bitflags"`
 	Html       string
-	Photos     []InputPhoto    `tl:"flag:2"`
-	Documents  []InputDocument `tl:"flag:3"`
-	Users      []InputUser     `tl:"flag:4"`
+	Files      []InputRichFile `tl:"flag:2"`
 }
 
 func (*InputRichMessageHtml) CRC() uint32 {
-	return 0xd4eab551
+	return 0xdacb836a
 }
 
 func (*InputRichMessageHtml) FlagIndex() int {
@@ -4793,13 +4817,11 @@ type InputRichMessageMarkdown struct {
 	Rtl        bool `tl:"flag:0,encoded_in_bitflags"`
 	Noautolink bool `tl:"flag:1,encoded_in_bitflags"`
 	Markdown   string
-	Photos     []InputPhoto    `tl:"flag:2"`
-	Documents  []InputDocument `tl:"flag:3"`
-	Users      []InputUser     `tl:"flag:4"`
+	Files      []InputRichFile `tl:"flag:2"`
 }
 
 func (*InputRichMessageMarkdown) CRC() uint32 {
-	return 0x9ac8186
+	return 0x4b572c
 }
 
 func (*InputRichMessageMarkdown) FlagIndex() int {
@@ -5030,8 +5052,10 @@ type InputStickeredMedia interface {
 	tl.Object
 	ImplementsInputStickeredMedia()
 }
+
+// A document with stickers attached
 type InputStickeredMediaDocument struct {
-	ID InputDocument
+	ID InputDocument // The document
 }
 
 func (*InputStickeredMediaDocument) CRC() uint32 {
@@ -5040,8 +5064,9 @@ func (*InputStickeredMediaDocument) CRC() uint32 {
 
 func (*InputStickeredMediaDocument) ImplementsInputStickeredMedia() {}
 
+// A photo with stickers attached
 type InputStickeredMediaPhoto struct {
-	ID InputPhoto
+	ID InputPhoto // The photo
 }
 
 func (*InputStickeredMediaPhoto) CRC() uint32 {
@@ -12370,7 +12395,7 @@ type UpdateGroupCallChainBlocks struct {
 	Call       InputGroupCall // The conference call.
 	SubChainID int32          // Subchain ID.
 	Blocks     [][]byte       // Blocks.
-	NextOffset int32          // Offset of the next block.
+	NextOffset int32          // Height of the block located <em>after</em> the last block in `blocks`.
 }
 
 func (*UpdateGroupCallChainBlocks) CRC() uint32 {
