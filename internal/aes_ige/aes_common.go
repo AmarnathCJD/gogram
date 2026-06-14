@@ -6,38 +6,92 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"io"
 )
 
-var aesV1Magic = [4]byte{0xA3, 0x5C, 0x01, 0x00}
+var (
+	aesV1Magic = [4]byte{0xA3, 0x5C, 0x01, 0x00}
+	aesV2Magic = [4]byte{0xA3, 0x5C, 0x02, 0x00}
+)
+
+const hmacSize = sha256.Size
+
+func deriveKeys(key string) (encKey, macKey []byte) {
+	hEnc := sha256.Sum256(append([]byte("gogram-enc:"), key...))
+	hMac := sha256.Sum256(append([]byte("gogram-mac:"), key...))
+	return hEnc[:], hMac[:]
+}
 
 func EncryptAES(data []byte, key string) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(key))
+	encKey, macKey := deriveKeys(key)
+	block, err := aes.NewCipher(encKey)
 	if err != nil {
 		return nil, err
 	}
 	bs := block.BlockSize()
 
 	padded := pkcs5Padding(data, bs)
-	out := make([]byte, len(aesV1Magic)+bs+len(padded))
-	copy(out, aesV1Magic[:])
-	iv := out[len(aesV1Magic) : len(aesV1Magic)+bs]
+	body := make([]byte, bs+len(padded))
+	iv := body[:bs]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		return nil, err
 	}
+	cipher.NewCBCEncrypter(block, iv).CryptBlocks(body[bs:], padded)
 
-	cipher.NewCBCEncrypter(block, iv).CryptBlocks(out[len(aesV1Magic)+bs:], padded)
+	mac := hmac.New(sha256.New, macKey)
+	mac.Write(aesV2Magic[:])
+	mac.Write(body)
+	tag := mac.Sum(nil)
+
+	out := make([]byte, 0, len(aesV2Magic)+len(body)+len(tag))
+	out = append(out, aesV2Magic[:]...)
+	out = append(out, body...)
+	out = append(out, tag...)
 	return out, nil
 }
 
 func DecryptAES(data []byte, key string) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(key))
+	encKey, macKey := deriveKeys(key)
+	block, err := aes.NewCipher(encKey)
 	if err != nil {
 		return nil, err
 	}
 	bs := block.BlockSize()
+
+	if len(data) >= len(aesV2Magic) && bytes.Equal(data[:len(aesV2Magic)], aesV2Magic[:]) {
+		if len(data) < len(aesV2Magic)+bs+bs+hmacSize {
+			return nil, errors.New("decrypt: v2 ciphertext too short")
+		}
+		body := data[len(aesV2Magic) : len(data)-hmacSize]
+		tag := data[len(data)-hmacSize:]
+		if (len(body)-bs)%bs != 0 {
+			return nil, errors.New("decrypt: v2 body not aligned")
+		}
+		mac := hmac.New(sha256.New, macKey)
+		mac.Write(aesV2Magic[:])
+		mac.Write(body)
+		if !hmac.Equal(mac.Sum(nil), tag) {
+			return nil, errors.New("decrypt: v2 MAC mismatch (file corrupted or wrong key)")
+		}
+		iv := body[:bs]
+		ct := body[bs:]
+		pt := make([]byte, len(ct))
+		cipher.NewCBCDecrypter(block, iv).CryptBlocks(pt, ct)
+		unpadded, ok := pkcs5UnPadding(pt, bs)
+		if !ok {
+			return nil, errors.New("decrypt: invalid padding")
+		}
+		return unpadded, nil
+	}
+
+	legacyBlock, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return nil, err
+	}
 
 	if len(data) >= len(aesV1Magic)+bs && bytes.Equal(data[:len(aesV1Magic)], aesV1Magic[:]) {
 		body := data[len(aesV1Magic):]
@@ -47,7 +101,7 @@ func DecryptAES(data []byte, key string) ([]byte, error) {
 		iv := body[:bs]
 		ct := body[bs:]
 		pt := make([]byte, len(ct))
-		cipher.NewCBCDecrypter(block, iv).CryptBlocks(pt, ct)
+		cipher.NewCBCDecrypter(legacyBlock, iv).CryptBlocks(pt, ct)
 		unpadded, ok := pkcs5UnPadding(pt, bs)
 		if !ok {
 			return nil, errors.New("decrypt: invalid padding")
@@ -63,7 +117,7 @@ func DecryptAES(data []byte, key string) ([]byte, error) {
 		return nil, errors.New("decrypt: key too short for legacy IV")
 	}
 	pt := make([]byte, len(data))
-	cipher.NewCBCDecrypter(block, legacyIV[:bs]).CryptBlocks(pt, data)
+	cipher.NewCBCDecrypter(legacyBlock, legacyIV[:bs]).CryptBlocks(pt, data)
 	unpadded, ok := pkcs5UnPadding(pt, bs)
 	if !ok {
 		return nil, errors.New("decrypt: invalid padding")

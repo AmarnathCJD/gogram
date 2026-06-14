@@ -749,6 +749,23 @@ func (m *NewMessage) Edit(Text any, Opts ...*SendOptions) (*NewMessage, error) {
 	return &response, err
 }
 
+func (m *NewMessage) ReplyRich(msg *RichBuilder, Opts ...*SendOptions) (*NewMessage, error) {
+	if len(Opts) == 0 {
+		Opts = append(Opts, &SendOptions{ReplyID: m.ID})
+	} else {
+		Opts[0].ReplyID = m.ID
+	}
+	return m.Client.SendRich(m.ChannelID(), msg, Opts[0])
+}
+
+func (m *NewMessage) RespondRich(msg *RichBuilder, Opts ...*SendOptions) (*NewMessage, error) {
+	return m.Client.SendRich(m.ChannelID(), msg, Opts...)
+}
+
+func (m *NewMessage) EditRich(msg *RichBuilder, Opts ...*SendOptions) (*NewMessage, error) {
+	return m.Client.EditRich(m.ChannelID(), m.ID, msg, Opts...)
+}
+
 func (m *NewMessage) ReplyMedia(Media any, Opts ...*MediaOptions) (*NewMessage, error) {
 	if len(Opts) == 0 {
 		Opts = append(Opts, &MediaOptions{ReplyID: m.ID})

@@ -172,3 +172,9 @@ func (s *SyncIntInt64) Len() int {
 	s.mu.RUnlock()
 	return l
 }
+
+func (s *SyncIntInt64) Clear() {
+	s.mu.Lock()
+	s.m = make(map[int]int64)
+	s.mu.Unlock()
+}

@@ -135,6 +135,8 @@ func (m *MTProto) getRespChannel() chan tl.Object {
 func isNotContentRelated(t tl.Object) bool {
 	switch t.(type) {
 	case *objects.PingParams,
+		*objects.PingDelayDisconnectParams,
+		*utils.PingParams,
 		*objects.MsgsAck,
 		*objects.GzipPacked:
 		return true
@@ -145,7 +147,7 @@ func isNotContentRelated(t tl.Object) bool {
 
 func isNullableResponse(t tl.Object) bool {
 	switch t.(type) {
-	case *objects.Pong, *objects.MsgsAck:
+	case *objects.Pong, *objects.MsgsAck, *utils.PingParams, *objects.PingParams, *objects.PingDelayDisconnectParams:
 		return true
 	default:
 		return false

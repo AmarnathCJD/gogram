@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 
 	"errors"
@@ -123,6 +124,28 @@ func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMes
 	return c.sendMessage(senderPeer, textMessage, entities, sendAs, opt)
 }
 
+// ScheduleMessage sends a message to be delivered at the given time. Telegram
+// supports scheduled messages up to 365 days in the future; a zero or past time
+// is rejected.
+func (c *Client) ScheduleMessage(peerID, message any, at time.Time, opts ...*SendOptions) (*NewMessage, error) {
+	if at.IsZero() || !at.After(time.Now()) {
+		return nil, errors.New("time must be in the future")
+	}
+	opt := getVariadic(opts, &SendOptions{})
+	opt.ScheduleDate = int32(at.Unix())
+	return c.SendMessage(peerID, message, opt)
+}
+
+// ScheduleMedia is the media equivalent of ScheduleMessage.
+func (c *Client) ScheduleMedia(peerID, media any, at time.Time, opts ...*MediaOptions) (*NewMessage, error) {
+	if at.IsZero() || !at.After(time.Now()) {
+		return nil, errors.New("time must be in the future")
+	}
+	opt := getVariadic(opts, &MediaOptions{})
+	opt.ScheduleDate = int32(at.Unix())
+	return c.SendMedia(peerID, media, opt)
+}
+
 // StreamMessage simulates a streaming message by continuously updating the user's draft status
 // only works for bots with topic forums enabled in private chats
 func (c *Client) StreamMessage(peerID any, streamer func(update func(message string)), opts ...*SendOptions) (*NewMessage, error) {
@@ -185,6 +208,200 @@ func (c *Client) StreamMessage(peerID any, streamer func(update func(message str
 	streamer(updater)
 
 	return c.SendMessage(peerID, currentText, opts...)
+}
+
+func (c *Client) SendRich(peerID any, msg *RichBuilder, opts ...*SendOptions) (*NewMessage, error) {
+	if msg == nil {
+		return nil, fmt.Errorf("rich message is nil")
+	}
+	opt := getVariadic(opts, &SendOptions{})
+	peer, err := c.GetSendablePeer(peerID)
+	if err != nil {
+		return nil, fmt.Errorf("resolve peer: %w", err)
+	}
+	if err := msg.resolve(c); err != nil {
+		return nil, err
+	}
+
+	var replyTo *InputReplyToMessage
+	if opt.ReplyTo != nil {
+		replyTo = opt.ReplyTo
+	} else if opt.ReplyID != 0 || opt.TopicID != 0 {
+		replyTo = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
+		if opt.TopicID != 0 && opt.TopicID != 1 && opt.TopicID != opt.ReplyID {
+			replyTo.TopMsgID = opt.TopicID
+		}
+	}
+
+	var sendAs InputPeer
+	if opt.SendAs != nil {
+		sendAs, err = c.GetSendablePeer(opt.SendAs)
+		if err != nil {
+			return nil, fmt.Errorf("resolve send_as: %w", err)
+		}
+	}
+
+	params := &MessagesSendMessageParams{
+		NoWebpage:              !opt.LinkPreview,
+		Silent:                 opt.Silent,
+		ClearDraft:             opt.ClearDraft,
+		Noforwards:             opt.NoForwards,
+		InvertMedia:            opt.InvertMedia,
+		UpdateStickersetsOrder: opt.UpdateStickerOrder,
+		Peer:                   peer,
+		Message:                "",
+		RandomID:               GenRandInt(),
+		ReplyMarkup:            opt.ReplyMarkup,
+		ScheduleDate:           opt.ScheduleDate,
+		ScheduleRepeatPeriod:   opt.ScheduleRepeatPeriod,
+		SendAs:                 sendAs,
+		Effect:                 opt.Effect,
+		AllowPaidStars:         opt.AllowPaidStars,
+		AllowPaidFloodskip:     opt.PaidFloodSkip,
+		RichMessage:            msg.build(),
+	}
+	if replyTo != nil {
+		params.ReplyTo = replyTo
+	}
+	if opt.SuggestedPost != nil {
+		params.SuggestedPost = opt.SuggestedPost
+	}
+	if opt.QuickReplyShortcut != nil {
+		params.QuickReplyShortcut = *opt.QuickReplyShortcut
+	}
+
+	resp, err := c.MessagesSendMessage(params)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("no response from server")
+	}
+	processed := c.processUpdate(resp)
+	processed.PeerID = c.getPeer(peer)
+	return packMessage(c, processed), nil
+}
+
+func (c *Client) EditRich(peerID any, messageID int32, msg *RichBuilder, opts ...*SendOptions) (*NewMessage, error) {
+	if msg == nil {
+		return nil, fmt.Errorf("rich message is nil")
+	}
+	opt := getVariadic(opts, &SendOptions{})
+	peer, err := c.GetSendablePeer(peerID)
+	if err != nil {
+		return nil, fmt.Errorf("resolve peer: %w", err)
+	}
+	if err := msg.resolve(c); err != nil {
+		return nil, err
+	}
+
+	params := &MessagesEditMessageParams{
+		NoWebpage:            !opt.LinkPreview,
+		InvertMedia:          opt.InvertMedia,
+		Peer:                 peer,
+		ID:                   messageID,
+		ReplyMarkup:          opt.ReplyMarkup,
+		ScheduleDate:         opt.ScheduleDate,
+		ScheduleRepeatPeriod: opt.ScheduleRepeatPeriod,
+		RichMessage:          msg.build(),
+	}
+	resp, err := c.MessagesEditMessage(params)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("no response from server")
+	}
+	processed := c.processUpdate(resp)
+	processed.PeerID = c.getPeer(peer)
+	return packMessage(c, processed), nil
+}
+
+type RichDraft struct {
+	c        *Client
+	peer     any
+	opt      *SendOptions
+	sent     *NewMessage
+	last     time.Time
+	delay    time.Duration
+	mu       sync.Mutex
+	finalErr error
+}
+
+func (c *Client) NewRichDraft(peerID any, opts ...*SendOptions) *RichDraft {
+	opt := getVariadic(opts, &SendOptions{})
+	delay := 1 * time.Second
+	if opt.Timeouts > 0 {
+		delay = time.Duration(opt.Timeouts) * time.Millisecond
+	}
+	return &RichDraft{c: c, peer: peerID, opt: opt, delay: delay}
+}
+
+func (d *RichDraft) Update(msg *RichBuilder) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if msg == nil {
+		return fmt.Errorf("rich message is nil")
+	}
+	if d.sent == nil {
+		sent, err := d.c.SendRich(d.peer, msg, d.opt)
+		if err != nil {
+			d.finalErr = err
+			return err
+		}
+		d.sent = sent
+		d.last = time.Now()
+		return nil
+	}
+	if time.Since(d.last) < d.delay {
+		return nil
+	}
+	edited, err := d.c.EditRich(d.peer, d.sent.ID, msg, d.opt)
+	if err != nil {
+		d.finalErr = err
+		return err
+	}
+	if edited != nil {
+		d.sent = edited
+	}
+	d.last = time.Now()
+	return nil
+}
+
+func (d *RichDraft) Finalize(msg *RichBuilder) (*NewMessage, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if msg == nil {
+		return d.sent, d.finalErr
+	}
+	if d.sent == nil {
+		sent, err := d.c.SendRich(d.peer, msg, d.opt)
+		if err != nil {
+			return nil, err
+		}
+		d.sent = sent
+		return sent, nil
+	}
+	edited, err := d.c.EditRich(d.peer, d.sent.ID, msg, d.opt)
+	if err != nil {
+		return d.sent, err
+	}
+	if edited != nil {
+		d.sent = edited
+	}
+	return d.sent, nil
+}
+
+func (d *RichDraft) Message() *NewMessage {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.sent
+}
+
+func (c *Client) StreamRich(peerID any, streamer func(update func(*RichBuilder) error), opts ...*SendOptions) (*NewMessage, error) {
+	draft := c.NewRichDraft(peerID, opts...)
+	streamer(draft.Update)
+	return draft.Finalize(nil)
 }
 
 func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageEntity, sendAs InputPeer, opt *SendOptions) (*NewMessage, error) {

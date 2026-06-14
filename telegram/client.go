@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"regexp"
@@ -46,10 +45,23 @@ type clientData struct {
 	sleepThresholdMs int
 	albumWaitTime    int64
 	botAcc           bool
+	meMu             sync.RWMutex
 	me               *UserObj
 	commandPrefixes  string
 	proxy            Proxy
 	disableGapFetch  bool
+}
+
+func (c *Client) getMe() *UserObj {
+	c.clientData.meMu.RLock()
+	defer c.clientData.meMu.RUnlock()
+	return c.clientData.me
+}
+
+func (c *Client) setMe(u *UserObj) {
+	c.clientData.meMu.Lock()
+	c.clientData.me = u
+	c.clientData.meMu.Unlock()
 }
 
 // Client is the main struct of the library
@@ -232,7 +244,7 @@ func (c *Client) clientWarnings(config ClientConfig) error {
 	}
 	if !doesSessionFileExist(config.Session) && config.StringSession == "" && (c.AppID() == 0 || c.AppHash() == "") {
 		if c.AppID() == 0 {
-			log.Print("app id is empty, fetch from api.telegram.org? (y/n): ")
+			fmt.Print("app id is empty, fetch from api.telegram.org? (y/n): ")
 			if !utils.AskForConfirmation() {
 				return errors.New("your app id is empty, please provide it")
 			} else {
@@ -459,15 +471,15 @@ func (c *Client) SetAppHash(appHash string) {
 }
 
 func (c *Client) Me() *UserObj {
-	if c.clientData.me == nil {
-		me, err := c.GetMe()
-		if err != nil {
-			return &UserObj{}
-		}
-		c.clientData.me = me
+	if cached := c.getMe(); cached != nil {
+		return cached
 	}
-
-	return c.clientData.me
+	me, err := c.GetMe()
+	if err != nil {
+		return &UserObj{}
+	}
+	c.setMe(me)
+	return me
 }
 
 type ExSenders struct {
@@ -854,6 +866,7 @@ func (c *Client) Terminate() error {
 func (c *Client) Idle() {
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigchan)
 
 	select {
 	case <-sigchan:
@@ -923,9 +936,10 @@ func (c *Client) CheckErr(_ any, err error) error {
 	return err
 }
 
+var rpcErrorRegex = regexp.MustCompile(`\[(.*)\] (.*) \(code (\d+)\)`)
+
 func (c *Client) ToRpcError(err error) *RpcError {
-	regex := regexp.MustCompile(`\[(.*)\] (.*) \(code (\d+)\)`)
-	matches := regex.FindStringSubmatch(err.Error())
+	matches := rpcErrorRegex.FindStringSubmatch(err.Error())
 	if len(matches) != 4 {
 		return nil
 	}
