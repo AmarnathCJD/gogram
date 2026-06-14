@@ -698,7 +698,7 @@ func (m *NewMessage) Reply(Text any, Opts ...*SendOptions) (*NewMessage, error) 
 		Opts[0].ReplyID = m.ID
 	}
 	resp, err := m.Client.SendMessage(m.ChannelID(), Text, Opts[0])
-	if resp == nil {
+	if resp == nil || resp.Message == nil {
 		return nil, err
 	}
 	response := *resp
@@ -720,7 +720,7 @@ func (m *NewMessage) Respond(Text any, Opts ...*SendOptions) (*NewMessage, error
 		Opts = append(Opts, &SendOptions{})
 	}
 	resp, err := m.Client.SendMessage(m.ChannelID(), Text, Opts[0])
-	if resp == nil {
+	if resp == nil || resp.Message == nil {
 		return nil, err
 	}
 	response := *resp
@@ -741,7 +741,7 @@ func (m *NewMessage) Edit(Text any, Opts ...*SendOptions) (*NewMessage, error) {
 		Opts = append(Opts, &SendOptions{})
 	}
 	resp, err := m.Client.EditMessage(m.ChannelID(), m.ID, Text, Opts[0])
-	if resp == nil {
+	if resp == nil || resp.Message == nil {
 		return nil, err
 	}
 	response := *resp
