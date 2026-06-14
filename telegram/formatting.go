@@ -1007,6 +1007,8 @@ func (r *RichBuilder) resolve(c *Client) error {
 	return nil
 }
 
+func (r *RichBuilder) Build() InputRichMessage { return r.build() }
+
 func (r *RichBuilder) build() InputRichMessage {
 	switch r.mode {
 	case "html":

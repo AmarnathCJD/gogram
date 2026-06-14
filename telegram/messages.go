@@ -249,7 +249,6 @@ func (c *Client) SendRich(peerID any, msg *RichBuilder, opts ...*SendOptions) (*
 		InvertMedia:            opt.InvertMedia,
 		UpdateStickersetsOrder: opt.UpdateStickerOrder,
 		Peer:                   peer,
-		ReplyTo:                replyTo,
 		Message:                "",
 		RandomID:               GenRandInt(),
 		ReplyMarkup:            opt.ReplyMarkup,
@@ -257,10 +256,15 @@ func (c *Client) SendRich(peerID any, msg *RichBuilder, opts ...*SendOptions) (*
 		ScheduleRepeatPeriod:   opt.ScheduleRepeatPeriod,
 		SendAs:                 sendAs,
 		Effect:                 opt.Effect,
-		SuggestedPost:          opt.SuggestedPost,
 		AllowPaidStars:         opt.AllowPaidStars,
 		AllowPaidFloodskip:     opt.PaidFloodSkip,
 		RichMessage:            msg.build(),
+	}
+	if replyTo != nil {
+		params.ReplyTo = replyTo
+	}
+	if opt.SuggestedPost != nil {
+		params.SuggestedPost = opt.SuggestedPost
 	}
 	if opt.QuickReplyShortcut != nil {
 		params.QuickReplyShortcut = *opt.QuickReplyShortcut
