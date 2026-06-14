@@ -5,19 +5,20 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"errors"
 )
 
 type InlineSendOptions struct {
-	Gallery      bool   // Display results as a gallery grid
-	NextOffset   string // Offset for pagination in inline results
-	CacheTime    int32  // Cache duration in seconds (default: 60)
-	Private      bool   // Results visible only to the requesting user
-	SwitchPm     string // Text for the "Switch to PM" above inline results
-	SwitchPmText string // Deep link parameter for start= in Switch to PM
-	SwitchWebView     string // Text for "Switch to WebView" button (for game bots)
+	Gallery          bool   // Display results as a gallery grid
+	NextOffset       string // Offset for pagination in inline results
+	CacheTime        int32  // Cache duration in seconds (default: 60)
+	Private          bool   // Results visible only to the requesting user
+	SwitchPm         string // Text for the "Switch to PM" above inline results
+	SwitchPmText     string // Deep link parameter for start= in Switch to PM
+	SwitchWebView    string // Text for "Switch to WebView" button (for game bots)
 	SwitchWebViewURL string // URL for "Switch to WebView" button (for game bots)
 }
 
@@ -367,4 +368,181 @@ func (c *Client) GetMyGifts(unique ...bool) ([]*StarGift, error) {
 	}
 
 	return uniqueGifts, nil
+}
+
+type StickerKind int
+
+const (
+	StickerRegular StickerKind = iota
+	StickerMask
+	StickerEmoji
+)
+
+type StickerInput struct {
+	Document InputDocument
+	Emoji    string
+	Keywords string
+	Mask     *MaskCoords
+}
+
+type CreateStickerSetOptions struct {
+	Kind      StickerKind
+	TextColor bool
+	Software  string
+	Thumb     InputDocument
+}
+
+func (c *Client) nzStickerShortName(shortName string) (string, error) {
+	if !c.clientData.botAcc {
+		return shortName, nil
+	}
+	me := c.Me()
+	if me == nil || me.Username == "" {
+		return "", errors.New("bot has no username; cannot derive sticker pack suffix")
+	}
+	suffix := "_by_" + me.Username
+	if strings.HasSuffix(strings.ToLower(shortName), strings.ToLower(suffix)) {
+		return shortName, nil
+	}
+	return shortName + suffix, nil
+}
+
+func (c *Client) CreateStickerSet(owner any, title, shortName string, stickers []StickerInput, opts ...*CreateStickerSetOptions) (MessagesStickerSet, error) {
+	if title == "" || shortName == "" {
+		return nil, errors.New("title and shortName are required")
+	}
+	if len(stickers) == 0 {
+		return nil, errors.New("at least one sticker required")
+	}
+	finalShortName, err := c.nzStickerShortName(shortName)
+	if err != nil {
+		return nil, err
+	}
+	opt := getVariadic(opts, &CreateStickerSetOptions{})
+	peer, err := c.ResolvePeer(owner)
+	if err != nil {
+		return nil, fmt.Errorf("resolve owner: %w", err)
+	}
+	user := toInputUser(peer)
+
+	items := make([]*InputStickerSetItem, len(stickers))
+	for i, s := range stickers {
+		if s.Document == nil {
+			return nil, fmt.Errorf("sticker %d missing Document", i)
+		}
+		if s.Emoji == "" {
+			return nil, fmt.Errorf("sticker %d missing Emoji", i)
+		}
+		items[i] = &InputStickerSetItem{
+			Document:   s.Document,
+			Emoji:      s.Emoji,
+			Keywords:   s.Keywords,
+			MaskCoords: s.Mask,
+		}
+	}
+
+	params := &StickersCreateStickerSetParams{
+		UserID:    user,
+		Title:     title,
+		ShortName: finalShortName,
+		Stickers:  items,
+		Software:  opt.Software,
+		Thumb:     opt.Thumb,
+		TextColor: opt.TextColor,
+	}
+	switch opt.Kind {
+	case StickerMask:
+		params.Masks = true
+	case StickerEmoji:
+		params.Emojis = true
+	}
+	return c.StickersCreateStickerSet(params)
+}
+
+func (c *Client) AddSticker(set InputStickerSet, sticker StickerInput) (MessagesStickerSet, error) {
+	if set == nil {
+		return nil, errors.New("set is nil")
+	}
+	if sticker.Document == nil || sticker.Emoji == "" {
+		return nil, errors.New("Document and Emoji required")
+	}
+	return c.StickersAddStickerToSet(set, &InputStickerSetItem{
+		Document:   sticker.Document,
+		Emoji:      sticker.Emoji,
+		Keywords:   sticker.Keywords,
+		MaskCoords: sticker.Mask,
+	})
+}
+
+func (c *Client) RemoveSticker(sticker InputDocument) (MessagesStickerSet, error) {
+	if sticker == nil {
+		return nil, errors.New("sticker is nil")
+	}
+	return c.StickersRemoveStickerFromSet(sticker)
+}
+
+func (c *Client) MoveSticker(sticker InputDocument, position int32) (MessagesStickerSet, error) {
+	if sticker == nil {
+		return nil, errors.New("sticker is nil")
+	}
+	return c.StickersChangeStickerPosition(sticker, position)
+}
+
+func (c *Client) ReplaceSticker(sticker InputDocument, newSticker StickerInput) (MessagesStickerSet, error) {
+	if sticker == nil || newSticker.Document == nil {
+		return nil, errors.New("both stickers required")
+	}
+	return c.StickersReplaceSticker(sticker, &InputStickerSetItem{
+		Document:   newSticker.Document,
+		Emoji:      newSticker.Emoji,
+		Keywords:   newSticker.Keywords,
+		MaskCoords: newSticker.Mask,
+	})
+}
+
+func (c *Client) EditSticker(sticker InputDocument, emoji string, keywords string, mask *MaskCoords) (MessagesStickerSet, error) {
+	if sticker == nil {
+		return nil, errors.New("sticker is nil")
+	}
+	return c.StickersChangeSticker(sticker, emoji, mask, keywords)
+}
+
+func (c *Client) RenameStickerSet(set InputStickerSet, title string) (MessagesStickerSet, error) {
+	if set == nil || title == "" {
+		return nil, errors.New("set and title required")
+	}
+	return c.StickersRenameStickerSet(set, title)
+}
+
+func (c *Client) DeleteStickerSet(set InputStickerSet) error {
+	if set == nil {
+		return errors.New("set is nil")
+	}
+	_, err := c.StickersDeleteStickerSet(set)
+	return err
+}
+
+func (c *Client) SetStickerSetThumb(set InputStickerSet, thumb InputDocument) (MessagesStickerSet, error) {
+	if set == nil {
+		return nil, errors.New("set is nil")
+	}
+	return c.StickersSetStickerSetThumb(set, thumb, 0)
+}
+
+func (c *Client) CheckStickerShortName(shortName string) (bool, error) {
+	if shortName == "" {
+		return false, errors.New("shortName is required")
+	}
+	return c.StickersCheckShortName(shortName)
+}
+
+func (c *Client) SuggestStickerShortName(title string) (string, error) {
+	if title == "" {
+		return "", errors.New("title is required")
+	}
+	resp, err := c.StickersSuggestShortName(title)
+	if err != nil {
+		return "", err
+	}
+	return resp.ShortName, nil
 }

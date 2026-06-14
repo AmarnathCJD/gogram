@@ -325,7 +325,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 				return &PseudoNil{}
 			}
 
-			if _typ, ok := objectByCrc[crc]; ok {
+			if _typ, ok := lookupObjectType(crc); ok {
 				_v := reflect.MakeSlice(reflect.SliceOf(_typ), 0, 0)
 				for _, o := range res {
 					_v = reflect.Append(_v, reflect.ValueOf(o).Convert(_typ))
@@ -348,7 +348,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 		return &PseudoNil{}
 	}
 
-	_typ, ok := objectByCrc[crc]
+	_typ, ok := lookupObjectType(crc)
 
 	if !ok {
 		msg, err := d.DumpWithoutRead()
@@ -375,7 +375,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 		return o
 	}
 
-	if _, isEnum := enumCrcs[crc]; !isEnum {
+	if !isEnumCRC(crc) {
 		d.decodeObject(o, true)
 		if d.err != nil {
 			d.err = fmt.Errorf("decode registered object %T: %w", o, d.err)

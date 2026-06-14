@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"io"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/mtproto/messages"
@@ -354,28 +355,25 @@ func (t *GzipPacked) UnmarshalTL(d *tl.Decoder) error {
 	return nil
 }
 
+const maxGzipDecompressedSize = 32 * 1024 * 1024
+
 func (*GzipPacked) popMessageAsBytes(d *tl.Decoder) ([]byte, error) {
-	// This current implementation appears to work.
-
-	decompressed := make([]byte, 0, 4096)
-
 	var buf bytes.Buffer
 	_, _ = buf.Write(d.PopMessage())
 	gz, err := gzip.NewReader(&buf)
 	if err != nil {
 		return nil, fmt.Errorf("creating gzip reader: %w", err)
 	}
+	defer gz.Close()
 
-	b := make([]byte, 4096)
-	for {
-		n, _ := gz.Read(b)
-
-		decompressed = append(decompressed, b[0:n]...)
-		if n <= 0 {
-			break
-		}
+	limited := io.LimitReader(gz, maxGzipDecompressedSize+1)
+	decompressed, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, fmt.Errorf("reading gzip payload: %w", err)
 	}
-
+	if len(decompressed) > maxGzipDecompressedSize {
+		return nil, fmt.Errorf("gzip payload exceeds %d bytes (possible decompression bomb)", maxGzipDecompressedSize)
+	}
 	return decompressed, nil
 }
 

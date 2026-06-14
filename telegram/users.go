@@ -19,7 +19,7 @@ func (c *Client) GetMe() (*UserObj, error) {
 	if !ok {
 		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
 	}
-	c.clientData.me = user
+	c.setMe(user)
 	if c.Cache != nil {
 		if err := c.Cache.BindToUser(user.ID); err != nil {
 			c.Log.WithError(err).Warn("failed to bind cache to user")
@@ -544,4 +544,241 @@ func (c *Client) SetProfileAudio(audio any, unset ...bool) (bool, error) {
 	default:
 		return false, errors.New("could not convert audio: " + reflect.TypeOf(fi).String())
 	}
+}
+
+type SetAwayMessageOptions struct {
+	ShortcutID  int32
+	OfflineOnly bool
+	Schedule    BusinessAwayMessageSchedule
+	Recipients  *InputBusinessRecipients
+}
+
+func (c *Client) SetAwayMessage(opts SetAwayMessageOptions) error {
+	if opts.ShortcutID == 0 {
+		return errors.New("ShortcutID is required")
+	}
+	schedule := opts.Schedule
+	if schedule == nil {
+		schedule = &BusinessAwayMessageScheduleAlways{}
+	}
+	_, err := c.AccountUpdateBusinessAwayMessage(&InputBusinessAwayMessage{
+		OfflineOnly: opts.OfflineOnly,
+		ShortcutID:  opts.ShortcutID,
+		Schedule:    schedule,
+		Recipients:  opts.Recipients,
+	})
+	return err
+}
+
+func (c *Client) ClearAwayMessage() error {
+	_, err := c.AccountUpdateBusinessAwayMessage(nil)
+	return err
+}
+
+type SetGreetingOptions struct {
+	ShortcutID     int32
+	NoActivityDays int32
+	Recipients     *InputBusinessRecipients
+}
+
+func (c *Client) SetGreetingMessage(opts SetGreetingOptions) error {
+	if opts.ShortcutID == 0 {
+		return errors.New("ShortcutID is required")
+	}
+	if opts.NoActivityDays <= 0 {
+		opts.NoActivityDays = 7
+	}
+	_, err := c.AccountUpdateBusinessGreetingMessage(&InputBusinessGreetingMessage{
+		ShortcutID:     opts.ShortcutID,
+		NoActivityDays: opts.NoActivityDays,
+		Recipients:     opts.Recipients,
+	})
+	return err
+}
+
+func (c *Client) ClearGreetingMessage() error {
+	_, err := c.AccountUpdateBusinessGreetingMessage(nil)
+	return err
+}
+
+type BusinessIntroSpec struct {
+	Title       string
+	Description string
+	Sticker     InputDocument
+}
+
+func (c *Client) SetBusinessIntro(intro *BusinessIntroSpec) error {
+	if intro == nil {
+		_, err := c.AccountUpdateBusinessIntro(nil)
+		return err
+	}
+	_, err := c.AccountUpdateBusinessIntro(&InputBusinessIntro{
+		Title:       intro.Title,
+		Description: intro.Description,
+		Sticker:     intro.Sticker,
+	})
+	return err
+}
+
+func (c *Client) SetBusinessLocation(address string, geo InputGeoPoint) error {
+	if address == "" {
+		return errors.New("address is required")
+	}
+	_, err := c.AccountUpdateBusinessLocation(geo, address)
+	return err
+}
+
+func (c *Client) ClearBusinessLocation() error {
+	_, err := c.AccountUpdateBusinessLocation(nil, "")
+	return err
+}
+
+type BusinessHourWindow struct {
+	Day        time.Weekday
+	OpenHour   int
+	OpenMinute int
+	CloseHour  int
+	CloseMin   int
+}
+
+func (c *Client) SetBusinessHours(timezone string, windows []BusinessHourWindow) error {
+	if timezone == "" {
+		return errors.New("timezone is required")
+	}
+	hours := &BusinessWorkHours{
+		TimezoneID: timezone,
+	}
+	for _, w := range windows {
+		startMinute := (int32(w.Day) * 24 * 60) + int32(w.OpenHour*60+w.OpenMinute)
+		endMinute := (int32(w.Day) * 24 * 60) + int32(w.CloseHour*60+w.CloseMin)
+		if endMinute <= startMinute {
+			return fmt.Errorf("window for %s has end <= start", w.Day)
+		}
+		hours.WeeklyOpen = append(hours.WeeklyOpen, &BusinessWeeklyOpen{
+			StartMinute: startMinute,
+			EndMinute:   endMinute,
+		})
+	}
+	_, err := c.AccountUpdateBusinessWorkHours(hours)
+	return err
+}
+
+func (c *Client) ClearBusinessHours() error {
+	_, err := c.AccountUpdateBusinessWorkHours(nil)
+	return err
+}
+
+type BusinessChatLinkSpec struct {
+	Message  string
+	Title    string
+	Entities []MessageEntity
+}
+
+func (c *Client) CreateBusinessChatLink(spec BusinessChatLinkSpec) (*BusinessChatLink, error) {
+	if spec.Message == "" {
+		return nil, errors.New("message is required")
+	}
+	return c.AccountCreateBusinessChatLink(&InputBusinessChatLink{
+		Message:  spec.Message,
+		Title:    spec.Title,
+		Entities: spec.Entities,
+	})
+}
+
+func (c *Client) EditBusinessChatLink(slug string, spec BusinessChatLinkSpec) (*BusinessChatLink, error) {
+	if slug == "" {
+		return nil, errors.New("slug is required")
+	}
+	return c.AccountEditBusinessChatLink(slug, &InputBusinessChatLink{
+		Message:  spec.Message,
+		Title:    spec.Title,
+		Entities: spec.Entities,
+	})
+}
+
+func (c *Client) DeleteBusinessChatLink(slug string) error {
+	if slug == "" {
+		return errors.New("slug is required")
+	}
+	_, err := c.AccountDeleteBusinessChatLink(slug)
+	return err
+}
+
+func (c *Client) ListBusinessChatLinks() ([]*BusinessChatLink, error) {
+	resp, err := c.AccountGetBusinessChatLinks()
+	if err != nil {
+		return nil, err
+	}
+	return resp.Links, nil
+}
+
+type ConnectedBotRights struct {
+	ReplyToMessages         bool
+	DeleteSentMessages      bool
+	DeleteReceivedMessages  bool
+	EditName                bool
+	EditBio                 bool
+	EditProfilePhoto        bool
+	EditUsername            bool
+	ViewGifts               bool
+	SellGifts               bool
+	ChangeGiftSettings      bool
+	TransferAndUpgradeGifts bool
+	TransferStars           bool
+	ManageStories           bool
+}
+
+type ConnectBotOptions struct {
+	Bot        any
+	Rights     ConnectedBotRights
+	Recipients *InputBusinessRecipients
+}
+
+func (c *Client) ConnectBusinessBot(opts ConnectBotOptions) error {
+	if opts.Bot == nil {
+		return errors.New("Bot is required")
+	}
+	botPeer, err := c.ResolvePeer(opts.Bot)
+	if err != nil {
+		return fmt.Errorf("resolve bot: %w", err)
+	}
+	if opts.Recipients == nil {
+		return errors.New("recipients is required")
+	}
+
+	botRec := &InputBusinessBotRecipients{
+		ExistingChats:   opts.Recipients.ExistingChats,
+		NewChats:        opts.Recipients.NewChats,
+		Contacts:        opts.Recipients.Contacts,
+		NonContacts:     opts.Recipients.NonContacts,
+		ExcludeSelected: opts.Recipients.ExcludeSelected,
+		Users:           opts.Recipients.Users,
+	}
+	r := opts.Rights
+	rights := &BusinessBotRights{
+		Reply:                   r.ReplyToMessages,
+		DeleteSentMessages:      r.DeleteSentMessages,
+		DeleteReceivedMessages:  r.DeleteReceivedMessages,
+		EditName:                r.EditName,
+		EditBio:                 r.EditBio,
+		EditProfilePhoto:        r.EditProfilePhoto,
+		EditUsername:            r.EditUsername,
+		ViewGifts:               r.ViewGifts,
+		SellGifts:               r.SellGifts,
+		ChangeGiftSettings:      r.ChangeGiftSettings,
+		TransferAndUpgradeGifts: r.TransferAndUpgradeGifts,
+		TransferStars:           r.TransferStars,
+		ManageStories:           r.ManageStories,
+	}
+	_, err = c.AccountUpdateConnectedBot(false, rights, toInputUser(botPeer), botRec)
+	return err
+}
+
+func (c *Client) DisconnectBusinessBot(bot any) error {
+	botPeer, err := c.ResolvePeer(bot)
+	if err != nil {
+		return err
+	}
+	_, err = c.AccountUpdateConnectedBot(true, &BusinessBotRights{}, toInputUser(botPeer), &InputBusinessBotRecipients{})
+	return err
 }

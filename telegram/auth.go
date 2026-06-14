@@ -371,7 +371,7 @@ func CodeAuthAttempt(c *Client, phoneNumber string, opts *LoginOptions, maxRetri
 			return c.handlePasswordAuth(opts, maxRetries)
 		}
 
-		if MatchError(err, "PHONE_NUMBER_UNOCCUPIED") || MatchError(err, "The code is valid but no user with the given number") {
+		if MatchError(err, "PHONE_NUMBER_UNOCCUPIED") {
 			return nil, errors.New("account registration required via official Telegram app")
 		}
 

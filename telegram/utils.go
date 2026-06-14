@@ -33,7 +33,27 @@ type mimeTypeManager struct {
 	audioExts       map[string]bool   // audio file extensions
 	imageExts       map[string]bool   // image file extensions
 
-	mimeMatchCache sync.Map // URL -> mime (cache for remote HEAD/GET lookups)
+	mimeMatchCache   sync.Map // URL -> mime (cache for remote HEAD/GET lookups)
+	mimeMatchCacheMu sync.Mutex
+	mimeMatchCount   int
+}
+
+const maxMimeMatchCacheEntries = 1024
+
+func (m *mimeTypeManager) storeMimeMatch(url, mime string) {
+	if _, loaded := m.mimeMatchCache.LoadOrStore(url, mime); loaded {
+		return
+	}
+	m.mimeMatchCacheMu.Lock()
+	m.mimeMatchCount++
+	if m.mimeMatchCount > maxMimeMatchCacheEntries {
+		m.mimeMatchCache.Range(func(k, _ any) bool {
+			m.mimeMatchCache.Delete(k)
+			return false
+		})
+		m.mimeMatchCount = 1
+	}
+	m.mimeMatchCacheMu.Unlock()
 }
 
 func (m *mimeTypeManager) addMime(ext, mime string) {
@@ -57,7 +77,7 @@ func (m *mimeTypeManager) match(filePath string) string {
 		}
 
 		mime := remoteMimeLookup(filePath)
-		m.mimeMatchCache.Store(filePath, mime)
+		m.storeMimeMatch(filePath, mime)
 		return mime
 	}
 

@@ -18,6 +18,10 @@ import (
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
+// defaultAESKey is used when no AuthAESKey is supplied. The session file
+// stays obfuscated, not encrypted, when this key is used — anyone with
+// the file can decrypt it. Set Config.AuthAESKey to a random 16+ char
+// secret for real protection.
 const defaultAESKey = "1234567890123456"
 
 type genericFileSessionLoader struct {

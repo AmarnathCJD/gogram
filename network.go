@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"time"
 
 	"errors"
 
@@ -44,20 +45,6 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 		m.responseChannels.Add(int(msgID), resp)
 	}
 
-	var data messages.Common
-	if m.encrypted.Load() {
-		data = &messages.Encrypted{
-			Msg:         msg,
-			MsgID:       msgID,
-			AuthKeyHash: m.authKeyHash,
-		}
-	} else {
-		data = &messages.Unencrypted{
-			Msg:   msg,
-			MsgID: msgID,
-		}
-	}
-
 	var seqNo int32
 	if isNotContentRelated(request) {
 		seqNo = m.GetSeqNo()
@@ -69,6 +56,20 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 		err := m.CreateConnection(false)
 		if err != nil || m.transport == nil {
 			return nil, 0, errors.New("failed to establish connection, transport is nil")
+		}
+	}
+
+	var data messages.Common
+	if m.encrypted.Load() {
+		data = &messages.Encrypted{
+			Msg:         msg,
+			MsgID:       msgID,
+			AuthKeyHash: m.authKeyHash,
+		}
+	} else {
+		data = &messages.Unencrypted{
+			Msg:   msg,
+			MsgID: msgID,
 		}
 	}
 
@@ -119,22 +120,32 @@ func safeSend(ch chan tl.Object, obj tl.Object) (err error) {
 
 	select {
 	case ch <- obj:
-		return nil // Successfully sent
+		return nil
 	default:
-		return fmt.Errorf("channel is full or closed")
+	}
+
+	select {
+	case ch <- obj:
+		return nil
+	case <-time.After(safeSendTimeout):
+		return fmt.Errorf("channel send timed out after %s", safeSendTimeout)
 	}
 }
+
+const safeSendTimeout = 2 * time.Second
 
 func (m *MTProto) getRespChannel() chan tl.Object {
 	if m.serviceModeActivated {
 		return m.serviceChannel
 	}
-	return make(chan tl.Object)
+	return make(chan tl.Object, 1)
 }
 
 func isNotContentRelated(t tl.Object) bool {
 	switch t.(type) {
 	case *objects.PingParams,
+		*objects.PingDelayDisconnectParams,
+		*utils.PingParams,
 		*objects.MsgsAck,
 		*objects.GzipPacked:
 		return true
@@ -145,7 +156,7 @@ func isNotContentRelated(t tl.Object) bool {
 
 func isNullableResponse(t tl.Object) bool {
 	switch t.(type) {
-	case *objects.Pong, *objects.MsgsAck:
+	case *objects.Pong, *objects.MsgsAck, *utils.PingParams, *objects.PingParams, *objects.PingDelayDisconnectParams:
 		return true
 	default:
 		return false
@@ -182,8 +193,8 @@ func (m *MTProto) SetAuthKey(key []byte) {
 }
 
 func (m *MTProto) MakeRequest(msg tl.Object) (any, error) {
-	if m.connConfig.Timeout > 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), m.connConfig.Timeout)
+	if m.reqTimeout > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
 		defer cancel()
 		return m.makeRequestCtx(ctx, msg)
 	}

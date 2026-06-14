@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"maps"
+	"sort"
 
 	"fmt"
 	"os"
@@ -1144,18 +1145,11 @@ func trimSuffixHundred(id int64) int64 {
 	if id >= 0 {
 		return id
 	}
-
-	s := strconv.FormatInt(id, 10)
-	s = strings.TrimPrefix(s, "-")
-	s = strings.TrimPrefix(s, "100")
-
-	if v, err := strconv.ParseInt(s, 10, 64); err == nil {
-		return v
+	const channelOffset int64 = -1000000000000
+	if id < channelOffset {
+		return channelOffset - id
 	}
-	if id < 0 {
-		return -id
-	}
-	return id
+	return -id
 }
 
 // GetCachedMedia retrieves a cached media by its key (URL or file hash)
@@ -1222,12 +1216,30 @@ func (c *CACHE) DeleteCachedMedia(key string) {
 	delete(c.mediaCache, key)
 }
 
+const mediaCacheHardCap = 2000
+
 func (c *CACHE) cleanupMediaCache() {
 	now := time.Now().Unix()
 	for key, media := range c.mediaCache {
 		if media.ExpiresAt > 0 && now > media.ExpiresAt {
 			delete(c.mediaCache, key)
 		}
+	}
+	if len(c.mediaCache) <= mediaCacheHardCap {
+		return
+	}
+	type entry struct {
+		key string
+		at  int64
+	}
+	entries := make([]entry, 0, len(c.mediaCache))
+	for k, m := range c.mediaCache {
+		entries = append(entries, entry{key: k, at: m.CachedAt})
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].at < entries[j].at })
+	excess := len(c.mediaCache) - mediaCacheHardCap
+	for i := 0; i < excess; i++ {
+		delete(c.mediaCache, entries[i].key)
 	}
 }
 
