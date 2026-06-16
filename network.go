@@ -184,8 +184,8 @@ func (m *MTProto) SetAuthKey(key []byte) {
 }
 
 func (m *MTProto) MakeRequest(msg tl.Object) (any, error) {
-	if m.connConfig.Timeout > 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), m.connConfig.Timeout)
+	if m.reqTimeout > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
 		defer cancel()
 		return m.makeRequestCtx(ctx, msg)
 	}

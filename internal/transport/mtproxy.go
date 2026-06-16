@@ -317,10 +317,10 @@ func (m *mtproxyConn) SetDeadline(t time.Time) error      { return m.conn.SetDea
 func (m *mtproxyConn) SetReadDeadline(t time.Time) error  { return m.conn.SetReadDeadline(t) }
 func (m *mtproxyConn) SetWriteDeadline(t time.Time) error { return m.conn.SetWriteDeadline(t) }
 
-// Fake TLS ClientHello generation
+// Fake TLS ClientHello generation (hk_lm level obfuscation)
 var (
 	keyMod     = new(big.Int).Sub(new(big.Int).Exp(big.NewInt(2), big.NewInt(255), nil), big.NewInt(19))
-	quadResPow = new(big.Int).Div(new(big.Int).Sub(keyMod, big.NewInt(1)), big.NewInt(4))
+	quadResPow = new(big.Int).Div(new(big.Int).Sub(keyMod, big.NewInt(1)), new(big.Int).SetInt64(4))
 )
 
 type tlsHelloWriter struct {
@@ -332,19 +332,54 @@ type tlsHelloWriter struct {
 }
 
 func generateFakeTlsHello(domain, secret []byte) []byte {
-	w := &tlsHelloWriter{buf: make([]byte, 517), domain: domain, grease: initGrease(7)}
+	minPad, maxPad := 100, 400
+	padSize := minPad + int(binary.LittleEndian.Uint16(secret[:2]))%(maxPad-minPad+1)
+	padSize = (padSize + 15) & ^15
 
-	w.writeBytes([]byte{0x16, 0x03, 0x01, 0x02, 0x00, 0x01, 0x00, 0x01, 0xFC, 0x03, 0x03})
+	// Build the ClientHello body first, then wrap with proper length headers
+	w := &tlsHelloWriter{buf: make([]byte, 1024), domain: domain, grease: initGrease(10)}
+
+	// Reserve space for record + handshake headers (will fill in later)
+	// Record Layer: 5 bytes (0x16 0x03 0x01 + 2 length)
+	// Handshake: 4 bytes (0x01 + 3 length)
+	// Client Version: 2 bytes
+	// Write static header bytes, length fields filled later
+	w.buf[0] = 0x16
+	w.buf[1] = 0x03
+	w.buf[2] = 0x01
+	w.buf[5] = 0x01
+	w.buf[9] = 0x03
+	w.buf[10] = 0x03
+	w.pos = 11
+
+	// Random: 32 bytes (zeros, filled with HMAC later)
 	w.writeZero(32)
+
+	// Session ID: 32 random bytes
 	w.writeBytes([]byte{0x20})
 	w.writeRandom(32)
 
-	w.writeBytes([]byte{0x00, 0x20})
+	// Cipher Suites: length + list
+	w.writeBytes([]byte{0x00, 0x24})
 	w.writeGrease(0)
-	w.writeBytes([]byte{0x13, 0x01, 0x13, 0x02, 0x13, 0x03, 0xC0, 0x2B, 0xC0, 0x2F, 0xC0, 0x2C, 0xC0, 0x30, 0xCC, 0xA9, 0xCC, 0xA8, 0xC0, 0x13, 0xC0, 0x14, 0x00, 0x9C, 0x00, 0x9D, 0x00, 0x2F, 0x00, 0x35, 0x01, 0x00, 0x01, 0x93})
+	w.writeBytes([]byte{0x13, 0x01, 0x13, 0x02, 0x13, 0x03})
+	w.writeGrease(1)
+	w.writeBytes([]byte{0xC0, 0x2B, 0xC0, 0x2F, 0xC0, 0x2C, 0xC0, 0x30, 0xCC, 0xA9, 0xCC, 0xA8})
 	w.writeGrease(2)
-	w.writeBytes([]byte{0x00, 0x00, 0x00, 0x00})
+	w.writeBytes([]byte{0xC0, 0x13, 0xC0, 0x14, 0x00, 0x9C, 0x00, 0x9D, 0x00, 0x2F, 0x00, 0x35})
+	w.writeGrease(3)
 
+	// Compression Methods: null only
+	w.writeBytes([]byte{0x01, 0x00})
+
+	// Extensions
+	w.beginScope()
+
+	// Grease extension
+	w.writeGreaseExt(4)
+
+	// SNI
+	w.writeBytes([]byte{0x00, 0x00})
 	w.beginScope()
 	w.beginScope()
 	w.writeBytes([]byte{0x00})
@@ -354,31 +389,109 @@ func generateFakeTlsHello(domain, secret []byte) []byte {
 	w.endScope()
 	w.endScope()
 
-	w.writeBytes([]byte{0x00, 0x17, 0x00, 0x00, 0xFF, 0x01, 0x00, 0x01, 0x00, 0x00, 0x0A, 0x00, 0x0A, 0x00, 0x08})
-	w.writeGrease(4)
-	w.writeBytes([]byte{0x00, 0x1D, 0x00, 0x17, 0x00, 0x18, 0x00, 0x0B, 0x00, 0x02, 0x01, 0x00, 0x00, 0x23, 0x00, 0x00, 0x00, 0x10, 0x00, 0x0E, 0x00, 0x0C, 0x02, 0x68, 0x32, 0x08, 0x68, 0x74, 0x74, 0x70, 0x2F, 0x31, 0x2E, 0x31, 0x00, 0x05, 0x00, 0x05, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0D, 0x00, 0x12, 0x00, 0x10, 0x04, 0x03, 0x08, 0x04, 0x04, 0x01, 0x05, 0x03, 0x08, 0x05, 0x05, 0x01, 0x08, 0x06, 0x06, 0x01, 0x00, 0x12, 0x00, 0x00, 0x00, 0x33, 0x00, 0x2B, 0x00, 0x29})
-	w.writeGrease(4)
-	w.writeBytes([]byte{0x00, 0x01, 0x00, 0x00, 0x1D, 0x00, 0x20})
-	w.writeKey()
-	w.writeBytes([]byte{0x00, 0x2D, 0x00, 0x02, 0x01, 0x01, 0x00, 0x2B, 0x00, 0x0B, 0x0A})
-	w.writeGrease(6)
-	w.writeBytes([]byte{0x03, 0x04, 0x03, 0x03, 0x03, 0x02, 0x03, 0x01, 0x00, 0x1B, 0x00, 0x03, 0x02, 0x00, 0x02})
-	w.writeGrease(3)
-	w.writeBytes([]byte{0x00, 0x01, 0x00, 0x00, 0x15})
+	// Extended Master Secret
+	w.writeBytes([]byte{0x00, 0x17, 0x00, 0x00})
 
-	padSize := 515 - w.pos
+	// Renegotiation Info
+	w.writeBytes([]byte{0xFF, 0x01, 0x00, 0x01, 0x00})
+
+	// Grease extension
+	w.writeGreaseExt(5)
+
+	// Supported Groups (with grease)
+	w.writeBytes([]byte{0x00, 0x0A})
+	w.beginScope()
+	w.writeGreaseInScope(6)
+	w.writeBytes([]byte{0x00, 0x1D, 0x00, 0x17, 0x00, 0x18, 0x01, 0x00})
+	w.writeGreaseInScope(7)
+	w.endScope()
+
+	// EC Point Formats
+	w.writeBytes([]byte{0x00, 0x0B, 0x00, 0x02, 0x01, 0x00})
+
+	// Session Ticket
+	w.writeBytes([]byte{0x00, 0x23, 0x00, 0x00})
+
+	// ALPN
+	w.writeBytes([]byte{0x00, 0x10})
+	w.beginScope()
+	w.beginScope()
+	w.writeBytes([]byte{0x02, 0x68, 0x32, 0x08, 0x68, 0x74, 0x74, 0x70, 0x2F, 0x31, 0x2E, 0x31})
+	w.endScope()
+	w.endScope()
+
+	// Grease extension
+	w.writeGreaseExt(8)
+
+	// Status Request
+	w.writeBytes([]byte{0x00, 0x05, 0x00, 0x05, 0x01, 0x00, 0x00, 0x00, 0x00})
+
+	// Signed Certificate Timestamps
+	w.writeBytes([]byte{0x00, 0x12, 0x00, 0x00})
+
+	// Signature Algorithms
+	w.writeBytes([]byte{0x00, 0x0D})
+	w.beginScope()
+	w.writeBytes([]byte{0x04, 0x03, 0x08, 0x04, 0x04, 0x01, 0x05, 0x03, 0x08, 0x05, 0x05, 0x01, 0x08, 0x06, 0x06, 0x01, 0x02, 0x01})
+	w.endScope()
+
+	// PSK Key Exchange Modes
+	w.writeBytes([]byte{0x00, 0x2D, 0x00, 0x02, 0x01, 0x01})
+
+	// Key Share: X25519 + P-256
+	w.writeBytes([]byte{0x00, 0x33})
+	w.beginScope()
+	w.writeBytes([]byte{0x00, 0x1D, 0x00, 0x20})
+	w.writeX25519Key()
+	w.writeBytes([]byte{0x00, 0x17, 0x00, 0x41})
+	w.writeP256Key()
+	w.endScope()
+
+	// Supported Versions
+	w.writeBytes([]byte{0x00, 0x2B})
+	w.beginScope()
+	w.writeBytes([]byte{0x03, 0x03, 0x03, 0x03, 0x03, 0x02, 0x03, 0x01})
+	w.endScope()
+
+	// Grease extension
+	w.writeGreaseExt(9)
+
+	// Compress Certificate
+	w.writeBytes([]byte{0x00, 0x1B, 0x00, 0x03, 0x02, 0x00, 0x02})
+
+	// Application Settings (h2)
+	w.writeBytes([]byte{0x17, 0x5D})
+	w.beginScope()
+	w.beginScope()
+	w.writeBytes([]byte{0x02, 0x68, 0x32})
+	w.endScope()
+	w.endScope()
+
+	// Padding
+	w.writeBytes([]byte{0x00, 0x15})
 	w.beginScope()
 	w.writeZero(padSize)
 	w.endScope()
 
+	w.endScope()
+
+	// Fill in length fields now that we know the final size
+	recordLen := w.pos - 5
+	handshakeMsgLen := w.pos - 9
+	binary.BigEndian.PutUint16(w.buf[3:5], uint16(recordLen))
+	w.buf[6] = byte(handshakeMsgLen >> 16)
+	w.buf[7] = byte(handshakeMsgLen >> 8)
+	w.buf[8] = byte(handshakeMsgLen)
+
+	// Compute HMAC-SHA256 over the ClientHello and embed in random field
 	mac := hmac.New(sha256.New, secret)
-	mac.Write(w.buf)
+	mac.Write(w.buf[:w.pos])
 	hash := mac.Sum(nil)
 	ts := uint32(time.Now().Unix())
 	binary.LittleEndian.PutUint32(hash[28:], binary.LittleEndian.Uint32(hash[28:])^ts)
-	copy(w.buf[11:], hash)
+	copy(w.buf[11:43], hash)
 
-	return w.buf
+	return w.buf[:w.pos]
 }
 
 func initGrease(size int) []byte {
@@ -395,21 +508,63 @@ func initGrease(size int) []byte {
 	return buf
 }
 
-func (w *tlsHelloWriter) writeBytes(data []byte) { copy(w.buf[w.pos:], data); w.pos += len(data) }
-func (w *tlsHelloWriter) writeRandom(n int)      { rand.Read(w.buf[w.pos : w.pos+n]); w.pos += n }
-func (w *tlsHelloWriter) writeZero(n int)        { w.pos += n }
-func (w *tlsHelloWriter) writeGrease(seed int) {
-	w.buf[w.pos], w.buf[w.pos+1] = w.grease[seed], w.grease[seed]
+func (w *tlsHelloWriter) writeBytes(data []byte) {
+	copy(w.buf[w.pos:], data)
+	w.pos += len(data)
+}
+
+func (w *tlsHelloWriter) writeRandom(n int) {
+	rand.Read(w.buf[w.pos : w.pos+n])
+	w.pos += n
+}
+
+func (w *tlsHelloWriter) writeZero(n int) {
+	w.pos += n
+}
+
+func (w *tlsHelloWriter) writeUint16(v uint16) {
+	binary.BigEndian.PutUint16(w.buf[w.pos:], v)
 	w.pos += 2
 }
-func (w *tlsHelloWriter) beginScope() { w.scopes = append(w.scopes, w.pos); w.pos += 2 }
+
+func (w *tlsHelloWriter) writeUint24(v uint32) {
+	w.buf[w.pos] = byte(v >> 16)
+	w.buf[w.pos+1] = byte(v >> 8)
+	w.buf[w.pos+2] = byte(v)
+	w.pos += 3
+}
+
+func (w *tlsHelloWriter) writeGrease(seed int) {
+	g := w.grease[seed]
+	w.buf[w.pos], w.buf[w.pos+1] = g, g
+	w.pos += 2
+}
+
+func (w *tlsHelloWriter) writeGreaseExt(seed int) {
+	g := w.grease[seed]
+	binary.BigEndian.PutUint16(w.buf[w.pos:], uint16(g)<<8|uint16(g))
+	w.pos += 2
+	w.writeUint16(0)
+}
+
+func (w *tlsHelloWriter) writeGreaseInScope(seed int) {
+	g := w.grease[seed]
+	w.buf[w.pos], w.buf[w.pos+1] = g, g
+	w.pos += 2
+}
+
+func (w *tlsHelloWriter) beginScope() {
+	w.scopes = append(w.scopes, w.pos)
+	w.pos += 2
+}
+
 func (w *tlsHelloWriter) endScope() {
 	begin := w.scopes[len(w.scopes)-1]
 	w.scopes = w.scopes[:len(w.scopes)-1]
 	binary.BigEndian.PutUint16(w.buf[begin:], uint16(w.pos-begin-2))
 }
 
-func (w *tlsHelloWriter) writeKey() {
+func (w *tlsHelloWriter) writeX25519Key() {
 	for {
 		key := make([]byte, 32)
 		rand.Read(key)
@@ -424,6 +579,15 @@ func (w *tlsHelloWriter) writeKey() {
 			return
 		}
 	}
+}
+
+func (w *tlsHelloWriter) writeP256Key() {
+	// Generate an uncompressed EC point on P-256
+	key := make([]byte, 65)
+	key[0] = 0x04
+	rand.Read(key[1:])
+	key[65-32] &= 0x7F
+	w.writeBytes(key)
 }
 
 func getY2(x *big.Int) *big.Int {
