@@ -34,6 +34,35 @@ const (
 	maxMsgsAckPerBatch          = 8192
 )
 
+type TransportType uint8
+
+const (
+	TransportTCP TransportType = iota
+	TransportWebSocket
+	TransportWebSocketTLS
+	TransportHTTP
+	TransportHTTPS
+)
+
+func (t TransportType) String() string {
+	switch t {
+	case TransportWebSocket:
+		return "websocket"
+	case TransportWebSocketTLS:
+		return "websocket (tls)"
+	case TransportHTTP:
+		return "http"
+	case TransportHTTPS:
+		return "https"
+	default:
+		return "tcp"
+	}
+}
+
+func (t TransportType) isHTTP() bool {
+	return t == TransportHTTP || t == TransportHTTPS
+}
+
 type ReconnectConfig struct {
 	MaxAttempts int
 	BaseDelay   time.Duration
@@ -71,9 +100,11 @@ type MTProto struct {
 
 	authKeyHash []byte
 
-	tempAuthKey       []byte
-	tempAuthKeyHash   []byte
-	tempAuthExpiresAt int64
+	tempAuthKey        []byte
+	tempAuthKeyHash    []byte
+	tempAuthExpiresAt  int64
+	pendingTempAuthKey []byte
+	pendingTempKeyHash []byte
 
 	noRedirect bool
 
@@ -115,9 +146,10 @@ type MTProto struct {
 	connConfig ReconnectConfig
 	connState  ReconnectState
 
-	useWebSocket    bool
-	useWebSocketTLS bool
-	enablePFS       bool
+	txType         TransportType
+	httpPath       string
+	enablePFS      bool
+	pfsKeyLifetime int32
 
 	onMigration func()
 
@@ -139,19 +171,20 @@ type Config struct {
 	ErrorHandler      func(err error) bool  // Called on errors; return true to retry
 	ConnectionHandler func(err error) error // Custom reconnection handler
 
-	ServerHost      string         // Telegram server address (IP:port)
-	PublicKey       *rsa.PublicKey // RSA public key for server verification
-	DataCenter      int            // Data center ID (1-5)
-	Logger          *utils.Logger  // Logger instance
-	Proxy           *utils.Proxy   // Proxy configuration
-	Mode            string         // Transport mode (Abridged, Intermediate, Full)
-	Ipv6            bool           // Prefer IPv6 connections
-	CustomHost      bool           // Use custom ServerHost instead of DC lookup
-	LocalAddr       string         // Local address to bind (IP:port)
-	Timeout         int            // TCP connection timeout (seconds)
-	ReqTimeout      int            // RPC request timeout (seconds)
-	UseWebSocket    bool           // Use WebSocket transport
-	UseWebSocketTLS bool           // Use secure WebSocket (wss://)
+	ServerHost     string         // Telegram server address (IP:port)
+	PublicKey      *rsa.PublicKey // RSA public key for server verification
+	DataCenter     int            // Data center ID (1-5)
+	Logger         *utils.Logger  // Logger instance
+	Proxy          *utils.Proxy   // Proxy configuration
+	Mode           string         // Transport mode (Abridged, Intermediate, Full)
+	Ipv6           bool           // Prefer IPv6 connections
+	CustomHost     bool           // Use custom ServerHost instead of DC lookup
+	LocalAddr      string         // Local address to bind (IP:port)
+	Timeout        int            // TCP connection timeout (seconds)
+	ReqTimeout     int            // RPC request timeout (seconds)
+	Transport      TransportType  // Transport variant (default TransportTCP)
+	HTTPPath       string         // HTTP request path (default "/api"; only used for HTTP/HTTPS)
+	PFSKeyLifetime int32          // Lifetime (seconds) for temp auth keys when EnablePFS is set; 0 = 24h
 
 	MaxReconnectAttempts int           // Max reconnection attempts (default: 2000)
 	BaseReconnectDelay   time.Duration // Initial reconnect delay (default: 2s)
@@ -222,12 +255,13 @@ func NewMTProto(c Config) (*MTProto, error) {
 			MaxAttempts: utils.OrDefault(c.MaxReconnectAttempts, defaultMaxReconnectAttempts),
 			BaseDelay:   utils.OrDefault(c.BaseReconnectDelay, defaultBaseReconnectDelay),
 		},
-		useWebSocket:    c.UseWebSocket,
-		useWebSocketTLS: c.UseWebSocketTLS,
-		enablePFS:       c.EnablePFS,
-		onMigration:     c.OnMigration,
-		messageTracker:  utils.NewSyncIntInt64(),
-		maxRetryDepth:   10,
+		txType:         c.Transport,
+		httpPath:       c.HTTPPath,
+		enablePFS:      c.EnablePFS,
+		pfsKeyLifetime: c.PFSKeyLifetime,
+		onMigration:    c.OnMigration,
+		messageTracker: utils.NewSyncIntInt64(),
+		maxRetryDepth:  10,
 	}
 
 	mtproto.SetAddr(c.ServerHost)
@@ -359,11 +393,15 @@ func (m *MTProto) GetAddr() string {
 }
 
 func (m *MTProto) GetTransportType() string {
-	if m.useWebSocket {
-		if m.useWebSocketTLS {
-			return "Wss"
-		}
+	switch m.txType {
+	case TransportWebSocket:
 		return "Ws"
+	case TransportWebSocketTLS:
+		return "Wss"
+	case TransportHTTP:
+		return "Http"
+	case TransportHTTPS:
+		return "Https"
 	}
 
 	if m.proxy != nil && !m.proxy.IsEmpty() {
@@ -485,20 +523,21 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 	logger := utils.NewLogger(loggerPrefix).SetLevel(utils.InfoLevel)
 
 	cfg := Config{
-		DataCenter:      dcID,
-		PublicKey:       m.publicKey,
-		ServerHost:      newAddr,
-		AuthKeyFile:     "__exp_" + strconv.Itoa(dcID) + ".dat",
-		MemorySession:   mem,
-		Logger:          logger,
-		Proxy:           m.proxy,
-		LocalAddr:       m.localAddr,
-		AppID:           m.appID,
-		Ipv6:            m.IpV6,
-		Timeout:         int(m.connConfig.Timeout.Seconds()),
-		ReqTimeout:      int(m.reqTimeout.Seconds()),
-		UseWebSocket:    m.useWebSocket,
-		UseWebSocketTLS: m.useWebSocketTLS,
+		DataCenter:     dcID,
+		PublicKey:      m.publicKey,
+		ServerHost:     newAddr,
+		AuthKeyFile:    "__exp_" + strconv.Itoa(dcID) + ".dat",
+		MemorySession:  mem,
+		Logger:         logger,
+		Proxy:          m.proxy,
+		LocalAddr:      m.localAddr,
+		AppID:          m.appID,
+		Ipv6:           m.IpV6,
+		Timeout:        int(m.connConfig.Timeout.Seconds()),
+		ReqTimeout:     int(m.reqTimeout.Seconds()),
+		Transport:      m.txType,
+		HTTPPath:       m.httpPath,
+		PFSKeyLifetime: m.pfsKeyLifetime,
 	}
 
 	if dcID == m.GetDC() {
@@ -626,6 +665,9 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 
 	if !m.exported && !m.cdn {
 		go m.longPing(ctx)
+		if m.isHTTPTransport() {
+			go m.httpWaiter(ctx)
+		}
 	}
 
 	if !m.encrypted.Load() {
@@ -647,15 +689,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 
 func (m *MTProto) connect(ctx context.Context) error {
 	dcId := m.GetDC()
-	transportType := "[tcp]"
-	if m.useWebSocket {
-		transportType = "[websocket]"
-		if m.useWebSocketTLS {
-			transportType = "[websocket (tls)]"
-		}
-	}
-
-	m.Logger.Debug("init transport %s for DC%d", transportType, dcId)
+	m.Logger.Debug("init transport [%s] for DC%d", m.txType, dcId)
 
 	var err error
 	cfg := transport.CommonConfig{
@@ -670,13 +704,20 @@ func (m *MTProto) connect(ctx context.Context) error {
 	}
 
 	var newTransport transport.Transport
-	if m.useWebSocket {
+	switch m.txType {
+	case TransportHTTP, TransportHTTPS:
+		newTransport, err = transport.NewTransport(m, transport.HTTPConnConfig{
+			CommonConfig: cfg,
+			TLS:          m.txType == TransportHTTPS,
+			Path:         m.httpPath,
+		}, m.mode)
+	case TransportWebSocket, TransportWebSocketTLS:
 		newTransport, err = transport.NewTransport(m, transport.WSConnConfig{
 			CommonConfig: cfg,
-			TLS:          m.useWebSocketTLS,
+			TLS:          m.txType == TransportWebSocketTLS,
 			TestMode:     false,
 		}, m.mode)
-	} else {
+	default:
 		newTransport, err = transport.NewTransport(m, transport.TCPConnConfig{
 			CommonConfig: cfg,
 			IpV6:         m.IpV6,
@@ -684,7 +725,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 	}
 
 	if err != nil {
-		m.Logger.Debug("failed to create %s transport: %v", transportType, err)
+		m.Logger.Debug("failed to create [%s] transport: %v", m.txType, err)
 		return fmt.Errorf("creating transport: %w", err)
 	}
 
@@ -702,15 +743,18 @@ func (m *MTProto) connect(ctx context.Context) error {
 }
 
 func (m *MTProto) startPFSManager(ctx context.Context) {
-	const renewBeforeSeconds int64 = 60                   // renew 60s before expiry
-	const defaultTempLifetimeSeconds int32 = 24 * 60 * 60 // 24h
-	const retryDelayOnError = 30 * time.Second            // backoff on error
-	const pollNoAuthKeyDelay = 5 * time.Second            // wait for authKey
-	const minSleepSeconds int64 = 5                       // minimum wait between checks
+	const defaultTempLifetimeSeconds int32 = 24 * 60 * 60
+	const retryDelayOnError = 30 * time.Second
+	const pollNoAuthKeyDelay = 5 * time.Second
+	const minSleepSeconds int64 = 5
 
-	m.routineswg.Add(1)
-	go func() {
-		defer m.routineswg.Done()
+	tempLifetime := defaultTempLifetimeSeconds
+	if m.pfsKeyLifetime > 0 {
+		tempLifetime = m.pfsKeyLifetime
+	}
+	renewBeforeSeconds := min(max(int64(tempLifetime)/4, 5), 60)
+
+	m.routineswg.Go(func() {
 		defer m.Logger.Debug("PFS manager stopped")
 
 		m.Logger.Debug("PFS manager started")
@@ -737,7 +781,7 @@ func (m *MTProto) startPFSManager(ctx context.Context) {
 
 			if needNew {
 				m.Logger.Debug("generating new temporary auth key for PFS")
-				if err := m.createTempAuthKey(defaultTempLifetimeSeconds); err != nil {
+				if err := m.createTempAuthKey(tempLifetime); err != nil {
 					m.Logger.WithError(err).Error("failed to create temporary auth key")
 					select {
 					case <-ctx.Done():
@@ -781,7 +825,7 @@ func (m *MTProto) startPFSManager(ctx context.Context) {
 			case <-time.After(waitDur):
 			}
 		}
-	}()
+	})
 }
 
 func (m *MTProto) makeRequest(data tl.Object, expectedTypes ...reflect.Type) (any, error) {
@@ -1123,6 +1167,60 @@ func (m *MTProto) longPing(ctx context.Context) {
 				return
 			}
 			m.Ping()
+		}
+	}
+}
+
+func (m *MTProto) isHTTPTransport() bool {
+	m.transportMu.Lock()
+	t := m.transport
+	m.transportMu.Unlock()
+	if t == nil {
+		return m.txType.isHTTP()
+	}
+	h, ok := t.(transport.HTTPLike)
+	return ok && h.IsHTTP()
+}
+
+func (m *MTProto) httpWaiter(ctx context.Context) {
+	m.routineswg.Add(1)
+	defer m.routineswg.Done()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		if !m.encrypted.Load() {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(200 * time.Millisecond):
+			}
+			continue
+		}
+		if err := m.tcpState.WaitForActive(ctx); err != nil {
+			return
+		}
+		respCh, _, err := m.sendPacket(&objects.HttpWaitParams{
+			MaxDelay:  0,
+			WaitAfter: 0,
+			MaxWait:   25000,
+		})
+		if err != nil {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(500 * time.Millisecond):
+			}
+			continue
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-respCh:
+		case <-time.After(30 * time.Second):
 		}
 	}
 }
@@ -1505,7 +1603,7 @@ messageTypeSwitching:
 
 		ids := m.pendingAcks.Keys()
 		for start := 0; start < len(ids); start += maxMsgsAckPerBatch {
-			end := min(start + maxMsgsAckPerBatch, len(ids))
+			end := min(start+maxMsgsAckPerBatch, len(ids))
 			if _, err := m.MakeRequest(&objects.MsgsAck{MsgIDs: ids[start:end]}); err != nil {
 				return fmt.Errorf("sending acks: %w", err)
 			}

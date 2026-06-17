@@ -312,8 +312,8 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 		LocalAddr:       m.localAddr,
 		Timeout:         int(m.connConfig.Timeout.Seconds()),
 		ReqTimeout:      int(m.reqTimeout.Seconds()),
-		UseWebSocket:    m.useWebSocket,
-		UseWebSocketTLS: m.useWebSocketTLS,
+		Transport: m.txType,
+		HTTPPath:  m.httpPath,
 	}
 
 	tmp, err := NewMTProto(cfg)
@@ -335,12 +335,8 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 		return fmt.Errorf("createTempAuthKey: makeTempAuthKey on temp connection: %w", err)
 	}
 
-	// Copy the generated temporary auth key and its metadata back to the main
-	// MTProto instance. The server salt associated with the temporary key is
-	// also propagated so that subsequent messages encrypted with the temp key
-	// use the correct salt.
-	m.tempAuthKey = tmp.tempAuthKey
-	m.tempAuthKeyHash = tmp.tempAuthKeyHash
+	m.pendingTempAuthKey = tmp.tempAuthKey
+	m.pendingTempKeyHash = tmp.tempAuthKeyHash
 	m.tempAuthExpiresAt = tmp.tempAuthExpiresAt
 	m.serverSalt.Store(tmp.serverSalt.Load())
 
@@ -350,7 +346,11 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 
 // bindTempAuthKey binds the temporary auth key to the permanent auth key using auth.bindTempAuthKey.
 func (m *MTProto) bindTempAuthKey() error {
-	if m.tempAuthKey == nil {
+	newTempKey := m.pendingTempAuthKey
+	if newTempKey == nil {
+		newTempKey = m.tempAuthKey
+	}
+	if newTempKey == nil {
 		return errors.New("bindTempAuthKey: tempAuthKey is nil")
 	}
 	if len(m.authKey) == 0 {
@@ -360,7 +360,7 @@ func (m *MTProto) bindTempAuthKey() error {
 	permKeyHash := utils.AuthKeyHash(m.authKey)
 	permAuthKeyID := int64(binary.LittleEndian.Uint64(permKeyHash))
 
-	tempKeyHash := utils.AuthKeyHash(m.tempAuthKey)
+	tempKeyHash := utils.AuthKeyHash(newTempKey)
 	tempAuthKeyID := int64(binary.LittleEndian.Uint64(tempKeyHash))
 
 	// Use current session ID as temp_session_id for the binding.
@@ -422,19 +422,25 @@ func (m *MTProto) bindTempAuthKey() error {
 		EncryptedMessage: encryptedMessage,
 	}
 
-	// Send auth.bindTempAuthKey with the same msg_id used inside the MTProto
-	// v1 binding message, as required by the PFS specification.
+	prevTempKey := m.tempAuthKey
+	prevTempHash := m.tempAuthKeyHash
+	m.tempAuthKey = newTempKey
+	m.tempAuthKeyHash = tempKeyHash
+
 	respCh, _, err := m.sendPacketWithMsgID(params, msgID)
 	if err != nil {
+		m.tempAuthKey = prevTempKey
+		m.tempAuthKeyHash = prevTempHash
 		return fmt.Errorf("auth.bindTempAuthKey: %w", err)
 	}
 
 	response := <-respCh
 	if rpcErr, ok := response.(*objects.RpcError); ok {
+		m.tempAuthKey = prevTempKey
+		m.tempAuthKeyHash = prevTempHash
 		return fmt.Errorf("auth.bindTempAuthKey: %w", RpcErrorToNative(rpcErr))
 	}
-
-	// Any non-error response is treated as success; the exact Bool value is not
-	// critical here, as the server typically returns true on success.
+	m.pendingTempAuthKey = nil
+	m.pendingTempKeyHash = nil
 	return nil
 }

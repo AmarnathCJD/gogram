@@ -89,6 +89,16 @@ type DeviceConfig struct {
 	Params         JsonValue // Additional JSON parameters for init connection
 }
 
+type TransportType = mtproto.TransportType
+
+const (
+	TransportTCP          = mtproto.TransportTCP
+	TransportWebSocket    = mtproto.TransportWebSocket
+	TransportWebSocketTLS = mtproto.TransportWebSocketTLS
+	TransportHTTP         = mtproto.TransportHTTP
+	TransportHTTPS        = mtproto.TransportHTTPS
+)
+
 type ClientConfig struct {
 	AppID            int32                // Telegram API ID from my.telegram.org
 	AppHash          string               // Telegram API Hash from my.telegram.org
@@ -121,9 +131,10 @@ type ClientConfig struct {
 	ErrorHandler     func(err error) bool // Called on request errors; return true to retry
 	Timeout          int                  // TCP connection timeout in seconds (default: 60)
 	ReqTimeout       int                  // RPC request timeout in seconds (default: 60)
-	UseWebSocket     bool                 // Use WebSocket transport instead of TCP
-	UseWebSocketTLS  bool                 // Use secure WebSocket (wss://)
+	Transport        TransportType        // Transport variant (TCP, WebSocket, HTTP, etc.) — default TCP
+	HTTPPath         string               // HTTP request path (default "/api"; only used for HTTP/HTTPS)
 	EnablePFS        bool                 // Enable Perfect Forward Secrecy with temp auth keys
+	PFSKeyLifetime   int32                // Lifetime (seconds) for PFS temp key; 0 = 24h
 	DisableGapFetch  bool                 // Disable automatic gap filling, only fetch difference on UpdatesTooLong/UpdateChannelTooLong
 }
 
@@ -209,9 +220,10 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		ErrorHandler:    config.ErrorHandler,
 		Timeout:         config.Timeout,
 		ReqTimeout:      config.ReqTimeout,
-		UseWebSocket:    config.UseWebSocket,
-		UseWebSocketTLS: config.UseWebSocketTLS,
+		Transport:       config.Transport,
+		HTTPPath:        config.HTTPPath,
 		EnablePFS:       config.EnablePFS,
+		PFSKeyLifetime:  config.PFSKeyLifetime,
 		OnMigration: func() {
 			c.InitialRequest()
 		},
