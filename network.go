@@ -174,7 +174,12 @@ func (m *MTProto) GetServerSalt() int64 {
 }
 
 // GetAuthKey returns the current auth key used for message encryption.
+// In PFS mode, once a temp key is available, it's used for all traffic.
+// The permanent key is retained on m.authKey for re-binding.
 func (m *MTProto) GetAuthKey() []byte {
+	if m.enablePFS && len(m.tempAuthKey) > 0 {
+		return m.tempAuthKey
+	}
 	return m.authKey
 }
 
