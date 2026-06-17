@@ -918,6 +918,12 @@ func (m *MTProto) makeRequestCtxWithDepth(ctx context.Context, data tl.Object, r
 					m.Logger.Debug("5 consecutive timeouts in %ds (request=%T, tcp_active=%v, retryDepth=%d); reconnecting", duration, data, m.tcpState.GetActive(), retryDepth)
 					m.connState.ConsecutiveTimeouts.Store(0)
 					m.tryReconnect()
+					if retryDepth < m.maxRetryDepth {
+						m.Logger.Trace("retrying request after reconnect (depth=%d/%d)", retryDepth+1, m.maxRetryDepth)
+						retryCtx, cancel := context.WithTimeout(context.Background(), m.reqTimeout)
+						defer cancel()
+						return m.makeRequestCtxWithDepth(retryCtx, data, retryDepth+1, expectedTypes...)
+					}
 				} else {
 					m.Logger.Debug("5 consecutive timeouts in %ds (slow accumulation); resetting counter", duration)
 					m.connState.ConsecutiveTimeouts.Store(0)
