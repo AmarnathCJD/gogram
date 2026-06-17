@@ -86,10 +86,16 @@ func (m *paddedIntermediate) ReadMsg() ([]byte, error) {
 
 	if len(buf) >= 24 {
 		authKeyID := binary.LittleEndian.Uint64(buf[:8])
-		if authKeyID != 0 && len(buf)%16 != 8 {
+		if authKeyID == 0 {
+			innerLen := int(binary.LittleEndian.Uint32(buf[16:20]))
+			expected := 20 + innerLen
+			if expected > 0 && expected <= len(buf) {
+				buf = buf[:expected]
+			} else if len(buf)%tl.WordLen != 0 {
+				buf = buf[:(len(buf)/tl.WordLen)*tl.WordLen]
+			}
+		} else if len(buf)%16 != 8 {
 			buf = buf[:((len(buf)-8)/16)*16+8]
-		} else if authKeyID == 0 && len(buf)%tl.WordLen != 0 {
-			buf = buf[:(len(buf)/tl.WordLen)*tl.WordLen]
 		}
 	} else if len(buf)%tl.WordLen != 0 {
 		buf = buf[:(len(buf)/tl.WordLen)*tl.WordLen]

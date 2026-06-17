@@ -59,10 +59,11 @@ func NewTransport(m messages.MessageInformator, conn ConnConfig, modeVariant mod
 		return nil, fmt.Errorf("setup connection: %w", err)
 	}
 
-	// For MTProxy, always use Intermediate mode since the obfuscation header
-	// contains the protocol tag (0xeeeeeeee or 0xdddddddd)
 	if isMTProxy {
 		modeVariant = mode.Intermediate
+		if ft, ok := t.conn.(interface{ IsFakeTLS() bool }); ok && ft.IsFakeTLS() {
+			modeVariant = mode.PaddedIntermediate
+		}
 	}
 
 	// already sent in obfuscation handshake
