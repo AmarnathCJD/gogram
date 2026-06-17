@@ -163,6 +163,16 @@ func (*PingDelayDisconnectParams) CRC() uint32 {
 	return 0xf3427b8c
 }
 
+type HttpWaitParams struct {
+	MaxDelay  int32
+	WaitAfter int32
+	MaxWait   int32
+}
+
+func (*HttpWaitParams) CRC() uint32 {
+	return 0x9299359f
+}
+
 // ping_delay_disconnect
 // destroy_session
 // http_wait
