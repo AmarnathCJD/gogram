@@ -41,3 +41,9 @@ type WSConnConfig struct {
 	TLS      bool
 	TestMode bool
 }
+
+type HTTPConnConfig struct {
+	CommonConfig
+	TLS  bool
+	Path string
+}

@@ -20,6 +20,10 @@ type Transport interface {
 	ReadMsg() (messages.Common, error)
 }
 
+type HTTPLike interface {
+	IsHTTP() bool
+}
+
 type transport struct {
 	conn Conn
 	mode Mode
@@ -27,6 +31,10 @@ type transport struct {
 }
 
 func NewTransport(m messages.MessageInformator, conn ConnConfig, modeVariant mode.Variant) (Transport, error) {
+	if cfg, ok := conn.(HTTPConnConfig); ok {
+		return NewHTTPTransport(m, cfg)
+	}
+
 	t := &transport{
 		m: m,
 	}
