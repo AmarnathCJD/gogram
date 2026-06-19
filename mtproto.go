@@ -537,6 +537,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 		ReqTimeout:     int(m.reqTimeout.Seconds()),
 		Transport:      m.txType,
 		HTTPPath:       m.httpPath,
+		EnablePFS:      m.enablePFS,
 		PFSKeyLifetime: m.pfsKeyLifetime,
 	}
 
@@ -679,8 +680,7 @@ func (m *MTProto) CreateConnection(withLog bool) error {
 		m.Logger.Debug("auth key generated")
 	}
 
-	// Start Perfect Forward Secrecy manager if enabled on the main connection.
-	if m.enablePFS && !m.exported && !m.cdn {
+	if m.enablePFS && !m.cdn {
 		m.startPFSManager(ctx)
 	}
 
