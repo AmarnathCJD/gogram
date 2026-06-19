@@ -37,9 +37,8 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 
 	resp := m.getRespChannel()
 	if isNullableResponse(request) {
-		go func() {
-			resp <- &objects.Null{}
-		}()
+		resp = make(chan tl.Object, 1)
+		resp <- &objects.Null{}
 	} else {
 		m.responseChannels.Add(int(msgID), resp)
 	}
