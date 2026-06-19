@@ -338,38 +338,41 @@ func EncryptV1(plaintext, authKey []byte) (out, msgKey []byte, _ error) {
 	return encryptV1(plaintext, authKey, false)
 }
 
-// EncryptMessageMTProto encrypts a message using MTProto 2.0 encryption for secret chats
-// x = 0 for originator, x = 8 for responder
+// EncryptMessageMTProto encrypts a secret-chat payload with MTProto v2.
+// isOriginator picks x: 0 for the chat creator, 8 for the responder.
 func EncryptMessageMTProto(key []byte, plaintext []byte, isOriginator bool) (msgKey []byte, encrypted []byte, err error) {
 	if len(key) != 256 {
 		return nil, nil, fmt.Errorf("key must be %d bytes", 256)
 	}
 
-	// Determine x based on direction
 	x := 0
 	if !isOriginator {
 		x = 8
 	}
 
-	// Generate random number for padding
-	randBytes := make([]byte, 2)
-	_, err = rand.Read(randBytes)
-	if err != nil {
+	// Spec: padding random length, 12..1024 bytes, such that
+	// (4 + len(plaintext) + padding) is a multiple of 16.
+	const minPad, maxPad = 12, 1024
+	prefixed := 4 + len(plaintext)
+	var randBytes [2]byte
+	if _, err = rand.Read(randBytes[:]); err != nil {
 		return nil, nil, err
 	}
 	randNum := int(randBytes[0])<<8 | int(randBytes[1])
 
-	// Add random padding (12..1024 bytes) to make length divisible by 16
-	paddingLen := 12 + (randNum % 1013) // 12 + [0..1012]
-	// Total length must include the 4-byte length prefix
-	totalLen := 4 + len(plaintext) + paddingLen
-	remainder := totalLen % 16
-	if remainder != 0 {
-		paddingLen += 16 - remainder
-		totalLen = 4 + len(plaintext) + paddingLen
+	span := maxPad - minPad
+	paddingLen := minPad + (randNum % (span + 1))
+	if r := (prefixed + paddingLen) % 16; r != 0 {
+		paddingLen += 16 - r
+	}
+	if paddingLen > maxPad {
+		paddingLen -= 16
+	}
+	if paddingLen < minPad || paddingLen > maxPad {
+		return nil, nil, fmt.Errorf("padding length %d out of [12,1024]", paddingLen)
 	}
 
-	// Prepend 4 bytes with length
+	totalLen := prefixed + paddingLen
 	dataWithLength := make([]byte, totalLen)
 	dataWithLength[0] = byte(len(plaintext))
 	dataWithLength[1] = byte(len(plaintext) >> 8)
@@ -377,14 +380,11 @@ func EncryptMessageMTProto(key []byte, plaintext []byte, isOriginator bool) (msg
 	dataWithLength[3] = byte(len(plaintext) >> 24)
 	copy(dataWithLength[4:], plaintext)
 
-	// Add random padding
-	if paddingLen > 0 {
-		padding := make([]byte, paddingLen)
-		rand.Read(padding)
-		copy(dataWithLength[4+len(plaintext):], padding)
-	} // Compute msg_key (MTProto 2.0)
-	// msg_key_large = SHA256(substr(key, 88+x, 32) + plaintext + random_padding)
-	// msg_key = substr(msg_key_large, 8, 16)
+	if _, err = rand.Read(dataWithLength[prefixed:]); err != nil {
+		return nil, nil, err
+	}
+
+	// msg_key_large = SHA256(substr(key, 88+x, 32) || data); msg_key = msg_key_large[8:24].
 	h := sha256.New()
 	h.Write(key[88+x : 88+x+32])
 	h.Write(dataWithLength)
@@ -455,6 +455,12 @@ func DecryptMessageMTProto(key []byte, msgKey []byte, encrypted []byte, isOrigin
 	length := int(decrypted[0]) | int(decrypted[1])<<8 | int(decrypted[2])<<16 | int(decrypted[3])<<24
 	if length < 0 || length > len(decrypted)-4 {
 		return nil, fmt.Errorf("invalid plaintext length: %d", length)
+	}
+
+	// Spec mandates 12..1024 bytes of random padding after the payload.
+	pad := len(decrypted) - 4 - length
+	if pad < 12 || pad > 1024 {
+		return nil, fmt.Errorf("padding length %d out of [12,1024]", pad)
 	}
 
 	plaintext = make([]byte, length)
