@@ -59,6 +59,11 @@ func RandomInt256() *Int256 {
 	return i
 }
 
+// NewInt256 creates int256 from the given big-endian bytes.
+func NewInt256(b []byte) *Int256 {
+	return &Int256{big.NewInt(0).SetBytes(b)}
+}
+
 // func reflectIsInt256(v reflect.Value) bool {
 // 	_, ok := v.Interface().(*Int256)
 // 	return ok

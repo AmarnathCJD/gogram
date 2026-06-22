@@ -17,9 +17,15 @@ import (
 	"strings"
 
 	ige "github.com/amarnathcjd/gogram/internal/aes_ige"
+	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/session"
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
+
+// NewInt256 creates a tl.Int256 from the given big-endian bytes.
+func NewInt256(b []byte) *tl.Int256 {
+	return tl.NewInt256(b)
+}
 
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
