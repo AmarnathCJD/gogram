@@ -20,6 +20,7 @@ import (
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/session"
 	"github.com/amarnathcjd/gogram/internal/utils"
+	"github.com/amarnathcjd/gogram/telegram/e2e"
 )
 
 // NewInt256 creates a tl.Int256 from the given big-endian bytes.
@@ -977,6 +978,42 @@ func (c *Client) getMediaCacheKey(media InputMedia) string {
 	return ""
 }
 
+func E2EAttrs(in []DocumentAttribute) []e2e.DocumentAttribute {
+	out := make([]e2e.DocumentAttribute, 0, len(in))
+	for _, a := range in {
+		switch v := a.(type) {
+		case *DocumentAttributeFilename:
+			out = append(out, &e2e.DocumentAttributeFilename{FileName: v.FileName})
+		case *DocumentAttributeImageSize:
+			out = append(out, &e2e.DocumentAttributeImageSize{W: v.W, H: v.H})
+		case *DocumentAttributeAnimated:
+			out = append(out, &e2e.DocumentAttributeAnimated{})
+		case *DocumentAttributeSticker:
+			var set e2e.InputStickerSet = &e2e.InputStickerSetEmpty{}
+			if s, ok := v.Stickerset.(*InputStickerSetShortName); ok {
+				set = &e2e.InputStickerSetShortName{ShortName: s.ShortName}
+			}
+			out = append(out, &e2e.DocumentAttributeSticker{Alt: v.Alt, Stickerset: set})
+		case *DocumentAttributeVideo:
+			out = append(out, &e2e.DocumentAttributeVideo{
+				RoundMessage: v.RoundMessage,
+				Duration:     int32(v.Duration),
+				W:            v.W,
+				H:            v.H,
+			})
+		case *DocumentAttributeAudio:
+			out = append(out, &e2e.DocumentAttributeAudio{
+				Voice:     v.Voice,
+				Duration:  v.Duration,
+				Title:     v.Title,
+				Performer: v.Performer,
+				Waveform:  v.Waveform,
+			})
+		}
+	}
+	return out
+}
+
 func convertPoll(poll *MessageMediaPoll) *InputMediaPoll {
 	newPoll := &InputMediaPoll{
 		Poll:             poll.Poll,
@@ -1849,4 +1886,3 @@ func (c *Client) JSON(object any, noindent ...bool) string {
 	}
 	return MarshalWithTypeName(object, indent)
 }
-

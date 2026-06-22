@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -451,6 +452,92 @@ func EncryptFile(data []byte, key, iv []byte) ([]byte, error) {
 	}
 
 	return encrypted, nil
+}
+
+// EncryptFileStream encrypts src into dst using AES-256-IGE with the given
+// key/IV, padding the trailing partial block with random bytes so that the
+// total output length is a multiple of 16. It buffers at most ~64 KiB at a
+// time and is safe for arbitrarily large inputs.
+//
+// totalSize must be the exact number of plaintext bytes available on src; it
+// is used to compute the final padding length. Pass -1 if unknown, and the
+// stream will be drained first (less memory-efficient).
+func EncryptFileStream(dst io.Writer, src io.Reader, key, iv []byte, totalSize int64) (int64, error) {
+	if len(key) != 32 {
+		return 0, fmt.Errorf("key must be 32 bytes, got %d", len(key))
+	}
+	if len(iv) != 32 {
+		return 0, fmt.Errorf("IV must be 32 bytes, got %d", len(iv))
+	}
+
+	cipher, err := aes.NewCipher(key, iv)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create cipher: %w", err)
+	}
+
+	const chunkSize = 64 * 1024 // multiple of 16
+
+	var written, readTotal int64
+	tail := make([]byte, 0, 16)
+
+	for {
+		inBuf := make([]byte, chunkSize)
+		n, err := io.ReadFull(src, inBuf)
+		if n > 0 {
+			readTotal += int64(n)
+		}
+		aligned := n
+		atEOF := err == io.ErrUnexpectedEOF || err == io.EOF
+		if atEOF {
+			aligned = (n / 16) * 16
+		} else if err != nil {
+			return written, fmt.Errorf("read source: %w", err)
+		}
+
+		if aligned > 0 {
+			outBuf := make([]byte, aligned)
+			if err := cipher.DoAES256IGEencrypt(inBuf[:aligned], outBuf); err != nil {
+				return written, fmt.Errorf("encrypt block: %w", err)
+			}
+			if _, err := dst.Write(outBuf); err != nil {
+				return written, fmt.Errorf("write encrypted: %w", err)
+			}
+			written += int64(aligned)
+		}
+
+		if atEOF {
+			tail = append(tail, inBuf[aligned:n]...)
+			break
+		}
+	}
+
+	if totalSize >= 0 && readTotal != totalSize {
+		return written, fmt.Errorf("source size mismatch: declared %d, read %d", totalSize, readTotal)
+	}
+
+	pad := 0
+	if len(tail)%16 != 0 {
+		pad = 16 - (len(tail) % 16)
+	}
+	if pad > 0 || len(tail) > 0 {
+		final := make([]byte, len(tail)+pad)
+		copy(final, tail)
+		if pad > 0 {
+			if _, err := rand.Read(final[len(tail):]); err != nil {
+				return written, fmt.Errorf("generate padding: %w", err)
+			}
+		}
+		out := make([]byte, len(final))
+		if err := cipher.DoAES256IGEencrypt(final, out); err != nil {
+			return written, fmt.Errorf("encrypt final block: %w", err)
+		}
+		if _, err := dst.Write(out); err != nil {
+			return written, fmt.Errorf("write final: %w", err)
+		}
+		written += int64(len(out))
+	}
+
+	return written, nil
 }
 
 func DecryptFile(encryptedData []byte, key, iv []byte, originalSize int) ([]byte, error) {
