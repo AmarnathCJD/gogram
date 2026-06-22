@@ -1978,10 +1978,12 @@ func (c *Client) IterHistory(PeerID any, callback func(*NewMessage) error, opts 
 
 	for {
 		var messages []NewMessage
-		remaining := opt.Limit - int32(fetched)
 		perReqLimit := int32(100)
-		if remaining < perReqLimit {
-			perReqLimit = remaining
+		if opt.Limit > 0 {
+			remaining := opt.Limit - int32(fetched)
+			if remaining < perReqLimit {
+				perReqLimit = remaining
+			}
 		}
 		req.Limit = perReqLimit
 
