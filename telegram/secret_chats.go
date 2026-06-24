@@ -235,6 +235,28 @@ func (c *Client) SendSecretMessage(chatID int32, message string, ttl int32) (Mes
 // SendSecretChatLayerNotification announces our supported layer to the peer.
 // Per spec this must be the FIRST decrypted message exchanged on the channel.
 func (c *Client) SendSecretChatLayerNotification(chatID int32) (MessagesSentEncryptedMessage, error) {
+	return c.sendSecretService(chatID, &e2e.DecryptedMessageActionNotifyLayer{Layer: e2e.CurrentLayer})
+}
+
+// SendSecretAction sends a typing indicator to a secret chat.
+func (c *Client) SendSecretAction(chatID int32, action e2e.SendMessageAction) (bool, error) {
+	chat, err := c.secretChats.GetSecretChat(chatID)
+	if err != nil {
+		return false, fmt.Errorf("failed to get secret chat: %w", err)
+	}
+
+	typing := true
+	if _, ok := action.(*e2e.SendMessageCancelAction); ok {
+		typing = false
+	}
+
+	return c.MessagesSetEncryptedTyping(&InputEncryptedChat{
+		ChatID:     chat.ID,
+		AccessHash: chat.AccessHash,
+	}, typing)
+}
+
+func (c *Client) sendSecretService(chatID int32, action e2e.DecryptedMessageAction) (MessagesSentEncryptedMessage, error) {
 	chat, err := c.secretChats.GetSecretChat(chatID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secret chat: %w", err)
@@ -243,10 +265,6 @@ func (c *Client) SendSecretChatLayerNotification(chatID int32) (MessagesSentEncr
 	randomID, err := e2e.GenerateRandomID()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random ID: %w", err)
-	}
-
-	action := &e2e.DecryptedMessageActionNotifyLayer{
-		Layer: e2e.CurrentLayer,
 	}
 
 	serviceMsg := &e2e.DecryptedMessageService{
