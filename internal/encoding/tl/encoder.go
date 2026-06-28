@@ -155,6 +155,12 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 
 			fieldVal := v.Field(i)
 			if fieldVal.IsZero() && !info.explicit {
+				if info.optional && !info.encodedInBitflag && flag&(1<<info.index) != 0 {
+					if err := c.encodeZeroForFlagPartner(fieldVal, vtyp.Field(i).Name); err != nil {
+						c.err = err
+						return
+					}
+				}
 				continue
 			}
 			if info.encodedInBitflag {
@@ -170,6 +176,33 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 			return
 		}
 	}
+}
+
+func (c *Encoder) encodeZeroForFlagPartner(fieldVal reflect.Value, fieldName string) error {
+	switch fieldVal.Kind() {
+	case reflect.String:
+		c.PutString("")
+	case reflect.Int32:
+		c.PutUint(0)
+	case reflect.Uint32:
+		c.PutUint(0)
+	case reflect.Int64:
+		c.PutLong(0)
+	case reflect.Float64:
+		c.PutDouble(0)
+	case reflect.Bool:
+		c.PutBool(false)
+	case reflect.Slice:
+		if _, ok := fieldVal.Interface().([]byte); ok {
+			c.PutMessage(nil)
+		} else {
+			c.PutCRC(CrcVector)
+			c.PutUint(0)
+		}
+	default:
+		return fmt.Errorf("field %q is empty but shares a flag bit with a set field; cannot emit a zero value for type %s", fieldName, fieldVal.Type())
+	}
+	return nil
 }
 
 func (c *Encoder) encodeVectorValue(slice reflect.Value) {
