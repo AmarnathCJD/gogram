@@ -636,7 +636,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 		}
 
 		if !found {
-			senderNew, err := c.CreateExportedSender(int(dcID), false)
+			senderNew, err := c.CreateExportedSender(int(dcID), false, false)
 			if err != nil {
 				return nil, err
 			}

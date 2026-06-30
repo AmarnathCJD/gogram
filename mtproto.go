@@ -502,6 +502,8 @@ func (m *MTProto) SwitchDc(dc int) error {
 }
 
 func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, error) {
+	isCdn := len(cdn) > 0 && cdn[0]
+	isMedia := len(cdn) > 1 && cdn[1]
 	newAddr := m.DcList.GetHostIP(dcID, false, m.IpV6)
 
 	var senderNum int32
@@ -513,10 +515,19 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 	m.senderCounters.Store(dcID, senderNum)
 
 	var loggerPrefix string
-	if len(cdn) > 0 && cdn[0] {
+	switch {
+	case isCdn:
 		newAddr, _ = m.DcList.GetCDNAddr(dcID)
 		loggerPrefix = fmt.Sprintf("gogram [cdn>>dc%d#%d]", dcID, senderNum)
-	} else {
+	case isMedia:
+		if mediaAddr, ok := m.DcList.GetMediaAddr(dcID, m.IpV6); ok {
+			newAddr = mediaAddr
+			m.Logger.Debug("sender #%d targeting media DC%d at %s", senderNum, dcID, mediaAddr)
+		} else {
+			m.Logger.Debug("sender #%d requested media DC%d but none advertised; using regular %s", senderNum, dcID, newAddr)
+		}
+		loggerPrefix = fmt.Sprintf("gogram [media>>dc%d#%d]", dcID, senderNum)
+	default:
 		loggerPrefix = fmt.Sprintf("gogram [sender>>dc%d#%d]", dcID, senderNum)
 	}
 
@@ -555,7 +566,7 @@ func (m *MTProto) ExportNewSender(dcID int, mem bool, cdn ...bool) (*MTProto, er
 
 	sender.noRedirect = true
 	sender.exported = true
-	if len(cdn) > 0 && cdn[0] {
+	if isCdn {
 		sender.cdn = true
 	}
 

@@ -23,7 +23,14 @@ import (
 
 	"errors"
 
+	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+)
+
+const (
+	UploadCap20M int64 = 20 * 1024 * 1024
+	UploadCap18M int64 = 18 * 1024 * 1024
+	UploadCap10M int64 = 10 * 1024 * 1024
 )
 
 type UploadOptions struct {
@@ -33,7 +40,9 @@ type UploadOptions struct {
 	ProgressCallback func(*ProgressInfo) // Callback for upload progress updates
 	ProgressManager  *ProgressManager    // Progress manager (legacy support)
 	ProgressInterval int                 // Progress callback interval in seconds (default: 5)
+	MaxBytesPerSec   int64               // Optional upload speed cap in bytes/second
 	Delay            int                 // Delay between chunks in milliseconds
+	NoMediaDC        bool                // Skip media DC routing (default: use media DC when advertised)
 	Ctx              context.Context     // Context for cancellation
 }
 
@@ -292,6 +301,44 @@ type uploadPart struct {
 	data  []byte
 }
 
+type byteThrottle struct {
+	limit   int64
+	mu      sync.Mutex
+	started bool
+	start   time.Time
+	used    int64
+}
+
+func newByteThrottle(limit int64) *byteThrottle {
+	if limit <= 0 {
+		return nil
+	}
+	return &byteThrottle{limit: limit}
+}
+
+func (t *byteThrottle) wait(bytes int) {
+	if t == nil || bytes <= 0 {
+		return
+	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if !t.started {
+		t.started = true
+		t.start = time.Now()
+		t.used = int64(bytes)
+		return
+	}
+
+	t.used += int64(bytes)
+	expectedElapsed := time.Duration(float64(t.used) / float64(t.limit) * float64(time.Second))
+	actualElapsed := time.Since(t.start)
+	if wait := expectedElapsed - actualElapsed; wait > 0 {
+		time.Sleep(wait)
+	}
+}
+
 func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) {
 	opts := getVariadic(Opts, &UploadOptions{})
 	if src == nil {
@@ -327,6 +374,10 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	fileId := GenerateRandomLong()
 	isBigFile := size > 10*1024*1024
 
+	if err := validateUploadFileSize(size, c.isPremium()); err != nil {
+		return nil, err
+	}
+
 	totalParts := int((size + int64(partSize) - 1) / int64(partSize))
 
 	numWorkers := countWorkers(int64(totalParts))
@@ -339,8 +390,8 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	if numWorkers > totalParts {
 		numWorkers = totalParts
 	}
-	if numWorkers > 16 {
-		numWorkers = 16
+	if numWorkers > 12 {
+		numWorkers = 12
 	}
 	if numWorkers < 1 {
 		numWorkers = 1
@@ -349,7 +400,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	w := NewWorkerPool(numWorkers)
 	defer w.Close()
 
-	if err := initializeWorkers(numWorkers, int32(c.GetDC()), c, w); err != nil {
+	if err := initializeWorkersWithMode(numWorkers, int32(c.GetDC()), c, w, !opts.NoMediaDC); err != nil {
 		return nil, err
 	}
 
@@ -373,6 +424,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	}).Info("starting file upload")
 
 	var doneBytes atomic.Int64
+	uploadThrottle := newByteThrottle(opts.MaxBytesPerSec)
 
 	var progressCallback func(*ProgressInfo)
 	if opts.ProgressCallback != nil {
@@ -421,7 +473,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		go func() {
 			defer wg.Done()
 			for part := range partCh {
-				if err := uploadOnePart(uploadCtx, c, w, uploadLog, part, fileId, totalParts, isBigFile, opts); err != nil {
+				if err := uploadOnePart(uploadCtx, c, w, uploadLog, part, fileId, totalParts, isBigFile, opts, uploadThrottle); err != nil {
 					setFatal(err)
 					drainParts(partCh)
 					return
@@ -566,10 +618,13 @@ func isUploadFatal(err error) bool {
 	return false
 }
 
-func uploadOnePart(ctx context.Context, c *Client, w *WorkerPool, log *partLogAggregator, part uploadPart, fileId int64, totalParts int, isBigFile bool, opts *UploadOptions) error {
+func uploadOnePart(ctx context.Context, c *Client, w *WorkerPool, log *partLogAggregator, part uploadPart, fileId int64, totalParts int, isBigFile bool, opts *UploadOptions, throttle *byteThrottle) error {
 	const maxAttempts = 20
 	var lastErr error
-	for attempt := 0; attempt < maxAttempts; attempt++ {
+	if throttle != nil {
+		throttle.wait(len(part.data))
+	}
+	for attempt := range maxAttempts {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -663,7 +718,43 @@ func validateUploadChunkSize(size int) error {
 	if size%1024 != 0 {
 		return fmt.Errorf("upload chunk size must be a multiple of 1024, got %d", size)
 	}
+	if 524288%size != 0 {
+		return fmt.Errorf("upload chunk size must divide 524288 evenly, got %d", size)
+	}
 	return nil
+}
+
+const (
+	maxUploadFileSize        int64 = 2 * 1024 * 1024 * 1024
+	maxUploadFileSizePremium int64 = 4 * 1024 * 1024 * 1024
+)
+
+func (c *Client) isPremium() bool {
+	if me := c.getMe(); me != nil {
+		return me.Premium
+	}
+	return false
+}
+
+func validateUploadFileSize(size int64, isPremium bool) error {
+	if size <= 0 {
+		return nil
+	}
+	max := maxUploadFileSize
+	if isPremium {
+		max = maxUploadFileSizePremium
+	}
+	if size > max {
+		return fmt.Errorf("file size %s exceeds %s upload limit (%s)", SizetoHuman(size), premiumLabel(isPremium), SizetoHuman(max))
+	}
+	return nil
+}
+
+func premiumLabel(isPremium bool) string {
+	if isPremium {
+		return "premium"
+	}
+	return "non-premium"
 }
 
 func uploadChunkSizeCalc(size int64) int {
@@ -691,6 +782,10 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 	streaming := size <= 0
 	isBigFile := streaming || size > 10*1024*1024
 
+	if err := validateUploadFileSize(size, c.isPremium()); err != nil {
+		return nil, err
+	}
+
 	totalParts := 0
 	if !streaming {
 		totalParts = int((size + int64(partSize) - 1) / int64(partSize))
@@ -706,6 +801,7 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 	defer uploadCancel()
 
 	var doneBytes atomic.Int64
+	uploadThrottle := newByteThrottle(opts.MaxBytesPerSec)
 	var progressCallback func(*ProgressInfo)
 	if opts.ProgressCallback != nil {
 		progressCallback = opts.ProgressCallback
@@ -750,13 +846,27 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 		}
 		nextPart = nextPart[:readBytes]
 
+		isLast := !streaming && p == totalParts-1
 		if streaming && len(nextPart) == 0 {
 			totalParts = p + 1
+			isLast = true
+			streamedBytes := int64(p)*int64(partSize) + int64(len(currentPart))
+			if err := validateUploadFileSize(streamedBytes, c.isPremium()); err != nil {
+				return nil, err
+			}
+		}
+
+		filePartsField := int32(totalParts)
+		if streaming && !isLast {
+			filePartsField = -1
 		}
 
 		var uploadErr error
 		const maxAttempts = 20
-		for attempt := 0; attempt < maxAttempts; attempt++ {
+		if uploadThrottle != nil {
+			uploadThrottle.wait(len(currentPart))
+		}
+		for attempt := range maxAttempts {
 			if err := uploadCtx.Err(); err != nil {
 				return nil, err
 			}
@@ -766,7 +876,7 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 				_, uploadErr = c.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
 					FileID:         fileId,
 					FilePart:       int32(p),
-					FileTotalParts: int32(totalParts),
+					FileTotalParts: filePartsField,
 					Bytes:          currentPart,
 				})
 			} else {
@@ -883,10 +993,8 @@ func countWorkers(parts int64) int {
 		return 6
 	case parts <= 200:
 		return 8
-	case parts <= 500:
-		return 12
 	default:
-		return 16
+		return 12
 	}
 }
 
@@ -908,6 +1016,7 @@ type DownloadOptions struct {
 	ProgressCallback func(*ProgressInfo) // Callback for download progress updates
 	ProgressManager  *ProgressManager    // Progress manager (legacy support)
 	ProgressInterval int                 // Progress callback interval in seconds (default: 5)
+	MaxBytesPerSec   int64               // Optional download speed cap in bytes/second
 	Delay            int                 // Delay between chunks in milliseconds
 	DCId             int32               // Datacenter ID where file is stored
 	TakeoutID        int64               // Download file using takeout api
@@ -1054,6 +1163,8 @@ type downloadJob struct {
 	cdn      *cdnRedirect
 	cdnPools map[int32]*WorkerPool
 
+	throttle *byteThrottle
+
 	resume       *resumeState
 	resumeStopCh chan struct{}
 }
@@ -1181,8 +1292,8 @@ func (c *Client) newDownloadJob(file any, opts *DownloadOptions) (*downloadJob, 
 		if workers > int(parts) {
 			workers = int(parts)
 		}
-		if workers > 16 {
-			workers = 16
+		if workers > 12 {
+			workers = 12
 		}
 		if workers < 1 {
 			workers = 1
@@ -1205,6 +1316,7 @@ func (c *Client) newDownloadJob(file any, opts *DownloadOptions) (*downloadJob, 
 		workers:     workers,
 		destination: destination,
 		ctx:         ctx,
+		throttle:    newByteThrottle(opts.MaxBytesPerSec),
 		resume:      resume,
 	}
 	if resume != nil {
@@ -1407,6 +1519,9 @@ func (j *downloadJob) fetchPartLoop(ctx context.Context, pool *WorkerPool, part 
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		result, err := j.fetchPart(ctx, pool, part, attempt)
 		if err == nil {
+			if j.throttle != nil {
+				j.throttle.wait(len(result.data))
+			}
 			return result, nil
 		}
 		lastErr = err
@@ -1506,7 +1621,7 @@ func (j *downloadJob) cdnPool(_ context.Context, dc int32) (*WorkerPool, error) 
 	}
 	j.cdnMu.Unlock()
 
-	conn, err := j.client.CreateExportedSender(int(dc), true)
+	conn, err := j.client.CreateExportedSender(int(dc), true, false)
 	if err != nil {
 		return nil, fmt.Errorf("creating cdn sender: %w", err)
 	}
@@ -1706,9 +1821,24 @@ func contextErr(ctx context.Context, fallback error) error {
 }
 
 func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool, ctx ...context.Context) error {
-	if numWorkers == 1 && dc == int32(c.GetDC()) {
+	return initializeWorkersWithMode(numWorkers, dc, c, w, false, ctx...)
+}
+
+func mediaSenderCacheKey(dc int) int { return dc + 10_000 }
+
+func initializeWorkersWithMode(numWorkers int, dc int32, c *Client, w *WorkerPool, media bool, ctx ...context.Context) error {
+	if numWorkers == 1 && dc == int32(c.GetDC()) && !media {
 		w.AddWorker(NewExSender(c.MTProto))
 		return nil
+	}
+
+	if media {
+		if addr, ok := c.DcList.GetMediaAddr(int(dc), false); ok {
+			c.Log.Debug(fmt.Sprintf("upload: using media DC%d at %s for %d workers", dc, addr, numWorkers))
+		} else {
+			c.Log.Debug(fmt.Sprintf("upload: no media DC advertised for DC%d, falling back to regular DC for %d workers", dc, numWorkers))
+			media = false
+		}
 	}
 
 	var authParams = &AuthExportedAuthorization{}
@@ -1739,21 +1869,33 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool, ctx .
 		}
 	}
 
+	createSender := func(authParams *AuthExportedAuthorization) (*mtproto.MTProto, error) {
+		return c.CreateExportedSender(int(dc), false, media, authParams)
+	}
+
+	cacheKey := int(dc)
+	if media {
+		cacheKey = mediaSenderCacheKey(int(dc))
+	}
+
 	numCreate := 0
-	existingSenders := c.exSenders.GetSenders(int(dc))
+	existingSenders := c.exSenders.GetSenders(cacheKey)
 	for _, worker := range existingSenders {
+		if numCreate >= numWorkers {
+			break
+		}
 		w.AddWorker(worker)
 		numCreate++
 	}
 
 	if numCreate == 0 {
-		conn, err := c.CreateExportedSender(int(dc), false, authParams)
+		conn, err := createSender(authParams)
 		if err != nil {
 			return fmt.Errorf("creating initial sender: %w", err)
 		}
 		if conn != nil {
 			sender := NewExSender(conn)
-			c.exSenders.AddSender(int(dc), sender)
+			c.exSenders.AddSender(cacheKey, sender)
 			w.AddWorker(sender)
 			numCreate++
 		}
@@ -1764,16 +1906,17 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool, ctx .
 		if len(ctx) > 0 && ctx[0] != nil {
 			bgCtx = ctx[0]
 		}
-		c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) - workers(%d)", dc, numWorkers-numCreate))
+		toCreate := numWorkers - numCreate
+		c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) media(%v) - creating %d more (have %d, want %d total)", dc, media, toCreate, numCreate, numWorkers))
 		go func() {
 			for i := numCreate; i < numWorkers; i++ {
 				if bgCtx.Err() != nil {
 					return
 				}
-				conn, err := c.CreateExportedSender(int(dc), false, authParams)
+				conn, err := createSender(authParams)
 				if conn != nil && err == nil {
 					sender := NewExSender(conn)
-					c.exSenders.AddSender(int(dc), sender)
+					c.exSenders.AddSender(cacheKey, sender)
 					w.AddWorker(sender)
 				}
 			}

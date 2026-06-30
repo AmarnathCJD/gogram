@@ -361,23 +361,32 @@ func (c *Client) InitialRequest() error {
 	if config, ok := serverConfig.(*Config); ok {
 		var dcs = make(map[int][]utils.DC)
 		var cdnDcs = make(map[int][]utils.DC)
+		var mediaDcs = make(map[int][]utils.DC)
 		for _, dc := range config.DcOptions {
-			if !dc.MediaOnly && !dc.Cdn {
-				if _, ok := dcs[int(dc.ID)]; !ok {
-					dcs[int(dc.ID)] = []utils.DC{}
-				}
-
-				dcs[int(dc.ID)] = append(dcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), IPv6: dc.Ipv6})
-			} else if dc.Cdn {
-				if _, ok := cdnDcs[int(dc.ID)]; !ok {
-					cdnDcs[int(dc.ID)] = []utils.DC{}
-				}
-
-				cdnDcs[int(dc.ID)] = append(cdnDcs[int(dc.ID)], utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), IPv6: dc.Ipv6})
+			entry := utils.DC{Addr: dc.IpAddress + ":" + strconv.Itoa(int(dc.Port)), IPv6: dc.Ipv6}
+			switch {
+			case dc.Cdn:
+				cdnDcs[int(dc.ID)] = append(cdnDcs[int(dc.ID)], entry)
+			case dc.MediaOnly:
+				mediaDcs[int(dc.ID)] = append(mediaDcs[int(dc.ID)], entry)
+			default:
+				dcs[int(dc.ID)] = append(dcs[int(dc.ID)], entry)
 			}
 		}
 
-		c.DcList.SetDCs(dcs, cdnDcs) // set the up to-date DC configuration for the library
+		c.DcList.SetAllDCs(dcs, cdnDcs, mediaDcs)
+
+		var mediaSummary []string
+		for id, addrs := range mediaDcs {
+			for _, a := range addrs {
+				mediaSummary = append(mediaSummary, fmt.Sprintf("DC%d=%s", id, a.Addr))
+			}
+		}
+		if len(mediaSummary) > 0 {
+			c.Log.Debug(fmt.Sprintf("server advertised media DCs: %v", mediaSummary))
+		} else {
+			c.Log.Debug("server advertised no media-only DCs")
+		}
 	}
 
 	return nil
@@ -604,8 +613,10 @@ func (es *ExSenders) Close() {
 	})
 }
 
-// CreateExportedSender creates a new exported sender for the given DC
-func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
+// CreateExportedSender creates a new exported sender for the given DC.
+// When media is true, the sender targets the media-only DC for the given
+// DC ID when the server advertises one (falling back to the regular DC).
+func (c *Client) CreateExportedSender(dcID int, cdn bool, media bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
 	if dcID <= 0 {
 		return nil, errors.New("invalid data center ID")
 	}
@@ -629,7 +640,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, authParams ...*AuthExp
 		}
 	}
 
-	exported, err := c.MTProto.ExportNewSender(dcID, true, cdn)
+	exported, err := c.MTProto.ExportNewSender(dcID, true, cdn, media)
 	if err != nil {
 		return nil, fmt.Errorf("exporting new sender: %w", err)
 	}

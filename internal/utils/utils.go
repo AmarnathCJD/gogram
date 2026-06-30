@@ -47,6 +47,7 @@ var DCList = DCOptions{
 			{Addr: "[2a0a:f280:0203:000a:5000:0000:0000:0100]:443", IPv6: true},
 		},
 	},
+	MediaDCs: map[int][]DC{},
 }
 
 type DC struct {
@@ -55,26 +56,39 @@ type DC struct {
 }
 
 type DCOptions struct {
-	DCs     map[int][]DC
-	TestDCs map[int]string
-	CDNDCs  map[int][]DC
+	DCs      map[int][]DC
+	TestDCs  map[int]string
+	CDNDCs   map[int][]DC
+	MediaDCs map[int][]DC
 }
 
 func NewDCOptions() *DCOptions {
 	return &DCOptions{
-		DCs:     maps.Clone(DCList.DCs),
-		TestDCs: maps.Clone(DCList.TestDCs),
-		CDNDCs:  maps.Clone(DCList.CDNDCs),
+		DCs:      maps.Clone(DCList.DCs),
+		TestDCs:  maps.Clone(DCList.TestDCs),
+		CDNDCs:   maps.Clone(DCList.CDNDCs),
+		MediaDCs: maps.Clone(DCList.MediaDCs),
 	}
 }
 
 func (opt *DCOptions) SetDCs(dcs map[int][]DC, cdnDCs map[int][]DC) {
+	opt.SetAllDCs(dcs, cdnDCs, nil)
+}
+
+func (opt *DCOptions) SetAllDCs(dcs map[int][]DC, cdnDCs map[int][]DC, mediaDCs map[int][]DC) {
 	for id, newDCs := range dcs {
 		opt.DCs[id] = mergeUnique(opt.DCs[id], newDCs)
 	}
 
 	for id, newCDNs := range cdnDCs {
 		opt.CDNDCs[id] = mergeUnique(opt.CDNDCs[id], newCDNs)
+	}
+
+	if opt.MediaDCs == nil {
+		opt.MediaDCs = make(map[int][]DC)
+	}
+	for id, newMedias := range mediaDCs {
+		opt.MediaDCs[id] = mergeUnique(opt.MediaDCs[id], newMedias)
 	}
 }
 
@@ -105,6 +119,23 @@ func (opt *DCOptions) GetCDNAddr(dc int) (string, bool) {
 		return "", false
 	}
 	return addrs[0].Addr, addrs[0].IPv6
+}
+
+func (opt *DCOptions) GetMediaAddr(dc int, ipv6 bool) (string, bool) {
+	addrs, ok := opt.MediaDCs[dc]
+	if !ok || len(addrs) == 0 {
+		return "", false
+	}
+	return selectDCAddr(addrs, ipv6), true
+}
+
+func (opt *DCOptions) GetMediaOrHostIP(dc int, test, ipv6 bool) string {
+	if !test {
+		if addr, ok := opt.GetMediaAddr(dc, ipv6); ok {
+			return addr
+		}
+	}
+	return opt.GetHostIP(dc, test, ipv6)
 }
 
 func (opt *DCOptions) GetHostIP(dc int, test, ipv6 bool) string {
