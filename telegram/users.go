@@ -41,7 +41,10 @@ func (p *UserPhoto) FileID() string {
 func (p *UserPhoto) FileSize() int64 {
 	if p, ok := p.Photo.(*PhotoObj); ok {
 		if p.VideoSizes != nil {
-			return int64(p.VideoSizes[len(p.VideoSizes)-1].(*VideoSizeObj).Size)
+			if vs, ok := p.VideoSizes[len(p.VideoSizes)-1].(*VideoSizeObj); ok {
+				return int64(vs.Size)
+			}
+			return 0
 		}
 		size, _ := getPhotoSize(p.Sizes[len(p.Sizes)-1])
 		return size
@@ -59,11 +62,15 @@ func (p *UserPhoto) DcID() int32 {
 func (p *UserPhoto) InputLocation() (*InputPhotoFileLocation, error) {
 	if photo, ok := p.Photo.(*PhotoObj); ok {
 		if photo.VideoSizes != nil {
+			thumbSize := ""
+			if vs, ok := photo.VideoSizes[0].(*VideoSizeObj); ok {
+				thumbSize = vs.Type
+			}
 			return &InputPhotoFileLocation{
 				ID:            photo.ID,
 				AccessHash:    photo.AccessHash,
 				FileReference: photo.FileReference,
-				ThumbSize:     photo.VideoSizes[0].(*VideoSizeObj).Type,
+				ThumbSize:     thumbSize,
 			}, nil
 		}
 		_, thumbSize := getPhotoSize(photo.Sizes[len(photo.Sizes)-1])

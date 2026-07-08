@@ -702,7 +702,9 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 		if result != nil {
 			updates := processUpdates(result)
 			for _, update := range updates {
-				update.(*MessageObj).PeerID = c.getPeer(Peer)
+				if msgObj, ok := update.(*MessageObj); ok {
+					msgObj.PeerID = c.getPeer(Peer)
+				}
 			}
 
 			results = append(results, PackMessages(c, updates)...)

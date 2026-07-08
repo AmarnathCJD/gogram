@@ -689,7 +689,10 @@ func GetFileName(f any, video ...bool) string {
 
 	switch f := f.(type) {
 	case *MessageMediaDocument:
-		return getDocName(f.Document.(*DocumentObj))
+		if doc, ok := f.Document.(*DocumentObj); ok {
+			return getDocName(doc)
+		}
+		return fmt.Sprintf("file_%s_%d", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
 	case *MessageMediaPhoto:
 		if isVid {
 			return fmt.Sprintf("video_%s_%d.mp4", time.Now().Format("2006-01-02_15-04-05"), cryptoRandIntn(1000))
@@ -720,7 +723,10 @@ func GetFileName(f any, video ...bool) string {
 func getFileSize(f any) int64 {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
-		return f.Document.(*DocumentObj).Size
+		if doc, ok := f.Document.(*DocumentObj); ok {
+			return doc.Size
+		}
+		return 0
 	case *MessageMediaPhoto:
 		if photo, p := f.Photo.(*PhotoObj); p {
 			if len(photo.Sizes) == 0 {
@@ -745,7 +751,10 @@ func getFileSize(f any) int64 {
 func getFileExt(f any) string {
 	switch f := f.(type) {
 	case *MessageMediaDocument:
-		doc := f.Document.(*DocumentObj)
+		doc, ok := f.Document.(*DocumentObj)
+		if !ok {
+			return ""
+		}
 		if e := MimeTypes.Ext(doc.MimeType); e != "" {
 			return e
 		}

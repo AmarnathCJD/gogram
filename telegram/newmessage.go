@@ -39,7 +39,9 @@ func (m *NewMessage) MessageText() string {
 
 func (m *NewMessage) ReplyToMsgID() int32 {
 	if m.Message.ReplyTo != nil {
-		return m.Message.ReplyTo.(*MessageReplyHeaderObj).ReplyToMsgID
+		if reply, ok := m.Message.ReplyTo.(*MessageReplyHeaderObj); ok {
+			return reply.ReplyToMsgID
+		}
 	}
 	return 0
 }
@@ -66,7 +68,9 @@ func (m *NewMessage) TopicID() (int32, bool) {
 
 func (m *NewMessage) ReplySenderID() int64 {
 	if m.Message.ReplyTo != nil {
-		return m.Client.GetPeerID(m.Message.ReplyTo.(*MessageReplyHeaderObj).ReplyToPeerID)
+		if reply, ok := m.Message.ReplyTo.(*MessageReplyHeaderObj); ok {
+			return m.Client.GetPeerID(reply.ReplyToPeerID)
+		}
 	}
 	return 0
 }

@@ -224,17 +224,23 @@ func calculateSha256Hash(localFile string) (string, error) {
 func processUpdates(updates Updates) []Message {
 	var messages []Message
 	processMessage := func(upd Update) {
+		var msg Message
 		switch update := upd.(type) {
 		case *UpdateNewMessage:
-			messages = append(messages, update.Message.(*MessageObj))
+			msg = update.Message
 		case *UpdateNewChannelMessage:
-			messages = append(messages, update.Message.(*MessageObj))
+			msg = update.Message
 		case *UpdateEditMessage:
-			messages = append(messages, update.Message.(*MessageObj))
+			msg = update.Message
 		case *UpdateEditChannelMessage:
-			messages = append(messages, update.Message.(*MessageObj))
+			msg = update.Message
 		case *UpdateBotEditBusinessMessage:
-			messages = append(messages, update.Message.(*MessageObj))
+			msg = update.Message
+		}
+		if msg != nil {
+			if m, ok := msg.(*MessageObj); ok {
+				messages = append(messages, m)
+			}
 		}
 	}
 
@@ -305,15 +311,25 @@ updateTypeSwitch:
 		}
 		switch upd := upd.(type) {
 		case *UpdateNewMessage:
-			return upd.Message.(*MessageObj)
+			if m, ok := upd.Message.(*MessageObj); ok {
+				return m
+			}
 		case *UpdateNewChannelMessage:
-			return upd.Message.(*MessageObj)
+			if m, ok := upd.Message.(*MessageObj); ok {
+				return m
+			}
 		case *UpdateEditMessage:
-			return upd.Message.(*MessageObj)
+			if m, ok := upd.Message.(*MessageObj); ok {
+				return m
+			}
 		case *UpdateEditChannelMessage:
-			return upd.Message.(*MessageObj)
+			if m, ok := upd.Message.(*MessageObj); ok {
+				return m
+			}
 		case *UpdateBotEditBusinessMessage:
-			return upd.Message.(*MessageObj)
+			if m, ok := upd.Message.(*MessageObj); ok {
+				return m
+			}
 		case *UpdateMessageID:
 			return &MessageObj{
 				ID: upd.ID,
@@ -328,7 +344,10 @@ updateTypeSwitch:
 		if err != nil {
 			chat = &PeerChat{}
 		}
-		return &MessageObj{Out: update.Out, ID: update.ID, PeerID: chat.(*PeerChat), Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod}
+		if peerChat, ok := chat.(*PeerChat); ok {
+			return &MessageObj{Out: update.Out, ID: update.ID, PeerID: peerChat, Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod}
+		}
+		return &MessageObj{Out: update.Out, ID: update.ID, PeerID: &PeerChat{}, Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod}
 	case *UpdateShort:
 		upd = &UpdatesObj{Updates: []Update{update.Update}}
 		goto updateTypeSwitch
@@ -653,12 +672,20 @@ mediaTypeSwitch:
 	case MessageMedia:
 		switch media := media.(type) {
 		case *MessageMediaPhoto:
-			Photo := media.Photo.(*PhotoObj)
-			return &InputMediaPhoto{ID: &InputPhotoObj{ID: Photo.ID, AccessHash: Photo.AccessHash, FileReference: Photo.FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+			if Photo, ok := media.Photo.(*PhotoObj); ok {
+				return &InputMediaPhoto{ID: &InputPhotoObj{ID: Photo.ID, AccessHash: Photo.AccessHash, FileReference: Photo.FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+			}
+			return &InputMediaPhoto{ID: &InputPhotoEmpty{}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
 		case *MessageMediaDocument:
-			return &InputMediaDocument{ID: &InputDocumentObj{ID: media.Document.(*DocumentObj).ID, AccessHash: media.Document.(*DocumentObj).AccessHash, FileReference: media.Document.(*DocumentObj).FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+			if doc, ok := media.Document.(*DocumentObj); ok {
+				return &InputMediaDocument{ID: &InputDocumentObj{ID: doc.ID, AccessHash: doc.AccessHash, FileReference: doc.FileReference}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
+			}
+			return &InputMediaDocument{ID: &InputDocumentEmpty{}, TtlSeconds: getValue(attr.TTL, 0), Spoiler: getValue(attr.Spoiler, false)}, nil
 		case *MessageMediaGeo:
-			return &InputMediaGeoPoint{GeoPoint: &InputGeoPointObj{Lat: media.Geo.(*GeoPointObj).Lat, Long: media.Geo.(*GeoPointObj).Long}}, nil
+			if geo, ok := media.Geo.(*GeoPointObj); ok {
+				return &InputMediaGeoPoint{GeoPoint: &InputGeoPointObj{Lat: geo.Lat, Long: geo.Long}}, nil
+			}
+			return &InputMediaGeoPoint{GeoPoint: &InputGeoPointEmpty{}}, nil
 		case *MessageMediaGame:
 			return &InputMediaGame{ID: &InputGameID{ID: media.Game.ID, AccessHash: media.Game.AccessHash}}, nil
 		case *MessageMediaContact:
@@ -668,14 +695,15 @@ mediaTypeSwitch:
 		case *MessageMediaPoll:
 			return convertPoll(media), nil
 		case *MessageMediaVenue:
-			return &InputMediaVenue{GeoPoint: &InputGeoPointObj{Lat: media.Geo.(*GeoPointObj).Lat, Long: media.Geo.(*GeoPointObj).Long}, Title: media.Title, Address: media.Address, Provider: media.Provider, VenueID: media.VenueID, VenueType: media.VenueType}, nil
-		case *MessageMediaWebPage:
-			switch media.Webpage.(type) {
-			case *WebPageObj:
-				return &InputMediaWebPage{URL: media.Webpage.(*WebPageObj).URL, ForceLargeMedia: media.ForceLargeMedia, ForceSmallMedia: media.ForceSmallMedia}, nil
-			case *WebPageEmpty:
-				return &InputMediaWebPage{URL: "", ForceLargeMedia: media.ForceLargeMedia, ForceSmallMedia: media.ForceSmallMedia}, nil
+			if geo, ok := media.Geo.(*GeoPointObj); ok {
+				return &InputMediaVenue{GeoPoint: &InputGeoPointObj{Lat: geo.Lat, Long: geo.Long}, Title: media.Title, Address: media.Address, Provider: media.Provider, VenueID: media.VenueID, VenueType: media.VenueType}, nil
 			}
+			return &InputMediaVenue{GeoPoint: &InputGeoPointEmpty{}, Title: media.Title, Address: media.Address, Provider: media.Provider, VenueID: media.VenueID, VenueType: media.VenueType}, nil
+		case *MessageMediaWebPage:
+			if wp, ok := media.Webpage.(*WebPageObj); ok {
+				return &InputMediaWebPage{URL: wp.URL, ForceLargeMedia: media.ForceLargeMedia, ForceSmallMedia: media.ForceSmallMedia}, nil
+			}
+			return &InputMediaWebPage{URL: "", ForceLargeMedia: media.ForceLargeMedia, ForceSmallMedia: media.ForceSmallMedia}, nil
 		case *MessageMediaToDo:
 			return &InputMediaTodo{Todo: media.Todo}, nil
 		case *MessageMediaStory:
@@ -1411,7 +1439,9 @@ func packStoryToMessage(c *Client, story *StoryItemObj) *NewMessage {
 	}
 
 	m.Client = c
-	m.Message = m.OriginalUpdate.(*MessageObj)
+	if msgObj, ok := m.OriginalUpdate.(*MessageObj); ok {
+		m.Message = msgObj
+	}
 	return m
 }
 
