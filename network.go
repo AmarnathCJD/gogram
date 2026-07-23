@@ -200,6 +200,19 @@ func (m *MTProto) AddCustomServerRequestHandler(handler func(i any) bool) {
 	m.serverRequestHandlers = append(m.serverRequestHandlers, handler)
 }
 
+// AddRPCResponseHandler installs a hook that fires for every RPC response
+// received from the server, before it is delivered to the caller waiting on
+// the response channel. The hook is called synchronously on the read loop —
+// keep it fast. Return values are ignored (the response is always delivered
+// to the original caller regardless).
+//
+// This is used by the telegram package to tee update-carrying RPC responses
+// (e.g. messages.sendMessage returning an Updates envelope) into the update
+// pipeline so raw-update handlers observe them.
+func (m *MTProto) AddRPCResponseHandler(handler func(i any)) {
+	m.rpcResponseHandlers = append(m.rpcResponseHandlers, handler)
+}
+
 func (m *MTProto) SaveSession(mem bool) (err error) {
 	sess := &session.Session{
 		Key:      m.authKey,

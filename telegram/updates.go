@@ -2719,6 +2719,35 @@ func (c *Client) AddParticipantHandler(handler ParticipantHandler) Handle {
 	return addHandleToMap(c.dispatcher.participantHandles, h)
 }
 
+// AddRawHandler registers a handler for raw Update objects.
+//
+// This does NOT deliver the raw MTProto container stream. Updates reach the
+// handler only after passing gogram's internal pipeline:
+//
+//	HandleIncomingUpdates → applyIncomingUpdate → processWithState →
+//	counterBox (pts/qts gap tracking) → dispatchUpdate → handleRawUpdate
+//
+// The gap-tracking layer buffers updates whose pts is non-contiguous with
+// the last acknowledged pts until the gap resolves via updates.getDifference.
+// For normal clients this is invisible and desirable — it guarantees ordered,
+// gap-free updates. For proxy layers, Bot-API adapters, or callers building
+// their own state tracking, it can introduce buffering delays or (rarely)
+// stalls if a gap fetch cannot resolve while other RPC traffic is heavy.
+//
+// If you want raw updates without gap tracking, the recommended way is:
+//
+//	client, _ := telegram.NewClient(telegram.ClientConfig{
+//	    ..., RawUpdates: true,
+//	})
+//	client.OnRaw(nil, func(upd telegram.Update, c *telegram.Client) error {
+//	    // fires immediately, no pts/qts buffering, and also fires for
+//	    // updates piggybacking on RPC responses (e.g. messages.sendMessage)
+//	    return nil
+//	})
+//
+// For the deeper escape hatch (skip the friendly dispatcher entirely and
+// tap the raw MTProto container stream), see [UnpackContainer] and
+// [MTProto.AddCustomServerRequestHandler] / [MTProto.AddRPCResponseHandler].
 func (c *Client) AddRawHandler(updateType Update, handler RawHandler) Handle {
 	c.dispatcher.Lock()
 	defer c.dispatcher.Unlock()
@@ -2749,6 +2778,51 @@ func (c *Client) AddE2EHandler(handler func(update Update, c *Client) error) Han
 	h.onGroupChanged = makeGroupChangeCallback(c.dispatcher.e2eHandles, h, handleID, &c.dispatcher.RWMutex)
 	h.onPriorityChanged = makePriorityChangeCallback(c.dispatcher.e2eHandles, h, handleID, h.GetGroup, h.GetPriority, &c.dispatcher.RWMutex)
 	return addHandleToMap(c.dispatcher.e2eHandles, h)
+}
+
+// UnpackContainer flattens a raw MTProto update container into a slice of
+// individual Update objects. It handles all top-level container types the
+// server sends on the update stream: UpdatesObj, UpdatesCombined,
+// UpdateShort, UpdateShortMessage, UpdateShortChatMessage, and
+// UpdateShortSentMessage. Unknown or non-container values yield nil.
+//
+// This is the helper for the escape-hatch pattern described on
+// [Client.AddRawHandler]: register a custom server-request handler via
+// c.MTProto.AddCustomServerRequestHandler and call UnpackContainer on the
+// argument to get individual Updates without going through gogram's
+// pts/qts gap-tracking dispatcher.
+//
+//	client.MTProto.AddCustomServerRequestHandler(func(u any) bool {
+//	    for _, upd := range telegram.UnpackContainer(u) {
+//	        // ... deliver upd directly, no gap tracking, no buffering
+//	    }
+//	    return false
+//	})
+//
+// The short-message variants (UpdateShortMessage / UpdateShortChatMessage /
+// UpdateShortSentMessage) are expanded into synthetic UpdateNewMessage
+// objects mirroring what the server would have sent inside an UpdatesObj,
+// so downstream code can treat every element uniformly.
+func UnpackContainer(u any) []Update {
+	switch upd := u.(type) {
+	case *UpdatesObj:
+		return upd.Updates
+	case *UpdatesCombined:
+		return upd.Updates
+	case *UpdateShort:
+		return []Update{upd.Update}
+	case *UpdateShortMessage:
+		msg := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
+		return []Update{&UpdateNewMessage{Message: msg, Pts: upd.Pts, PtsCount: upd.PtsCount}}
+	case *UpdateShortChatMessage:
+		msg := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
+		return []Update{&UpdateNewMessage{Message: msg, Pts: upd.Pts, PtsCount: upd.PtsCount}}
+	case *UpdateShortSentMessage:
+		msg := &MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}
+		return []Update{&UpdateNewMessage{Message: msg, Pts: upd.Pts, PtsCount: upd.PtsCount}}
+	default:
+		return nil
+	}
 }
 
 // HandleIncomingUpdates processes incoming updates and dispatches them to the appropriate handlers.
@@ -4109,7 +4183,12 @@ func (c *Client) OnJoinRequest(handler func(m *JoinRequestUpdate) error) Handle 
 	return c.AddJoinRequestHandler(handler)
 }
 
-// OnRaw registers a raw handler and returns a handle
+// OnRaw registers a raw handler and returns a handle.
+//
+// See [Client.AddRawHandler] for the exact delivery semantics — updates
+// pass through gogram's pts/qts gap-tracking dispatcher before reaching
+// this handler. Callers who need the un-gapped MTProto container stream
+// should use the escape hatch described there.
 func (c *Client) OnRaw(updateType Update, handler func(m Update, c *Client) error) Handle {
 	return c.AddRawHandler(updateType, handler)
 }

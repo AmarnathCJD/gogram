@@ -138,6 +138,7 @@ type MTProto struct {
 	Logger *utils.Logger
 
 	serverRequestHandlers []func(i any) bool
+	rpcResponseHandlers   []func(i any)
 	floodHandler          func(err error) bool
 	errorHandler          func(err error) bool
 	connectionHandler     func(err error) error
@@ -1622,6 +1623,9 @@ messageTypeSwitching:
 			obj = v.Obj
 		}
 		m.Logger.Trace(" RPC < %T (msgID=%d)", obj, message.ReqMsgID)
+		for _, f := range m.rpcResponseHandlers {
+			f(obj)
+		}
 		err := m.writeRPCResponse(int(message.ReqMsgID), obj)
 		if err != nil {
 			if strings.Contains(err.Error(), "no response channel found") {

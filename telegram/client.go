@@ -146,6 +146,7 @@ type ClientConfig struct {
 	EnablePFS        bool                 // Enable Perfect Forward Secrecy with temp auth keys
 	PFSKeyLifetime   int32                // Lifetime (seconds) for PFS temp key; 0 = 24h
 	DisableGapFetch  bool                 // Disable automatic gap filling, only fetch difference on UpdatesTooLong/UpdateChannelTooLong
+	RawUpdates       bool                 // Enable raw update mode, bypassing pts/qts gap tracking but still dispatching updates to handlers
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -186,9 +187,13 @@ func NewClient(config ClientConfig) (*Client, error) {
 	if err := client.setupMTProto(config); err != nil {
 		return nil, err
 	}
-	if config.NoUpdates {
+	switch {
+	case config.NoUpdates:
 		client.Log.Debug("updates disabled, skipping dispatcher initialization")
-	} else {
+	case config.RawUpdates:
+		client.Log.Debug("raw-updates mode: skipping pts/qts gap tracking")
+		client.setupRawUpdates()
+	default:
 		client.setupDispatcher()
 	}
 	if err := client.clientWarnings(config); err != nil {
@@ -292,6 +297,34 @@ func (c *Client) setupDispatcher() {
 	}
 
 	c.AddCustomServerRequestHandler(handleUpdaterWrapper)
+}
+
+// setupRawUpdates installs a raw-update fan-out that bypasses the pts/qts
+// gap-tracking counterBox but still runs the friendly per-type dispatch
+// (OnMessage, OnCallback, OnRaw, etc). Updates from the MTProto stream
+// AND from RPC responses that carry an Updates envelope are both fanned
+// out through dispatchUpdate directly.
+func (c *Client) setupRawUpdates() {
+	c.NewUpdateDispatcher()
+	fanOut := func(u any) bool {
+		updates := UnpackContainer(u)
+		if updates == nil {
+			return false
+		}
+		if uo, ok := u.(*UpdatesObj); ok {
+			c.Cache.UpdatePeersToCache(uo.Users, uo.Chats)
+		} else if uc, ok := u.(*UpdatesCombined); ok {
+			c.Cache.UpdatePeersToCache(uc.Users, uc.Chats)
+		}
+		for _, upd := range updates {
+			c.dispatchUpdate(upd)
+		}
+		return true
+	}
+	c.AddCustomServerRequestHandler(fanOut)
+	c.MTProto.AddRPCResponseHandler(func(i any) {
+		fanOut(i)
+	})
 }
 
 func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
