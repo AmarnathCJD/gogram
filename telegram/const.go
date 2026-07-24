@@ -26,7 +26,7 @@ const (
 
 var (
 	UsernameRe = regexp.MustCompile(`(?i)(?:@|(?:https?:\/\/)?(?:www\.)?(?:telegram\.(?:me|dog)|t\.me)\/)([\w\d_]+)`)
-	TgJoinRe   = regexp.MustCompile(`^(?:https?://)?(?:www\.)?t(?:elegram)?\.(?:org|me|dog)/(?:joinchat/|\+)([\w-]+)$`)
+	TgJoinRe   = regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?(?:t\.me|telegram\.(?:me|dog))/(?:joinchat/|\+)([A-Za-z0-9_-]+)(?:[?#].*)?$`)
 
 	regexFloodWait        = regexp.MustCompile(`Please wait (\d+) seconds before repeating the action`)
 	regexFloodWaitBasic   = regexp.MustCompile(`FLOOD_WAIT_(\d+)`)
