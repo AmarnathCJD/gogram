@@ -111,6 +111,79 @@ func (c *Client) joinChannelByPeer(Channel any) (bool, error) {
 	return true, nil
 }
 
+// JoinChannelFull joins a channel or chat by its username or id and returns the full Updates response
+//
+//	Params:
+//	- Channel: the username or id of the channel or chat
+func (c *Client) JoinChannelFull(Channel any) (Updates, error) {
+	switch p := Channel.(type) {
+	case string:
+		if TG_JOIN_RE.MatchString(p) {
+			result, err := c.MessagesImportChatInvite(TG_JOIN_RE.FindStringSubmatch(p)[1])
+			if err != nil {
+				return nil, err
+			}
+
+			switch result := result.(type) {
+			case *UpdatesObj:
+				c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+			}
+
+			return result, nil
+		} else if USERNAME_RE.MatchString(p) {
+			return c.joinChannelByPeerFull(USERNAME_RE.FindStringSubmatch(p)[1])
+		}
+
+		return nil, errors.New("invalid channel or chat")
+	case *InputPeerChannel, *InputPeerChat, int, int32, int64:
+		return c.joinChannelByPeerFull(p)
+	case *ChatInviteExported:
+		result, err := c.MessagesImportChatInvite(p.Link)
+		if err != nil {
+			return nil, err
+		}
+
+		switch result := result.(type) {
+		case *UpdatesObj:
+			c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+		}
+
+		return result, nil
+	default:
+		return c.joinChannelByPeerFull(Channel)
+	}
+}
+
+func (c *Client) joinChannelByPeerFull(Channel any) (Updates, error) {
+	channel, err := c.ResolvePeer(Channel)
+	if err != nil {
+		return nil, err
+	}
+	if chat, ok := channel.(*InputPeerChannel); ok {
+		updates, err := c.ChannelsJoinChannel(&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash})
+		if err != nil {
+			return nil, err
+		}
+		if u, ok := updates.(*UpdatesObj); ok {
+			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
+		}
+		return updates, nil
+	} else if chat, ok := channel.(*InputPeerChat); ok {
+		result, err := c.MessagesAddChatUser(chat.ChatID, &InputUserEmpty{}, 0)
+		if err != nil {
+			return nil, err
+		}
+		if result != nil {
+			if u, ok := result.Updates.(*UpdatesObj); ok {
+				c.Cache.UpdatePeersToCache(u.Users, u.Chats)
+			}
+			return result.Updates, nil
+		}
+		return nil, nil
+	}
+	return nil, errors.New("peer is not a channel or chat")
+}
+
 // LeaveChannel leaves a channel or chat
 //
 //	Params:
