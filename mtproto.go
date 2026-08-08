@@ -620,6 +620,9 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 		if m.terminated.Load() {
 			return fmt.Errorf("mtproto terminated during reconnection")
 		}
+		if m.disconnected.Load() {
+			return fmt.Errorf("mtproto disconnected during reconnection")
+		}
 
 		delay := min(time.Duration(1<<uint(attempt))*m.connConfig.BaseDelay, m.connConfig.MaxDelay)
 
