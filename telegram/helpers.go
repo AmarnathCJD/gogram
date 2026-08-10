@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"math/big"
 	"math/rand/v2"
@@ -67,6 +68,49 @@ func PathIsWritable(path string) bool {
 
 func GenRandInt() int64 {
 	return rand.Int64()
+}
+
+// DeterministicRandomID hashes components into a stable, non-zero random_id
+// for server-side send dedup on retries. Use stable inputs only.
+func DeterministicRandomID(components ...any) int64 {
+	h := fnv.New64a()
+	for i, c := range components {
+		if i > 0 {
+			h.Write([]byte{0x1f})
+		}
+		fmt.Fprintf(h, "%v", c)
+	}
+	v := int64(h.Sum64())
+	if v == 0 {
+		v = 1
+	}
+	return v
+}
+
+func resolveForwardRandomIDs(caller []int64, n int) []int64 {
+	if len(caller) == n {
+		out := make([]int64, n)
+		for i, v := range caller {
+			if v == 0 {
+				out[i] = GenRandInt()
+			} else {
+				out[i] = v
+			}
+		}
+		return out
+	}
+	out := make([]int64, n)
+	for i := range out {
+		out[i] = GenRandInt()
+	}
+	return out
+}
+
+func resolveSendRandomID(caller int64) int64 {
+	if caller != 0 {
+		return caller
+	}
+	return GenRandInt()
 }
 
 func (c *Client) ResolveMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia, error) {

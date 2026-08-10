@@ -2,8 +2,6 @@ package telegram
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/binary"
 	"fmt"
 	"reflect"
 	"sync"
@@ -53,6 +51,7 @@ type SendOptions struct {
 	Video                InputDocument            // Companion video for a live photo
 	Stickers             []InputDocument          // Attached stickers / mask stickers
 	Query                string                   // Inline search query that surfaced this document/sticker
+	RandomID             int64                    // Caller-supplied random_id for idempotent retries; 0 = generate
 }
 
 // SendMessage sends a message to a specified peer using the Telegram API method messages.sendMessage.
@@ -250,7 +249,7 @@ func (c *Client) SendRich(peerID any, msg *RichBuilder, opts ...*SendOptions) (*
 		UpdateStickersetsOrder: opt.UpdateStickerOrder,
 		Peer:                   peer,
 		Message:                "",
-		RandomID:               GenRandInt(),
+		RandomID:               resolveSendRandomID(opt.RandomID),
 		ReplyMarkup:            opt.ReplyMarkup,
 		ScheduleDate:           opt.ScheduleDate,
 		ScheduleRepeatPeriod:   opt.ScheduleRepeatPeriod,
@@ -432,7 +431,7 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 		Peer:                   Peer,
 		ReplyTo:                replyTo,
 		Message:                Message,
-		RandomID:               GenRandInt(),
+		RandomID:               resolveSendRandomID(opt.RandomID),
 		ReplyMarkup:            opt.ReplyMarkup,
 		Entities:               entities,
 		ScheduleDate:           opt.ScheduleDate,
@@ -698,6 +697,7 @@ type MediaOptions struct {
 	Video                InputDocument            // Companion video for a live photo
 	Stickers             []InputDocument          // Attached stickers / mask stickers
 	Query                string                   // Inline search query that surfaced this document/sticker
+	RandomID             int64                    // Caller-supplied random_id for idempotent retries; 0 = generate
 }
 
 type MediaMetadata struct {
@@ -822,7 +822,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 		Peer:                   Peer,
 		ReplyTo:                replyTo,
 		Media:                  Media,
-		RandomID:               GenRandInt(),
+		RandomID:               resolveSendRandomID(opt.RandomID),
 		ReplyMarkup:            opt.ReplyMarkup,
 		Message:                Caption,
 		Entities:               entities,
@@ -1035,6 +1035,7 @@ type PollOptions struct {
 	TopicID        int32  // Forum topic ID to send poll in
 	NoForwards     bool   // Restrict forwarding and saving of this poll
 	ScheduleDate   int32  // Unix timestamp to schedule poll delivery
+	RandomID       int64  // Caller-supplied random_id for idempotent retries; 0 = generate
 }
 
 func (c *Client) SendPoll(peerID any, question string, options []string, opts ...*PollOptions) (*NewMessage, error) {
@@ -1115,7 +1116,7 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 		Peer:         Peer,
 		ReplyTo:      replyTo,
 		Media:        poll,
-		RandomID:     GenRandInt(),
+		RandomID:     resolveSendRandomID(opt.RandomID),
 		ScheduleDate: opt.ScheduleDate,
 	})
 
@@ -1288,6 +1289,7 @@ type ForwardOptions struct {
 	AllowPaidStars       int64                // Stars amount for paid content access
 	VideoTimestamp       int32                // Start timestamp in seconds for video messages
 	SuggestedPost        *SuggestedPost       // Channel post suggestion configuration
+	RandomID             []int64              // Caller-supplied random_id per message for idempotent retries; nil = generate
 }
 
 // Forward forwards a message.
@@ -1302,12 +1304,7 @@ func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*Forwar
 	if err != nil {
 		return nil, err
 	}
-	randomIDs := make([]int64, len(msgIDs))
-	for i := range randomIDs {
-		b := make([]byte, 8)
-		rand.Read(b)
-		randomIDs[i] = int64(binary.BigEndian.Uint64(b))
-	}
+	randomIDs := resolveForwardRandomIDs(opt.RandomID, len(msgIDs))
 	var sendAs InputPeer
 	if opt.SendAs != nil {
 		sendAs, err = c.ResolvePeer(opt.SendAs)

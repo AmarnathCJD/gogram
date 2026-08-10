@@ -1971,23 +1971,25 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 
 	var buf []byte
 	for index, offset := 0, int64(start); offset < int64(end); index++ {
-		limit := chunkSize
-		if remaining := int64(end) - offset; remaining < int64(limit) {
-			limit = int(remaining)
-		}
-		result, err := job.fetchPartLoop(job.ctx, pool, downloadRange{index: index, offset: offset, limit: limit})
+		remaining := int64(end) - offset
+		result, err := job.fetchPartLoop(job.ctx, pool, downloadRange{index: index, offset: offset, limit: chunkSize})
 		if err != nil {
 			return nil, "", err
 		}
-		if len(result.data) == 0 {
+		short := len(result.data) < chunkSize
+		data := result.data
+		if int64(len(data)) > remaining {
+			data = data[:remaining]
+		}
+		if len(data) == 0 {
 			tl.ReleaseLargeBuffer(result.data)
 			break
 		}
-		buf = append(buf, result.data...)
-		n := len(result.data)
+		buf = append(buf, data...)
+		n := len(data)
 		tl.ReleaseLargeBuffer(result.data)
 		offset += int64(n)
-		if n < limit {
+		if short {
 			break
 		}
 	}

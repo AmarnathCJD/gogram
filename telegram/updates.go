@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"reflect"
 	"regexp"
 	"slices"
 	"sort"
@@ -480,15 +481,19 @@ func newPatternCache() *patternCache {
 // It buffers out-of-order updates, detects gaps, and optionally triggers a fetch to fill them.
 type counterBox struct {
 	sync.Mutex
-	name       string
-	current    int32
-	pending    map[int32][]pendingCounter
-	recovering bool
-	fetchGap   func(from, target int32)
-	logger     Logger
-	debounce   time.Duration
-	lastGapAt  time.Time
-	onAdvance  func(int32)
+	name           string
+	current        int32
+	pending        map[int32][]pendingCounter
+	recovering     bool
+	recoveryEpoch  uint64
+	fetchGap       func(from, target int32)
+	logger         Logger
+	debounce       time.Duration
+	lastGapAt      time.Time
+	onAdvance      func(int32)
+	gapDeadline    time.Time
+	reorderWait    time.Duration
+	gapTimer       *time.Timer
 }
 
 type pendingCounter struct {
@@ -500,13 +505,28 @@ type pendingCounter struct {
 
 func newCounterBox(name string, logger Logger, fetch func(from, target int32), onAdvance func(int32)) *counterBox {
 	return &counterBox{
-		name:      name,
-		pending:   make(map[int32][]pendingCounter),
-		fetchGap:  fetch,
-		logger:    logger,
-		debounce:  time.Second,
-		onAdvance: onAdvance,
+		name:        name,
+		pending:     make(map[int32][]pendingCounter),
+		fetchGap:    fetch,
+		logger:      logger,
+		debounce:    time.Second,
+		onAdvance:   onAdvance,
+		reorderWait: 500 * time.Millisecond,
 	}
+}
+
+func (b *counterBox) beginGettingDiff() {
+	b.Lock()
+	b.recovering = true
+	b.recoveryEpoch++
+	b.pending = make(map[int32][]pendingCounter)
+	b.Unlock()
+}
+
+func (b *counterBox) endGettingDiff() {
+	b.Lock()
+	b.recovering = false
+	b.Unlock()
 }
 
 // process enforces ordering using Telegram semantics where counter represents the value *after* applying the update.
@@ -519,6 +539,10 @@ func (b *counterBox) process(counter, count int32, apply func()) bool {
 
 	b.Lock()
 	defer b.Unlock()
+
+	if b.recovering {
+		return false
+	}
 
 	prev := counter - count
 	if prev < 0 {
@@ -533,12 +557,7 @@ func (b *counterBox) process(counter, count int32, apply func()) bool {
 		return true
 	}
 
-	if counter == b.current {
-		b.runUnlocked(apply)
-		return true
-	}
-
-	if counter < b.current {
+	if counter <= b.current {
 		return false
 	}
 
@@ -551,9 +570,48 @@ func (b *counterBox) process(counter, count int32, apply func()) bool {
 	}
 
 	b.logger.Debug("counterBox=%s gap counter=%d count=%d boxCurrent=%d -> buffering", b.name, counter, count, b.current)
-	b.pending[counter] = append(b.pending[counter], pendingCounter{counter: counter, count: count, apply: apply, arrived: time.Now()})
-	b.triggerGapLocked(prev, counter)
+	if prev < 0 {
+		prev = 0
+	}
+	b.pending[prev] = append(b.pending[prev], pendingCounter{counter: counter, count: count, apply: apply, arrived: time.Now()})
+	if b.gapDeadline.IsZero() {
+		b.gapDeadline = time.Now().Add(b.reorderWait)
+	}
+	b.scheduleGapCheckLocked()
 	return false
+}
+
+func (b *counterBox) scheduleGapCheckLocked() {
+	if b.fetchGap == nil || b.recovering {
+		return
+	}
+	deadline := b.gapDeadline
+	if deadline.IsZero() {
+		return
+	}
+	wait := time.Until(deadline)
+	if wait <= 0 {
+		b.triggerGapLocked(b.current, b.current+1)
+		return
+	}
+	if b.gapTimer != nil {
+		return
+	}
+	b.gapTimer = time.AfterFunc(wait, func() {
+		b.Lock()
+		defer b.Unlock()
+		b.gapTimer = nil
+		if b.recovering || len(b.pending) == 0 {
+			b.gapDeadline = time.Time{}
+			return
+		}
+		if time.Now().Before(b.gapDeadline) {
+			b.scheduleGapCheckLocked()
+			return
+		}
+		b.gapDeadline = time.Time{}
+		b.triggerGapLocked(b.current, b.current+1)
+	})
 }
 
 func (b *counterBox) recordAdvance(value int32) {
@@ -563,18 +621,53 @@ func (b *counterBox) recordAdvance(value int32) {
 }
 
 // forceSet updates the counter, clearing any older pending entries.
+// Monotonic: refuses to rewind unless value is 0 (explicit reset).
 func (b *counterBox) forceSet(value int32) {
 	b.Lock()
+	if value != 0 && value < b.current {
+		b.Unlock()
+		return
+	}
 	b.current = value
 	b.recordAdvance(value)
-	for k := range b.pending {
-		if k <= value {
-			delete(b.pending, k)
+	for prev := range b.pending {
+		if prev < value {
+			delete(b.pending, prev)
 		}
 	}
-	// After externally forcing the counter, try to flush any buffered updates that now fit.
 	b.flushLocked()
 	b.Unlock()
+}
+
+func (b *counterBox) processCheckpoint(counter int32, apply func()) bool {
+	if counter == 0 {
+		apply()
+		return true
+	}
+	b.Lock()
+	if b.recovering {
+		b.Unlock()
+		return false
+	}
+	if b.current == 0 {
+		seed := counter - 1
+		if seed < 1 {
+			seed = 1
+		}
+		b.current = seed
+		b.recordAdvance(seed)
+		b.runUnlocked(apply)
+		b.Unlock()
+		return true
+	}
+	if counter <= b.current {
+		b.runUnlocked(apply)
+		b.Unlock()
+		return true
+	}
+	b.runUnlocked(apply)
+	b.Unlock()
+	return true
 }
 
 func (b *counterBox) currentValue() int32 {
@@ -585,52 +678,24 @@ func (b *counterBox) currentValue() int32 {
 
 func (b *counterBox) flushLocked() {
 	for {
-		var (
-			readyKey   int32
-			readyItem  pendingCounter
-			foundReady bool
-		)
-
-		for key, list := range b.pending {
-			if len(list) == 0 {
-				delete(b.pending, key)
-				continue
-			}
-
-			candidate := list[0]
-			prev := candidate.counter - candidate.count
-			if prev < 0 {
-				prev = 0
-			}
-
-			if prev == b.current {
-				readyKey = key
-				readyItem = candidate
-				foundReady = true
-				break
-			}
-
-			if prev < b.current {
-				// Stale buffered item; drop it.
-				b.pending[key] = list[1:]
-				if len(b.pending[key]) == 0 {
-					delete(b.pending, key)
+		list, ok := b.pending[b.current]
+		if !ok || len(list) == 0 {
+			for prev := range b.pending {
+				if prev < b.current {
+					delete(b.pending, prev)
 				}
 			}
-		}
-
-		if !foundReady {
+			if len(b.pending) == 0 {
+				b.gapDeadline = time.Time{}
+			}
 			return
 		}
 
-		// Consume the ready item before releasing the lock.
-		if list := b.pending[readyKey]; len(list) > 0 {
-			list = list[1:]
-			if len(list) == 0 {
-				delete(b.pending, readyKey)
-			} else {
-				b.pending[readyKey] = list
-			}
+		readyItem := list[0]
+		if len(list) == 1 {
+			delete(b.pending, b.current)
+		} else {
+			b.pending[b.current] = list[1:]
 		}
 
 		b.current = readyItem.counter
@@ -647,17 +712,21 @@ func (b *counterBox) triggerGapLocked(prev, target int32) {
 		return
 	}
 	b.recovering = true
+	b.recoveryEpoch++
+	epoch := b.recoveryEpoch
 	b.lastGapAt = time.Now()
 
-	go func(from, to int32) {
+	go func(from, to int32, epoch uint64) {
 		if b.logger != nil {
 			b.logger.Debug("gap detected in %s (from=%d,target=%d)", b.name, from, to)
 		}
 		b.fetchGap(from, to)
 		b.Lock()
-		b.recovering = false
+		if b.recoveryEpoch == epoch {
+			b.recovering = false
+		}
 		b.Unlock()
-	}(prev, target)
+	}(prev, target, epoch)
 }
 
 func (b *counterBox) runUnlocked(apply func()) {
@@ -858,51 +927,64 @@ type albumBox struct {
 func (a *albumBox) WaitAndTrigger(d *UpdateDispatcher, c *Client) {
 	time.Sleep(time.Duration(c.clientData.albumWaitTime) * time.Millisecond)
 
-	d.RLock()
+	d.Lock()
+	delete(d.activeAlbums, a.groupedId)
 	albumHandles := make(map[int][]*albumHandle, len(d.albumHandles))
-	maps.Copy(albumHandles, d.albumHandles)
-	d.RUnlock()
+	for k, v := range d.albumHandles {
+		albumHandles[k] = append([]*albumHandle(nil), v...)
+	}
+	d.Unlock()
+
+	a.Lock()
+	sortedMessages := append([]*NewMessage(nil), a.messages...)
+	a.Unlock()
+	sort.SliceStable(sortedMessages, func(i, j int) bool {
+		return sortedMessages[i].ID < sortedMessages[j].ID
+	})
 
 	for gp, handlers := range albumHandles {
+		endGroup := false
 		for _, handler := range handlers {
 			handle := func(h *albumHandle) error {
-				sort.SliceStable(a.messages, func(i, j int) bool {
-					return a.messages[i].ID < a.messages[j].ID
-				})
-
+				msgsCopy := append([]*NewMessage(nil), sortedMessages...)
 				hf := h.Handler
 				if mm := c.dispatcher.middlewareManager; mm != nil {
 					hf = applyChain(hf, mm.albums())
 				}
 				return hf(&Album{
 					GroupedID: a.groupedId,
-					Messages:  a.messages,
+					Messages:  msgsCopy,
 					Client:    c,
 				})
 			}
 
 			if gp == DefaultGroup {
-				go func() {
-					err := handle(handler)
+				go func(h *albumHandle) {
+					defer c.NewRecovery()()
+					err := handle(h)
 					if err != nil {
 						if errors.Is(err, ErrEndGroup) {
 							return
 						}
-
 						c.Log.WithError(err).Error("[AlbumHandler]")
 					}
-				}()
+				}(handler)
 			} else {
-				if err := handle(handler); err != nil && errors.Is(err, ErrEndGroup) {
+				var err error
+				func(h *albumHandle) {
+					defer c.NewRecovery()()
+					err = handle(h)
+				}(handler)
+				if err != nil && errors.Is(err, ErrEndGroup) {
+					endGroup = true
 					break
 				}
 			}
 		}
+		if endGroup {
+			continue
+		}
 	}
-
-	d.Lock()
-	defer d.Unlock()
-	delete(d.activeAlbums, a.groupedId)
 }
 
 func (a *albumBox) Add(m *NewMessage) {
@@ -952,7 +1034,7 @@ type UpdateDispatcher struct {
 	activeAlbums          map[int64]*albumBox
 	logger                Logger
 	openChats             map[int64]*openChat
-	nextUpdatesDeadline   time.Time
+	nextUpdatesDeadlineNs atomic.Int64
 	lastUpdateTimeNano    atomic.Int64
 	state                 UpdateState
 	channelStates         map[int64]*channelState
@@ -965,16 +1047,54 @@ type UpdateDispatcher struct {
 	middlewareManager     *middlewareManager
 	globalPtsBox          *counterBox
 	globalQtsBox          *counterBox
-	channelPtsBoxes       map[int64]*counterBox
+	channelPtsBoxes       sync.Map
 	channelGapFetcher     func(channelID int64, from, target int32)
+}
+
+func isChannelAccessError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, marker := range []string{"CHANNEL_PRIVATE", "CHANNEL_INVALID", "CHANNEL_PUBLIC_GROUP_NA", "USER_BANNED_IN_CHANNEL", "USER_KICKED", "CHAT_ADMIN_REQUIRED"} {
+		if strings.Contains(msg, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func (d *UpdateDispatcher) cleanupChannel(channelID int64) {
+	d.channelPtsBoxes.Delete(channelID)
+	d.Lock()
+	delete(d.channelStates, channelID)
+	if d.openChats != nil {
+		if oc, ok := d.openChats[channelID]; ok {
+			if oc.closeChan != nil {
+				select {
+				case <-oc.closeChan:
+				default:
+					close(oc.closeChan)
+				}
+			}
+			delete(d.openChats, channelID)
+		}
+	}
+	if d.recoveringChannels != nil {
+		delete(d.recoveringChannels, channelID)
+	}
+	d.Unlock()
 }
 
 func (d *UpdateDispatcher) SetPts(pts int32) {
 	if d.globalPtsBox != nil {
 		d.globalPtsBox.forceSet(pts)
+		return
 	}
 	d.Lock()
-	d.state.Pts = pts
+	if pts >= d.state.Pts {
+		d.state.Pts = pts
+	}
 	d.Unlock()
 }
 
@@ -990,9 +1110,12 @@ func (d *UpdateDispatcher) GetPts() int32 {
 func (d *UpdateDispatcher) SetQts(qts int32) {
 	if d.globalQtsBox != nil {
 		d.globalQtsBox.forceSet(qts)
+		return
 	}
 	d.Lock()
-	d.state.Qts = qts
+	if qts >= d.state.Qts {
+		d.state.Qts = qts
+	}
 	d.Unlock()
 }
 
@@ -1018,9 +1141,14 @@ func (d *UpdateDispatcher) GetSeq() int32 {
 }
 
 func (d *UpdateDispatcher) SetDate(date int32) {
+	if date <= 0 {
+		return
+	}
 	d.Lock()
 	defer d.Unlock()
-	d.state.Date = date
+	if date > d.state.Date {
+		d.state.Date = date
+	}
 }
 
 func (d *UpdateDispatcher) GetDate() int32 {
@@ -1054,26 +1182,11 @@ func (d *UpdateDispatcher) GetChannelPts(channelID int64) int32 {
 }
 
 func (d *UpdateDispatcher) getChannelBox(channelID int64) *counterBox {
-	d.RLock()
-	if box, ok := d.channelPtsBoxes[channelID]; ok {
-		d.RUnlock()
-		return box
+	if v, ok := d.channelPtsBoxes.Load(channelID); ok {
+		return v.(*counterBox)
 	}
-	d.RUnlock()
-
 	if d.channelGapFetcher == nil {
 		return nil
-	}
-
-	d.Lock()
-	defer d.Unlock()
-
-	// Double-check inside write lock in case another goroutine created it.
-	if box, ok := d.channelPtsBoxes[channelID]; ok {
-		return box
-	}
-	if d.channelPtsBoxes == nil {
-		d.channelPtsBoxes = make(map[int64]*counterBox)
 	}
 
 	box := newCounterBox(fmt.Sprintf("channel:%d", channelID), d.logger, func(from, target int32) {
@@ -1091,11 +1204,15 @@ func (d *UpdateDispatcher) getChannelBox(channelID int64) *counterBox {
 		d.Unlock()
 	})
 
+	d.RLock()
 	if state, ok := d.channelStates[channelID]; ok {
 		box.current = state.pts
 	}
+	d.RUnlock()
 
-	d.channelPtsBoxes[channelID] = box
+	if actual, loaded := d.channelPtsBoxes.LoadOrStore(channelID, box); loaded {
+		return actual.(*counterBox)
+	}
 	return box
 }
 
@@ -1112,6 +1229,126 @@ func (d *UpdateDispatcher) TryMarkMessageProcessed(key int64) bool {
 		return true
 	}
 	return d.processedMsgLRU.TryAdd(key)
+}
+
+// tryMarkUpdate deduplicates an Update at the dispatcher entry, before any
+// handler fires. Returns false when the same update has already been
+// dispatched recently. Uses the same processedMsgLRU for compactness.
+func (d *UpdateDispatcher) tryMarkUpdate(update Update) bool {
+	if d.processedMsgLRU == nil {
+		return true
+	}
+	key := updateDedupeKey(update)
+	if key == 0 {
+		// No stable identity — cannot dedup safely, allow through.
+		return true
+	}
+	return d.processedMsgLRU.TryAdd(key)
+}
+
+// updateDedupeKey returns a stable 64-bit identity for an Update, or 0 if
+// no stable key can be computed. Keys are namespaced so the raw-handler
+// LRU does not collide with the message-handler LRU (both share the same
+// LRU pool but keys are drawn from disjoint ranges).
+func updateDedupeKey(update Update) int64 {
+	const rawTag = int64(0x7261775f << 32) // "raw_" prefix in the high 32 bits
+	switch u := update.(type) {
+	case *UpdateNewMessage:
+		if m, ok := u.Message.(*MessageObj); ok {
+			return rawTag ^ messageDedupeKey(m, false)
+		}
+		if m, ok := u.Message.(*MessageService); ok {
+			return rawTag ^ serviceMessageDedupeKey(m)
+		}
+	case *UpdateNewChannelMessage:
+		if m, ok := u.Message.(*MessageObj); ok {
+			return rawTag ^ messageDedupeKey(m, false)
+		}
+		if m, ok := u.Message.(*MessageService); ok {
+			return rawTag ^ serviceMessageDedupeKey(m)
+		}
+	case *UpdateEditMessage:
+		if m, ok := u.Message.(*MessageObj); ok {
+			return rawTag ^ messageDedupeKey(m, true)
+		}
+	case *UpdateEditChannelMessage:
+		if m, ok := u.Message.(*MessageObj); ok {
+			return rawTag ^ messageDedupeKey(m, true)
+		}
+	case *UpdateDeleteMessages:
+		return rawTag ^ hashDedupeFields(0x100, int64(u.Pts), false)
+	case *UpdateDeleteChannelMessages:
+		return rawTag ^ hashDedupeFields(u.ChannelID, int64(u.Pts), false)
+	case *UpdateBotCallbackQuery:
+		return rawTag ^ hashDedupeFields(0x200, int64(u.QueryID), false)
+	case *UpdateInlineBotCallbackQuery:
+		return rawTag ^ hashDedupeFields(0x201, int64(u.QueryID), false)
+	case *UpdateBotInlineQuery:
+		return rawTag ^ hashDedupeFields(0x202, int64(u.QueryID), false)
+	case *UpdateBotInlineSend:
+		return rawTag ^ hashDedupeFields(0x203, int64(u.UserID)^int64(len(u.Query)), false)
+	case *UpdateChannelParticipant:
+		return rawTag ^ hashDedupeFields(u.ChannelID, int64(u.Qts), false)
+	case *UpdateChatParticipant:
+		return rawTag ^ hashDedupeFields(u.ChatID, int64(u.Qts), false)
+	case *UpdatePendingJoinRequests:
+		return rawTag ^ hashDedupeFields(messagePeerKey(u.Peer), int64(u.RequestsPending), false)
+	case *UpdateBotStopped:
+		return rawTag ^ (0x300 << 40) ^ hashDedupeFields(int64(u.UserID), int64(u.Qts), false)
+	case *UpdateBotChatBoost:
+		return rawTag ^ (0x301 << 40) ^ hashDedupeFields(messagePeerKey(u.Peer), int64(u.Qts), false)
+	case *UpdateBotMessageReaction:
+		return rawTag ^ (0x302 << 40) ^ hashDedupeFields(messagePeerKey(u.Peer)^int64(u.MsgID), int64(u.Qts), false)
+	case *UpdateBotMessageReactions:
+		return rawTag ^ (0x303 << 40) ^ hashDedupeFields(messagePeerKey(u.Peer)^int64(u.MsgID), int64(u.Qts), false)
+	case *UpdateBotBusinessConnect:
+		return rawTag ^ (0x304 << 40) ^ hashDedupeFields(0, int64(u.Qts), false)
+	case *UpdateBotNewBusinessMessage:
+		return rawTag ^ (0x305 << 40) ^ hashDedupeFields(0, int64(u.Qts), false)
+	case *UpdateBotEditBusinessMessage:
+		return rawTag ^ (0x306 << 40) ^ hashDedupeFields(0, int64(u.Qts), false)
+	case *UpdateBotDeleteBusinessMessage:
+		return rawTag ^ (0x307 << 40) ^ hashDedupeFields(0, int64(u.Qts), false)
+	case *UpdateBotPurchasedPaidMedia:
+		return rawTag ^ (0x308 << 40) ^ hashDedupeFields(u.UserID, int64(u.Qts), false)
+	case *UpdateBotStarsSubscription:
+		return rawTag ^ (0x309 << 40) ^ hashDedupeFields(u.UserID, int64(u.Qts), false)
+	case *UpdateManagedBot:
+		return rawTag ^ (0x30A << 40) ^ hashDedupeFields(u.BotID, int64(u.Qts), false)
+	case *UpdateMessagePollVote:
+		return rawTag ^ (0x30B << 40) ^ hashDedupeFields(messagePeerKey(u.Peer), int64(u.Qts), false)
+	case *UpdateBusinessBotCallbackQuery:
+		return rawTag ^ (0x30C << 40) ^ hashDedupeFields(0, int64(u.QueryID), false)
+	case *UpdateMessageReactions:
+		return rawTag ^ (0x30D << 40) ^ hashDedupeFields(messagePeerKey(u.Peer), int64(u.MsgID), false)
+	case *UpdateStory:
+		return rawTag ^ (0x30E << 40) ^ hashDedupeFields(messagePeerKey(u.Peer), 0, false)
+	case *UpdateStoryID:
+		return rawTag ^ (0x30F << 40) ^ hashDedupeFields(u.RandomID, int64(u.ID), false)
+	case *UpdateReadStories:
+		return rawTag ^ (0x310 << 40) ^ hashDedupeFields(messagePeerKey(u.Peer), int64(u.MaxID), false)
+	case *UpdatePhoneCall:
+		return rawTag ^ (0x311 << 40) ^ hashDedupeFields(phoneCallID(u.PhoneCall), 0, false)
+	}
+	return 0
+}
+
+func phoneCallID(pc PhoneCall) int64 {
+	switch v := pc.(type) {
+	case *PhoneCallObj:
+		return v.ID
+	case *PhoneCallAccepted:
+		return v.ID
+	case *PhoneCallWaiting:
+		return v.ID
+	case *PhoneCallRequested:
+		return v.ID
+	case *PhoneCallDiscarded:
+		return v.ID
+	case *PhoneCallEmpty:
+		return v.ID
+	}
+	return 0
 }
 
 func (c *Client) NewUpdateDispatcher(sessionName ...string) {
@@ -1137,7 +1374,6 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 		activeAlbums:          make(map[int64]*albumBox),
 		patternCache:          newPatternCache(),
 		middlewareManager:     &middlewareManager{},
-		channelPtsBoxes:       make(map[int64]*counterBox),
 		channelGapFetcher: func(channelID int64, from, target int32) {
 			if c.clientData.disableGapFetch {
 				return
@@ -1171,6 +1407,17 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 	c.dispatcher = d
 	c.dispatcher.lastUpdateTimeNano.Store(time.Now().UnixNano())
 	c.dispatcher.logger.Debug("update dispatcher initialized")
+
+	if c.MTProto != nil {
+		c.MTProto.SetOnNewSessionCreated(func() {
+			if c.clientData.disableGapFetch {
+				return
+			}
+			pts := c.dispatcher.GetPts()
+			c.dispatcher.logger.Debug("NewSessionCreated observed, re-syncing update state from pts=%d", pts)
+			c.FetchDifference(pts, 5000)
+		})
+	}
 
 	go c.monitorNoUpdatesTimeout()
 }
@@ -1244,7 +1491,7 @@ func removeHandleFromMap[T handleWithID](handle T, handlesMap map[int][]T) {
 		handles := handlesMap[key]
 		for i := len(handles) - 1; i >= 0; i-- {
 			if handles[i].getID() == targetID {
-				handlesMap[key] = slices.Delete(handles, i, i+1)
+				handlesMap[key] = removeHandleCoW(handles, targetID)
 				return
 			}
 		}
@@ -1252,31 +1499,27 @@ func removeHandleFromMap[T handleWithID](handle T, handlesMap map[int][]T) {
 }
 
 var (
-	updateTypeIDs   = make(map[string]uint32)
-	updateTypeIDMu  sync.RWMutex
-	nextTypeIDValue uint32 = 1
+	updateTypeIDsByReflect sync.Map
+	updateTypeIDMu         sync.RWMutex
+	nextTypeIDValue        uint32 = 1
 )
 
 func getUpdateTypeID(update Update) uint32 {
 	if update == nil {
 		return 0
 	}
-	typeName := fmt.Sprintf("%T", update)
-	updateTypeIDMu.RLock()
-	if id, ok := updateTypeIDs[typeName]; ok {
-		updateTypeIDMu.RUnlock()
-		return id
+	rt := reflect.TypeOf(update)
+	if v, ok := updateTypeIDsByReflect.Load(rt); ok {
+		return v.(uint32)
 	}
-	updateTypeIDMu.RUnlock()
-
 	updateTypeIDMu.Lock()
 	defer updateTypeIDMu.Unlock()
-	if id, ok := updateTypeIDs[typeName]; ok {
-		return id
+	if v, ok := updateTypeIDsByReflect.Load(rt); ok {
+		return v.(uint32)
 	}
 	id := nextTypeIDValue
 	nextTypeIDValue++
-	updateTypeIDs[typeName] = id
+	updateTypeIDsByReflect.Store(rt, id)
 	return id
 }
 
@@ -1285,15 +1528,19 @@ func getUpdateTypeID(update Update) uint32 {
 func (c *Client) handleMessageUpdate(update Message) {
 	switch msg := update.(type) {
 	case *MessageObj:
+		// Compute the dedup key BEFORE any mutation. FromID can be
+		// enriched for outgoing messages below, but the identity of
+		// the update is (peer, id, out) — enrichment must not change
+		// what we consider "the same update."
+		if !c.dispatcher.TryMarkMessageProcessed(messageDedupeKey(msg, false)) {
+			return
+		}
 		if msg.Out {
 			if msg.FromID == nil {
 				if me := c.Me(); me != nil {
 					msg.FromID = &PeerUser{UserID: me.ID}
 				}
 			}
-		}
-		if !c.dispatcher.TryMarkMessageProcessed(messageDedupeKey(msg, false)) {
-			return
 		}
 
 		if msg.GroupedID != 0 {
@@ -1445,24 +1692,24 @@ func (c *Client) handleMessageUpdate(update Message) {
 func (c *Client) handleAlbum(message MessageObj) {
 	packed := packMessage(c, &message)
 
-	c.dispatcher.RLock()
-	if group, ok := c.dispatcher.activeAlbums[message.GroupedID]; ok {
-		c.dispatcher.RUnlock()
-		group.Add(packed)
-	} else {
-		c.dispatcher.RUnlock()
-		albBox := &albumBox{
-			messages:  []*NewMessage{packed},
-			groupedId: message.GroupedID,
-		}
-		c.dispatcher.Lock()
-		if c.dispatcher.activeAlbums == nil {
-			c.dispatcher.activeAlbums = make(map[int64]*albumBox)
-		}
-		c.dispatcher.activeAlbums[message.GroupedID] = albBox
-		c.dispatcher.Unlock()
-		albBox.WaitAndTrigger(c.dispatcher, c)
+	c.dispatcher.Lock()
+	if c.dispatcher.activeAlbums == nil {
+		c.dispatcher.activeAlbums = make(map[int64]*albumBox)
 	}
+	// Double-checked insert: another goroutine may have created the box
+	// between our earlier RLock and this Lock.
+	if group, ok := c.dispatcher.activeAlbums[message.GroupedID]; ok {
+		c.dispatcher.Unlock()
+		group.Add(packed)
+		return
+	}
+	albBox := &albumBox{
+		messages:  []*NewMessage{packed},
+		groupedId: message.GroupedID,
+	}
+	c.dispatcher.activeAlbums[message.GroupedID] = albBox
+	c.dispatcher.Unlock()
+	albBox.WaitAndTrigger(c.dispatcher, c)
 }
 
 func (c *Client) fetchPeersBeforeUpdate(m Message, pts int32) {
@@ -1574,6 +1821,10 @@ func (c *Client) handleEditUpdate(update Message) {
 }
 
 func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
+	// Dedup callbacks by QueryID — Telegram guarantees uniqueness.
+	if !c.dispatcher.TryMarkMessageProcessed(hashDedupeFields(0x100200, int64(update.QueryID), false)) {
+		return
+	}
 	packed := packCallbackQuery(c, update)
 
 	c.dispatcher.RLock()
@@ -1620,6 +1871,9 @@ func (c *Client) handleCallbackUpdate(update *UpdateBotCallbackQuery) {
 }
 
 func (c *Client) handleInlineCallbackUpdate(update *UpdateInlineBotCallbackQuery) {
+	if !c.dispatcher.TryMarkMessageProcessed(hashDedupeFields(0x100201, int64(update.QueryID), false)) {
+		return
+	}
 	packed := packInlineCallbackQuery(c, update)
 
 	c.dispatcher.RLock()
@@ -1698,6 +1952,9 @@ func (c *Client) handleParticipantUpdate(update *UpdateChannelParticipant) {
 }
 
 func (c *Client) handleInlineUpdate(update *UpdateBotInlineQuery) {
+	if !c.dispatcher.TryMarkMessageProcessed(hashDedupeFields(0x100202, int64(update.QueryID), false)) {
+		return
+	}
 	packed := packInlineQuery(c, update)
 
 	c.dispatcher.RLock()
@@ -1897,10 +2154,17 @@ func (c *Client) handleJoinRequestUpdate(update Update) {
 
 func (c *Client) handleRawUpdate(update Update) {
 	c.dispatcher.RLock()
-	rawHandles := make(map[int][]*rawHandle)
+	if len(c.dispatcher.rawHandles) == 0 {
+		c.dispatcher.RUnlock()
+		return
+	}
+	rawHandles := make(map[int][]*rawHandle, len(c.dispatcher.rawHandles))
 	maps.Copy(rawHandles, c.dispatcher.rawHandles)
 	c.dispatcher.RUnlock()
 
+	if !c.dispatcher.tryMarkUpdate(update) {
+		return
+	}
 	updateTypeID := getUpdateTypeID(update)
 
 	for group, handlers := range rawHandles {
@@ -2460,6 +2724,26 @@ var (
 	InChat = FromChats
 )
 
+func insertHandleCoW[T any](handlers []T, at int, handle T) []T {
+	out := make([]T, 0, len(handlers)+1)
+	out = append(out, handlers[:at]...)
+	out = append(out, handle)
+	out = append(out, handlers[at:]...)
+	return out
+}
+
+func removeHandleCoW[T handleWithID](handlers []T, id uint64) []T {
+	for i := range handlers {
+		if handlers[i].getID() == id {
+			out := make([]T, 0, len(handlers)-1)
+			out = append(out, handlers[:i]...)
+			out = append(out, handlers[i+1:]...)
+			return out
+		}
+	}
+	return handlers
+}
+
 func addHandleToMap[T Handle](handleMap map[int][]T, handle T) T {
 	group := handle.GetGroup()
 
@@ -2467,14 +2751,17 @@ func addHandleToMap[T Handle](handleMap map[int][]T, handle T) T {
 	inserted := false
 	for i, h := range handlers {
 		if handle.GetPriority() > h.GetPriority() {
-			handleMap[group] = append(handlers[:i], append([]T{handle}, handlers[i:]...)...)
+			handleMap[group] = insertHandleCoW(handlers, i, handle)
 			inserted = true
 			break
 		}
 	}
 
 	if !inserted {
-		handleMap[group] = append(handlers, handle)
+		grown := make([]T, len(handlers)+1)
+		copy(grown, handlers)
+		grown[len(handlers)] = handle
+		handleMap[group] = grown
 	}
 
 	return handleMap[group][len(handleMap[group])-1]
@@ -2485,29 +2772,24 @@ func makePriorityChangeCallback[T handleWithID](handleMap map[int][]T, handle T,
 		mu.Lock()
 		defer mu.Unlock()
 		group := getGroup()
+		handleMap[group] = removeHandleCoW(handleMap[group], handleID)
+
 		handlers := handleMap[group]
-
-		for i := range handlers {
-			if handlers[i].getID() == handleID {
-				handlers = append(handlers[:i], handlers[i+1:]...)
-				handleMap[group] = handlers
-				break
-			}
-		}
-
-		handlers = handleMap[group]
 		inserted := false
 		myPriority := getPriority()
 		for i := range handlers {
 			if myPriority > handlers[i].getPriority() {
-				handleMap[group] = append(handlers[:i], append([]T{handle}, handlers[i:]...)...)
+				handleMap[group] = insertHandleCoW(handlers, i, handle)
 				inserted = true
 				break
 			}
 		}
 
 		if !inserted {
-			handleMap[group] = append(handlers, handle)
+			grown := make([]T, len(handlers)+1)
+			copy(grown, handlers)
+			grown[len(handlers)] = handle
+			handleMap[group] = grown
 		}
 	}
 }
@@ -2516,15 +2798,14 @@ func makeGroupChangeCallback[T handleWithID](handleMap map[int][]T, handle T, ha
 	return func(oldGroup, newGroup int) {
 		mu.Lock()
 		defer mu.Unlock()
-		if old, ok := handleMap[oldGroup]; ok {
-			for i := range old {
-				if old[i].getID() == handleID {
-					handleMap[oldGroup] = append(old[:i], old[i+1:]...)
-					break
-				}
-			}
+		if _, ok := handleMap[oldGroup]; ok {
+			handleMap[oldGroup] = removeHandleCoW(handleMap[oldGroup], handleID)
 		}
-		handleMap[newGroup] = append(handleMap[newGroup], handle)
+		existing := handleMap[newGroup]
+		grown := make([]T, len(existing)+1)
+		copy(grown, existing)
+		grown[len(existing)] = handle
+		handleMap[newGroup] = grown
 	}
 }
 
@@ -2838,7 +3119,7 @@ func HandleIncomingUpdates(u any, c *Client) bool {
 
 	// Update last update time for 15-minute timeout monitoring
 	d.UpdateLastUpdateTime()
-	d.nextUpdatesDeadline = time.Now().Add(time.Minute * 15)
+	d.nextUpdatesDeadlineNs.Store(time.Now().Add(time.Minute * 15).UnixNano())
 
 	switch upd := u.(type) {
 	case *UpdatesObj:
@@ -2847,6 +3128,7 @@ func HandleIncomingUpdates(u any, c *Client) bool {
 		}
 		c.dispatcher.SetDate(upd.Date)
 		c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
+		sortUpdatesByPtsAscending(upd.Updates)
 		for _, update := range upd.Updates {
 			c.applyIncomingUpdate(update)
 		}
@@ -2857,6 +3139,7 @@ func HandleIncomingUpdates(u any, c *Client) bool {
 		}
 		c.dispatcher.SetDate(upd.Date)
 		c.Cache.UpdatePeersToCache(upd.Users, upd.Chats)
+		sortUpdatesByPtsAscending(upd.Updates)
 		for _, update := range upd.Updates {
 			c.applyIncomingUpdate(update)
 		}
@@ -2866,16 +3149,25 @@ func HandleIncomingUpdates(u any, c *Client) bool {
 		c.applyIncomingUpdate(upd.Update)
 		return true
 	case *UpdateShortMessage:
-		msg := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.UserID), PeerID: getPeerUser(upd.UserID), Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
+		c.dispatcher.SetDate(upd.Date)
+		other := getPeerUser(upd.UserID)
+		var fromID Peer
+		if !upd.Out {
+			fromID = other
+		}
+		msg := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: fromID, PeerID: other, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
 		c.applyIncomingUpdate(&UpdateNewMessage{Message: msg, Pts: upd.Pts, PtsCount: upd.PtsCount})
 		return true
 	case *UpdateShortChatMessage:
+		c.dispatcher.SetDate(upd.Date)
 		msg := &MessageObj{ID: upd.ID, Out: upd.Out, Mentioned: upd.Mentioned, Message: upd.Message, MediaUnread: upd.MediaUnread, FromID: getPeerUser(upd.FromID), PeerID: &PeerChat{ChatID: upd.ChatID}, Date: upd.Date, Entities: upd.Entities, FwdFrom: upd.FwdFrom, ReplyTo: upd.ReplyTo, ViaBotID: upd.ViaBotID, TtlPeriod: upd.TtlPeriod, Silent: upd.Silent}
 		c.applyIncomingUpdate(&UpdateNewMessage{Message: msg, Pts: upd.Pts, PtsCount: upd.PtsCount})
 		return true
 	case *UpdateShortSentMessage:
-		msg := &MessageObj{ID: upd.ID, Out: upd.Out, Date: upd.Date, Media: upd.Media, Entities: upd.Entities, TtlPeriod: upd.TtlPeriod}
-		c.applyIncomingUpdate(&UpdateNewMessage{Message: msg, Pts: upd.Pts, PtsCount: upd.PtsCount})
+		c.dispatcher.SetDate(upd.Date)
+		if d.globalPtsBox != nil && upd.Pts != 0 {
+			d.globalPtsBox.processCheckpoint(upd.Pts, func() {})
+		}
 		return true
 	case *UpdateChannelTooLong:
 		currentPts := d.GetChannelPts(upd.ChannelID)
@@ -2908,7 +3200,6 @@ func (c *Client) dispatchUpdate(update Update) {
 	switch upd := update.(type) {
 	case *UpdateNewMessage:
 		go c.fetchPeersBeforeUpdate(upd.Message, upd.Pts)
-		go c.handleMessageUpdate(upd.Message)
 	case *UpdateNewChannelMessage:
 		go c.fetchChannelPeersBeforeUpdate(upd.Message, upd.Pts)
 	case *UpdateNewScheduledMessage:
@@ -2974,11 +3265,15 @@ func getChannelIDFromMessage(msg Message) int64 {
 func messagePeerKey(peer Peer) int64 {
 	switch p := peer.(type) {
 	case *PeerUser:
+		// Namespace users into a distinct range so they cannot collide
+		// with chats or channels regardless of ID magnitude.
 		return p.UserID
 	case *PeerChat:
-		return -p.ChatID
+		// Chats: unique tag in the sign+high-bit space.
+		return -(p.ChatID | (1 << 62))
 	case *PeerChannel:
-		return -(p.ChannelID << 1)
+		// Channels: different tag to avoid ChatID = 2×ChannelID collisions.
+		return -(p.ChannelID | (1 << 61))
 	default:
 		return 0
 	}
@@ -3006,23 +3301,42 @@ func serviceMessageDedupeKey(msg *MessageService) int64 {
 }
 
 func dedupeKeyFromFields(id int32, fromID Peer, peerID Peer, out bool) int64 {
-	var peerKey int64
-	if out {
+	// Anchor identity on PeerID (where the message lives) so the key is
+	// stable across arrivals that differ in FromID enrichment — the
+	// server sometimes omits FromID for outgoing messages, and we later
+	// fill it in with Me. Two arrivals of the same event must produce
+	// the same dedup key regardless.
+	peerKey := messagePeerKey(peerID)
+	if peerKey == 0 {
 		peerKey = messagePeerKey(fromID)
-		if peerKey == 0 {
-			peerKey = messagePeerKey(peerID)
-		}
-	} else {
-		peerKey = messagePeerKey(peerID)
-		if peerKey == 0 {
-			peerKey = messagePeerKey(fromID)
+	}
+	return hashDedupeFields(peerKey, int64(id), out)
+}
+
+// hashDedupeFields mixes (peerKey, id, out) into a full 64-bit hash so
+// user IDs above 2^32 and adjacent numeric IDs cannot collide.
+// FNV-1a 64-bit; small, fast, no cryptographic requirement.
+func hashDedupeFields(peerKey, id int64, out bool) int64 {
+	const (
+		offset64 = uint64(14695981039346656037)
+		prime64  = uint64(1099511628211)
+	)
+	h := offset64
+	mix := func(v uint64) {
+		for i := 0; i < 8; i++ {
+			h ^= v & 0xff
+			h *= prime64
+			v >>= 8
 		}
 	}
-	key := (peerKey << 32) ^ int64(uint32(id))
+	mix(uint64(peerKey))
+	mix(uint64(id))
 	if out {
-		key ^= 1 << 62
+		mix(1)
+	} else {
+		mix(0)
 	}
-	return key
+	return int64(h)
 }
 
 type updateMeta struct {
@@ -3030,6 +3344,53 @@ type updateMeta struct {
 	ptsCount int32
 	qts      int32
 	channel  int64
+}
+
+func sortUpdatesByPtsAscending(updates []Update) {
+	n := len(updates)
+	if n < 2 {
+		return
+	}
+	metas := make([]updateMeta, n)
+	needsSort := false
+	for i := range updates {
+		metas[i] = extractUpdateMeta(updates[i])
+		if i > 0 && !metaOrderedAscending(metas[i-1], metas[i]) {
+			needsSort = true
+		}
+	}
+	if !needsSort {
+		return
+	}
+	idx := make([]int, n)
+	for i := range idx {
+		idx[i] = i
+	}
+	sort.SliceStable(idx, func(a, b int) bool {
+		return metaLess(metas[idx[a]], metas[idx[b]])
+	})
+	tmp := make([]Update, n)
+	for i, k := range idx {
+		tmp[i] = updates[k]
+	}
+	copy(updates, tmp)
+}
+
+func metaLess(mi, mj updateMeta) bool {
+	if mi.pts == 0 && mj.pts == 0 {
+		return false
+	}
+	if mi.pts == 0 {
+		return true
+	}
+	if mj.pts == 0 {
+		return false
+	}
+	return (mi.pts - mi.ptsCount) < (mj.pts - mj.ptsCount)
+}
+
+func metaOrderedAscending(a, b updateMeta) bool {
+	return !metaLess(b, a)
 }
 
 func extractUpdateMeta(update Update) updateMeta {
@@ -3103,6 +3464,35 @@ func extractUpdateMeta(update Update) updateMeta {
 		meta.qts = upd.Qts
 	case *UpdateBotGuestChatQuery:
 		meta.qts = upd.Qts
+	case *UpdateChatParticipant:
+		meta.qts = upd.Qts
+	case *UpdateBotStopped:
+		meta.qts = upd.Qts
+	case *UpdateBotChatBoost:
+		meta.qts = upd.Qts
+		meta.channel = getChannelIDFromPeer(upd.Peer)
+	case *UpdateBotMessageReaction:
+		meta.qts = upd.Qts
+		meta.channel = getChannelIDFromPeer(upd.Peer)
+	case *UpdateBotMessageReactions:
+		meta.qts = upd.Qts
+		meta.channel = getChannelIDFromPeer(upd.Peer)
+	case *UpdateBotBusinessConnect:
+		meta.qts = upd.Qts
+	case *UpdateBotNewBusinessMessage:
+		meta.qts = upd.Qts
+	case *UpdateBotEditBusinessMessage:
+		meta.qts = upd.Qts
+	case *UpdateBotDeleteBusinessMessage:
+		meta.qts = upd.Qts
+	case *UpdateBotPurchasedPaidMedia:
+		meta.qts = upd.Qts
+	case *UpdateBotStarsSubscription:
+		meta.qts = upd.Qts
+	case *UpdateManagedBot:
+		meta.qts = upd.Qts
+	case *UpdateMessagePollVote:
+		meta.qts = upd.Qts
 	case *UpdateBotInlineSend:
 	}
 
@@ -3126,7 +3516,16 @@ func (c *Client) processWithState(meta updateMeta, apply func()) bool {
 	}
 
 	if meta.pts != 0 && meta.ptsCount == 0 {
-		applyCheckpoint(d, meta)
+		if meta.channel != 0 {
+			if box := d.getChannelBox(meta.channel); box != nil {
+				return box.processCheckpoint(meta.pts, apply)
+			}
+			apply()
+			return true
+		}
+		if d.globalPtsBox != nil {
+			return d.globalPtsBox.processCheckpoint(meta.pts, apply)
+		}
 		apply()
 		return true
 	}
@@ -3149,19 +3548,6 @@ func (c *Client) processWithState(meta updateMeta, apply func()) bool {
 	return true
 }
 
-func applyCheckpoint(d *UpdateDispatcher, meta updateMeta) {
-	if meta.channel != 0 {
-		if box := d.getChannelBox(meta.channel); box != nil {
-			if meta.pts > box.currentValue() {
-				box.forceSet(meta.pts)
-			}
-		}
-		return
-	}
-	if d.globalPtsBox != nil && meta.pts > d.globalPtsBox.currentValue() {
-		d.globalPtsBox.forceSet(meta.pts)
-	}
-}
 
 func (c *Client) FetchDifference(fromPts int32, limit int32) {
 	c.dispatcher.Lock()
@@ -3172,7 +3558,20 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 	c.dispatcher.recoveringDifference = true
 	c.dispatcher.Unlock()
 
+	if c.dispatcher.globalPtsBox != nil {
+		c.dispatcher.globalPtsBox.beginGettingDiff()
+	}
+	if c.dispatcher.globalQtsBox != nil {
+		c.dispatcher.globalQtsBox.beginGettingDiff()
+	}
+
 	defer func() {
+		if c.dispatcher.globalPtsBox != nil {
+			c.dispatcher.globalPtsBox.endGettingDiff()
+		}
+		if c.dispatcher.globalQtsBox != nil {
+			c.dispatcher.globalQtsBox.endGettingDiff()
+		}
 		c.dispatcher.Lock()
 		c.dispatcher.recoveringDifference = false
 		c.dispatcher.Unlock()
@@ -3200,7 +3599,11 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 		req.Date = int32(time.Now().Unix())
 	}
 
-	maxIterations := 10
+	const maxIterations = 10
+	const baseBackoff = 200 * time.Millisecond
+	const maxBackoff = 30 * time.Second
+	backoff := baseBackoff
+	consecutiveErrors := 0
 	iteration := 0
 
 	for iteration < maxIterations {
@@ -3210,11 +3613,26 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 		cancel()
 
 		if err != nil {
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				continue
+			consecutiveErrors++
+			if consecutiveErrors >= 5 {
+				c.Log.Error("FetchDifference giving up after %d errors: %v", consecutiveErrors, err)
+				return
 			}
-			return
+			select {
+			case <-c.dispatcher.stopChan:
+				return
+			case <-time.After(backoff):
+			}
+			if backoff < maxBackoff {
+				backoff *= 2
+				if backoff > maxBackoff {
+					backoff = maxBackoff
+				}
+			}
+			continue
 		}
+		consecutiveErrors = 0
+		backoff = baseBackoff
 
 		switch u := updates.(type) {
 		case *UpdatesDifferenceEmpty:
@@ -3233,9 +3651,9 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 				}
 			}
 
-			if len(u.OtherUpdates) > 0 {
-				totalFetched += len(u.OtherUpdates)
-				HandleIncomingUpdates(&UpdatesObj{Updates: u.OtherUpdates, Users: u.Users, Chats: u.Chats}, c)
+			for _, update := range u.OtherUpdates {
+				totalFetched++
+				c.dispatchUpdate(update)
 			}
 
 			c.dispatcher.SetPts(u.State.Pts)
@@ -3255,9 +3673,9 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 				}
 			}
 
-			if len(u.OtherUpdates) > 0 {
-				totalFetched += len(u.OtherUpdates)
-				HandleIncomingUpdates(&UpdatesObj{Updates: u.OtherUpdates, Users: u.Users, Chats: u.Chats}, c)
+			for _, update := range u.OtherUpdates {
+				totalFetched++
+				c.dispatchUpdate(update)
 			}
 
 			c.dispatcher.SetPts(u.IntermediateState.Pts)
@@ -3291,7 +3709,16 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 		}
 	}
 
-	c.Log.Debug("difference fetch limit reached (iterations=%d, pts=%d, fetched=%d)", maxIterations, req.Pts, totalFetched)
+	c.Log.Debug("difference fetch iteration cap reached (iterations=%d, pts=%d, fetched=%d) - scheduling follow-up", maxIterations, req.Pts, totalFetched)
+	followupPts := req.Pts
+	go func() {
+		select {
+		case <-c.dispatcher.stopChan:
+			return
+		case <-time.After(500 * time.Millisecond):
+		}
+		c.FetchDifference(followupPts, 5000)
+	}()
 }
 
 func (c *Client) manageSeq(seq int32, seqStart int32) bool {
@@ -3413,7 +3840,14 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 	c.dispatcher.recoveringChannels[channelID] = true
 	c.dispatcher.Unlock()
 
+	if box := c.dispatcher.getChannelBox(channelID); box != nil {
+		box.beginGettingDiff()
+	}
+
 	defer func() {
+		if box := c.dispatcher.getChannelBox(channelID); box != nil {
+			box.endGettingDiff()
+		}
 		c.dispatcher.Lock()
 		delete(c.dispatcher.recoveringChannels, channelID)
 		c.dispatcher.Unlock()
@@ -3446,7 +3880,11 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 	}
 
 	totalFetched := 0
-	maxIterations := 20
+	const maxIterations = 20
+	const baseBackoff = 200 * time.Millisecond
+	const maxBackoff = 30 * time.Second
+	backoff := baseBackoff
+	consecutiveErrors := 0
 	iteration := 0
 
 	req := &UpdatesGetChannelDifferenceParams{
@@ -3464,11 +3902,31 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 		cancel()
 
 		if err != nil {
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				continue
+			if isChannelAccessError(err) {
+				c.Log.Debug("channel %d access lost (%v); dropping state", channelID, err)
+				c.dispatcher.cleanupChannel(channelID)
+				return
 			}
-			return
+			consecutiveErrors++
+			if consecutiveErrors >= 5 {
+				c.Log.Error("FetchChannelDifference channel=%d giving up after %d errors: %v", channelID, consecutiveErrors, err)
+				return
+			}
+			select {
+			case <-c.dispatcher.stopChan:
+				return
+			case <-time.After(backoff):
+			}
+			if backoff < maxBackoff {
+				backoff *= 2
+				if backoff > maxBackoff {
+					backoff = maxBackoff
+				}
+			}
+			continue
 		}
+		consecutiveErrors = 0
+		backoff = baseBackoff
 
 		switch d := diff.(type) {
 		case *UpdatesChannelDifferenceEmpty:
@@ -3489,9 +3947,9 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 				}
 			}
 
-			if len(d.OtherUpdates) > 0 {
-				totalFetched += len(d.OtherUpdates)
-				HandleIncomingUpdates(&UpdatesObj{Updates: d.OtherUpdates, Users: d.Users, Chats: d.Chats}, c)
+			for _, update := range d.OtherUpdates {
+				totalFetched++
+				c.dispatchUpdate(update)
 			}
 
 			c.dispatcher.SetChannelPts(channelID, d.Pts)
@@ -3500,39 +3958,18 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 				return
 			}
 
-			c.dispatcher.RLock()
-			isOpen := channelState != nil && channelState.isOpen
-			c.dispatcher.RUnlock()
-
-			if !isOpen {
-				return
-			}
-
 			req.Pts = d.Pts
 
 		case *UpdatesChannelDifferenceTooLong:
 			c.Cache.UpdatePeersToCache(d.Users, d.Chats)
-			for _, message := range d.Messages {
-				switch msg := message.(type) {
-				case *MessageObj, *MessageService:
-					go c.handleMessageUpdate(msg)
-					totalFetched++
-				}
-			}
 
 			if dialogChannel, ok := d.Dialog.(*DialogObj); ok {
 				c.dispatcher.SetChannelPts(channelID, dialogChannel.Pts)
-				c.Log.Debug("channel difference too long, refreshing state (channel=%d, pts=%d)", channelID, dialogChannel.Pts)
+				c.Log.Debug("channel difference too long, resetting state (channel=%d, pts=%d, dropped partial messages=%d)", channelID, dialogChannel.Pts, len(d.Messages))
 
 				if !d.Final {
-					c.dispatcher.RLock()
-					isOpen := channelState != nil && channelState.isOpen
-					c.dispatcher.RUnlock()
-
-					if isOpen {
-						req.Pts = dialogChannel.Pts
-						continue
-					}
+					req.Pts = dialogChannel.Pts
+					continue
 				}
 			}
 
@@ -3544,7 +3981,17 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 		}
 	}
 
-	c.Log.Debug("channel difference fetch limit reached (channel=%d, iterations=%d, pts=%d, fetched=%d)", channelID, maxIterations, req.Pts, totalFetched)
+	c.Log.Debug("channel difference fetch iteration cap reached (channel=%d, iterations=%d, pts=%d, fetched=%d) - scheduling follow-up", channelID, maxIterations, req.Pts, totalFetched)
+	followupPts := req.Pts
+	followupLimit := limit
+	go func() {
+		select {
+		case <-c.dispatcher.stopChan:
+			return
+		case <-time.After(500 * time.Millisecond):
+		}
+		c.FetchChannelDifference(channelID, followupPts, followupLimit)
+	}()
 }
 
 // OpenChat starts active polling for a channel to receive updates faster.
