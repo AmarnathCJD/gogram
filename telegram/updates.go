@@ -1064,6 +1064,23 @@ func isChannelAccessError(err error) bool {
 	return false
 }
 
+// isPersistentTimestampError reports whether err signals that the client's pts
+// is empty / invalid / outdated. These are terminal for the current call —
+// retrying with the same params always fails. The caller should re-seed state
+// via updates.getState and return instead of retrying.
+func isPersistentTimestampError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, marker := range []string{"PERSISTENT_TIMESTAMP_EMPTY", "PERSISTENT_TIMESTAMP_INVALID", "PERSISTENT_TIMESTAMP_OUTDATED"} {
+		if strings.Contains(msg, marker) {
+			return true
+		}
+	}
+	return false
+}
+
 func (d *UpdateDispatcher) cleanupChannel(channelID int64) {
 	d.channelPtsBoxes.Delete(channelID)
 	d.Lock()
@@ -1414,7 +1431,10 @@ func (c *Client) NewUpdateDispatcher(sessionName ...string) {
 				return
 			}
 			pts := c.dispatcher.GetPts()
-			c.dispatcher.logger.Debug("NewSessionCreated observed, re-syncing update state from pts=%d", pts)
+			if pts == 0 {
+				return
+			}
+			c.dispatcher.logger.Debug("NewSessionCreated observed mid-session, re-syncing from pts=%d", pts)
 			c.FetchDifference(pts, 5000)
 		})
 	}
@@ -3558,6 +3578,22 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 	c.dispatcher.recoveringDifference = true
 	c.dispatcher.Unlock()
 
+	if fromPts <= 0 {
+		state, err := c.UpdatesGetState()
+		c.dispatcher.Lock()
+		c.dispatcher.recoveringDifference = false
+		c.dispatcher.Unlock()
+		if err != nil {
+			c.Log.Debug("FetchDifference: cold-start getState failed: %v", err)
+			return
+		}
+		c.dispatcher.SetPts(state.Pts)
+		c.dispatcher.SetQts(state.Qts)
+		c.dispatcher.SetSeq(state.Seq)
+		c.dispatcher.SetDate(state.Date)
+		return
+	}
+
 	if c.dispatcher.globalPtsBox != nil {
 		c.dispatcher.globalPtsBox.beginGettingDiff()
 	}
@@ -3613,6 +3649,18 @@ func (c *Client) FetchDifference(fromPts int32, limit int32) {
 		cancel()
 
 		if err != nil {
+			if isPersistentTimestampError(err) {
+				c.Log.Debug("FetchDifference: %v; re-seeding via updates.getState", err)
+				if state, gerr := c.UpdatesGetState(); gerr == nil {
+					c.dispatcher.SetPts(state.Pts)
+					c.dispatcher.SetQts(state.Qts)
+					c.dispatcher.SetSeq(state.Seq)
+					c.dispatcher.SetDate(state.Date)
+				} else {
+					c.Log.Error("FetchDifference: getState after %v failed: %v", err, gerr)
+				}
+				return
+			}
 			consecutiveErrors++
 			if consecutiveErrors >= 5 {
 				c.Log.Error("FetchDifference giving up after %d errors: %v", consecutiveErrors, err)
@@ -3905,6 +3953,13 @@ func (c *Client) FetchChannelDifference(channelID int64, fromPts int32, limit in
 			if isChannelAccessError(err) {
 				c.Log.Debug("channel %d access lost (%v); dropping state", channelID, err)
 				c.dispatcher.cleanupChannel(channelID)
+				return
+			}
+			if isPersistentTimestampError(err) {
+				c.Log.Debug("FetchChannelDifference channel=%d: %v; dropping local pts to force re-seed on next fetch", channelID, err)
+				if box := c.dispatcher.getChannelBox(channelID); box != nil {
+					box.forceSet(0)
+				}
 				return
 			}
 			consecutiveErrors++
