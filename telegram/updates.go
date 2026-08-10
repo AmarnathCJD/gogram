@@ -481,19 +481,19 @@ func newPatternCache() *patternCache {
 // It buffers out-of-order updates, detects gaps, and optionally triggers a fetch to fill them.
 type counterBox struct {
 	sync.Mutex
-	name           string
-	current        int32
-	pending        map[int32][]pendingCounter
-	recovering     bool
-	recoveryEpoch  uint64
-	fetchGap       func(from, target int32)
-	logger         Logger
-	debounce       time.Duration
-	lastGapAt      time.Time
-	onAdvance      func(int32)
-	gapDeadline    time.Time
-	reorderWait    time.Duration
-	gapTimer       *time.Timer
+	name          string
+	current       int32
+	pending       map[int32][]pendingCounter
+	recovering    bool
+	recoveryEpoch uint64
+	fetchGap      func(from, target int32)
+	logger        Logger
+	debounce      time.Duration
+	lastGapAt     time.Time
+	onAdvance     func(int32)
+	gapDeadline   time.Time
+	reorderWait   time.Duration
+	gapTimer      *time.Timer
 }
 
 type pendingCounter struct {
@@ -1064,10 +1064,6 @@ func isChannelAccessError(err error) bool {
 	return false
 }
 
-// isPersistentTimestampError reports whether err signals that the client's pts
-// is empty / invalid / outdated. These are terminal for the current call —
-// retrying with the same params always fails. The caller should re-seed state
-// via updates.getState and return instead of retrying.
 func isPersistentTimestampError(err error) bool {
 	if err == nil {
 		return false
@@ -3567,7 +3563,6 @@ func (c *Client) processWithState(meta updateMeta, apply func()) bool {
 	apply()
 	return true
 }
-
 
 func (c *Client) FetchDifference(fromPts int32, limit int32) {
 	c.dispatcher.Lock()
