@@ -463,6 +463,89 @@ func (*BusinessAwayMessageScheduleOutsideWorkHours) CRC() uint32 {
 
 func (*BusinessAwayMessageScheduleOutsideWorkHours) ImplementsBusinessAwayMessageSchedule() {}
 
+type ButtonType interface {
+	tl.Object
+	ImplementsButtonType()
+}
+type ButtonTypeDefault struct{}
+
+func (*ButtonTypeDefault) CRC() uint32 {
+	return 0xc9dd90e9
+}
+
+func (*ButtonTypeDefault) ImplementsButtonType() {}
+
+type ButtonTypeRequestGeoLocation struct{}
+
+func (*ButtonTypeRequestGeoLocation) CRC() uint32 {
+	return 0x9beee140
+}
+
+func (*ButtonTypeRequestGeoLocation) ImplementsButtonType() {}
+
+type ButtonTypeRequestPeer struct {
+	ButtonID    int32
+	PeerType    RequestPeerType
+	MaxQuantity int32
+}
+
+func (*ButtonTypeRequestPeer) CRC() uint32 {
+	return 0x4f58a237
+}
+
+func (*ButtonTypeRequestPeer) ImplementsButtonType() {}
+
+type ButtonTypeRequestPhone struct{}
+
+func (*ButtonTypeRequestPhone) CRC() uint32 {
+	return 0xdf3d36f9
+}
+
+func (*ButtonTypeRequestPhone) ImplementsButtonType() {}
+
+type ButtonTypeRequestPoll struct {
+	Quiz bool `tl:"flag:0"`
+}
+
+func (*ButtonTypeRequestPoll) CRC() uint32 {
+	return 0xaacfff84
+}
+
+func (*ButtonTypeRequestPoll) FlagIndex() int {
+	return 0
+}
+
+func (*ButtonTypeRequestPoll) ImplementsButtonType() {}
+
+type ButtonTypeSimpleWebView struct {
+	URL string
+}
+
+func (*ButtonTypeSimpleWebView) CRC() uint32 {
+	return 0xc01a597a
+}
+
+func (*ButtonTypeSimpleWebView) ImplementsButtonType() {}
+
+type InputButtonTypeRequestPeer struct {
+	NameRequested     bool `tl:"flag:0,encoded_in_bitflags"`
+	UsernameRequested bool `tl:"flag:1,encoded_in_bitflags"`
+	PhotoRequested    bool `tl:"flag:2,encoded_in_bitflags"`
+	ButtonID          int32
+	PeerType          RequestPeerType
+	MaxQuantity       int32
+}
+
+func (*InputButtonTypeRequestPeer) CRC() uint32 {
+	return 0x3fe268fe
+}
+
+func (*InputButtonTypeRequestPeer) FlagIndex() int {
+	return 0
+}
+
+func (*InputButtonTypeRequestPeer) ImplementsButtonType() {}
+
 type ChannelAdminLogEventAction interface {
 	tl.Object
 	ImplementsChannelAdminLogEventAction()
@@ -1543,6 +1626,7 @@ type ChannelFull struct {
 	PaidReactionsAvailable bool `tl:"flag2:16,encoded_in_bitflags"`
 	StargiftsAvailable     bool `tl:"flag2:19,encoded_in_bitflags"`
 	PaidMessagesAvailable  bool `tl:"flag2:20,encoded_in_bitflags"`
+	HasWelcomeMessages     bool `tl:"flag2:24,encoded_in_bitflags"`
 	ID                     int64
 	About                  string
 	ParticipantsCount      int32 `tl:"flag:0"`
@@ -1603,26 +1687,27 @@ func (*ChannelFull) ImplementsChatFull() {}
 
 // Full info about a basic group.
 type ChatFullObj struct {
-	CanSetUsername         bool                `tl:"flag:7,encoded_in_bitflags"`  // Can we change the username of this chat
-	HasScheduled           bool                `tl:"flag:8,encoded_in_bitflags"`  // Whether scheduled messages are available
-	TranslationsDisabled   bool                `tl:"flag:19,encoded_in_bitflags"` // Whether the real-time chat translation popup should be hidden.
-	ID                     int64               // ID of the chat
-	About                  string              // About string for this chat
-	Participants           ChatParticipants    // Participant list
-	ChatPhoto              Photo               `tl:"flag:2"` // Chat photo
-	NotifySettings         *PeerNotifySettings // Notification settings
-	ExportedInvite         ExportedChatInvite  `tl:"flag:13"` // Chat invite
-	BotInfo                []*BotInfo          `tl:"flag:3"`  // Info about bots that are in this chat
-	PinnedMsgID            int32               `tl:"flag:6"`  // Message ID of the last pinned message
-	FolderID               int32               `tl:"flag:11"` // Peer folder ID, for more info click here
-	Call                   InputGroupCall      `tl:"flag:12"` // Active or scheduled video chat associated with this basic group
-	TtlPeriod              int32               `tl:"flag:14"` // Time-To-Live of messages sent by the current user to this chat
-	GroupcallDefaultJoinAs Peer                `tl:"flag:15"` // Explicitly saved default peer used to join this group's video chat ; if absent, the current user is used
-	ThemeEmoticon          string              `tl:"flag:16"` // Emoji representing a specific chat theme
-	RequestsPending        int32               `tl:"flag:17"` // Pending join requests
-	RecentRequesters       []int64             `tl:"flag:17"` // IDs of users who requested to join recently
-	AvailableReactions     ChatReactions       `tl:"flag:18"` // Allowed message reactions
-	ReactionsLimit         int32               `tl:"flag:20"` // This flag may be used to impose a custom limit of unique reactions (i.e. a customizable version of appConfig.reactions_uniq_max).
+	CanSetUsername         bool `tl:"flag:7,encoded_in_bitflags"`
+	HasScheduled           bool `tl:"flag:8,encoded_in_bitflags"`
+	TranslationsDisabled   bool `tl:"flag:19,encoded_in_bitflags"`
+	HasWelcomeMessages     bool `tl:"flag:21,encoded_in_bitflags"`
+	ID                     int64
+	About                  string
+	Participants           ChatParticipants
+	ChatPhoto              Photo `tl:"flag:2"`
+	NotifySettings         *PeerNotifySettings
+	ExportedInvite         ExportedChatInvite `tl:"flag:13"`
+	BotInfo                []*BotInfo         `tl:"flag:3"`
+	PinnedMsgID            int32              `tl:"flag:6"`
+	FolderID               int32              `tl:"flag:11"`
+	Call                   InputGroupCall     `tl:"flag:12"`
+	TtlPeriod              int32              `tl:"flag:14"`
+	GroupcallDefaultJoinAs Peer               `tl:"flag:15"`
+	ThemeEmoticon          string             `tl:"flag:16"`
+	RequestsPending        int32              `tl:"flag:17"`
+	RecentRequesters       []int64            `tl:"flag:17"`
+	AvailableReactions     ChatReactions      `tl:"flag:18"`
+	ReactionsLimit         int32              `tl:"flag:20"`
 }
 
 func (*ChatFullObj) CRC() uint32 {
@@ -2863,6 +2948,148 @@ func (*GroupCallDiscarded) CRC() uint32 {
 
 func (*GroupCallDiscarded) ImplementsGroupCall() {}
 
+type InlineButtonType interface {
+	tl.Object
+	ImplementsInlineButtonType()
+}
+type InlineButtonTypeBuy struct{}
+
+func (*InlineButtonTypeBuy) CRC() uint32 {
+	return 0x48bad7a5
+}
+
+func (*InlineButtonTypeBuy) ImplementsInlineButtonType() {}
+
+type InlineButtonTypeCallback struct {
+	RequiresPassword bool `tl:"flag:0,encoded_in_bitflags"`
+	Data             []byte
+}
+
+func (*InlineButtonTypeCallback) CRC() uint32 {
+	return 0x2955bc38
+}
+
+func (*InlineButtonTypeCallback) FlagIndex() int {
+	return 0
+}
+
+func (*InlineButtonTypeCallback) ImplementsInlineButtonType() {}
+
+type InlineButtonTypeCopy struct {
+	CopyText string
+}
+
+func (*InlineButtonTypeCopy) CRC() uint32 {
+	return 0xb41d3272
+}
+
+func (*InlineButtonTypeCopy) ImplementsInlineButtonType() {}
+
+type InlineButtonTypeDisabled struct{}
+
+func (*InlineButtonTypeDisabled) CRC() uint32 {
+	return 0xa438619d
+}
+
+func (*InlineButtonTypeDisabled) ImplementsInlineButtonType() {}
+
+type InlineButtonTypeGame struct{}
+
+func (*InlineButtonTypeGame) CRC() uint32 {
+	return 0x5cd3709d
+}
+
+func (*InlineButtonTypeGame) ImplementsInlineButtonType() {}
+
+type InlineButtonTypeSwitchInline struct {
+	SamePeer  bool `tl:"flag:0,encoded_in_bitflags"`
+	Query     string
+	PeerTypes []InlineQueryPeerType `tl:"flag:1"`
+}
+
+func (*InlineButtonTypeSwitchInline) CRC() uint32 {
+	return 0x93773ff5
+}
+
+func (*InlineButtonTypeSwitchInline) FlagIndex() int {
+	return 0
+}
+
+func (*InlineButtonTypeSwitchInline) ImplementsInlineButtonType() {}
+
+type InlineButtonTypeURL struct {
+	URL string
+}
+
+func (*InlineButtonTypeURL) CRC() uint32 {
+	return 0xeca4f8d4
+}
+
+func (*InlineButtonTypeURL) ImplementsInlineButtonType() {}
+
+type InlineButtonTypeURLAuth struct {
+	FwdText  string `tl:"flag:0"`
+	URL      string
+	ButtonID int32
+}
+
+func (*InlineButtonTypeURLAuth) CRC() uint32 {
+	return 0xbfd02da2
+}
+
+func (*InlineButtonTypeURLAuth) FlagIndex() int {
+	return 0
+}
+
+func (*InlineButtonTypeURLAuth) ImplementsInlineButtonType() {}
+
+type InlineButtonTypeUserProfile struct {
+	UserID int64
+}
+
+func (*InlineButtonTypeUserProfile) CRC() uint32 {
+	return 0x3fa33fcf
+}
+
+func (*InlineButtonTypeUserProfile) ImplementsInlineButtonType() {}
+
+type InlineButtonTypeWebView struct {
+	URL string
+}
+
+func (*InlineButtonTypeWebView) CRC() uint32 {
+	return 0x3bcab5b4
+}
+
+func (*InlineButtonTypeWebView) ImplementsInlineButtonType() {}
+
+type InputInlineButtonTypeURLAuth struct {
+	RequestWriteAccess bool   `tl:"flag:0,encoded_in_bitflags"`
+	FwdText            string `tl:"flag:1"`
+	URL                string
+	Bot                InputUser `tl:"flag:2"`
+}
+
+func (*InputInlineButtonTypeURLAuth) CRC() uint32 {
+	return 0x9961bcb4
+}
+
+func (*InputInlineButtonTypeURLAuth) FlagIndex() int {
+	return 0
+}
+
+func (*InputInlineButtonTypeURLAuth) ImplementsInlineButtonType() {}
+
+type InputInlineButtonTypeUserProfile struct {
+	UserID InputUser
+}
+
+func (*InputInlineButtonTypeUserProfile) CRC() uint32 {
+	return 0x53f3ce5a
+}
+
+func (*InputInlineButtonTypeUserProfile) ImplementsInlineButtonType() {}
+
 type InputAiComposeTone interface {
 	tl.Object
 	ImplementsInputAiComposeTone()
@@ -3952,13 +4179,15 @@ func (*InputInvoiceStarGiftPrepaidUpgrade) ImplementsInputInvoice() {}
 
 // Used to buy a collectible gift currently up on resale
 type InputInvoiceStarGiftResale struct {
-	Ton  bool      `tl:"flag:0,encoded_in_bitflags"` // Buy the gift using TON.
-	Slug string    // Slug of the gift to buy.
-	ToID InputPeer // The receiver of the gift.
+	Ton      bool `tl:"flag:0,encoded_in_bitflags"`
+	ShowName bool `tl:"flag:2,encoded_in_bitflags"`
+	Slug     string
+	ToID     InputPeer
+	Message  *TextWithEntities `tl:"flag:1"`
 }
 
 func (*InputInvoiceStarGiftResale) CRC() uint32 {
-	return 0xc39f5324
+	return 0xe9b0c658
 }
 
 func (*InputInvoiceStarGiftResale) FlagIndex() int {
@@ -5639,327 +5868,6 @@ func (*JoinChatBotResultWebView) CRC() uint32 {
 
 func (*JoinChatBotResultWebView) ImplementsJoinChatBotResult() {}
 
-type KeyboardButton interface {
-	tl.Object
-	ImplementsKeyboardButton()
-}
-
-// Prompts the user to select and share one or more peers with the bot using messages.sendBotRequestedPeer.
-type InputKeyboardButtonRequestPeer struct {
-	NameRequested     bool                 `tl:"flag:0,encoded_in_bitflags"` // Set this flag to request the peer's name.
-	UsernameRequested bool                 `tl:"flag:1,encoded_in_bitflags"` // Set this flag to request the peer's `@username` (if any).
-	PhotoRequested    bool                 `tl:"flag:2,encoded_in_bitflags"` // Set this flag to request the peer's photo (if any).
-	Style             *KeyboardButtonStyle `tl:"flag:10"`                    // Button style
-	Text              string               // Button text
-	ButtonID          int32                // Button ID, to be passed to messages.sendBotRequestedPeer.
-	PeerType          RequestPeerType      // Filtering criteria to use for the peer selection list shown to the user. The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to `max_quantity`) peers of the specified type, if needed.
-	MaxQuantity       int32                // Maximum number of peers that can be chosen.
-}
-
-func (*InputKeyboardButtonRequestPeer) CRC() uint32 {
-	return 0x2b78156
-}
-
-func (*InputKeyboardButtonRequestPeer) FlagIndex() int {
-	return 0
-}
-
-func (*InputKeyboardButtonRequestPeer) ImplementsKeyboardButton() {}
-
-// Button to request a user to authorize via URL using Seamless Telegram Login.
-type InputKeyboardButtonURLAuth struct {
-	RequestWriteAccess bool                 `tl:"flag:0,encoded_in_bitflags"` // Set this flag to request the permission for your bot to send messages to the user.
-	Style              *KeyboardButtonStyle `tl:"flag:10"`                    // Button style
-	Text               string               // Button text
-	FwdText            string               `tl:"flag:1"` // New text of the button in forwarded messages.
-	URL                string               // An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data. NOTE: You must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
-	Bot                InputUser            // Username of a bot, which will be used for user authorization. See Setting up a bot for more details. If not specified, the current bot's username will be assumed. The url's domain must be the same as the domain linked with the bot. See Linking your domain to the bot for more details.
-}
-
-func (*InputKeyboardButtonURLAuth) CRC() uint32 {
-	return 0x68013e72
-}
-
-func (*InputKeyboardButtonURLAuth) FlagIndex() int {
-	return 0
-}
-
-func (*InputKeyboardButtonURLAuth) ImplementsKeyboardButton() {}
-
-// Button that links directly to a user profile
-type InputKeyboardButtonUserProfile struct {
-	Style  *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text   string               // Button text
-	UserID InputUser            // User ID
-}
-
-func (*InputKeyboardButtonUserProfile) CRC() uint32 {
-	return 0x7d5e07c7
-}
-
-func (*InputKeyboardButtonUserProfile) FlagIndex() int {
-	return 0
-}
-
-func (*InputKeyboardButtonUserProfile) ImplementsKeyboardButton() {}
-
-// Bot keyboard button
-type KeyboardButtonObj struct {
-	Style *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text  string               // Button text
-}
-
-func (*KeyboardButtonObj) CRC() uint32 {
-	return 0x7d170cff
-}
-
-func (*KeyboardButtonObj) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonObj) ImplementsKeyboardButton() {}
-
-// Button to buy a product
-type KeyboardButtonBuy struct {
-	Style *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text  string               // Button text
-}
-
-func (*KeyboardButtonBuy) CRC() uint32 {
-	return 0x3fa53905
-}
-
-func (*KeyboardButtonBuy) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonBuy) ImplementsKeyboardButton() {}
-
-// Callback button
-type KeyboardButtonCallback struct {
-	RequiresPassword bool                 `tl:"flag:0,encoded_in_bitflags"` // Whether the user should verify his identity by entering his 2FA SRP parameters to the messages.getBotCallbackAnswer method. NOTE: telegram and the bot WILL NOT have access to the plaintext password, thanks to SRP. This button is mainly used by the official @botfather bot, for verifying the user's identity before transferring ownership of a bot to another user.
-	Style            *KeyboardButtonStyle `tl:"flag:10"`                    // Button style
-	Text             string               // Button text
-	Data             []byte               // Callback data
-}
-
-func (*KeyboardButtonCallback) CRC() uint32 {
-	return 0xe62bc960
-}
-
-func (*KeyboardButtonCallback) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonCallback) ImplementsKeyboardButton() {}
-
-// Clipboard button
-type KeyboardButtonCopy struct {
-	Style    *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text     string               // Title of the button
-	CopyText string               // The text that will be copied to the clipboard
-}
-
-func (*KeyboardButtonCopy) CRC() uint32 {
-	return 0xbcc4af10
-}
-
-func (*KeyboardButtonCopy) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonCopy) ImplementsKeyboardButton() {}
-
-// Button to start a game
-type KeyboardButtonGame struct {
-	Style *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text  string               // Button text
-}
-
-func (*KeyboardButtonGame) CRC() uint32 {
-	return 0x89c590f9
-}
-
-func (*KeyboardButtonGame) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonGame) ImplementsKeyboardButton() {}
-
-// Button to request a user's geolocation
-type KeyboardButtonRequestGeoLocation struct {
-	Style *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text  string               // Button text
-}
-
-func (*KeyboardButtonRequestGeoLocation) CRC() uint32 {
-	return 0xaa40f94d
-}
-
-func (*KeyboardButtonRequestGeoLocation) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonRequestGeoLocation) ImplementsKeyboardButton() {}
-
-// Prompts the user to select and share one or more peers with the bot using messages.sendBotRequestedPeer
-type KeyboardButtonRequestPeer struct {
-	Style       *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text        string               // Button text
-	ButtonID    int32                // Button ID, to be passed to messages.sendBotRequestedPeer.
-	PeerType    RequestPeerType      // Filtering criteria to use for the peer selection list shown to the user. The list should display all existing peers of the specified type, and should also offer an option for the user to create and immediately use one or more (up to `max_quantity`) peers of the specified type, if needed.
-	MaxQuantity int32                // Maximum number of peers that can be chosen.
-}
-
-func (*KeyboardButtonRequestPeer) CRC() uint32 {
-	return 0x5b0f15f5
-}
-
-func (*KeyboardButtonRequestPeer) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonRequestPeer) ImplementsKeyboardButton() {}
-
-// Button to request a user's phone number
-type KeyboardButtonRequestPhone struct {
-	Style *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text  string               // Button text
-}
-
-func (*KeyboardButtonRequestPhone) CRC() uint32 {
-	return 0x417efd8f
-}
-
-func (*KeyboardButtonRequestPhone) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonRequestPhone) ImplementsKeyboardButton() {}
-
-// Button to request a poll from the user
-type KeyboardButtonRequestPoll struct {
-	Style *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Quiz  bool                 `tl:"flag:0"`  // If set, only quiz polls can be sent
-	Text  string               // Button text
-}
-
-func (*KeyboardButtonRequestPoll) CRC() uint32 {
-	return 0x7a11d782
-}
-
-func (*KeyboardButtonRequestPoll) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonRequestPoll) ImplementsKeyboardButton() {}
-
-// Button to open a bot mini app using messages.requestSimpleWebView, without sending user information to the web app.
-type KeyboardButtonSimpleWebView struct {
-	Style *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text  string               // Button text
-	URL   string               // Web app URL
-}
-
-func (*KeyboardButtonSimpleWebView) CRC() uint32 {
-	return 0xe15c4370
-}
-
-func (*KeyboardButtonSimpleWebView) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonSimpleWebView) ImplementsKeyboardButton() {}
-
-// Button to switch the user to inline mode
-type KeyboardButtonSwitchInline struct {
-	SamePeer  bool                  `tl:"flag:0,encoded_in_bitflags"` // If set, pressing the button will insert the bot's username and the specified inline `query` in the current chat's input field.
-	Style     *KeyboardButtonStyle  `tl:"flag:10"`                    // Button style
-	Text      string                // Button label
-	Query     string                // The inline query to use
-	PeerTypes []InlineQueryPeerType `tl:"flag:1"` // Filter to use when selecting chats.
-}
-
-func (*KeyboardButtonSwitchInline) CRC() uint32 {
-	return 0x991399fc
-}
-
-func (*KeyboardButtonSwitchInline) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonSwitchInline) ImplementsKeyboardButton() {}
-
-// URL button
-type KeyboardButtonURL struct {
-	Style *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text  string               // Button label
-	URL   string               // URL
-}
-
-func (*KeyboardButtonURL) CRC() uint32 {
-	return 0xd80c25ec
-}
-
-func (*KeyboardButtonURL) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonURL) ImplementsKeyboardButton() {}
-
-// Button to request a user to authorize via URL using Seamless Telegram Login. When the user clicks on such a button, messages.requestUrlAuth should be called, providing the `button_id` and the ID of the container message. The returned urlAuthResultRequest object will contain more details about the authorization request (`request_write_access` if the bot would like to send messages to the user along with the username of the bot which will be used for user authorization). Finally, the user can choose to call messages.acceptUrlAuth to get a urlAuthResultAccepted with the URL to open instead of the `url` of this constructor, or a urlAuthResultDefault, in which case the `url` of this constructor must be opened, instead. If the user refuses the authorization request but still wants to open the link, the `url` of this constructor must be used.
-type KeyboardButtonURLAuth struct {
-	Style    *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text     string               // Button label
-	FwdText  string               `tl:"flag:0"` // New text of the button in forwarded messages.
-	URL      string               // An HTTP URL to be opened with user authorization data added to the query string when the button is pressed. If the user refuses to provide authorization data, the original URL without information about the user will be opened. The data added is the same as described in Receiving authorization data. NOTE: Services must always check the hash of the received data to verify the authentication and the integrity of the data as described in Checking authorization.
-	ButtonID int32                // ID of the button to pass to messages.requestUrlAuth
-}
-
-func (*KeyboardButtonURLAuth) CRC() uint32 {
-	return 0xf51006f9
-}
-
-func (*KeyboardButtonURLAuth) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonURLAuth) ImplementsKeyboardButton() {}
-
-// Button that links directly to a user profile
-type KeyboardButtonUserProfile struct {
-	Style  *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text   string               // Button text
-	UserID int64                // User ID
-}
-
-func (*KeyboardButtonUserProfile) CRC() uint32 {
-	return 0xc0fd5d09
-}
-
-func (*KeyboardButtonUserProfile) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonUserProfile) ImplementsKeyboardButton() {}
-
-// Button to open a bot mini app using messages.requestWebView, sending over user information after user confirmation.
-type KeyboardButtonWebView struct {
-	Style *KeyboardButtonStyle `tl:"flag:10"` // Button style
-	Text  string               // Button text
-	URL   string               // Web app url
-}
-
-func (*KeyboardButtonWebView) CRC() uint32 {
-	return 0xe846b1a0
-}
-
-func (*KeyboardButtonWebView) FlagIndex() int {
-	return 0
-}
-
-func (*KeyboardButtonWebView) ImplementsKeyboardButton() {}
-
 type LangPackString interface {
 	tl.Object
 	ImplementsLangPackString()
@@ -6423,6 +6331,16 @@ func (*MessageActionChatJoinedByRequest) CRC() uint32 {
 }
 
 func (*MessageActionChatJoinedByRequest) ImplementsMessageAction() {}
+
+type MessageActionChatJoinedViaCommunity struct {
+	CommunityID int64
+}
+
+func (*MessageActionChatJoinedViaCommunity) CRC() uint32 {
+	return 0x4a8bfe80
+}
+
+func (*MessageActionChatJoinedViaCommunity) ImplementsMessageAction() {}
 
 // Indicates the chat was migrated to the specified supergroup
 type MessageActionChatMigrateTo struct {
@@ -7055,29 +6973,31 @@ func (*MessageActionStarGiftPurchaseOfferDeclined) ImplementsMessageAction() {}
 
 // A gift was upgraded to a collectible gift.
 type MessageActionStarGiftUnique struct {
-	Upgrade                  bool        `tl:"flag:0,encoded_in_bitflags"`  // If set, this collectible was upgraded to a collectible gift from a previously received or sent (depending on the `out` flag of the containing messageService) non-collectible gift.
-	Transferred              bool        `tl:"flag:1,encoded_in_bitflags"`  // If set, this collectible was transferred (either to the current user or by the current user to the other user in the private chat, depending on the `out` flag of the containing messageService).
-	Saved                    bool        `tl:"flag:2,encoded_in_bitflags"`  // If set, this gift is visible on the user or channel's profile page; can only be set for the receiver of a gift.
-	Refunded                 bool        `tl:"flag:5,encoded_in_bitflags"`  // This gift was upgraded to a collectible gift and then re-downgraded to a regular gift because a request to refund the payment related to the upgrade was made, and the money was returned.
-	PrepaidUpgrade           bool        `tl:"flag:11,encoded_in_bitflags"` // The sender has pre-paid for the upgrade of this gift to a collectible gift.
-	Assigned                 bool        `tl:"flag:13,encoded_in_bitflags"` // This collectible gift was linked from the TON blockchain to a Telegram profile.
-	FromOffer                bool        `tl:"flag:14,encoded_in_bitflags"` // This collectible gift was transferred after a purchase offer was accepted.
-	Craft                    bool        `tl:"flag:16,encoded_in_bitflags"` // This collectible gift was obtained by crafting.
-	Gift                     StarGift    // The collectible gift.
-	CanExportAt              int32       `tl:"flag:3"`  // If set, indicates that the current gift can't be exported to the TON blockchain yet: the owner will be able to export it at the specified unixtime.
-	TransferStars            int64       `tl:"flag:4"`  // If set, indicates that the gift can be transferred to another user by paying the specified amount of stars.
-	FromID                   Peer        `tl:"flag:6"`  // Sender of the gift (unset for anonymous gifts).
-	Peer                     Peer        `tl:"flag:7"`  // Receiver of the gift.
-	SavedID                  int64       `tl:"flag:7"`  // For channel gifts, ID to use in inputSavedStarGiftChat constructors.
-	ResaleAmount             StarsAmount `tl:"flag:8"`  // Resale price of the gift.
-	CanTransferAt            int32       `tl:"flag:9"`  // If set, indicates that the current gift can't be transferred yet: the owner will be able to transfer it at the specified unixtime.
-	CanResellAt              int32       `tl:"flag:10"` // If set, indicates that the current gift can't be resold yet: the owner will be able to put it up for sale at the specified unixtime.
-	DropOriginalDetailsStars int64       `tl:"flag:12"` // If set, the starGiftAttributeOriginalDetails attribute of this gift may be removed by paying the specified amount of stars
-	CanCraftAt               int32       `tl:"flag:15"` // If set, this gift can be used for crafting only starting from the specified unixtime.
+	Upgrade                  bool `tl:"flag:0,encoded_in_bitflags"`
+	Transferred              bool `tl:"flag:1,encoded_in_bitflags"`
+	Saved                    bool `tl:"flag:2,encoded_in_bitflags"`
+	Refunded                 bool `tl:"flag:5,encoded_in_bitflags"`
+	PrepaidUpgrade           bool `tl:"flag:11,encoded_in_bitflags"`
+	Assigned                 bool `tl:"flag:13,encoded_in_bitflags"`
+	FromOffer                bool `tl:"flag:14,encoded_in_bitflags"`
+	Craft                    bool `tl:"flag:16,encoded_in_bitflags"`
+	NameHidden               bool `tl:"flag:17,encoded_in_bitflags"`
+	Gift                     StarGift
+	CanExportAt              int32             `tl:"flag:3"`
+	TransferStars            int64             `tl:"flag:4"`
+	FromID                   Peer              `tl:"flag:6"`
+	Peer                     Peer              `tl:"flag:7"`
+	SavedID                  int64             `tl:"flag:7"`
+	ResaleAmount             StarsAmount       `tl:"flag:8"`
+	CanTransferAt            int32             `tl:"flag:9"`
+	CanResellAt              int32             `tl:"flag:10"`
+	DropOriginalDetailsStars int64             `tl:"flag:12"`
+	CanCraftAt               int32             `tl:"flag:15"`
+	Message                  *TextWithEntities `tl:"flag:18"`
 }
 
 func (*MessageActionStarGiftUnique) CRC() uint32 {
-	return 0xe6c31522
+	return 0x7e1c1187
 }
 
 func (*MessageActionStarGiftUnique) FlagIndex() int {
@@ -8348,12 +8268,17 @@ func (*PageBlockAuthorDate) ImplementsPageBlock() {}
 
 // Quote (equivalent to the HTML `<blockquote>`)
 type PageBlockBlockquote struct {
-	Text    RichText // Quote contents
-	Caption RichText // Caption
+	Collapsed bool `tl:"flag:0,encoded_in_bitflags"`
+	Text      RichText
+	Caption   RichText
 }
 
 func (*PageBlockBlockquote) CRC() uint32 {
-	return 0x263d7c26
+	return 0x66d1670b
+}
+
+func (*PageBlockBlockquote) FlagIndex() int {
+	return 0
 }
 
 func (*PageBlockBlockquote) ImplementsPageBlock() {}
@@ -8368,6 +8293,23 @@ func (*PageBlockBlockquoteBlocks) CRC() uint32 {
 }
 
 func (*PageBlockBlockquoteBlocks) ImplementsPageBlock() {}
+
+type PageBlockButtonRow struct {
+	AlignLeft   bool `tl:"flag:0,encoded_in_bitflags"`
+	AlignCenter bool `tl:"flag:1,encoded_in_bitflags"`
+	AlignRight  bool `tl:"flag:2,encoded_in_bitflags"`
+	Buttons     []*PageButton
+}
+
+func (*PageBlockButtonRow) CRC() uint32 {
+	return 0x6d640318
+}
+
+func (*PageBlockButtonRow) FlagIndex() int {
+	return 0
+}
+
+func (*PageBlockButtonRow) ImplementsPageBlock() {}
 
 // Reference to a telegram channel
 type PageBlockChannel struct {
@@ -8428,6 +8370,17 @@ func (*PageBlockDivider) CRC() uint32 {
 }
 
 func (*PageBlockDivider) ImplementsPageBlock() {}
+
+type PageBlockDocument struct {
+	DocumentID int64
+	Caption    *PageCaption
+}
+
+func (*PageBlockDocument) CRC() uint32 {
+	return 0x38fa3ba3
+}
+
+func (*PageBlockDocument) ImplementsPageBlock() {}
 
 // An embedded webpage
 type PageBlockEmbed struct {
@@ -8717,10 +8670,11 @@ func (*PageBlockSubtitle) ImplementsPageBlock() {}
 
 // Table
 type PageBlockTable struct {
-	Bordered bool            `tl:"flag:0,encoded_in_bitflags"` // Does the table have a visible border?
-	Striped  bool            `tl:"flag:1,encoded_in_bitflags"` // Is the table striped?
-	Title    RichText        // Title
-	Rows     []*PageTableRow // Table rows
+	Bordered bool `tl:"flag:0,encoded_in_bitflags"`
+	Striped  bool `tl:"flag:1,encoded_in_bitflags"`
+	Compact  bool `tl:"flag:2,encoded_in_bitflags"`
+	Title    RichText
+	Rows     []*PageTableRow
 }
 
 func (*PageBlockTable) CRC() uint32 {
@@ -9770,11 +9724,16 @@ type ReplyMarkup interface {
 
 // Represents an inline keyboard
 type ReplyInlineMarkup struct {
-	Rows []*KeyboardButtonRow // Bot or inline keyboard rows
+	ForceReply bool `tl:"flag:5,encoded_in_bitflags"`
+	Rows       []*KeyboardInlineButtonRow
 }
 
 func (*ReplyInlineMarkup) CRC() uint32 {
-	return 0x48a30254
+	return 0xb2b15770
+}
+
+func (*ReplyInlineMarkup) FlagIndex() int {
+	return 0
 }
 
 func (*ReplyInlineMarkup) ImplementsReplyMarkup() {}
@@ -9813,12 +9772,13 @@ func (*ReplyKeyboardHide) ImplementsReplyMarkup() {}
 
 // Represents a reply keyboard
 type ReplyKeyboardMarkup struct {
-	Resize      bool                 `tl:"flag:0,encoded_in_bitflags"` // Requests clients to resize the keyboard vertically for optimal fit (e.g., make the keyboard smaller if there are just two rows of buttons). If not set, the custom keyboard is always of the same height as the app's standard keyboard.
-	SingleUse   bool                 `tl:"flag:1,encoded_in_bitflags"` // Requests clients to hide the keyboard as soon as it's been used. The keyboard will still be available, but clients will automatically display the usual letter-keyboard in the chat – the user can press a special button in the input field to see the custom keyboard again.
-	Selective   bool                 `tl:"flag:2,encoded_in_bitflags"` // Use this parameter if you want to show the keyboard to specific users only. Targets: 1) users that are @mentioned in the text of the Message object; 2) if the bot's message is a reply (has reply_to_message_id), sender of the original message. Example: A user requests to change the bot's language, bot replies to the request with a keyboard to select the new language. Other users in the group don't see the keyboard.
-	Persistent  bool                 `tl:"flag:4,encoded_in_bitflags"` // Requests clients to always show the keyboard when the regular keyboard is hidden.
-	Rows        []*KeyboardButtonRow // Button row
-	Placeholder string               `tl:"flag:3"` // The placeholder to be shown in the input field when the keyboard is active; 1-64 characters.
+	Resize      bool `tl:"flag:0,encoded_in_bitflags"`
+	SingleUse   bool `tl:"flag:1,encoded_in_bitflags"`
+	Selective   bool `tl:"flag:2,encoded_in_bitflags"`
+	Persistent  bool `tl:"flag:4,encoded_in_bitflags"`
+	ForceReply  bool `tl:"flag:5,encoded_in_bitflags"`
+	Rows        []*KeyboardButtonRow
+	Placeholder string `tl:"flag:3"`
 }
 
 func (*ReplyKeyboardMarkup) CRC() uint32 {
@@ -10119,6 +10079,22 @@ func (*TextBotCommand) CRC() uint32 {
 }
 
 func (*TextBotCommand) ImplementsRichText() {}
+
+type TextButton struct {
+	Text  RichText
+	Type  InlineButtonType
+	Style *RichButtonStyle `tl:"flag:0"`
+}
+
+func (*TextButton) CRC() uint32 {
+	return 0xafc79cd6
+}
+
+func (*TextButton) FlagIndex() int {
+	return 0
+}
+
+func (*TextButton) ImplementsRichText() {}
 
 type TextCashtag struct {
 	Text RichText
@@ -10683,12 +10659,18 @@ type SendMessageAction interface {
 	ImplementsSendMessageAction()
 }
 type InputSendMessageRichMessageDraftAction struct {
+	CanStop     bool `tl:"flag:0,encoded_in_bitflags"`
+	KeepOnStop  bool `tl:"flag:1,encoded_in_bitflags"`
 	RandomID    int64
 	RichMessage InputRichMessage
 }
 
 func (*InputSendMessageRichMessageDraftAction) CRC() uint32 {
-	return 0xe2b23b51
+	return 0xa937c7be
+}
+
+func (*InputSendMessageRichMessageDraftAction) FlagIndex() int {
+	return 0
 }
 
 func (*InputSendMessageRichMessageDraftAction) ImplementsSendMessageAction() {}
@@ -10801,24 +10783,46 @@ func (*SendMessageRecordVideoAction) CRC() uint32 {
 func (*SendMessageRecordVideoAction) ImplementsSendMessageAction() {}
 
 type SendMessageRichMessageDraftAction struct {
+	CanStop     bool `tl:"flag:0,encoded_in_bitflags"`
+	KeepOnStop  bool `tl:"flag:1,encoded_in_bitflags"`
 	RandomID    int64
 	RichMessage *RichMessage
 }
 
 func (*SendMessageRichMessageDraftAction) CRC() uint32 {
-	return 0xa2cb24f9
+	return 0x52564893
+}
+
+func (*SendMessageRichMessageDraftAction) FlagIndex() int {
+	return 0
 }
 
 func (*SendMessageRichMessageDraftAction) ImplementsSendMessageAction() {}
 
+type SendMessageStopDraftAction struct {
+	RandomID int64
+}
+
+func (*SendMessageStopDraftAction) CRC() uint32 {
+	return 0xfbf902b0
+}
+
+func (*SendMessageStopDraftAction) ImplementsSendMessageAction() {}
+
 // Used by bots to implement live message streaming.
 type SendMessageTextDraftAction struct {
-	RandomID int64             // Live draft ID: used by graphical clients to slightly change the rendering behavior
-	Text     *TextWithEntities // The contents of the live draft.
+	CanStop    bool `tl:"flag:0,encoded_in_bitflags"`
+	KeepOnStop bool `tl:"flag:1,encoded_in_bitflags"`
+	RandomID   int64
+	Text       *TextWithEntities
 }
 
 func (*SendMessageTextDraftAction) CRC() uint32 {
-	return 0x376d975c
+	return 0x3630b85a
+}
+
+func (*SendMessageTextDraftAction) FlagIndex() int {
+	return 0
 }
 
 func (*SendMessageTextDraftAction) ImplementsSendMessageAction() {}
@@ -12562,6 +12566,26 @@ func (*UpdateEncryption) CRC() uint32 {
 }
 
 func (*UpdateEncryption) ImplementsUpdate() {}
+
+type UpdateEphemeralBotCallbackQuery struct {
+	QueryID      int64
+	UserID       int64
+	Peer         Peer `tl:"flag:0"`
+	MsgID        int32
+	Data         []byte
+	ChatInstance int64 `tl:"flag:1"`
+	Message      *EphemeralMessage
+}
+
+func (*UpdateEphemeralBotCallbackQuery) CRC() uint32 {
+	return 0x7c1079d6
+}
+
+func (*UpdateEphemeralBotCallbackQuery) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateEphemeralBotCallbackQuery) ImplementsUpdate() {}
 
 // The list of favorited stickers was changed, the client should call messages.getFavedStickers to refetch the new list
 type UpdateFavedStickers struct{}
@@ -15393,6 +15417,29 @@ func (*ContactsTopPeersNotModified) CRC() uint32 {
 }
 
 func (*ContactsTopPeersNotModified) ImplementsContactsTopPeers() {}
+
+type EphemeralWelcomeMessages interface {
+	tl.Object
+	ImplementsEphemeralWelcomeMessages()
+}
+type EphemeralWelcomeMessagesObj struct {
+	Hash     int64
+	Messages []*EphemeralMessage
+}
+
+func (*EphemeralWelcomeMessagesObj) CRC() uint32 {
+	return 0x104fc872
+}
+
+func (*EphemeralWelcomeMessagesObj) ImplementsEphemeralWelcomeMessages() {}
+
+type EphemeralWelcomeMessagesNotModified struct{}
+
+func (*EphemeralWelcomeMessagesNotModified) CRC() uint32 {
+	return 0x59ffdb31
+}
+
+func (*EphemeralWelcomeMessagesNotModified) ImplementsEphemeralWelcomeMessages() {}
 
 type HelpAppConfig interface {
 	tl.Object

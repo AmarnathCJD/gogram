@@ -1,804 +1,138 @@
-// Copyright (c) 2025 @AmarnathCJD
-
 package telegram
 
 import (
 	"bytes"
-	"strings"
-
 	"errors"
+	"strings"
 )
 
 type ButtonBuilder struct{}
 
 var Button = ButtonBuilder{}
 
-type KeyboardBuilder struct {
-	rows []*KeyboardButtonRow
-}
-
-// NewKeyboard initializes a new keyboard builder.
-func NewKeyboard() *KeyboardBuilder {
-	return &KeyboardBuilder{}
-}
-
-// AddRow adds a new row of buttons to the keyboard.
-func (kb *KeyboardBuilder) AddRow(buttons ...KeyboardButton) *KeyboardBuilder {
-	kb.rows = append(kb.rows, &KeyboardButtonRow{Buttons: buttons})
-	return kb
-}
-
-// Add adds a single button to the last present row.
-// If no rows exist, a new row is created.
-func (kb *KeyboardBuilder) Add(button KeyboardButton) *KeyboardBuilder {
-	if len(kb.rows) == 0 {
-		kb.rows = append(kb.rows, &KeyboardButtonRow{Buttons: []KeyboardButton{button}})
-	} else {
-		kb.rows[len(kb.rows)-1].Buttons = append(kb.rows[len(kb.rows)-1].Buttons, button)
-	}
-	return kb
-}
-
-// NewGrid arranges buttons into a grid based on specified rows (x) and columns (y).
-// If there are fewer buttons than x*y, the last row may contain fewer buttons.
-func (kb *KeyboardBuilder) NewGrid(x, y int, buttons ...KeyboardButton) *KeyboardBuilder {
-	totalButtons := len(buttons)
-	for i := 0; i < x && i*y < totalButtons; i++ {
-		endIndex := min((i+1)*y, totalButtons)
-		rowButtons := buttons[i*y : endIndex]
-		kb.AddRow(rowButtons...)
-	}
-
-	if totalButtons > x*y {
-		kb.AddRow(buttons[x*y:]...)
-	}
-
-	return kb
-}
-
-// NewColumn arranges buttons into a grid based on specified number of buttons (x) per column.
-func (kb *KeyboardBuilder) NewColumn(x int, buttons ...KeyboardButton) *KeyboardBuilder {
-	// i.e x buttons per column
-	for i := 0; i < len(buttons); i += x {
-		endIndex := min(i+x, len(buttons))
-		kb.AddRow(buttons[i:endIndex]...)
-	}
-	return kb
-}
-
-// NewRow arranges buttons into a grid based on specified number of buttons (y) per row.
-func (kb *KeyboardBuilder) NewRow(y int, buttons ...KeyboardButton) *KeyboardBuilder {
-	// i.e y buttons per row
-	for i := range y {
-		var rowButtons []KeyboardButton
-		for j := i; j < len(buttons); j += y {
-			rowButtons = append(rowButtons, buttons[j])
-		}
-		kb.AddRow(rowButtons...)
-	}
-	return kb
-}
-
-// Build finalizes the keyboard and returns the inline markup.
-func (kb *KeyboardBuilder) Build() *ReplyInlineMarkup {
-	return &ReplyInlineMarkup{Rows: kb.rows}
-}
-
+type KeyboardBuilder struct{ rows []*KeyboardInlineButtonRow }
+type ReplyKeyboardBuilder struct{ rows []*KeyboardButtonRow }
 type BuildReplyOptions struct {
-	ResizeKeyboard bool
-	OneTime        bool
-	Selective      bool
-	Persistent     bool
-	Placeholder    string
+	ResizeKeyboard, OneTime, Selective, Persistent bool
+	Placeholder                                    string
 }
 
-// BuildReply finalizes the keyboard and returns the reply keyboard markup.
-func (kb *KeyboardBuilder) BuildReply(opts ...BuildReplyOptions) *ReplyKeyboardMarkup {
-	opt := getVariadic(opts, BuildReplyOptions{})
-	return &ReplyKeyboardMarkup{
-		Resize:      opt.ResizeKeyboard,
-		SingleUse:   opt.OneTime,
-		Selective:   opt.Selective,
-		Placeholder: opt.Placeholder,
-		Rows:        kb.rows,
-		Persistent:  opt.Persistent,
+func NewKeyboard() *KeyboardBuilder           { return &KeyboardBuilder{} }
+func NewReplyKeyboard() *ReplyKeyboardBuilder { return &ReplyKeyboardBuilder{} }
+func (k *KeyboardBuilder) AddRow(b ...KeyboardInlineButton) *KeyboardBuilder {
+	p := make([]*KeyboardInlineButton, len(b))
+	for i := range b {
+		p[i] = &b[i]
 	}
+	k.rows = append(k.rows, &KeyboardInlineButtonRow{Buttons: p})
+	return k
 }
-
-func (ButtonBuilder) Text(text string) *KeyboardButtonObj {
-	return &KeyboardButtonObj{Text: text}
-}
-
-func (kb *KeyboardButtonObj) Primary() *KeyboardButtonObj {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
+func (k *KeyboardBuilder) Add(b KeyboardInlineButton) *KeyboardBuilder {
+	if len(k.rows) == 0 {
+		return k.AddRow(b)
 	}
-	kb.Style.BgPrimary = true
-	return kb
+	k.rows[len(k.rows)-1].Buttons = append(k.rows[len(k.rows)-1].Buttons, &b)
+	return k
 }
-
-func (kb *KeyboardButtonObj) Danger() *KeyboardButtonObj {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
+func (k *KeyboardBuilder) NewGrid(_, n int, b ...KeyboardInlineButton) *KeyboardBuilder {
+	return k.grid(n, b...)
+}
+func (k *KeyboardBuilder) NewColumn(n int, b ...KeyboardInlineButton) *KeyboardBuilder {
+	return k.grid(n, b...)
+}
+func (k *KeyboardBuilder) NewRow(n int, b ...KeyboardInlineButton) *KeyboardBuilder {
+	return k.grid(n, b...)
+}
+func (k *KeyboardBuilder) grid(n int, b ...KeyboardInlineButton) *KeyboardBuilder {
+	if n <= 0 {
+		return k
 	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *KeyboardButtonObj) Success() *KeyboardButtonObj {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *KeyboardButtonObj) Icon(emojiID int64) *KeyboardButtonObj {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) Force(placeHolder string) *ReplyKeyboardForceReply {
-	return &ReplyKeyboardForceReply{Placeholder: placeHolder}
-}
-
-func (ButtonBuilder) Auth(text, url, forwardText string, bot InputUser, requestWriteAccess ...bool) *InputKeyboardButtonURLAuth {
-	return &InputKeyboardButtonURLAuth{Text: text, URL: url, FwdText: forwardText, Bot: bot, RequestWriteAccess: getVariadic(requestWriteAccess, false)}
-}
-
-func (kb *InputKeyboardButtonURLAuth) Primary() *InputKeyboardButtonURLAuth {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *InputKeyboardButtonURLAuth) Danger() *InputKeyboardButtonURLAuth {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *InputKeyboardButtonURLAuth) Success() *InputKeyboardButtonURLAuth {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *InputKeyboardButtonURLAuth) Icon(emojiID int64) *InputKeyboardButtonURLAuth {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) URL(text, url string) *KeyboardButtonURL {
-	return &KeyboardButtonURL{Text: text, URL: url}
-}
-
-func (kb *KeyboardButtonURL) Primary() *KeyboardButtonURL {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *KeyboardButtonURL) Danger() *KeyboardButtonURL {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *KeyboardButtonURL) Success() *KeyboardButtonURL {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *KeyboardButtonURL) Icon(emojiID int64) *KeyboardButtonURL {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) Data(text, data string) *KeyboardButtonCallback {
-	return &KeyboardButtonCallback{Text: text, Data: []byte(data)}
-}
-
-func (kb *KeyboardButtonCallback) Primary() *KeyboardButtonCallback {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *KeyboardButtonCallback) Danger() *KeyboardButtonCallback {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *KeyboardButtonCallback) Success() *KeyboardButtonCallback {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *KeyboardButtonCallback) Icon(emojiID int64) *KeyboardButtonCallback {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) RequestLocation(text string) *KeyboardButtonRequestGeoLocation {
-	return &KeyboardButtonRequestGeoLocation{Text: text}
-}
-
-func (kb *KeyboardButtonRequestGeoLocation) Primary() *KeyboardButtonRequestGeoLocation {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *KeyboardButtonRequestGeoLocation) Danger() *KeyboardButtonRequestGeoLocation {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *KeyboardButtonRequestGeoLocation) Success() *KeyboardButtonRequestGeoLocation {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *KeyboardButtonRequestGeoLocation) Icon(emojiID int64) *KeyboardButtonRequestGeoLocation {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) Buy(text string) *KeyboardButtonBuy {
-	return &KeyboardButtonBuy{Text: text}
-}
-
-func (kb *KeyboardButtonBuy) Primary() *KeyboardButtonBuy {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *KeyboardButtonBuy) Danger() *KeyboardButtonBuy {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *KeyboardButtonBuy) Success() *KeyboardButtonBuy {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *KeyboardButtonBuy) Icon(emojiID int64) *KeyboardButtonBuy {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) Game(text string) *KeyboardButtonGame {
-	return &KeyboardButtonGame{Text: text}
-}
-
-func (kb *KeyboardButtonGame) Primary() *KeyboardButtonGame {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *KeyboardButtonGame) Danger() *KeyboardButtonGame {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *KeyboardButtonGame) Success() *KeyboardButtonGame {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *KeyboardButtonGame) Icon(emojiID int64) *KeyboardButtonGame {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) RequestPhone(text string) *KeyboardButtonRequestPhone {
-	return &KeyboardButtonRequestPhone{Text: text}
-}
-
-func (kb *KeyboardButtonRequestPhone) Primary() *KeyboardButtonRequestPhone {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *KeyboardButtonRequestPhone) Danger() *KeyboardButtonRequestPhone {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *KeyboardButtonRequestPhone) Success() *KeyboardButtonRequestPhone {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *KeyboardButtonRequestPhone) Icon(emojiID int64) *KeyboardButtonRequestPhone {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-type RequestPeerOptions struct {
-	NameRequested     bool
-	UsernameRequested bool
-	PhotoRequested    bool
-	MaxQuantity       int32
-}
-
-func (ButtonBuilder) RequestPeer(text string, buttonID int32, peerType RequestPeerType, options ...RequestPeerOptions) *InputKeyboardButtonRequestPeer {
-	opt := getVariadic(options, RequestPeerOptions{})
-	return &InputKeyboardButtonRequestPeer{Text: text, ButtonID: buttonID, PeerType: peerType, NameRequested: opt.NameRequested, UsernameRequested: opt.UsernameRequested, PhotoRequested: opt.PhotoRequested, MaxQuantity: opt.MaxQuantity}
-}
-
-func (ButtonBuilder) RequestPoll(text string, quiz bool) *KeyboardButtonRequestPoll {
-	return &KeyboardButtonRequestPoll{Text: text, Quiz: quiz}
-}
-
-func (kb *KeyboardButtonRequestPoll) Primary() *KeyboardButtonRequestPoll {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *KeyboardButtonRequestPoll) Danger() *KeyboardButtonRequestPoll {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *KeyboardButtonRequestPoll) Success() *KeyboardButtonRequestPoll {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *KeyboardButtonRequestPoll) Icon(emojiID int64) *KeyboardButtonRequestPoll {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) SwitchInline(text string, samePeer bool, query string) *KeyboardButtonSwitchInline {
-	return &KeyboardButtonSwitchInline{Text: text, SamePeer: samePeer, Query: query}
-}
-
-func (kb *KeyboardButtonSwitchInline) Primary() *KeyboardButtonSwitchInline {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *KeyboardButtonSwitchInline) Danger() *KeyboardButtonSwitchInline {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *KeyboardButtonSwitchInline) Success() *KeyboardButtonSwitchInline {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *KeyboardButtonSwitchInline) Icon(emojiID int64) *KeyboardButtonSwitchInline {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) WebView(text, url string) *KeyboardButtonWebView {
-	return &KeyboardButtonWebView{Text: text, URL: url}
-}
-
-func (kb *KeyboardButtonWebView) Primary() *KeyboardButtonWebView {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *KeyboardButtonWebView) Danger() *KeyboardButtonWebView {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *KeyboardButtonWebView) Success() *KeyboardButtonWebView {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *KeyboardButtonWebView) Icon(emojiID int64) *KeyboardButtonWebView {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) SimpleWebView(text, url string) *KeyboardButtonSimpleWebView {
-	return &KeyboardButtonSimpleWebView{Text: text, URL: url}
-}
-
-func (kb *KeyboardButtonSimpleWebView) Primary() *KeyboardButtonSimpleWebView {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *KeyboardButtonSimpleWebView) Danger() *KeyboardButtonSimpleWebView {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *KeyboardButtonSimpleWebView) Success() *KeyboardButtonSimpleWebView {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *KeyboardButtonSimpleWebView) Icon(emojiID int64) *KeyboardButtonSimpleWebView {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) Mention(text string, user InputUser) *InputKeyboardButtonUserProfile {
-	return &InputKeyboardButtonUserProfile{Text: text, UserID: user}
-}
-
-func (kb *InputKeyboardButtonUserProfile) Primary() *InputKeyboardButtonUserProfile {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *InputKeyboardButtonUserProfile) Danger() *InputKeyboardButtonUserProfile {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *InputKeyboardButtonUserProfile) Success() *InputKeyboardButtonUserProfile {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *InputKeyboardButtonUserProfile) Icon(emojiID int64) *InputKeyboardButtonUserProfile {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) Copy(text string, copyText string) *KeyboardButtonCopy {
-	return &KeyboardButtonCopy{Text: text, CopyText: copyText}
-}
-
-func (kb *KeyboardButtonCopy) Primary() *KeyboardButtonCopy {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgPrimary = true
-	return kb
-}
-
-func (kb *KeyboardButtonCopy) Danger() *KeyboardButtonCopy {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgDanger = true
-	return kb
-}
-
-func (kb *KeyboardButtonCopy) Success() *KeyboardButtonCopy {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.BgSuccess = true
-	return kb
-}
-
-func (kb *KeyboardButtonCopy) Icon(emojiID int64) *KeyboardButtonCopy {
-	if kb.Style == nil {
-		kb.Style = &KeyboardButtonStyle{}
-	}
-	kb.Style.Icon = emojiID
-	return kb
-}
-
-func (ButtonBuilder) Row(Buttons ...KeyboardButton) *KeyboardButtonRow {
-	return &KeyboardButtonRow{Buttons: Buttons}
-}
-
-func (ButtonBuilder) Keyboard(Rows ...*KeyboardButtonRow) *ReplyInlineMarkup {
-	return &ReplyInlineMarkup{Rows: Rows}
-}
-
-func (ButtonBuilder) Clear() *ReplyKeyboardHide {
-	return &ReplyKeyboardHide{}
-}
-
-func InlineData(pairs ...string) *ReplyInlineMarkup {
-	if len(pairs)%2 != 0 {
-		pairs = append(pairs, pairs[len(pairs)-1])
-	}
-	var buttons []KeyboardButton
-	for i := 0; i < len(pairs); i += 2 {
-		buttons = append(buttons, &KeyboardButtonCallback{Text: pairs[i], Data: []byte(pairs[i+1])})
-	}
-	return &ReplyInlineMarkup{Rows: []*KeyboardButtonRow{{Buttons: buttons}}}
-}
-
-func InlineDataGrid(perRow int, pairs ...string) *ReplyInlineMarkup {
-	if len(pairs)%2 != 0 {
-		pairs = append(pairs, pairs[len(pairs)-1])
-	}
-	var rows []*KeyboardButtonRow
-	var buttons []KeyboardButton
-	for i := 0; i < len(pairs); i += 2 {
-		buttons = append(buttons, &KeyboardButtonCallback{Text: pairs[i], Data: []byte(pairs[i+1])})
-		if len(buttons) == perRow {
-			rows = append(rows, &KeyboardButtonRow{Buttons: buttons})
-			buttons = nil
+	for i := 0; i < len(b); i += n {
+		e := i + n
+		if e > len(b) {
+			e = len(b)
 		}
+		k.AddRow(b[i:e]...)
 	}
-	if len(buttons) > 0 {
-		rows = append(rows, &KeyboardButtonRow{Buttons: buttons})
+	return k
+}
+func (k *KeyboardBuilder) Build() *ReplyInlineMarkup { return &ReplyInlineMarkup{Rows: k.rows} }
+func (k *ReplyKeyboardBuilder) AddRow(b ...KeyboardButton) *ReplyKeyboardBuilder {
+	p := make([]*KeyboardButton, len(b))
+	for i := range b {
+		p[i] = &b[i]
 	}
-	return &ReplyInlineMarkup{Rows: rows}
+	k.rows = append(k.rows, &KeyboardButtonRow{Buttons: p})
+	return k
+}
+func (k *ReplyKeyboardBuilder) Build(o ...BuildReplyOptions) *ReplyKeyboardMarkup {
+	v := getVariadic(o, BuildReplyOptions{})
+	return &ReplyKeyboardMarkup{Resize: v.ResizeKeyboard, SingleUse: v.OneTime, Selective: v.Selective, Persistent: v.Persistent, Placeholder: v.Placeholder, Rows: k.rows}
 }
 
-func InlineURL(pairs ...string) *ReplyInlineMarkup {
-	if len(pairs)%2 != 0 {
-		pairs = append(pairs, pairs[len(pairs)-1])
-	}
-	var buttons []KeyboardButton
-	for i := 0; i < len(pairs); i += 2 {
-		buttons = append(buttons, &KeyboardButtonURL{Text: pairs[i], URL: pairs[i+1]})
-	}
-	return &ReplyInlineMarkup{Rows: []*KeyboardButtonRow{{Buttons: buttons}}}
+func (ButtonBuilder) Data(t, d string) KeyboardInlineButton {
+	return KeyboardInlineButton{Text: t, Type: &InlineButtonTypeCallback{Data: []byte(d)}}
 }
-
-func InlineURLGrid(perRow int, pairs ...string) *ReplyInlineMarkup {
-	if len(pairs)%2 != 0 {
-		pairs = append(pairs, pairs[len(pairs)-1])
-	}
-	var rows []*KeyboardButtonRow
-	var buttons []KeyboardButton
-	for i := 0; i < len(pairs); i += 2 {
-		buttons = append(buttons, &KeyboardButtonURL{Text: pairs[i], URL: pairs[i+1]})
-		if len(buttons) == perRow {
-			rows = append(rows, &KeyboardButtonRow{Buttons: buttons})
-			buttons = nil
-		}
-	}
-	if len(buttons) > 0 {
-		rows = append(rows, &KeyboardButtonRow{Buttons: buttons})
-	}
-	return &ReplyInlineMarkup{Rows: rows}
+func (ButtonBuilder) URL(t, u string) KeyboardInlineButton {
+	return KeyboardInlineButton{Text: t, Type: &InlineButtonTypeURL{URL: u}}
 }
-
-type ClickOptions struct {
-	Game     bool
-	Password string
+func (ButtonBuilder) SwitchInline(t string, s bool, q string) KeyboardInlineButton {
+	return KeyboardInlineButton{Text: t, Type: &InlineButtonTypeSwitchInline{SamePeer: s, Query: q}}
 }
+func (ButtonBuilder) WebView(t, u string) KeyboardInlineButton {
+	return KeyboardInlineButton{Text: t, Type: &InlineButtonTypeWebView{URL: u}}
+}
+func (ButtonBuilder) Game(t string) KeyboardInlineButton {
+	return KeyboardInlineButton{Text: t, Type: &InlineButtonTypeGame{}}
+}
+func (ButtonBuilder) Buy(t string) KeyboardInlineButton {
+	return KeyboardInlineButton{Text: t, Type: &InlineButtonTypeBuy{}}
+}
+func (ButtonBuilder) Copy(t, c string) KeyboardInlineButton {
+	return KeyboardInlineButton{Text: t, Type: &InlineButtonTypeCopy{CopyText: c}}
+}
+func (ButtonBuilder) Text(t string) KeyboardButton {
+	return KeyboardButton{Text: t, Type: &ButtonTypeDefault{}}
+}
+func (ButtonBuilder) RequestLocation(t string) KeyboardButton {
+	return KeyboardButton{Text: t, Type: &ButtonTypeRequestGeoLocation{}}
+}
+func (ButtonBuilder) RequestPhone(t string) KeyboardButton {
+	return KeyboardButton{Text: t, Type: &ButtonTypeRequestPhone{}}
+}
+func (ButtonBuilder) RequestPoll(t string, q bool) KeyboardButton {
+	return KeyboardButton{Text: t, Type: &ButtonTypeRequestPoll{Quiz: q}}
+}
+func (ButtonBuilder) Clear() *ReplyKeyboardHide { return &ReplyKeyboardHide{} }
 
-// Click clicks a button in a message.
-//
-// If no argument is given, the first button will be clicked.
-//
-// If an argument is provided, it can be one of the following:
-//   - The text of the button to click.
-//   - The data of the button to click.
-//   - The coordinates of the button to click as a slice of integers [x, y].
-func (m *NewMessage) Click(options ...any) (*MessagesBotCallbackAnswer, error) {
-	requestParams := &MessagesGetBotCallbackAnswerParams{
-		Peer:  m.Peer,
-		MsgID: m.ID,
-		Game:  false,
-	}
-
-	if len(options) > 0 {
-		if opt, ok := options[0].(*ClickOptions); ok {
-			requestParams.Game = opt.Game
-			if opt.Password != "" {
-				accountPasswordSrp, err := m.Client.AccountGetPassword()
-				if err != nil {
-					return nil, err
-				}
-
-				password, err := GetInputCheckPassword(opt.Password, accountPasswordSrp)
-				if err != nil {
-					return nil, err
-				}
-
-				requestParams.Password = password
-			}
-		}
-	}
-
+func (m *NewMessage) Click(o ...any) (*MessagesBotCallbackAnswer, error) {
 	if m.ReplyMarkup() == nil {
 		return nil, errors.New("replyMarkup: message has no buttons")
 	}
-
-	if messageButtons, ok := (*m.ReplyMarkup()).(*ReplyInlineMarkup); ok {
-		if len(messageButtons.Rows) == 0 {
-			return nil, errors.New("replyMarkup: rows are empty")
-		}
-
-		switch len(options) {
-		case 0:
-			if len(messageButtons.Rows[0].Buttons) == 0 {
-				return nil, errors.New("replyMarkup: row(0) has no buttons")
-			}
-
-			if button, ok := messageButtons.Rows[0].Buttons[0].(*KeyboardButtonCallback); ok {
-				requestParams.Data = button.Data
-			}
-
-		case 1:
-			currentX := 0
-			currentY := 0
-			for _, row := range messageButtons.Rows {
-				for _, button := range row.Buttons {
-					switch opt := options[0].(type) {
-					case string:
-						if button, ok := button.(*KeyboardButtonCallback); ok && strings.EqualFold(button.Text, opt) {
-							requestParams.Data = button.Data
-						}
-					case []byte:
-						if button, ok := button.(*KeyboardButtonCallback); ok && bytes.Equal(button.Data, opt) {
-							requestParams.Data = button.Data
-						}
-					case int, int32, int64:
-						if optInt, ok := opt.(int); ok && optInt == currentX {
-							if button, ok := button.(*KeyboardButtonCallback); ok {
-								requestParams.Data = button.Data
-							}
-						}
-
-					case []int, []int32, []int64:
-						if optInts, ok := opt.([]int); ok && len(optInts) == 2 {
-							if optInts[0] == currentX && optInts[1] == currentY {
-								if button, ok := button.(*KeyboardButtonCallback); ok {
-									requestParams.Data = button.Data
-								}
-							}
-						}
-
-					default:
-						return nil, errors.New("replyMarkup: invalid argument type (expected string, []byte, int, or []int)")
-					}
-					currentY++
+	mk, ok := (*m.ReplyMarkup()).(*ReplyInlineMarkup)
+	if !ok {
+		return nil, errors.New("replyMarkup: not inline markup")
+	}
+	for x, r := range mk.Rows {
+		for y, b := range r.Buttons {
+			match := len(o) == 0 && x == 0 && y == 0
+			if len(o) > 0 {
+				switch v := o[0].(type) {
+				case string:
+					match = strings.EqualFold(b.Text, v)
+				case []byte:
+					t, z := b.Type.(*InlineButtonTypeCallback)
+					match = z && bytes.Equal(t.Data, v)
+				case []int:
+					match = len(v) == 2 && v[0] == x && v[1] == y
 				}
-				currentX++
-				currentY = 0
+			}
+			if match {
+				if t, z := b.Type.(*InlineButtonTypeCallback); z {
+					return m.Client.MessagesGetBotCallbackAnswer(&MessagesGetBotCallbackAnswerParams{Peer: m.Peer, MsgID: m.ID, Data: t.Data})
+				}
 			}
 		}
 	}
-
-	if requestParams.Data == nil {
-		return nil, errors.New("replyMarkup: button with given (text, data, or coordinates) not found")
-	}
-
-	return m.Client.MessagesGetBotCallbackAnswer(requestParams)
+	return nil, errors.New("replyMarkup: callback button not found")
 }

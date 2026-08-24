@@ -336,6 +336,15 @@ func (*AuthExportedAuthorization) CRC() uint32 {
 	return 0xb434e2b8
 }
 
+type AuthFirebasePnvIntent struct {
+	Nonce                    string
+	DigitalCredentialPayload string
+}
+
+func (*AuthFirebasePnvIntent) CRC() uint32 {
+	return 0xdf5ac00c
+}
+
 // Future auth token to be used on subsequent authorizations
 type AuthLoggedOut struct {
 	FutureAuthToken []byte `tl:"flag:0"`
@@ -969,24 +978,25 @@ func (*ChannelsSendAsPeers) CRC() uint32 {
 
 // Represents the rights of an admin in a channel/supergroup.
 type ChatAdminRights struct {
-	ChangeInfo           bool `tl:"flag:0,encoded_in_bitflags"`
-	PostMessages         bool `tl:"flag:1,encoded_in_bitflags"`
-	EditMessages         bool `tl:"flag:2,encoded_in_bitflags"`
-	DeleteMessages       bool `tl:"flag:3,encoded_in_bitflags"`
-	BanUsers             bool `tl:"flag:4,encoded_in_bitflags"`
-	InviteUsers          bool `tl:"flag:5,encoded_in_bitflags"`
-	PinMessages          bool `tl:"flag:7,encoded_in_bitflags"`
-	AddAdmins            bool `tl:"flag:9,encoded_in_bitflags"`
-	Anonymous            bool `tl:"flag:10,encoded_in_bitflags"`
-	ManageCall           bool `tl:"flag:11,encoded_in_bitflags"`
-	Other                bool `tl:"flag:12,encoded_in_bitflags"`
-	ManageTopics         bool `tl:"flag:13,encoded_in_bitflags"`
-	PostStories          bool `tl:"flag:14,encoded_in_bitflags"`
-	EditStories          bool `tl:"flag:15,encoded_in_bitflags"`
-	DeleteStories        bool `tl:"flag:16,encoded_in_bitflags"`
-	ManageDirectMessages bool `tl:"flag:17,encoded_in_bitflags"`
-	ManageRanks          bool `tl:"flag:18,encoded_in_bitflags"`
-	ManageLinkedPeers    bool `tl:"flag:19,encoded_in_bitflags"`
+	ChangeInfo            bool `tl:"flag:0,encoded_in_bitflags"`
+	PostMessages          bool `tl:"flag:1,encoded_in_bitflags"`
+	EditMessages          bool `tl:"flag:2,encoded_in_bitflags"`
+	DeleteMessages        bool `tl:"flag:3,encoded_in_bitflags"`
+	BanUsers              bool `tl:"flag:4,encoded_in_bitflags"`
+	InviteUsers           bool `tl:"flag:5,encoded_in_bitflags"`
+	PinMessages           bool `tl:"flag:7,encoded_in_bitflags"`
+	AddAdmins             bool `tl:"flag:9,encoded_in_bitflags"`
+	Anonymous             bool `tl:"flag:10,encoded_in_bitflags"`
+	ManageCall            bool `tl:"flag:11,encoded_in_bitflags"`
+	Other                 bool `tl:"flag:12,encoded_in_bitflags"`
+	ManageTopics          bool `tl:"flag:13,encoded_in_bitflags"`
+	PostStories           bool `tl:"flag:14,encoded_in_bitflags"`
+	EditStories           bool `tl:"flag:15,encoded_in_bitflags"`
+	DeleteStories         bool `tl:"flag:16,encoded_in_bitflags"`
+	ManageDirectMessages  bool `tl:"flag:17,encoded_in_bitflags"`
+	ManageRanks           bool `tl:"flag:18,encoded_in_bitflags"`
+	ManageLinkedPeers     bool `tl:"flag:19,encoded_in_bitflags"`
+	ManageWelcomeMessages bool `tl:"flag:20,encoded_in_bitflags"`
 }
 
 func (*ChatAdminRights) CRC() uint32 {
@@ -1450,22 +1460,28 @@ func (*EmojiURL) CRC() uint32 {
 }
 
 type EphemeralMessage struct {
-	Out         bool `tl:"flag:0,encoded_in_bitflags"`
-	ID          int32
-	FromID      Peer
-	PeerID      Peer
-	ReceiverID  int64
-	TopMsgID    int32 `tl:"flag:1"`
-	Date        int32
-	Message     string
-	Entities    []MessageEntity    `tl:"flag:2"`
-	Media       MessageMedia       `tl:"flag:3"`
-	ReplyMarkup ReplyMarkup        `tl:"flag:4"`
-	ReplyTo     MessageReplyHeader `tl:"flag:6"`
+	Out             bool `tl:"flag:0,encoded_in_bitflags"`
+	WelcomeTemplate bool `tl:"flag:5,encoded_in_bitflags"`
+	InvertMedia     bool `tl:"flag:7,encoded_in_bitflags"`
+	Noforwards      bool `tl:"flag:12,encoded_in_bitflags"`
+	ID              int32
+	FromID          Peer
+	PeerID          Peer `tl:"flag:9"`
+	ReceiverID      int64
+	TopMsgID        int32 `tl:"flag:1"`
+	Date            int32
+	Message         string
+	Entities        []MessageEntity    `tl:"flag:2"`
+	Media           MessageMedia       `tl:"flag:3"`
+	ReplyMarkup     ReplyMarkup        `tl:"flag:4"`
+	ReplyTo         MessageReplyHeader `tl:"flag:6"`
+	RichMessage     *RichMessage       `tl:"flag:8"`
+	ChatInstance    int64              `tl:"flag:10"`
+	AnchorMsgID     int32              `tl:"flag:11"`
 }
 
 func (*EphemeralMessage) CRC() uint32 {
-	return 0xd9c6dc1a
+	return 0xdd27bee9
 }
 
 func (*EphemeralMessage) FlagIndex() int {
@@ -2259,9 +2275,24 @@ func (*JsonObjectValue) CRC() uint32 {
 	return 0xc0de1bd9
 }
 
+// Bot keyboard button
+type KeyboardButton struct {
+	Style *KeyboardButtonStyle `tl:"flag:10"`
+	Text  string
+	Type  ButtonType
+}
+
+func (*KeyboardButton) CRC() uint32 {
+	return 0x2f67a72f
+}
+
+func (*KeyboardButton) FlagIndex() int {
+	return 0
+}
+
 // Inline keyboard row
 type KeyboardButtonRow struct {
-	Buttons []KeyboardButton
+	Buttons []*KeyboardButton
 }
 
 func (*KeyboardButtonRow) CRC() uint32 {
@@ -2282,6 +2313,28 @@ func (*KeyboardButtonStyle) CRC() uint32 {
 
 func (*KeyboardButtonStyle) FlagIndex() int {
 	return 0
+}
+
+type KeyboardInlineButton struct {
+	Style *KeyboardButtonStyle `tl:"flag:10"`
+	Text  string
+	Type  InlineButtonType
+}
+
+func (*KeyboardInlineButton) CRC() uint32 {
+	return 0x11c1a322
+}
+
+func (*KeyboardInlineButton) FlagIndex() int {
+	return 0
+}
+
+type KeyboardInlineButtonRow struct {
+	Buttons []*KeyboardInlineButton
+}
+
+func (*KeyboardInlineButtonRow) CRC() uint32 {
+	return 0x19420af6
 }
 
 // This object represents a portion of the price for goods or services.
@@ -3066,6 +3119,20 @@ func (*Page) CRC() uint32 {
 }
 
 func (*Page) FlagIndex() int {
+	return 0
+}
+
+type PageButton struct {
+	Text  RichText
+	Type  InlineButtonType
+	Style *RichButtonStyle `tl:"flag:0"`
+}
+
+func (*PageButton) CRC() uint32 {
+	return 0x692a5488
+}
+
+func (*PageButton) FlagIndex() int {
 	return 0
 }
 
@@ -3941,6 +4008,21 @@ type RestrictionReason struct {
 
 func (*RestrictionReason) CRC() uint32 {
 	return 0xd072acb4
+}
+
+type RichButtonStyle struct {
+	BgPrimary bool `tl:"flag:0,encoded_in_bitflags"`
+	BgDanger  bool `tl:"flag:1,encoded_in_bitflags"`
+	BgSuccess bool `tl:"flag:2,encoded_in_bitflags"`
+	Link      bool `tl:"flag:3,encoded_in_bitflags"`
+}
+
+func (*RichButtonStyle) CRC() uint32 {
+	return 0x3c610bd
+}
+
+func (*RichButtonStyle) FlagIndex() int {
+	return 0
 }
 
 type RichMessage struct {

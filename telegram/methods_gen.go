@@ -3553,6 +3553,27 @@ func (c *Client) AuthExportLoginToken(apiID int32, apiHash string, exceptIds []i
 	return resp, nil
 }
 
+type AuthFinishFirebasePnvLoginParams struct {
+	GoogleToken string
+}
+
+func (*AuthFinishFirebasePnvLoginParams) CRC() uint32 {
+	return 0x2c85094c
+}
+
+func (c *Client) AuthFinishFirebasePnvLogin(googleToken string) (AuthAuthorization, error) {
+	responseData, err := c.MakeRequest(&AuthFinishFirebasePnvLoginParams{GoogleToken: googleToken})
+	if err != nil {
+		return nil, fmt.Errorf("sending AuthFinishFirebasePnvLogin: %w", err)
+	}
+
+	resp, ok := responseData.(AuthAuthorization)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type AuthFinishPasskeyLoginParams struct {
 	Credential    InputPasskeyCredential
 	FromDcID      int32 `tl:"flag:0"`
@@ -3576,6 +3597,37 @@ func (c *Client) AuthFinishPasskeyLogin(credential InputPasskeyCredential, fromD
 	})
 	if err != nil {
 		return nil, fmt.Errorf("sending AuthFinishPasskeyLogin: %w", err)
+	}
+
+	resp, ok := responseData.(AuthAuthorization)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AuthFirebasePnvSignUpParams struct {
+	NoJoinedNotifications bool `tl:"flag:0,encoded_in_bitflags"`
+	FirstName             string
+	LastName              string
+}
+
+func (*AuthFirebasePnvSignUpParams) CRC() uint32 {
+	return 0x783f6b56
+}
+
+func (*AuthFirebasePnvSignUpParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AuthFirebasePnvSignUp(noJoinedNotifications bool, firstName, lastName string) (AuthAuthorization, error) {
+	responseData, err := c.MakeRequest(&AuthFirebasePnvSignUpParams{
+		FirstName:             firstName,
+		LastName:              lastName,
+		NoJoinedNotifications: noJoinedNotifications,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending AuthFirebasePnvSignUp: %w", err)
 	}
 
 	resp, ok := responseData.(AuthAuthorization)
@@ -3685,6 +3737,31 @@ func (c *Client) AuthImportWebTokenAuthorization(apiID int32, apiHash, webAuthTo
 	}
 
 	resp, ok := responseData.(AuthAuthorization)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type AuthInitFirebasePnvLoginParams struct {
+	APIID   int32
+	APIHash string
+}
+
+func (*AuthInitFirebasePnvLoginParams) CRC() uint32 {
+	return 0x777df37a
+}
+
+func (c *Client) AuthInitFirebasePnvLogin(apiID int32, apiHash string) (*AuthFirebasePnvIntent, error) {
+	responseData, err := c.MakeRequest(&AuthInitFirebasePnvLoginParams{
+		APIHash: apiHash,
+		APIID:   apiID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending AuthInitFirebasePnvLogin: %w", err)
+	}
+
+	resp, ok := responseData.(*AuthFirebasePnvIntent)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -4541,7 +4618,7 @@ func (*BotsGetRequestedWebViewButtonParams) CRC() uint32 {
 }
 
 // Fetch the peer request button a bot prepared for a Mini App with bots.requestWebViewButton, invoked when the Mini App emits a `web_app_request_chat` event
-func (c *Client) BotsGetRequestedWebViewButton(bot InputUser, webappReqID string) (KeyboardButton, error) {
+func (c *Client) BotsGetRequestedWebViewButton(bot InputUser, webappReqID string) (*KeyboardButton, error) {
 	responseData, err := c.MakeRequest(&BotsGetRequestedWebViewButtonParams{
 		Bot:         bot,
 		WebappReqID: webappReqID,
@@ -4550,7 +4627,7 @@ func (c *Client) BotsGetRequestedWebViewButton(bot InputUser, webappReqID string
 		return nil, fmt.Errorf("sending BotsGetRequestedWebViewButton: %w", err)
 	}
 
-	resp, ok := responseData.(KeyboardButton)
+	resp, ok := responseData.(*KeyboardButton)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -4641,7 +4718,7 @@ func (c *Client) BotsReorderUsernames(bot InputUser, order []string) (bool, erro
 
 type BotsRequestWebViewButtonParams struct {
 	UserID InputUser
-	Button KeyboardButton
+	Button *KeyboardButton
 }
 
 func (*BotsRequestWebViewButtonParams) CRC() uint32 {
@@ -4649,7 +4726,7 @@ func (*BotsRequestWebViewButtonParams) CRC() uint32 {
 }
 
 // Bots may use this method to prepare a peer request button for a Mini App
-func (c *Client) BotsRequestWebViewButton(userID InputUser, button KeyboardButton) (*BotsRequestedButton, error) {
+func (c *Client) BotsRequestWebViewButton(userID InputUser, button *KeyboardButton) (*BotsRequestedButton, error) {
 	responseData, err := c.MakeRequest(&BotsRequestWebViewButtonParams{
 		Button: button,
 		UserID: userID,
@@ -7826,14 +7903,39 @@ func (c *Client) ContactsUpdateContactNote(id InputUser, note *TextWithEntities)
 	return resp, nil
 }
 
+type EphemeralDeleteAllWelcomeMessagesParams struct {
+	Peer InputPeer
+}
+
+func (*EphemeralDeleteAllWelcomeMessagesParams) CRC() uint32 {
+	return 0x734f9721
+}
+
+func (c *Client) EphemeralDeleteAllWelcomeMessages(peer InputPeer) (bool, error) {
+	responseData, err := c.MakeRequest(&EphemeralDeleteAllWelcomeMessagesParams{Peer: peer})
+	if err != nil {
+		return false, fmt.Errorf("sending EphemeralDeleteAllWelcomeMessages: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type EphemeralDeleteMessageParams struct {
-	Peer       InputPeer
+	Peer       InputPeer `tl:"flag:0"`
 	ReceiverID InputUser
 	ID         int32
 }
 
 func (*EphemeralDeleteMessageParams) CRC() uint32 {
-	return 0xa3c0d511
+	return 0x92f6e797
+}
+
+func (*EphemeralDeleteMessageParams) FlagIndex() int {
+	return 0
 }
 
 func (c *Client) EphemeralDeleteMessage(peer InputPeer, receiverID InputUser, id int32) (bool, error) {
@@ -7849,6 +7951,65 @@ func (c *Client) EphemeralDeleteMessage(peer InputPeer, receiverID InputUser, id
 	resp, ok := responseData.(bool)
 	if !ok {
 		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type EphemeralDeleteWelcomeMessageParams struct {
+	Peer InputPeer
+	ID   int32
+}
+
+func (*EphemeralDeleteWelcomeMessageParams) CRC() uint32 {
+	return 0xe882a9e1
+}
+
+func (c *Client) EphemeralDeleteWelcomeMessage(peer InputPeer, id int32) (bool, error) {
+	responseData, err := c.MakeRequest(&EphemeralDeleteWelcomeMessageParams{
+		ID:   id,
+		Peer: peer,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending EphemeralDeleteWelcomeMessage: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type EphemeralEditMessageParams struct {
+	InvertMedia bool      `tl:"flag:5,encoded_in_bitflags"`
+	Welcome     bool      `tl:"flag:6,encoded_in_bitflags"`
+	Peer        InputPeer `tl:"flag:7"`
+	ReceiverID  InputUser
+	ID          int32
+	Message     string           `tl:"flag:0"`
+	Media       InputMedia       `tl:"flag:3"`
+	Entities    []MessageEntity  `tl:"flag:1"`
+	ReplyMarkup ReplyMarkup      `tl:"flag:2"`
+	RichMessage InputRichMessage `tl:"flag:4"`
+}
+
+func (*EphemeralEditMessageParams) CRC() uint32 {
+	return 0xcf9c725b
+}
+
+func (*EphemeralEditMessageParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) EphemeralEditMessage(params *EphemeralEditMessageParams) (Updates, error) {
+	responseData, err := c.MakeRequest(params)
+	if err != nil {
+		return nil, fmt.Errorf("sending EphemeralEditMessage: %w", err)
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }
@@ -7878,6 +8039,31 @@ func (c *Client) EphemeralGetCallbackAnswer(peer InputPeer, id int32, data []byt
 	}
 
 	resp, ok := responseData.(*MessagesBotCallbackAnswer)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type EphemeralGetWelcomeMessagesParams struct {
+	Peer InputPeer
+	Hash int64
+}
+
+func (*EphemeralGetWelcomeMessagesParams) CRC() uint32 {
+	return 0xdb9ac18d
+}
+
+func (c *Client) EphemeralGetWelcomeMessages(peer InputPeer, hash int64) (EphemeralWelcomeMessages, error) {
+	responseData, err := c.MakeRequest(&EphemeralGetWelcomeMessagesParams{
+		Hash: hash,
+		Peer: peer,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending EphemeralGetWelcomeMessages: %w", err)
+	}
+
+	resp, ok := responseData.(EphemeralWelcomeMessages)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -7914,7 +8100,11 @@ func (c *Client) EphemeralReportMessage(peer InputPeer, id int32, option []byte,
 }
 
 type EphemeralSendMessageParams struct {
-	Peer        InputPeer
+	InvertMedia bool      `tl:"flag:6,encoded_in_bitflags"`
+	Welcome     bool      `tl:"flag:7,encoded_in_bitflags"`
+	Anchor      bool      `tl:"flag:9,encoded_in_bitflags"`
+	Noforwards  bool      `tl:"flag:10,encoded_in_bitflags"`
+	Peer        InputPeer `tl:"flag:8"`
 	ReceiverID  InputUser
 	QueryID     int64 `tl:"flag:0"`
 	Message     string
@@ -7927,7 +8117,7 @@ type EphemeralSendMessageParams struct {
 }
 
 func (*EphemeralSendMessageParams) CRC() uint32 {
-	return 0x68cbd09f
+	return 0xba8d5f35
 }
 
 func (*EphemeralSendMessageParams) FlagIndex() int {
@@ -10074,6 +10264,7 @@ type MessagesForwardMessagesParams struct {
 	DropMediaCaptions    bool `tl:"flag:12,encoded_in_bitflags"`
 	Noforwards           bool `tl:"flag:14,encoded_in_bitflags"`
 	AllowPaidFloodskip   bool `tl:"flag:19,encoded_in_bitflags"`
+	FromEphemeral        bool `tl:"flag:25,encoded_in_bitflags"`
 	FromPeer             InputPeer
 	ID                   []int32
 	RandomID             []int64

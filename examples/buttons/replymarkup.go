@@ -20,7 +20,7 @@ func main() {
 
 	client.LoginBot(botToken)
 
-	client.SendMessage("username", "Hello, This is ReplyMarkup Example", &telegram.SendOptions{
+	client.SendMessage("username", "Hello, This is InlineMarkup Example", &telegram.SendOptions{
 		ReplyMarkup: telegram.NewKeyboard().AddRow( // adds a row of buttons
 			telegram.Button.Data("Help", "help"),
 			telegram.Button.URL("Google", "https://www.google.com"),
@@ -38,6 +38,14 @@ func main() {
 				telegram.Button.Data("Back", "back")).Build(),
 		})
 		return nil
+	})
+
+	// Reply keyboards use the separate reply-button API.
+	client.SendMessage("username", "Reply keyboard", &telegram.SendOptions{
+		ReplyMarkup: telegram.NewReplyKeyboard().AddRow(
+			telegram.Button.Text("Continue"),
+			telegram.Button.RequestPhone("Share phone"),
+		).Build(telegram.BuildReplyOptions{ResizeKeyboard: true}),
 	})
 
 	telegram.NewKeyboard().NewColumn(2, telegram.Button.URL("Google", "https://www.google.com"),

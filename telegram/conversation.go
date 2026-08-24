@@ -658,11 +658,9 @@ func (c *Conversation) WaitForMedia() (*NewMessage, error) {
 // eg. choices := []string{"Option 1", "Option 2", "Option 3"}
 func (c *Conversation) Choice(text string, choices []string) (*CallbackQuery, error) {
 	kb := NewKeyboard()
-	var buttons []KeyboardButton
 	for _, choice := range choices {
-		buttons = append(buttons, Button.Data(choice, choice))
+		kb.Add(Button.Data(choice, choice))
 	}
-	kb.AddRow(buttons...)
 
 	_, err := c.Respond(text, &SendOptions{
 		ReplyMarkup: kb.Build(),
@@ -677,11 +675,13 @@ func (c *Conversation) Choice(text string, choices []string) (*CallbackQuery, er
 func (c *Conversation) ChoiceRow(text string, rows ...[]string) (*CallbackQuery, error) {
 	kb := NewKeyboard()
 	for _, row := range rows {
-		var buttons []KeyboardButton
-		for _, choice := range row {
-			buttons = append(buttons, Button.Data(choice, choice))
+		if len(row) == 0 {
+			continue
 		}
-		kb.AddRow(buttons...)
+		kb.AddRow(Button.Data(row[0], row[0]))
+		for _, choice := range row[1:] {
+			kb.Add(Button.Data(choice, choice))
+		}
 	}
 
 	_, err := c.Respond(text, &SendOptions{
