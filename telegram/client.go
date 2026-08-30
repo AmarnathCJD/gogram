@@ -77,6 +77,7 @@ type Client struct {
 	exportedKeys   map[int]*AuthExportedAuthorization
 	exportedKeysMu sync.Mutex
 	Log            Logger
+	chunkSem       chan struct{} // serializes DownloadChunkCtx calls per client; DownloadMedia uses its own internal pool
 }
 
 type DeviceConfig struct {
@@ -201,6 +202,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 	}
 
 	client.exSenders = NewExSenders()
+	client.chunkSem = make(chan struct{}, 1) // 1 concurrent chunk download per client
 
 	return client, nil
 }
