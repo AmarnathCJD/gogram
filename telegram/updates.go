@@ -4437,10 +4437,10 @@ type updateTaskPool struct {
 
 func newUpdateTaskPool(workers, capacity int) *updateTaskPool {
 	if workers <= 0 {
-		workers = 32
+		workers = 64
 	}
 	if capacity <= 0 {
-		capacity = 1024
+		capacity = 10000
 	}
 	return &updateTaskPool{limit: workers, capacity: capacity}
 }

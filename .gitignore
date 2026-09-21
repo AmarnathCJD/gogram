@@ -1,7 +1,6 @@
 
 /.idea
 *.yaml
-*_test.go
 *.txt
 _doc/*
 *.log

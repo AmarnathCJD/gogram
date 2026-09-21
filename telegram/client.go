@@ -157,8 +157,8 @@ type ClientConfig struct {
 	PFSKeyLifetime   int32                // Lifetime (seconds) for PFS temp key; 0 = 24h
 	DisableGapFetch  bool                 // Disable automatic gap filling, only fetch difference on UpdatesTooLong/UpdateChannelTooLong
 	RawUpdates       bool                 // Enable raw update mode, bypassing pts/qts gap tracking but still dispatching updates to handlers
-	UpdateWorkers    int                  // Maximum concurrent update tasks (default: 32).
-	UpdateQueueSize  int                  // Maximum queued update tasks (default: 1024). Overflow is dropped with a warning.
+	UpdateWorkers    int                  // Maximum concurrent update tasks (default: 64).
+	UpdateQueueSize  int                  // Maximum queued update tasks (default: 10000). Overflow is dropped with a warning.
 }
 
 func NewClient(config ClientConfig) (*Client, error) {

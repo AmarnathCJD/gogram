@@ -493,6 +493,10 @@ func (*ButtonTypeRequestPeer) CRC() uint32 {
 	return 0x4f58a237
 }
 
+func (*ButtonTypeRequestPeer) FlagIndex() int {
+	return 0
+}
+
 func (*ButtonTypeRequestPeer) ImplementsButtonType() {}
 
 type ButtonTypeRequestPhone struct{}
@@ -1480,7 +1484,11 @@ func (*Channel) CRC() uint32 {
 }
 
 func (*Channel) FlagIndex() int {
-	return 21
+	return 0
+}
+
+func (*Channel) FlagIndex2() int {
+	return 20
 }
 
 func (*Channel) ImplementsChat() {}
@@ -1577,7 +1585,11 @@ func (*Community) CRC() uint32 {
 }
 
 func (*Community) FlagIndex() int {
-	return 4
+	return 0
+}
+
+func (*Community) FlagIndex2() int {
+	return 3
 }
 
 func (*Community) ImplementsChat() {}
@@ -1680,7 +1692,11 @@ func (*ChannelFull) CRC() uint32 {
 }
 
 func (*ChannelFull) FlagIndex() int {
-	return 9
+	return 0
+}
+
+func (*ChannelFull) FlagIndex2() int {
+	return 8
 }
 
 func (*ChannelFull) ImplementsChatFull() {}
@@ -6114,7 +6130,11 @@ func (*MessageObj) CRC() uint32 {
 }
 
 func (*MessageObj) FlagIndex() int {
-	return 12
+	return 0
+}
+
+func (*MessageObj) FlagIndex2() int {
+	return 11
 }
 
 func (*MessageObj) ImplementsMessage() {}
@@ -14147,7 +14167,11 @@ func (*UserObj) CRC() uint32 {
 }
 
 func (*UserObj) FlagIndex() int {
-	return 19
+	return 0
+}
+
+func (*UserObj) FlagIndex2() int {
+	return 18
 }
 
 func (*UserObj) ImplementsUser() {}
@@ -16974,6 +16998,10 @@ type StoriesAllStoriesNotModified struct {
 
 func (*StoriesAllStoriesNotModified) CRC() uint32 {
 	return 0x1158fe3e
+}
+
+func (*StoriesAllStoriesNotModified) FlagIndex() int {
+	return 0
 }
 
 func (*StoriesAllStoriesNotModified) ImplementsStoriesAllStories() {}

@@ -1509,6 +1509,10 @@ func (*ExportedChatlistInvite) CRC() uint32 {
 	return 0xc5181ac
 }
 
+func (*ExportedChatlistInvite) FlagIndex() int {
+	return 0
+}
+
 // Describes a temporary profile link.
 type ExportedContactToken struct {
 	URL     string
@@ -5251,7 +5255,11 @@ func (*UserFull) CRC() uint32 {
 }
 
 func (*UserFull) FlagIndex() int {
-	return 14
+	return 0
+}
+
+func (*UserFull) FlagIndex2() int {
+	return 13
 }
 
 // Contains information about a username.
