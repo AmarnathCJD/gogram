@@ -879,6 +879,7 @@ func (m *MTProto) connect(ctx context.Context) error {
 			CommonConfig: cfg,
 			TLS:          m.txType == TransportHTTPS,
 			Path:         m.httpPath,
+			TestMode:     m.testMode,
 		}, m.mode)
 	case TransportWebSocket, TransportWebSocketTLS:
 		newTransport, err = transport.NewTransport(m, transport.WSConnConfig{

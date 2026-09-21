@@ -1152,10 +1152,17 @@ func (d *UpdateDispatcher) SetChannelPts(channelID int64, pts int32) {
 }
 
 func (d *UpdateDispatcher) GetChannelPts(channelID int64) int32 {
-	if box := d.getChannelBox(channelID); box != nil {
+	d.RLock()
+	box := d.channelPtsBoxes[channelID]
+	var pts int32
+	if state := d.channelStates[channelID]; state != nil {
+		pts = state.pts
+	}
+	d.RUnlock()
+	if box != nil {
 		return box.currentValue()
 	}
-	return 0
+	return pts
 }
 
 func (d *UpdateDispatcher) getChannelBox(channelID int64) *counterBox {
@@ -2739,7 +2746,7 @@ func (c *Client) AddMessageHandler(pattern any, handler MessageHandler, filters 
 
 	handleID := nextHandleID()
 	handle := &messageHandle{
-		Pattern: pattern,
+		Pattern: normalizePattern(pattern, EventNewMessage),
 		Handler: handler,
 		Filters: messageFilters,
 		baseHandle: baseHandle{
@@ -2811,7 +2818,7 @@ func (c *Client) AddEditHandler(pattern any, handler MessageHandler, filters ...
 	}
 	handleID := nextHandleID()
 	h := &messageEditHandle{
-		Pattern:    pattern,
+		Pattern:    normalizePattern(pattern, EventEditMessage),
 		Handler:    handler,
 		Filters:    messageFilters,
 		baseHandle: baseHandle{id: handleID, Group: DefaultGroup},
@@ -2826,7 +2833,7 @@ func (c *Client) AddInlineHandler(pattern any, handler InlineHandler) Handle {
 	defer c.dispatcher.Unlock()
 	handleID := nextHandleID()
 	h := &inlineHandle{
-		Pattern:    pattern,
+		Pattern:    normalizePattern(pattern, EventInlineQuery),
 		Handler:    handler,
 		baseHandle: baseHandle{id: handleID, Group: DefaultGroup},
 	}
@@ -2870,7 +2877,7 @@ func (c *Client) AddCallbackHandler(pattern any, handler CallbackHandler, filter
 	}
 	handleID := nextHandleID()
 	h := &callbackHandle{
-		Pattern:    pattern,
+		Pattern:    normalizePattern(pattern, EventCallbackQuery),
 		Handler:    handler,
 		Filters:    messageFilters,
 		baseHandle: baseHandle{id: handleID, Group: DefaultGroup},
@@ -2885,7 +2892,7 @@ func (c *Client) AddInlineCallbackHandler(pattern any, handler InlineCallbackHan
 	defer c.dispatcher.Unlock()
 	handleID := nextHandleID()
 	h := &inlineCallbackHandle{
-		Pattern:    pattern,
+		Pattern:    normalizePattern(pattern, EventInlineCallback),
 		Handler:    handler,
 		baseHandle: baseHandle{id: handleID, Group: DefaultGroup},
 	}
@@ -4323,7 +4330,7 @@ func (c *Client) Group(groupID int) *HandlerGroup {
 
 // OnMessage registers a message handler and returns a builder
 func (c *Client) OnMessage(pattern any, handler MessageHandler, filters ...Filter) *MessageHandleBuilder {
-	h := c.AddMessageHandler(normalizePattern(pattern, EventNewMessage), handler, filters...)
+	h := c.AddMessageHandler(pattern, handler, filters...)
 
 	if mh, ok := h.(*messageHandle); ok {
 		return &MessageHandleBuilder{
@@ -4350,7 +4357,7 @@ func (c *Client) OnCommand(command string, handler MessageHandler, filters ...Fi
 
 // OnCallback registers a callback handler and returns a builder
 func (c *Client) OnCallback(pattern any, handler CallbackHandler, filters ...Filter) *CallbackHandleBuilder {
-	h := c.AddCallbackHandler(normalizePattern(pattern, EventCallbackQuery), handler, filters...)
+	h := c.AddCallbackHandler(pattern, handler, filters...)
 	if cb, ok := h.(*callbackHandle); ok {
 		return &CallbackHandleBuilder{
 			handle:     cb,
@@ -4363,17 +4370,17 @@ func (c *Client) OnCallback(pattern any, handler CallbackHandler, filters ...Fil
 
 // OnInlineQuery registers an inline query handler and returns a handle
 func (c *Client) OnInlineQuery(pattern any, handler func(m *InlineQuery) error) Handle {
-	return c.AddInlineHandler(normalizePattern(pattern, EventInlineQuery), handler)
+	return c.AddInlineHandler(pattern, handler)
 }
 
 // OnInlineCallback registers an inline callback handler and returns a handle
 func (c *Client) OnInlineCallback(pattern any, handler func(m *InlineCallbackQuery) error) Handle {
-	return c.AddInlineCallbackHandler(normalizePattern(pattern, EventInlineCallback), handler)
+	return c.AddInlineCallbackHandler(pattern, handler)
 }
 
 // OnEdit registers an edit handler and returns a handle
 func (c *Client) OnEdit(pattern any, handler func(m *NewMessage) error, filters ...Filter) Handle {
-	return c.AddEditHandler(normalizePattern(pattern, EventEditMessage), handler, filters...)
+	return c.AddEditHandler(pattern, handler, filters...)
 }
 
 // OnDelete registers a delete handler and returns a handle

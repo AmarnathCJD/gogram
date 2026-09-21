@@ -934,13 +934,10 @@ func (c *Client) CreateExportedSender(ctx context.Context, dcID int, cdn bool, m
 		}
 
 		c.Log.Debug("initializing exported sender")
-		reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		_, err = exported.MakeRequest(reqCtx, &InvokeWithLayerParams{
+		_, err = exported.MakeRequest(ctx, &InvokeWithLayerParams{
 			Layer: ApiVersion,
 			Query: initialReq,
 		})
-		cancel()
-		c.Log.Debug("exported sender ready (DC%d)", dcID)
 
 		if err != nil {
 			lastError = fmt.Errorf("making initial request: %w", err)
@@ -963,6 +960,7 @@ func (c *Client) CreateExportedSender(ctx context.Context, dcID int, cdn bool, m
 		}
 
 		success = true
+		c.Log.Debug("exported sender ready (DC%d)", dcID)
 		return exported, nil
 	}
 

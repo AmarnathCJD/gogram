@@ -41,9 +41,16 @@ func NewHTTPTransport(m messages.MessageInformator, cfg HTTPConnConfig) (Transpo
 		scheme = "https"
 	}
 	host := strings.TrimPrefix(cfg.Host, ":")
+	if cfg.TLS && net.ParseIP(stripPort(host)) != nil && cfg.DC >= 1 && cfg.DC <= 5 {
+		names := [...]string{"pluto", "venus", "aurora", "vesta", "flora"}
+		host = net.JoinHostPort(names[cfg.DC-1]+".web.telegram.org", "443")
+	}
 	path := cfg.Path
 	if path == "" {
 		path = "/api"
+		if cfg.TestMode && strings.HasSuffix(stripPort(host), ".web.telegram.org") {
+			path += "_test"
+		}
 	}
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
@@ -125,10 +132,10 @@ func NewHTTPTransport(m messages.MessageInformator, cfg HTTPConnConfig) (Transpo
 }
 
 func stripPort(hostport string) string {
-	if i := strings.LastIndex(hostport, ":"); i > 0 {
-		return hostport[:i]
+	if host, _, err := net.SplitHostPort(hostport); err == nil {
+		return host
 	}
-	return hostport
+	return strings.Trim(hostport, "[]")
 }
 
 func (t *httpTransport) IsHTTP() bool { return true }
