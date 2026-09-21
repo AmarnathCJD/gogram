@@ -13,7 +13,7 @@ import (
 
 type tcpConn struct {
 	reader  *Reader
-	conn    *net.TCPConn
+	conn    net.Conn
 	timeout time.Duration
 }
 
@@ -106,7 +106,7 @@ func newSocksTCP(cfg TCPConnConfig) (Conn, bool, error) {
 		cfg.Logger.Debug("[%s] connecting to %s via proxy %s", cfg.Socks.Type, cfg.Host, cfg.Socks.Host)
 	}
 
-	conn, err := dialProxy(cfg.Socks.ToURL(), cfg.Host, cfg.LocalAddr)
+	conn, err := dialProxyContext(cfg.Ctx, cfg.Socks.ToURL(), cfg.Host, cfg.LocalAddr)
 	if err != nil {
 		if cfg.Logger != nil {
 			cfg.Logger.Debug("[%s] connection failed: %v", cfg.Socks.Type, err)
@@ -118,11 +118,20 @@ func newSocksTCP(cfg TCPConnConfig) (Conn, bool, error) {
 		cfg.Logger.Debug("[%s] connected to %s", cfg.Socks.Type, cfg.Host)
 	}
 
-	return &tcpConn{
+	tc := &tcpConn{
 		reader:  NewReader(cfg.Ctx, conn),
-		conn:    conn.(*net.TCPConn),
+		conn:    conn,
 		timeout: cfg.Timeout,
-	}, false, nil
+	}
+	if cfg.Obfuscated {
+		obf, err := NewObfuscatedConn(tc, ProtocolID(cfg.ModeVariant))
+		if err != nil {
+			_ = tc.Close()
+			return nil, false, fmt.Errorf("obfuscating proxy connection: %w", err)
+		}
+		return &obfuscatedTCP{obf: obf, tc: tc, timeout: cfg.Timeout}, true, nil
+	}
+	return tc, false, nil
 }
 
 func newMTProxyTCP(cfg TCPConnConfig) (Conn, bool, error) {
@@ -147,6 +156,11 @@ func (t *tcpConn) Close() error {
 }
 
 func (t *tcpConn) Write(b []byte) (int, error) {
+	if t.timeout > 0 {
+		if err := t.conn.SetWriteDeadline(time.Now().Add(t.timeout)); err != nil {
+			return 0, err
+		}
+	}
 	return t.conn.Write(b)
 }
 
@@ -162,16 +176,16 @@ func (t *tcpConn) Read(b []byte) (int, error) {
 	if err != nil {
 		if e, ok := err.(*net.OpError); ok {
 			if e.Err.Error() == "i/o timeout" {
-				return 0, fmt.Errorf("required to reconnect: %w", err)
+				return n, fmt.Errorf("required to reconnect: %w", err)
 			}
 		} else if err == io.ErrClosedPipe {
-			return 0, fmt.Errorf("required to reconnect: %w", err)
+			return n, fmt.Errorf("required to reconnect: %w", err)
 		}
 		switch err {
 		case io.EOF, context.Canceled:
-			return 0, err
+			return n, err
 		default:
-			return 0, fmt.Errorf("unexpected error: %w", err)
+			return n, fmt.Errorf("unexpected error: %w", err)
 		}
 	}
 	return n, nil

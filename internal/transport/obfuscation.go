@@ -25,7 +25,7 @@ type obfuscatedConn struct {
 }
 
 func NewObfuscatedConn(conn io.ReadWriteCloser, protocolID []byte) (*obfuscatedConn, error) {
-	if len(protocolID) > 4 {
+	if len(protocolID) == 0 || len(protocolID) > 4 {
 		return nil, errors.New("protocol ID must be 4 bytes or less")
 	}
 
@@ -69,7 +69,10 @@ func NewObfuscatedConn(conn io.ReadWriteCloser, protocolID []byte) (*obfuscatedC
 	copy(finalInit, init[:56])
 	copy(finalInit[56:], encryptedInit[56:])
 
-	_, err = conn.Write(finalInit)
+	n, err := conn.Write(finalInit)
+	if err == nil && n != len(finalInit) {
+		err = io.ErrShortWrite
+	}
 	if err != nil {
 		return nil, fmt.Errorf("sending init payload: %w", err)
 	}
@@ -123,20 +126,19 @@ func generateInitPayload(protocolID []byte) ([]byte, error) {
 
 func (o *obfuscatedConn) Read(b []byte) (int, error) {
 	n, err := o.conn.Read(b)
-	if err != nil {
-		return n, err
-	}
-
 	o.decryptor.XORKeyStream(b[:n], b[:n])
-
-	return n, nil
+	return n, err
 }
 
 func (o *obfuscatedConn) Write(b []byte) (int, error) {
 	encrypted := make([]byte, len(b))
 	o.encryptor.XORKeyStream(encrypted, b)
 
-	return o.conn.Write(encrypted)
+	n, err := o.conn.Write(encrypted)
+	if err == nil && n != len(encrypted) {
+		err = io.ErrShortWrite
+	}
+	return n, err
 }
 
 func (o *obfuscatedConn) Close() error {
