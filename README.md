@@ -178,7 +178,7 @@ For more examples, check the **[examples](examples)** directory.
 - [x] documentation for all methods
 - [x] stabilize file uploading
 - [x] stabilize file downloading
-- [ ] secret chats support
+- [x] secret chats support
 - [x] cdn dc support
 - [x] reply markup builder helpers
 - [x] reimplement file downloads (more speed + less cpu usage)
