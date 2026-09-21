@@ -42,7 +42,9 @@ func New(v Variant, conn io.ReadWriter) (Mode, error) {
 		return nil, err
 	}
 	announcement := m.getModeAnnouncement()
-	_, err = conn.Write(announcement)
+	if len(announcement) != 0 {
+		err = writeFrame(conn, announcement)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("can't setup connection: %w", err)
 	}
@@ -73,4 +75,14 @@ func initMode(v Variant, conn io.ReadWriter) (Mode, error) {
 	default:
 		return nil, ErrModeNotSupported
 	}
+}
+
+const maxMessageSize = 16 * 1024 * 1024
+
+func writeFrame(w io.Writer, b []byte) error {
+	n, err := w.Write(b)
+	if err == nil && n != len(b) {
+		return io.ErrShortWrite
+	}
+	return err
 }

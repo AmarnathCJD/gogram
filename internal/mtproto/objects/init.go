@@ -9,6 +9,7 @@ import (
 func init() {
 	tl.RegisterObjects(
 		&ReqPQParams{},
+		&ReqPQMultiParams{},
 		&ReqDHParamsParams{},
 		&SetClientDHParamsParams{},
 		&PingParams{},

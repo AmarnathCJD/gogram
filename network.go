@@ -3,6 +3,7 @@
 package gogram
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"path/filepath"
@@ -17,39 +18,50 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
-func (m *MTProto) sendPacket(request tl.Object, expectedTypes ...reflect.Type) (chan tl.Object, int64, error) {
-	return m.sendPacketWithMsgID(request, 0, expectedTypes...)
-}
-
-func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTypes ...reflect.Type) (chan tl.Object, int64, error) {
+// sendPacket sends a packet to the server and returns a channel that will receive the response.
+func (m *MTProto) sendPacket(ctx context.Context, request tl.Object, msgID int64, expectedTypes ...reflect.Type) (chan tl.Object, int64, error) {
+	if msgID == 0 {
+		if err := m.writeMu.Lock(ctx); err != nil {
+			return nil, 0, err
+		}
+		defer m.writeMu.Unlock()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, 0, err
+	}
 	msg, err := tl.Marshal(request)
 	if err != nil {
 		return nil, 0, fmt.Errorf("marshaling request: %w", err)
+	}
+
+	m.transportMu.Lock()
+	tr := m.transport
+	m.transportMu.Unlock()
+	if tr == nil || !m.IsTcpActive() || m.disconnected.Load() || m.terminated.Load() {
+		m.requestReconnect()
+		return nil, 0, errors.New("transport is not active")
 	}
 
 	if msgID == 0 {
 		msgID = m.genMsgID(m.timeOffset.Load())
 	}
 
-	if len(expectedTypes) > 0 {
-		m.expectedTypes.Add(int(msgID), expectedTypes)
+	if len(expectedTypes) > 0 && !isNullableResponse(request) {
+		m.expectedTypes.Add(msgID, expectedTypes)
 	}
 
 	resp := m.getRespChannel()
 	if isNullableResponse(request) {
 		resp = make(chan tl.Object, 1)
 		resp <- &objects.Null{}
-	} else {
-		m.responseChannels.Add(int(msgID), resp)
+	} else if !m.serviceModeActivated.Load() {
+		m.responseChannels.Add(msgID, resp)
 	}
 
 	var data messages.Common
 	if m.encrypted.Load() {
-		data = &messages.Encrypted{
-			Msg:         msg,
-			MsgID:       msgID,
-			AuthKeyHash: m.authKeyHash,
-		}
+		key, salt := m.keyForRequest(request)
+		data = &messages.Encrypted{Msg: msg, MsgID: msgID, AuthKey: key, AuthKeyHash: utils.AuthKeyHash(key), Salt: salt, SessionID: m.GetSessionID()}
 	} else {
 		data = &messages.Unencrypted{
 			Msg:   msg,
@@ -64,37 +76,36 @@ func (m *MTProto) sendPacketWithMsgID(request tl.Object, msgID int64, expectedTy
 		seqNo = m.UpdateSeqNo()
 	}
 
-	if m.transport == nil || !m.IsTcpActive() {
+	// A partially written frame cannot be resumed by another request. Closing
+	// this transport is necessary when cancellation interrupts the write.
+	interrupted := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() { _ = tr.Close(); close(interrupted) })
+	errorSendPacket := tr.WriteMsg(data, seqNo)
+	if !stop() {
+		<-interrupted
+		errorSendPacket = ctx.Err()
 		m.requestReconnect()
-		return nil, 0, errors.New("transport is not active")
 	}
-
-	m.transportMu.Lock()
-	if m.transport == nil {
-		m.transportMu.Unlock()
-		return nil, 0, errors.New("transport is nil during write")
-	}
-	errorSendPacket := m.transport.WriteMsg(data, seqNo)
-	m.transportMu.Unlock()
 
 	if errorSendPacket != nil {
+		m.responseChannels.Delete(msgID)
+		m.expectedTypes.Delete(msgID)
 		return nil, msgID, fmt.Errorf("writing message: %w", errorSendPacket)
 	}
 	return resp, msgID, nil
 }
 
-func (m *MTProto) writeRPCResponse(msgID int, data tl.Object) error {
-	v, ok := m.responseChannels.Get(msgID)
+func (m *MTProto) writeRPCResponse(msgID int64, data tl.Object) error {
+	v, ok := m.responseChannels.Pop(msgID)
 	if !ok {
 		return errors.New("no response channel found for messageId " + fmt.Sprint(msgID))
 	}
 
+	m.expectedTypes.Delete(msgID)
 	if err := safeSend(v, data); err != nil {
 		return fmt.Errorf("sending response: %w", err)
 	}
 
-	m.responseChannels.Delete(msgID)
-	m.expectedTypes.Delete(msgID)
 	return nil
 }
 
@@ -114,7 +125,7 @@ func safeSend(ch chan tl.Object, obj tl.Object) (err error) {
 }
 
 func (m *MTProto) getRespChannel() chan tl.Object {
-	if m.serviceModeActivated {
+	if m.serviceModeActivated.Load() {
 		return m.serviceChannel
 	}
 	return make(chan tl.Object, 1)
@@ -126,7 +137,11 @@ func isNotContentRelated(t tl.Object) bool {
 		*objects.PingDelayDisconnectParams,
 		*utils.PingParams,
 		*objects.MsgsAck,
-		*objects.GzipPacked:
+		*objects.Pong,
+		*objects.MsgsStateReq,
+		*objects.MsgsStateInfo,
+		*objects.MsgResendReq,
+		*objects.HttpWaitParams:
 		return true
 	default:
 		return false
@@ -135,7 +150,7 @@ func isNotContentRelated(t tl.Object) bool {
 
 func isNullableResponse(t tl.Object) bool {
 	switch t.(type) {
-	case *objects.Pong, *objects.MsgsAck, *utils.PingParams, *objects.PingParams, *objects.PingDelayDisconnectParams:
+	case *objects.Pong, *objects.MsgsAck, *objects.MsgsStateInfo, *objects.HttpWaitParams:
 		return true
 	default:
 		return false
@@ -158,6 +173,11 @@ func (m *MTProto) UpdateSeqNo() int32 {
 
 // GetServerSalt returns current server salt
 func (m *MTProto) GetServerSalt() int64 {
+	m.authMu.RLock()
+	defer m.authMu.RUnlock()
+	if m.enablePFS && len(m.tempAuthKey) > 0 {
+		return m.tempServerSalt
+	}
 	return m.serverSalt.Load()
 }
 
@@ -165,38 +185,34 @@ func (m *MTProto) GetServerSalt() int64 {
 // In PFS mode, once a temp key is available, it's used for all traffic.
 // The permanent key is retained on m.authKey for re-binding.
 func (m *MTProto) GetAuthKey() []byte {
+	m.authMu.RLock()
+	defer m.authMu.RUnlock()
 	if m.enablePFS && len(m.tempAuthKey) > 0 {
-		return m.tempAuthKey
+		return bytes.Clone(m.tempAuthKey)
 	}
-	return m.authKey
+	return bytes.Clone(m.authKey)
 }
 
 func (m *MTProto) SetAuthKey(key []byte) {
-	m.authKey = key
+	m.authMu.Lock()
+	defer m.authMu.Unlock()
+	if !bytes.Equal(m.authKey, key) {
+		m.tempAuthKey, m.tempAuthKeyHash = nil, nil
+		m.pendingTempAuthKey, m.pendingTempKeyHash = nil, nil
+		m.previousTempAuthKey, m.previousTempKeyHash = nil, nil
+		m.tempAuthExpiresAt, m.pendingTempExpiresAt = 0, 0
+		m.tempServerSalt, m.pendingTempSalt, m.previousTempSalt = 0, 0, 0
+	}
+	m.authKey = bytes.Clone(key)
 	m.authKeyHash = utils.AuthKeyHash(m.authKey)
 }
 
-func (m *MTProto) MakeRequest(msg tl.Object) (any, error) {
-	if m.connConfig.Timeout > 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), m.connConfig.Timeout)
-		defer cancel()
-		return m.makeRequestCtx(ctx, msg)
-	}
-	return m.makeRequest(msg)
-}
-
-func (m *MTProto) MakeRequestCtx(ctx context.Context, msg tl.Object) (any, error) {
-	return m.makeRequestCtx(ctx, msg)
-}
-
-func (m *MTProto) MakeRequestWithHintToDecoder(msg tl.Object, expectedTypes ...reflect.Type) (any, error) {
-	if len(expectedTypes) == 0 {
-		return nil, errors.New("expected a few hints. If you don't need it, use m.MakeRequest")
-	}
-	return m.makeRequest(msg, expectedTypes...)
-}
-
 func (m *MTProto) AddCustomServerRequestHandler(handler func(i any) bool) {
+	if handler == nil {
+		return
+	}
+	m.handlersMu.Lock()
+	defer m.handlersMu.Unlock()
 	m.serverRequestHandlers = append(m.serverRequestHandlers, handler)
 }
 
@@ -210,13 +226,19 @@ func (m *MTProto) AddCustomServerRequestHandler(handler func(i any) bool) {
 // (e.g. messages.sendMessage returning an Updates envelope) into the update
 // pipeline so raw-update handlers observe them.
 func (m *MTProto) AddRPCResponseHandler(handler func(i any)) {
+	if handler == nil {
+		return
+	}
+	m.handlersMu.Lock()
+	defer m.handlersMu.Unlock()
 	m.rpcResponseHandlers = append(m.rpcResponseHandlers, handler)
 }
 
 func (m *MTProto) SaveSession(mem bool) (err error) {
+	key, hash := m.permanentAuth()
 	sess := &session.Session{
-		Key:      m.authKey,
-		Hash:     m.authKeyHash,
+		Key:      key,
+		Hash:     hash,
 		Salt:     m.serverSalt.Load(),
 		Hostname: m.GetAddr(),
 		AppID:    m.appID,
@@ -235,25 +257,60 @@ func (m *MTProto) DeleteSession() (err error) {
 }
 
 func (m *MTProto) _loadSession(s *session.Session) {
-	m.authKey = s.Key
-	m.authKeyHash = s.Hash
+	m.SetAuthKey(s.Key)
 	m.serverSalt.Store(s.Salt)
 	m.SetAddr(s.Hostname)
 	m.appID = s.AppID
 }
 
-func (m *MTProto) reqPQ(nonce *tl.Int128) (*objects.ResPQ, error) {
-	return objects.ReqPQ(m, nonce)
+func (m *MTProto) permanentAuth() ([]byte, []byte) {
+	m.authMu.RLock()
+	defer m.authMu.RUnlock()
+	return bytes.Clone(m.authKey), bytes.Clone(m.authKeyHash)
 }
 
-func (m *MTProto) reqPQMulti(nonce *tl.Int128) (*objects.ResPQ, error) {
-	return objects.ReqPQMulti(m, nonce)
+func (m *MTProto) GetAuthKeyForHash(hash []byte) []byte {
+	m.authMu.RLock()
+	defer m.authMu.RUnlock()
+	for _, key := range []struct{ key, hash []byte }{
+		{m.authKey, m.authKeyHash}, {m.tempAuthKey, m.tempAuthKeyHash},
+		{m.pendingTempAuthKey, m.pendingTempKeyHash}, {m.previousTempAuthKey, m.previousTempKeyHash},
+	} {
+		if len(hash) == 8 && bytes.Equal(hash, key.hash) {
+			return bytes.Clone(key.key)
+		}
+	}
+	return nil
 }
 
-func (m *MTProto) reqDHParams(nonce, serverNonce *tl.Int128, p, q []byte, publicKeyFingerprint int64, encryptedData []byte) (objects.ServerDHParams, error) {
-	return objects.ReqDHParams(m, nonce, serverNonce, p, q, publicKeyFingerprint, encryptedData)
+func (m *MTProto) keyForRequest(request tl.Object) ([]byte, int64) {
+	m.authMu.RLock()
+	defer m.authMu.RUnlock()
+	if _, bind := request.(*objects.AuthBindTempAuthKeyParams); bind {
+		return bytes.Clone(m.pendingTempAuthKey), m.pendingTempSalt
+	}
+	if m.enablePFS && len(m.tempAuthKey) > 0 {
+		return bytes.Clone(m.tempAuthKey), m.tempServerSalt
+	}
+	return bytes.Clone(m.authKey), m.serverSalt.Load()
 }
 
-func (m *MTProto) setClientDHParams(nonce, serverNonce *tl.Int128, encryptedData []byte) (objects.SetClientDHParamsAnswer, error) {
-	return objects.SetClientDHParams(m, nonce, serverNonce, encryptedData)
+func (m *MTProto) updateSalt(msg messages.Common, salt int64) {
+	m.authMu.Lock()
+	defer m.authMu.Unlock()
+	if encrypted, ok := msg.(*messages.Encrypted); ok && len(encrypted.AuthKeyHash) > 0 {
+		h := encrypted.AuthKeyHash
+		switch {
+		case bytes.Equal(h, m.pendingTempKeyHash):
+			m.pendingTempSalt = salt
+			return
+		case bytes.Equal(h, m.tempAuthKeyHash):
+			m.tempServerSalt = salt
+			return
+		case bytes.Equal(h, m.previousTempKeyHash):
+			m.previousTempSalt = salt
+			return
+		}
+	}
+	m.serverSalt.Store(salt)
 }

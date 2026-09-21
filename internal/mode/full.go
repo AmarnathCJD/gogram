@@ -13,11 +13,15 @@ var (
 )
 
 type full struct {
-	conn  io.ReadWriter
-	seqNo uint32
+	conn    io.ReadWriter
+	seqNo   uint32
+	readSeq uint32
 }
 
 func (m *full) WriteMsg(msg []byte) error {
+	if len(msg) > maxMessageSize-12 {
+		return fmt.Errorf("message too large")
+	}
 	msgLen := uint32(len(msg) + 12) // Header size is 12 bytes
 
 	buf := make([]byte, msgLen)
@@ -28,7 +32,7 @@ func (m *full) WriteMsg(msg []byte) error {
 	checksum := crc32sum(buf[:8+len(msg)])
 	binary.LittleEndian.PutUint32(buf[8+len(msg):], checksum)
 
-	if _, err := m.conn.Write(buf); err != nil {
+	if err := writeFrame(m.conn, buf); err != nil {
 		return err
 	}
 
@@ -44,28 +48,28 @@ func (m *full) ReadMsg() ([]byte, error) {
 	}
 	size := int(binary.LittleEndian.Uint32(bsize))
 
-	if size > 16*1024*1024 { // 16MB
+	if size < 12 || size > maxMessageSize {
 		return nil, fmt.Errorf("invalid message size: %d", size)
 	}
 
 	buf := make([]byte, size)
-	// panic: runtime error: slice bounds out of range [4:2]
-	if size < 8 {
-		return nil, fmt.Errorf("invalid message size: %d", size)
-	}
 	_, err = io.ReadFull(m.conn, buf[4:])
 	if err != nil {
 		return nil, err
 	}
 	copy(buf, bsize)
 
-	_ = binary.LittleEndian.Uint32(buf[4:]) // seqNo
+	seq := binary.LittleEndian.Uint32(buf[4:])
 	checksum := binary.LittleEndian.Uint32(buf[size-4:])
 
 	if crc32sum(buf[:size-4]) != checksum {
 		return nil, ErrChecksumMismatch
 	}
 
+	if seq != m.readSeq {
+		return nil, fmt.Errorf("unexpected transport sequence: %d (want %d)", seq, m.readSeq)
+	}
+	m.readSeq++
 	return buf[8 : size-4], nil
 }
 

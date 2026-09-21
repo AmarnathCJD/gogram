@@ -22,18 +22,10 @@ import (
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
-// https://core.telegram.org/mtproto/auth_key
-func (m *MTProto) makeAuthKey(ctx ...context.Context) error {
-	return m.makeAuthKeyInternal(0, ctx...)
-}
-
 const maxAuthKeyDecryptRetries = 5
 
-func (m *MTProto) makeAuthKeyInternal(expiresIn int32, contexts ...context.Context) error {
-	ctx := context.Background()
-	if len(contexts) > 0 {
-		ctx = contexts[0]
-	}
+// https://core.telegram.org/mtproto/auth_key
+func (m *MTProto) makeAuthKey(ctx context.Context, expiresIn int32) error {
 	for attempt := 0; ; attempt++ {
 		err := m.makeAuthKeyOnce(expiresIn, ctx)
 		if err == nil {
@@ -51,20 +43,8 @@ func (m *MTProto) makeAuthKeyInternal(expiresIn int32, contexts ...context.Conte
 
 var errAuthKeyDecryptRetry = errors.New("auth key decrypt failed")
 
-type handshakeRequester struct {
-	client *MTProto
-	ctx    context.Context
-}
-
-func (r handshakeRequester) MakeRequest(obj tl.Object) (any, error) {
-	ctx, cancel := context.WithTimeout(r.ctx, r.client.reqTimeout)
-	defer cancel()
-	return r.client.MakeRequestCtx(ctx, obj)
-}
-
 func (m *MTProto) makeAuthKeyOnce(expiresIn int32, ctx context.Context) error {
 	isTemp := expiresIn > 0
-	requester := handshakeRequester{client: m, ctx: ctx}
 
 	m.serviceModeActivated.Store(true)
 	defer m.serviceModeActivated.Store(false)
@@ -77,7 +57,7 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32, ctx context.Context) error {
 	var err error
 	for {
 		nonceFirst = tl.RandomInt128()
-		res, err = objects.ReqPQMulti(requester, nonceFirst)
+		res, err = objects.ReqPQMulti(ctx, m, nonceFirst)
 		if err != nil {
 			return fmt.Errorf("reqPQ: %w", err)
 		}
@@ -162,7 +142,7 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32, ctx context.Context) error {
 	}
 
 	keyFingerprint := int64(binary.LittleEndian.Uint64(keys.RSAFingerprint(m.publicKey)))
-	dhResponse, err := objects.ReqDHParams(requester, nonceFirst, nonceServer, p.Bytes(), q.Bytes(), keyFingerprint, encryptedMessage)
+	dhResponse, err := objects.ReqDHParams(ctx, m, nonceFirst, nonceServer, p.Bytes(), q.Bytes(), keyFingerprint, encryptedMessage)
 	if err != nil {
 		return fmt.Errorf("reqDHParams: %w", err)
 	}
@@ -245,7 +225,7 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32, ctx context.Context) error {
 			return errors.New("dh: " + err.Error())
 		}
 
-		dhGenStatus, err := objects.SetClientDHParams(requester, nonceFirst, nonceServer, encryptedMessage)
+		dhGenStatus, err := objects.SetClientDHParams(ctx, m, nonceFirst, nonceServer, encryptedMessage)
 		if err != nil {
 			return errors.New("dh: " + err.Error())
 		}
@@ -357,7 +337,7 @@ func (m *MTProto) createTempAuthKey(parent context.Context, expiresIn int32) err
 	tmp.tcpState.SetActive(true)
 	tmp.startReadingResponses(ctx)
 
-	if err := tmp.makeAuthKeyInternal(expiresIn, ctx); err != nil {
+	if err := tmp.makeAuthKey(ctx, expiresIn); err != nil {
 		return fmt.Errorf("createTempAuthKey: makeTempAuthKey on temp connection: %w", err)
 	}
 
@@ -398,7 +378,7 @@ func (m *MTProto) bindTempAuthKey(parent context.Context) error {
 	// write it under the ordinary send lock, without holding that lock while
 	// waiting for the response.
 	send := func() (chan tl.Object, int64, error) {
-		if err := m.writeMu.LockContext(ctx); err != nil {
+		if err := m.writeMu.Lock(ctx); err != nil {
 			return nil, 0, err
 		}
 		defer m.writeMu.Unlock()
@@ -419,7 +399,7 @@ func (m *MTProto) bindTempAuthKey(parent context.Context) error {
 		}
 		payload := append(append(bytes.Clone(permHash), msgKey...), encrypted...)
 		params := &objects.AuthBindTempAuthKeyParams{PermAuthKeyID: permID, Nonce: nonce, ExpiresAt: int32(expiresAt), EncryptedMessage: payload}
-		return m.sendPacketLocked(ctx, params, msgID)
+		return m.sendPacket(ctx, params, msgID)
 	}
 	ch, id, err := send()
 	if err != nil {

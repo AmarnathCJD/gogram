@@ -6,6 +6,7 @@ package messages
 // It handles the serialization and deserialization of messages using the MTProto protocol.
 import (
 	"bytes"
+	"crypto/subtle"
 	"encoding/binary"
 	"fmt"
 
@@ -19,7 +20,7 @@ import (
 // Common is a message (either encrypted or unencrypted) used for communication between the client and server.
 type Common interface {
 	GetMsg() []byte
-	GetMsgID() int
+	GetMsgID() int64
 	GetSeqNo() int
 }
 
@@ -27,6 +28,7 @@ type Encrypted struct {
 	Msg         []byte
 	MsgID       int64
 	AuthKeyHash []byte
+	AuthKey     []byte
 
 	Salt      int64
 	SessionID int64
@@ -35,8 +37,12 @@ type Encrypted struct {
 }
 
 func (msg *Encrypted) Serialize(client MessageInformator, seqNo int32) ([]byte, error) {
+	if msg.AuthKey != nil {
+		client = packetInfo{key: msg.AuthKey, salt: msg.Salt, session: msg.SessionID, seq: seqNo}
+	}
 	obj := serializePacket(client, msg.Msg, msg.MsgID, seqNo)
-	encryptedData, msgKey, err := ige.Encrypt(obj, client.GetAuthKey())
+	authKey := client.GetAuthKey()
+	encryptedData, msgKey, err := ige.Encrypt(obj, authKey)
 	if err != nil {
 		return nil, fmt.Errorf("encrypting: %w", err)
 	}
@@ -44,7 +50,7 @@ func (msg *Encrypted) Serialize(client MessageInformator, seqNo int32) ([]byte, 
 	buf := bytes.NewBuffer(nil)
 
 	e := tl.NewEncoder(buf)
-	e.PutRawBytes(utils.AuthKeyHash(client.GetAuthKey()))
+	e.PutRawBytes(utils.AuthKeyHash(authKey))
 	e.PutRawBytes(msgKey)
 	e.PutRawBytes(encryptedData)
 
@@ -52,10 +58,14 @@ func (msg *Encrypted) Serialize(client MessageInformator, seqNo int32) ([]byte, 
 }
 
 func DeserializeEncrypted(data, authKey []byte) (*Encrypted, error) {
+	if len(authKey) != 256 || len(data) < 24+48 || (len(data)-24)%16 != 0 {
+		return nil, errors.New("invalid encrypted message or authorization key length")
+	}
 	msg := new(Encrypted)
 
 	d := tl.NewDecoderBytes(data)
 	keyHash := d.PopRawBytes(tl.LongLen)
+	msg.AuthKeyHash = keyHash
 	if !bytes.Equal(keyHash, utils.AuthKeyHash(authKey)) {
 		return nil, errors.New("wrong encryption key")
 	}
@@ -66,6 +76,11 @@ func DeserializeEncrypted(data, authKey []byte) (*Encrypted, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decrypting message: %w", err)
 	}
+	// Authenticate the entire plaintext before interpreting any of its fields.
+	msgKey := ige.MessageKey(authKey, decrypted, true)
+	if subtle.ConstantTimeCompare(msgKey, msg.MsgKey) != 1 {
+		return nil, errors.New("wrong message key, can't trust sender")
+	}
 	d = tl.NewDecoderBytes(decrypted)
 	msg.Salt = d.PopLong()
 	msg.SessionID = d.PopLong()
@@ -73,8 +88,15 @@ func DeserializeEncrypted(data, authKey []byte) (*Encrypted, error) {
 	msg.SeqNo = d.PopInt()
 	messageLen := d.PopInt()
 
-	if len(decrypted) < int(messageLen)-(tl.LongLen+tl.LongLen+tl.LongLen+tl.WordLen+tl.WordLen) {
-		return nil, fmt.Errorf("message is smaller than it's defining: have %v, but messageLen is %v", len(decrypted), messageLen)
+	if messageLen < 4 || messageLen%4 != 0 || int64(messageLen) > int64(len(decrypted)-32) {
+		return nil, fmt.Errorf("invalid encrypted message length: %d (payload %d)", messageLen, len(decrypted))
+	}
+	paddingLen := len(decrypted) - 32 - int(messageLen)
+	if paddingLen < 12 || paddingLen > 1024 {
+		return nil, fmt.Errorf("invalid encrypted message padding length: %d", paddingLen)
+	}
+	if msg.SeqNo < 0 {
+		return nil, errors.New("negative message sequence number")
 	}
 
 	mod := msg.MsgID & 3
@@ -82,21 +104,17 @@ func DeserializeEncrypted(data, authKey []byte) (*Encrypted, error) {
 		return nil, fmt.Errorf("wrong bits of message_id: %d", mod)
 	}
 
-	msgKey := ige.MessageKey(authKey, decrypted, true)
-	if !bytes.Equal(msgKey, msg.MsgKey) {
-		return nil, errors.New("wrong message key, can't trust to sender")
-	}
 	msg.Msg = d.PopRawBytes(int(messageLen))
 
-	return msg, nil
+	return msg, d.CheckErr()
 }
 
 func (msg *Encrypted) GetMsg() []byte {
 	return msg.Msg
 }
 
-func (msg *Encrypted) GetMsgID() int {
-	return int(msg.MsgID)
+func (msg *Encrypted) GetMsgID() int64 {
+	return msg.MsgID
 }
 
 func (msg *Encrypted) GetSeqNo() int {
@@ -120,6 +138,9 @@ func (msg *Unencrypted) Serialize(_ MessageInformator) ([]byte, error) {
 }
 
 func DeserializeUnencrypted(data []byte) (*Unencrypted, error) {
+	if len(data) < 24 || binary.LittleEndian.Uint64(data[:8]) != 0 {
+		return nil, errors.New("invalid unencrypted message header")
+	}
 	msg := new(Unencrypted)
 	d := tl.NewDecoderBytes(data)
 	_ = d.PopRawBytes(tl.LongLen) // authKeyHash, always 0 if unencrypted
@@ -132,8 +153,7 @@ func DeserializeUnencrypted(data []byte) (*Unencrypted, error) {
 	}
 
 	messageLen := d.PopUint()
-	if len(data)-(tl.LongLen+tl.LongLen+tl.WordLen) != int(messageLen) {
-		fmt.Println(len(data), int(messageLen), int(messageLen+(tl.LongLen+tl.LongLen+tl.WordLen)))
+	if messageLen < 4 || messageLen%4 != 0 || len(data)-(tl.LongLen+tl.LongLen+tl.WordLen) != int(messageLen) {
 		return nil, fmt.Errorf("message not equal defined size: have %v, want %v", len(data), messageLen)
 	}
 
@@ -150,8 +170,8 @@ func (msg *Unencrypted) GetMsg() []byte {
 	return msg.Msg
 }
 
-func (msg *Unencrypted) GetMsgID() int {
-	return int(msg.MsgID)
+func (msg *Unencrypted) GetMsgID() int64 {
+	return msg.MsgID
 }
 
 func (msg *Unencrypted) GetSeqNo() int {
@@ -167,6 +187,26 @@ type MessageInformator interface {
 	GetSeqNo() int32
 	GetServerSalt() int64
 	GetAuthKey() []byte
+}
+
+type packetInfo struct {
+	key           []byte
+	salt, session int64
+	seq           int32
+}
+
+func (p packetInfo) GetAuthKey() []byte   { return p.key }
+func (p packetInfo) GetSessionID() int64  { return p.session }
+func (p packetInfo) GetServerSalt() int64 { return p.salt }
+func (p packetInfo) GetSeqNo() int32      { return p.seq }
+
+// AuthKeyForPacket permits a client rotating temporary keys to decrypt late
+// replies with the key named in their authenticated envelope.
+func AuthKeyForPacket(client MessageInformator, packet []byte) []byte {
+	if resolver, ok := client.(interface{ GetAuthKeyForHash([]byte) []byte }); ok && len(packet) >= 8 {
+		return resolver.GetAuthKeyForHash(packet[:8])
+	}
+	return client.GetAuthKey()
 }
 
 func serializePacket(client MessageInformator, msg []byte, messageID int64, seqNo int32) []byte {

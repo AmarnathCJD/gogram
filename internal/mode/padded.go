@@ -29,6 +29,9 @@ func (*paddedIntermediate) getModeAnnouncement() []byte {
 }
 
 func (m *paddedIntermediate) WriteMsg(msg []byte) error {
+	if len(msg) < 4 || len(msg) > maxMessageSize-15 {
+		return fmt.Errorf("invalid message size: %d", len(msg))
+	}
 	if len(msg)%tl.WordLen != 0 {
 		return ErrNotMultiple{Len: len(msg)}
 	}
@@ -45,10 +48,10 @@ func (m *paddedIntermediate) WriteMsg(msg []byte) error {
 	header := make([]byte, 4)
 	binary.LittleEndian.PutUint32(header, uint32(total))
 
-	if _, err := m.conn.Write(header); err != nil {
+	if err := writeFrame(m.conn, header); err != nil {
 		return err
 	}
-	if _, err := m.conn.Write(msg); err != nil {
+	if err := writeFrame(m.conn, msg); err != nil {
 		return err
 	}
 	if padLen > 0 {
@@ -56,7 +59,7 @@ func (m *paddedIntermediate) WriteMsg(msg []byte) error {
 		if _, err := rand.Read(padding); err != nil {
 			return err
 		}
-		if _, err := m.conn.Write(padding); err != nil {
+		if err := writeFrame(m.conn, padding); err != nil {
 			return err
 		}
 	}
@@ -75,7 +78,7 @@ func (m *paddedIntermediate) ReadMsg() ([]byte, error) {
 	}
 
 	total := int(binary.LittleEndian.Uint32(lenBuf))
-	if total < 0 || total > 1<<30 {
+	if total < 4 || total > maxMessageSize {
 		return nil, fmt.Errorf("invalid message size: %d", total)
 	}
 
@@ -84,15 +87,19 @@ func (m *paddedIntermediate) ReadMsg() ([]byte, error) {
 		return nil, err
 	}
 
+	// Transport errors contain one signed word followed by up to 15 padding bytes.
+	if len(buf) <= 19 && int32(binary.LittleEndian.Uint32(buf[:4])) < -1 {
+		return buf[:4], nil
+	}
 	if len(buf) >= 24 {
 		authKeyID := binary.LittleEndian.Uint64(buf[:8])
 		if authKeyID == 0 {
 			innerLen := int(binary.LittleEndian.Uint32(buf[16:20]))
 			expected := 20 + innerLen
-			if expected > 0 && expected <= len(buf) {
+			if innerLen >= 4 && innerLen%4 == 0 && innerLen <= len(buf)-20 {
 				buf = buf[:expected]
-			} else if len(buf)%tl.WordLen != 0 {
-				buf = buf[:(len(buf)/tl.WordLen)*tl.WordLen]
+			} else {
+				return nil, fmt.Errorf("invalid unencrypted payload or padding length: inner=%d total=%d", innerLen, len(buf))
 			}
 		} else if len(buf)%16 != 8 {
 			buf = buf[:((len(buf)-8)/16)*16+8]

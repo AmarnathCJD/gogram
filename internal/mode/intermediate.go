@@ -23,10 +23,12 @@ func (*intermediate) getModeAnnouncement() []byte {
 }
 
 func (m *intermediate) WriteMsg(msg []byte) error {
+	if len(msg) < 4 || len(msg) > maxMessageSize || len(msg)%4 != 0 {
+		return fmt.Errorf("invalid message size: %d", len(msg))
+	}
 	size := make([]byte, tl.WordLen)
 	binary.LittleEndian.PutUint32(size, uint32(len(msg)))
-	_, err := m.conn.Write(append(size, msg...))
-	return err
+	return writeFrame(m.conn, append(size, msg...))
 }
 
 func (m *intermediate) ReadMsg() ([]byte, error) {
@@ -40,7 +42,7 @@ func (m *intermediate) ReadMsg() ([]byte, error) {
 	}
 
 	size := binary.LittleEndian.Uint32(sizeBuf)
-	if size > 1<<30 {
+	if size < 4 || size > maxMessageSize || size%4 != 0 {
 		return nil, fmt.Errorf("invalid message size: %d", size)
 	}
 
@@ -51,15 +53,6 @@ func (m *intermediate) ReadMsg() ([]byte, error) {
 	}
 	if n != int(size) {
 		return nil, fmt.Errorf("expected to read %d bytes, got %d", size, n)
-	}
-
-	// Padded Intermediate mode (MTProxy): strip random padding from encrypted messages
-	// Encrypted messages need (len - 24) % 16 == 0 for AES-IGE, so total len % 16 == 8
-	if len(msg) >= 24 {
-		authKeyID := binary.LittleEndian.Uint64(msg[:8])
-		if authKeyID != 0 && len(msg)%16 != 8 {
-			msg = msg[:((len(msg)-8)/16)*16+8]
-		}
 	}
 
 	return msg, nil

@@ -33,6 +33,9 @@ const (
 )
 
 func (m *abridged) WriteMsg(msg []byte) error {
+	if len(msg) < 4 || len(msg) > maxMessageSize {
+		return fmt.Errorf("invalid message size: %d", len(msg))
+	}
 	if len(msg)%4 != 0 {
 		return ErrNotMultiple{Len: len(msg)}
 	}
@@ -47,10 +50,10 @@ func (m *abridged) WriteMsg(msg []byte) error {
 		binary.LittleEndian.PutUint32(bsize, uint32(msgLength)<<8|magicValueSizeMoreThanSingleByte)
 	}
 
-	if _, err := m.conn.Write(bsize); err != nil {
+	if err := writeFrame(m.conn, bsize); err != nil {
 		return err
 	}
-	if _, err := m.conn.Write(msg); err != nil {
+	if err := writeFrame(m.conn, msg); err != nil {
 		return err
 	}
 
@@ -59,7 +62,7 @@ func (m *abridged) WriteMsg(msg []byte) error {
 
 func (m *abridged) ReadMsg() ([]byte, error) {
 	sizeBuf := make([]byte, 4)
-	n, err := m.conn.Read(sizeBuf[:1])
+	n, err := io.ReadFull(m.conn, sizeBuf[:1])
 	if err != nil {
 		return nil, err
 	}
@@ -68,9 +71,12 @@ func (m *abridged) ReadMsg() ([]byte, error) {
 	}
 
 	size := int(sizeBuf[0])
+	if size > 127 {
+		return nil, fmt.Errorf("invalid abridged length prefix: %d", size)
+	}
 
 	if size == magicValueSizeMoreThanSingleByte {
-		n, err := m.conn.Read(sizeBuf[:3])
+		n, err := io.ReadFull(m.conn, sizeBuf[:3])
 		if err != nil {
 			return nil, err
 		}
@@ -82,10 +88,13 @@ func (m *abridged) ReadMsg() ([]byte, error) {
 	}
 
 	size *= tl.WordLen
+	if size < 4 || size > maxMessageSize {
+		return nil, fmt.Errorf("invalid message size: %d", size)
+	}
 
 	msg := make([]byte, size)
 
-	n, err = m.conn.Read(msg)
+	n, err = io.ReadFull(m.conn, msg)
 	if err != nil {
 		return nil, err
 	}

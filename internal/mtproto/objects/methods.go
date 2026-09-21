@@ -3,6 +3,7 @@
 package objects
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -12,7 +13,7 @@ import (
 )
 
 type requester interface {
-	MakeRequest(tl.Object) (any, error)
+	MakeRequest(context.Context, tl.Object, ...reflect.Type) (any, error)
 }
 
 type ReqPQParams struct {
@@ -23,8 +24,8 @@ func (*ReqPQParams) CRC() uint32 {
 	return 0x60469778
 }
 
-func ReqPQ(m requester, nonce *tl.Int128) (*ResPQ, error) {
-	data, err := m.MakeRequest(&ReqPQParams{Nonce: nonce})
+func ReqPQ(ctx context.Context, m requester, nonce *tl.Int128) (*ResPQ, error) {
+	data, err := m.MakeRequest(ctx, &ReqPQParams{Nonce: nonce})
 	if err != nil {
 		return nil, fmt.Errorf("sending ReqPQ: %w", err)
 	}
@@ -56,8 +57,8 @@ func (*ReqPQMultiParams) CRC() uint32 {
 	return 0xbe7e8ef1
 }
 
-func ReqPQMulti(m requester, nonce *tl.Int128) (*ResPQ, error) {
-	data, err := m.MakeRequest(&ReqPQMultiParams{Nonce: nonce})
+func ReqPQMulti(ctx context.Context, m requester, nonce *tl.Int128) (*ResPQ, error) {
+	data, err := m.MakeRequest(ctx, &ReqPQMultiParams{Nonce: nonce})
 	if err != nil {
 		return nil, fmt.Errorf("sending ReqPQMulti: %w", err)
 	}
@@ -84,10 +85,11 @@ func (*ReqDHParamsParams) CRC() uint32 {
 }
 
 func ReqDHParams(
+	ctx context.Context,
 	m requester,
 	nonce, serverNonce *tl.Int128, p, q []byte, publicKeyFingerprint int64, encryptedData []byte,
 ) (ServerDHParams, error) {
-	data, err := m.MakeRequest(&ReqDHParamsParams{
+	data, err := m.MakeRequest(ctx, &ReqDHParamsParams{
 		Nonce:                nonce,
 		ServerNonce:          serverNonce,
 		P:                    p,
@@ -117,8 +119,8 @@ func (*SetClientDHParamsParams) CRC() uint32 {
 	return 0xf5045f1f
 }
 
-func SetClientDHParams(m requester, nonce, serverNonce *tl.Int128, encryptedData []byte) (SetClientDHParamsAnswer, error) {
-	data, err := m.MakeRequest(&SetClientDHParamsParams{
+func SetClientDHParams(ctx context.Context, m requester, nonce, serverNonce *tl.Int128, encryptedData []byte) (SetClientDHParamsAnswer, error) {
+	data, err := m.MakeRequest(ctx, &SetClientDHParamsParams{
 		Nonce:         nonce,
 		ServerNonce:   serverNonce,
 		EncryptedData: encryptedData,

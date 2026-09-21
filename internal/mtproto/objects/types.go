@@ -301,7 +301,7 @@ func (t *MessageContainer) MarshalTL(e *tl.Encoder) error {
 		e.PutLong(msg.MsgID)
 		e.PutInt(msg.SeqNo)
 		//       msgID        seqNo        len                object
-		e.PutInt(tl.LongLen + tl.WordLen + tl.WordLen + int32(len(msg.Msg)))
+		e.PutInt(int32(len(msg.Msg)))
 		e.PutRawBytes(msg.Msg)
 	}
 	return e.CheckErr()
@@ -320,12 +320,18 @@ func (t *MessageContainer) UnmarshalTL(d *tl.Decoder) error {
 		msg.MsgID = d.PopLong()
 		msg.SeqNo = d.PopInt()
 		size := d.PopInt()
+		if size < 4 || size%4 != 0 {
+			return fmt.Errorf("msg_container: invalid message size %d", size)
+		}
 		msg.Msg = d.PopRawBytes(int(size))
+		if err := d.CheckErr(); err != nil {
+			return fmt.Errorf("msg_container item %d: %w", i, err)
+		}
 		arr[i] = msg
 	}
 	*t = arr
 
-	return nil
+	return d.CheckErr()
 }
 
 type Message struct {
@@ -361,7 +367,7 @@ func (t *GzipPacked) UnmarshalTL(d *tl.Decoder) error {
 		return err
 	}
 
-	t.Obj, err = tl.DecodeUnknownObject(obj)
+	t.Obj, err = d.DecodeChild(obj)
 	if err != nil {
 		return fmt.Errorf("parsing gzipped object: %w", err)
 	}
