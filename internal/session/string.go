@@ -3,6 +3,7 @@
 package session
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -31,8 +32,8 @@ type StringSession struct {
 
 func NewStringSession(authKey, authKeyHash []byte, dcID int, ipAddr string, appID int32) *StringSession {
 	return &StringSession{
-		AuthKey:     authKey,
-		AuthKeyHash: authKeyHash,
+		AuthKey:     bytes.Clone(authKey),
+		AuthKeyHash: bytes.Clone(authKeyHash),
 		DcID:        dcID,
 		IpAddr:      ipAddr,
 		AppID:       appID,
@@ -53,14 +54,30 @@ func (s *StringSession) Encode() string {
 }
 
 func (s *StringSession) Decode(encoded string) error {
-	if strings.HasPrefix(encoded, sessionPrefix) {
+	if s == nil || len(encoded) > 8192 {
+		return ErrInvalidSession
+	}
+	var decoded StringSession
+	if err := decoded.decode(encoded); err != nil {
+		return err
+	}
+	credentials := &Session{Key: decoded.AuthKey, Hash: decoded.AuthKeyHash, Hostname: decoded.IpAddr, AppID: decoded.AppID}
+	if decoded.DcID <= 0 || credentials.Validate() != nil {
+		return ErrInvalidSession
+	}
+	*s = decoded
+	return nil
+}
+
+func (s *StringSession) decode(encoded string) error {
+	if after, ok := strings.CutPrefix(encoded, sessionPrefix); ok {
 		// Decode modern json session
-		decoded, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(encoded, sessionPrefix))
+		decoded, err := base64.RawURLEncoding.DecodeString(after)
 		if err != nil {
 			return err
 		}
 
-		err = json.Unmarshal(decoded, &s)
+		err = json.Unmarshal(decoded, s)
 		if err != nil {
 			return err
 		}

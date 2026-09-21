@@ -3,12 +3,17 @@
 package session
 
 import (
+	"bytes"
+	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -16,6 +21,7 @@ import (
 
 	aes "github.com/amarnathcjd/gogram/internal/aes_ige"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
 // defaultAESKey is used when no AuthAESKey is supplied. The session file
@@ -25,6 +31,7 @@ import (
 const defaultAESKey = "1234567890123456"
 
 type genericFileSessionLoader struct {
+	mu         sync.Mutex
 	path       string
 	lastEdited time.Time
 	cached     *Session
@@ -55,6 +62,8 @@ func (l *genericFileSessionLoader) Exists() bool {
 }
 
 func (l *genericFileSessionLoader) Load() (*Session, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	info, err := os.Stat(l.path)
 	switch {
 	case err == nil:
@@ -65,9 +74,12 @@ func (l *genericFileSessionLoader) Load() (*Session, error) {
 	}
 
 	if info.ModTime().Equal(l.lastEdited) && l.cached != nil {
-		return l.cached, nil
+		return cloneSession(l.cached), nil
 	}
 
+	if info.Size() > 64*1024 {
+		return nil, errors.New("session file exceeds 64 KiB")
+	}
 	data, err := os.ReadFile(l.path)
 	if err != nil {
 		return nil, fmt.Errorf("reading file: %w", err)
@@ -92,10 +104,15 @@ func (l *genericFileSessionLoader) Load() (*Session, error) {
 	l.cached = s
 	l.lastEdited = info.ModTime()
 
-	return s, nil
+	return cloneSession(s), nil
 }
 
 func (l *genericFileSessionLoader) Store(s *Session) error {
+	if err := s.Validate(); err != nil {
+		return err
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	dir, _ := filepath.Split(l.path)
 	if dir != "" {
 		if err := os.MkdirAll(dir, 0700); err != nil {
@@ -110,10 +127,17 @@ func (l *genericFileSessionLoader) Store(s *Session) error {
 	if err != nil {
 		return fmt.Errorf("encrypting session: %w", err)
 	}
-	return os.WriteFile(l.path, encrypted, 0600)
+	if err := utils.AtomicWriteFile(l.path, 0600, func(w io.Writer) error { _, err := w.Write(encrypted); return err }); err != nil {
+		return err
+	}
+	l.cached = nil
+	return nil
 }
 
 func (l *genericFileSessionLoader) Delete() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.cached = nil
 	return os.Remove(l.path)
 }
 
@@ -151,6 +175,9 @@ func (t *tokenStorageFormat) readSession() (*Session, error) {
 	}
 	s.Hostname = t.Hostname
 	s.AppID = t.AppID
+	if err := s.Validate(); err != nil {
+		return nil, err
+	}
 	return s, nil
 }
 
@@ -164,6 +191,9 @@ func decodeInt64ToBase64(i string) (int64, error) {
 	buf, err := base64.StdEncoding.DecodeString(i)
 	if err != nil {
 		return 0, err
+	}
+	if len(buf) != tl.LongLen {
+		return 0, fmt.Errorf("invalid salt length: %d", len(buf))
 	}
 	return int64(binary.LittleEndian.Uint64(buf)), nil
 }
@@ -204,19 +234,46 @@ func (l *inMemorySessionLoader) Exists() bool {
 func (l *inMemorySessionLoader) Load() (*Session, error) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
-	return l.s, nil
+	return cloneSession(l.s), nil
 }
 
 func (l *inMemorySessionLoader) Store(s *Session) error {
+	if err := s.Validate(); err != nil {
+		return err
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.s = s
+	l.s = cloneSession(s)
 	return nil
+}
+
+func cloneSession(s *Session) *Session {
+	if s == nil {
+		return nil
+	}
+	copy := *s
+	copy.Key = bytes.Clone(s.Key)
+	copy.Hash = bytes.Clone(s.Hash)
+	return &copy
 }
 
 func (l *inMemorySessionLoader) Delete() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.s = nil
+	return nil
+}
+
+// Validate checks session credentials before they replace a working session.
+func (s *Session) Validate() error {
+	if s == nil || len(s.Key) != 256 || len(s.Hash) != 8 || s.AppID < 0 {
+		return ErrInvalidSession
+	}
+	hash := sha1.Sum(s.Key)
+	host, port, err := net.SplitHostPort(s.Hostname)
+	p, portErr := strconv.ParseUint(port, 10, 16)
+	if !bytes.Equal(s.Hash, hash[12:]) || err != nil || host == "" || portErr != nil || p == 0 {
+		return ErrInvalidSession
+	}
 	return nil
 }
