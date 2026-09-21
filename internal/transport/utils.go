@@ -21,7 +21,14 @@ func (e *ErrNotMultiple) Error() string {
 }
 
 func FormatWebSocketURI(host string, tls bool, dc int, testMode bool) string {
-	isIP := net.ParseIP(strings.Split(host, ":")[0]) != nil
+	if strings.HasPrefix(host, "ws://") || strings.HasPrefix(host, "wss://") {
+		return host
+	}
+	hostOnly := strings.Trim(host, "[]")
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		hostOnly = h
+	}
+	isIP := net.ParseIP(hostOnly) != nil
 
 	if tls {
 		if strings.Contains(host, "web.telegram.org") {
@@ -41,8 +48,7 @@ func FormatWebSocketURI(host string, tls bool, dc int, testMode bool) string {
 	}
 
 	if isIP {
-		hostOnly := strings.Split(host, ":")[0]
-		return fmt.Sprintf("ws://%s:80/apiws", hostOnly)
+		return fmt.Sprintf("ws://%s/apiws", net.JoinHostPort(hostOnly, "80"))
 	}
 
 	if strings.Contains(host, "web.telegram.org") {

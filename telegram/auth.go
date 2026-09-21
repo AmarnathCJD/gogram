@@ -292,7 +292,7 @@ func (c *Client) Login(phoneNumber string, options ...*LoginOptions) (bool, erro
 		switch user := auth.User.(type) {
 		case *UserObj:
 			c.clientData.botAcc = user.Bot
-			go c.Cache.UpdateUser(user)
+			c.Cache.UpdateUser(user)
 			return true, nil
 
 		case *UserEmpty:
@@ -849,14 +849,17 @@ func (q *QrToken) WaitLogin(timeout ...int32) error {
 	}
 
 	q.timeout = getVariadic(timeout, q.timeout)
-	ch := make(chan int)
+	ch := make(chan struct{}, 1)
 	ev := q.client.AddRawHandler(&UpdateLoginToken{}, func(update Update, client *Client) error {
-		ch <- 1
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
 		return nil
 	})
+	defer q.client.RemoveHandle(ev)
 	select {
 	case <-ch:
-		go q.client.removeHandle(ev)
 		resp, err := q.client.AuthExportLoginToken(q.client.AppID(), q.client.AppHash(), q.ignoredIDs)
 		if err != nil {
 			if MatchError(err, "SESSION_PASSWORD_NEEDED") {
@@ -893,7 +896,6 @@ func (q *QrToken) WaitLogin(timeout ...int32) error {
 		}
 		return nil
 	case <-time.After(time.Duration(q.timeout) * time.Second):
-		go q.client.removeHandle(ev)
 		return fmt.Errorf("qr login wait timeout after %d seconds", q.timeout)
 	}
 }

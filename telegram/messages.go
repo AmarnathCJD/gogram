@@ -546,7 +546,7 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 		Message = " "
 	}
 
-	result, err := c.MakeRequestCtx(ctx, &MessagesEditMessageParams{
+	result, err := c.MakeRequest(ctx, &MessagesEditMessageParams{
 		Peer:                 Peer,
 		ID:                   id,
 		Message:              Message,
@@ -630,7 +630,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 			existing[0].TouchLastUsed()
 			sender = existing[0].MTProto
 		} else {
-			senderNew, err := c.CreateExportedSender(int(dcID), false, false)
+			senderNew, err := c.CreateExportedSender(context.Background(), int(dcID), false, false)
 			if err != nil {
 				return nil, err
 			}
@@ -642,7 +642,7 @@ func (c *Client) editBotInlineMessage(ID InputBotInlineMessageID, Message string
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	editTrueAny, err := sender.MakeRequestCtx(ctx, editRequest)
+	editTrueAny, err := sender.MakeRequest(ctx, editRequest)
 	if err != nil {
 		return nil, err
 	}

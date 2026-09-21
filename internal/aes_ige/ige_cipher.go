@@ -7,67 +7,75 @@ import (
 	"crypto/cipher"
 	"crypto/sha256"
 	"fmt"
-
-	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
 type Cipher struct {
-	block   cipher.Block
-	v       [3]AesBlock
-	t, x, y []byte
+	block              cipher.Block
+	previousCiphertext [aes.BlockSize]byte
+	previousPlaintext  [aes.BlockSize]byte
 }
 
-// NewCipher
 func NewCipher(key, iv []byte) (*Cipher, error) {
-	const (
-		firstBlock = iota
-		secondBlock
-		thirdBlock
-	)
-
-	var err error
-
-	c := new(Cipher)
-	c.block, err = aes.NewCipher(key)
+	if len(iv) != 2*aes.BlockSize {
+		return nil, fmt.Errorf("IGE IV must be 32 bytes, got %d", len(iv))
+	}
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, fmt.Errorf("creating new cipher: %w", err)
 	}
-
-	c.t = c.v[firstBlock][:]
-	c.x = c.v[secondBlock][:]
-	c.y = c.v[thirdBlock][:]
-	copy(c.x, iv[:aes.BlockSize])
-	copy(c.y, iv[aes.BlockSize:])
-
+	c := &Cipher{block: block}
+	copy(c.previousCiphertext[:], iv[:aes.BlockSize])
+	copy(c.previousPlaintext[:], iv[aes.BlockSize:])
 	return c, nil
 }
 
+// DoAES256IGEencrypt supports separate buffers or exact in-place operation.
+// A Cipher retains its chaining state and must not be used concurrently.
 func (c *Cipher) DoAES256IGEencrypt(in, out []byte) error {
 	if err := isCorrectData(in); err != nil {
 		return err
 	}
-
+	if len(out) < len(in) {
+		return fmt.Errorf("IGE output is shorter than input")
+	}
+	var plain, block [aes.BlockSize]byte
 	for i := 0; i < len(in); i += aes.BlockSize {
-		utils.Xor(c.x, in[i:i+aes.BlockSize])
-		c.block.Encrypt(c.t, c.x)
-		utils.Xor(c.t, c.y)
-		c.x, c.y = c.t, in[i:i+aes.BlockSize]
-		copy(out[i:], c.t)
+		copy(plain[:], in[i:i+aes.BlockSize])
+		for j := range block {
+			block[j] = plain[j] ^ c.previousCiphertext[j]
+		}
+		c.block.Encrypt(block[:], block[:])
+		for j := range block {
+			block[j] ^= c.previousPlaintext[j]
+		}
+		copy(out[i:], block[:])
+		c.previousCiphertext = block
+		c.previousPlaintext = plain
 	}
 	return nil
 }
 
+// DoAES256IGEdecrypt supports separate buffers or exact in-place operation.
 func (c *Cipher) DoAES256IGEdecrypt(in, out []byte) error {
 	if err := isCorrectData(in); err != nil {
 		return err
 	}
-
+	if len(out) < len(in) {
+		return fmt.Errorf("IGE output is shorter than input")
+	}
+	var encrypted, block [aes.BlockSize]byte
 	for i := 0; i < len(in); i += aes.BlockSize {
-		utils.Xor(c.y, in[i:i+aes.BlockSize])
-		c.block.Decrypt(c.t, c.y)
-		utils.Xor(c.t, c.x)
-		c.y, c.x = c.t, in[i:i+aes.BlockSize]
-		copy(out[i:], c.t)
+		copy(encrypted[:], in[i:i+aes.BlockSize])
+		for j := range block {
+			block[j] = encrypted[j] ^ c.previousPlaintext[j]
+		}
+		c.block.Decrypt(block[:], block[:])
+		for j := range block {
+			block[j] ^= c.previousCiphertext[j]
+		}
+		copy(out[i:], block[:])
+		c.previousCiphertext = encrypted
+		c.previousPlaintext = block
 	}
 	return nil
 }
@@ -107,7 +115,7 @@ func aesKeys(msgKey, authKey []byte, decode bool) (aesKey, aesIv [32]byte) {
 		return v
 	}
 
-	var sha256a, sha256b [256]byte
+	var sha256a, sha256b [sha256.Size]byte
 	// sha256_a = SHA256 (msg_key + substr (auth_key, x, 36));
 	{
 		h := sha256.New()

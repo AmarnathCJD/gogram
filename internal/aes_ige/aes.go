@@ -22,6 +22,9 @@ type AesKV [32]byte
 type AesIgeBlock [48]byte
 
 func MessageKey(authKey, msgPadded []byte, decode bool) []byte {
+	if len(authKey) != 256 {
+		return nil
+	}
 	var x int
 	if decode {
 		x = 8
@@ -51,6 +54,9 @@ func Encrypt(msg, authKey []byte) (out, msgKey []byte, _ error) {
 }
 
 func encrypt(msg, authKey []byte, decode bool) (out, msgKey []byte, _ error) {
+	if len(authKey) != 256 {
+		return nil, nil, ErrKeySize
+	}
 	padding := 16 + (16-(len(msg)%16))&15
 	data := make([]byte, len(msg)+padding)
 	n := copy(data, msg)
@@ -83,6 +89,12 @@ func Decrypt(msg, authKey, checkData []byte) ([]byte, error) {
 }
 
 func decrypt(msg, authKey, msgKey []byte, decode bool) ([]byte, error) {
+	if len(authKey) != 256 {
+		return nil, ErrKeySize
+	}
+	if len(msgKey) != 16 {
+		return nil, ErrMsgKeySize
+	}
 	aesKey, aesIV := aesKeys(msgKey, authKey, decode)
 
 	c, err := NewCipher(aesKey[:], aesIV[:])
@@ -127,10 +139,13 @@ func DecryptMessageWithTempKeys(msg []byte, nonceSecond, nonceServer *big.Int) (
 	}
 
 	// decodedWithHash := SHA1(answer) + answer + (0-15); 16;
+	if len(decodedWithHash) < 20 {
+		return nil, errors.New("encrypted answer is shorter than its hash")
+	}
 	decodedHash := decodedWithHash[:20]
 	decodedMessage := decodedWithHash[20:]
 
-	for i := len(decodedMessage) - 1; i > len(decodedMessage)-16; i-- {
+	for i := len(decodedMessage); i >= max(0, len(decodedMessage)-15); i-- {
 		if bytes.Equal(decodedHash, utils.Sha1Byte(decodedMessage[:i])) {
 			return decodedMessage[:i], nil
 		}
@@ -176,18 +191,23 @@ func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte, err er
 	if nonceServer == nil {
 		return nil, nil, errors.New("nonceServer is nil")
 	}
+	if nonceSecond.Sign() < 0 || nonceSecond.BitLen() > 256 || nonceServer.Sign() < 0 || nonceServer.BitLen() > 128 {
+		return nil, nil, errors.New("nonce does not fit its protocol field")
+	}
+	secondBytes := nonceSecond.FillBytes(make([]byte, 32))
+	serverBytes := nonceServer.FillBytes(make([]byte, 16))
 
 	// nonceSecond + nonceServer
 	t1 := make([]byte, 48)
-	copy(t1[0:], nonceSecond.Bytes())
-	copy(t1[32:], nonceServer.Bytes())
+	copy(t1[0:], secondBytes)
+	copy(t1[32:], serverBytes)
 	// SHA1 of nonceSecond + nonceServer
 	hash1 := utils.Sha1Byte(t1)
 
 	// nonceServer + nonceSecond
 	t2 := make([]byte, 48)
-	copy(t2[0:], nonceServer.Bytes())
-	copy(t2[16:], nonceSecond.Bytes())
+	copy(t2[0:], serverBytes)
+	copy(t2[16:], secondBytes)
 	// SHA1 of nonceServer + nonceSecond
 	hash2 := utils.Sha1Byte(t2)
 
@@ -199,8 +219,8 @@ func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte, err er
 	copy(tmpAESKey[20:], hash2[0:12])
 
 	t3 := make([]byte, 64) // nonceSecond + nonceSecond
-	copy(t3[0:], nonceSecond.Bytes())
-	copy(t3[32:], nonceSecond.Bytes())
+	copy(t3[0:], secondBytes)
+	copy(t3[32:], secondBytes)
 	hash3 := utils.Sha1Byte(t3) // SHA1 of nonceSecond + nonceSecond
 
 	// substr (SHA1(server_nonce + new_nonce), 12, 8) + SHA1(new_nonce + new_nonce) + substr (new_nonce, 0, 4);
@@ -210,7 +230,7 @@ func generateTempKeys(nonceSecond, nonceServer *big.Int) (key, iv []byte, err er
 	// SHA1 of nonceSecond + nonceSecond
 	copy(tmpAESIV[8:], hash3)
 	// substr (nonceSecond, 0, 4)
-	copy(tmpAESIV[28:], nonceSecond.Bytes()[0:4])
+	copy(tmpAESIV[28:], secondBytes[:4])
 
 	return tmpAESKey, tmpAESIV, nil
 }
@@ -300,6 +320,9 @@ func computeSecretChatAesKeyIV(msgKey, key []byte, isOriginator bool) (aesKey, a
 }
 
 func encryptV1(plaintext, authKey []byte, decode bool) (out, msgKey []byte, _ error) {
+	if len(authKey) != 256 {
+		return nil, nil, ErrKeySize
+	}
 	// msg_key = substr (SHA1 (plaintext), 4, 16);
 	sha := sha1.Sum(plaintext)
 	msgKey = make([]byte, 16)

@@ -11,7 +11,8 @@ import (
 )
 
 type Encoder struct {
-	w io.Writer
+	depth int
+	w     io.Writer
 	// this error is last unsuccessful write into w. if this err != nil,
 	// write() method will not write anything more.
 	err error

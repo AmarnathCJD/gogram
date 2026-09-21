@@ -23,22 +23,19 @@ import (
 )
 
 // https://core.telegram.org/mtproto/auth_key
-func (m *MTProto) makeAuthKey() error {
-	return m.makeAuthKeyInternal(0)
-}
-
-func (m *MTProto) makeTempAuthKey(expiresIn int32) error {
-	if expiresIn <= 0 {
-		expiresIn = 24 * 60 * 60
-	}
-	return m.makeAuthKeyInternal(expiresIn)
+func (m *MTProto) makeAuthKey(ctx ...context.Context) error {
+	return m.makeAuthKeyInternal(0, ctx...)
 }
 
 const maxAuthKeyDecryptRetries = 5
 
-func (m *MTProto) makeAuthKeyInternal(expiresIn int32) error {
+func (m *MTProto) makeAuthKeyInternal(expiresIn int32, contexts ...context.Context) error {
+	ctx := context.Background()
+	if len(contexts) > 0 {
+		ctx = contexts[0]
+	}
 	for attempt := 0; ; attempt++ {
-		err := m.makeAuthKeyOnce(expiresIn)
+		err := m.makeAuthKeyOnce(expiresIn, ctx)
 		if err == nil {
 			return nil
 		}
@@ -54,11 +51,23 @@ func (m *MTProto) makeAuthKeyInternal(expiresIn int32) error {
 
 var errAuthKeyDecryptRetry = errors.New("auth key decrypt failed")
 
-func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
-	isTemp := expiresIn > 0
+type handshakeRequester struct {
+	client *MTProto
+	ctx    context.Context
+}
 
-	m.serviceModeActivated = true
-	defer func() { m.serviceModeActivated = false }()
+func (r handshakeRequester) MakeRequest(obj tl.Object) (any, error) {
+	ctx, cancel := context.WithTimeout(r.ctx, r.client.reqTimeout)
+	defer cancel()
+	return r.client.MakeRequestCtx(ctx, obj)
+}
+
+func (m *MTProto) makeAuthKeyOnce(expiresIn int32, ctx context.Context) error {
+	isTemp := expiresIn > 0
+	requester := handshakeRequester{client: m, ctx: ctx}
+
+	m.serviceModeActivated.Store(true)
+	defer m.serviceModeActivated.Store(false)
 
 	// telegram sometimes gvs wrong nonce, idk
 	const maxNonceRetries = 5
@@ -68,11 +77,7 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
 	var err error
 	for {
 		nonceFirst = tl.RandomInt128()
-		if m.cdn {
-			res, err = m.reqPQMulti(nonceFirst)
-		} else {
-			res, err = m.reqPQ(nonceFirst)
-		}
+		res, err = objects.ReqPQMulti(requester, nonceFirst)
 		if err != nil {
 			return fmt.Errorf("reqPQ: %w", err)
 		}
@@ -83,24 +88,26 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
 		if nonceRetries >= maxNonceRetries {
 			return fmt.Errorf("reqPQ: nonce mismatch after %d retries (%v, %v)", maxNonceRetries, nonceFirst, res.Nonce)
 		}
-		time.Sleep(200 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(200 * time.Millisecond):
+		}
 	}
 
-	found := false
-	for _, b := range res.Fingerprints {
-		if m.cdn {
-			for _, key := range m.cdnKeys {
-				if uint64(b) == binary.LittleEndian.Uint64(keys.RSAFingerprint(key)) {
-					found = true
-					m.publicKey = key
-					break
-				}
-			}
-			if found {
-				break
-			}
+	if m.cdn {
+		key, ok := m.HasCdnKey(int32(m.GetDC()))
+		if !ok {
+			return errors.New("reqPQ: no RSA key for CDN DC")
 		}
-		if uint64(b) == binary.LittleEndian.Uint64(keys.RSAFingerprint(m.publicKey)) {
+		m.publicKey = key
+	}
+	if m.publicKey == nil || m.publicKey.N == nil || m.publicKey.N.BitLen() != 2048 || m.publicKey.E < 3 {
+		return errors.New("reqPQ: invalid RSA public key")
+	}
+	found := false
+	for _, fingerprint := range res.Fingerprints {
+		if uint64(fingerprint) == binary.LittleEndian.Uint64(keys.RSAFingerprint(m.publicKey)) {
 			found = true
 			break
 		}
@@ -110,9 +117,12 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
 	}
 
 	pq := big.NewInt(0).SetBytes(res.Pq)
+	if pq.Sign() <= 0 || pq.BitLen() > 64 || pq.ProbablyPrime(16) {
+		return errors.New("reqPQ: expected a composite integer of at most 64 bits")
+	}
 	p, q := math.Factorize(pq)
-	if p == nil || q == nil {
-		p, q = math.SplitPQ(pq)
+	if p == nil || q == nil || p.Cmp(big.NewInt(1)) <= 0 || q.Cmp(big.NewInt(1)) <= 0 || !p.ProbablyPrime(16) || !q.ProbablyPrime(16) || new(big.Int).Mul(p, q).Cmp(pq) != 0 {
+		return errors.New("reqPQ: invalid prime factorization")
 	}
 	nonceSecond := tl.RandomInt256()
 	nonceServer := res.ServerNonce
@@ -127,10 +137,10 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
 			Nonce:       nonceFirst,
 			ServerNonce: nonceServer,
 			NewNonce:    nonceSecond,
-			Dc:          int32(m.GetDC()),
+			Dc:          m.handshakeDC(),
 			ExpiresIn:   expiresIn,
 		})
-	case m.cdn:
+	default:
 		message, err = tl.Marshal(&objects.PQInnerDataDc{
 			Pq:          res.Pq,
 			P:           p.Bytes(),
@@ -138,16 +148,7 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
 			Nonce:       nonceFirst,
 			ServerNonce: nonceServer,
 			NewNonce:    nonceSecond,
-			Dc:          int32(m.GetDC()),
-		})
-	default:
-		message, err = tl.Marshal(&objects.PQInnerData{
-			Pq:          res.Pq,
-			P:           p.Bytes(),
-			Q:           q.Bytes(),
-			Nonce:       nonceFirst,
-			ServerNonce: nonceServer,
-			NewNonce:    nonceSecond,
+			Dc:          m.handshakeDC(),
 		})
 	}
 	if err != nil {
@@ -155,20 +156,13 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
 		return err
 	}
 
-	var encryptedMessage []byte
-	if m.cdn || isTemp {
-		encryptedMessage, err = math.DoRSAPad(message, m.publicKey)
-	} else {
-		hashAndMsg := make([]byte, 255)
-		copy(hashAndMsg, append(utils.Sha1(string(message)), message...))
-		encryptedMessage, err = math.DoRSAencrypt(hashAndMsg, m.publicKey)
-	}
+	encryptedMessage, err := math.DoRSAPad(message, m.publicKey)
 	if err != nil {
 		return fmt.Errorf("rsa encrypt: %w", err)
 	}
 
 	keyFingerprint := int64(binary.LittleEndian.Uint64(keys.RSAFingerprint(m.publicKey)))
-	dhResponse, err := m.reqDHParams(nonceFirst, nonceServer, p.Bytes(), q.Bytes(), keyFingerprint, encryptedMessage)
+	dhResponse, err := objects.ReqDHParams(requester, nonceFirst, nonceServer, p.Bytes(), q.Bytes(), keyFingerprint, encryptedMessage)
 	if err != nil {
 		return fmt.Errorf("reqDHParams: %w", err)
 	}
@@ -223,10 +217,7 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
 			return fmt.Errorf("dh params: %w", err)
 		}
 
-		authKey = gAB.Bytes()
-		if authKey[0] == 0 {
-			authKey = authKey[1:]
-		}
+		authKey = gAB.FillBytes(make([]byte, 256))
 
 		t4 := make([]byte, 32+1+8)
 		copy(t4[0:], nonceSecond.Bytes())
@@ -254,7 +245,7 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
 			return errors.New("dh: " + err.Error())
 		}
 
-		dhGenStatus, err := m.setClientDHParams(nonceFirst, nonceServer, encryptedMessage)
+		dhGenStatus, err := objects.SetClientDHParams(requester, nonceFirst, nonceServer, encryptedMessage)
 		if err != nil {
 			return errors.New("dh: " + err.Error())
 		}
@@ -279,11 +270,22 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
 			if nonceFirst.Cmp(dhg.Nonce.Int) != 0 || nonceServer.Cmp(dhg.ServerNonce.Int) != 0 {
 				return fmt.Errorf("dh_gen_retry: nonce mismatch")
 			}
+			t4[32] = 2
+			if !bytes.Equal(utils.Sha1Byte(t4)[4:20], dhg.NewNonceHash2.Bytes()) {
+				return errors.New("dh_gen_retry: new_nonce_hash2 mismatch")
+			}
 			authKeyAuxHash := utils.Sha1Byte(authKey)[:8]
 			retryID = int64(binary.LittleEndian.Uint64(authKeyAuxHash))
 			m.Logger.Debug("dh_gen_retry: regenerating g_b (attempt %d/%d)", attempt+2, maxDHGenAttempts)
 			continue
 		case *objects.DHGenFail:
+			if nonceFirst.Cmp(dhg.Nonce.Int) != 0 || nonceServer.Cmp(dhg.ServerNonce.Int) != 0 {
+				return errors.New("dh_gen_fail: nonce mismatch")
+			}
+			t4[32] = 3
+			if !bytes.Equal(utils.Sha1Byte(t4)[4:20], dhg.NewNonceHash3.Bytes()) {
+				return errors.New("dh_gen_fail: new_nonce_hash3 mismatch")
+			}
 			return fmt.Errorf("dh_gen_fail: server rejected auth key generation")
 		default:
 			return fmt.Errorf("dh_gen: unexpected response %T", dhGenStatus)
@@ -294,9 +296,12 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32) error {
 dhGenSuccess:
 
 	if isTemp {
+		m.authMu.Lock()
 		m.tempAuthKey = authKey
 		m.tempAuthKeyHash = utils.AuthKeyHash(authKey)
 		m.tempAuthExpiresAt = time.Now().Unix() + int64(expiresIn)
+		m.tempServerSalt = newSalt
+		m.authMu.Unlock()
 		m.serverSalt.Store(newSalt)
 	} else {
 		m.SetAuthKey(authKey)
@@ -311,7 +316,7 @@ dhGenSuccess:
 }
 
 // createTempAuthKey performs the temporary auth key handshake
-func (m *MTProto) createTempAuthKey(expiresIn int32) error {
+func (m *MTProto) createTempAuthKey(parent context.Context, expiresIn int32) error {
 	cfg := Config{
 		AuthKeyFile:    "__pfs__temp",
 		AuthAESKey:     "",
@@ -322,6 +327,8 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 		ServerHost:     m.GetAddr(),
 		PublicKey:      m.publicKey,
 		DataCenter:     m.GetDC(),
+		TestMode:       m.testMode,
+		MediaDC:        m.mediaDC,
 		Logger:         m.Logger.Clone().WithPrefix("gogram [mtp-pfs]"),
 		Proxy:          m.proxy,
 		Mode:           "Abridged",
@@ -340,7 +347,8 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 	}
 	defer tmp.Terminate() // Ensure cleanup in all cases
 
-	ctx, cancel := context.WithCancel(context.Background())
+	tmp.mode = m.mode
+	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 
 	if err := tmp.connect(ctx); err != nil {
@@ -349,125 +357,103 @@ func (m *MTProto) createTempAuthKey(expiresIn int32) error {
 	tmp.tcpState.SetActive(true)
 	tmp.startReadingResponses(ctx)
 
-	if err := tmp.makeTempAuthKey(expiresIn); err != nil {
+	if err := tmp.makeAuthKeyInternal(expiresIn, ctx); err != nil {
 		return fmt.Errorf("createTempAuthKey: makeTempAuthKey on temp connection: %w", err)
 	}
 
-	m.pendingTempAuthKey = tmp.tempAuthKey
-	m.pendingTempKeyHash = tmp.tempAuthKeyHash
-	m.tempAuthExpiresAt = tmp.tempAuthExpiresAt
-	m.serverSalt.Store(tmp.serverSalt.Load())
+	m.authMu.Lock()
+	tmp.authMu.RLock()
+	m.pendingTempAuthKey = bytes.Clone(tmp.tempAuthKey)
+	m.pendingTempKeyHash = bytes.Clone(tmp.tempAuthKeyHash)
+	m.pendingTempExpiresAt = tmp.tempAuthExpiresAt
+	m.pendingTempSalt = tmp.tempServerSalt
+	tmp.authMu.RUnlock()
+	m.authMu.Unlock()
 
 	m.Logger.Debug("temporary auth key created successfully")
 	return nil
 }
 
 // bindTempAuthKey binds the temporary auth key to the permanent auth key using auth.bindTempAuthKey.
-func (m *MTProto) bindTempAuthKey(ctx context.Context) error {
-	newTempKey := m.pendingTempAuthKey
-	if newTempKey == nil {
-		newTempKey = m.tempAuthKey
+func (m *MTProto) bindTempAuthKey(parent context.Context) error {
+	ctx, cancel := context.WithTimeout(parent, m.reqTimeout)
+	defer cancel()
+	m.authMu.RLock()
+	newKey := bytes.Clone(m.pendingTempAuthKey)
+	permKey := bytes.Clone(m.authKey)
+	expiresAt := m.pendingTempExpiresAt
+	m.authMu.RUnlock()
+	if len(newKey) != 256 || len(permKey) != 256 {
+		return errors.New("bindTempAuthKey: missing authorization key")
 	}
-	if newTempKey == nil {
-		return errors.New("bindTempAuthKey: tempAuthKey is nil")
+	if expiresAt <= time.Now().Unix() {
+		return errors.New("bindTempAuthKey: temporary key expired")
 	}
-	if len(m.authKey) == 0 {
-		return errors.New("bindTempAuthKey: permanent authKey is nil")
-	}
-
-	permKeyHash := utils.AuthKeyHash(m.authKey)
-	permAuthKeyID := int64(binary.LittleEndian.Uint64(permKeyHash))
-
-	tempKeyHash := utils.AuthKeyHash(newTempKey)
-	tempAuthKeyID := int64(binary.LittleEndian.Uint64(tempKeyHash))
-
-	// Use current session ID as temp_session_id for the binding.
-	tempSessionID := m.sessionId.Load()
-
-	expiresAt := int32(m.tempAuthExpiresAt)
-	if expiresAt == 0 {
-		expiresAt = int32(time.Now().Unix() + 24*60*60)
-	}
-
+	permHash := utils.AuthKeyHash(permKey)
+	tempHash := utils.AuthKeyHash(newKey)
+	permID := int64(binary.LittleEndian.Uint64(permHash))
 	nonce := utils.GenerateSessionID()
-	msgID := m.genMsgID(m.timeOffset.Load())
 
-	inner := &objects.BindAuthKeyInner{
-		Nonce:         nonce,
-		TempAuthKeyID: tempAuthKeyID,
-		PermAuthKeyID: permAuthKeyID,
-		TempSessionID: tempSessionID,
-		ExpiresAt:     expiresAt,
+	// The inner and outer request must use the same message ID. Reserve and
+	// write it under the ordinary send lock, without holding that lock while
+	// waiting for the response.
+	send := func() (chan tl.Object, int64, error) {
+		if err := m.writeMu.LockContext(ctx); err != nil {
+			return nil, 0, err
+		}
+		defer m.writeMu.Unlock()
+		msgID := m.genMsgID(m.timeOffset.Load())
+		inner := &objects.BindAuthKeyInner{Nonce: nonce, TempAuthKeyID: int64(binary.LittleEndian.Uint64(tempHash)), PermAuthKeyID: permID, TempSessionID: m.GetSessionID(), ExpiresAt: int32(expiresAt)}
+		body, err := tl.Marshal(inner)
+		if err != nil {
+			return nil, 0, err
+		}
+		plaintext := utils.RandomBytes(16)
+		plaintext = binary.LittleEndian.AppendUint64(plaintext, uint64(msgID))
+		plaintext = binary.LittleEndian.AppendUint32(plaintext, 0)
+		plaintext = binary.LittleEndian.AppendUint32(plaintext, uint32(len(body)))
+		plaintext = append(plaintext, body...)
+		encrypted, msgKey, err := ige.EncryptV1(plaintext, permKey)
+		if err != nil {
+			return nil, 0, err
+		}
+		payload := append(append(bytes.Clone(permHash), msgKey...), encrypted...)
+		params := &objects.AuthBindTempAuthKeyParams{PermAuthKeyID: permID, Nonce: nonce, ExpiresAt: int32(expiresAt), EncryptedMessage: payload}
+		return m.sendPacketLocked(ctx, params, msgID)
 	}
-
-	innerBytes, err := tl.Marshal(inner)
+	ch, id, err := send()
 	if err != nil {
-		return fmt.Errorf("marshal BindAuthKeyInner: %w", err)
-	}
-
-	// Build MTProto v1 plaintext: random:int128 + msg_id + seqno(0) + msg_len + inner.
-	random128 := utils.RandomBytes(16)
-	plaintext := make([]byte, 0, 16+8+4+4+len(innerBytes))
-	plaintext = append(plaintext, random128...)
-
-	buf8 := make([]byte, 8)
-	binary.LittleEndian.PutUint64(buf8, uint64(msgID))
-	plaintext = append(plaintext, buf8...)
-
-	buf4 := make([]byte, 4)
-	binary.LittleEndian.PutUint32(buf4, 0) // seqno = 0
-	plaintext = append(plaintext, buf4...)
-
-	binary.LittleEndian.PutUint32(buf4, uint32(len(innerBytes)))
-	plaintext = append(plaintext, buf4...)
-	plaintext = append(plaintext, innerBytes...)
-
-	// Encrypt binding message with permanent auth key using MTProto 1.0 helpers.
-	cipher, msgKey, err := ige.EncryptV1(plaintext, m.authKey)
-	if err != nil {
-		return fmt.Errorf("encrypt BindAuthKeyInner: %w", err)
-	}
-
-	encryptedMessage := make([]byte, 0, len(permKeyHash)+len(msgKey)+len(cipher))
-	encryptedMessage = append(encryptedMessage, permKeyHash...)
-	encryptedMessage = append(encryptedMessage, msgKey...)
-	encryptedMessage = append(encryptedMessage, cipher...)
-
-	params := &objects.AuthBindTempAuthKeyParams{
-		PermAuthKeyID:    permAuthKeyID,
-		Nonce:            nonce,
-		ExpiresAt:        expiresAt,
-		EncryptedMessage: encryptedMessage,
-	}
-
-	prevTempKey := m.tempAuthKey
-	prevTempHash := m.tempAuthKeyHash
-	m.tempAuthKey = newTempKey
-	m.tempAuthKeyHash = tempKeyHash
-
-	respCh, _, err := m.sendPacketWithMsgID(params, msgID)
-	if err != nil {
-		m.tempAuthKey = prevTempKey
-		m.tempAuthKeyHash = prevTempHash
 		return fmt.Errorf("auth.bindTempAuthKey: %w", err)
 	}
-
+	defer m.responseChannels.Delete(id)
+	defer m.expectedTypes.Delete(id)
 	var response tl.Object
 	select {
-	case response = <-respCh:
+	case response = <-ch:
 	case <-ctx.Done():
-		m.responseChannels.Delete(int(msgID))
-		m.expectedTypes.Delete(int(msgID))
-		m.tempAuthKey = prevTempKey
-		m.tempAuthKeyHash = prevTempHash
 		return ctx.Err()
 	}
 	if rpcErr, ok := response.(*objects.RpcError); ok {
-		m.tempAuthKey = prevTempKey
-		m.tempAuthKeyHash = prevTempHash
 		return fmt.Errorf("auth.bindTempAuthKey: %w", RpcErrorToNative(rpcErr))
 	}
+	native := tl.UnwrapNativeTypes(response)
+	success, ok := native.(bool)
+	if !ok || !success {
+		return fmt.Errorf("auth.bindTempAuthKey: unexpected response %T", native)
+	}
+	m.authMu.Lock()
+	defer m.authMu.Unlock()
+	if !bytes.Equal(permKey, m.authKey) || !bytes.Equal(newKey, m.pendingTempAuthKey) {
+		return errors.New("authorization changed during temporary key binding")
+	}
+	m.previousTempAuthKey, m.previousTempKeyHash = m.tempAuthKey, m.tempAuthKeyHash
+	m.previousTempSalt = m.tempServerSalt
+	m.tempAuthKey, m.tempAuthKeyHash = m.pendingTempAuthKey, m.pendingTempKeyHash
+	m.tempServerSalt = m.pendingTempSalt
+	m.tempAuthExpiresAt = m.pendingTempExpiresAt
 	m.pendingTempAuthKey = nil
 	m.pendingTempKeyHash = nil
+	m.pendingTempExpiresAt = 0
+	m.pendingTempSalt = 0
 	return nil
 }

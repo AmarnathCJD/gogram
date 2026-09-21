@@ -7,38 +7,46 @@ import (
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
-type SyncIntObjectChan struct {
+type SyncInt64ObjectChan struct {
 	mu sync.RWMutex
-	m  map[int]chan tl.Object
+	m  map[int64]chan tl.Object
 }
 
-func NewSyncIntObjectChan() *SyncIntObjectChan {
-	return &SyncIntObjectChan{
-		m: make(map[int]chan tl.Object),
+func NewSyncInt64ObjectChan() *SyncInt64ObjectChan {
+	return &SyncInt64ObjectChan{
+		m: make(map[int64]chan tl.Object),
 	}
 }
 
-func (s *SyncIntObjectChan) Add(key int, value chan tl.Object) {
+func (s *SyncInt64ObjectChan) Add(key int64, value chan tl.Object) {
 	s.mu.Lock()
 	s.m[key] = value
 	s.mu.Unlock()
 }
 
-func (s *SyncIntObjectChan) Get(key int) (chan tl.Object, bool) {
+func (s *SyncInt64ObjectChan) Get(key int64) (chan tl.Object, bool) {
 	s.mu.RLock()
 	v, ok := s.m[key]
 	s.mu.RUnlock()
 	return v, ok
 }
 
-func (s *SyncIntObjectChan) Has(key int) bool {
+func (s *SyncInt64ObjectChan) Pop(key int64) (chan tl.Object, bool) {
+	s.mu.Lock()
+	v, ok := s.m[key]
+	delete(s.m, key)
+	s.mu.Unlock()
+	return v, ok
+}
+
+func (s *SyncInt64ObjectChan) Has(key int64) bool {
 	s.mu.RLock()
 	_, ok := s.m[key]
 	s.mu.RUnlock()
 	return ok
 }
 
-func (s *SyncIntObjectChan) Delete(key int) bool {
+func (s *SyncInt64ObjectChan) Delete(key int64) bool {
 	s.mu.Lock()
 	_, ok := s.m[key]
 	delete(s.m, key)
@@ -46,9 +54,9 @@ func (s *SyncIntObjectChan) Delete(key int) bool {
 	return ok
 }
 
-func (s *SyncIntObjectChan) Keys() []int {
+func (s *SyncInt64ObjectChan) Keys() []int64 {
 	s.mu.RLock()
-	keys := make([]int, 0, len(s.m))
+	keys := make([]int64, 0, len(s.m))
 	for k := range s.m {
 		keys = append(keys, k)
 	}
@@ -56,53 +64,53 @@ func (s *SyncIntObjectChan) Keys() []int {
 	return keys
 }
 
-func (s *SyncIntObjectChan) SwapAndClear() map[int]chan tl.Object {
+func (s *SyncInt64ObjectChan) SwapAndClear() map[int64]chan tl.Object {
 	s.mu.Lock()
 	old := s.m
-	s.m = make(map[int]chan tl.Object)
+	s.m = make(map[int64]chan tl.Object)
 	s.mu.Unlock()
 	return old
 }
 
-func (s *SyncIntObjectChan) Close() {
+func (s *SyncInt64ObjectChan) Close() {
 	old := s.SwapAndClear()
 	for _, ch := range old {
 		closeChanNoPanic(ch)
 	}
 }
 
-type SyncIntReflectTypes struct {
+type SyncInt64ReflectTypes struct {
 	mu sync.RWMutex
-	m  map[int][]reflect.Type
+	m  map[int64][]reflect.Type
 }
 
-func NewSyncIntReflectTypes() *SyncIntReflectTypes {
-	return &SyncIntReflectTypes{
-		m: make(map[int][]reflect.Type),
+func NewSyncInt64ReflectTypes() *SyncInt64ReflectTypes {
+	return &SyncInt64ReflectTypes{
+		m: make(map[int64][]reflect.Type),
 	}
 }
 
-func (s *SyncIntReflectTypes) Add(key int, value []reflect.Type) {
+func (s *SyncInt64ReflectTypes) Add(key int64, value []reflect.Type) {
 	s.mu.Lock()
 	s.m[key] = value
 	s.mu.Unlock()
 }
 
-func (s *SyncIntReflectTypes) Get(key int) ([]reflect.Type, bool) {
+func (s *SyncInt64ReflectTypes) Get(key int64) ([]reflect.Type, bool) {
 	s.mu.RLock()
 	v, ok := s.m[key]
 	s.mu.RUnlock()
 	return v, ok
 }
 
-func (s *SyncIntReflectTypes) Has(key int) bool {
+func (s *SyncInt64ReflectTypes) Has(key int64) bool {
 	s.mu.RLock()
 	_, ok := s.m[key]
 	s.mu.RUnlock()
 	return ok
 }
 
-func (s *SyncIntReflectTypes) Delete(key int) bool {
+func (s *SyncInt64ReflectTypes) Delete(key int64) bool {
 	s.mu.Lock()
 	_, ok := s.m[key]
 	delete(s.m, key)
@@ -110,9 +118,9 @@ func (s *SyncIntReflectTypes) Delete(key int) bool {
 	return ok
 }
 
-func (s *SyncIntReflectTypes) Keys() []int {
+func (s *SyncInt64ReflectTypes) Keys() []int64 {
 	s.mu.RLock()
-	keys := make([]int, 0, len(s.m))
+	keys := make([]int64, 0, len(s.m))
 	for k := range s.m {
 		keys = append(keys, k)
 	}
@@ -120,10 +128,10 @@ func (s *SyncIntReflectTypes) Keys() []int {
 	return keys
 }
 
-func (s *SyncIntReflectTypes) SwapAndClear() map[int][]reflect.Type {
+func (s *SyncInt64ReflectTypes) SwapAndClear() map[int64][]reflect.Type {
 	s.mu.Lock()
 	old := s.m
-	s.m = make(map[int][]reflect.Type)
+	s.m = make(map[int64][]reflect.Type)
 	s.mu.Unlock()
 	return old
 }
@@ -133,32 +141,32 @@ func closeChanNoPanic(c chan tl.Object) {
 	close(c)
 }
 
-// SyncIntInt64 is a thread-safe map for int -> int64 (e.g., msgID -> timestamp)
-type SyncIntInt64 struct {
+// SyncInt64Int64 is a thread-safe map for int64 -> int64 (e.g., msgID -> timestamp)
+type SyncInt64Int64 struct {
 	mu sync.RWMutex
-	m  map[int]int64
+	m  map[int64]int64
 }
 
-func NewSyncIntInt64() *SyncIntInt64 {
-	return &SyncIntInt64{
-		m: make(map[int]int64),
+func NewSyncInt64Int64() *SyncInt64Int64 {
+	return &SyncInt64Int64{
+		m: make(map[int64]int64),
 	}
 }
 
-func (s *SyncIntInt64) Add(key int, value int64) {
+func (s *SyncInt64Int64) Add(key int64, value int64) {
 	s.mu.Lock()
 	s.m[key] = value
 	s.mu.Unlock()
 }
 
-func (s *SyncIntInt64) Get(key int) (int64, bool) {
+func (s *SyncInt64Int64) Get(key int64) (int64, bool) {
 	s.mu.RLock()
 	v, ok := s.m[key]
 	s.mu.RUnlock()
 	return v, ok
 }
 
-func (s *SyncIntInt64) Delete(key int) bool {
+func (s *SyncInt64Int64) Delete(key int64) bool {
 	s.mu.Lock()
 	_, ok := s.m[key]
 	delete(s.m, key)
@@ -166,15 +174,15 @@ func (s *SyncIntInt64) Delete(key int) bool {
 	return ok
 }
 
-func (s *SyncIntInt64) Len() int {
+func (s *SyncInt64Int64) Len() int {
 	s.mu.RLock()
 	l := len(s.m)
 	s.mu.RUnlock()
 	return l
 }
 
-func (s *SyncIntInt64) Clear() {
+func (s *SyncInt64Int64) Clear() {
 	s.mu.Lock()
-	s.m = make(map[int]int64)
+	s.m = make(map[int64]int64)
 	s.mu.Unlock()
 }

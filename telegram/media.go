@@ -8,6 +8,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -23,8 +25,8 @@ import (
 
 	"errors"
 
-	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
 const (
@@ -48,26 +50,45 @@ type UploadOptions struct {
 
 type WorkerPool struct {
 	sync.Mutex
-	workers []*ExSender
-	free    chan *ExSender
+	workers   []*ExSender
+	free      chan *ExSender
+	closed    chan struct{}
+	closeOnce sync.Once
+	// owned is set only for private transfer connections, never cached senders.
+	owned bool
 }
 
 func NewWorkerPool(size int) *WorkerPool {
+	if size < 0 {
+		size = 0
+	}
 	return &WorkerPool{
 		workers: make([]*ExSender, 0, size),
 		free:    make(chan *ExSender, size),
+		closed:  make(chan struct{}),
 	}
 }
 
 func (wp *WorkerPool) AddWorker(s *ExSender) {
+	if s == nil {
+		return
+	}
 	wp.Lock()
+	select {
+	case <-wp.closed:
+		wp.Unlock()
+		if wp.owned && s.MTProto != nil {
+			_ = s.Terminate()
+		}
+		return
+	default:
+	}
 	wp.workers = append(wp.workers, s)
-	wp.Unlock()
-
 	select {
 	case wp.free <- s:
 	default:
 	}
+	wp.Unlock()
 }
 
 func (wp *WorkerPool) Next() *ExSender {
@@ -75,10 +96,21 @@ func (wp *WorkerPool) Next() *ExSender {
 }
 
 func (wp *WorkerPool) NextWithContext(ctx context.Context) *ExSender {
+	if ctx.Err() != nil {
+		return nil
+	}
 	select {
 	case next := <-wp.free:
+		select {
+		case <-wp.closed:
+			return nil
+		default:
+		}
+		if next == nil || next.MTProto == nil {
+			return nil
+		}
 		if !next.MTProto.IsTcpActive() {
-			_ = next.Reconnect(false)
+			_ = next.Reconnect(ctx, false)
 		}
 
 		next.lastUsedMu.Lock()
@@ -86,6 +118,8 @@ func (wp *WorkerPool) NextWithContext(ctx context.Context) *ExSender {
 		next.lastUsedMu.Unlock()
 		return next
 	case <-ctx.Done():
+		return nil
+	case <-wp.closed:
 		return nil
 	}
 }
@@ -99,6 +133,8 @@ func (wp *WorkerPool) WaitReady(ctx context.Context) bool {
 			return true
 		}
 		select {
+		case <-wp.closed:
+			return false
 		case <-ctx.Done():
 			return false
 		case <-time.After(50 * time.Millisecond):
@@ -107,6 +143,13 @@ func (wp *WorkerPool) WaitReady(ctx context.Context) bool {
 }
 
 func (wp *WorkerPool) FreeWorker(s *ExSender) {
+	wp.Lock()
+	defer wp.Unlock()
+	select {
+	case <-wp.closed:
+		return
+	default:
+	}
 	select {
 	case wp.free <- s:
 	default:
@@ -114,18 +157,23 @@ func (wp *WorkerPool) FreeWorker(s *ExSender) {
 }
 
 func (wp *WorkerPool) Close() {
-	wp.Lock()
-	defer wp.Unlock()
-
-	// Drain the free channel
-	for {
-		select {
-		case <-wp.free:
-		default:
-			wp.workers = nil
-			return
+	wp.closeOnce.Do(func() {
+		wp.Lock()
+		close(wp.closed)
+		workers := wp.workers
+		wp.workers = nil
+		for len(wp.free) > 0 {
+			<-wp.free
 		}
-	}
+		wp.Unlock()
+		if wp.owned {
+			for _, sender := range workers {
+				if sender != nil && sender.MTProto != nil {
+					_ = sender.Terminate()
+				}
+			}
+		}
+	})
 }
 
 // ReaderAtSource wraps an io.ReaderAt with a known size for parallel uploads.
@@ -146,6 +194,9 @@ type Source struct {
 }
 
 func (s *Source) GetSizeAndName() (int64, string) {
+	if s == nil || isNilSource(s.Source) {
+		return 0, ""
+	}
 	switch src := s.Source.(type) {
 	case string:
 		file, err := os.Open(src)
@@ -153,10 +204,19 @@ func (s *Source) GetSizeAndName() (int64, string) {
 			return 0, ""
 		}
 		defer file.Close()
-		stat, _ := file.Stat()
+		stat, err := file.Stat()
+		if err != nil {
+			return 0, file.Name()
+		}
 		return stat.Size(), file.Name()
 	case *os.File:
-		stat, _ := src.Stat()
+		if src == nil {
+			return 0, ""
+		}
+		stat, err := src.Stat()
+		if err != nil {
+			return 0, src.Name()
+		}
 		return stat.Size(), src.Name()
 	case []byte:
 		return int64(len(src)), ""
@@ -182,6 +242,9 @@ func (s *Source) GetSizeAndName() (int64, string) {
 }
 
 func (s *Source) GetName() string {
+	if s == nil || isNilSource(s.Source) {
+		return ""
+	}
 	switch src := s.Source.(type) {
 	case string:
 		file, err := os.Open(src)
@@ -201,8 +264,14 @@ func (s *Source) GetName() string {
 }
 
 func (s *Source) GetReader() io.Reader {
+	if s == nil || isNilSource(s.Source) {
+		return nil
+	}
 	switch src := s.Source.(type) {
 	case string:
+		if file, ok := s.closer.(*os.File); ok {
+			return file
+		}
 		file, err := os.Open(src)
 		if err != nil {
 			return nil
@@ -224,9 +293,15 @@ func (s *Source) GetReader() io.Reader {
 		}
 		return bytes.NewReader(src.Bytes())
 	case ReaderAtSource:
-		return &readerAtToReader{r: src.Reader, off: 0}
+		if isNilSource(src.Reader) || src.Size < 0 {
+			return nil
+		}
+		return io.NewSectionReader(src.Reader, 0, src.Size)
 	case *ReaderAtSource:
-		return &readerAtToReader{r: src.Reader, off: 0}
+		if src == nil || isNilSource(src.Reader) || src.Size < 0 {
+			return nil
+		}
+		return io.NewSectionReader(src.Reader, 0, src.Size)
 	case io.ReadSeeker:
 		if closer, ok := src.(io.Closer); ok {
 			s.closer = closer
@@ -244,8 +319,14 @@ func (s *Source) GetReader() io.Reader {
 }
 
 func (s *Source) GetReaderAt() (io.ReaderAt, bool) {
+	if s == nil || isNilSource(s.Source) {
+		return nil, false
+	}
 	switch src := s.Source.(type) {
 	case string:
+		if file, ok := s.closer.(*os.File); ok {
+			return file, true
+		}
 		file, err := os.Open(src)
 		if err != nil {
 			return nil, false
@@ -259,29 +340,30 @@ func (s *Source) GetReaderAt() (io.ReaderAt, bool) {
 	case *bytes.Reader:
 		return src, true
 	case ReaderAtSource:
-		return src.Reader, true
+		if isNilSource(src.Reader) || src.Size < 0 {
+			return nil, false
+		}
+		return io.NewSectionReader(src.Reader, 0, src.Size), true
 	case *ReaderAtSource:
-		return src.Reader, true
+		if isNilSource(src.Reader) || src.Size < 0 {
+			return nil, false
+		}
+		return io.NewSectionReader(src.Reader, 0, src.Size), true
 	}
 	return nil, false
 }
 
 func (s *Source) Close() error {
-	if s.closer != nil {
-		return s.closer.Close()
+	if s != nil && s.closer != nil {
+		closer := s.closer
+		s.closer = nil
+		return closer.Close()
 	}
 	return nil
 }
 
-type readerAtToReader struct {
-	r   io.ReaderAt
-	off int64
-}
-
-func (r *readerAtToReader) Read(p []byte) (n int, err error) {
-	n, err = r.r.ReadAt(p, r.off)
-	r.off += int64(n)
-	return
+func isNilSource(src any) bool {
+	return src == nil || (reflect.ValueOf(src).Kind() == reflect.Pointer && reflect.ValueOf(src).IsNil())
 }
 
 func downloadRetryDelay(attempt int) time.Duration {
@@ -302,11 +384,9 @@ type uploadPart struct {
 }
 
 type byteThrottle struct {
-	limit   int64
-	mu      sync.Mutex
-	started bool
-	start   time.Time
-	used    int64
+	limit int64
+	mu    sync.Mutex
+	next  time.Time
 }
 
 func newByteThrottle(limit int64) *byteThrottle {
@@ -316,41 +396,37 @@ func newByteThrottle(limit int64) *byteThrottle {
 	return &byteThrottle{limit: limit}
 }
 
-func (t *byteThrottle) wait(bytes int) {
+func (t *byteThrottle) wait(ctx context.Context, bytes int) error {
 	if t == nil || bytes <= 0 {
-		return
+		return ctx.Err()
 	}
-
 	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	if !t.started {
-		t.started = true
-		t.start = time.Now()
-		t.used = int64(bytes)
-		return
+	now := time.Now()
+	if t.next.Before(now) {
+		t.next = now
 	}
-
-	t.used += int64(bytes)
-	expectedElapsed := time.Duration(float64(t.used) / float64(t.limit) * float64(time.Second))
-	actualElapsed := time.Since(t.start)
-	if wait := expectedElapsed - actualElapsed; wait > 0 {
-		time.Sleep(wait)
-	}
+	wait := t.next.Sub(now)
+	t.next = t.next.Add(time.Duration(float64(bytes) / float64(t.limit) * float64(time.Second)))
+	t.mu.Unlock()
+	return sleepContext(ctx, wait)
 }
 
 func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) {
 	opts := getVariadic(Opts, &UploadOptions{})
-	if src == nil {
+	if isNilSource(src) {
 		return nil, errors.New("you must provide a valid file source")
 	}
 
 	source := &Source{Source: src}
 	defer source.Close()
 	size, fileName := source.GetSizeAndName()
+	fileName = getValue(opts.FileName, fileName)
+	if fileName == "" {
+		fileName = "file"
+	}
 
 	file := source.GetReader()
-	if file == nil {
+	if isNilSource(file) {
 		return nil, errors.New("could not get reader from source")
 	}
 
@@ -495,6 +571,9 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 		}
 		buf := make([]byte, chunkLen)
 		n, err := readerAt.ReadAt(buf, offset)
+		if n != chunkLen && (err == nil || err == io.EOF) {
+			err = io.ErrUnexpectedEOF
+		}
 		if err != nil && err != io.EOF {
 			dispatchErr = fmt.Errorf("reading part %d at offset %d: %w", p, offset, err)
 			break
@@ -522,6 +601,7 @@ func (c *Client) UploadFile(src any, Opts ...*UploadOptions) (InputFile, error) 
 	}
 
 	if progressCallback != nil {
+		progressTracker.stop()
 		progressCallback(&ProgressInfo{
 			FileName:   source.GetName(),
 			TotalSize:  size,
@@ -621,8 +701,8 @@ func isUploadFatal(err error) bool {
 func uploadOnePart(ctx context.Context, c *Client, w *WorkerPool, log *partLogAggregator, part uploadPart, fileId int64, totalParts int, isBigFile bool, opts *UploadOptions, throttle *byteThrottle) error {
 	const maxAttempts = 20
 	var lastErr error
-	if throttle != nil {
-		throttle.wait(len(part.data))
+	if err := throttle.wait(ctx, len(part.data)); err != nil {
+		return err
 	}
 	for attempt := range maxAttempts {
 		if err := ctx.Err(); err != nil {
@@ -645,15 +725,16 @@ func uploadOnePart(ctx context.Context, c *Client, w *WorkerPool, log *partLogAg
 		}
 
 		var err error
+		var response any
 		if isBigFile {
-			_, err = sender.MakeRequestCtx(reqCtx, &UploadSaveBigFilePartParams{
+			response, err = sender.MakeRequest(reqCtx, &UploadSaveBigFilePartParams{
 				FileID:         fileId,
 				FilePart:       int32(part.index),
 				FileTotalParts: int32(totalParts),
 				Bytes:          part.data,
 			})
 		} else {
-			_, err = sender.MakeRequestCtx(reqCtx, &UploadSaveFilePartParams{
+			response, err = sender.MakeRequest(reqCtx, &UploadSaveFilePartParams{
 				FileID:   fileId,
 				FilePart: int32(part.index),
 				Bytes:    part.data,
@@ -661,6 +742,9 @@ func uploadOnePart(ctx context.Context, c *Client, w *WorkerPool, log *partLogAg
 		}
 		cancel()
 		w.FreeWorker(sender)
+		if err == nil && response != true {
+			return fmt.Errorf("server did not accept upload part %d", part.index)
+		}
 
 		if opts.Delay > 0 {
 			if sleepErr := sleepContext(ctx, time.Duration(opts.Delay)*time.Millisecond); sleepErr != nil {
@@ -683,13 +767,13 @@ func uploadOnePart(ctx context.Context, c *Client, w *WorkerPool, log *partLogAg
 		msg := err.Error()
 		switch {
 		case !sender.MTProto.IsTcpActive():
-			_ = sender.Reconnect(false)
+			_ = sender.Reconnect(ctx, false)
 		case strings.Contains(msg, "deadline exceeded"),
 			strings.Contains(msg, "timeout"),
 			strings.Contains(msg, "connection reset"),
 			strings.Contains(msg, "broken pipe"),
 			strings.Contains(msg, "EOF"):
-			_ = sender.Redial()
+			_ = sender.Reconnect(ctx, false)
 		}
 
 		if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
@@ -791,6 +875,10 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 		totalParts = int((size + int64(partSize) - 1) / int64(partSize))
 	}
 
+	if !streaming {
+		file = io.LimitReader(file, size)
+	}
+
 	var md5sum hash.Hash
 	if !isBigFile {
 		md5sum = md5.New()
@@ -830,6 +918,9 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 		return nil, err
 	}
 	currentPart = currentPart[:readBytes]
+	if len(currentPart) == 0 {
+		return nil, errors.New("cannot upload an empty file")
+	}
 
 	for p := 0; ; p++ {
 		if err := uploadCtx.Err(); err != nil {
@@ -837,6 +928,12 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 		}
 		if !streaming && p >= totalParts {
 			break
+		}
+		if !streaming && int64(len(currentPart)) < min(int64(partSize), size-int64(p)*int64(partSize)) {
+			return nil, io.ErrUnexpectedEOF
+		}
+		if err := validateUploadFileSize(doneBytes.Load()+int64(len(currentPart)), c.isPremium()); err != nil {
+			return nil, err
 		}
 
 		nextPart := make([]byte, partSize)
@@ -863,8 +960,8 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 
 		var uploadErr error
 		const maxAttempts = 20
-		if uploadThrottle != nil {
-			uploadThrottle.wait(len(currentPart))
+		if err := uploadThrottle.wait(uploadCtx, len(currentPart)); err != nil {
+			return nil, err
 		}
 		for attempt := range maxAttempts {
 			if err := uploadCtx.Err(); err != nil {
@@ -872,21 +969,25 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 			}
 			reqTimeout := uploadRequestTimeout(len(currentPart), attempt)
 			ctx, cancel := context.WithTimeout(uploadCtx, reqTimeout)
+			var response any
 			if isBigFile {
-				_, uploadErr = c.MakeRequestCtx(ctx, &UploadSaveBigFilePartParams{
+				response, uploadErr = c.MakeRequest(ctx, &UploadSaveBigFilePartParams{
 					FileID:         fileId,
 					FilePart:       int32(p),
 					FileTotalParts: filePartsField,
 					Bytes:          currentPart,
 				})
 			} else {
-				_, uploadErr = c.MakeRequestCtx(ctx, &UploadSaveFilePartParams{
+				response, uploadErr = c.MakeRequest(ctx, &UploadSaveFilePartParams{
 					FileID:   fileId,
 					FilePart: int32(p),
 					Bytes:    currentPart,
 				})
 			}
 			cancel()
+			if uploadErr == nil && response != true {
+				return nil, fmt.Errorf("server did not accept upload part %d", p)
+			}
 
 			if uploadErr == nil {
 				break
@@ -917,6 +1018,9 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 
 		doneBytes.Add(int64(len(currentPart)))
 		currentPart = nextPart
+		if isLast {
+			break
+		}
 
 		if opts.Delay > 0 {
 			if err := sleepContext(uploadCtx, time.Duration(opts.Delay)*time.Millisecond); err != nil {
@@ -926,6 +1030,8 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 	}
 
 	if progressCallback != nil {
+		progressTracker.stop()
+		size = doneBytes.Load()
 		progressCallback(&ProgressInfo{
 			FileName:   fileName,
 			TotalSize:  size,
@@ -1119,7 +1225,12 @@ func (d *downloadDestination) displayName() string {
 	return ":stream-writer:"
 }
 
-func (d *downloadDestination) WriteAt(p []byte, off int64) (int, error) {
+func (d *downloadDestination) WriteAt(p []byte, off int64) (n int, err error) {
+	defer func() {
+		if err == nil && n != len(p) {
+			err = io.ErrShortWrite
+		}
+	}()
 	if d.file != nil {
 		return d.file.WriteAt(p, off)
 	}
@@ -1131,7 +1242,7 @@ func (d *downloadDestination) WriteAt(p []byte, off int64) (int, error) {
 	if off != d.written {
 		return 0, fmt.Errorf("sequential writer received offset %d after %d bytes", off, d.written)
 	}
-	n, err := d.writer.Write(p)
+	n, err = d.writer.Write(p)
 	d.written += int64(n)
 	return n, err
 }
@@ -1170,10 +1281,12 @@ type downloadJob struct {
 }
 
 type cdnRedirect struct {
+	origin        *ExSender
 	dcID          int32
 	fileToken     []byte
 	encryptionKey []byte
 	encryptionIv  []byte
+	hashes        []*FileHash
 }
 
 func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, error) {
@@ -1192,26 +1305,33 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 	}
 	if job.resume != nil {
 		job.resumeStopCh = make(chan struct{})
-		job.resume.startFlusher(job.resumeStopCh, 2*time.Second, c.Log)
-		defer close(job.resumeStopCh)
-	}
-
-	if err := job.run(); err != nil {
+		done := job.resume.startFlusher(job.resumeStopCh, 2*time.Second, c.Log)
+		var once sync.Once
+		stop := func() { once.Do(func() { close(job.resumeStopCh); <-done }) }
+		defer stop()
+		if err := job.run(); err != nil {
+			return "", err
+		}
+		stop()
+	} else if err := job.run(); err != nil {
 		return "", err
 	}
-	if job.resume != nil {
-		if err := job.resume.flush(); err != nil {
-			c.Log.Debug("resume state final flush failed: %v", err)
+	if job.destination.file != nil {
+		if err := job.destination.file.Sync(); err != nil {
+			return "", err
 		}
-		job.resume.remove()
 	}
 
+	if job.resume != nil {
+		job.resume.remove()
+	}
 	current := job.doneBytes.Load()
 	total := job.size
 	if total <= 0 {
 		total = current
 	}
 	if job.progressCallback != nil {
+		job.progressTracker.stop()
 		job.progressCallback(&ProgressInfo{
 			FileName:   job.destination.displayName(),
 			TotalSize:  total,
@@ -1255,13 +1375,20 @@ func (c *Client) newDownloadJob(file any, opts *DownloadOptions) (*downloadJob, 
 		partSize = int(opts.ChunkSize)
 	}
 
+	if size > 0 && 1+(size-1)/int64(partSize) > maxDownloadParts {
+		return nil, errors.New("download exceeds maximum part count")
+	}
 	resumeRequested := opts.Resume && size > 0 && opts.Buffer == nil
 	var resume *resumeState
 	if resumeRequested {
 		locKey := locationKey(location)
 		statePath := resumeStatePath(dest)
 		if loaded, lerr := loadResumeState(statePath, size, partSize, locKey); lerr == nil {
-			resume = loaded
+			if stat, err := os.Stat(dest); err == nil && stat.Size() == size {
+				resume = loaded
+			} else {
+				resume = newResumeState(statePath, size, partSize, locKey)
+			}
 		} else {
 			if !os.IsNotExist(lerr) {
 				c.Log.Debug("resume state ignored (%s): %v", statePath, lerr)
@@ -1275,6 +1402,9 @@ func (c *Client) newDownloadJob(file any, opts *DownloadOptions) (*downloadJob, 
 		return nil, err
 	}
 
+	if resume != nil {
+		resume.syncDestination = destination.file.Sync
+	}
 	knownSize := size > 0
 	parts := int64(0)
 	if knownSize {
@@ -1356,8 +1486,8 @@ func (c *Client) newDownloadJob(file any, opts *DownloadOptions) (*downloadJob, 
 }
 
 func validateDownloadChunkSize(size int) error {
-	if size <= 0 || size > 1048576 || 1048576%size != 0 {
-		return errors.New("chunk size must be a divisor of 1048576 (1MB)")
+	if size < 4096 || size > 1048576 || 1048576%size != 0 {
+		return errors.New("chunk size must be a divisor of 1048576 (1MB) and at least 4096 bytes")
 	}
 	return nil
 }
@@ -1415,6 +1545,12 @@ func (j *downloadJob) runKnownSize() error {
 				data := result.data
 				if remaining := j.size - result.part.offset; remaining > 0 && int64(len(data)) > remaining {
 					data = data[:remaining]
+				}
+				expected := min(int64(result.part.limit), j.size-result.part.offset)
+				if int64(len(data)) != expected {
+					tl.ReleaseLargeBuffer(result.data)
+					setErr(io.ErrUnexpectedEOF)
+					return
 				}
 				if _, err := j.destination.WriteAt(data, result.part.offset); err != nil {
 					tl.ReleaseLargeBuffer(result.data)
@@ -1491,6 +1627,9 @@ func (j *downloadJob) runUnknownSize() error {
 		}
 		if len(data) == 0 {
 			tl.ReleaseLargeBuffer(result.data)
+			if j.knownSize && offset < j.size {
+				return io.ErrUnexpectedEOF
+			}
 			return nil
 		}
 		if _, err := j.destination.WriteAt(data, offset); err != nil {
@@ -1503,6 +1642,9 @@ func (j *downloadJob) runUnknownSize() error {
 		j.log.recordSuccess(index, nil)
 		offset += int64(n)
 		if n < part.limit {
+			if j.knownSize && offset < j.size {
+				return io.ErrUnexpectedEOF
+			}
 			return nil
 		}
 		if j.opts.Delay > 0 {
@@ -1519,8 +1661,9 @@ func (j *downloadJob) fetchPartLoop(ctx context.Context, pool *WorkerPool, part 
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		result, err := j.fetchPart(ctx, pool, part, attempt)
 		if err == nil {
-			if j.throttle != nil {
-				j.throttle.wait(len(result.data))
+			if err := j.throttle.wait(ctx, len(result.data)); err != nil {
+				tl.ReleaseLargeBuffer(result.data)
+				return downloadResult{}, err
 			}
 			return result, nil
 		}
@@ -1554,7 +1697,7 @@ func (j *downloadJob) fetchPart(ctx context.Context, pool *WorkerPool, part down
 	defer pool.FreeWorker(sender)
 
 	request := j.makeGetFileRequest(part)
-	response, err := sender.MakeRequestCtx(reqCtx, request)
+	response, err := sender.MakeRequest(reqCtx, request)
 	if j.opts.Delay > 0 {
 		if sleepErr := sleepContext(ctx, time.Duration(j.opts.Delay)*time.Millisecond); sleepErr != nil && err == nil {
 			err = sleepErr
@@ -1564,13 +1707,13 @@ func (j *downloadJob) fetchPart(ctx context.Context, pool *WorkerPool, part down
 		msg := err.Error()
 		switch {
 		case !sender.MTProto.IsTcpActive():
-			_ = sender.Reconnect(false)
+			_ = sender.Reconnect(ctx, false)
 		case strings.Contains(msg, "deadline exceeded"),
 			strings.Contains(msg, "timeout"),
 			strings.Contains(msg, "connection reset"),
 			strings.Contains(msg, "broken pipe"),
 			strings.Contains(msg, "EOF"):
-			_ = sender.Redial()
+			_ = sender.Reconnect(ctx, false)
 		}
 		j.log.recordFailure(part.index, err, sender)
 		return downloadResult{}, err
@@ -1580,7 +1723,7 @@ func (j *downloadJob) fetchPart(ctx context.Context, pool *WorkerPool, part down
 	case *UploadFileObj:
 		return downloadResult{part: part, data: v.Bytes}, nil
 	case *UploadFileCdnRedirect:
-		if err := j.activateCDN(v); err != nil {
+		if err := j.activateCDN(v, sender); err != nil {
 			return downloadResult{}, err
 		}
 		j.cdnMu.Lock()
@@ -1594,23 +1737,32 @@ func (j *downloadJob) fetchPart(ctx context.Context, pool *WorkerPool, part down
 	}
 }
 
-func (j *downloadJob) activateCDN(r *UploadFileCdnRedirect) error {
+func (j *downloadJob) activateCDN(r *UploadFileCdnRedirect, origin *ExSender) error {
+	if len(r.EncryptionKey) != 32 || len(r.EncryptionIv) != aes.BlockSize || len(r.FileToken) == 0 {
+		return fmt.Errorf("%w: invalid encryption parameters", errCDNIntegrity)
+	}
+	hashes, err := copyCDNHashes(r.FileHashes)
+	if err != nil {
+		return err
+	}
 	j.cdnMu.Lock()
 	defer j.cdnMu.Unlock()
 	if j.cdn != nil && j.cdn.dcID == r.DcID {
 		return nil
 	}
 	j.cdn = &cdnRedirect{
+		origin:        origin,
 		dcID:          r.DcID,
-		fileToken:     r.FileToken,
-		encryptionKey: r.EncryptionKey,
-		encryptionIv:  r.EncryptionIv,
+		fileToken:     bytes.Clone(r.FileToken),
+		encryptionKey: bytes.Clone(r.EncryptionKey),
+		encryptionIv:  bytes.Clone(r.EncryptionIv),
+		hashes:        hashes,
 	}
 	j.client.Log.Info(fmt.Sprintf("cdn redirect: switching to CDN DC%d", r.DcID))
 	return nil
 }
 
-func (j *downloadJob) cdnPool(_ context.Context, dc int32) (*WorkerPool, error) {
+func (j *downloadJob) cdnPool(ctx context.Context, dc int32) (*WorkerPool, error) {
 	j.cdnMu.Lock()
 	defer j.cdnMu.Unlock()
 	if j.cdnPools == nil {
@@ -1619,17 +1771,18 @@ func (j *downloadJob) cdnPool(_ context.Context, dc int32) (*WorkerPool, error) 
 	if pool, ok := j.cdnPools[dc]; ok {
 		return pool, nil
 	}
-	conn, err := j.client.CreateExportedSender(int(dc), true, false)
+	conn, err := j.client.CreateExportedSender(ctx, int(dc), true, false)
 	if err != nil {
 		return nil, fmt.Errorf("creating cdn sender: %w", err)
 	}
 	pool := NewWorkerPool(1)
+	pool.owned = true
 	pool.AddWorker(NewExSender(conn))
 	j.cdnPools[dc] = pool
 	return pool, nil
 }
 
-func (j *downloadJob) fetchPartCDN(ctx context.Context, cdn *cdnRedirect, part downloadRange, attempt int) (downloadResult, error) {
+func (j *downloadJob) fetchCDNBlock(ctx context.Context, cdn *cdnRedirect, part downloadRange, attempt int) (downloadResult, error) {
 	pool, err := j.cdnPool(ctx, cdn.dcID)
 	if err != nil {
 		return downloadResult{}, err
@@ -1644,7 +1797,7 @@ func (j *downloadJob) fetchPartCDN(ctx context.Context, cdn *cdnRedirect, part d
 	}
 	defer pool.FreeWorker(sender)
 
-	response, err := sender.MakeRequestCtx(reqCtx, &UploadGetCdnFileParams{
+	response, err := sender.MakeRequest(reqCtx, &UploadGetCdnFileParams{
 		FileToken: cdn.fileToken,
 		Offset:    part.offset,
 		Limit:     int32(part.limit),
@@ -1653,13 +1806,13 @@ func (j *downloadJob) fetchPartCDN(ctx context.Context, cdn *cdnRedirect, part d
 		msg := err.Error()
 		switch {
 		case !sender.MTProto.IsTcpActive():
-			_ = sender.Reconnect(false)
+			_ = sender.Reconnect(ctx, false)
 		case strings.Contains(msg, "deadline exceeded"),
 			strings.Contains(msg, "timeout"),
 			strings.Contains(msg, "connection reset"),
 			strings.Contains(msg, "broken pipe"),
 			strings.Contains(msg, "EOF"):
-			_ = sender.Redial()
+			_ = sender.Reconnect(ctx, false)
 		}
 		j.log.recordFailure(part.index, err, sender)
 		return downloadResult{}, err
@@ -1667,7 +1820,10 @@ func (j *downloadJob) fetchPartCDN(ctx context.Context, cdn *cdnRedirect, part d
 
 	switch v := response.(type) {
 	case *UploadCdnFileObj:
-		decryptCDNBlock(v.Bytes, cdn.encryptionKey, cdn.encryptionIv, part.offset)
+		if err := decryptCDNBlock(v.Bytes, cdn.encryptionKey, cdn.encryptionIv, part.offset); err != nil {
+			tl.ReleaseLargeBuffer(v.Bytes)
+			return downloadResult{}, err
+		}
 		return downloadResult{part: part, data: v.Bytes}, nil
 	case *UploadCdnFileReuploadNeeded:
 		if err := j.reuploadCDN(reqCtx, cdn, v.RequestToken); err != nil {
@@ -1682,7 +1838,8 @@ func (j *downloadJob) fetchPartCDN(ctx context.Context, cdn *cdnRedirect, part d
 }
 
 func (j *downloadJob) reuploadCDN(ctx context.Context, cdn *cdnRedirect, requestToken []byte) error {
-	_, err := j.client.MakeRequestCtx(ctx, &UploadReuploadCdnFileParams{
+	cdn.origin.TouchLastUsed()
+	_, err := cdn.origin.MakeRequest(ctx, &UploadReuploadCdnFileParams{
 		FileToken:    cdn.fileToken,
 		RequestToken: requestToken,
 	})
@@ -1699,20 +1856,19 @@ func (j *downloadJob) closeCDNPools() {
 	}
 }
 
-func decryptCDNBlock(data, key, iv []byte, offset int64) {
-	if len(data) == 0 || len(iv) != aes.BlockSize {
-		return
+func decryptCDNBlock(data, key, iv []byte, offset int64) error {
+	if len(key) != 32 || len(iv) != aes.BlockSize || offset < 0 || offset%aes.BlockSize != 0 || offset/aes.BlockSize > int64(^uint32(0)) {
+		return fmt.Errorf("%w: invalid encryption parameters", errCDNIntegrity)
 	}
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return
+		return err
 	}
-	ivCopy := make([]byte, aes.BlockSize)
-	copy(ivCopy, iv)
-	counter := binary.BigEndian.Uint32(ivCopy[12:16]) + uint32(offset/aes.BlockSize)
-	binary.BigEndian.PutUint32(ivCopy[12:16], counter)
-	stream := cipher.NewCTR(block, ivCopy)
-	stream.XORKeyStream(data, data)
+	ivCopy := bytes.Clone(iv)
+	// The last four IV bytes are replaced by the block offset (Telegram CDN).
+	binary.BigEndian.PutUint32(ivCopy[12:16], uint32(offset/aes.BlockSize))
+	cipher.NewCTR(block, ivCopy).XORKeyStream(data, data)
+	return nil
 }
 
 func (j *downloadJob) makeGetFileRequest(part downloadRange) tl.Object {
@@ -1738,6 +1894,9 @@ func (j *downloadJob) classifyError(ctx context.Context, err error) downloadFail
 	}
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return downloadFailure{kind: downloadErrContext, err: ctxErr}
+	}
+	if errors.Is(err, errCDNIntegrity) {
+		return downloadFailure{kind: downloadErrFatal, err: err}
 	}
 	msg := err.Error()
 	if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
@@ -1817,103 +1976,77 @@ func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool, ctx .
 
 func mediaSenderCacheKey(dc int) int { return dc + 10_000 }
 
-func initializeWorkersWithMode(numWorkers int, dc int32, c *Client, w *WorkerPool, media bool, ctx ...context.Context) error {
+func initializeWorkersWithMode(numWorkers int, dc int32, c *Client, w *WorkerPool, media bool, contexts ...context.Context) error {
+	ctx := context.Background()
+	if len(contexts) > 0 && contexts[0] != nil {
+		ctx = contexts[0]
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if numWorkers == 1 && dc == int32(c.GetDC()) && !media {
 		w.AddWorker(NewExSender(c.MTProto))
 		return nil
 	}
-
+	select {
+	case c.exSenders.createGate <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-w.closed:
+		return errors.New("worker pool closed")
+	}
+	defer func() { <-c.exSenders.createGate }()
 	if media {
-		if addr, ok := c.DcList.GetMediaAddr(int(dc), false); ok {
-			c.Log.Debug(fmt.Sprintf("upload: using media DC%d at %s for %d workers", dc, addr, numWorkers))
-		} else {
-			c.Log.Debug(fmt.Sprintf("upload: no media DC advertised for DC%d, falling back to regular DC for %d workers", dc, numWorkers))
+		if _, ok := c.DcList.GetMediaAddr(int(dc), c.IpV6); !ok {
 			media = false
 		}
 	}
-
-	var authParams = &AuthExportedAuthorization{}
-	if dc != int32(c.GetDC()) {
-		c.exportedKeysMu.Lock()
-		if c.exportedKeys == nil {
-			c.exportedKeys = make(map[int]*AuthExportedAuthorization)
-		}
-
-		if exportedKey, ok := c.exportedKeys[int(dc)]; ok {
-			authParams = exportedKey
-			c.exportedKeysMu.Unlock()
-		} else {
-			c.exportedKeysMu.Unlock()
-			auth, err := c.AuthExportAuthorization(dc)
-			if err != nil {
-				return err
-			}
-
-			authParams = &AuthExportedAuthorization{
-				ID:    auth.ID,
-				Bytes: auth.Bytes,
-			}
-
-			c.exportedKeysMu.Lock()
-			c.exportedKeys[int(dc)] = authParams
-			c.exportedKeysMu.Unlock()
-		}
-	}
-
-	createSender := func(authParams *AuthExportedAuthorization) (*mtproto.MTProto, error) {
-		return c.CreateExportedSender(int(dc), false, media, authParams)
-	}
-
 	cacheKey := int(dc)
 	if media {
 		cacheKey = mediaSenderCacheKey(int(dc))
 	}
-
-	numCreate := 0
-	existingSenders := c.exSenders.GetSenders(cacheKey)
-	for _, worker := range existingSenders {
-		if numCreate >= numWorkers {
+	count := 0
+	for _, worker := range c.exSenders.GetSenders(cacheKey) {
+		if count >= numWorkers {
 			break
 		}
 		w.AddWorker(worker)
-		numCreate++
+		count++
 	}
-
-	if numCreate == 0 {
-		conn, err := createSender(authParams)
+	for count < numWorkers {
+		select {
+		case <-w.closed:
+			return errors.New("worker pool closed")
+		default:
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		c.exSenders.Lock()
+		running := c.exSenders.running
+		c.exSenders.Unlock()
+		if !running {
+			return errors.New("sender cache closed")
+		}
+		c.exportedKeysMu.Lock()
+		auth := c.exportedKeys[int(dc)]
+		c.exportedKeysMu.Unlock()
+		if auth == nil {
+			auth = &AuthExportedAuthorization{}
+		}
+		conn, err := c.CreateExportedSender(ctx, int(dc), false, media, auth)
 		if err != nil {
-			return fmt.Errorf("creating initial sender: %w", err)
-		}
-		if conn != nil {
-			sender := NewExSender(conn)
-			c.exSenders.AddSender(cacheKey, sender)
-			w.AddWorker(sender)
-			numCreate++
-		}
-	}
-
-	if numCreate < numWorkers {
-		bgCtx := context.Background()
-		if len(ctx) > 0 && ctx[0] != nil {
-			bgCtx = ctx[0]
-		}
-		toCreate := numWorkers - numCreate
-		c.Log.Info(fmt.Sprintf("exporting senders: dc(%d) media(%v) - creating %d more (have %d, want %d total)", dc, media, toCreate, numCreate, numWorkers))
-		go func() {
-			for i := numCreate; i < numWorkers; i++ {
-				if bgCtx.Err() != nil {
-					return
-				}
-				conn, err := createSender(authParams)
-				if conn != nil && err == nil {
-					sender := NewExSender(conn)
-					c.exSenders.AddSender(cacheKey, sender)
-					w.AddWorker(sender)
-				}
+			if count > 0 && ctx.Err() == nil {
+				c.Log.Debug("additional transfer sender unavailable: %v", err)
+				break
 			}
-		}()
+			return err
+		}
+		sender := NewExSender(conn)
+		c.exSenders.AddSender(cacheKey, sender)
+		w.AddWorker(sender)
+		count++
 	}
-
 	return nil
 }
 
@@ -1922,7 +2055,7 @@ func initializeWorkersWithMode(numWorkers int, dc int32, c *Client, w *WorkerPoo
 // start and end are the byte offsets to download.
 // chunkSize is the size of each chunk to download.
 //
-// Note: chunkSize must be a multiple of 1048576 (1MB)
+// end is exclusive. chunkSize must divide 1048576 (1MB) and be at least 4096.
 func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]byte, string, error) {
 	if err := validateDownloadChunkSize(chunkSize); err != nil {
 		return nil, "", err
@@ -1945,6 +2078,9 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 	if size > 0 && end > int(size) {
 		end = int(size)
 	}
+	if end <= start {
+		return []byte{}, name, nil
+	}
 
 	job := &downloadJob{
 		client:    c,
@@ -1959,6 +2095,7 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		log:       newPartLogAggregator("download_chunk", 0, 3*time.Second, c.Log),
 	}
 	defer job.log.Flush()
+	defer job.closeCDNPools()
 
 	pool := NewWorkerPool(1)
 	defer pool.Close()
@@ -1970,11 +2107,8 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 	}
 
 	var buf []byte
-	for index, offset := 0, int64(start); offset < int64(end); index++ {
+	for index, offset := 0, int64(start/chunkSize*chunkSize); offset < int64(end); index++ {
 		limit := chunkSize
-		if remaining := int64(end) - offset; remaining < int64(limit) {
-			limit = int(remaining)
-		}
 		result, err := job.fetchPartLoop(job.ctx, pool, downloadRange{index: index, offset: offset, limit: limit})
 		if err != nil {
 			return nil, "", err
@@ -1983,7 +2117,11 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 			tl.ReleaseLargeBuffer(result.data)
 			break
 		}
-		buf = append(buf, result.data...)
+		lo := max(int64(0), int64(start)-offset)
+		hi := min(int64(len(result.data)), int64(end)-offset)
+		if lo < hi {
+			buf = append(buf, result.data[lo:hi]...)
+		}
 		n := len(result.data)
 		tl.ReleaseLargeBuffer(result.data)
 		offset += int64(n)
@@ -1992,6 +2130,9 @@ func (c *Client) DownloadChunk(media any, start int, end int, chunkSize int) ([]
 		}
 	}
 
+	if job.knownSize && len(buf) != end-start {
+		return nil, name, io.ErrUnexpectedEOF
+	}
 	return buf, name, nil
 }
 
@@ -2233,6 +2374,7 @@ type progressTracker struct {
 	lastTime  time.Time
 	startTime time.Time
 	stopChan  chan struct{}
+	doneChan  chan struct{}
 	mu        sync.Mutex
 }
 
@@ -2253,7 +2395,9 @@ func newProgressTracker(fileName string, totalSize int64, callback func(*Progres
 }
 
 func (pt *progressTracker) start(doneBytes *atomic.Int64) {
+	pt.doneChan = make(chan struct{})
 	go func() {
+		defer close(pt.doneChan)
 		ticker := time.NewTicker(pt.interval)
 		defer ticker.Stop()
 
@@ -2313,11 +2457,15 @@ func (pt *progressTracker) start(doneBytes *atomic.Int64) {
 
 func (pt *progressTracker) stop() {
 	pt.mu.Lock()
-	defer pt.mu.Unlock()
 	select {
 	case <-pt.stopChan:
 	default:
 		close(pt.stopChan)
+	}
+	done := pt.doneChan
+	pt.mu.Unlock()
+	if done != nil {
+		<-done
 	}
 }
 
@@ -2414,14 +2562,15 @@ const (
 )
 
 type resumeState struct {
-	mu         sync.Mutex
-	path       string
-	size       int64
-	partSize   int
-	totalParts int
-	locKey     []byte
-	bitmap     []byte
-	dirty      bool
+	mu              sync.Mutex
+	path            string
+	size            int64
+	partSize        int
+	totalParts      int
+	locKey          []byte
+	bitmap          []byte
+	dirty           bool
+	syncDestination func() error
 }
 
 func resumeStatePath(dest string) string {
@@ -2432,29 +2581,21 @@ func locationKey(loc InputFileLocation) []byte {
 	if loc == nil {
 		return nil
 	}
-	buf := make([]byte, 4+8+8)
-	binary.LittleEndian.PutUint32(buf[0:4], loc.CRC())
-	switch v := loc.(type) {
-	case *InputDocumentFileLocation:
-		binary.LittleEndian.PutUint64(buf[4:12], uint64(v.ID))
-		binary.LittleEndian.PutUint64(buf[12:20], uint64(v.AccessHash))
-	case *InputPhotoFileLocation:
-		binary.LittleEndian.PutUint64(buf[4:12], uint64(v.ID))
-		binary.LittleEndian.PutUint64(buf[12:20], uint64(v.AccessHash))
-	case *InputEncryptedFileLocation:
-		binary.LittleEndian.PutUint64(buf[4:12], uint64(v.ID))
-		binary.LittleEndian.PutUint64(buf[12:20], uint64(v.AccessHash))
-	case *InputFileLocationObj:
-		binary.LittleEndian.PutUint64(buf[4:12], uint64(v.VolumeID))
-		binary.LittleEndian.PutUint64(buf[12:20], uint64(v.Secret))
-	default:
-		return buf[:4]
+	data, err := tl.Marshal(loc)
+	if err != nil {
+		return nil
 	}
-	return buf
+	hash := sha256.Sum256(data)
+	return hash[:]
 }
 
+const maxDownloadParts = 1 << 24 // At most 2 MiB of resume bitmap.
+
 func newResumeState(path string, size int64, partSize int, locKey []byte) *resumeState {
-	totalParts := int((size + int64(partSize) - 1) / int64(partSize))
+	if size <= 0 || partSize <= 0 || 1+(size-1)/int64(partSize) > maxDownloadParts {
+		return nil
+	}
+	totalParts := int(1 + (size-1)/int64(partSize))
 	return &resumeState{
 		path:       path,
 		size:       size,
@@ -2466,6 +2607,9 @@ func newResumeState(path string, size int64, partSize int, locKey []byte) *resum
 }
 
 func loadResumeState(path string, size int64, partSize int, locKey []byte) (*resumeState, error) {
+	if size <= 0 || partSize <= 0 || 1+(size-1)/int64(partSize) > maxDownloadParts || len(locKey) > 1024 {
+		return nil, errors.New("invalid resume dimensions")
+	}
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -2490,21 +2634,22 @@ func loadResumeState(path string, size int64, partSize int, locKey []byte) (*res
 	if storedSize != size || storedPartSize != partSize {
 		return nil, errors.New("size or partSize changed")
 	}
-	expectedTotal := int((size + int64(partSize) - 1) / int64(partSize))
+	expectedTotal := int(1 + (size-1)/int64(partSize))
 	if storedTotalParts != expectedTotal {
 		return nil, errors.New("totalParts mismatch")
 	}
 
+	if locKeyLen != len(locKey) {
+		return nil, errors.New("location key length mismatch")
+	}
 	storedLocKey := make([]byte, locKeyLen)
 	if locKeyLen > 0 {
 		if _, err := io.ReadFull(f, storedLocKey); err != nil {
 			return nil, fmt.Errorf("read locKey: %w", err)
 		}
 	}
-	if len(locKey) > 0 && len(storedLocKey) > 0 {
-		if !bytes.Equal(locKey, storedLocKey) {
-			return nil, errors.New("location key mismatch")
-		}
+	if !bytes.Equal(locKey, storedLocKey) {
+		return nil, errors.New("location key mismatch")
 	}
 
 	bitmapLen := (storedTotalParts + 7) / 8
@@ -2564,63 +2709,40 @@ func (s *resumeState) completedBytes() int64 {
 
 func (s *resumeState) flush() error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	if !s.dirty {
-		s.mu.Unlock()
 		return nil
 	}
-	bitmap := make([]byte, len(s.bitmap))
-	copy(bitmap, s.bitmap)
-	s.dirty = false
-	s.mu.Unlock()
-
-	tmp := s.path + ".tmp"
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	if err != nil {
-		return err
+	// A completed bit must never reach disk before its file data.
+	if s.syncDestination != nil {
+		if err := s.syncDestination(); err != nil {
+			return err
+		}
 	}
-	header := make([]byte, 32)
+	header := make([]byte, 32, 32+len(s.locKey)+len(s.bitmap))
 	binary.LittleEndian.PutUint32(header[0:4], resumeMagic)
 	binary.LittleEndian.PutUint16(header[4:6], resumeVersion)
 	binary.LittleEndian.PutUint64(header[8:16], uint64(s.size))
 	binary.LittleEndian.PutUint32(header[16:20], uint32(s.partSize))
 	binary.LittleEndian.PutUint32(header[20:24], uint32(s.totalParts))
 	binary.LittleEndian.PutUint32(header[24:28], uint32(len(s.locKey)))
-	if _, err := f.Write(header); err != nil {
-		f.Close()
-		os.Remove(tmp)
+	data := append(append(header, s.locKey...), s.bitmap...)
+	if err := utils.AtomicWriteFile(s.path, 0600, func(w io.Writer) error { _, err := w.Write(data); return err }); err != nil {
 		return err
 	}
-	if len(s.locKey) > 0 {
-		if _, err := f.Write(s.locKey); err != nil {
-			f.Close()
-			os.Remove(tmp)
-			return err
-		}
-	}
-	if _, err := f.Write(bitmap); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return err
-	}
-	if err := f.Sync(); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return err
-	}
-	if err := f.Close(); err != nil {
-		os.Remove(tmp)
-		return err
-	}
-	return os.Rename(tmp, s.path)
+	s.dirty = false
+	return nil
 }
 
 func (s *resumeState) remove() {
 	_ = os.Remove(s.path)
 }
 
-func (s *resumeState) startFlusher(stop <-chan struct{}, interval time.Duration, log Logger) {
+func (s *resumeState) startFlusher(stop <-chan struct{}, interval time.Duration, log Logger) <-chan struct{} {
 	ticker := time.NewTicker(interval)
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		defer ticker.Stop()
 		for {
 			select {
@@ -2636,4 +2758,97 @@ func (s *resumeState) startFlusher(stop <-chan struct{}, interval time.Duration,
 			}
 		}
 	}()
+	return done
+}
+
+var errCDNIntegrity = errors.New("CDN integrity verification failed")
+
+func copyCDNHashes(hashes []*FileHash) ([]*FileHash, error) {
+	if len(hashes) > 8192 {
+		return nil, fmt.Errorf("%w: excessive hash count", errCDNIntegrity)
+	}
+	copyHashes := make([]*FileHash, len(hashes))
+	for i, h := range hashes {
+		if h == nil || len(h.Hash) != sha256.Size || h.Offset < 0 || h.Offset%4096 != 0 || h.Limit <= 0 || int64(h.Limit) > 1048576-h.Offset%1048576 {
+			return nil, fmt.Errorf("%w: invalid trusted hash range", errCDNIntegrity)
+		}
+		v := *h
+		v.Hash = bytes.Clone(h.Hash)
+		copyHashes[i] = &v
+	}
+	return copyHashes, nil
+}
+
+// A CDN's transport authorization does not authenticate its file contents.
+// Only hashes obtained from the authenticated origin DC can do that. Fetch
+// complete hash ranges even when the caller requested a smaller byte range.
+func (j *downloadJob) fetchPartCDN(ctx context.Context, cdn *cdnRedirect, part downloadRange, attempt int) (downloadResult, error) {
+	cdn.origin.TouchLastUsed()
+	end := part.offset + int64(part.limit)
+	if j.knownSize {
+		end = min(end, j.size)
+	}
+	out := make([]byte, 0, part.limit)
+	hashes := cdn.hashes
+	for cursor := part.offset; cursor < end; {
+		find := func() *FileHash {
+			for _, h := range hashes {
+				if h.Offset <= cursor && cursor < h.Offset+int64(h.Limit) {
+					return h
+				}
+			}
+			return nil
+		}
+		h := find()
+		if h == nil {
+			reqCtx, cancel := context.WithTimeout(ctx, j.requestTimeout(part.limit, attempt))
+			response, err := cdn.origin.MakeRequest(reqCtx, &UploadGetCdnFileHashesParams{FileToken: cdn.fileToken, Offset: cursor})
+			cancel()
+			if err != nil {
+				return downloadResult{}, err
+			}
+			var ok bool
+			hashes, ok = response.([]*FileHash)
+			if !ok {
+				return downloadResult{}, fmt.Errorf("%w: invalid hash response %T", errCDNIntegrity, response)
+			}
+			hashes, err = copyCDNHashes(hashes)
+			if err != nil {
+				return downloadResult{}, err
+			}
+			h = find()
+			if h == nil {
+				if !j.knownSize && len(hashes) == 0 {
+					break
+				}
+				return downloadResult{}, fmt.Errorf("%w: missing hash at offset %d", errCDNIntegrity, cursor)
+			}
+		}
+		limit := 4096
+		for limit < int(h.Limit) {
+			limit *= 2
+		}
+		if h.Offset%int64(limit) != 0 {
+			return downloadResult{}, fmt.Errorf("%w: unaligned hash range", errCDNIntegrity)
+		}
+		result, err := j.fetchCDNBlock(ctx, cdn, downloadRange{index: part.index, offset: h.Offset, limit: limit}, attempt)
+		if err != nil {
+			return downloadResult{}, err
+		}
+		data := result.data
+		if len(data) < int(h.Limit) {
+			tl.ReleaseLargeBuffer(data)
+			return downloadResult{}, fmt.Errorf("%w: truncated hash range", errCDNIntegrity)
+		}
+		sum := sha256.Sum256(data[:h.Limit])
+		if !bytes.Equal(sum[:], h.Hash) {
+			tl.ReleaseLargeBuffer(data)
+			return downloadResult{}, fmt.Errorf("%w: hash mismatch at offset %d", errCDNIntegrity, h.Offset)
+		}
+		next := min(end, h.Offset+int64(h.Limit))
+		out = append(out, data[cursor-h.Offset:next-h.Offset]...)
+		tl.ReleaseLargeBuffer(data)
+		cursor = next
+	}
+	return downloadResult{part: part, data: out}, nil
 }

@@ -3,9 +3,9 @@
 package telegram
 
 import (
+	"context"
 	"fmt"
 	"math"
-	"reflect"
 	"strings"
 	"time"
 
@@ -276,6 +276,7 @@ func (c *Client) GetChatMember(chatID, userID any) (*Participant, error) {
 }
 
 type ParticipantOptions struct {
+	Ctx              context.Context           `json:"-"` // Cancel this context when ending an iterator early.
 	Query            string                    `json:"query,omitempty"`
 	Filter           ChannelParticipantsFilter `json:"filter,omitempty"`
 	Offset           int32                     `json:"offset,omitempty"`
@@ -300,7 +301,7 @@ func (c *Client) GetChatMembers(chatID any, Opts ...*ParticipantOptions) ([]*Par
 	if !ok {
 		return nil, 0, fmt.Errorf("peer is not a channel, but %T", channel)
 	}
-	opts := getVariadic(Opts, &ParticipantOptions{Filter: &ChannelParticipantsSearch{}, Limit: 1})
+	opts := *getVariadic(Opts, &ParticipantOptions{Filter: &ChannelParticipantsSearch{}, Limit: 1})
 	if opts.Query != "" {
 		opts.Filter = &ChannelParticipantsSearch{Q: opts.Query}
 	} else if opts.Filter == nil {
@@ -318,17 +319,12 @@ func (c *Client) GetChatMembers(chatID any, Opts ...*ParticipantOptions) ([]*Par
 			reqLimit = min(opts.Limit-int32(fetched), 200)
 		}
 
-		participants, err := c.ChannelsGetParticipants(&InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash}, opts.Filter, reqOffset, reqLimit, 0)
+		participants, err := c.MakeRequest(rootCtx(opts.Ctx), &ChannelsGetParticipantsParams{Channel: &InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash}, Filter: opts.Filter, Offset: reqOffset, Limit: reqLimit})
 		if err != nil {
 			return nil, 0, err
 		}
 		cParts, ok := participants.(*ChannelsChannelParticipantsObj)
-		if opts.Limit == -1 {
-			opts.Limit = cParts.Count
-			continue
-		}
-
-		if !ok {
+		if !ok || cParts == nil {
 			return nil, 0, errors.New("could not get participants")
 		}
 		c.Cache.UpdatePeersToCache(cParts.Users, cParts.Chats)
@@ -339,6 +335,9 @@ func (c *Client) GetChatMembers(chatID any, Opts ...*ParticipantOptions) ([]*Par
 			}
 			participantsList = append(participantsList, part)
 			fetched++
+			if opts.Limit > 0 && fetched >= opts.Limit {
+				break
+			}
 		}
 
 		if len(cParts.Participants) < int(reqLimit) || (opts.Limit > 0 && fetched >= opts.Limit) {
@@ -346,10 +345,11 @@ func (c *Client) GetChatMembers(chatID any, Opts ...*ParticipantOptions) ([]*Par
 			break
 		}
 
-		reqOffset = fetched
-		totalCount = cParts.Count
+		reqOffset += int32(len(cParts.Participants))
 
-		time.Sleep(time.Duration(opts.SleepThresholdMs) * time.Millisecond)
+		if err := sleepContext(rootCtx(opts.Ctx), time.Duration(opts.SleepThresholdMs)*time.Millisecond); err != nil {
+			return nil, 0, err
+		}
 	}
 	return participantsList, totalCount, nil
 }
@@ -364,7 +364,7 @@ func (c *Client) GetChatMembersCount(chatID any) (int32, error) {
 	if !ok {
 		return 0, fmt.Errorf("peer is not a channel, but %T", peer)
 	}
-	resp, err := c.MakeRequest(&ChannelsGetParticipantsParams{
+	resp, err := c.MakeRequest(context.Background(), &ChannelsGetParticipantsParams{
 		Channel: &InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash},
 		Filter:  &ChannelParticipantsSearch{},
 		Limit:   0,
@@ -380,106 +380,127 @@ func (c *Client) GetChatMembersCount(chatID any) (int32, error) {
 	}
 }
 
+// IterChatMembers emits members until exhausted, canceled, or disconnected.
+// Set ParticipantOptions.Ctx and cancel it if the consumer stops reading early.
 func (c *Client) IterChatMembers(chatID any, Opts ...*ParticipantOptions) (<-chan *Participant, <-chan error) {
 	ch := make(chan *Participant)
 	errCh := make(chan error, 1)
-
-	var peerToAct, err = c.ResolvePeer(chatID)
+	opts := *getVariadic(Opts, &ParticipantOptions{Limit: 1, SleepThresholdMs: 20, Filter: &ChannelParticipantsSearch{}})
+	ctx := rootCtx(opts.Ctx)
+	if err := ctx.Err(); err != nil {
+		errCh <- err
+		close(ch)
+		close(errCh)
+		return ch, errCh
+	}
+	peer, err := c.ResolvePeer(chatID)
 	if err != nil {
 		errCh <- err
 		close(ch)
 		close(errCh)
 		return ch, errCh
 	}
-
-	var chat, ok = peerToAct.(*InputPeerChannel)
+	chat, ok := peer.(*InputPeerChannel)
 	if !ok {
-		errCh <- fmt.Errorf("peer is not a channel, but %T", peerToAct)
+		errCh <- fmt.Errorf("peer is not a channel, but %T", peer)
 		close(ch)
 		close(errCh)
 		return ch, errCh
 	}
-
+	if opts.Query != "" {
+		opts.Filter = &ChannelParticipantsSearch{Q: opts.Query}
+	} else if opts.Filter == nil {
+		opts.Filter = &ChannelParticipantsSearch{}
+	}
+	c.backgroundMu.Lock()
+	stopped := c.stopCh
+	c.backgroundMu.Unlock()
 	go func() {
 		defer close(ch)
 		defer close(errCh)
-
-		var opts = getVariadic(Opts, &ParticipantOptions{
-			Limit:            1,
-			SleepThresholdMs: 20,
-			Filter:           &ChannelParticipantsSearch{},
-		})
-
-		if opts.Query != "" {
-			opts.Filter = &ChannelParticipantsSearch{Q: opts.Query}
-		} else if opts.Filter == nil {
-			opts.Filter = &ChannelParticipantsSearch{}
-		}
-
-		var fetched int32 = 0
-		req := &ChannelsGetParticipantsParams{
-			Channel: &InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash},
-			Filter:  opts.Filter,
-			Offset:  opts.Offset,
-			Limit:   200,
-			Hash:    0,
-		}
-
-		for {
-			perReqLimit := int32(200)
-			if opts.Limit > 0 {
-				remaining := opts.Limit - int32(fetched)
-				if remaining < perReqLimit {
-					perReqLimit = remaining
-				}
+		wait := func(delay time.Duration) error {
+			timer := time.NewTimer(max(delay, 0))
+			defer timer.Stop()
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-stopped:
+				return context.Canceled
+			case <-timer.C:
+				return nil
 			}
-			req.Limit = perReqLimit
-
-			resp, err := c.MakeRequest(req)
+		}
+		fetched := int32(0)
+		req := &ChannelsGetParticipantsParams{Channel: &InputChannelObj{ChannelID: chat.ChannelID, AccessHash: chat.AccessHash}, Filter: opts.Filter, Offset: opts.Offset}
+		for {
+			select {
+			case <-ctx.Done():
+				errCh <- ctx.Err()
+				return
+			case <-stopped:
+				errCh <- context.Canceled
+				return
+			default:
+			}
+			req.Limit = 200
+			if opts.Limit > 0 {
+				req.Limit = min(req.Limit, opts.Limit-fetched)
+			}
+			response, err := c.MakeRequest(ctx, req)
 			if err != nil {
-				if handleIfFlood(err, c) {
+				if ctx.Err() != nil {
+					errCh <- ctx.Err()
+					return
+				}
+				if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
+					if err := wait(time.Duration(GetFloodWait(err)) * time.Second); err != nil {
+						errCh <- err
+						return
+					}
 					continue
 				}
-				if opts.ErrorCallback != nil {
-					if opts.ErrorCallback(err, &IterProgressInfo{
-						Fetched:      fetched,
-						CurrentBatch: 0,
-						Limit:        opts.Limit,
-						Offset:       req.Offset,
-					}) {
-						continue
-					}
+				if opts.ErrorCallback != nil && opts.ErrorCallback(err, &IterProgressInfo{Fetched: fetched, Limit: opts.Limit, Offset: req.Offset}) {
+					continue
 				}
 				errCh <- err
 				return
 			}
-
-			switch resp := resp.(type) {
-			case *ChannelsChannelParticipantsObj:
-				c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
-				for _, p := range resp.Participants {
-					part, err := c.processParticipant(p)
-					if err != nil {
-						errCh <- err
-						return
-					}
-					ch <- part
-					fetched++
-				}
-				if len(resp.Participants) < int(perReqLimit) || fetched >= opts.Limit && opts.Limit > 0 {
-					return
-				}
-
-				req.Offset = fetched
-			default:
-				errCh <- errors.New("unexpected response: " + reflect.TypeOf(resp).String())
+			batch, ok := response.(*ChannelsChannelParticipantsObj)
+			if !ok || batch == nil {
+				errCh <- fmt.Errorf("unexpected response: %T", response)
 				return
 			}
-
-			time.Sleep(time.Duration(opts.SleepThresholdMs) * time.Millisecond)
+			c.Cache.UpdatePeersToCache(batch.Users, batch.Chats)
+			for _, participant := range batch.Participants {
+				part, err := c.processParticipant(participant)
+				if err != nil {
+					errCh <- err
+					return
+				}
+				select {
+				case ch <- part:
+					fetched++
+				case <-ctx.Done():
+					errCh <- ctx.Err()
+					return
+				case <-stopped:
+					errCh <- context.Canceled
+					return
+				}
+				if opts.Limit > 0 && fetched >= opts.Limit {
+					return
+				}
+			}
+			if len(batch.Participants) < int(req.Limit) {
+				return
+			}
+			req.Offset += int32(len(batch.Participants))
+			if err := wait(time.Duration(opts.SleepThresholdMs) * time.Millisecond); err != nil {
+				errCh <- err
+				return
+			}
 		}
 	}()
-
 	return ch, errCh
 }
 
@@ -865,7 +886,7 @@ type ChannelOptions struct {
 func (c *Client) CreateChannel(title string, opts ...*ChannelOptions) (*Channel, error) {
 	opt := getVariadic(opts, &ChannelOptions{})
 	resp, err := c.ChannelsCreateChannel(&ChannelsCreateChannelParams{
-		Broadcast: !opt.NotBroadcast,
+		Broadcast: !opt.NotBroadcast && !opt.Megagroup,
 		GeoPoint:  opt.GeoPoint,
 		About:     opt.About,
 		ForImport: opt.ForImport,
@@ -1164,9 +1185,11 @@ func (c *Client) EditTopic(channel any, topicID int32, opts *EditTopicOptions) e
 	}
 	if opts.Closed != nil {
 		params.Closed = *opts.Closed
+		params.ClosedSet = true
 	}
 	if opts.Hidden != nil {
 		params.Hidden = *opts.Hidden
+		params.HiddenSet = true
 	}
 	_, err = c.MessagesEditForumTopic(params)
 	return err

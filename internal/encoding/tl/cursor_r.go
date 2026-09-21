@@ -13,14 +13,14 @@ import (
 )
 
 const largeBufferThreshold = 128 * 1024 // 128KB
-const maxVectorElements = 1 << 24
+const maxVectorElements = 1 << 20
 
 // LargeBytePool reuses large byte buffers (>= 128KB) to reduce heap
 // allocations during file downloads. Callers that receive a large []byte
 // from TL decoding should call ReleaseLargeBuffer when done with it.
 var LargeBytePool = sync.Pool{
 	New: func() any {
-		b := make([]byte, 1024*1024) // 1MB default
+		var b []byte
 		return &b
 	},
 }
@@ -28,7 +28,7 @@ var LargeBytePool = sync.Pool{
 // ReleaseLargeBuffer returns a large byte buffer to the pool for reuse.
 // It is safe to call with any slice (small slices are ignored).
 func ReleaseLargeBuffer(buf []byte) {
-	if cap(buf) >= largeBufferThreshold {
+	if cap(buf) >= largeBufferThreshold && cap(buf) <= 1024*1024 {
 		buf = buf[:cap(buf)]
 		LargeBytePool.Put(&buf)
 	}
@@ -36,8 +36,9 @@ func ReleaseLargeBuffer(buf []byte) {
 
 // A Decoder reads and decodes TL values from an input stream.
 type Decoder struct {
-	buf *bytes.Reader
-	err error
+	buf   *bytes.Reader
+	err   error
+	depth int
 
 	// see Decoder.ExpectTypesInInterface description
 	expectedTypes []reflect.Type
@@ -47,7 +48,11 @@ type Decoder struct {
 //
 // Note: The decoder cannot work with partial data. The entire input must be read before decoding can begin.
 func NewDecoder(r io.Reader) (*Decoder, error) {
-	data, err := io.ReadAll(r)
+	const maxDecoderInput = 64 * 1024 * 1024
+	data, err := io.ReadAll(io.LimitReader(r, maxDecoderInput+1))
+	if len(data) > maxDecoderInput {
+		return nil, fmt.Errorf("decoder input exceeds 64 MiB")
+	}
 	if err != nil {
 		return nil, fmt.Errorf("reading data before decoding: %w", err)
 	}
@@ -58,6 +63,18 @@ func NewDecoder(r io.Reader) (*Decoder, error) {
 // NewDecoderBytes returns a new decoder that reads from b.
 func NewDecoderBytes(b []byte) *Decoder {
 	return &Decoder{buf: bytes.NewReader(b)}
+}
+
+// CheckErr reports the first decoding error, including truncated input.
+func (d *Decoder) CheckErr() error { return d.err }
+
+// DecodeChild keeps decoder hints and the nesting budget through gzip wrappers.
+func (d *Decoder) DecodeChild(data []byte) (Object, error) {
+	child := NewDecoderBytes(data)
+	child.expectedTypes = d.expectedTypes
+	child.depth = d.depth
+	obj := child.decodeRegisteredObject()
+	return obj, child.err
 }
 
 // ExpectTypesInInterface defines how the decoder should parse implicit objects.
@@ -99,10 +116,8 @@ func (d *Decoder) read(buf []byte) {
 }
 
 func (d *Decoder) unread(count int) {
-	for range count {
-		if d.buf.UnreadByte() != nil {
-			return
-		}
+	if count > 0 {
+		_, _ = d.buf.Seek(-int64(count), io.SeekCurrent)
 	}
 }
 
@@ -137,7 +152,11 @@ func (d *Decoder) PopUint() uint32 {
 }
 
 func (d *Decoder) PopRawBytes(size int) []byte {
-	if size < 0 {
+	if d.err != nil {
+		return nil
+	}
+	if size < 0 || size > d.buf.Len() {
+		d.err = fmt.Errorf("invalid byte length %d (remaining %d)", size, d.buf.Len())
 		return nil
 	}
 
@@ -188,6 +207,9 @@ func (d *Decoder) PopInt() int32 {
 }
 
 func (d *Decoder) GetRestOfMessage() ([]byte, error) {
+	if d.err != nil {
+		return nil, d.err
+	}
 	return io.ReadAll(d.buf)
 }
 
@@ -233,8 +255,12 @@ func (d *Decoder) popVector(as reflect.Type, ignoreCRC bool) any {
 		return nil
 	}
 
-	if int(size) > d.buf.Len() {
+	if uint64(size)*4 > uint64(d.buf.Len()) {
 		d.err = fmt.Errorf("vector size %d exceeds remaining input %d", size, d.buf.Len())
+		return nil
+	}
+	if uint64(size)*uint64(as.Size()) > 64*1024*1024 {
+		d.err = fmt.Errorf("vector allocation exceeds 64MB")
 		return nil
 	}
 
@@ -266,6 +292,10 @@ func (d *Decoder) PopMessage() []byte {
 	}
 
 	firstByte := first[0]
+	if firstByte == 255 {
+		d.err = fmt.Errorf("invalid TL bytes length prefix 255")
+		return nil
+	}
 
 	var realSize int
 	var lenNumberSize int
@@ -284,7 +314,7 @@ func (d *Decoder) PopMessage() []byte {
 		realSize = int(uint32(sizeBuf[0]) | uint32(sizeBuf[1])<<8 | uint32(sizeBuf[2])<<16)
 		lenNumberSize = WordLen
 	}
-	
+
 	if realSize > d.buf.Len() {
 		d.err = fmt.Errorf("message size %d exceeds remaining input %d", realSize, d.buf.Len())
 		return nil

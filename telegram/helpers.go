@@ -74,6 +74,10 @@ func (c *Client) ResolveMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleM
 }
 
 func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia, error) {
+	value := reflect.ValueOf(m)
+	if !value.IsValid() || (value.Kind() == reflect.Pointer && value.IsNil()) {
+		return nil, fmt.Errorf("album contains nil media")
+	}
 	if attrs == nil {
 		attrs = &MediaMetadata{}
 	} else {
@@ -87,6 +91,10 @@ func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia
 
 	resolveSlice := func(items []any) error {
 		for _, it := range items {
+			value := reflect.ValueOf(it)
+			if !value.IsValid() || (value.Kind() == reflect.Pointer && value.IsNil()) {
+				return fmt.Errorf("album contains nil media")
+			}
 			mediaObj, err := c.getSendableMedia(it, attrs)
 			if err != nil {
 				return err
@@ -195,14 +203,26 @@ func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia
 			return nil, err
 		}
 		inputMedia = append(inputMedia, mediaObj)
-	case nil:
-		inputMedia = append(inputMedia, &InputMediaEmpty{})
+	default:
+		return nil, fmt.Errorf("unsupported album type: %T", m)
 	}
 	for _, m := range inputMedia {
 		media = append(media, &InputSingleMedia{
 			Media:    m,
 			RandomID: GenRandInt(),
 		})
+	}
+	if len(media) == 0 {
+		return nil, fmt.Errorf("album contains no media")
+	}
+	for i, item := range media {
+		if item == nil || item.Media == nil {
+			return nil, fmt.Errorf("album item %d contains no media", i)
+		}
+		value := reflect.ValueOf(item.Media)
+		if value.Kind() == reflect.Pointer && value.IsNil() {
+			return nil, fmt.Errorf("album item %d contains nil media", i)
+		}
 	}
 	return media, nil
 }

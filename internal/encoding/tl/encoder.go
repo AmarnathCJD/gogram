@@ -17,7 +17,11 @@ var bufferPool = sync.Pool{
 
 func Marshal(v any) ([]byte, error) {
 	buf := bufferPool.Get().(*bytes.Buffer)
-	defer bufferPool.Put(buf)
+	defer func() {
+		if buf.Cap() <= 1024*1024 {
+			bufferPool.Put(buf)
+		}
+	}()
 	buf.Reset()
 
 	encoder := NewEncoder(buf)
@@ -30,6 +34,23 @@ func Marshal(v any) ([]byte, error) {
 }
 
 func (c *Encoder) encodeValue(value reflect.Value) {
+	if c.err != nil {
+		return
+	}
+	if !value.IsValid() || ((value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface) && value.IsNil()) {
+		c.err = fmt.Errorf("cannot marshal a nil value")
+		return
+	}
+	if !value.CanInterface() {
+		c.err = fmt.Errorf("cannot marshal unexported field")
+		return
+	}
+	if c.depth >= 128 {
+		c.err = fmt.Errorf("TL nesting exceeds 128 levels")
+		return
+	}
+	c.depth++
+	defer func() { c.depth-- }()
 	if m, ok := value.Interface().(Marshaler); ok {
 		if c.err != nil {
 			return
@@ -58,6 +79,12 @@ func (c *Encoder) encodeValue(value reflect.Value) {
 		c.PutString(value.String())
 
 	case reflect.Struct:
+		if !value.CanAddr() {
+			copy := reflect.New(value.Type())
+			copy.Elem().Set(value)
+			c.encodeValue(copy)
+			return
+		}
 		c.encodeStruct(value.Addr())
 
 	case reflect.Ptr, reflect.Interface:
@@ -100,82 +127,68 @@ func (c *Encoder) encodeStruct(v reflect.Value) {
 		return
 	}
 
-	var hasFlagsField bool
-	var flag uint32
-	var flagIndex int
-	g, ok := v.Interface().(FlagIndexGetter)
-	if ok {
-		hasFlagsField = true
-		flagIndex = g.FlagIndex()
-	}
-
 	v = reflect.Indirect(v)
-
-	// what we checked and what we know about value:
-	// 1) it's not Marshaler (marshaler object already parsing in c.encodeValue())
-	// 2) implements tl.Object
-	// 3) definitely struct (we don't call encodeStruct(), only in c.encodeValue())
-	// 4) not nil (structs can't be nil, only pointers and interfaces)
-	c.PutCRC(o.CRC())
 	vtyp := v.Type()
 	cachedTags := GetCachedTags(vtyp)
-	numFields := v.NumField()
-
-	for i := 0; i < numFields; i++ {
-		info := cachedTags[i]
-
+	indices, count, err := flagLayout(o, v.NumField())
+	if err != nil {
+		c.err = err
+		return
+	}
+	var flags [2]uint32
+	for i, info := range cachedTags {
 		if info == nil || info.ignore {
 			continue
 		}
-
-		if info.encodedInBitflag && vtyp.Field(i).Type.Kind() != reflect.Bool {
-			c.err = fmt.Errorf("field '%s': only bool values can be encoded in bitflag", vtyp.Field(i).Name)
+		if info.version < 1 || info.version > count {
+			c.err = fmt.Errorf("field %s.%s has no corresponding flags word", vtyp.Name(), vtyp.Field(i).Name)
 			return
 		}
-
-		fieldVal := v.Field(i)
-		if !fieldVal.IsZero() || info.explicit {
-			flag |= 1 << info.index
+		if info.encodedInBitflag && v.Field(i).Kind() != reflect.Bool {
+			c.err = fmt.Errorf("field %s.%s: bitflag field must be bool", vtyp.Name(), vtyp.Field(i).Name)
+			return
+		}
+		if !v.Field(i).IsZero() || info.explicit {
+			flags[info.version-1] |= 1 << info.index
 		}
 	}
-
-	for i := 0; i < numFields; i++ {
-		if hasFlagsField && flagIndex == i {
-			c.PutUint(flag)
-			if c.err != nil {
+	c.PutCRC(o.CRC())
+	for i := 0; i <= v.NumField(); i++ {
+		for version := range count {
+			if indices[version] == i {
+				c.PutUint(flags[version])
+			}
+		}
+		if c.err != nil || i == v.NumField() {
+			break
+		}
+		field := v.Field(i)
+		if !field.CanInterface() {
+			if tag := cachedTags[i]; tag == nil || !tag.ignore {
+				c.err = fmt.Errorf("cannot marshal unexported field %s", vtyp.Field(i).Name)
 				return
 			}
 		}
-
-		info := cachedTags[i]
-		if info != nil {
-			if info.ignore {
+		if info := cachedTags[i]; info != nil {
+			if info.ignore || info.encodedInBitflag {
 				continue
 			}
-
-			fieldVal := v.Field(i)
-			if fieldVal.IsZero() && !info.explicit {
-				if info.optional && !info.encodedInBitflag && flag&(1<<info.index) != 0 {
-					if err := c.encodeZeroForFlagPartner(fieldVal, vtyp.Field(i).Name); err != nil {
-						c.err = err
-						return
-					}
-				}
+			if flags[info.version-1]&(1<<info.index) == 0 {
 				continue
 			}
-			if info.encodedInBitflag {
-				continue
+			if field.IsZero() && !info.explicit {
+				c.err = c.encodeZeroForFlagPartner(field, vtyp.Field(i).Name)
+			} else {
+				c.encodeValue(field)
 			}
-
-			c.encodeValue(fieldVal)
 		} else {
-			c.encodeValue(v.Field(i))
+			c.encodeValue(field)
 		}
-
 		if c.err != nil {
 			return
 		}
 	}
+
 }
 
 func (c *Encoder) encodeZeroForFlagPartner(fieldVal reflect.Value, fieldName string) error {
@@ -216,4 +229,23 @@ func (c *Encoder) encodeVectorValue(slice reflect.Value) {
 			return
 		}
 	}
+}
+
+// FlagIndex2Getter identifies the second flags word's insertion point among
+// Go struct fields. Like FlagIndex, flags words themselves are not fields.
+type FlagIndex2Getter interface{ FlagIndex2() int }
+
+func flagLayout(o Object, fields int) (indices [2]int, count int, err error) {
+	if g, ok := o.(FlagIndexGetter); ok {
+		indices[0], count = g.FlagIndex(), 1
+	}
+	if g, ok := o.(FlagIndex2Getter); ok {
+		indices[1], count = g.FlagIndex2(), 2
+	}
+	for i := 0; i < count; i++ {
+		if indices[i] < 0 || indices[i] > fields || (i > 0 && indices[i] < indices[i-1]) {
+			return indices, count, fmt.Errorf("invalid flags insertion point %d for %T", indices[i], o)
+		}
+	}
+	return indices, count, nil
 }

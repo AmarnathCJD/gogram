@@ -3,10 +3,12 @@
 package telegram
 
 import (
+	"container/list"
 	"encoding/gob"
 	"encoding/json"
+	"errors"
+	"io"
 	"maps"
-	"sort"
 
 	"fmt"
 	"os"
@@ -16,6 +18,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/amarnathcjd/gogram/internal/utils"
+
+	"slices"
 )
 
 // CacheStorage defines the interface for cache persistence backends
@@ -32,6 +38,7 @@ type CacheStorage interface {
 
 // FileCacheStorage implements CacheStorage for file-based persistence
 type FileCacheStorage struct {
+	mu   sync.Mutex
 	path string
 }
 
@@ -41,10 +48,14 @@ func NewFileCacheStorage(path string) *FileCacheStorage {
 
 // SetPath updates the storage path (useful for user-specific cache files)
 func (f *FileCacheStorage) SetPath(path string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.path = path
 }
 
 func (f *FileCacheStorage) Read() (*InputPeerCache, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	file, err := os.Open(f.path)
 	if err != nil {
 		return nil, err
@@ -60,14 +71,9 @@ func (f *FileCacheStorage) Read() (*InputPeerCache, error) {
 }
 
 func (f *FileCacheStorage) Write(peers *InputPeerCache) error {
-	file, err := os.OpenFile(f.path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	enc := gob.NewEncoder(file)
-	return enc.Encode(peers)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return utils.AtomicWriteFile(f.path, 0600, func(w io.Writer) error { return gob.NewEncoder(w).Encode(peers) })
 }
 
 func (f *FileCacheStorage) Close() error {
@@ -76,6 +82,7 @@ func (f *FileCacheStorage) Close() error {
 
 // MemoryCacheStorage implements CacheStorage for in-memory only (no persistence)
 type MemoryCacheStorage struct {
+	mu   sync.RWMutex
 	data *InputPeerCache
 }
 
@@ -84,18 +91,24 @@ func NewMemoryCacheStorage() *MemoryCacheStorage {
 }
 
 func (m *MemoryCacheStorage) Read() (*InputPeerCache, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if m.data == nil {
 		return nil, os.ErrNotExist
 	}
-	return m.data, nil
+	return cloneInputPeerCache(m.data), nil
 }
 
 func (m *MemoryCacheStorage) Write(peers *InputPeerCache) error {
-	m.data = peers
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.data = cloneInputPeerCache(peers)
 	return nil
 }
 
 func (m *MemoryCacheStorage) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.data = nil
 	return nil
 }
@@ -121,15 +134,20 @@ type CACHE struct {
 
 	mediaCache   map[string]*CachedMedia
 	mediaCacheMu sync.RWMutex
+	mediaOrder   *list.List
+	mediaIndex   map[string]*list.Element
 
 	wipeScheduled atomic.Bool
 	writePending  atomic.Bool
 	lastWrite     time.Time
 	writeMu       sync.Mutex
+	writeTimer    *time.Timer
+	wipeTimer     *time.Timer
+	closed        bool
 
-	lruUsers    map[int64]int64
-	lruChannels map[int64]int64
-	lruCounter  int64
+	lru           *list.List
+	lruIndex      map[cachePeerKey]*list.Element
+	peerUsernames map[cachePeerKey][]string
 }
 
 type CachedMedia struct {
@@ -151,6 +169,13 @@ func newInputPeerCache() *InputPeerCache {
 		InputUsers:    make(map[int64]int64),
 		UsernameMap:   make(map[string]int64),
 	}
+}
+
+func cloneInputPeerCache(peers *InputPeerCache) *InputPeerCache {
+	if peers == nil {
+		return nil
+	}
+	return &InputPeerCache{OwnerID: peers.OwnerID, InputUsers: maps.Clone(peers.InputUsers), InputChannels: maps.Clone(peers.InputChannels), UsernameMap: maps.Clone(peers.UsernameMap)}
 }
 
 func (c *CACHE) ensureInputPeersLocked() {
@@ -177,11 +202,9 @@ func (c *CACHE) resetLocked() {
 	c.InputPeers = newInputPeerCache()
 	c.minChannels = make(map[int64]int64)
 	c.minUsers = make(map[int64]int64)
-	if c.maxSize > 0 {
-		c.lruUsers = make(map[int64]int64)
-		c.lruChannels = make(map[int64]int64)
-		c.lruCounter = 0
-	}
+	c.lru = list.New()
+	c.lruIndex = make(map[cachePeerKey]*list.Element)
+	c.peerUsernames = make(map[cachePeerKey][]string)
 }
 
 func (c *CACHE) fileNameForUser(userID int64) string {
@@ -220,6 +243,9 @@ func (c *CACHE) loadFileIntoLocked(path string, expectedOwnerID int64) error {
 		peers = &p
 	}
 
+	if peers == nil {
+		return errors.New("cache storage returned no peer data")
+	}
 	if expectedOwnerID != 0 && peers.OwnerID != 0 {
 		if peers.OwnerID != expectedOwnerID {
 			return fmt.Errorf("cache owner mismatch: expected %d, got %d", expectedOwnerID, peers.OwnerID)
@@ -230,6 +256,7 @@ func (c *CACHE) loadFileIntoLocked(path string, expectedOwnerID int64) error {
 	c.ensureInputPeersLocked()
 	c.usernameMap = make(map[string]int64, len(c.InputPeers.UsernameMap))
 	maps.Copy(c.usernameMap, c.InputPeers.UsernameMap)
+	c.rebuildLRULocked()
 
 	c.logger.WithFields(map[string]any{
 		"users":     len(c.InputPeers.InputUsers),
@@ -263,7 +290,14 @@ func (c *CACHE) snapshotInputPeers() *InputPeerCache {
 }
 
 func (c *CACHE) BindToUser(userID int64) error {
-	if c == nil || c.disabled || c.memory || userID == 0 {
+	if c == nil || userID == 0 {
+		return nil
+	}
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	c.Lock()
+	defer c.Unlock()
+	if c.disabled || c.memory {
 		return nil
 	}
 
@@ -276,9 +310,6 @@ func (c *CACHE) BindToUser(userID int64) error {
 	if target == "" {
 		target = c.fileName
 	}
-
-	c.Lock()
-	defer c.Unlock()
 
 	if target != "" && c.fileName != target {
 		if fStorage, ok := c.storage.(*FileCacheStorage); ok {
@@ -320,6 +351,8 @@ func (c *CACHE) BindToUser(userID int64) error {
 }
 
 func (c *CACHE) SetWriteFile(write bool) *CACHE {
+	c.Lock()
+	defer c.Unlock()
 	c.memory = !write
 	return c
 }
@@ -334,22 +367,29 @@ func (c *CACHE) Clear() {
 }
 
 func (c *CACHE) ExportJSON() ([]byte, error) {
-	c.RLock()
-	defer c.RUnlock()
-
-	return json.Marshal(c.InputPeers)
+	return json.Marshal(c.snapshotInputPeers())
 }
 
 func (c *CACHE) ImportJSON(data []byte) error {
+	var peers *InputPeerCache
+	if err := json.Unmarshal(data, &peers); err != nil {
+		return err
+	}
+	if peers == nil {
+		return errors.New("cache import must contain an object")
+	}
 	c.Lock()
 	defer c.Unlock()
-
+	c.resetLocked()
+	c.InputPeers = peers
 	c.ensureInputPeersLocked()
-	return json.Unmarshal(data, c.InputPeers)
+	maps.Copy(c.usernameMap, peers.UsernameMap)
+	c.rebuildLRULocked()
+	return nil
 }
 
 type CacheConfig struct {
-	MaxSize  int          // Maximum entries to cache (0 = unlimited)
+	MaxSize  int          // Maximum cached peers (0 = 10000, negative = unlimited)
 	LogLevel LogLevel     // Log verbosity for cache operations
 	LogColor bool         // Enable colored log output
 	Logger   Logger       // Custom logger instance
@@ -385,10 +425,12 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 				SetColor(opt.LogColor).
 				SetLevel(opt.LogLevel)),
 	}
-	if opt.MaxSize > 0 {
-		c.lruUsers = make(map[int64]int64)
-		c.lruChannels = make(map[int64]int64)
+	if c.maxSize == 0 {
+		c.maxSize = 10000
 	}
+	c.lru = list.New()
+	c.lruIndex = make(map[cachePeerKey]*list.Element)
+	c.peerUsernames = make(map[cachePeerKey][]string)
 
 	if opt.Storage != nil {
 		c.storage = opt.Storage
@@ -411,135 +453,90 @@ func NewCache(fileName string, opts ...*CacheConfig) *CACHE {
 }
 
 func (c *CACHE) Disable() *CACHE {
+	c.Lock()
+	defer c.Unlock()
 	c.disabled = true
 	return c
 }
 
-func (c *CACHE) touchUserLRU(userID int64) {
-	if c.maxSize <= 0 {
-		return
-	}
-	c.lruCounter++
-	c.lruUsers[userID] = c.lruCounter
-}
-
-func (c *CACHE) touchChannelLRU(channelID int64) {
-	if c.maxSize <= 0 {
-		return
-	}
-	c.lruCounter++
-	c.lruChannels[channelID] = c.lruCounter
-}
-
-// enforceSizeLimit evicts least-recently-touched entries when the cache
-// exceeds maxSize. Must be called while holding the write lock.
-func (c *CACHE) enforceSizeLimit() {
-	if c.maxSize <= 0 {
-		return
-	}
-
-	totalSize := len(c.InputPeers.InputUsers) + len(c.InputPeers.InputChannels)
-	if totalSize <= c.maxSize {
-		return
-	}
-
-	excess := totalSize - c.maxSize
-	removed := 0
-
-	type entry struct {
-		id      int64
-		touched int64
-		isChan  bool
-	}
-	victims := make([]entry, 0, excess*2)
-	for id := range c.InputPeers.InputUsers {
-		victims = append(victims, entry{id: id, touched: c.lruUsers[id]})
-	}
-	for id := range c.InputPeers.InputChannels {
-		victims = append(victims, entry{id: id, touched: c.lruChannels[id], isChan: true})
-	}
-	sort.Slice(victims, func(i, j int) bool { return victims[i].touched < victims[j].touched })
-
-	for _, v := range victims {
-		if removed >= excess {
-			break
-		}
-		if v.isChan {
-			delete(c.InputPeers.InputChannels, v.id)
-			delete(c.lruChannels, v.id)
-			if ch, ok := c.channels[v.id]; ok {
-				if ch.Username != "" {
-					delete(c.usernameMap, ch.Username)
-				}
-				delete(c.channels, v.id)
-			}
-			delete(c.minChannels, v.id)
-		} else {
-			delete(c.InputPeers.InputUsers, v.id)
-			delete(c.lruUsers, v.id)
-			if u, ok := c.users[v.id]; ok {
-				if u.Username != "" {
-					delete(c.usernameMap, u.Username)
-				}
-				delete(c.users, v.id)
-			}
-			delete(c.minUsers, v.id)
-		}
-		removed++
-	}
-
-	if removed > 0 {
-		c.logger.Debug("cache limit: evicted %d entries (max=%d)", removed, c.maxSize)
-	}
-}
-
 // --------- Cache file Functions ---------
 func (c *CACHE) WriteFile() {
-	if c.disabled || c.memory {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	if c.closed {
+		return
+	}
+	c.RLock()
+	disabled := c.disabled || c.memory
+	c.RUnlock()
+	if disabled {
 		c.writePending.Store(false)
 		return
 	}
 
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
-
 	if wait := 2*time.Second - time.Since(c.lastWrite); wait > 0 {
-		go func(d time.Duration) {
-			time.Sleep(d)
-			c.WriteFile()
-		}(wait)
+		c.scheduleWriteLocked(wait)
 		return
 	}
+	if c.writeTimer != nil {
+		c.writeTimer.Stop()
+		c.writeTimer = nil
+	}
+	c.writeFileLocked()
+}
 
+// scheduleWriteLocked coalesces all writes into one timer, including explicit
+// WriteFile calls. A burst must never spawn a sleeping goroutine per call.
+func (c *CACHE) scheduleWriteLocked(delay time.Duration) {
+	if c.closed || c.writeTimer != nil {
+		return
+	}
+	c.writePending.Store(true)
+	c.writeTimer = time.AfterFunc(delay, func() {
+		c.writeMu.Lock()
+		defer c.writeMu.Unlock()
+		c.writeTimer = nil
+		if !c.closed {
+			c.writeFileLocked()
+		}
+	})
+}
+
+func (c *CACHE) writeFileLocked() error {
+	c.RLock()
+	disabled := c.disabled || c.memory
+	c.RUnlock()
+	if disabled {
+		c.writePending.Store(false)
+		return nil
+	}
 	peers := c.snapshotInputPeers()
 
 	var err error
 	if c.storage != nil {
 		err = c.storage.Write(peers)
 	} else if c.fileName != "" {
-		file, fileErr := os.OpenFile(c.fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
-		if fileErr != nil {
-			c.logger.Error("failed to open cache file: %v", fileErr)
-			c.writePending.Store(false)
-			return
-		}
-		enc := gob.NewEncoder(file)
-		err = enc.Encode(peers)
-		file.Close()
+		err = NewFileCacheStorage(c.fileName).Write(peers)
 	} else {
 		c.writePending.Store(false)
-		return
+		return nil
 	}
 
 	if err != nil {
 		c.logger.Error("failed to write cache: %v", err)
+		c.writePending.Store(true)
+		c.scheduleWriteLocked(2 * time.Second)
+		return err
 	} else {
 		c.lastWrite = time.Now()
 	}
 	c.writePending.Store(false)
+	return nil
 }
 
 func (c *CACHE) ReadFile() {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
 	c.Lock()
 	defer c.Unlock()
 
@@ -571,6 +568,8 @@ func (c *CACHE) ReadFile() {
 
 // SetStorage sets a custom storage backend for the cache
 func (c *CACHE) SetStorage(storage CacheStorage) *CACHE {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
 	c.Lock()
 	defer c.Unlock()
 
@@ -586,17 +585,36 @@ func (c *CACHE) SetStorage(storage CacheStorage) *CACHE {
 
 // Close closes the cache and underlying storage
 func (c *CACHE) Close() error {
-	if c.storage != nil {
-		return c.storage.Close()
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	if c.closed {
+		return nil
 	}
-	return nil
+	if c.writeTimer != nil {
+		c.writeTimer.Stop()
+		c.writeTimer = nil
+	}
+	if c.wipeTimer != nil {
+		c.wipeTimer.Stop()
+		c.wipeTimer = nil
+	}
+	c.closed = true
+	var err error
+	if c.writePending.Load() {
+		err = c.writeFileLocked()
+	}
+	if c.storage != nil {
+		err = errors.Join(err, c.storage.Close())
+	}
+	return err
 }
 
 func (c *CACHE) getUserPeer(userID int64) (InputUser, error) {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 
 	if userHash, ok := c.InputPeers.InputUsers[userID]; ok {
+		c.touchUserLRU(userID)
 		return &InputUserObj{UserID: userID, AccessHash: userHash}, nil
 	}
 
@@ -604,10 +622,11 @@ func (c *CACHE) getUserPeer(userID int64) (InputUser, error) {
 }
 
 func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 
 	if channelHash, ok := c.InputPeers.InputChannels[channelID]; ok {
+		c.touchChannelLRU(channelID)
 		return &InputChannelObj{ChannelID: channelID, AccessHash: channelHash}, nil
 	}
 
@@ -618,19 +637,22 @@ func (c *CACHE) LookupUsername(username string) (peerID int64, accessHash int64,
 	c.RLock()
 	defer c.RUnlock()
 
-	username = strings.TrimPrefix(username, "@")
+	username = normalizeUsername(username)
 	peerID, ok := c.usernameMap[username]
 	if !ok {
 		return 0, 0, false, false
 	}
 
-	// Check channels first
-	if hash, ok := c.InputPeers.InputChannels[peerID]; ok {
-		return peerID, hash, true, true
+	if peerID < 0 {
+		hash, ok := c.InputPeers.InputChannels[-peerID]
+		return -peerID, hash, true, ok
 	}
 	// Check users
 	if hash, ok := c.InputPeers.InputUsers[peerID]; ok {
 		return peerID, hash, false, true
+	}
+	if hash, ok := c.InputPeers.InputChannels[peerID]; ok {
+		return peerID, hash, true, true
 	}
 
 	// Username exists but access hash is missing - return found=true with 0 hash
@@ -709,12 +731,21 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 // ------------------ Get Chat/Channel/User From Cache/Telegram ------------------
 
 func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
-	c.Cache.RLock()
+	value, err := c.fetchPeerOnce(cachePeerKey{'u', userID}, func() (any, error) { return c.fetchUser(userID) })
+	if err != nil {
+		return nil, err
+	}
+	return value.(*UserObj), nil
+}
+
+func (c *Client) fetchUser(userID int64) (*UserObj, error) {
+	c.Cache.Lock()
 	if user, found := c.Cache.users[userID]; found {
-		c.Cache.RUnlock()
+		c.Cache.touchUserLRU(userID)
+		c.Cache.Unlock()
 		return user, nil
 	}
-	c.Cache.RUnlock()
+	c.Cache.Unlock()
 
 	userPeer, err := c.Cache.getUserPeer(userID)
 
@@ -757,12 +788,21 @@ func (c *Client) getUserFromCache(userID int64) (*UserObj, error) {
 }
 
 func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
-	c.Cache.RLock()
+	value, err := c.fetchPeerOnce(cachePeerKey{'c', channelID}, func() (any, error) { return c.fetchChannel(channelID) })
+	if err != nil {
+		return nil, err
+	}
+	return value.(*Channel), nil
+}
+
+func (c *Client) fetchChannel(channelID int64) (*Channel, error) {
+	c.Cache.Lock()
 	if channel, found := c.Cache.channels[channelID]; found {
-		c.Cache.RUnlock()
+		c.Cache.touchChannelLRU(channelID)
+		c.Cache.Unlock()
 		return channel, nil
 	}
-	c.Cache.RUnlock()
+	c.Cache.Unlock()
 
 	channelPeer, err := c.Cache.getChannelPeer(channelID)
 
@@ -811,12 +851,21 @@ func (c *Client) getChannelFromCache(channelID int64) (*Channel, error) {
 }
 
 func (c *Client) getChatFromCache(chatID int64) (*ChatObj, error) {
-	c.Cache.RLock()
+	value, err := c.fetchPeerOnce(cachePeerKey{'g', chatID}, func() (any, error) { return c.fetchChat(chatID) })
+	if err != nil {
+		return nil, err
+	}
+	return value.(*ChatObj), nil
+}
+
+func (c *Client) fetchChat(chatID int64) (*ChatObj, error) {
+	c.Cache.Lock()
 	if chat, found := c.Cache.chats[chatID]; found {
-		c.Cache.RUnlock()
+		c.Cache.touchLRU(cachePeerKey{'g', chatID})
+		c.Cache.Unlock()
 		return chat, nil
 	}
-	c.Cache.RUnlock()
+	c.Cache.Unlock()
 
 	chat, err := c.MessagesGetChats([]int64{chatID})
 	if err != nil {
@@ -883,8 +932,13 @@ func (c *Client) GetPeer(peerID int64) (any, error) {
 // ----------------- Update User/Channel/Chat in cache -----------------
 
 func (c *CACHE) UpdateUser(user *UserObj) bool {
+	if user == nil {
+		return false
+	}
 	c.Lock()
 	defer c.Unlock()
+	defer c.enforceSizeLimit()
+	c.touchUserLRU(user.ID)
 
 	if user.Min {
 		if existingUser, ok := c.users[user.ID]; ok && !existingUser.Min {
@@ -902,9 +956,7 @@ func (c *CACHE) UpdateUser(user *UserObj) bool {
 	c.users[user.ID] = user
 	delete(c.minUsers, user.ID)
 
-	if user.Username != "" {
-		c.usernameMap[user.Username] = user.ID
-	}
+	usernamesChanged := c.updateUsernames(cachePeerKey{kind: 'u', id: user.ID}, user.Username, user.Usernames)
 
 	if currAccessHash, ok := c.InputPeers.InputUsers[user.ID]; ok {
 		c.touchUserLRU(user.ID)
@@ -912,7 +964,7 @@ func (c *CACHE) UpdateUser(user *UserObj) bool {
 			c.InputPeers.InputUsers[user.ID] = user.AccessHash
 			return true
 		}
-		return false
+		return usernamesChanged
 	}
 
 	c.InputPeers.InputUsers[user.ID] = user.AccessHash
@@ -922,8 +974,13 @@ func (c *CACHE) UpdateUser(user *UserObj) bool {
 }
 
 func (c *CACHE) UpdateChannel(channel *Channel) bool {
+	if channel == nil {
+		return false
+	}
 	c.Lock()
 	defer c.Unlock()
+	defer c.enforceSizeLimit()
+	c.touchChannelLRU(channel.ID)
 
 	if channel.Min {
 		if existingCh, ok := c.channels[channel.ID]; ok && !existingCh.Min {
@@ -941,9 +998,7 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 	c.channels[channel.ID] = channel
 	delete(c.minChannels, channel.ID)
 
-	if channel.Username != "" {
-		c.usernameMap[channel.Username] = channel.ID
-	}
+	usernamesChanged := c.updateUsernames(cachePeerKey{kind: 'c', id: channel.ID}, channel.Username, channel.Usernames)
 
 	if currAccessHash, ok := c.InputPeers.InputChannels[channel.ID]; ok {
 		c.touchChannelLRU(channel.ID)
@@ -951,7 +1006,7 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 			c.InputPeers.InputChannels[channel.ID] = channel.AccessHash
 			return true
 		}
-		return false
+		return usernamesChanged
 	}
 
 	c.InputPeers.InputChannels[channel.ID] = channel.AccessHash
@@ -961,22 +1016,37 @@ func (c *CACHE) UpdateChannel(channel *Channel) bool {
 }
 
 func (c *CACHE) UpdateChat(chat *ChatObj) bool {
+	if chat == nil {
+		return false
+	}
 	c.Lock()
 	defer c.Unlock()
 	c.chats[chat.ID] = chat
+	c.touchLRU(cachePeerKey{kind: 'g', id: chat.ID})
+	c.enforceSizeLimit()
 
 	return true
 }
 
 func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
-	if cache.disabled && !cache.wipeScheduled.Load() {
+	cache.RLock()
+	disabled, memory := cache.disabled, cache.memory
+	cache.RUnlock()
+	if disabled && cache.wipeScheduled.CompareAndSwap(false, true) {
 		// schedule a wipe of the cache after 20 seconds
-		cache.wipeScheduled.Store(true)
-		go func() {
-			<-time.After(20 * time.Second)
-			cache.Clear()
-			cache.wipeScheduled.Store(false)
-		}()
+		cache.writeMu.Lock()
+		if !cache.closed {
+			cache.wipeTimer = time.AfterFunc(20*time.Second, func() {
+				cache.writeMu.Lock()
+				defer cache.writeMu.Unlock()
+				if !cache.closed {
+					cache.Clear()
+				}
+				cache.wipeTimer = nil
+				cache.wipeScheduled.Store(false)
+			})
+		}
+		cache.writeMu.Unlock()
 	}
 
 	totalUpdates := [2]int{0, 0}
@@ -1008,6 +1078,8 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 					ID: ch.ID,
 				}
 			}
+			cache.touchLRU(cachePeerKey{kind: 'g', id: ch.ID})
+			cache.enforceSizeLimit()
 			cache.Unlock()
 		case *ChannelForbidden:
 			cache.Lock()
@@ -1022,6 +1094,8 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 				cache.InputPeers.InputChannels[ch.ID] = ch.AccessHash
 				cache.touchChannelLRU(ch.ID)
 			}
+			cache.touchChannelLRU(ch.ID)
+			cache.enforceSizeLimit()
 			cache.Unlock()
 		case *Community:
 			cache.Lock()
@@ -1046,6 +1120,8 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 					cache.touchChannelLRU(ch.ID)
 				}
 			}
+			cache.touchChannelLRU(ch.ID)
+			cache.enforceSizeLimit()
 			cache.Unlock()
 		case *CommunityForbidden:
 			cache.Lock()
@@ -1054,20 +1130,18 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 				cache.InputPeers.InputChannels[ch.ID] = ch.AccessHash
 				cache.touchChannelLRU(ch.ID)
 			}
+			cache.touchChannelLRU(ch.ID)
+			cache.enforceSizeLimit()
 			cache.Unlock()
 		case *ChatEmpty:
 		}
 	}
 
 	if totalUpdates[0] > 0 || totalUpdates[1] > 0 {
-		if !cache.memory && !cache.disabled {
-			if !cache.writePending.Load() {
-				cache.writePending.Store(true)
-				go func() {
-					time.Sleep(1 * time.Second)
-					cache.WriteFile()
-				}()
-			}
+		if !memory && !disabled {
+			cache.writeMu.Lock()
+			cache.scheduleWriteLocked(max(time.Second, 2*time.Second-time.Since(cache.lastWrite)))
+			cache.writeMu.Unlock()
 		}
 		if cache.logger.Lev() <= DebugLevel {
 			cache.RLock()
@@ -1132,97 +1206,280 @@ func trimSuffixHundred(id int64) int64 {
 
 // GetCachedMedia retrieves a cached media by its key (URL or file hash)
 func (c *CACHE) GetCachedMedia(key string) (*CachedMedia, bool) {
-	if c.disabled {
+	c.RLock()
+	disabled := c.disabled
+	c.RUnlock()
+	if disabled {
 		return nil, false
-	}
-	c.mediaCacheMu.RLock()
-	defer c.mediaCacheMu.RUnlock()
-
-	if c.mediaCache == nil {
-		return nil, false
-	}
-
-	media, ok := c.mediaCache[key]
-	if !ok {
-		return nil, false
-	}
-
-	if media.ExpiresAt > 0 && time.Now().Unix() > media.ExpiresAt {
-		return nil, false
-	}
-
-	return media, true
-}
-
-func (c *CACHE) SetCachedMedia(key string, media *CachedMedia, ttlSeconds ...int64) {
-	if c.disabled {
-		return
 	}
 	c.mediaCacheMu.Lock()
 	defer c.mediaCacheMu.Unlock()
-
-	if c.mediaCache == nil {
-		c.mediaCache = make(map[string]*CachedMedia)
+	media := c.mediaCache[key]
+	if media == nil {
+		return nil, false
 	}
+	if media.ExpiresAt > 0 && time.Now().Unix() >= media.ExpiresAt {
+		c.deleteCachedMediaLocked(key)
+		return nil, false
+	}
+	if e := c.mediaIndex[key]; e != nil {
+		c.mediaOrder.MoveToBack(e)
+	}
+	copy := *media
+	return &copy, true
+}
 
-	media.CachedAt = time.Now().Unix()
-
-	ttl := int64(24 * 60 * 60) // default 24 hours
+func (c *CACHE) SetCachedMedia(key string, media *CachedMedia, ttlSeconds ...int64) {
+	if media == nil {
+		return
+	}
+	c.RLock()
+	disabled := c.disabled
+	c.RUnlock()
+	if disabled {
+		return
+	}
+	copy := *media
+	copy.CachedAt = time.Now().Unix()
+	ttl := int64(24 * 60 * 60)
 	if len(ttlSeconds) > 0 {
 		if ttlSeconds[0] == -1 {
-			ttl = 0 // no expiry
+			ttl = 0
 		} else if ttlSeconds[0] > 0 {
 			ttl = ttlSeconds[0]
 		}
 	}
-
+	copy.ExpiresAt = 0
 	if ttl > 0 {
-		media.ExpiresAt = media.CachedAt + ttl
+		copy.ExpiresAt = copy.CachedAt + ttl
 	}
-
-	c.mediaCache[key] = media
-
-	if len(c.mediaCache) > 2000 {
-		c.cleanupMediaCache()
+	c.mediaCacheMu.Lock()
+	defer c.mediaCacheMu.Unlock()
+	if c.mediaCache == nil {
+		c.mediaCache = make(map[string]*CachedMedia)
+	}
+	if c.mediaOrder == nil {
+		c.mediaOrder = list.New()
+		c.mediaIndex = make(map[string]*list.Element)
+	}
+	c.mediaCache[key] = &copy
+	if e := c.mediaIndex[key]; e != nil {
+		c.mediaOrder.MoveToBack(e)
+	} else {
+		c.mediaIndex[key] = c.mediaOrder.PushBack(key)
+	}
+	for len(c.mediaCache) > mediaCacheHardCap {
+		c.deleteCachedMediaLocked(c.mediaOrder.Front().Value.(string))
 	}
 }
 
+func (c *CACHE) deleteCachedMediaLocked(key string) {
+	delete(c.mediaCache, key)
+	if e := c.mediaIndex[key]; e != nil {
+		c.mediaOrder.Remove(e)
+		delete(c.mediaIndex, key)
+	}
+}
 func (c *CACHE) DeleteCachedMedia(key string) {
 	c.mediaCacheMu.Lock()
 	defer c.mediaCacheMu.Unlock()
-
-	delete(c.mediaCache, key)
+	c.deleteCachedMediaLocked(key)
 }
 
 const mediaCacheHardCap = 2000
-
-func (c *CACHE) cleanupMediaCache() {
-	now := time.Now().Unix()
-	for key, media := range c.mediaCache {
-		if media.ExpiresAt > 0 && now > media.ExpiresAt {
-			delete(c.mediaCache, key)
-		}
-	}
-	if len(c.mediaCache) <= mediaCacheHardCap {
-		return
-	}
-	type entry struct {
-		key string
-		at  int64
-	}
-	entries := make([]entry, 0, len(c.mediaCache))
-	for k, m := range c.mediaCache {
-		entries = append(entries, entry{key: k, at: m.CachedAt})
-	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].at < entries[j].at })
-	excess := len(c.mediaCache) - mediaCacheHardCap
-	for i := range excess {
-		delete(c.mediaCache, entries[i].key)
-	}
-}
 
 func (c *CACHE) ClearMediaCache() {
 	c.mediaCacheMu.Lock()
 	defer c.mediaCacheMu.Unlock()
 	c.mediaCache = make(map[string]*CachedMedia)
+	c.mediaOrder = list.New()
+	c.mediaIndex = make(map[string]*list.Element)
+}
+
+type cachePeerKey struct {
+	kind byte // user, channel, or basic group; their numeric IDs can overlap
+	id   int64
+}
+
+func (c *CACHE) touchUserLRU(id int64)    { c.touchLRU(cachePeerKey{'u', id}) }
+func (c *CACHE) touchChannelLRU(id int64) { c.touchLRU(cachePeerKey{'c', id}) }
+
+func (c *CACHE) touchLRU(key cachePeerKey) {
+	if c.maxSize < 0 {
+		return
+	}
+	if e := c.lruIndex[key]; e != nil {
+		c.lru.MoveToBack(e)
+		return
+	}
+	c.lruIndex[key] = c.lru.PushBack(key)
+}
+
+func normalizeUsername(name string) string { return strings.ToLower(strings.TrimPrefix(name, "@")) }
+
+func (c *CACHE) updateUsernames(key cachePeerKey, primary string, aliases []*Username) bool {
+	var names []string
+	if primary != "" {
+		names = append(names, normalizeUsername(primary))
+	}
+	for _, alias := range aliases {
+		if alias != nil && alias.Active && alias.Username != "" {
+			name := normalizeUsername(alias.Username)
+			if !slices.Contains(names, name) {
+				names = append(names, name)
+			}
+		}
+	}
+	if slices.Equal(c.peerUsernames[key], names) {
+		return false
+	}
+	c.removeUsernames(key)
+	value := key.id
+	if key.kind == 'c' {
+		value = -value
+	}
+	for _, name := range names {
+		c.usernameMap[name] = value
+	}
+	if len(names) > 0 {
+		c.peerUsernames[key] = names
+	}
+	return true
+}
+
+func (c *CACHE) removeUsernames(key cachePeerKey) {
+	value := key.id
+	if key.kind == 'c' {
+		value = -value
+	}
+	for _, name := range c.peerUsernames[key] {
+		if c.usernameMap[name] == value {
+			delete(c.usernameMap, name)
+		}
+	}
+	delete(c.peerUsernames, key)
+}
+
+func (c *CACHE) enforceSizeLimit() {
+	if c.maxSize <= 0 {
+		return
+	}
+	for c.lru.Len() > c.maxSize {
+		e := c.lru.Front()
+		key := e.Value.(cachePeerKey)
+		c.lru.Remove(e)
+		delete(c.lruIndex, key)
+		c.removeUsernames(key)
+		switch key.kind {
+		case 'u':
+			delete(c.users, key.id)
+			delete(c.minUsers, key.id)
+			delete(c.InputPeers.InputUsers, key.id)
+		case 'c':
+			delete(c.channels, key.id)
+			delete(c.minChannels, key.id)
+			delete(c.InputPeers.InputChannels, key.id)
+		case 'g':
+			delete(c.chats, key.id)
+		}
+	}
+}
+
+func (c *CACHE) rebuildLRULocked() {
+	c.lru = list.New()
+	c.lruIndex = make(map[cachePeerKey]*list.Element)
+	c.peerUsernames = make(map[cachePeerKey][]string)
+	for id := range c.InputPeers.InputUsers {
+		c.touchUserLRU(id)
+	}
+	for id := range c.InputPeers.InputChannels {
+		c.touchChannelLRU(id)
+	}
+	for id := range c.users {
+		c.touchUserLRU(id)
+	}
+	for id := range c.channels {
+		c.touchChannelLRU(id)
+	}
+	for id := range c.chats {
+		c.touchLRU(cachePeerKey{'g', id})
+	}
+	for name, id := range c.usernameMap {
+		key := cachePeerKey{'u', id}
+		if id < 0 {
+			key = cachePeerKey{'c', -id}
+		} else if _, ok := c.InputPeers.InputUsers[id]; !ok {
+			if _, ok := c.InputPeers.InputChannels[id]; ok {
+				key.kind = 'c'
+				c.usernameMap[name] = -id
+			} else {
+				delete(c.usernameMap, name)
+				continue
+			}
+		}
+		normalized := normalizeUsername(name)
+		if normalized != name {
+			delete(c.usernameMap, name)
+			if key.kind == 'c' {
+				c.usernameMap[normalized] = -key.id
+			} else {
+				c.usernameMap[normalized] = key.id
+			}
+		}
+		c.peerUsernames[key] = append(c.peerUsernames[key], normalized)
+	}
+	c.enforceSizeLimit()
+}
+
+type peerLookup struct {
+	done  chan struct{}
+	value any
+	err   error
+}
+
+func (c *Client) fetchPeerOnce(key cachePeerKey, fetch func() (any, error)) (any, error) {
+	c.Cache.Lock()
+	var cached any
+	switch key.kind {
+	case 'u':
+		if value := c.Cache.users[key.id]; value != nil {
+			cached = value
+		}
+	case 'c':
+		if value := c.Cache.channels[key.id]; value != nil {
+			cached = value
+		}
+	case 'g':
+		if value := c.Cache.chats[key.id]; value != nil {
+			cached = value
+		}
+	}
+	if cached != nil {
+		c.Cache.touchLRU(key)
+	}
+	c.Cache.Unlock()
+	if cached != nil {
+		return cached, nil
+	}
+
+	c.peerFetchMu.Lock()
+	if call := c.peerFetches[key]; call != nil {
+		c.peerFetchMu.Unlock()
+		<-call.done
+		return call.value, call.err
+	}
+	if c.peerFetches == nil {
+		c.peerFetches = make(map[cachePeerKey]*peerLookup)
+	}
+	call := &peerLookup{done: make(chan struct{}), err: errors.New("peer lookup interrupted")}
+	c.peerFetches[key] = call
+	c.peerFetchMu.Unlock()
+	defer func() {
+		c.peerFetchMu.Lock()
+		delete(c.peerFetches, key)
+		close(call.done)
+		c.peerFetchMu.Unlock()
+	}()
+	call.value, call.err = fetch()
+	return call.value, call.err
 }

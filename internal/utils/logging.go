@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -85,6 +86,7 @@ type Hook func(*LogEntry)
 
 type Logger struct {
 	mu              sync.RWMutex
+	sinkMu          *sync.Mutex
 	level           LogLevel
 	prefix          string
 	output          io.Writer
@@ -107,6 +109,7 @@ type Logger struct {
 	maxFileSize     int64
 	currentFileSize int64
 	logFilePath     string
+	ownedFile       *os.File
 }
 
 type LoggerConfig struct {
@@ -174,6 +177,7 @@ func NewLoggerWithConfig(config *LoggerConfig) *Logger {
 	}
 
 	logger := &Logger{
+		sinkMu:          &sync.Mutex{},
 		level:           config.Level,
 		prefix:          config.Prefix,
 		output:          config.Output,
@@ -208,10 +212,11 @@ func (l *Logger) Clone() *Logger {
 	defer l.mu.RUnlock()
 
 	clone := &Logger{
+		sinkMu:          l.sinkMu,
 		level:           l.level,
 		prefix:          l.prefix,
 		output:          l.output,
-		writer:          bufio.NewWriterSize(l.output, l.bufferSize),
+		writer:          l.writer,
 		formatter:       l.formatter,
 		color:           l.color,
 		showCaller:      l.showCaller,
@@ -219,12 +224,18 @@ func (l *Logger) Clone() *Logger {
 		fullStackTrace:  l.fullStackTrace,
 		timestampFormat: l.timestampFormat,
 		bufferSize:      l.bufferSize,
-		asyncMode:       l.asyncMode,
-		fields:          make(map[string]any),
-		errorHandler:    l.errorHandler,
+		// Derived loggers share the synchronized sink without background workers.
+		asyncMode:    false,
+		hooks:        slices.Clone(l.hooks),
+		fields:       make(map[string]any),
+		errorHandler: l.errorHandler,
 	}
 
 	maps.Copy(clone.fields, l.fields)
+	if formatter, ok := l.formatter.(*TextFormatter); ok {
+		copy := *formatter
+		clone.formatter = &copy
+	}
 
 	return clone
 }
@@ -382,6 +393,8 @@ func (l *Logger) EnableRotation(maxFileSize int64, logFilePath string) *Logger {
 func (l *Logger) Flush() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.sinkMu.Lock()
+	defer l.sinkMu.Unlock()
 	return l.writer.Flush()
 }
 
@@ -400,14 +413,21 @@ func (l *Logger) Close() error {
 		l.mu.Lock()
 	}
 
+	l.sinkMu.Lock()
 	err := l.writer.Flush()
+	if l.ownedFile != nil {
+		if closeErr := l.ownedFile.Close(); err == nil {
+			err = closeErr
+		}
+		l.ownedFile = nil
+	}
+	l.sinkMu.Unlock()
 	l.mu.Unlock()
 	return err
 }
 
 // processAsync handles asynchronous log processing
 func (l *Logger) processAsync() {
-	defer l.wg.Done()
 	for entry := range l.logChan {
 		l.writeEntry(entry)
 	}
@@ -420,6 +440,9 @@ func (l *Logger) log(level LogLevel, msg string, args ...any) {
 		l.mu.RUnlock()
 		return
 	}
+	showCaller, showFunction, prefix := l.showCaller, l.showFunction, l.prefix
+	fields := maps.Clone(l.fields)
+	hooks := slices.Clone(l.hooks)
 	l.mu.RUnlock()
 
 	if len(args) > 0 {
@@ -430,7 +453,7 @@ func (l *Logger) log(level LogLevel, msg string, args ...any) {
 	var line int
 	var function string
 
-	if l.showCaller || l.showFunction {
+	if showCaller || showFunction {
 		var pcs [10]uintptr
 		n := runtime.Callers(3, pcs[:])
 		frames := runtime.CallersFrames(pcs[:n])
@@ -440,7 +463,7 @@ func (l *Logger) log(level LogLevel, msg string, args ...any) {
 			if !strings.Contains(frame.File, "logging.go") {
 				file = filepath.Base(frame.File)
 				line = frame.Line
-				if l.showFunction {
+				if showFunction {
 					function = filepath.Base(frame.Function)
 				}
 				break
@@ -455,41 +478,42 @@ func (l *Logger) log(level LogLevel, msg string, args ...any) {
 		Time:     time.Now(),
 		Level:    level,
 		Message:  msg,
-		Prefix:   l.prefix,
+		Prefix:   prefix,
 		File:     file,
 		Line:     line,
 		Function: function,
-		Fields:   make(map[string]any),
+		Fields:   fields,
 	}
 
-	l.mu.RLock()
-	maps.Copy(entry.Fields, l.fields)
 	if err, ok := entry.Fields["error"].(error); ok {
 		entry.Error = err
 		delete(entry.Fields, "error")
 	}
-	l.mu.RUnlock()
-
-	l.mu.RLock()
-	for _, hook := range l.hooks {
+	for _, hook := range hooks {
 		hook(entry)
 	}
-	l.mu.RUnlock()
-
+	l.mu.RLock()
+	if l.closed {
+		l.mu.RUnlock()
+		return
+	}
 	if l.asyncMode {
 		select {
 		case l.logChan <- entry:
+			l.mu.RUnlock()
 		default:
+			l.mu.RUnlock()
 			l.writeEntry(entry)
 		}
 	} else {
+		l.mu.RUnlock()
 		l.writeEntry(entry)
 	}
 }
 
 func (l *Logger) writeEntry(entry *LogEntry) {
 	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.sinkMu.Lock()
 
 	formatted := l.formatter.Format(entry)
 
@@ -501,10 +525,15 @@ func (l *Logger) writeEntry(entry *LogEntry) {
 	}
 
 	_, err := l.writer.WriteString(formatted)
-	if err != nil && l.errorHandler != nil {
-		l.errorHandler(err)
+	if flushErr := l.writer.Flush(); err == nil {
+		err = flushErr
 	}
-	l.writer.Flush()
+	handler := l.errorHandler
+	l.sinkMu.Unlock()
+	l.mu.Unlock()
+	if err != nil && handler != nil {
+		handler(err)
+	}
 }
 
 func (l *Logger) rotate() {
@@ -513,6 +542,10 @@ func (l *Logger) rotate() {
 	}
 
 	l.writer.Flush()
+	if l.ownedFile != nil {
+		_ = l.ownedFile.Close()
+		l.ownedFile = nil
+	}
 
 	timestamp := time.Now().Format("20060102-150405")
 	newName := fmt.Sprintf("%s.%s", l.logFilePath, timestamp)
@@ -527,6 +560,7 @@ func (l *Logger) rotate() {
 	}
 
 	l.output = f
+	l.ownedFile = f
 	l.writer = bufio.NewWriterSize(f, l.bufferSize)
 	l.currentFileSize = 0
 }
@@ -791,11 +825,6 @@ func (f *TextFormatter) Format(entry *LogEntry) string {
 	if len(entry.Fields) > 0 {
 		if !f.NoColor {
 			b.WriteString(colorDim)
-		}
-
-		keys := make([]string, 0, len(entry.Fields))
-		for k := range entry.Fields {
-			keys = append(keys, k)
 		}
 
 		b.WriteString(" [")

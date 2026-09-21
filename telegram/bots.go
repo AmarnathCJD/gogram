@@ -162,7 +162,7 @@ func (c *Client) Broadcast(ctx context.Context, userCallback func(User) error, c
 			}
 		}
 
-		updates, err := c.MakeRequestCtx(ctx, req)
+		updates, err := c.MakeRequest(ctx, req)
 		if err != nil {
 			if handleIfFlood(err, c) {
 				continue

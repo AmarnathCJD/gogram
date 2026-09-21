@@ -41,8 +41,10 @@ func (m *NewMessage) MessageText() string {
 }
 
 func (m *NewMessage) ReplyToMsgID() int32 {
-	if m.Message.ReplyTo != nil {
-		return m.Message.ReplyTo.(*MessageReplyHeaderObj).ReplyToMsgID
+	if m != nil && m.Message != nil {
+		if reply, ok := m.Message.ReplyTo.(*MessageReplyHeaderObj); ok && reply != nil {
+			return reply.ReplyToMsgID
+		}
 	}
 	return 0
 }
@@ -54,8 +56,11 @@ func (m *NewMessage) ReplyID() int32 {
 // return the topic id of the message if it is in a topic
 // if it is a reply to a message, return the topic id of the message
 func (m *NewMessage) TopicID() (int32, bool) {
+	if m == nil || m.Message == nil {
+		return 0, false
+	}
 	if m.Message.ReplyTo != nil {
-		if reply, ok := m.Message.ReplyTo.(*MessageReplyHeaderObj); ok {
+		if reply, ok := m.Message.ReplyTo.(*MessageReplyHeaderObj); ok && reply != nil {
 			if reply.ForumTopic {
 				if reply.ReplyToTopID != 0 {
 					return reply.ReplyToTopID, true
@@ -68,8 +73,17 @@ func (m *NewMessage) TopicID() (int32, bool) {
 }
 
 func (m *NewMessage) ReplySenderID() int64 {
-	if m.Message.ReplyTo != nil {
-		return m.Client.GetPeerID(m.Message.ReplyTo.(*MessageReplyHeaderObj).ReplyToPeerID)
+	if m != nil && m.Message != nil {
+		switch reply := m.Message.ReplyTo.(type) {
+		case *MessageReplyHeaderObj:
+			if reply != nil {
+				return m.Client.GetPeerID(reply.ReplyToPeerID)
+			}
+		case *MessageReplyStoryHeader:
+			if reply != nil {
+				return m.Client.GetPeerID(reply.Peer)
+			}
+		}
 	}
 	return 0
 }
@@ -142,6 +156,9 @@ func (m *NewMessage) GetReplyMessage() (*NewMessage, error) {
 			return nil, err
 		}
 
+		if stories == nil || len(stories.Stories) == 0 {
+			return nil, fmt.Errorf("reply story not found")
+		}
 		switch st := stories.Stories[0].(type) {
 		case *StoryItemObj:
 			return packStoryToMessage(m.Client, st), nil
@@ -274,13 +291,24 @@ func (m *NewMessage) IsChannel() bool {
 }
 
 func (m *NewMessage) IsReply() bool {
-	if m.Message.ReplyTo == nil {
+	if m == nil || m.Message == nil || m.Message.ReplyTo == nil {
 		return false
+	}
+
+	switch reply := m.Message.ReplyTo.(type) {
+	case *MessageReplyHeaderObj:
+		if reply == nil {
+			return false
+		}
+	case *MessageReplyStoryHeader:
+		if reply == nil {
+			return false
+		}
 	}
 
 	if m.Channel != nil && m.Channel.Forum {
 		if r, ok := m.Message.ReplyTo.(*MessageReplyHeaderObj); ok {
-			return r.ReplyToTopID != 0
+			return r != nil && r.ReplyToTopID != 0
 		}
 	}
 
@@ -363,7 +391,7 @@ func (m *NewMessage) IsForward() bool {
 
 // Media is a media object in a message
 func (m *NewMessage) Media() MessageMedia {
-	if m.Message.Media == nil {
+	if m == nil || m.Message == nil {
 		return nil
 	}
 	return m.Message.Media

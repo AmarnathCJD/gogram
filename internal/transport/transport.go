@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"reflect"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/internal/mode"
@@ -53,7 +52,7 @@ func NewTransport(m messages.MessageInformator, conn ConnConfig, modeVariant mod
 		t.conn, err = NewWebSocket(cfg)
 		isObfuscated = true
 	default:
-		return nil, fmt.Errorf("unsupported connection type %v", reflect.TypeOf(conn).String())
+		return nil, fmt.Errorf("unsupported connection type %T", conn)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("setup connection: %w", err)
@@ -61,7 +60,7 @@ func NewTransport(m messages.MessageInformator, conn ConnConfig, modeVariant mod
 
 	if isMTProxy {
 		modeVariant = mode.Intermediate
-		if ft, ok := t.conn.(interface{ IsFakeTLS() bool }); ok && ft.IsFakeTLS() {
+		if mt, ok := t.conn.(interface{ usesPaddedMode() bool }); ok && mt.usesPaddedMode() {
 			modeVariant = mode.PaddedIntermediate
 		}
 	}
@@ -88,9 +87,15 @@ func (t *transport) WriteMsg(msg messages.Common, seqNo int32) error {
 	var data []byte
 	switch message := msg.(type) {
 	case *messages.Unencrypted:
+		if message == nil {
+			return fmt.Errorf("nil unencrypted message")
+		}
 		data, _ = message.Serialize(t.m)
 
 	case *messages.Encrypted:
+		if message == nil {
+			return fmt.Errorf("nil encrypted message")
+		}
 		var err error
 		data, err = message.Serialize(t.m, seqNo)
 		if err != nil {
@@ -98,7 +103,7 @@ func (t *transport) WriteMsg(msg messages.Common, seqNo int32) error {
 		}
 
 	default:
-		return fmt.Errorf("supported only mtproto predefined messages, got %v", reflect.TypeOf(msg).String())
+		return fmt.Errorf("supported only mtproto predefined messages, got %T", msg)
 	}
 
 	err := t.mode.WriteMsg(data)
@@ -120,13 +125,13 @@ func (t *transport) ReadMsg() (messages.Common, error) {
 	}
 
 	if len(data) == tl.WordLen {
-		code := int64(binary.LittleEndian.Uint32(data))
+		code := int64(int32(binary.LittleEndian.Uint32(data)))
 		return nil, ErrCode(code)
 	}
 
 	var msg messages.Common
 	if isPacketEncrypted(data) {
-		msg, err = messages.DeserializeEncrypted(data, t.m.GetAuthKey())
+		msg, err = messages.DeserializeEncrypted(data, messages.AuthKeyForPacket(t.m, data))
 	} else {
 		msg, err = messages.DeserializeUnencrypted(data)
 	}
@@ -134,7 +139,7 @@ func (t *transport) ReadMsg() (messages.Common, error) {
 		return nil, fmt.Errorf("parsing message: %w", err)
 	}
 
-	mod := msg.GetMsgID() & 3 // why 3? only god knows why
+	mod := msg.GetMsgID() & 3 // Server message IDs must be congruent to 1 or 3 modulo 4.
 	if mod != 1 && mod != 3 {
 		return nil, fmt.Errorf("wrong bits of message_id: %d", mod)
 	}

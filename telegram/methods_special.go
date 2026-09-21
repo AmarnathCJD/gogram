@@ -3,6 +3,7 @@
 package telegram
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
@@ -33,7 +34,7 @@ func (*InitConnectionParams) FlagIndex() int {
 }
 
 func (c *Client) InitConnection(params *InitConnectionParams) (tl.Object, error) {
-	data, err := c.MakeRequest(params)
+	data, err := c.MakeRequest(context.Background(), params)
 	if err != nil {
 		return nil, fmt.Errorf("sending InitConnection: %w", err)
 	}
@@ -51,7 +52,7 @@ func (*InvokeWithLayerParams) CRC() uint32 {
 }
 
 func (c *Client) InvokeWithLayer(layer int, query tl.Object) (tl.Object, error) {
-	data, err := c.MakeRequest(&InvokeWithLayerParams{
+	data, err := c.MakeRequest(context.Background(), &InvokeWithLayerParams{
 		Layer: int32(layer),
 		Query: query,
 	})
@@ -71,7 +72,7 @@ func (*InvokeWithoutUpdatesParams) CRC() uint32 {
 }
 
 func (c *Client) InvokeWithoutUpdates(query tl.Object) (tl.Object, error) {
-	data, err := c.MakeRequest(&InvokeWithoutUpdatesParams{
+	data, err := c.MakeRequest(context.Background(), &InvokeWithoutUpdatesParams{
 		Query: query,
 	})
 	if err != nil {
@@ -90,7 +91,7 @@ func (*InvokeWithMessagesRangeParams) CRC() uint32 {
 }
 
 func (c *Client) InvokeWithMessagesRange(r MessageRange, query tl.Object) (tl.Object, error) {
-	data, err := c.MakeRequest(&InvokeWithMessagesRangeParams{
+	data, err := c.MakeRequest(context.Background(), &InvokeWithMessagesRangeParams{
 		Range: r,
 		Query: query,
 	})
@@ -110,7 +111,7 @@ func (*InvokeWithTakeoutParams) CRC() uint32 {
 }
 
 func (c *Client) InvokeWithTakeout(takeoutID int64, query tl.Object) (tl.Object, error) {
-	data, err := c.MakeRequest(&InvokeWithTakeoutParams{
+	data, err := c.MakeRequest(context.Background(), &InvokeWithTakeoutParams{
 		TakeoutID: takeoutID,
 		Query:     query,
 	})

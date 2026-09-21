@@ -59,26 +59,28 @@ func (c *Reader) Read(p []byte) (int, error) {
 	ctx := c.ctx
 	c.mu.Unlock()
 
-	total := 0
+	total, emptyReads := 0, 0
 
 	for total < len(p) {
 		if err := ctx.Err(); err != nil {
 			return total, err
 		}
 
-		// if nc, ok := r.(net.Conn); ok {
-		// 	_ = nc.SetReadDeadline(time.Now().Add(5 * time.Second))
-		// }
-
 		n, err := r.Read(p[total:])
+		if n < 0 || n > len(p)-total {
+			return total, errors.New("reader returned an invalid byte count")
+		}
 		if n > 0 {
 			total += n
+			emptyReads = 0
+		} else if err == nil {
+			emptyReads++
+			if emptyReads >= 100 {
+				return total, io.ErrNoProgress
+			}
 		}
 
 		if err != nil {
-			// if ne, ok := err.(net.Error); ok && ne.Timeout() {
-			// 	continue
-			// }
 			return total, err
 		}
 	}

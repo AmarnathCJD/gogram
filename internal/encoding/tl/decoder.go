@@ -54,107 +54,62 @@ func (d *Decoder) decodeObject(o Object, ignoreCRC bool) {
 
 	vtyp := value.Type()
 	cachedTags := GetCachedTags(vtyp)
-	hasTaggedFields := false
-	for _, info := range cachedTags {
-		if info != nil && !info.ignore {
-			hasTaggedFields = true
+	indices, count, err := flagLayout(o, value.NumField())
+	if err != nil {
+		d.err = err
+		return
+	}
+	var flags [2]uint32
+	for i := 0; i <= value.NumField(); i++ {
+		for version := 0; version < count; version++ {
+			if indices[version] == i {
+				flags[version] = d.PopUint()
+			}
+		}
+		if d.err != nil || i == value.NumField() {
 			break
 		}
-	}
-
-	var optionalBitSetA uint32
-	var optionalBitSetB uint32
-
-	var flagsetIndex = -1
-	if hasTaggedFields {
-		indexGetter, ok := o.(FlagIndexGetter)
-		if !ok {
-			d.err = fmt.Errorf("type %s has type bit flag tags, but doesn't implement tl.FlagIndexGetter", value.Type().String())
+		field := value.Field(i)
+		info := cachedTags[i]
+		if !field.CanSet() && (info == nil || !info.ignore) {
+			d.err = fmt.Errorf("field %s.%s cannot be decoded", vtyp.Name(), vtyp.Field(i).Name)
 			return
 		}
-		flagsetIndex = indexGetter.FlagIndex()
-		if flagsetIndex < 0 {
-			d.err = fmt.Errorf("flag index is below zero, must be index of parameters")
-			return
-		}
-	}
-
-	var isBitsetAParsed bool // flag
-	var isBitsetBParsed bool // flag2
-
-	loopCycles := value.NumField()
-	if flagsetIndex >= 0 {
-		loopCycles++
-	}
-
-	var parsedFields uint64
-
-	if vtyp.Name() == "UserFull" { // special case for UserFull
-		optionalBitSetA = d.PopUint()
-		optionalBitSetB = d.PopUint()
-		isBitsetAParsed = true
-		isBitsetBParsed = true
-	}
-
-	for i := 0; i < loopCycles; i++ {
-		if flagsetIndex == i && !isBitsetAParsed {
-			optionalBitSetA = d.PopUint()
-			if d.err != nil {
-				d.err = fmt.Errorf("reading bitset("+vtyp.Name()+"): %w", d.err)
+		if info != nil {
+			if info.ignore {
+				continue
+			}
+			if info.version < 1 || info.version > count {
+				d.err = fmt.Errorf("field %s.%s has no corresponding flags word", vtyp.Name(), vtyp.Field(i).Name)
 				return
 			}
-			isBitsetAParsed = true
-			i = 0
-			continue
-		}
-
-		fieldIndex := i
-		if isBitsetAParsed && i > 0 {
-			fieldIndex--
-		}
-		field := value.Field(fieldIndex)
-
-		info := cachedTags[fieldIndex]
-		if info != nil {
-			if info.version == 1 {
-				if optionalBitSetA&(1<<info.index) == 0 {
-					continue
-				}
-			} else if info.version == 2 {
-				if !isBitsetBParsed && isBitsetAParsed {
-					optionalBitSetB = d.PopUint()
-					if d.err != nil {
-						d.err = fmt.Errorf("read bitset: %w", d.err)
-						return
-					}
-					isBitsetBParsed = true
-				}
-				if optionalBitSetB&(1<<info.index) == 0 {
-					continue
-				}
+			if flags[info.version-1]&(1<<info.index) == 0 {
+				field.SetZero()
+				continue
 			}
-
 			if info.encodedInBitflag {
-				field.Set(reflect.ValueOf(true).Convert(field.Type()))
+				if field.Kind() != reflect.Bool {
+					d.err = fmt.Errorf("bitflag field must be bool")
+					return
+				}
+				field.SetBool(true)
 				continue
 			}
 		}
-
+		if !field.CanSet() {
+			d.err = fmt.Errorf("field %s.%s cannot be decoded", vtyp.Name(), vtyp.Field(i).Name)
+			return
+		}
 		if field.Kind() == reflect.Pointer {
-			val := reflect.New(field.Type().Elem())
-			field.Set(val)
+			field.Set(reflect.New(field.Type().Elem()))
 		}
-
-		if parsedFields&(1<<fieldIndex) == 0 {
-			d.decodeValue(field)
-			parsedFields |= 1 << fieldIndex
-		}
-
+		d.decodeValue(field)
 		if d.err != nil {
-			d.err = fmt.Errorf("decode object: %s.%s: %w", vtyp.Name(), vtyp.Field(fieldIndex).Name, d.err)
-			break
+			d.err = fmt.Errorf("decode object: %s.%s: %w", vtyp.Name(), vtyp.Field(i).Name, d.err)
+			return
 		}
 	}
+
 }
 
 func (d *Decoder) decodeValue(value reflect.Value) {
@@ -162,6 +117,16 @@ func (d *Decoder) decodeValue(value reflect.Value) {
 		return
 	}
 
+	if !value.IsValid() || !value.CanInterface() {
+		d.err = fmt.Errorf("invalid or unexported destination")
+		return
+	}
+	if d.depth >= 128 {
+		d.err = fmt.Errorf("TL nesting exceeds 128 levels")
+		return
+	}
+	d.depth++
+	defer func() { d.depth-- }()
 	if m, ok := value.Interface().(Unmarshaler); ok {
 		err := m.UnmarshalTL(d)
 		if err != nil {
@@ -172,7 +137,7 @@ func (d *Decoder) decodeValue(value reflect.Value) {
 
 	val := d.decodeValueGeneral(value)
 	if val != nil {
-		value.Set(reflect.ValueOf(val).Convert(value.Type()))
+		d.assignValue(value, val)
 		return
 	}
 
@@ -216,7 +181,16 @@ func (d *Decoder) decodeValue(value reflect.Value) {
 		return
 	}
 
-	value.Set(reflect.ValueOf(val).Convert(value.Type()))
+	d.assignValue(value, val)
+}
+
+func (d *Decoder) assignValue(dst reflect.Value, value any) {
+	src := reflect.ValueOf(value)
+	if !src.IsValid() || !dst.CanSet() || !src.Type().ConvertibleTo(dst.Type()) {
+		d.err = fmt.Errorf("decoded %T cannot be assigned to %v", value, dst.Type())
+		return
+	}
+	dst.Set(src.Convert(dst.Type()))
 }
 
 func (d *Decoder) decodeValueGeneral(value reflect.Value) any {
@@ -271,9 +245,19 @@ func (d *Decoder) decodeValueGeneral(value reflect.Value) any {
 }
 
 func (d *Decoder) decodeRegisteredObject() Object {
+	if d.err != nil {
+		return nil
+	}
+	if d.depth >= 128 {
+		d.err = fmt.Errorf("TL nesting exceeds 128 levels")
+		return nil
+	}
+	d.depth++
+	defer func() { d.depth-- }()
 	crc := d.PopCRC()
 	if d.err != nil {
 		d.err = fmt.Errorf("reading crc: %w", d.err)
+		return nil
 	}
 
 	var _typ reflect.Type
@@ -281,14 +265,10 @@ func (d *Decoder) decodeRegisteredObject() Object {
 	case CrcVector:
 		if len(d.expectedTypes) == 0 {
 			lenVector := d.PopUint() // pop vector length
-			vecCrc := d.PopCRC()     // read the crc of the vector<...>
-
 			if lenVector == 0 {
-				if d.err != nil && d.err.Error() == "EOF" { // if vector is empty, return nil
-					d.err = nil
-				}
 				return &PseudoNil{}
 			}
+			vecCrc := d.PopCRC() // inspect the first element without consuming it
 
 			if vecCrc == CrcTrue || vecCrc == CrcFalse {
 				d.expectedTypes = append(d.expectedTypes, reflect.TypeOf([]bool{}))
@@ -302,6 +282,10 @@ func (d *Decoder) decodeRegisteredObject() Object {
 
 		_typ = d.expectedTypes[0]
 		d.expectedTypes = d.expectedTypes[1:]
+		if _typ.Kind() != reflect.Slice {
+			d.err = fmt.Errorf("vector hint must be a slice, got %v", _typ)
+			return nil
+		}
 
 		res := d.popVector(_typ.Elem(), true)
 
@@ -311,28 +295,25 @@ func (d *Decoder) decodeRegisteredObject() Object {
 
 		switch res := res.(type) {
 		case []bool:
-			if len(res) > 0 {
-				switch res[0] {
-				case true:
-					return &PseudoTrue{}
-				case false:
-					return &PseudoFalse{}
-				}
-			}
+			return &WrappedSlice{data: res}
 
 		case []Object:
 			if len(res) == 0 {
 				return &PseudoNil{}
 			}
 
-			if _typ, ok := objectByCrc[crc]; ok {
+			if _typ, ok := lookupObjectType(crc); ok {
 				_v := reflect.MakeSlice(reflect.SliceOf(_typ), 0, 0)
 				for _, o := range res {
+					if !reflect.TypeOf(o).ConvertibleTo(_typ) {
+						return &WrappedSlice{data: res}
+					}
 					_v = reflect.Append(_v, reflect.ValueOf(o).Convert(_typ))
 				}
 
 				return &WrappedSlice{data: _v.Interface()}
 			}
+			return &WrappedSlice{data: res}
 
 		default:
 			return &WrappedSlice{data: res}
@@ -348,7 +329,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 		return &PseudoNil{}
 	}
 
-	_typ, ok := objectByCrc[crc]
+	_typ, ok := lookupObjectType(crc)
 
 	if !ok {
 		msg, err := d.DumpWithoutRead()
@@ -375,7 +356,7 @@ func (d *Decoder) decodeRegisteredObject() Object {
 		return o
 	}
 
-	if _, isEnum := enumCrcs[crc]; !isEnum {
+	if !isEnumCRC(crc) {
 		d.decodeObject(o, true)
 		if d.err != nil {
 			d.err = fmt.Errorf("decode registered object %T: %w", o, d.err)

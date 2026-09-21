@@ -16,6 +16,11 @@ import (
 	"time"
 
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
+
+	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
 )
 
 var (
@@ -466,4 +471,28 @@ func (p *Proxy) ToURL() *url.URL {
 	}
 
 	return u
+}
+
+// AtomicWriteFile leaves the old file intact if encoding or writing fails.
+// The temporary file resides beside its destination so rename stays on one volume.
+func AtomicWriteFile(path string, mode fs.FileMode, write func(io.Writer) error) error {
+	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+	if err := f.Chmod(mode); err != nil {
+		return err
+	}
+	if err := write(f); err != nil {
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(f.Name(), path)
 }

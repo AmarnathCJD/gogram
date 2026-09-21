@@ -15,8 +15,11 @@ func (c *Client) GetMe() (*UserObj, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getting user: %w", err)
 	}
+	if len(resp) != 1 {
+		return nil, fmt.Errorf("getting user: expected one self user, got %d", len(resp))
+	}
 	user, ok := resp[0].(*UserObj)
-	if !ok {
+	if !ok || user == nil {
 		return nil, errors.New("got wrong response: " + reflect.TypeOf(resp).String())
 	}
 	c.setMe(user)
@@ -376,7 +379,7 @@ func (c *Client) IterDialogs(callback func(*TLDialog) error, Opts ...*DialogOpti
 
 		req.Limit = min(remaining, 100)
 
-		resp, err := c.MakeRequestCtx(ctx, req)
+		resp, err := c.MakeRequest(ctx, req)
 		if handleIfFlood(err, c) {
 			continue
 		} else if err != nil {
@@ -736,7 +739,7 @@ type ConnectBotOptions struct {
 
 func (c *Client) ConnectBusinessBot(opts ConnectBotOptions) error {
 	if opts.Bot == nil {
-		return errors.New("Bot is required")
+		return errors.New("bot is required")
 	}
 	botPeer, err := c.ResolvePeer(opts.Bot)
 	if err != nil {

@@ -6,10 +6,18 @@ import (
 	"math/big"
 )
 
-// Int128 is alias-like type for fixed size of big int (1024 bit value). It using only for tl objects encoding
+// Int128 is alias-like type for fixed size of big int (128 bit value). It using only for tl objects encoding
 // cause native big.Int isn't supported for en(de)coding
 type Int128 struct {
 	*big.Int
+}
+
+func (i *Int128) Bytes() []byte {
+	if i == nil {
+		return nil
+	}
+	b, _ := BigIntBytes(i.Int, Int128Len*bitsInByte)
+	return b
 }
 
 // RandomInt128 creates int128 with random value
@@ -18,11 +26,6 @@ func RandomInt128() *Int128 {
 	i.SetBytes(RandomBytes(Int128Len))
 	return i
 }
-
-// func reflectIsInt128(v reflect.Value) bool {
-// 	_, ok := v.Interface().(*Int128)
-// 	return ok
-// }
 
 // MarshalTL implements tl marshaler from this package. Just don't use it by your hands, tl.Encoder does all
 // what you need
@@ -46,10 +49,18 @@ func (i *Int128) UnmarshalTL(d *Decoder) error {
 	return nil
 }
 
-// Int256 is alias-like type for fixed size of big int (2048 bit value). It using only for tl objects encoding
+// Int256 is alias-like type for fixed size of big int (256 bit value). It using only for tl objects encoding
 // cause native big.Int isn't supported for en(de)coding
 type Int256 struct {
 	*big.Int
+}
+
+func (i *Int256) Bytes() []byte {
+	if i == nil {
+		return nil
+	}
+	b, _ := BigIntBytes(i.Int, Int256Len*bitsInByte)
+	return b
 }
 
 // RandomInt256 creates int256 with random value
@@ -63,11 +74,6 @@ func RandomInt256() *Int256 {
 func NewInt256(b []byte) *Int256 {
 	return &Int256{big.NewInt(0).SetBytes(b)}
 }
-
-// func reflectIsInt256(v reflect.Value) bool {
-// 	_, ok := v.Interface().(*Int256)
-// 	return ok
-// }
 
 // MarshalTL implements tl marshaler from this package. Just don't use it by your hands, tl.Encoder does all
 // what you need

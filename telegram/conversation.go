@@ -187,7 +187,7 @@ func (c *Conversation) Reply(text any, opts ...*SendOptions) (*NewMessage, error
 		c.mu.RUnlock()
 	}
 
-	return c.Client.SendMessage(c.Peer, text, opts...)
+	return c.Client.SendMessage(c.Peer, text, options)
 }
 
 func (c *Conversation) ReplyMedia(media InputMedia, opts ...*MediaOptions) (*NewMessage, error) {
@@ -200,7 +200,7 @@ func (c *Conversation) ReplyMedia(media InputMedia, opts ...*MediaOptions) (*New
 		c.mu.RUnlock()
 	}
 
-	return c.Client.SendMedia(c.Peer, media, opts...)
+	return c.Client.SendMedia(c.Peer, media, options)
 }
 
 func (c *Conversation) GetResponse() (*NewMessage, error) {

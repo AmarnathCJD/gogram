@@ -33,6 +33,9 @@ var BitLengths = []int{
 }
 
 func BigIntBytes(v *big.Int, bitsize int) ([]byte, error) {
+	if v == nil || v.Sign() < 0 {
+		return nil, fmt.Errorf("BigIntBytes: expected a non-negative integer")
+	}
 	vbytes := v.Bytes()
 	vbytesLen := len(vbytes)
 

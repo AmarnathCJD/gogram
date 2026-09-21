@@ -18,6 +18,9 @@ import (
 // whether this encryption follows OAEP or any other standard padding scheme.
 // Use only for MTProto protocol blocks, not for general-purpose RSA encryption.
 func DoRSAencrypt(block []byte, key *rsa.PublicKey) ([]byte, error) {
+	if key == nil || key.N == nil || key.N.BitLen() != 2048 || key.E < 3 {
+		return nil, fmt.Errorf("DoRSAencrypt: invalid RSA key")
+	}
 	if len(block) != math.MaxUint8 {
 		return nil, fmt.Errorf("DoRSAencrypt: block size must be %d bytes, got %d", math.MaxUint8, len(block))
 	}
@@ -27,7 +30,7 @@ func DoRSAencrypt(block []byte, key *rsa.PublicKey) ([]byte, error) {
 	c := big.NewInt(0).Exp(z, exponent, key.N)
 
 	res := make([]byte, 256)
-	copy(res, c.Bytes())
+	c.FillBytes(res)
 
 	return res, nil
 }
@@ -36,6 +39,9 @@ func DoRSAencrypt(block []byte, key *rsa.PublicKey) ([]byte, error) {
 // DCs, and required for MTProto 2.0 handshakes). Spec:
 // https://core.telegram.org/mtproto/auth_key
 func DoRSAPad(data []byte, key *rsa.PublicKey) ([]byte, error) {
+	if key == nil || key.N == nil || key.N.BitLen() != 2048 || key.E < 3 {
+		return nil, fmt.Errorf("DoRSAPad: invalid RSA key")
+	}
 	if len(data) > 144 {
 		return nil, fmt.Errorf("DoRSAPad: data too long (%d > 144)", len(data))
 	}
@@ -119,11 +125,8 @@ func ValidateDHParams(g int32, g_a, dh_prime *big.Int) error {
 	if dh_prime.BitLen() != 2048 {
 		return fmt.Errorf("dh: dh_prime is not 2048 bits (got %d)", dh_prime.BitLen())
 	}
-	if !dh_prime.ProbablyPrime(20) {
-		return fmt.Errorf("dh: dh_prime is not prime")
-	}
-	if g < 2 || g > 7 {
-		return fmt.Errorf("dh: g out of range [2, 7]: %d", g)
+	if !ige.IsSafePrime(dh_prime, g) {
+		return fmt.Errorf("dh: unsafe prime or generator")
 	}
 
 	two := big.NewInt(2)
@@ -134,20 +137,15 @@ func ValidateDHParams(g int32, g_a, dh_prime *big.Int) error {
 
 	lowerSafe := new(big.Int).SetBit(big.NewInt(0), 1984, 1)
 	upperSafe := new(big.Int).Sub(dh_prime, lowerSafe)
-	if g_a.Cmp(lowerSafe) < 0 || g_a.Cmp(upperSafe) > 0 {
+	if g_a.Cmp(lowerSafe) <= 0 || g_a.Cmp(upperSafe) >= 0 {
 		return fmt.Errorf("dh: g_a outside recommended range [2^1984, dh_prime-2^1984]")
 	}
 	return nil
 }
 
 func ValidateGB(g_b, dh_prime *big.Int) error {
-	if g_b == nil || dh_prime == nil {
-		return fmt.Errorf("dh: nil parameter")
-	}
-	two := big.NewInt(2)
-	upper := new(big.Int).Sub(dh_prime, two)
-	if g_b.Cmp(two) < 0 || g_b.Cmp(upper) > 0 {
-		return fmt.Errorf("dh: g_b out of range [2, dh_prime-2]")
+	if !ige.IsSafePublic(g_b, dh_prime) {
+		return fmt.Errorf("dh: unsafe g_b")
 	}
 	return nil
 }
@@ -158,21 +156,17 @@ func XOR(dst, src []byte) {
 	}
 }
 
+// Factorize splits the composite, at most 64-bit PQ used by MTProto.
+// Invalid input or an exhausted search returns nil factors.
 func Factorize(pq *big.Int) (*big.Int, *big.Int) {
-	if pq.BitLen() <= 64 {
-		pqU64 := pq.Uint64()
-		p, q := factorizeU64(pqU64)
-		if p == 0 || q == 0 {
-			return nil, nil // factorization failed
-		}
-		return big.NewInt(int64(p)), big.NewInt(int64(q))
+	if pq == nil || pq.Cmp(big.NewInt(4)) < 0 || pq.BitLen() > 64 || pq.ProbablyPrime(16) {
+		return nil, nil
 	}
-
-	p, q := SplitPQ(pq)
-	if p.Cmp(q) > 0 {
-		p, q = q, p
+	p, q := factorizeU64(pq.Uint64())
+	if p <= 1 || q <= 1 {
+		return nil, nil
 	}
-	return p, q
+	return new(big.Int).SetUint64(p), new(big.Int).SetUint64(q)
 }
 
 // gcd64 computes GCD(a, b) for uint64.
@@ -193,11 +187,11 @@ func mulmod(a, b, mod uint64) uint64 {
 // f(x) = (x*x + c) % n
 func fStep(x, c, n uint64) uint64 {
 	x = mulmod(x, x, n)
-	x += c
-	if x >= n {
-		x -= n
+	c %= n
+	if x >= n-c {
+		return x - (n - c)
 	}
-	return x
+	return x + c
 }
 
 // factorizeU64 factors a 64-bit integer using Pollard's Rho (Brent variant).
@@ -224,8 +218,9 @@ func factorizeU64(n uint64) (uint64, uint64) {
 
 		for g == 1 && iter < maxIterPerTry {
 			x := y
-			for i := uint64(0); i < r; i++ {
+			for i := uint64(0); i < r && iter < maxIterPerTry; i++ {
 				y = fStep(y, c, n)
+				iter++
 			}
 
 			k := uint64(0)
@@ -242,6 +237,8 @@ func factorizeU64(n uint64) (uint64, uint64) {
 						diff = y - x
 					}
 					if diff == 0 {
+						q = 0
+						iter++
 						break
 					}
 					q = mulmod(q, diff, n)
@@ -284,43 +281,4 @@ func factorizeU64(n uint64) (uint64, uint64) {
 	}
 
 	return 0, 0
-}
-
-// SplitPQ factors a composite number pq into two prime numbers p and q, ensuring p < q.
-// This is used in Diffie-Hellman key exchange, where factoring pq is required for protocol security checks.
-// The function implements Pollard's rho algorithm for integer factorization, which is efficient for numbers with small factors.
-func SplitPQ(pq *big.Int) (p, q *big.Int) {
-	p = big.NewInt(0).Set(pq)
-	q = big.NewInt(1)
-
-	x := big.NewInt(2)
-	y := big.NewInt(2)
-	d := big.NewInt(1)
-
-	for d.Cmp(big.NewInt(1)) == 0 {
-		x = f(x, pq)
-		y = f(f(y, pq), pq)
-
-		temp := big.NewInt(0).Set(x)
-		temp.Sub(temp, y)
-		temp.Abs(temp)
-		d.GCD(nil, nil, temp, pq)
-	}
-
-	p.Set(d)
-	q.Div(pq, d)
-
-	if p.Cmp(q) == 1 {
-		p, q = q, p
-	}
-
-	return p, q
-}
-
-func f(x, n *big.Int) *big.Int {
-	result := big.NewInt(0).Set(x)
-	result.Mul(result, result)
-	result.Add(result, big.NewInt(1))
-	result.Mod(result, n)
-	return result
 }
