@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/dave/jennifer/jen"
@@ -48,19 +49,43 @@ func (g *Generator) generateSpecificStructs(f *jen.File, d bool) {
 
 func (g *Generator) generateStructTypeAndMethods(definition tlparser.Object, implementsMethods []string) jen.Code {
 	structName := goify(definition.Name, true)
+	if definition.Comment == "" {
+		definition.Comment = strings.TrimSpace(g.existingDocs[structName])
+	}
 	containsOptionalParameters := false
+	var flagIndices []int
 	var typeDefinition jen.Code
 
 	fields := make([]jen.Code, len(definition.Parameters))
 	for i, param := range definition.Parameters {
+		if param.Comment == "" {
+			param.Comment = strings.TrimSpace(g.existingFieldDocs[structName][goify(param.Name, true)])
+		}
 		if param.IsOptional {
 			containsOptionalParameters = true
 		}
 
 		if param.Type == "bitflags" {
+			flagIndices = append(flagIndices, i-len(flagIndices))
+			containsOptionalParameters = true
 			continue
 		}
 		fields[i] = g.generateStructParameter(&param)
+	}
+	// Optional Bool values need a presence bit independent of their value: false
+	// can mean "disable", while an absent field means "leave unchanged". Keep
+	// the existing bool API and append wire-free presence fields to requests.
+	// Appending preserves the insertion positions of both schema flags words.
+	if strings.HasSuffix(definition.Name, "Params") {
+		for _, param := range definition.Parameters {
+			if param.IsOptional && !param.IsVector && param.Type == "Bool" && !explicitFields[param.Name] {
+				presence := param
+				presence.Name += "_set"
+				presence.Type = "true"
+				presence.Comment = "Include " + goify(param.Name, true) + " even when false; leave unset to omit a false value."
+				fields = append(fields, g.generateStructParameter(&presence))
+			}
+		}
 	}
 	typeDefinition = jen.Type().Id(structName).Struct(fields...)
 
@@ -74,13 +99,9 @@ func (g *Generator) generateStructTypeAndMethods(definition tlparser.Object, imp
 	// can be nil
 	var fieldIndexFunc jen.Code
 	if containsOptionalParameters {
-		flagBitIndex := -1 // index of the flags parameter
-		if containsOptionalParameters {
-			for i, param := range definition.Parameters {
-				if param.Name == "flags" && param.Type == "bitflags" || param.Name == "flags2" && param.Type == "bitflags" {
-					flagBitIndex = i
-				}
-			}
+		flagBitIndex := -1
+		if len(flagIndices) > 0 {
+			flagBitIndex = flagIndices[0]
 		}
 		if flagBitIndex == -1 {
 			log.Printf("ERROR: Optional parameters found but no bitflag in struct '%s'\n", structName)
@@ -94,6 +115,9 @@ func (g *Generator) generateStructTypeAndMethods(definition tlparser.Object, imp
 			jen.Return(jen.Lit(flagBitIndex)),
 		)
 		fieldIndexFunc = f
+		if len(flagIndices) > 1 {
+			fieldIndexFunc = jen.Add(f).Line().Line().Func().Params(jen.Op("*").Id(structName)).Id("FlagIndex2").Params().Int().Block(jen.Return(jen.Lit(flagIndices[1])))
+		}
 	}
 
 	// func (*T) Implements<InterfaceName>() {}

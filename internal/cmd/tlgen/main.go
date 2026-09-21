@@ -302,40 +302,11 @@ func minorFixes(outdir, layer string) {
 	fmt.Println("Applying minor fixes to generated code in", execWorkDir)
 
 	replace(filepath.Join(execWorkDir, "methods_gen.go"), "return bool", "return false")
-	replace(filepath.Join(execWorkDir, "methods_gen.go"), `if err != nil {
-		return nil, fmt.Errorf("sending UsersGetUsers: %w", err)
-	}
-
-	resp, ok := responseData.([]User)
-	if !ok {
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}`, `if err != nil {
-		return nil, fmt.Errorf("sending UsersGetUsers: %w", err)
-	}
-
-	resp, ok := responseData.([]User)
-	if !ok {
-		if responseData == nil {
-			return nil, fmt.Errorf("[USER_ID_INVALID] The user ID is invalid")
-		}
-
-		if _, ok := responseData.([]*UserObj); ok { // Temp Fix till Problem is Identified
-			var users []User = make([]User, len(responseData.([]*UserObj)))
-			for i, user := range responseData.([]*UserObj) {
-				users[i] = user
-			}
-
-			return users, nil
-		}
-
-		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
-	}`)
-
 	replace(filepath.Join(execWorkDir, "methods_gen.go"), `errors []SecureValueError`, `errorsw []SecureValueError`)
-	replace(filepath.Join(execWorkDir, "methods_gen.go"), `responseData, err := c.MakeRequest(&UsersSetSecureValueErrorsParams{
+	replace(filepath.Join(execWorkDir, "methods_gen.go"), `responseData, err := c.MakeRequest(context.Background(), &UsersSetSecureValueErrorsParams{
 		Errors: errors,
 		ID:     id,
-	})`, `responseData, err := c.MakeRequest(&UsersSetSecureValueErrorsParams{
+	})`, `responseData, err := c.MakeRequest(context.Background(), &UsersSetSecureValueErrorsParams{
 		Errors: errorsw,
 		ID:     id,
 	})`)

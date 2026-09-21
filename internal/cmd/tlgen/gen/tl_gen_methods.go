@@ -61,6 +61,9 @@ func (g *Generator) generateMethods(f *jen.File, d bool) {
 	}
 
 	for _, method := range g.schema.Methods {
+		if method.Comment == "" {
+			method.Comment = strings.TrimSpace(g.existingMethodDocs[goify(method.Name, true)])
+		}
 
 		f.Add(g.generateStructTypeAndMethods(tlparser.Object{
 			Name:       method.Name + "Params",
@@ -190,7 +193,7 @@ func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 	}
 
 	nuk := jen.Nil()
-	if obj.Response.Type == "Bool" {
+	if obj.Response.Type == "Bool" && !obj.Response.IsList {
 		resp = jen.Op("").Qual("", "bool")
 		nuk = jen.Bool()
 	}
@@ -209,8 +212,19 @@ func (g *Generator) generateMethodFunction(obj *tlparser.Method) jen.Code {
 	//
 	//	return resp, nil
 
+	request := jen.Id("c").Dot("MakeRequest").Call(jen.Qual("context", "Background").Call(), g.generateMethodArgumentForMakingRequest(obj))
+	if obj.Response.IsList {
+		// Empty and primitive vectors have no constructor from which the decoder
+		// can infer their element type. Preserve the schema's result type.
+		request = jen.Id("c").Dot("MakeRequest").Call(
+			jen.Qual("context", "Background").Call(),
+			g.generateMethodArgumentForMakingRequest(obj),
+			jen.Qual("reflect", "TypeOf").Call(resp.Clone().Call(jen.Nil())),
+		)
+	}
+
 	method := jen.Func().Params(jen.Id("c").Op("*").Id("Client")).Id(goify(obj.Name, true)).Params(g.generateArgumentsForMethod(obj)...).Params(responses...).Block(
-		jen.List(jen.Id("responseData"), jen.Id("err")).Op(":=").Id("c").Dot("MakeRequest").Call(g.generateMethodArgumentForMakingRequest(obj)),
+		jen.List(jen.Id("responseData"), jen.Id("err")).Op(":=").Add(request),
 		jen.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Return(nuk, jen.Qual("fmt", "Errorf").Call(jen.Lit("sending "+goify(obj.Name, true)+": %w"), jen.Err())),
 		),

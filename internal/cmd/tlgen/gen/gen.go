@@ -3,6 +3,9 @@ package gen
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"log"
 	"os"
 	"path/filepath"
@@ -25,8 +28,11 @@ type Generator struct {
 	schema *internalSchema
 	outdir string
 
-	PackageName   string
-	PackageHeader string
+	PackageName        string
+	PackageHeader      string
+	existingDocs       map[string]string
+	existingFieldDocs  map[string]map[string]string
+	existingMethodDocs map[string]string
 }
 
 func NewGenerator(tlschema *tlparser.Schema, licenseHeader, outdir string) (*Generator, error) {
@@ -45,6 +51,9 @@ func NewGenerator(tlschema *tlparser.Schema, licenseHeader, outdir string) (*Gen
 
 func (g *Generator) Generate(d bool) error {
 	log.Println("INFO: Starting code generation process")
+	if !d {
+		g.loadExistingDocumentation()
+	}
 
 	log.Println("INFO: Generating enum definitions...")
 	err := g.generateFile(g.generateEnumDefinitions, filepath.Join(g.outdir, "enums_gen.go"), d)
@@ -83,6 +92,55 @@ func (g *Generator) Generate(d bool) error {
 
 	log.Println("INFO: Code generation completed successfully")
 	return nil
+}
+
+// Local schema regeneration retains documentation already fetched by --doc.
+// It must not require another network crawl or discard public API comments.
+func (g *Generator) loadExistingDocumentation() {
+	g.existingDocs = make(map[string]string)
+	g.existingFieldDocs = make(map[string]map[string]string)
+	g.existingMethodDocs = make(map[string]string)
+	for _, name := range []string{"types_gen.go", "interfaces_gen.go", "methods_gen.go"} {
+		file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(g.outdir, name), nil, parser.ParseComments)
+		if err != nil {
+			continue
+		}
+		for _, decl := range file.Decls {
+			switch d := decl.(type) {
+			case *ast.FuncDecl:
+				if d.Doc != nil {
+					g.existingMethodDocs[d.Name.Name] = d.Doc.Text()
+				}
+			case *ast.GenDecl:
+				for _, spec := range d.Specs {
+					t, ok := spec.(*ast.TypeSpec)
+					if !ok {
+						continue
+					}
+					doc := t.Doc
+					if doc == nil {
+						doc = d.Doc
+					}
+					if doc != nil {
+						g.existingDocs[t.Name.Name] = doc.Text()
+					}
+					st, ok := t.Type.(*ast.StructType)
+					if !ok {
+						continue
+					}
+					fields := make(map[string]string)
+					for _, field := range st.Fields.List {
+						if field.Comment != nil {
+							for _, id := range field.Names {
+								fields[id.Name] = field.Comment.Text()
+							}
+						}
+					}
+					g.existingFieldDocs[t.Name.Name] = fields
+				}
+			}
+		}
+	}
 }
 
 func (*Generator) generateFile(f func(file *jen.File, d bool), filename string, genDocs bool) error {
