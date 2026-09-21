@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2025 @AmarnathCJD
+// Copyright (c) 2025 @AmarnathCJD
 
 package telegram
 
@@ -91,11 +91,7 @@ func (wp *WorkerPool) AddWorker(s *ExSender) {
 	wp.Unlock()
 }
 
-func (wp *WorkerPool) Next() *ExSender {
-	return wp.NextWithContext(context.Background())
-}
-
-func (wp *WorkerPool) NextWithContext(ctx context.Context) *ExSender {
+func (wp *WorkerPool) Next(ctx context.Context) *ExSender {
 	if ctx.Err() != nil {
 		return nil
 	}
@@ -711,7 +707,7 @@ func uploadOnePart(ctx context.Context, c *Client, w *WorkerPool, log *partLogAg
 
 		reqTimeout := uploadRequestTimeout(len(part.data), attempt)
 		reqCtx, cancel := context.WithTimeout(ctx, reqTimeout)
-		sender := w.NextWithContext(reqCtx)
+		sender := w.Next(reqCtx)
 		if sender == nil {
 			cancel()
 			if err := ctx.Err(); err != nil {
@@ -1690,7 +1686,7 @@ func (j *downloadJob) fetchPart(ctx context.Context, pool *WorkerPool, part down
 	reqCtx, cancel := context.WithTimeout(ctx, j.requestTimeout(part.limit, attempt))
 	defer cancel()
 
-	sender := pool.NextWithContext(reqCtx)
+	sender := pool.Next(reqCtx)
 	if sender == nil {
 		return downloadResult{}, contextErr(reqCtx, errors.New("failed to acquire download worker"))
 	}
@@ -1791,7 +1787,7 @@ func (j *downloadJob) fetchCDNBlock(ctx context.Context, cdn *cdnRedirect, part 
 	reqCtx, cancel := context.WithTimeout(ctx, j.requestTimeout(part.limit, attempt))
 	defer cancel()
 
-	sender := pool.NextWithContext(reqCtx)
+	sender := pool.Next(reqCtx)
 	if sender == nil {
 		return downloadResult{}, contextErr(reqCtx, errors.New("failed to acquire cdn worker"))
 	}

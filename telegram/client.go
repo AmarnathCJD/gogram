@@ -50,6 +50,8 @@ type clientData struct {
 	commandPrefixes  string
 	proxy            Proxy
 	disableGapFetch  bool
+	updateWorkers    int
+	updateQueueSize  int
 }
 
 func (c *Client) getMe() *UserObj {
@@ -67,16 +69,24 @@ func (c *Client) setMe(u *UserObj) {
 // Client is the main struct of the library
 type Client struct {
 	*mtproto.MTProto
-	Cache          *CACHE
-	clientData     clientData
-	dispatcher     *UpdateDispatcher
-	wg             sync.WaitGroup
-	stopCh         chan struct{}
-	exSenders      *ExSenders
-	secretChats    *e2e.SecretChatManager
-	exportedKeys   map[int]*AuthExportedAuthorization
-	exportedKeysMu sync.Mutex
-	Log            Logger
+	Cache           *CACHE
+	ownedCache      *CACHE
+	clientData      clientData
+	dispatcher      *UpdateDispatcher
+	dispatcherOnce  sync.Once
+	wg              sync.WaitGroup
+	stopCh          chan struct{}
+	backgroundMu    sync.Mutex
+	exSenders       *ExSenders
+	secretChats     *e2e.SecretChatManager
+	secretChatsOnce sync.Once
+	secretSendMu    sync.Mutex
+	secretSends     map[*e2e.SecretChat]*secretSendLock
+	peerFetchMu     sync.Mutex
+	peerFetches     map[cachePeerKey]*peerLookup
+	exportedKeys    map[int]*AuthExportedAuthorization
+	exportedKeysMu  sync.Mutex
+	Log             Logger
 }
 
 type DeviceConfig struct {
@@ -147,6 +157,8 @@ type ClientConfig struct {
 	PFSKeyLifetime   int32                // Lifetime (seconds) for PFS temp key; 0 = 24h
 	DisableGapFetch  bool                 // Disable automatic gap filling, only fetch difference on UpdatesTooLong/UpdateChannelTooLong
 	RawUpdates       bool                 // Enable raw update mode, bypassing pts/qts gap tracking but still dispatching updates to handlers
+	UpdateWorkers    int                  // Maximum concurrent update tasks (default: 32).
+	UpdateQueueSize  int                  // Maximum queued update tasks (default: 1024). Overflow is dropped with a warning.
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -154,6 +166,19 @@ func NewClient(config ClientConfig) (*Client, error) {
 		wg:     sync.WaitGroup{},
 		stopCh: make(chan struct{}),
 	}
+
+	ready := false
+	defer func() {
+		if !ready {
+			client.shutdownBackground()
+			if client.MTProto != nil {
+				_ = client.MTProto.Terminate()
+			}
+			if client.ownedCache != nil {
+				_ = client.ownedCache.Close()
+			}
+		}
+	}()
 
 	if config.Logger != nil {
 		client.Log = config.Logger
@@ -169,6 +194,8 @@ func NewClient(config ClientConfig) (*Client, error) {
 
 	config = client.cleanClientConfig(config)
 	client.setupClientData(config)
+	client.clientData.updateWorkers = config.UpdateWorkers
+	client.clientData.updateQueueSize = config.UpdateQueueSize
 
 	if config.Cache == nil {
 		client.Cache = NewCache(fmt.Sprintf("cache%s.db", config.SessionName), &CacheConfig{
@@ -178,11 +205,14 @@ func NewClient(config ClientConfig) (*Client, error) {
 			LogColor: client.Log.Color(),
 			LogLevel: config.LogLevel,
 		})
+		client.ownedCache = client.Cache
 	} else {
 		client.Cache = config.Cache
 	}
 
+	client.Cache.Lock()
 	client.Cache.disabled = config.DisableCache
+	client.Cache.Unlock()
 
 	if err := client.setupMTProto(config); err != nil {
 		return nil, err
@@ -202,6 +232,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 
 	client.exSenders = NewExSenders()
 
+	ready = true
 	return client, nil
 }
 
@@ -223,6 +254,7 @@ func (c *Client) setupMTProto(config ClientConfig) error {
 		ServerHost:  toIpAddr(),
 		PublicKey:   config.PublicKeys[0],
 		DataCenter:  config.DataCenter,
+		TestMode:    config.TestMode,
 		Logger: c.Log.CloneInternal().
 			WithPrefix("gogram " +
 				lp("mtproto", config.SessionName)),
@@ -335,7 +367,12 @@ func (c *Client) cleanClientConfig(config ClientConfig) ClientConfig {
 	} else {
 		config.DataCenter = getValue(config.DataCenter, DefaultDataCenter)
 	}
-	config.PublicKeys = keys.GetRSAKeys()
+	if len(config.PublicKeys) == 0 {
+		config.PublicKeys = keys.GetRSAKeys()
+		if config.TestMode {
+			config.PublicKeys[0], config.PublicKeys[1] = config.PublicKeys[1], config.PublicKeys[0]
+		}
+	}
 	return config
 }
 
@@ -445,7 +482,7 @@ func (c *Client) Connect() error {
 
 	c.Log.Debug("connecting to Telegram")
 
-	err := c.MTProto.CreateConnection(true)
+	err := c.MTProto.CreateConnection(context.Background(), true, true)
 	if err != nil {
 		return fmt.Errorf("connecting to telegram servers: %w", err)
 	}
@@ -453,8 +490,11 @@ func (c *Client) Connect() error {
 	// Initial request (invokeWithLayer) must be sent after connection is established
 	err = c.InitialRequest()
 	if err != nil {
+		c.shutdownBackground()
+		_ = c.MTProto.Disconnect()
 		return fmt.Errorf("sending initial request: %w", err)
 	}
+	c.resetBackground()
 
 	if is, err := c.IsAuthorized(); err == nil && is {
 		_, _ = c.GetMe()
@@ -504,6 +544,8 @@ func (c *Client) St() error {
 }
 
 func (c *Client) resetBackground() {
+	c.backgroundMu.Lock()
+	defer c.backgroundMu.Unlock()
 	if c.stopCh != nil {
 		select {
 		case <-c.stopCh:
@@ -518,7 +560,17 @@ func (c *Client) resetBackground() {
 		select {
 		case <-c.dispatcher.stopChan:
 			c.dispatcher.stopChan = make(chan struct{})
+			go c.monitorNoUpdatesTimeout(c.dispatcher, c.dispatcher.stopChan)
 		default:
+		}
+		if c.dispatcher.tasks != nil {
+			c.dispatcher.tasks.restart()
+		}
+		if c.dispatcher.preparations != nil {
+			c.dispatcher.preparations.restart()
+		}
+		if c.dispatcher.secretUpdates != nil {
+			c.dispatcher.secretUpdates.restart()
 		}
 		c.dispatcher.stopMu.Unlock()
 	}
@@ -544,6 +596,8 @@ func (c *Client) Disconnect() error {
 }
 
 func (c *Client) shutdownBackground() {
+	c.backgroundMu.Lock()
+	defer c.backgroundMu.Unlock()
 	if c.stopCh != nil {
 		select {
 		case <-c.stopCh:
@@ -553,13 +607,37 @@ func (c *Client) shutdownBackground() {
 	}
 	if c.dispatcher != nil {
 		c.dispatcher.stopMu.Lock()
+		if c.dispatcher.tasks != nil {
+			c.dispatcher.tasks.stop()
+		}
+		if c.dispatcher.preparations != nil {
+			c.dispatcher.preparations.stop()
+		}
+		if c.dispatcher.secretUpdates != nil {
+			c.dispatcher.secretUpdates.stop()
+		}
 		select {
 		case <-c.dispatcher.stopChan:
 		default:
-			close(c.dispatcher.stopChan)
+			if c.dispatcher.stopChan != nil {
+				close(c.dispatcher.stopChan)
+			}
 		}
 		c.dispatcher.stopMu.Unlock()
 	}
+	if c.dispatcher != nil {
+		d := c.dispatcher
+		d.Lock()
+		for id, chat := range d.openChats {
+			close(chat.closeChan)
+			delete(d.openChats, id)
+			if state := d.channelStates[id]; state != nil {
+				state.isOpen = false
+			}
+		}
+		d.Unlock()
+	}
+
 	if c.exSenders != nil {
 		c.exSenders.Close()
 	}
@@ -568,7 +646,7 @@ func (c *Client) shutdownBackground() {
 // switchDC permanently switches the data center
 func (c *Client) SwitchDc(dcID int) error {
 	c.Log.Debug("switching DC -> %d", dcID)
-	if err := c.MTProto.SwitchDc(dcID); err != nil {
+	if err := c.MTProto.SwitchDc(context.Background(), dcID); err != nil {
 		return fmt.Errorf("reconnecting to new dc: %w", err)
 	}
 	return c.InitialRequest()
@@ -598,6 +676,7 @@ func (c *Client) Me() *UserObj {
 type ExSenders struct {
 	sync.Mutex
 	senders     map[int][]*ExSender
+	createGate  chan struct{}
 	cleanupDone chan struct{}
 	running     bool
 }
@@ -629,7 +708,8 @@ func (es *ExSender) TouchLastUsed() {
 
 func NewExSenders() *ExSenders {
 	es := &ExSenders{
-		senders: make(map[int][]*ExSender),
+		senders:    make(map[int][]*ExSender),
+		createGate: make(chan struct{}, 1),
 	}
 	es.ensureRunning()
 	return es
@@ -699,8 +779,15 @@ func (es *ExSenders) GetSenders(dcID int) []*ExSender {
 // AddSender adds a sender for the given DC
 func (es *ExSenders) AddSender(dcID int, sender *ExSender) {
 	es.Lock()
-	defer es.Unlock()
+	if !es.running {
+		es.Unlock()
+		if sender != nil && sender.MTProto != nil {
+			_ = sender.Terminate()
+		}
+		return
+	}
 	es.senders[dcID] = append(es.senders[dcID], sender)
+	es.Unlock()
 }
 
 func (es *ExSenders) Close() {
@@ -736,21 +823,29 @@ func (es *ExSenders) Close() {
 // CreateExportedSender creates a new exported sender for the given DC.
 // When media is true, the sender targets the media-only DC for the given
 // DC ID when the server advertises one (falling back to the regular DC).
-func (c *Client) CreateExportedSender(dcID int, cdn bool, media bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
+// ctx cancels connection setup and authorization.
+func (c *Client) CreateExportedSender(ctx context.Context, dcID int, cdn bool, media bool, authParams ...*AuthExportedAuthorization) (*mtproto.MTProto, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if dcID <= 0 {
 		return nil, errors.New("invalid data center ID")
 	}
 	const retryLimit = 3
 	var lastError error
 
-	var authParam = getVariadic(authParams, &AuthExportedAuthorization{})
+	authParam := *getVariadic(authParams, &AuthExportedAuthorization{})
 
 	c.Log.Debug("creating exported sender (DC%d, cdn=%v, media=%v)", dcID, cdn, media)
 	if cdn {
 		if _, has := c.MTProto.HasCdnKey(int32(dcID)); !has {
-			cdnKeysResp, err := c.HelpGetCdnConfig()
+			response, err := c.MakeRequest(ctx, &HelpGetCdnConfigParams{})
 			if err != nil {
 				return nil, fmt.Errorf("getting cdn config: %w", err)
+			}
+			cdnKeysResp, ok := response.(*CdnConfig)
+			if !ok {
+				return nil, fmt.Errorf("unexpected CDN config response %T", response)
 			}
 			var cdnKeys = make(map[int32]*rsa.PublicKey)
 			for _, key := range cdnKeysResp.PublicKeys {
@@ -764,7 +859,7 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, media bool, authParams
 		}
 	}
 
-	exported, err := c.MTProto.ExportNewSender(dcID, true, cdn, media)
+	exported, err := c.MTProto.ExportNewSender(ctx, dcID, true, cdn, media)
 	if err != nil {
 		return nil, fmt.Errorf("exporting new sender: %w", err)
 	}
@@ -772,18 +867,23 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, media bool, authParams
 	exported.Logger.SetPrefix(fmt.Sprintf("gogram [sender-%d>%d] ", dcID,
 		len(c.exSenders.GetSenders(dcID))+1))
 
+	success := false
 	defer func() {
-		if lastError != nil && exported != nil {
-			exported.Terminate()
+		if !success {
+			_ = exported.Terminate()
 		}
 	}()
 
 	// no need invokeWithLayer for CDN DCs.
 	if cdn {
+		success = true
 		return exported, nil
 	}
 
 	for retry := 0; retry <= retryLimit; retry++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		initialReq := &InitConnectionParams{
 			ApiID:          c.clientData.appID,
 			DeviceModel:    c.clientData.deviceModel,
@@ -804,7 +904,15 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, media bool, authParams
 				}
 			} else {
 				c.Log.Info("exporting auth (DC%d)", dcID)
-				auth, err = c.AuthExportAuthorization(int32(exported.GetDC()))
+				response, authErr := c.MakeRequest(ctx, &AuthExportAuthorizationParams{DcID: int32(exported.GetDC())})
+				err = authErr
+				if err == nil {
+					var ok bool
+					auth, ok = response.(*AuthExportedAuthorization)
+					if !ok {
+						err = fmt.Errorf("unexpected exported auth response %T", response)
+					}
+				}
 				if err != nil {
 					lastError = fmt.Errorf("exporting auth: %w", err)
 					c.Log.Error("failed to export authorization: %s", lastError.Error())
@@ -826,8 +934,8 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, media bool, authParams
 		}
 
 		c.Log.Debug("initializing exported sender")
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		_, err = exported.MakeRequestCtx(ctx, &InvokeWithLayerParams{
+		reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		_, err = exported.MakeRequest(reqCtx, &InvokeWithLayerParams{
 			Layer: ApiVersion,
 			Query: initialReq,
 		})
@@ -835,24 +943,26 @@ func (c *Client) CreateExportedSender(dcID int, cdn bool, media bool, authParams
 		c.Log.Debug("exported sender ready (DC%d)", dcID)
 
 		if err != nil {
+			lastError = fmt.Errorf("making initial request: %w", err)
 			if c.MatchRPCError(err, "AUTH_BYTES_INVALID") {
 				authParam.ID = 0
 				c.Log.Debug("AUTH_BYTES_INVALID: re-exporting authorization")
 				continue
 			}
 
-			lastError = fmt.Errorf("making initial request: %w", err)
 			if retry < retryLimit {
 				c.Log.Debug("initConnection failed, retrying (%d/%d)", retry+1, retryLimit)
 			} else {
 				c.Log.Error("exported sender failed: %s", lastError.Error())
 			}
 
-			time.Sleep(200 * time.Millisecond)
+			if err := sleepContext(ctx, 200*time.Millisecond); err != nil {
+				return nil, err
+			}
 			continue
 		}
 
-		lastError = nil
+		success = true
 		return exported, nil
 	}
 
@@ -905,7 +1015,7 @@ func (c *Client) SetParseMode(mode string) {
 
 // Ping telegram server TCP connection
 func (c *Client) Ping() time.Duration {
-	return c.MTProto.Ping()
+	return c.MTProto.Ping(context.Background())
 }
 
 // Gets the connected DC-ID
@@ -914,9 +1024,7 @@ func (c *Client) GetDC() int {
 }
 
 func (c *Client) SecretChatManager() *e2e.SecretChatManager {
-	if c.secretChats == nil {
-		c.secretChats = e2e.NewSecretChatManager()
-	}
+	c.secretChatsOnce.Do(func() { c.secretChats = e2e.NewSecretChatManager() })
 	return c.secretChats
 }
 
@@ -1009,10 +1117,15 @@ func (c *Client) SetCommandPrefixes(prefixes string) {
 	c.clientData.commandPrefixes = prefixes
 }
 
-// Terminate client and disconnect from telegram server
+// Terminate disconnects the client and closes its internally created cache.
+// Caches supplied through ClientConfig remain owned by the caller.
 func (c *Client) Terminate() error {
 	c.shutdownBackground()
-	return c.MTProto.Terminate()
+	err := c.MTProto.Terminate()
+	if c.ownedCache != nil {
+		err = errors.Join(err, c.ownedCache.Close())
+	}
+	return err
 }
 
 // Idle blocks the current goroutine until the client is stopped/terminated
