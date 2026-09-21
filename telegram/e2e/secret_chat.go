@@ -43,7 +43,8 @@ type SecretChat struct {
 	KeyCreatedAt time.Time
 	PendingRekey bool
 
-	mu sync.RWMutex
+	mu        sync.RWMutex
+	remoteAck int32
 }
 
 type SecretChatManager struct {
@@ -125,7 +126,7 @@ func (m *SecretChatManager) AcceptSecretChat(chatID int32, accessHash int64, use
 
 	m.chats[chatID] = chat
 
-	return chat, dh.GB.Bytes(), fingerprint, nil
+	return chat, dh.GA.Bytes(), fingerprint, nil
 }
 
 func (m *SecretChatManager) CompleteKeyExchange(chatID int32, gB []byte, fingerprint int64, ourSelfID int64) error {
@@ -178,7 +179,9 @@ func (chat *SecretChat) EncryptMessage(plaintext []byte) (msgKey []byte, encrypt
 		return nil, nil, errors.New("secret chat not ready")
 	}
 
-	if chat.ShouldRekey() {
+	// The chat lock is already held; ShouldRekey would acquire it again.
+	if !chat.PendingRekey && (chat.MessageCount >= 100 ||
+		(chat.MessageCount > 0 && time.Since(chat.KeyCreatedAt) > 7*24*time.Hour)) {
 		chat.PendingRekey = true
 	}
 
@@ -206,23 +209,14 @@ func (chat *SecretChat) DecryptMessage(msgKey []byte, encrypted []byte) (plainte
 		return nil, err
 	}
 
-	chat.MessageCount++
-	chat.LastMessageTime = time.Now()
-
 	return plaintext, nil
 }
 
 func (chat *SecretChat) ShouldRekey() bool {
-	if chat.PendingRekey {
-		return false
-	}
-	if chat.MessageCount >= 100 {
-		return true
-	}
-	if time.Since(chat.KeyCreatedAt) > 7*24*time.Hour && chat.MessageCount > 0 {
-		return true
-	}
-	return false
+	chat.mu.RLock()
+	defer chat.mu.RUnlock()
+	return !chat.PendingRekey && (chat.MessageCount >= 100 ||
+		(chat.MessageCount > 0 && time.Since(chat.KeyCreatedAt) > 7*24*time.Hour))
 }
 
 // NextOutSeqNo returns the next wire-format outgoing seq_no.
@@ -244,7 +238,7 @@ func (chat *SecretChat) NextOutSeqNo() int32 {
 
 	chat.OutSeqNoCounter++
 	x := int32(0)
-	if !isCreator(chat) {
+	if !chat.IsOriginator {
 		x = 1
 	}
 	return chat.OutSeqNoCounter*2 - 1 - x
@@ -262,7 +256,7 @@ func (chat *SecretChat) CurrentInSeqNo() int32 {
 	defer chat.mu.RUnlock()
 
 	x := int32(0)
-	if !isCreator(chat) {
+	if !chat.IsOriginator {
 		x = 1
 	}
 	return 2*chat.InSeqNoCounter + x
@@ -273,10 +267,6 @@ func (chat *SecretChat) RecordIncomingSeqNo() {
 	chat.mu.Lock()
 	defer chat.mu.Unlock()
 	chat.InSeqNoCounter++
-}
-
-func isCreator(chat *SecretChat) bool {
-	return chat.IsOriginator
 }
 
 func (chat *SecretChat) UpdateLayer(layer int32) {
@@ -300,10 +290,21 @@ func (m *SecretChatManager) RemoveSecretChat(chatID int32) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if chat, ok := m.chats[chatID]; ok {
-		zeroize(chat)
-		delete(m.chats, chatID)
+	chat, ok := m.chats[chatID]
+	if !ok {
+		return
 	}
+	chat.mu.Lock()
+	defer chat.mu.Unlock()
+	clear(chat.SharedKey)
+	chat.SharedKey = nil
+	chat.State = "discarded"
+	if chat.DH != nil {
+		clear(chat.DH.SharedKey)
+		chat.DH.SharedKey = nil
+		chat.DH.A = nil
+	}
+	delete(m.chats, chatID)
 }
 
 func (m *SecretChatManager) UpdateChatID(oldID, newID int32) {
@@ -312,34 +313,10 @@ func (m *SecretChatManager) UpdateChatID(oldID, newID int32) {
 
 	if chat, exists := m.chats[oldID]; exists {
 		delete(m.chats, oldID)
+		chat.mu.Lock()
 		chat.ID = newID
+		chat.mu.Unlock()
 		m.chats[newID] = chat
-	}
-}
-
-func (m *SecretChatManager) Close(chatID int32) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if chat, ok := m.chats[chatID]; ok {
-		zeroize(chat)
-		delete(m.chats, chatID)
-	}
-}
-
-func zeroize(chat *SecretChat) {
-	chat.mu.Lock()
-	defer chat.mu.Unlock()
-	for i := range chat.SharedKey {
-		chat.SharedKey[i] = 0
-	}
-	chat.SharedKey = nil
-	if chat.DH != nil {
-		for i := range chat.DH.SharedKey {
-			chat.DH.SharedKey[i] = 0
-		}
-		chat.DH.SharedKey = nil
-		chat.DH.A = nil
 	}
 }
 
@@ -367,7 +344,7 @@ func SerializeDecryptedMessage(msg DecryptedMessage, layer int32, inSeqNo, outSe
 }
 
 func DeserializeDecryptedMessage(data []byte) (*DecryptedMessageLayer, error) {
-	obj, err := tl.DecodeUnknownObject(data, nil)
+	obj, err := tl.DecodeUnknownObject(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode decrypted message layer: %w", err)
 	}
@@ -376,17 +353,6 @@ func DeserializeDecryptedMessage(data []byte) (*DecryptedMessageLayer, error) {
 		return nil, fmt.Errorf("decoded object is not DecryptedMessageLayer")
 	}
 	return layeredMsg, nil
-}
-
-func SerializeDecryptedMessageService(msg *DecryptedMessageService, layer int32, inSeqNo, outSeqNo int32) ([]byte, error) {
-	layeredMsg := &DecryptedMessageLayer{
-		RandomBytes: utils.RandomBytes(15),
-		Layer:       layer,
-		InSeqNo:     inSeqNo,
-		OutSeqNo:    outSeqNo,
-		Message:     msg,
-	}
-	return tl.Marshal(layeredMsg)
 }
 
 type EncryptedFileKey struct {
@@ -428,6 +394,10 @@ func EncryptFile(data []byte, key, iv []byte) ([]byte, error) {
 		return nil, fmt.Errorf("IV must be 32 bytes, got %d", len(iv))
 	}
 
+	if len(data) == 0 {
+		return []byte{}, nil
+	}
+
 	paddingLen := 0
 	if len(data)%16 != 0 {
 		paddingLen = 16 - (len(data) % 16)
@@ -461,7 +431,7 @@ func EncryptFile(data []byte, key, iv []byte) ([]byte, error) {
 //
 // totalSize must be the exact number of plaintext bytes available on src; it
 // is used to compute the final padding length. Pass -1 if unknown, and the
-// stream will be drained first (less memory-efficient).
+// stream will be read until EOF using the same bounded buffer.
 func EncryptFileStream(dst io.Writer, src io.Reader, key, iv []byte, totalSize int64) (int64, error) {
 	if len(key) != 32 {
 		return 0, fmt.Errorf("key must be 32 bytes, got %d", len(key))
@@ -499,10 +469,14 @@ func EncryptFileStream(dst io.Writer, src io.Reader, key, iv []byte, totalSize i
 			if err := cipher.DoAES256IGEencrypt(inBuf[:aligned], outBuf); err != nil {
 				return written, fmt.Errorf("encrypt block: %w", err)
 			}
-			if _, err := dst.Write(outBuf); err != nil {
+			n, err := dst.Write(outBuf)
+			written += int64(n)
+			if err != nil {
 				return written, fmt.Errorf("write encrypted: %w", err)
 			}
-			written += int64(aligned)
+			if n != len(outBuf) {
+				return written, io.ErrShortWrite
+			}
 		}
 
 		if atEOF {
@@ -531,15 +505,21 @@ func EncryptFileStream(dst io.Writer, src io.Reader, key, iv []byte, totalSize i
 		if err := cipher.DoAES256IGEencrypt(final, out); err != nil {
 			return written, fmt.Errorf("encrypt final block: %w", err)
 		}
-		if _, err := dst.Write(out); err != nil {
+		n, err := dst.Write(out)
+		written += int64(n)
+		if err != nil {
 			return written, fmt.Errorf("write final: %w", err)
 		}
-		written += int64(len(out))
+		if n != len(out) {
+			return written, io.ErrShortWrite
+		}
 	}
 
 	return written, nil
 }
 
+// DecryptFile removes padding when originalSize is positive. A nonpositive size
+// preserves the legacy behavior of returning the complete plaintext, including padding.
 func DecryptFile(encryptedData []byte, key, iv []byte, originalSize int) ([]byte, error) {
 	if len(key) != 32 {
 		return nil, fmt.Errorf("key must be 32 bytes, got %d", len(key))
@@ -548,6 +528,15 @@ func DecryptFile(encryptedData []byte, key, iv []byte, originalSize int) ([]byte
 		return nil, fmt.Errorf("IV must be 32 bytes, got %d", len(iv))
 	}
 
+	if originalSize <= 0 {
+		originalSize = len(encryptedData)
+	}
+	if originalSize > len(encryptedData) || len(encryptedData)-originalSize >= 16 {
+		return nil, errors.New("invalid original file size")
+	}
+	if len(encryptedData) == 0 {
+		return []byte{}, nil
+	}
 	cipher, err := aes.NewCipher(key, iv)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cipher: %w", err)
@@ -558,11 +547,7 @@ func DecryptFile(encryptedData []byte, key, iv []byte, originalSize int) ([]byte
 		return nil, fmt.Errorf("failed to decrypt: %w", err)
 	}
 
-	if originalSize > 0 && originalSize <= len(decrypted) {
-		return decrypted[:originalSize], nil
-	}
-
-	return decrypted, nil
+	return decrypted[:originalSize], nil
 }
 
 func VerifyFileFingerprint(key, iv []byte, fingerprint int32) bool {
@@ -573,4 +558,53 @@ func VerifyFileFingerprint(key, iv []byte, fingerprint int32) bool {
 
 	expectedFingerprint := binary.LittleEndian.Uint32(digest[0:4]) ^ binary.LittleEndian.Uint32(digest[4:8])
 	return int32(expectedFingerprint) == fingerprint
+}
+
+// AcceptIncomingLayer validates and advances receive state once per message.
+// DecryptMessage itself is repeatable and does not advance sequence counters.
+func (chat *SecretChat) AcceptIncomingLayer(layer *DecryptedMessageLayer) error {
+	chat.mu.Lock()
+	defer chat.mu.Unlock()
+	if chat.State != "ready" || layer == nil || layer.Layer < MinLayer || len(layer.RandomBytes) < 15 {
+		return errors.New("invalid secret message layer")
+	}
+	outParity, ackParity := int32(1), int32(0)
+	if chat.IsOriginator {
+		outParity, ackParity = 0, 1
+	}
+	if layer.OutSeqNo < 0 || layer.InSeqNo < 0 || layer.OutSeqNo%2 != outParity || layer.InSeqNo%2 != ackParity {
+		return errors.New("invalid secret message sequence parity")
+	}
+	ack := (layer.InSeqNo - ackParity) / 2
+	if ack < chat.remoteAck || ack > chat.OutSeqNoCounter {
+		return errors.New("invalid secret message acknowledgment")
+	}
+	if int64(layer.OutSeqNo) != 2*int64(chat.InSeqNoCounter)+int64(outParity) {
+		return errors.New("duplicate or out-of-order secret message")
+	}
+	chat.InSeqNoCounter++
+	chat.remoteAck = ack
+	chat.MessageCount++
+	chat.LastMessageTime = time.Now()
+	if layer.Layer > chat.Layer {
+		chat.Layer = layer.Layer
+	}
+	return nil
+}
+
+func (chat *SecretChat) GetLayer() int32 { chat.mu.RLock(); defer chat.mu.RUnlock(); return chat.Layer }
+func (chat *SecretChat) GetKeyFingerprint() int64 {
+	chat.mu.RLock()
+	defer chat.mu.RUnlock()
+	return chat.KeyFingerprint
+}
+func (chat *SecretChat) GetAccessHash() int64 {
+	chat.mu.RLock()
+	defer chat.mu.RUnlock()
+	return chat.AccessHash
+}
+func (chat *SecretChat) SetAccessHash(hash int64) {
+	chat.mu.Lock()
+	defer chat.mu.Unlock()
+	chat.AccessHash = hash
 }

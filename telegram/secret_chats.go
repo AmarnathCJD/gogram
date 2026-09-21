@@ -10,6 +10,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"sync"
 
 	"github.com/amarnathcjd/gogram/internal/utils"
 	"github.com/amarnathcjd/gogram/telegram/e2e"
@@ -57,10 +58,6 @@ func (c *Client) RequestSecretChat(userID any) (*EncryptedChatObj, error) {
 
 	entropy := mixRandom(serverRandom)
 
-	if c.secretChats == nil {
-		c.secretChats = e2e.NewSecretChatManager()
-	}
-
 	user, err := c.GetSendableUser(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve user: %w", err)
@@ -72,7 +69,7 @@ func (c *Client) RequestSecretChat(userID any) (*EncryptedChatObj, error) {
 	}
 
 	tempChatID := int32(randomId)
-	chat, gA, err := c.secretChats.CreateSecretChat(tempChatID, user.(*InputUserObj).UserID, prime, g, entropy)
+	chat, gA, err := c.SecretChatManager().CreateSecretChat(tempChatID, c.GetPeerID(user), prime, g, entropy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create secret chat: %w", err)
 	}
@@ -83,15 +80,14 @@ func (c *Client) RequestSecretChat(userID any) (*EncryptedChatObj, error) {
 
 	resp, err := c.MessagesRequestEncryption(user, int32(randomId), gA)
 	if err != nil {
-		c.secretChats.RemoveSecretChat(tempChatID)
+		c.SecretChatManager().RemoveSecretChat(tempChatID)
 		return nil, fmt.Errorf("failed to request encryption: %w", err)
 	}
 
 	switch encChat := resp.(type) {
 	case *EncryptedChatRequested:
-		c.secretChats.UpdateChatID(tempChatID, encChat.ID)
-		chat.ID = encChat.ID
-		chat.AccessHash = encChat.AccessHash
+		c.SecretChatManager().UpdateChatID(tempChatID, encChat.ID)
+		chat.SetAccessHash(encChat.AccessHash)
 
 		return &EncryptedChatObj{
 			ID:         encChat.ID,
@@ -100,9 +96,8 @@ func (c *Client) RequestSecretChat(userID any) (*EncryptedChatObj, error) {
 			AdminID:    encChat.AdminID,
 		}, nil
 	case *EncryptedChatWaiting:
-		c.secretChats.UpdateChatID(tempChatID, encChat.ID)
-		chat.ID = encChat.ID
-		chat.AccessHash = encChat.AccessHash
+		c.SecretChatManager().UpdateChatID(tempChatID, encChat.ID)
+		chat.SetAccessHash(encChat.AccessHash)
 
 		return &EncryptedChatObj{
 			ID:         encChat.ID,
@@ -112,6 +107,7 @@ func (c *Client) RequestSecretChat(userID any) (*EncryptedChatObj, error) {
 		}, nil
 
 	default:
+		c.SecretChatManager().RemoveSecretChat(tempChatID)
 		return nil, fmt.Errorf("unexpected response type: %T", resp)
 	}
 }
@@ -140,10 +136,6 @@ func (c *Client) AcceptSecretChat(chat InputEncryptedChat, gA []byte) error {
 
 	entropy := mixRandom(serverRandom)
 
-	if c.secretChats == nil {
-		c.secretChats = e2e.NewSecretChatManager()
-	}
-
 	primeInt := new(big.Int).SetBytes(prime)
 	gAInt := new(big.Int).SetBytes(gA)
 
@@ -152,7 +144,7 @@ func (c *Client) AcceptSecretChat(chat InputEncryptedChat, gA []byte) error {
 	}
 
 	selfID := c.selfUserID()
-	chatAc, gB, fingerprint, err := c.secretChats.AcceptSecretChat(
+	chatAc, gB, fingerprint, err := c.SecretChatManager().AcceptSecretChat(
 		chat.ChatID,
 		chat.AccessHash,
 		0,
@@ -167,7 +159,7 @@ func (c *Client) AcceptSecretChat(chat InputEncryptedChat, gA []byte) error {
 		return fmt.Errorf("failed to accept secret chat: %w", err)
 	}
 
-	if !e2e.IsValidGAOrGB(chatAc.DH.GB, chatAc.DH.Prime) {
+	if !e2e.IsValidGAOrGB(chatAc.DH.GA, chatAc.DH.Prime) {
 		return fmt.Errorf("generated invalid g_b")
 	}
 
@@ -176,6 +168,7 @@ func (c *Client) AcceptSecretChat(chat InputEncryptedChat, gA []byte) error {
 		AccessHash: chatAc.AccessHash,
 	}, gB, fingerprint)
 	if err != nil {
+		c.SecretChatManager().RemoveSecretChat(chatAc.ID)
 		return fmt.Errorf("failed to accept encryption: %w", err)
 	}
 
@@ -183,8 +176,37 @@ func (c *Client) AcceptSecretChat(chat InputEncryptedChat, gA []byte) error {
 	return err
 }
 
+type secretSendLock struct {
+	mu    sync.Mutex
+	users int
+}
+
+func (c *Client) lockSecretSend(chat *e2e.SecretChat) func() {
+	c.secretSendMu.Lock()
+	if c.secretSends == nil {
+		c.secretSends = make(map[*e2e.SecretChat]*secretSendLock)
+	}
+	lock := c.secretSends[chat]
+	if lock == nil {
+		lock = &secretSendLock{}
+		c.secretSends[chat] = lock
+	}
+	lock.users++
+	c.secretSendMu.Unlock()
+	lock.mu.Lock()
+	return func() {
+		lock.mu.Unlock()
+		c.secretSendMu.Lock()
+		lock.users--
+		if lock.users == 0 {
+			delete(c.secretSends, chat)
+		}
+		c.secretSendMu.Unlock()
+	}
+}
+
 func (c *Client) SendSecretMessage(chatID int32, message string, ttl int32) (MessagesSentEncryptedMessage, error) {
-	chat, err := c.secretChats.GetSecretChat(chatID)
+	chat, err := c.SecretChatManager().GetSecretChat(chatID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secret chat: %w", err)
 	}
@@ -200,6 +222,8 @@ func (c *Client) SendSecretMessage(chatID int32, message string, ttl int32) (Mes
 		Message:  message,
 	}
 
+	unlock := c.lockSecretSend(chat)
+	defer unlock()
 	inSeqNo := chat.CurrentInSeqNo()
 	outSeqNo := chat.NextOutSeqNo()
 
@@ -214,16 +238,14 @@ func (c *Client) SendSecretMessage(chatID int32, message string, ttl int32) (Mes
 	}
 
 	data := make([]byte, 8+16+len(encrypted))
-	for i := range 8 {
-		data[i] = byte(chat.KeyFingerprint >> (i * 8))
-	}
+	binary.LittleEndian.PutUint64(data, uint64(chat.GetKeyFingerprint()))
 
 	copy(data[8:], msgKey)
 	copy(data[24:], encrypted)
 
 	resp, err := c.MessagesSendEncrypted(false, &InputEncryptedChat{
 		ChatID:     chatID,
-		AccessHash: chat.AccessHash,
+		AccessHash: chat.GetAccessHash(),
 	}, randomID, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send encrypted message: %w", err)
@@ -240,7 +262,7 @@ func (c *Client) SendSecretChatLayerNotification(chatID int32) (MessagesSentEncr
 
 // SendSecretAction sends a typing indicator to a secret chat.
 func (c *Client) SendSecretAction(chatID int32, action e2e.SendMessageAction) (bool, error) {
-	chat, err := c.secretChats.GetSecretChat(chatID)
+	chat, err := c.SecretChatManager().GetSecretChat(chatID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get secret chat: %w", err)
 	}
@@ -252,12 +274,12 @@ func (c *Client) SendSecretAction(chatID int32, action e2e.SendMessageAction) (b
 
 	return c.MessagesSetEncryptedTyping(&InputEncryptedChat{
 		ChatID:     chat.ID,
-		AccessHash: chat.AccessHash,
+		AccessHash: chat.GetAccessHash(),
 	}, typing)
 }
 
 func (c *Client) sendSecretService(chatID int32, action e2e.DecryptedMessageAction) (MessagesSentEncryptedMessage, error) {
-	chat, err := c.secretChats.GetSecretChat(chatID)
+	chat, err := c.SecretChatManager().GetSecretChat(chatID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secret chat: %w", err)
 	}
@@ -272,9 +294,11 @@ func (c *Client) sendSecretService(chatID int32, action e2e.DecryptedMessageActi
 		Action:   action,
 	}
 
+	unlock := c.lockSecretSend(chat)
+	defer unlock()
 	inSeqNo := chat.CurrentInSeqNo()
 	outSeqNo := chat.NextOutSeqNo()
-	serialized, err := e2e.SerializeDecryptedMessageService(serviceMsg, e2e.CurrentLayer, inSeqNo, outSeqNo)
+	serialized, err := e2e.SerializeDecryptedMessage(serviceMsg, e2e.CurrentLayer, inSeqNo, outSeqNo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize service message: %w", err)
 	}
@@ -285,15 +309,13 @@ func (c *Client) sendSecretService(chatID int32, action e2e.DecryptedMessageActi
 	}
 
 	data := make([]byte, 8+16+len(encrypted))
-	for i := 0; i < 8; i++ {
-		data[i] = byte(chat.KeyFingerprint >> (i * 8))
-	}
+	binary.LittleEndian.PutUint64(data, uint64(chat.GetKeyFingerprint()))
 	copy(data[8:], msgKey)
 	copy(data[24:], encrypted)
 
 	resp, err := c.MessagesSendEncryptedService(&InputEncryptedChat{
 		ChatID:     chatID,
-		AccessHash: chat.AccessHash,
+		AccessHash: chat.GetAccessHash(),
 	}, randomID, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send encrypted service: %w", err)
@@ -304,7 +326,7 @@ func (c *Client) sendSecretService(chatID int32, action e2e.DecryptedMessageActi
 
 // DiscardSecretChat discards/deletes a secret chat
 func (c *Client) DiscardSecretChat(chatID int32, revoke ...bool) error {
-	_, err := c.secretChats.GetSecretChat(chatID)
+	_, err := c.SecretChatManager().GetSecretChat(chatID)
 	if err != nil {
 		return fmt.Errorf("failed to get secret chat: %w", err)
 	}
@@ -314,7 +336,7 @@ func (c *Client) DiscardSecretChat(chatID int32, revoke ...bool) error {
 		return fmt.Errorf("failed to discard encryption: %w", err)
 	}
 
-	c.secretChats.Close(chatID)
+	c.SecretChatManager().RemoveSecretChat(chatID)
 	return nil
 }
 
@@ -340,47 +362,19 @@ func (c *Client) handleSecretChatUpdate(update Update) {
 // User-level callbacks are dispatched AFTER the internal state machine has
 // completed processing, so a handler observing EncryptedChatObj sees a chat
 // that is already in the "ready" state and safe to send on.
-func (c *Client) HandleSecretChatUpdate(update Update) error {
-	if c.secretChats == nil {
-		c.secretChats = e2e.NewSecretChatManager()
-	}
-	defer func() { go c.handleSecretChatUpdate(update) }()
+func (c *Client) HandleSecretChatUpdate(update Update) (err error) {
+	defer func() {
+		if err == nil {
+			c.dispatchAsync(func() { c.handleSecretChatUpdate(update) })
+		}
+	}()
 	switch u := update.(type) {
 	case *UpdateEncryption:
 		switch chat := u.Chat.(type) {
 		case *EncryptedChatObj:
-			existingChat, err := c.secretChats.GetSecretChat(chat.ID)
+			existingChat, err := c.SecretChatManager().GetSecretChat(chat.ID)
 			if err == nil {
-				// The originator must check that g_b > 1 and g_b < p-1
-				// and that 2^{2048-64} < g_b < p - 2^{2048-64}
-				gBInt := new(big.Int).SetBytes(chat.GAOrB)
-
-				// For now, we'll need to fetch it or store it during RequestSecretChat
-				// Let's get DH config to validate
-				dhConfig, err := c.MessagesGetDhConfig(0, 256)
-				if err != nil {
-					return fmt.Errorf("failed to get DH config for validation: %w", err)
-				}
-
-				var prime []byte
-				switch config := dhConfig.(type) {
-				case *MessagesDhConfigObj:
-					prime = config.P
-				case *MessagesDhConfigNotModified:
-					return fmt.Errorf("DH config not modified, need cached parameters")
-				default:
-					return fmt.Errorf("unexpected DH config type: %T", dhConfig)
-				}
-
-				primeInt := new(big.Int).SetBytes(prime)
-				if !e2e.IsValidGAOrGB(gBInt, primeInt) {
-					c.Log.Error("received invalid g_b from responder, discarding chat")
-					_, _ = c.MessagesDiscardEncryption(true, chat.ID)
-					c.secretChats.RemoveSecretChat(chat.ID)
-					return fmt.Errorf("received invalid g_b from responder")
-				}
-
-				if err := c.secretChats.CompleteKeyExchange(
+				if err := c.SecretChatManager().CompleteKeyExchange(
 					chat.ID,
 					chat.GAOrB,
 					chat.KeyFingerprint,
@@ -388,11 +382,11 @@ func (c *Client) HandleSecretChatUpdate(update Update) error {
 				); err != nil {
 					c.Log.Error("failed to complete key exchange (fingerprint mismatch?), discarding chat:", err)
 					_, _ = c.MessagesDiscardEncryption(true, chat.ID)
-					c.secretChats.RemoveSecretChat(chat.ID)
+					c.SecretChatManager().RemoveSecretChat(chat.ID)
 					return fmt.Errorf("failed to complete key exchange: %w", err)
 				}
 
-				existingChat.AccessHash = chat.AccessHash
+				existingChat.SetAccessHash(chat.AccessHash)
 				if _, err = c.SendSecretChatLayerNotification(chat.ID); err != nil {
 					c.Log.Error("failed to send layer notification:", err)
 				}
@@ -401,8 +395,12 @@ func (c *Client) HandleSecretChatUpdate(update Update) error {
 				return fmt.Errorf("received encryptedChat but no local chat found (ID: %d)", chat.ID)
 			}
 
+		case *EncryptedChatRequested, *EncryptedChatWaiting:
+			// The application decides whether to accept an incoming request.
+			return nil
+
 		case *EncryptedChatDiscarded:
-			c.secretChats.Close(chat.ID)
+			c.SecretChatManager().RemoveSecretChat(chat.ID)
 			c.Log.Info("secret chat discarded: %d", chat.ID)
 
 		default:
@@ -410,15 +408,28 @@ func (c *Client) HandleSecretChatUpdate(update Update) error {
 		}
 
 	case *UpdateNewEncryptedMessage:
-		if msg, ok := u.Message.(*EncryptedMessageObj); ok {
-			if chat, err := c.secretChats.GetSecretChat(msg.ChatID); err == nil {
-				if _, _, err := c.decryptSecretMessage(msg.ChatID, msg.Bytes); err != nil {
-					c.Log.Debug("eager decrypt failed for chat %d: %v", msg.ChatID, err)
-				} else {
-					chat.RecordIncomingSeqNo()
-				}
-			}
+		var chatID int32
+		var data []byte
+		switch msg := u.Message.(type) {
+		case *EncryptedMessageObj:
+			chatID, data = msg.ChatID, msg.Bytes
+		case *EncryptedMessageService:
+			chatID, data = msg.ChatID, msg.Bytes
+		default:
+			return fmt.Errorf("unknown encrypted message type %T", u.Message)
 		}
+		chat, err := c.SecretChatManager().GetSecretChat(chatID)
+		if err != nil {
+			return err
+		}
+		layer, _, err := c.decryptSecretMessage(chatID, data)
+		if err != nil {
+			return err
+		}
+		if err := chat.AcceptIncomingLayer(layer); err != nil {
+			return err
+		}
+
 	}
 
 	return nil
@@ -434,13 +445,13 @@ func (c *Client) decryptSecretMessage(chatID int32, encryptedData []byte) (*e2e.
 		return nil, false, fmt.Errorf("encrypted data too short")
 	}
 
-	chat, err := c.secretChats.GetSecretChat(chatID)
+	chat, err := c.SecretChatManager().GetSecretChat(chatID)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to get secret chat: %w", err)
 	}
 
 	fingerprint := int64(binary.LittleEndian.Uint64(encryptedData[:8]))
-	if fingerprint != chat.KeyFingerprint {
+	if fingerprint != chat.GetKeyFingerprint() {
 		return nil, false, fmt.Errorf("key fingerprint mismatch")
 	}
 
@@ -456,11 +467,7 @@ func (c *Client) decryptSecretMessage(chatID int32, encryptedData []byte) (*e2e.
 		return nil, false, fmt.Errorf("failed to deserialize message: %w", err)
 	}
 
-	layerBumped := false
-	if layer.Layer > chat.Layer {
-		chat.UpdateLayer(layer.Layer)
-		layerBumped = true
-	}
+	layerBumped := layer.Layer > chat.GetLayer()
 
 	return layer, layerBumped, nil
 }
@@ -494,6 +501,9 @@ type SecretFileOptions struct {
 //     a fresh key, uploaded into the secret chat. Memory use stays bounded
 //     regardless of file size.
 func (c *Client) SendSecretFile(chatID int32, source any, opts *SecretFileOptions) error {
+	if isNilSource(source) {
+		return fmt.Errorf("invalid secret file source")
+	}
 	if opts == nil {
 		opts = &SecretFileOptions{}
 	}
@@ -508,7 +518,7 @@ func (c *Client) SendSecretFile(chatID int32, source any, opts *SecretFileOption
 		}
 	}
 	if extDoc != nil {
-		chat, err := c.secretChats.GetSecretChat(chatID)
+		chat, err := c.SecretChatManager().GetSecretChat(chatID)
 		if err != nil {
 			return fmt.Errorf("failed to get secret chat: %w", err)
 		}
@@ -539,6 +549,8 @@ func (c *Client) SendSecretFile(chatID int32, source any, opts *SecretFileOption
 				Attributes: attrs,
 			},
 		}
+		unlock := c.lockSecretSend(chat)
+		defer unlock()
 		serialized, err := e2e.SerializeDecryptedMessage(msg, e2e.CurrentLayer, chat.CurrentInSeqNo(), chat.NextOutSeqNo())
 		if err != nil {
 			return fmt.Errorf("failed to serialize message: %w", err)
@@ -548,14 +560,12 @@ func (c *Client) SendSecretFile(chatID int32, source any, opts *SecretFileOption
 			return fmt.Errorf("failed to encrypt message: %w", err)
 		}
 		data := make([]byte, 8+16+len(encryptedMsg))
-		for i := range 8 {
-			data[i] = byte(chat.KeyFingerprint >> (i * 8))
-		}
+		binary.LittleEndian.PutUint64(data, uint64(chat.GetKeyFingerprint()))
 		copy(data[8:], msgKey)
 		copy(data[24:], encryptedMsg)
 		_, err = c.MessagesSendEncrypted(false, &InputEncryptedChat{
 			ChatID:     chat.ID,
-			AccessHash: chat.AccessHash,
+			AccessHash: chat.GetAccessHash(),
 		}, randomID, data)
 		return err
 	}
@@ -616,7 +626,7 @@ func (c *Client) SendSecretFile(chatID int32, source any, opts *SecretFileOption
 		defer cleanup()
 	}
 
-	chat, err := c.secretChats.GetSecretChat(chatID)
+	chat, err := c.SecretChatManager().GetSecretChat(chatID)
 	if err != nil {
 		return fmt.Errorf("failed to get secret chat: %w", err)
 	}
@@ -688,6 +698,8 @@ func (c *Client) SendSecretFile(chatID int32, source any, opts *SecretFileOption
 		},
 	}
 
+	unlock := c.lockSecretSend(chat)
+	defer unlock()
 	inSeqNo := chat.CurrentInSeqNo()
 	outSeqNo := chat.NextOutSeqNo()
 
@@ -702,9 +714,7 @@ func (c *Client) SendSecretFile(chatID int32, source any, opts *SecretFileOption
 	}
 
 	data := make([]byte, 8+16+len(encryptedMsg))
-	for i := range 8 {
-		data[i] = byte(chat.KeyFingerprint >> (i * 8))
-	}
+	binary.LittleEndian.PutUint64(data, uint64(chat.GetKeyFingerprint()))
 	copy(data[8:], msgKey)
 	copy(data[24:], encryptedMsg)
 
@@ -712,7 +722,7 @@ func (c *Client) SendSecretFile(chatID int32, source any, opts *SecretFileOption
 		Silent: false,
 		Peer: &InputEncryptedChat{
 			ChatID:     chat.ID,
-			AccessHash: chat.AccessHash,
+			AccessHash: chat.GetAccessHash(),
 		},
 		RandomID: randomID,
 		Data:     data,
