@@ -209,7 +209,7 @@ type Config struct {
 	ReqTimeout     int            // RPC request timeout (seconds)
 	Transport      TransportType  // Transport variant (default TransportTCP)
 	Obfuscated     bool           // Wrap the TCP transport with obfuscation (mtproto obfuscated2)
-	HTTPPath       string         // HTTP request path (default "/api"; only used for HTTP/HTTPS)
+	HTTPPath       string         // Override the HTTP/HTTPS request path (defaults to "/api", or "/apiw1" on Telegram web endpoints)
 	PFSKeyLifetime int32          // Lifetime (seconds) for temp auth keys when EnablePFS is set; 0 = 24h
 
 	MaxReconnectAttempts int           // Max reconnection attempts (default: 2000)
@@ -392,6 +392,7 @@ func (m *MTProto) ImportRawAuth(authKey, authKeyHash []byte, addr string, appID 
 		return false, err
 	}
 	m.SetAddr(addr)
+	m.dcID.Store(0)
 	m.SetAuthKey(authKey)
 	m.appID = appID
 	m.Logger.Debug("importing raw auth credentials")

@@ -260,6 +260,7 @@ func (m *MTProto) _loadSession(s *session.Session) {
 	m.SetAuthKey(s.Key)
 	m.serverSalt.Store(s.Salt)
 	m.SetAddr(s.Hostname)
+	m.dcID.Store(0)
 	m.appID = s.AppID
 }
 

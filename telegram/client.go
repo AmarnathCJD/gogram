@@ -152,7 +152,7 @@ type ClientConfig struct {
 	ReqTimeout       int                  // RPC request timeout in seconds (default: 60)
 	Transport        TransportType        // Transport variant (TCP, WebSocket, HTTP, etc.) — default TCP
 	Obfuscated       bool                 // Wrap TCP transport with mtproto obfuscation (only meaningful for TransportTCP)
-	HTTPPath         string               // HTTP request path (default "/api"; only used for HTTP/HTTPS)
+	HTTPPath         string               // Override the HTTP/HTTPS request path (defaults to "/api", or "/apiw1" on Telegram web endpoints)
 	EnablePFS        bool                 // Enable Perfect Forward Secrecy with temp auth keys
 	PFSKeyLifetime   int32                // Lifetime (seconds) for PFS temp key; 0 = 24h
 	DisableGapFetch  bool                 // Disable automatic gap filling, only fetch difference on UpdatesTooLong/UpdateChannelTooLong

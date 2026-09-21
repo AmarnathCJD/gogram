@@ -48,8 +48,11 @@ func NewHTTPTransport(m messages.MessageInformator, cfg HTTPConnConfig) (Transpo
 	path := cfg.Path
 	if path == "" {
 		path = "/api"
-		if cfg.TestMode && strings.HasSuffix(stripPort(host), ".web.telegram.org") {
-			path += "_test"
+		if strings.HasSuffix(stripPort(host), ".web.telegram.org") {
+			path = "/apiw1"
+			if cfg.TestMode {
+				path = "/apiw_test1"
+			}
 		}
 	}
 	if !strings.HasPrefix(path, "/") {

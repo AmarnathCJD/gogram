@@ -196,6 +196,11 @@ func selectDCAddr(dcs []DC, preferIPv6 bool) string {
 }
 
 func (opt *DCOptions) SearchAddr(addr string) int {
+	for dcID, host := range opt.TestDCs {
+		if host == addr {
+			return dcID
+		}
+	}
 	for dcID, addrs := range opt.DCs {
 		for _, dc := range addrs {
 			if dc.Addr == addr {
