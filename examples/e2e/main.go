@@ -24,14 +24,14 @@ func main() {
 	}
 
 	if err := client.Connect(); err != nil {
-		panic(fmt.Errorf("Connect: %w", err))
+		panic(fmt.Errorf("connect: %w", err))
 	}
 	if authed, _ := client.IsAuthorized(); !authed {
 		fmt.Print("Enter phone number (e.g. +14155551234): ")
 		var phone string
 		fmt.Scanln(&phone)
 		if _, err := client.Login(phone); err != nil {
-			panic(fmt.Errorf("Login: %w", err))
+			panic(fmt.Errorf("login: %w", err))
 		}
 	}
 

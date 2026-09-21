@@ -146,7 +146,11 @@ func (t *TData) readKeyFile() ([]*MtpData, error) {
 		}
 	}
 
+	defer f.Close()
 	tdf, err := readTD(f)
+	if err != nil {
+		return nil, err
+	}
 	r := bytes.NewReader(tdf.EncryptedData)
 
 	var length uint32
