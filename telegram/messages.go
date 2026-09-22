@@ -70,7 +70,7 @@ type SendOptions struct {
 // If the message parameter is a media object, the function will send the media as a separate message and return a pointer to a NewMessage object containing information about the sent media.
 // If the message parameter is a string, the function will parse it for entities and send it as a text message.
 func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMessage, error) {
-	opt := getVariadic(opts, &SendOptions{})
+	opt := *getVariadic(opts, &SendOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
@@ -85,12 +85,18 @@ func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMes
 	case MessageMedia, InputMedia, InputFile:
 		media = message
 	case NewMessage:
+		if message.Message == nil {
+			return nil, errors.New("message is empty")
+		}
 		entities = message.Message.Entities
 		textMessage = message.MessageText()
 		rawText = message.MessageText()
 		media = message.Media()
 		opt.ReplyMarkup = getValue(opt.ReplyMarkup, *message.ReplyMarkup())
 	case *NewMessage:
+		if message == nil || message.Message == nil {
+			return nil, errors.New("message is empty")
+		}
 		entities = message.Message.Entities
 		textMessage = message.MessageText()
 		rawText = message.MessageText()
@@ -108,7 +114,7 @@ func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMes
 		if opt.Entities == nil {
 			opt.Entities = entities
 		}
-		return c.SendMedia(peerID, media, convertOption(opt))
+		return c.SendMedia(peerID, media, convertOption(&opt))
 	}
 	senderPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
@@ -121,7 +127,7 @@ func (c *Client) SendMessage(peerID, message any, opts ...*SendOptions) (*NewMes
 			return nil, err
 		}
 	}
-	return c.sendMessage(senderPeer, textMessage, entities, sendAs, opt)
+	return c.sendMessage(senderPeer, textMessage, entities, sendAs, &opt)
 }
 
 // ScheduleMessage sends a message to be delivered at the given time. Telegram
@@ -131,9 +137,9 @@ func (c *Client) ScheduleMessage(peerID, message any, at time.Time, opts ...*Sen
 	if at.IsZero() || !at.After(time.Now()) {
 		return nil, errors.New("time must be in the future")
 	}
-	opt := getVariadic(opts, &SendOptions{})
+	opt := *getVariadic(opts, &SendOptions{})
 	opt.ScheduleDate = int32(at.Unix())
-	return c.SendMessage(peerID, message, opt)
+	return c.SendMessage(peerID, message, &opt)
 }
 
 // ScheduleMedia is the media equivalent of ScheduleMessage.
@@ -141,9 +147,9 @@ func (c *Client) ScheduleMedia(peerID, media any, at time.Time, opts ...*MediaOp
 	if at.IsZero() || !at.After(time.Now()) {
 		return nil, errors.New("time must be in the future")
 	}
-	opt := getVariadic(opts, &MediaOptions{})
+	opt := *getVariadic(opts, &MediaOptions{})
 	opt.ScheduleDate = int32(at.Unix())
-	return c.SendMedia(peerID, media, opt)
+	return c.SendMedia(peerID, media, &opt)
 }
 
 // StreamMessage simulates a streaming message by continuously updating the user's draft status
@@ -278,7 +284,12 @@ func (c *Client) SendRich(peerID any, msg *RichBuilder, opts ...*SendOptions) (*
 		return nil, fmt.Errorf("no response from server")
 	}
 	processed := c.processUpdate(resp)
-	processed.PeerID = c.getPeer(peer)
+	if processed == nil {
+		return nil, errors.New("server response contained no message")
+	}
+	if processed.PeerID == nil {
+		processed.PeerID = c.getPeer(peer)
+	}
 	return packMessage(c, processed), nil
 }
 
@@ -313,7 +324,12 @@ func (c *Client) EditRich(peerID any, messageID int32, msg *RichBuilder, opts ..
 		return nil, fmt.Errorf("no response from server")
 	}
 	processed := c.processUpdate(resp)
-	processed.PeerID = c.getPeer(peer)
+	if processed == nil {
+		return nil, errors.New("server response contained no message")
+	}
+	if processed.PeerID == nil {
+		processed.PeerID = c.getPeer(peer)
+	}
 	return packMessage(c, processed), nil
 }
 
@@ -454,7 +470,15 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 	}
 	if updateResp != nil {
 		processed := c.processUpdate(updateResp)
-		processed.PeerID = c.getPeer(Peer)
+		if processed == nil {
+			return nil, errors.New("server response contained no message")
+		}
+		if _, short := updateResp.(*UpdateShortSentMessage); short {
+			processed.Message = Message
+		}
+		if processed.PeerID == nil {
+			processed.PeerID = c.getPeer(Peer)
+		}
 		return packMessage(c, processed), nil
 	}
 
@@ -473,7 +497,7 @@ func (c *Client) sendMessage(Peer InputPeer, Message string, entities []MessageE
 //   - NewMessage: Returns a NewMessage object containing the edited message on success.
 //   - error: Returns an error on failure.
 func (c *Client) EditMessage(peerID any, id int32, message any, opts ...*SendOptions) (*NewMessage, error) {
-	opt := getVariadic(opts, &SendOptions{})
+	opt := *getVariadic(opts, &SendOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 	var (
 		entities    []MessageEntity
@@ -486,6 +510,9 @@ func (c *Client) EditMessage(peerID any, id int32, message any, opts ...*SendOpt
 	case MessageMedia, InputMedia, InputFile:
 		media = message
 	case *NewMessage:
+		if message == nil || message.Message == nil {
+			return nil, errors.New("message is empty")
+		}
 		entities = message.Message.Entities
 		textMessage = message.MessageText()
 		media = message.Media()
@@ -501,13 +528,13 @@ func (c *Client) EditMessage(peerID any, id int32, message any, opts ...*SendOpt
 	}
 	switch p := peerID.(type) {
 	case *InputBotInlineMessageID:
-		return c.editBotInlineMessage(*p, textMessage, entities, media, opt)
+		return c.editBotInlineMessage(*p, textMessage, entities, media, &opt)
 	}
 	senderPeer, err := c.ResolvePeer(peerID)
 	if err != nil {
 		return nil, err
 	}
-	return c.editMessage(senderPeer, id, textMessage, entities, media, opt)
+	return c.editMessage(senderPeer, id, textMessage, entities, media, &opt)
 }
 
 func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities []MessageEntity, Media any, options *SendOptions) (*NewMessage, error) {
@@ -562,8 +589,17 @@ func (c *Client) editMessage(Peer InputPeer, id int32, Message string, entities 
 		return nil, err
 	}
 	if result != nil {
-		processed := c.processUpdate(result.(Updates))
-		processed.PeerID = c.getPeer(Peer)
+		updates, ok := result.(Updates)
+		if !ok {
+			return nil, fmt.Errorf("unexpected edit response: %T", result)
+		}
+		processed := c.processUpdate(updates)
+		if processed == nil {
+			return nil, errors.New("server response contained no message")
+		}
+		if processed.PeerID == nil {
+			processed.PeerID = c.getPeer(Peer)
+		}
 		return packMessage(c, processed), nil
 	}
 
@@ -741,7 +777,7 @@ type MediaMetadata struct {
 //   - If the entities field in opts is not nil, it will override any entities parsed from the caption.
 //   - If send_as in opts is not nil, the message will be sent from the specified peer, otherwise it will be sent from the sender peer.
 func (c *Client) SendMedia(peerID, Media any, opts ...*MediaOptions) (*NewMessage, error) {
-	opt := getVariadic(opts, &MediaOptions{})
+	opt := *getVariadic(opts, &MediaOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 
 	var (
@@ -775,6 +811,9 @@ func (c *Client) SendMedia(peerID, Media any, opts ...*MediaOptions) (*NewMessag
 	case string:
 		entities, textMessage = parseEntities(caption, opt.ParseMode)
 	case *NewMessage:
+		if caption == nil || caption.Message == nil {
+			return nil, errors.New("caption message is empty")
+		}
 		entities = caption.Message.Entities
 		textMessage = caption.MessageText()
 	}
@@ -792,7 +831,7 @@ func (c *Client) SendMedia(peerID, Media any, opts ...*MediaOptions) (*NewMessag
 			return nil, err
 		}
 	}
-	return c.sendMedia(senderPeer, sendMedia, textMessage, entities, sendAs, opt)
+	return c.sendMedia(senderPeer, sendMedia, textMessage, entities, sendAs, &opt)
 }
 
 func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, entities []MessageEntity, sendAs InputPeer, opt *MediaOptions) (*NewMessage, error) {
@@ -845,7 +884,15 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 	}
 	if result != nil {
 		processed := c.processUpdate(result)
-		processed.PeerID = c.getPeer(Peer)
+		if processed == nil {
+			return nil, errors.New("server response contained no message")
+		}
+		if _, short := result.(*UpdateShortSentMessage); short {
+			processed.Message = Caption
+		}
+		if processed.PeerID == nil {
+			processed.PeerID = c.getPeer(Peer)
+		}
 		return packMessage(c, processed), nil
 	}
 
@@ -863,6 +910,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 // Returns:
 //   - A slice of pointers to NewMessage objects and an error if the message sending fails.
 //   - If the messages are sent successfully, the returned NewMessage objects will contain information about the sent messages.
+//   - If a later batch fails, already-sent messages are returned alongside the error.
 //
 // Note:
 //   - If the caption in opts is a string, it will be parsed for entities based on the parse_mode in opts.
@@ -870,7 +918,7 @@ func (c *Client) sendMedia(Peer InputPeer, Media InputMedia, Caption string, ent
 //   - If the entities field in opts is not nil, it will override any entities parsed from the caption.
 //   - If send_as in opts is not nil, the messages will be sent from the specified peer, otherwise they will be sent from the sender peer.
 func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMessage, error) {
-	opt := getVariadic(opts, &MediaOptions{})
+	opt := *getVariadic(opts, &MediaOptions{})
 	opt.ParseMode = getValue(opt.ParseMode, c.ParseMode())
 
 	if opt.SleepThresholdMs == 0 {
@@ -911,6 +959,9 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 		case string:
 			entities, textMessage = parseEntities(cap, opt.ParseMode)
 		case *NewMessage:
+			if cap == nil || cap.Message == nil {
+				return nil, errors.New("caption message is empty")
+			}
 			entities = cap.Message.Entities
 			textMessage = cap.MessageText()
 		}
@@ -942,6 +993,9 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 					if i >= len(inputAlbum) {
 						break
 					}
+					if cap == nil || cap.Message == nil {
+						return nil, fmt.Errorf("caption message %d is empty", i)
+					}
 					inputAlbum[i].Message = cap.MessageText()
 					inputAlbum[i].Entities = cap.Message.Entities
 				}
@@ -960,12 +1014,14 @@ func (c *Client) SendAlbum(peerID, Album any, opts ...*MediaOptions) ([]*NewMess
 			return nil, err
 		}
 	}
-	return c.sendAlbum(senderPeer, inputAlbum, sendAs, opt)
+	return c.sendAlbum(senderPeer, inputAlbum, sendAs, &opt)
 }
 
 func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs InputPeer, opt *MediaOptions) ([]*NewMessage, error) {
 	var replyTo *InputReplyToMessage = &InputReplyToMessage{ReplyToMsgID: opt.ReplyID}
-	if opt.ReplyID != 0 {
+	if opt.ReplyTo != nil {
+		replyTo = opt.ReplyTo
+	} else if opt.ReplyID != 0 {
 		if opt.TopicID != 0 && opt.TopicID != opt.ReplyID && opt.TopicID != 1 {
 			replyTo.TopMsgID = opt.TopicID
 		}
@@ -1005,19 +1061,23 @@ func (c *Client) sendAlbum(Peer InputPeer, Album []*InputSingleMedia, sendAs Inp
 		req.MultiMedia = chunk
 		result, err := c.MessagesSendMultiMedia(req)
 		if err != nil {
-			return nil, err
+			return results, err
 		}
 
 		if result != nil {
 			updates := processUpdates(result)
 			for _, update := range updates {
-				update.(*MessageObj).PeerID = c.getPeer(Peer)
+				if message := update.(*MessageObj); message.PeerID == nil {
+					message.PeerID = c.getPeer(Peer)
+				}
 			}
 
 			results = append(results, PackMessages(c, updates)...)
 		}
 
-		time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
+		if end < len(Album) {
+			time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
+		}
 	}
 
 	return results, nil
@@ -1125,7 +1185,12 @@ func (c *Client) sendPoll(Peer InputPeer, question string, options []string, opt
 
 	if updateResp != nil {
 		processed := c.processUpdate(updateResp)
-		processed.PeerID = c.getPeer(Peer)
+		if processed == nil {
+			return nil, errors.New("server response contained no message")
+		}
+		if processed.PeerID == nil {
+			processed.PeerID = c.getPeer(Peer)
+		}
 		return packMessage(c, processed), nil
 	}
 
@@ -1358,8 +1423,10 @@ func (c *Client) Forward(peerID, fromPeerID any, msgIDs []int32, opts ...*Forwar
 	if updateResp != nil {
 		updates := processUpdates(updateResp)
 		for _, update := range updates {
+			if message := update.(*MessageObj); message.PeerID == nil {
+				message.PeerID = c.getPeer(toPeer)
+			}
 			packed := *packMessage(c, update)
-			packed.Message.PeerID = c.getPeer(toPeer)
 			m = append(m, packed)
 		}
 	} else {

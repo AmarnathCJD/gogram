@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"path/filepath"
 	"reflect"
 
@@ -39,7 +40,7 @@ func (m *MTProto) sendPacket(ctx context.Context, request tl.Object, msgID int64
 	m.transportMu.Unlock()
 	if tr == nil || !m.IsTcpActive() || m.disconnected.Load() || m.terminated.Load() {
 		m.requestReconnect()
-		return nil, 0, errors.New("transport is not active")
+		return nil, 0, fmt.Errorf("transport is not active: %w", net.ErrClosed)
 	}
 
 	if msgID == 0 {

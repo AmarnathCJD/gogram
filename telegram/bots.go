@@ -24,13 +24,12 @@ type InlineSendOptions struct {
 
 func (c *Client) AnswerInlineQuery(QueryID int64, Results []InputBotInlineResult, Options ...*InlineSendOptions) (bool, error) {
 	options := getVariadic(Options, &InlineSendOptions{})
-	options.CacheTime = getValue(options.CacheTime, 60)
 	request := &MessagesSetInlineBotResultsParams{
 		Gallery:    options.Gallery,
 		Private:    options.Private,
 		QueryID:    QueryID,
 		Results:    Results,
-		CacheTime:  options.CacheTime,
+		CacheTime:  getValue(options.CacheTime, 60),
 		NextOffset: options.NextOffset,
 	}
 	if options.SwitchPm != "" {

@@ -217,11 +217,7 @@ func (c *Client) getSendableInlineMedia(mediaFile any, options ...*ArticleOption
 }
 
 func (i *InlineQuery) Answer(results []InputBotInlineResult, options ...*InlineSendOptions) (bool, error) {
-	var opts InlineSendOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	}
-	return i.Client.AnswerInlineQuery(i.QueryID, results, &opts)
+	return i.Client.AnswerInlineQuery(i.QueryID, results, options...)
 }
 
 func (i *InlineQuery) Builder() *InlineBuilder {
@@ -246,12 +242,7 @@ func (i *InlineBuilder) Answer(options ...*InlineSendOptions) (bool, error) {
 	if i.err != nil {
 		return false, i.err
 	}
-	var opts InlineSendOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	} else {
-		opts = InlineSendOptions{}
-	}
+	opts := *getVariadic(options, &InlineSendOptions{})
 
 	if opts.CacheTime == 0 && i.cacheTime > 0 {
 		opts.CacheTime = i.cacheTime

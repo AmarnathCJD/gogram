@@ -761,6 +761,14 @@ func (m *MTProto) CreateConnection(parent context.Context, withLog, allowDisconn
 	} else if m.disconnected.Load() {
 		return fmt.Errorf("mtproto is disconnected")
 	}
+	if !allowDisconnected {
+		m.transportMu.Lock()
+		connected := m.transport != nil && m.IsTcpActive()
+		m.transportMu.Unlock()
+		if connected {
+			return nil
+		}
+	}
 	m.stopRoutines()
 	m.routineswg.Wait()
 
@@ -1061,9 +1069,7 @@ func (m *MTProto) MakeRequest(ctx context.Context, data tl.Object, expectedTypes
 					return nil, fmt.Errorf("transport closed: %w", err)
 				}
 				m.Logger.WithError(err).Trace("transport error for msgID=%d, reconnecting (attempt=%d/%d)", msgID, attempt+1, m.maxRequestAttempts)
-				if err := m.Reconnect(ctx, false); err != nil {
-					return nil, fmt.Errorf("reconnecting after transport error: %w", err)
-				}
+				m.requestReconnect()
 				continue
 			}
 			if m.errorHandler != nil && m.errorHandler(err) {
@@ -1115,6 +1121,8 @@ func (m *MTProto) MakeRequest(ctx context.Context, data tl.Object, expectedTypes
 		cleanup()
 
 		switch r := response.(type) {
+		case *BadMsgError:
+			return nil, r
 		case *objects.RpcError:
 			var rpcError *ErrResponseCode
 			errors.As(RpcErrorToNative(r, utils.FmtMethod(data)), &rpcError)
@@ -1171,6 +1179,7 @@ func (m *MTProto) IsTcpActive() bool {
 }
 
 func (m *MTProto) stopRoutines() {
+	m.tcpState.SetActive(false)
 	m.ctxCancelMutex.Lock()
 	if m.ctxCancel != nil {
 		m.ctxCancel()
@@ -1190,12 +1199,13 @@ func (m *MTProto) stopRoutines() {
 
 func (m *MTProto) Disconnect() error {
 	m.disconnected.Store(true)
-	m.tcpState.SetActive(false)
+	m.tcpState.close()
 	m.stopRoutines()
 
 	_ = m.lifecycleMu.Lock(context.Background())
 	defer m.lifecycleMu.Unlock()
 	m.disconnected.Store(true)
+	m.tcpState.close()
 	m.stopRoutines()
 	m.routineswg.Wait()
 	m.transportMu.Lock()
@@ -1208,13 +1218,14 @@ func (m *MTProto) Disconnect() error {
 func (m *MTProto) Terminate() error {
 	m.terminated.Store(true)
 	m.disconnected.Store(true)
-	m.tcpState.SetActive(false)
+	m.tcpState.close()
 	m.stopRoutines()
 
 	_ = m.lifecycleMu.Lock(context.Background())
 	defer m.lifecycleMu.Unlock()
 	m.terminated.Store(true)
 	m.disconnected.Store(true)
+	m.tcpState.close()
 	m.stopRoutines()
 	m.routineswg.Wait()
 	m.responseChannels.Close()
@@ -1266,6 +1277,7 @@ func (m *MTProto) requestReconnect() {
 	if !m.connState.InProgress.CompareAndSwap(false, true) {
 		return
 	}
+	m.tcpState.SetActive(false)
 	go func() {
 		defer m.connState.InProgress.Store(false)
 		ctx := context.Background()
@@ -1631,11 +1643,14 @@ messageTypeSwitching:
 		}
 
 	case *objects.BadServerSalt:
+		if !m.responseChannels.Has(message.BadMsgID) {
+			return nil
+		}
 		m.updateSalt(msg, message.NewSalt)
 		if err := m.SaveSession(m.memorySession); err != nil {
 			m.Logger.Debug("failed to save session: %v", err)
 		}
-		m.notifyPendingRequestsOfConfigChange()
+		_ = m.writeRPCResponse(message.BadMsgID, &errorSessionConfigsChanged{})
 
 	case *objects.NewSessionCreated:
 		m.updateSalt(msg, message.ServerSalt)
@@ -1692,25 +1707,24 @@ messageTypeSwitching:
 		// do nothing
 
 	case *objects.BadMsgNotification:
+		if !m.responseChannels.Has(message.BadMsgID) {
+			return nil
+		}
 		badMsg := BadMsgErrorFromNative(message)
 		if badMsg.Code == 16 || badMsg.Code == 17 {
 			// calculate offset from server's message ID
 			serverTime := msg.GetMsgID() >> 32
 			localTime := time.Now().Unix()
-			if offset := serverTime - localTime; offset != 0 {
-				m.timeOffset.Store(offset)
+			offset := serverTime - localTime
+			if previous := m.timeOffset.Swap(offset); previous != offset {
 				m.Logger.Warn("system clock offset detected: %d seconds, auto-correcting", offset)
 			}
-			m.notifyPendingRequestsOfConfigChange()
+			_ = m.writeRPCResponse(message.BadMsgID, &errorSessionConfigsChanged{})
 			return nil
 		}
 
-		if badMsg.Code == 32 || badMsg.Code == 33 {
-			m.notifyPendingRequestsOfConfigChange()
-			return nil
-		}
 		m.Logger.Debug("bad-msg-notification: code=%d msg=%s", badMsg.Code, badMsg.Error())
-		return badMsg
+		return m.writeRPCResponse(message.BadMsgID, badMsg)
 
 	case *objects.RpcResult:
 		obj := message.Obj
@@ -1758,8 +1772,8 @@ messageTypeSwitching:
 	return nil
 }
 
-// notifyPendingRequestsOfConfigChange notifies all pending requests that session config changed
-// Used when server salt changes and requests need to be resent
+// notifyPendingRequestsOfConfigChange wakes all pending requests after a
+// connection transition. Individual protocol rejections target only BadMsgID.
 func (m *MTProto) notifyPendingRequestsOfConfigChange() {
 	old := m.responseChannels.SwapAndClear()
 	for msgID, ch := range old {
@@ -1779,6 +1793,7 @@ func (m *MTProto) notifyPendingRequestsOfConfigChange() {
 type TcpState struct {
 	mu     sync.RWMutex
 	active bool
+	closed bool
 	ch     chan struct{}
 }
 
@@ -1809,6 +1824,10 @@ func (m *TcpState) SetActive(active bool) {
 	m.active = active
 
 	if active {
+		if m.closed {
+			m.ch = make(chan struct{})
+			m.closed = false
+		}
 		// Closing the channel releases all current waiters
 		close(m.ch)
 	} else {
@@ -1817,16 +1836,31 @@ func (m *TcpState) SetActive(active bool) {
 	}
 }
 
+// close releases connection waiters on explicit shutdown. A later successful
+// connection reopens the state through SetActive(true).
+func (m *TcpState) close() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.active && !m.closed {
+		close(m.ch)
+	}
+	m.active = false
+	m.closed = true
+}
+
 // WaitForActive blocks until the TcpState becomes active or
-// until the provided context is canceled.
-// Returns nil when the state is active, or ctx.Err() if canceled.
+// until the connection is explicitly closed or the context is canceled.
 func (m *TcpState) WaitForActive(ctx context.Context) error {
 	for {
 		m.mu.RLock()
 		active := m.active
+		closed := m.closed
 		ch := m.ch
 		m.mu.RUnlock()
 
+		if closed {
+			return errors.New("client is disconnected")
+		}
 		if active {
 			return nil
 		}

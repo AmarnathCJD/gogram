@@ -1345,6 +1345,14 @@ func (c *Client) DownloadMedia(file any, Opts ...*DownloadOptions) (string, erro
 }
 
 func (c *Client) newDownloadJob(file any, opts *DownloadOptions) (*downloadJob, error) {
+	ctx := opts.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	location, dc, size, fileName, err := GetFileLocation(file, FileLocationOptions{
 		ThumbOnly: opts.ThumbOnly,
 		ThumbSize: opts.ThumbSize,
@@ -1393,6 +1401,9 @@ func (c *Client) newDownloadJob(file any, opts *DownloadOptions) (*downloadJob, 
 		}
 	}
 
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	destination, err := newDownloadDestination(dest, size, opts.Buffer, resume != nil)
 	if err != nil {
 		return nil, err
@@ -1424,11 +1435,6 @@ func (c *Client) newDownloadJob(file any, opts *DownloadOptions) (*downloadJob, 
 		if workers < 1 {
 			workers = 1
 		}
-	}
-
-	ctx := opts.Ctx
-	if ctx == nil {
-		ctx = context.Background()
 	}
 
 	job := &downloadJob{

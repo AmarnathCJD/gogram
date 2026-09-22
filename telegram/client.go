@@ -170,7 +170,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 	ready := false
 	defer func() {
 		if !ready {
-			client.shutdownBackground()
+			client.shutdownBackground(true)
 			if client.MTProto != nil {
 				_ = client.MTProto.Terminate()
 			}
@@ -480,22 +480,22 @@ func (c *Client) Connect() error {
 		return nil
 	}
 
+	c.resetBackground()
 	c.Log.Debug("connecting to Telegram")
 
 	err := c.MTProto.CreateConnection(context.Background(), true, true)
 	if err != nil {
+		c.shutdownBackground(false)
 		return fmt.Errorf("connecting to telegram servers: %w", err)
 	}
 
 	// Initial request (invokeWithLayer) must be sent after connection is established
 	err = c.InitialRequest()
 	if err != nil {
-		c.shutdownBackground()
+		c.shutdownBackground(false)
 		_ = c.MTProto.Disconnect()
 		return fmt.Errorf("sending initial request: %w", err)
 	}
-	c.resetBackground()
-
 	if is, err := c.IsAuthorized(); err == nil && is {
 		_, _ = c.GetMe()
 	}
@@ -557,6 +557,14 @@ func (c *Client) resetBackground() {
 	}
 	if c.dispatcher != nil {
 		c.dispatcher.stopMu.Lock()
+		c.dispatcher.stopped = false
+		c.dispatcher.Lock()
+		select {
+		case <-c.dispatcher.albumStop:
+			c.dispatcher.albumStop = make(chan struct{})
+		default:
+		}
+		c.dispatcher.Unlock()
 		select {
 		case <-c.dispatcher.stopChan:
 			c.dispatcher.stopChan = make(chan struct{})
@@ -589,13 +597,13 @@ func (c *Client) IsAuthorized() (bool, error) {
 	return true, nil
 }
 
-// Disconnect from telegram servers
+// Disconnect from Telegram while allowing accepted update callbacks to finish.
 func (c *Client) Disconnect() error {
-	c.shutdownBackground()
+	c.shutdownBackground(false)
 	return c.MTProto.Disconnect()
 }
 
-func (c *Client) shutdownBackground() {
+func (c *Client) shutdownBackground(discardUpdates bool) {
 	c.backgroundMu.Lock()
 	defer c.backgroundMu.Unlock()
 	if c.stopCh != nil {
@@ -607,14 +615,17 @@ func (c *Client) shutdownBackground() {
 	}
 	if c.dispatcher != nil {
 		c.dispatcher.stopMu.Lock()
+		if discardUpdates {
+			c.dispatcher.stopped = true
+		}
 		if c.dispatcher.tasks != nil {
-			c.dispatcher.tasks.stop()
+			c.dispatcher.tasks.stop(discardUpdates)
 		}
 		if c.dispatcher.preparations != nil {
-			c.dispatcher.preparations.stop()
+			c.dispatcher.preparations.stop(discardUpdates)
 		}
 		if c.dispatcher.secretUpdates != nil {
-			c.dispatcher.secretUpdates.stop()
+			c.dispatcher.secretUpdates.stop(discardUpdates)
 		}
 		select {
 		case <-c.dispatcher.stopChan:
@@ -628,14 +639,43 @@ func (c *Client) shutdownBackground() {
 	if c.dispatcher != nil {
 		d := c.dispatcher
 		d.Lock()
+		if discardUpdates {
+			select {
+			case <-d.albumStop:
+			default:
+				if d.albumStop != nil {
+					close(d.albumStop)
+				}
+			}
+			clear(d.activeAlbums)
+			d.albumRunning = false
+		}
+		boxes := make([]*counterBox, 0, len(d.channelPtsBoxes)+3)
+		boxes = append(boxes, d.globalPtsBox, d.globalQtsBox, d.globalSeqBox)
+		for _, box := range d.channelPtsBoxes {
+			boxes = append(boxes, box)
+		}
 		for id, chat := range d.openChats {
-			close(chat.closeChan)
+			chat.cancel()
 			delete(d.openChats, id)
 			if state := d.channelStates[id]; state != nil {
 				state.isOpen = false
 			}
 		}
 		d.Unlock()
+		for _, box := range boxes {
+			if box == nil {
+				continue
+			}
+			box.Lock()
+			// A queued recovery may have been discarded when its pool stopped.
+			// Invalidate it so reconnect can retry, even without another update.
+			box.gapAttempt++
+			box.recovering = false
+			box.gapFailures = 0
+			box.lastGapAt = time.Time{}
+			box.Unlock()
+		}
 	}
 
 	if c.exSenders != nil {
@@ -1115,10 +1155,10 @@ func (c *Client) SetCommandPrefixes(prefixes string) {
 	c.clientData.commandPrefixes = prefixes
 }
 
-// Terminate disconnects the client and closes its internally created cache.
+// Terminate disconnects the client, cancels queued updates, and closes its internally created cache.
 // Caches supplied through ClientConfig remain owned by the caller.
 func (c *Client) Terminate() error {
-	c.shutdownBackground()
+	c.shutdownBackground(true)
 	err := c.MTProto.Terminate()
 	if c.ownedCache != nil {
 		err = errors.Join(err, c.ownedCache.Close())
@@ -1138,13 +1178,13 @@ func (c *Client) Idle() {
 	case <-c.stopCh:
 	}
 
-	c.shutdownBackground()
+	c.shutdownBackground(false)
 	c.wg.Wait()
 }
 
-// Stop stops the client and disconnects from telegram server
+// Stop disconnects the client. Accepted update callbacks continue to completion.
 func (c *Client) Stop() error {
-	c.shutdownBackground()
+	c.shutdownBackground(false)
 	return c.MTProto.Terminate()
 }
 

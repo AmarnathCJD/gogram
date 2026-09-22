@@ -23,11 +23,7 @@ type (
 )
 
 func (b *CallbackQuery) Answer(Text string, options ...*CallbackOptions) (bool, error) {
-	var opts CallbackOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	}
-	return b.Client.AnswerCallbackQuery(b.QueryID, Text, &opts)
+	return b.Client.AnswerCallbackQuery(b.QueryID, Text, options...)
 }
 
 func (b *CallbackQuery) GetMessage() (*NewMessage, error) {
@@ -137,10 +133,7 @@ func (b *CallbackQuery) IsChannel() bool {
 }
 
 func (b *CallbackQuery) Edit(Text any, options ...*SendOptions) (*NewMessage, error) {
-	var opts SendOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	}
+	opts := *getVariadic(options, &SendOptions{})
 	return b.Client.EditMessage(b.Peer, b.MessageID, Text, &opts)
 }
 
@@ -203,10 +196,7 @@ func (b *CallbackQuery) WaitClick(timeout ...int32) (*CallbackQuery, error) {
 }
 
 func (b *CallbackQuery) Reply(Text any, options ...*SendOptions) (*NewMessage, error) {
-	var opts SendOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	}
+	opts := *getVariadic(options, &SendOptions{})
 	msg, err := b.GetMessage()
 	if err != nil {
 		return nil, err
@@ -216,39 +206,27 @@ func (b *CallbackQuery) Reply(Text any, options ...*SendOptions) (*NewMessage, e
 }
 
 func (b *CallbackQuery) Respond(Text any, options ...*SendOptions) (*NewMessage, error) {
-	var opts SendOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	}
+	opts := *getVariadic(options, &SendOptions{})
 	return b.Client.SendMessage(b.Peer, Text, &opts)
 }
 
 func (b *CallbackQuery) ReplyMedia(Media any, options ...*MediaOptions) (*NewMessage, error) {
-	var opts MediaOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	}
+	opts := *getVariadic(options, &MediaOptions{})
 	msg, err := b.GetMessage()
 	if err != nil {
 		return nil, err
 	}
-	opts.ReplyID = msg.ReplyToMsgID()
+	opts.ReplyID = msg.ID
 	return b.Client.SendMedia(b.Peer, Media, &opts)
 }
 
 func (b *CallbackQuery) RespondMedia(Media any, options ...*MediaOptions) (*NewMessage, error) {
-	var opts MediaOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	}
+	opts := *getVariadic(options, &MediaOptions{})
 	return b.Client.SendMedia(b.Peer, Media, &opts)
 }
 
 func (b *CallbackQuery) ForwardTo(ChatID int64, options ...*ForwardOptions) (*NewMessage, error) {
-	var opts ForwardOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	}
+	opts := *getVariadic(options, &ForwardOptions{})
 	m, err := b.Client.Forward(b.Peer, ChatID, []int32{b.MessageID}, &opts)
 	if err != nil {
 		return nil, err
@@ -277,11 +255,7 @@ type InlineCallbackQuery struct {
 }
 
 func (b *InlineCallbackQuery) Answer(Text string, options ...*CallbackOptions) (bool, error) {
-	var opts CallbackOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	}
-	return b.Client.AnswerCallbackQuery(b.QueryID, Text, &opts)
+	return b.Client.AnswerCallbackQuery(b.QueryID, Text, options...)
 }
 
 func (b *InlineCallbackQuery) ShortName() string {
@@ -307,10 +281,7 @@ func (b *InlineCallbackQuery) GetSenderID() int64 {
 }
 
 func (b *InlineCallbackQuery) Edit(Text any, options ...*SendOptions) (*NewMessage, error) {
-	var opts SendOptions
-	if len(options) > 0 {
-		opts = *options[0]
-	}
+	opts := *getVariadic(options, &SendOptions{})
 	return b.Client.EditMessage(&b.MsgID, 0, Text, &opts)
 }
 

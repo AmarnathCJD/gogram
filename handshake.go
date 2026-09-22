@@ -423,8 +423,14 @@ func (m *MTProto) bindTempAuthKey(parent context.Context) error {
 	}
 	m.authMu.Lock()
 	defer m.authMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if !bytes.Equal(permKey, m.authKey) || !bytes.Equal(newKey, m.pendingTempAuthKey) {
 		return errors.New("authorization changed during temporary key binding")
+	}
+	if m.pendingTempExpiresAt <= time.Now().Unix() {
+		return errors.New("bindTempAuthKey: temporary key expired while binding")
 	}
 	m.previousTempAuthKey, m.previousTempKeyHash = m.tempAuthKey, m.tempAuthKeyHash
 	m.previousTempSalt = m.tempServerSalt

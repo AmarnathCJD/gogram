@@ -106,9 +106,16 @@ func (c *Client) getMultiMedia(m any, attrs *MediaMetadata) ([]*InputSingleMedia
 
 	switch m := m.(type) {
 	case *InputSingleMedia:
-		media = append(media, m)
+		copy := *m
+		media = append(media, &copy)
 	case []*InputSingleMedia:
-		media = m
+		media = make([]*InputSingleMedia, len(m))
+		for i, item := range m {
+			if item != nil {
+				copy := *item
+				media[i] = &copy
+			}
+		}
 	case []NewMessage:
 		items := make([]any, 0, len(m))
 		for i := range m {
@@ -258,67 +265,28 @@ func calculateSha256Hash(localFile string) (string, error) {
 
 func processUpdates(updates Updates) []Message {
 	var messages []Message
-	processMessage := func(upd Update) {
-		switch update := upd.(type) {
+	for _, update := range UnpackContainer(updates) {
+		var message Message
+		switch u := update.(type) {
 		case *UpdateNewMessage:
-			if msg, ok := update.Message.(*MessageObj); ok {
-				messages = append(messages, msg)
-			}
+			message = u.Message
 		case *UpdateNewChannelMessage:
-			if msg, ok := update.Message.(*MessageObj); ok {
-				messages = append(messages, msg)
-			}
+			message = u.Message
+		case *UpdateNewScheduledMessage:
+			message = u.Message
 		case *UpdateEditMessage:
-			if msg, ok := update.Message.(*MessageObj); ok {
-				messages = append(messages, msg)
-			}
+			message = u.Message
 		case *UpdateEditChannelMessage:
-			if msg, ok := update.Message.(*MessageObj); ok {
-				messages = append(messages, msg)
-			}
+			message = u.Message
+		case *UpdateBotNewBusinessMessage:
+			message = u.Message
 		case *UpdateBotEditBusinessMessage:
-			if msg, ok := update.Message.(*MessageObj); ok {
-				messages = append(messages, msg)
-			}
+			message = u.Message
 		}
-	}
-
-	switch updates := updates.(type) {
-	case *UpdatesObj:
-		for _, update := range updates.Updates {
-			processMessage(update)
+		if msg, ok := message.(*MessageObj); ok && msg != nil {
+			copy := *msg
+			messages = append(messages, &copy)
 		}
-	case *UpdateShort:
-		processMessage(updates.Update)
-	case *UpdateShortSentMessage:
-		processMessage(&UpdateNewMessage{
-			Message: &MessageObj{
-				ID:        updates.ID,
-				Date:      updates.Date,
-				Out:       updates.Out,
-				Media:     updates.Media,
-				Entities:  updates.Entities,
-				TtlPeriod: updates.TtlPeriod,
-			},
-		})
-	case *UpdateShortMessage:
-		processMessage(&UpdateNewMessage{
-			Message: &MessageObj{
-				Out:         updates.Out,
-				ID:          updates.ID,
-				PeerID:      &PeerUser{},
-				Date:        updates.Date,
-				Entities:    updates.Entities,
-				TtlPeriod:   updates.TtlPeriod,
-				ReplyTo:     updates.ReplyTo,
-				FromID:      &PeerUser{UserID: updates.UserID},
-				ViaBotID:    updates.ViaBotID,
-				Message:     updates.Message,
-				MediaUnread: updates.MediaUnread,
-				Silent:      updates.Silent,
-				FwdFrom:     updates.FwdFrom,
-			},
-		})
 	}
 	return messages
 }
@@ -327,73 +295,43 @@ func (c *Client) processUpdate(upd Updates) *MessageObj {
 	if upd == nil {
 		return nil
 	}
-updateTypeSwitch:
-	switch update := upd.(type) {
-	case *UpdateShortSentMessage:
-		return &MessageObj{
-			ID:        update.ID,
-			PeerID:    &PeerUser{},
-			Date:      update.Date,
-			FromID:    &PeerUser{UserID: c.GetPeerID(c.Me())},
-			Out:       update.Out,
-			Media:     update.Media,
-			Entities:  update.Entities,
-			TtlPeriod: update.TtlPeriod,
+	if c.Cache != nil {
+		switch u := upd.(type) {
+		case *UpdatesObj:
+			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
+		case *UpdatesCombined:
+			c.Cache.UpdatePeersToCache(u.Users, u.Chats)
 		}
-	case *UpdatesObj:
-		if len(update.Updates) == 0 {
-			return nil
-		}
-		upd := update.Updates[0]
-		for _, u := range update.Updates {
-			switch u.(type) {
-			case *UpdateNewMessage, *UpdateNewChannelMessage, *UpdateEditMessage, *UpdateEditChannelMessage:
-				upd = u
-			}
-		}
-		switch upd := upd.(type) {
-		case *UpdateNewMessage:
-			if msg, ok := upd.Message.(*MessageObj); ok {
-				return msg
-			}
-		case *UpdateNewChannelMessage:
-			if msg, ok := upd.Message.(*MessageObj); ok {
-				return msg
-			}
-		case *UpdateEditMessage:
-			if msg, ok := upd.Message.(*MessageObj); ok {
-				return msg
-			}
-		case *UpdateEditChannelMessage:
-			if msg, ok := upd.Message.(*MessageObj); ok {
-				return msg
-			}
-		case *UpdateBotEditBusinessMessage:
-			if msg, ok := upd.Message.(*MessageObj); ok {
-				return msg
-			}
-		case *UpdateMessageID:
-			return &MessageObj{
-				ID: upd.ID,
-			}
-		default:
-			c.Log.Debug("unknown update type: %s", reflect.TypeOf(upd).String())
-		}
-	case *UpdateShortMessage:
-		return &MessageObj{Out: update.Out, ID: update.ID, PeerID: &PeerUser{}, Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod, ReplyTo: update.ReplyTo, FromID: &PeerUser{UserID: update.UserID}, ViaBotID: update.ViaBotID, Message: update.Message, MediaUnread: update.MediaUnread, Silent: update.Silent, FwdFrom: update.FwdFrom}
-	case *UpdateShortChatMessage:
-		chat, err := c.GetPeer(update.ChatID)
-		if err != nil {
-			chat = &PeerChat{}
-		}
-		return &MessageObj{Out: update.Out, ID: update.ID, PeerID: chat.(*PeerChat), Date: update.Date, Entities: update.Entities, TtlPeriod: update.TtlPeriod}
-	case *UpdateShort:
-		upd = &UpdatesObj{Updates: []Update{update.Update}}
-		goto updateTypeSwitch
-	default:
-		c.Log.Debug("unknown update type: %s", reflect.TypeOf(upd).String())
 	}
-	return nil
+	var mappedID int32
+	for _, update := range UnpackContainer(upd) {
+		if mapping, ok := update.(*UpdateMessageID); ok {
+			mappedID = mapping.ID
+		}
+	}
+	var message *MessageObj
+	for _, candidate := range processUpdates(upd) {
+		message = candidate.(*MessageObj)
+		if message.ID == mappedID {
+			break
+		}
+	}
+	if mappedID != 0 && (message == nil || message.ID != mappedID) {
+		return &MessageObj{ID: mappedID}
+	}
+	if message == nil {
+		return nil
+	}
+	// Short outgoing responses omit the sender or describe the destination.
+	switch upd.(type) {
+	case *UpdateShortSentMessage, *UpdateShortMessage:
+		if message.Out {
+			if me := c.Me(); me != nil {
+				message.FromID = &PeerUser{UserID: me.ID}
+			}
+		}
+	}
+	return message
 }
 
 func (c *Client) GetSendablePeer(PeerID any) (InputPeer, error) {
@@ -1803,11 +1741,19 @@ func (c *Client) getPeer(PeerID InputPeer) Peer {
 		return nil
 	}
 	switch PeerID := PeerID.(type) {
+	case *InputPeerSelf:
+		if me := c.Me(); me != nil && me.ID != 0 {
+			return &PeerUser{UserID: me.ID}
+		}
 	case *InputPeerUser:
+		return &PeerUser{UserID: PeerID.UserID}
+	case *InputPeerUserFromMessage:
 		return &PeerUser{UserID: PeerID.UserID}
 	case *InputPeerChat:
 		return &PeerChat{ChatID: PeerID.ChatID}
 	case *InputPeerChannel:
+		return &PeerChannel{ChannelID: PeerID.ChannelID}
+	case *InputPeerChannelFromMessage:
 		return &PeerChannel{ChannelID: PeerID.ChannelID}
 	}
 	return nil
