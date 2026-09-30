@@ -82,12 +82,13 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32, ctx context.Context) error {
 		}
 		m.publicKey = key
 	}
-	if m.publicKey == nil || m.publicKey.N == nil || m.publicKey.N.BitLen() != 2048 || m.publicKey.E < 3 {
+	fingerprintBytes := keys.RSAFingerprint(m.publicKey)
+	if len(fingerprintBytes) != 8 || m.publicKey.N.BitLen() != 2048 {
 		return errors.New("reqPQ: invalid RSA public key")
 	}
 	found := false
 	for _, fingerprint := range res.Fingerprints {
-		if uint64(fingerprint) == binary.LittleEndian.Uint64(keys.RSAFingerprint(m.publicKey)) {
+		if uint64(fingerprint) == binary.LittleEndian.Uint64(fingerprintBytes) {
 			found = true
 			break
 		}
@@ -141,7 +142,7 @@ func (m *MTProto) makeAuthKeyOnce(expiresIn int32, ctx context.Context) error {
 		return fmt.Errorf("rsa encrypt: %w", err)
 	}
 
-	keyFingerprint := int64(binary.LittleEndian.Uint64(keys.RSAFingerprint(m.publicKey)))
+	keyFingerprint := int64(binary.LittleEndian.Uint64(fingerprintBytes))
 	dhResponse, err := objects.ReqDHParams(ctx, m, nonceFirst, nonceServer, p.Bytes(), q.Bytes(), keyFingerprint, encryptedMessage)
 	if err != nil {
 		return fmt.Errorf("reqDHParams: %w", err)

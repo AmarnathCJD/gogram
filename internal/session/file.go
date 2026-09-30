@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"errors"
 
@@ -266,7 +267,7 @@ func (l *inMemorySessionLoader) Delete() error {
 
 // Validate checks session credentials before they replace a working session.
 func (s *Session) Validate() error {
-	if s == nil || len(s.Key) != 256 || len(s.Hash) != 8 || s.AppID < 0 {
+	if s == nil || len(s.Key) != 256 || len(s.Hash) != 8 || s.AppID < 0 || !utf8.ValidString(s.Hostname) {
 		return ErrInvalidSession
 	}
 	hash := sha1.Sum(s.Key)

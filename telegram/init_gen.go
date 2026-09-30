@@ -2362,6 +2362,7 @@ func init() {
 
 	{
 		tl.RegisterObject(&MessageObj{}, uint32(0xb92f76cf))
+		tl.RegisterObject(&UserObj{}, uint32(0x31774388))
 	}
 
 	tl.RegisterEnums(

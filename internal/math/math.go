@@ -18,7 +18,7 @@ import (
 // whether this encryption follows OAEP or any other standard padding scheme.
 // Use only for MTProto protocol blocks, not for general-purpose RSA encryption.
 func DoRSAencrypt(block []byte, key *rsa.PublicKey) ([]byte, error) {
-	if key == nil || key.N == nil || key.N.BitLen() != 2048 || key.E < 3 {
+	if key == nil || key.N == nil || key.N.Sign() <= 0 || key.N.BitLen() != 2048 || key.N.Bit(0) == 0 || key.E < 3 || key.E%2 == 0 {
 		return nil, fmt.Errorf("DoRSAencrypt: invalid RSA key")
 	}
 	if len(block) != math.MaxUint8 {
@@ -39,7 +39,7 @@ func DoRSAencrypt(block []byte, key *rsa.PublicKey) ([]byte, error) {
 // DCs, and required for MTProto 2.0 handshakes). Spec:
 // https://core.telegram.org/mtproto/auth_key
 func DoRSAPad(data []byte, key *rsa.PublicKey) ([]byte, error) {
-	if key == nil || key.N == nil || key.N.BitLen() != 2048 || key.E < 3 {
+	if key == nil || key.N == nil || key.N.Sign() <= 0 || key.N.BitLen() != 2048 || key.N.Bit(0) == 0 || key.E < 3 || key.E%2 == 0 {
 		return nil, fmt.Errorf("DoRSAPad: invalid RSA key")
 	}
 	if len(data) > 144 {

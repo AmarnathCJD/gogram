@@ -42,12 +42,19 @@ func (*Generator) createInitStructs(itemNames ...string) jen.Code {
 
 var customStructs = map[string]uint32{
 	"MessageObj": 0xb92f76cf,
+	"UserObj":    0x31774388,
 	//"KeyboardButtonCallback": 0xd80c25ec,
 }
 
 func (g *Generator) createCustomInitStructs() jen.Code {
 	var statements []jen.Code
-	for name, crc := range customStructs {
+	names := make([]string, 0, len(customStructs))
+	for name := range customStructs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		crc := customStructs[name]
 		statements = append(statements, jen.Qual(tlPackagePath, "RegisterObject").Call(
 			jen.Op("&").Id(name).Block(),
 			jen.Lit(crc),

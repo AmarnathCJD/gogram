@@ -14,7 +14,6 @@ import (
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
-
 // Current RSA_PAD keys pinned by Telegram's official Android client.
 // https://github.com/DrKLO/Telegram/blob/master/TMessagesProj/jni/tgnet/Handshake.cpp
 const productionRSAKey = `-----BEGIN RSA PUBLIC KEY-----
@@ -171,7 +170,7 @@ var rsaKeyData = []struct {
 // Since an RSA key in MTProto is represented as a TL object, a buffer is used for the calculation.
 // For more information, see: https://core.telegram.org/mtproto/auth_key
 func RSAFingerprint(key *rsa.PublicKey) []byte {
-	if key == nil {
+	if key == nil || key.N == nil || key.N.Sign() <= 0 || key.N.Bit(0) == 0 || key.E < 3 || key.E%2 == 0 {
 		return nil
 	}
 	buf := bytes.NewBuffer(nil)

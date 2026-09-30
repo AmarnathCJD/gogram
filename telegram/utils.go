@@ -527,11 +527,14 @@ type FileLocationOptions struct {
 
 // GetFileLocation returns file location, datacenter, file size and file name
 func GetFileLocation(file any, opts ...FileLocationOptions) (InputFileLocation, int32, int64, string, error) {
+	if isNilSource(file) {
+		return nil, 0, 0, "", errors.New("file is nil")
+	}
 	var opt = getVariadic(opts, FileLocationOptions{})
 
 	var (
 		location   any
-		dataCenter int32 = 4
+		dataCenter int32
 		fileSize   int64
 	)
 mediaMessageSwitch:
@@ -574,6 +577,9 @@ mediaMessageSwitch:
 		}
 	default:
 		return nil, 0, 0, "", errors.New("unsupported file type")
+	}
+	if isNilSource(location) {
+		return nil, 0, 0, "", errors.New("media has no file")
 	}
 	switch l := location.(type) {
 	case *DocumentObj:
