@@ -4,10 +4,12 @@ package telegram
 
 import (
 	"fmt"
+	"html"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf16"
 )
 
@@ -49,7 +51,7 @@ type Tag struct {
 // supported tags by telegram, only parse these
 func supportedTag(tag string) bool {
 	switch tag {
-	case "b", "strong", "i", "em", "u", "s", "a", "code", "pre", "ins", "del", "spoiler", "quote", "blockquote", "emoji", "mention":
+	case "b", "strong", "i", "em", "u", "s", "strike", "a", "code", "pre", "ins", "del", "spoiler", "quote", "blockquote", "emoji", "mention":
 		return true
 	}
 	return false
@@ -67,72 +69,92 @@ type htmlToken struct {
 	text      string
 }
 
-func simpleHTMLTokenize(html string) []htmlToken {
-	var tokens = make([]htmlToken, 0, strings.Count(html, "<")+1)
-	i := 0
-
-	for i < len(html) {
-		if html[i] == '<' {
-			tagEnd := i + 1
-			for tagEnd < len(html) && html[tagEnd] != '>' {
-				tagEnd++
-			}
-
-			if tagEnd >= len(html) {
-				tokens = append(tokens, htmlToken{isTag: false, text: html[i:]})
-				break
-			}
-
-			tagContent := html[i+1 : tagEnd]
-			isClosing := strings.HasPrefix(tagContent, "/")
-
-			if isClosing {
-				tagContent = tagContent[1:]
-			}
-
-			parts := strings.Fields(tagContent)
-			if len(parts) > 0 {
-				tagName := parts[0]
-				attrs := make(map[string]string)
-
-				for _, part := range parts[1:] {
-					if strings.Contains(part, "=") {
-						kv := strings.SplitN(part, "=", 2)
-						key := kv[0]
-						value := strings.Trim(kv[1], "\"'")
-						attrs[key] = value
-					} else {
-						attrs[part] = "true"
-					}
-				}
-
-				tokens = append(tokens, htmlToken{
-					isTag:     true,
-					isClosing: isClosing,
-					tagName:   tagName,
-					attrs:     attrs,
-					text:      html[i : tagEnd+1],
-				})
-			} else {
-				tokens = append(tokens, htmlToken{
-					isTag: false,
-					text:  html[i : tagEnd+1],
-				})
-			}
-
-			i = tagEnd + 1
-		} else {
-			textStart := i
-			for i < len(html) && html[i] != '<' {
+func simpleHTMLTokenize(source string) []htmlToken {
+	tokens := make([]htmlToken, 0, strings.Count(source, "<")+1)
+	for i := 0; i < len(source); {
+		if source[i] != '<' {
+			start := i
+			for i < len(source) && source[i] != '<' {
 				i++
 			}
-			tokens = append(tokens, htmlToken{
-				isTag: false,
-				text:  html[textStart:i],
-			})
+			tokens = append(tokens, htmlToken{text: source[start:i]})
+			continue
 		}
+		end := i + 1
+		var quote byte
+		for ; end < len(source); end++ {
+			ch := source[end]
+			if quote != 0 {
+				if ch == quote {
+					quote = 0
+				}
+			} else if ch == '\'' || ch == '"' {
+				quote = ch
+			} else if ch == '>' {
+				break
+			}
+		}
+		if end == len(source) {
+			tokens = append(tokens, htmlToken{text: source[i:]})
+			break
+		}
+		content := strings.TrimSpace(source[i+1 : end])
+		closing := strings.HasPrefix(content, "/")
+		if closing {
+			content = strings.TrimSpace(content[1:])
+		}
+		nameEnd := strings.IndexAny(content, " \t\n\r\f/")
+		if nameEnd < 0 {
+			nameEnd = len(content)
+		}
+		name := strings.ToLower(content[:nameEnd])
+		attrs := make(map[string]string)
+		rest := content[nameEnd:]
+		for {
+			rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
+			if rest == "" || rest == "/" {
+				break
+			}
+			keyEnd := strings.IndexAny(rest, "= \t\n\r\f")
+			if keyEnd < 0 {
+				keyEnd = len(rest)
+			}
+			if keyEnd == 0 {
+				rest = rest[1:]
+				continue
+			}
+			key := strings.ToLower(rest[:keyEnd])
+			rest = strings.TrimLeftFunc(rest[keyEnd:], unicode.IsSpace)
+			value := "true"
+			if strings.HasPrefix(rest, "=") {
+				rest = strings.TrimLeftFunc(rest[1:], unicode.IsSpace)
+				if len(rest) > 0 && (rest[0] == '\'' || rest[0] == '"') {
+					q := rest[0]
+					rest = rest[1:]
+					valueEnd := strings.IndexByte(rest, q)
+					if valueEnd < 0 {
+						valueEnd = len(rest)
+					}
+					value, rest = rest[:valueEnd], rest[valueEnd:]
+					if len(rest) > 0 {
+						rest = rest[1:]
+					}
+				} else {
+					valueEnd := strings.IndexAny(rest, " \t\n\r\f")
+					if valueEnd < 0 {
+						valueEnd = len(rest)
+					}
+					value, rest = rest[:valueEnd], rest[valueEnd:]
+				}
+			}
+			attrs[key] = html.UnescapeString(value)
+		}
+		tokens = append(tokens, htmlToken{
+			isTag: name != "", isClosing: closing, tagName: name,
+			attrs: attrs, text: source[i : end+1],
+		})
+		i = end + 1
 	}
-
 	return tokens
 }
 
@@ -140,6 +162,7 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 	tokens := simpleHTMLTokenize(htmlStr)
 
 	var textBuf strings.Builder
+	var currentOffset int32
 	var tagOffsets []Tag
 	var openTags []struct {
 		tag    Tag
@@ -148,13 +171,29 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 
 	for _, token := range tokens {
 		if !token.isTag {
-			textBuf.WriteString(htmlUnescape(token.text))
+			text := html.UnescapeString(token.text)
+			textBuf.WriteString(text)
+
+			currentOffset += utf16RuneCountInString(text)
 		} else if !token.isClosing && supportedTag(token.tagName) {
-			currentOffset := utf16RuneCountInString(textBuf.String())
 			tag := Tag{
 				Type:   token.tagName,
 				Offset: currentOffset,
 				Attrs:  token.attrs,
+			}
+			if token.tagName == "code" {
+				for i := len(openTags) - 1; i >= 0; i-- {
+					if openTags[i].tag.Type == "pre" {
+						tag.hasNested = true
+						for class := range strings.FieldsSeq(token.attrs["class"]) {
+							if lang, ok := strings.CutPrefix(class, "language-"); ok {
+								tagOffsets[openTags[i].tagIdx].Attrs["language"] = lang
+								break
+							}
+						}
+						break
+					}
+				}
 			}
 
 			tagIdx := len(tagOffsets)
@@ -168,7 +207,6 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 			matched := false
 			for i := len(openTags) - 1; i >= 0; i-- {
 				if openTags[i].tag.Type == token.tagName {
-					currentOffset := utf16RuneCountInString(textBuf.String())
 					tagOffsets[openTags[i].tagIdx].Length = currentOffset - openTags[i].tag.Offset
 					openTags = append(openTags[:i], openTags[i+1:]...)
 					matched = true
@@ -177,14 +215,15 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 			}
 			if !matched {
 				textBuf.WriteString(token.text)
+				currentOffset += utf16RuneCountInString(token.text)
 			}
 		} else {
 			textBuf.WriteString(token.text)
+			currentOffset += utf16RuneCountInString(token.text)
 		}
 	}
 
 	// close unclosed tags
-	currentOffset := utf16RuneCountInString(textBuf.String())
 	for _, openTag := range openTags {
 		tagOffsets[openTag.tagIdx].Length = currentOffset - openTag.tag.Offset
 	}
@@ -192,7 +231,7 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 	originalText := textBuf.String()
 	cleanedText := strings.TrimSpace(originalText)
 
-	leadingTrimmed := utf16RuneCountInString(originalText) - utf16RuneCountInString(strings.TrimLeft(originalText, " \t\n\r"))
+	leadingTrimmed := utf16RuneCountInString(originalText) - utf16RuneCountInString(strings.TrimLeftFunc(originalText, unicode.IsSpace))
 	cleanedTextLen := utf16RuneCountInString(cleanedText)
 
 	var newTagOffsets []Tag
@@ -216,16 +255,6 @@ func parseHTMLToTags(htmlStr string) (string, []Tag, error) {
 	return cleanedText, newTagOffsets, nil
 }
 
-func htmlUnescape(s string) string {
-	s = strings.ReplaceAll(s, "&lt;", "<")
-	s = strings.ReplaceAll(s, "&gt;", ">")
-	s = strings.ReplaceAll(s, "&quot;", "\"")
-	s = strings.ReplaceAll(s, "&#39;", "'")
-	s = strings.ReplaceAll(s, "&#x27;", "'")
-	s = strings.ReplaceAll(s, "&amp;", "&")
-	return s
-}
-
 func htmlEscape(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "<", "&lt;")
@@ -236,7 +265,14 @@ func htmlEscape(s string) string {
 }
 
 func utf16RuneCountInString(s string) int32 {
-	return int32(len(utf16.Encode([]rune(s))))
+	var count int32
+	for _, r := range s {
+		count++
+		if r > 0xffff {
+			count++
+		}
+	}
+	return count
 }
 
 func parseTagsToEntity(tags []Tag) []MessageEntity {
@@ -286,14 +322,16 @@ func parseTagsToEntity(tags []Tag) []MessageEntity {
 		case "b", "strong":
 			entities = append(entities, &MessageEntityBold{tag.Offset, tag.Length})
 		case "code":
-			entities = append(entities, &MessageEntityCode{tag.Offset, tag.Length})
+			if !tag.hasNested {
+				entities = append(entities, &MessageEntityCode{tag.Offset, tag.Length})
+			}
 		case "em", "i":
 			entities = append(entities, &MessageEntityItalic{tag.Offset, tag.Length})
 		case "pre":
 			entities = append(entities, &MessageEntityPre{tag.Offset, tag.Length, tag.Attrs["language"]})
 		case "s", "strike", "del":
 			entities = append(entities, &MessageEntityStrike{tag.Offset, tag.Length})
-		case "u":
+		case "u", "ins":
 			entities = append(entities, &MessageEntityUnderline{tag.Offset, tag.Length})
 		case "mention":
 			entities = append(entities, &MessageEntityMention{tag.Offset, tag.Length})

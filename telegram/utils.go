@@ -593,6 +593,9 @@ mediaMessageSwitch:
 			default:
 				return nil, 0, 0, "", errors.New("document has no thumbnails")
 			}
+			if isNilSource(selectedThumb) {
+				return nil, 0, 0, "", errors.New("document thumbnail is nil")
+			}
 
 			size, sizeType := getPhotoSize(selectedThumb)
 			return &InputDocumentFileLocation{
@@ -610,8 +613,11 @@ mediaMessageSwitch:
 			ThumbSize:     "",
 		}, l.DcID, l.Size, GetFileName(l), nil
 	case *PhotoObj:
-		if len(l.VideoSizes) > 0 && opt.Video {
-			var selectedThumb = l.VideoSizes[len(l.VideoSizes)-1]
+		for i := len(l.VideoSizes) - 1; opt.Video && i >= 0; i-- {
+			selectedThumb, ok := l.VideoSizes[i].(*VideoSizeObj)
+			if !ok || selectedThumb == nil || selectedThumb.Type == "" {
+				continue
+			}
 			size, sizeType := getVideoSize(selectedThumb)
 			return &InputPhotoFileLocation{
 				ID:            l.ID,
@@ -635,6 +641,9 @@ mediaMessageSwitch:
 			selectedThumb = l.Sizes[len(l.Sizes)-1]
 		}
 
+		if isNilSource(selectedThumb) {
+			return nil, 0, 0, "", errors.New("photo size is nil")
+		}
 		size, sizeType := getPhotoSize(selectedThumb)
 		return &InputPhotoFileLocation{
 			ID:            l.ID,

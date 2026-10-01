@@ -676,6 +676,17 @@ func isUploadFatal(err error) bool {
 	if err == nil {
 		return false
 	}
+	if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
+		return false
+	}
+	var rpc *mtproto.ErrResponseCode
+	if errors.As(err, &rpc) {
+		code := rpc.Code
+		if code < 0 {
+			code = -code
+		}
+		return code < 500 || code >= 600
+	}
 	fatal := []string{
 		"FILE_PARTS_INVALID",
 		"FILE_PART_TOO_BIG",
@@ -715,6 +726,9 @@ func uploadOnePart(ctx context.Context, c *Client, w *WorkerPool, log *partLogAg
 				return err
 			}
 			lastErr = errors.New("no upload worker available")
+			if attempt == maxAttempts-1 {
+				break
+			}
 			if err := sleepContext(ctx, uploadRetryDelay(attempt)); err != nil {
 				return err
 			}
@@ -743,13 +757,12 @@ func uploadOnePart(ctx context.Context, c *Client, w *WorkerPool, log *partLogAg
 			return fmt.Errorf("server did not accept upload part %d", part.index)
 		}
 
-		if opts.Delay > 0 {
-			if sleepErr := sleepContext(ctx, time.Duration(opts.Delay)*time.Millisecond); sleepErr != nil {
-				return sleepErr
-			}
-		}
-
 		if err == nil {
+			if opts.Delay > 0 {
+				if sleepErr := sleepContext(ctx, time.Duration(opts.Delay)*time.Millisecond); sleepErr != nil {
+					return sleepErr
+				}
+			}
 			log.recordSuccess(part.index, sender)
 			return nil
 		}
@@ -761,16 +774,8 @@ func uploadOnePart(ctx context.Context, c *Client, w *WorkerPool, log *partLogAg
 			return fmt.Errorf("part %d: %w", part.index, err)
 		}
 
-		msg := err.Error()
-		switch {
-		case !sender.MTProto.IsTcpActive():
-			_ = sender.Reconnect(ctx, false)
-		case strings.Contains(msg, "deadline exceeded"),
-			strings.Contains(msg, "timeout"),
-			strings.Contains(msg, "connection reset"),
-			strings.Contains(msg, "broken pipe"),
-			strings.Contains(msg, "EOF"):
-			_ = sender.Reconnect(ctx, false)
+		if attempt == maxAttempts-1 {
+			break
 		}
 
 		if MatchError(err, "FLOOD_WAIT_") || MatchError(err, "FLOOD_PREMIUM_WAIT_") {
@@ -1057,7 +1062,7 @@ func (c *Client) uploadSequential(file io.Reader, size int64, fileName string, o
 	}, nil
 }
 
-func handleIfFlood(err error, c *Client) bool {
+func handleIfFlood(err error, c *Client, contexts ...context.Context) bool {
 	if !MatchError(err, "FLOOD_WAIT_") && !MatchError(err, "FLOOD_PREMIUM_WAIT_") {
 		return false
 	}
@@ -1072,10 +1077,13 @@ func handleIfFlood(err error, c *Client) bool {
 	}
 	timer := time.NewTimer(total)
 	defer timer.Stop()
+	ctx := getVariadic(contexts, context.Background())
 	select {
 	case <-timer.C:
 		return true
 	case <-c.stopCh:
+		return false
+	case <-ctx.Done():
 		return false
 	}
 }

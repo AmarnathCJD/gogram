@@ -461,10 +461,10 @@ func (m *NewMessage) Video() *DocumentObj {
 
 func (m *NewMessage) Audio() *DocumentObj {
 	if m.IsMedia() {
-		if m, ok := m.Media().(*MessageMediaDocument); ok {
-			if doc, ok := m.Document.(*DocumentObj); ok {
+		if m, ok := m.Media().(*MessageMediaDocument); ok && m != nil {
+			if doc, ok := m.Document.(*DocumentObj); ok && doc != nil {
 				for _, attr := range doc.Attributes {
-					if _, ok := attr.(*DocumentAttributeAudio); ok {
+					if audio, ok := attr.(*DocumentAttributeAudio); ok && audio != nil && !audio.Voice {
 						return doc
 					}
 				}
@@ -476,10 +476,10 @@ func (m *NewMessage) Audio() *DocumentObj {
 
 func (m *NewMessage) Voice() *DocumentObj {
 	if m.IsMedia() {
-		if m, ok := m.Media().(*MessageMediaDocument); ok {
-			if doc, ok := m.Document.(*DocumentObj); ok {
+		if m, ok := m.Media().(*MessageMediaDocument); ok && m != nil {
+			if doc, ok := m.Document.(*DocumentObj); ok && doc != nil {
 				for _, attr := range doc.Attributes {
-					if _, ok := attr.(*DocumentAttributeAudio); ok {
+					if audio, ok := attr.(*DocumentAttributeAudio); ok && audio != nil && audio.Voice {
 						return doc
 					}
 				}

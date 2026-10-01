@@ -1923,6 +1923,7 @@ func (c *Client) GetMessageByID(PeerID any, MsgID int32) (*NewMessage, error) {
 }
 
 type HistoryOption struct {
+	Context          context.Context   // Context for cancellation
 	Limit            int32             // limit of the messages to get
 	Offset           int32             // offset of the message to search from
 	OffsetDate       int32             // offset date of the message to search from
@@ -1933,208 +1934,137 @@ type HistoryOption struct {
 }
 
 func (c *Client) GetHistory(PeerID any, opts ...*HistoryOption) ([]NewMessage, error) {
-	peerToAct, err := c.ResolvePeer(PeerID)
-	if err != nil {
-		return nil, err
-	}
-
-	var opt = getVariadic(opts, &HistoryOption{
-		Limit:            1,
-		SleepThresholdMs: 20,
-	})
-
 	var messages []NewMessage
-	var fetched int
-
-	req := &MessagesGetHistoryParams{
-		Peer:       peerToAct,
-		OffsetID:   opt.Offset,
-		OffsetDate: opt.OffsetDate,
-		MaxID:      opt.MaxID,
-		MinID:      opt.MinID,
-	}
-
-	for {
-		remaining := opt.Limit - int32(fetched)
-		perReqLimit := int32(100)
-		if remaining < perReqLimit {
-			perReqLimit = remaining
-		}
-		req.Limit = perReqLimit
-
-		resp, err := c.MessagesGetHistory(req)
-		if err != nil {
-			if handleIfFlood(err, c) {
-				continue
-			}
-			return nil, err
-		}
-
-		switch resp := resp.(type) {
-		case *MessagesMessagesObj:
-			c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
-			for _, msg := range resp.Messages {
-				messages = append(messages, *packMessage(c, msg))
-			}
-			fetched += len(resp.Messages)
-			if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
-				return messages, nil
-			}
-
-			req.OffsetID = messages[len(messages)-1].ID
-			req.OffsetDate = messages[len(messages)-1].Date()
-		case *MessagesMessagesSlice:
-			c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
-			for _, msg := range resp.Messages {
-				messages = append(messages, *packMessage(c, msg))
-			}
-			fetched += len(resp.Messages)
-			if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
-				return messages, nil
-			}
-
-			req.OffsetID = messages[len(messages)-1].ID
-			req.OffsetDate = messages[len(messages)-1].Date()
-		case *MessagesChannelMessages:
-			c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
-			for _, msg := range resp.Messages {
-				messages = append(messages, *packMessage(c, msg))
-			}
-			fetched += len(resp.Messages)
-			if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
-				return messages, nil
-			}
-
-			req.OffsetID = messages[len(messages)-1].ID
-			req.OffsetDate = messages[len(messages)-1].Date()
-		default:
-			return nil, errors.New("unexpected response: " + reflect.TypeOf(resp).String())
-		}
-
-		time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
-	}
+	err := c.IterHistory(PeerID, func(m *NewMessage) error {
+		messages = append(messages, *m)
+		return nil
+	}, opts...)
+	return messages, err
 }
 
 func (c *Client) IterHistory(PeerID any, callback func(*NewMessage) error, opts ...*HistoryOption) error {
-	var opt = getVariadic(opts, &HistoryOption{
-		Limit:            1,
-		SleepThresholdMs: 20,
-	})
+	return c.iterHistory(PeerID, callback, func(ctx context.Context, req *MessagesGetHistoryParams) (any, error) {
+		return c.MakeRequest(ctx, req)
+	}, opts...)
+}
 
-	var fetched int
-
-	var peerToAct, err = c.ResolvePeer(PeerID)
+func (c *Client) iterHistory(PeerID any, callback func(*NewMessage) error, fetch func(context.Context, *MessagesGetHistoryParams) (any, error), opts ...*HistoryOption) error {
+	if callback == nil {
+		return errors.New("history callback is nil")
+	}
+	opt := *getVariadic(opts, &HistoryOption{Limit: 1, SleepThresholdMs: 20})
+	ctx := opt.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	peer, err := c.ResolvePeer(PeerID)
 	if err != nil {
 		return err
 	}
-
 	req := &MessagesGetHistoryParams{
-		Peer:       peerToAct,
-		OffsetID:   opt.Offset,
-		OffsetDate: opt.OffsetDate,
-		MaxID:      opt.MaxID,
-		MinID:      opt.MinID,
+		Peer: peer, OffsetID: opt.Offset, OffsetDate: opt.OffsetDate,
+		MaxID: opt.MaxID, MinID: opt.MinID,
 	}
-
+	var fetched int32
 	for {
-		var messages []NewMessage
-		perReqLimit := int32(100)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		req.Limit = 100
 		if opt.Limit > 0 {
-			remaining := opt.Limit - int32(fetched)
-			if remaining < perReqLimit {
-				perReqLimit = remaining
+			req.Limit = min(req.Limit, opt.Limit-fetched)
+			if req.Limit <= 0 {
+				return nil
 			}
 		}
-		req.Limit = perReqLimit
-
-		resp, err := c.MessagesGetHistory(req)
+		resp, err := fetch(ctx, req)
 		if err != nil {
-			if handleIfFlood(err, c) {
+			if handleIfFlood(err, c, ctx) {
 				continue
 			}
-			if opt.ErrorCallback != nil {
-				if opt.ErrorCallback(err, &IterProgressInfo{
-					Fetched:      int32(fetched),
-					CurrentBatch: 0,
-					Limit:        opt.Limit,
-					Offset:       req.OffsetID,
-				}) {
-					continue
-				}
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if opt.ErrorCallback != nil && opt.ErrorCallback(err, &IterProgressInfo{
+				Fetched: fetched, Limit: opt.Limit, Offset: req.OffsetID,
+			}) {
+				continue
 			}
 			return err
 		}
-
-		switch resp := resp.(type) {
+		var batch []Message
+		complete := false
+		if isNilSource(resp) {
+			return fmt.Errorf("unexpected history response: %T", resp)
+		}
+		switch p := resp.(type) {
 		case *MessagesMessagesObj:
-			c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
-			for _, msg := range resp.Messages {
-				messages = append(messages, *packMessage(c, msg))
-			}
-			fetched += len(resp.Messages)
-
-			for _, msg := range messages {
-				if err := callback(&msg); err != nil {
-					if err == ErrStopIteration {
-						return nil
-					}
-					return err
-				}
-			}
-			if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
-				return nil
-			}
-
-			req.OffsetID = messages[len(messages)-1].ID
-			req.OffsetDate = messages[len(messages)-1].Date()
-
+			batch, complete = p.Messages, true
+			c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 		case *MessagesMessagesSlice:
-			c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
-			for _, msg := range resp.Messages {
-				messages = append(messages, *packMessage(c, msg))
-			}
-			fetched += len(resp.Messages)
-
-			for _, msg := range messages {
-				if err := callback(&msg); err != nil {
-					if err == ErrStopIteration {
-						return nil
-					}
-					return err
-				}
-			}
-			if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
-				return nil
-			}
-
-			req.OffsetID = messages[len(messages)-1].ID
-			req.OffsetDate = messages[len(messages)-1].Date()
+			batch = p.Messages
+			c.Cache.UpdatePeersToCache(p.Users, p.Chats)
 		case *MessagesChannelMessages:
-			c.Cache.UpdatePeersToCache(resp.Users, resp.Chats)
-			for _, msg := range resp.Messages {
-				messages = append(messages, *packMessage(c, msg))
-			}
-			fetched += len(resp.Messages)
-
-			for _, msg := range messages {
-				if err := callback(&msg); err != nil {
-					if err == ErrStopIteration {
-						return nil
-					}
-					return err
-				}
-			}
-			if len(resp.Messages) < int(perReqLimit) || fetched >= int(opt.Limit) && opt.Limit > 0 {
-				return nil
-			}
-
-			req.OffsetID = messages[len(messages)-1].ID
-			req.OffsetDate = messages[len(messages)-1].Date()
+			batch = p.Messages
+			c.Cache.UpdatePeersToCache(p.Users, p.Chats)
+		case *MessagesMessagesNotModified:
+			return nil
 		default:
-			return errors.New("unexpected response: " + reflect.TypeOf(resp).String())
+			return fmt.Errorf("unexpected history response: %T", resp)
 		}
 
-		time.Sleep(time.Duration(opt.SleepThresholdMs) * time.Millisecond)
+		seen := make(map[int32]struct{}, len(batch))
+		var nextID, nextDate int32
+		for _, raw := range batch {
+			var id, date int32
+			switch m := raw.(type) {
+			case *MessageObj:
+				if m != nil {
+					id, date = m.ID, m.Date
+				}
+			case *MessageService:
+				if m != nil {
+					id, date = m.ID, m.Date
+				}
+			case *MessageEmpty:
+				if m != nil {
+					id = m.ID
+				}
+			}
+			if id <= 0 || (req.OffsetID > 0 && id >= req.OffsetID) {
+				continue
+			}
+			if _, exists := seen[id]; exists {
+				continue
+			}
+			seen[id] = struct{}{}
+			if nextID == 0 || id < nextID {
+				nextID, nextDate = id, date
+			}
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if err := callback(packMessage(c, raw)); err != nil {
+				if errors.Is(err, ErrStopIteration) {
+					return nil
+				}
+				return err
+			}
+			fetched++
+			if opt.Limit > 0 && fetched >= opt.Limit {
+				return nil
+			}
+		}
+		if complete || len(batch) < int(req.Limit) || nextID == 0 {
+			return nil
+		}
+		req.OffsetID, req.OffsetDate = nextID, nextDate
+		if err := sleepContext(ctx, time.Duration(opt.SleepThresholdMs)*time.Millisecond); err != nil {
+			return err
+		}
 	}
 }
 

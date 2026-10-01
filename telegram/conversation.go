@@ -50,11 +50,14 @@ func (c *Client) NewConversation(peer any, options ...*ConversationOptions) (*Co
 		return nil, err
 	}
 
-	opts := getVariadic(options, &ConversationOptions{
+	opts := *getVariadic(options, &ConversationOptions{
 		Timeout:         60,
 		StopPropagation: true,
 	})
 
+	if opts.Timeout <= 0 {
+		opts.Timeout = 60
+	}
 	ctx := opts.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -69,16 +72,19 @@ func (c *Client) NewConversation(peer any, options ...*ConversationOptions) (*Co
 		stopPropagation: opts.StopPropagation,
 		ctx:             ctx,
 		cancel:          cancel,
-		abortKeywords:   opts.AbortKeywords,
+		abortKeywords:   slices.Clone(opts.AbortKeywords),
 		fromUser:        opts.FromUser,
 	}, nil
 }
 
 func NewConversation(client *Client, peer InputPeer, options ...*ConversationOptions) *Conversation {
-	opts := getVariadic(options, &ConversationOptions{
+	opts := *getVariadic(options, &ConversationOptions{
 		Timeout: 60,
 	})
 
+	if opts.Timeout <= 0 {
+		opts.Timeout = 60
+	}
 	ctx := opts.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -93,37 +99,60 @@ func NewConversation(client *Client, peer InputPeer, options ...*ConversationOpt
 		stopPropagation: opts.StopPropagation,
 		ctx:             ctx,
 		cancel:          cancel,
-		abortKeywords:   opts.AbortKeywords,
+		abortKeywords:   slices.Clone(opts.AbortKeywords),
 		fromUser:        opts.FromUser,
 	}
 }
 
 func (c *Conversation) WithTimeout(timeout int32) *Conversation {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.timeout = timeout
 	return c
 }
 
 func (c *Conversation) WithPrivate(private bool) *Conversation {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.isPrivate = private
 	return c
 }
 
 func (c *Conversation) WithStopPropagation(stop bool) *Conversation {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.stopPropagation = stop
 	return c
 }
 
 func (c *Conversation) WithContext(ctx context.Context) *Conversation {
-	c.ctx, c.cancel = context.WithCancel(ctx)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	c.mu.Lock()
+	previous := c.cancel
+	c.ctx, c.cancel = ctx, cancel
+	if c.closed {
+		cancel()
+	}
+	c.mu.Unlock()
+	if previous != nil {
+		previous()
+	}
 	return c
 }
 
 func (c *Conversation) SetTimeout(timeout int32) *Conversation {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.timeout = timeout
 	return c
 }
 
 func (c *Conversation) SetStopPropagation(stop bool) *Conversation {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.stopPropagation = stop
 	return c
 }
@@ -141,26 +170,35 @@ func (c *Conversation) IsClosed() bool {
 }
 
 func (c *Conversation) SetAbortKeywords(keywords ...string) *Conversation {
-	c.abortKeywords = keywords
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.abortKeywords = slices.Clone(keywords)
 	return c
 }
 
 func (c *Conversation) SetFromUser(userID int64) *Conversation {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.fromUser = userID
 	return c
 }
 
 func (c *Conversation) WithFromUser(userID int64) *Conversation {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.fromUser = userID
 	return c
 }
 
 func (c *Conversation) checkAbort(msg *NewMessage) bool {
-	if len(c.abortKeywords) == 0 {
+	c.mu.RLock()
+	keywords := c.abortKeywords
+	c.mu.RUnlock()
+	if len(keywords) == 0 {
 		return false
 	}
 	text := strings.ToLower(strings.TrimSpace(msg.Text()))
-	for _, keyword := range c.abortKeywords {
+	for _, keyword := range keywords {
 		if strings.ToLower(keyword) == text {
 			c.Close()
 			return true
@@ -178,7 +216,7 @@ func (c *Conversation) RespondMedia(media InputMedia, opts ...*MediaOptions) (*N
 }
 
 func (c *Conversation) Reply(text any, opts ...*SendOptions) (*NewMessage, error) {
-	var options = getVariadic(opts, &SendOptions{})
+	options := *getVariadic(opts, &SendOptions{})
 	if options.ReplyID == 0 {
 		c.mu.RLock()
 		if c.lastMsg != nil {
@@ -187,11 +225,11 @@ func (c *Conversation) Reply(text any, opts ...*SendOptions) (*NewMessage, error
 		c.mu.RUnlock()
 	}
 
-	return c.Client.SendMessage(c.Peer, text, options)
+	return c.Client.SendMessage(c.Peer, text, &options)
 }
 
 func (c *Conversation) ReplyMedia(media InputMedia, opts ...*MediaOptions) (*NewMessage, error) {
-	var options = getVariadic(opts, &MediaOptions{})
+	options := *getVariadic(opts, &MediaOptions{})
 	if options.ReplyID == 0 {
 		c.mu.RLock()
 		if c.lastMsg != nil {
@@ -200,20 +238,25 @@ func (c *Conversation) ReplyMedia(media InputMedia, opts ...*MediaOptions) (*New
 		c.mu.RUnlock()
 	}
 
-	return c.Client.SendMedia(c.Peer, media, options)
+	return c.Client.SendMedia(c.Peer, media, &options)
 }
 
 func (c *Conversation) GetResponse() (*NewMessage, error) {
 	return c.waitForMessage(nil)
 }
 
-func (c *Conversation) waitForMessage(check func(*NewMessage) bool) (*NewMessage, error) {
+func (c *Conversation) waitForMessage(check func(*NewMessage) bool, beforeWait ...func() error) (*NewMessage, error) {
 	c.mu.RLock()
 	if c.closed {
 		c.mu.RUnlock()
 		return nil, ErrConversationClosed
 	}
+	ctx, timeout := c.ctx, time.Duration(c.timeout)*time.Second
+	stopPropagation := c.stopPropagation
 	c.mu.RUnlock()
+	if ctx.Err() != nil {
+		return nil, ErrConversationClosed
+	}
 
 	resp := make(chan *NewMessage, 1)
 	done := make(chan struct{})
@@ -225,8 +268,11 @@ func (c *Conversation) waitForMessage(check func(*NewMessage) bool) (*NewMessage
 		select {
 		case resp <- m:
 		case <-done:
+			return nil
+		default:
+			return nil
 		}
-		if c.stopPropagation {
+		if stopPropagation {
 			return ErrEndGroup
 		}
 		return nil
@@ -240,23 +286,26 @@ func (c *Conversation) waitForMessage(check func(*NewMessage) bool) (*NewMessage
 	}
 	h := c.Client.On(args...)
 	h.SetGroup(ConversationGroup)
+	defer c.Client.RemoveHandle(h)
+	defer close(done)
+	for _, send := range beforeWait {
+		if err := ctx.Err(); err != nil {
+			return nil, ErrConversationClosed
+		}
+		if err := send(); err != nil {
+			return nil, fmt.Errorf("sending message: %w", err)
+		}
+	}
 
-	timeout := time.Duration(c.timeout) * time.Second
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
 	select {
-	case <-c.ctx.Done():
-		close(done)
-		c.Client.RemoveHandle(h)
+	case <-ctx.Done():
 		return nil, ErrConversationClosed
 	case <-timer.C:
-		close(done)
-		c.Client.RemoveHandle(h)
 		return nil, ErrConversationTimeout
 	case m := <-resp:
-		close(done)
-		c.Client.RemoveHandle(h)
 		c.mu.Lock()
 		c.lastMsg = m
 		c.mu.Unlock()
@@ -270,7 +319,12 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 		c.mu.RUnlock()
 		return nil, ErrConversationClosed
 	}
+	ctx, timeout := c.ctx, time.Duration(c.timeout)*time.Second
+	stopPropagation := c.stopPropagation
 	c.mu.RUnlock()
+	if ctx.Err() != nil {
+		return nil, ErrConversationClosed
+	}
 
 	resp := make(chan *NewMessage, 1)
 	done := make(chan struct{})
@@ -280,22 +334,21 @@ func (c *Conversation) GetEdit() (*NewMessage, error) {
 		case resp <- m:
 		case <-done:
 		}
-		if c.stopPropagation {
+		if stopPropagation {
 			return ErrEndGroup
 		}
 		return nil
 	}
 
 	filters := c.buildFilters()
-	h := c.Client.On(OnEdit, waitFunc, filters)
+	h := c.Client.AddEditHandler(string(OnEdit), waitFunc, filters...)
 	h.SetGroup(ConversationGroup)
 
-	timeout := time.Duration(c.timeout) * time.Second
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
 	select {
-	case <-c.ctx.Done():
+	case <-ctx.Done():
 		close(done)
 		c.Client.RemoveHandle(h)
 		return nil, ErrConversationClosed
@@ -319,7 +372,12 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 		c.mu.RUnlock()
 		return nil, ErrConversationClosed
 	}
+	ctx, timeout := c.ctx, time.Duration(c.timeout)*time.Second
+	stopPropagation := c.stopPropagation
 	c.mu.RUnlock()
+	if ctx.Err() != nil {
+		return nil, ErrConversationClosed
+	}
 
 	resp := make(chan *NewMessage, 1)
 	done := make(chan struct{})
@@ -329,7 +387,7 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 		case resp <- m:
 		case <-done:
 		}
-		if c.stopPropagation {
+		if stopPropagation {
 			return ErrEndGroup
 		}
 		return nil
@@ -337,15 +395,14 @@ func (c *Conversation) GetReply() (*NewMessage, error) {
 
 	filters := c.buildFilters()
 	filters = append(filters, IsReply)
-	h := c.Client.On(OnMessage, waitFunc, filters)
+	h := c.Client.AddMessageHandler(string(OnMessage), waitFunc, filters...)
 	h.SetGroup(ConversationGroup)
 
-	timeout := time.Duration(c.timeout) * time.Second
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
 	select {
-	case <-c.ctx.Done():
+	case <-ctx.Done():
 		close(done)
 		c.Client.RemoveHandle(h)
 		return nil, ErrConversationClosed
@@ -379,7 +436,13 @@ func (c *Conversation) WaitClick(match ...string) (*CallbackQuery, error) {
 		c.mu.RUnlock()
 		return nil, ErrConversationClosed
 	}
+	ctx, timeout := c.ctx, time.Duration(c.timeout)*time.Second
+	stopPropagation := c.stopPropagation
+	fromUser := c.fromUser
 	c.mu.RUnlock()
+	if ctx.Err() != nil {
+		return nil, ErrConversationClosed
+	}
 
 	resp := make(chan *CallbackQuery, 1)
 	done := make(chan struct{})
@@ -389,14 +452,18 @@ func (c *Conversation) WaitClick(match ...string) (*CallbackQuery, error) {
 		case resp <- b:
 		case <-done:
 		}
-		if c.stopPropagation {
+		if stopPropagation {
 			return ErrEndGroup
 		}
 		return nil
 	}
 
+	peerFilter := c.buildFilters()[0]
 	h := c.Client.On(OnCallbackQuery, waitFunc, CustomCallback(func(b *CallbackQuery) bool {
-		if !c.Client.PeerEquals(b.Peer, c.Peer) {
+		if b == nil || !peerFilter.Check(&NewMessage{Message: &MessageObj{PeerID: b.Peer}}) {
+			return false
+		}
+		if fromUser != 0 && b.SenderID != fromUser {
 			return false
 		}
 
@@ -409,12 +476,11 @@ func (c *Conversation) WaitClick(match ...string) (*CallbackQuery, error) {
 	}))
 	h.SetGroup(ConversationGroup)
 
-	timeout := time.Duration(c.timeout) * time.Second
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
 	select {
-	case <-c.ctx.Done():
+	case <-ctx.Done():
 		close(done)
 		c.Client.RemoveHandle(h)
 		return nil, ErrConversationClosed
@@ -435,7 +501,11 @@ func (c *Conversation) WaitEvent(ev Update) (Update, error) {
 		c.mu.RUnlock()
 		return nil, ErrConversationClosed
 	}
+	ctx, timeout := c.ctx, time.Duration(c.timeout)*time.Second
 	c.mu.RUnlock()
+	if ctx.Err() != nil {
+		return nil, ErrConversationClosed
+	}
 
 	resp := make(chan Update, 1)
 	done := make(chan struct{})
@@ -451,12 +521,11 @@ func (c *Conversation) WaitEvent(ev Update) (Update, error) {
 	h := c.Client.On(ev, waitFunc)
 	h.SetGroup(ConversationGroup)
 
-	timeout := time.Duration(c.timeout) * time.Second
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
 	select {
-	case <-c.ctx.Done():
+	case <-ctx.Done():
 		close(done)
 		c.Client.RemoveHandle(h)
 		return nil, ErrConversationClosed
@@ -477,14 +546,22 @@ func (c *Conversation) WaitRead() (*UpdateReadChannelInbox, error) {
 		c.mu.RUnlock()
 		return nil, ErrConversationClosed
 	}
+	ctx, timeout := c.ctx, time.Duration(c.timeout)*time.Second
 	c.mu.RUnlock()
+	if ctx.Err() != nil {
+		return nil, ErrConversationClosed
+	}
 
 	resp := make(chan *UpdateReadChannelInbox, 1)
 	done := make(chan struct{})
 
-	waitFunc := func(u Update) error {
+	waitFunc := func(u Update, _ *Client) error {
 		switch v := u.(type) {
 		case *UpdateReadChannelInbox:
+			peer, ok := c.Peer.(*InputPeerChannel)
+			if !ok || peer.ChannelID != v.ChannelID {
+				return nil
+			}
 			select {
 			case resp <- v:
 			case <-done:
@@ -496,12 +573,11 @@ func (c *Conversation) WaitRead() (*UpdateReadChannelInbox, error) {
 	h := c.Client.On(&UpdateReadChannelInbox{}, waitFunc)
 	h.SetGroup(ConversationGroup)
 
-	timeout := time.Duration(c.timeout) * time.Second
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
 	select {
-	case <-c.ctx.Done():
+	case <-ctx.Done():
 		close(done)
 		c.Client.RemoveHandle(h)
 		return nil, ErrConversationClosed
@@ -524,18 +600,19 @@ func (c *Conversation) Close() {
 		return
 	}
 	c.closed = true
+	cancel := c.cancel
 	c.mu.Unlock()
 
-	if c.cancel != nil {
-		c.cancel()
+	if cancel != nil {
+		cancel()
 	}
 }
 
 func (c *Conversation) Ask(text any, opts ...*SendOptions) (*NewMessage, error) {
-	if _, err := c.Respond(text, opts...); err != nil {
-		return nil, fmt.Errorf("sending message: %w", err)
-	}
-	msg, err := c.GetResponse()
+	msg, err := c.waitForMessage(nil, func() error {
+		_, err := c.Respond(text, opts...)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -546,38 +623,38 @@ func (c *Conversation) Ask(text any, opts ...*SendOptions) (*NewMessage, error) 
 }
 
 func (c *Conversation) AskMedia(text any, opts ...*SendOptions) (*NewMessage, error) {
-	if _, err := c.Respond(text, opts...); err != nil {
-		return nil, fmt.Errorf("sending message: %w", err)
-	}
-	return c.WaitForMedia()
+	return c.waitForMessage(func(m *NewMessage) bool { return m.Media() != nil }, func() error {
+		_, err := c.Respond(text, opts...)
+		return err
+	})
 }
 
 func (c *Conversation) AskPhoto(text any, opts ...*SendOptions) (*NewMessage, error) {
-	if _, err := c.Respond(text, opts...); err != nil {
-		return nil, fmt.Errorf("sending message: %w", err)
-	}
-	return c.WaitForPhoto()
+	return c.waitForMessage(func(m *NewMessage) bool { return m.Photo() != nil }, func() error {
+		_, err := c.Respond(text, opts...)
+		return err
+	})
 }
 
 func (c *Conversation) AskDocument(text any, opts ...*SendOptions) (*NewMessage, error) {
-	if _, err := c.Respond(text, opts...); err != nil {
-		return nil, fmt.Errorf("sending message: %w", err)
-	}
-	return c.WaitForDocument()
+	return c.waitForMessage(func(m *NewMessage) bool { return m.Document() != nil }, func() error {
+		_, err := c.Respond(text, opts...)
+		return err
+	})
 }
 
 func (c *Conversation) AskVideo(text any, opts ...*SendOptions) (*NewMessage, error) {
-	if _, err := c.Respond(text, opts...); err != nil {
-		return nil, fmt.Errorf("sending message: %w", err)
-	}
-	return c.WaitForVideo()
+	return c.waitForMessage(func(m *NewMessage) bool { return m.Video() != nil }, func() error {
+		_, err := c.Respond(text, opts...)
+		return err
+	})
 }
 
 func (c *Conversation) AskVoice(text any, opts ...*SendOptions) (*NewMessage, error) {
-	if _, err := c.Respond(text, opts...); err != nil {
-		return nil, fmt.Errorf("sending message: %w", err)
-	}
-	return c.WaitForVoice()
+	return c.waitForMessage(func(m *NewMessage) bool { return m.Voice() != nil }, func() error {
+		_, err := c.Respond(text, opts...)
+		return err
+	})
 }
 
 func (c *Conversation) GetResponseMatching(pattern *regexp.Regexp) (*NewMessage, error) {
@@ -624,16 +701,7 @@ func (c *Conversation) WaitForDocument() (*NewMessage, error) {
 }
 
 func (c *Conversation) WaitForVoice() (*NewMessage, error) {
-	return c.waitForMessage(func(m *NewMessage) bool {
-		if doc := m.Document(); doc != nil {
-			for _, attr := range doc.Attributes {
-				if _, ok := attr.(*DocumentAttributeAudio); ok {
-					return true
-				}
-			}
-		}
-		return false
-	})
+	return c.waitForMessage(func(m *NewMessage) bool { return m.Voice() != nil })
 }
 
 func (c *Conversation) WaitForVideo() (*NewMessage, error) {
@@ -1006,23 +1074,32 @@ func (w *ConversationWizard) HasAnswer(name string) bool {
 }
 
 func (c *Conversation) buildFilters() []Filter {
-	var filters []Filter
-	switch c.Peer.(type) {
-	case *InputPeerChannel, *InputPeerChat:
-		filters = append(filters, FromChats(c.Client.GetPeerID(c.Peer)))
-		if c.fromUser != 0 {
-			filters = append(filters, FromUsers(c.fromUser))
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	peerID := c.Client.GetPeerID(c.Peer)
+	peerType := c.Client.GetPeerType(c.Peer)
+	switch p := c.Peer.(type) {
+	case *InputPeerUserFromMessage:
+		peerType = EntityUser
+	case *InputPeerChannelFromMessage:
+		peerType = EntityChannel
+	case *InputPeerSelf:
+		peerType = EntityUser
+		if me := c.Client.Me(); me != nil {
+			peerID = me.ID
 		}
-	case *InputPeerUser, *InputPeerSelf:
-		if c.fromUser != 0 {
-			filters = append(filters, FromUsers(c.fromUser))
-		} else {
-			filters = append(filters, FromUsers(c.Client.GetPeerID(c.Peer)))
-		}
+	case *InputPeerUser:
+		peerID = p.UserID
+	}
+	filters := []Filter{CustomFilter(func(m *NewMessage) bool {
+		return m != nil && m.Message != nil &&
+			c.Client.GetPeerType(m.Message.PeerID) == peerType && c.Client.GetPeerID(m.Message.PeerID) == peerID
+	})}
+	if c.fromUser != 0 {
+		filters = append(filters, FromUsers(c.fromUser))
 	}
 	if c.isPrivate {
 		filters = append(filters, IsPrivate)
-		filters = append(filters, Not(IsGroup), Not(IsChannel))
 	}
 	return filters
 }

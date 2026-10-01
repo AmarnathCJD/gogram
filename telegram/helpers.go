@@ -1449,7 +1449,7 @@ func packMessage(c *Client, message Message) *NewMessage {
 
 	if m.Message.Out {
 		m.Sender = c.Me()
-	} else {
+	} else if _, empty := message.(*MessageEmpty); !empty {
 		if m.Message.FromID != nil {
 			m.Sender = c.getSender(m.Message.FromID)
 			if m.Sender != nil && m.Sender.Min {

@@ -44,14 +44,87 @@ func (c *Client) GetChatPhotos(chatID any, limit ...int32) ([]Photo, error) {
 //	Params:
 //	 - chatID: chat id
 func (c *Client) GetChatPhoto(chatID any) (Photo, error) {
-	photos, err := c.GetChatPhotos(chatID)
+	return c.getChatPhoto(chatID, c)
+}
+
+type chatPhotoRequests interface {
+	ChannelsGetFullChannel(InputChannel) (*MessagesChatFull, error)
+	MessagesGetFullChat(int64) (*MessagesChatFull, error)
+	UsersGetFullUser(InputUser) (*UsersUserFull, error)
+}
+
+func (c *Client) getChatPhoto(chatID any, rpc chatPhotoRequests) (Photo, error) {
+	peer, err := c.ResolvePeer(chatID)
 	if err != nil {
-		return &PhotoObj{}, err
+		return nil, err
 	}
-	if len(photos) > 0 {
-		return photos[0], nil
+	var full *MessagesChatFull
+	var photo Photo
+	switch p := peer.(type) {
+	case *InputPeerChannel, *InputPeerChannelFromMessage:
+		channel, err := c.GetSendableChannel(peer)
+		if err != nil {
+			return nil, err
+		}
+		full, err = rpc.ChannelsGetFullChannel(channel)
+		if err != nil {
+			return nil, err
+		}
+		if full == nil {
+			return nil, errors.New("missing full channel info")
+		}
+	case *InputPeerChat:
+		full, err = rpc.MessagesGetFullChat(p.ChatID)
+		if err != nil {
+			return nil, err
+		}
+		if full == nil {
+			return nil, errors.New("missing full chat info")
+		}
+	case *InputPeerUser, *InputPeerUserFromMessage, *InputPeerSelf:
+		var user InputUser = &InputUserSelf{}
+		if _, self := p.(*InputPeerSelf); !self {
+			user, err = c.GetSendableUser(peer)
+			if err != nil {
+				return nil, err
+			}
+		}
+		result, err := rpc.UsersGetFullUser(user)
+		if err != nil {
+			return nil, err
+		}
+		if result == nil || result.FullUser == nil {
+			return nil, errors.New("missing full user info")
+		}
+		c.Cache.UpdatePeersToCache(result.Users, result.Chats)
+		photo = result.FullUser.ProfilePhoto
+		if !isNilSource(result.FullUser.PersonalPhoto) {
+			photo = result.FullUser.PersonalPhoto
+		}
+	default:
+		return nil, fmt.Errorf("unsupported chat photo peer: %T", peer)
 	}
-	return &PhotoObj{}, nil // GetFullChannel TODO
+	if full != nil {
+		c.Cache.UpdatePeersToCache(full.Users, full.Chats)
+		switch chat := full.FullChat.(type) {
+		case *ChannelFull:
+			if chat == nil {
+				return nil, errors.New("missing full channel info")
+			}
+			photo = chat.ChatPhoto
+		case *ChatFullObj:
+			if chat == nil {
+				return nil, errors.New("missing full chat info")
+			}
+			photo = chat.ChatPhoto
+		default:
+			return nil, fmt.Errorf("unexpected full chat: %T", full.FullChat)
+		}
+	}
+	if isNilSource(photo) {
+		return &PhotoEmpty{}, nil
+	}
+	return photo, nil
 }
 
 // JoinChannel joins a channel or chat by its username or id
