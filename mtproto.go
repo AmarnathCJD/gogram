@@ -1016,6 +1016,14 @@ func (m *MTProto) startPFSManager(ctx context.Context) {
 
 // MakeRequest sends an RPC request and waits for the response.
 func (m *MTProto) MakeRequest(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) (any, error) {
+	return m.makeRequest(ctx, data, m.maxRequestAttempts, expectedTypes...)
+}
+
+func (m *MTProto) MakeRequestOnce(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) (any, error) {
+	return m.makeRequest(ctx, data, 1, expectedTypes...)
+}
+
+func (m *MTProto) makeRequest(ctx context.Context, data tl.Object, maxAttempts int, expectedTypes ...reflect.Type) (any, error) {
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline && m.reqTimeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, m.reqTimeout)
@@ -1034,7 +1042,7 @@ func (m *MTProto) MakeRequest(ctx context.Context, data tl.Object, expectedTypes
 	}
 	defer cleanup()
 
-	for attempt := 0; attempt < m.maxRequestAttempts; attempt++ {
+	for attempt := 0; attempt < maxAttempts; attempt++ {
 		cleanup()
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -1052,7 +1060,7 @@ func (m *MTProto) MakeRequest(ctx context.Context, data tl.Object, expectedTypes
 			}
 		}
 		if err := m.tcpState.WaitForActive(ctx); err != nil {
-			if ctx.Err() == nil && m.errorHandler != nil && m.errorHandler(fmt.Errorf("tcp inactive: %w", err)) {
+			if ctx.Err() == nil && maxAttempts > 1 && m.errorHandler != nil && m.errorHandler(fmt.Errorf("tcp inactive: %w", err)) {
 				continue
 			}
 			return nil, fmt.Errorf("tcp inactive: %w", err)
@@ -1068,11 +1076,11 @@ func (m *MTProto) MakeRequest(ctx context.Context, data tl.Object, expectedTypes
 				if m.terminated.Load() || m.disconnected.Load() {
 					return nil, fmt.Errorf("transport closed: %w", err)
 				}
-				m.Logger.WithError(err).Trace("transport error for msgID=%d, reconnecting (attempt=%d/%d)", msgID, attempt+1, m.maxRequestAttempts)
+				m.Logger.WithError(err).Trace("transport error for msgID=%d, reconnecting (attempt=%d/%d)", msgID, attempt+1, maxAttempts)
 				m.requestReconnect()
 				continue
 			}
-			if m.errorHandler != nil && m.errorHandler(err) {
+			if maxAttempts > 1 && m.errorHandler != nil && m.errorHandler(err) {
 				continue
 			}
 			return nil, err
@@ -1144,13 +1152,16 @@ func (m *MTProto) MakeRequest(ctx context.Context, data tl.Object, expectedTypes
 				return nil, rpcError
 			}
 			if strings.Contains(rpcError.Message, "FLOOD_WAIT_") || strings.Contains(rpcError.Message, "FLOOD_PREMIUM_WAIT_") {
-				if m.floodHandler != nil && m.floodHandler(rpcError) {
+				if maxAttempts > 1 && m.floodHandler != nil && m.floodHandler(rpcError) {
 					continue
 				}
 				return nil, rpcError
 			}
 			return nil, rpcError
 		case *errorSessionConfigsChanged:
+			if maxAttempts == 1 {
+				return nil, r
+			}
 			m.Logger.Trace("session config changed, retrying request")
 			continue
 		default:
@@ -1160,7 +1171,7 @@ func (m *MTProto) MakeRequest(ctx context.Context, data tl.Object, expectedTypes
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return nil, fmt.Errorf("maximum request attempts exceeded (%d)", m.maxRequestAttempts)
+	return nil, fmt.Errorf("%w (%d)", ErrRequestAttemptsExceeded, maxAttempts)
 }
 func (m *MTProto) InvokeRequestWithoutUpdate(ctx context.Context, data tl.Object, expectedTypes ...reflect.Type) error {
 	_, msgID, err := m.sendPacket(ctx, data, 0, expectedTypes...)
@@ -1779,7 +1790,7 @@ func (m *MTProto) notifyPendingRequestsOfConfigChange() {
 	for msgID, ch := range old {
 		m.expectedTypes.Delete(msgID)
 		select {
-		case ch <- &errorSessionConfigsChanged{}:
+		case ch <- &errorSessionConfigsChanged{connection: true}:
 		default:
 		}
 	}

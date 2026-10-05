@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	mtproto "github.com/amarnathcjd/gogram"
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
@@ -500,6 +501,21 @@ func ProxyFromURL(proxyURL string) (Proxy, error) {
 func GetFloodWait(err error) int {
 	if err == nil {
 		return 0
+	}
+	var rpc *mtproto.ErrResponseCode
+	if errors.As(err, &rpc) && (strings.HasPrefix(rpc.Message, "FLOOD_WAIT_") || strings.HasPrefix(rpc.Message, "FLOOD_PREMIUM_WAIT_")) {
+		var seconds int64
+		switch n := rpc.AdditionalInfo.(type) {
+		case int:
+			seconds = int64(n)
+		case int32:
+			seconds = int64(n)
+		case int64:
+			seconds = n
+		}
+		if seconds > 0 && uint64(seconds) <= uint64(^uint(0)>>1) {
+			return int(seconds)
+		}
 	}
 
 	msg := err.Error()

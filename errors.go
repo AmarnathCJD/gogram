@@ -3,6 +3,7 @@
 package gogram
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -794,10 +795,19 @@ func AnyError(err error, errs ...string) bool {
 	return false
 }
 
-type errorSessionConfigsChanged struct{}
+type errorSessionConfigsChanged struct {
+	connection bool
+}
 
-func (*errorSessionConfigsChanged) Error() string {
-	return "session configuration was changed, need to repeat request"
+func (e *errorSessionConfigsChanged) Error() string {
+	if e.connection {
+		return ErrConnectionChanged.Error()
+	}
+	return ErrSessionChanged.Error()
+}
+
+func (e *errorSessionConfigsChanged) Is(target error) bool {
+	return target == ErrSessionChanged || e.connection && target == ErrConnectionChanged
 }
 
 func (*errorSessionConfigsChanged) CRC() uint32 {
@@ -838,3 +848,7 @@ func FormatDecodeError(err error) string {
 	}
 	return fmt.Sprintf("decode error: unknown crc %s at %s (in %s) - report to github.com/amarnathcjd/gogram", crc, field, root)
 }
+
+var ErrRequestAttemptsExceeded = errors.New("maximum request attempts exceeded")
+var ErrSessionChanged = errors.New("session configuration was changed, need to repeat request")
+var ErrConnectionChanged = errors.New("connection was interrupted, need to repeat request")

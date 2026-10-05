@@ -62,6 +62,13 @@ func (c *Client) getMe() *UserObj {
 
 func (c *Client) setMe(u *UserObj) {
 	c.clientData.meMu.Lock()
+	previous := c.clientData.me
+	if previous == nil || u == nil || previous.ID != u.ID || previous.Premium != u.Premium || previous.Bot != u.Bot {
+		c.transfers.mu.Lock()
+		c.transfers.pacers = nil
+		c.transfers.mediaRetry = nil
+		c.transfers.mu.Unlock()
+	}
 	c.clientData.me = u
 	c.clientData.meMu.Unlock()
 }
@@ -86,6 +93,7 @@ type Client struct {
 	peerFetches     map[cachePeerKey]*peerLookup
 	exportedKeys    map[int]*AuthExportedAuthorization
 	exportedKeysMu  sync.Mutex
+	transfers       transferState
 	Log             Logger
 }
 
