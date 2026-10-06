@@ -137,13 +137,14 @@ type CACHE struct {
 	mediaOrder   *list.List
 	mediaIndex   map[string]*list.Element
 
-	wipeScheduled atomic.Bool
-	writePending  atomic.Bool
-	lastWrite     time.Time
-	writeMu       sync.Mutex
-	writeTimer    *time.Timer
-	wipeTimer     *time.Timer
-	closed        bool
+	wipeScheduled  atomic.Bool
+	writePending   atomic.Bool
+	writeRequested atomic.Bool
+	lastWrite      time.Time
+	writeMu        sync.Mutex
+	writeTimer     *time.Timer
+	wipeTimer      *time.Timer
+	closed         bool
 
 	lru           *list.List
 	lruIndex      map[cachePeerKey]*list.Element
@@ -485,6 +486,24 @@ func (c *CACHE) WriteFile() {
 	c.writeFileLocked()
 }
 
+func (c *CACHE) requestWrite() {
+	c.writePending.Store(true)
+	if c.writeMu.TryLock() {
+		c.scheduleWriteLocked(max(time.Second, 2*time.Second-time.Since(c.lastWrite)))
+		c.writeMu.Unlock()
+		return
+	}
+	if !c.writeRequested.CompareAndSwap(false, true) {
+		return
+	}
+	go func() {
+		c.writeMu.Lock()
+		defer c.writeMu.Unlock()
+		c.writeRequested.Store(false)
+		c.scheduleWriteLocked(max(time.Second, 2*time.Second-time.Since(c.lastWrite)))
+	}()
+}
+
 // scheduleWriteLocked coalesces all writes into one timer, including explicit
 // WriteFile calls. A burst must never spawn a sleeping goroutine per call.
 func (c *CACHE) scheduleWriteLocked(delay time.Duration) {
@@ -600,7 +619,7 @@ func (c *CACHE) Close() error {
 	}
 	c.closed = true
 	var err error
-	if c.writePending.Load() {
+	if c.writePending.Load() || c.writeRequested.Load() {
 		err = c.writeFileLocked()
 	}
 	if c.storage != nil {
@@ -634,8 +653,8 @@ func (c *CACHE) getChannelPeer(channelID int64) (InputChannel, error) {
 }
 
 func (c *CACHE) LookupUsername(username string) (peerID int64, accessHash int64, isChannel bool, found bool) {
-	c.RLock()
-	defer c.RUnlock()
+	c.Lock()
+	defer c.Unlock()
 
 	username = normalizeUsername(username)
 	peerID, ok := c.usernameMap[username]
@@ -645,13 +664,18 @@ func (c *CACHE) LookupUsername(username string) (peerID int64, accessHash int64,
 
 	if peerID < 0 {
 		hash, ok := c.InputPeers.InputChannels[-peerID]
+		if ok {
+			c.touchChannelLRU(-peerID)
+		}
 		return -peerID, hash, true, ok
 	}
 	// Check users
 	if hash, ok := c.InputPeers.InputUsers[peerID]; ok {
+		c.touchUserLRU(peerID)
 		return peerID, hash, false, true
 	}
 	if hash, ok := c.InputPeers.InputChannels[peerID]; ok {
+		c.touchChannelLRU(peerID)
 		return peerID, hash, true, true
 	}
 
@@ -668,12 +692,13 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	// channel id (negative with -100 prefix)
 	if strings.HasPrefix(strconv.FormatInt(peerID, 10), "-100") {
 		channelID := trimSuffixHundred(peerID)
-		c.Cache.RLock()
+		c.Cache.Lock()
 		if channelHash, ok := c.Cache.InputPeers.InputChannels[channelID]; ok {
-			c.Cache.RUnlock()
+			c.Cache.touchChannelLRU(channelID)
+			c.Cache.Unlock()
 			return &InputPeerChannel{channelID, channelHash}, nil
 		}
-		c.Cache.RUnlock()
+		c.Cache.Unlock()
 
 		// try to fetch from Telegram
 		if channel, err := c.getChannelFromCache(channelID); err == nil {
@@ -686,9 +711,12 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	// chat id (negative)
 	if peerID < 0 {
 		chatID := peerID * -1
-		c.Cache.RLock()
+		c.Cache.Lock()
 		_, chatExists := c.Cache.chats[chatID]
-		c.Cache.RUnlock()
+		if chatExists {
+			c.Cache.touchLRU(cachePeerKey{'g', chatID})
+		}
+		c.Cache.Unlock()
 
 		if chatExists {
 			return &InputPeerChat{chatID}, nil
@@ -703,18 +731,24 @@ func (c *Client) GetInputPeer(peerID int64) (InputPeer, error) {
 	}
 
 	// user id (positive)
-	c.Cache.RLock()
+	c.Cache.Lock()
 	userHash, userExists := c.Cache.InputPeers.InputUsers[peerID]
-	c.Cache.RUnlock()
+	if userExists {
+		c.Cache.touchUserLRU(peerID)
+	}
+	c.Cache.Unlock()
 
 	if userExists {
 		return &InputPeerUser{peerID, userHash}, nil
 	}
 
 	// check if it's a channel without -100 prefix before hitting the network
-	c.Cache.RLock()
+	c.Cache.Lock()
 	channelHash, channelExists := c.Cache.InputPeers.InputChannels[peerID]
-	c.Cache.RUnlock()
+	if channelExists {
+		c.Cache.touchChannelLRU(peerID)
+	}
+	c.Cache.Unlock()
 
 	if channelExists {
 		return &InputPeerChannel{peerID, channelHash}, nil
@@ -1139,9 +1173,7 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 
 	if totalUpdates[0] > 0 || totalUpdates[1] > 0 {
 		if !memory && !disabled {
-			cache.writeMu.Lock()
-			cache.scheduleWriteLocked(max(time.Second, 2*time.Second-time.Since(cache.lastWrite)))
-			cache.writeMu.Unlock()
+			cache.requestWrite()
 		}
 		if cache.logger.Lev() <= DebugLevel {
 			cache.RLock()
@@ -1158,22 +1190,24 @@ func (cache *CACHE) UpdatePeersToCache(users []User, chats []Chat) {
 }
 
 func (c *Client) GetPeerUser(userID int64) (*InputPeerUser, error) {
-	c.Cache.RLock()
-	defer c.Cache.RUnlock()
+	c.Cache.Lock()
+	defer c.Cache.Unlock()
 
 	if peer, ok := c.Cache.InputPeers.InputUsers[userID]; ok {
+		c.Cache.touchUserLRU(userID)
 		return &InputPeerUser{UserID: userID, AccessHash: peer}, nil
 	}
 	return nil, fmt.Errorf("no user with id '%d' or missing from cache", userID)
 }
 
 func (c *Client) GetPeerChannel(channelID int64) (*InputPeerChannel, error) {
-	c.Cache.RLock()
-	defer c.Cache.RUnlock()
+	c.Cache.Lock()
+	defer c.Cache.Unlock()
 
 	channelID = trimSuffixHundred(channelID)
 
 	if peer, ok := c.Cache.InputPeers.InputChannels[channelID]; ok {
+		c.Cache.touchChannelLRU(channelID)
 		return &InputPeerChannel{ChannelID: channelID, AccessHash: peer}, nil
 	}
 	return nil, fmt.Errorf("no channel with id '%d' or missing from cache", channelID)

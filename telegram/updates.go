@@ -4497,12 +4497,11 @@ func (c *Client) OnE2EMessage(handler func(update Update, c *Client) error) Hand
 	return c.AddE2EHandler(handler)
 }
 
-// updateTaskPool bounds both runnable callbacks and retained updates. Idle workers
-// are reused until the pool drains or stops. Restart reuses the worker count, so a callback that blocks
-// forever cannot create another worker on every disconnect/reconnect cycle.
+// updateTaskPool bounds both runnable callbacks and retained updates. Workers are
+// started on demand and exit when the queue is empty. Restart preserves the count
+// of callbacks still running, so reconnecting cannot bypass the concurrency limit.
 type updateTaskPool struct {
 	mu         sync.Mutex
-	ready      *sync.Cond
 	space      chan struct{}
 	queue      []func()
 	head       int
@@ -4511,7 +4510,6 @@ type updateTaskPool struct {
 	limit      int
 	capacity   int
 	closed     bool
-	draining   bool
 	dropped    uint64
 	generation uint64
 }
@@ -4523,10 +4521,7 @@ func newUpdateTaskPool(workers, capacity int) *updateTaskPool {
 	if capacity <= 0 {
 		capacity = 10000
 	}
-	p := &updateTaskPool{limit: workers, capacity: capacity}
-	p.ready = sync.NewCond(&p.mu)
-
-	return p
+	return &updateTaskPool{limit: workers, capacity: capacity}
 }
 
 // Waiting is reserved for independent producers; pool workers and the network
@@ -4575,7 +4570,6 @@ func (p *updateTaskPool) submit(stop <-chan struct{}, fn func()) (accepted bool,
 		p.head = 0
 	}
 	p.queue = append(p.queue, fn)
-	p.ready.Signal()
 	return true, 0
 }
 
@@ -4607,11 +4601,6 @@ func (p *updateTaskPool) run(fn func()) {
 		p.mu.Lock()
 		p.active--
 		active = false
-		for !p.closed && !p.draining && p.head == len(p.queue) {
-			p.queue = nil
-			p.head = 0
-			p.ready.Wait()
-		}
 		if p.closed || p.head == len(p.queue) {
 			if p.head == len(p.queue) {
 				p.queue = nil
@@ -4635,14 +4624,12 @@ func (p *updateTaskPool) run(fn func()) {
 
 func (p *updateTaskPool) stop(discard bool) {
 	p.mu.Lock()
-	p.draining = true
 	if discard {
 		p.closed = true
 		p.generation++
 		p.queue = nil
 		p.head = 0
 	}
-	p.ready.Broadcast()
 	if p.space != nil {
 		close(p.space)
 		p.space = nil
@@ -4653,8 +4640,6 @@ func (p *updateTaskPool) stop(discard bool) {
 func (p *updateTaskPool) restart() {
 	p.mu.Lock()
 	p.closed = false
-	p.draining = false
-	p.ready.Broadcast()
 	if p.space != nil {
 		close(p.space)
 		p.space = nil
@@ -4692,11 +4677,6 @@ func (c *Client) submitUpdateTask(fn func(), kind int, stop <-chan struct{}) boo
 	}
 	if *pool == nil {
 		*pool = newUpdateTaskPool(workers, c.clientData.updateQueueSize)
-		select {
-		case <-d.stopChan:
-			(*pool).draining = true
-		default:
-		}
 	}
 	p := *pool
 	d.stopMu.Unlock()
