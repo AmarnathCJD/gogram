@@ -2258,10 +2258,10 @@ func (*DocumentAttributeAudio) ImplementsDocumentAttribute() {}
 
 // Info about a custom emoji
 type DocumentAttributeCustomEmoji struct {
-	Free       bool            `tl:"flag:0,encoded_in_bitflags"` // Whether this custom emoji can be sent by non-Premium users
-	TextColor  bool            `tl:"flag:1,encoded_in_bitflags"` // Whether the color of this TGS custom emoji should be changed to the text color when used in messages, the accent color if used as emoji status, white on chat photos, or another appropriate color based on context.
-	Alt        string          // The actual emoji
-	Stickerset InputStickerSet // The emoji stickerset to which this emoji belongs.
+	Free       bool `tl:"flag:0,encoded_in_bitflags"`
+	TextColor  bool `tl:"flag:1,encoded_in_bitflags"`
+	Alt        string
+	Stickerset InputStickerSet
 }
 
 func (*DocumentAttributeCustomEmoji) CRC() uint32 {
@@ -4694,35 +4694,6 @@ func (*InputNotifyUsers) CRC() uint32 {
 
 func (*InputNotifyUsers) ImplementsInputNotifyPeer() {}
 
-type InputPasskeyCredential interface {
-	tl.Object
-	ImplementsInputPasskeyCredential()
-}
-
-// Alternative passkey credential that proves ownership of the account's phone number through a Firebase Phone Number Verification (PNV) token, used on official apps where a full WebAuthn public-key passkey cannot be created, in a way similar to Firebase SMS authentication.
-type InputPasskeyCredentialFirebasePnv struct {
-	PnvToken string // Firebase Phone Number Verification token attesting that the user controls the phone number associated with the account.
-}
-
-func (*InputPasskeyCredentialFirebasePnv) CRC() uint32 {
-	return 0x5b1ccb28
-}
-
-func (*InputPasskeyCredentialFirebasePnv) ImplementsInputPasskeyCredential() {}
-
-// Public-key passkey credential used both for registration and for login, see creating a passkey and logging in with a passkey for the full flows.
-type InputPasskeyCredentialPublicKey struct {
-	ID       string               // `id` field of a PublicKeyCredential, passed as-is without base64url-decoding when using the JSON representation
-	RawID    string               // `rawId` field of a PublicKeyCredential, passed as-is without base64url-decoding when using the JSON representation
-	Response InputPasskeyResponse // Registration or login response.
-}
-
-func (*InputPasskeyCredentialPublicKey) CRC() uint32 {
-	return 0x3c27b78f
-}
-
-func (*InputPasskeyCredentialPublicKey) ImplementsInputPasskeyCredential() {}
-
 type InputPasskeyResponse interface {
 	tl.Object
 	ImplementsInputPasskeyResponse()
@@ -5726,6 +5697,34 @@ func (*InputWallPaperSlug) CRC() uint32 {
 
 func (*InputWallPaperSlug) ImplementsInputWallPaper() {}
 
+type InputWalletReplacement interface {
+	tl.Object
+	ImplementsInputWalletReplacement()
+}
+type InputWalletImported struct {
+	PublicKey       []byte
+	AnchorPublicKey []byte `tl:"flag:0"`
+	Proof           *WalletOwnershipProof
+}
+
+func (*InputWalletImported) CRC() uint32 {
+	return 0x66a66a3b
+}
+
+func (*InputWalletImported) FlagIndex() int {
+	return 0
+}
+
+func (*InputWalletImported) ImplementsInputWalletReplacement() {}
+
+type InputWalletNew struct{}
+
+func (*InputWalletNew) CRC() uint32 {
+	return 0x63a440dc
+}
+
+func (*InputWalletNew) ImplementsInputWalletReplacement() {}
+
 type InputWebFileLocation interface {
 	tl.Object
 	ImplementsInputWebFileLocation()
@@ -6562,6 +6561,24 @@ func (*MessageActionGiveawayResults) FlagIndex() int {
 
 func (*MessageActionGiveawayResults) ImplementsMessageAction() {}
 
+type MessageActionGramTransfer struct {
+	CommentEncrypted bool `tl:"flag:1,encoded_in_bitflags"`
+	Amount           int64
+	PeerAddress      string
+	TransactionID    string
+	Comment          string `tl:"flag:0"`
+}
+
+func (*MessageActionGramTransfer) CRC() uint32 {
+	return 0x9329ea33
+}
+
+func (*MessageActionGramTransfer) FlagIndex() int {
+	return 0
+}
+
+func (*MessageActionGramTransfer) ImplementsMessageAction() {}
+
 // A video chat/livestream was started or terminated.
 type MessageActionGroupCall struct {
 	Call     InputGroupCall // Video chat/livestream that started or ended
@@ -7152,6 +7169,26 @@ func (*MessageActionTopicEdit) FlagIndex() int {
 
 func (*MessageActionTopicEdit) ImplementsMessageAction() {}
 
+type MessageActionWalletTonConnectRequest struct {
+	Accepted  bool `tl:"flag:2,encoded_in_bitflags"`
+	Declined  bool `tl:"flag:3,encoded_in_bitflags"`
+	SessionID int64
+	Expires   int32
+	Topic     string `tl:"flag:0"`
+	TraceID   string `tl:"flag:1"`
+	DappName  string `tl:"flag:4"`
+}
+
+func (*MessageActionWalletTonConnectRequest) CRC() uint32 {
+	return 0x69b8c4bf
+}
+
+func (*MessageActionWalletTonConnectRequest) FlagIndex() int {
+	return 0
+}
+
+func (*MessageActionWalletTonConnectRequest) ImplementsMessageAction() {}
+
 // Data from an opened reply keyboard bot mini app was relayed to the bot that owns it (user side service message).
 type MessageActionWebViewDataSent struct {
 	Text string // Text of the keyboardButtonSimpleWebView that was pressed to open the web app.
@@ -7465,6 +7502,17 @@ func (*MessageEntityTextURL) CRC() uint32 {
 }
 
 func (*MessageEntityTextURL) ImplementsMessageEntity() {}
+
+type MessageEntityTonAddress struct {
+	Offset int32
+	Length int32
+}
+
+func (*MessageEntityTonAddress) CRC() uint32 {
+	return 0xfdabbfcd
+}
+
+func (*MessageEntityTonAddress) ImplementsMessageEntity() {}
 
 // Message entity representing underlined text.
 type MessageEntityUnderline struct {
@@ -10353,6 +10401,16 @@ func (*TextSuperscript) CRC() uint32 {
 }
 
 func (*TextSuperscript) ImplementsRichText() {}
+
+type TextTonAddress struct {
+	Text RichText
+}
+
+func (*TextTonAddress) CRC() uint32 {
+	return 0x3cd2a36a
+}
+
+func (*TextTonAddress) ImplementsRichText() {}
 
 // Underlined text
 type TextUnderline struct {
@@ -13589,6 +13647,22 @@ func (*UpdateSentStoryReaction) CRC() uint32 {
 
 func (*UpdateSentStoryReaction) ImplementsUpdate() {}
 
+type UpdateSentWalletTransaction struct {
+	Gasless     bool `tl:"flag:0,encoded_in_bitflags"`
+	MsgHash     string
+	Transaction *WalletTransaction `tl:"flag:1"`
+}
+
+func (*UpdateSentWalletTransaction) CRC() uint32 {
+	return 0xb1434d4a
+}
+
+func (*UpdateSentWalletTransaction) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateSentWalletTransaction) ImplementsUpdate() {}
+
 // A service message for the user.
 type UpdateServiceNotification struct {
 	Popup       bool            `tl:"flag:0,encoded_in_bitflags"` // If set, the message must be displayed in a popup.
@@ -13852,6 +13926,54 @@ func (*UpdateUserTyping) FlagIndex() int {
 }
 
 func (*UpdateUserTyping) ImplementsUpdate() {}
+
+type UpdateWalletGaslessInfo struct {
+	Available      bool `tl:"flag:0,encoded_in_bitflags"`
+	Left           int32
+	ResetAt        int32
+	MinAmount      int64
+	RelayerAddress string
+}
+
+func (*UpdateWalletGaslessInfo) CRC() uint32 {
+	return 0xa8ae1cac
+}
+
+func (*UpdateWalletGaslessInfo) FlagIndex() int {
+	return 0
+}
+
+func (*UpdateWalletGaslessInfo) ImplementsUpdate() {}
+
+type UpdateWalletState struct {
+	State WalletState
+}
+
+func (*UpdateWalletState) CRC() uint32 {
+	return 0x6ac3f2aa
+}
+
+func (*UpdateWalletState) ImplementsUpdate() {}
+
+type UpdateWalletTonConnectPendingDisconnect struct {
+	SessionIds []int64
+}
+
+func (*UpdateWalletTonConnectPendingDisconnect) CRC() uint32 {
+	return 0xd1ee8199
+}
+
+func (*UpdateWalletTonConnectPendingDisconnect) ImplementsUpdate() {}
+
+type UpdateWalletTonConnectSession struct {
+	Session *TonConnectSession
+}
+
+func (*UpdateWalletTonConnectSession) CRC() uint32 {
+	return 0x50a38e0e
+}
+
+func (*UpdateWalletTonConnectSession) ImplementsUpdate() {}
 
 type UpdateWebBrowserException struct {
 	Delete              bool `tl:"flag:1,encoded_in_bitflags"`
@@ -14395,6 +14517,102 @@ func (*WallPaperNoFile) FlagIndex() int {
 }
 
 func (*WallPaperNoFile) ImplementsWallPaper() {}
+
+type WalletState interface {
+	tl.Object
+	ImplementsWalletState()
+}
+type WalletStateObj struct {
+	BackupEnabled   bool `tl:"flag:0,encoded_in_bitflags"`
+	CanExportPhrase bool `tl:"flag:1,encoded_in_bitflags"`
+	CanEnableBackup bool `tl:"flag:2,encoded_in_bitflags"`
+	Address         string
+	PublicKey       []byte
+	Balance         int64
+}
+
+func (*WalletStateObj) CRC() uint32 {
+	return 0x95c5346b
+}
+
+func (*WalletStateObj) FlagIndex() int {
+	return 0
+}
+
+func (*WalletStateObj) ImplementsWalletState() {}
+
+type WalletStateEmpty struct {
+	Creating bool `tl:"flag:0,encoded_in_bitflags"`
+}
+
+func (*WalletStateEmpty) CRC() uint32 {
+	return 0x9cb9b2ec
+}
+
+func (*WalletStateEmpty) FlagIndex() int {
+	return 0
+}
+
+func (*WalletStateEmpty) ImplementsWalletState() {}
+
+type WalletTransactionPeer interface {
+	tl.Object
+	ImplementsWalletTransactionPeer()
+}
+type WalletTransactionPeerAddress struct {
+	Address string
+	Domain  string `tl:"flag:0"`
+}
+
+func (*WalletTransactionPeerAddress) CRC() uint32 {
+	return 0x62cc1bc
+}
+
+func (*WalletTransactionPeerAddress) FlagIndex() int {
+	return 0
+}
+
+func (*WalletTransactionPeerAddress) ImplementsWalletTransactionPeer() {}
+
+type WalletTransactionPeerOnramp struct {
+	Address      string
+	Domain       string `tl:"flag:0"`
+	ProviderName string
+}
+
+func (*WalletTransactionPeerOnramp) CRC() uint32 {
+	return 0xe595186e
+}
+
+func (*WalletTransactionPeerOnramp) FlagIndex() int {
+	return 0
+}
+
+func (*WalletTransactionPeerOnramp) ImplementsWalletTransactionPeer() {}
+
+type WalletTransactionPeerUnsupported struct{}
+
+func (*WalletTransactionPeerUnsupported) CRC() uint32 {
+	return 0x728bed5a
+}
+
+func (*WalletTransactionPeerUnsupported) ImplementsWalletTransactionPeer() {}
+
+type WalletTransactionPeerUser struct {
+	UserID  int64
+	Address string
+	Domain  string `tl:"flag:0"`
+}
+
+func (*WalletTransactionPeerUser) CRC() uint32 {
+	return 0xd4ea706d
+}
+
+func (*WalletTransactionPeerUser) FlagIndex() int {
+	return 0
+}
+
+func (*WalletTransactionPeerUser) ImplementsWalletTransactionPeer() {}
 
 type WebDocument interface {
 	tl.Object

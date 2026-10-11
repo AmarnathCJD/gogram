@@ -629,11 +629,11 @@ func (*BotPreviewMedia) CRC() uint32 {
 type BotVerification struct {
 	BotID       int64
 	Icon        int64
-	Description string
+	Description *TextWithEntities
 }
 
 func (*BotVerification) CRC() uint32 {
-	return 0xf93cd45c
+	return 0xf72e0ed9
 }
 
 // Info about the current verifier bot.
@@ -641,11 +641,11 @@ type BotVerifierSettings struct {
 	CanModifyCustomDescription bool `tl:"flag:1,encoded_in_bitflags"`
 	Icon                       int64
 	Company                    string
-	CustomDescription          string `tl:"flag:0"`
+	CustomDescription          *TextWithEntities `tl:"flag:0"`
 }
 
 func (*BotVerifierSettings) CRC() uint32 {
-	return 0xb0cd6617
+	return 0xa12aefff
 }
 
 func (*BotVerifierSettings) FlagIndex() int {
@@ -1360,6 +1360,15 @@ type ContactsResolvedPeer struct {
 
 func (*ContactsResolvedPeer) CRC() uint32 {
 	return 0x7f077ad9
+}
+
+type CurrencyRate struct {
+	Currency string
+	Rate     float64
+}
+
+func (*CurrencyRate) CRC() uint32 {
+	return 0x30d9743c
 }
 
 // Represents a json-encoded object
@@ -2097,6 +2106,17 @@ type InputMessageReadMetric struct {
 
 func (*InputMessageReadMetric) CRC() uint32 {
 	return 0x402b4495
+}
+
+// Public-key passkey credential used both for registration and for login, see creating a passkey and logging in with a passkey for the full flows.
+type InputPasskeyCredentialPublicKey struct {
+	ID       string
+	RawID    string
+	Response InputPasskeyResponse
+}
+
+func (*InputPasskeyCredentialPublicKey) CRC() uint32 {
+	return 0x3c27b78f
 }
 
 // Notification settings.
@@ -3097,6 +3117,94 @@ func (*NearestDc) CRC() uint32 {
 	return 0x8e1a1775
 }
 
+type OnrampAvailability struct {
+	Allowed     bool `tl:"flag:0,encoded_in_bitflags"`
+	BuyAllowed  bool `tl:"flag:1,encoded_in_bitflags"`
+	CountryCode string
+	State       string `tl:"flag:2"`
+	Methods     []*OnrampMethodAvailability
+}
+
+func (*OnrampAvailability) CRC() uint32 {
+	return 0xf9c84973
+}
+
+func (*OnrampAvailability) FlagIndex() int {
+	return 0
+}
+
+type OnrampLimits struct {
+	BaseCurrency    string
+	BaseMinAmount   string
+	BaseMaxAmount   string
+	CryptoMinAmount string
+	CryptoMaxAmount string
+	PaymentMethod   string
+}
+
+func (*OnrampLimits) CRC() uint32 {
+	return 0x7be2677e
+}
+
+type OnrampMethodAvailability struct {
+	Available     bool `tl:"flag:0,encoded_in_bitflags"`
+	PaymentMethod string
+}
+
+func (*OnrampMethodAvailability) CRC() uint32 {
+	return 0x9ec8c6a8
+}
+
+func (*OnrampMethodAvailability) FlagIndex() int {
+	return 0
+}
+
+type OnrampProviderInfo struct {
+	SupportsBaseCurrencies bool `tl:"flag:0,encoded_in_bitflags"`
+	SupportsLimits         bool `tl:"flag:1,encoded_in_bitflags"`
+	SupportsQuote          bool `tl:"flag:2,encoded_in_bitflags"`
+	ID                     string
+	Name                   string
+	CryptoCurrencies       []string
+}
+
+func (*OnrampProviderInfo) CRC() uint32 {
+	return 0xdc27582
+}
+
+func (*OnrampProviderInfo) FlagIndex() int {
+	return 0
+}
+
+type OnrampQuote struct {
+	BaseCurrency     string
+	BaseAmount       string
+	CryptoCurrency   string
+	CryptoAmount     string
+	CryptoPrice      string
+	FeeAmount        string
+	ExtraFeeAmount   string
+	NetworkFeeAmount string
+	TotalAmount      string
+	PaymentMethod    string
+	ExpiresDate      int32
+}
+
+func (*OnrampQuote) CRC() uint32 {
+	return 0x7a8011e9
+}
+
+type OnrampSession struct {
+	Provider    string
+	SessionID   string
+	URL         string
+	ExpiresDate int32
+}
+
+func (*OnrampSession) CRC() uint32 {
+	return 0xd1e42e24
+}
+
 // Exact read date of a private message we sent to another user.
 type OutboxReadDate struct {
 	Date int32
@@ -3301,6 +3409,14 @@ type PaymentsConnectedStarRefBots struct {
 
 func (*PaymentsConnectedStarRefBots) CRC() uint32 {
 	return 0x98d5ea1d
+}
+
+type PaymentsCurrencyRates struct {
+	Rates []*CurrencyRate
+}
+
+func (*PaymentsCurrencyRates) CRC() uint32 {
+	return 0xbbcce4c2
 }
 
 // Exported invoice deep link
@@ -5141,6 +5257,83 @@ func (*TodoList) FlagIndex() int {
 	return 0
 }
 
+type TonConnectManifest struct {
+	URL  string
+	Name string
+	Icon WebDocument `tl:"flag:0"`
+}
+
+func (*TonConnectManifest) CRC() uint32 {
+	return 0x12229264
+}
+
+func (*TonConnectManifest) FlagIndex() int {
+	return 0
+}
+
+type TonConnectNextEventID struct {
+	EventID int64
+}
+
+func (*TonConnectNextEventID) CRC() uint32 {
+	return 0x582464e3
+}
+
+type TonConnectRequest struct {
+	SessionID int64
+	MsgID     int32
+	Body      []byte
+	Expires   int32
+	Topic     string `tl:"flag:0"`
+	TraceID   string `tl:"flag:1"`
+}
+
+func (*TonConnectRequest) CRC() uint32 {
+	return 0xa15f8513
+}
+
+func (*TonConnectRequest) FlagIndex() int {
+	return 0
+}
+
+type TonConnectSession struct {
+	Pending       bool `tl:"flag:0,encoded_in_bitflags"`
+	Closing       bool `tl:"flag:1,encoded_in_bitflags"`
+	Closed        bool `tl:"flag:2,encoded_in_bitflags"`
+	ID            int64
+	DappClientID  string
+	ClientID      string `tl:"flag:3"`
+	Nonce         []byte
+	Manifest      *TonConnectManifest `tl:"flag:4"`
+	ManifestError int32               `tl:"flag:5"`
+	Date          int32
+}
+
+func (*TonConnectSession) CRC() uint32 {
+	return 0x126556c6
+}
+
+func (*TonConnectSession) FlagIndex() int {
+	return 0
+}
+
+type ToncenterAPIResponse struct {
+	Response *DataJson
+}
+
+func (*ToncenterAPIResponse) CRC() uint32 {
+	return 0xac8dfe19
+}
+
+type ToncenterStreamingURL struct {
+	URL     string
+	Expires int32
+}
+
+func (*ToncenterStreamingURL) CRC() uint32 {
+	return 0x19887601
+}
+
 // Top peer
 type TopPeer struct {
 	Peer   Peer
@@ -5264,9 +5457,11 @@ func (*UserFull) FlagIndex2() int {
 
 // Contains information about a username.
 type Username struct {
-	Editable bool `tl:"flag:0,encoded_in_bitflags"`
-	Active   bool `tl:"flag:1,encoded_in_bitflags"`
-	Username string
+	Editable  bool `tl:"flag:0,encoded_in_bitflags"`
+	Active    bool `tl:"flag:1,encoded_in_bitflags"`
+	Deletable bool `tl:"flag:2,encoded_in_bitflags"`
+	Expired   bool `tl:"flag:3,encoded_in_bitflags"`
+	Username  string
 }
 
 func (*Username) CRC() uint32 {
@@ -5306,6 +5501,198 @@ func (*WallPaperSettings) CRC() uint32 {
 }
 
 func (*WallPaperSettings) FlagIndex() int {
+	return 0
+}
+
+type WalletEncryptedSecretPhrasePart struct {
+	Data []byte
+}
+
+func (*WalletEncryptedSecretPhrasePart) CRC() uint32 {
+	return 0x18e82537
+}
+
+type WalletExistingBalance struct {
+	HasBalance bool `tl:"flag:0,encoded_in_bitflags"`
+	URL        string
+}
+
+func (*WalletExistingBalance) CRC() uint32 {
+	return 0xbde90a8d
+}
+
+func (*WalletExistingBalance) FlagIndex() int {
+	return 0
+}
+
+type WalletHolderDc struct {
+	Dc        int32
+	PublicKey []byte
+}
+
+func (*WalletHolderDc) CRC() uint32 {
+	return 0xf9d612ef
+}
+
+type WalletNftAttribute struct {
+	TraitType string
+	Value     string
+}
+
+func (*WalletNftAttribute) CRC() uint32 {
+	return 0x4c1ef10e
+}
+
+type WalletNftItem struct {
+	CollectionAddress string `tl:"flag:0"`
+	Address           string
+	OwnerAddress      string
+	Index             string
+	Name              string                `tl:"flag:1"`
+	Description       string                `tl:"flag:2"`
+	Image             WebDocument           `tl:"flag:3"`
+	ImageSmall        WebDocument           `tl:"flag:4"`
+	ContentURL        WebDocument           `tl:"flag:5"`
+	Lottie            WebDocument           `tl:"flag:6"`
+	Attributes        []*WalletNftAttribute `tl:"flag:7"`
+	Extra             *DataJson             `tl:"flag:8"`
+}
+
+func (*WalletNftItem) CRC() uint32 {
+	return 0x3441fd1c
+}
+
+func (*WalletNftItem) FlagIndex() int {
+	return 0
+}
+
+type WalletNftItems struct {
+	Items      []*WalletNftItem
+	NextOffset string `tl:"flag:0"`
+}
+
+func (*WalletNftItems) CRC() uint32 {
+	return 0x794d486f
+}
+
+func (*WalletNftItems) FlagIndex() int {
+	return 0
+}
+
+type WalletProofChallenge struct {
+	Payload string
+	Expires int32
+	Domain  string
+}
+
+func (*WalletProofChallenge) CRC() uint32 {
+	return 0x99e41707
+}
+
+type WalletSecretPhraseParts struct {
+	Token string
+	Dcs   []int32
+}
+
+func (*WalletSecretPhraseParts) CRC() uint32 {
+	return 0xe6d0ef01
+}
+
+type WalletTonConnectChallenge struct {
+	Challenge []byte
+	EventID   int64
+}
+
+func (*WalletTonConnectChallenge) CRC() uint32 {
+	return 0x4bc89693
+}
+
+type WalletTonConnectPending struct {
+	Session  *TonConnectSession
+	Requests []*TonConnectRequest
+}
+
+func (*WalletTonConnectPending) CRC() uint32 {
+	return 0x85c0f124
+}
+
+type WalletTonConnectSessions struct {
+	Sessions []*TonConnectSession
+}
+
+func (*WalletTonConnectSessions) CRC() uint32 {
+	return 0xe1f6896
+}
+
+type WalletTransactions struct {
+	Balance      int64
+	Transactions []*WalletTransaction
+	NextOffset   string `tl:"flag:0"`
+	Chats        []Chat
+	Users        []User
+}
+
+func (*WalletTransactions) CRC() uint32 {
+	return 0x4322d5a5
+}
+
+func (*WalletTransactions) FlagIndex() int {
+	return 0
+}
+
+type WalletUserAddresses struct {
+	Addresses []*WalletUserAddress
+	Users     []User
+}
+
+func (*WalletUserAddresses) CRC() uint32 {
+	return 0x928e7b55
+}
+
+type WalletOwnershipProof struct {
+	Timestamp int32
+	Signature []byte
+}
+
+func (*WalletOwnershipProof) CRC() uint32 {
+	return 0x60bccb0d
+}
+
+type WalletTransaction struct {
+	Incoming         bool `tl:"flag:0,encoded_in_bitflags"`
+	Gasless          bool `tl:"flag:1,encoded_in_bitflags"`
+	Failed           bool `tl:"flag:2,encoded_in_bitflags"`
+	KeyChange        bool `tl:"flag:5,encoded_in_bitflags"`
+	CommentEncrypted bool `tl:"flag:6,encoded_in_bitflags"`
+	ID               string
+	Amount           int64
+	Fee              int64
+	Date             int32
+	Peer             WalletTransactionPeer
+	Comment          string         `tl:"flag:3"`
+	TxHash           string         `tl:"flag:4"`
+	Nft              *WalletNftItem `tl:"flag:7"`
+}
+
+func (*WalletTransaction) CRC() uint32 {
+	return 0x952dc143
+}
+
+func (*WalletTransaction) FlagIndex() int {
+	return 0
+}
+
+type WalletUserAddress struct {
+	UserID    int64 `tl:"flag:0"`
+	Address   string
+	PublicKey []byte
+}
+
+func (*WalletUserAddress) CRC() uint32 {
+	return 0xfe78eecc
+}
+
+func (*WalletUserAddress) FlagIndex() int {
 	return 0
 }
 

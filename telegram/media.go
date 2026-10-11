@@ -1,4 +1,4 @@
-// Copyright (c) 2025 @AmarnathCJD
+﻿// Copyright (c) 2025 @AmarnathCJD
 
 package telegram
 
@@ -2108,10 +2108,6 @@ func contextErr(ctx context.Context, fallback error) error {
 		return err
 	}
 	return fallback
-}
-
-func initializeWorkers(numWorkers int, dc int32, c *Client, w *WorkerPool, ctx ...context.Context) error {
-	return initializeWorkersWithMode(numWorkers, dc, c, w, false, ctx...)
 }
 
 func mediaSenderCacheKey(dc int) int { return dc + 10_000 }

@@ -1602,7 +1602,7 @@ func (c *Client) AccountRegisterDevice(params *AccountRegisterDeviceParams) (boo
 }
 
 type AccountRegisterPasskeyParams struct {
-	Credential InputPasskeyCredential
+	Credential *InputPasskeyCredentialPublicKey
 }
 
 func (*AccountRegisterPasskeyParams) CRC() uint32 {
@@ -1610,7 +1610,7 @@ func (*AccountRegisterPasskeyParams) CRC() uint32 {
 }
 
 // Complete passkey registration for the current account
-func (c *Client) AccountRegisterPasskey(credential InputPasskeyCredential) (*Passkey, error) {
+func (c *Client) AccountRegisterPasskey(credential *InputPasskeyCredentialPublicKey) (*Passkey, error) {
 	responseData, err := c.MakeRequest(context.Background(), &AccountRegisterPasskeyParams{Credential: credential})
 	if err != nil {
 		return nil, fmt.Errorf("sending AccountRegisterPasskey: %w", err)
@@ -3414,6 +3414,27 @@ func (c *Client) AuthCancelCode(phoneNumber, phoneCodeHash string) (bool, error)
 	return resp, nil
 }
 
+type AuthCancelWebTokenAuthorizationParams struct {
+	WebAuthToken string
+}
+
+func (*AuthCancelWebTokenAuthorizationParams) CRC() uint32 {
+	return 0x490dada1
+}
+
+func (c *Client) AuthCancelWebTokenAuthorization(webAuthToken string) (bool, error) {
+	responseData, err := c.MakeRequest(context.Background(), &AuthCancelWebTokenAuthorizationParams{WebAuthToken: webAuthToken})
+	if err != nil {
+		return false, fmt.Errorf("sending AuthCancelWebTokenAuthorization: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type AuthCheckPaidAuthParams struct {
 	PhoneNumber   string
 	PhoneCodeHash string
@@ -3580,7 +3601,7 @@ func (c *Client) AuthFinishFirebasePnvLogin(googleToken string) (AuthAuthorizati
 }
 
 type AuthFinishPasskeyLoginParams struct {
-	Credential    InputPasskeyCredential
+	Credential    *InputPasskeyCredentialPublicKey
 	FromDcID      int32 `tl:"flag:0"`
 	FromAuthKeyID int64 `tl:"flag:0"`
 }
@@ -3594,7 +3615,7 @@ func (*AuthFinishPasskeyLoginParams) FlagIndex() int {
 }
 
 // Complete login with a passkey over an unauthenticated connection
-func (c *Client) AuthFinishPasskeyLogin(credential InputPasskeyCredential, fromDcID int32, fromAuthKeyID int64) (AuthAuthorization, error) {
+func (c *Client) AuthFinishPasskeyLogin(credential *InputPasskeyCredentialPublicKey, fromDcID int32, fromAuthKeyID int64) (AuthAuthorization, error) {
 	responseData, err := c.MakeRequest(context.Background(), &AuthFinishPasskeyLoginParams{
 		Credential:    credential,
 		FromAuthKeyID: fromAuthKeyID,
@@ -3749,18 +3770,24 @@ func (c *Client) AuthImportWebTokenAuthorization(apiID int32, apiHash, webAuthTo
 }
 
 type AuthInitFirebasePnvLoginParams struct {
-	APIID   int32
-	APIHash string
+	ExceptIds []int64 `tl:"flag:0"`
+	APIID     int32
+	APIHash   string
 }
 
 func (*AuthInitFirebasePnvLoginParams) CRC() uint32 {
-	return 0x777df37a
+	return 0x644f15c0
 }
 
-func (c *Client) AuthInitFirebasePnvLogin(apiID int32, apiHash string) (*AuthFirebasePnvIntent, error) {
+func (*AuthInitFirebasePnvLoginParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) AuthInitFirebasePnvLogin(exceptIds []int64, apiID int32, apiHash string) (*AuthFirebasePnvIntent, error) {
 	responseData, err := c.MakeRequest(context.Background(), &AuthInitFirebasePnvLoginParams{
-		APIHash: apiHash,
-		APIID:   apiID,
+		APIHash:   apiHash,
+		APIID:     apiID,
+		ExceptIds: exceptIds,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("sending AuthInitFirebasePnvLogin: %w", err)
@@ -4127,6 +4154,31 @@ func (c *Client) BotsAddPreviewMedia(bot InputUser, langCode string, media Input
 	return resp, nil
 }
 
+type BotsAddUsernameParams struct {
+	Bot      InputUser
+	Username string
+}
+
+func (*BotsAddUsernameParams) CRC() uint32 {
+	return 0x3501c08a
+}
+
+func (c *Client) BotsAddUsername(bot InputUser, username string) (bool, error) {
+	responseData, err := c.MakeRequest(context.Background(), &BotsAddUsernameParams{
+		Bot:      bot,
+		Username: username,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending BotsAddUsername: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type BotsAllowSendMessageParams struct {
 	Bot InputUser
 }
@@ -4226,16 +4278,24 @@ func (c *Client) BotsCheckDownloadFileParams(bot InputUser, fileName, url string
 }
 
 type BotsCheckUsernameParams struct {
-	Username string
+	Additional bool `tl:"flag:0,encoded_in_bitflags"`
+	Username   string
 }
 
 func (*BotsCheckUsernameParams) CRC() uint32 {
-	return 0x87f2219b
+	return 0xe3ac4c61
+}
+
+func (*BotsCheckUsernameParams) FlagIndex() int {
+	return 0
 }
 
 // Check whether a username is available and valid for use when creating a managed bot.
-func (c *Client) BotsCheckUsername(username string) (bool, error) {
-	responseData, err := c.MakeRequest(context.Background(), &BotsCheckUsernameParams{Username: username})
+func (c *Client) BotsCheckUsername(additional bool, username string) (bool, error) {
+	responseData, err := c.MakeRequest(context.Background(), &BotsCheckUsernameParams{
+		Additional: additional,
+		Username:   username,
+	})
 	if err != nil {
 		return false, fmt.Errorf("sending BotsCheckUsername: %w", err)
 	}
@@ -4667,6 +4727,31 @@ func (c *Client) BotsInvokeWebViewCustomMethod(bot InputUser, customMethod strin
 	return resp, nil
 }
 
+type BotsRemoveUsernameParams struct {
+	Bot      InputUser
+	Username string
+}
+
+func (*BotsRemoveUsernameParams) CRC() uint32 {
+	return 0xc704147d
+}
+
+func (c *Client) BotsRemoveUsername(bot InputUser, username string) (bool, error) {
+	responseData, err := c.MakeRequest(context.Background(), &BotsRemoveUsernameParams{
+		Bot:      bot,
+		Username: username,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending BotsRemoveUsername: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type BotsReorderPreviewMediasParams struct {
 	Bot      InputUser
 	LangCode string
@@ -4931,11 +5016,11 @@ type BotsSetCustomVerificationParams struct {
 	Enabled           bool      `tl:"flag:1,encoded_in_bitflags"`
 	Bot               InputUser `tl:"flag:0"`
 	Peer              InputPeer
-	CustomDescription string `tl:"flag:2"`
+	CustomDescription *TextWithEntities `tl:"flag:2"`
 }
 
 func (*BotsSetCustomVerificationParams) CRC() uint32 {
-	return 0x8b89dfbd
+	return 0xf4946757
 }
 
 func (*BotsSetCustomVerificationParams) FlagIndex() int {
@@ -4943,7 +5028,7 @@ func (*BotsSetCustomVerificationParams) FlagIndex() int {
 }
 
 // Verify a user or chat on behalf of an organization.
-func (c *Client) BotsSetCustomVerification(enabled bool, bot InputUser, peer InputPeer, customDescription string) (bool, error) {
+func (c *Client) BotsSetCustomVerification(enabled bool, bot InputUser, peer InputPeer, customDescription *TextWithEntities) (bool, error) {
 	responseData, err := c.MakeRequest(context.Background(), &BotsSetCustomVerificationParams{
 		Bot:               bot,
 		CustomDescription: customDescription,
@@ -16349,6 +16434,41 @@ func (c *Client) PaymentsCraftStarGift(stargift []InputSavedStarGift) (Updates, 
 	return resp, nil
 }
 
+type PaymentsCreateOnrampSessionParams struct {
+	Provider         string
+	CryptoCurrency   string
+	Address          string
+	PaymentMethod    string `tl:"flag:0"`
+	BaseCurrency     string `tl:"flag:1"`
+	BaseAmount       string `tl:"flag:2"`
+	Memo             string `tl:"flag:3"`
+	Theme            string `tl:"flag:4"`
+	SuccessReturnURL string `tl:"flag:5"`
+	FailReturnURL    string `tl:"flag:6"`
+	CryptoAmount     string `tl:"flag:7"`
+}
+
+func (*PaymentsCreateOnrampSessionParams) CRC() uint32 {
+	return 0xa2197cf6
+}
+
+func (*PaymentsCreateOnrampSessionParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsCreateOnrampSession(params *PaymentsCreateOnrampSessionParams) (*OnrampSession, error) {
+	responseData, err := c.MakeRequest(context.Background(), params)
+	if err != nil {
+		return nil, fmt.Errorf("sending PaymentsCreateOnrampSession: %w", err)
+	}
+
+	resp, ok := responseData.(*OnrampSession)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type PaymentsCreateStarGiftCollectionParams struct {
 	Peer     InputPeer
 	Title    string
@@ -16593,6 +16713,25 @@ func (c *Client) PaymentsGetCraftStarGifts(giftID int64, offset string, limit in
 	return resp, nil
 }
 
+type PaymentsGetCurrencyRatesParams struct{}
+
+func (*PaymentsGetCurrencyRatesParams) CRC() uint32 {
+	return 0xd35983e8
+}
+
+func (c *Client) PaymentsGetCurrencyRates() (*PaymentsCurrencyRates, error) {
+	responseData, err := c.MakeRequest(context.Background(), &PaymentsGetCurrencyRatesParams{})
+	if err != nil {
+		return nil, fmt.Errorf("sending PaymentsGetCurrencyRates: %w", err)
+	}
+
+	resp, ok := responseData.(*PaymentsCurrencyRates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type PaymentsGetGiveawayInfoParams struct {
 	Peer  InputPeer
 	MsgID int32
@@ -16613,6 +16752,150 @@ func (c *Client) PaymentsGetGiveawayInfo(peer InputPeer, msgID int32) (PaymentsG
 	}
 
 	resp, ok := responseData.(PaymentsGiveawayInfo)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsGetOnrampAvailabilityParams struct {
+	Provider       string
+	CryptoCurrency string
+	BaseCurrency   string `tl:"flag:0"`
+}
+
+func (*PaymentsGetOnrampAvailabilityParams) CRC() uint32 {
+	return 0x2ec29951
+}
+
+func (*PaymentsGetOnrampAvailabilityParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsGetOnrampAvailability(provider, cryptoCurrency, baseCurrency string) (*OnrampAvailability, error) {
+	responseData, err := c.MakeRequest(context.Background(), &PaymentsGetOnrampAvailabilityParams{
+		BaseCurrency:   baseCurrency,
+		CryptoCurrency: cryptoCurrency,
+		Provider:       provider,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending PaymentsGetOnrampAvailability: %w", err)
+	}
+
+	resp, ok := responseData.(*OnrampAvailability)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsGetOnrampBaseCurrenciesParams struct {
+	Provider       string
+	CryptoCurrency string
+}
+
+func (*PaymentsGetOnrampBaseCurrenciesParams) CRC() uint32 {
+	return 0x1c8bedf3
+}
+
+func (c *Client) PaymentsGetOnrampBaseCurrencies(provider, cryptoCurrency string) ([]string, error) {
+	responseData, err := c.MakeRequest(context.Background(), &PaymentsGetOnrampBaseCurrenciesParams{
+		CryptoCurrency: cryptoCurrency,
+		Provider:       provider,
+	}, reflect.TypeOf([]string(nil)))
+	if err != nil {
+		return nil, fmt.Errorf("sending PaymentsGetOnrampBaseCurrencies: %w", err)
+	}
+
+	resp, ok := responseData.([]string)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsGetOnrampLimitsParams struct {
+	Provider       string
+	CryptoCurrency string
+	BaseCurrency   string
+	PaymentMethod  string `tl:"flag:0"`
+}
+
+func (*PaymentsGetOnrampLimitsParams) CRC() uint32 {
+	return 0x80e851fd
+}
+
+func (*PaymentsGetOnrampLimitsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsGetOnrampLimits(provider, cryptoCurrency, baseCurrency, paymentMethod string) (*OnrampLimits, error) {
+	responseData, err := c.MakeRequest(context.Background(), &PaymentsGetOnrampLimitsParams{
+		BaseCurrency:   baseCurrency,
+		CryptoCurrency: cryptoCurrency,
+		PaymentMethod:  paymentMethod,
+		Provider:       provider,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending PaymentsGetOnrampLimits: %w", err)
+	}
+
+	resp, ok := responseData.(*OnrampLimits)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsGetOnrampProvidersParams struct {
+	CryptoCurrency string `tl:"flag:0"`
+}
+
+func (*PaymentsGetOnrampProvidersParams) CRC() uint32 {
+	return 0x3f3e00dc
+}
+
+func (*PaymentsGetOnrampProvidersParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsGetOnrampProviders(cryptoCurrency string) ([]*OnrampProviderInfo, error) {
+	responseData, err := c.MakeRequest(context.Background(), &PaymentsGetOnrampProvidersParams{CryptoCurrency: cryptoCurrency}, reflect.TypeOf([]*OnrampProviderInfo(nil)))
+	if err != nil {
+		return nil, fmt.Errorf("sending PaymentsGetOnrampProviders: %w", err)
+	}
+
+	resp, ok := responseData.([]*OnrampProviderInfo)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type PaymentsGetOnrampQuoteParams struct {
+	Provider       string
+	CryptoCurrency string
+	BaseCurrency   string
+	BaseAmount     string `tl:"flag:0"`
+	CryptoAmount   string `tl:"flag:1"`
+	PaymentMethod  string `tl:"flag:2"`
+}
+
+func (*PaymentsGetOnrampQuoteParams) CRC() uint32 {
+	return 0xe06645fa
+}
+
+func (*PaymentsGetOnrampQuoteParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) PaymentsGetOnrampQuote(params *PaymentsGetOnrampQuoteParams) (*OnrampQuote, error) {
+	responseData, err := c.MakeRequest(context.Background(), params)
+	if err != nil {
+		return nil, fmt.Errorf("sending PaymentsGetOnrampQuote: %w", err)
+	}
+
+	resp, ok := responseData.(*OnrampQuote)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
@@ -20861,6 +21144,58 @@ func (c *Client) StoriesUpdateAlbum(params *StoriesUpdateAlbumParams) (*StoryAlb
 	return resp, nil
 }
 
+type ToncenterGetStreamingURLParams struct{}
+
+func (*ToncenterGetStreamingURLParams) CRC() uint32 {
+	return 0xcdaf63c7
+}
+
+func (c *Client) ToncenterGetStreamingURL() (*ToncenterStreamingURL, error) {
+	responseData, err := c.MakeRequest(context.Background(), &ToncenterGetStreamingURLParams{})
+	if err != nil {
+		return nil, fmt.Errorf("sending ToncenterGetStreamingURL: %w", err)
+	}
+
+	resp, ok := responseData.(*ToncenterStreamingURL)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type ToncenterPerformAPIRequestParams struct {
+	Post     bool `tl:"flag:0,encoded_in_bitflags"`
+	Endpoint string
+	Query    string `tl:"flag:1"`
+	Payload  string `tl:"flag:2"`
+}
+
+func (*ToncenterPerformAPIRequestParams) CRC() uint32 {
+	return 0x8d7bdd61
+}
+
+func (*ToncenterPerformAPIRequestParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) ToncenterPerformAPIRequest(post bool, endpoint, query, payload string) (*ToncenterAPIResponse, error) {
+	responseData, err := c.MakeRequest(context.Background(), &ToncenterPerformAPIRequestParams{
+		Endpoint: endpoint,
+		Payload:  payload,
+		Post:     post,
+		Query:    query,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending ToncenterPerformAPIRequest: %w", err)
+	}
+
+	resp, ok := responseData.(*ToncenterAPIResponse)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
 type UpdatesGetChannelDifferenceParams struct {
 	Force   bool `tl:"flag:0,encoded_in_bitflags"`
 	Channel InputChannel
@@ -21334,6 +21669,645 @@ func (c *Client) UsersSuggestBirthday(id InputUser, birthday *Birthday) (Updates
 	resp, ok := responseData.(Updates)
 	if !ok {
 		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletDisableBackupParams struct {
+	Password     InputCheckPasswordSRP `tl:"flag:0"`
+	NewPublicKey []byte                `tl:"flag:1"`
+	Proof        *WalletOwnershipProof `tl:"flag:2"`
+}
+
+func (*WalletDisableBackupParams) CRC() uint32 {
+	return 0xb0bf0da
+}
+
+func (*WalletDisableBackupParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) WalletDisableBackup(password InputCheckPasswordSRP, newPublicKey []byte, proof *WalletOwnershipProof) (WalletState, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletDisableBackupParams{
+		NewPublicKey: newPublicKey,
+		Password:     password,
+		Proof:        proof,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletDisableBackup: %w", err)
+	}
+
+	resp, ok := responseData.(WalletState)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletEnableBackupParams struct {
+	Parts        [][]byte
+	NewPublicKey []byte                `tl:"flag:1"`
+	Proof        *WalletOwnershipProof `tl:"flag:2"`
+}
+
+func (*WalletEnableBackupParams) CRC() uint32 {
+	return 0x4500c525
+}
+
+func (*WalletEnableBackupParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) WalletEnableBackup(parts [][]byte, newPublicKey []byte, proof *WalletOwnershipProof) (WalletState, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletEnableBackupParams{
+		NewPublicKey: newPublicKey,
+		Parts:        parts,
+		Proof:        proof,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletEnableBackup: %w", err)
+	}
+
+	resp, ok := responseData.(WalletState)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletExportSecretPhraseParams struct {
+	Password InputCheckPasswordSRP `tl:"flag:0"`
+}
+
+func (*WalletExportSecretPhraseParams) CRC() uint32 {
+	return 0x9077c9ac
+}
+
+func (*WalletExportSecretPhraseParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) WalletExportSecretPhrase(password InputCheckPasswordSRP) (*WalletSecretPhraseParts, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletExportSecretPhraseParams{Password: password})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletExportSecretPhrase: %w", err)
+	}
+
+	resp, ok := responseData.(*WalletSecretPhraseParts)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletFetchEncryptedSecretPhrasePartParams struct {
+	Token     string
+	PublicKey []byte
+}
+
+func (*WalletFetchEncryptedSecretPhrasePartParams) CRC() uint32 {
+	return 0xf53925cf
+}
+
+func (c *Client) WalletFetchEncryptedSecretPhrasePart(token string, publicKey []byte) (*WalletEncryptedSecretPhrasePart, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletFetchEncryptedSecretPhrasePartParams{
+		PublicKey: publicKey,
+		Token:     token,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletFetchEncryptedSecretPhrasePart: %w", err)
+	}
+
+	resp, ok := responseData.(*WalletEncryptedSecretPhrasePart)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletGetBackupHolderDcsParams struct{}
+
+func (*WalletGetBackupHolderDcsParams) CRC() uint32 {
+	return 0xd179d494
+}
+
+func (c *Client) WalletGetBackupHolderDcs() ([]*WalletHolderDc, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletGetBackupHolderDcsParams{}, reflect.TypeOf([]*WalletHolderDc(nil)))
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletGetBackupHolderDcs: %w", err)
+	}
+
+	resp, ok := responseData.([]*WalletHolderDc)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletGetExistingWaltBalanceParams struct{}
+
+func (*WalletGetExistingWaltBalanceParams) CRC() uint32 {
+	return 0x691f4360
+}
+
+func (c *Client) WalletGetExistingWaltBalance() (*WalletExistingBalance, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletGetExistingWaltBalanceParams{})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletGetExistingWaltBalance: %w", err)
+	}
+
+	resp, ok := responseData.(*WalletExistingBalance)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletGetGaslessInfoParams struct{}
+
+func (*WalletGetGaslessInfoParams) CRC() uint32 {
+	return 0x742df0a1
+}
+
+func (c *Client) WalletGetGaslessInfo() (Updates, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletGetGaslessInfoParams{})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletGetGaslessInfo: %w", err)
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletGetNftsParams struct {
+	Offset string
+	Limit  int32
+}
+
+func (*WalletGetNftsParams) CRC() uint32 {
+	return 0x8c12f3a4
+}
+
+func (c *Client) WalletGetNfts(offset string, limit int32) (*WalletNftItems, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletGetNftsParams{
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletGetNfts: %w", err)
+	}
+
+	resp, ok := responseData.(*WalletNftItems)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletGetProofChallengeParams struct{}
+
+func (*WalletGetProofChallengeParams) CRC() uint32 {
+	return 0x2025e697
+}
+
+func (c *Client) WalletGetProofChallenge() (*WalletProofChallenge, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletGetProofChallengeParams{})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletGetProofChallenge: %w", err)
+	}
+
+	resp, ok := responseData.(*WalletProofChallenge)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletGetStateParams struct{}
+
+func (*WalletGetStateParams) CRC() uint32 {
+	return 0xab83b33a
+}
+
+func (c *Client) WalletGetState() (WalletState, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletGetStateParams{})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletGetState: %w", err)
+	}
+
+	resp, ok := responseData.(WalletState)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletGetTransactionsParams struct {
+	Inbound  bool `tl:"flag:0,encoded_in_bitflags"`
+	Outbound bool `tl:"flag:1,encoded_in_bitflags"`
+	Offset   string
+	Limit    int32
+}
+
+func (*WalletGetTransactionsParams) CRC() uint32 {
+	return 0xa8830a83
+}
+
+func (*WalletGetTransactionsParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) WalletGetTransactions(inbound, outbound bool, offset string, limit int32) (*WalletTransactions, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletGetTransactionsParams{
+		Inbound:  inbound,
+		Limit:    limit,
+		Offset:   offset,
+		Outbound: outbound,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletGetTransactions: %w", err)
+	}
+
+	resp, ok := responseData.(*WalletTransactions)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletGetTransactionsByIDsParams struct {
+	ID []string
+}
+
+func (*WalletGetTransactionsByIDsParams) CRC() uint32 {
+	return 0x811ceab6
+}
+
+func (c *Client) WalletGetTransactionsByIDs(id []string) (*WalletTransactions, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletGetTransactionsByIDsParams{ID: id})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletGetTransactionsByIDs: %w", err)
+	}
+
+	resp, ok := responseData.(*WalletTransactions)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletGetTransactionsByMsgHashParams struct {
+	MsgHash []string
+}
+
+func (*WalletGetTransactionsByMsgHashParams) CRC() uint32 {
+	return 0xa6bb795d
+}
+
+func (c *Client) WalletGetTransactionsByMsgHash(msgHash []string) (*WalletTransactions, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletGetTransactionsByMsgHashParams{MsgHash: msgHash})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletGetTransactionsByMsgHash: %w", err)
+	}
+
+	resp, ok := responseData.(*WalletTransactions)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletGetUserAddressesParams struct {
+	Force     bool `tl:"flag:0,encoded_in_bitflags"`
+	ID        []InputUser
+	Addresses []string
+}
+
+func (*WalletGetUserAddressesParams) CRC() uint32 {
+	return 0x5275dfdd
+}
+
+func (*WalletGetUserAddressesParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) WalletGetUserAddresses(force bool, id []InputUser, addresses []string) (*WalletUserAddresses, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletGetUserAddressesParams{
+		Addresses: addresses,
+		Force:     force,
+		ID:        id,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletGetUserAddresses: %w", err)
+	}
+
+	resp, ok := responseData.(*WalletUserAddresses)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletReplaceWalletParams struct {
+	Wallet   InputWalletReplacement
+	Password InputCheckPasswordSRP `tl:"flag:0"`
+}
+
+func (*WalletReplaceWalletParams) CRC() uint32 {
+	return 0xd8c72eec
+}
+
+func (*WalletReplaceWalletParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) WalletReplaceWallet(wallet InputWalletReplacement, password InputCheckPasswordSRP) (WalletState, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletReplaceWalletParams{
+		Password: password,
+		Wallet:   wallet,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletReplaceWallet: %w", err)
+	}
+
+	resp, ok := responseData.(WalletState)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletSendTransferParams struct {
+	DataNormal  []byte
+	DataGasless []byte `tl:"flag:0"`
+	UserID      InputUser
+	RandomID    int64
+}
+
+func (*WalletSendTransferParams) CRC() uint32 {
+	return 0xd9e5d9e2
+}
+
+func (*WalletSendTransferParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) WalletSendTransfer(dataNormal, dataGasless []byte, userID InputUser, randomID int64) (Updates, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletSendTransferParams{
+		DataGasless: dataGasless,
+		DataNormal:  dataNormal,
+		RandomID:    randomID,
+		UserID:      userID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletSendTransfer: %w", err)
+	}
+
+	resp, ok := responseData.(Updates)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletTonConnectClaimRequestParams struct {
+	Declined        bool `tl:"flag:1,encoded_in_bitflags"`
+	SessionID       int64
+	MsgID           int32
+	AppRequestID    string
+	ChallengeAnswer []byte `tl:"flag:0"`
+}
+
+func (*WalletTonConnectClaimRequestParams) CRC() uint32 {
+	return 0x66b57b41
+}
+
+func (*WalletTonConnectClaimRequestParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) WalletTonConnectClaimRequest(params *WalletTonConnectClaimRequestParams) (bool, error) {
+	responseData, err := c.MakeRequest(context.Background(), params)
+	if err != nil {
+		return false, fmt.Errorf("sending WalletTonConnectClaimRequest: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletTonConnectCloseSessionParams struct {
+	SessionID int64
+	Body      []byte `tl:"flag:0"`
+}
+
+func (*WalletTonConnectCloseSessionParams) CRC() uint32 {
+	return 0xd63f61ce
+}
+
+func (*WalletTonConnectCloseSessionParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) WalletTonConnectCloseSession(sessionID int64, body []byte) (bool, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletTonConnectCloseSessionParams{
+		Body:      body,
+		SessionID: sessionID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending WalletTonConnectCloseSession: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletTonConnectCreateSessionParams struct {
+	DappClientID string
+	ManifestURL  string
+}
+
+func (*WalletTonConnectCreateSessionParams) CRC() uint32 {
+	return 0xcc931046
+}
+
+func (c *Client) WalletTonConnectCreateSession(dappClientID, manifestURL string) (*TonConnectSession, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletTonConnectCreateSessionParams{
+		DappClientID: dappClientID,
+		ManifestURL:  manifestURL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletTonConnectCreateSession: %w", err)
+	}
+
+	resp, ok := responseData.(*TonConnectSession)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletTonConnectGetPendingParams struct {
+	DappClientID string `tl:"flag:0"`
+	SessionID    int64  `tl:"flag:1"`
+}
+
+func (*WalletTonConnectGetPendingParams) CRC() uint32 {
+	return 0x11aee065
+}
+
+func (*WalletTonConnectGetPendingParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) WalletTonConnectGetPending(dappClientID string, sessionID int64) (*WalletTonConnectPending, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletTonConnectGetPendingParams{
+		DappClientID: dappClientID,
+		SessionID:    sessionID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletTonConnectGetPending: %w", err)
+	}
+
+	resp, ok := responseData.(*WalletTonConnectPending)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletTonConnectGetSessionsParams struct{}
+
+func (*WalletTonConnectGetSessionsParams) CRC() uint32 {
+	return 0xa7ffb56e
+}
+
+func (c *Client) WalletTonConnectGetSessions() (*WalletTonConnectSessions, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletTonConnectGetSessionsParams{})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletTonConnectGetSessions: %w", err)
+	}
+
+	resp, ok := responseData.(*WalletTonConnectSessions)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletTonConnectNextEventIDParams struct {
+	SessionID int64
+}
+
+func (*WalletTonConnectNextEventIDParams) CRC() uint32 {
+	return 0x775d7244
+}
+
+func (c *Client) WalletTonConnectNextEventID(sessionID int64) (*TonConnectNextEventID, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletTonConnectNextEventIDParams{SessionID: sessionID})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletTonConnectNextEventID: %w", err)
+	}
+
+	resp, ok := responseData.(*TonConnectNextEventID)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletTonConnectRegisterKeyParams struct {
+	SessionID int64
+	ClientID  string
+}
+
+func (*WalletTonConnectRegisterKeyParams) CRC() uint32 {
+	return 0x338bcf1c
+}
+
+func (c *Client) WalletTonConnectRegisterKey(sessionID int64, clientID string) (*WalletTonConnectChallenge, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletTonConnectRegisterKeyParams{
+		ClientID:  clientID,
+		SessionID: sessionID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending WalletTonConnectRegisterKey: %w", err)
+	}
+
+	resp, ok := responseData.(*WalletTonConnectChallenge)
+	if !ok {
+		return nil, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletTonConnectSubmitConnectResultParams struct {
+	Error           bool `tl:"flag:0,encoded_in_bitflags"`
+	SessionID       int64
+	ChallengeAnswer []byte
+	Body            []byte
+	TraceID         string `tl:"flag:1"`
+}
+
+func (*WalletTonConnectSubmitConnectResultParams) CRC() uint32 {
+	return 0xc2c00779
+}
+
+func (*WalletTonConnectSubmitConnectResultParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) WalletTonConnectSubmitConnectResult(params *WalletTonConnectSubmitConnectResultParams) (bool, error) {
+	responseData, err := c.MakeRequest(context.Background(), params)
+	if err != nil {
+		return false, fmt.Errorf("sending WalletTonConnectSubmitConnectResult: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
+	}
+	return resp, nil
+}
+
+type WalletTonConnectSubmitResponseParams struct {
+	SessionID int64
+	MsgID     int32
+	Body      []byte
+	TraceID   string `tl:"flag:0"`
+}
+
+func (*WalletTonConnectSubmitResponseParams) CRC() uint32 {
+	return 0xfac67d3c
+}
+
+func (*WalletTonConnectSubmitResponseParams) FlagIndex() int {
+	return 0
+}
+
+func (c *Client) WalletTonConnectSubmitResponse(sessionID int64, msgID int32, body []byte, traceID string) (bool, error) {
+	responseData, err := c.MakeRequest(context.Background(), &WalletTonConnectSubmitResponseParams{
+		Body:      body,
+		MsgID:     msgID,
+		SessionID: sessionID,
+		TraceID:   traceID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("sending WalletTonConnectSubmitResponse: %w", err)
+	}
+
+	resp, ok := responseData.(bool)
+	if !ok {
+		return false, fmt.Errorf("got invalid response type: %s", reflect.TypeOf(responseData))
 	}
 	return resp, nil
 }

@@ -1606,8 +1606,6 @@ func (m *MTProto) readMsg(ctx context.Context) error {
 		m.Logger.Debug("decoding unknown object: %v", err)
 		return fmt.Errorf("incoming update: %w", err)
 	}
-	// Receiving valid traffic proves the connection works. Merely opening
-	// a socket must not reset the counter for peers that immediately close it.
 	m.connState.Attempts.Store(0)
 	return nil
 }
