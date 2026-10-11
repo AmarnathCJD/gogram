@@ -16,6 +16,7 @@ import (
 	"github.com/amarnathcjd/gogram/internal/mtproto/messages"
 	"github.com/amarnathcjd/gogram/internal/mtproto/objects"
 	"github.com/amarnathcjd/gogram/internal/session"
+	"github.com/amarnathcjd/gogram/internal/transport"
 	"github.com/amarnathcjd/gogram/internal/utils"
 )
 
@@ -37,11 +38,12 @@ func (m *MTProto) sendPacket(ctx context.Context, request tl.Object, msgID int64
 
 	m.transportMu.Lock()
 	tr := m.transport
-	m.transportMu.Unlock()
 	if tr == nil || !m.IsTcpActive() || m.disconnected.Load() || m.terminated.Load() {
 		m.requestReconnect()
+		m.transportMu.Unlock()
 		return nil, 0, fmt.Errorf("transport is not active: %w", net.ErrClosed)
 	}
+	m.transportMu.Unlock()
 
 	if msgID == 0 {
 		msgID = m.genMsgID(m.timeOffset.Load())
@@ -85,7 +87,9 @@ func (m *MTProto) sendPacket(ctx context.Context, request tl.Object, msgID int64
 	if !stop() {
 		<-interrupted
 		errorSendPacket = ctx.Err()
-		m.requestReconnect()
+		m.reconnectTransport(tr)
+	} else if utils.IsTransportError(errorSendPacket) {
+		m.reconnectTransport(tr)
 	}
 
 	if errorSendPacket != nil {
@@ -95,6 +99,24 @@ func (m *MTProto) sendPacket(ctx context.Context, request tl.Object, msgID int64
 	}
 	return resp, msgID, nil
 }
+
+func (m *MTProto) reconnectTransport(tr transport.Transport) {
+	m.transportMu.Lock()
+	defer m.transportMu.Unlock()
+	if m.transport != tr || m.terminated.Load() || m.disconnected.Load() {
+		return
+	}
+	m.tcpState.SetActive(false)
+	m.requestReconnect()
+}
+
+type transportReadError struct {
+	transport transport.Transport
+	cause     error
+}
+
+func (e *transportReadError) Error() string { return fmt.Sprintf("reading message: %v", e.cause) }
+func (e *transportReadError) Unwrap() error { return e.cause }
 
 func (m *MTProto) writeRPCResponse(msgID int64, data tl.Object) error {
 	v, ok := m.responseChannels.Pop(msgID)

@@ -695,7 +695,6 @@ func reconnectDelay(base, maximum time.Duration, attempt int) time.Duration {
 func (m *MTProto) connectWithRetry(ctx context.Context) error {
 	err := m.connect(ctx)
 	if err == nil {
-		m.connState.Attempts.Store(0)
 		return nil
 	}
 
@@ -710,7 +709,6 @@ func (m *MTProto) connectWithRetry(ctx context.Context) error {
 			if attempt > 0 {
 				m.Logger.Info("reconnected successfully after %d attempts", attempt+1)
 			}
-			m.connState.Attempts.Store(0)
 			return nil
 		}
 
@@ -909,15 +907,15 @@ func (m *MTProto) connect(ctx context.Context) error {
 		return fmt.Errorf("creating transport: %w", err)
 	}
 
+	if err := m.checkRapidReconnect(); err != nil {
+		_ = newTransport.Close()
+		return err
+	}
 	m.transportMu.Lock()
 	m.transport = newTransport
 	m.transportMu.Unlock()
 
 	m.Logger.Trace("transport ready")
-
-	if err := m.checkRapidReconnect(); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -1031,6 +1029,7 @@ func (m *MTProto) makeRequest(ctx context.Context, data tl.Object, maxAttempts i
 	}
 
 	var pendingID int64
+	var lastErr error
 	cleanup := func() {
 		if pendingID != 0 {
 			m.responseChannels.Delete(pendingID)
@@ -1061,6 +1060,7 @@ func (m *MTProto) makeRequest(ctx context.Context, data tl.Object, maxAttempts i
 		}
 		if err := m.tcpState.WaitForActive(ctx); err != nil {
 			if ctx.Err() == nil && maxAttempts > 1 && m.errorHandler != nil && m.errorHandler(fmt.Errorf("tcp inactive: %w", err)) {
+				lastErr = err
 				continue
 			}
 			return nil, fmt.Errorf("tcp inactive: %w", err)
@@ -1069,6 +1069,7 @@ func (m *MTProto) makeRequest(ctx context.Context, data tl.Object, maxAttempts i
 		respChan, msgID, err := m.sendPacket(ctx, data, 0, expectedTypes...)
 		pendingID = msgID
 		if err != nil {
+			lastErr = err
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}
@@ -1077,7 +1078,6 @@ func (m *MTProto) makeRequest(ctx context.Context, data tl.Object, maxAttempts i
 					return nil, fmt.Errorf("transport closed: %w", err)
 				}
 				m.Logger.WithError(err).Trace("transport error for msgID=%d, reconnecting (attempt=%d/%d)", msgID, attempt+1, maxAttempts)
-				m.requestReconnect()
 				continue
 			}
 			if maxAttempts > 1 && m.errorHandler != nil && m.errorHandler(err) {
@@ -1153,6 +1153,7 @@ func (m *MTProto) makeRequest(ctx context.Context, data tl.Object, maxAttempts i
 			}
 			if strings.Contains(rpcError.Message, "FLOOD_WAIT_") || strings.Contains(rpcError.Message, "FLOOD_PREMIUM_WAIT_") {
 				if maxAttempts > 1 && m.floodHandler != nil && m.floodHandler(rpcError) {
+					lastErr = rpcError
 					continue
 				}
 				return nil, rpcError
@@ -1163,6 +1164,7 @@ func (m *MTProto) makeRequest(ctx context.Context, data tl.Object, maxAttempts i
 				return nil, r
 			}
 			m.Logger.Trace("session config changed, retrying request")
+			lastErr = r
 			continue
 		default:
 			return tl.UnwrapNativeTypes(response), nil
@@ -1170,6 +1172,9 @@ func (m *MTProto) makeRequest(ctx context.Context, data tl.Object, maxAttempts i
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
+	}
+	if lastErr != nil {
+		return nil, fmt.Errorf("%w (%d): %w", ErrRequestAttemptsExceeded, maxAttempts, lastErr)
 	}
 	return nil, fmt.Errorf("%w (%d)", ErrRequestAttemptsExceeded, maxAttempts)
 }
@@ -1260,7 +1265,6 @@ func (m *MTProto) Reconnect(ctx context.Context, loggy bool) error {
 		m.Logger.Trace("reconnect already in progress")
 		return nil
 	}
-	defer m.connState.InProgress.Store(false)
 
 	addr := utils.FmtIP(m.GetAddr())
 	tx := m.GetTransportType()
@@ -1271,7 +1275,9 @@ func (m *MTProto) Reconnect(ctx context.Context, loggy bool) error {
 	}
 	log("reconnecting to %s (%s)", addr, tx)
 
-	if err := m.CreateConnection(ctx, loggy, true); err != nil {
+	err := m.CreateConnection(ctx, loggy, true)
+	m.finishReconnect(err == nil)
+	if err != nil {
 		m.Logger.WithError(err).Error("failed to recreate connection")
 		return fmt.Errorf("recreating connection: %w", err)
 	}
@@ -1290,14 +1296,24 @@ func (m *MTProto) requestReconnect() {
 	}
 	m.tcpState.SetActive(false)
 	go func() {
-		defer m.connState.InProgress.Store(false)
 		ctx := context.Background()
-		if err := m.CreateConnection(ctx, false, false); err != nil {
+		err := m.CreateConnection(ctx, false, false)
+		m.finishReconnect(err == nil)
+		if err != nil {
 			m.Logger.WithError(err).Trace("auto-reconnect aborted")
 			return
 		}
 		m.Ping(ctx)
 	}()
+}
+
+func (m *MTProto) finishReconnect(connected bool) {
+	m.transportMu.Lock()
+	defer m.transportMu.Unlock()
+	m.connState.InProgress.Store(false)
+	if connected && !m.IsTcpActive() {
+		m.requestReconnect()
+	}
 }
 
 // keep pinging to keep the connection alive
@@ -1393,18 +1409,17 @@ func (m *MTProto) Ping(ctx context.Context) time.Duration {
 func (m *MTProto) checkRapidReconnect() error {
 	now := time.Now().Unix()
 	last := m.connState.LastSuccessfulConnect.Load()
-	attempts := m.connState.Attempts.Load()
+	if last == 0 || now-last >= 5 {
+		m.connState.Attempts.Store(0)
+	}
+	attempts := m.connState.Attempts.Add(1)
 
-	if last > 0 && (now-last) < 5 && attempts >= 10 {
+	if attempts > 10 {
 		m.Logger.Warn("rapid reconnection loop detected: %d attempts within 5 seconds", attempts)
 		if m.proxy != nil && m.proxy.Type == "mtproxy" {
 			return fmt.Errorf("mtproxy connection loop detected: connection succeeds but immediately closes - check proxy configuration, secret, or server availability")
 		}
 		return fmt.Errorf("rapid reconnection loop detected: connection succeeds but immediately closes - possible network or server issue")
-	}
-
-	if last > 0 && (now-last) > 30 {
-		m.connState.Attempts.Store(0)
 	}
 
 	m.connState.LastSuccessfulConnect.Store(now)
@@ -1458,6 +1473,15 @@ func (m *MTProto) startReadingResponses(ctx context.Context) {
 
 			if errors.Is(err, context.Canceled) {
 				m.Logger.Trace("read message context canceled")
+				return
+			}
+
+			var readErr *transportReadError
+			if errors.As(err, &readErr) {
+				if ctx.Err() == nil {
+					m.Logger.Trace("transport read failed: %v; reconnecting", err)
+					m.reconnectTransport(readErr.transport)
+				}
 				return
 			}
 
@@ -1554,12 +1578,7 @@ func (m *MTProto) readMsg(ctx context.Context) error {
 		if errors.As(err, &e) {
 			return &ErrResponseCode{Code: int64(e)}
 		}
-		switch {
-		case err == io.EOF, errors.Is(err, context.Canceled):
-			return err
-		default:
-			return fmt.Errorf("reading message: %w", err)
-		}
+		return &transportReadError{transport: t, cause: err}
 	}
 	if encrypted, ok := response.(*messages.Encrypted); ok && encrypted.SessionID != m.GetSessionID() {
 		return errors.New("incoming message belongs to a different session")
@@ -1587,6 +1606,9 @@ func (m *MTProto) readMsg(ctx context.Context) error {
 		m.Logger.Debug("decoding unknown object: %v", err)
 		return fmt.Errorf("incoming update: %w", err)
 	}
+	// Receiving valid traffic proves the connection works. Merely opening
+	// a socket must not reset the counter for peers that immediately close it.
+	m.connState.Attempts.Store(0)
 	return nil
 }
 
