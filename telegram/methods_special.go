@@ -121,3 +121,60 @@ func (c *Client) InvokeWithTakeout(takeoutID int64, query tl.Object) (tl.Object,
 
 	return data.(tl.Object), nil
 }
+
+// InvokeWithReCaptchaParams wraps a query with a token for a server-issued reCAPTCHA challenge.
+// invokeWithReCaptcha#adbb0f94 {X:Type} token:string query:!X = X;
+type InvokeWithReCaptchaParams struct {
+	Token string
+	Query tl.Object
+}
+
+func (*InvokeWithReCaptchaParams) CRC() uint32 {
+	return 0xadbb0f94
+}
+
+// InvokeWithReCaptcha invokes query with the supplied reCAPTCHA token.
+// The result retains the query's decoded type, including native bools and slices.
+func (c *Client) InvokeWithReCaptcha(token string, query tl.Object) (any, error) {
+	data, err := c.MakeRequest(context.Background(), &InvokeWithReCaptchaParams{
+		Token: token,
+		Query: query,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending InvokeWithReCaptcha: %w", err)
+	}
+	return data, nil
+}
+
+// InvokeWithGooglePlayIntegrityParams wraps a query with its Play Integrity challenge response.
+// invokeWithGooglePlayIntegrity#1df92984 {X:Type} nonce:string token:string query:!X = X;
+type InvokeWithGooglePlayIntegrityParams struct {
+	Nonce string
+	Token string
+	Query tl.Object
+}
+
+func (*InvokeWithGooglePlayIntegrityParams) CRC() uint32 {
+	return 0x1df92984
+}
+
+// InvokeWithGooglePlayIntegrity invokes query with the exact server nonce and its token.
+// The result retains the query's decoded type, including native bools and slices.
+func (c *Client) InvokeWithGooglePlayIntegrity(nonce, token string, query tl.Object) (any, error) {
+	data, err := c.MakeRequest(context.Background(), &InvokeWithGooglePlayIntegrityParams{
+		Nonce: nonce,
+		Token: token,
+		Query: query,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("sending InvokeWithGooglePlayIntegrity: %w", err)
+	}
+	return data, nil
+}
+
+func init() {
+	tl.RegisterObjects(
+		&InvokeWithReCaptchaParams{},
+		&InvokeWithGooglePlayIntegrityParams{},
+	)
+}
