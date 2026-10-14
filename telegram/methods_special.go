@@ -9,6 +9,9 @@ import (
 	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 )
 
+// TLObject is a Telegram request or value that can be encoded in TL.
+type TLObject = tl.Object
+
 //invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
 //invokeAfterMsgs#3dc4b4f0 {X:Type} msg_ids:Vector<long> query:!X = X;
 

@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amarnathcjd/gogram/internal/encoding/tl"
 	"github.com/amarnathcjd/gogram/telegram"
 	"github.com/quic-go/quic-go/http3"
 )
@@ -122,7 +121,7 @@ func run() error {
 	if err := client.Connect(); err != nil {
 		return err
 	}
-	call := func(q tl.Object) (any, error) {
+	call := func(q telegram.TLObject) (any, error) {
 		pending := q
 		usedCaptcha, usedIntegrity := false, false
 		for range 6 {
@@ -318,7 +317,7 @@ func run() error {
 	return errors.New("too many login steps")
 }
 
-func invoke(client *telegram.Client, request tl.Object) (any, error) {
+func invoke(client *telegram.Client, request telegram.TLObject) (any, error) {
 	switch q := request.(type) {
 	case *telegram.AuthSendCodeParams:
 		return client.AuthSendCode(q.PhoneNumber, q.APIID, q.APIHash, q.Settings)
@@ -345,7 +344,7 @@ func invoke(client *telegram.Client, request tl.Object) (any, error) {
 	}
 }
 
-func setupEmail(phone, hash string, call func(tl.Object) (any, error), read func(string, ...bool) (string, error), out io.Writer) (telegram.AuthSentCode, error) {
+func setupEmail(phone, hash string, call func(telegram.TLObject) (any, error), read func(string, ...bool) (string, error), out io.Writer) (telegram.AuthSentCode, error) {
 	purpose := &telegram.EmailVerifyPurposeLoginSetup{
 		PhoneNumber:   phone,
 		PhoneCodeHash: hash,
@@ -414,7 +413,7 @@ func setupEmail(phone, hash string, call func(tl.Object) (any, error), read func
 var errSignupCanceled = errors.New("account creation canceled")
 
 func signUp(phone, hash string, signup *telegram.AuthAuthorizationSignUpRequired,
-	call func(tl.Object) (any, error), read func(string, ...bool) (string, error), out io.Writer,
+	call func(telegram.TLObject) (any, error), read func(string, ...bool) (string, error), out io.Writer,
 ) (*telegram.AuthAuthorizationObj, error) {
 	if phone == "" || hash == "" {
 		return nil, errors.New("signup requires the verified phone number and phone_code_hash")
